@@ -10,14 +10,6 @@
 #include <inttypes.h>
 #include <assert.h>
 
-enum
-{
-  CYCLE_INIT,
-  CYCLE_BLOCK,
-  CYCLE_UNBLOCK,
-  CYCLE_ACK
-};
-
 typedef struct init_msg_t
 {
   pony_msg_t msg;
@@ -154,10 +146,6 @@ typedef struct detector_t
   viewmap_t deferred;
   perceivedmap_t perceived;
 
-  size_t block_msgs;
-  size_t unblock_msgs;
-  size_t conf_msgs;
-  size_t ack_msgs;
   size_t attempted;
   size_t detected;
   size_t collected;
@@ -437,7 +425,6 @@ static void send_conf(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
       break;
   }
 
-  d->conf_msgs += count;
   per->last_conf = i;
 }
 
@@ -742,36 +729,23 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
   switch(msg->id)
   {
-    case CYCLE_INIT:
-    {
-      init_msg_t* m = (init_msg_t*)msg;
-      d->min_deferred = 1ULL << m->min_deferred;
-      d->max_deferred = 1ULL << m->max_deferred;
-      d->conf_group = 1ULL << m->conf_group;
-      d->next_deferred = d->min_deferred;
-      break;
-    }
-
-    case CYCLE_BLOCK:
+    case ACTORMSG_BLOCK:
     {
       block_msg_t* m = (block_msg_t*)msg;
-      d->block_msgs++;
       block(ctx, d, m->actor, m->rc, m->delta);
       break;
     }
 
-    case CYCLE_UNBLOCK:
+    case ACTORMSG_UNBLOCK:
     {
       pony_msgp_t* m = (pony_msgp_t*)msg;
-      d->unblock_msgs++;
       unblock(d, (pony_actor_t*)m->p);
       break;
     }
 
-    case CYCLE_ACK:
+    case ACTORMSG_ACK:
     {
       pony_msgi_t* m = (pony_msgi_t*)msg;
-      d->ack_msgs++;
       ack(ctx, d, m->i);
       break;
     }
@@ -820,20 +794,17 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
   cycle_detector = pony_create(ctx, &cycle_type);
   actor_setsystem(cycle_detector);
 
-  init_msg_t* m = (init_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(init_msg_t)), CYCLE_INIT);
-
-  m->min_deferred = min_deferred;
-  m->max_deferred = max_deferred;
-  m->conf_group = conf_group;
-
-  pony_sendv(ctx, cycle_detector, &m->msg);
+  detector_t* d = (detector_t*)cycle_detector;
+  d->min_deferred = 1ULL << min_deferred;
+  d->max_deferred = 1ULL << max_deferred;
+  d->conf_group = 1ULL << conf_group;
+  d->next_deferred = min_deferred;
 }
 
 void cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
 {
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(block_msg_t)), CYCLE_BLOCK);
+    POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
   m->actor = actor;
   m->rc = gc_rc(gc);
@@ -844,12 +815,12 @@ void cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
 
 void cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  pony_sendp(ctx, cycle_detector, CYCLE_UNBLOCK, actor);
+  pony_sendp(ctx, cycle_detector, ACTORMSG_UNBLOCK, actor);
 }
 
 void cycle_ack(pony_ctx_t* ctx, size_t token)
 {
-  pony_sendi(ctx, cycle_detector, CYCLE_ACK, token);
+  pony_sendi(ctx, cycle_detector, ACTORMSG_ACK, token);
 }
 
 void cycle_terminate(pony_ctx_t* ctx)

@@ -75,7 +75,7 @@ void pagemap_set(const void* m, void* v)
       memset(p, 0, level[i].size);
       void** prev = NULL;
 
-      if(!_atomic_cas_strong(pv, &prev, p))
+      if(!_atomic_cas(pv, &prev, p))
       {
         pool_free(level[i].size_index, p);
       }

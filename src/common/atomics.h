@@ -45,16 +45,16 @@
 #define _atomic_exchange(PTR, VAL) \
   __c11_atomic_exchange(PTR, VAL, __ATOMIC_RELAXED)
 
-#define _atomic_cas_strong(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL) \
   __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, \
-    __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)
+    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
-#define _atomic_dwcas_weak(PTR, EXPP, VAL) \
-  __c11_atomic_compare_exchange_weak(PTR, EXPP, VAL, \
+#define _atomic_dwcas(PTR, EXPP, VAL) \
+  __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, \
     __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
 #define _atomic_add(PTR, VAL) \
-  ((void)__c11_atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
+  (__c11_atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
 
 #endif
 
@@ -69,16 +69,16 @@
 #define _atomic_exchange(PTR, VAL) \
   __atomic_exchange_n(PTR, VAL, __ATOMIC_RELAXED)
 
-#define _atomic_cas_strong(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL) \
   __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, \
-    __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)
+    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
-#define _atomic_dwcas_weak(PTR, EXPP, VAL) \
-  __atomic_compare_exchange_n(PTR, EXPP, VAL, 1, \
+#define _atomic_dwcas(PTR, EXPP, VAL) \
+  __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, \
     __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
 #define _atomic_add(PTR, VAL) \
-  ((void)__atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
+  (__atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
 
 #endif
 
@@ -93,16 +93,16 @@
 #define _atomic_exchange(PTR, VAL) \
   __sync_lock_test_and_set(PTR, VAL);
 
-#define _atomic_cas_strong(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL) \
   (*(EXPP) == \
     (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
 
-#define _atomic_dwcas_weak(PTR, EXPP, VAL) \
+#define _atomic_dwcas(PTR, EXPP, VAL) \
   (*(EXPP) == \
     (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
 
 #define _atomic_add(PTR, VAL) \
-  ((void)__sync_fetch_and_add(PTR, VAL))
+  (__sync_fetch_and_add(PTR, VAL))
 
 #endif
 
@@ -121,18 +121,18 @@
 #define _atomic_exchange(PTR, VAL) \
   (_InterlockedExchangePointer((PVOID volatile*)PTR, VAL))
 
-#define _atomic_cas_strong(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL) \
   (*(EXPP) == \
     (*((PVOID*)(EXPP)) = \
       _InterlockedCompareExchangePointer( \
         (PVOID volatile*)PTR, VAL, *(EXPP))))
 
-#define _atomic_dwcas_weak(PTR, EXPP, VAL) \
+#define _atomic_dwcas(PTR, EXPP, VAL) \
   (_InterlockedCompareExchange128( \
     (LONGLONG volatile*)PTR, VAL.high, VAL.low, (LONGLONG*)EXPP))
 
 #define _atomic_add(PTR, VAL) \
-  ((void)InterlockedAdd64((LONGLONG volatile*)PTR, VAL))
+  (InterlockedAdd64((LONGLONG volatile*)PTR, VAL) - VAL)
 
 #endif
 

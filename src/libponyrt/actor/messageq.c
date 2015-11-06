@@ -64,5 +64,5 @@ bool messageq_markempty(messageq_t* q)
 
   head = (pony_msg_t*)((uintptr_t)head | 1);
 
-  return _atomic_cas_strong(&q->head, &tail, head);
+  return _atomic_cas(&q->head, &tail, head);
 }

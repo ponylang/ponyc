@@ -70,7 +70,7 @@ void* mpmcq_pop(mpmcq_t* q)
     // fails, cmp becomes the new tail and we retry the loop.
     xchg.aba = cmp.aba + 1;
     xchg.node = next;
-  } while(!_atomic_dwcas_weak(&q->tail.dw, &cmp.dw, xchg.dw));
+  } while(!_atomic_dwcas(&q->tail.dw, &cmp.dw, xchg.dw));
 
   // We'll return the data pointer from the next node.
   void* data = _atomic_load(&next->data);

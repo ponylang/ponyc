@@ -2,15 +2,6 @@
 #include "../mem/pool.h"
 #include <assert.h>
 
-#define STACK_COUNT 62
-
-struct Stack
-{
-  int index;
-  void* data[STACK_COUNT];
-  struct Stack* prev;
-};
-
 static Stack* stack_new(Stack* prev, void* data)
 {
   Stack* stack = (Stack*)POOL_ALLOC(Stack);

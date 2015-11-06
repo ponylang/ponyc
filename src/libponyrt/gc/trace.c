@@ -9,6 +9,10 @@ void pony_gc_send(pony_ctx_t* ctx)
   assert(ctx->stack == NULL);
   ctx->trace_object = gc_sendobject;
   ctx->trace_actor = gc_sendactor;
+
+#ifdef USE_TELEMETRY
+  ctx->tsc = __pony_rdtsc();
+#endif
 }
 
 void pony_gc_recv(pony_ctx_t* ctx)
@@ -16,6 +20,10 @@ void pony_gc_recv(pony_ctx_t* ctx)
   assert(ctx->stack == NULL);
   ctx->trace_object = gc_recvobject;
   ctx->trace_actor = gc_recvactor;
+
+#ifdef USE_TELEMETRY
+  ctx->tsc = __pony_rdtsc();
+#endif
 }
 
 void pony_gc_mark(pony_ctx_t* ctx)
@@ -30,12 +38,20 @@ void pony_send_done(pony_ctx_t* ctx)
   gc_handlestack(ctx);
   gc_sendacquire(ctx);
   gc_done(actor_gc(ctx->current));
+
+#ifdef USE_TELEMETRY
+  ctx->time_in_send_scan += (__pony_rdtsc() - ctx->tsc);
+#endif
 }
 
 void pony_recv_done(pony_ctx_t* ctx)
 {
   gc_handlestack(ctx);
   gc_done(actor_gc(ctx->current));
+
+#ifdef USE_TELEMETRY
+  ctx->time_in_recv_scan += (__pony_rdtsc() - ctx->tsc);
+#endif
 }
 
 void pony_trace(pony_ctx_t* ctx, void* p)
