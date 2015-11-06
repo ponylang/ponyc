@@ -39,12 +39,12 @@ actor Spreader
       match (_parent, _env)
       | (var p: Spreader, _) =>
         p.result(_result + 1)
-      | (var p: None, var e: Env) =>
+      | (None, var e: Env) =>
         e.out.print((_result + 1).string() + " actors")
       end
     end
 
-  fun ref spawn_child() =>
+  fun spawn_child() =>
     Spreader.spread(this, _count - 1)
 
 actor Main

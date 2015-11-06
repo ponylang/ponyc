@@ -3,6 +3,7 @@
 #include "../pkg/package.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
@@ -69,11 +70,10 @@ static bool has_member(ast_t* members, const char* name)
 static void add_default_constructor(ast_t* ast)
 {
   assert(ast != NULL);
-
   ast_t* members = ast_childidx(ast, 4);
 
-  // If we have no uninitialised fields, no constructors, and no "create"
-  // member, add a "create" constructor.
+  // If we have no constructors and no "create" member, add a "create"
+  // constructor.
   if(has_member(members, "create"))
     return;
 
@@ -83,18 +83,6 @@ static void add_default_constructor(ast_t* ast)
   {
     switch(ast_id(member))
     {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        ast_t* init = ast_childidx(member, 2);
-
-        if(ast_id(init) == TK_NONE)
-          return;
-
-        break;
-      }
-
       case TK_NEW:
         return;
 
@@ -617,14 +605,20 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, provides, members);
+  ast_result_t r = AST_OK;
+
+  AST_GET_CHILDREN(ast, cap, provides, members);
   ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
+
+  ast_t* t_params;
+  ast_t* t_args;
+  collect_type_params(ast, &t_params, &t_args);
 
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_CLASS, AST_SCOPE
       TREE(c_id)
-      NONE
+      TREE(t_params)
       NONE
       TREE(provides)
       NODE(TK_MEMBERS)
@@ -643,12 +637,25 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NODE(TK_SEQ)
       NONE));
 
+  BUILD(type_ref, ast, NODE(TK_REFERENCE, TREE(c_id)));
+
+  if(ast_id(t_args) != TK_NONE)
+  {
+    // Need to add type args to our type reference
+    BUILD(t, ast, NODE(TK_QUALIFY, TREE(type_ref) TREE(t_args)));
+    type_ref = t;
+  }
+
+  ast_free_unattached(t_args);
+
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
       NONE
       NONE
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
+      NODE(TK_DOT,
+        TREE(type_ref)
+        ID("create"))));
 
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);
@@ -685,6 +692,11 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
             TREE(type)
             NONE));
 
+        // The arg is: $seq init
+        BUILD(arg, init,
+          NODE(TK_SEQ,
+            TREE(init)));
+
         // The body of create contains: id = consume $0
         BUILD_NO_DEBUG(assign, init,
           NODE(TK_ASSIGN,
@@ -697,7 +709,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         ast_append(class_members, field);
         ast_append(create_params, param);
         ast_append(create_body, assign);
-        ast_append(call_args, init);
+        ast_append(call_args, arg);
 
         has_fields = true;
         break;
@@ -720,56 +732,57 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 
   if(!has_fields)
   {
-    // Change the type from a class to a primitive.
-    ast_setid(def, TK_PRIMITIVE);
-
     // End the constructor with 'true', since it has no parameters.
     BUILD_NO_DEBUG(true_node, ast, NODE(TK_TRUE));
     ast_append(create_body, true_node);
   }
 
+  // Handle capability and whether the anonymous type is a class, primitive or
+  // actor.
+  token_id cap_id = ast_id(cap);
+
   if(has_behaviours)
   {
     // Change the type to an actor.
     ast_setid(def, TK_ACTOR);
+
+    if(cap_id != TK_NONE && cap_id != TK_TAG)
+    {
+      ast_error(cap, "object literals with behaviours are actors and so must "
+        "have tag capability");
+      r = AST_ERROR;
+    }
+  }
+  else if(!has_fields && (cap_id == TK_NONE || cap_id == TK_TAG ||
+    cap_id == TK_BOX || cap_id == TK_VAL))
+  {
+    // Change the type from a class to a primitive.
+    ast_setid(def, TK_PRIMITIVE);
+  }
+  else
+  {
+    // Type is a class, set the create capability as specified
+    ast_setid(ast_child(create), cap_id);
   }
 
   // Add the create function at the end.
   ast_append(class_members, create);
 
-  // Add the new type to the current module.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
-
   // Replace object..end with $0.create(...)
   ast_replace(astp, call);
 
+  // Add new type to current module and bring it up to date with passes.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  if(!ast_passes_type(&def, opt))
+    return AST_FATAL;
+
   // Sugar the call.
-  return ast_visit(astp, pass_sugar, NULL, opt);
-}
+  if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
+    return AST_FATAL;
 
-
-static ast_result_t sugar_lambda(pass_opt_t* opt, ast_t** astp)
-{
-  AST_EXTRACT_CHILDREN(*astp, type_params, params, ret_type, error, body);
-
-  // Create object literal
-  REPLACE(astp,
-    NODE(TK_OBJECT,
-      NONE  // is types
-      NODE(TK_MEMBERS,
-      NODE(TK_FUN, AST_SCOPE
-          NONE  // capability
-          ID("apply")
-          TREE(type_params)
-          TREE(params)
-          TREE(ret_type)
-          TREE(error)
-          TREE(body)
-          NONE  // docstring
-          ))));
-
-  return sugar_object(opt, astp);
+  return r;
 }
 
 
@@ -865,7 +878,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
           TREE(body)))
       NODE(TK_SEQ, AST_SCOPE NODE(TK_ERROR, NONE))));
 
-  return ast_visit(astp, pass_sugar, NULL, opt);
+  return ast_visit(astp, pass_sugar, NULL, opt, PASS_SUGAR);
 }
 
 
@@ -1004,7 +1017,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);
-    case TK_LAMBDA:     return sugar_lambda(options, astp);
     case TK_AS:         return sugar_as(options, astp);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");

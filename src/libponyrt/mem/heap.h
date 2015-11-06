@@ -1,16 +1,19 @@
 #ifndef mem_heap_h
 #define mem_heap_h
 
-#include <pony.h>
+#include "pool.h"
+#include "../pony.h"
 #include <platform.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 PONY_EXTERN_C_BEGIN
 
-#define HEAP_MINBITS 6
-#define HEAP_MAXBITS 11
+#define HEAP_MINBITS 5
+#define HEAP_MAXBITS (POOL_ALIGN_BITS - 1)
 #define HEAP_SIZECLASSES (HEAP_MAXBITS - HEAP_MINBITS + 1)
+#define HEAP_MIN (1 << HEAP_MINBITS)
+#define HEAP_MAX (1 << HEAP_MAXBITS)
 
 typedef struct chunk_t chunk_t;
 
@@ -24,6 +27,8 @@ typedef struct heap_t
   size_t next_gc;
 } heap_t;
 
+uint32_t heap_index(size_t size);
+
 void heap_setinitialgc(size_t size);
 
 void heap_setnextgcfactor(double factor);
@@ -34,6 +39,15 @@ void heap_destroy(heap_t* heap);
 
 __pony_spec_malloc__(
   void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+  );
+
+__pony_spec_malloc__(
+void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
+  uint32_t sizeclass)
+  );
+
+__pony_spec_malloc__(
+void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   );
 
 void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size);

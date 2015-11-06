@@ -1,5 +1,6 @@
 #include "pass.h"
 #include "../ast/parser.h"
+#include "../ast/treecheck.h"
 #include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
@@ -128,21 +129,37 @@ static bool check_limit(ast_t** astp, pass_opt_t* options, pass_id pass,
   if(last_pass < pass || options->limit < pass)
     return false;
 
-  if(ast_id(*astp) == TK_PROGRAM) // Record pass program AST has reached
+  if(ast_id(*astp) == TK_PROGRAM) // Update pass for catching up to
     options->program_pass = pass;
 
   return true;
 }
 
 
-// Perform an ast_visit pass, after checking the pass limits
+// Perform an ast_visit pass, after checking the pass limits.
+// Returns true to continue, false to stop processing and return the value in
+// out_r.
 static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
-  pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
+  bool* out_r, pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
 {
-  if(!check_limit(astp, options, pass, last_pass))
-    return true;
+  assert(out_r != NULL);
 
-  return ast_visit(astp, pre_fn, post_fn, options) == AST_OK;
+  if(!check_limit(astp, options, pass, last_pass))
+  {
+    *out_r = true;
+    return false;
+  }
+
+  //printf("Pass %s (last %s) on %s\n", pass_name(pass), pass_name(last_pass),
+  //  ast_get_print(*astp));
+
+  if(ast_visit(astp, pre_fn, post_fn, options, pass) != AST_OK)
+  {
+    *out_r = false;
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -155,7 +172,12 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
     return true;
 
   ast_t* module = ast_child(package);
-  return ast_visit(&module, pass_syntax, NULL, options) == AST_OK;
+
+  if(ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) != AST_OK)
+    return false;
+
+  check_tree(module);
+  return true;
 }
 
 
@@ -163,39 +185,41 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 {
   assert(astp != NULL);
+  bool r;
 
-  if(!visit_pass(astp, options, last, PASS_SUGAR, pass_sugar, NULL))
+  if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_IMPORT, pass_import, NULL))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_NAME_RESOLUTION, NULL,
+    pass_names))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, NULL, pass_flatten))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_TRAITS, pass_traits, NULL))
+    return r;
+
+  if(!check_limit(astp, options, PASS_DOCS, last))
+    return true;
+
+  if(options->docs && ast_id(*astp) == TK_PROGRAM)
+    generate_docs(*astp, options);
+
+  if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
+    return r;
+
+  if(!check_limit(astp, options, PASS_FINALISER, last))
+    return true;
+
+  if(!pass_finalisers(*astp))
     return false;
-
-  if(!visit_pass(astp, options, last, PASS_SCOPE, pass_scope, NULL))
-    return false;
-
-  if(!visit_pass(astp, options, last, PASS_IMPORT, pass_import, NULL))
-    return false;
-
-  if(!visit_pass(astp, options, last, PASS_NAME_RESOLUTION, NULL, pass_names))
-    return false;
-
-  if(!visit_pass(astp, options, last, PASS_FLATTEN, NULL, pass_flatten))
-    return false;
-
-  if(!visit_pass(astp, options, last, PASS_TRAITS, pass_traits, NULL))
-    return false;
-
-  if(check_limit(astp, options, PASS_DOCS, last))
-  {
-    if(options->docs && ast_id(*astp) == TK_PROGRAM)
-      generate_docs(*astp, options);
-  }
-
-  if(!visit_pass(astp, options, last, PASS_EXPR, pass_pre_expr, pass_expr))
-    return false;
-
-  if(check_limit(astp, options, PASS_FINALISER, last))
-  {
-    if(!pass_finalisers(*astp))
-      return false;
-  }
 
   return true;
 }
@@ -246,4 +270,127 @@ bool generate_passes(ast_t* program, pass_opt_t* options)
     return true;
 
   return codegen(program, options);
+}
+
+
+static void record_ast_pass(ast_t* ast, pass_id pass)
+{
+  assert(ast != NULL);
+
+  if(pass == PASS_ALL)
+    return;
+
+  ast_clearflag(ast, AST_FLAG_PASS_MASK);
+  ast_setflag(ast, (int)pass);
+}
+
+
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass)
+{
+  assert(ast != NULL);
+  assert(*ast != NULL);
+
+  pass_id ast_pass = (pass_id)ast_checkflag(*ast, AST_FLAG_PASS_MASK);
+
+  if(ast_pass >= pass)  // This pass already done for this AST node
+    return AST_OK;
+
+  if(ast_checkflag(*ast, AST_FLAG_PRESERVE))  // Do not process this subtree
+    return AST_OK;
+
+  typecheck_t* t = &options->check;
+  bool pop = frame_push(t, *ast);
+
+  ast_result_t ret = AST_OK;
+  bool ignore = false;
+
+  if(pre != NULL)
+  {
+    switch(pre(ast, options))
+    {
+      case AST_OK:
+        break;
+
+      case AST_IGNORE:
+        ignore = true;
+        break;
+
+      case AST_ERROR:
+        ret = AST_ERROR;
+        break;
+
+      case AST_FATAL:
+        record_ast_pass(*ast, pass);
+        return AST_FATAL;
+    }
+  }
+
+  if(!ignore && ((pre != NULL) || (post != NULL)))
+  {
+    ast_t* child = ast_child(*ast);
+
+    while(child != NULL)
+    {
+      switch(ast_visit(&child, pre, post, options, pass))
+      {
+        case AST_OK:
+          break;
+
+        case AST_IGNORE:
+          // Can never happen
+          assert(0);
+          break;
+
+        case AST_ERROR:
+          ret = AST_ERROR;
+          break;
+
+        case AST_FATAL:
+          record_ast_pass(*ast, pass);
+          return AST_FATAL;
+      }
+
+      child = ast_sibling(child);
+    }
+  }
+
+  if(!ignore && post != NULL)
+  {
+    switch(post(ast, options))
+    {
+      case AST_OK:
+      case AST_IGNORE:
+        break;
+
+      case AST_ERROR:
+        ret = AST_ERROR;
+        break;
+
+      case AST_FATAL:
+        record_ast_pass(*ast, pass);
+        return AST_FATAL;
+    }
+  }
+
+  if(pop)
+    frame_pop(t);
+
+  record_ast_pass(*ast, pass);
+  return ret;
+}
+
+
+ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass)
+{
+  typecheck_t* t = &options->check;
+  bool pop = frame_push(t, NULL);
+
+  ast_result_t ret = ast_visit(ast, pre, post, options, pass);
+
+  if(pop)
+    frame_pop(t);
+
+  return ret;
 }

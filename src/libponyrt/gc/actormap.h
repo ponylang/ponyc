@@ -40,7 +40,8 @@ actorref_t* actormap_getactor(actormap_t* map, pony_actor_t* actor);
 actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark);
 
-deltamap_t* actormap_sweep(actormap_t* map, uint32_t mark, deltamap_t* delta);
+deltamap_t* actormap_sweep(pony_ctx_t* ctx, actormap_t* map, uint32_t mark,
+  deltamap_t* delta);
 
 PONY_EXTERN_C_END
 

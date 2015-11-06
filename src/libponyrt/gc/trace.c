@@ -1,87 +1,78 @@
 #include "trace.h"
 #include "gc.h"
+#include "../sched/scheduler.h"
 #include "../actor/actor.h"
+#include <assert.h>
 
-typedef void (*trace_object_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f);
-
-typedef void (*trace_actor_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  pony_actor_t* actor);
-
-static __pony_thread_local trace_object_fn trace_object;
-static __pony_thread_local trace_actor_fn trace_actor;
-
-void pony_gc_send()
+void pony_gc_send(pony_ctx_t* ctx)
 {
-  trace_object = gc_sendobject;
-  trace_actor = gc_sendactor;
+  assert(ctx->stack == NULL);
+  ctx->trace_object = gc_sendobject;
+  ctx->trace_actor = gc_sendactor;
 }
 
-void pony_gc_recv()
+void pony_gc_recv(pony_ctx_t* ctx)
 {
-  trace_object = gc_recvobject;
-  trace_actor = gc_recvactor;
+  assert(ctx->stack == NULL);
+  ctx->trace_object = gc_recvobject;
+  ctx->trace_actor = gc_recvactor;
 }
 
-void pony_gc_mark()
+void pony_gc_mark(pony_ctx_t* ctx)
 {
-  trace_object = gc_markobject;
-  trace_actor = gc_markactor;
+  assert(ctx->stack == NULL);
+  ctx->trace_object = gc_markobject;
+  ctx->trace_actor = gc_markactor;
 }
 
-void pony_send_done()
+void pony_send_done(pony_ctx_t* ctx)
 {
-  pony_actor_t* actor = actor_current();
-  gc_handlestack();
-  gc_sendacquire();
-  gc_done(actor_gc(actor));
+  gc_handlestack(ctx);
+  gc_sendacquire(ctx);
+  gc_done(actor_gc(ctx->current));
 }
 
-void pony_recv_done()
+void pony_recv_done(pony_ctx_t* ctx)
 {
-  pony_actor_t* actor = actor_current();
-  gc_handlestack();
-  gc_done(actor_gc(actor));
+  gc_handlestack(ctx);
+  gc_done(actor_gc(ctx->current));
 }
 
-void pony_trace(void* p)
+void pony_trace(pony_ctx_t* ctx, void* p)
 {
-  pony_actor_t* actor = actor_current();
-  trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
+  ctx->trace_object(ctx, p, NULL);
 }
 
-void pony_traceactor(pony_actor_t* p)
+void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
 {
-  pony_actor_t* actor = actor_current();
-  trace_actor(actor, actor_heap(actor), actor_gc(actor), p);
+  ctx->trace_actor(ctx, p);
 }
 
-void pony_traceobject(void* p, pony_trace_fn f)
+void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f)
 {
-  pony_actor_t* actor = actor_current();
-  trace_object(actor, actor_heap(actor), actor_gc(actor), p, f);
+  ctx->trace_object(ctx, p, f);
 }
 
-void pony_traceunknown(void* p)
+void pony_traceunknown(pony_ctx_t* ctx, void* p)
 {
-  pony_actor_t* actor = actor_current();
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
   {
-    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
+    ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, type->trace);
+    ctx->trace_object(ctx, p, type->trace);
   }
 }
 
-void pony_trace_tag_or_actor(void* p)
+void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p)
 {
-  pony_actor_t* actor = actor_current();
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
-    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
-  else
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
+  {
+    ctx->trace_actor(ctx, (pony_actor_t*)p);
+  } else {
+    ctx->trace_object(ctx, p, NULL);
+  }
 }

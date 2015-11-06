@@ -27,7 +27,6 @@ typedef struct gentype_t
   LLVMValueRef instance;
 
   LLVMValueRef dispatch_fn;
-  LLVMValueRef dispatch_msg;
   LLVMValueRef dispatch_switch;
 } gentype_t;
 

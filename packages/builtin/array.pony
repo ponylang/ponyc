@@ -1,6 +1,6 @@
 class Array[A] is Seq[A]
   """
-  Contiguous memory to store elements of type A.
+  Contiguous, resizable memory to store elements of type A.
   """
   var _size: U64
   var _alloc: U64
@@ -29,7 +29,7 @@ class Array[A] is Seq[A]
       i = i + 1
     end
 
-  new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
+  new undefined[B: (A & Real[B] val & Number) = A](len: U64) =>
     """
     Create an array of len elements, populating them with random memory. This
     is only allowed for an array of numbers.
@@ -302,7 +302,7 @@ class Array[A] is Seq[A]
     """
     ArrayPairs[A, this->Array[A]](this)
 
-class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
+class ArrayKeys[A, B: Array[A] #read] is Iterator[U64]
   let _array: B
   var _i: U64
 
@@ -320,7 +320,7 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
       _i
     end
 
-class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
+class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   let _array: B
   var _i: U64
 
@@ -334,7 +334,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun ref next(): B->A ? =>
     _array(_i = _i + 1)
 
-class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
+class ArrayPairs[A, B: Array[A] #read] is Iterator[(U64, B->A)]
   let _array: B
   var _i: U64
 

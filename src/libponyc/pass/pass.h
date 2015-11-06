@@ -48,9 +48,7 @@ enable better error reporting.
 
 Expects Pony source file or string.
 
-The data fields of all AST nodes, other than TK_PROGRAM, TK_PACKAGE and
-TK_MODULE, are used as a set of flags for passing information to the syntax
-pass. These flags are defined in parser.h.
+Various AST flags are used to pass information to the syntax pass.
 
 
 * Syntax pass (module)
@@ -59,10 +57,7 @@ Checks for specific illegal syntax cases that the BNF allows. This allows for
 better error reporting. If this pass succeeds then the AST is fully
 syntactically correct.
 
-Expects extra information in the data fields of most AST nodes, as described in
-parse pass above.
-
-Does not change the AST, other than to clear the data field flags.
+Does not change the AST.
 
 
 * Sugar pass (AST)
@@ -148,14 +143,8 @@ creating actors or sending messages.
 
 Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
-
-TODO: I think there may be a bug here. We appear to check the flags of many
-nodes in a finaliser without necessarilly setting them first, ie we are
-assuming the flags are clear at the start of the pass. However, this may not be
-true depending on what previous passes have used the data field for.
-Andy
-
 */
+
 typedef enum pass_id
 {
   PASS_PARSE,
@@ -239,41 +228,30 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source);
  */
 bool ast_passes_program(ast_t* program, pass_opt_t* options);
 
-/** Catch up the given, newly created type definition sub-AST to whichever pass
- * the program is currently performing.
+/** Catch up the given newly created type definition sub-AST to whichever pass
+ * its containing package has reached.
  * Returns true on success, false on failure.
  *
- * Note that the insertion point considerations discussed for
- * ast_passes_subtree() also apply here. For this reason type definition
- * sub-ASTs should always be added to the start of the module, not appended to
- * the end of it.
+ * The current pass that types should be caught up to is stored in pass_opt_t.
+ * Due to the above assumptions we catch up type sub-ASTs by applying all
+ * passes BEFORE the stored value, not including it.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_type(ast_t** astp, pass_opt_t* options);
 
 /** Catch up the given sub-AST to the specified pass.
  * Returns true on success, false on failure.
  *
- * It is important to consider whether the given sub_AST will be processed
- * again during the current pass by the caller as this will affect the desired
- * last pass.
- *
- * For example:
- * Suppose that we apply the scope pass to some AST node A.
- * During the processing of A we create node B. We call this function to catch
- * B up to A and then carry on processing A.
- * Our original call to perform the scope pass then carries on to process the
- * rest of the AST accessible after A.
- * If B was inserted into the main AST at a point AFTER A then the current
- * scope application would eventually reach B and attempt to process it.
- * Therefore, when we caught up B we should only have brought it up to the pass
- * before scope (ie sugar).
- * However, if B was inserted into the main AST at a point BEFORE B then the
- * current scope application would not reach B. Therefore, when we caught up B
- * we should have brought it up to the scope pass.
- *
  * If the previous pass needs to be specified it is recommended to use
  * pass_prev() rather than hardcoding, as this will protect against any future
  * changes in the pass order.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
 
@@ -281,6 +259,20 @@ bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
  * Returns true on success, false on failure.
  */
 bool generate_passes(ast_t* program, pass_opt_t* options);
+
+
+typedef ast_result_t(*ast_visit_t)(ast_t** astp, pass_opt_t* options);
+
+/** Perform the specified pass on the given AST.
+ * The specified pass is stored in the AST and passes will not be repeated.
+ * To surpress this check, and execute the given pass regardless, specify the
+ * pass as PASS_ALL. No pass will be recorded in the AST in this case.
+ */
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass);
+
+ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass);
 
 
 PONY_EXTERN_C_END

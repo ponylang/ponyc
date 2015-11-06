@@ -8,7 +8,7 @@ actor Main is TestList
     test(_TestList)
     test(_TestRing)
 
-class _TestList iso is UnitTest
+class iso _TestList is UnitTest
   fun name(): String => "collections/List"
 
   fun apply(h: TestHelper): TestResult ? =>
@@ -23,11 +23,20 @@ class _TestList iso is UnitTest
 
     b.remove(1)
     h.expect_eq[U64](b.size(), 2)
+    h.expect_eq[U32](b(0), 0)
     h.expect_eq[U32](b(1), 2)
+
+    b.append_list(a)
+    h.expect_eq[U64](b.size(), 5)
+    h.expect_eq[U32](b(0), 0)
+    h.expect_eq[U32](b(1), 2)
+    h.expect_eq[U32](b(2), 0)
+    h.expect_eq[U32](b(3), 1)
+    h.expect_eq[U32](b(4), 2)
 
     true
 
-class _TestRing iso is UnitTest
+class iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
 
   fun apply(h: TestHelper): TestResult ? =>

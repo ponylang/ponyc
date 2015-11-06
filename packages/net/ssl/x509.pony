@@ -72,7 +72,8 @@ primitive X509
 
     while not name.is_null() do
       var ptype = I32(0)
-      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name, &ptype)
+      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name,
+        addressof ptype)
 
       match ptype
       | 2 => // GEN_DNS

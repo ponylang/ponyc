@@ -82,7 +82,7 @@ static const lextoken_t symbols[] =
   { ">", TK_GT },
 
   { "|", TK_PIPE },
-  { "&", TK_AMP },
+  { "&", TK_ISECTTYPE },
   { "^", TK_EPHEMERAL },
   { "!", TK_BORROWED },
 
@@ -160,6 +160,7 @@ static const lextoken_t keywords[] =
   { "xor", TK_XOR },
 
   { "identityof", TK_IDENTITY },
+  { "addressof", TK_ADDRESS },
 
   { "true", TK_TRUE },
   { "false", TK_FALSE },
@@ -183,7 +184,7 @@ static const lextoken_t abstract[] =
 
   { "provides", TK_PROVIDES },
   { "uniontype", TK_UNIONTYPE },
-  { "isecttype", TK_ISECTTYPE },
+  //{ "isecttype", TK_ISECTTYPE },  // Now treated as the symbol '&'
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
@@ -198,11 +199,11 @@ static const lextoken_t abstract[] =
   { "val", TK_VAL_BIND },
   { "box", TK_BOX_BIND },
   { "tag", TK_TAG_BIND },
-  { "any", TK_ANY_BIND },
 
-  { "boxgen", TK_BOX_GENERIC },
-  { "taggen", TK_TAG_GENERIC },
-  { "anygen", TK_ANY_GENERIC },
+  { "#read", TK_CAP_READ_BIND },
+  { "#send", TK_CAP_SEND_BIND },
+  { "#share", TK_CAP_SHARE_BIND },
+  { "#any", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },
@@ -217,6 +218,8 @@ static const lextoken_t abstract[] =
   { "namedargs", TK_NAMEDARGS },
   { "namedarg", TK_NAMEDARG },
   { "updatearg", TK_UPDATEARG },
+  { "lambdacaptures", TK_LAMBDACAPTURES },
+  { "lambdacapture", TK_LAMBDACAPTURE },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
@@ -258,6 +261,16 @@ static const lextoken_t test_keywords[] =
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
   { "$borrowed", TK_TEST_BORROWED },
   { "$updatearg", TK_TEST_UPDATEARG },
+
+  { NULL, (token_id)0 }
+};
+
+static const lextoken_t hash_keywords[] =
+{
+  { "#read", TK_CAP_READ },
+  { "#send", TK_CAP_SEND },
+  { "#share", TK_CAP_SHARE },
+  { "#any", TK_CAP_ANY },
 
   { NULL, (token_id)0 }
 };
@@ -314,8 +327,8 @@ static void append_to_token(lexer_t* lexer, char c)
 // Make a token with the specified ID and no token text
 static token_t* make_token(lexer_t* lexer, token_id id)
 {
-  token_t* t = token_new(id, lexer->source);
-  token_set_pos(t, lexer->token_line, lexer->token_pos);
+  token_t* t = token_new(id);
+  token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
   return t;
 }
 
@@ -1052,6 +1065,30 @@ static token_t* identifier(lexer_t* lexer)
 }
 
 
+// Process a hash identifier the leading # of which has been seen, but not
+// consumed
+static token_t* hash_identifier(lexer_t* lexer)
+{
+  // # already found, find rest of symbol.
+  // Only consume the remaining characters if we have a match.
+  consume_chars(lexer, 1);
+  append_to_token(lexer, '#');
+  size_t len = read_id(lexer);
+
+  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
+  {
+    if(!strcmp(lexer->buffer, p->text))
+    {
+      consume_chars(lexer, len);
+      return make_token(lexer, p->id);
+    }
+  }
+
+  lex_error(lexer, "Unrecognized character: #");
+  return make_token(lexer, TK_LEX_ERROR);
+}
+
+
 // Process a test identifier the leading $ of which has been seen, but not
 // consumed
 static token_t* test_identifier(lexer_t* lexer)
@@ -1195,6 +1232,10 @@ token_t* lexer_next(lexer_t* lexer)
         t = character(lexer);
         break;
 
+      case '#':
+        t = hash_identifier(lexer);
+        break;
+
       case '$':
         t = test_identifier(lexer);
         break;
@@ -1235,6 +1276,12 @@ const char* lexer_print(token_id id)
   }
 
   for(const lextoken_t* p = symbols; p->text != NULL; p++)
+  {
+    if(id == p->id)
+      return p->text;
+  }
+
+  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
   {
     if(id == p->id)
       return p->text;

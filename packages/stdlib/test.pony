@@ -34,6 +34,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests for the builtin package.
+    test(_TestAbs)
     test(_TestStringRunes)
     test(_TestIntToString)
     test(_TestStringToU8)
@@ -57,8 +58,50 @@ actor Main is TestList
     options.Main.make().tests(test)
     json.Main.make().tests(test)
 
+class iso _TestAbs is UnitTest
+  """
+  Test abs function
+  """
+  fun name(): String => "builtin/Int.abs"
 
-class _TestStringRunes iso is UnitTest
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[U8](128, I8(-128).abs())
+    h.expect_eq[U8](3,   I8(-3).abs())
+    h.expect_eq[U8](14,  I8(14).abs())
+    h.expect_eq[U8](0,   I8(0).abs())
+
+    h.expect_eq[U16](128,   I16(-128).abs())
+    h.expect_eq[U16](32768, I16(-32768).abs())
+    h.expect_eq[U16](3,     I16(-3).abs())
+    h.expect_eq[U16](27,    I16(-27).abs())
+    h.expect_eq[U16](0,     I16(0).abs())
+
+    h.expect_eq[U32](128,        I32(-128).abs())
+    h.expect_eq[U32](32768,      I32(-32768).abs())
+    h.expect_eq[U32](2147483648, I32(-2147483648).abs())
+    h.expect_eq[U32](3,          I32(-3).abs())
+    h.expect_eq[U32](124,        I32(-124).abs())
+    h.expect_eq[U32](0,          I32(0).abs())
+
+    h.expect_eq[U64](128,        I64(-128).abs())
+    h.expect_eq[U64](32768,      I64(-32768).abs())
+    h.expect_eq[U64](2147483648, I64(-2147483648).abs())
+    h.expect_eq[U64](128,        I64(-128).abs())
+    h.expect_eq[U64](3,          I64(-3).abs())
+    h.expect_eq[U64](124,        I64(-124).abs())
+    h.expect_eq[U64](0,          I64(0).abs())
+
+    h.expect_eq[U128](128,        I128(-128).abs())
+    h.expect_eq[U128](32768,      I128(-32768).abs())
+    h.expect_eq[U128](2147483648, I128(-2147483648).abs())
+    h.expect_eq[U128](128,        I128(-128).abs())
+    h.expect_eq[U128](3,          I128(-3).abs())
+    h.expect_eq[U128](124,        I128(-124).abs())
+    h.expect_eq[U128](0,          I128(0).abs())
+
+    true
+
+class iso _TestStringRunes is UnitTest
   """
   Test iterating over the unicode codepoints in a string.
   """
@@ -82,7 +125,7 @@ class _TestStringRunes iso is UnitTest
     true
 
 
-class _TestIntToString iso is UnitTest
+class iso _TestIntToString is UnitTest
   """
   Test converting integers to strings.
   """
@@ -99,7 +142,7 @@ class _TestIntToString iso is UnitTest
     true
 
 
-class _TestStringToU8 iso is UnitTest
+class iso _TestStringToU8 is UnitTest
   """
   Test converting strings to U8s.
   """
@@ -131,7 +174,7 @@ class _TestStringToU8 iso is UnitTest
     true
 
 
-class _TestStringToI8 iso is UnitTest
+class iso _TestStringToI8 is UnitTest
   """
   Test converting strings to I8s.
   """
@@ -164,7 +207,7 @@ class _TestStringToI8 iso is UnitTest
     true
 
 
-class _TestStringToIntLarge iso is UnitTest
+class iso _TestStringToIntLarge is UnitTest
   """
   Test converting strings to I* and U* types bigger than 8 bit.
   """
@@ -215,7 +258,7 @@ class _TestStringToIntLarge iso is UnitTest
 
     true
 
-class _TestStringLstrip iso is UnitTest
+class iso _TestStringLstrip is UnitTest
   """
   Test stripping leading characters from a string.
   """
@@ -229,7 +272,7 @@ class _TestStringLstrip iso is UnitTest
 
     true
 
-class _TestStringRstrip iso is UnitTest
+class iso _TestStringRstrip is UnitTest
   """
   Test stripping trailing characters from a string.
   """
@@ -243,7 +286,7 @@ class _TestStringRstrip iso is UnitTest
 
     true
 
-class _TestStringStrip iso is UnitTest
+class iso _TestStringStrip is UnitTest
   """
   Test stripping leading and trailing characters from a string.
   """
@@ -258,7 +301,7 @@ class _TestStringStrip iso is UnitTest
 
     true
 
-class _TestStringRemove iso is UnitTest
+class iso _TestStringRemove is UnitTest
   """
   Test removing characters from a string (independent of leading or trailing).
   """
@@ -287,7 +330,7 @@ class _TestStringRemove iso is UnitTest
 
     true
 
-class _TestSpecialValuesF32 iso is UnitTest
+class iso _TestSpecialValuesF32 is UnitTest
   """
   Test whether a F32 is infinite or NaN.
   """
@@ -317,7 +360,7 @@ class _TestSpecialValuesF32 iso is UnitTest
     true
 
 
-class _TestSpecialValuesF64 iso is UnitTest
+class iso _TestSpecialValuesF64 is UnitTest
   """
   Test whether a F64 is infinite or NaN.
   """
@@ -346,7 +389,7 @@ class _TestSpecialValuesF64 iso is UnitTest
 
     true
 
-class _TestStringReplace iso is UnitTest
+class iso _TestStringReplace is UnitTest
   """
   Test String.replace
   """
@@ -358,7 +401,7 @@ class _TestStringReplace iso is UnitTest
     h.expect_eq[String box](s, "this is not a robbery, this is not a stickup")
     true
 
-class _TestStringSplit iso is UnitTest
+class iso _TestStringSplit is UnitTest
   """
   Test String.split
   """
@@ -385,7 +428,7 @@ class _TestStringSplit iso is UnitTest
       false
     end
 
-class _TestStringCompare iso is UnitTest
+class iso _TestStringCompare is UnitTest
   """
   Test comparing strings.
   """

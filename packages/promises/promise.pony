@@ -1,6 +1,6 @@
 use "collections"
 
-actor Promise[A: Any tag]
+actor Promise[A: Any #share]
   """
   A promise to eventually produce a result of type A. This promise can either
   be fulfilled or rejected.
@@ -42,7 +42,7 @@ actor Promise[A: Any tag]
 
     _list.clear()
 
-  fun tag next[B: Any tag](fulfill: (Fulfill[A, B] | None) = None,
+  fun tag next[B: Any #share](fulfill: (Fulfill[A, B] | None) = None,
     rejected: (Reject[B] | None) = None): Promise[B]
   =>
     """

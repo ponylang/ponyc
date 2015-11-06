@@ -1,26 +1,27 @@
 use "collections"
+use "assert"
 
 primitive Base64
-  fun encode_pem(data: Bytes box): String iso^ =>
+  fun encode_pem(data: ByteSeq box): String iso^ =>
     """
     Encode for PEM (RFC 1421).
     """
     encode(data, '+', '/', '=', 64)
 
-  fun encode_mime(data: Bytes box): String iso^ =>
+  fun encode_mime(data: ByteSeq box): String iso^ =>
     """
     Encode for MIME (RFC 2045).
     """
     encode(data, '+', '/', '=', 76)
 
-  fun encode_url(data: Bytes box, pad: Bool = false): String iso^ =>
+  fun encode_url(data: ByteSeq box, pad: Bool = false): String iso^ =>
     """
     Encode for URLs (RFC 4648). Padding characters are stripped by default.
     """
     let c: U8 = if pad then '=' else 0 end
     encode(data, '-', '_', c)
 
-  fun encode[A: Seq[U8] iso = String iso](data: Bytes box, at62: U8 = '+',
+  fun encode[A: Seq[U8] iso = String iso](data: ByteSeq box, at62: U8 = '+',
     at63: U8 = '/', pad: U8 = '=', linelen: U64 = 0,
     linesep: String = "\r\n"): A^
   =>
@@ -90,13 +91,13 @@ primitive Base64
 
     out
 
-  fun decode_url[A: Seq[U8] iso = Array[U8] iso](data: Bytes box): A^ ? =>
+  fun decode_url[A: Seq[U8] iso = Array[U8] iso](data: ByteSeq box): A^ ? =>
     """
     Decode for URLs (RFC 4648).
     """
     decode[A](data, '-', '_')
 
-  fun decode[A: Seq[U8] iso = Array[U8] iso](data: Bytes box, at62: U8 = '+',
+  fun decode[A: Seq[U8] iso = Array[U8] iso](data: ByteSeq box, at62: U8 = '+',
     at63: U8 = '/', pad: U8 = '='): A^ ?
   =>
     """

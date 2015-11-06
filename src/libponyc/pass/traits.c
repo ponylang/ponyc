@@ -878,7 +878,7 @@ static bool resolve_body(ast_t* entity, ast_t* method, pass_opt_t* options)
     // We have a body, use it and patch up symbol tables
     ast_t* old_body = ast_childidx(method, 6);
     ast_replace(&old_body, r);
-    ast_visit(&method, rescope, NULL, options);
+    ast_visit(&method, rescope, NULL, options, PASS_ALL);
     return true;
   }
 
@@ -930,7 +930,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
       break;
 
     case AST_STATE_INPROGRESS:
-      ast_error(entity, "trait and interfaces can't be recursive");
+      ast_error(entity, "traits and interfaces can't be recursive");
       ast_setdata(entity, (void*)AST_STATE_ERROR);
       return false;
 

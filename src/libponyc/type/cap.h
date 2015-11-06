@@ -7,7 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool is_cap_sub_cap(token_id sub, token_id super);
+bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
+  token_id supalias);
 
 /**
  * Get the capability for a nominal type or type parameter reference.
@@ -23,7 +24,7 @@ token_id cap_for_this(typecheck_t* t);
 
 token_id cap_viewpoint(token_id view, token_id cap);
 
-bool cap_sendable(token_id cap, token_id eph);
+bool cap_sendable(token_id cap);
 
 bool cap_safetowrite(token_id into, token_id cap);
 

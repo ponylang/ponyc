@@ -61,7 +61,7 @@ actor Main
     var options = Options(_env)
 
     options
-      .add("logtable", "l", I64Argument)
+      .add("table", "t", I64Argument)
       .add("iterate", "i", I64Argument)
       .add("chunk", "c", I64Argument)
       .add("streamers", "s", I64Argument)
@@ -69,7 +69,7 @@ actor Main
 
     for option in options do
       match option
-      | ("logtable", var arg: I64) => _logtable = arg.u64()
+      | ("table", var arg: I64) => _logtable = arg.u64()
       | ("iterate", var arg: I64) => _iterate = arg.u64()
       | ("chunk", var arg: I64) => _chunk = arg.u64()
       | ("streamers", var arg: I64) => _streamer_count = arg.u64()
@@ -82,7 +82,7 @@ actor Main
     _env.out.print(
       """
       gups_basic [OPTIONS]
-        --logtable  N   log2 of the total table size. Defaults to 20.
+        --table     N   log2 of the total table size. Defaults to 20.
         --iterate   N   number of iterations. Defaults to 10000.
         --chunk     N   chunk size. Defaults to 1024.
         --streamers N   number of streamers. Defaults to 4.

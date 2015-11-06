@@ -346,7 +346,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
 
   // Allocate the message, setting its size and ID.
   size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
 
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
@@ -354,7 +354,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Trace while populating the message contents.
-  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", NULL, 0, "");
+  LLVMValueRef ctx = codegen_ctx(c);
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);
   bool need_trace = false;
@@ -365,19 +366,22 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
     LLVMBuildStore(c->builder, arg, arg_ptr);
 
-    need_trace |= gentrace(c, arg, ast_type(param));
+    need_trace |= gentrace(c, ctx, arg, ast_type(param));
     param = ast_sibling(param);
   }
 
   if(need_trace)
-    gencall_runtime(c, "pony_send_done", NULL, 0, "");
-  else
+  {
+    gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+  } else {
     LLVMInstructionEraseFromParent(start_trace);
+  }
 
   // Send the message.
-  args[0] = LLVMBuildBitCast(c->builder, to, c->object_ptr, "");
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, to, c->object_ptr, "");
+  args[2] = msg;
+  gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Return the type of the message.
   return msg_type_ptr;
@@ -394,16 +398,18 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
 
   // Destructure the message.
   LLVMPositionBuilderAtEnd(c->builder, block);
-  LLVMValueRef msg = LLVMBuildBitCast(c->builder, g->dispatch_msg, type, "");
+  LLVMValueRef ctx = LLVMGetParam(g->dispatch_fn, 0);
+  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 1);
+  LLVMValueRef msg = LLVMBuildBitCast(c->builder,
+    LLVMGetParam(g->dispatch_fn, 2), type, "");
 
   int count = LLVMCountParams(handler);
-  size_t buf_size = count *sizeof(LLVMValueRef);
+  size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
-  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
   // Trace the message.
-  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", NULL, 0, "");
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);
   bool need_trace = false;
@@ -413,14 +419,16 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 2, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
 
-    need_trace |= gentrace(c, args[i], ast_type(param));
+    need_trace |= gentrace(c, ctx, args[i], ast_type(param));
     param = ast_sibling(param);
   }
 
   if(need_trace)
-    gencall_runtime(c, "pony_recv_done", NULL, 0, "");
-  else
+  {
+    gencall_runtime(c, "pony_recv_done", &ctx, 1, "");
+  } else {
     LLVMInstructionEraseFromParent(start_trace);
+  }
 
   // Call the handler.
   codegen_call(c, handler, args, count);

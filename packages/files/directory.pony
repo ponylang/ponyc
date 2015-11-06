@@ -350,7 +350,7 @@ class Directory
       else
         var tv: (I64, I64, I64, I64) =
           (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
-        @futimesat[I32](_fd, target.cstring(), &tv) == 0
+        @futimesat[I32](_fd, target.cstring(), addressof tv) == 0
       end
     else
       false

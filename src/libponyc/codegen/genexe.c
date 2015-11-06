@@ -75,6 +75,32 @@ static const char* gccs_directory()
 }
 #endif
 
+static bool need_primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(ast_id(t->type) == TK_TUPLETYPE)
+      continue;
+
+    ast_t* def = (ast_t*)ast_data(t->type);
+
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
+
+    reachable_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    return true;
+  }
+
+  return false;
+}
+
 static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 {
   size_t count = 1;
@@ -119,14 +145,19 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
   }
 }
 
-static LLVMValueRef create_main(compile_t* c, gentype_t* g)
+static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
 {
   // Create the main actor and become it.
-  LLVMValueRef actor = gencall_create(c, g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, actor, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+  LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
 
-  return object;
+  args[0] = ctx;
+  args[1] = actor;
+  gencall_runtime(c, "pony_become", args, 2, "");
+
+  return actor;
 }
 
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
@@ -141,7 +172,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   codegen_startfun(c, func, false);
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[4];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -155,7 +186,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef main_actor = create_main(c, main_g);
+  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  codegen_setctx(c, ctx);
+  LLVMValueRef main_actor = create_main(c, main_g, ctx);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
@@ -197,18 +230,23 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
-  gencall_runtime(c, "pony_gc_send", NULL, 0, "");
-  const char* env_trace = genname_trace(env_name);
+  args[0] = ctx;
+  gencall_runtime(c, "pony_gc_send", args, 1, "");
 
-  args[0] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[1] = LLVMGetNamedFunction(c->module, env_trace);
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
-  gencall_runtime(c, "pony_send_done", NULL, 0, "");
+  const char* env_trace = genname_trace(env_name);
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
+  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  gencall_runtime(c, "pony_traceobject", args, 3, "");
+
+  args[0] = ctx;
+  gencall_runtime(c, "pony_send_done", args, 1, "");
 
   // Send the message.
-  args[0] = main_actor;
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  args[0] = ctx;
+  args[1] = main_actor;
+  args[2] = msg;
+  gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
@@ -216,10 +254,13 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  LLVMValueRef final_actor = create_main(c, main_g);
-  primitive_call(c, stringtab("_final"), NULL);
-  args[0] = final_actor;
-  gencall_runtime(c, "pony_destroy", args, 1, "");
+  if(need_primitive_call(c, stringtab("_final")))
+  {
+    LLVMValueRef final_actor = create_main(c, main_g, ctx);
+    primitive_call(c, stringtab("_final"), NULL);
+    args[0] = final_actor;
+    gencall_runtime(c, "pony_destroy", args, 1, "");
+  }
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -292,7 +333,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   use_path(program, "/usr/local/lib", NULL, NULL);
 #endif
 
-  program_lib_build_args(program, "-L", "--start-group ", "--end-group ",
+  program_lib_build_args(program, "-L", "-Wl,--start-group ", "-Wl,--end-group ",
     "-l", "");
   const char* lib_args = program_lib_args(program);
   const char* crt_dir = crt_directory();
@@ -308,6 +349,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(gccs_dir) + (3 * strlen(crt_dir));
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
+#if 0
   snprintf(ld_cmd, ld_len,
     "ld --eh-frame-hdr --hash-style=gnu "
 #if defined(PLATFORM_IS_LINUX)
@@ -321,6 +363,24 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
     "-lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
+    );
+#endif
+
+  snprintf(ld_cmd, ld_len,
+    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 "
+#ifdef PONY_USE_LTO
+    "-flto -fuse-linker-plugin "
+#endif
+
+#ifdef PLATFORM_IS_LINUX
+    "-fuse-ld=gold "
+#endif
+    "%s %s -lponyrt -lpthread "
+#ifdef PLATFORM_IS_LINUX
+    "-ldl "
+#endif
+    "-lm",
+    file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)

@@ -380,6 +380,28 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 }
 
 
+static ast_result_t syntax_arrowtype(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* rhs = ast_childidx(ast, 1);
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_THISTYPE)
+  {
+    ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_BOXTYPE)
+  {
+    ast_error(ast, "'box' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_match(ast_t* ast)
 {
   assert(ast != NULL);
@@ -483,12 +505,12 @@ static ast_result_t syntax_infix_expr(ast_t* ast)
   assert(left != NULL);
   token_id left_op = ast_id(left);
   bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(left)) == 0);
+    !ast_checkflag(left, AST_FLAG_IN_PARENS);
 
   assert(right != NULL);
   token_id right_op = ast_id(right);
   bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(right)) == 0);
+    !ast_checkflag(right, AST_FLAG_IN_PARENS);
 
   if(left_clash || right_clash)
   {
@@ -548,7 +570,7 @@ static ast_result_t syntax_semi(ast_t* ast)
   assert(ast_parent(ast) != NULL);
   assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
-  if((BAD_SEMI & (uint64_t)ast_data(ast)) != 0)
+  if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
     ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
       " the same line");
@@ -609,6 +631,21 @@ static ast_result_t syntax_use(ast_t* ast)
 }
 
 
+static ast_result_t syntax_lambda_capture(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, name, type, value);
+
+  if(ast_id(type) != TK_NONE && ast_id(value) == TK_NONE)
+  {
+    ast_error(ast, "value missing for lambda expression capture (cannot "
+      "specify type without value)");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -623,7 +660,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
     return AST_OK;
 
-  if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
+  if(ast_checkflag(ast, AST_FLAG_TEST_ONLY))
   {
     // Test node, not allowed outside parse pass
     ast_error(ast, "Illegal character '$' found");
@@ -642,6 +679,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
     case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
+    case TK_ARROW:      r = syntax_arrowtype(ast); break;
     case TK_MATCH:      r = syntax_match(ast); break;
     case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
     case TK_FFICALL:    r = syntax_ffi(ast, true); break;
@@ -657,20 +695,20 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_USE:        r = syntax_use(ast); break;
+    case TK_LAMBDACAPTURE:
+                        r = syntax_lambda_capture(ast); break;
     default: break;
   }
 
   if(is_expr_infix(id))
     r = syntax_infix_expr(ast);
 
-  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
+  if(ast_checkflag(ast, AST_FLAG_MISSING_SEMI))
   {
     ast_error(ast,
       "Use a semi colon to separate expressions on the same line");
     r = AST_ERROR;
   }
 
-  // Clear parse info flags
-  ast_setdata(ast, 0);
   return r;
 }

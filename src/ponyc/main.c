@@ -3,6 +3,7 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
+#include "../libponyc/ast/treecheck.h"
 #include <platform.h>
 #include "../libponyrt/options/options.h"
 
@@ -40,6 +41,7 @@ enum
   OPT_IMMERR,
   OPT_VERIFY,
   OPT_FILENAMES,
+  OPT_CHECKTREE,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -71,6 +73,7 @@ static opt_arg_t args[] =
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
   {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
+  {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -256,6 +259,7 @@ int main(int argc, char* argv[])
       case OPT_IMMERR: error_set_immediate(true); break;
       case OPT_VERIFY: opt.verify = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
+      case OPT_CHECKTREE: enable_check_tree(true); break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;

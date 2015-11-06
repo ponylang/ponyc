@@ -5,10 +5,10 @@ class Match
   Contains match data for a combination of a regex and a subject.
   """
   var _match: Pointer[_Match]
-  let _subject: Bytes
+  let _subject: ByteSeq
   let _size: U64
 
-  new iso _create(pattern: Pointer[_Pattern] tag, jit: Bool, subject: Bytes,
+  new iso _create(pattern: Pointer[_Pattern] tag, jit: Bool, subject: ByteSeq,
     offset: U64) ?
   =>
     """
@@ -39,7 +39,7 @@ class Match
     """
     _size
 
-  fun apply[A: (Bytes iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
+  fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
     """
     Returns a capture by number. Raises an error if the index is out of bounds.
     """
@@ -48,15 +48,16 @@ class Match
     end
 
     var len = U64(0)
-    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), &len)
+    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), addressof len)
     len = len + 1
 
     let out = recover A(len) end
-    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(), &len)
+    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(),
+      addressof len)
     out.truncate(len)
     out
 
-  fun find[A: (Bytes iso & Seq[U8] iso) = String iso](name: String box): A^ ?
+  fun find[A: (ByteSeq iso & Seq[U8] iso) = String iso](name: String box): A^ ?
   =>
     """
     Returns a capture by name. Raises an error if the named capture does not
@@ -64,7 +65,7 @@ class Match
     """
     var len = U64(0)
     let rc = @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
-      &len)
+      addressof len)
 
     if rc != 0 then
       error
@@ -74,7 +75,7 @@ class Match
     let out = recover A(len) end
 
     @pcre2_substring_copy_byname_8[I32](_match, name.cstring(), out.cstring(),
-      &len)
+      addressof len)
     out.truncate(len)
     out
 

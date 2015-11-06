@@ -23,11 +23,10 @@ interface Seq[A]
     is out of bounds.
     """
 
-  fun ref update(i: U64, value: A): (A^ | None) ?
+  fun ref update(i: U64, value: A): A^ ?
     """
-    Replaces the i-th element of the sequence. Returns the previous value, or
-    None if the sequence element exists but has been invalidated. Raises an
-    error if the index is out of bounds.
+    Replaces the i-th element of the sequence. Returns the previous value.
+    Raises an error if the index is out of bounds.
     """
 
   fun ref clear(): Seq[A]^

@@ -5,7 +5,7 @@ primitive F32 is FloatingPoint[F32]
 
   new from_bits(i: U32) => compiler_intrinsic
   fun bits(): U32 => compiler_intrinsic
-  fun tag from[B: (Number & Real[B] box)](a: B): F32 => a.f32()
+  fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
 
   fun tag min_value(): F32 =>
     """
@@ -98,7 +98,7 @@ primitive F32 is FloatingPoint[F32]
 
   fun frexp(): (F32, U32) =>
     var exponent: U32 = 0
-    var mantissa = @frexp[F64](f64(), &exponent)
+    var mantissa = @frexp[F64](f64(), addressof exponent)
     (mantissa.f32(), exponent)
 
   fun log(): F32 => @"llvm.log.f32"[F32](this)
@@ -148,7 +148,7 @@ primitive F64 is FloatingPoint[F64]
 
   new from_bits(i: U64) => compiler_intrinsic
   fun bits(): U64 => compiler_intrinsic
-  fun tag from[B: (Number & Real[B] box)](a: B): F64 => a.f64()
+  fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
 
   fun tag min_value(): F64 =>
     """
@@ -241,7 +241,7 @@ primitive F64 is FloatingPoint[F64]
 
   fun frexp(): (F64, U32) =>
     var exponent: U32 = 0
-    var mantissa = @frexp[F64](this, &exponent)
+    var mantissa = @frexp[F64](this, addressof exponent)
     (mantissa, exponent)
 
   fun log(): F64 => @"llvm.log.f64"[F64](this)

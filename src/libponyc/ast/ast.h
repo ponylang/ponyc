@@ -305,6 +305,22 @@ typedef enum
   AST_STATE_ERROR
 } ast_state_t;
 
+
+enum
+{
+  AST_FLAG_PASS_MASK    = 0x0F,
+  AST_FLAG_CAN_ERROR    = 0x10,
+  AST_FLAG_CAN_SEND     = 0x20,
+  AST_FLAG_MIGHT_SEND   = 0x40,
+  AST_FLAG_IN_PROGRESS  = 0x80,
+  AST_FLAG_IN_PARENS    = 0x100,
+  AST_FLAG_TEST_ONLY    = 0x200,
+  AST_FLAG_BAD_SEMI     = 0x400,
+  AST_FLAG_MISSING_SEMI = 0x800,
+  AST_FLAG_PRESERVE     = 0x1000  // Do not process
+};
+
+
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
@@ -316,7 +332,7 @@ void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
 ast_t* ast_setid(ast_t* ast, token_id id);
-void ast_setpos(ast_t* ast, size_t line, size_t pos);
+void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
 void ast_setdebug(ast_t* ast, bool state);
 
 token_id ast_id(ast_t* ast);
@@ -338,6 +354,10 @@ bool ast_inprogress(ast_t* ast);
 void ast_setinprogress(ast_t* ast);
 void ast_clearinprogress(ast_t* ast);
 void ast_inheritflags(ast_t* ast);
+int ast_checkflag(ast_t* ast, uint32_t flag);
+void ast_setflag(ast_t* ast, uint32_t flag);
+void ast_clearflag(ast_t* ast, uint32_t flag);
+void ast_resetpass(ast_t* ast);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
@@ -394,15 +414,6 @@ void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
-
-typedef struct pass_opt_t pass_opt_t;
-typedef ast_result_t (*ast_visit_t)(ast_t** astp, pass_opt_t* options);
-
-ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
-  pass_opt_t* options);
-
-ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
-  pass_opt_t* options);
 
 // Foreach macro, will apply macro M to each of up to 30 other arguments
 #define FOREACH(M, ...) \

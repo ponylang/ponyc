@@ -193,16 +193,6 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     case TK_BE:
       return flatten_async(ast);
 
-    case TK_UNIONTYPE:
-      if(!flatten_union(astp))
-        return AST_ERROR;
-      break;
-
-    case TK_ISECTTYPE:
-      if(!flatten_isect(astp))
-        return AST_ERROR;
-      break;
-
     case TK_TUPLETYPE:
     case TK_ARROW:
       return flatten_noconstraint(t, ast);

@@ -1,5 +1,43 @@
 primitive _FileHandle
 
+primitive FileOK
+primitive FileError
+// TODO: break error down into multiple types
+
+type FileErrNo is
+  ( FileOK
+  | FileError
+  )
+
+primitive CreateFile
+  """
+  Open a File for read/write, creating if it doesn't exist, preserving the
+  contents if it does exist.
+  """
+  fun apply(from: FilePath): (File | FileErrNo) =>
+    let file = File(from)
+    let err = file.errno()
+    
+    match err
+    | FileOK => file
+    else
+      err
+    end
+    
+primitive OpenFile
+  """
+  Open a File for read only.
+  """
+  fun apply(from: FilePath): (File | FileErrNo) =>
+    let file = File.open(from)
+    let err = file.errno()
+    
+    match err
+    | FileOK => file
+    else
+      err
+    end
+
 class File
   """
   Operations on a file.
@@ -9,19 +47,23 @@ class File
   var _fd: I32
   var _handle: Pointer[_FileHandle]
   var _last_line_length: U64 = 256
+  var _errno: FileErrNo = FileOK
 
-  new create(from: FilePath) ? =>
+  new create(from: FilePath) =>
     """
-    Open for read/write, creating if it doesn't exist, preserving the contents
-    if it does exist.
+    Attempt to open for read/write, creating if it doesn't exist, preserving
+    the contents if it does exist.
+    Set errno according to result.
     """
     if not from.caps(FileRead) or not from.caps(FileWrite) then
-      error
+      _errno = FileError
+      return
     end
 
     let mode = if not from.exists() then
       if not from.caps(FileCreate) then
-        error
+        _errno = FileError
+        return
       end
 
       "w+b"
@@ -34,18 +76,26 @@ class File
     _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), mode.cstring())
 
     if _handle.is_null() then
-      error
+      _errno = FileError
+      return
     end
 
     _fd = _get_fd(_handle)
-    _FileDes.set_rights(_fd, path, writeable)
 
-  new open(from: FilePath) ? =>
+    try
+      _FileDes.set_rights(_fd, path, writeable)
+    else
+      _errno = FileError
+    end
+
+  new open(from: FilePath) =>
     """
-    Open for read only, failing if it doesn't exist.
+    Open for read only.
+    Set _errno according to result.
     """
     if not from.caps(FileRead) then
-      error
+      _errno = FileError
+      return
     end
 
     path = from
@@ -53,11 +103,17 @@ class File
     _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), "rb".cstring())
 
     if _handle.is_null() then
-      error
+      _errno = FileError
+      return
     end
 
     _fd = _get_fd(_handle)
-    _FileDes.set_rights(_fd, path, writeable)
+
+    try
+      _FileDes.set_rights(_fd, path, writeable)
+    else
+      _errno = FileError
+    end
 
   new _descriptor(fd: I32, from: FilePath) ? =>
     """
@@ -82,6 +138,12 @@ class File
     end
 
     _FileDes.set_rights(_fd, path, writeable)
+
+  fun errno(): FileErrNo =>
+    """
+    Returns the last error code set for this File
+    """
+    _errno
 
   fun valid(): Bool =>
     """
@@ -186,15 +248,15 @@ class File
       recover String end
     end
 
-  fun ref print(data: Bytes box): Bool =>
+  fun ref print(data: ByteSeq box): Bool =>
     """
     Same as write, buts adds a newline.
     """
     write(data) and write("\n")
 
-  fun ref printv(data: BytesList box): Bool =>
+  fun ref printv(data: ByteSeqIter box): Bool =>
     """
-    Print an array of Bytes.
+    Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       if not print(bytes) then
@@ -203,7 +265,7 @@ class File
     end
     true
 
-  fun ref write(data: Bytes box): Bool =>
+  fun ref write(data: ByteSeq box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
     Returns false and closes the file if not all the bytes were written.
@@ -223,9 +285,9 @@ class File
     end
     false
 
-  fun ref writev(data: BytesList box): Bool =>
+  fun ref writev(data: ByteSeqIter box): Bool =>
     """
-    Write an array of Bytes.
+    Write an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       if not write(bytes) then

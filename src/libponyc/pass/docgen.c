@@ -266,13 +266,10 @@ static const char* doc_get_cap(ast_t* cap)
     case TK_VAL:
     case TK_BOX:
     case TK_TAG:
+    case TK_CAP_READ:
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
       return ast_get_print(cap);
-
-    case TK_BOX_GENERIC:
-      return "box";
-
-    case TK_TAG_GENERIC:
-      return "tag";
 
     default:
       return NULL;

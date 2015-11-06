@@ -353,7 +353,7 @@ static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
 
       ast_t* param = ast_child(params);
 
-      if(ast_sibling(param) != NULL)
+      if(param == NULL || ast_sibling(param) != NULL)
       {
         ast_error(pattern,
           "eq must take a single argument when pattern matching");

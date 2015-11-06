@@ -14,32 +14,46 @@
 #include <string.h>
 #include <assert.h>
 
+
+/* Every AST node has a parent field, which points to the parent node when
+ * there is one. However, sometimes we want a node to have no actual parent,
+ * but still know the scope that the node is in. To allow this we use the
+ * orphan flag. The field and flag meanings are as follows:
+ *
+ * Parent field  Orphan flag  Meaning
+ * NULL          X            Node has no parent or scope
+ * Non-NULL      true         Node has a scope, but no parent
+ * Non-NULL      false        Node has a parent (which is also the scope)
+ *
+ * The parent field and orphan flag should always be considered as a unit. It
+ * is STRONGLY recommended to only access them through the provided functions:
+ *   hasparent()
+ *   set_scope_and_parent()
+ *   set_scope_no_parent()
+ *   make_orphan_leave_scope()
+ *   ast_parent()
+ */
+
+// The private bits of the flags values
 enum
 {
-  AST_CAN_ERROR = 1 << 0,
-  AST_CAN_SEND = 1 << 1,
-  AST_MIGHT_SEND = 1 << 2,
-  AST_IN_PROGRESS = 1 << 3,
-
-  AST_ALL_FLAGS = (1 << 4) - 1
+  AST_ORPHAN = 0x2000,
+  AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
+    AST_FLAG_MIGHT_SEND | AST_FLAG_IN_PROGRESS),
+  AST_ALL_FLAGS = 0x3FFF
 };
+
 
 struct ast_t
 {
   token_t* t;
   symtab_t* symtab;
-
-  union
-  {
-    void* data;
-    uintptr_t flags;
-  };
-
-  struct ast_t* scope;
+  void* data;
   struct ast_t* parent;
   struct ast_t* child;
   struct ast_t* sibling;
   struct ast_t* type;
+  uint32_t flags;
 };
 
 static const char in[] = "  ";
@@ -180,15 +194,53 @@ static void print(ast_t* ast, size_t indent, bool type)
   printf("\n");
 }
 
+// Report whether the given node has a valid parent
+static bool hasparent(ast_t* ast)
+{
+  return !ast_checkflag(ast, AST_ORPHAN) && (ast->parent != NULL);
+}
+
+// Set both the parent and scope for the given node
+static void set_scope_and_parent(ast_t* ast, ast_t* parent)
+{
+  assert(ast != NULL);
+
+  ast->parent = parent;
+  ast_clearflag(ast, AST_ORPHAN);
+}
+
+// Set the scope for the given node, but set it no have no parent
+static void set_scope_no_parent(ast_t* ast, ast_t* scope)
+{
+  assert(ast != NULL);
+
+  ast->parent = scope;
+  ast_setflag(ast, AST_ORPHAN);
+}
+
+// Remove the given node's parent without changing its scope (if any)
+static void make_orphan_leave_scope(ast_t* ast)
+{
+  ast_setflag(ast, AST_ORPHAN);
+}
+
 static ast_t* duplicate(ast_t* parent, ast_t* ast)
 {
   if(ast == NULL)
     return NULL;
 
+  assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
+    ast_id(ast) != TK_MODULE);
+
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
-  n->scope = (parent != NULL) ? parent : ast->scope;
-  n->parent = parent;
+  n->flags = ast->flags & (AST_FLAG_PASS_MASK | AST_INHERIT_FLAGS);
+
+  if(parent == NULL)
+    set_scope_no_parent(n, ast->parent);
+  else
+    set_scope_and_parent(n, parent);
+
   n->child = duplicate(n, ast->child);
   n->type = duplicate(n, ast->type);
 
@@ -208,7 +260,7 @@ ast_t* ast_new(token_t* t, token_id id)
 
 ast_t* ast_blank(token_id id)
 {
-  return ast_token(token_new(id, NULL));
+  return ast_token(token_new(id));
 }
 
 ast_t* ast_token(token_t* t)
@@ -234,7 +286,7 @@ ast_t* ast_from(ast_t* ast, token_id id)
 {
   assert(ast != NULL);
   ast_t* new_ast = ast_token(token_dup_new_id(ast->t, id));
-  new_ast->scope = ast->scope;
+  set_scope_no_parent(new_ast, ast->parent);
   return new_ast;
 }
 
@@ -248,7 +300,7 @@ ast_t* ast_from_string(ast_t* ast, const char* name)
   token_set_string(t, name, 0);
 
   ast_t* new_ast = ast_token(t);
-  new_ast->scope = ast->scope;
+  set_scope_no_parent(new_ast, ast->parent);
   return new_ast;
 }
 
@@ -260,7 +312,7 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
   token_set_int(t, value);
 
   ast_t* new_ast = ast_token(t);
-  new_ast->scope = ast->scope;
+  set_scope_no_parent(new_ast, ast->parent);
   return new_ast;
 }
 
@@ -294,10 +346,10 @@ ast_t* ast_setid(ast_t* ast, token_id id)
   return ast;
 }
 
-void ast_setpos(ast_t* ast, size_t line, size_t pos)
+void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos)
 {
   assert(ast != NULL);
-  token_set_pos(ast->t, line, pos);
+  token_set_pos(ast->t, source, line, pos);
 }
 
 void ast_setdebug(ast_t* ast, bool state)
@@ -352,86 +404,96 @@ void ast_setdata(ast_t* ast, void* data)
 
 bool ast_canerror(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  return (ast->flags & AST_CAN_ERROR) != 0;
+  return ast_checkflag(ast, AST_FLAG_CAN_ERROR) != 0;
 }
 
 void ast_seterror(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags |= AST_CAN_ERROR;
+  ast_setflag(ast, AST_FLAG_CAN_ERROR);
 }
 
 bool ast_cansend(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  return (ast->flags & AST_CAN_SEND) != 0;
+  return ast_checkflag(ast, AST_FLAG_CAN_SEND) != 0;
 }
 
 void ast_setsend(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags |= AST_CAN_SEND;
+  ast_setflag(ast, AST_FLAG_CAN_SEND);
 }
 
 bool ast_mightsend(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  return (ast->flags & AST_MIGHT_SEND) != 0;
+  return ast_checkflag(ast, AST_FLAG_MIGHT_SEND) != 0;
 }
 
 void ast_setmightsend(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags |= AST_MIGHT_SEND;
+  ast_setflag(ast, AST_FLAG_MIGHT_SEND);
 }
 
 void ast_clearmightsend(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags &= ~AST_MIGHT_SEND;
+  ast_clearflag(ast, AST_FLAG_MIGHT_SEND);
 }
 
 bool ast_inprogress(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  return (ast->flags & AST_IN_PROGRESS) != 0;
+  return ast_checkflag(ast, AST_FLAG_IN_PROGRESS) != 0;
 }
 
 void ast_setinprogress(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags |= AST_IN_PROGRESS;
+  ast_setflag(ast, AST_FLAG_IN_PROGRESS);
 }
 
 void ast_clearinprogress(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast->flags <= AST_ALL_FLAGS);
-  ast->flags &= ~AST_IN_PROGRESS;
+  ast_clearflag(ast, AST_FLAG_IN_PROGRESS);
 }
 
 void ast_inheritflags(ast_t* ast)
 {
   assert(ast != NULL);
-  ast_t* child = ast->child;
 
-  while(child != NULL)
-  {
-    if(child->flags <= AST_ALL_FLAGS)
-      ast->flags |= child->flags;
+  for(ast_t* child = ast->child; child != NULL; child = ast_sibling(child))
+    ast_setflag(ast, child->flags & AST_INHERIT_FLAGS);
+}
 
-    child = ast_sibling(child);
-  }
+int ast_checkflag(ast_t* ast, uint32_t flag)
+{
+  assert(ast != NULL);
+  assert((flag & AST_ALL_FLAGS) == flag);
+
+  return ast->flags & flag;
+}
+
+void ast_setflag(ast_t* ast, uint32_t flag)
+{
+  assert(ast != NULL);
+  assert((flag & AST_ALL_FLAGS) == flag);
+
+  ast->flags |= flag;
+}
+
+void ast_clearflag(ast_t* ast, uint32_t flag)
+{
+  assert(ast != NULL);
+  assert((flag & AST_ALL_FLAGS) == flag);
+
+  ast->flags &= ~flag;
+}
+
+void ast_resetpass(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  ast_clearflag(ast, AST_FLAG_PASS_MASK);
+  ast_resetpass(ast->type);
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    ast_resetpass(p);
 }
 
 const char* ast_get_print(ast_t* ast)
@@ -487,11 +549,10 @@ void ast_settype(ast_t* ast, ast_t* type)
 
   if(type != NULL)
   {
-    if(type->parent != NULL)
-      type = ast_dup(type);
+    if(hasparent(type))
+      type = duplicate(ast, type);
 
-    type->scope = ast;
-    type->parent = ast;
+    set_scope_and_parent(type, ast);
   }
 
   ast->type = type;
@@ -517,7 +578,7 @@ void ast_erase(ast_t* ast)
 ast_t* ast_nearest(ast_t* ast, token_id id)
 {
   while((ast != NULL) && (token_get_id(ast->t) != id))
-    ast = ast->scope;
+    ast = ast->parent;
 
   return ast;
 }
@@ -541,7 +602,7 @@ ast_t* ast_try_clause(ast_t* ast, size_t* clause)
     }
 
     last = ast;
-    ast = ast->parent;
+    ast = ast_parent(ast);
   }
 
   return NULL;
@@ -549,6 +610,9 @@ ast_t* ast_try_clause(ast_t* ast, size_t* clause)
 
 ast_t* ast_parent(ast_t* ast)
 {
+  if(ast_checkflag(ast, AST_ORPHAN))
+    return NULL;
+
   return ast->parent;
 }
 
@@ -607,6 +671,9 @@ ast_t* ast_sibling(ast_t* ast)
 
 ast_t* ast_previous(ast_t* ast)
 {
+  assert(ast != NULL);
+  assert(hasparent(ast));
+
   ast_t* last = NULL;
   ast_t* cur = ast->parent->child;
 
@@ -621,6 +688,9 @@ ast_t* ast_previous(ast_t* ast)
 
 size_t ast_index(ast_t* ast)
 {
+  assert(ast != NULL);
+  assert(hasparent(ast));
+
   ast_t* child = ast->parent->child;
   size_t idx = 0;
 
@@ -655,7 +725,7 @@ ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
         return value;
     }
 
-    ast = ast->scope;
+    ast = ast->parent;
   } while((ast != NULL) && (token_get_id(ast->t) != TK_PROGRAM));
 
   return NULL;
@@ -682,7 +752,7 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
         return value;
     }
 
-    ast = ast->scope;
+    ast = ast->parent;
   } while((ast != NULL) && (token_get_id(ast->t) != TK_PROGRAM));
 
   return NULL;
@@ -691,7 +761,7 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
 {
   while(ast->symtab == NULL)
-    ast = ast->scope;
+    ast = ast->parent;
 
   return (ast_get_case(ast, name, NULL) == NULL)
     && symtab_add(ast->symtab, name, value, status);
@@ -700,7 +770,7 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
 {
   while(ast->symtab == NULL)
-    ast = ast->scope;
+    ast = ast->parent;
 
   symtab_set_status(ast->symtab, name, status);
 }
@@ -711,7 +781,7 @@ void ast_inheritstatus(ast_t* dst, ast_t* src)
     return;
 
   while(dst->symtab == NULL)
-    dst = dst->scope;
+    dst = dst->parent;
 
   symtab_inherit_status(dst->symtab, src->symtab);
 }
@@ -723,6 +793,8 @@ void ast_inheritbranch(ast_t* dst, ast_t* src)
 
 void ast_consolidate_branches(ast_t* ast, size_t count)
 {
+  assert(hasparent(ast));
+
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
 
@@ -751,7 +823,7 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
 bool ast_canmerge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)
-    dst = dst->scope;
+    dst = dst->parent;
 
   return symtab_can_merge_public(dst->symtab, src->symtab);
 }
@@ -759,7 +831,7 @@ bool ast_canmerge(ast_t* dst, ast_t* src)
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)
-    dst = dst->scope;
+    dst = dst->parent;
 
   return symtab_merge_public(dst->symtab, src->symtab);
 }
@@ -780,7 +852,7 @@ bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
     if(inner == outer)
       break;
 
-    inner = inner->scope;
+    inner = inner->parent;
   } while((inner != NULL) && (token_get_id(inner->t) != TK_PROGRAM));
 
   return false;
@@ -819,7 +891,7 @@ bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner)
     if(inner == outer)
       break;
 
-    inner = inner->scope;
+    inner = inner->parent;
   } while((inner != NULL) && (token_get_id(inner->t) != TK_PROGRAM));
 
   return ok;
@@ -857,11 +929,10 @@ ast_t* ast_add(ast_t* parent, ast_t* child)
   assert(parent != child);
   assert(parent->child != child);
 
-  if(child->parent != NULL)
+  if(hasparent(child))
     child = ast_dup(child);
 
-  child->scope = parent;
-  child->parent = parent;
+  set_scope_and_parent(child, parent);
   child->sibling = parent->child;
   parent->child = child;
   return child;
@@ -873,12 +944,12 @@ ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
   assert(new_sibling != NULL);
   assert(older_sibling != new_sibling);
   assert(older_sibling->sibling == NULL);
+  assert(hasparent(older_sibling));
 
-  if(new_sibling->parent != NULL)
+  if(hasparent(new_sibling))
     new_sibling = ast_dup(new_sibling);
 
-  new_sibling->scope = older_sibling->scope;
-  new_sibling->parent = older_sibling->parent;
+  set_scope_and_parent(new_sibling, older_sibling->parent);
   older_sibling->sibling = new_sibling;
   return new_sibling;
 }
@@ -890,8 +961,8 @@ ast_t* ast_pop(ast_t* parent)
   if(child != NULL)
   {
     parent->child = child->sibling;
-    child->parent = NULL;
     child->sibling = NULL;
+    make_orphan_leave_scope(child);
   }
 
   return child;
@@ -899,13 +970,14 @@ ast_t* ast_pop(ast_t* parent)
 
 ast_t* ast_append(ast_t* parent, ast_t* child)
 {
+  assert(parent != NULL);
+  assert(child != NULL);
   assert(parent != child);
 
-  if(child->parent != NULL)
+  if(hasparent(child))
     child = ast_dup(child);
 
-  child->scope = parent;
-  child->parent = parent;
+  set_scope_and_parent(child, parent);
 
   if(parent->child == NULL)
   {
@@ -948,7 +1020,7 @@ ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
 void ast_remove(ast_t* ast)
 {
   assert(ast != NULL);
-  assert(ast->parent != NULL);
+  assert(hasparent(ast));
 
   ast_t* last = ast_previous(ast);
 
@@ -964,31 +1036,33 @@ void ast_remove(ast_t* ast)
 
 void ast_swap(ast_t* prev, ast_t* next)
 {
-  assert(prev->parent != NULL);
+  assert(prev != NULL);
   assert(prev != next);
 
-  if(next->parent != NULL)
+  ast_t* parent = ast_parent(prev);
+  assert(parent != NULL);
+
+  if(hasparent(next))
     next = ast_dup(next);
 
-  next->scope = prev->parent;
-  next->parent = prev->parent;
+  set_scope_and_parent(next, parent);
 
-  if(prev->parent->type == prev)
+  if(parent->type == prev)
   {
-    prev->parent->type = next;
+    parent->type = next;
   } else {
     ast_t* last = ast_previous(prev);
 
     if(last != NULL)
       last->sibling = next;
     else
-      prev->parent->child = next;
+      parent->child = next;
 
     next->sibling = prev->sibling;
   }
 
-  prev->parent = NULL;
   prev->sibling = NULL;
+  make_orphan_leave_scope(prev);
 }
 
 void ast_replace(ast_t** prev, ast_t* next)
@@ -996,13 +1070,11 @@ void ast_replace(ast_t** prev, ast_t* next)
   if(*prev == next)
     return;
 
-  if((*prev)->parent != NULL)
-  {
-    if(next->parent != NULL)
-      next = ast_dup(next);
+  if(hasparent(next))
+    next = ast_dup(next);
 
+  if(hasparent(*prev))
     ast_swap(*prev, next);
-  }
 
   ast_free(*prev);
   *prev = next;
@@ -1073,7 +1145,7 @@ void ast_free(ast_t* ast)
 
 void ast_free_unattached(ast_t* ast)
 {
-  if((ast != NULL) && (ast->parent == NULL))
+  if((ast != NULL) && !hasparent(ast))
     ast_free(ast);
 }
 
@@ -1229,100 +1301,6 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
-  pass_opt_t* options)
-{
-  typecheck_t* t = &options->check;
-  bool pop = frame_push(t, *ast);
-
-  ast_result_t ret = AST_OK;
-  bool ignore = false;
-
-  if(pre != NULL)
-  {
-    switch(pre(ast, options))
-    {
-      case AST_OK:
-        break;
-
-      case AST_IGNORE:
-        ignore = true;
-        break;
-
-      case AST_ERROR:
-        ret = AST_ERROR;
-        break;
-
-      case AST_FATAL:
-        return AST_FATAL;
-    }
-  }
-
-  if(!ignore && ((pre != NULL) || (post != NULL)))
-  {
-    ast_t* child = ast_child(*ast);
-
-    while(child != NULL)
-    {
-      switch(ast_visit(&child, pre, post, options))
-      {
-        case AST_OK:
-          break;
-
-        case AST_IGNORE:
-          // Can never happen
-          assert(0);
-          break;
-
-        case AST_ERROR:
-          ret = AST_ERROR;
-          break;
-
-        case AST_FATAL:
-          return AST_FATAL;
-      }
-
-      child = ast_sibling(child);
-    }
-  }
-
-  if(!ignore && post != NULL)
-  {
-    switch(post(ast, options))
-    {
-      case AST_OK:
-      case AST_IGNORE:
-        break;
-
-      case AST_ERROR:
-        ret = AST_ERROR;
-        break;
-
-      case AST_FATAL:
-        return AST_FATAL;
-    }
-  }
-
-  if(pop)
-    frame_pop(t);
-
-  return ret;
-}
-
-ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
-  pass_opt_t* options)
-{
-  typecheck_t* t = &options->check;
-  bool pop = frame_push(t, NULL);
-
-  ast_result_t ret = ast_visit(ast, pre, post, options);
-
-  if(pop)
-    frame_pop(t);
-
-  return ret;
-}
-
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children)
 {
@@ -1365,7 +1343,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       else
         parent->child = p->sibling;
 
-      p->parent = NULL;
+      make_orphan_leave_scope(p);
       p->sibling = NULL;
       *(out_children[i]) = p;
     }

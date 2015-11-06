@@ -37,9 +37,12 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_startfun(c, fun, false);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
-  LLVMValueRef total = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total, 1, "");
+  LLVMValueRef args[2];
+  args[0] = codegen_ctx(c);
+  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 2, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
@@ -62,14 +65,16 @@ static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
+  args[0] = codegen_ctx(c);
+
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
 
   LLVMValueRef len = LLVMGetParam(fun, 1);
-  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+  args[2] = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 2, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 3, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
@@ -351,22 +356,26 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
 
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
 
   // Read the count and the base pointer.
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type, "array");
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type,
+    "array");
   LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
   LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "count");
   LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
 
   // Trace the base pointer.
-  LLVMValueRef address = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
-  gencall_runtime(c, "pony_trace", &address, 1, "");
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
+  gencall_runtime(c, "pony_trace", args, 2, "");
   LLVMBuildBr(c->builder, cond_block);
 
   // While the index is less than the count, trace an element. The initial
@@ -383,7 +392,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
   elem = LLVMBuildLoad(c->builder, elem, "");
-  gentrace(c, elem, typearg);
+  gentrace(c, ctx, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->i64, 1, false);

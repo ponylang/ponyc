@@ -147,6 +147,11 @@ TEST_F(SubTypeTest, IsSubType)
   DO(test_binary(is_subtype, "(T1 & T2)", "(T1 & T2)", true));
   DO(test_binary(is_subtype, "(T1 & T2)", "C3", false));
 
+  // subtype is intersect of non-independent and combinable types
+  // TODO: fix these
+  //DO(test_binary(is_subtype, "(I1 & I2)", "I3", true));
+  //DO(test_binary(is_subtype, "((C1 | C2) & (C1 | C3))", "C1", true));
+
   // tuple
   DO(test_binary(is_subtype, "T1", "(T1, T1)", false));
   DO(test_binary(is_subtype, "(T1, T1)", "T1", false));

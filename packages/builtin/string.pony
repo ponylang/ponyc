@@ -1,4 +1,4 @@
-class String val is (Seq[U8] & Comparable[String box] & Stringable)
+class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """
@@ -952,7 +952,7 @@ class String val is (Seq[U8] & Comparable[String box] & Stringable)
   fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
   fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
 
-  fun _to_int[A: ((Signed | Unsigned) & Integer[A] box)](base: U8): A ? =>
+  fun _to_int[A: ((Signed | Unsigned) & Integer[A] val)](base: U8): A ? =>
     """
     Convert the *whole* string to the specified type.
     If there are any other characters in the string, or the integer found is
@@ -962,7 +962,7 @@ class String val is (Seq[U8] & Comparable[String box] & Stringable)
     if (d == 0) or (d.u64() != _size) then error end  // Not all of string used
     v
 
-  fun read_int[A: ((Signed | Unsigned) & Integer[A] box)](offset: I64 = 0,
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: I64 = 0,
     base: U8 = 0): (A, I64 /* chars used */) ?
   =>
     """
@@ -1045,7 +1045,7 @@ class String val is (Seq[U8] & Comparable[String box] & Stringable)
     // Success
     (value, (index - start_index).i64())
 
-  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] box)]
+  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)]
     (base: U8, index: U64): (A, U64 /* chars used */)
   =>
     """

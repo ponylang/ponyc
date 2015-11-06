@@ -11,7 +11,7 @@
 
 static bool is_isect_subtype(ast_t* sub, ast_t* super);
 
-static bool is_literal(ast_t* type, const char* name)
+bool is_literal(ast_t* type, const char* name)
 {
   if(type == NULL)
     return false;
@@ -47,53 +47,8 @@ bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super)
   ast_t* super_cap = fetch_cap(super);
   ast_t* super_eph = ast_sibling(super_cap);
 
-  token_id t_sub_cap = ast_id(sub_cap);
-  token_id t_sub_eph = ast_id(sub_eph);
-  token_id t_super_cap = ast_id(super_cap);
-  token_id t_super_eph = ast_id(super_eph);
-  token_id t_alt_cap = t_sub_cap;
-
-  // Adjusted for borrowing.
-  if(t_sub_eph == TK_BORROWED)
-  {
-    switch(t_alt_cap)
-    {
-      case TK_ISO: t_alt_cap = TK_TAG; break;
-      case TK_TRN: t_alt_cap = TK_BOX; break;
-      case TK_ANY_GENERIC: t_alt_cap = TK_TAG; break;
-      default: {}
-    }
-  }
-
-  switch(t_super_eph)
-  {
-    case TK_EPHEMERAL:
-      // Sub must be ephemeral if t_sub_cap != t_alt_cap. Otherwise, we don't
-      // have to be ephemeral, since, for example, a ref can be a subtype of
-      // a ref^, but an iso is not a subtype of an iso^.
-      if((t_sub_cap != t_alt_cap) && (t_sub_eph != TK_EPHEMERAL))
-        return false;
-
-      // Capability must be a sub-capability.
-      return is_cap_sub_cap(t_sub_cap, t_super_cap);
-
-    case TK_NONE:
-      // Check the adjusted capability.
-      return is_cap_sub_cap(t_alt_cap, t_super_cap);
-
-    case TK_BORROWED:
-      // Borrow a capability.
-      if(t_sub_cap == t_super_cap)
-        return true;
-
-      // Or alias a capability.
-      return is_cap_sub_cap(t_alt_cap, t_super_cap);
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
+  return is_cap_sub_cap(ast_id(sub_cap), ast_id(sub_eph), ast_id(super_cap),
+    ast_id(super_eph));
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b)
@@ -148,13 +103,23 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     case TK_NEW:
     {
       // Covariant receiver.
-      if(!is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap)))
+      if(!is_cap_sub_cap(ast_id(sub_cap), TK_NONE, ast_id(super_cap), TK_NONE))
         return false;
 
       // Covariant result. Don't check this for interfaces, as it produces
       // an infinite loop. It will be true if the whole interface is provided.
-      if((isuper == NULL) && !is_subtype(sub_result, super_result))
-        return false;
+      if(isuper == NULL)
+      {
+        if(!is_subtype(sub_result, super_result))
+         return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
@@ -163,13 +128,22 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     case TK_BE:
     {
       // Contravariant receiver.
-      if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
+      if(!is_cap_sub_cap(ast_id(super_cap), TK_NONE, ast_id(sub_cap), TK_NONE))
         return false;
 
       // Covariant result.
-      if(!is_recursive_interface(sub_result, super_result, isub, isuper) &&
-        !is_subtype(sub_result, super_result))
-        return false;
+      if(!is_recursive_interface(sub_result, super_result, isub, isuper))
+      {
+        if(!is_subtype(sub_result, super_result))
+          return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
@@ -1205,6 +1179,81 @@ bool is_known(ast_t* type)
       ast_t* constraint = ast_childidx(def, 1);
 
       return is_known(constraint);
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool is_actor(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+      return false;
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!is_actor(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_actor(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+          return false;
+
+        case TK_ACTOR:
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_ARROW:
+      return is_actor(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_actor(constraint);
     }
 
     default: {}

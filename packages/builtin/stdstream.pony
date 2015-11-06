@@ -1,4 +1,4 @@
-interface Bytes val
+interface val ByteSeq
   """
   Accept both a String and an Array[U8].
   """
@@ -6,34 +6,34 @@ interface Bytes val
   fun cstring(): Pointer[U8] tag
   fun apply(i: U64): U8 ?
 
-interface BytesList val
+interface val ByteSeqIter
   """
   Accept an iterable collection of String or Array[U8].
   """
-  fun values(): Iterator[Bytes]
+  fun values(): Iterator[ByteSeq]
 
-interface Stream tag
+interface tag OutStream
   """
   Asnychronous access to some output stream.
   """
-  be print(data: Bytes)
+  be print(data: ByteSeq)
     """
     Print some bytes and insert a newline afterwards.
     """
 
-  be write(data: Bytes)
+  be write(data: ByteSeq)
     """
     Print some bytes without inserting a newline afterwards.
     """
 
-  be printv(data: BytesList)
+  be printv(data: ByteSeqIter)
     """
-    Print an array of Bytes.
+    Print an iterable collection of ByteSeqs.
     """
 
-  be writev(data: BytesList)
+  be writev(data: ByteSeqIter)
     """
-    Write an array of Bytes.
+    Write an iterable collection of ByteSeqs.
     """
 
 actor StdStream
@@ -55,37 +55,37 @@ actor StdStream
     """
     _stream = @os_stderr[Pointer[U8]]()
 
-  be print(data: Bytes) =>
+  be print(data: ByteSeq) =>
     """
     Print some bytes and insert a newline afterwards.
     """
     _write(data)
     _write("\n")
 
-  be write(data: Bytes) =>
+  be write(data: ByteSeq) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
     _write(data)
 
-  be printv(data: BytesList) =>
+  be printv(data: ByteSeqIter) =>
     """
-    Print an array of Bytes.
+    Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       _write(bytes)
       _write("\n")
     end
 
-  be writev(data: BytesList) =>
+  be writev(data: ByteSeqIter) =>
     """
-    Write an array of Bytes.
+    Write an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       _write(bytes)
     end
 
-  fun ref _write(data: Bytes) =>
+  fun ref _write(data: ByteSeq) =>
     """
     Write the bytes without explicitly flushing.
     """

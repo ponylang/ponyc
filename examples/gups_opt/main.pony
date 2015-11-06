@@ -12,7 +12,7 @@ class Config
     var options = Options(env)
 
     options
-      .add("logtable", "l", I64Argument)
+      .add("table", "t", I64Argument)
       .add("iterate", "i", I64Argument)
       .add("chunk", "c", I64Argument)
       .add("actors", "a", I64Argument)

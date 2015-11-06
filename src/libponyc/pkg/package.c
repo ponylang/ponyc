@@ -550,10 +550,12 @@ static void add_exec_dir()
   bool success;
 
 #ifdef PLATFORM_IS_WINDOWS
+  // Specified size *includes* nul terminator
   GetModuleFileName(NULL, path, FILENAME_MAX);
   success = (GetLastError() == ERROR_SUCCESS);
 #elif defined PLATFORM_IS_LINUX
-  ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX);
+  // Specified size *excludes* nul terminator
+  ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX - 1);
   success = (r >= 0);
 
   if(success)
@@ -832,10 +834,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     return NULL;
   }
 
-  // We add new packages to the end of the program, so they will be reached by
-  // the current pass processing. This means we need to catch up the new
-  // package to the previous pass
-  if(!ast_passes_subtree(&package, options, pass_prev(options->program_pass)))
+  if(!ast_passes_subtree(&package, options, options->program_pass))
     return NULL;
 
   return package;

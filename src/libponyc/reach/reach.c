@@ -325,7 +325,6 @@ static reachable_type_t* add_tuple(reachable_method_stack_t** s,
   if(t != NULL)
     return t;
 
-  // TODO: why does storing this cause gendesc_init to die for the tuple?
   t = add_reachable_type(r, type, type_name);
 
   ast_t* child = ast_child(type);
@@ -558,7 +557,7 @@ static void reachable_expr(reachable_method_stack_t** s, reachable_types_t* r,
       reachable_ffi(s, r, ast);
       break;
 
-    case TK_AMP:
+    case TK_ADDRESS:
       reachable_addressof(s, r, ast);
       break;
 

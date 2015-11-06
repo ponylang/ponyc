@@ -1,4 +1,4 @@
-primitive Root
+primitive AmbientAuth
   """
   This type represents the root capability. When a Pony program starts, the
   Env passed to the Main actor contains an instance of the root capability.

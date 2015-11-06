@@ -2,6 +2,7 @@
 #define REACH_H
 
 #include "../ast/ast.h"
+#include "../pass/pass.h"
 #include "../../libponyrt/ds/hash.h"
 
 PONY_EXTERN_C_BEGIN

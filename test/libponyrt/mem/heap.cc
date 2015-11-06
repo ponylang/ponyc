@@ -52,17 +52,17 @@ TEST(Heap, Init)
   chunk_t* chunk5 = (chunk_t*)pagemap_get(p5);
   ASSERT_EQ(actor, heap_owner(chunk5));
 
+  size_t adjust_size = pool_adjust_size(large_size);
+
   size_t size5 = heap_size(chunk5);
-  ASSERT_EQ(large_size, size5);
-  ASSERT_EQ(256 + large_size, heap.used);
+  ASSERT_EQ(adjust_size, size5);
+  ASSERT_EQ(256 + adjust_size, heap.used);
 
   heap.next_gc = 0;
   heap_startgc(&heap);
   heap_mark_shallow(chunk5, p5);
   heap_endgc(&heap);
-  ASSERT_EQ(large_size, heap.used);
+  ASSERT_EQ(adjust_size, heap.used);
 
   heap_destroy(&heap);
-
-  ASSERT_TRUE(pool_debug_appears_freed());
 }

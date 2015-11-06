@@ -4,9 +4,9 @@ class CommonLog is Logger
   """
   Logs HTTP requests in the common log format.
   """
-  let _out: Stream
+  let _out: OutStream
 
-  new val create(out: Stream) =>
+  new val create(out: OutStream) =>
     _out = out
 
   fun val apply(ip: String, request: Payload val, response: Payload val) =>

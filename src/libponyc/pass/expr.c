@@ -8,6 +8,7 @@
 #include "../expr/match.h"
 #include "../expr/array.h"
 #include "../expr/ffi.h"
+#include "../expr/lambda.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -237,9 +238,14 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_NAMEDARGS:
     case TK_NAMEDARG:
     case TK_UPDATEARG:  ast_inheritflags(ast); break;
-    case TK_AMP:        r = expr_addressof(options, ast); break;
+    case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_IDENTITY:   r = expr_identityof(options, ast); break;
     case TK_DONTCARE:   r = expr_dontcare(ast); break;
+
+    case TK_LAMBDA:
+      if(!expr_lambda(options, astp))
+        return AST_FATAL;
+      break;
 
     case TK_INT:
       // Integer literals can be integers or floats

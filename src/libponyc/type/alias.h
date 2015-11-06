@@ -10,8 +10,8 @@ PONY_EXTERN_C_BEGIN
 // Alias a type in expression handling.
 ast_t* alias(ast_t* type);
 
-// Alias a type when binding it.
-ast_t* alias_bind(ast_t* type);
+// Substitute bind capabilities for regular capabilities.
+ast_t* bind_type(ast_t* type);
 
 ast_t* consume_type(ast_t* type, token_id cap);
 

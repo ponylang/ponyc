@@ -740,6 +740,7 @@ static void bnf_mark_used_rules(bnf_t* tree)
 #define REORDER(...)
 #define REWRITE(body)
 #define SET_FLAG(f)
+#define SET_CHILD_FLAG(child_idx, flag)
 #define NEXT_FLAGS(f)
 
 #define DEF(rule_name) \

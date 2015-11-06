@@ -1,4 +1,4 @@
-class _Then[A: Any tag, B: Any tag]
+class _Then[A: Any #share, B: Any #share]
   """
   A step in a promise pipeline.
   """
@@ -51,7 +51,7 @@ class _Then[A: Any tag, B: Any tag]
       end
     end
 
-interface _IThen[A: Any tag]
+interface _IThen[A: Any #share]
   """
   An interface representing an abstract Then. This allows for any Then that
   accepts an input of type A, regardless of the output type.

@@ -1,4 +1,4 @@
-class IPAddress val
+class val IPAddress
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address
   type. The addr field is either the IPv4 address or the IPv6 flow info. The
@@ -53,7 +53,8 @@ class IPAddress val
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
 
-    if not @os_nameinfo[Bool](this, &host, &serv, reversedns, servicename) then
+    if not @os_nameinfo[Bool](this, addressof host, addressof serv, reversedns,
+      servicename) then
       error
     end
 

@@ -3,7 +3,7 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
-#include "../ast/frame.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -49,18 +49,6 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
  * Build a type to describe a function signature.
  */
 ast_t* type_for_fun(ast_t* ast);
-
-/**
- * Replaces astp with an ast that removes any elements that are subtypes of
- * other elements and does a capability union on interface types.
- */
-bool flatten_union(ast_t** astp);
-
-/**
- * Replaces astp with an ast that removes any elements that are supertypes of
- * other elements.
- */
-bool flatten_isect(ast_t** astp);
 
 /**
  * Change cap and ephemeral on a nominal, typeparamref or arrow type.

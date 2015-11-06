@@ -1,4 +1,4 @@
-trait _Group tag
+trait tag _Group
   """
   Test exclusion is achieved by organising tests into groups. Each group can be
   exclusive, ie only one test is run at a time, or simultaneous, ie all tests

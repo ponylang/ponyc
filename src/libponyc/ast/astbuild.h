@@ -60,7 +60,6 @@
     ast_replace(existing, parent); \
   }
 
-
 /** Add an existing subtree.
  * If the given tree is already part of another tree it will be copied
  * automatically. If it is a complete tree it will not.
@@ -70,6 +69,17 @@
     if(parent == NULL) parent = tree; \
     else if(last_sibling == NULL) last_sibling = ast_add(parent, tree); \
     else last_sibling = ast_add_sibling(last_sibling, tree); \
+  }
+
+/** Add an existing subtree, clearing the recorded pass reached.
+ * If the given tree is already part of another tree it will be copied
+ * automatically. If it is a complete tree it will not.
+ */
+#define TREE_CLEAR_PASS(tree) \
+  { \
+    if(ast_parent(tree) != NULL) tree = ast_dup(tree); \
+    ast_resetpass(tree); \
+    TREE(tree); \
   }
 
 /// Add a new node with the specified token ID and optionally children

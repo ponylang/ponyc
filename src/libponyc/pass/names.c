@@ -25,18 +25,21 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
+    case TK_TYPEPARAMREF:
     {
       if(ast_id(cap) != TK_NONE)
       {
         ast_error(cap,
-          "can't specify a capability for an alias to a type expression");
+          "can't specify a capability for an alias to a type expression or "
+          "type parameter");
         return false;
       }
 
       if(ast_id(ephemeral) != TK_NONE)
       {
         ast_error(ephemeral,
-          "can't specify ephemerality for an alias to a type expression");
+          "can't specify a capability for an alias to a type expression or "
+          "type parameter");
         return false;
       }
 
@@ -83,14 +86,16 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
       return false;
   }
 
-  if(ast_visit_scope(type, NULL, pass_names, opt) != AST_OK)
+  if(ast_visit_scope(type, NULL, pass_names, opt,
+    PASS_NAME_RESOLUTION) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 
-static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
+static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
+  bool expr)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, pkg, id, typeargs, cap, eph);
@@ -101,6 +106,13 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   if(!names_resolvealias(opt, def, &alias))
     return false;
+
+  // TODO: check constraints
+  if(expr)
+  {
+    if(!check_constraints(typeargs, typeparams, typeargs, true))
+      return false;
+  }
 
   // Reify the alias.
   ast_t* r_alias = reify(typeparams, alias, typeparams, typeargs);
@@ -117,7 +129,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   // Maintain the position info of the original reference to aid error
   // reporting.
-  ast_setpos(r_alias, ast_line(ast), ast_pos(ast));
+  ast_setpos(r_alias, ast_source(ast), ast_line(ast), ast_pos(ast));
 
   // Replace this with the alias.
   ast_replace(astp, r_alias);
@@ -153,22 +165,19 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   AST_GET_CHILDREN(ast, package, id, typeparams, cap, eph);
   token_id tcap = ast_id(cap);
 
-  if((tcap == TK_NONE) && (ast_id(def) == TK_PRIMITIVE))
+  if(tcap == TK_NONE)
   {
-    // A primitive without a capability is a val, even if it is a constraint.
-    tcap = TK_VAL;
-  } else if(t->frame->constraint != NULL) {
-    // A constraint is modified to a generic capability.
-    switch(tcap)
+    if(t->frame->constraint != NULL)
     {
-      case TK_NONE: tcap = TK_ANY_GENERIC; break;
-      case TK_BOX: tcap = TK_BOX_GENERIC; break;
-      case TK_TAG: tcap = TK_TAG_GENERIC; break;
-      default: {}
+      // A primitive constraint is a val, otherwise #any.
+      if(ast_id(def) == TK_PRIMITIVE)
+        tcap = TK_VAL;
+      else
+        tcap = TK_CAP_ANY;
+    } else {
+      // Use the default capability.
+      tcap = ast_id(ast_childidx(def, 2));
     }
-  } else if(tcap == TK_NONE) {
-    // Otherwise, we use the default capability.
-    tcap = ast_id(ast_childidx(def, 2));
   }
 
   ast_setid(cap, tcap);
@@ -220,7 +229,7 @@ ast_t* names_def(ast_t* ast)
   return ast_get(scope, ast_name(type_id), NULL);
 }
 
-bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
@@ -264,7 +273,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
     switch(ast_id(def))
     {
       case TK_TYPE:
-        r = names_typealias(opt, astp, def);
+        r = names_typealias(opt, astp, def, expr);
         break;
 
       case TK_TYPEPARAM:
@@ -315,7 +324,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!names_nominal(options, ast, astp))
+      if(!names_nominal(options, ast, astp, false))
         return AST_ERROR;
       break;
 

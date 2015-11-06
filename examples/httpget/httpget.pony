@@ -1,3 +1,4 @@
+use "assert"
 use "collections"
 use "files"
 use "net"

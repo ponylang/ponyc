@@ -7,7 +7,7 @@ class Readline is ANSINotify
   Line editing, history, and tab completion.
   """
   let _notify: ReadlineNotify
-  let _out: Stream
+  let _out: OutStream
   let _path: (FilePath | None)
   let _history: Array[String]
   let _queue: Array[String] = Array[String]
@@ -19,7 +19,7 @@ class Readline is ANSINotify
   var _cur_pos: I64 = 0
   var _blocked: Bool = true
 
-  new iso create(notify: ReadlineNotify iso, out: Stream,
+  new iso create(notify: ReadlineNotify iso, out: OutStream,
     path: (FilePath | None) = None, maxlen: U64 = 0)
   =>
     """

@@ -1,3 +1,5 @@
+use "assert"
+
 primitive URLNoSlashes
 
 type URLFormat is
@@ -5,7 +7,7 @@ type URLFormat is
   | URLNoSlashes
   )
 
-class URL val
+class val URL
   """
   Holds the components of a URL. These are always stored as valid, URL-encoded
   values.
@@ -188,13 +190,10 @@ class URL val
     try
       let at = from.rfind("@", slash)
 
-      try
-        let colon = from.rfind(":", at)
-        user = from.substring(i, colon - 1)
-        password = from.substring(colon + 1, at - 1)
-      else
-        // Has no password.
-        user = from.substring(i, at - 1)
+      let user_end = try from.find(":", i).min(at) else at end
+      user = from.substring(i, user_end - 1)
+      if from.at(":", user_end) then
+        password = from.substring(user_end + 1, at - 1)
       end
 
       i = at + 1
