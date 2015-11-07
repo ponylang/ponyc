@@ -233,10 +233,28 @@ actor TestHelper
     true
 
   fun tag assert_array_eq[A: (Equatable[A] #read & Stringable)]
-    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "Error") ?
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal.
+    """
+    if not _check_array_eq[A]("Assert", expect, actual, msg) then
+      error
+    end
+
+  fun tag expect_array_eq[A: (Equatable[A] #read & Stringable)]
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
+  =>
+    """
+    Expect that the contents of the 2 given ReadSeqs are equal.
+    """
+    _check_array_eq[A]("Expect", expect, actual, msg)
+
+  fun tag _check_array_eq[A: (Equatable[A] #read & Stringable)]
+    (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
+  =>
+    """
+    Check that the contents of the 2 given ReadSeqs are equal.
     """
     var ok = true
 
@@ -259,13 +277,14 @@ actor TestHelper
     end
 
     if not ok then
-      assert_failed("Assert EQ failed. " + msg + " Expected (" +
+      assert_failed(verb + " EQ failed. " + msg + " Expected (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
-      error
+      return false
     end
 
-    log("Assert EQ passed. " + msg + " Got (" +
+    log(verb + " EQ passed. " + msg + " Got (" +
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
+    true
 
   fun tag _print_array[A: (Equatable[A] #read & Stringable)]
     (array: ReadSeq[A]): String
@@ -283,8 +302,7 @@ actor TestHelper
       end
 
       first = false
-      var sa: String val = a.string(where prec = 1)
-      s = s + sa
+      s = s + a.string()
     end
     s = s + "]"
     s
