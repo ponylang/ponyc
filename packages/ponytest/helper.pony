@@ -291,19 +291,7 @@ actor TestHelper
     Generate a printable string of the contents of the given readseq to use in
     error messages.
     """
-    var s = "[len=" + array.size().string() + ": "
-    var first = true
-
-    for a in array.values() do
-      if not first then
-        s = s + ", "
-      end
-
-      first = false
-      s = s + a.string()
-    end
-    s = s + "]"
-    s
+    "[len=" + array.size().string() + ": " + ", ".join(array) + "]"
 
   be complete(success: Bool) =>
     """
