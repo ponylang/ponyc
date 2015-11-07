@@ -438,11 +438,11 @@ class iso _TestStringJoin is UnitTest
   fun name(): String => "builtin/String.join"
 
   fun apply(h: TestHelper): TestResult =>
-    // let a:Array[I32] val = recover [as I32: 1, 2, 3, 4] end
-    // h.expect_eq[String](" ".join(a), "1 2 3 4")
+    h.expect_eq[String]("_".join(["zomg"]), "zomg")
     h.expect_eq[String]("_".join(["hi", "there"]), "hi_there")
-    // h.expect_eq[String](" ".join([I64(1)]), "1")
-    // h.expect_eq[String](" ".join(Array[ByteSeq]), "")
+    h.expect_eq[String](" ".join(["1", "", "2", ""]), "1  2 ")
+    h.expect_eq[String](" ".join([as Stringable: U32(1), U32(4)]), "1 4")
+    h.expect_eq[String](" ".join(Array[String]), "")
     true
 
 class iso _TestStringCompare is UnitTest
