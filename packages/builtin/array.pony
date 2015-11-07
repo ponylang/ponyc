@@ -149,7 +149,12 @@ class Array[A] is Seq[A]
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
     """
+    dst.reserve(dst_idx + len)
     _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
+
+    if dst._size < (dst_idx + len) then
+      dst._size = dst_idx + len
+    end
     this
 
   fun ref remove(i: U64, n: U64): Array[A]^ =>
@@ -282,7 +287,71 @@ class Array[A] is Seq[A]
     """
     let out = Array[this->A!](_size)
     _ptr._copy_to(out._ptr, _size)
+    out._size = _size
     out
+
+  fun slice(from: U64 = 0, to: U64 = -1, step: U64 = 1): Array[this->A!]^ =>
+    """
+    Create a new array that is a clone of a portion of this array. The range is
+    exclusive and saturated.
+    """
+    let out = Array[this->A!]
+    let last = _size.min(to)
+    let len = last - from
+
+    if (last > from) and (step > 0) then
+      out.reserve((len + (step - 1)) / step)
+
+      if step == 1 then
+        copy_to(out, from, 0, len)
+      else
+        try
+          var i = from
+
+          while i < last do
+            out.push(this(i))
+            i = i + step
+          end
+        end
+      end
+    end
+
+    out
+
+  fun permute(indices: Iterator[U64]): Array[this->A!]^ ? =>
+    """
+    Permute to an arbitrary order that may include duplicates. An out of bounds
+    index raises an error.
+    """
+    let out = Array[this->A!]
+    for i in indices do
+      out.push(this(i))
+    end
+    out
+
+  fun reverse(): Array[this->A!]^ =>
+    """
+    Produce a new array in reverse order.
+    """
+    clone().reverse_in_place()
+
+  fun ref reverse_in_place(): Array[A] ref^ =>
+    """
+    Reverse the array in place.
+    """
+    if _size > 1 then
+      var i: U64 = 0
+      var j = _size - 1
+
+      while i < j do
+        let x = _ptr._apply(i)
+        _ptr._update(i, _ptr._apply(j))
+        _ptr._update(j, x)
+        i = i + 1
+        j = j - 1
+      end
+    end
+    this
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     """

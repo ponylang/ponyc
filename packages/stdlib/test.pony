@@ -49,6 +49,7 @@ actor Main is TestList
     test(_TestStringCompare)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
+    test(_TestArraySlice)
 
     // Tests for all other packages.
     collections.Main.make().tests(test)
@@ -485,4 +486,46 @@ class iso _TestStringCompare is UnitTest
     else
       // Needed until we have exhaustive match checking
       ""
+    end
+
+
+class iso _TestArraySlice is UnitTest
+  """
+  Test slicing arrays.
+  """
+  fun name(): String => "builtin/Array.slice"
+
+  fun apply(h: TestHelper): TestResult =>
+    let a = ["one", "two", "three", "four", "five"]
+
+    try
+      let b = a.slice(1, 4)
+      h.expect_eq[U64](b.size(), 3)
+      h.expect_eq[String]("two", b(0))
+      h.expect_eq[String]("three", b(1))
+      h.expect_eq[String]("four", b(2))
+
+      let c = a.slice(0, 5, 2)
+      h.expect_eq[U64](c.size(), 3)
+      h.expect_eq[String]("one", c(0))
+      h.expect_eq[String]("three", c(1))
+      h.expect_eq[String]("five", c(2))
+
+      let d = a.reverse()
+      h.expect_eq[U64](d.size(), 5)
+      h.expect_eq[String]("five", d(0))
+      h.expect_eq[String]("four", d(1))
+      h.expect_eq[String]("three", d(2))
+      h.expect_eq[String]("two", d(3))
+      h.expect_eq[String]("one", d(4))
+
+      let e = a.permute(collections.Reverse[U64](4, 0, 2))
+      h.expect_eq[U64](e.size(), 3)
+      h.expect_eq[String]("five", e(0))
+      h.expect_eq[String]("three", e(1))
+      h.expect_eq[String]("one", e(2))
+
+      true
+    else
+      false
     end

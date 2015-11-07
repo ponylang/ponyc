@@ -1,6 +1,6 @@
 class Reverse[A: (Real[A] val & Number) = U64] is Iterator[A]
   """
-  Produces (max, min].
+  Produces [max, min].
   """
   let _min: A
   let _max: A
@@ -14,13 +14,14 @@ class Reverse[A: (Real[A] val & Number) = U64] is Iterator[A]
     _idx = max
 
   fun has_next(): Bool =>
-    _idx >= (_min + _dec)
+    (_idx >= _min) and (_idx <= _max)
 
   fun ref next(): A =>
-    if _idx >= (_min + _dec) then
+    if has_next() then
       _idx = _idx - _dec
+    else
+      _idx + _dec
     end
-    _idx
 
   fun ref rewind() =>
     _idx = _max
