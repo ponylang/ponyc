@@ -39,6 +39,20 @@ class Match
     """
     _size
 
+  fun start_pos(): U64 =>
+    """
+    Returns the character position of the first character in the match.
+    """
+    @pcre2_get_startchar_8[U64](_match)
+
+  fun end_pos(): U64 =>
+    """
+    Returns the character position of the last character in the match.
+    """
+    var len = U64(0)
+    @pcre2_substring_length_bynumber_8[I32](_match, U32(0), addressof len)
+    start_pos() + (len - 1)
+
   fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
     """
     Returns a capture by number. Raises an error if the index is out of bounds.

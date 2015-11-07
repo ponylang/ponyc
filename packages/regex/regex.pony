@@ -107,6 +107,33 @@ class Regex
     out.truncate(len)
     out
 
+  fun split(subject: String, offset: U64 = 0): Array[String] iso^ ?
+  =>
+    """
+    Split subject by the occurrences of this pattern, returning a list of the
+    substrings.
+    """
+    if _pattern.is_null() then
+      error
+    end
+
+    let out = recover Array[String] end
+
+    var off = offset
+    try
+      while off < subject.size() do
+        let m = apply(subject, off)
+        let off' = m.start_pos() - 1
+        out.push(subject.substring(off.i64(), off'.i64()))
+        off = m.end_pos() + 1
+      end
+    else
+      out.push(subject.substring(off.i64(), -1))
+    end
+
+    out
+
+
   fun index(name: String box): U64 ? =>
     """
     Returns the index of a named capture. Raises an error if the named capture
