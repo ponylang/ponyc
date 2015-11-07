@@ -31,23 +31,13 @@ class Regex
     """
     Return true on a successful match, false otherwise.
     """
-    if _pattern.is_null() then
-      return false
-    end
-
-    let m = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
-      Pointer[U8])
-
-    let rc = if _jit then
-      @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
-        U64(0), U32(0), m, Pointer[U8])
+    try
+      (let m, _) = _match(subject, 0)
+      @pcre2_match_data_free_8[None](m)
+      true
     else
-      @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), U64(0),
-        U32(0), m, Pointer[U8])
+      false
     end
-
-    @pcre2_match_data_free_8[None](m)
-    rc > 0
 
   fun ne(subject: ByteSeq box): Bool =>
     """
@@ -55,7 +45,7 @@ class Regex
     """
     not eq(subject)
 
-  fun apply(subject: ByteSeq, offset: U64 = 0): Match iso^ ? =>
+  fun apply(subject: ByteSeq box, offset: U64 = 0): Match^ ? =>
     """
     Match the supplied string, starting at the given offset. Returns a Match
     object that can give precise match details. Raises an error if there is no
@@ -63,11 +53,8 @@ class Regex
 
     TODO: global match
     """
-    if _pattern.is_null() then
-      error
-    end
-
-    Match._create(_pattern, _jit, subject, offset)
+    (let m, let size) = _match(subject, offset)
+    Match._create(subject, m, size)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
     value: ByteSeq box, offset: U64 = 0, global: Bool = false): A^ ?
@@ -155,6 +142,33 @@ class Regex
       @pcre2_code_free_8[None](_pattern)
       _pattern = Pointer[_Pattern]
     end
+
+  fun _match(subject: ByteSeq box, offset: U64): (Pointer[_Match], U64) ? =>
+    """
+    Match the subject and keep the capture results. Raises an error if there
+    is no match.
+    """
+    if _pattern.is_null() then
+      error
+    end
+
+    let m = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
+      Pointer[U8])
+
+    let rc = if _jit then
+      @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
+        offset, U32(0), m, Pointer[U8])
+    else
+      @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), offset,
+        U32(0), m, Pointer[U8])
+    end
+
+    if rc <= 0 then
+      @pcre2_match_data_free_8[None](m)
+      error
+    end
+
+    (m, rc.u64())
 
   fun _final() =>
     """

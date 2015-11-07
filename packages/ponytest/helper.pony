@@ -198,7 +198,7 @@ actor TestHelper
     let actual' = identityof actual
     _check_eq[U64]("Expect", expect', actual', msg)
 
-  fun tag assert_eq[A: (Equatable[A] #read & Stringable)]
+  fun tag assert_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: A, actual: A, msg: String = "") ?
   =>
     """
@@ -208,7 +208,7 @@ actor TestHelper
       error
     end
 
-  fun tag expect_eq[A: (Equatable[A] #read & Stringable)]
+  fun tag expect_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: A, actual: A, msg: String = ""): Bool
   =>
     """
@@ -232,7 +232,7 @@ actor TestHelper
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
-  fun tag assert_array_eq[A: (Equatable[A] #read & Stringable)]
+  fun tag assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
   =>
     """
@@ -242,7 +242,7 @@ actor TestHelper
       error
     end
 
-  fun tag expect_array_eq[A: (Equatable[A] #read & Stringable)]
+  fun tag expect_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
   =>
     """
@@ -250,7 +250,7 @@ actor TestHelper
     """
     _check_array_eq[A]("Expect", expect, actual, msg)
 
-  fun tag _check_array_eq[A: (Equatable[A] #read & Stringable)]
+  fun tag _check_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
   =>
     """
@@ -286,9 +286,7 @@ actor TestHelper
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
     true
 
-  fun tag _print_array[A: (Equatable[A] #read & Stringable)]
-    (array: ReadSeq[A]): String
-  =>
+  fun tag _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
     """
     Generate a printable string of the contents of the given readseq to use in
     error messages.
