@@ -852,6 +852,24 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     s._size = len
     s
 
+  fun join(data: ReadSeq[Stringable]): String =>
+    """
+    Return a string that is a concatenation of the strings in data, using this
+    as a separator.
+    """
+    let buf = recover String end
+    var first = true
+    for v in data.values() do
+      if not first then
+        buf.reserve(buf._size + _size)
+        _ptr._copy_to(buf._ptr._offset_tag(buf._size), _size + 1) // + 1 for null
+        buf._size = buf._size + _size
+      end
+      first = false
+      buf.append(v.string())
+    end
+    buf
+
   fun compare(that: String box): Compare =>
     """
     Lexically compare two strings.

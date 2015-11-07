@@ -46,6 +46,7 @@ actor Main is TestList
     test(_TestStringRemove)
     test(_TestStringReplace)
     test(_TestStringSplit)
+    test(_TestStringJoin)
     test(_TestStringCompare)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
@@ -429,6 +430,20 @@ class iso _TestStringSplit is UnitTest
     else
       false
     end
+
+class iso _TestStringJoin is UnitTest
+  """
+  Test String.join
+  """
+  fun name(): String => "builtin/String.join"
+
+  fun apply(h: TestHelper): TestResult =>
+    // let a:Array[I32] val = recover [as I32: 1, 2, 3, 4] end
+    // h.expect_eq[String](" ".join(a), "1 2 3 4")
+    h.expect_eq[String]("_".join(["hi", "there"]), "hi_there")
+    // h.expect_eq[String](" ".join([I64(1)]), "1")
+    // h.expect_eq[String](" ".join(Array[ByteSeq]), "")
+    true
 
 class iso _TestStringCompare is UnitTest
   """
