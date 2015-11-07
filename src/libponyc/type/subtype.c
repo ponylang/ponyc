@@ -384,15 +384,15 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
 
-  // If we are the same nominal type, our typeargs must be the same.
-  if(sub_def == super_def)
-    return is_eq_typeargs(sub, super);
-
   switch(ast_id(super_def))
   {
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
+      // If we are the same nominal type, our typeargs must be the same.
+      if(sub_def == super_def)
+        return is_eq_typeargs(sub, super);
+
       // If we aren't the same type, we can't be a subtype of a concrete type.
       return false;
 
@@ -402,6 +402,10 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
         is_nominal_sub_interface(sub, super);
 
     case TK_TRAIT:
+      // If we are the same nominal type, our typeargs must be the same.
+      if(sub_def == super_def)
+        return is_eq_typeargs(sub, super);
+
       // Check for a nominal subtype.
       return is_nominal_sub_trait(sub, super);
 
