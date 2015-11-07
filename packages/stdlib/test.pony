@@ -57,6 +57,7 @@ actor Main is TestList
     http.Main.make().tests(test)
     options.Main.make().tests(test)
     json.Main.make().tests(test)
+    regex.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest
   """
