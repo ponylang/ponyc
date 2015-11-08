@@ -10,7 +10,7 @@ actor Main
   new create(env: Env) =>
     match env.root
     | None => env.out.print("No root!")
-    | let r: Root => Go(env, r)
+    | let r: AmbientAuth => Go(env, r)
     end
 
 
@@ -18,7 +18,7 @@ actor Go
   let _env: Env
   let _client: Client
 
-  new create(env: Env, root: Root) =>
+  new create(env: Env, root: AmbientAuth) =>
     _env = env
     let sslctx = try
       recover
