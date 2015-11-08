@@ -855,7 +855,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var s = recover String(len) end
     (consume s)._append(this)._append(that)
 
-  fun join(data: ReadSeq[Stringable]): String =>
+  fun join(data: ReadSeq[Stringable]): String iso^ =>
     """
     Return a string that is a concatenation of the strings in data, using this
     as a separator.
