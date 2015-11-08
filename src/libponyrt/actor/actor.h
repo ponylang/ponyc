@@ -10,9 +10,12 @@
 
 PONY_EXTERN_C_BEGIN
 
-#define  ACTORMSG_ACQUIRE (UINT32_MAX - 3)
-#define  ACTORMSG_RELEASE (UINT32_MAX - 2)
-#define  ACTORMSG_CONF (UINT32_MAX - 1)
+#define  ACTORMSG_BLOCK (UINT32_MAX - 6)
+#define  ACTORMSG_UNBLOCK (UINT32_MAX - 5)
+#define  ACTORMSG_ACQUIRE (UINT32_MAX - 4)
+#define  ACTORMSG_RELEASE (UINT32_MAX - 3)
+#define  ACTORMSG_CONF (UINT32_MAX - 2)
+#define  ACTORMSG_ACK (UINT32_MAX - 1)
 
 bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor);
 

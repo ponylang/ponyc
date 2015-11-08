@@ -10,6 +10,7 @@
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
+#include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
@@ -453,8 +454,13 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
+  const char* create = stringtab("create");
+
+  if(lookup(NULL, main_ast, main_ast, create) == NULL)
+    return false;
+
   genprim_reachable_init(c, program);
-  reach(c->reachable, main_ast, stringtab("create"), NULL);
+  reach(c->reachable, main_ast, create, NULL);
   reach(c->reachable, env_ast, stringtab("_create"), NULL);
   paint(c->reachable);
 

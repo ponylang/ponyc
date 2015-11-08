@@ -5,39 +5,36 @@ class Match
   Contains match data for a combination of a regex and a subject.
   """
   var _match: Pointer[_Match]
-  let _subject: ByteSeq
+  let _subject: ByteSeq box
   let _size: U64
 
-  new iso _create(pattern: Pointer[_Pattern] tag, jit: Bool, subject: ByteSeq,
-    offset: U64) ?
-  =>
+  new _create(subject: ByteSeq box, m: Pointer[_Match], size': U64) =>
     """
-    Match the subject and keep the capture results. Raises an error if there
-    is no match.
+    Store a match, a subject, and a size.
     """
-    _match = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](pattern,
-      Pointer[U8])
-
-    let rc = if jit then
-      @pcre2_jit_match_8[I32](pattern, subject.cstring(), subject.size(),
-        offset, U32(0), _match, Pointer[U8])
-    else
-      @pcre2_match_8[I32](pattern, subject.cstring(), subject.size(), offset,
-        U32(0), _match, Pointer[U8])
-    end
-
-    if rc <= 0 then
-      error
-    end
-
+    _match = m
     _subject = subject
-    _size = rc.max(0).u64()
+    _size = size'
 
   fun size(): U64 =>
     """
     Returns the capture size of the match.
     """
     _size
+
+  fun start_pos(): U64 =>
+    """
+    Returns the character position of the first character in the match.
+    """
+    @pcre2_get_startchar_8[U64](_match)
+
+  fun end_pos(): U64 =>
+    """
+    Returns the character position of the last character in the match.
+    """
+    var len = U64(0)
+    @pcre2_substring_length_bynumber_8[I32](_match, U32(0), addressof len)
+    start_pos() + (len - 1)
 
   fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
     """

@@ -20,7 +20,7 @@ typedef struct chunk_t
   struct chunk_t* next;
 } chunk_t;
 
-typedef char block_t[HEAP_MAX << 1];
+typedef char block_t[POOL_ALIGN];
 typedef void (*chunk_fn)(chunk_t* chunk);
 
 #define SIZECLASS_SIZE(sizeclass) (HEAP_MIN << (sizeclass))
@@ -59,6 +59,17 @@ static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 static size_t heap_initialgc = 1 << 14;
 static double heap_nextgc_factor = 2.0;
 
+static void large_pagemap(char* m, size_t size, chunk_t* chunk)
+{
+  char* end = m + size;
+
+  while(m < end)
+  {
+    pagemap_set(m, chunk);
+    m += POOL_ALIGN;
+  }
+}
+
 static void clear_small(chunk_t* chunk)
 {
   chunk->slots = sizeclass_empty[chunk->size];
@@ -73,14 +84,15 @@ static void clear_large(chunk_t* chunk)
 
 static void destroy_small(chunk_t* chunk)
 {
-  // We could clear the pagemap here.
+  pagemap_set(chunk->m, NULL);
   POOL_FREE(block_t, chunk->m);
   POOL_FREE(chunk_t, chunk);
 }
 
 static void destroy_large(chunk_t* chunk)
 {
-  // We could clear the pagemap here.
+  large_pagemap(chunk->m, chunk->size, NULL);
+
   if(chunk->m != NULL)
     pool_free_size(chunk->size, chunk->m);
 
@@ -152,18 +164,6 @@ static void chunk_list(chunk_fn f, chunk_t* current)
     next = current->next;
     f(current);
     current = next;
-  }
-}
-
-static void large_pagemap(chunk_t* chunk)
-{
-  char* p = chunk->m;
-  char* end = p + chunk->size;
-
-  while(p < end)
-  {
-    pagemap_set(p, chunk);
-    p += HEAP_MAX;
   }
 }
 
@@ -273,7 +273,7 @@ void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk->slots = 0;
   chunk->shallow = 0;
 
-  large_pagemap(chunk);
+  large_pagemap(chunk->m, size, chunk);
 
   chunk->next = heap->large;
   heap->large = chunk;
@@ -416,14 +416,25 @@ void heap_free(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
   {
-    pool_free_size(chunk->size, chunk->m);
-    chunk->m = NULL;
-    chunk->slots = 1;
+    if(p == chunk->m)
+    {
+      pool_free_size(chunk->size, chunk->m);
+      chunk->m = NULL;
+      chunk->slots = 1;
+    }
     return;
   }
 
-  uint32_t slot = FIND_SLOT(p, chunk->m);
-  chunk->slots |= slot;
+  // Calculate the external pointer.
+  void* ext = EXTERNAL_PTR(p, chunk->size);
+
+  if(p == ext)
+  {
+    // Shift to account for smallest allocation size.
+    uint32_t slot = FIND_SLOT(ext, chunk->m);
+
+    chunk->slots |= slot;
+  }
 }
 
 void heap_endgc(heap_t* heap)

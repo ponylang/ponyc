@@ -107,7 +107,6 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   if(!names_resolvealias(opt, def, &alias))
     return false;
 
-  // TODO: check constraints
   if(expr)
   {
     if(!check_constraints(typeargs, typeparams, typeargs, true))

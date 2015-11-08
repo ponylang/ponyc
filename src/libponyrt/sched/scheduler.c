@@ -317,12 +317,60 @@ static void scheduler_shutdown()
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
 
+#ifdef USE_TELEMETRY
+  printf("\"telemetry\": [\n");
+#endif
+
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
     while(messageq_pop(&scheduler[i].mq) != NULL);
     messageq_destroy(&scheduler[i].mq);
     mpmcq_destroy(&scheduler[i].q);
+
+#ifdef USE_TELEMETRY
+    pony_ctx_t* ctx = &scheduler[i].ctx;
+
+    printf(
+      "  {\n"
+      "    \"count_gc_passes\": " __zu ",\n"
+      "    \"count_alloc\": " __zu ",\n"
+      "    \"count_alloc_size\": " __zu ",\n"
+      "    \"count_alloc_actors\": " __zu ",\n"
+      "    \"count_msg_app\": " __zu ",\n"
+      "    \"count_msg_block\": " __zu ",\n"
+      "    \"count_msg_unblock\": " __zu ",\n"
+      "    \"count_msg_acquire\": " __zu ",\n"
+      "    \"count_msg_release\": " __zu ",\n"
+      "    \"count_msg_conf\": " __zu ",\n"
+      "    \"count_msg_ack\": " __zu ",\n"
+      "    \"time_in_gc\": " __zu ",\n"
+      "    \"time_in_send_scan\": " __zu ",\n"
+      "    \"time_in_recv_scan\": " __zu "\n"
+      "  }",
+      ctx->count_gc_passes,
+      ctx->count_alloc,
+      ctx->count_alloc_size,
+      ctx->count_alloc_actors,
+      ctx->count_msg_app,
+      ctx->count_msg_block,
+      ctx->count_msg_unblock,
+      ctx->count_msg_acquire,
+      ctx->count_msg_release,
+      ctx->count_msg_conf,
+      ctx->count_msg_ack,
+      ctx->time_in_gc,
+      ctx->time_in_send_scan,
+      ctx->time_in_recv_scan
+      );
+
+    if(i < (scheduler_count - 1))
+      printf(",\n");
+#endif
   }
+
+#ifdef USE_TELEMETRY
+  printf("\n]\n");
+#endif
 
   pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
   scheduler = NULL;

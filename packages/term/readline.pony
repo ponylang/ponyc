@@ -362,6 +362,7 @@ class Readline is ANSINotify
     """
     try
       if (_history.size() > 0) and (_history(_history.size() - 1) == line) then
+        _cur_line = _history.size()
         return
       end
     end

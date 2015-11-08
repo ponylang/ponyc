@@ -83,6 +83,16 @@ ifdef use
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
+
+  ifneq (,$(filter $(use), pooltrack))
+    ALL_CFLAGS += -DUSE_POOLTRACK
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
+  endif
+
+  ifneq (,$(filter $(use), telemetry))
+    ALL_CFLAGS += -DUSE_TELEMETRY
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-telemetry
+  endif
 endif
 
 ifdef config
@@ -565,6 +575,8 @@ help:
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
+	@echo '   pooltrack'
+	@echo '   telemetry'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'

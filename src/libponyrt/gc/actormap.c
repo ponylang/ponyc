@@ -107,10 +107,7 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
   if(size == 0)
     return NULL;
 
-  // guarantee we don't resize during insertion
-  actorref_t* to = actorref_alloc(from->actor, mark);
-  objectmap_init(&to->map, size);
-
+  actorref_t* to = NULL;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
@@ -120,6 +117,14 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
       continue;
 
     objectmap_removeindex(&from->map, i);
+
+    if(to == NULL)
+    {
+      // Guarantee we don't resize during insertion.
+      to = actorref_alloc(from->actor, mark);
+      objectmap_init(&to->map, size);
+    }
+
     objectmap_put(&to->map, obj);
   }
 
