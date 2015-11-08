@@ -55,7 +55,7 @@ An example non-interruptible behaviour that exposes the lonely pony problem:
 And solving via yield:
 
 ```pony
-actor InterruptiblePony
+actor InterruptiblePony is Yieldable
   var _alive : Bool = false
   be kill() =>
     _alive = false
