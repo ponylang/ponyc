@@ -105,7 +105,7 @@ class Regex
   fun split(subject: String, offset: U64 = 0): Array[String] iso^ ?
   =>
     """
-    Split subject by the occurrences of this pattern, returning a list of the
+    Split subject by non-empty occurrences of this pattern, returning a list of the
     substrings.
     """
     if _pattern.is_null() then
