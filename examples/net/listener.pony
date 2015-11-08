@@ -9,12 +9,12 @@ class Listener is TCPListenNotify
   var _host: String = ""
   var _service: String = ""
   var _count: U64 = 0
-  let _root: Root
+  let _root: AmbientAuth
 
   new create(env: Env, ssl: Bool, limit: U64) ? =>
     _env = env
     _root = match env.root
-	  | let r: Root => r
+	  | let r: AmbientAuth => r
 	  else
 	    error
 	  end

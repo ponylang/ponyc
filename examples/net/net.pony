@@ -24,12 +24,12 @@ actor Main
     end
 
     match env.root
-    | let r: Root =>
+    | let r: AmbientAuth =>
       let network = NetworkInterface(r)
       try
         network.listen(recover Listener(env, ssl, limit) end)
       end
     else
-      env.out.print("no Root!")
+      env.out.print("no root in Env!")
     end
     // UDPSocket(recover Pong(env) end)

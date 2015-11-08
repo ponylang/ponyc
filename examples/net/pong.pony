@@ -7,7 +7,7 @@ class Pong is UDPNotify
   new create(env: Env) ? =>
     _env = env
     _network = match env.root
-	  | let r: Root => recover NetworkInterface(r) end
+	  | let r: AmbientAuth => recover NetworkInterface(r) end
 	  else
 	    error
 	  end
