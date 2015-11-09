@@ -2,6 +2,11 @@ use "lib:pcre2-8"
 
 primitive _Pattern
 
+primitive _PCRE2
+  fun utf(): U32 => 0x00080000                // PCRE2_UTF
+  fun substitute_global(): U32 => 0x00000100  // PCRE2_SUBSTITUTE_GLOBAL
+  fun not_empty(): U32 => 0x00000004          // PCRE2_NOTEMPTY
+
 class Regex
   """
   A perl compatible regular expression. This uses the PCRE2 library, and
@@ -14,12 +19,12 @@ class Regex
     """
     Compile a regular expression. Raises an error for an invalid expression.
     """
-    let opt: U32 = 0x00080000 // PCRE2_UTF
+    let opt: U32 = _PCRE2.utf()
     var err: I32 = 0
     var erroffset: U64 = 0
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
-      opt, addressof err, addressof erroffset, Pointer[U8])
+        _PCRE2.utf(), addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
       error
@@ -32,7 +37,7 @@ class Regex
     Return true on a successful match, false otherwise.
     """
     try
-      (let m, _) = _match(subject, 0)
+      (let m, _) = _match(subject, 0, 0)
       @pcre2_match_data_free_8[None](m)
       true
     else
@@ -53,7 +58,7 @@ class Regex
 
     TODO: global match
     """
-    (let m, let size) = _match(subject, offset)
+    (let m, let size) = _match(subject, offset, U32(0))
     Match._create(subject, m, size)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
@@ -68,8 +73,11 @@ class Regex
       error
     end
 
-    var opt = U32(0)
-    if global then opt = opt or 0x00000100 end // PCRE2_SUBSTITUTE_GLOBAL
+    var opt = if global then
+          U32(0) 
+        else
+          _PCRE2.substitute_global()
+        end
 
     var len = subject.size().max(64)
     let out = recover A(len) end
@@ -97,7 +105,7 @@ class Regex
   fun split(subject: String, offset: U64 = 0): Array[String] iso^ ?
   =>
     """
-    Split subject by the occurrences of this pattern, returning a list of the
+    Split subject by non-empty occurrences of this pattern, returning a list of the
     substrings.
     """
     if _pattern.is_null() then
@@ -106,10 +114,11 @@ class Regex
 
     let out = recover Array[String] end
 
-    var off = offset
+    var off = consume offset
     try
       while off < subject.size() do
-        let m = apply(subject, off)
+        (let m', let size) = _match(subject, off, _PCRE2.not_empty())
+        let m = Match._create(subject, m', size)
         let off' = m.start_pos() - 1
         out.push(subject.substring(off.i64(), off'.i64()))
         off = m.end_pos() + 1
@@ -143,7 +152,7 @@ class Regex
       _pattern = Pointer[_Pattern]
     end
 
-  fun _match(subject: ByteSeq box, offset: U64): (Pointer[_Match], U64) ? =>
+  fun _match(subject: ByteSeq box, offset: U64, options: U32): (Pointer[_Match], U64) ? =>
     """
     Match the subject and keep the capture results. Raises an error if there
     is no match.
@@ -157,10 +166,10 @@ class Regex
 
     let rc = if _jit then
       @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
-        offset, U32(0), m, Pointer[U8])
+        offset, options, m, Pointer[U8])
     else
       @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), offset,
-        U32(0), m, Pointer[U8])
+        options, m, Pointer[U8])
     end
 
     if rc <= 0 then

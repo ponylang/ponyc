@@ -43,9 +43,12 @@ class iso _TestSplit is UnitTest
   fun name(): String => "regex/Regex.split"
 
   fun apply(h: TestHelper): TestResult ? =>
-    let a: Array[String] = Regex("\\d+").split("ab12cd34ef")
-    let exp: Array[String] = ["ab", "cd", "ef"]
-    h.assert_array_eq[String](a, exp)
+    h.assert_array_eq[String](["ab", "cd", "ef"],
+                              Regex("\\d+").split("ab12cd34ef"))
+    h.assert_array_eq[String](["abcdef"],
+                              Regex("\\d*").split("abcdef"))
+    h.assert_array_eq[String](["abc", "def"],
+                              Regex("\\d*").split("abc1def"))
     true
 
 class iso _TestError is UnitTest
