@@ -5,10 +5,10 @@ class Match
   Contains match data for a combination of a regex and a subject.
   """
   var _match: Pointer[_Match]
-  let _subject: ByteSeq box
+  let _subject: ByteSeq
   let _size: U64
 
-  new _create(subject: ByteSeq box, m: Pointer[_Match], size': U64) =>
+  new _create(subject: ByteSeq, m: Pointer[_Match], size': U64) =>
     """
     Store a match, a subject, and a size.
     """

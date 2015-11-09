@@ -45,7 +45,7 @@ class Regex
     """
     not eq(subject)
 
-  fun apply(subject: ByteSeq box, offset: U64 = 0): Match^ ? =>
+  fun apply(subject: ByteSeq, offset: U64 = 0): Match^ ? =>
     """
     Match the supplied string, starting at the given offset. Returns a Match
     object that can give precise match details. Raises an error if there is no
