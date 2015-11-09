@@ -841,16 +841,35 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     this
 
+  fun iso _append(s: String box): String iso^ =>
+    reserve(s._size + _size)
+    s._ptr._copy_to(_ptr._offset_tag(_size), s._size + 1) // + 1 for null
+    _size = s._size + _size
+    consume this
+
   fun add(that: String box): String =>
     """
     Return a string that is a concatenation of this and that.
     """
     let len = _size + that._size
     var s = recover String(len) end
-    _ptr._copy_to(s._ptr, _size)
-    that._ptr._copy_to(s._ptr._offset_tag(_size), that._size + 1)
-    s._size = len
-    s
+    (consume s)._append(this)._append(that)
+
+  fun join(data: ReadSeq[Stringable]): String iso^ =>
+    """
+    Return a string that is a concatenation of the strings in data, using this
+    as a separator.
+    """
+    var buf = recover String end
+    var first = true
+    for v in data.values() do
+      if not first then
+        buf = (consume buf)._append(this)
+      end
+      first = false
+      buf.append(v.string())
+    end
+    buf
 
   fun compare(that: String box): Compare =>
     """
