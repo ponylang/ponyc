@@ -55,37 +55,41 @@ class File
     the contents if it does exist.
     Set errno according to result.
     """
-    if not from.caps(FileRead) or not from.caps(FileWrite) then
-      _errno = FileError
-      return
-    end
-
-    let mode = if not from.exists() then
-      if not from.caps(FileCreate) then
-        _errno = FileError
-        return
-      end
-
-      "w+b"
-    else
-      "r+b"
-    end
-
     path = from
     writeable = true
-    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), mode.cstring())
+    _fd = -1
+    _handle = Pointer[_FileHandle]
 
-    if _handle.is_null() then
+    if not from.caps(FileRead) or not from.caps(FileWrite) then
       _errno = FileError
-      return
-    end
-
-    _fd = _get_fd(_handle)
-
-    try
-      _FileDes.set_rights(_fd, path, writeable)
     else
-      _errno = FileError
+      var mode = "x"
+      if not from.exists() then
+        if not from.caps(FileCreate) then
+          _errno = FileError
+        else
+          mode = "w+b"
+        end
+      else
+        mode = "r+b"
+      end
+
+      if mode != "x" then
+        _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
+          mode.cstring())
+
+        if _handle.is_null() then
+          _errno = FileError
+        else
+          _fd = _get_fd(_handle)
+
+          try
+            _FileDes.set_rights(_fd, path, writeable)
+          else
+            _errno = FileError
+          end
+        end
+      end
     end
 
   new open(from: FilePath) =>
@@ -93,26 +97,27 @@ class File
     Open for read only.
     Set _errno according to result.
     """
-    if not from.caps(FileRead) then
-      _errno = FileError
-      return
-    end
-
     path = from
     writeable = false
-    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), "rb".cstring())
+    _fd = -1
+    _handle = Pointer[_FileHandle]
 
-    if _handle.is_null() then
+    if not from.caps(FileRead) then
       _errno = FileError
-      return
-    end
-
-    _fd = _get_fd(_handle)
-
-    try
-      _FileDes.set_rights(_fd, path, writeable)
     else
-      _errno = FileError
+      _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), "rb".cstring())
+
+      if _handle.is_null() then
+        _errno = FileError
+      else
+        _fd = _get_fd(_handle)
+
+        try
+          _FileDes.set_rights(_fd, path, writeable)
+        else
+          _errno = FileError
+        end
+      end
     end
 
   new _descriptor(fd: I32, from: FilePath) ? =>
