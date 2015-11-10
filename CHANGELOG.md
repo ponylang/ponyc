@@ -4,9 +4,22 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [unreleased] - unreleased
 
+### Fixed
+
+- Check for Main.create before reachability analysis.
+- Interface subtyping need not be invariant on type args.
+- @fowles: handle regex empty match.
+- @praetonus: readline history handling.
+- Put unbox constructors on machine words into the vtable.
+- @jonas-l: parse URL with omitted password.
+- Adjust for ephemerality in cap_single().
+
 ### Added
 
 - OpenFile and CreateFile primitives to return well-typed errors.
+- @fowles: String.join
+- Array slice, permute, reverse.
+- Pooltrack and telemetry runtime builds.
 
 ### Changed
 

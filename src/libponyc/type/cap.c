@@ -444,19 +444,31 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
 
 token_id cap_single(ast_t* type)
 {
+  size_t i;
+
   switch(ast_id(type))
   {
     case TK_NOMINAL:
-      return ast_id(ast_childidx(type, 3));
+      i = 3;
+      break;
 
     case TK_TYPEPARAMREF:
-      return ast_id(ast_childidx(type, 1));
+      i = 1;
+      break;
 
-    default: {}
+    default:
+      assert(0);
+      return TK_NONE;
   }
 
-  assert(0);
-  return TK_NONE;
+  ast_t* cap = ast_childidx(type, i);
+  ast_t* eph = ast_sibling(cap);
+
+  token_id tcap = ast_id(cap);
+  token_id teph = ast_id(eph);
+  cap_aliasing(&tcap, &teph);
+
+  return tcap;
 }
 
 token_id cap_for_this(typecheck_t* t)
