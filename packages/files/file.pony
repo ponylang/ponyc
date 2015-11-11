@@ -156,6 +156,17 @@ class File
     """
     not _handle.is_null()
 
+  fun get_fd(): I32 ? =>
+    """
+    Returns the underlying file descriptor.
+    Raises an error if the file is not currently open.
+    """
+    if _handle.is_null() then
+      error
+    end
+
+    _fd
+
   fun ref line(): String iso^ ? =>
     """
     Returns a line as a String. The newline is not included in the string. If
