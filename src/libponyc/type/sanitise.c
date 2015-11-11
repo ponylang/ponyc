@@ -71,7 +71,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
     collect_type_param(p, params, args);
 
-  ast_t* method_t_params = ast_childidx(method, 1);
+  ast_t* method_t_params = ast_childidx(method, 2);
 
   // Collect type parameters defined on the method
   for(ast_t* p = ast_child(method_t_params); p != NULL; p = ast_sibling(p))
