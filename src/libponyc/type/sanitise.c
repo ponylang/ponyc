@@ -92,7 +92,7 @@ static void sanitise(ast_t** astp)
 
   ast_clearflag(*astp, AST_FLAG_PASS_MASK);
 
-  if(ast_id(type) == TK_PARAMREF)
+  if(ast_id(type) == TK_TYPEPARAMREF)
   {
     // We have a type param reference, convert to a nominal
     ast_t* def = (ast_t*)ast_data(type);
