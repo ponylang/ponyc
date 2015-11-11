@@ -234,8 +234,10 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
 
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
-  n->flags = ast->flags & (AST_FLAG_PASS_MASK | AST_INHERIT_FLAGS);
-
+  n->flags = ast->flags & AST_ALL_FLAGS;
+  // We don't actually want to copy the orphan flag, but the following if
+  // always explicitly sets or clears it.
+  
   if(parent == NULL)
     set_scope_no_parent(n, ast->parent);
   else
