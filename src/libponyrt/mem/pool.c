@@ -471,11 +471,11 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   pool_central_t* p = (pool_central_t*)thread->pool;
   p->length = thread->length;
   cmp.dw = global->central;
+  xchg.node = p;
 
   do
   {
     p->central = cmp.node;
-    xchg.node = p;
     xchg.aba = cmp.aba + 1;
   } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
 
