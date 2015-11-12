@@ -380,10 +380,18 @@ static void expand_none(ast_t* ast)
 }
 
 
-static ast_result_t sugar_return(ast_t* ast)
+static ast_result_t sugar_return(typecheck_t* t, ast_t* ast)
 {
   ast_t* return_value = ast_child(ast);
-  expand_none(return_value);
+
+  if((ast_id(ast) == TK_RETURN) && (ast_id(t->frame->method) == TK_NEW))
+  {
+    assert(ast_id(return_value) == TK_NONE);
+    ast_setid(return_value, TK_THIS);
+  } else {
+    expand_none(return_value);
+  }
+
   return AST_OK;
 }
 
@@ -1006,7 +1014,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_BE:         return sugar_be(t, ast);
     case TK_FUN:        return sugar_fun(ast);
     case TK_RETURN:
-    case TK_BREAK:      return sugar_return(ast);
+    case TK_BREAK:      return sugar_return(t, ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:

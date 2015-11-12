@@ -541,24 +541,45 @@ static ast_result_t syntax_consume(ast_t* ast)
 }
 
 
-static ast_result_t syntax_return(ast_t* ast, size_t max_value_count)
+static ast_result_t syntax_return(pass_opt_t* options, ast_t* ast,
+  size_t max_value_count)
 {
   assert(ast != NULL);
 
   ast_t* value_seq = ast_child(ast);
-
-  size_t value_count = 0;
-
-  if(value_seq != NULL)
-  {
-    assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
-    value_count = ast_childcount(value_seq);
-  }
+  assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
+  size_t value_count = ast_childcount(value_seq);
 
   if(value_count > max_value_count)
   {
     ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
     return AST_ERROR;
+  }
+
+  if(ast_id(ast) == TK_RETURN)
+  {
+    if(options->check.frame->method_body == NULL)
+    {
+      ast_error(ast, "return must occur in a method body");
+      return AST_ERROR;
+    }
+
+    if(value_count > 0)
+    {
+      if(ast_id(options->check.frame->method) == TK_NEW)
+      {
+        ast_error(ast,
+          "A return in a constructor must not have an expression");
+        return AST_ERROR;
+      }
+
+      if(ast_id(options->check.frame->method) == TK_BE)
+      {
+        ast_error(ast,
+          "A return in a behaviour must not have an expression");
+        return AST_ERROR;
+      }
+    }
   }
 
   return AST_OK;
@@ -686,9 +707,9 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_ELLIPSIS:   r = syntax_ellipsis(ast); break;
     case TK_CONSUME:    r = syntax_consume(ast); break;
     case TK_RETURN:
-    case TK_BREAK:      r = syntax_return(ast, 1); break;
+    case TK_BREAK:      r = syntax_return(options, ast, 1); break;
     case TK_CONTINUE:
-    case TK_ERROR:      r = syntax_return(ast, 0); break;
+    case TK_ERROR:      r = syntax_return(options, ast, 0); break;
     case TK_LET:
     case TK_VAR:        r = syntax_local(ast); break;
     case TK_EMBED:      r = syntax_embed(ast); break;

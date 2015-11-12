@@ -1,3 +1,4 @@
+#include "call.h"
 #include "control.h"
 #include "literal.h"
 #include "../ast/frame.h"
@@ -389,12 +390,6 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
 
-  if(t->frame->method_body == NULL)
-  {
-    ast_error(ast, "return must occur in a method body");
-    return false;
-  }
-
   // return is always the last expression in a sequence
   assert(ast_sibling(ast) == NULL);
 
@@ -427,19 +422,16 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(t->frame->method))
   {
     case TK_NEW:
-      if(!is_none(body_type))
+      if(is_this_incomplete(t, ast))
       {
-        ast_error(ast, "return in a constructor must return None");
+        ast_error(ast,
+          "all fields must be defined before constructor returns");
         ok = false;
       }
       break;
 
     case TK_BE:
-      if(!is_none(body_type))
-      {
-        ast_error(ast, "return in a behaviour must return None");
-        ok = false;
-      }
+      assert(is_none(body_type));
       break;
 
     default:
