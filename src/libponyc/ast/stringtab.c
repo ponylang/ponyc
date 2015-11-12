@@ -91,7 +91,7 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   if(n != NULL)
   {
-    pool_free_size(len, (void*)string);
+    pool_free_size(buf_size, (void*)string);
     return n->str;
   }
 

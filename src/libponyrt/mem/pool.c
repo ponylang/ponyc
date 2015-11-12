@@ -279,9 +279,7 @@ static void track_alloc(void* p, size_t size)
 static void track_free(void* p, size_t size)
 {
   track_init();
-
-  if(track.internal)
-    return;
+  assert(!track.internal);
 
   track.internal = true;
 
@@ -295,6 +293,9 @@ static void track_free(void* p, size_t size)
 
 static void track_push(pool_item_t* p, size_t length, size_t size)
 {
+  track_init();
+  assert(!track.internal);
+
   track.internal = true;
   size_t tsc = __pony_rdtsc();
 
@@ -317,6 +318,9 @@ static void track_push(pool_item_t* p, size_t length, size_t size)
 
 static void track_pull(pool_item_t* p, size_t length, size_t size)
 {
+  track_init();
+  assert(!track.internal);
+
   track.internal = true;
   size_t tsc = __pony_rdtsc();
 
@@ -341,6 +345,7 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 #define TRACK_FREE(PTR, SIZE) track_free(PTR, SIZE)
 #define TRACK_PUSH(PTR, LEN, SIZE) track_push(PTR, LEN, SIZE)
 #define TRACK_PULL(PTR, LEN, SIZE) track_pull(PTR, LEN, SIZE)
+#define TRACK_EXTERNAL() (!track.internal)
 
 #else
 
@@ -348,6 +353,7 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 #define TRACK_FREE(PTR, SIZE)
 #define TRACK_PUSH(PTR, LEN, SIZE)
 #define TRACK_PULL(PTR, LEN, SIZE)
+#define TRACK_EXTERNAL() (true)
 
 #endif
 
@@ -464,12 +470,16 @@ static void pool_free_pages(void* p, size_t size)
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
 {
-  assert(thread->length == global->count);
-  TRACK_PUSH(thread->pool, thread->length, global->size);
-
   pool_cmp_t cmp, xchg;
   pool_central_t* p = (pool_central_t*)thread->pool;
   p->length = thread->length;
+
+  thread->pool = NULL;
+  thread->length = 0;
+
+  assert(p->length == global->count);
+  TRACK_PUSH((pool_item_t*)p, p->length, global->size);
+
   cmp.dw = global->central;
   xchg.node = p;
 
@@ -478,9 +488,6 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     p->central = cmp.node;
     xchg.aba = cmp.aba + 1;
   } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
-
-  thread->pool = NULL;
-  thread->length = 0;
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -501,11 +508,12 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
 
   pool_item_t* p = (pool_item_t*)next;
-  thread->pool = p->next;
-  thread->length = next->length - 1;
 
   assert(next->length == global->count);
   TRACK_PULL(p, next->length, global->size);
+
+  thread->pool = p->next;
+  thread->length = next->length - 1;
 
   return p;
 }
@@ -524,11 +532,14 @@ static void* pool_get(pool_local_t* pool, size_t index)
     return p;
   }
 
-  // Try to get a new free list from the per-size global list of free lists.
-  p = pool_pull(thread, global);
+  if(TRACK_EXTERNAL())
+  {
+    // Try to get a new free list from the per-size global list of free lists.
+    p = pool_pull(thread, global);
 
-  if(p != NULL)
-    return p;
+    if(p != NULL)
+      return p;
+  }
 
   if(global->size < POOL_ALIGN)
   {
