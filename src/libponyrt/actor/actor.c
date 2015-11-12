@@ -1,5 +1,4 @@
 #include "actor.h"
-#include "messageq.h"
 #include "../sched/scheduler.h"
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
@@ -15,18 +14,6 @@ enum
   FLAG_UNSCHEDULED = 1 << 2,
   FLAG_PENDINGDESTROY = 1 << 3,
 };
-
-typedef struct pony_actor_t
-{
-  pony_type_t* type;
-  messageq_t q;
-  pony_msg_t* continuation;
-  uint8_t flags;
-
-  // keep things accessed by other actors on a separate cache line
-  __pony_spec_align__(heap_t heap, 64); // 104 bytes
-  gc_t gc; // 80 bytes
-} pony_actor_t;
 
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
 {

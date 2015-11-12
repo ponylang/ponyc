@@ -651,6 +651,18 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
 
 static void final(pony_ctx_t* ctx, pony_actor_t* self)
 {
+  // Find block messages and invoke finalisers for those actors
+  pony_msg_t* msg;
+
+  while((msg = messageq_pop(&self->q)) != NULL)
+  {
+    if(msg->id == ACTORMSG_BLOCK)
+    {
+      block_msg_t* m = (block_msg_t*)msg;
+      actor_final(ctx, m->actor);
+    }
+  }
+
   detector_t* d = (detector_t*)self;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
