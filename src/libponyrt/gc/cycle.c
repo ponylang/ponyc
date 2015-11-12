@@ -659,7 +659,12 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     if(msg->id == ACTORMSG_BLOCK)
     {
       block_msg_t* m = (block_msg_t*)msg;
-      actor_final(ctx, m->actor);
+
+      if(!actor_pendingdestroy(m->actor))
+      {
+        actor_setpendingdestroy(m->actor);
+        actor_final(ctx, m->actor);
+      }
     }
   }
 
@@ -672,8 +677,11 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   // blocked, it has already been destroyed.
   while((view = viewmap_next(&d->views, &i)) != NULL)
   {
-    if(view->blocked)
+    if(view->blocked && !actor_pendingdestroy(view->actor))
+    {
+      actor_setpendingdestroy(view->actor);
       actor_final(ctx, view->actor);
+    }
   }
 
   // Terminate the scheduler.
