@@ -629,13 +629,15 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   r_type = sanitise_type(r_type);
+  ast_t* alias_r_type = alias(r_type);
 
   // A field in the type.
   BUILD(r_field, receiver,
-    NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE NONE));
+    NODE(TK_FLET, TREE(r_field_id) TREE(alias_r_type) NONE NONE));
 
   // A parameter of the constructor.
-  BUILD(r_ctor_param, receiver, NODE(TK_PARAM, TREE(r_id) TREE(r_type) NONE));
+  BUILD(r_ctor_param, receiver,
+    NODE(TK_PARAM, TREE(r_id) TREE(alias_r_type) NONE));
 
   // An assignment in the constructor body.
   BUILD(r_assign, receiver,
