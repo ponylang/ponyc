@@ -21,6 +21,7 @@ typedef struct gentype_t
 
   int field_count;
   ast_t** fields;
+  token_id* field_keys;
 
   LLVMTypeRef desc_type;
   LLVMValueRef desc;

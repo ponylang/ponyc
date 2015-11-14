@@ -359,6 +359,12 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       return assign_one(c, l_value, r_value, r_type);
     }
 
+    case TK_EMBEDREF:
+    {
+      // Do nothing. The embed field was already passed as the receiver.
+      return GEN_NOVALUE;
+    }
+
     case TK_VARREF:
     {
       // The result is the previous value of the local.

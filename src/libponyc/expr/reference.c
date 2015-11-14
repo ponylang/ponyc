@@ -130,18 +130,22 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
 
-  // An embedded field must have a known, non-actor type.
+  // An embedded field must have a known, class type.
   if(ast_id(ast) == TK_EMBED)
   {
-    if(!is_known(type) || is_actor(type))
+    if(!is_known(type) || !is_entity(type, TK_CLASS))
     {
-      ast_error(ast, "embedded fields must always be primitives or classes");
+      ast_error(ast, "embedded fields must be classes");
       return false;
     }
   }
 
   if(ast_id(init) != TK_NONE)
   {
+    // Only parameters have initialisers. Field initialisers are moved into
+    // constructors in the sugar pass.
+    assert(ast_id(ast) == TK_PARAM);
+
     // Initialiser type must match declared type.
     if(!coerce_literals(&init, type, opt))
       return false;
@@ -156,23 +160,11 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
     if(!is_subtype(init_type, type))
     {
       ast_error(init,
-        "field/param initialiser is not a subtype of the field/param type");
-      ast_error(type, "field/param type: %s", ast_print_type(type));
-      ast_error(init, "initialiser type: %s", ast_print_type(init_type));
+        "default argument is not a subtype of the parameter type");
+      ast_error(type, "parameter type: %s", ast_print_type(type));
+      ast_error(init, "default argument type: %s", ast_print_type(init_type));
       ast_free_unattached(init_type);
       return false;
-    }
-
-    // If it's an embedded field, check for a constructor result.
-    if(ast_id(ast) == TK_EMBED)
-    {
-      if((ast_id(init) != TK_CALL) ||
-        (ast_id(ast_childidx(init, 2)) != TK_NEWREF))
-      {
-        ast_error(ast,
-          "an embedded field must be initialised using a constructor");
-        return false;
-      }
     }
 
     ast_free_unattached(init_type);

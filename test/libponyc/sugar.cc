@@ -38,8 +38,10 @@ TEST_F(SugarTest, ClassWithoutCreate)
   const char* full_form =
     "use \"builtin\"\n"
     "class iso Foo\n"
-    "  let m:U32 = 3\n"
-    "  new iso create(): Foo iso^ => true";
+    "  let m:U32\n"
+    "  new iso create(): Foo iso^ =>\n"
+    "  m = 3\n"
+    "  true";
 
   TEST_EQUIV(short_form, full_form);
 }

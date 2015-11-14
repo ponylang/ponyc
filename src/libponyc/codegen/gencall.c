@@ -341,8 +341,18 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     {
       case TK_NEWREF:
       case TK_NEWBEREF:
-        args[0] = gencall_alloc(c, &g);
+      {
+        ast_t* parent = ast_parent(ast);
+        ast_t* sibling = ast_sibling(ast);
+
+        // If we're constructing an embed field, pass a pointer to the field
+        // as the receiver. Otherwise, allocate an object.
+        if((ast_id(parent) == TK_ASSIGN) && (ast_id(sibling) == TK_EMBEDREF))
+          args[0] = gen_fieldptr(c, sibling);
+        else
+          args[0] = gencall_alloc(c, &g);
         break;
+      }
 
       case TK_BEREF:
       case TK_FUNREF:

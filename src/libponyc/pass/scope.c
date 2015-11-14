@@ -113,13 +113,8 @@ static void set_fields_undefined(ast_t* ast)
       case TK_FLET:
       case TK_EMBED:
       {
-        AST_GET_CHILDREN(member, id, type, expr);
-
-        // If this field has an initialiser, we accept SYM_DEFINED for it.
-        if(ast_id(expr) != TK_NONE)
-          break;
-
         // Mark this field as SYM_UNDEFINED.
+        AST_GET_CHILDREN(member, id, type, expr);
         ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
         break;
       }

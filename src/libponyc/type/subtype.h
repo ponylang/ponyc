@@ -42,7 +42,7 @@ bool is_concrete(ast_t* type);
 
 bool is_known(ast_t* type);
 
-bool is_actor(ast_t* type);
+bool is_entity(ast_t* type, token_id entity);
 
 PONY_EXTERN_C_END
 

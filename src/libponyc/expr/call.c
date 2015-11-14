@@ -33,7 +33,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 
 bool is_this_incomplete(typecheck_t* t, ast_t* ast)
 {
-  // If we're in a field initialiser, we're incomplete by definition.
+  // If we're in a default argument, we're incomplete by definition.
   if(t->frame->method == NULL)
     return true;
 

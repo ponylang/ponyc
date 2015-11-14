@@ -241,6 +241,76 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   if(add_eq)
     add_comparable(id, typeparams, members);
 
+  // Build a reverse sequence of all field initialisers.
+  BUILD(init_seq, members, NODE(TK_SEQ));
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FLET:
+      case TK_FVAR:
+      case TK_EMBED:
+      {
+        AST_GET_CHILDREN(member, f_id, f_type, f_init);
+
+        if(ast_id(f_init) != TK_NONE)
+        {
+          // Replace the initialiser with TK_NONE.
+          ast_swap(f_init, ast_from(f_init, TK_NONE));
+
+          // id = init
+          BUILD(init, member,
+            NODE(TK_ASSIGN,
+              TREE(f_init)
+              NODE(TK_REFERENCE, TREE(f_id))));
+
+          ast_add(init_seq, init);
+        }
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  // Add field initialisers to all constructors.
+  if(ast_child(init_seq) != NULL)
+  {
+    member = ast_child(members);
+
+    while(member != NULL)
+    {
+      switch(ast_id(member))
+      {
+        case TK_NEW:
+        {
+          AST_GET_CHILDREN(member, n_cap, n_id, n_typeparam, n_params,
+            n_result, n_partial, n_body);
+
+          assert(ast_id(n_body) == TK_SEQ);
+
+          ast_t* init = ast_child(init_seq);
+
+          while(init != NULL)
+          {
+            ast_add(n_body, init);
+            init = ast_sibling(init);
+          }
+          break;
+        }
+
+        default: {}
+      }
+
+      member = ast_sibling(member);
+    }
+  }
+
+  ast_free_unattached(init_seq);
   return AST_OK;
 }
 

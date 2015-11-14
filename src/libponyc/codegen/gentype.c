@@ -184,6 +184,7 @@ static void setup_tuple_fields(gentype_t* g)
 {
   g->field_count = (int)ast_childcount(g->ast);
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
+  g->field_keys = NULL;
 
   ast_t* child = ast_child(g->ast);
   size_t index = 0;
@@ -201,6 +202,7 @@ static void setup_type_fields(gentype_t* g)
 
   g->field_count = 0;
   g->fields = NULL;
+  g->field_keys = NULL;
 
   ast_t* def = (ast_t*)ast_data(g->ast);
 
@@ -234,6 +236,7 @@ static void setup_type_fields(gentype_t* g)
     return;
 
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
+  g->field_keys = (token_id*)calloc(g->field_count, sizeof(token_id));
 
   member = ast_child(members);
   size_t index = 0;
@@ -249,8 +252,10 @@ static void setup_type_fields(gentype_t* g)
         AST_GET_CHILDREN(member, name, type, init);
         g->fields[index] = reify(typeparams, ast_type(member), typeparams,
           typeargs);
+
         // TODO: Are we sure the AST source file is correct?
         ast_setpos(g->fields[index], NULL, ast_line(name), ast_pos(name));
+        g->field_keys[index] = ast_id(member);
         index++;
         break;
       }
@@ -268,9 +273,11 @@ static void free_fields(gentype_t* g)
     ast_free_unattached(g->fields[i]);
 
   free(g->fields);
+  free(g->field_keys);
 
   g->field_count = 0;
   g->fields = NULL;
+  g->field_keys = NULL;
 }
 
 static void make_dispatch(compile_t* c, gentype_t* g)
@@ -310,8 +317,27 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
       "");
-    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gentrace(c, ctx, value, g->fields[i]);
+
+    if(g->field_keys[i] != TK_EMBED)
+    {
+      // Call the trace function indirectly depending on rcaps.
+      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+      need_trace |= gentrace(c, ctx, value, g->fields[i]);
+    } else {
+      // Call the trace function directly without marking the field.
+      const char* fun = genname_trace(genname_type(g->fields[i]));
+      LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, fun);
+
+      if(trace_fn != NULL)
+      {
+        LLVMValueRef args[2];
+        args[0] = ctx;
+        args[1] = field;
+
+        LLVMBuildCall(c->builder, trace_fn, args, 2, "");
+        need_trace = true;
+      }
+    }
   }
 
   return need_trace;
@@ -459,14 +485,22 @@ static bool make_struct(compile_t* c, gentype_t* g)
   for(int i = 0; i < g->field_count; i++)
   {
     gentype_t field_g;
+    bool ok;
 
-    if(!gentype_prelim(c, g->fields[i], &field_g))
+    if((g->field_keys != NULL) && (g->field_keys[i] == TK_EMBED))
+    {
+      ok = gentype(c, g->fields[i], &field_g);
+      elements[i + extra] = field_g.structure;
+    } else {
+      ok = gentype_prelim(c, g->fields[i], &field_g);
+      elements[i + extra] = field_g.use_type;
+    }
+
+    if(!ok)
     {
       pool_free_size(buf_size, elements);
       return false;
     }
-
-    elements[i + extra] = field_g.use_type;
   }
 
   LLVMStructSetBody(type, elements, g->field_count + extra, false);

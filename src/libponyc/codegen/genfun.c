@@ -48,79 +48,6 @@ static void name_params(compile_t* c, ast_t* type, ast_t* params,
   }
 }
 
-static bool gen_field_init(compile_t* c, gentype_t* g)
-{
-  LLVMValueRef this_ptr = LLVMGetParam(codegen_fun(c), 0);
-
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  // Struct index of the current field.
-  int index = 1;
-
-  if(ast_id(def) == TK_ACTOR)
-    index++;
-
-  // Iterate through all fields.
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        // Skip this field if it has no initialiser.
-        AST_GET_CHILDREN(member, id, type, body);
-
-        if(ast_id(body) != TK_NONE)
-        {
-          // Reify the initialiser.
-          ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
-          ast_t* var = lookup(NULL, NULL, this_type, ast_name(id));
-          ast_free_unattached(this_type);
-
-          assert(var != NULL);
-          body = ast_childidx(var, 2);
-
-          // TODO: embed fields
-
-          // Get the field pointer.
-          dwarf_location(&c->dwarf, body);
-          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr,
-            index, "");
-
-          // Cast the initialiser to the field type.
-          LLVMValueRef r_value = gen_expr(c, body);
-
-          if(r_value == NULL)
-            return false;
-
-          LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-          LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value,
-            ast_type(body));
-
-          if(cast_value == NULL)
-            return false;
-
-          // Store the result.
-          LLVMBuildStore(c->builder, cast_value, l_value);
-        }
-
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return true;
-}
-
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
@@ -599,12 +526,6 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
-  if(!gen_field_init(c, g))
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
-
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
 
@@ -639,12 +560,6 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   codegen_startfun(c, func, ast_debug(fun));
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
-
-  if(!gen_field_init(c, g))
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);

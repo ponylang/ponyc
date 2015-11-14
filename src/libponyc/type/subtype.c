@@ -1192,7 +1192,7 @@ bool is_known(ast_t* type)
   return false;
 }
 
-bool is_actor(ast_t* type)
+bool is_entity(ast_t* type, token_id entity)
 {
   switch(ast_id(type))
   {
@@ -1205,7 +1205,7 @@ bool is_actor(ast_t* type)
 
       while(child != NULL)
       {
-        if(!is_actor(child))
+        if(!is_entity(child, entity))
           return false;
 
         child = ast_sibling(child);
@@ -1220,7 +1220,7 @@ bool is_actor(ast_t* type)
 
       while(child != NULL)
       {
-        if(is_actor(child))
+        if(is_entity(child, entity))
           return true;
 
         child = ast_sibling(child);
@@ -1232,32 +1232,18 @@ bool is_actor(ast_t* type)
     case TK_NOMINAL:
     {
       ast_t* def = (ast_t*)ast_data(type);
-
-      switch(ast_id(def))
-      {
-        case TK_INTERFACE:
-        case TK_TRAIT:
-        case TK_PRIMITIVE:
-        case TK_CLASS:
-          return false;
-
-        case TK_ACTOR:
-          return true;
-
-        default: {}
-      }
-      break;
+      return ast_id(def) == entity;
     }
 
     case TK_ARROW:
-      return is_actor(ast_childidx(type, 1));
+      return is_entity(ast_childidx(type, 1), entity);
 
     case TK_TYPEPARAMREF:
     {
       ast_t* def = (ast_t*)ast_data(type);
       ast_t* constraint = ast_childidx(def, 1);
 
-      return is_actor(constraint);
+      return is_entity(constraint, entity);
     }
 
     default: {}
