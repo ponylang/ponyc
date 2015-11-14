@@ -62,23 +62,25 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
 static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
-  ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
+  int state = ast_checkflag(def,
+    AST_FLAG_RECURSE_1 | AST_FLAG_DONE_1 | AST_FLAG_ERROR_1);
 
   switch(state)
   {
-    case AST_STATE_INITIAL:
-      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
+    case 0:
+      ast_setflag(def, AST_FLAG_RECURSE_1);
       break;
 
-    case AST_STATE_INPROGRESS:
+    case AST_FLAG_RECURSE_1:
       ast_error(def, "type aliases can't be recursive");
-      ast_setdata(def, (void*)AST_STATE_ERROR);
+      ast_clearflag(def, AST_FLAG_RECURSE_1);
+      ast_setflag(def, AST_FLAG_ERROR_1);
       return false;
 
-    case AST_STATE_DONE:
+    case AST_FLAG_DONE_1:
       return true;
 
-    case AST_STATE_ERROR:
+    case AST_FLAG_ERROR_1:
       return false;
 
     default:
@@ -90,7 +92,8 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
     PASS_NAME_RESOLUTION) != AST_OK)
     return false;
 
-  ast_setdata(def, (void*)AST_STATE_DONE);
+  ast_clearflag(def, AST_FLAG_RECURSE_1);
+  ast_setflag(def, AST_FLAG_DONE_1);
   return true;
 }
 

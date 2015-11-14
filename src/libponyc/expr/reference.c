@@ -130,16 +130,6 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
 
-  // An embedded field must have a known, class type.
-  if(ast_id(ast) == TK_EMBED)
-  {
-    if(!is_known(type) || !is_entity(type, TK_CLASS))
-    {
-      ast_error(ast, "embedded fields must be classes");
-      return false;
-    }
-  }
-
   if(ast_id(init) != TK_NONE)
   {
     // Only parameters have initialisers. Field initialisers are moved into

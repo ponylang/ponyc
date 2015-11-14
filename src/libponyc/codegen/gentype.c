@@ -332,7 +332,7 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
       {
         LLVMValueRef args[2];
         args[0] = ctx;
-        args[1] = field;
+        args[1] = LLVMBuildBitCast(c->builder, field, c->object_ptr, "");
 
         LLVMBuildCall(c->builder, trace_fn, args, 2, "");
         need_trace = true;
@@ -503,6 +503,14 @@ static bool make_struct(compile_t* c, gentype_t* g)
     }
   }
 
+  // An embedded field may have caused the current type to be fully generated
+  // at this point. If so, finish gracefully.
+  if(!LLVMIsOpaqueStruct(type))
+  {
+    g->done = true;
+    return true;
+  }
+
   LLVMStructSetBody(type, elements, g->field_count + extra, false);
 
   // Create a box type for tuples.
@@ -562,7 +570,10 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // reification.
     dwarf_forward(&c->dwarf, g);
 
-    bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+    bool ok = make_struct(c, g);
+
+    if(!g->done)
+      ok = ok && make_trace(c, g) && make_components(c, g);
 
     if(!ok)
     {
@@ -571,7 +582,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     }
 
     // Finalise symbols for composite type.
-    dwarf_composite(&c->dwarf, g);
+    if(!g->done)
+      dwarf_composite(&c->dwarf, g);
   } else {
     // Emit debug symbols for a basic type (U8, U16, U32...)
     dwarf_basic(&c->dwarf, g);
@@ -580,32 +592,36 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     make_box_type(c, g);
   }
 
-  // Generate a dispatch function if necessary.
-  make_dispatch(c, g);
-
-  // Create a unique global instance if we need one.
-  make_global_instance(c, g);
-
-  // Generate all the methods.
-  if(!genfun_methods(c, g))
+  if(!g->done)
   {
-    free_fields(g);
-    return false;
+    // Generate a dispatch function if necessary.
+    make_dispatch(c, g);
+
+    // Create a unique global instance if we need one.
+    make_global_instance(c, g);
+
+    // Generate all the methods.
+    if(!genfun_methods(c, g))
+    {
+      free_fields(g);
+      return false;
+    }
+
+    gendesc_init(c, g);
+
+    // Finish off the dispatch function.
+    if(g->underlying == TK_ACTOR)
+    {
+      codegen_startfun(c, g->dispatch_fn, false);
+      codegen_finishfun(c);
+    }
+
+    // Finish the dwarf frame.
+    dwarf_finish(&c->dwarf);
   }
-
-  gendesc_init(c, g);
-
-  // Finish off the dispatch function.
-  if(g->underlying == TK_ACTOR)
-  {
-    codegen_startfun(c, g->dispatch_fn, false);
-    codegen_finishfun(c);
-  }
-
-  // Finish the dwarf frame.
-  dwarf_finish(&c->dwarf);
 
   free_fields(g);
+  g->done = true;
   return true;
 }
 

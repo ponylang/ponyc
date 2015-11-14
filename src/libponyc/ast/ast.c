@@ -37,10 +37,10 @@
 // The private bits of the flags values
 enum
 {
-  AST_ORPHAN = 0x2000,
+  AST_ORPHAN = 0x10,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
-    AST_FLAG_MIGHT_SEND | AST_FLAG_IN_PROGRESS),
-  AST_ALL_FLAGS = 0x3FFF
+    AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
+  AST_ALL_FLAGS = 0x7FFFF
 };
 
 
@@ -237,7 +237,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   n->flags = ast->flags & AST_ALL_FLAGS;
   // We don't actually want to copy the orphan flag, but the following if
   // always explicitly sets or clears it.
-  
+
   if(parent == NULL)
     set_scope_no_parent(n, ast->parent);
   else
@@ -437,21 +437,6 @@ void ast_setmightsend(ast_t* ast)
 void ast_clearmightsend(ast_t* ast)
 {
   ast_clearflag(ast, AST_FLAG_MIGHT_SEND);
-}
-
-bool ast_inprogress(ast_t* ast)
-{
-  return ast_checkflag(ast, AST_FLAG_IN_PROGRESS) != 0;
-}
-
-void ast_setinprogress(ast_t* ast)
-{
-  ast_setflag(ast, AST_FLAG_IN_PROGRESS);
-}
-
-void ast_clearinprogress(ast_t* ast)
-{
-  ast_clearflag(ast, AST_FLAG_IN_PROGRESS);
 }
 
 void ast_inheritflags(ast_t* ast)

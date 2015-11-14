@@ -162,7 +162,7 @@ static int check_expr_send(ast_t* ast, bool in_final)
 
 static int check_body_send(ast_t* ast, bool in_final)
 {
-  if(ast_inprogress(ast))
+  if(ast_checkflag(ast, AST_FLAG_RECURSE_1))
     return FINAL_RECURSE;
 
   if(ast_cansend(ast))
@@ -171,7 +171,7 @@ static int check_body_send(ast_t* ast, bool in_final)
   if(!ast_mightsend(ast))
     return FINAL_NO_SEND;
 
-  ast_setinprogress(ast);
+  ast_setflag(ast, AST_FLAG_RECURSE_1);
 
   int r = check_expr_send(ast, in_final);
 
@@ -184,7 +184,7 @@ static int check_body_send(ast_t* ast, bool in_final)
     ast_setsend(ast);
   }
 
-  ast_clearinprogress(ast);
+  ast_clearflag(ast, AST_FLAG_RECURSE_1);
   return r;
 }
 

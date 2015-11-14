@@ -297,27 +297,23 @@ typedef enum
   AST_FATAL
 } ast_result_t;
 
-typedef enum
-{
-  AST_STATE_INITIAL = 0,
-  AST_STATE_INPROGRESS,
-  AST_STATE_DONE,
-  AST_STATE_ERROR
-} ast_state_t;
-
-
 enum
 {
   AST_FLAG_PASS_MASK    = 0x0F,
-  AST_FLAG_CAN_ERROR    = 0x10,
-  AST_FLAG_CAN_SEND     = 0x20,
-  AST_FLAG_MIGHT_SEND   = 0x40,
-  AST_FLAG_IN_PROGRESS  = 0x80,
+  AST_FLAG_CAN_ERROR    = 0x20,
+  AST_FLAG_CAN_SEND     = 0x40,
+  AST_FLAG_MIGHT_SEND   = 0x80,
   AST_FLAG_IN_PARENS    = 0x100,
   AST_FLAG_TEST_ONLY    = 0x200,
   AST_FLAG_BAD_SEMI     = 0x400,
   AST_FLAG_MISSING_SEMI = 0x800,
-  AST_FLAG_PRESERVE     = 0x1000  // Do not process
+  AST_FLAG_PRESERVE     = 0x1000, // Do not process
+  AST_FLAG_RECURSE_1    = 0x2000,
+  AST_FLAG_DONE_1       = 0x4000,
+  AST_FLAG_ERROR_1      = 0x8000,
+  AST_FLAG_RECURSE_2    = 0x10000,
+  AST_FLAG_DONE_2       = 0x20000,
+  AST_FLAG_ERROR_2      = 0x40000,
 };
 
 
@@ -350,9 +346,6 @@ void ast_setsend(ast_t* ast);
 bool ast_mightsend(ast_t* ast);
 void ast_setmightsend(ast_t* ast);
 void ast_clearmightsend(ast_t* ast);
-bool ast_inprogress(ast_t* ast);
-void ast_setinprogress(ast_t* ast);
-void ast_clearinprogress(ast_t* ast);
 void ast_inheritflags(ast_t* ast);
 int ast_checkflag(ast_t* ast, uint32_t flag);
 void ast_setflag(ast_t* ast, uint32_t flag);

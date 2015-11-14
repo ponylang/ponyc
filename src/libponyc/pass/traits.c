@@ -920,24 +920,26 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
 {
   assert(entity != NULL);
 
-  ast_state_t state = (ast_state_t)(uint64_t)ast_data(entity);
+  int state = ast_checkflag(entity,
+    AST_FLAG_RECURSE_1 | AST_FLAG_DONE_1 | AST_FLAG_ERROR_1);
 
   // Check for recursive definitions
   switch(state)
   {
-    case AST_STATE_INITIAL:
-      ast_setdata(entity, (void*)AST_STATE_INPROGRESS);
+    case 0:
+      ast_setflag(entity, AST_FLAG_RECURSE_1);
       break;
 
-    case AST_STATE_INPROGRESS:
+    case AST_FLAG_RECURSE_1:
       ast_error(entity, "traits and interfaces can't be recursive");
-      ast_setdata(entity, (void*)AST_STATE_ERROR);
+      ast_clearflag(entity, AST_FLAG_RECURSE_1);
+      ast_setflag(entity, AST_FLAG_ERROR_1);
       return false;
 
-    case AST_STATE_DONE:
+    case AST_FLAG_DONE_1:
       return true;
 
-    case AST_STATE_ERROR:
+    case AST_FLAG_ERROR_1:
       return false;
 
     default:
@@ -954,9 +956,66 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
     resolve_methods(entity, options); // Stage 4
 
   tidy_up(entity);
-  ast_setdata(entity, r ? (void*)AST_STATE_DONE : (void*)AST_STATE_ERROR);
+  ast_clearflag(entity, AST_FLAG_RECURSE_1);
+  ast_setflag(entity, AST_FLAG_DONE_1);
 
   return r;
+}
+
+
+// Check that embed fields are not recursive.
+static bool embed_fields(ast_t* entity, pass_opt_t* options)
+{
+  assert(entity != NULL);
+
+  int state = ast_checkflag(entity,
+    AST_FLAG_RECURSE_2 | AST_FLAG_DONE_2 | AST_FLAG_ERROR_2);
+
+  // Check for recursive embeds
+  switch(state)
+  {
+    case 0:
+      ast_setflag(entity, AST_FLAG_RECURSE_2);
+      break;
+
+    case AST_FLAG_RECURSE_2:
+      ast_error(entity, "embedded fields can't be recursive");
+      ast_clearflag(entity, AST_FLAG_RECURSE_2);
+      ast_setflag(entity, AST_FLAG_ERROR_2);
+      return false;
+
+    case AST_FLAG_DONE_2:
+      return true;
+
+    case AST_FLAG_ERROR_2:
+      return false;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  AST_GET_CHILDREN(entity, id, typeparams, cap, provides, members);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    if(ast_id(member) == TK_EMBED)
+    {
+      AST_GET_CHILDREN(member, f_id, f_type);
+      ast_t* def = (ast_t*)ast_data(f_type);
+      assert(def != NULL);
+
+      if(!embed_fields(def, options))
+        return false;
+    }
+
+    member = ast_sibling(member);
+  }
+
+  ast_clearflag(entity, AST_FLAG_RECURSE_2);
+  ast_setflag(entity, AST_FLAG_DONE_2);
+  return true;
 }
 
 
@@ -987,14 +1046,20 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
+      if(!trait_entity(ast, options))
+        return AST_ERROR;
+
+      if(!embed_fields(ast, options))
+        return AST_ERROR;
+      break;
+
+    case TK_PRIMITIVE:
     case TK_INTERFACE:
     case TK_TRAIT:
       if(!trait_entity(ast, options))
         return AST_ERROR;
-
       break;
 
     case TK_LET:
