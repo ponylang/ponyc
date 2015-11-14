@@ -132,6 +132,7 @@
 #  define __zu "%Iu"
 #  define strdup _strdup
 
+#  if _MSC_VER < 1900
 inline int snprintf(char* str, size_t size, const char* format, ...)
 {
   int written;
@@ -143,6 +144,7 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
 
   return written;
 }
+#  endif
 #else
 #  define __zu "%zu"
 #endif
