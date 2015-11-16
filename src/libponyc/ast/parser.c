@@ -111,7 +111,7 @@ DEF(cap);
   DONE();
 
   // GENCAP
-  DEF(gencap);
+DEF(gencap);
   TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
     TK_CAP_ANY);
   DONE();
@@ -422,13 +422,19 @@ DEF(nextpostfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
+// idseq
+DEF(idseq_in_seq);
+  AST_NODE(TK_SEQ);
+  RULE("variable name", idseq);
+  DONE();
+
 // (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
   PRINT_INLINE();
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("variable name", idseq);
-  WHILE(TK_COMMA, RULE("variable name", idseq));
+  RULE("variable name", idseq_in_seq);
+  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq));
   SKIP(NULL, TK_RPAREN);
   DONE();
 
