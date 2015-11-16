@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Put unbox constructors on machine words into the vtable.
 - @jonas-l: parse URL with omitted password.
 - Adjust for ephemerality in cap_single().
+- Type checking platform dependent FFI declarations on all platforms.
 
 ### Added
 
@@ -20,6 +21,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - @fowles: String.join
 - Array slice, permute, reverse.
 - Pooltrack and telemetry runtime builds.
+- ifdef expressions for platform dependent code.
+- User specified build flags.
 
 ### Changed
 
