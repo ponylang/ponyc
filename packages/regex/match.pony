@@ -81,7 +81,8 @@ class Match
 
   fun groups(): Array[String] iso^ =>
     """
-    Returns all of the captured subgroups.
+    Returns all of the captured subgroups.  Groups that failed to capture
+    anything will contain the empty string.
     """
     let res = recover Array[String] end
     var i: U64 = 1
