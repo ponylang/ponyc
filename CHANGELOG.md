@@ -13,9 +13,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - Put unbox constructors on machine words into the vtable.
 - @jonas-l: parse URL with omitted password.
 - Adjust for ephemerality in cap_single().
+- Finalisation always occurs.
 
 ### Added
 
+- ifdef keyword for configuration management.
+- User defined configuration flags.
+- Embedded fields.
 - OpenFile and CreateFile primitives to return well-typed errors.
 - @fowles: String.join
 - Array slice, permute, reverse.
@@ -23,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Improved type checking with configuration management.
 - Improved realloc behaviour after heap_alloc_large.
 - Set-based upper bounds for generic constraints.
 - Moved the position of a default capability in a type specification.
