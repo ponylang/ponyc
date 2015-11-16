@@ -548,21 +548,35 @@ static bool provided_methods(ast_t* entity)
       // Check behaviour compatability
       if(ast_id(m) == TK_BE)
       {
-        if(ast_id(entity) == TK_PRIMITIVE || ast_id(entity) == TK_CLASS)
+        switch(ast_id(entity))
         {
-          ast_error(entity, "%s can't provide traits that have behaviours",
-            (ast_id(entity) == TK_CLASS) ? "classes" : "primitives");
+          case TK_PRIMITIVE:
+            ast_error(entity,
+              "primitives can't provide traits that have behaviours");
+            r = false;
+            continue;
 
-          r = false;
-          continue;
+          case TK_STRUCT:
+            ast_error(entity,
+              "structs can't provide traits that have behaviours");
+            r = false;
+            continue;
+
+          case TK_CLASS:
+            ast_error(entity,
+              "classes can't provide traits that have behaviours");
+            r = false;
+            continue;
+
+          default: {}
         }
       }
 
       if(is_method(m))
       {
         // We have a provided method
-        // Reify the method with the type parameters from trait definition and type
-        // arguments from trait reference
+        // Reify the method with the type parameters from trait definition and
+        // type arguments from trait reference
         ast_t* reified = reify(type_args, m, type_params, type_args);
 
         if(reified == NULL) // Reification error, already reported
@@ -856,7 +870,8 @@ static bool resolve_body(ast_t* entity, ast_t* method, pass_opt_t* options)
 
   token_id e_id = ast_id(entity);
   bool concrete =
-    (e_id == TK_CLASS) || (e_id == TK_ACTOR) || (e_id == TK_PRIMITIVE);
+    (e_id == TK_PRIMITIVE) || (e_id == TK_STRUCT) ||
+    (e_id == TK_CLASS) || (e_id == TK_ACTOR);
 
   const char* name = ast_name(ast_childidx(method, 1));
   assert(name != NULL);
@@ -1046,6 +1061,7 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       if(!trait_entity(ast, options))

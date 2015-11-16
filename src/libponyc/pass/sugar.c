@@ -1143,6 +1143,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
   {
     case TK_MODULE:     return sugar_module(ast);
     case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
+    case TK_STRUCT:     return sugar_member(ast, true, false, TK_REF);
     case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, false, TK_TAG);
     case TK_TRAIT:

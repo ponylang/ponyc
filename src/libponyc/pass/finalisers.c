@@ -55,6 +55,7 @@ static ast_t* receiver_def(ast_t* type)
           switch(ast_id(def))
           {
             case TK_PRIMITIVE:
+            case TK_STRUCT:
             case TK_CLASS:
             case TK_ACTOR:
               return def;
@@ -219,6 +220,7 @@ static bool module_finalisers(ast_t* module, const char* final)
     {
       case TK_ACTOR:
       case TK_CLASS:
+      case TK_STRUCT:
       case TK_PRIMITIVE:
         if(!entity_finaliser(entity, final))
           ok = false;

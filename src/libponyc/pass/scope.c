@@ -35,6 +35,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
     case TK_TYPEPARAM:
@@ -199,6 +200,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       return scope_entity(t, ast);

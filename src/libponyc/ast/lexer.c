@@ -106,6 +106,7 @@ static const lextoken_t keywords[] =
   { "interface", TK_INTERFACE },
   { "trait", TK_TRAIT },
   { "primitive", TK_PRIMITIVE },
+  { "struct", TK_STRUCT },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },

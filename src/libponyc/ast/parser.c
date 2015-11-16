@@ -244,7 +244,7 @@ DEF(object);
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
-  
+
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);
@@ -748,7 +748,7 @@ DEF(term);
     try_block, recover, consume, prefix, postfix, test_seq, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
-  
+
 // local | cond | ifdef | match | whileloop | repeat | forloop | with | try |
 // recover | consume | prefix | postfix | test_<various>
 DEF(nextterm);
@@ -927,9 +927,10 @@ DEF(members);
 // (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
 // [CAP] [IS type] [STRING] members
 DEF(class_def);
-  RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
-  TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
+  RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT, TK_CLASS,
     TK_ACTOR);
+  TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT,
+    TK_CLASS, TK_ACTOR);
   SCOPE();
   OPT TOKEN(NULL, TK_AT);
   OPT RULE("capability", cap);
@@ -972,8 +973,8 @@ DEF(use_name);
 
 // USE [ID ASSIGN] (STRING | USE_FFI) [IF infix]
 DEF(use);
-  RESTART(TK_USE, TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
-    TK_ACTOR);
+  RESTART(TK_USE, TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT,
+    TK_CLASS, TK_ACTOR);
   TOKEN(NULL, TK_USE);
   OPT RULE("name", use_name);
   RULE("specifier", use_uri, use_ffi);

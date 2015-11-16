@@ -41,6 +41,9 @@ static void make_box_type(compile_t* c, gentype_t* g)
 static void make_global_descriptor(compile_t* c, gentype_t* g)
 {
   // Fetch or create a descriptor type.
+  if(g->underlying == TK_STRUCT)
+    return;
+
   if(g->underlying == TK_TUPLETYPE)
     g->field_count = (int)ast_childcount(g->ast);
 
@@ -434,7 +437,11 @@ static bool make_trace(compile_t* c, gentype_t* g)
       LLVMDeleteFunction(trace_tuple_fn);
     }
   } else {
-    int extra = 1;
+    int extra = 0;
+
+    // Non-structs have a type descriptor.
+    if(g->underlying != TK_STRUCT)
+      extra++;
 
     // Actors have a pad.
     if(g->underlying == TK_ACTOR)
@@ -460,7 +467,9 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying != TK_TUPLETYPE)
   {
     type = g->structure;
-    extra++;
+
+    if(g->underlying != TK_STRUCT)
+      extra++;
   } else {
     type = g->primitive;
   }
@@ -472,7 +481,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
   LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
-  if(g->underlying != TK_TUPLETYPE)
+  if(extra > 0)
     elements[0] = LLVMPointerType(g->desc_type, 0);
 
   // Create the actor pad as element 1.
@@ -565,9 +574,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     setup_type_fields(g);
 
     // Forward declare debug symbols for this nominal, if needed.
-    // At this point, this can only be TK_CLASS, TK_PRIMITIVE, or TK_ACTOR
-    // ast nodes. TK_TYPE has been translated to any of the former during
-    // reification.
+    // At this point, this can only be TK_STRUCT, TK_CLASS, TK_PRIMITIVE, or
+    // TK_ACTOR ast nodes. TK_TYPE has been translated to any of the former
+    // during reification.
     dwarf_forward(&c->dwarf, g);
 
     bool ok = make_struct(c, g);
@@ -607,7 +616,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
       return false;
     }
 
-    gendesc_init(c, g);
+    if(g->underlying != TK_STRUCT)
+      gendesc_init(c, g);
 
     // Finish off the dispatch function.
     if(g->underlying == TK_ACTOR)

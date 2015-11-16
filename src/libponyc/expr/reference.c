@@ -433,6 +433,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     case TK_TYPE:
     case TK_TYPEPARAM:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
     {

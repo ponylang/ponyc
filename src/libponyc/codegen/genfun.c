@@ -611,6 +611,7 @@ static bool genfun_allocator(compile_t* c, gentype_t* g)
   switch(g->underlying)
   {
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
       // Allocate the object or return the global instance.
       result = gencall_alloc(c, g);

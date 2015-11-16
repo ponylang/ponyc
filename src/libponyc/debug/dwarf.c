@@ -179,7 +179,9 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   if(composite->underlying != TK_TUPLETYPE)
   {
     structure = composite->structure;
-    offset++;
+
+    if(composite->underlying != TK_STRUCT)
+      offset++;
 
     if(composite->underlying == TK_ACTOR)
       offset++;

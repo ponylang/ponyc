@@ -285,6 +285,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
       case TK_INTERFACE:
       case TK_TRAIT:
       case TK_PRIMITIVE:
+      case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
         r = names_type(t, astp, def);

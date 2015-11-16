@@ -1,4 +1,4 @@
-class Pointer[A]
+struct Pointer[A]
   """
   A Pointer[A] is a raw memory pointer. It has no descriptor and thus can't be
   included in a union or intersection, or be a subtype of any interface. Most

@@ -289,6 +289,7 @@ static matchtype_t is_matchtype_operand_nominal(ast_t* operand, ast_t* pattern)
   switch(ast_id(def))
   {
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       return is_matchtype_operand_entity(operand, pattern);

@@ -12,18 +12,19 @@
 #include <ctype.h>
 
 
-#define DEF_CLASS 0
-#define DEF_ACTOR 1
-#define DEF_PRIMITIVE 2
-#define DEF_TRAIT 3
-#define DEF_INTERFACE 4
-#define DEF_TYPEALIAS 5
-#define DEF_ENTITY_COUNT 6
+#define DEF_ACTOR 0
+#define DEF_CLASS 1
+#define DEF_STRUCT 2
+#define DEF_PRIMITIVE 3
+#define DEF_TRAIT 4
+#define DEF_INTERFACE 5
+#define DEF_TYPEALIAS 6
+#define DEF_ENTITY_COUNT 7
 
-#define DEF_FUN 0
-#define DEF_BE 6
-#define DEF_NEW 12
-#define DEF_METHOD_COUNT 18
+#define DEF_FUN (DEF_ENTITY_COUNT * 0)
+#define DEF_BE (DEF_ENTITY_COUNT * 1)
+#define DEF_NEW (DEF_ENTITY_COUNT * 2)
+#define DEF_METHOD_COUNT (DEF_ENTITY_COUNT * 3)
 
 
 typedef struct permission_def_t
@@ -51,8 +52,9 @@ static const permission_def_t _entity_def[DEF_ENTITY_COUNT] =
   //                           | field
   //                           | | cap
   //                           | | | c_api
-  { "class",                  "N X X N" },
   { "actor",                  "X X N X" },
+  { "class",                  "N X X N" },
+  { "struct",                 "N X X N" },
   { "primitive",              "N N N N" },
   { "trait",                  "N N X N" },
   { "interface",              "N N X N" },
@@ -70,20 +72,23 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
   //                           | return
   //                           | | error
   //                           | | | body
-  { "class function",         "X X X Y" },
   { "actor function",         "X X X Y" },
+  { "class function",         "X X X Y" },
+  { "struct function",        "X X X Y" },
   { "primitive function",     "X X X Y" },
   { "trait function",         "X X X X" },
   { "interface function",     "X X X X" },
   { "type alias function",    NULL },
-  { "class behaviour",        NULL },
   { "actor behaviour",        "N N N Y" },
+  { "class behaviour",        NULL },
+  { "struct behaviour",       NULL },
   { "primitive behaviour",    NULL },
   { "trait behaviour",        "N N N X" },
   { "interface behaviour",    "N N N X" },
   { "type alias behaviour",   NULL },
-  { "class constructor",      "X N X Y" },
   { "actor constructor",      "N N N Y" },
+  { "class constructor",      "X N X Y" },
+  { "struct constructor",     "X N X Y" },
   { "primitive constructor",  "N N X Y" },
   { "trait constructor",      "X N X N" },
   { "interface constructor",  "X N X N" },
@@ -895,6 +900,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_SEMI:       r = syntax_semi(ast); break;
     case TK_TYPE:       r = syntax_entity(ast, DEF_TYPEALIAS); break;
     case TK_PRIMITIVE:  r = syntax_entity(ast, DEF_PRIMITIVE); break;
+    case TK_STRUCT:     r = syntax_entity(ast, DEF_STRUCT); break;
     case TK_CLASS:      r = syntax_entity(ast, DEF_CLASS); break;
     case TK_ACTOR:      r = syntax_entity(ast, DEF_ACTOR); break;
     case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;

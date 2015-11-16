@@ -656,8 +656,11 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
   result = LLVMBuildBitCast(c->builder, result, g->structure_ptr, "");
 
   // Set the descriptor.
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, result, 0, "");
-  LLVMBuildStore(c->builder, g->desc, desc_ptr);
+  if(g->underlying != TK_STRUCT)
+  {
+    LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, result, 0, "");
+    LLVMBuildStore(c->builder, g->desc, desc_ptr);
+  }
 
   return result;
 }

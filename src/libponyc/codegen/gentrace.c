@@ -168,6 +168,7 @@ bool gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
           // Do nothing.
           return false;
 
+        case TK_STRUCT:
         case TK_CLASS:
           if(tag)
           {

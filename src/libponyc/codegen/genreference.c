@@ -33,7 +33,10 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
 
       ast_t* def = (ast_t*)ast_data(l_type);
       ast_t* field = ast_get(def, ast_name(right), NULL);
-      int index = (int)ast_index(field) + 1;
+      int index = (int)ast_index(field);
+
+      if(ast_id(def) != TK_STRUCT)
+        index++;
 
       if(ast_id(def) == TK_ACTOR)
         index++;

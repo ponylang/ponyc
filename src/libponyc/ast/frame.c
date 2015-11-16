@@ -60,6 +60,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       pop = push_frame(t);

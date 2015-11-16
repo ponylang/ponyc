@@ -210,9 +210,10 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       AST_GET_CHILDREN(ast, id, type, init);
 
       // An embedded field must have a known, class type.
-      if(!is_known(type) || !is_entity(type, TK_CLASS))
+      if(!is_known(type) ||
+        (!is_entity(type, TK_STRUCT) && !is_entity(type, TK_CLASS)))
       {
-        ast_error(ast, "embedded fields must be classes");
+        ast_error(ast, "embedded fields must be classes or structs");
         return AST_ERROR;
       }
 
@@ -221,6 +222,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_ACTOR:
     case TK_CLASS:
+    case TK_STRUCT:
     case TK_PRIMITIVE:
     case TK_TRAIT:
     case TK_INTERFACE:

@@ -86,6 +86,7 @@ typedef enum token_id
   TK_INTERFACE,
   TK_TRAIT,
   TK_PRIMITIVE,
+  TK_STRUCT,
   TK_CLASS,
   TK_ACTOR,
   TK_OBJECT,

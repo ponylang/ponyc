@@ -763,7 +763,8 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
         {
           assert(ast_id(t) == TK_TYPE || ast_id(t) == TK_INTERFACE ||
             ast_id(t) == TK_TRAIT || ast_id(t) == TK_PRIMITIVE ||
-            ast_id(t) == TK_CLASS || ast_id(t) == TK_ACTOR);
+            ast_id(t) == TK_STRUCT || ast_id(t) == TK_CLASS ||
+            ast_id(t) == TK_ACTOR);
           // We have a type
           doc_list_add_named(&types, t, 0, true, true);
         }

@@ -75,7 +75,7 @@ protected:
 };
 
 
-// TODO: is_literal, is_composite, is_constructable, is_known
+// TODO: is_literal, is_constructable, is_known
 
 TEST_F(SubTypeTest, IsSubType)
 {
@@ -334,31 +334,6 @@ TEST_F(SubTypeTest, IsMachineWord)
   DO(test_unary(is_machine_word, "(U8 & None)", false));
   DO(test_unary(is_machine_word, "(U8 | I32)", false));
   DO(test_unary(is_machine_word, "(U8 & I32)", false));
-}
-
-
-TEST_F(SubTypeTest, IsComposite)
-{
-  DO(test_unary(is_composite, "Bool", false));
-  DO(test_unary(is_composite, "U8", false));
-  DO(test_unary(is_composite, "U16", false));
-  DO(test_unary(is_composite, "U32", false));
-  DO(test_unary(is_composite, "U64", false));
-  DO(test_unary(is_composite, "U128", false));
-  DO(test_unary(is_composite, "I8", false));
-  DO(test_unary(is_composite, "I16", false));
-  DO(test_unary(is_composite, "I32", false));
-  DO(test_unary(is_composite, "I64", false));
-  DO(test_unary(is_composite, "I128", false));
-  DO(test_unary(is_composite, "F32", false));
-  DO(test_unary(is_composite, "F64", false));
-  DO(test_unary(is_composite, "C1", true));
-  DO(test_unary(is_composite, "T1", true));
-  DO(test_unary(is_composite, "None", true));
-  DO(test_unary(is_composite, "(U8 | None)", true));
-  DO(test_unary(is_composite, "(U8 & None)", true));
-  DO(test_unary(is_composite, "(U8 | I32)", true));
-  DO(test_unary(is_composite, "(U8 & I32)", true));
 }
 
 

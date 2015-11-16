@@ -43,6 +43,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
       switch(ast_id(def))
       {
         case TK_PRIMITIVE:
+        case TK_STRUCT:
         case TK_CLASS:
           ast_setid(ast, TK_NEWREF);
           break;

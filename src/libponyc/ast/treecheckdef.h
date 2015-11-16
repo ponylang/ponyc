@@ -50,7 +50,8 @@ RULE(class_def,
   CHILD(members, none)
   CHILD(at, none)
   CHILD(string, none), // Doc
-  TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
+  TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT, TK_CLASS,
+  TK_ACTOR);
 
 RULE(provides, CHILD(type), TK_PROVIDES);
 

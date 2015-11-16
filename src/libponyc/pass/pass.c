@@ -22,7 +22,7 @@
 bool limit_passes(pass_opt_t* opt, const char* pass)
 {
   pass_id i = PASS_PARSE;
-  
+
   while(true)
   {
     if(strcmp(pass, pass_name(i)) == 0)
@@ -234,10 +234,10 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 bool ast_passes_type(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
-  
+
   assert(ast_id(ast) == TK_ACTOR || ast_id(ast) == TK_CLASS ||
-    ast_id(ast) == TK_PRIMITIVE || ast_id(ast) == TK_TRAIT ||
-    ast_id(ast) == TK_INTERFACE);
+    ast_id(ast) == TK_STRUCT || ast_id(ast) == TK_PRIMITIVE ||
+    ast_id(ast) == TK_TRAIT || ast_id(ast) == TK_INTERFACE);
 
   // We don't have the right frame stack for an entity, set up appropriate
   // frames
