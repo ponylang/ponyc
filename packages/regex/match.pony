@@ -8,13 +8,13 @@ class Match
   let _subject: ByteSeq
   let _size: U64
 
-  new _create(subject: ByteSeq, m: Pointer[_Match], size': U64) =>
+  new _create(subject: ByteSeq, m: Pointer[_Match]) =>
     """
     Store a match, a subject, and a size.
     """
     _match = m
     _subject = subject
-    _size = size'
+    _size = @pcre2_get_ovector_count_8[U32](m).u64()
 
   fun size(): U64 =>
     """
@@ -45,12 +45,15 @@ class Match
     end
 
     var len = U64(0)
-    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), addressof len)
+    var rc = @pcre2_substring_length_bynumber_8[I32](_match, i.u32(),
+        addressof len)
+    if rc != 0 then error end
     len = len + 1
 
     let out = recover A(len) end
-    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(),
-      addressof len)
+    rc = @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(),
+        addressof len)
+    if rc != 0 then error end
     out.truncate(len)
     out
 
@@ -75,6 +78,23 @@ class Match
       addressof len)
     out.truncate(len)
     out
+
+  fun groups(): Array[String] iso^ =>
+    """
+    Returns all of the captured subgroups.
+    """
+    let res = recover Array[String] end
+    var i: U64 = 1
+    while i < _size do
+      try
+        let g: String = apply(i)
+        res.push(g)
+      else
+        res.push("")
+      end
+      i = i + 1
+    end
+    res
 
   fun ref dispose() =>
     """
