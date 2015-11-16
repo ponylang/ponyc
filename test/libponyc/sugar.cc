@@ -589,6 +589,37 @@ TEST_F(SugarTest, ForWithElse)
 }
 
 
+TEST_F(SugarTest, MultiIteratorFor)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for (i, j) in 1 do 2 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  $seq(\n"
+    "    let hygid = $seq(1)\n"
+    "    while hygid.has_next() do\n"
+    "      (let i, let j) = $try_no_check\n"
+    "        hygid.next()\n"
+    "      else\n"
+    "        continue\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      $seq(2)\n"
+    "    else None end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, CaseWithBody)
 {
   const char* short_form =

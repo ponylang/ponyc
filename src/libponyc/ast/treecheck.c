@@ -14,7 +14,8 @@ typedef enum
 
 typedef struct check_state_t
 {
-  bool is_scope;
+  bool scope_allowed;
+  bool scope_required;
   bool has_data;
   ast_t* child;
   size_t child_index;
@@ -27,6 +28,16 @@ static check_res_t check_ast(ast_t* ast);
 
 
 static bool _enabled = false;
+
+
+// Print an error preamble for the given node.
+static void error_preamble(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  printf("Internal error: AST node %d (%s), ", ast_id(ast),
+    ast_get_print(ast));
+}
 
 
 // Check whether the specified id is in the given list.
@@ -99,13 +110,19 @@ static bool check_children(ast_t* ast, check_state_t* state,
   // Didn't find enough matching children
   if(state->child == NULL)
   {
-    printf("Internal error: AST node id %d has %ld child%s, expected more\n",
-      ast_id(ast), state->child_index, (state->child_index == 1) ? "" : "ren");
+    error_preamble(ast);
+    printf("found %ld child%s, expected more\n", state->child_index,
+      (state->child_index == 1) ? "" : "ren");
+    ast_error(ast, "Here");
+    ast_print(ast);
   }
   else
   {
-    printf("Internal error: AST node id %d, child %ld has invalid id %d\n",
-      ast_id(ast), state->child_index, ast_id(state->child));
+    error_preamble(ast);
+    printf("child %ld has invalid id %d\n", state->child_index,
+      ast_id(state->child));
+    ast_error(ast, "Here");
+    ast_print(ast);
   }
 
   return false;
@@ -123,22 +140,38 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 
   if(state->child != NULL)
   {
-    printf("Internal error: AST node id %d, child %ld (id %d) unexpected\n",
-      ast_id(ast), state->child_index, ast_id(state->child));
+    error_preamble(ast);
+    printf("child %ld (id %d, %s) unexpected\n", state->child_index,
+      ast_id(state->child), ast_get_print(state->child));
+    ast_error(ast, "Here");
+    ast_print(ast);
     return CHK_ERROR;
   }
 
   if(ast_data(ast) != NULL && !state->has_data)
   {
-    printf("Internal error: AST node id %d, unexpected data %p\n",
-      ast_id(ast), ast_data(ast));
+    error_preamble(ast);
+    printf("unexpected data %p\n", ast_data(ast));
+    ast_error(ast, "Here");
+    ast_print(ast);
     return CHK_ERROR;
   }
 
-  if(ast_has_scope(ast) && !state->is_scope)
+  if(ast_has_scope(ast) && !state->scope_allowed)
   {
-    printf("Internal error: AST node id %d unexpectedly has scope\n",
-      ast_id(ast));
+    error_preamble(ast);
+    printf("unexpected scope\n");
+    ast_error(ast, "Here");
+    ast_print(ast);
+    return CHK_ERROR;
+  }
+
+  if(!ast_has_scope(ast) && state->scope_required)
+  {
+    error_preamble(ast);
+    printf("expected scope not found\n");
+    ast_error(ast, "Here");
+    ast_print(ast);
     return CHK_ERROR;
   }
 
@@ -197,7 +230,8 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 
 #define CASES(id) case id:
 #define GROUP(name, ...)
-#define IS_SCOPE state.is_scope = true;
+#define IS_SCOPE state.scope_allowed = true; state.scope_required = true;
+#define MAYBE_SCOPE state.scope_allowed = true;
 #define HAS_DATA state.has_data = true;
 
 #define CHILDREN(min, max, ...) \
@@ -221,7 +255,7 @@ static check_res_t check_ast(ast_t* ast)
 {
   assert(ast != NULL);
 
-  check_state_t state = { false, false, NULL, 0 };
+  check_state_t state = { false, false, false, NULL, 0 };
   state.child = ast_child(ast);
 
   switch(ast_id(ast))
@@ -229,7 +263,8 @@ static check_res_t check_ast(ast_t* ast)
 #include "treecheckdef.h"
 
     default:
-      printf("Internal error: No definition for AST node %d\n", ast_id(ast));
+      error_preamble(ast);
+      printf("no definition found\n");
       return CHK_ERROR;
   }
 

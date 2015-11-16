@@ -33,6 +33,7 @@ RULE(use,
   TK_USE);
 
 RULE(ffidecl,
+  IS_SCOPE
   CHILD(id, string)
   CHILD(type_args)  // Return type
   CHILD(params, none)
@@ -63,7 +64,7 @@ RULE(field,
   CHILD(id)
   CHILD(type, none)  // Field type
   CHILD(expr, none)
-  CHILD(type, none), // Delegate
+  CHILD(provides, none), // Delegate
   TK_FLET, TK_FVAR, TK_EMBED);
 
 RULE(method,
@@ -100,7 +101,7 @@ RULE(param,
   CHILD(expr, none),
   TK_PARAM);
 
-RULE(seq, IS_SCOPE ONE_OR_MORE(jump, expr, semi), TK_SEQ);
+RULE(seq, MAYBE_SCOPE ONE_OR_MORE(jump, expr, semi), TK_SEQ);
 
 RULE(jump,
   CHILD(seq, none),
@@ -110,7 +111,7 @@ RULE(jump,
 GROUP(expr,
   local, infix, asop, tuple, consume, recover, prefix, dot, tilde,
   qualify, call, ffi_call,
-  if_expr, loop, for_loop, with, match, try_expr, lambda,
+  if_expr, ifdef, loop, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
   bool_literal, this_ref, ref, id, seq);
 
@@ -187,6 +188,30 @@ RULE(named_arg,
   CHILD(id)
   CHILD(seq),
   TK_NAMEDARG);
+
+RULE(ifdef,
+  IS_SCOPE
+  CHILD(expr, ifdef_cond)   // Then expression
+  CHILD(seq)                // Then body
+  CHILD(seq, ifdef, none)   // Else body
+  CHILD(none, ifdef_cond),  // Else expression
+  TK_IFDEF);
+
+GROUP(ifdef_cond,
+  ifdef_infix, ifdef_not, ifdef_flag);
+
+RULE(ifdef_infix,
+  CHILD(ifdef_cond)
+  CHILD(ifdef_cond),
+  TK_IFDEFAND, TK_IFDEFOR);
+
+RULE(ifdef_not,
+  CHILD(ifdef_cond),
+  TK_IFDEFNOT);
+
+RULE(ifdef_flag,
+  CHILD(id),
+  TK_IFDEFFLAG);
 
 RULE(if_expr,
   IS_SCOPE
@@ -272,7 +297,7 @@ RULE(ref, CHILD(id), TK_REFERENCE);
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, box_type, nominal,
-  type_param_ref);
+  type_param_ref, dont_care);
 
 RULE(type_infix, ONE_OR_MORE(type), TK_UNIONTYPE, TK_ISECTTYPE);
 
@@ -287,7 +312,7 @@ RULE(nominal,
   CHILD(id, none) // Package
   CHILD(id)       // Type
   CHILD(type_args, none)
-  CHILD(cap, none)
+  CHILD(cap, gencap, none)
   CHILD(ephemeral, none),
   TK_NOMINAL);
 
@@ -305,6 +330,7 @@ RULE(dont_care, LEAF, TK_DONTCARE);
 RULE(ellipsis, LEAF, TK_ELLIPSIS);
 RULE(ephemeral, LEAF, TK_EPHEMERAL, TK_BORROWED);
 RULE(float_literal, LEAF, TK_FLOAT);
+RULE(gencap, LEAF, TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE, TK_CAP_ANY);
 RULE(id, LEAF, TK_ID);
 RULE(int_literal, LEAF, TK_INT);
 RULE(none, LEAF, TK_NONE);
