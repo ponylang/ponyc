@@ -17,7 +17,8 @@ typedef bool(*use_handler_t)(ast_t* use, const char* locator, ast_t* name,
 
 extern "C"
 {
-  void use_test_handler(use_handler_t handler, bool allow_alias);
+  void use_test_handler(use_handler_t handler, bool allow_alias,
+    bool allow_guard);
 }
 
 
@@ -57,7 +58,7 @@ protected:
     call_count = 0;
     return_value = true;
     _options.release = true;
-    use_test_handler(handler, false);
+    use_test_handler(handler, false, true);
   }
 };
 
@@ -80,7 +81,7 @@ TEST_F(UseTest, Alias)
   const char* src =
     "use bar = \"test:foo\"";
 
-  use_test_handler(handler, true);
+  use_test_handler(handler, true, true);
   TEST_COMPILE(src);
 
   ASSERT_EQ(1, call_count);
@@ -94,7 +95,7 @@ TEST_F(UseTest, LegalAliasOptional)
   const char* src =
     "use \"test:foo\"";
 
-  use_test_handler(handler, true);
+  use_test_handler(handler, true, true);
   TEST_COMPILE(src);
 
   ASSERT_EQ(1, call_count);
@@ -148,10 +149,22 @@ TEST_F(UseTest, FalseReturnPassedThrough)
 }
 
 
+TEST_F(UseTest, IllegalCondition)
+{
+  const char* src =
+    "use \"test:foo\" if debug";
+
+  use_test_handler(handler, true, false);
+  TEST_ERROR(src);
+
+  ASSERT_EQ(0, call_count);
+}
+
+
 TEST_F(UseTest, TrueConditionPasses)
 {
   const char* src =
-    "use \"test:foo\" if true";
+    "use \"test:foo\" if (debug or not debug)";
 
   TEST_COMPILE(src);
 
@@ -161,71 +174,13 @@ TEST_F(UseTest, TrueConditionPasses)
 }
 
 
-TEST_F(UseTest, FalseConditionPasses)
+TEST_F(UseTest, FalseConditionFails)
 {
   const char* src =
-    "use \"test:foo\" if false";
-
-  TEST_COMPILE(src);
-
-  ASSERT_EQ(0, call_count);
-}
-
-
-TEST_F(UseTest, BadOsNameInCondition)
-{
-  const char* src =
-    "use \"test:foo\" if wombat";
-
-  TEST_ERROR(src);
-
-  ASSERT_EQ(0, call_count);
-}
-
-
-TEST_F(UseTest, OsNameCaseSensitiveInCondition)
-{
-  const char* src =
-    "use \"test:foo\" if WINDOWS";
-
-  TEST_ERROR(src);
-
-  ASSERT_EQ(0, call_count);
-}
-
-
-TEST_F(UseTest, AndOpInCondition)
-{
-  const char* src =
-    "use \"test:foo\" if (linux and windows)";
-
-  TEST_COMPILE(src);
-
-  ASSERT_EQ(0, call_count);
-}
-
-
-TEST_F(UseTest, OrOpInCondition)
-{
-  const char* src =
-    "use \"test:foo\" if (linux or windows or osx or freebsd)";
+    "use \"test:foo\" if debug\n"
+    "use \"test:foo\" if not debug";
 
   TEST_COMPILE(src);
 
   ASSERT_EQ(1, call_count);
-  ASSERT_STREQ("foo", received_locator);
-  ASSERT_EQ((void*)NULL, received_name);
-}
-
-
-TEST_F(UseTest, NotOpInCondition)
-{
-  const char* src =
-    "use \"test:foo\" if (not false)";
-
-  TEST_COMPILE(src);
-
-  ASSERT_EQ(1, call_count);
-  ASSERT_STREQ("foo", received_locator);
-  ASSERT_EQ((void*)NULL, received_name);
 }

@@ -8,7 +8,7 @@ primitive None is Stringable
     "None".string(fmt, prefix, prec, width, align, fill)
 
 primitive Bool is Stringable
-  new create(from: Bool) => compiler_intrinsic
+  new create(from: Bool) => compile_intrinsic
 
   fun eq(y: Bool): Bool => this == y
   fun ne(y: Bool): Bool => this != y

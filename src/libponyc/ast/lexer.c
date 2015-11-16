@@ -99,7 +99,7 @@ static const lextoken_t symbols[] =
 static const lextoken_t keywords[] =
 {
   { "_", TK_DONTCARE },
-  { "compiler_intrinsic", TK_COMPILER_INTRINSIC },
+  { "compile_intrinsic", TK_COMPILE_INTRINSIC },
 
   { "use", TK_USE },
   { "type", TK_TYPE },
@@ -138,6 +138,7 @@ static const lextoken_t keywords[] =
   { "recover", TK_RECOVER },
 
   { "if", TK_IF },
+  { "ifdef", TK_IFDEF },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
@@ -153,6 +154,7 @@ static const lextoken_t keywords[] =
   { "try", TK_TRY },
   { "with", TK_WITH },
   { "error", TK_ERROR },
+  { "compile_error", TK_COMPILE_ERROR },
 
   { "not", TK_NOT },
   { "and", TK_AND },
@@ -258,9 +260,15 @@ static const lextoken_t test_keywords[] =
 {
   { "$scope", TK_TEST_SEQ_SCOPE },
   { "$seq", TK_TEST_SEQ },
+  { "$noseq", TK_TEST_NO_SEQ },
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
   { "$borrowed", TK_TEST_BORROWED },
   { "$updatearg", TK_TEST_UPDATEARG },
+  { "$extra", TK_TEST_EXTRA },
+  { "$ifdefand", TK_IFDEFAND },
+  { "$ifdefor", TK_IFDEFOR },
+  { "$ifdefnot", TK_IFDEFNOT },
+  { "$flag", TK_IFDEFFLAG },
 
   { NULL, (token_id)0 }
 };
@@ -1074,17 +1082,15 @@ static token_t* hash_identifier(lexer_t* lexer)
   consume_chars(lexer, 1);
   append_to_token(lexer, '#');
   size_t len = read_id(lexer);
+  consume_chars(lexer, len);
 
   for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->text))
-    {
-      consume_chars(lexer, len);
       return make_token(lexer, p->id);
-    }
   }
 
-  lex_error(lexer, "Unrecognized character: #");
+  lex_error(lexer, "Unrecognized keyword: %s", lexer->buffer);
   return make_token(lexer, TK_LEX_ERROR);
 }
 

@@ -215,7 +215,7 @@ actor Main
     match err
     | true =>
       usage() 
-      return None
+      return
     else
       match punk
       | true =>

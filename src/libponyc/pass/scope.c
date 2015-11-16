@@ -31,7 +31,6 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
       break;
     }
 
-    case TK_FFIDECL:
     case TK_TYPE:
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -203,11 +202,6 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_CLASS:
     case TK_ACTOR:
       return scope_entity(t, ast);
-
-    case TK_FFIDECL:
-      if(!set_scope(t, t->frame->package, ast_child(ast), ast))
-        return AST_ERROR;
-      break;
 
     case TK_PARAM:
       if(!set_scope(t, ast, ast_child(ast), ast))

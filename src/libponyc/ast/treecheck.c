@@ -149,8 +149,8 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 // Defines for first pass, forward declare group and rule functions
 #define TREE_CHECK
 #define ROOT(name)
-#define RULE(name, def, ...) static check_res_t name(ast_t* ast);
-#define GROUP(name, ...)     static check_res_t name(ast_t* ast);
+#define RULE(name, def, ...) static check_res_t name(ast_t* ast)
+#define GROUP(name, ...)     static check_res_t name(ast_t* ast)
 #define LEAF                 
 
 #include "treecheckdef.h"
@@ -193,7 +193,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #define RULE(name, def, ...) \
   FOREACH(CASES, __VA_ARGS__) \
   def \
-  break;
+  break
 
 #define CASES(id) case id:
 #define GROUP(name, ...)

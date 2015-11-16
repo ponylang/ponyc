@@ -160,8 +160,8 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = GEN_NOVALUE;
       break;
 
-    case TK_COMPILER_INTRINSIC:
-      ast_error(ast, "unimplemented compiler intrinsic");
+    case TK_COMPILE_INTRINSIC:
+      ast_error(ast, "unimplemented compile intrinsic");
       LLVMBuildUnreachable(c->builder);
       ret = GEN_NOVALUE;
       break;

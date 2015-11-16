@@ -1,10 +1,10 @@
 primitive F32 is FloatingPoint[F32]
-  new create(value: F32 = 0) => compiler_intrinsic
-  new pi() => compiler_intrinsic
-  new e() => compiler_intrinsic
+  new create(value: F32 = 0) => compile_intrinsic
+  new pi() => compile_intrinsic
+  new e() => compile_intrinsic
 
-  new from_bits(i: U32) => compiler_intrinsic
-  fun bits(): U32 => compiler_intrinsic
+  new from_bits(i: U32) => compile_intrinsic
+  fun bits(): U32 => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
 
   fun tag min_value(): F32 =>
@@ -142,12 +142,12 @@ primitive F32 is FloatingPoint[F32]
   fun u128(): U128 => f64().u128()
 
 primitive F64 is FloatingPoint[F64]
-  new create(value: F64 = 0) => compiler_intrinsic
-  new pi() => compiler_intrinsic
-  new e() => compiler_intrinsic
+  new create(value: F64 = 0) => compile_intrinsic
+  new pi() => compile_intrinsic
+  new e() => compile_intrinsic
 
-  new from_bits(i: U64) => compiler_intrinsic
-  fun bits(): U64 => compiler_intrinsic
+  new from_bits(i: U64) => compile_intrinsic
+  fun bits(): U64 => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
 
   fun tag min_value(): F64 =>

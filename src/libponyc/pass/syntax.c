@@ -1,11 +1,15 @@
 #include "syntax.h"
 #include "../ast/id.h"
 #include "../ast/parser.h"
+#include "../ast/stringtab.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
+#include "../pkg/platformfuns.h"
 #include "../type/assemble.h"
-#include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <assert.h>
+#include <string.h>
+#include <ctype.h>
 
 
 #define DEF_CLASS 0
@@ -120,9 +124,10 @@ static bool is_expr_infix(token_id id)
 
 
 // Check whether the given node is a valid provides type
-static bool check_provides_type(ast_t* type)
+static bool check_provides_type(ast_t* type, const char* description)
 {
   assert(type != NULL);
+  assert(description != NULL);
 
   switch(ast_id(type))
   {
@@ -150,15 +155,15 @@ static bool check_provides_type(ast_t* type)
       // Check all our children are also legal
       for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
       {
-        if(!check_provides_type(p))
+        if(!check_provides_type(p, description))
           return false;
       }
 
       return true;
 
     default:
-      ast_error(type, "invalid provides type. Can only provide "
-        "interfaces, traits and intersects of those.");
+      ast_error(type, "invalid %s type. Can only be "
+        "interfaces, traits and intersects of those.", description);
       return false;
   }
 }
@@ -256,6 +261,7 @@ static bool check_members(ast_t* members, int entity_def_index)
       case TK_FLET:
       case TK_FVAR:
       case TK_EMBED:
+      {
         if(def->permissions[ENTITY_FIELD] == 'N')
         {
           ast_error(member, "Can't have fields in %s", def->desc);
@@ -264,7 +270,13 @@ static bool check_members(ast_t* members, int entity_def_index)
 
         if(!check_id_field(ast_child(member)))
           r = false;
+
+        ast_t* delegate_type = ast_childidx(member, 3);
+        if(ast_id(delegate_type) != TK_NONE &&
+          !check_provides_type(delegate_type, "delegate"))
+          r = false;
         break;
+      }
 
       case TK_NEW:
         if(!check_method(member, entity_def_index + DEF_NEW))
@@ -336,7 +348,8 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
-    if(ast_id(provides) != TK_NONE && !check_provides_type(provides))
+    if(ast_id(provides) != TK_NONE &&
+      !check_provides_type(provides, "provides"))
       r = AST_ERROR;
   }
   else
@@ -641,11 +654,122 @@ static ast_result_t syntax_type_param(ast_t* ast)
 }
 
 
+static const char* _illegal_flags[] =
+{
+  "ndebug",
+  "unknown_os",
+  "unknown_size",
+  NULL  // Terminator.
+};
+
+
+// Check the given ast is a valid ifdef condition.
+// The context parameter is for error messages and should be a literal string
+// such as "ifdef condition" or "use guard".
+static bool syntax_ifdef_cond(ast_t* ast, const char* context)
+{
+  assert(ast != NULL);
+  assert(context != NULL);
+
+  switch(ast_id(ast))
+  {
+    case TK_AND:
+    case TK_OR:
+    case TK_NOT:
+      // Valid node.
+      break;
+
+    case TK_STRING:
+    {
+      // Check user flag is not also a platform, or outlawed, flags
+      const char* name = ast_name(ast);
+
+      // Create an all lower case version of the name for comparisons.
+      size_t len = strlen(name) + 1;
+      char* lower_case = (char*)pool_alloc_size(len);
+
+      for(size_t i = 0; i < len; i++)
+        lower_case[i] = (char)tolower(name[i]);
+
+      bool r = true;
+      bool result;
+      if(os_is_target(lower_case, true, &result))
+        r = false;
+
+      for(int i = 0; _illegal_flags[i] != NULL; i++)
+        if(strcmp(lower_case, _illegal_flags[i]) == 0)
+          r = false;
+
+      pool_free_size(len, lower_case);
+
+      if(!r)
+      {
+        ast_error(ast, "\"%s\" is not a valid user build flag\n", name);
+        return false;
+      }
+
+      // TODO: restrict case?
+      break;
+    }
+
+    case TK_REFERENCE:
+    {
+      const char* name = ast_name(ast_child(ast));
+      bool result;
+      if(!os_is_target(name, true, &result))
+      {
+        ast_error(ast, "\"%s\" is not a valid platform flag\n", name);
+        return false;
+      }
+
+      // Don't recurse into children, that'll hit the ID node
+      return true;
+    }
+
+    case TK_SEQ:
+      if(ast_childcount(ast) != 1)
+      {
+        ast_error(ast, "Sequence not allowed in %s", context);
+        return false;
+      }
+
+      break;
+
+    default:
+      ast_error(ast, "Invalid %s", context);
+      return false;
+  }
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  {
+    if(!syntax_ifdef_cond(p, context))
+      return false;
+  }
+
+  return true;
+}
+
+
+static ast_result_t syntax_ifdef(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  if(!syntax_ifdef_cond(ast_child(ast), "ifdef condition"))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_use(ast_t* ast)
 {
-  ast_t* id = ast_child(ast);
+  assert(ast != NULL);
+  AST_GET_CHILDREN(ast, id, url, guard);
 
   if(ast_id(id) != TK_NONE && !check_id_package(id))
+    return AST_ERROR;
+
+  if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(guard, "use guard"))
     return AST_ERROR;
 
   return AST_OK;
@@ -660,6 +784,82 @@ static ast_result_t syntax_lambda_capture(ast_t* ast)
   {
     ast_error(ast, "value missing for lambda expression capture (cannot "
       "specify type without value)");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_compile_intrinsic(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+  assert(ast_id(parent) == TK_SEQ);
+
+  ast_t* method = ast_parent(parent);
+
+  switch(ast_id(method))
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      // OK
+      break;
+
+    default:
+      ast_error(ast, "a compile intrinsic must be a method body");
+      return AST_ERROR;
+  }
+
+  ast_t* child = ast_child(parent);
+
+  // Allow a docstring before the compile_instrinsic.
+  if(ast_id(child) == TK_STRING)
+    child = ast_sibling(child);
+
+  // Compile intrinsic has a value child, but it must be empty
+  ast_t* value = ast_child(ast);
+
+  if(child != ast || ast_sibling(child) != NULL || ast_id(value) != TK_NONE)
+  {
+    ast_error(ast, "a compile intrinsic must be the entire body");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_compile_error(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+  assert(ast_id(parent) == TK_SEQ);
+
+  if(ast_id(ast_parent(parent)) != TK_IFDEF)
+  {
+    ast_error(ast, "a compile error must be in an ifdef");
+    return AST_ERROR;
+  }
+
+  // AST must be of the form:
+  // (compile_error (seq "Reason"))
+  ast_t* reason_seq = ast_child(ast);
+
+  if(ast_id(reason_seq) != TK_SEQ ||
+    ast_id(ast_child(reason_seq)) != TK_STRING)
+  {
+    ast_print(ast);
+    ast_error(ast,
+      "a compile error must have a string literal reason for the error");
+    return AST_ERROR;
+  }
+
+  ast_t* child = ast_child(parent);
+
+  if((child != ast) || (ast_sibling(child) != NULL) ||
+    (ast_childcount(reason_seq) != 1))
+  {
+    ast_error(ast, "a compile error must be the entire ifdef clause");
     return AST_ERROR;
   }
 
@@ -715,9 +915,14 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_EMBED:      r = syntax_embed(ast); break;
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
+    case TK_IFDEF:      r = syntax_ifdef(ast); break;
     case TK_USE:        r = syntax_use(ast); break;
     case TK_LAMBDACAPTURE:
                         r = syntax_lambda_capture(ast); break;
+    case TK_COMPILE_INTRINSIC:
+                        r = syntax_compile_intrinsic(ast); break;
+    case TK_COMPILE_ERROR:
+                        r = syntax_compile_error(ast); break;
     default: break;
   }
 

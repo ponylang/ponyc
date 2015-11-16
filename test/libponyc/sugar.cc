@@ -40,8 +40,8 @@ TEST_F(SugarTest, ClassWithoutCreate)
     "class iso Foo\n"
     "  let m:U32\n"
     "  new iso create(): Foo iso^ =>\n"
-    "  m = 3\n"
-    "  true";
+    "    m = 3\n"
+    "    true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1402,4 +1402,242 @@ TEST_F(SugarTest, ObjectRefWithBehaviour)
     "    object ref be foo() => 4 end";
 
   TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, UseGuardNormalises)
+{
+  const char* short_form =
+    "use \"test:Foo\" if (windows or linux) and not debug";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "use \"test:Foo\" if\n"
+    //"  $noseq($flag windows $ifdefor $flag linux)\n"
+    "  $flag windows $ifdefor $flag linux\n"
+    "  $ifdefand $ifdefnot $flag debug";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, UseGuardNeverTrue)
+{
+  const char* short_form =
+    "use \"test:Foo\" if (debug and not debug)";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, UseGuardAlwaysTrue)
+{
+  const char* short_form =
+    "use \"test:Foo\" if (debug or not debug)";
+
+  TEST_COMPILE(short_form);
+}
+
+
+TEST_F(SugarTest, UseGuardUserFlagNormalises)
+{
+  const char* short_form =
+    "use \"test:Foo\" if \"foo\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "use \"test:Foo\" if $flag foo";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, IfdefElseCondition)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef windows then\n"
+    "      3\n"
+    "    else\n"
+    "      4\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): None =>\n"
+    "    ifdef $flag windows $extra $ifdefnot $flag windows then\n"
+    "      3\n"
+    "    else\n"
+    "      4\n"
+    "    end\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, IfdefSugarElse)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef windows then\n"
+    "      3\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): None =>\n"
+    "    ifdef $flag windows $extra $ifdefnot $flag windows then\n"
+    "      3\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, NestedIfdefCondition)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef windows then\n"
+    "      ifdef debug then\n"
+    "        1\n"
+    "      else\n"
+    "        2\n"
+    "      end\n"
+    "    else\n"
+    "      ifdef \"foo\" then\n"
+    "        3\n"
+    "      else\n"
+    "        4\n"
+    "      end\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): None =>\n"
+    "    ifdef $flag windows\n"
+    "    $extra $ifdefnot $flag windows then\n"
+    "      ifdef $flag windows $ifdefand $flag debug\n"
+    "      $extra $flag windows $ifdefand $ifdefnot $flag debug then\n"
+    "        1\n"
+    "      else\n"
+    "        2\n"
+    "      end\n"
+    "    else\n"
+    "      ifdef $ifdefnot $flag windows $ifdefand $flag foo\n"
+    "      $extra $ifdefnot $flag windows $ifdefand $ifdefnot $flag foo then\n"
+    "        3\n"
+    "      else\n"
+    "        4\n"
+    "      end\n"
+    "    end\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, IfdefElseConditionNeverTrue)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef debug and not debug then\n"
+    "      3\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, IfdefElseConditionAlwaysTrue)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef debug or not debug then\n"
+    "      3\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, NestedIfdefElseConditionNeverTrue)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef windows then\n"
+    "      ifdef linux then\n"
+    "        3\n"
+    "      end\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, NestedIfdefElseConditionAlwaysTrue)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef windows then\n"
+    "      ifdef windows then\n"
+    "        3\n"
+    "      end\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, IfdefPosix)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f() =>\n"
+    "    ifdef posix then\n"
+    "      3\n"
+    "    else\n"
+    "      4\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): None =>\n"
+    "    ifdef $flag linux $ifdefor $flag osx $ifdefor $flag freebsd\n"
+    "    $extra $ifdefnot $noseq($flag linux $ifdefor $flag osx $ifdefor\n"
+    "      $flag freebsd) then\n"
+    "      3\n"
+    "    else\n"
+    "      4\n"
+    "    end\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
 }

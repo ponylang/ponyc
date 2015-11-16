@@ -21,10 +21,18 @@ class val SSLContext
     _ctx = @SSL_CTX_new[Pointer[_SSLContext]](@SSLv23_method[Pointer[U8]]())
 
     // set SSL_OP_NO_SSLv2
-    @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[U8])
+    ifdef windows then
+      @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[U8])
+    else
+      @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[U8])
+    end
 
     // set SSL_OP_NO_SSLv3
-    @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[U8])
+    ifdef windows then
+      @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[U8])
+    else
+      @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[U8])
+    end
 
     try set_ciphers("ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH") end
 
@@ -124,10 +132,18 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1
-        @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[U8])
+        ifdef windows then
+          @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[U8])
+        else
+          @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[U8])
+        end
       else
         // set SSL_OP_NO_TLSv1
-        @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[U8])
+        ifdef windows then
+          @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[U8])
+        else
+          @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[U8])
+        end
       end
     end
     this
@@ -139,10 +155,18 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1_1
-        @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[U8])
+        ifdef windows then
+         @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[U8])
+        else
+         @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[U8])
+        end
       else
         // set SSL_OP_NO_TLSv1_1
-        @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[U8])
+        ifdef windows then
+          @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[U8])
+        else
+          @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[U8])
+        end
       end
     end
     this
@@ -154,10 +178,18 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1_2
-        @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[U8])
+        ifdef windows then
+          @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[U8])
+        else
+          @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[U8])
+        end
       else
         // set SSL_OP_NO_TLSv1_2
-        @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[U8])
+        ifdef windows then
+          @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[U8])
+        else
+          @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[U8])
+        end
       end
     end
     this

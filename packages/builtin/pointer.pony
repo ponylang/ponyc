@@ -8,43 +8,43 @@ class Pointer[A]
     """
     A null pointer.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   new _alloc(len: U64) =>
     """
     Space for len instances of A.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun ref _realloc(len: U64): Pointer[A] =>
     """
     Keep the contents, but reserve space for len instances of A.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun _apply(i: U64): this->A =>
     """
     Retrieve index i.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun ref _update(i: U64, value: A!): A^ =>
     """
     Set index i and return the previous value.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun _offset(n: U64): this->Pointer[A] =>
     """
     Return a pointer to the n-th element.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun tag _offset_tag(n: U64): Pointer[A] tag =>
     """
     Return a pointer to the n-th element.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun ref _insert(n: U64, len: U64): Pointer[A] =>
     """
@@ -52,7 +52,7 @@ class Pointer[A]
     The array length before this should be len, and the available space should
     be at least n + len.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun ref _delete(n: U64, len: U64): A^ =>
     """
@@ -60,19 +60,19 @@ class Pointer[A]
     the underlying array. The array length before this should be n + len.
     Returns the first deleted element.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun _copy_to(that: Pointer[this->A!] tag, n: U64): this->Pointer[A] =>
     """
     Copy n elements from this to that.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun tag u64(): U64 =>
     """
     Convert the pointer into a 64 bit integer.
     """
-    compiler_intrinsic
+    compile_intrinsic
 
   fun tag is_null(): Bool =>
     """

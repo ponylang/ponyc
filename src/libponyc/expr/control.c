@@ -1,10 +1,12 @@
 #include "call.h"
 #include "control.h"
 #include "literal.h"
+#include "../ast/astbuild.h"
 #include "../ast/frame.h"
 #include "../ast/token.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../pkg/ifdef.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
@@ -72,20 +74,84 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+// Check whether the given ifdef clause is a compile_error.
+static bool check_compile_error(ast_t* ast)
+{
+  assert(ast != NULL);
+  
+  if(ast_id(ast) != TK_SEQ)
+    return true;
+
+  ast_t* clause_cmd = ast_child(ast);
+  if(ast_id(clause_cmd) == TK_COMPILE_ERROR)
+  {
+    // We've hit a compile error.
+    ast_t* reason_seq = ast_child(clause_cmd);
+    assert(ast_id(reason_seq) == TK_SEQ);
+
+    ast_t* reason = ast_child(reason_seq);
+    assert(ast_id(reason) == TK_STRING);
+
+    ast_error(clause_cmd, "compile error \"%s\"", ast_name(reason));
+    return false;
+  }
+
+  return true;
+}
+
+// Determine which branch of the given ifdef to use and convert the ifdef into
+// an if.
+static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast != NULL);
+
+  // We turn the ifdef node into an if so that codegen doesn't need to know
+  // about ifdefs at all.
+  // We need to determine which branch to take. Note that since normalisation
+  // adds the conditions of outer ifdefs (if any) it may be that BOTH our then
+  // and else conditions fail. In this case we can pick either one, since an
+  // outer ifdef will throw away the whole branch this ifdef is in anyway.
+  // If both conditions fail we must NOT check for compile_errors in either
+  // clause.
+  // It is not possible for both conditions to be true.
+  AST_GET_CHILDREN(ast, cond, then_clause, else_clause, else_cond);
+  bool then_value = ifdef_cond_eval(cond, opt);
+  bool else_value = ifdef_cond_eval(else_cond, opt);
+
+  assert(!then_value || !else_value);
+
+  ast_setid(ast, TK_IF);
+  REPLACE(&cond, NODE(then_value ? TK_TRUE : TK_FALSE));
+  // Don't need to set condition type since we've finished type checking it.
+
+  // Check for compile_errors.
+  if(then_value && !check_compile_error(then_clause))
+    return false;
+
+  if(else_value && !check_compile_error(else_clause))
+    return false;
+
+  return true;
+}
+
 bool expr_if(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
-  ast_t* cond_type = ast_type(cond);
 
-  if(is_typecheck_error(cond_type))
-    return false;
-
-  if(!is_bool(cond_type))
+  if(ast_id(ast) == TK_IF)
   {
-    ast_error(cond, "condition must be a Bool");
-    return false;
+    ast_t* cond_type = ast_type(cond);
+
+    if(is_typecheck_error(cond_type))
+      return false;
+
+    if(!is_bool(cond_type))
+    {
+      ast_error(cond, "condition must be a Bool");
+      return false;
+    }
   }
 
   ast_t* l_type = ast_type(left);
@@ -126,6 +192,10 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
+
+  if(ast_id(ast) == TK_IFDEF)
+    return resolve_ifdef(opt, ast);
+
   return true;
 }
 
@@ -468,5 +538,14 @@ bool expr_error(ast_t* ast)
 
   ast_settype(ast, ast_from(ast, TK_ERROR));
   ast_seterror(ast);
+  return true;
+}
+
+bool expr_compile_error(ast_t* ast)
+{
+  // compile_error is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
+
+  ast_settype(ast, ast_from(ast, TK_ERROR));
   return true;
 }

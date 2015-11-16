@@ -1,18 +1,18 @@
 trait val _ArithmeticConvertible
-  fun i8(): I8 => compiler_intrinsic
-  fun i16(): I16 => compiler_intrinsic
-  fun i32(): I32 => compiler_intrinsic
-  fun i64(): I64 => compiler_intrinsic
-  fun i128(): I128 => compiler_intrinsic
+  fun i8(): I8 => compile_intrinsic
+  fun i16(): I16 => compile_intrinsic
+  fun i32(): I32 => compile_intrinsic
+  fun i64(): I64 => compile_intrinsic
+  fun i128(): I128 => compile_intrinsic
 
-  fun u8(): U8 => compiler_intrinsic
-  fun u16(): U16 => compiler_intrinsic
-  fun u32(): U32 => compiler_intrinsic
-  fun u64(): U64 => compiler_intrinsic
-  fun u128(): U128 => compiler_intrinsic
+  fun u8(): U8 => compile_intrinsic
+  fun u16(): U16 => compile_intrinsic
+  fun u32(): U32 => compile_intrinsic
+  fun u64(): U64 => compile_intrinsic
+  fun u128(): U128 => compile_intrinsic
 
-  fun f32(): F32 => compiler_intrinsic
-  fun f64(): F64 => compiler_intrinsic
+  fun f32(): F32 => compile_intrinsic
+  fun f64(): F64 => compile_intrinsic
 
 trait val Real[A: Real[A] val] is
   (Stringable & _ArithmeticConvertible & Comparable[A])

@@ -439,8 +439,8 @@ static void number_conversions(compile_t* c)
     {NULL, NULL, NULL, false, false, false}
   };
 
-  bool has_i128;
-  os_is_target(OS_HAS_I128_NAME, c->opt->release, &has_i128);
+  bool native128;
+  os_is_target(OS_NATIVE128_NAME, c->opt->release, &native128);
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
@@ -491,7 +491,7 @@ static void number_conversions(compile_t* c)
       LLVMBuildRet(c->builder, result);
       codegen_finishfun(c);
 
-      if(!has_i128 &&
+      if(!native128 &&
         ((from->is_float && (to->size > 64)) ||
         (to->is_float && (from->size > 64)))
         )

@@ -20,7 +20,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast);
 bool expr_tuple(ast_t* ast);
 bool expr_nominal(pass_opt_t* opt, ast_t** astp);
 bool expr_fun(pass_opt_t* opt, ast_t* ast);
-bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast);
+bool expr_compile_intrinsic(typecheck_t* t, ast_t* ast);
 
 PONY_EXTERN_C_END
 

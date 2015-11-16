@@ -1,6 +1,7 @@
 #include "../libponyc/ast/parserapi.h"
 #include "../libponyc/ast/bnfprint.h"
 #include "../libponyc/pkg/package.h"
+#include "../libponyc/pkg/buildflagset.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
 #include "../libponyc/ast/treecheck.h"
@@ -20,6 +21,7 @@ enum
 {
   OPT_VERSION,
   OPT_DEBUG,
+  OPT_BUILDFLAG,
   OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
@@ -52,6 +54,7 @@ static opt_arg_t args[] =
 {
   {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
+  {"define", 'D', OPT_ARG_REQUIRED, OPT_BUILDFLAG},
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
@@ -92,6 +95,8 @@ static void usage()
     "Options:\n"
     "  --version, -v   Print the version of the compiler and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
+    "  --define, -D    Define the specified build flag.\n"
+    "    =name\n"
     "  --strip, -s     Strip debug info.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
@@ -235,6 +240,7 @@ int main(int argc, char* argv[])
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;
+      case OPT_BUILDFLAG: define_build_flag(s.arg_val); break;
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;

@@ -1,5 +1,5 @@
 primitive U8 is _UnsignedInteger[U8]
-  new create(value: U8 = 0) => compiler_intrinsic
+  new create(value: U8 = 0) => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): U8 => a.u8()
 
   fun tag min_value(): U8 => 0
@@ -30,7 +30,7 @@ primitive U8 is _UnsignedInteger[U8]
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
 primitive U16 is _UnsignedInteger[U16]
-  new create(value: U16 = 0) => compiler_intrinsic
+  new create(value: U16 = 0) => compile_intrinsic
   fun tag from[A: (Number & Real[A] val)](a: A): U16 => a.u16()
 
   fun tag min_value(): U16 => 0
@@ -62,7 +62,7 @@ primitive U16 is _UnsignedInteger[U16]
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
 primitive U32 is _UnsignedInteger[U32]
-  new create(value: U32 = 0) => compiler_intrinsic
+  new create(value: U32 = 0) => compile_intrinsic
   fun tag from[A: (Number & Real[A] val)](a: A): U32 => a.u32()
 
   fun tag min_value(): U32 => 0
@@ -95,7 +95,7 @@ primitive U32 is _UnsignedInteger[U32]
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
 primitive U64 is _UnsignedInteger[U64]
-  new create(value: U64 = 0) => compiler_intrinsic
+  new create(value: U64 = 0) => compile_intrinsic
   fun tag from[A: (Number & Real[A] val)](a: A): U64 => a.u64()
 
   fun tag min_value(): U64 => 0
@@ -129,7 +129,7 @@ primitive U64 is _UnsignedInteger[U64]
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
 
 primitive U128 is _UnsignedInteger[U128]
-  new create(value: U128 = 0) => compiler_intrinsic
+  new create(value: U128 = 0) => compile_intrinsic
   fun tag from[A: (Number & Real[A] val)](a: A): U128 => a.u128()
 
   fun tag min_value(): U128 => 0
@@ -163,7 +163,7 @@ primitive U128 is _UnsignedInteger[U128]
     _ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
 
   fun divmod(y: U128): (U128, U128) =>
-    if Platform.has_i128() then
+    ifdef native128 then
       (this / y, this % y)
     else
       if y == 0 then
@@ -193,7 +193,7 @@ primitive U128 is _UnsignedInteger[U128]
     end
 
   fun div(y: U128): U128 =>
-    if Platform.has_i128() then
+    ifdef native128 then
       this / y
     else
       (let q, let r) = divmod(y)
@@ -201,7 +201,7 @@ primitive U128 is _UnsignedInteger[U128]
     end
 
   fun mod(y: U128): U128 =>
-    if Platform.has_i128() then
+    ifdef native128 then
       this % y
     else
       (let q, let r) = divmod(y)

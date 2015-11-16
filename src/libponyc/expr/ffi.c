@@ -1,6 +1,7 @@
 #include "ffi.h"
 #include "literal.h"
 #include "../type/subtype.h"
+#include "../pkg/ifdef.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -125,7 +126,9 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   assert(name != NULL);
 
-  ast_t* decl = ast_get(ast, ast_name(name), NULL);
+  ast_t* decl;
+  if(!ffi_get_decl(&opt->check, ast, &decl))
+    return AST_ERROR;
 
   if(decl != NULL)  // We have a declaration
     return declared_ffi(opt, ast, decl);

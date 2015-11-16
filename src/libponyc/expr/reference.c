@@ -1011,7 +1011,7 @@ static bool check_return_type(ast_t* ast)
     return true;
 
   // If it's a compiler intrinsic, ignore it.
-  if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
+  if(ast_id(body_type) == TK_COMPILE_INTRINSIC)
     return true;
 
   // The body type must match the return type, without subsumption, or an alias
@@ -1249,29 +1249,13 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
+bool expr_compile_intrinsic(typecheck_t* t, ast_t* ast)
 {
-  if(t->frame->method_body == NULL)
-  {
-    ast_error(ast, "a compiler intrinsic must be a method body");
-    return false;
-  }
-
-  ast_t* child = ast_child(t->frame->method_body);
-
-  // Allow a docstring before the compiler_instrinsic.
-  if(ast_id(child) == TK_STRING)
-    child = ast_sibling(child);
-
-  if((child != ast) || (ast_sibling(child) != NULL))
-  {
-    ast_error(ast, "a compiler intrinsic must be the entire body");
-    return false;
-  }
+  assert(t->frame->method_body != NULL);
 
   // Disable debuglocs on calls to this method.
   ast_setdebug(t->frame->method, false);
 
-  ast_settype(ast, ast_from(ast, TK_COMPILER_INTRINSIC));
+  ast_settype(ast, ast_from(ast, TK_COMPILE_INTRINSIC));
   return true;
 }

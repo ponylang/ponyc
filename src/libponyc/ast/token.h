@@ -79,7 +79,7 @@ typedef enum token_id
   TK_MINUS_NEW,
 
   // Keywords
-  TK_COMPILER_INTRINSIC,
+  TK_COMPILE_INTRINSIC,
 
   TK_USE,
   TK_TYPE,
@@ -135,6 +135,7 @@ typedef enum token_id
   TK_RECOVER,
 
   TK_IF,
+  TK_IFDEF,
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
@@ -151,6 +152,7 @@ typedef enum token_id
   TK_TRY_NO_CHECK,
   TK_WITH,
   TK_ERROR,
+  TK_COMPILE_ERROR,
 
   TK_NOT,
   TK_AND,
@@ -170,6 +172,11 @@ typedef enum token_id
   TK_FLET,
   TK_FFIDECL,
   TK_FFICALL,
+
+  TK_IFDEFAND,
+  TK_IFDEFOR,
+  TK_IFDEFNOT,
+  TK_IFDEFFLAG,
 
   TK_PROVIDES,
   TK_UNIONTYPE,
@@ -230,10 +237,12 @@ typedef enum token_id
   // Token types for testing
   TK_TEST,
   TK_TEST_SEQ,
+  TK_TEST_NO_SEQ,
   TK_TEST_SEQ_SCOPE,
   TK_TEST_TRY_NO_CHECK,
   TK_TEST_BORROWED,
-  TK_TEST_UPDATEARG
+  TK_TEST_UPDATEARG,
+  TK_TEST_EXTRA
 } token_id;
 
 

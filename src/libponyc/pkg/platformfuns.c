@@ -89,7 +89,7 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
     return true;
   }
 
-  if(!strcmp(attribute, OS_HAS_I128_NAME))
+  if(!strcmp(attribute, OS_NATIVE128_NAME))
   {
 #ifdef PLATFORM_IS_VISUAL_STUDIO
     *out_is_target = false;

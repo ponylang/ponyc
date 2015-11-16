@@ -60,7 +60,7 @@ semiexpr
   ;
 
 jump
-  : ('return' | 'break' | 'continue' | 'error' | 'compiler_intrinsic') rawseq?
+  : ('return' | 'break' | 'continue' | 'error' | 'compile_intrinsic' | 'compile_error') rawseq?
   ;
 
 nextassignment
@@ -86,6 +86,7 @@ binop
 nextterm
   : ('var' | 'let' | 'embed') ID (':' type)?
   | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
   | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
@@ -101,6 +102,7 @@ nextterm
 term
   : ('var' | 'let' | 'embed') ID (':' type)?
   | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
   | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
@@ -119,6 +121,10 @@ withelem
 
 caseexpr
   : '|' infix? ('where' rawseq)? ('=>' rawseq)?
+  ;
+
+elseifdef
+  : 'elseif' infix 'then' rawseq (elseifdef | ('else' rawseq))?
   ;
 
 elseif

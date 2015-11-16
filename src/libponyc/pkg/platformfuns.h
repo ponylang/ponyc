@@ -14,7 +14,7 @@ PONY_EXTERN_C_BEGIN
 #define OS_LP64_NAME "lp64"
 #define OS_LLP64_NAME "llp64"
 #define OS_ILP32_NAME "ilp32"
-#define OS_HAS_I128_NAME "has_i128"
+#define OS_NATIVE128_NAME "native128"
 #define OS_DEBUG_NAME "debug"
 
 /** Report whether the named platform attribute is true

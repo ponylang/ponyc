@@ -217,6 +217,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TILDE:      r = expr_tilde(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
     case TK_CALL:       r = expr_call(options, astp); break;
+    case TK_IFDEF:
     case TK_IF:         r = expr_if(options, ast); break;
     case TK_WHILE:      r = expr_while(options, ast); break;
     case TK_REPEAT:     r = expr_repeat(options, ast); break;
@@ -232,8 +233,10 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
     case TK_ERROR:      r = expr_error(ast); break;
-    case TK_COMPILER_INTRINSIC:
-                        r = expr_compiler_intrinsic(t, ast); break;
+    case TK_COMPILE_ERROR:
+                        r = expr_compile_error(ast); break;
+    case TK_COMPILE_INTRINSIC:
+                        r = expr_compile_intrinsic(t, ast); break;
     case TK_POSITIONALARGS:
     case TK_NAMEDARGS:
     case TK_NAMEDARG:
