@@ -14,16 +14,17 @@ All notable changes to the Pony compiler and standard library will be documented
 - @jonas-l: parse URL with omitted password.
 - Adjust for ephemerality in cap_single().
 - Finalisation always occurs.
+- Type checking platform dependent FFI declarations on all platforms.
 
 ### Added
 
-- ifdef keyword for configuration management.
-- User defined configuration flags.
 - Embedded fields.
 - OpenFile and CreateFile primitives to return well-typed errors.
 - @fowles: String.join
 - Array slice, permute, reverse.
 - Pooltrack and telemetry runtime builds.
+- ifdef expressions for platform dependent code.
+- User specified build flags.
 
 ### Changed
 
