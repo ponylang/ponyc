@@ -2,7 +2,9 @@
 #include "gencall.h"
 #include "gendesc.h"
 #include "genname.h"
+#include "genprim.h"
 #include "../type/cap.h"
+#include "../type/subtype.h"
 #include <assert.h>
 
 static bool trace_as_tag(compile_t* c, LLVMValueRef value, ast_t* type)
@@ -66,6 +68,31 @@ static void trace_actor(compile_t* c, LLVMValueRef ctx, LLVMValueRef value)
   args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
 
   gencall_runtime(c, "pony_traceactor", args, 2, "");
+}
+
+static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
+  ast_t* type, bool tag)
+{
+  ast_t* type_args = ast_childidx(type, 2);
+  ast_t* elem = ast_child(type_args);
+
+  if(is_machine_word(elem))
+    return;
+
+  LLVMValueRef test = genprim_maybe_is_null(c, elem, value);
+  LLVMBasicBlockRef is_false = codegen_block(c, "");
+  LLVMBasicBlockRef is_true = codegen_block(c, "");
+  LLVMBuildCondBr(c->builder, test, is_true, is_false);
+
+  LLVMPositionBuilderAtEnd(c->builder, is_false);
+
+  if(tag)
+    trace_tag(c, ctx, value);
+  else
+    gentrace(c, ctx, value, elem);
+
+  LLVMBuildBr(c->builder, is_true);
+  LLVMPositionBuilderAtEnd(c->builder, is_true);
 }
 
 static bool trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
@@ -172,7 +199,17 @@ bool gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
         case TK_CLASS:
           if(tag)
           {
-            trace_tag(c, ctx, value);
+            if(is_maybe(type))
+              trace_maybe(c, ctx, value, type, true);
+            else
+              trace_tag(c, ctx, value);
+
+            return true;
+          }
+
+          if(is_maybe(type))
+          {
+            trace_maybe(c, ctx, value, type, false);
             return true;
           }
 

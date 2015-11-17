@@ -1218,7 +1218,11 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   if(ast_id(can_error) == TK_QUESTION)
   {
     // If a partial function, check that we might actually error.
-    if(!is_trait && !ast_canerror(body))
+    ast_t* body_type = ast_type(body);
+
+    if(!is_trait &&
+      !ast_canerror(body) &&
+      (ast_id(body_type) != TK_COMPILE_INTRINSIC))
     {
       ast_error(can_error, "function body is not partial but the function is");
       return false;

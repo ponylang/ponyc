@@ -896,6 +896,11 @@ bool is_pointer(ast_t* type)
   return is_literal(type, "Pointer");
 }
 
+bool is_maybe(ast_t* type)
+{
+  return is_literal(type, "Maybe");
+}
+
 bool is_none(ast_t* type)
 {
   return is_literal(type, "None");

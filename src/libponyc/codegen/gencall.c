@@ -225,8 +225,8 @@ static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
   if(g->primitive != NULL)
     return false;
 
-  // No receiver if a new Pointer.
-  if(is_pointer(g->ast))
+  // No receiver if a new Pointer or Maybe.
+  if(is_pointer(g->ast) || is_maybe(g->ast))
     return false;
 
   return true;
@@ -603,8 +603,8 @@ LLVMValueRef gencall_alloc(compile_t* c, gentype_t* g)
   if(g->primitive != NULL)
     return NULL;
 
-  // Do nothing for Pointer.
-  if(is_pointer(g->ast))
+  // Do nothing for Pointer and Maybe.
+  if(is_pointer(g->ast) || is_maybe(g->ast))
     return NULL;
 
   // Use the global instance if we have one.

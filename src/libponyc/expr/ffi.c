@@ -19,10 +19,9 @@ static bool void_star_param(ast_t* param_type, ast_t* arg_type)
     return false;
 
   // Parameter type is Pointer[None]
-
-  if(is_pointer(arg_type) || is_literal(arg_type, "U64"))
-    // Argument is Pointer[Something] or U64, allow it
-      return true;
+  // If the argument is Pointer[A], Maybe[A] or U64, allow it
+  if(is_pointer(arg_type) || is_maybe(arg_type) || is_literal(arg_type, "U64"))
+    return true;
 
   return false;
 }

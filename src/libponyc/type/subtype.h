@@ -17,6 +17,8 @@ bool is_eqtype(ast_t* a, ast_t* b);
 
 bool is_pointer(ast_t* type);
 
+bool is_maybe(ast_t* type);
+
 bool is_none(ast_t* type);
 
 bool is_env(ast_t* type);

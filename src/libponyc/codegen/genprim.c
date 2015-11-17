@@ -344,6 +344,151 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   return ok;
 }
 
+static void maybe_create(compile_t* c, gentype_t* g)
+{
+  // Returns the argument. There's no receiver.
+  const char* name = genname_fun(g->type_name, "create", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &g->use_type, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun, false);
+
+  LLVMBuildRet(c->builder, LLVMGetParam(fun, 0));
+  codegen_finishfun(c);
+}
+
+static void maybe_none(compile_t* c, gentype_t* g)
+{
+  // Returns null. There's no receiver.
+  const char* name = genname_fun(g->type_name, "none", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun, false);
+
+  LLVMBuildRet(c->builder, LLVMConstNull(g->use_type));
+  codegen_finishfun(c);
+}
+
+static void maybe_apply(compile_t* c, gentype_t* g)
+{
+  ast_t* type_args = ast_childidx(g->ast, 2);
+  ast_t* elem = ast_child(type_args);
+
+  // Returns the receiver if it isn't null.
+  const char* name = genname_fun(g->type_name, "apply", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &g->use_type, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun, false);
+
+  LLVMValueRef result = LLVMGetParam(fun, 0);
+  LLVMValueRef test = genprim_maybe_is_null(c, elem, result);
+
+  LLVMBasicBlockRef is_false = codegen_block(c, "");
+  LLVMBasicBlockRef is_true = codegen_block(c, "");
+  LLVMBuildCondBr(c->builder, test, is_true, is_false);
+
+  LLVMPositionBuilderAtEnd(c->builder, is_false);
+  LLVMBuildRet(c->builder, result);
+
+  LLVMPositionBuilderAtEnd(c->builder, is_true);
+  gencall_throw(c);
+
+  codegen_finishfun(c);
+}
+
+static void maybe_is_none(compile_t* c, gentype_t* g)
+{
+  ast_t* type_args = ast_childidx(g->ast, 2);
+  ast_t* elem = ast_child(type_args);
+
+  // Returns true if the receiver is null.
+  const char* name = genname_fun(g->type_name, "is_none", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(c->i1, &g->use_type, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun, false);
+
+  LLVMValueRef receiver = LLVMGetParam(fun, 0);
+  LLVMValueRef test = genprim_maybe_is_null(c, elem, receiver);
+
+  LLVMBuildRet(c->builder, test);
+  codegen_finishfun(c);
+}
+
+bool genprim_maybe(compile_t* c, gentype_t* g, bool prelim)
+{
+  ast_t* typeargs = ast_childidx(g->ast, 2);
+  ast_t* typearg = ast_child(typeargs);
+
+  gentype_t elem_g;
+  bool ok;
+
+  if(prelim)
+    ok = gentype_prelim(c, typearg, &elem_g);
+  else
+    ok = gentype(c, typearg, &elem_g);
+
+  if(!ok)
+    return false;
+
+  // Set the type to the element type.
+  g->use_type = elem_g.use_type;
+
+  // Stop here for a preliminary type.
+  if(prelim)
+    return true;
+
+  // If there's already a create function, we're done.
+  const char* name = genname_fun(g->type_name, "create", NULL);
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
+
+  if(fun != NULL)
+    return true;
+
+  // Emit debug symbol for this pointer type instance.
+  dwarf_pointer(&c->dwarf, g, elem_g.type_name);
+
+  maybe_create(c, g);
+  maybe_none(c, g);
+  maybe_apply(c, g);
+  maybe_is_none(c, g);
+
+  ok = genfun_methods(c, g);
+  dwarf_finish(&c->dwarf);
+
+  return ok;
+}
+
+LLVMValueRef genprim_maybe_is_null(compile_t* c, ast_t* type,
+  LLVMValueRef value)
+{
+  LLVMValueRef test;
+
+  if(ast_id(type) != TK_TUPLETYPE)
+  {
+    test = LLVMBuildIsNull(c->builder, value, "");
+  } else {
+    test = LLVMConstInt(c->i1, 1, false);
+    ast_t* child = ast_child(type);
+    int i = 0;
+
+    while(child != NULL)
+    {
+      LLVMValueRef child_value = LLVMBuildExtractValue(c->builder, value,
+        i, "");
+      LLVMValueRef child_test = genprim_maybe_is_null(c, child, child_value);
+      test = LLVMBuildAnd(c->builder, test, child_test, "");
+
+      child = ast_sibling(child);
+      i++;
+    }
+  }
+
+  return test;
+}
+
 void genprim_array_trace(compile_t* c, gentype_t* g)
 {
   // Get the type argument for the array. This will be used to generate the

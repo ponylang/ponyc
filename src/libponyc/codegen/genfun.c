@@ -598,7 +598,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
 static bool genfun_allocator(compile_t* c, gentype_t* g)
 {
   // No allocator for primitive types or pointers.
-  if((g->primitive != NULL) || is_pointer(g->ast))
+  if((g->primitive != NULL) || is_pointer(g->ast) || is_maybe(g->ast))
     return true;
 
   const char* funname = genname_fun(g->type_name, "Alloc", NULL);

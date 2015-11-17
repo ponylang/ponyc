@@ -133,6 +133,8 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = c->f64;
       else if(name == c->str_Pointer)
         return genprim_pointer(c, g, prelim);
+      else if(name == c->str_Maybe)
+        return genprim_maybe(c, g, prelim);
       else if(name == c->str_Platform)
         return true;
     }

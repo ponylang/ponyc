@@ -74,6 +74,7 @@ typedef struct compile_t
   const char* str_F32;
   const char* str_F64;
   const char* str_Pointer;
+  const char* str_Maybe;
   const char* str_Array;
   const char* str_Platform;
 
