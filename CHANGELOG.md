@@ -19,6 +19,8 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Embedded fields.
+- C-style structs.
+- Maybe[A] to encode C-style structs that aren't present.
 - OpenFile and CreateFile primitives to return well-typed errors.
 - @fowles: String.join
 - Array slice, permute, reverse.
