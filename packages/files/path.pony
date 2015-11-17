@@ -178,6 +178,18 @@ primitive Path
       "."
     end
 
+  fun normcase(path: String): String =>
+    """
+    Normalizes the case of path for the runtime platform.
+    """
+    if Platform.windows() then
+      recover val path.lower().replace("/", "\\") end
+    elseif Platform.osx() then
+      path.lower()
+    else
+      path
+    end
+
   fun cwd(): String =>
     """
     Returns the program's working directory. Setting the working directory is
