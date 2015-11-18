@@ -713,10 +713,11 @@ bool expr_identityof(pass_opt_t* opt, ast_t* ast)
     case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:
+    case TK_THIS:
       break;
 
     default:
-      ast_error(ast, "identity must be for a field, local or parameter");
+      ast_error(ast, "identity must be for a field, local, parameter or this");
       return false;
   }
 
