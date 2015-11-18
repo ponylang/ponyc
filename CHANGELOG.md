@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Interfaces are invariant if they are structurally equivalent.
 - Improved type checking with configuration management.
 - Improved realloc behaviour after heap_alloc_large.
 - Set-based upper bounds for generic constraints.

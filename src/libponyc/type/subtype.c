@@ -73,6 +73,31 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
+static bool is_nominal_eq_nominal(ast_t* sub, ast_t* super)
+{
+  ast_t* sub_cap = fetch_cap(sub);
+  ast_t* sub_eph = ast_sibling(sub_cap);
+  ast_t* super_cap = fetch_cap(super);
+  ast_t* super_eph = ast_sibling(super_cap);
+
+  token_id t_sub_cap = ast_id(sub_cap);
+  token_id t_sub_eph = ast_id(sub_eph);
+  token_id t_super_cap = ast_id(super_cap);
+  token_id t_super_eph = ast_id(super_eph);
+
+  if((t_sub_cap != t_super_cap) || (t_sub_eph != t_super_eph))
+    return false;
+
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
+
+  // If we are the same nominal type, our typeargs must be the same.
+  if(sub_def == super_def)
+    return is_eq_typeargs(sub, super);
+
+  return false;
+}
+
 static bool is_recursive_interface(ast_t* sub, ast_t* super, ast_t* isub,
   ast_t* isuper)
 {
@@ -86,7 +111,7 @@ static bool is_recursive_interface(ast_t* sub, ast_t* super, ast_t* isub,
   assert(ast_id(isuper) == TK_NOMINAL);
 
   return (ast_id(sub) == TK_NOMINAL) && (ast_id(super) == TK_NOMINAL) &&
-    is_eqtype(sub, isub) && is_eqtype(super, isuper);
+    is_nominal_eq_nominal(sub, isub) && is_nominal_eq_nominal(super, isuper);
 }
 
 static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
@@ -858,36 +883,8 @@ bool is_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_nominal_eq_nominal(ast_t* sub, ast_t* super)
-{
-  ast_t* sub_cap = fetch_cap(sub);
-  ast_t* sub_eph = ast_sibling(sub_cap);
-  ast_t* super_cap = fetch_cap(super);
-  ast_t* super_eph = ast_sibling(super_cap);
-
-  token_id t_sub_cap = ast_id(sub_cap);
-  token_id t_sub_eph = ast_id(sub_eph);
-  token_id t_super_cap = ast_id(super_cap);
-  token_id t_super_eph = ast_id(super_eph);
-
-  if((t_sub_cap != t_super_cap) || (t_sub_eph != t_super_eph))
-    return false;
-
-  ast_t* sub_def = (ast_t*)ast_data(sub);
-  ast_t* super_def = (ast_t*)ast_data(super);
-
-  // If we are the same nominal type, our typeargs must be the same.
-  if(sub_def == super_def)
-    return is_eq_typeargs(sub, super);
-
-  return false;
-}
-
 bool is_eqtype(ast_t* a, ast_t* b)
 {
-  if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
-    return is_nominal_eq_nominal(a, b);
-
   return is_subtype(a, b) && is_subtype(b, a);
 }
 
