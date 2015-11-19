@@ -1221,6 +1221,13 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     // If a partial function, check that we might actually error.
     ast_t* body_type = ast_type(body);
 
+    if(body_type == NULL)
+    {
+      // An error has already occurred.
+      assert(get_error_count() > 0);
+      return false;
+    }
+
     if(!is_trait &&
       !ast_canerror(body) &&
       (ast_id(body_type) != TK_COMPILE_INTRINSIC))
