@@ -36,6 +36,15 @@ actor Main is TestList
     test(_TestFnMatch("ab/bc", "a**c", true))
     test(_TestFnMatch("a/b/c", "a**c", true))
 
+    test(_TestFnMatch("a1c", "a[12]c", true))
+    test(_TestFnMatch("a2c", "a[12]c", true))
+    test(_TestFnMatch("a3c", "a[12]c", false))
+    test(_TestFnMatch("a3c", "a[!12]c", true))
+    test(_TestFnMatch("a2c", "a[!12]c", false))
+    test(_TestFnMatch("a1c", "a[!12]c", false))
+    test(_TestFnMatch("a11c", "a[12]c", false))
+    test(_TestFnMatch("a12c", "a[12]c", false))
+
     test(_TestFnMatchCase)
     test(_TestFilter)
 
