@@ -18,7 +18,8 @@ primitive Glob
     Tests whether `name` matches `pattern`.
 
     Patterns are Unix shell style:
-        *       | matches everything
+        *       | matches files
+        **      | matches files across directories
         ?       | matches any single character
         [seq]   | matches any character in seq
         [!seq]  | matches any char not in seq
