@@ -38,7 +38,7 @@ primitive Glob
         false
       end
 
-  fun filter(names: Array[String], pattern: String): Array[(String, Array[String])] iso =>
+  fun filter(names: Array[String], pattern: String): Array[(String, Array[String])] val =>
       """
       Returns `name` and the matching subgroups for `names` that match `pattern`.
 
@@ -49,7 +49,7 @@ primitive Glob
         let regex = Regex(translate(Path.normcase(pattern)))
         for name in names.values() do
           try
-            let m = regex(name)
+            let m = regex(Path.normcase(name))
             result.push((name, m.groups()))
           end
         end
