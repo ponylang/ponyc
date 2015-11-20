@@ -77,7 +77,7 @@ primitive Glob
             res.append("([^/]*)")
           end
         elseif c == '?' then
-          res.append("(.)")
+          res.append("([^/])")
         elseif c == '[' then
           var j = i
           if (j < n) then
