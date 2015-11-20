@@ -5,7 +5,6 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestFnMatchCase)
     test(_TestFnMatch("abc", "abc", true))
     test(_TestFnMatch("abc", "a.c", false))
 
@@ -37,10 +36,10 @@ actor Main is TestList
     test(_TestFnMatch("ab/bc", "a**c", true))
     test(_TestFnMatch("a/b/c", "a**c", true))
 
+    test(_TestFnMatchCase)
+    test(_TestFilter)
+
 class iso _TestFnMatchCase is UnitTest
-  """
-  Tests basic compilation and matching.
-  """
   fun name(): String => "files/Glob.fnmatchcase"
 
   fun apply(h: TestHelper): TestResult =>
@@ -49,9 +48,6 @@ class iso _TestFnMatchCase is UnitTest
     true
 
 class iso _TestFnMatch is UnitTest
-  """
-  Tests basic compilation and matching.
-  """
   let _glob: String
   let _path: String
   let _matches: Bool
@@ -68,3 +64,16 @@ class iso _TestFnMatch is UnitTest
   fun apply(h: TestHelper): TestResult =>
     _matches == Glob.fnmatch(_glob, _path)
 
+class iso _TestFilter is UnitTest
+  fun name(): String => "files/Glob.filter"
+
+  fun apply(h: TestHelper): TestResult? =>
+    let m = Glob.filter([ "12/a/Bcd", "12/q/abd", "34/b/Befd"], "*/?/B*d")
+    h.assert_eq[U64](2, m.size())
+
+    h.expect_eq[String](m(0)._1, "12/a/Bcd")
+    h.expect_array_eq[String](m(0)._2, ["12", "a", "c"])
+
+    h.expect_eq[String](m(1)._1, "34/b/Befd")
+    h.expect_array_eq[String](m(1)._2, ["34", "b", "ef"])
+    true
