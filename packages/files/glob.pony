@@ -104,6 +104,7 @@ primitive Glob
             let sub = recover ref pat.substring(i.i64(), (j-1).i64()) end
             res.append(sub.replace("\\","\\\\"))
             res.append("])")
+            i = j + 1
           end
         else
           if alpha_num_regex != String(1).push(c) then
