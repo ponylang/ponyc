@@ -85,3 +85,33 @@ TEST_F(BadPonyTest, DontCareInIntLiteralType)
 
   DO(test(src));
 }
+
+TEST_F(BadPonyTest, TupleIndexIsZero)
+{
+  // From issue #397
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(): None =>\n"
+    "    (None, None)._0";
+
+  DO(test(src));
+  ASSERT_EQ(1, get_error_count());
+  errormsg_t* errors = get_errors();
+  EXPECT_TRUE(strstr(errors->msg, "Did you mean _1?") != NULL)
+      << "Actual error: " << errors->msg;
+}
+
+TEST_F(BadPonyTest, TupleIndexIsOutOfRange)
+{
+  // From issue #397
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(): None =>\n"
+    "    (None, None)._3";
+
+  DO(test(src));
+  ASSERT_EQ(1, get_error_count());
+  errormsg_t* errors = get_errors();
+  EXPECT_TRUE(strstr(errors->msg, "Valid range is [1, 2]") != NULL)
+      << "Actual error: " << errors->msg;
+}

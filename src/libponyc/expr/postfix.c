@@ -297,12 +297,27 @@ static bool tuple_access(ast_t* ast)
     return false;
   }
 
-  // Make sure our index is in bounds.
-  type = ast_childidx(type, (size_t)ast_int(right));
+  // Make sure our index is in bounds.  make_tuple_index automatically shifts
+  // from one indexed to zero, so we have to use -1 and >= for our comparisons.
+  size_t right_idx = (size_t)ast_int(right);
+  size_t tuple_size = ast_childcount(type);
+  if (right_idx == (size_t)-1)
+  {
+    ast_error(right, "tuples are one indexed not zero indexed.  Did you mean _1?");
+    return false;
+  }
+  else if (right_idx >= tuple_size)
+  {
+    ast_error(right, "tuple index %zu is out of valid range.  "
+        "Valid range is [%zu, %zu]", right_idx, (size_t)1, tuple_size);
+    return false;
+  }
 
+  type = ast_childidx(type, right_idx);
   if(type == NULL)
   {
-    ast_error(right, "tuple index is out of bounds");
+    // should be unreachable, but better to error cleanly then segfault.
+    ast_error(right, "Internal compiler error.  Please report this bug.");
     return false;
   }
 
