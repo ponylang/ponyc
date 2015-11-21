@@ -150,7 +150,7 @@ actor TestHelper
     log("Expect false passed. " + msg, true)
     true
 
-  fun tag assert_error(test: ITest, msg: String = "") ? =>
+  fun tag assert_error(test: ITest box, msg: String = "") ? =>
     """
     Assert that the given test function throws an error when run.
     """
