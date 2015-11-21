@@ -690,7 +690,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
 
 static void dump_view(view_t* view)
 {
-  printf("%p: %lu (%s)\n",
+  printf("%p: %zu (%s)\n",
     view->actor, view->rc, view->blocked ? "blocked" : "unblocked");
 
   size_t i = HASHMAP_BEGIN;
@@ -698,7 +698,7 @@ static void dump_view(view_t* view)
 
   while((p = viewrefmap_next(&view->map, &i)) != NULL)
   {
-    printf("\t%p: %lu\n", p->view->actor, p->rc);
+    printf("\t%p: %zu\n", p->view->actor, p->rc);
   }
 }
 
