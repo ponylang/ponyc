@@ -352,7 +352,7 @@ static void check_config_count(buildflagset_t* config, ast_t* location)
     if(file == NULL)
       file = "";
 
-    printf("Processing %g configs at %s:%ld, this may take some time\n",
+    printf("Processing %g configs at %s:%zu, this may take some time\n",
       config_count, file, ast_line(location));
   }
 }
