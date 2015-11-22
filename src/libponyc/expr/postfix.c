@@ -308,18 +308,13 @@ static bool tuple_access(ast_t* ast)
   }
   else if (right_idx >= tuple_size)
   {
-    ast_error(right, "tuple index %zu is out of valid range.  "
-        "Valid range is [%zu, %zu]", right_idx, (size_t)1, tuple_size);
+    ast_error(right, "tuple index %ld is out of valid range.  "
+        "Valid range is [%ld, %ld]", right_idx, (size_t)1, tuple_size);
     return false;
   }
 
   type = ast_childidx(type, right_idx);
-  if(type == NULL)
-  {
-    // should be unreachable, but better to error cleanly then segfault.
-    ast_error(right, "Internal compiler error.  Please report this bug.");
-    return false;
-  }
+  assert(type != NULL);
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
