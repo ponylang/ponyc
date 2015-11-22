@@ -11,19 +11,19 @@ All tests can be run by compiling and running packages/stdlib.
  """
 
 use "ponytest"
+use base64 = "encode/base64"
 use capsicum = "capsicum"
 use collections = "collections"
-use base64 = "encode/base64"
 use files = "files"
+use http = "net/http"
 use json = "json"
 use math = "math"
 use net = "net"
-use http = "net/http"
-use ssl = "net/ssl"
 use options = "options"
-use random = "random"
 use promises = "promises"
+use random = "random"
 use regex = "regex"
+use ssl = "net/ssl"
 use term = "term"
 use time = "time"
 
@@ -53,12 +53,13 @@ actor Main is TestList
     test(_TestArraySlice)
 
     // Tests for all other packages.
-    collections.Main.make().tests(test)
     base64.Main.make().tests(test)
-    net.Main.make().tests(test)
+    collections.Main.make().tests(test)
+    files.Main.make().tests(test)
     http.Main.make().tests(test)
-    options.Main.make().tests(test)
     json.Main.make().tests(test)
+    net.Main.make().tests(test)
+    options.Main.make().tests(test)
     regex.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest
