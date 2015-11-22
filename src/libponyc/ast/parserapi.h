@@ -385,6 +385,38 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   }
 
 
+/** Wrap the specified child of the current node in a new node of the given id.
+ *
+ * Example:
+ *    WRAP(2, TK_SEQ);
+ */
+#define WRAP(child_idx, wrapper_id) \
+  { \
+    ast_t* child = ast_childidx(state.ast, (child_idx)); \
+    ast_t* wrapper = ast_from(child, (wrapper_id)); \
+    ast_swap(child, wrapper); \
+    ast_append(wrapper, child); \
+  }
+
+
+/** Unwrap the specified child of the current node, if it has a wrapper of the
+ * given id.
+ * If the child is not currently wrapped in the specified id, do nothing.
+ *
+ * Example:
+ *    UNWRAP(2, TK_SEQ);
+ */
+#define UNWRAP(child_idx, wrapper_id) \
+  { \
+    ast_t* child = ast_childidx(state.ast, (child_idx)); \
+    if(ast_id(child) == (wrapper_id)) \
+    { \
+      ast_t* wrapped = ast_pop(child); \
+      ast_replace(&child, wrapped); \
+    } \
+  }
+
+
 /** Change the order of the children of the current node.
  * Desired order is specified as a list of indices of the current order. All
  * indices must appear exactly once in the list or bad things may happen.

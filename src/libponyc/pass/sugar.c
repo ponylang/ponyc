@@ -1,5 +1,7 @@
 #include "sugar.h"
+#include "casemethod.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../pkg/ifdef.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
@@ -29,6 +31,7 @@ static ast_t* make_create(ast_t* ast)
       NONE          // return type
       NONE          // error
       NODE(TK_SEQ, NODE(TK_TRUE))
+      NONE
       NONE
       ));
 
@@ -154,9 +157,10 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
           NODE(TK_IS,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
+        NONE
         NONE));
 
-    ast_append(members, eq);
+ast_append(members, eq);
   }
 
   if(!has_member(members, "ne"))
@@ -182,6 +186,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
           NODE(TK_ISNT,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
+        NONE
         NONE));
 
     ast_append(members, eq);
@@ -228,8 +233,8 @@ static ast_result_t sugar_module(ast_t* ast)
 }
 
 
-static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
-  token_id def_def_cap)
+static ast_result_t sugar_entity(typecheck_t* t, ast_t* ast, bool add_create,
+  bool add_eq, token_id def_def_cap)
 {
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
 
@@ -312,7 +317,8 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   }
 
   ast_free_unattached(init_seq);
-  return AST_OK;
+
+  return sugar_case_methods(t, ast);
 }
 
 
@@ -359,6 +365,51 @@ static void sugar_docstring(ast_t* ast)
 }
 
 
+// Check the parameters of the given method are proper parameters and not
+// something nasty let in by the case method value parsing.
+static ast_result_t check_params(ast_t* method)
+{
+  assert(method != NULL);
+
+  ast_result_t result = AST_OK;
+  ast_t* params = ast_childidx(method, 3);
+
+  // Check each parameter.
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    AST_GET_CHILDREN(p, id, type, def_arg);
+
+    if(ast_id(id) != TK_ID)
+    {
+      ast_error(p, "expected parameter name");
+      result = AST_ERROR;
+    }
+    else if(ast_name(id)[0] != '$' && !check_id_param(id))
+    {
+      result = AST_ERROR;
+    }
+
+    if(ast_id(type) == TK_NONE)
+    {
+      ast_error(type, "expected parameter type");
+      result = AST_ERROR;
+    }
+  }
+
+  // Also check the guard expression doesn't exist.
+  ast_t* guard = ast_childidx(method, 8);
+  assert(guard != NULL);
+
+  if(ast_id(guard) != TK_NONE)
+  {
+    ast_error(guard, "only case methods can have guard conditions");
+    result = AST_ERROR;
+  }
+
+  return result;
+}
+
+
 static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
@@ -385,7 +436,7 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return AST_OK;
+  return check_params(ast);
 }
 
 
@@ -401,24 +452,34 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return AST_OK;
+  return check_params(ast);
 }
 
 
-static ast_result_t sugar_fun(ast_t* ast)
+void fun_defaults(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  assert(ast != NULL);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
 
   // If the receiver cap is not specified, set it to box.
   if(ast_id(cap) == TK_NONE)
     ast_setid(cap, TK_BOX);
 
-  // If the return value is not specified, set it to None
+  // If the return value is not specified, set it to None.
   if(ast_id(result) == TK_NONE)
   {
     ast_t* type = type_sugar(ast, NULL, "None");
     ast_replace(&result, type);
   }
+}
+
+
+static ast_result_t sugar_fun(ast_t* ast)
+{
+  fun_defaults(ast);
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
   // If the return type is None, add a None at the end of the body, unless it
   // already ends with an error or return statement
@@ -434,7 +495,7 @@ static ast_result_t sugar_fun(ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return AST_OK;
+  return check_params(ast);
 }
 
 
@@ -714,6 +775,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NONE
       NONE
       NODE(TK_SEQ)
+      NONE
       NONE));
 
   BUILD(type_ref, ast, NODE(TK_REFERENCE, TREE(c_id)));
@@ -1142,12 +1204,12 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_MODULE:     return sugar_module(ast);
-    case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
-    case TK_STRUCT:     return sugar_member(ast, true, false, TK_REF);
-    case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
-    case TK_ACTOR:      return sugar_member(ast, true, false, TK_TAG);
+    case TK_PRIMITIVE:  return sugar_entity(t, ast, true, true, TK_VAL);
+    case TK_STRUCT:     return sugar_entity(t, ast, true, false, TK_REF);
+    case TK_CLASS:      return sugar_entity(t, ast, true, false, TK_REF);
+    case TK_ACTOR:      return sugar_entity(t, ast, true, false, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:  return sugar_member(ast, false, false, TK_REF);
+    case TK_INTERFACE:  return sugar_entity(t, ast, false, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
     case TK_NEW:        return sugar_new(t, ast);
     case TK_BE:         return sugar_be(t, ast);

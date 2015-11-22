@@ -641,15 +641,6 @@ static ast_result_t syntax_embed(ast_t* ast)
 }
 
 
-static ast_result_t syntax_param(ast_t* ast)
-{
-  if(!check_id_param(ast_child(ast)))
-    return AST_ERROR;
-
-  return AST_OK;
-}
-
-
 static ast_result_t syntax_type_param(ast_t* ast)
 {
   if(!check_id_type_param(ast_child(ast)))
@@ -919,7 +910,6 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_LET:
     case TK_VAR:        r = syntax_local(ast); break;
     case TK_EMBED:      r = syntax_embed(ast); break;
-    case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_IFDEF:      r = syntax_ifdef(ast); break;
     case TK_USE:        r = syntax_use(ast); break;

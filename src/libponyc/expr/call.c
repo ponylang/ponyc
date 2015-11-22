@@ -586,6 +586,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NONE
       NONE
       NODE(TK_SEQ)
+      NONE
       NONE));
 
   // We will have an apply method in the type.
@@ -600,6 +601,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       TREE(sanitise_type(result))
       NODE(can_error)
       NODE(TK_SEQ)
+      NONE
       NONE));
 
   // We will replace partial application with $0.create(...)

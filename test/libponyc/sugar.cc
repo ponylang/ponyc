@@ -396,6 +396,66 @@ TEST_F(SugarTest, FunctionNoReturnBody)
 }
 
 
+TEST_F(SugarTest, FunctionParamMustBeId)
+{
+  const char* good =
+    "trait Foo\n"
+    "  fun foo(x: U64) => 3";
+
+  TEST_COMPILE(good);
+
+  const char* bad1 =
+    "trait Foo\n"
+    "  fun foo(x.y(): U64) => 3";
+
+  TEST_ERROR(bad1);
+
+  const char* bad2 =
+    "trait Foo\n"
+    "  fun foo(_: U64) => 3";
+
+  TEST_ERROR(bad2);
+
+  const char* bad3 =
+    "trait Foo\n"
+    "  fun foo($x: U64) => 3";
+
+  TEST_ERROR(bad3);
+}
+
+
+TEST_F(SugarTest, FunctionParamTypeRequired)
+{
+  const char* good =
+    "trait Foo\n"
+    "  fun foo(x: U64) => 3";
+
+  TEST_COMPILE(good);
+
+  const char* bad =
+    "trait Foo\n"
+    "  fun foo(x) => 3";
+
+  TEST_ERROR(bad);
+}
+
+
+TEST_F(SugarTest, FunctionGuardsNotAllowed)
+{
+  const char* good =
+    "trait Foo\n"
+    "  fun foo(x: U64) => 3";
+
+  TEST_COMPILE(good);
+
+  const char* bad =
+    "trait Foo\n"
+    "  fun foo(x: U64 where x > 0) => 3";
+
+  TEST_ERROR(bad);
+}
+
+
 TEST_F(SugarTest, IfWithoutElse)
 {
   const char* short_form =
@@ -1671,4 +1731,681 @@ TEST_F(SugarTest, IfdefPosix)
     "    None";
 
   TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunction)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(1): U64 => 1\n"
+    "  fun fib(y: U64): U64 =>\n"
+    "    fib(y - 2) + fib(y - 1)";
+
+  const char* full_form =
+  "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(y: U64): (None | U64 | U64 | U64) =>\n"
+    "    hygid(consume y)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | 1 => 1\n"
+    "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionPlusOtherFun)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(1): U64 => 1\n"
+    "  fun not_fib(): U64 => 1\n"
+    "  fun fib(y: U64): U64 =>\n"
+    "    fib(y - 2) + fib(y - 1)";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box not_fib(): U64 => 1\n"
+    "  fun box fib(y: U64): (None | U64 | U64 | U64) =>\n"
+    "    hygid(consume y)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | 1 => 1\n"
+    "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun foo(0): U64 => 0\n"
+    "  fun foo(x: U64): U64 => 1\n"
+    "  fun other(): U64 => 1\n"
+    "  fun bar(0): U32 => 0\n"
+    "  fun bar(y: U32): U32 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box other(): U64 => 1\n"
+    "  fun box foo(x: U64): (None | U64 | U64) =>\n"
+    "    hygid(consume x)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let x: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+    "  fun box bar(y: U32): (None | U32 | U32) =>\n"
+    "    hygid(consume y)\n"
+    "  fun box hygid(hygid: U32): (None | U32 | U32) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let y: U32 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionParamNamedTwice)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(y: U64): U64 => 1\n"
+    "  fun fib(y: U64): U64 => 2";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(y: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
+    "    hygid(consume y)\n"
+    "  fun box hygid(hygid: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let y: U64 => 1\n"
+    "    | let y: U64 => 2\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunction2Params)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0, 0): U64 => 0\n"
+    "  fun fib(a: U64, b: U32): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: U64, b: U32): (None | U64 | U64) =>\n"
+    "    hygid(consume a, consume b)\n"
+    "  fun box hygid(hygid: U64, hygid: U32): (None | U64 | U64) =>\n"
+    "    match (consume hygid, consume hygid)\n"
+    "    | (0, 0) => 0\n"
+    "    | (let a: U64, let b: U32) => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionParamTypeUnion)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(a: U32): U64 => 0\n"
+    "  fun fib(a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: (U32 | U64)): (None | U64 | U64) =>\n"
+    "    hygid(consume a)\n"
+    "  fun box hygid(hygid: (U32 | U64)): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | let a: U32 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionReturnUnion)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(a: U64): U32 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: U64): (None | U64 | U32) =>\n"
+    "    hygid(consume a)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U32) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionCap)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(0): U64 => 0\n"
+    "  fun ref fib(a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(a: U64): (None | U64 | U64) =>\n"
+    "    hygid(consume a)\n"
+    "  fun ref hygid(hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionCapClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(0): U64 => 0\n"
+    "  fun ref fib(a: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionOneErrors)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(0): U64 ? => 0\n"
+    "  fun ref fib(a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(a: U64): (None | U64 | U64) ? =>\n"
+    "    hygid(consume a)\n"
+    "  fun ref hygid(hygid: U64): (None | U64 | U64) ? =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionAllError)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(0): U64 ? => 0\n"
+    "  fun ref fib(a: U64): U64 ? => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun ref fib(a: U64): (None | U64 | U64) ? =>\n"
+    "    hygid(consume a)\n"
+    "  fun ref hygid(hygid: U64): (None | U64 | U64) ? =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionParamCountClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(a: U64, b: U32): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionNoParams)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(): U64 => 0\n"
+    "  fun fib(): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionParamNameClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(a: U64): U64 => 0\n"
+    "  fun fib(b: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionParamNotNamed)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(1): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionValuePlusTypeBad)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0: U64): U64 => 0\n"
+    "  fun fib(a: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionValuePlusDefaultArgBad)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0 = 0): U64 => 0\n"
+    "  fun fib(a: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionDontCare)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0, _): U64 => 0\n"
+    "  fun fib(a: U64, b: U32): U64 => 1\n"
+    "  fun fib(_, _): U64 => 2";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: U64, b: U32): (None | U64 | U64 | U64) =>\n"
+    "    hygid(consume a, consume b)\n"
+    "  fun box hygid(hygid: U64, hygid: U32): (None | U64 | U64 | U64) =>\n"
+    "    match (consume hygid, consume hygid)\n"
+    "    | (0, _) => 0\n"
+    "    | (let a: U64, let b: U32) => 1\n"
+    "    | (_, _) => 2\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionGuard)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(a: U64 where a > 3): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: U64): (None | U64 | U64) =>\n"
+    "    hygid(consume a)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 where a.gt(3) => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionDefaultValue)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib(a: U64 = 4): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib(a: U64 = 4): (None | U64 | U64) =>\n"
+    "    hygid(consume a)\n"
+    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionDefaultValueClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0 = 4): U64 => 0\n"
+    "  fun fib(a: U64 = 4): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseBehaviour)
+{
+  const char* short_form =
+    "actor Foo\n"
+    "  var create: U32\n"
+    "  be fib(0) => 0\n"
+    "  be fib(a: U64) => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "actor tag Foo\n"
+    "  var create: U32\n"
+    "  be tag fib(a: U64): Foo tag =>\n"
+    "    hygid(consume a)\n"
+    "  fun ref hygid(hygid: U64): None =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionBehaviourClash)
+{
+  const char* short_form =
+    "actor Foo\n"
+    "  var create: U32\n"
+    "  be fib(0) => 0\n"
+    "  fun fib(a: U64) => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionConstructorsFail)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  new fib(0) => create = 0\n"
+    "  new fib(a: U64) => create = 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionTypeParam)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A](0): A => 0\n"
+    "  fun fib[A](a: U64): A => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib[A: A](a: U64): (None | A | A) =>\n"
+    "    hygid[A](consume a)\n"
+    "  fun box hygid[A: A](hygid: U64): (None | A | A) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunction2TypeParams)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A, B](0): U64 => 0\n"
+    "  fun fib[A, B](a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib[A: A, B: B](a: U64): (None | U64 | U64) =>\n"
+    "    hygid[A, B](consume a)\n"
+    "  fun box hygid[A: A, B: B](hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionTypeParamConstraint)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A](0): U64 => 0\n"
+    "  fun fib[A: B](a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib[A: B](a: U64): (None | U64 | U64) =>\n"
+    "    hygid[A](consume a)\n"
+    "  fun box hygid[A: B](hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionTypeParamConstraintIntersect)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A: B](0): U64 => 0\n"
+    "  fun fib[A: C](a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib[A: (B & C)](a: U64): (None | U64 | U64) =>\n"
+    "    hygid[A](consume a)\n"
+    "  fun box hygid[A: (B & C)](hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionTypeParamCountClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib(0): U64 => 0\n"
+    "  fun fib[A](a: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionTypeParamNameClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A](a: U64): U64 => 0\n"
+    "  fun fib[B](b: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
+}
+
+
+
+TEST_F(SugarTest, CaseFunctionDefaultTypeParam)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A](0): U64 => 0\n"
+    "  fun fib[A = B](a: U64): U64 => 1";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box fib[A: A = B](a: U64): (None | U64 | U64) =>\n"
+    "    hygid[A](consume a)\n"
+    "  fun box hygid[A: A = B](hygid: U64): (None | U64 | U64) =>\n"
+    "    match consume hygid\n"
+    "    | 0 => 0\n"
+    "    | let a: U64 => 1\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionDefaultTypeParamClash)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun fib[A = B](0): U64 => 0\n"
+    "  fun fib[A = C](a: U64): U64 => 1";
+
+  TEST_ERROR(short_form);
 }

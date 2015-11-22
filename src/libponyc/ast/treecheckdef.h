@@ -77,8 +77,9 @@ RULE(method,
   CHILD(params, none)
   CHILD(type, none) // Return type
   CHILD(question, none)
-  CHILD(seq, none)
-  CHILD(string, none),
+  CHILD(seq, none)  // Body
+  CHILD(string, none)
+  CHILD(seq, none), // Guard (case methods only)
   TK_FUN, TK_NEW, TK_BE);
 
 RULE(type_params, ONE_OR_MORE(type_param), TK_TYPEPARAMS);
@@ -92,13 +93,13 @@ RULE(type_param,
 RULE(type_args, ONE_OR_MORE(type), TK_TYPEARGS);
 
 RULE(params,
-  ZERO_OR_MORE(param)
+  ONE_OR_MORE(param)
   OPTIONAL(ellipsis),
   TK_PARAMS);
 
 RULE(param,
-  CHILD(id)
-  CHILD(type)
+  CHILD(id, expr)
+  CHILD(type, none)
   CHILD(expr, none),
   TK_PARAM);
 

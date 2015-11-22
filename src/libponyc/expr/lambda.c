@@ -118,7 +118,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       TREE(ret_type)
       TREE(raises)
       TREE(body)
-      NONE));  // Doc string
+      NONE    // Doc string
+      NONE)); // Guard
 
   ast_list_append(members, &last_member, apply);
 

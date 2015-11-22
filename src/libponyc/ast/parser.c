@@ -51,6 +51,11 @@ DECL(members);
 
 // Parse rules
 
+// DONTCARE
+DEF(dontcare);
+  TOKEN(NULL, TK_DONTCARE);
+  DONE();
+
 // type
 DEF(provides);
   PRINT_INLINE();
@@ -61,9 +66,11 @@ DEF(provides);
 // ID COLON type [ASSIGN infix]
 DEF(param);
   AST_NODE(TK_PARAM);
-  TOKEN("name", TK_ID);
-  SKIP(NULL, TK_COLON);
-  RULE("parameter type", type);
+  RULE("name", infix, dontcare);
+  IF(TK_COLON,
+    RULE("parameter type", type);
+    UNWRAP(0, TK_REFERENCE);
+  );
   IF(TK_ASSIGN, RULE("default value", infix));
   DONE();
 
@@ -149,11 +156,6 @@ DEF(isecttype);
 DEF(infixtype);
   RULE("type", type);
   SEQ("type", uniontype, isecttype);
-  DONE();
-
-// DONTCARE
-DEF(dontcare);
-  TOKEN(NULL, TK_DONTCARE);
   DONE();
 
 // COMMA (infixtype | dontcare) {COMMA (infixtype | dontcare)}
@@ -244,7 +246,7 @@ DEF(object);
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
-
+  
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);
@@ -754,7 +756,7 @@ DEF(term);
     try_block, recover, consume, prefix, postfix, test_seq, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
-
+  
 // local | cond | ifdef | match | whileloop | repeat | forloop | with | try |
 // recover | consume | prefix | postfix | test_<various>
 DEF(nextterm);
@@ -898,14 +900,15 @@ DEF(method);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
+  IF(TK_WHERE, RULE("guard expression", rawseq));
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
   OPT TOKEN(NULL, TK_STRING);
   IF(TK_DBLARROW, RULE("method body", rawseq));
   // Order should be:
-  // cap id type_params params return_type error body docstring
-  REORDER(0, 1, 2, 3, 4, 5, 7, 6);
+  // cap id type_params params return_type error body docstring guard
+  REORDER(0, 1, 2, 3, 5, 6, 8, 7, 4);
   DONE();
 
 // (VAR | LET | EMBED) ID [COLON type] [ASSIGN infix]
@@ -932,7 +935,7 @@ DEF(members);
 
 // (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
 // [CAP] [IS type] [STRING] members
-DEF(class_def);
+  DEF(class_def);
   RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT, TK_CLASS,
     TK_ACTOR);
   TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT,
