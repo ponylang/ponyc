@@ -472,14 +472,6 @@ void fun_defaults(ast_t* ast)
     ast_t* type = type_sugar(ast, NULL, "None");
     ast_replace(&result, type);
   }
-}
-
-
-static ast_result_t sugar_fun(ast_t* ast)
-{
-  fun_defaults(ast);
-
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
   // If the return type is None, add a None at the end of the body, unless it
   // already ends with an error or return statement
@@ -493,7 +485,12 @@ static ast_result_t sugar_fun(ast_t* ast)
       ast_append(body, ref);
     }
   }
+}
 
+
+static ast_result_t sugar_fun(ast_t* ast)
+{
+  fun_defaults(ast);
   sugar_docstring(ast);
   return check_params(ast);
 }

@@ -580,7 +580,8 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
   }
 
   // Extract case body and guard condition (if any) to avoid copying.
-  ast_t* body = ast_pop(case_body);
+  ast_t* body = ast_from(case_body, TK_NONE);
+  ast_swap(case_body, body);
   ast_t* guard = ast_from(case_guard, TK_NONE);
   ast_swap(case_guard, guard);
 
@@ -589,8 +590,7 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
     NODE(TK_CASE, AST_SCOPE
       TREE(pattern)
       TREE(case_guard)
-      NODE(TK_SEQ,
-        TREE(body))));
+      TREE(case_body)));
 
   return match_case;
 }
