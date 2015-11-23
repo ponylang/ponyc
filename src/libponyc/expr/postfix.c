@@ -298,14 +298,24 @@ static bool tuple_access(ast_t* ast)
     return false;
   }
 
-  // Make sure our index is in bounds.
-  type = ast_childidx(type, (size_t)ast_int(right));
-
-  if(type == NULL)
+  // Make sure our index is in bounds.  make_tuple_index automatically shifts
+  // from one indexed to zero, so we have to use -1 and >= for our comparisons.
+  size_t right_idx = (size_t)ast_int(right);
+  size_t tuple_size = ast_childcount(type);
+  if (right_idx == (size_t)-1)
   {
-    ast_error(right, "tuple index is out of bounds");
+    ast_error(right, "tuples are one indexed not zero indexed.  Did you mean _1?");
     return false;
   }
+  else if (right_idx >= tuple_size)
+  {
+    ast_error(right, "tuple index %ld is out of valid range.  "
+        "Valid range is [%ld, %ld]", right_idx, (size_t)1, tuple_size);
+    return false;
+  }
+
+  type = ast_childidx(type, right_idx);
+  assert(type != NULL);
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
