@@ -39,7 +39,7 @@ class Directory
 
     path = from
 
-    if Platform.posix() then
+    ifdef posix then
       _fd = @open[I32](from.path.cstring(),
         @o_rdonly() or @o_directory() or @o_cloexec())
 
@@ -74,7 +74,7 @@ class Directory
     recover
       let list = Array[String]
 
-      if Platform.windows() then
+      ifdef windows then
         var find = @windows_find_data[Pointer[_DirectoryEntry]]()
         let search = path' + "\\*"
         let h = @FindFirstFile[Pointer[_DirectoryHandle]](
@@ -99,9 +99,13 @@ class Directory
           error
         end
 
-        let fd = @openat[I32](fd', ".".cstring(),
-          @o_rdonly() or @o_directory() or @o_cloexec())
-        let h = @fdopendir[Pointer[_DirectoryHandle]](fd)
+        let h = ifdef osx then
+          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
+        else
+          let fd = @openat[I32](fd', ".".cstring(),
+            @o_rdonly() or @o_directory() or @o_cloexec())
+          @fdopendir[Pointer[_DirectoryHandle]](fd)
+        end
 
         if h.is_null() then
           error
@@ -130,7 +134,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
+    ifdef windows or osx then
       recover create(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -154,7 +158,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.mkdir()
       else
         var offset: I64 = 0
@@ -193,7 +197,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
+    ifdef windows or osx then
       recover File(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -214,7 +218,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps - FileWrite)
 
-    if Platform.windows() or Platform.osx() then
+    ifdef windows or osx then
       recover File(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -268,7 +272,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
+    ifdef windows or osx then
       FileInfo(path')
     else
       FileInfo._relative(_fd, path', target)
@@ -289,7 +293,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.chmod(mode)
       else
         @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0)) == 0
@@ -313,7 +317,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.chown(uid, gid)
       else
         @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0)) == 0
@@ -345,7 +349,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.set_time(atime, mtime)
       else
         var tv: (I64, I64, I64, I64) =
@@ -374,7 +378,7 @@ class Directory
     try
       let path' = FilePath(path, link_name, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         source.symlink(path')
       else
         @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring()) == 0
@@ -399,7 +403,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.remove()
       else
         let fi = FileInfo(path')
@@ -441,7 +445,7 @@ class Directory
       let path' = FilePath(path, source, path.caps)
       let path'' = FilePath(to.path, target, to.path.caps)
 
-      if Platform.windows() or Platform.osx() then
+      ifdef windows or osx then
         path'.rename(path'')
       else
         @renameat[I32](_fd, source.cstring(), to._fd, target.cstring()) == 0
@@ -454,7 +458,7 @@ class Directory
     """
     Close the directory.
     """
-    if Platform.posix() then
+    ifdef posix then
       @close[I32](_fd)
       _fd = -1
     end
