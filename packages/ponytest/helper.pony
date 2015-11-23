@@ -1,12 +1,11 @@
 interface ITest
   fun apply()?
 
-actor TestHelper
+class val TestHelper
   """
-  Per unit test actor that runs the test and provides logging and assertion
-  functions to it.
+  Per unit test class that provides control, logging and assertion functions.
 
-  Each unit test is given a TestHelper when it is run. This is tag and so can
+  Each unit test is given a TestHelper when it is run. This is val and so can
   be passed between methods and actors within the test without restriction.
 
   The assertion functions throw an error if the condition fails. This can be
@@ -25,56 +24,18 @@ actor TestHelper
   condition fails. It is intended to aid identifying what failed.
   """
 
-  let _ponytest: PonyTest
-  let _id: U64
-  let _group: _Group
-  let _test: UnitTest iso
-  let _log_verbose: Bool
-  var _test_log: Array[String] iso = recover Array[String] end
-  var _pass: Bool = false
-  var _completed: Bool = false
+  let _runner: _TestRunner
+  let env: Env
 
-  new _create(ponytest: PonyTest, id: U64, test: UnitTest iso, group: _Group,
-    verbose: Bool)
+  new val _create(runner: _TestRunner, env': Env)
   =>
     """
     Create a new TestHelper.
-    ponytest - The authority we report everything to.
-    id - Test identifier needed when reporting to ponytest.
-    test - The test to run and help.
-    group - The group this test is in, which must be notified when we finish.
     """
-    _ponytest = ponytest
-    _id = id
-    _test = consume test
-    _group = group
-    _log_verbose = verbose
+    env = env'
+    _runner = runner
 
-  be _run() =>
-    """
-    Run our test.
-    """
-    _pass = true
-    var pass: TestResult = false
-    _ponytest._test_started(_id)
-
-    try
-      // If the test throws then pass will keep its value of false, no extra
-      // processing is needed.
-      pass = _test(recover tag this end)
-    else
-      log("Test threw an error")
-    end
-
-    match pass
-    | var p: Bool =>
-      // This isn't a long test, ie the test is complete.
-      // We need to process any pending log and failure messages. Send
-      // ourselves a complete() message so we know when we're done.
-      complete(p)
-    end
-
-  be log(msg: String, verbose: Bool = false) =>
+  fun log(msg: String, verbose: Bool = false) =>
     """
     Log the given message.
 
@@ -86,11 +47,9 @@ actor TestHelper
     Logs are printed one test at a time to avoid interleaving log lines from
     concurrent tests.
     """
-    if not verbose or _log_verbose then
-      _test_log.push(msg)
-    end
+    _runner.log(msg, verbose)
 
-  be fail() =>
+  fun fail() =>
     """
     Flag the test as having failed.
     Note that this does not add anything to the log, which can make it
@@ -98,17 +57,17 @@ actor TestHelper
     you do call this directly consider also writing a log message.
     In general it is better to use the assert_* and expect_* functions.
     """
-    _pass = false
+    _runner.fail()
 
-  be assert_failed(msg: String) =>
+  fun assert_failed(msg: String) =>
     """
     Assert failure of the test.
     Record that an assert failed and log the given message.
     """
-    _test_log.push(msg)
-    _pass = false
+    _runner.log(msg, false)
+    _runner.fail()
 
-  fun tag assert_true(actual: Bool, msg: String = "") ? =>
+  fun assert_true(actual: Bool, msg: String = "") ? =>
     """
     Assert that the given expression is true.
     """
@@ -118,7 +77,7 @@ actor TestHelper
     end
     log("Assert true passed. " + msg, true)
 
-  fun tag expect_true(actual: Bool, msg: String = ""): Bool =>
+  fun expect_true(actual: Bool, msg: String = ""): Bool =>
     """
     Expect that the given expression is true.
     """
@@ -129,7 +88,7 @@ actor TestHelper
     log("Expect true passed. " + msg, true)
     true
 
-  fun tag assert_false(actual: Bool, msg: String = "") ? =>
+  fun assert_false(actual: Bool, msg: String = "") ? =>
     """
     Assert that the given expression is false.
     """
@@ -139,7 +98,7 @@ actor TestHelper
     end
     log("Assert false passed. " + msg, true)
 
-  fun tag expect_false(actual: Bool, msg: String = ""): Bool =>
+  fun expect_false(actual: Bool, msg: String = ""): Bool =>
     """
     Expect that the given expression is false.
     """
@@ -150,7 +109,7 @@ actor TestHelper
     log("Expect false passed. " + msg, true)
     true
 
-  fun tag assert_error(test: ITest box, msg: String = "") ? =>
+  fun assert_error(test: ITest box, msg: String = "") ? =>
     """
     Assert that the given test function throws an error when run.
     """
@@ -163,7 +122,7 @@ actor TestHelper
     end
     error
 
-  fun tag expect_error(test: ITest box, msg: String = ""): Bool =>
+  fun expect_error(test: ITest box, msg: String = ""): Bool =>
     """
     Expect that the given test function throws an error when run.
     """
@@ -176,21 +135,17 @@ actor TestHelper
       true
     end
 
-  fun tag assert_is
-    (expect: Any, actual: Any, msg: String = "") ?
-  =>
-  """
-  Assert that the 2 given expressions resolve to the same instance
-  """
-  let expect' = identityof expect
-  let actual' = identityof actual
-  if not _check_eq[U64]("Assert", expect', actual', msg) then
-    error
-  end
+  fun assert_is(expect: Any, actual: Any, msg: String = "") ? =>
+    """
+    Assert that the 2 given expressions resolve to the same instance
+    """
+    let expect' = identityof expect
+    let actual' = identityof actual
+    if not _check_eq[U64]("Assert", expect', actual', msg) then
+      error
+    end
 
-  fun tag expect_is
-    (expect: Any, actual: Any, msg: String = ""): Bool
-  =>
+  fun expect_is(expect: Any, actual: Any, msg: String = ""): Bool =>
     """
     Expect that the 2 given expressions resolve to the same instance
     """
@@ -198,7 +153,7 @@ actor TestHelper
     let actual' = identityof actual
     _check_eq[U64]("Expect", expect', actual', msg)
 
-  fun tag assert_eq[A: (Equatable[A] #read & Stringable #read)]
+  fun assert_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: A, actual: A, msg: String = "") ?
   =>
     """
@@ -208,7 +163,7 @@ actor TestHelper
       error
     end
 
-  fun tag expect_eq[A: (Equatable[A] #read & Stringable #read)]
+  fun expect_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: A, actual: A, msg: String = ""): Bool
   =>
     """
@@ -216,7 +171,7 @@ actor TestHelper
     """
     _check_eq[A]("Expect", expect, actual, msg)
 
-  fun tag _check_eq[A: (Equatable[A] #read & Stringable)]
+  fun _check_eq[A: (Equatable[A] #read & Stringable)]
     (verb: String, expect: A, actual: A, msg: String): Bool
   =>
     """
@@ -232,7 +187,7 @@ actor TestHelper
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
-  fun tag assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
+  fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
   =>
     """
@@ -242,7 +197,7 @@ actor TestHelper
       error
     end
 
-  fun tag expect_array_eq[A: (Equatable[A] #read & Stringable #read)]
+  fun expect_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
   =>
     """
@@ -250,7 +205,7 @@ actor TestHelper
     """
     _check_array_eq[A]("Expect", expect, actual, msg)
 
-  fun tag _check_array_eq[A: (Equatable[A] #read & Stringable #read)]
+  fun _check_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
   =>
     """
@@ -286,14 +241,14 @@ actor TestHelper
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
     true
 
-  fun tag _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
+  fun _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
     """
     Generate a printable string of the contents of the given readseq to use in
     error messages.
     """
     "[len=" + array.size().string() + ": " + ", ".join(array) + "]"
 
-  be complete(success: Bool) =>
+  fun complete(success: Bool) =>
     """
     MUST be called by each long test to indicate the test has finished.
 
@@ -304,22 +259,4 @@ actor TestHelper
     No logging or asserting should be performed after this is called. Any that
     is will be ignored.
     """
-    if _completed then
-      // We've already completed once, do nothing
-      return
-    end
-
-    _completed = true
-
-    if not success then
-      _pass = false
-    end
-
-    // First tell the ponytest that we've completed, then our group.
-    // When we tell the group another test may be started. If we did that first
-    // then the ponytest might report the start of that new test before the end
-    // of this one, which would make it look like exclusion wasn't working.
-    let complete_log = _test_log = recover Array[String] end
-    _ponytest._test_complete(_id, _pass, consume complete_log)
-
-    _group._test_complete(this)
+    _runner.complete(success)

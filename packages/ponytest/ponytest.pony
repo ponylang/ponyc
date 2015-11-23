@@ -198,7 +198,7 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    group(TestHelper._create(this, index, consume test, group, _verbose))
+    group(_TestRunner(this, index, consume test, group, _verbose, _env))
 
   fun ref _find_group(group_name: String): _Group =>
     """
