@@ -111,7 +111,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Make the apply function
   BUILD(apply, ast,
     NODE(TK_FUN, AST_SCOPE
-      NONE  // Capability
+      TREE(cap)
       ID("apply")
       TREE(t_params)
       TREE(params)
@@ -126,7 +126,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT,
-      TREE(cap);
+      TREE(cap)
       NONE  // Provides list
       TREE(members)));
 

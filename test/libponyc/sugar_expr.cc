@@ -74,7 +74,7 @@ TEST_F(SugarExprTest, LambdaFull)
     "      let c: C val = c\n"
     "      let _c: C val = c\n"
     "      let _d: D val = d\n"
-    "      fun apply(a: A, b: B): A => a\n"
+    "      fun iso apply(a: A, b: B): A => a\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
