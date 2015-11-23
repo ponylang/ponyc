@@ -37,7 +37,7 @@ class Regex
     Return true on a successful match, false otherwise.
     """
     try
-      (let m, _) = _match(subject, 0, 0)
+      let m = _match(subject, 0, 0)
       @pcre2_match_data_free_8[None](m)
       true
     else
@@ -58,8 +58,8 @@ class Regex
 
     TODO: global match
     """
-    (let m, let size) = _match(subject, offset, U32(0))
-    Match._create(subject, m, size)
+    let m = _match(subject, offset, U32(0))
+    Match._create(subject, m)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
     value: ByteSeq box, offset: U64 = 0, global: Bool = false): A^ ?
@@ -117,8 +117,8 @@ class Regex
     var off = consume offset
     try
       while off < subject.size() do
-        (let m', let size) = _match(subject, off, _PCRE2.not_empty())
-        let m = Match._create(subject, m', size)
+        let m' = _match(subject, off, _PCRE2.not_empty())
+        let m = Match._create(subject, m')
         let off' = m.start_pos() - 1
         out.push(subject.substring(off.i64(), off'.i64()))
         off = m.end_pos() + 1
@@ -152,7 +152,7 @@ class Regex
       _pattern = Pointer[_Pattern]
     end
 
-  fun _match(subject: ByteSeq box, offset: U64, options: U32): (Pointer[_Match], U64) ? =>
+  fun _match(subject: ByteSeq box, offset: U64, options: U32): Pointer[_Match]? =>
     """
     Match the subject and keep the capture results. Raises an error if there
     is no match.
@@ -176,8 +176,7 @@ class Regex
       @pcre2_match_data_free_8[None](m)
       error
     end
-
-    (m, rc.u64())
+    m
 
   fun _final() =>
     """
