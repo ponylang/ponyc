@@ -47,6 +47,8 @@ actor Main is TestList
 
     test(_TestFnMatchCase)
     test(_TestFilter)
+    test(_TestMkdtemp)
+    test(_TestWalk)
 
 class iso _TestFnMatchCase is UnitTest
   fun name(): String => "files/Glob.fnmatchcase"
@@ -85,4 +87,51 @@ class iso _TestFilter is UnitTest
 
     h.expect_eq[String](m(1)._1, "34/b/Befd")
     h.expect_array_eq[String](m(1)._2, ["34", "b", "ef"])
+    true
+
+class iso _TestMkdtemp  is UnitTest
+  fun name(): String => "files/FilePath.mkdtemp"
+  fun apply(h: TestHelper): TestResult? => error
+
+  fun run(h: TestHelper, env: Env): TestResult? =>
+    h.expect_error(lambda()(e = env)? => FilePath.mkdtemp(e.root, "tmp") end,
+        "FilePath.mkdtemp should fail when path doesn't have a XXXXXX suffix")
+
+    let tmp = FilePath.mkdtemp(env.root, "tmp.TestMkdtemp.XXXXXX")
+    h.expect_true(FileInfo(tmp).directory)
+    h.expect_true(tmp.remove())
+    true
+
+class iso _TestWalk  is UnitTest
+  fun name(): String => "files/FilePath.walk"
+  fun apply(h: TestHelper): TestResult? => error
+
+  fun run(h: TestHelper, env: Env): TestResult? =>
+    let top = Directory(FilePath.mkdtemp(env.root, "tmp.TestWalk.XXXXXX"))
+    top.mkdir("a")
+    top.create_file("b")
+    top.mkdir("c")
+    let a = top.open("a")
+    a.create_file("1")
+    a.create_file("2")
+    let c = top.open("c")
+    c.create_file("3")
+    c.create_file("4")
+    top.path.walk(
+        lambda(dir: FilePath, entries: Array[String] ref)
+              (p = top.path.path, h = h) =>
+      try
+        if dir.path == p then
+          h.expect_array_eq[String](entries, ["a", "b", "c"])
+          entries.pop()
+        elseif dir.path.at("a", -1) then
+          h.expect_array_eq[String](entries, ["1", "2"])
+        else
+          h.assert_failed("Unexpected dir: " + dir.path)
+        end
+      else
+        h.assert_failed("Unexpected error in walk: " + dir.path)
+      end
+    end)
+    h.expect_true(top.path.remove())
     true
