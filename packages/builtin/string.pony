@@ -436,7 +436,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     nothing is in the range.
     """
     let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size)
+    let finish = offset_to_index(to).min(_size - 1)
 
     if (start < _size) and (start <= finish) then
       let len = (finish - start) + 1

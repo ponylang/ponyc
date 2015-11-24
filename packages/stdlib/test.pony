@@ -49,6 +49,7 @@ actor Main is TestList
     test(_TestStringRstrip)
     test(_TestStringStrip)
     test(_TestStringRemove)
+    test(_TestStringSubstring)
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
@@ -339,6 +340,17 @@ class iso _TestStringRemove is UnitTest
     h.expect_eq[String](consume s2, "barbar")
     h.expect_eq[String](consume s3, "foobar!")
     h.expect_eq[String](consume s4, "f-o-o-b-a-r!")
+
+    true
+
+class iso _TestStringSubstring is UnitTest
+  """
+  Test copying range of characters.
+  """
+  fun name(): String => "builtin/String.substring"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String]("3456", "0123456".substring(3, 99))
 
     true
 
