@@ -78,6 +78,11 @@
  *  http://msdn.microsoft.com/en-us/library/7hw7c1he.aspx
  */
 #  pragma warning(disable:4706)
+/** VS2015 warns about a missing delete in Clang 3.6.  Delete actually exists.
+ *
+ * https://msdn.microsoft.com/en-us/library/cxdxz3x6.aspx
+ */
+#  pragma warning(disable:4291)
 #endif
 #  define WIN32_LEAN_AND_MEAN
 #  define NOMINMAX
