@@ -151,7 +151,6 @@
 
     configuration "vs*"
       architecture "x64"
-      buildoptions "/wd4291"
 
   project "libponyc"
     targetname "ponyc"
