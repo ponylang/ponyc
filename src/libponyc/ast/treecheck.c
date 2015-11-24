@@ -111,7 +111,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
   if(state->child == NULL)
   {
     error_preamble(ast);
-    printf("found %ld child%s, expected more\n", state->child_index,
+    printf("found " __zu " child%s, expected more\n", state->child_index,
       (state->child_index == 1) ? "" : "ren");
     ast_error(ast, "Here");
     ast_print(ast);
@@ -119,7 +119,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
   else
   {
     error_preamble(ast);
-    printf("child %ld has invalid id %d\n", state->child_index,
+    printf("child " __zu " has invalid id %d\n", state->child_index,
       ast_id(state->child));
     ast_error(ast, "Here");
     ast_print(ast);
@@ -141,7 +141,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   if(state->child != NULL)
   {
     error_preamble(ast);
-    printf("child %ld (id %d, %s) unexpected\n", state->child_index,
+    printf("child " __zu " (id %d, %s) unexpected\n", state->child_index,
       ast_id(state->child), ast_get_print(state->child));
     ast_error(ast, "Here");
     ast_print(ast);
