@@ -91,23 +91,19 @@ class iso _TestFilter is UnitTest
 
 class iso _TestMkdtemp  is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
-  fun apply(h: TestHelper): TestResult? => error
-
-  fun run(h: TestHelper, env: Env): TestResult? =>
-    h.expect_error(lambda()(e = env)? => FilePath.mkdtemp(e.root, "tmp") end,
+  fun apply(h: TestHelper): TestResult? =>
+    h.expect_error(lambda()(h = h)? => FilePath.mkdtemp(h.env.root, "tmp") end,
         "FilePath.mkdtemp should fail when path doesn't have a XXXXXX suffix")
 
-    let tmp = FilePath.mkdtemp(env.root, "tmp.TestMkdtemp.XXXXXX")
+    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestMkdtemp.XXXXXX")
     h.expect_true(FileInfo(tmp).directory)
     h.expect_true(tmp.remove())
     true
 
 class iso _TestWalk  is UnitTest
   fun name(): String => "files/FilePath.walk"
-  fun apply(h: TestHelper): TestResult? => error
-
-  fun run(h: TestHelper, env: Env): TestResult? =>
-    let top = Directory(FilePath.mkdtemp(env.root, "tmp.TestWalk.XXXXXX"))
+  fun apply(h: TestHelper): TestResult? =>
+    let top = Directory(FilePath.mkdtemp(h.env.root, "tmp.TestWalk.XXXXXX"))
     top.mkdir("a")
     top.create_file("b")
     top.mkdir("c")
