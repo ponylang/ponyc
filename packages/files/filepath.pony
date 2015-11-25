@@ -4,7 +4,7 @@ interface WalkHandler
   """
   A handler for `FilePath.walk`.
   """
-  fun apply(dir_path: FilePath, dir_entries: Array[String] ref)
+  fun ref apply(dir_path: FilePath, dir_entries: Array[String] ref)
 
 class val FilePath
   """

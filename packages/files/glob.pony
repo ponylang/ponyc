@@ -200,7 +200,7 @@ primitive Glob
 
   fun _resolve_pattern(dirname: FilePath, pattern: String, 
       globstar_with_root: Bool, include_hidden: Bool):
-        Array[(String, Array[String])] val =>
+        Array[(String, Array[String])] val? =>
     """
     Applies `pattern` (contains no path elements) to the literal directory in
     `dirname`.
@@ -236,7 +236,7 @@ primitive Glob
       if globstar_with_root then
         names.push("")
       end
-      dirname.walk(lambda(dir_path: FilePath, dir_entries: Array[String] ref)
+      dirname.walk(lambda ref(dir_path: FilePath, dir_entries: Array[String] ref)
                          (names: Array[String] ref = names) =>
         for e in dir_entries.values() do
           names.push(Path.join(dir_path.path, e))
@@ -247,7 +247,7 @@ primitive Glob
     end
 
     if include_hidden or _is_hidden(pattern) then
-      return fnmatch(names, pattern)
+      return filter(names, pattern)
     end
 
     // Remove hidden files, but take care to ensure that the empty string we
@@ -259,5 +259,5 @@ primitive Glob
         visible.push(n)
       end
     end
-    fnmatch(visible, pattern)
+    filter(visible, pattern)
 
