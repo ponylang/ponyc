@@ -8,8 +8,8 @@ primitive _JsonPrint
     | let x: Bool => x.string()
     | let x: None => "null"
     | let x: String => _escaped_string(x)
-    | let x: JsonArray => x.string(indent)
-    | let x: JsonObject => x.string(indent)
+    | let x: JsonArray box => x.string(indent)
+    | let x: JsonObject box => x.string(indent)
     | let x: F64 =>
       // Make sure our printed floats can be distinguished from integers
       let basic = x.string()

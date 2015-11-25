@@ -440,7 +440,7 @@ static matchtype_t is_matchtype_operand_arrow(ast_t* operand, ast_t* pattern)
 
   // Check the lower bounds.
   ast_t* lower = viewpoint_lower(operand);
-  matchtype_t ok = is_matchtype(pattern, lower);
+  matchtype_t ok = is_matchtype(lower, pattern);
 
   if(lower != operand)
     ast_free_unattached(lower);
