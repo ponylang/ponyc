@@ -20,8 +20,8 @@ DECL(exprseq);
 DECL(nextexprseq);
 DECL(assignment);
 DECL(term);
-DECL(postfix);
 DECL(infix);
+DECL(parampattern);
 DECL(pattern);
 DECL(idseq);
 DECL(members);
@@ -68,7 +68,7 @@ DEF(provides);
 // (postfix | dontcare) [COLON type] [ASSIGN infix]
 DEF(param);
   AST_NODE(TK_PARAM);
-  RULE("name", postfix, dontcare);
+  RULE("name", parampattern, dontcare);
   IF(TK_COLON,
     RULE("parameter type", type);
     UNWRAP(0, TK_REFERENCE);
@@ -440,7 +440,7 @@ DEF(prefix);
   TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
-  RULE("expression", pattern);
+  RULE("expression", parampattern);
   DONE();
 
 // (NOT | AMP | MINUS_NEW | IDENTITY) pattern
@@ -448,17 +448,27 @@ DEF(nextprefix);
   PRINT_INLINE();
   TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
-  RULE("expression", pattern);
+  RULE("expression", parampattern);
+  DONE();
+
+// (prefix | postfix)
+DEF(parampattern);
+  RULE("pattern", prefix, postfix);
+  DONE();
+
+// (prefix | postfix)
+DEF(nextparampattern);
+  RULE("pattern", nextprefix, nextpostfix);
   DONE();
 
 // (local | prefix | postfix)
 DEF(pattern);
-  RULE("pattern", local, prefix, postfix);
+RULE("pattern", local, parampattern);
   DONE();
 
 // (local | prefix | postfix)
 DEF(nextpattern);
-  RULE("pattern", local, nextprefix, nextpostfix);
+  RULE("pattern", local, nextparampattern);
   DONE();
 
 // idseq

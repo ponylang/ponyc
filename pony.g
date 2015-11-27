@@ -135,13 +135,21 @@ idseq
 
 nextpattern
   : ('var' | 'let' | 'embed') ID (':' type)?
-  | ('not' | 'addressof' | MINUS_NEW | 'identityof') pattern
-  | nextpostfix
+  | nextparampattern
   ;
 
 pattern
   : ('var' | 'let' | 'embed') ID (':' type)?
-  | ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') pattern
+  | parampattern
+  ;
+
+nextparampattern
+  : ('not' | 'addressof' | MINUS_NEW | 'identityof') parampattern
+  | nextpostfix
+  ;
+
+parampattern
+  : ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') parampattern
   | postfix
   ;
 
@@ -282,7 +290,7 @@ typeparam
   ;
 
 param
-  : (postfix | '_') (':' type)? ('=' infix)?
+  : (parampattern | '_') (':' type)? ('=' infix)?
   ;
 
 antlr_0
