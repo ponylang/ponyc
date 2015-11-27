@@ -757,8 +757,19 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 
   options->program_pass = PASS_PARSE;
 
-  if(package_load(program, path, options) == NULL ||
-    !ast_passes_program(program, options))
+  // Always load builtin package first, then the specified one.
+  if(package_load(program, stringtab("builtin"), options) == NULL ||
+    package_load(program, path, options) == NULL)
+  {
+    ast_free(program);
+    return NULL;
+  }
+
+  // Reorder packages so specified package is first.
+  ast_t* builtin = ast_pop(program);
+  ast_append(program, builtin);
+
+  if(!ast_passes_program(program, options))
   {
     ast_free(program);
     return NULL;

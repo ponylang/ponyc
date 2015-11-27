@@ -131,7 +131,7 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 
   AST_GET_CHILDREN(receiver_type, package, id);
 
-  if(ast_name(package) != c->str_1)
+  if(ast_name(package) != c->str_builtin)
     return false;
 
   const char* name = ast_name(id);
@@ -399,7 +399,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   AST_GET_CHILDREN(pattern_type, package, id);
 
   // Special case equality on primitive types.
-  if(ast_name(package) == c->str_1)
+  if(ast_name(package) == c->str_builtin)
   {
     const char* name = ast_name(id);
 

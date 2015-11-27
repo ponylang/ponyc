@@ -203,9 +203,10 @@ static ast_result_t sugar_module(ast_t* ast)
   ast_t* package = ast_parent(ast);
   assert(ast_id(package) == TK_PACKAGE);
 
-  if(strcmp(package_name(package), "$1") != 0)
+  if(strcmp(package_name(package), "$0") != 0)
   {
-    // Every module not in builtin has an implicit use builtin command
+    // Every module not in builtin has an implicit use builtin command.
+    // Since builtin is always the first package processed it is $0.
     BUILD(builtin, ast,
       NODE(TK_USE,
       NONE

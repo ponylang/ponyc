@@ -103,7 +103,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if(package == c->str_1)
+    if(package == c->str_builtin)
     {
       if(name == c->str_Bool)
         g->primitive = c->i1;
@@ -375,7 +375,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if((package == c->str_1) && (name == c->str_Array))
+    if((package == c->str_builtin) && (name == c->str_Array))
     {
       genprim_array_trace(c, g);
       return true;

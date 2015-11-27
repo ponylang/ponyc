@@ -105,7 +105,7 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
 static void init_runtime(compile_t* c)
 {
-  c->str_1 = stringtab("$1");
+  c->str_builtin = stringtab("$0");
   c->str_Bool = stringtab("Bool");
   c->str_I8 = stringtab("I8");
   c->str_I16 = stringtab("I16");
