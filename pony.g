@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members
@@ -34,7 +34,7 @@ field
   ;
 
 method
-  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 rawseq
@@ -84,8 +84,7 @@ binop
   ;
 
 nextterm
-  : ('var' | 'let' | 'embed') ID (':' type)?
-  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
   | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
@@ -95,13 +94,11 @@ nextterm
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | 'addressof' | MINUS_NEW | 'identityof') term
-  | nextpostfix
+  | nextpattern
   ;
 
 term
-  : ('var' | 'let' | 'embed') ID (':' type)?
-  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
   | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
@@ -111,8 +108,7 @@ term
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') term
-  | postfix
+  | pattern
   ;
 
 withelem
@@ -120,7 +116,7 @@ withelem
   ;
 
 caseexpr
-  : '|' infix? ('where' rawseq)? ('=>' rawseq)?
+  : '|' pattern? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 elseifdef
@@ -135,6 +131,18 @@ idseq
   : ID
   | '_'
   | ('(' | LPAREN_NEW) idseq (',' idseq)* ')'
+  ;
+
+nextpattern
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | ('not' | 'addressof' | MINUS_NEW | 'identityof') pattern
+  | nextpostfix
+  ;
+
+pattern
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') pattern
+  | postfix
   ;
 
 nextpostfix
@@ -274,7 +282,7 @@ typeparam
   ;
 
 param
-  : ID ':' type ('=' infix)?
+  : (postfix | '_') (':' type)? ('=' infix)?
   ;
 
 antlr_0

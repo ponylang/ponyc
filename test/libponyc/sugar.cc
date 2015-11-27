@@ -2135,7 +2135,7 @@ TEST_F(SugarTest, CaseFunctionGuard)
     "class Foo\n"
     "  var create: U32\n"
     "  fun fib(0): U64 => 0\n"
-    "  fun fib(a: U64 where a > 3): U64 => 1";
+    "  fun fib(a: U64): U64 if a > 3 => 1";
 
   const char* full_form =
     "use \"builtin\"\n"
@@ -2146,7 +2146,7 @@ TEST_F(SugarTest, CaseFunctionGuard)
     "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
     "    match consume hygid\n"
     "    | 0 => 0\n"
-    "    | let a: U64 where a.gt(3) => 1\n"
+    "    | let a: U64 if a.gt(3) => 1\n"
     "    else\n"
     "      None\n"
     "    end";

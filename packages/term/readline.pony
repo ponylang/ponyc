@@ -61,7 +61,7 @@ class Readline is ANSINotify
       home()
     | 0x17 => _delete_prev_word() // ctrl-w
     | 0x7F => _backspace() // backspace
-    | where input < 0x20 => None // unknown control character
+    | if input < 0x20 => None // unknown control character
     else
       // Insert.
       _edit.insert_byte(_cur_pos, input)

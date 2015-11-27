@@ -120,11 +120,11 @@ primitive Base64
       | pad => break
       | at62 => 62
       | at63 => 63
-      | where (input >= 'A') and (input <= 'Z') =>
+      | if (input >= 'A') and (input <= 'Z') =>
         (input - 'A')
-      | where (input >= 'a') and (input <= 'z') =>
+      | if (input >= 'a') and (input <= 'z') =>
         ((input - 'a') + 26)
-      | where (input >= '0') and (input <= '9') =>
+      | if (input >= '0') and (input <= '9') =>
         ((input - '0') + 52)
       else
         error
@@ -167,9 +167,9 @@ primitive Base64
     match i
     | 62 => at62
     | 63 => at63
-    | where i < 26 => 'A' + i
-    | where i < 52 => ('a' - 26) + i
-    | where i < 62 => ('0' - 52) + i
+    | if i < 26 => 'A' + i
+    | if i < 52 => ('a' - 26) + i
+    | if i < 62 => ('0' - 52) + i
     else
       error
     end

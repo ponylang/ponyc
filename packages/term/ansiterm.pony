@@ -100,7 +100,7 @@ actor ANSITerm
         | '~' => _keypad()
         | ';' =>
           _escape = _EscapeMod
-        | where (c >= '0') and (c <= '9') =>
+        | if (c >= '0') and (c <= '9') =>
           // Escape number.
           _esc_num = (_esc_num * 10) + (c - '0')
           _esc_buf.push(c)
@@ -116,7 +116,7 @@ actor ANSITerm
         | 'H' => _home()
         | 'F' => _end()
         | '~' => _keypad()
-        | where (c >= '0') and (c <= '9') =>
+        | if (c >= '0') and (c <= '9') =>
           // Escape modifier.
           _esc_mod = (_esc_mod * 10) + (c - '0')
           _esc_buf.push(c)
