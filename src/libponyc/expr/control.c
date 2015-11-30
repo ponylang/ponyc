@@ -121,8 +121,11 @@ static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
   assert(!then_value || !else_value);
 
   ast_setid(ast, TK_IF);
-  REPLACE(&cond, NODE(then_value ? TK_TRUE : TK_FALSE));
+  REPLACE(&cond, NODE(TK_SEQ, NODE(then_value ? TK_TRUE : TK_FALSE)));
   // Don't need to set condition type since we've finished type checking it.
+
+  // Don't need else condition any more.
+  ast_remove(else_cond);
 
   // Check for compile_errors.
   if(then_value && !check_compile_error(then_clause))

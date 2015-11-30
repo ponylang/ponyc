@@ -184,7 +184,7 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 
   ast_setid(cap, tcap);
 
-  // Keep the actual package id.
+  // We keep the actual package id for printing out in errors, etc.
   ast_append(ast, package);
   ast_replace(&package, package_id(def));
 

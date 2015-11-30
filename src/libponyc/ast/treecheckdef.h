@@ -3,6 +3,7 @@
 #endif
 
 // TODO: big comment explaining what's going on
+// TODO: ast type field
 
 ROOT(program)
 
@@ -15,7 +16,8 @@ RULE(program,
 RULE(package,
   IS_SCOPE  // name -> entity
   HAS_DATA  // package_t
-  ZERO_OR_MORE(module),
+  ZERO_OR_MORE(module)
+  OPTIONAL(string),
   TK_PACKAGE);
 
 RULE(module,
@@ -27,9 +29,10 @@ RULE(module,
   TK_MODULE);
 
 RULE(use,
+  HAS_DATA  // Included package (unaliased use package commands only)
   CHILD(id, none)
   CHILD(ffidecl, string)
-  CHILD(expr, none),
+  CHILD(expr, ifdef_cond, none),  // Guard
   TK_USE);
 
 RULE(ffidecl,
@@ -43,7 +46,7 @@ RULE(ffidecl,
 
 RULE(class_def,
   IS_SCOPE  // name -> TYPEPARAM | FVAR | FVAL | EMBED | method
-  HAS_DATA  // Type checking state
+  //HAS_DATA  // Type checking state
   CHILD(id)
   CHILD(type_params, none)
   CHILD(cap, none)
@@ -54,7 +57,7 @@ RULE(class_def,
   TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_STRUCT, TK_CLASS,
   TK_ACTOR);
 
-RULE(provides, CHILD(type), TK_PROVIDES);
+RULE(provides, ONE_OR_MORE(type), TK_PROVIDES);
 
 RULE(members,
   ZERO_OR_MORE(field)
@@ -115,7 +118,8 @@ GROUP(expr,
   qualify, call, ffi_call,
   if_expr, ifdef, loop, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
-  bool_literal, this_ref, ref, id, seq);
+  bool_literal, id, seq,
+  this_ref, ref, fun_ref, type_ref, flet_ref, field_ref, local_ref);
 
 RULE(local,
   CHILD(id)
@@ -139,7 +143,7 @@ RULE(asop,
 RULE(tuple, ONE_OR_MORE(seq, dont_care), TK_TUPLE);
 
 RULE(consume,
-  CHILD(cap, none)
+  CHILD(cap, borrowed, none)
   CHILD(expr),
   TK_CONSUME);
 
@@ -155,7 +159,7 @@ RULE(prefix,
 
 RULE(dot,
   CHILD(expr)
-  CHILD(id, int_literal),
+  CHILD(id, int_literal, type_args),
   TK_DOT);
 
 RULE(tilde,
@@ -189,7 +193,7 @@ RULE(named_args, ONE_OR_MORE(named_arg), TK_NAMEDARGS);
 RULE(named_arg,
   CHILD(id)
   CHILD(seq),
-  TK_NAMEDARG);
+  TK_NAMEDARG, TK_UPDATEARG);
 
 RULE(ifdef,
   IS_SCOPE
@@ -295,7 +299,35 @@ RULE(object_literal,
   CHILD(members),
   TK_OBJECT);
 
-RULE(ref, CHILD(id), TK_REFERENCE);
+RULE(ref,
+  CHILD(id),
+  TK_REFERENCE, TK_PACKAGEREF, TK_PARAMREF);
+
+RULE(fun_ref,
+  CHILD(expr)
+  CHILD(id, type_args),
+  TK_FUNREF, TK_BEREF, TK_NEWREF, TK_NEWBEREF);
+
+RULE(type_ref,
+  CHILD(expr)
+  OPTIONAL(id, type_args),
+  TK_TYPEREF);
+
+RULE(field_ref,
+  CHILD(expr)
+  CHILD(id),
+  TK_FVARREF, TK_EMBEDREF);
+
+RULE(flet_ref,
+  CHILD(expr)
+  CHILD(id, int_literal), // Int for tuple element access
+  TK_FLETREF);
+
+RULE(local_ref,
+  CHILD(expr)
+  OPTIONAL(id),
+  TK_VARREF, TK_LETREF);
+
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, box_type, nominal,
@@ -311,26 +343,30 @@ RULE(type_arrow,
   TK_ARROW);
 
 RULE(nominal,
+  HAS_DATA  // Definition of referred type
   CHILD(id, none) // Package
   CHILD(id)       // Type
   CHILD(type_args, none)
   CHILD(cap, gencap, none)
-  CHILD(ephemeral, none),
+  CHILD(borrowed, ephemeral, none)
+  OPTIONAL(id, none), // Original package specifier (for error reporting)
   TK_NOMINAL);
 
 RULE(type_param_ref,
+  HAS_DATA  // Definition of referred type parameter
   CHILD(id)
-  CHILD(cap, none)
-  CHILD(ephemeral, none),
+  CHILD(cap, gencap, none)
+  CHILD(borrowed, ephemeral, none),
   TK_TYPEPARAMREF);
 
 RULE(at, LEAF, TK_AT);
 RULE(bool_literal, LEAF, TK_TRUE, TK_FALSE);
+RULE(borrowed, LEAF, TK_BORROWED);
 RULE(box_type, LEAF, TK_BOXTYPE);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
 RULE(dont_care, LEAF, TK_DONTCARE);
 RULE(ellipsis, LEAF, TK_ELLIPSIS);
-RULE(ephemeral, LEAF, TK_EPHEMERAL, TK_BORROWED);
+RULE(ephemeral, LEAF, TK_EPHEMERAL);
 RULE(float_literal, LEAF, TK_FLOAT);
 RULE(gencap, LEAF, TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE, TK_CAP_ANY);
 RULE(id, LEAF, TK_ID);

@@ -639,7 +639,7 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
   // First build a skeleton try block without the "with" variables
   BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(try_token, AST_SCOPE
+      NODE(try_token,
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE

@@ -5,6 +5,14 @@
 #include <assert.h>
 
 
+// This define causes the tree checker to assert immediately on error, rather
+// than waiting until it has checked the entire tree. This means that only one
+// error can be spotted in each run of the program, but can make errors far
+// easier to track down.
+// Use this when debugging, but leave disabled when committing.
+//#define IMMEDIATE_FAIL
+
+
 typedef enum
 {
   CHK_OK,        // Tree found and check
@@ -115,6 +123,9 @@ static bool check_children(ast_t* ast, check_state_t* state,
       (state->child_index == 1) ? "" : "ren");
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
   }
   else
   {
@@ -123,6 +134,9 @@ static bool check_children(ast_t* ast, check_state_t* state,
       ast_id(state->child));
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
   }
 
   return false;
@@ -145,6 +159,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
       ast_id(state->child), ast_get_print(state->child));
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
@@ -154,6 +171,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     printf("unexpected data %p\n", ast_data(ast));
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
@@ -163,6 +183,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     printf("unexpected scope\n");
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
@@ -172,6 +195,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     printf("expected scope not found\n");
     ast_error(ast, "Here");
     ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
@@ -265,6 +291,9 @@ static check_res_t check_ast(ast_t* ast)
     default:
       error_preamble(ast);
       printf("no definition found\n");
+#ifdef IMMEDIATE_FAIL
+      assert(false);
+#endif
       return CHK_ERROR;
   }
 

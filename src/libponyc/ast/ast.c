@@ -1180,9 +1180,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral, origpkg);
+      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral);
+      ast_t* origpkg = ast_sibling(ephemeral);
 
-      if(ast_id(origpkg) != TK_NONE)
+      if(origpkg != NULL && ast_id(origpkg) != TK_NONE)
         printbuf(buffer, "%s.", ast_name(origpkg));
 
       printbuf(buffer, "%s", ast_name(id));

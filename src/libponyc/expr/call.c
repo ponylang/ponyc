@@ -597,7 +597,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(apply_cap)
       ID("apply")
       NONE
-      NODE(TK_PARAMS)
+      NONE
       TREE(sanitise_type(result))
       NODE(can_error)
       NODE(TK_SEQ)
@@ -697,6 +697,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       // A parameter of the apply method, using the same name, type and default
       // argument.
       ast_append(apply_params, sanitise_type(param));
+      ast_setid(apply_params, TK_PARAMS);
 
       // An arg in the call to the original method.
       BUILD(apply_arg, param,
