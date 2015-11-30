@@ -208,6 +208,10 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
   {
     if(*p == '/')
       *p = '-';
+#ifdef PLATFORM_IS_WINDOWS
+    if(*p == '\\')
+      *p = '-';
+#endif
   }
 
   return buffer;
@@ -787,29 +791,21 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
   assert(ast_id(ast) == TK_PROGRAM);
 
   // The Main package appears first, other packages in alphabetical order
-  ast_t* package_1 = NULL;
+  ast_t* package_1 = ast_child(ast);
+  assert(package_1 != NULL);
 
   ast_list_t packages = { NULL, NULL, NULL };
 
   // Sort packages
-  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  for(ast_t* p = ast_sibling(package_1); p != NULL; p = ast_sibling(p))
   {
     assert(ast_id(p) == TK_PACKAGE);
-
-    if(strcmp(package_name(p), "$0") == 0)
-    {
-      assert(package_1 == NULL);
-      package_1 = p;
-    }
-    else
-    {
-      const char* name = package_qualified_name(p);
-      doc_list_add(&packages, p, name);
-    }
+    
+    const char* name = package_qualified_name(p);
+    doc_list_add(&packages, p, name);
   }
 
   // Process packages
-  assert(package_1 != NULL);
   doc_package(docgen, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)

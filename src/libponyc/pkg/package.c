@@ -781,6 +781,8 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 {
+  assert(from != NULL);
+
   const char* magic = find_magic_package(path);
   const char* full_path = path;
   const char* qualified_name = path;
@@ -795,7 +797,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     if(full_path == NULL)
       return NULL;
 
-    if((from != NULL) && is_relative)
+    if((from != program) && is_relative)
     {
       // Package to load is relative to from, build the qualified name
       // The qualified name should be relative to the program being built
