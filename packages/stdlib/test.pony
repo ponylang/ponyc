@@ -10,9 +10,14 @@ the main actor constructor of this package to invoke those tests.
 All tests can be run by compiling and running packages/stdlib.
  """
 
+// Include ALL standard library packages here, even if they don't have tests.
+// That way stdlib can be used to type check the whole standard library,
+// generate docs for it, etc.
 use "ponytest"
+use assert = "assert"
 use capsicum = "capsicum"
 use collections = "collections"
+use debug = "debug"
 use base64 = "encode/base64"
 use files = "files"
 use json = "json"
@@ -21,8 +26,8 @@ use net = "net"
 use http = "net/http"
 use ssl = "net/ssl"
 use options = "options"
-use random = "random"
 use promises = "promises"
+use random = "random"
 use regex = "regex"
 use term = "term"
 use time = "time"
