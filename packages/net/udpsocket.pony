@@ -72,6 +72,12 @@ actor UDPSocket
     """
     _notify = consume notify
 
+  be set_broadcast(state: Bool) =>
+    """
+    Enable or disable broadcasting from this socket.
+    """
+    @os_broadcast[None](_fd, state)
+
   be set_multicast_interface(from: String = "") =>
     """
     By default, the OS will choose which address is used to send packets bound

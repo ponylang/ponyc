@@ -23,4 +23,4 @@ actor Main
     end
 
     TCPListener(recover Listener(env, ssl, limit) end)
-    // UDPSocket(recover Pong(env) end)
+    UDPSocket(recover Pong(env) end)

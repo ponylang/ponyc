@@ -6,6 +6,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestBuffer)
+    test(_TestBroadcast)
 
 class iso _TestBuffer is UnitTest
   """
@@ -81,3 +82,87 @@ class iso _TestBuffer is UnitTest
     h.expect_eq[String](b.line(), "hi!")
 
     true
+
+class Ping is UDPNotify
+  let _h: TestHelper
+  let _ip: IPAddress
+
+  new create(h: TestHelper, ip: IPAddress) =>
+    _h = h
+
+    _ip = try
+      (_, let service) = ip.name()
+      let list = DNS("255.255.255.255", service)
+      list(0)
+    else
+      _h.assert_failed("Couldn't make broadcast address")
+      ip
+    end
+
+  fun ref listening(sock: UDPSocket ref) =>
+    sock.set_broadcast(true)
+    sock.write("ping!", _ip)
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.assert_failed("Ping: not listening")
+    _h.complete(false)
+    sock.dispose()
+
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  =>
+    try
+      let s = String.append(consume data)
+      _h.assert_eq[String box](s, "pong!")
+    end
+
+    _h.complete(true)
+    sock.dispose()
+
+class Pong is UDPNotify
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref listening(sock: UDPSocket ref) =>
+    try
+      let ip = sock.local_address()
+      let h = _h
+
+      if ip.ip4() then
+        UDPSocket.ip4(recover Ping(h, ip) end)
+      elseif ip.ip6() then
+        UDPSocket.ip6(recover Ping(h, ip) end)
+      else
+        error
+      end
+    else
+      _h.assert_failed("Pong: couldn't open ping")
+      _h.complete(false)
+      sock.dispose()
+    end
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.assert_failed("Pong: not listening")
+    _h.complete(false)
+    sock.dispose()
+
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  =>
+    try
+      let s = String.append(consume data)
+      _h.assert_eq[String box](s, "ping!")
+    end
+
+    sock.write("pong!", from)
+    sock.dispose()
+
+class iso _TestBroadcast is UnitTest
+  """
+  Test broadcasting with UDP.
+  """
+  fun name(): String => "net/Broadcast"
+
+  fun apply(h: TestHelper): TestResult =>
+    UDPSocket(recover Pong(h) end)
+    LongTest

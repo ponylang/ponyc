@@ -1086,6 +1086,13 @@ void os_socket_shutdown()
 #endif
 }
 
+void os_broadcast(int fd, bool state)
+{
+  int broadcast = state ? 1 : 0;
+  setsockopt((SOCKET)fd, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast,
+    sizeof(broadcast));
+}
+
 void os_multicast_interface(int fd, const char* from)
 {
   // Use the first reported address.
