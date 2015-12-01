@@ -65,6 +65,7 @@ RULE(members,
   TK_MEMBERS);
 
 RULE(field,
+  HAS_TYPE
   CHILD(id)
   CHILD(type, none)  // Field type
   CHILD(expr, none)
@@ -101,16 +102,31 @@ RULE(params,
   TK_PARAMS);
 
 RULE(param,
+  HAS_TYPE
   CHILD(id, expr)
   CHILD(type, none)
   CHILD(expr, none),
   TK_PARAM);
 
-RULE(seq, MAYBE_SCOPE ONE_OR_MORE(jump, expr, semi), TK_SEQ);
+RULE(seq,
+  MAYBE_SCOPE
+  HAS_TYPE
+  ONE_OR_MORE(jump, intrinsic, compile_error, expr, semi),
+  TK_SEQ);
 
 RULE(jump,
-  CHILD(seq, none),
-  TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR, TK_COMPILE_INTRINSIC,
+  HAS_TYPE
+  OPTIONAL(seq, none),
+  TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR);
+
+RULE(intrinsic,
+  HAS_TYPE
+  OPTIONAL(none),
+  TK_COMPILE_INTRINSIC);
+
+RULE(compile_error,
+  HAS_TYPE
+  CHILD(seq),
   TK_COMPILE_ERROR);
 
 GROUP(expr,
@@ -118,15 +134,17 @@ GROUP(expr,
   qualify, call, ffi_call,
   if_expr, ifdef, loop, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
-  bool_literal, id, seq,
+  bool_literal, id, seq, package_ref,
   this_ref, ref, fun_ref, type_ref, flet_ref, field_ref, local_ref);
 
 RULE(local,
+  HAS_TYPE
   CHILD(id)
   CHILD(type, none),
   TK_LET, TK_VAR);
 
 RULE(infix,
+  HAS_TYPE
   // RHS first for TK_ASSIGN, to handle init tracking
   // LHS first for all others
   CHILD(expr)
@@ -136,33 +154,42 @@ RULE(infix,
   TK_AND, TK_OR, TK_XOR, TK_ASSIGN);
 
 RULE(asop,
+  HAS_TYPE
   CHILD(expr)
   CHILD(type),
   TK_AS);
 
-RULE(tuple, ONE_OR_MORE(seq, dont_care), TK_TUPLE);
+RULE(tuple,
+  HAS_TYPE
+  ONE_OR_MORE(seq, dont_care),
+  TK_TUPLE);
 
 RULE(consume,
+  HAS_TYPE
   CHILD(cap, borrowed, none)
   CHILD(expr),
   TK_CONSUME);
 
 RULE(recover,
+  HAS_TYPE
   IS_SCOPE
   CHILD(cap, none)
   CHILD(expr),
   TK_RECOVER);
 
 RULE(prefix,
+  HAS_TYPE
   CHILD(expr),
   TK_NOT, TK_UNARY_MINUS, TK_ADDRESS, TK_IDENTITY);
 
 RULE(dot,
+  HAS_TYPE
   CHILD(expr)
   CHILD(id, int_literal, type_args),
   TK_DOT);
 
 RULE(tilde,
+  HAS_TYPE
   CHILD(expr)
   CHILD(id),
   TK_TILDE);
@@ -173,12 +200,14 @@ RULE(qualify,
   TK_QUALIFY);
 
 RULE(call,
+  HAS_TYPE
   CHILD(positional_args, none)
   CHILD(named_args, none)
   CHILD(expr),  // Note that receiver comes last
   TK_CALL);
 
 RULE(ffi_call,
+  HAS_TYPE
   CHILD(id, string)
   CHILD(type_args, none)
   CHILD(positional_args, none)
@@ -197,6 +226,7 @@ RULE(named_arg,
 
 RULE(ifdef,
   IS_SCOPE
+  HAS_TYPE
   CHILD(expr, ifdef_cond)   // Then expression
   CHILD(seq)                // Then body
   CHILD(seq, ifdef, none)   // Else body
@@ -220,14 +250,17 @@ RULE(ifdef_flag,
   TK_IFDEFFLAG);
 
 RULE(if_expr,
-  IS_SCOPE
-  CHILD(seq)  // Condition (has no symbol table)
-  CHILD(seq)  // Then body
-  CHILD(seq, if_expr, none), // Else body
+  MAYBE_SCOPE // Scope in an expression, not when used as a type
+  HAS_TYPE
+  // All children are present in an expression, none when used as a type
+  OPTIONAL(seq)  // Condition (has no symbol table)
+  OPTIONAL(seq)  // Then body
+  OPTIONAL(seq, if_expr, none), // Else body
   TK_IF);
 
 RULE(loop,
   IS_SCOPE
+  HAS_TYPE
   CHILD(seq)        // Condition
   CHILD(seq)        // Loop body
   CHILD(seq, none), // Else body
@@ -235,6 +268,7 @@ RULE(loop,
   // TODO: This is wrong for repeat, check parser.c is actually how we want it
 
 RULE(for_loop,
+  HAS_TYPE
   CHILD(expr) // Iterator declaration
   CHILD(seq)  // Iterator value
   CHILD(seq)  // Loop body
@@ -242,6 +276,7 @@ RULE(for_loop,
   TK_FOR);
 
 RULE(with,
+  HAS_TYPE
   CHILD(expr) // With variable(s)
   CHILD(seq)  // Body
   CHILD(seq, none), // Else
@@ -249,12 +284,17 @@ RULE(with,
 
 RULE(match,
   IS_SCOPE
+  HAS_TYPE
   CHILD(expr)
   CHILD(cases, none)
   CHILD(seq, none),  // Else body
   TK_MATCH);
 
-RULE(cases, IS_SCOPE ZERO_OR_MORE(match_case), TK_CASES);
+RULE(cases,
+  MAYBE_SCOPE // Has scope in a match, not when a type
+  HAS_TYPE  // Union of case types or "TK_CASES"
+  ZERO_OR_MORE(match_case),
+  TK_CASES);
 
 RULE(match_case,
   IS_SCOPE
@@ -264,13 +304,14 @@ RULE(match_case,
   TK_CASE);
 
 RULE(try_expr,
-  // the then_clause holds the LLVMValueRef for the indirectbr instruction
+  HAS_TYPE
   CHILD(seq)  // Try body
   CHILD(seq, none)  // Else body
-  CHILD(seq, none), // Then body
+  CHILD(seq, none), // Then body. LLVMValueRef for the indirectbr instruction.
   TK_TRY, TK_TRY_NO_CHECK);
 
 RULE(lambda,
+  HAS_TYPE
   CHILD(cap, none)
   CHILD(type_params, none)
   CHILD(params, none)
@@ -300,30 +341,40 @@ RULE(object_literal,
   TK_OBJECT);
 
 RULE(ref,
+  HAS_TYPE
   CHILD(id),
-  TK_REFERENCE, TK_PACKAGEREF, TK_PARAMREF);
+  TK_REFERENCE, TK_PARAMREF);
+
+RULE(package_ref,
+  CHILD(id),
+  TK_PACKAGEREF);
 
 RULE(fun_ref,
+  HAS_TYPE
   CHILD(expr)
   CHILD(id, type_args),
   TK_FUNREF, TK_BEREF, TK_NEWREF, TK_NEWBEREF);
 
 RULE(type_ref,
+  HAS_TYPE
   CHILD(expr)
   OPTIONAL(id, type_args),
   TK_TYPEREF);
 
 RULE(field_ref,
+  HAS_TYPE
   CHILD(expr)
   CHILD(id),
   TK_FVARREF, TK_EMBEDREF);
 
 RULE(flet_ref,
+  HAS_TYPE
   CHILD(expr)
   CHILD(id, int_literal), // Int for tuple element access
   TK_FLETREF);
 
 RULE(local_ref,
+  HAS_TYPE
   CHILD(expr)
   OPTIONAL(id),
   TK_VARREF, TK_LETREF);
@@ -331,7 +382,9 @@ RULE(local_ref,
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, box_type, nominal,
-  type_param_ref, dont_care);
+  type_param_ref, dont_care, fun_type, error_type,
+  literal_type, opliteral_type, jump, intrinsic, compile_error,
+  cases, if_expr, dont_care);
 
 RULE(type_infix, ONE_OR_MORE(type), TK_UNIONTYPE, TK_ISECTTYPE);
 
@@ -341,6 +394,13 @@ RULE(type_arrow,
   CHILD(type)
   CHILD(type),
   TK_ARROW);
+
+RULE(fun_type,
+  CHILD(cap)
+  CHILD(type_params, none)
+  CHILD(params, none)
+  CHILD(type, none), // Return type
+  TK_FUNTYPE);
 
 RULE(nominal,
   HAS_DATA  // Definition of referred type
@@ -360,20 +420,23 @@ RULE(type_param_ref,
   TK_TYPEPARAMREF);
 
 RULE(at, LEAF, TK_AT);
-RULE(bool_literal, LEAF, TK_TRUE, TK_FALSE);
+RULE(bool_literal, HAS_TYPE, TK_TRUE, TK_FALSE);
 RULE(borrowed, LEAF, TK_BORROWED);
 RULE(box_type, LEAF, TK_BOXTYPE);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-RULE(dont_care, LEAF, TK_DONTCARE);
+RULE(dont_care, HAS_TYPE, TK_DONTCARE);
 RULE(ellipsis, LEAF, TK_ELLIPSIS);
 RULE(ephemeral, LEAF, TK_EPHEMERAL);
-RULE(float_literal, LEAF, TK_FLOAT);
+RULE(error_type, LEAF, TK_ERRORTYPE);
+RULE(float_literal, HAS_TYPE, TK_FLOAT);
 RULE(gencap, LEAF, TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE, TK_CAP_ANY);
-RULE(id, LEAF, TK_ID);
-RULE(int_literal, LEAF, TK_INT);
+RULE(id, HAS_TYPE, TK_ID);
+RULE(int_literal, HAS_TYPE, TK_INT);
+RULE(literal_type, LEAF, TK_LITERAL, TK_LITERALBRANCH);
 RULE(none, LEAF, TK_NONE);
+RULE(opliteral_type, HAS_DATA, TK_OPERATORLITERAL);
 RULE(question, LEAF, TK_QUESTION);
 RULE(semi, LEAF, TK_SEMI);
-RULE(string, LEAF, TK_STRING);
-RULE(this_ref, LEAF, TK_THIS);
+RULE(string, HAS_TYPE, TK_STRING);
+RULE(this_ref, HAS_TYPE, TK_THIS);
 RULE(type_this, LEAF, TK_THISTYPE);

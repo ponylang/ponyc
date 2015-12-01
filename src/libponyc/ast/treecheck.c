@@ -25,6 +25,7 @@ typedef struct check_state_t
   bool scope_allowed;
   bool scope_required;
   bool has_data;
+  bool has_type;
   ast_t* child;
   size_t child_index;
 } check_state_t;
@@ -34,6 +35,9 @@ typedef check_res_t (*check_fn_t)(ast_t* ast);
 
 static check_res_t check_ast(ast_t* ast);
 
+// We require that a rule called "type" exists in typecheckdef.h for checking
+// type fields.
+static check_res_t type(ast_t* ast);
 
 static bool _enabled = false;
 
@@ -152,6 +156,43 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   assert(ast != NULL);
   assert(state != NULL);
 
+
+  ast_t* type_field = ast_type(ast);
+
+  if(!state->has_type && type_field != NULL)
+  {
+    error_preamble(ast);
+    printf("unexpected type\n");
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
+    return CHK_ERROR;
+  }
+
+  if(type_field != NULL)
+  {
+    // All type fields must be "type". We require that a rule exists in
+    // typecheckdef.h for this.
+    check_res_t r = type(type_field);
+
+    if(r == CHK_ERROR)  // Propogate error
+      return CHK_ERROR;
+
+    if(r == CHK_NOT_FOUND)
+    {
+      error_preamble(ast);
+      printf("type field has invalid id %d\n", ast_id(type_field));
+      ast_error(ast, "Here");
+      ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+      assert(false);
+#endif
+      return CHK_ERROR;
+    }
+  }
+
   if(state->child != NULL)
   {
     error_preamble(ast);
@@ -210,7 +251,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #define ROOT(name)
 #define RULE(name, def, ...) static check_res_t name(ast_t* ast)
 #define GROUP(name, ...)     static check_res_t name(ast_t* ast)
-#define LEAF
+#define LEAF                 
 
 #include "treecheckdef.h"
 
@@ -259,6 +300,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #define IS_SCOPE state.scope_allowed = true; state.scope_required = true;
 #define MAYBE_SCOPE state.scope_allowed = true;
 #define HAS_DATA state.has_data = true;
+#define HAS_TYPE state.has_type = true;
 
 #define CHILDREN(min, max, ...) \
   { \
@@ -281,7 +323,7 @@ static check_res_t check_ast(ast_t* ast)
 {
   assert(ast != NULL);
 
-  check_state_t state = { false, false, false, NULL, 0 };
+  check_state_t state = { false, false, false, false, NULL, 0 };
   state.child = ast_child(ast);
 
   switch(ast_id(ast))
