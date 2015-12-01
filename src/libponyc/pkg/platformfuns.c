@@ -59,6 +59,26 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
     return true;
   }
 
+  if(!strcmp(attribute, OS_X86_NAME))
+  {
+#ifdef PLATFORM_IS_X86
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_ARM_NAME))
+  {
+#ifdef PLATFORM_IS_ARM
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
   if(!strcmp(attribute, OS_LP64_NAME))
   {
 #ifdef PLATFORM_IS_LP64

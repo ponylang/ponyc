@@ -1,12 +1,16 @@
+use @memcmp[I32](dst: Pointer[U8] box, src: Pointer[U8] box, len: USize)
+use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
+use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
+
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """
-  var _size: U64
-  var _alloc: U64
+  var _size: USize
+  var _alloc: USize
   var _ptr: Pointer[U8]
 
-  new create(len: U64 = 0) =>
+  new create(len: USize = 0) =>
     """
     An empty string. Enough space for len bytes is reserved.
     """
@@ -15,7 +19,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
-  new from_cstring(str: Pointer[U8], len: U64 = 0) =>
+  new from_cstring(str: Pointer[U8], len: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
     return null-terminated pony_alloc'd character arrays.
@@ -38,7 +42,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       _ptr = str
     end
 
-  new copy_cstring(str: Pointer[U8] box, len: U64 = 0) =>
+  new copy_cstring(str: Pointer[U8] box, len: USize = 0) =>
     """
     If the cstring is not null terminated and a length isn't specified, this
     can crash. This will only occur if the C-FFI has been used to craft such
@@ -126,13 +130,13 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _ptr
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     Returns the length of the string.
     """
     _size
 
-  fun codepoints(from: I64 = 0, to: I64 = -1): U64 =>
+  fun codepoints(from: ISize = 0, to: ISize = -1): USize =>
     """
     Returns the number of unicode code points in the string between the two
     offsets. From and to are inclusive.
@@ -143,7 +147,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     var i = offset_to_index(from)
     var j = offset_to_index(to).min(_size - 1)
-    var n = U64(0)
+    var n = USize(0)
 
     while i <= j do
       if (_ptr._apply(i) and 0xC0) != 0x80 then
@@ -155,13 +159,13 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     n
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     Returns the amount of allocated space.
     """
     _alloc
 
-  fun ref reserve(len: U64): String ref^ =>
+  fun ref reserve(len: USize): String ref^ =>
     """
     Reserve space for len bytes. An additional byte will be reserved for the
     null terminator.
@@ -184,7 +188,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
-  fun ref truncate(len: U64): String ref^ =>
+  fun ref truncate(len: USize): String ref^ =>
     """
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
@@ -193,7 +197,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _set(_size, 0)
     this
 
-  fun utf32(offset: I64): (U32, U8) ? =>
+  fun utf32(offset: ISize): (U32, U8) ? =>
     """
     Return a UTF32 representation of the character at the given offset and the
     number of bytes needed to encode that character. If the offset does not
@@ -279,13 +283,13 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       err
     end
 
-  fun apply(i: U64): U8 ? =>
+  fun apply(i: USize): U8 ? =>
     """
     Returns the i-th byte. Raise an error if the index is out of bounds.
     """
     if i < _size then _ptr._apply(i) else error end
 
-  fun ref update(i: U64, value: U8): U8 ? =>
+  fun ref update(i: USize, value: U8): U8 ? =>
     """
     Change the i-th byte. Raise an error if the index is out of bounds.
     """
@@ -295,14 +299,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       error
     end
 
-  fun at_offset(offset: I64): U8 ? =>
+  fun at_offset(offset: ISize): U8 ? =>
     """
     Returns the byte at the given offset. Raise an error if the offset is out
     of bounds.
     """
     this(offset_to_index(offset))
 
-  fun ref update_offset(offset: I64, value: U8): U8 ? =>
+  fun ref update_offset(offset: ISize, value: U8): U8 ? =>
     """
     Changes a byte in the string, returning the previous byte at that offset.
     Raise an error if the offset is out of bounds.
@@ -319,7 +323,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     str._size = len
     str
 
-  fun find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
+  fun find(s: String box, offset: ISize = 0, nth: USize = 0): ISize ? =>
     """
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
@@ -328,7 +332,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var steps = nth + 1
 
     while i < _size do
-      var j: U64 = 0
+      var j: USize = 0
 
       var same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
@@ -341,14 +345,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       end
 
       if same and ((steps = steps - 1) == 1) then
-        return i.i64()
+        return i.isize()
       end
 
       i = i + 1
     end
     error
 
-  fun rfind(s: String box, offset: I64 = -1, nth: U64 = 0): I64 ? =>
+  fun rfind(s: String box, offset: ISize = -1, nth: USize = 0): ISize ? =>
     """
     Return the index of n-th instance of s in the string starting from the end.
     Raise an error if there is no n-th occurence of s or s is empty.
@@ -357,7 +361,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var steps = nth + 1
 
     while i < _size do
-      var j: U64 = 0
+      var j: USize = 0
 
       var same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
@@ -370,19 +374,19 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       end
 
       if same and ((steps = steps - 1) == 1) then
-        return i.i64()
+        return i.isize()
       end
 
       i = i - 1
     end
     error
 
-  fun count(s: String box, offset: I64 = 0): U64 =>
+  fun count(s: String box, offset: ISize = 0): USize =>
     """
     Counts the non-overlapping occurrences of s in the string.
     """
-    let j: I64 = (_size - s.size()).i64()
-    var i: U64 = 0
+    let j: ISize = (_size - s.size()).isize()
+    var i: USize = 0
     var k = offset
 
     if j < 0 then
@@ -393,26 +397,26 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     try
       while k < j do
-        k = find(s, k) + s.size().i64()
+        k = find(s, k) + s.size().isize()
         i = i + 1
       end
     end
 
     i
 
-  fun at(s: String box, offset: I64 = 0): Bool =>
+  fun at(s: String box, offset: ISize = 0): Bool =>
     """
     Returns true if the substring s is present at the given offset.
     """
     var i = offset_to_index(offset)
 
     if (i + s.size()) <= _size then
-      @memcmp[I32](_ptr._offset(i), s._ptr, s._size) == 0
+      @memcmp(_ptr._offset(i), s._ptr, s._size) == 0
     else
       false
     end
 
-  fun ref delete(offset: I64, len: U64 = 1): String ref^ =>
+  fun ref delete(offset: ISize, len: USize = 1): String ref^ =>
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
@@ -426,7 +430,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
-  fun substring(from: I64, to: I64 = -1): String iso^ =>
+  fun substring(from: ISize, to: ISize = -1): String iso^ =>
     """
     Returns a substring. From and to are inclusive. Returns an empty string if
     nothing is in the range.
@@ -457,7 +461,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Transforms the string to lower case. Currently only knows ASCII case.
     """
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < _size do
       var c = _ptr._apply(i)
@@ -483,7 +487,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Transforms the string to upper case.
     """
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < _size do
       var c = _ptr._apply(i)
@@ -510,7 +514,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     UTF-8 correctly.
     """
     if _size > 1 then
-      var i: U64 = 0
+      var i: USize = 0
       var j = _size - 1
 
       while i < j do
@@ -550,7 +554,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     if value != 0 then
       reserve(_size + 1)
-      @memmove[Pointer[U8]](_ptr.u64() + 1, _ptr.u64(), _size + 1)
+      @memmove(_ptr.usize() + 1, _ptr.usize(), _size + 1)
       _set(0, value)
       _size = _size + 1
     else
@@ -566,14 +570,15 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     if _size > 0 then
       let value = _ptr._apply(0)
-      @memmove[Pointer[U8]](_ptr.u64(), _ptr.u64() + 1, _size)
+      @memmove(_ptr.usize(), _ptr.usize() + 1, _size)
       _size = _size - 1
       value
     else
       error
     end
 
-  fun ref append(seq: ReadSeq[U8], offset: U64 = 0, len: U64 = -1): String ref^
+  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1):
+    String ref^
   =>
     """
     Append the elements from a sequence, starting from the given offset.
@@ -607,7 +612,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _size = 0
     this
 
-  fun insert(offset: I64, that: String): String iso^ =>
+  fun insert(offset: ISize, that: String): String iso^ =>
     """
     Returns a version of the string with the given string inserted at the given
     offset.
@@ -616,34 +621,34 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     s.insert_in_place(offset, that)
     s
 
-  fun ref insert_in_place(offset: I64, that: String box): String ref^ =>
+  fun ref insert_in_place(offset: ISize, that: String box): String ref^ =>
     """
     Inserts the given string at the given offset. Appends the string if the
     offset is out of bounds.
     """
     reserve(_size + that._size)
     var index = offset_to_index(offset).min(_size)
-    @memmove[Pointer[U8]](_ptr.u64() + index + that._size,
-      _ptr.u64() + index, _size - index)
+    @memmove(_ptr.usize() + index + that._size,
+      _ptr.usize() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _set(_size, 0)
     this
 
-  fun ref insert_byte(offset: I64, value: U8): String ref^ =>
+  fun ref insert_byte(offset: ISize, value: U8): String ref^ =>
     """
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
     reserve(_size + 1)
     var index = offset_to_index(offset).min(_size)
-    @memmove[Pointer[U8]](_ptr.u64() + index + 1, _ptr.u64() + index,
+    @memmove(_ptr.usize() + index + 1, _ptr.usize() + index,
       _size - index)
     _set(index, value)
     _size = _size + 1
     _set(_size, 0)
     this
 
-  fun cut(from: I64, to: I64 = -1): String iso^ =>
+  fun cut(from: ISize, to: ISize = -1): String iso^ =>
     """
     Returns a version of the string with the given range deleted. The range is
     inclusive.
@@ -652,7 +657,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: I64, to: I64 = -1): String ref^ =>
+  fun ref cut_in_place(from: ISize, to: ISize = -1): String ref^ =>
     """
     Cuts the given range out of the string.
     """
@@ -673,32 +678,34 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
-  fun ref remove(s: String box): U64 =>
+  fun ref remove(s: String box): USize =>
     """
     Remove all instances of s from the string. Returns the count of removed
     instances.
     """
-    var i: I64 = 0
-    var n: U64 = 0
+    var i: ISize = 0
+    var n: USize = 0
 
     try
       while true do
         i = find(s, i)
-        cut_in_place(i, (i + s.size().i64()) - 1)
+        cut_in_place(i, (i + s.size().isize()) - 1)
         n = n + 1
       end
     end
     n
 
-  fun ref replace(from: String box, to: String box, n: U64 = 0): String ref^ =>
+  fun ref replace(from: String box, to: String box, n: USize = 0):
+    String ref^
+  =>
     """
     Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
     occurrences will be replaced.
     """
-    let from_len = from.size().i64() - 1
-    let to_len = to.size().i64()
-    var offset = I64(0)
-    var occur = U64(0)
+    let from_len = from.size().isize() - 1
+    let to_len = to.size().isize()
+    var offset = ISize(0)
+    var occur = USize(0)
 
     try
       while true do
@@ -715,7 +722,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
-  fun split(delim: String = " \t\v\f\r\n", n: U64 = 0): Array[String] iso^ =>
+  fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """
     Split the string into an array of strings. Any character in the delimiter
     string is accepted as a delimiter. If `n > 0`, then the split count is
@@ -734,12 +741,12 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       end
 
       var cur = recover String end
-      var i = U64(0)
-      var occur = U64(0)
+      var i = USize(0)
+      var occur = USize(0)
 
       try
         while i < _size do
-          (let c, let len) = utf32(i.i64())
+          (let c, let len) = utf32(i.isize())
 
           try
             // If we find a delimeter, add the current string to the array.
@@ -756,12 +763,12 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
             var j = U8(0)
 
             while j < len do
-              cur.push(_ptr._apply(i + j.u64()))
+              cur.push(_ptr._apply(i + j.usize()))
               j = j + 1
             end
           end
 
-          i = i + len.u64()
+          i = i + len.usize()
         end
       end
 
@@ -797,7 +804,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
       repeat
         try
-          match utf32(i.i64())
+          match utf32(i.isize())
           | (0xFFFD, 1) => None
           | (let c: U32, _) => chars.find(c)
           end
@@ -818,7 +825,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     if _size > 0 then
       let chars = Array[U32](s.size())
-      var i = U64(0)
+      var i = USize(0)
 
       for rune in s.runes() do
         chars.push(rune)
@@ -826,9 +833,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
       while i < _size do
         try
-          (let c, let len) = utf32(i.i64())
+          (let c, let len) = utf32(i.isize())
           chars.find(c)
-          i = i + len.u64()
+          i = i + len.usize()
         else
           break
         end
@@ -877,15 +884,15 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     compare_sub(that, _size)
 
-  fun compare_sub(that: String box, n: U64, offset: I64 = 0,
-    that_offset: I64 = 0, ignore_case: Bool = false): Compare
+  fun compare_sub(that: String box, n: USize, offset: ISize = 0,
+    that_offset: ISize = 0, ignore_case: Bool = false): Compare
   =>
     """
     Starting at this + offset, compare n bytes with that + offset.
     """
     var i = n
-    var j: U64 = offset_to_index(offset)
-    var k: U64 = offset_to_index(that_offset)
+    var j: USize = offset_to_index(offset)
+    var k: USize = offset_to_index(that_offset)
 
     if (j + n) > _size then
       return Less
@@ -916,7 +923,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns true if the two strings have the same contents.
     """
     if _size == that._size then
-      @memcmp[I32](_ptr, that._ptr, _size) == 0
+      @memcmp(_ptr, that._ptr, _size) == 0
     else
       false
     end
@@ -927,7 +934,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     safe.
     """
     let len = _size.min(that._size)
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < len do
       if _ptr._apply(i) < that._ptr._apply(i) then
@@ -945,7 +952,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     made UTF-8 safe.
     """
     let len = _size.min(that._size)
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < len do
       if _ptr._apply(i) < that._ptr._apply(i) then
@@ -957,19 +964,23 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     _size <= that._size
 
-  fun offset_to_index(i: I64): U64 =>
-    if i < 0 then i.u64() + _size else i.u64() end
+  fun offset_to_index(i: ISize): USize =>
+    if i < 0 then i.usize() + _size else i.usize() end
 
   fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
   fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
   fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
   fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)
   fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)
+  fun ilong(base: U8 = 0): ILong ? => _to_int[ILong](base)
+  fun isize(base: U8 = 0): ISize ? => _to_int[ISize](base)
   fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)
   fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)
   fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
   fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
   fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
+  fun ulong(base: U8 = 0): ULong ? => _to_int[ULong](base)
+  fun usize(base: U8 = 0): USize ? => _to_int[USize](base)
 
   fun _to_int[A: ((Signed | Unsigned) & Integer[A] val)](base: U8): A ? =>
     """
@@ -978,11 +989,12 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     out of range for the target type then an error is thrown.
     """
     (let v, let d) = read_int[A](0, base)
-    if (d == 0) or (d.u64() != _size) then error end  // Not all of string used
+    // Check the whole string is used
+    if (d == 0) or (d.usize() != _size) then error end
     v
 
-  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: I64 = 0,
-    base: U8 = 0): (A, I64 /* chars used */) ?
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: ISize = 0,
+    base: U8 = 0): (A, USize /* chars used */) ?
   =>
     """
     Read an integer from the specified location in this string. The integer
@@ -1062,10 +1074,10 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
     // Success
-    (value, (index - start_index).i64())
+    (value, index - start_index)
 
   fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)]
-    (base: U8, index: U64): (A, U64 /* chars used */)
+    (base: U8, index: USize): (A, USize /* chars used */)
   =>
     """
     Determine the base of an integer starting at the specified index.
@@ -1099,20 +1111,20 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     // No base specified, default to decimal
     (10, 0)
 
-  fun f32(offset: I64 = 0): F32 =>
+  fun f32(offset: ISize = 0): F32 =>
     var index = offset_to_index(offset)
 
     if index < _size then
-      @strtof[F32](_ptr.u64() + index, U64(0))
+      @strtof[F32](_ptr.usize() + index, USize(0))
     else
       F32(0)
     end
 
-  fun f64(offset: I64 = 0): F64 =>
+  fun f64(offset: ISize = 0): F64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
-      @strtod[F64](_ptr.u64() + index, U64(0))
+      @strtod[F64](_ptr.usize() + index, USize(0))
     else
       F64(0)
     end
@@ -1121,39 +1133,32 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     @hash_block[U64](_ptr, _size)
 
   fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     // TODO: fill character
-    let copy_len = _size.min(prec.u64())
-    let len = copy_len.max(width.u64())
+    let copy_len = _size.min(prec.usize())
+    let len = copy_len.max(width.usize())
     let str = recover String(len) end
 
     match align
     | AlignLeft =>
       _ptr._copy_to(str._ptr, copy_len)
-      @memset[Pointer[U8]](str._ptr.u64() + copy_len, U32(' '), len - copy_len)
+      @memset(str._ptr.usize() + copy_len, U32(' '), len - copy_len)
     | AlignRight =>
-      @memset[Pointer[U8]](str._ptr, U32(' '), len - copy_len)
+      @memset(str._ptr, U32(' '), len - copy_len)
       _ptr._copy_to(str._ptr._offset_tag(len - copy_len), copy_len)
     | AlignCenter =>
       let half = (len - copy_len) / 2
-      @memset[Pointer[U8]](str._ptr, U32(' '), half)
+      @memset(str._ptr, U32(' '), half)
       _ptr._copy_to(str._ptr._offset_tag(half), copy_len)
-      @memset[Pointer[U8]](str._ptr.u64() + copy_len + half, U32(' '),
+      @memset(str._ptr.usize() + copy_len + half, U32(' '),
         len - copy_len - half)
     end
 
     str._size = len
     str._set(len, 0)
     str
-
-  // fun format(args: Array[String] box): String ? =>
-  //   recover
-  //     var s = String.
-  //   var i: U64 = 0
-  //
-  //   while i < _size do
 
   fun values(): StringBytes^ =>
     """
@@ -1167,7 +1172,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     StringRunes(this)
 
-  fun ref _set(i: U64, value: U8): U8 =>
+  fun ref _set(i: USize, value: U8): U8 =>
     """
     Unsafe update, used internally.
     """
@@ -1175,7 +1180,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
 class StringBytes is Iterator[U8]
   let _string: String box
-  var _i: U64
+  var _i: USize
 
   new create(string: String box) =>
     _string = string
@@ -1189,7 +1194,7 @@ class StringBytes is Iterator[U8]
 
 class StringRunes is Iterator[U32]
   let _string: String box
-  var _i: U64
+  var _i: USize
 
   new create(string: String box) =>
     _string = string
@@ -1199,6 +1204,6 @@ class StringRunes is Iterator[U32]
     _i < _string.size()
 
   fun ref next(): U32 ? =>
-    (let rune, let len) = _string.utf32(_i.i64())
-    _i = _i + len.u64()
+    (let rune, let len) = _string.utf32(_i.isize())
+    _i = _i + len.usize()
     rune

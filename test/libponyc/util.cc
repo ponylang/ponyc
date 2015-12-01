@@ -31,6 +31,12 @@ static const char* _builtin =
   "primitive U128\n"
   "primitive I128\n"
   "  fun neg():I128 => compile_intrinsic\n"
+  "primitive ULong\n"
+  "primitive ILong\n"
+  "  fun neg():ILong => compile_intrinsic\n"
+  "primitive USize\n"
+  "primitive ISize\n"
+  "  fun neg():ISize => compile_intrinsic\n"
   "primitive F32\n"
   "primitive F64\n"
   "primitive None\n"
@@ -370,8 +376,9 @@ void PassTest::child(size_t index)
 
   if(index >= ast_childcount(walk_ast))
   {
-    printf("Cannot find child index %lu, only %lu children present\n", index,
-      ast_childcount(walk_ast));
+    printf(
+      "Cannot find child index " __zu ", only " __zu " children present\n",
+      index, ast_childcount(walk_ast));
     ASSERT_TRUE(false);
   }
 

@@ -155,8 +155,8 @@ actor PonyTest
   var _sequential: Bool = false
   var _no_prog: Bool = false
   var _list_only: Bool = false
-  var _started: U64 = 0
-  var _finished: U64 = 0
+  var _started: USize = 0
+  var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
 
@@ -225,7 +225,7 @@ actor PonyTest
     _groups.push((name, g))
     g
 
-  be _test_started(id: U64) =>
+  be _test_started(id: USize) =>
     """
     A test has started running, update status info.
     The id parameter is the test identifier handed out when we created the test
@@ -241,7 +241,7 @@ actor PonyTest
       end
     end
 
-  be _test_complete(id: U64, pass: Bool, log: Array[String] val) =>
+  be _test_complete(id: USize, pass: Bool, log: Array[String] val) =>
     """
     A test has completed, restore its result and update our status info.
     The id parameter is the test identifier handed out when we created the test
@@ -336,8 +336,8 @@ actor PonyTest
     """
     The tests are all complete, print out the results.
     """
-    var pass_count: U64 = 0
-    var fail_count: U64 = 0
+    var pass_count: USize = 0
+    var fail_count: USize = 0
 
     // First we print the result summary for each test, in the order that they
     // were given to us.
@@ -372,7 +372,7 @@ actor PonyTest
 
     _env.exitcode(-1)
 
-  fun _plural(n: U64): String =>
+  fun _plural(n: USize): String =>
     """
     Return a "s" or an empty string depending on whether the given number is 1.
     For use when printing possibly plural words, eg "test" or "tests".

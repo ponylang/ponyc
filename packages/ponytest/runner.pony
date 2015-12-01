@@ -4,7 +4,7 @@ actor _TestRunner
   """
 
   let _ponytest: PonyTest
-  let _id: U64
+  let _id: USize
   let _group: _Group
   let _test: UnitTest iso
   let _log_verbose: Bool
@@ -13,7 +13,7 @@ actor _TestRunner
   var _pass: Bool = false
   var _completed: Bool = false
 
-  new create(ponytest: PonyTest, id: U64, test: UnitTest iso, group: _Group,
+  new create(ponytest: PonyTest, id: USize, test: UnitTest iso, group: _Group,
     verbose: Bool, env: Env)
   =>
     """

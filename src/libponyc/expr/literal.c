@@ -14,31 +14,34 @@
 
 #define UIF_ERROR       -1
 #define UIF_NO_TYPES    0
-#define UIF_INT_MASK    0x03FF
-#define UIF_ALL_TYPES   0x0FFF
-#define UIF_CONSTRAINED 0x1000
-#define UIF_COUNT       12
+#define UIF_INT_MASK    0x03FFF
+#define UIF_ALL_TYPES   0x0FFFF
+#define UIF_CONSTRAINED 0x10000
+#define UIF_COUNT       16
 
 static struct
 {
   const char* name;
-  uint64_t limit_high;  // The lowest positive value that's too big
-  uint64_t limit_low;   // "
+  lexint_t limit;
   bool neg_plus_one;    // Is a negated value allowed to be 1 bigger
 } _str_uif_types[UIF_COUNT] =
 {
-  { "U8", 0, 0x100, false },
-  { "U16", 0, 0x10000, false },
-  { "U32", 0, 0x100000000LL, false },
-  { "U64", 1, 0, false },
-  { "U128", 0, 0, false },  // Limit checked by lexer
-  { "I8", 0, 0x80, true },
-  { "I16", 0, 0x8000, true },
-  { "I32", 0, 0x80000000, true },
-  { "I64", 0, 0x8000000000000000ULL, true },
-  { "I128", 0x8000000000000000ULL, 0, true },
-  { "F32", 0, 0, false },
-  { "F64", 0, 0, false }
+  { "U8", {0x100, 0}, false },
+  { "U16", {0x10000, 0}, false },
+  { "U32", {0x100000000LL, 0}, false },
+  { "U64", {0, 1}, false },
+  { "U128", {0, 0}, false },  // Limit checked by lexer
+  { "ULong", {0, 1}, false }, // Limited to 64 bits
+  { "USize", {0, 1}, false }, // Limited to 64 bits
+  { "I8", {0x80, 0}, true },
+  { "I16", {0x8000, 0}, true },
+  { "I32", {0x80000000, 0}, true },
+  { "I64", {0x8000000000000000ULL, 0}, true },
+  { "I128", {0, 0x8000000000000000ULL}, true },
+  { "ILong", {0x8000000000000000ULL, 0}, true }, // Limited to 64 bits
+  { "ISize", {0x8000000000000000ULL, 0}, true }, // Limited to 64 bits
+  { "F32", {0, 0}, false },
+  { "F64", {0, 0}, false }
 };
 
 
@@ -525,16 +528,8 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
     // Note we don't check for types bound to type parameters.
     int i = chain_head->cached_uif_index;
 
-    if(_str_uif_types[i].limit_low != 0 || _str_uif_types[i].limit_high != 0)
+    if(_str_uif_types[i].limit.low != 0 || _str_uif_types[i].limit.high != 0)
     {
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-      UnsignedInt128 limit(_str_uif_types[i].limit_high,
-        _str_uif_types[i].limit_low);
-#else
-      __uint128_t limit = (((__uint128_t)_str_uif_types[i].limit_high) << 64) |
-        _str_uif_types[i].limit_low;
-#endif
-
       // There is a limit specified for this type, the literal must be smaller
       // than that.
       bool neg_plus_one = false;
@@ -559,9 +554,10 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
           neg_plus_one = true;
       }
 
-      __uint128_t actual = ast_int(literal);
+      lexint_t* actual = ast_int(literal);
+      int test = lexint_cmp(actual, &_str_uif_types[i].limit);
 
-      if((actual > limit) || (!neg_plus_one && actual == limit))
+      if((test > 0) || (!neg_plus_one && (test == 0)))
       {
         // Illegal value. Note that we report an error, but don't return an
         // error, so other errors may be found.

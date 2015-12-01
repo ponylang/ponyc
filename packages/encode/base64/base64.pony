@@ -22,7 +22,7 @@ primitive Base64
     encode(data, '-', '_', c)
 
   fun encode[A: Seq[U8] iso = String iso](data: ByteSeq box, at62: U8 = '+',
-    at63: U8 = '/', pad: U8 = '=', linelen: U64 = 0,
+    at63: U8 = '/', pad: U8 = '=', linelen: USize = 0,
     linesep: String = "\r\n"): A^
   =>
     """
@@ -33,8 +33,8 @@ primitive Base64
     let lineblocks = linelen / 4
 
     var srclen = data.size()
-    var blocks = U64(0)
-    var i = U64(0)
+    var blocks = USize(0)
+    var i = USize(0)
 
     try
       while srclen >= 3 do

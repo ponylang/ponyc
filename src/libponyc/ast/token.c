@@ -16,12 +16,6 @@ typedef struct token_t
   char* printed;
   bool debug_info;
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  const char* string;
-  size_t str_length;
-  double real;
-  __uint128_t integer;
-#else
   union
   {
     struct
@@ -29,10 +23,10 @@ typedef struct token_t
       const char* string;
       size_t str_length;
     };
+
     double real;
-    __uint128_t integer;
+    lexint_t integer;
   };
-#endif
 } token_t;
 
 
@@ -108,11 +102,11 @@ double token_float(token_t* token)
 }
 
 
-__uint128_t token_int(token_t* token)
+lexint_t* token_int(token_t* token)
 {
   assert(token != NULL);
   assert(token->id == TK_INT);
-  return token->integer;
+  return &token->integer;
 }
 
 
@@ -133,7 +127,8 @@ const char* token_print(token_t* token)
       if (token->printed == NULL)
         token->printed = (char*)pool_alloc_size(64);
 
-      snprintf(token->printed, 64, __zu, (size_t)token->integer);
+      snprintf(token->printed, 64, "%llu",
+        (unsigned long long)token->integer.low);
       return token->printed;
 
     case TK_FLOAT:
@@ -249,11 +244,11 @@ void token_set_float(token_t* token, double value)
 }
 
 
-void token_set_int(token_t* token, __uint128_t value)
+void token_set_int(token_t* token, lexint_t* value)
 {
   assert(token != NULL);
   assert(token->id == TK_INT);
-  token->integer = value;
+  token->integer = *value;
 }
 
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)

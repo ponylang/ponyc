@@ -26,18 +26,17 @@ static void pointer_create(compile_t* c, gentype_t* g)
 static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   const char* name = genname_fun(g->type_name, "_alloc", NULL);
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
-  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &c->i64, 1, false);
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &c->intptr, 1, false);
   fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
-
   LLVMValueRef args[2];
   args[0] = codegen_ctx(c);
   args[1] = LLVMBuildMul(c->builder, len, l_size, "");
@@ -52,14 +51,14 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   const char* name = genname_fun(g->type_name, "_realloc", NULL);
 
   LLVMTypeRef params[2];
   params[0] = g->use_type;
-  params[1] = c->i64;
+  params[1] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -87,7 +86,7 @@ static void pointer_apply(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef params[2];
   params[0] = g->use_type;
-  params[1] = c->i64;
+  params[1] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -109,7 +108,7 @@ static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
-  params[1] = c->i64;
+  params[1] = c->intptr;
   params[2] = elem_g->use_type;
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
@@ -131,14 +130,14 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
   const char* name)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   name = genname_fun(g->type_name, name, NULL);
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
-  params[1] = c->i64;
+  params[1] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -148,7 +147,7 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
   LLVMValueRef n = LLVMGetParam(fun, 1);
 
   // Return ptr + (n * sizeof(len)).
-  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
   LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
   LLVMValueRef result = LLVMBuildAdd(c->builder, src, offset, "");
   result = LLVMBuildIntToPtr(c->builder, result, g->use_type, "");
@@ -160,15 +159,15 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
 static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   const char* name = genname_fun(g->type_name, "_insert", NULL);
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = c->i64;
+  params[1] = c->intptr;
+  params[2] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -178,7 +177,7 @@ static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef n = LLVMGetParam(fun, 1);
   LLVMValueRef len = LLVMGetParam(fun, 2);
 
-  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
   LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
   LLVMValueRef dst = LLVMBuildAdd(c->builder, src, offset, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
@@ -199,15 +198,15 @@ static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   const char* name = genname_fun(g->type_name, "_delete", NULL);
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = c->i64;
+  params[1] = c->intptr;
+  params[2] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -220,7 +219,7 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef result = LLVMBuildLoad(c->builder, ptr, "");
   result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
 
-  LLVMValueRef dst = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef dst = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
   LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
   LLVMValueRef src = LLVMBuildAdd(c->builder, dst, offset, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
@@ -241,15 +240,15 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_copy_to(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
   const char* name = genname_fun(g->type_name, "_copy_to", NULL);
 
   LLVMTypeRef params[4];
   params[0] = g->use_type;
   params[1] = g->use_type;
-  params[2] = c->i64;
+  params[2] = c->intptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
@@ -258,7 +257,6 @@ static void pointer_copy_to(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef ptr2 = LLVMGetParam(fun, 1);
   LLVMValueRef n = LLVMGetParam(fun, 2);
-
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
   LLVMValueRef args[3];
@@ -273,16 +271,16 @@ static void pointer_copy_to(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
-static void pointer_u64(compile_t* c, gentype_t* g)
+static void pointer_usize(compile_t* c, gentype_t* g)
 {
-  const char* name = genname_fun(g->type_name, "u64", NULL);
+  const char* name = genname_fun(g->type_name, "usize", NULL);
 
-  LLVMTypeRef ftype = LLVMFunctionType(c->i64, &g->use_type, 1, false);
+  LLVMTypeRef ftype = LLVMFunctionType(c->intptr, &g->use_type, 1, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -335,7 +333,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_insert(c, g, &elem_g);
   pointer_delete(c, g, &elem_g);
   pointer_copy_to(c, g, &elem_g);
-  pointer_u64(c, g);
+  pointer_usize(c, g);
 
   ok = genfun_methods(c, g);
 
@@ -526,8 +524,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   // While the index is less than the count, trace an element. The initial
   // index when coming from the entry block is zero.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i64, "");
-  LLVMValueRef zero = LLVMConstInt(c->i64, 0, false);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
+  LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
   LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(trace_fn);
   LLVMAddIncoming(phi, &zero, &entry_block, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
@@ -540,7 +538,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   gentrace(c, ctx, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.
-  LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
+  LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
   LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
   body_block = LLVMGetInsertBlock(c->builder);
   LLVMAddIncoming(phi, &inc, &body_block, 1);
@@ -570,13 +568,37 @@ static void number_conversions(compile_t* c)
     {"I16", "i16", c->i16, 16, true, false},
     {"I32", "i32", c->i32, 32, true, false},
     {"I64", "i64", c->i64, 64, true, false},
-    {"I128", "i128", c->i128, 128, true, false},
 
     {"U8", "u8", c->i8, 8, false, false},
     {"U16", "u16", c->i16, 16, false, false},
     {"U32", "u32", c->i32, 32, false, false},
     {"U64", "u64", c->i64, 64, false, false},
+
+#if defined(PLATFORM_IS_ILP32)
+    {"ILong", "ilong", c->i32, 32, true, false},
+    {"ULong", "ulong", c->i32, 32, false, false},
+
+    {"ISize", "isize", c->i32, 32, true, false},
+    {"USize", "usize", c->i32, 32, false, false},
+#elif defined(PLATFORM_IS_LP64)
+    {"ILong", "ilong", c->i64, 64, true, false},
+    {"ULong", "ulong", c->i64, 64, false, false},
+
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"I128", "i128", c->i128, 128, true, false},
     {"U128", "u128", c->i128, 128, false, false},
+#elif defined(PLATFORM_IS_LLP64)
+    {"ILong", "ilong", c->i32, 32, true, false},
+    {"ULong", "ulong", c->i32, 32, false, false},
+
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
+#endif
 
     {"F32", "f32", c->f32, 32, false, true},
     {"F64", "f64", c->f64, 64, false, true},
@@ -663,13 +685,37 @@ static void number_constructors(compile_t* c)
     {"I16", c->i16},
     {"I32", c->i32},
     {"I64", c->i64},
-    {"I128", c->i128},
 
     {"U8", c->i8},
     {"U16", c->i16},
     {"U32", c->i32},
     {"U64", c->i64},
+
+#if defined(PLATFORM_IS_ILP32)
+    {"ILong", c->i32},
+    {"ULong", c->i32},
+
+    {"ISize", c->i32},
+    {"USize", c->i32},
+#elif defined(PLATFORM_IS_LP64)
+    {"ILong", c->i64},
+    {"ULong", c->i64},
+
+    {"ISize", c->i64},
+    {"USize", c->i64},
+
+    {"I128", c->i128},
     {"U128", c->i128},
+#elif defined(PLATFORM_IS_LLP64)
+    {"ILong", c->i32},
+    {"ULong", c->i32},
+
+    {"ISize", c->i64},
+    {"USize", c->i64},
+
+    {"I128", c->i128},
+    {"U128", c->i128},
+#endif
 
     {"F32", c->f32},
     {"F64", c->f64},
@@ -770,6 +816,7 @@ static void fp_as_bits(compile_t* c)
 
 static void make_cpuid(compile_t* c)
 {
+#ifdef PLATFORM_IS_X86
   LLVMTypeRef elems[4] = {c->i32, c->i32, c->i32, c->i32};
   LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, elems, 4, false);
   LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
@@ -785,10 +832,14 @@ static void make_cpuid(compile_t* c)
   LLVMBuildRet(c->builder, result);
 
   codegen_finishfun(c);
+#else
+  (void)c;
+#endif
 }
 
 static void make_rdtscp(compile_t* c)
 {
+#ifdef PLATFORM_IS_X86
   // i64 @llvm.x86.rdtscp(i8*)
   LLVMTypeRef f_type = LLVMFunctionType(c->i64, &c->void_ptr, 1, false);
   LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp", f_type);
@@ -807,6 +858,9 @@ static void make_rdtscp(compile_t* c)
   LLVMBuildRet(c->builder, result);
 
   codegen_finishfun(c);
+#else
+  (void)c;
+#endif
 }
 
 void genprim_builtins(compile_t* c)

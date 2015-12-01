@@ -3,7 +3,7 @@
 
 #ifdef ASIO_USE_IOCP
 
-#include "../sched/mpmcq.h"
+#include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include <string.h>
 #include <stdbool.h>
@@ -17,36 +17,24 @@
 struct asio_backend_t
 {
   HANDLE wakeup;
-  mpmcq_t q;
   bool stop;
+  messageq_t q;
 };
 
 
 enum // Event requests
 {
-  EVREQ_STDIN_NOTIFY,
-  EVREQ_STDIN_RESUME,
-  EVREQ_SET_TIMER,
-  EVREQ_CANCEL_TIMER
+  ASIO_STDIN_NOTIFY = 5,
+  ASIO_STDIN_RESUME = 6,
+  ASIO_SET_TIMER = 7,
+  ASIO_CANCEL_TIMER = 8
 };
-
-
-typedef struct event_req_t
-{
-  int req;
-  asio_event_t* event;
-  HANDLE handle;
-  uint64_t value;
-} event_req_t;
 
 
 void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 {
   // A timer has fired, notify the actor
-  asio_event_t* event = (asio_event_t*)arg;
-
-  event->flags = ASIO_TIMER;
-  asio_event_send(event, ASIO_TIMER, 0);
+  asio_event_send((asio_event_t*)arg, ASIO_TIMER, 0);
 }
 
 
@@ -54,8 +42,8 @@ asio_backend_t* asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
   memset(b, 0, sizeof(asio_backend_t));
+  messageq_init(&b->q);
 
-  mpmcq_init(&b->q);
   b->wakeup = CreateEvent(NULL, FALSE, FALSE, NULL);
   b->stop = false;
 
@@ -98,60 +86,56 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         // Process all items on our queue.
         // Since our wake event is not manual, it has already been reset by the
         // time we reach here.
-        event_req_t* req;
+        asio_msg_t* msg;
 
-        while((req = (event_req_t*)mpmcq_pop(&b->q)) != NULL)
+        while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
         {
-          switch(req->req)
+          switch(msg->flags)
           {
-            case EVREQ_STDIN_NOTIFY:
+            case ASIO_STDIN_NOTIFY:
               // Who to notify about stdin events has changed
-              stdin_event = req->event;
+              stdin_event = msg->event;
 
               if(stdin_event == NULL) // No-one listening, don't wait on stdin
                 handleCount = 1;
               else  // Someone wants stdin, include it in the wait set
                 handleCount = 2;
-
               break;
 
-            case EVREQ_STDIN_RESUME:
+            case ASIO_STDIN_RESUME:
               // Console events have been read, we can continue waiting on
               // stdin now
               if(stdin_event != NULL)
                 handleCount = 2;
-
               break;
 
-            case EVREQ_SET_TIMER:
+            case ASIO_SET_TIMER:
             {
               // Windows timer resolution is 100ns, adjust given time
-              int64_t dueTime = -(int64_t)req->value / 100;
+              int64_t dueTime = -(int64_t)msg->event->nsec / 100;
               LARGE_INTEGER liDueTime;
               liDueTime.LowPart = (DWORD)(dueTime & 0xFFFFFFFF);
               liDueTime.HighPart = (LONG)(dueTime >> 32);
 
-              SetWaitableTimer(req->handle, &liDueTime, 0, timer_fire,
-                (void*)req->event, FALSE);
+              SetWaitableTimer(msg->event->timer, &liDueTime, 0, timer_fire,
+                (void*)msg->event, FALSE);
               break;
             }
 
-            case EVREQ_CANCEL_TIMER:
-              CancelWaitableTimer(req->handle);
-              CloseHandle(req->handle);
+            case ASIO_CANCEL_TIMER:
+              CancelWaitableTimer(msg->event->timer);
+              CloseHandle(msg->event->timer);
+              msg->event->timer = NULL;
 
               // Now that we've called cancel no more fire APCs can happen for
               // this timer, so we're safe to send the dispose notify now.
-              req->event->flags = ASIO_DISPOSABLE;
-              asio_event_send(req->event, ASIO_DISPOSABLE, 0);
+              msg->event->flags = ASIO_DISPOSABLE;
+              asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
               break;
 
             default:  // Something's gone very wrong if we reach here
               break;
           }
-
-          // We're done with the event request
-          POOL_FREE(event_req_t, req);
         }
 
         break;
@@ -175,24 +159,22 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
   }
 
   CloseHandle(b->wakeup);
-  mpmcq_destroy(&b->q);
+  messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
 }
 
 
-static void send_request(int req, asio_event_t* event, HANDLE handle,
-  uint64_t value)
+static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = asio_get_backend();
 
-  event_req_t* request = POOL_ALLOC(event_req_t);
-  request->req = req;
-  request->event = event;
-  request->handle = handle;
-  request->value = value;
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  msg->event = ev;
+  msg->flags = req;
+  messageq_push(&b->q, (pony_msg_t*)msg);
 
-  mpmcq_push(&b->q, (void*)request);
   SetEvent(b->wakeup);
 }
 
@@ -200,7 +182,7 @@ static void send_request(int req, asio_event_t* event, HANDLE handle,
 // Called from stdfd.c to resume waiting on stdin after a read
 void iocp_resume_stdin()
 {
-  send_request(EVREQ_STDIN_RESUME, NULL, NULL, 0);
+  send_request(NULL, ASIO_STDIN_RESUME);
 }
 
 
@@ -216,29 +198,22 @@ void asio_event_subscribe(asio_event_t* ev)
   if(ev->noisy)
     asio_noisy_add();
 
-  if(ev->data == 0)
-  {
-    // Need to subscribe to stdin
-    send_request(EVREQ_STDIN_NOTIFY, ev, NULL, 0);
-    return;
-  }
-
   if((ev->flags & ASIO_TIMER) != 0)
   {
     // Need to start a timer.
     // We can create it here but not start it. That must be done in the
     // background thread because that's where we want the fire APC to happen.
     // ev->data is initially the time (in nsec) and ends up as the handle.
-    HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
-    uint64_t nsec = ev->data;
-    ev->data = (uintptr_t)timer;
-
-    send_request(EVREQ_SET_TIMER, ev, timer, nsec);
+    ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    send_request(ev, ASIO_SET_TIMER);
+  } else if(ev->fd == 0) {
+    // Need to subscribe to stdin
+    send_request(ev, ASIO_STDIN_NOTIFY);
   }
 }
 
 
-void asio_event_update(asio_event_t* ev, uintptr_t data)
+void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -250,7 +225,8 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
     // Need to restart a timer.
     // That must be done in the background thread because that's where we want
     // the fire APC to happen.
-    send_request(EVREQ_SET_TIMER, ev, (HANDLE)ev->data, data);
+    ev->nsec = nsec;
+    send_request(ev, ASIO_SET_TIMER);
   }
 }
 
@@ -270,26 +246,22 @@ void asio_event_unsubscribe(asio_event_t* ev)
     ev->noisy = false;
   }
 
-  if(ev->data == 0)
-  {
-    // Need to unsubscribe from stdin
-    send_request(EVREQ_STDIN_NOTIFY, NULL, NULL, 0);
-  }
-
-  if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0)
-  {
-    ev->flags = ASIO_DISPOSABLE;
-    asio_event_send(ev, ASIO_DISPOSABLE, 0);
-  }
-
   if((ev->flags & ASIO_TIMER) != 0)
   {
     // Need to cancel a timer.
     // The timer set goes through our request queue and if we did the cancel
     // here it might overtake the set. So you put the cancel through the queue
     // as well.
-    send_request(EVREQ_CANCEL_TIMER, ev, (HANDLE)ev->data, 0);
+    send_request(ev, ASIO_CANCEL_TIMER);
+  } else if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0) {
+    // Need to unsubscribe from stdin
+    if(ev->fd == 0)
+      send_request(NULL, ASIO_STDIN_NOTIFY);
+
+    ev->flags = ASIO_DISPOSABLE;
+    asio_event_send(ev, ASIO_DISPOSABLE, 0);
   }
+
 }
 
 

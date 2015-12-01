@@ -1,5 +1,6 @@
 #include "actor.h"
 #include "../sched/scheduler.h"
+#include "../sched/cpu.h"
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
 #include "../gc/trace.h"
@@ -96,7 +97,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 #ifdef USE_TELEMETRY
   ctx->count_gc_passes++;
-  size_t tsc = __pony_rdtsc();
+  size_t tsc = cpu_tick();
 #endif
 
   pony_gc_mark(ctx);
@@ -110,7 +111,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   heap_endgc(&actor->heap);
 
 #ifdef USE_TELEMETRY
-  ctx->time_in_gc += (__pony_rdtsc() - tsc);
+  ctx->time_in_gc += (cpu_tick()() - tsc);
 #endif
 }
 

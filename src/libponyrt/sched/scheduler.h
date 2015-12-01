@@ -61,7 +61,7 @@ struct scheduler_t
 
   pony_ctx_t ctx;
   uint32_t block_count;
-  uint32_t ack_token;
+  int32_t ack_token;
   uint32_t ack_count;
 
   // These are accessed by other scheduler threads. The mpmcq_t is aligned.

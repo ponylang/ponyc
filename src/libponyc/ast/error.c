@@ -22,7 +22,7 @@ static void print_error(errormsg_t* e)
 
     if(e->line != 0)
     {
-      printf("%ld:%ld: ", (long int)e->line, (long int)e->pos);
+      printf(__zu":"__zu": ", e->line, e->pos);
     }
     else {
       printf(" ");

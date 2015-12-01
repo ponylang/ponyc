@@ -3,6 +3,7 @@
 
 #include <platform.h>
 
+#include "lexint.h"
 #include "error.h"
 #include "source.h"
 #include <stdbool.h>
@@ -275,10 +276,10 @@ void token_free(token_t* token);
 token_id token_get_id(token_t* token);
 
 /** Report the given token's literal value.
-  * Only valid for TK_STRING and TK_ID tokens.
-  * The returned string must not be deleted and is valid for the lifetime of the
-  * token.
-  */
+ * Only valid for TK_STRING and TK_ID tokens.
+ * The returned string must not be deleted and is valid for the lifetime of the
+ * token.
+ */
 const char* token_string(token_t* token);
 
 /** Report the given token's literal string length.
@@ -290,12 +291,12 @@ size_t token_string_len(token_t* token);
 double token_float(token_t* token);
 
 /// Report the given token's literal value. Only valid for TK_INT tokens.
-__uint128_t token_int(token_t* token);
+lexint_t* token_int(token_t* token);
 
 /** Return a string for printing the given token.
-  * The returned string must not be deleted and is only valid until the next call
-  * to token_print() for that token, or until the token is deleted.
-  */
+ * The returned string must not be deleted and is only valid until the next
+ * call to token_print() for that token, or until the token is deleted.
+ */
 const char* token_print(token_t* token);
 
 /** Return a string to describe the given token id.
@@ -336,7 +337,7 @@ void token_set_string(token_t* token, const char* value, size_t length);
 void token_set_float(token_t* token, double value);
 
 /// Set the given token's literal value. Only valid for TK_INT tokens.
-void token_set_int(token_t* token, __uint128_t value);
+void token_set_int(token_t* token, lexint_t* value);
 
 /// Set the given token's position within its source file and optionally the
 /// source file.

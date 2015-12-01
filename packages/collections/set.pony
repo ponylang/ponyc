@@ -9,19 +9,19 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
   """
   let _map: HashMap[A!, A, H]
 
-  new create(prealloc: U64 = 8) =>
+  new create(prealloc: USize = 8) =>
     """
     Defaults to a prealloc of 8.
     """
     _map = _map.create(prealloc)
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     The number of items in the set.
     """
     _map.size()
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     The available space in the set.
     """
@@ -272,14 +272,14 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     that <= this
 
-  fun next_index(prev: U64 = -1): U64 ? =>
+  fun next_index(prev: USize = -1): USize ? =>
     """
     Given an index, return the next index that has a populated value. Raise an
     error if there is no next populated index.
     """
     _map.next_index(prev)
 
-  fun index(i: U64): this->A ? =>
+  fun index(i: USize): this->A ? =>
     """
     Returns the value at a given index. Raise an error if the index is not
     populated.
@@ -298,8 +298,8 @@ class SetValues[A, H: HashFunction[A!] val, S: HashSet[A, H] #read] is
   An iterator over the values in a set.
   """
   let _set: S
-  var _i: U64 = -1
-  var _count: U64 = 0
+  var _i: USize = -1
+  var _count: USize = 0
 
   new create(set: S) =>
     """

@@ -1,3 +1,8 @@
+use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @asio_event_unsubscribe[None](event: AsioEventID)
+use @asio_event_destroy[None](event: AsioEventID)
+
 interface StdinNotify
   """
   Notification for data arriving via stdin.
@@ -54,13 +59,13 @@ actor Stdin
     if notify is None then
       if _use_event and not _event.is_null() then
         // Unsubscribe the event.
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = @asio_event_create[AsioEventID](this, U64(0), U32(1), true)
+        _event = @asio_event_create(this, 0, AsioEvent.read(), 0, true)
       else
         // Start the read loop.
         _loop_read()
@@ -78,12 +83,12 @@ actor Stdin
       _loop_read()
     end
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     When the event fires, read from stdin.
     """
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](event)
+      @asio_event_destroy(event)
     elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end
@@ -101,13 +106,14 @@ actor Stdin
     """
     try
       let notify = _notify as StdinNotify
-      var sum: U64 = 0
+      var sum: USize = 0
 
       while true do
-        var len = U64(64)
+        var len = USize(64)
         var data = recover Array[U8].undefined(len) end
         var again: Bool = false
-        len = @os_stdin_read[U64](data.cstring(), data.space(),
+
+        len = @os_stdin_read[USize](data.cstring(), data.space(),
           addressof again)
 
         match len
@@ -152,6 +158,6 @@ actor Stdin
       Close the event.
       """
       if not _event.is_null() then
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end

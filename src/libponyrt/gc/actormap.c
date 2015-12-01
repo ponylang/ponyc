@@ -16,7 +16,7 @@ typedef struct actorref_t
   objectmap_t map;
 } actorref_t;
 
-static uint64_t actorref_hash(actorref_t* aref)
+static size_t actorref_hash(actorref_t* aref)
 {
   return hash_ptr(aref->actor);
 }

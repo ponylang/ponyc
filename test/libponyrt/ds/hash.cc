@@ -26,7 +26,7 @@ class HashMapTest: public testing::Test
     void put_elements(size_t count);
 
   public:
-    static uint64_t hash_tst(elem_t* p);
+    static size_t hash_tst(elem_t* p);
     static bool cmp_tst(elem_t* a, elem_t* b);
     static void free_elem(elem_t* p);
     static void free_buckets(size_t size, void* p);
@@ -37,8 +37,8 @@ DEFINE_HASHMAP(testmap, elem_t, HashMapTest::hash_tst, HashMapTest::cmp_tst,
 
 struct elem_t
 {
-  uint64_t key;
-  uint64_t val;
+  size_t key;
+  size_t val;
 };
 
 void HashMapTest::SetUp()
@@ -69,9 +69,9 @@ elem_t* HashMapTest::get_element()
   return (elem_t*) malloc(sizeof(elem_t));
 }
 
-uint64_t HashMapTest::hash_tst(elem_t* p)
+size_t HashMapTest::hash_tst(elem_t* p)
 {
-  return hash_int(p->key);
+  return hash_size(p->key);
 }
 
 bool HashMapTest::cmp_tst(elem_t* a, elem_t* b)

@@ -448,7 +448,10 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
   DO(lookup_member("C", "f", TK_FUN));
   DO(child(6); child(0));
 
-  ASSERT_EQ(2, ast_int(walk_ast));
+  lexint_t* value = ast_int(walk_ast);
+
+  ASSERT_EQ(0, value->high);
+  ASSERT_EQ(2, value->low);
 }
 
 

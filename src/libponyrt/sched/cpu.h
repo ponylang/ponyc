@@ -16,6 +16,8 @@ void cpu_affinity(uint32_t cpu);
 
 void cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield);
 
+uint64_t cpu_tick();
+
 PONY_EXTERN_C_END
 
 #endif

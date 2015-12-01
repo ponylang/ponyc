@@ -18,19 +18,19 @@ primitive _JsonPrint
       // Can never happen
       ""
     end
-    
+
   fun _escaped_string(s: String): String =>
     """
     Generate a version of the given string with escapes for all non-printable
     and non-ASCII characters.
     """
     var out = recover ref String end
-    var i: U64 = 0
+    var i: USize = 0
 
     try
       while i < s.size() do
-        (let c, let count) = s.utf32(i.i64())
-        i = i + count.u64()
+        (let c, let count) = s.utf32(i.isize())
+        i = i + count.usize()
 
         if c == '"' then
           out.append("\\\"")

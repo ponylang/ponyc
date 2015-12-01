@@ -66,7 +66,7 @@ class FileMode
     """
     var m: U32 = 0
 
-    if Platform.windows() then
+    ifdef windows then
       if owner_read or group_read or any_read then
         m = m or 0x100
       end

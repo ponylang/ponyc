@@ -127,6 +127,34 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = c->i128;
       else if(name == c->str_U128)
         g->primitive = c->i128;
+#if defined(PLATFORM_IS_ILP32)
+      else if(name == c->str_ILong)
+        g->primitive = c->i32;
+      else if(name == c->str_ULong)
+        g->primitive = c->i32;
+      else if(name == c->str_ISize)
+        g->primitive = c->i32;
+      else if(name == c->str_USize)
+        g->primitive = c->i32;
+#elif defined(PLATFORM_IS_LP64)
+      else if(name == c->str_ILong)
+        g->primitive = c->i64;
+      else if(name == c->str_ULong)
+        g->primitive = c->i64;
+      else if(name == c->str_ISize)
+        g->primitive = c->i64;
+      else if(name == c->str_USize)
+        g->primitive = c->i64;
+#elif defined(PLATFORM_IS_LLP64)
+      else if(name == c->str_ILong)
+        g->primitive = c->i32;
+      else if(name == c->str_ULong)
+        g->primitive = c->i32;
+      else if(name == c->str_ISize)
+        g->primitive = c->i64;
+      else if(name == c->str_USize)
+        g->primitive = c->i64;
+#endif
       else if(name == c->str_F32)
         g->primitive = c->f32;
       else if(name == c->str_F64)
@@ -294,6 +322,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Create a dispatch function.
   const char* dispatch_name = genname_dispatch(g->type_name);
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
+  LLVMSetFunctionCallConv(g->dispatch_fn, LLVMCCallConv);
   codegen_startfun(c, g->dispatch_fn, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");

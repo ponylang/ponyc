@@ -17,7 +17,7 @@ actor Server
 
   new create(notify: ServerNotify iso, handler: RequestHandler,
     logger: Logger = DiscardLog, host: String = "", service: String = "0",
-    limit: U64 = 0, sslctx: (SSLContext | None) = None)
+    limit: USize = 0, sslctx: (SSLContext | None) = None)
   =>
     """
     Create a server bound to the given host and service.

@@ -60,7 +60,7 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 /**
  * Sends a message to a thread.
  */
-static void send_msg(uint32_t to, sched_msg_t msg, uint64_t arg)
+static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
@@ -201,7 +201,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
   send_msg(0, SCHED_BLOCK, 0);
-  uint64_t tsc = __pony_rdtsc();
+  uint64_t tsc = cpu_tick();
   pony_actor_t* actor;
 
   while(true)
@@ -216,7 +216,7 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     if(actor != NULL)
       break;
 
-    uint64_t tsc2 = __pony_rdtsc();
+    uint64_t tsc2 = cpu_tick();
 
     if(quiescent(sched, tsc, tsc2))
       return NULL;

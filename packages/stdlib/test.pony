@@ -94,13 +94,15 @@ class iso _TestAbs is UnitTest
     h.expect_eq[U64](124,        I64(-124).abs())
     h.expect_eq[U64](0,          I64(0).abs())
 
-    h.expect_eq[U128](128,        I128(-128).abs())
-    h.expect_eq[U128](32768,      I128(-32768).abs())
-    h.expect_eq[U128](2147483648, I128(-2147483648).abs())
-    h.expect_eq[U128](128,        I128(-128).abs())
-    h.expect_eq[U128](3,          I128(-3).abs())
-    h.expect_eq[U128](124,        I128(-124).abs())
-    h.expect_eq[U128](0,          I128(0).abs())
+    ifdef not ilp32 then
+      h.expect_eq[U128](128,        I128(-128).abs())
+      h.expect_eq[U128](32768,      I128(-32768).abs())
+      h.expect_eq[U128](2147483648, I128(-2147483648).abs())
+      h.expect_eq[U128](128,        I128(-128).abs())
+      h.expect_eq[U128](3,          I128(-3).abs())
+      h.expect_eq[U128](124,        I128(-124).abs())
+      h.expect_eq[U128](0,          I128(0).abs())
+    end
 
     true
 
@@ -119,7 +121,7 @@ class iso _TestStringRunes is UnitTest
       result.push(c)
     end
 
-    h.expect_eq[U64](expect.size(), result.size())
+    h.expect_eq[USize](expect.size(), result.size())
 
     for i in collections.Range(0, expect.size()) do
       h.expect_eq[U32](expect(i), result(i))
@@ -249,15 +251,17 @@ class iso _TestStringToIntLarge is UnitTest
     h.expect_eq[I64](-10, "-10".i64())
     h.expect_error(lambda()? => "30L".i64() end, "I64 30L")
 
-    h.expect_eq[U128](0, "0".u128())
-    h.expect_eq[U128](123, "123".u128())
-    h.expect_error(lambda()? => "-10".u128() end, "U128 -10")
-    h.expect_error(lambda()? => "30L".u128() end, "U128 30L")
+    ifdef not ilp32 then
+      h.expect_eq[U128](0, "0".u128())
+      h.expect_eq[U128](123, "123".u128())
+      h.expect_error(lambda()? => "-10".u128() end, "U128 -10")
+      h.expect_error(lambda()? => "30L".u128() end, "U128 30L")
 
-    h.expect_eq[I128](0, "0".i128())
-    h.expect_eq[I128](123, "123".i128())
-    h.expect_eq[I128](-10, "-10".i128())
-    h.expect_error(lambda()? => "30L".i128() end, "I128 30L")
+      h.expect_eq[I128](0, "0".i128())
+      h.expect_eq[I128](123, "123".i128())
+      h.expect_eq[I128](-10, "-10".i128())
+      h.expect_error(lambda()? => "30L".i128() end, "I128 30L")
+    end
 
     true
 
@@ -321,10 +325,10 @@ class iso _TestStringRemove is UnitTest
     let r3 = s3.remove("-")
     let r4 = s4.remove("-!")
 
-    h.expect_eq[U64](r1, 7)
-    h.expect_eq[U64](r2, 1)
-    h.expect_eq[U64](r3, 5)
-    h.expect_eq[U64](r4, 0)
+    h.expect_eq[USize](r1, 7)
+    h.expect_eq[USize](r2, 1)
+    h.expect_eq[USize](r3, 5)
+    h.expect_eq[USize](r4, 0)
 
     h.expect_eq[String](consume s1, "foobar")
     h.expect_eq[String](consume s2, "barbar")
@@ -413,7 +417,7 @@ class iso _TestStringSplit is UnitTest
   fun apply(h: TestHelper): TestResult =>
     try
       var r = "1 2 3  4".split()
-      h.expect_eq[U64](r.size(), 5)
+      h.expect_eq[USize](r.size(), 5)
       h.expect_eq[String](r(0), "1")
       h.expect_eq[String](r(1), "2")
       h.expect_eq[String](r(2), "3")
@@ -421,7 +425,7 @@ class iso _TestStringSplit is UnitTest
       h.expect_eq[String](r(4), "4")
 
       r = "1 2 3  4".split(where n = 3)
-      h.expect_eq[U64](r.size(), 3)
+      h.expect_eq[USize](r.size(), 3)
       h.expect_eq[String](r(0), "1")
       h.expect_eq[String](r(1), "2")
       h.expect_eq[String](r(2), "3  4")
@@ -479,7 +483,7 @@ class iso _TestStringCompare is UnitTest
     true
 
   fun test(h: TestHelper, expect: Compare, receiver: String box,
-    that: String box, n: U64, offset: I64 = 0, that_offset: I64 = 0,
+    that: String box, n: USize, offset: ISize = 0, that_offset: ISize = 0,
     ignore_case: Bool = false)
   =>
     let actual = receiver.compare_sub(that, n, offset, that_offset,
@@ -516,27 +520,27 @@ class iso _TestArraySlice is UnitTest
 
     try
       let b = a.slice(1, 4)
-      h.expect_eq[U64](b.size(), 3)
+      h.expect_eq[USize](b.size(), 3)
       h.expect_eq[String]("two", b(0))
       h.expect_eq[String]("three", b(1))
       h.expect_eq[String]("four", b(2))
 
       let c = a.slice(0, 5, 2)
-      h.expect_eq[U64](c.size(), 3)
+      h.expect_eq[USize](c.size(), 3)
       h.expect_eq[String]("one", c(0))
       h.expect_eq[String]("three", c(1))
       h.expect_eq[String]("five", c(2))
 
       let d = a.reverse()
-      h.expect_eq[U64](d.size(), 5)
+      h.expect_eq[USize](d.size(), 5)
       h.expect_eq[String]("five", d(0))
       h.expect_eq[String]("four", d(1))
       h.expect_eq[String]("three", d(2))
       h.expect_eq[String]("two", d(3))
       h.expect_eq[String]("one", d(4))
 
-      let e = a.permute(collections.Reverse[U64](4, 0, 2))
-      h.expect_eq[U64](e.size(), 3)
+      let e = a.permute(collections.Reverse(4, 0, 2))
+      h.expect_eq[USize](e.size(), 3)
       h.expect_eq[String]("five", e(0))
       h.expect_eq[String]("three", e(1))
       h.expect_eq[String]("one", e(2))

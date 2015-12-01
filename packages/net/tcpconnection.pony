@@ -1,5 +1,11 @@
 use "collections"
 
+use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @asio_event_fd[U32](event: AsioEventID)
+use @asio_event_unsubscribe[None](event: AsioEventID)
+use @asio_event_destroy[None](event: AsioEventID)
+
 actor TCPConnection
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
@@ -7,7 +13,7 @@ actor TCPConnection
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
   var _connect_count: U32
-  var _fd: U64 = -1
+  var _fd: U32 = -1
   var _event: AsioEventID = AsioEvent.none()
   var _connected: Bool = false
   var _readable: Bool = false
@@ -15,7 +21,7 @@ actor TCPConnection
   var _closed: Bool = false
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
-  let _pending: List[(ByteSeq, U64)] = _pending.create()
+  let _pending: List[(ByteSeq, USize)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String,
@@ -52,7 +58,7 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U64) =>
+  new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32) =>
     """
     A new connection accepted on a server.
     """
@@ -60,7 +66,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @asio_event_create[AsioEventID](this, fd, U32(3), true)
+    _event = @asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
     _connected = true
 
     _queue_read()
@@ -135,14 +141,14 @@ actor TCPConnection
       @os_keepalive[None](_fd, secs)
     end
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     Handle socket events.
     """
     if event isnt _event then
       if AsioEvent.writeable(flags) then
         // A connection has completed.
-        var fd = @asio_event_data[U64](event)
+        var fd = @asio_event_fd(event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
@@ -162,20 +168,20 @@ actor TCPConnection
             _pending_writes()
           else
             // The connection failed, unsubscribe the event and close.
-            @asio_event_unsubscribe[None](event)
+            @asio_event_unsubscribe(event)
             @os_closesocket[None](fd)
             _notify_connecting()
           end
         else
           // We're already connected, unsubscribe the event and close.
-          @asio_event_unsubscribe[None](event)
+          @asio_event_unsubscribe(event)
           @os_closesocket[None](fd)
         end
       else
         // It's not our event.
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
-          @asio_event_destroy[None](event)
+          @asio_event_destroy(event)
         end
       end
     else
@@ -193,7 +199,7 @@ actor TCPConnection
       end
 
       if AsioEvent.disposable(flags) then
-        @asio_event_destroy[None](event)
+        @asio_event_destroy(event)
         _event = AsioEvent.none()
       end
 
@@ -213,17 +219,17 @@ actor TCPConnection
     data that has already been transformed by the notifier.
     """
     if not _closed then
-      if Platform.windows() then
+      ifdef windows then
         try
           // Add an IOCP write.
-          @os_send[U64](_event, data.cstring(), data.size()) ?
+          @os_send[USize](_event, data.cstring(), data.size()) ?
           _pending.push((data, 0))
         end
       else
         if _writeable then
           try
             // Send as much data as possible.
-            var len = @os_send[U64](_event, data.cstring(), data.size()) ?
+            var len = @os_send[USize](_event, data.cstring(), data.size()) ?
 
             if len < data.size() then
               // Send any remaining data later.
@@ -241,13 +247,13 @@ actor TCPConnection
       end
     end
 
-  fun ref _complete_writes(len: U64) =>
+  fun ref _complete_writes(len: U32) =>
     """
     The OS has informed as that len bytes of pending writes have completed.
     This occurs only with IOCP on Windows.
     """
-    if Platform.windows() then
-      var rem = len
+    ifdef windows then
+      var rem = len.usize()
 
       if rem == 0 then
         // IOCP reported a failed write on this chunk. Non-graceful shutdown.
@@ -278,14 +284,14 @@ actor TCPConnection
     Send pending data. If any data can't be sent, keep it and mark as not
     writeable. On an error, dispose of the connection.
     """
-    if not Platform.windows() then
+    ifdef not windows then
       while _writeable and (_pending.size() > 0) do
         try
           let node = _pending.head()
           (let data, let offset) = node()
 
           // Write as much data as possible.
-          let len = @os_send[U64](_event, data.cstring().u64() + offset,
+          let len = @os_send[USize](_event, data.cstring().usize() + offset,
             data.size() - offset) ?
 
           if (len + offset) < data.size() then
@@ -303,15 +309,15 @@ actor TCPConnection
       end
     end
 
-  fun ref _complete_reads(len: U64) =>
+  fun ref _complete_reads(len: U32) =>
     """
     The OS has informed as that len bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
     """
-    if Platform.windows() then
+    ifdef windows then
       var next = _read_buf.space()
 
-      match len
+      match len.usize()
       | 0 =>
         // The socket has been closed from the other side, or a hard close has
         // cancelled the queued read.
@@ -324,7 +330,7 @@ actor TCPConnection
       end
 
       let data = _read_buf = recover Array[U8].undefined(next) end
-      data.truncate(len)
+      data.truncate(len.usize())
 
       _queue_read()
       _notify.received(this, consume data)
@@ -334,9 +340,9 @@ actor TCPConnection
     """
     Queue an IOCP read on Windows.
     """
-    if Platform.windows() then
+    ifdef windows then
       try
-        @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
+        @os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
       else
         _hard_close()
       end
@@ -348,14 +354,14 @@ actor TCPConnection
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    if not Platform.windows() then
+    ifdef not windows then
       try
-        var sum: U64 = 0
+        var sum: USize = 0
 
         while _readable and not _shutdown_peer do
           // Read as much data as possible.
           let len =
-            @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
+            @os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
 
           var next = _read_buf.space()
 
@@ -434,11 +440,11 @@ actor TCPConnection
       _hard_close()
     end
 
-    if Platform.windows() then
+    ifdef windows then
       // On windows, wait until all outstanding IOCP operations have completed
       // or been cancelled.
       if not _connected and not _readable and (_pending.size() == 0) then
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
       end
     end
 
@@ -455,9 +461,9 @@ actor TCPConnection
     _shutdown = true
     _shutdown_peer = true
 
-    if not Platform.windows() then
+    ifdef not windows then
       // Unsubscribe immediately and drop all pending writes.
-      @asio_event_unsubscribe[None](_event)
+      @asio_event_unsubscribe(_event)
       _pending.clear()
       _readable = false
       _writeable = false

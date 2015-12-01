@@ -848,7 +848,11 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   }
 
   if(!ast_passes_subtree(&package, options, options->program_pass))
+  {
+    // If these passes failed, don't run future passes.
+    ast_setflag(package, AST_FLAG_PRESERVE);
     return NULL;
+  }
 
   return package;
 }

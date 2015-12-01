@@ -3,7 +3,7 @@ interface box Stringable
   Things that can be turned into a String.
   """
   fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
     """
     Generate a string representation of this object.
@@ -85,7 +85,7 @@ primitive _ToString
   fun _large(): String => "0123456789ABCDEF"
   fun _small(): String => "0123456789abcdef"
 
-  fun _fmt_int(fmt: FormatInt): (U64, String, String) =>
+  fun _fmt_int(fmt: FormatInt): (U32, String, String) =>
     match fmt
     | FormatBinary => (2, "b0", _large())
     | FormatBinaryBare => (2, "", _large())
@@ -111,14 +111,14 @@ primitive _ToString
       end
     end
 
-  fun _extend_digits(s: String ref, digits: U64) =>
+  fun _extend_digits(s: String ref, digits: USize) =>
     while s.size() < digits do
       s.append("0")
     end
 
-  fun _pad(s: String ref, width: U64, align: Align, fill: U32) =>
-    var pre: U64 = 0
-    var post: U64 = 0
+  fun _pad(s: String ref, width: USize, align: Align, fill: U32) =>
+    var pre: USize = 0
+    var post: USize = 0
 
     if s.size() < width then
       let rem = width - s.size()
@@ -146,15 +146,16 @@ primitive _ToString
     end
 
   fun _u64(x: U64, neg: Bool, fmt: FormatInt, prefix: PrefixNumber,
-    prec: U64, width: U64, align: Align, fill: U32): String iso^
+    prec: USize, width: USize, align: Align, fill: U32): String iso^
   =>
     match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
-    (var base: U64, var typestring: String, var table: String) = _fmt_int(fmt)
+    (var base', var typestring, var table) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
     var prec' = if prec == -1 then 0 else prec end
+    let base = base'.u64()
 
     recover
       var s = String((prec' + 1).max(width.max(31)))
@@ -166,7 +167,7 @@ primitive _ToString
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index))
+            s.push(table(index.usize()))
           end
         end
       end
@@ -179,14 +180,14 @@ primitive _ToString
     end
 
   fun _u128(x: U128, neg: Bool, fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
-    (var base': U64, var typestring: String, var table: String) = _fmt_int(fmt)
+    (var base', var typestring, var table) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
     var base = base'.u128()
     var prec' = if prec == -1 then 0 else prec end
@@ -200,8 +201,8 @@ primitive _ToString
           s.push(table(0))
         else
           while value != 0 do
-            let index = ((value = value / base) - (value * base)).u64()
-            s.push(table(index))
+            let index = (value = value / base) - (value * base)
+            s.push(table(index.usize()))
           end
         end
       end
@@ -214,7 +215,7 @@ primitive _ToString
     end
 
   fun _f64(x: F64, fmt: FormatFloat = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+    prefix: PrefixNumber = PrefixDefault, prec: USize = 6, width: USize = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     // TODO: prefix, align, fill
@@ -238,7 +239,7 @@ primitive _ToString
         f.append("g")
       end
 
-      if Platform.windows() then
+      ifdef windows then
         @_snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
       else
         @snprintf[I32](s.cstring(), s.space(), f.cstring(), x)

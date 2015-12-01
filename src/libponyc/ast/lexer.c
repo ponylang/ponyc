@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "lexint.h"
 #include "token.h"
 #include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
@@ -790,7 +791,9 @@ static token_t* string(lexer_t* lexer)
 static token_t* character(lexer_t* lexer)
 {
   consume_chars(lexer, 1);  // Leading '
-  __uint128_t value = 0;
+
+  lexint_t value;
+  lexint_zero(&value);
 
   while(true)
   {
@@ -803,7 +806,7 @@ static token_t* character(lexer_t* lexer)
     {
       consume_chars(lexer, 1);
       token_t* t = make_token(lexer, TK_INT);
-      token_set_int(t, value);
+      token_set_int(t, &value);
       return t;
     }
 
@@ -815,7 +818,7 @@ static token_t* character(lexer_t* lexer)
     // Just ignore bad escapes here and carry on. They've already been
     // reported and this allows catching later errors.
     if(c >= 0)
-      value = (value << 8) | c;
+      lexint_char(&value, c);
   }
 }
 
@@ -823,26 +826,14 @@ static token_t* character(lexer_t* lexer)
 /** Add the given digit to a literal value, checking for overflow.
  * Returns true on success, false on overflow error.
  */
-static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
+static bool accum(lexer_t* lexer, lexint_t* v, int digit, uint32_t base)
 {
-  __uint128_t v1 = *v;
-  __uint128_t v2 = v1 * base;
-
-  if((v2 / base) != v1)
+  if(!lexint_accum(v, digit, base))
   {
     lex_error(lexer, "overflow in numeric literal");
     return false;
   }
 
-  v2 += digit;
-
-  if(v2 < v1)
-  {
-    lex_error(lexer, "overflow in numeric literal");
-    return false;
-  }
-
-  *v = v2;
   return true;
 }
 
@@ -857,7 +848,7 @@ static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
  * The value read is added onto the end of any existing value in out_value.
  */
 static bool lex_integer(lexer_t* lexer, uint32_t base,
-  __uint128_t* out_value, uint32_t* out_digit_count, bool end_on_e,
+  lexint_t* out_value, uint32_t* out_digit_count, bool end_on_e,
   const char* context)
 {
   uint32_t digit_count = 0;
@@ -914,10 +905,14 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 
 // Process a real literal, the leading integral part has already been read.
 // The . or e has been seen but not consumed.
-static token_t* real(lexer_t* lexer, __uint128_t integral_value)
+static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 {
-  __uint128_t significand = integral_value;
-  __int128_t e = 0;
+  lexint_t significand = *integral_value;
+
+  lexint_t e;
+  lexint_zero(&e);
+  bool exp_neg = false;
+
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
   assert(c == '.' || c == 'e' || c == 'E');
@@ -946,34 +941,27 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
   {
     consume_chars(lexer, 1);  // Consume e
 
-    bool exp_neg = false;
-
     if((look(lexer) == '+') || (look(lexer) == '-'))
     {
       exp_neg = (look(lexer) == '-');
       consume_chars(lexer, 1);
     }
 
-    __uint128_t exp_value = 0;
-    if(!lex_integer(lexer, 10, &exp_value, NULL, false,
+    if(!lex_integer(lexer, 10, &e, NULL, false,
       "real number exponent"))
       return make_token(lexer, TK_LEX_ERROR);
-
-    if(exp_neg)
-      e = -exp_value;
-    else
-      e = exp_value;
   }
 
-  e -= mantissa_digit_count;
+  lexint_sub64(&e, &e, mantissa_digit_count);
   token_t* t = make_token(lexer, TK_FLOAT);
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  token_set_float(t, (double)significand * pow(10.0, e));
-#else
-  token_set_float(t, (double)significand * pow(10.0, (double)e));
-#endif
+  double ds = lexint_double(&significand);
+  double de = lexint_double(&e);
 
+  if(exp_neg)
+    de = -de;
+
+  token_set_float(t, ds * pow(10.0, de));
   return t;
 }
 
@@ -983,12 +971,14 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 static token_t* nondecimal_number(lexer_t* lexer, int base,
   const char* context)
 {
-  __uint128_t value = 0;
+  lexint_t value;
+  lexint_zero(&value);
+
   if(!lex_integer(lexer, base, &value, NULL, false, context))
     return make_token(lexer, TK_LEX_ERROR);
 
   token_t* t = make_token(lexer, TK_INT);
-  token_set_int(t, value);
+  token_set_int(t, &value);
   return t;
 }
 
@@ -1016,15 +1006,17 @@ static token_t* number(lexer_t* lexer)
   }
 
   // Decimal
-  __uint128_t value = 0;
+  lexint_t value;
+  lexint_zero(&value);
+
   if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
     return make_token(lexer, TK_LEX_ERROR);
 
   if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
-    return real(lexer, value);
+    return real(lexer, &value);
 
   token_t* t = make_token(lexer, TK_INT);
-  token_set_int(t, value);
+  token_set_int(t, &value);
   return t;
 }
 

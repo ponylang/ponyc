@@ -11,7 +11,7 @@ typedef struct chunk_t
   // immutable
   pony_actor_t* actor;
   char* m;
-  uint64_t size;
+  size_t size;
 
   // mutable
   uint32_t slots;
@@ -176,7 +176,7 @@ uint32_t heap_index(size_t size)
 
 void heap_setinitialgc(size_t size)
 {
-  heap_initialgc = 1ULL << size;
+  heap_initialgc = (size_t)1 << size;
 }
 
 void heap_setnextgcfactor(double factor)

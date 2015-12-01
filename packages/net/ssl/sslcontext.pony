@@ -1,8 +1,5 @@
-use @SSL_CTX_ctrl[I32](ctx: Pointer[_SSLContext] tag, op: I32, arg: I32,
-  parg: Pointer[U8] tag) if windows
-
-use @SSL_CTX_ctrl[I64](ctx: Pointer[_SSLContext] tag, op: I32, arg: I64,
-  parg: Pointer[U8] tag) if not windows
+use @SSL_CTX_ctrl[ILong](ctx: Pointer[_SSLContext] tag, op: I32, arg: ILong,
+  parg: Pointer[None])
 
 primitive _SSLContext
 
@@ -18,21 +15,13 @@ class val SSLContext
     """
     Create an SSL context.
     """
-    _ctx = @SSL_CTX_new[Pointer[_SSLContext]](@SSLv23_method[Pointer[U8]]())
+    _ctx = @SSL_CTX_new[Pointer[_SSLContext]](@SSLv23_method[Pointer[None]]())
 
     // set SSL_OP_NO_SSLv2
-    ifdef windows then
-      @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[U8])
-    else
-      @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[U8])
-    end
+    @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[None])
 
     // set SSL_OP_NO_SSLv3
-    ifdef windows then
-      @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[U8])
-    else
-      @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[U8])
-    end
+    @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[None])
 
     try set_ciphers("ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH") end
 
@@ -132,18 +121,10 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1
-        ifdef windows then
-          @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[U8])
-        else
-          @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[None])
       else
         // set SSL_OP_NO_TLSv1
-        ifdef windows then
-          @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[U8])
-        else
-          @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[None])
       end
     end
     this
@@ -155,18 +136,10 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1_1
-        ifdef windows then
-         @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[U8])
-        else
-         @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[None])
       else
         // set SSL_OP_NO_TLSv1_1
-        ifdef windows then
-          @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[U8])
-        else
-          @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
       end
     end
     this
@@ -178,18 +151,10 @@ class val SSLContext
     if not _ctx.is_null() then
       if state then
         // clear SSL_OP_NO_TLSv1_2
-        ifdef windows then
-          @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[U8])
-        else
-          @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[None])
       else
         // set SSL_OP_NO_TLSv1_2
-        ifdef windows then
-          @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[U8])
-        else
-          @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[U8])
-        end
+        @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[None])
       end
     end
     this

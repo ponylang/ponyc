@@ -2,11 +2,11 @@ class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
   """
-  var _size: U64
-  var _alloc: U64
+  var _size: USize
+  var _alloc: USize
   var _ptr: Pointer[A]
 
-  new create(len: U64 = 0) =>
+  new create(len: USize = 0) =>
     """
     Create an array with zero elements, but space for len elements.
     """
@@ -14,7 +14,7 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  new init(from: A^, len: U64) =>
+  new init(from: A^, len: USize) =>
     """
     Create an array of len elements, all initialised to the given value.
     """
@@ -22,14 +22,14 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < len do
       _ptr._update(i, from)
       i = i + 1
     end
 
-  new undefined[B: (A & Real[B] val & Number) = A](len: U64) =>
+  new undefined[B: (A & Real[B] val & Number) = A](len: USize) =>
     """
     Create an array of len elements, populating them with random memory. This
     is only allowed for an array of numbers.
@@ -38,7 +38,7 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  new from_cstring(ptr: Pointer[A] ref, len: U64, alloc: U64 = 0) =>
+  new from_cstring(ptr: Pointer[A] ref, len: USize, alloc: USize = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
     copied.
@@ -65,19 +65,19 @@ class Array[A] is Seq[A]
     """
     _ptr
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     The number of elements in the array.
     """
     _size
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     The available space in the array.
     """
     _alloc
 
-  fun ref reserve(len: U64): Array[A]^ =>
+  fun ref reserve(len: USize): Array[A]^ =>
     """
     Reserve space for len elements, including whatever elements are already in
     the array.
@@ -88,7 +88,7 @@ class Array[A] is Seq[A]
     end
     this
 
-  fun apply(i: U64): this->A ? =>
+  fun apply(i: USize): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
@@ -98,7 +98,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref update(i: U64, value: A): A^ ? =>
+  fun ref update(i: USize, value: A): A^ ? =>
     """
     Change the i-th element, raising an error if the index is out of bounds.
     """
@@ -108,7 +108,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref insert(i: U64, value: A): Array[A]^ ? =>
+  fun ref insert(i: USize, value: A): Array[A]^ ? =>
     """
     Insert an element into the array. Elements after this are moved up by one
     index, extending the array.
@@ -123,7 +123,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref delete(i: U64): A^ ? =>
+  fun ref delete(i: USize): A^ ? =>
     """
     Delete an element from the array. Elements after this are moved down by one
     index, compacting the array.
@@ -135,7 +135,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref truncate(len: U64): Array[A]^ =>
+  fun ref truncate(len: USize): Array[A]^ =>
     """
     Truncate an array to the given length, discarding excess elements. If the
     array is already smaller than len, do nothing.
@@ -143,8 +143,8 @@ class Array[A] is Seq[A]
     _size = _size.min(len)
     this
 
-  fun copy_to(dst: Array[this->A!], src_idx: U64, dst_idx: U64, len: U64):
-    this->Array[A]^
+  fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
+    len: USize): this->Array[A]^
   =>
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
@@ -157,7 +157,7 @@ class Array[A] is Seq[A]
     end
     this
 
-  fun ref remove(i: U64, n: U64): Array[A]^ =>
+  fun ref remove(i: USize, n: USize): Array[A]^ =>
     """
     Remove n elements from the array, beginning at index i.
     """
@@ -205,7 +205,9 @@ class Array[A] is Seq[A]
     """
     delete(0)
 
-  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): Array[A]^ =>
+  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1):
+    Array[A]^
+  =>
     """
     Append the elements from a sequence, starting from the given offset.
     """
@@ -238,13 +240,13 @@ class Array[A] is Seq[A]
 
     this
 
-  fun find(value: A!, offset: U64 = 0, nth: U64 = 0): U64 ? =>
+  fun find(value: A!, offset: USize = 0, nth: USize = 0): USize ? =>
     """
     Find the n-th appearance of value in the array, by identity. Return the
     index, or raise an error if value isn't present.
     """
     var i = offset
-    var n = U64(0)
+    var n = USize(0)
 
     while i < _size do
       if _ptr._apply(i) is value then
@@ -260,13 +262,13 @@ class Array[A] is Seq[A]
 
     error
 
-  fun rfind(value: A!, offset: U64 = -1, nth: U64 = 0): U64 ? =>
+  fun rfind(value: A!, offset: USize = -1, nth: USize = 0): USize ? =>
     """
     As find, but search backwards in the array.
     """
     if _size > 0 then
       var i = if offset >= _size then _size - 1 else offset end
-      var n = U64(0)
+      var n = USize(0)
 
       repeat
         if _ptr._apply(i) is value then
@@ -290,7 +292,7 @@ class Array[A] is Seq[A]
     out._size = _size
     out
 
-  fun slice(from: U64 = 0, to: U64 = -1, step: U64 = 1): Array[this->A!]^ =>
+  fun slice(from: USize = 0, to: USize = -1, step: USize = 1): Array[this->A!]^ =>
     """
     Create a new array that is a clone of a portion of this array. The range is
     exclusive and saturated.
@@ -318,7 +320,7 @@ class Array[A] is Seq[A]
 
     out
 
-  fun permute(indices: Iterator[U64]): Array[this->A!]^ ? =>
+  fun permute(indices: Iterator[USize]): Array[this->A!]^ ? =>
     """
     Permute to an arbitrary order that may include duplicates. An out of bounds
     index raises an error.
@@ -340,7 +342,7 @@ class Array[A] is Seq[A]
     Reverse the array in place.
     """
     if _size > 1 then
-      var i: U64 = 0
+      var i: USize = 0
       var j = _size - 1
 
       while i < j do
@@ -371,9 +373,9 @@ class Array[A] is Seq[A]
     """
     ArrayPairs[A, this->Array[A]](this)
 
-class ArrayKeys[A, B: Array[A] #read] is Iterator[U64]
+class ArrayKeys[A, B: Array[A] #read] is Iterator[USize]
   let _array: B
-  var _i: U64
+  var _i: USize
 
   new create(array: B) =>
     _array = array
@@ -382,7 +384,7 @@ class ArrayKeys[A, B: Array[A] #read] is Iterator[U64]
   fun has_next(): Bool =>
     _i < _array.size()
 
-  fun ref next(): U64 =>
+  fun ref next(): USize =>
     if _i < _array.size() then
       _i = _i + 1
     else
@@ -391,7 +393,7 @@ class ArrayKeys[A, B: Array[A] #read] is Iterator[U64]
 
 class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   let _array: B
-  var _i: U64
+  var _i: USize
 
   new create(array: B) =>
     _array = array
@@ -403,9 +405,9 @@ class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   fun ref next(): B->A ? =>
     _array(_i = _i + 1)
 
-class ArrayPairs[A, B: Array[A] #read] is Iterator[(U64, B->A)]
+class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
   let _array: B
-  var _i: U64
+  var _i: USize
 
   new create(array: B) =>
     _array = array
@@ -414,5 +416,5 @@ class ArrayPairs[A, B: Array[A] #read] is Iterator[(U64, B->A)]
   fun has_next(): Bool =>
     _i < _array.size()
 
-  fun ref next(): (U64, B->A) ? =>
+  fun ref next(): (USize, B->A) ? =>
     (_i, _array(_i = _i + 1))

@@ -915,39 +915,31 @@ bool is_bool(ast_t* type)
 
 bool is_float(ast_t* type)
 {
-  return is_literal(type, "F32") ||
-    is_literal(type, "F64");
+  return is_literal(type, "F32") || is_literal(type, "F64");
 }
 
 bool is_integer(ast_t* type)
 {
-  return is_literal(type, "I8") ||
-    is_literal(type, "I16") ||
-    is_literal(type, "I32") ||
-    is_literal(type, "I64") ||
-    is_literal(type, "I128") ||
-    is_literal(type, "U8") ||
-    is_literal(type, "U16") ||
-    is_literal(type, "U32") ||
-    is_literal(type, "U64") ||
-    is_literal(type, "U128");
-}
-
-bool is_machine_word(ast_t* type)
-{
-  return is_bool(type) ||
+  return
     is_literal(type, "I8") ||
     is_literal(type, "I16") ||
     is_literal(type, "I32") ||
     is_literal(type, "I64") ||
     is_literal(type, "I128") ||
+    is_literal(type, "ILong") ||
+    is_literal(type, "ISize") ||
     is_literal(type, "U8") ||
     is_literal(type, "U16") ||
     is_literal(type, "U32") ||
     is_literal(type, "U64") ||
     is_literal(type, "U128") ||
-    is_literal(type, "F32") ||
-    is_literal(type, "F64");
+    is_literal(type, "ULong") ||
+    is_literal(type, "USize");
+}
+
+bool is_machine_word(ast_t* type)
+{
+  return is_bool(type) || is_integer(type) || is_float(type);
 }
 
 bool is_signed(pass_opt_t* opt, ast_t* type)

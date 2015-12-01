@@ -31,7 +31,7 @@ class _PayloadBuilder
   let _client: Bool
   var _state: _PayloadState
   var _payload: Payload
-  var _content_length: U64 = 0
+  var _content_length: USize = 0
   var _chunked: Bool = false
 
   new request() =>
@@ -169,7 +169,7 @@ class _PayloadBuilder
 
             match key.lower()
             | "content-length" =>
-              _content_length = value.read_int[U64]()._1
+              _content_length = value.read_int[USize]()._1
             | "transfer-encoding" =>
               try
                 value.find("chunked")
@@ -230,7 +230,7 @@ class _PayloadBuilder
       let line = buffer.line()
 
       if line.size() > 0 then
-        _content_length = line.read_int[U64](0, 16)._1
+        _content_length = line.read_int[USize](0, 16)._1
 
         if _content_length > 0 then
           _state = _PayloadChunk

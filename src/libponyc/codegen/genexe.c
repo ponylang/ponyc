@@ -19,63 +19,6 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-
-static bool file_exists(const char* filename)
-{
-  struct stat s;
-  int err = stat(filename, &s);
-
-  return (err != -1) && S_ISREG(s.st_mode);
-}
-
-static const char* crt_directory()
-{
-  static const char* dir[] =
-  {
-    "/usr/lib/x86_64-linux-gnu/",
-    "/usr/lib64/",
-    "/usr/lib/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "crt1.o");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-
-static const char* gccs_directory()
-{
-  static const char* dir[] =
-  {
-    "/lib/x86_64-linux-gnu/",
-    "/lib64/",
-    "/lib/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "libgcc_s.so.1");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-#endif
-
 static bool need_primitive_call(compile_t* c, const char* method)
 {
   size_t i = HASHMAP_BEGIN;
@@ -181,7 +124,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMSetValueName(args[1], "argv");
 
   args[2] = LLVMGetParam(func, 2);
-  LLVMSetValueName(args[1], "envp");
+  LLVMSetValueName(args[2], "envp");
 
   // Initialise the pony runtime with argc and argv, getting a new argc.
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
@@ -197,7 +140,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   LLVMValueRef env_args[4];
   env_args[0] = gencall_alloc(c, env_g);
-  env_args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
+  env_args[1] = args[0];
   env_args[2] = args[1];
   env_args[3] = args[2];
 
@@ -220,7 +163,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   // Allocate the message, setting its size and ID.
   uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
 
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
@@ -330,45 +273,19 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-#ifdef PLATFORM_IS_FREEBSD
   use_path(program, "/usr/local/lib", NULL, NULL);
-#endif
-
-  program_lib_build_args(program, "-L", "-Wl,--start-group ", "-Wl,--end-group ",
-    "-l", "");
+  program_lib_build_args(program, "-L", "-Wl,--start-group ",
+    "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
-  const char* crt_dir = crt_directory();
-  const char* gccs_dir = gccs_directory();
 
-  if((crt_dir == NULL) || (gccs_dir == NULL))
-  {
-    errorf(NULL, "could not find CRT");
-    return false;
-  }
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(lib_args) +
-    strlen(gccs_dir) + (3 * strlen(crt_dir));
+  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
-#if 0
-  snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr --hash-style=gnu "
-#if defined(PLATFORM_IS_LINUX)
-    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-#elif defined(PLATFORM_IS_FREEBSD)
-    "-m elf_x86_64_fbsd "
-#endif
-    "-o %s %scrt1.o %scrti.o %s %s -lponyrt -lpthread "
-#ifdef PLATFORM_IS_LINUX
-    "-ldl "
-#endif
-    "-lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
-    );
+  snprintf(ld_cmd, ld_len, PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " "
+#ifndef PLATFORM_IS_ILP32
+    "-mcx16 "
 #endif
 
-  snprintf(ld_cmd, ld_len,
-    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 "
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif

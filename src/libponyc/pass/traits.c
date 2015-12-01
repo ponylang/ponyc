@@ -298,13 +298,15 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
       const char* b_text = ast_name(sig_b);
 
       for(size_t i = 0; i < a_len; i++)
+      {
         if(a_text[i] != b_text[i])
           return false;
+      }
 
       return true;
     }
 
-    case TK_INT:     return ast_int(sig_a) == ast_int(sig_b);
+    case TK_INT:     return lexint_cmp(ast_int(sig_a), ast_int(sig_b)) == 0;
     case TK_FLOAT:   return ast_float(sig_a) == ast_float(sig_b);
 
     case TK_NOMINAL:

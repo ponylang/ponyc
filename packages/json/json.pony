@@ -10,7 +10,7 @@ type JsonType is (F64 | I64 | Bool | None | String | JsonArray | JsonObject)
 class JsonArray
   var data: Array[JsonType]
 
-  new iso create(len: U64 = 0) =>
+  new iso create(len: USize = 0) =>
     """
     Create an array with zero elements, but space for len elements.
     """
@@ -45,8 +45,8 @@ class JsonArray
 
 class JsonObject
   var data: Map[String, JsonType]
-  
-  new iso create(prealloc: U64 = 6) =>
+
+  new iso create(prealloc: USize = 6) =>
     """
     Create a map with space for prealloc elements without triggering a
     resize. Defaults to 6.
@@ -74,7 +74,7 @@ class JsonObject
       if text.size() > 0 then
         text = text + ","
       end
-      
+
       text = text + "\n" + elem_indent + "\"" + i._1 + "\": " +
         _JsonPrint._string(i._2, elem_indent)
     end

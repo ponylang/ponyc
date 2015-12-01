@@ -25,6 +25,7 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_IF:
+    case TK_IFDEF:
     case TK_WHILE:
     case TK_MATCH:
       // Condition needed, body/else needed only if parent needed.

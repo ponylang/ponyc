@@ -68,7 +68,7 @@ class val URL
       URLEncode.check(fragment)
 
   fun string(fmt: URLFormat = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     """
@@ -133,11 +133,11 @@ class val URL
     // TODO:
     this
 
-  fun ref _parse_scheme(from: String): I64 ? =>
+  fun ref _parse_scheme(from: String): ISize ? =>
     """
     The scheme is: [a-zA-Z][a-zA-Z0-9+-.]*:
     """
-    var i = U64(0)
+    var i = USize(0)
 
     while i < from.size() do
       let c = from(i)
@@ -164,8 +164,8 @@ class val URL
         end
 
         // Otherwise, we have a scheme. Set it and return the offset.
-        scheme = recover from.substring(0, i.i64() - 1).lower_in_place() end
-        return i.i64() + 1
+        scheme = recover from.substring(0, i.isize() - 1).lower_in_place() end
+        return i.isize() + 1
       else
         // Anything else is not a scheme.
         return 0
@@ -175,7 +175,7 @@ class val URL
     // The whole url is a valid scheme. Treat it as a path instead.
     0
 
-  fun ref _parse_authority(from: String, offset: I64): I64 =>
+  fun ref _parse_authority(from: String, offset: ISize): ISize =>
     """
     The authority is: //userinfo@host:port/
     If the leading // isn't present, go straight to the path.
@@ -185,7 +185,7 @@ class val URL
     end
 
     var i = offset + 2
-    let slash = try from.find("/", i) else from.size().i64() end
+    let slash = try from.find("/", i) else from.size().isize() end
 
     try
       let at = from.rfind("@", slash)
@@ -222,7 +222,7 @@ class val URL
 
     slash
 
-  fun ref _parse_path(from: String, offset: I64) =>
+  fun ref _parse_path(from: String, offset: ISize) =>
     """
     The remainder is path[?query][#fragment]
     """

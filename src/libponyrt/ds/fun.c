@@ -75,12 +75,16 @@ uint64_t hash_str(const char* str)
   return siphash24(the_key, str, strlen(str));
 }
 
-uint64_t hash_ptr(const void* p)
+size_t hash_ptr(const void* p)
 {
-  return hash_int((uint64_t)p);
+#ifdef PLATFORM_IS_ILP32
+  return hash_int32((uintptr_t)p);
+#else
+  return hash_int64((uintptr_t)p);
+#endif
 }
 
-uint64_t hash_int(uint64_t key)
+uint64_t hash_int64(uint64_t key)
 {
   key = ~key + (key << 21);
   key = key ^ (key >> 24);
@@ -93,6 +97,26 @@ uint64_t hash_int(uint64_t key)
   return key;
 }
 
+uint32_t hash_int32(uint32_t key)
+{
+  key = ~key + (key << 15);
+  key = key ^ (key >> 12);
+  key = key + (key << 2);
+  key = key ^ (key >> 4);
+  key = (key + (key << 3)) + (key << 11);
+  key = key ^ (key >> 16);
+  return key;
+}
+
+size_t hash_size(size_t key)
+{
+#ifdef PLATFORM_IS_ILP32
+  return hash_int32(key);
+#else
+  return hash_int64(key);
+#endif
+}
+
 size_t next_pow2(size_t i)
 {
   i--;
@@ -102,7 +126,10 @@ size_t next_pow2(size_t i)
   i |= i >> 4;
   i |= i >> 8;
   i |= i >> 16;
+
+#ifndef PLATFORM_IS_ILP32
   i |= i >> 32;
+#endif
 
   return i + 1;
 }

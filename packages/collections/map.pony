@@ -18,10 +18,10 @@ class HashMap[K, V, H: HashFunction[K] val]
   resized map has 2 times the space. The hash function can be plugged in to the
   type to create different kinds of maps.
   """
-  var _size: U64 = 0
+  var _size: USize = 0
   var _array: Array[((K, V) | _MapEmpty | _MapDeleted)]
 
-  new create(prealloc: U64 = 6) =>
+  new create(prealloc: USize = 6) =>
     """
     Create an array with space for prealloc elements without triggering a
     resize. Defaults to 6.
@@ -34,13 +34,13 @@ class HashMap[K, V, H: HashFunction[K] val]
       _array.push(_MapEmpty)
     end
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     The number of items in the map.
     """
     _size
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     The available space in the map. Resize will happen when
     size / space >= 0.75.
@@ -149,7 +149,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     try r.remove(key) end
     r
 
-  fun next_index(prev: U64 = -1): U64 ? =>
+  fun next_index(prev: USize = -1): USize ? =>
     """
     Given an index, return the next index that has a populated key and value.
     Raise an error if there is no next populated index.
@@ -161,7 +161,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
-  fun index(i: U64): (this->K, this->V) ? =>
+  fun index(i: USize): (this->K, this->V) ? =>
     """
     Returns the key and value at a given index.
     Raise an error if the index is not populated.
@@ -195,7 +195,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _size = 0
     // Our default prealloc of 6 corresponds to an array alloc size of 8.
-    let n: U64 = 8
+    let n: USize = 8
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -203,13 +203,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     this
 
-  fun _search(key: box->K!): (U64, Bool) =>
+  fun _search(key: box->K!): (USize, Bool) =>
     """
     Return a slot number and whether or not it's currently occupied.
     """
     var idx_del = _array.size()
     let mask = idx_del - 1
-    let h = H.hash(key)
+    let h = H.hash(key).usize()
     var idx = h and mask
 
     try
@@ -239,7 +239,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     (idx_del, false)
 
-  fun ref _resize(len: U64) =>
+  fun ref _resize(len: USize) =>
     """
     Change the available space.
     """
@@ -286,8 +286,8 @@ class MapKeys[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   An iterator over the keys in a map.
   """
   let _map: M
-  var _i: U64 = -1
-  var _count: U64 = 0
+  var _i: USize = -1
+  var _count: USize = 0
 
   new create(map: M) =>
     """
@@ -317,8 +317,8 @@ class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   An iterator over the values in a map.
   """
   let _map: M
-  var _i: U64 = -1
-  var _count: U64 = 0
+  var _i: USize = -1
+  var _count: USize = 0
 
   new create(map: M) =>
     """
@@ -348,8 +348,8 @@ class MapPairs[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   An iterator over the keys and values in a map.
   """
   let _map: M
-  var _i: U64 = -1
-  var _count: U64 = 0
+  var _i: USize = -1
+  var _count: USize = 0
 
   new create(map: M) =>
     """

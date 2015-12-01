@@ -105,6 +105,61 @@
 #  define PLATFORM_IS_ILP32
 #endif
 
+/** ARM architecture flags.
+ *
+ */
+#if defined(__ARM_ARCH_7__) || \
+    defined(__ARM_ARCH_7R__) || \
+    defined(__ARM_ARCH_7A__)
+# define ARMV7 1
+#endif
+
+#if defined(ARMV7) || \
+    defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_6J__) || \
+    defined(__ARM_ARCH_6K__) || \
+    defined(__ARM_ARCH_6Z__) || \
+    defined(__ARM_ARCH_6T2__) || \
+    defined(__ARM_ARCH_6ZK__)
+# define ARMV6 1
+#endif
+
+#if defined(ARMV6) || \
+    defined(__ARM_ARCH_5T__) || \
+    defined(__ARM_ARCH_5E__) || \
+    defined(__ARM_ARCH_5TE__) || \
+    defined(__ARM_ARCH_5TEJ__)
+# define ARMV5 1
+#endif
+
+#if defined(ARMV5) || \
+    defined(__ARM_ARCH_4__) || \
+    defined(__ARM_ARCH_4T__)
+# define ARMV4 1
+#endif
+
+#if defined(ARMV4) || \
+    defined(__ARM_ARCH_3__) || \
+    defined(__ARM_ARCH_3M__)
+# define ARMV3 1
+#endif
+
+#if defined(ARMV3) || \
+    defined(__ARM_ARCH_2__)
+# define ARMV2 1
+#endif
+
+/** Architecture flags.
+ *
+ */
+#if defined(ARMV2) || defined(__arm__) || defined(__aarch64__)
+# define PLATFORM_IS_ARM
+#elif defined(__i386__) || defined(_M_IX86) || defined(_X86_) || \
+ defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || \
+ defined(_M_AMD64)
+# define PLATFORM_IS_X86
+#endif
+
 /** Data types.
  *
  */
@@ -154,37 +209,26 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
 #  define __pony_popcount(X) __builtin_popcount((X))
-#  define __pony_popcount64(X) __pony_popcount(X)
 #  define __pony_ffs(X) __builtin_ffs((X))
 #  define __pony_ffsl(X) __builtin_ffsl((X))
-#  define __pony_clz(X) __builtin_clz((X))
-#  define __pony_clzl(X) __builtin_clzl((X))
-#  ifdef __clang__
-#    define __pony_rdtsc() __builtin_readcyclecounter()
-#  else
-#    define __pony_rdtsc() __builtin_ia32_rdtsc()
-#  endif
 #else
 #  include <intrin.h>
 #  define __pony_popcount(X) __popcnt((X))
-#  define __pony_popcount64(X) __popcnt64((X))
 
-static __declspec(thread) DWORD lsb;
+inline uint32_t __pony_ffs(uint32_t x)
+{
+  DWORD i = 0;
+  _BitScanForward(&i, x);
+  return i + 1;
+}
 
-#  define __pony_ffs(X) (lsb = 0, _BitScanForward(&lsb, (X)), lsb+1)
-#  define __pony_ffsl(X) (lsb = 0, _BitScanForward64(&lsb, (X)), lsb+1)
-#  define __pony_clz(X) (lsb = 0,_BitScanReverse(&lsb, (X)), lsb)
-#  define __pony_clzl(X) (lsb = 0, _BitScanReverse64(&lsb, (X)), lsb)
-#  define __pony_rdtsc() __rdtsc()
-#endif
+inline uint64_t __pony_ffsl(uint64_t x)
+{
+  DWORD i = 0;
+  _BitScanForward64(&i, x);
+  return i + 1;
+}
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-#  include <malloc.h>
-#  define VLA(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
-            (SIZE)*sizeof(TYPE))
-#endif
-#if defined(PLATFORM_IS_POSIX_BASED) || defined(PLATFORM_IS_CLANG_OR_GCC)
-#  define VLA(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
 /** Storage class modifiers.
@@ -221,21 +265,20 @@ static __declspec(thread) DWORD lsb;
             __builtin_choose_expr(COND, THEN, ELSE)
 #endif
 
+#if defined(PLATFORM_IS_ILP32)
+typedef int64_t dw_t;
+#elif defined(PLATFORM_IS_VISUAL_STUDIO)
+typedef struct dw_t { uint64_t low; int64_t high; } dw_t;
+#else
+typedef __int128_t dw_t;
+#endif
+
 #include "atomics.h"
 #include "threads.h"
 #include "paths.h"
 
 #if defined(PLATFORM_IS_WINDOWS)
 #  include "vcvars.h"
-#endif
-
-#if defined(PLATFORM_IS_VISUAL_STUDIO)
-#  if defined(PONY_USE_BIGINT)
-#    include "int128.h"
-#  else
-     typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;
-     typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;
-#  endif
 #endif
 
 #endif

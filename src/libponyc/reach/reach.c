@@ -21,7 +21,7 @@ static void reachable_method(reachable_method_stack_t** s,
 static void reachable_expr(reachable_method_stack_t** s,
   reachable_types_t* r, ast_t* ast);
 
-static uint64_t reachable_method_hash(reachable_method_t* m)
+static size_t reachable_method_hash(reachable_method_t* m)
 {
   return hash_ptr(m->name);
 }
@@ -42,7 +42,7 @@ DEFINE_HASHMAP(reachable_methods, reachable_method_t, reachable_method_hash,
   reachable_method_cmp, pool_alloc_size, pool_free_size, reachable_method_free
   );
 
-static uint64_t reachable_method_name_hash(reachable_method_name_t* m)
+static size_t reachable_method_name_hash(reachable_method_name_t* m)
 {
   return hash_ptr(m->name);
 }
@@ -63,7 +63,7 @@ DEFINE_HASHMAP(reachable_method_names, reachable_method_name_t,
   reachable_method_name_hash, reachable_method_name_cmp, pool_alloc_size,
   pool_free_size, reachable_method_name_free);
 
-static uint64_t reachable_type_hash(reachable_type_t* t)
+static size_t reachable_type_hash(reachable_type_t* t)
 {
   return hash_ptr(t->name);
 }
@@ -521,6 +521,26 @@ static void reachable_expr(reachable_method_stack_t** s, reachable_types_t* r,
       reachable_addressof(s, r, ast);
       break;
 
+    case TK_IF:
+    {
+      AST_GET_CHILDREN(ast, cond, then_clause, else_clause);
+      assert(ast_id(cond) == TK_SEQ);
+      cond = ast_child(cond);
+
+      if(ast_sibling(cond) == NULL)
+      {
+        if(ast_id(cond) == TK_TRUE)
+        {
+          reachable_expr(s, r, then_clause);
+          return;
+        } else if(ast_id(cond) == TK_FALSE) {
+          reachable_expr(s, r, else_clause);
+          return;
+        }
+      }
+      break;
+    }
+
     default: {}
   }
 
@@ -532,13 +552,6 @@ static void reachable_expr(reachable_method_stack_t** s, reachable_types_t* r,
     reachable_expr(s, r, child);
     child = ast_sibling(child);
   }
-}
-
-static void reachable_body(reachable_method_stack_t** s, reachable_types_t* r,
-  ast_t* fun)
-{
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error, body);
-  reachable_expr(s, r, body);
 }
 
 static void reachable_method(reachable_method_stack_t** s,
@@ -582,7 +595,20 @@ static void handle_stack(reachable_method_stack_t* s, reachable_types_t* r)
   {
     reachable_method_t* m;
     s = reachable_method_stack_pop(s, &m);
-    reachable_body(&s, r, m->r_fun);
+
+    AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
+      body);
+
+    ast_t* param = ast_child(params);
+
+    while(param != NULL)
+    {
+      AST_GET_CHILDREN(param, p_id, p_type);
+      add_type(&s, r, p_type);
+      param = ast_sibling(param);
+    }
+
+    reachable_expr(&s, r, body);
   }
 }
 
@@ -591,27 +617,6 @@ reachable_types_t* reach_new()
   reachable_types_t* r = POOL_ALLOC(reachable_types_t);
   reachable_types_init(r, 64);
   return r;
-}
-
-void reach_primitives(reachable_types_t* r, pass_opt_t* opt, ast_t* from)
-{
-  reachable_method_stack_t* s = NULL;
-
-  add_type(&s, r, type_builtin(opt, from, "Bool"));
-  add_type(&s, r, type_builtin(opt, from, "I8"));
-  add_type(&s, r, type_builtin(opt, from, "I16"));
-  add_type(&s, r, type_builtin(opt, from, "I32"));
-  add_type(&s, r, type_builtin(opt, from, "I64"));
-  add_type(&s, r, type_builtin(opt, from, "I128"));
-  add_type(&s, r, type_builtin(opt, from, "U8"));
-  add_type(&s, r, type_builtin(opt, from, "U16"));
-  add_type(&s, r, type_builtin(opt, from, "U32"));
-  add_type(&s, r, type_builtin(opt, from, "U64"));
-  add_type(&s, r, type_builtin(opt, from, "U128"));
-  add_type(&s, r, type_builtin(opt, from, "F32"));
-  add_type(&s, r, type_builtin(opt, from, "F64"));
-
-  handle_stack(s, r);
 }
 
 void reach_free(reachable_types_t* r)

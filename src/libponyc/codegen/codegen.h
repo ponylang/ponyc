@@ -23,10 +23,14 @@ PONY_EXTERN_C_BEGIN
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
-void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, uint64_t size);
+void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 
 // In case we need to change the internal calling convention.
+#ifdef PLATFORM_IS_ARM
+#define GEN_CALLCONV LLVMCCallConv
+#else
 #define GEN_CALLCONV LLVMFastCallConv
+#endif
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -66,11 +70,15 @@ typedef struct compile_t
   const char* str_I32;
   const char* str_I64;
   const char* str_I128;
+  const char* str_ILong;
+  const char* str_ISize;
   const char* str_U8;
   const char* str_U16;
   const char* str_U32;
   const char* str_U64;
   const char* str_U128;
+  const char* str_ULong;
+  const char* str_USize;
   const char* str_F32;
   const char* str_F64;
   const char* str_Pointer;

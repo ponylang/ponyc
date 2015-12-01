@@ -14,14 +14,14 @@ trait tag _Group
     """
     The specified test has completed.
     """
-    
+
 actor _ExclusiveGroup is _Group
   """
   Test group in which we only ever have one test running at a time.
   """
 
   let _tests: Array[_TestRunner] = Array[_TestRunner]
-  var _next: U64 = 0
+  var _next: USize = 0
   var _in_test:Bool = false
 
   be apply(runner: _TestRunner) =>
@@ -47,7 +47,7 @@ actor _ExclusiveGroup is _Group
       end
     end
 
-    
+
 actor _SimultaneousGroup is _Group
   """
   Test group in which all tests can run concurrently.

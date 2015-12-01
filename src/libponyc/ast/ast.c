@@ -311,7 +311,9 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
   assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
-  token_set_int(t, value);
+
+  lexint_t lexint = {value, 0};
+  token_set_int(t, &lexint);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -513,7 +515,7 @@ double ast_float(ast_t* ast)
   return token_float(ast->t);
 }
 
-__uint128_t ast_int(ast_t* ast)
+lexint_t* ast_int(ast_t* ast)
 {
   assert(ast != NULL);
   return token_int(ast->t);

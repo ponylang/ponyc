@@ -1,4 +1,4 @@
-class Reverse[A: (Real[A] val & Number) = U64] is Iterator[A]
+class Reverse[A: (Real[A] val & Number) = USize] is Iterator[A]
   """
   Produces [max, min].
   """

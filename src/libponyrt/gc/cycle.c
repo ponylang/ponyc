@@ -35,7 +35,7 @@ typedef struct viewref_t
   size_t rc;
 } viewref_t;
 
-static uint64_t viewref_hash(viewref_t* vref)
+static size_t viewref_hash(viewref_t* vref)
 {
   return hash_ptr(vref->view);
 }
@@ -77,7 +77,7 @@ struct view_t
   perceived_t* perceived;
 };
 
-static uint64_t view_hash(view_t* view)
+static size_t view_hash(view_t* view)
 {
   return hash_ptr(view->actor);
 }
@@ -111,9 +111,9 @@ struct perceived_t
   viewmap_t map;
 };
 
-static uint64_t perceived_hash(perceived_t* per)
+static size_t perceived_hash(perceived_t* per)
 {
-  return hash_int(per->token);
+  return hash_size(per->token);
 }
 
 static bool perceived_cmp(perceived_t* a, perceived_t* b)
@@ -690,7 +690,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
 
 static void dump_view(view_t* view)
 {
-  printf("%p: %lu (%s)\n",
+  printf("%p: "__zu" (%s)\n",
     view->actor, view->rc, view->blocked ? "blocked" : "unblocked");
 
   size_t i = HASHMAP_BEGIN;
@@ -698,7 +698,7 @@ static void dump_view(view_t* view)
 
   while((p = viewrefmap_next(&view->map, &i)) != NULL)
   {
-    printf("\t%p: %lu\n", p->view->actor, p->rc);
+    printf("\t%p: "__zu"\n", p->view->actor, p->rc);
   }
 }
 
@@ -815,9 +815,9 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
   actor_setsystem(cycle_detector);
 
   detector_t* d = (detector_t*)cycle_detector;
-  d->min_deferred = 1ULL << min_deferred;
-  d->max_deferred = 1ULL << max_deferred;
-  d->conf_group = 1ULL << conf_group;
+  d->min_deferred = (size_t)1 << (size_t)min_deferred;
+  d->max_deferred = (size_t)1 << (size_t)max_deferred;
+  d->conf_group = (size_t)1 << (size_t)conf_group;
   d->next_deferred = min_deferred;
 }
 

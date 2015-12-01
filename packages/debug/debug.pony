@@ -12,7 +12,7 @@ primitive Debug
     If platform is debug configured, print a stringable. The default output
     stream is stdout.
     """
-    if Platform.debug() then
+    ifdef debug then
       _print(msg.string(), stream)
     end
 
@@ -23,7 +23,7 @@ primitive Debug
     If platform is debug configured, print a sequence of stringables. The
     default separator is ", ", and the default output stream is stdout.
     """
-    if Platform.debug() then
+    ifdef debug then
       _print(sep.join(msg), stream)
     end
 
@@ -40,7 +40,7 @@ primitive Debug
     _print(msg.string(), DebugErr)
 
   fun _print(msg: String, stream: DebugStream) =>
-    if Platform.debug() then
+    ifdef debug then
       try
         @fprintf[I32](_stream(stream), "%s\n".cstring(), msg.cstring())
       end

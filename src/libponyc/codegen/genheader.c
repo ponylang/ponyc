@@ -23,6 +23,10 @@ static const char* c_type_name(compile_t* c, const char* name)
     return "int64_t";
   else if(name == c->str_I128)
     return "__int128_t";
+  else if(name == c->str_ILong)
+    return "long";
+  else if(name == c->str_ISize)
+    return "ssize_t";
   else if(name == c->str_U8)
     return "char";
   else if(name == c->str_U16)
@@ -33,6 +37,10 @@ static const char* c_type_name(compile_t* c, const char* name)
     return "uint64_t";
   else if(name == c->str_U128)
     return "__uint128_t";
+  else if(name == c->str_ULong)
+    return "unsigned long";
+  else if(name == c->str_USize)
+    return "size_t";
   else if(name == c->str_F32)
     return "float";
   else if(name == c->str_F64)

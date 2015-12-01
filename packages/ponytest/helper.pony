@@ -135,7 +135,7 @@ class val TestHelper
       true
     end
 
-  fun assert_is(expect: Any, actual: Any, msg: String = "") ? =>
+  fun assert_is[A](expect: A, actual: A, msg: String = "") ? =>
     """
     Assert that the 2 given expressions resolve to the same instance
     """
@@ -145,7 +145,7 @@ class val TestHelper
       error
     end
 
-  fun expect_is(expect: Any, actual: Any, msg: String = ""): Bool =>
+  fun expect_is[A](expect: A, actual: A, msg: String = ""): Bool =>
     """
     Expect that the 2 given expressions resolve to the same instance
     """
@@ -217,7 +217,7 @@ class val TestHelper
       ok = false
     else
       try
-        var i: U64 = 0
+        var i: USize = 0
         while i < expect.size() do
           if expect(i) != actual(i) then
             ok = false

@@ -7,6 +7,21 @@
 #define _Unwind_GetIP(X) X->ControlPc
 #endif
 
+typedef struct lsda_t
+{
+  uintptr_t region_start;
+  uintptr_t ip;
+  uintptr_t ip_offset;
+  uintptr_t landing_pads;
+
+  const uint8_t* type_table;
+  const uint8_t* call_site_table;
+  const uint8_t* action_table;
+
+  uint8_t type_table_encoding;
+  uint8_t call_site_encoding;
+} lsda_t;
+
 enum
 {
   DW_EH_PE_absptr = 0x00,
@@ -94,7 +109,7 @@ static uintptr_t read_encoded_ptr(const uint8_t** data, uint8_t encoding)
       break;
 
     case DW_EH_PE_udata8:
-      result = *((uint64_t*)p);
+      result = (uintptr_t)*((uint64_t*)p);
       p += sizeof(uint64_t);
       break;
 
@@ -109,7 +124,7 @@ static uintptr_t read_encoded_ptr(const uint8_t** data, uint8_t encoding)
       break;
 
     case DW_EH_PE_sdata8:
-      result = *((int64_t*)p);
+      result = (uintptr_t)*((int64_t*)p);
       p += sizeof(int64_t);
       break;
 
@@ -168,7 +183,7 @@ static uintptr_t read_with_encoding(const uint8_t** data, uintptr_t def)
   return result;
 }
 
-bool lsda_init(lsda_t* lsda, exception_context_t* context)
+static bool lsda_init(lsda_t* lsda, exception_context_t* context)
 {
   const uint8_t* data =
     (const uint8_t*)_Unwind_GetLanguageSpecificData(context);
@@ -201,33 +216,36 @@ bool lsda_init(lsda_t* lsda, exception_context_t* context)
   return true;
 }
 
-_Unwind_Reason_Code lsda_scan(lsda_t* lsda, _Unwind_Action actions,
-  uintptr_t* lp)
+bool lsda_scan(exception_context_t* context, uintptr_t* lp)
 {
-  (void)actions;
-  const uint8_t* p = lsda->call_site_table;
+  lsda_t lsda;
 
-  while(p < lsda->action_table)
+  if(!lsda_init(&lsda, context))
+    return false;
+
+  const uint8_t* p = lsda.call_site_table;
+
+  while(p < lsda.action_table)
   {
-    uintptr_t start = read_encoded_ptr(&p, lsda->call_site_encoding);
-    uintptr_t length = read_encoded_ptr(&p, lsda->call_site_encoding);
-    uintptr_t landing_pad = read_encoded_ptr(&p, lsda->call_site_encoding);
+    uintptr_t start = read_encoded_ptr(&p, lsda.call_site_encoding);
+    uintptr_t length = read_encoded_ptr(&p, lsda.call_site_encoding);
+    uintptr_t landing_pad = read_encoded_ptr(&p, lsda.call_site_encoding);
 
     // Pony ignores the action index, since it uses only cleanup landing pads.
     read_uleb128(&p);
 
-    if((start <= lsda->ip_offset) && (lsda->ip_offset < (start + length)))
+    if((start <= lsda.ip_offset) && (lsda.ip_offset < (start + length)))
     {
       // No landing pad.
       if(landing_pad == 0)
-        return _URC_CONTINUE_UNWIND;
+        return false;
 
       // Pony doesn't read the type index or look up types. We treat cleanup
       // landing pads the same as any other landing pad.
-      *lp = lsda->landing_pads + landing_pad;
-      return _URC_HANDLER_FOUND;
+      *lp = lsda.landing_pads + landing_pad;
+      return true;
     }
   }
 
-  return _URC_CONTINUE_UNWIND;
+  return false;
 }

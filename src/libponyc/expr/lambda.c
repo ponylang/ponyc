@@ -1,6 +1,7 @@
 #include "lambda.h"
 #include "../ast/astbuild.h"
 #include "../pass/pass.h"
+#include "../pass/expr.h"
 #include "../type/sanitise.h"
 #include <assert.h>
 
@@ -58,6 +59,9 @@ static ast_t* make_capture_field(ast_t* capture)
       type = ast_type(value);
     }
   }
+
+  if(is_typecheck_error(type))
+    return NULL;
 
   type = sanitise_type(type);
 

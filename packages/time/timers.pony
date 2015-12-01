@@ -1,17 +1,23 @@
 use "collections"
 
+use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
+use @asio_event_unsubscribe[None](event: AsioEventID)
+use @asio_event_destroy[None](event: AsioEventID)
+
 actor Timers
   """
   A hierarchical set of timing wheels.
   """
   var _current: U64 = 0
-  let _slop: U64
+  let _slop: USize
   let _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
   let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
   let _pending: List[Timer] = List[Timer]
   var _event: AsioEventID = AsioEvent.none()
 
-  new create(slop: U64 = 20) =>
+  new create(slop: USize = 20) =>
     """
     Create a timer handler with the specified number of slop bits. No slop bits
     means trying for nanosecond resolution. 10 slop bits is approximately
@@ -46,7 +52,7 @@ actor Timers
 
       if (_map.size() == 0) and (not _event.is_null()) then
         // Unsubscribe an existing event.
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     end
@@ -61,16 +67,16 @@ actor Timers
     _map.clear()
 
     if not _event.is_null() then
-      @asio_event_unsubscribe[None](_event)
+      @asio_event_unsubscribe(_event)
       _event = AsioEvent.none()
     end
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     When the event fires, advance the timing wheels.
     """
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](event)
+      @asio_event_destroy(event)
     elseif event is _event then
       _advance()
     end
@@ -101,15 +107,15 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @asio_event_create[AsioEventID](this, nsec, U32(4), true)
+        _event = @asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
       end
     else
       if nsec != -1 then
         // Update an existing event.
-        @asio_event_update[None](_event, nsec)
+        @asio_event_setnsec(_event, nsec)
       else
         // Unsubscribe an existing event.
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     end
@@ -146,7 +152,7 @@ actor Timers
     end
 
     if next != -1 then
-      next = next << _slop
+      next = next << _slop.u64()
     end
 
     next
@@ -156,7 +162,7 @@ actor Timers
     Set the current time with precision reduced by the slop bits. Return the
     elapsed time.
     """
-    let previous = _current = Time.nanos() >> _slop
+    let previous = _current = Time.nanos() >> _slop.u64()
     _current - previous
 
   fun ref _get_wheel(rem: U64): _TimingWheel ? =>
@@ -164,7 +170,7 @@ actor Timers
     Get the hierarchical timing wheel for the given time until expiration.
     """
     let t = rem.min(_expiration_max())
-    let i = ((t.bitwidth() - t.clz()) - 1) / _bits()
+    let i = ((t.bitwidth() - t.clz()) - 1).usize() / _bits()
     _wheel(i)
 
   fun tag _expiration_max(): U64 =>
@@ -172,7 +178,7 @@ actor Timers
     Get the maximum time the timing wheels cover. Anything beyond this is
     scheduled on the last timing wheel.
     """
-    (1 << (_wheels() * _bits())) - 1
+    ((1 << (_wheels() * _bits())) - 1).u64()
 
-  fun tag _wheels(): U64 => 4
-  fun tag _bits(): U64 => 6
+  fun tag _wheels(): USize => 4
+  fun tag _bits(): USize => 6

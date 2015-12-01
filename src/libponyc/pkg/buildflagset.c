@@ -19,6 +19,14 @@ static const char* _os_flags[] =
   NULL  // Terminator.
 };
 
+static const char* _arch_flags[] =
+{
+  OS_X86_NAME,
+  OS_ARM_NAME,
+  "unknown_arch",
+  NULL  // Terminator.
+};
+
 static const char* _size_flags[] =
 {
   OS_LP64_NAME,
@@ -31,10 +39,10 @@ static const char* _size_flags[] =
 static bool _stringtabed = false;
 
 
-// Replace all the strings in the _os_flags and _size_flags arrays with
-// stringtab'ed versions the first time this is called.
+// Replace all the strings in the _os_flags, _arch_flags and _size_flags
+// arrays with stringtab'ed versions the first time this is called.
 // This method of initialisatino is obviously not at all concurrency safe, but
-// in works with unit tests trivially.
+// it works with unit tests trivially.
 static void stringtab_mutexgroups()
 {
   if(_stringtabed)
@@ -42,6 +50,9 @@ static void stringtab_mutexgroups()
 
   for(size_t i = 0; _os_flags[i] != NULL; i++)
     _os_flags[i] = stringtab(_os_flags[i]);
+
+  for(size_t i = 0; _arch_flags[i] != NULL; i++)
+    _arch_flags[i] = stringtab(_arch_flags[i]);
 
   for(size_t i = 0; _size_flags[i] != NULL; i++)
     _size_flags[i] = stringtab(_size_flags[i]);
@@ -58,7 +69,7 @@ typedef struct flag_t
 
 
 // Functions required for our hash table type.
-static uint64_t flag_hash(flag_t* flag)
+static size_t flag_hash(flag_t* flag)
 {
   assert(flag != NULL);
   return hash_ptr(flag->name);
@@ -95,11 +106,13 @@ DEFINE_HASHMAP(flagtab, flag_t, flag_hash, flag_cmp, pool_alloc_size,
 struct buildflagset_t
 {
   bool have_os_flags;
+  bool have_arch_flags;
   bool have_size_flags;
   bool started_enum;
   bool first_config_ready;
   flagtab_t* flags;
   uint32_t enum_os_flags;
+  uint32_t enum_arch_flags;
   uint32_t enum_size_flags;
   char* text_buffer;    // Buffer for printing config.
   size_t buffer_size;   // Size allocated for text_buffer.
@@ -112,6 +125,7 @@ buildflagset_t* buildflagset_create()
   assert(p != NULL);
 
   p->have_os_flags = false;
+  p->have_arch_flags = false;
   p->have_size_flags = false;
   p->started_enum = false;
   p->flags = POOL_ALLOC(flagtab_t);
@@ -155,8 +169,25 @@ static ssize_t os_index(const char* flag)
 }
 
 
+// Determine the index of the given arch flag, if it is one.
+// Returns: index of flag into _arch_flags array, or <0 if not an arch flag.
+static ssize_t arch_index(const char* flag)
+{
+  assert(flag != NULL);
+
+  stringtab_mutexgroups();
+
+  for(size_t i = 0; _arch_flags[i] != NULL; i++)
+    if(flag == _arch_flags[i])  // Match found.
+      return i;
+
+  // Match not found.
+  return -1;
+}
+
+
 // Determine the index of the given size flag, if it is one.
-// Returns: index of flag into _size_flags array, or <0 if not an OS flag.
+// Returns: index of flag into _size_flags array, or <0 if not a size flag.
 static ssize_t size_index(const char* flag)
 {
   assert(flag != NULL);
@@ -184,6 +215,13 @@ void buildflagset_add(buildflagset_t* set, const char* flag)
   {
     // OS flag.
     set->have_os_flags = true;
+    return;
+  }
+
+  if(arch_index(flag) >= 0)
+  {
+    // Arch flag.
+    set->have_arch_flags = true;
     return;
   }
 
@@ -223,6 +261,15 @@ double buildflagset_configcount(buildflagset_t* set)
     r *= count;
   }
 
+  if(set->have_arch_flags)
+  {
+    int count = 0;
+    while(_arch_flags[count] != NULL)
+      count++;
+
+    r *= count;
+  }
+
   if(set->have_size_flags)
   {
     int count = 0;
@@ -252,6 +299,7 @@ void buildflagset_startenum(buildflagset_t* set)
 
   // Start with all flags false.
   set->enum_os_flags = 0;
+  set->enum_arch_flags = 0;
   set->enum_size_flags = 0;
 
   size_t i = HASHMAP_BEGIN;
@@ -284,6 +332,17 @@ bool buildflagset_next(buildflagset_t* set)
       return true;
 
     set->enum_os_flags = 0;
+  }
+
+  if(set->have_arch_flags)
+  {
+    // Overflow to the arch flags.
+    set->enum_arch_flags++;
+
+    if(_arch_flags[set->enum_arch_flags] != NULL)
+      return true;
+
+    set->enum_arch_flags = 0;
   }
 
   if(set->have_size_flags)
@@ -330,12 +389,17 @@ bool buildflagset_get(buildflagset_t* set, const char* flag)
   ssize_t index = os_index(flag);
 
   if(index >= 0)  // OS platform flag.
-    return set->enum_os_flags == index;
+    return set->enum_os_flags == (uint32_t)index;
+
+  index = arch_index(flag);
+
+  if(index >= 0)  // Arch platform flag.
+    return set->enum_arch_flags == (uint32_t)index;
 
   index = size_index(flag);
 
   if(index >= 0)  // Size platform flag.
-    return set->enum_size_flags == index;
+    return set->enum_size_flags == (uint32_t)index;
 
   // Just a normal flag.
   flag_t f1 = {flag, false};
@@ -399,6 +463,9 @@ const char* buildflagset_print(buildflagset_t* set)
   if(set->have_os_flags)
     print_flag(_os_flags[set->enum_os_flags], true, set, &p);
 
+  if(set->have_arch_flags)
+    print_flag(_arch_flags[set->enum_arch_flags], true, set, &p);
+
   if(set->have_size_flags)
     print_flag(_size_flags[set->enum_size_flags], true, set, &p);
 
@@ -446,7 +513,7 @@ bool define_build_flag(const char* name)
     _user_flags = POOL_ALLOC(flagtab_t);
     flagtab_init(_user_flags, 8);
   }
-  
+
   flag_t f1 = {stringtab(name), false};
   flag_t* f2 = flagtab_get(_user_flags, &f1);
 
@@ -466,7 +533,7 @@ bool is_build_flag_defined(const char* name)
   if(_user_flags == NULL)
     // Table is not initialised, so no flags are defined.
     return false;
-  
+
   flag_t f1 = { stringtab(name), false };
   flag_t* f2 = flagtab_get(_user_flags, &f1);
 

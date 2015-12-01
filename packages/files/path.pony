@@ -16,20 +16,24 @@ primitive Path
     """
     Determine if a byte is a path separator.
     """
-    (c == '/') or (Platform.windows() and (c == '\\'))
+    ifdef windows then
+      (c == '/') or (c == '\\')
+    else
+      c == '/'
+    end
 
   fun sep(): String =>
     """
     Return the path separator as a string.
     """
-    if Platform.windows() then "\\" else "/" end
+    ifdef windows then "\\" else "/" end
 
   fun is_abs(path: String): Bool =>
     """
     Return true if the path is an absolute path.
     """
     try
-      if Platform.windows() then
+      ifdef windows then
         is_sep(path(0)) or _drive_letter(path)
       else
         is_sep(path(0))
@@ -77,7 +81,7 @@ primitive Path
 
     var state: _PathState = _PathOther
     var i = vol.size()
-    var backtrack = I64(-1)
+    var backtrack = ISize(-1)
     let n = path.size()
 
     try
@@ -91,7 +95,7 @@ primitive Path
         i = i + 1
         state = _PathDot
       else
-        backtrack = s.size().i64()
+        backtrack = s.size().isize()
       end
 
       while i < n do
@@ -109,14 +113,17 @@ primitive Path
               try
                 backtrack = s.rfind(sep()) + 1
               else
-                backtrack = vol.size().i64()
+                backtrack = vol.size().isize()
               end
 
               if
                 (s.size() == 0) or
                 (s.compare_sub("../", 3, backtrack) is Equal) or
-                (Platform.windows() and
-                  (s.compare_sub("..\\", 3, backtrack) is Equal))
+                ifdef windows then
+                  s.compare_sub("..\\", 3, backtrack) is Equal
+                else
+                  true
+                end
               then
                 backtrack = -1
               end
@@ -132,7 +139,7 @@ primitive Path
           | _PathDot =>
             state = _PathDot2
           | _PathDot2 =>
-            backtrack = s.size().i64()
+            backtrack = s.size().isize()
             s.append("...")
             state = _PathOther
           | _PathOther =>
@@ -141,12 +148,12 @@ primitive Path
         else
           match state
           | _PathSep =>
-            backtrack = s.size().i64()
+            backtrack = s.size().isize()
           | _PathDot =>
-            backtrack = s.size().i64()
+            backtrack = s.size().isize()
             s.append(".")
           | _PathDot2 =>
-            backtrack = s.size().i64()
+            backtrack = s.size().isize()
             s.append("..")
           end
           s.push(c)
@@ -207,9 +214,9 @@ primitive Path
       return "."
     end
 
-    var to_i: I64 = 0
+    var to_i: ISize = 0
 
-    if Platform.windows() then
+    ifdef windows then
       to_clean = abs(to_clean)
       target_clean = abs(target_clean)
 
@@ -220,7 +227,7 @@ primitive Path
         error
       end
 
-      to_i = to_vol.size().i64()
+      to_i = to_vol.size().isize()
     end
 
     var to_0 = to_i
@@ -231,27 +238,27 @@ primitive Path
       to_i = try
         to_clean.find(sep(), to_i)
       else
-        to_clean.size().i64()
+        to_clean.size().isize()
       end
 
       target_i = try
         target_clean.find(sep(), target_i)
       else
-        target_clean.size().i64()
+        target_clean.size().isize()
       end
 
       if
         (to_i != target_i) or
-        (to_clean.compare_sub(target_clean, target_i.u64()) isnt Equal)
+        (to_clean.compare_sub(target_clean, target_i.usize()) isnt Equal)
       then
         break
       end
 
-      if to_i < to_clean.size().i64() then
+      if to_i < to_clean.size().isize() then
         to_i = to_i + 1
       end
 
-      if target_i < target_clean.size().i64() then
+      if target_i < target_clean.size().isize() then
         target_i = target_i + 1
       end
 
@@ -266,7 +273,7 @@ primitive Path
       error
     end
 
-    if to_0.u64() != to_clean.size() then
+    if to_0.usize() != to_clean.size() then
       var result = recover String end
 
       try
@@ -334,8 +341,8 @@ primitive Path
     On Windows, this returns the drive letter or UNC base at the beginning of
     the path, if there is one. Otherwise, this returns an empty string.
     """
-    if Platform.windows() then
-      var offset = I64(0)
+    ifdef windows then
+      var offset = ISize(0)
 
       if path.compare_sub("""\\?\""", 4) is Equal then
         offset = 4
@@ -360,7 +367,7 @@ primitive Path
     end
     ""
 
-  fun _drive_letter(path: String, offset: I64 = 0): Bool =>
+  fun _drive_letter(path: String, offset: ISize = 0): Bool =>
     """
     Look for a drive letter followed by a ':', returning true if we find it.
     """
@@ -373,7 +380,7 @@ primitive Path
       false
     end
 
-  fun _network_share(path: String, offset: I64 = 0): String =>
+  fun _network_share(path: String, offset: ISize = 0): String =>
     """
     Look for a host, a \, and a resource. Return the path up to that point if
     we found one, otherwise an empty String.
@@ -395,10 +402,10 @@ primitive Path
     """
     Changes each / in the path to the OS specific separator.
     """
-    if Platform.windows() then
+    ifdef windows then
       var s = path.clone()
       var len = s.size()
-      var i = U64(0)
+      var i = USize(0)
 
       try
         while i < len do
@@ -419,10 +426,10 @@ primitive Path
     """
     Changes each OS specific separator in the path to /.
     """
-    if Platform.windows() then
+    ifdef windows then
       var s = path.clone()
       var len = s.size()
-      var i = U64(0)
+      var i = USize(0)
 
       try
         while i < len do
@@ -456,20 +463,20 @@ primitive Path
     """
     Determine if a byte is a path list separator.
     """
-    if Platform.windows() then c == ';' else c == ':' end
+    ifdef windows then c == ';' else c == ':' end
 
   fun list_sep(): String =>
     """
     Return the path list separator as a string.
     """
-    if Platform.windows() then ";" else ":" end
+    ifdef windows then ";" else ":" end
 
   fun split_list(path: String): Array[String] iso^ =>
     """
     Separate a list of paths into an array of cleaned paths.
     """
     var array = recover Array[String] end
-    var offset: I64 = 0
+    var offset: ISize = 0
 
     try
       while true do
