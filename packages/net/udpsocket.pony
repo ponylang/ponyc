@@ -129,7 +129,7 @@ actor UDPSocket
     @os_sockname[Bool](_fd, ip)
     ip
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """
@@ -204,7 +204,7 @@ actor UDPSocket
       end
     end
 
-  fun ref _complete_reads(len: U64) =>
+  fun ref _complete_reads(len: U32) =>
     """
     The OS has informed as that len bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
