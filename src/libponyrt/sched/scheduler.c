@@ -455,7 +455,7 @@ void scheduler_stop()
 
 void scheduler_add(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(ctx != NULL)
+  if(ctx->scheduler != NULL)
   {
     // Add to the current scheduler thread.
     push(ctx->scheduler, actor);
