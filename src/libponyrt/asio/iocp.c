@@ -66,6 +66,7 @@ void asio_backend_terminate(asio_backend_t* b)
 
 DECLARE_THREAD_FN(asio_backend_dispatch)
 {
+  pony_register_thread();
   asio_backend_t* b = (asio_backend_t*)arg;
   asio_event_t* stdin_event = NULL;
   HANDLE handles[2];

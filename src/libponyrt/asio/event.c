@@ -81,5 +81,5 @@ void asio_event_send(asio_event_t* ev, uint32_t flags, uint32_t arg)
   m->flags = flags;
   m->arg = arg;
 
-  pony_sendv(NULL, ev->owner, &m->msg);
+  pony_sendv(pony_ctx(), ev->owner, &m->msg);
 }

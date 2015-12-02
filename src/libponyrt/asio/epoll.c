@@ -58,6 +58,7 @@ void asio_backend_terminate(asio_backend_t* b)
 
 DECLARE_THREAD_FN(asio_backend_dispatch)
 {
+  pony_register_thread();
   asio_backend_t* b = arg;
 
   while(b->epfd != -1)

@@ -65,6 +65,7 @@ static void retry_loop(asio_backend_t* b)
 
 DECLARE_THREAD_FN(asio_backend_dispatch)
 {
+  pony_register_thread();
   asio_backend_t* b = arg;
   struct kevent fired[MAX_EVENTS];
 
