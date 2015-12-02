@@ -83,7 +83,7 @@ class iso _TestBuffer is UnitTest
 
     true
 
-class Ping is UDPNotify
+class _TestPing is UDPNotify
   let _h: TestHelper
   let _ip: IPAddress
 
@@ -118,7 +118,7 @@ class Ping is UDPNotify
     _h.complete(true)
     sock.dispose()
 
-class Pong is UDPNotify
+class _TestPong is UDPNotify
   let _h: TestHelper
 
   new create(h: TestHelper) =>
@@ -130,9 +130,9 @@ class Pong is UDPNotify
       let h = _h
 
       if ip.ip4() then
-        UDPSocket.ip4(recover Ping(h, ip) end)
+        UDPSocket.ip4(recover _TestPing(h, ip) end)
       elseif ip.ip6() then
-        UDPSocket.ip6(recover Ping(h, ip) end)
+        UDPSocket.ip6(recover _TestPing(h, ip) end)
       else
         error
       end
@@ -164,5 +164,5 @@ class iso _TestBroadcast is UnitTest
   fun name(): String => "net/Broadcast"
 
   fun apply(h: TestHelper): TestResult =>
-    UDPSocket(recover Pong(h) end)
+    UDPSocket(recover _TestPong(h) end)
     LongTest
