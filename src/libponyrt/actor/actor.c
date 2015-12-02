@@ -11,9 +11,10 @@
 enum
 {
   FLAG_BLOCKED = 1 << 0,
-  FLAG_SYSTEM = 1 << 1,
-  FLAG_UNSCHEDULED = 1 << 2,
-  FLAG_PENDINGDESTROY = 1 << 3,
+  FLAG_RC_CHANGED = 1 << 1,
+  FLAG_SYSTEM = 1 << 2,
+  FLAG_UNSCHEDULED = 1 << 3,
+  FLAG_PENDINGDESTROY = 1 << 4,
 };
 
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
@@ -32,7 +33,7 @@ static void unset_flag(pony_actor_t* actor, uint8_t flag)
 }
 
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
-  pony_msg_t* msg, bool* notify)
+  pony_msg_t* msg)
 {
   switch(msg->id)
   {
@@ -43,7 +44,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       if(gc_acquire(&actor->gc, (actorref_t*)m->p) &&
         has_flag(actor, FLAG_BLOCKED))
       {
-        *notify = true;
+        // If our rc changes, we have to tell the cycle detector before sending
+        // any CONF messages.
+        set_flag(actor, FLAG_RC_CHANGED);
       }
 
       return false;
@@ -56,7 +59,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       if(gc_release(&actor->gc, (actorref_t*)m->p) &&
         has_flag(actor, FLAG_BLOCKED))
       {
-        *notify = true;
+        // If our rc changes, we have to tell the cycle detector before sending
+        // any CONF messages.
+        set_flag(actor, FLAG_RC_CHANGED);
       }
 
       return false;
@@ -64,9 +69,10 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_CONF:
     {
-      if(*notify)
+      if(has_flag(actor, FLAG_RC_CHANGED))
       {
-        *notify = false;
+        // Send any pending rc change before confirming.
+        unset_flag(actor, FLAG_RC_CHANGED);
         cycle_block(ctx, actor, &actor->gc);
       }
 
@@ -79,9 +85,10 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
     {
       if(has_flag(actor, FLAG_BLOCKED))
       {
-        *notify = false;
+        // Send unblock before continuing. We no longer need to send any
+        // pending rc change to the cycle detector.
+        unset_flag(actor, FLAG_BLOCKED | FLAG_RC_CHANGED);
         cycle_unblock(ctx, actor);
-        unset_flag(actor, FLAG_BLOCKED);
       }
 
       actor->type->dispatch(ctx, actor, msg);
@@ -115,39 +122,47 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 #endif
 }
 
-bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
+bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 {
   ctx->current = actor;
 
   pony_msg_t* msg;
-  bool notify = false;
+  size_t app = 0;
 
-  if(actor->continuation != NULL)
+  while(actor->continuation != NULL)
   {
     msg = actor->continuation;
     actor->continuation = NULL;
-    bool ret = handle_message(ctx, actor, msg, &notify);
+    bool ret = handle_message(ctx, actor, msg);
     pool_free(msg->size, msg);
 
     if(ret)
     {
-      // If we handle an application message, try to gc and then return.
+      // If we handle an application message, try to gc.
+      app++;
       try_gc(ctx, actor);
-      return !has_flag(actor, FLAG_UNSCHEDULED);
+
+      if(app == batch)
+        return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
 
   while((msg = messageq_pop(&actor->q)) != NULL)
   {
-    if(handle_message(ctx, actor, msg, &notify))
+    if(handle_message(ctx, actor, msg))
     {
-      // If we handle an application message, try to gc and then return.
+      // If we handle an application message, try to gc.
+      app++;
       try_gc(ctx, actor);
-      return !has_flag(actor, FLAG_UNSCHEDULED);
+
+      if(app == batch)
+        return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
 
-  // No application messages were in the queue.
+  // We didn't hit our app message batch limit. We now believe our queue to be
+  // empty, but we may have received further messages.
+  assert(app < batch);
   try_gc(ctx, actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
@@ -157,15 +172,18 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
     return false;
   }
 
-  // If we are just now blocking, or we received an acquire or a release
-  // message, tell the cycle detector.
-  if(notify || !has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
+  bool block = messageq_markempty(&actor->q);
+
+  // If we are blocking, tell the cycle detector.
+  if(block && !has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
   {
-    cycle_block(ctx, actor, &actor->gc);
     set_flag(actor, FLAG_BLOCKED);
+    unset_flag(actor, FLAG_RC_CHANGED);
+    cycle_block(ctx, actor, &actor->gc);
   }
 
-  return !messageq_markempty(&actor->q);
+  // Return true (i.e. reschedule immediately) if we didn't block.
+  return !block;
 }
 
 void actor_destroy(pony_actor_t* actor)
@@ -419,7 +437,8 @@ void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
   ctx->current = actor;
 }
 
-bool pony_poll(pony_ctx_t* ctx, pony_actor_t* actor)
+void pony_poll(pony_ctx_t* ctx)
 {
-  return actor_run(ctx, actor);
+  assert(ctx->current != NULL);
+  actor_run(ctx, ctx->current, 1);
 }

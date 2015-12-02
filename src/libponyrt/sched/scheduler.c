@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define SCHED_BATCH 100
+
 static DECLARE_THREAD_FN(run_thread);
 
 typedef enum
@@ -258,7 +260,7 @@ static void run(scheduler_t* sched)
     }
 
     // Run the current actor and get the next actor.
-    bool reschedule = actor_run(&sched->ctx, actor);
+    bool reschedule = actor_run(&sched->ctx, actor, SCHED_BATCH);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -471,6 +473,17 @@ void scheduler_terminate()
 uint32_t scheduler_cores()
 {
   return scheduler_count;
+}
+
+void pony_register_thread()
+{
+  if(this_scheduler != NULL)
+    return;
+
+  // Create a scheduler_t, even though we will only use the pony_ctx_t.
+  this_scheduler = POOL_ALLOC(scheduler_t);
+  memset(this_scheduler, 0, sizeof(scheduler_t));
+  this_scheduler->tid = pony_thread_self();
 }
 
 pony_ctx_t* pony_ctx()

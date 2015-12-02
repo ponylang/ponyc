@@ -30,7 +30,7 @@ typedef struct pony_actor_t
   gc_t gc; // 80 bytes
 } pony_actor_t;
 
-bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor);
+bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
 
 void actor_destroy(pony_actor_t* actor);
 
