@@ -281,6 +281,9 @@ int pony_start(bool library);
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
  * done before calling pony_ctx(), and before calling any Pony code from the
  * thread.
+ *
+ * The thread that calls pony_start() is automatically registered. It's safe,
+ * but not necessary, to call this more than once.
  */
 void pony_register_thread();
 

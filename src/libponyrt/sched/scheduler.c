@@ -425,6 +425,7 @@ bool scheduler_start(bool library)
   if(library)
   {
     start = 0;
+    pony_register_thread();
   } else {
     start = 1;
     scheduler[0].tid = pony_thread_self();
