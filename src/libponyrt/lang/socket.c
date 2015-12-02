@@ -41,10 +41,10 @@ struct addrinfo* os_addrinfo(int family, const char* host,
 
 void os_closesocket(int fd);
 
+// This must match the pony IPAddress type in packages/net.
 typedef struct
 {
   pony_type_t* type;
-  int from_len;
   struct sockaddr_storage addr;
 } ipaddress_t;
 
@@ -125,6 +125,7 @@ typedef struct iocp_t
 {
   OVERLAPPED ov;
   iocp_op_t op;
+  int from_len;
   asio_event_t* ev;
 } iocp_t;
 
@@ -380,10 +381,10 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   buf.buf = data;
   buf.len = (u_long)len;
 
-  ipaddr->from_len = sizeof(ipaddr->addr);
+  iocp->from_len = sizeof(ipaddr->addr);
 
   if(WSARecvFrom(s, &buf, 1, NULL, &flags, (struct sockaddr*)&ipaddr->addr,
-    &ipaddr->from_len, &iocp->ov, NULL) != 0)
+    &iocp->from_len, &iocp->ov, NULL) != 0)
   {
     if(GetLastError() != WSA_IO_PENDING)
     {

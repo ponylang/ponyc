@@ -81,5 +81,11 @@ void asio_event_send(asio_event_t* ev, uint32_t flags, uint32_t arg)
   m->flags = flags;
   m->arg = arg;
 
+#ifdef PLATFORM_IS_WINDOWS
+  // On Windows, this can be called from an IOCP callback thread, which may
+  // not have a pony_ctx() associated with it yet.
+  pony_register_thread();
+#endif
+
   pony_sendv(pony_ctx(), ev->owner, &m->msg);
 }
