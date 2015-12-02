@@ -107,7 +107,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   // If we contain TK_DONTCARE, we have no usable value.
   if(g.primitive == NULL)
-    return GEN_NOVALUE;
+    return GEN_NOTNEEDED;
 
   LLVMValueRef tuple = LLVMGetUndef(g.primitive);
   int i = 0;
@@ -123,7 +123,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // variable declaration. This is ok, since the tuple value will never be
     // used.
     if(value == GEN_NOVALUE)
-      return GEN_NOVALUE;
+      return GEN_NOTNEEDED;
 
     tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
