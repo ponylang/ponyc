@@ -36,9 +36,6 @@ typedef int SOCKET;
 
 PONY_EXTERN_C_BEGIN
 
-struct addrinfo* os_addrinfo(int family, const char* host,
-  const char* service);
-
 void os_closesocket(int fd);
 
 // This must match the pony IPAddress type in packages/net.
@@ -95,6 +92,30 @@ static bool map_any_to_loopback(struct sockaddr* addr)
   }
 
   return false;
+}
+
+static struct addrinfo* os_addrinfo_intern(int family, int socktype,
+  int proto, const char* host, const char* service, bool passive)
+{
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_flags = AI_ADDRCONFIG;
+  hints.ai_family = family;
+  hints.ai_socktype = socktype;
+  hints.ai_protocol = proto;
+
+  if(passive)
+    hints.ai_flags |= AI_PASSIVE;
+
+  if((host != NULL) && (host[0] == '\0'))
+    host = NULL;
+
+  struct addrinfo *result;
+
+  if(getaddrinfo(host, service, &hints, &result) != 0)
+    return NULL;
+
+  return result;
 }
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
@@ -488,7 +509,8 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
 
   if(need_bind)
   {
-    struct addrinfo* result = os_addrinfo(p->ai_family, from, NULL);
+    struct addrinfo* result = os_addrinfo_intern(p->ai_family, 0, 0, from,
+      NULL, false);
     struct addrinfo* lp = result;
     bool bound = false;
 
@@ -550,30 +572,6 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
 #endif
 
   return true;
-}
-
-static struct addrinfo* os_addrinfo_intern(int family, int socktype,
-  int proto, const char* host, const char* service, bool passive)
-{
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_flags = AI_ADDRCONFIG;
-  hints.ai_family = family;
-  hints.ai_socktype = socktype;
-  hints.ai_protocol = proto;
-
-  if(passive)
-    hints.ai_flags |= AI_PASSIVE;
-
-  if((host != NULL) && (host[0] == '\0'))
-    host = NULL;
-
-  struct addrinfo *result;
-
-  if(getaddrinfo(host, service, &hints, &result) != 0)
-    return NULL;
-
-  return result;
 }
 
 /**
@@ -790,6 +788,14 @@ bool os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
 
 struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 {
+  switch(family)
+  {
+    case 0: family = AF_UNSPEC; break;
+    case 1: family = AF_INET; break;
+    case 2: family = AF_INET6; break;
+    default: return NULL;
+  }
+
   return os_addrinfo_intern(family, 0, 0, host, service, true);
 }
 
@@ -1097,7 +1103,7 @@ void os_broadcast(int fd, bool state)
 void os_multicast_interface(int fd, const char* from)
 {
   // Use the first reported address.
-  struct addrinfo* p = os_addrinfo(AF_UNSPEC, from, NULL);
+  struct addrinfo* p = os_addrinfo_intern(AF_UNSPEC, 0, 0, from, NULL, true);
 
   if(p != NULL)
   {
@@ -1127,7 +1133,7 @@ static uint32_t multicast_interface(int family, const char* host)
   if((host == NULL) || (host[0] == '\0'))
     return 0;
 
-  struct addrinfo* p = os_addrinfo(family, host, NULL);
+  struct addrinfo* p = os_addrinfo_intern(family, 0, 0, host, NULL, true);
 
   if(p == NULL)
     return 0;
@@ -1160,7 +1166,7 @@ static uint32_t multicast_interface(int family, const char* host)
 static void multicast_change(int fd, const char* group, const char* to,
   bool join)
 {
-  struct addrinfo* rg = os_addrinfo(AF_UNSPEC, group, NULL);
+  struct addrinfo* rg = os_addrinfo_intern(AF_UNSPEC, 0, 0, group, NULL, true);
 
   if(rg == NULL)
     return;

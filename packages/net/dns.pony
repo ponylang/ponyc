@@ -12,13 +12,13 @@ primitive DNS
     """
     Gets all IPv4 addresses for a host and service.
     """
-    _resolve(2, host, service)
+    _resolve(1, host, service)
 
   fun ip6(host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv6 addresses for a host and service.
     """
-    _resolve(10, host, service)
+    _resolve(2, host, service)
 
   fun broadcast_ip4(service: String): Array[IPAddress] iso^ =>
     """
