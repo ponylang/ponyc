@@ -407,8 +407,9 @@ class File
         _seek(0, 2)
       end
       success
+    else
+      false
     end
-    false
 
   fun info(): FileInfo ? =>
     """
