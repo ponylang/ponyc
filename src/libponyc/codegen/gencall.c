@@ -45,8 +45,8 @@ static LLVMValueRef make_arg(compile_t* c, LLVMTypeRef type, ast_t* arg)
   return gen_assign_cast(c, type, value, ast_type(arg));
 }
 
-static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
-  bool short_circuit, bool has_divmod)
+static bool special_case_operator(compile_t* c, ast_t* ast,
+  LLVMValueRef *value, bool short_circuit, bool native128)
 {
   AST_GET_CHILDREN(ast, positional, named, postfix);
   AST_GET_CHILDREN(postfix, left, method);
@@ -59,11 +59,11 @@ static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
     *value = gen_add(c, left, right);
   else if(name == c->str_sub)
     *value = gen_sub(c, left, right);
-  else if(name == c->str_mul)
+  else if((name == c->str_mul) && native128)
     *value = gen_mul(c, left, right);
-  else if((name == c->str_div) && has_divmod)
+  else if((name == c->str_div) && native128)
     *value = gen_div(c, left, right);
-  else if((name == c->str_mod) && has_divmod)
+  else if((name == c->str_mod) && native128)
     *value = gen_mod(c, left, right);
   else if(name == c->str_neg)
     *value = gen_neg(c, left);

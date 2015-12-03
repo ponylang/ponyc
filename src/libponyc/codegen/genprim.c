@@ -678,11 +678,13 @@ static void number_constructors(compile_t* c)
     {"I16", c->i16},
     {"I32", c->i32},
     {"I64", c->i64},
+    {"I128", c->i128},
 
     {"U8", c->i8},
     {"U16", c->i16},
     {"U32", c->i32},
     {"U64", c->i64},
+    {"U128", c->i128},
 
 #if defined(PLATFORM_IS_ILP32)
     {"ILong", c->i32},
@@ -696,18 +698,12 @@ static void number_constructors(compile_t* c)
 
     {"ISize", c->i64},
     {"USize", c->i64},
-
-    {"I128", c->i128},
-    {"U128", c->i128},
 #elif defined(PLATFORM_IS_LLP64)
     {"ILong", c->i32},
     {"ULong", c->i32},
 
     {"ISize", c->i64},
     {"USize", c->i64},
-
-    {"I128", c->i128},
-    {"U128", c->i128},
 #endif
 
     {"F32", c->f32},
