@@ -844,7 +844,6 @@ static ast_result_t syntax_compile_error(ast_t* ast)
   if(ast_id(reason_seq) != TK_SEQ ||
     ast_id(ast_child(reason_seq)) != TK_STRING)
   {
-    ast_print(ast);
     ast_error(ast,
       "a compile error must have a string literal reason for the error");
     return AST_ERROR;

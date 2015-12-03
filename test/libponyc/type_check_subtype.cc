@@ -1,362 +1,772 @@
 #include <gtest/gtest.h>
 #include <platform.h>
-
 #include <type/subtype.h>
-
 #include "util.h"
-#include <stdio.h>
 
-
-static const char* src =
-  "trait T1\n"
-  "  fun f()\n"
-
-  "trait T1b\n"
-  "  fun f()\n"
-
-  "trait T2\n"
-  "  fun g()\n"
-
-  "trait T3 is (T1 & T2)\n"
-
-  "interface I1\n"
-  "  fun f()\n"
-
-  "interface I1b\n"
-  "  fun f()\n"
-
-  "interface I2\n"
-  "  fun g()\n"
-
-  "interface I3\n"
-  "  fun f()\n"
-  "  fun g()\n"
-
-  "class C1 is T1\n"
-  "  fun f() => None\n"
-
-  "class C2 is T2\n"
-  "  fun g() => None\n"
-
-  "class C3 is T3\n"
-  "  fun f() => None\n"
-  "  fun g() => None\n"
-
-  "primitive P1\n"
-
-  "primitive P2 is T2\n"
-  "  fun g() => None";
-
+#define TEST_COMPILE(src) DO(test_compile(src, "expr"))
 
 class SubTypeTest: public PassTest
-{
-protected:
-  void test_unary(bool (*fn)(ast_t*), const char* type, bool expect)
-  {
-    ASSERT_NE((void*)NULL, fn);
-    ASSERT_NE((void*)NULL, type);
-
-    DO(generate_types(src, type));
-    ASSERT_EQ(expect, fn(prog_type_1));
-    TearDown();
-  }
-
-  void test_binary(bool(*fn)(ast_t*, ast_t*), const char* type_a,
-    const char* type_b, bool expect)
-  {
-    ASSERT_NE((void*)NULL, fn);
-    ASSERT_NE((void*)NULL, type_a);
-    ASSERT_NE((void*)NULL, type_b);
-
-    DO(generate_types(src, type_a, type_b));
-    ASSERT_EQ(expect, fn(prog_type_1, prog_type_2));
-    TearDown();
-  }
-};
+{};
 
 
 // TODO: is_literal, is_constructable, is_known
 
-TEST_F(SubTypeTest, IsSubType)
+
+TEST_F(SubTypeTest, IsSubTypeClassTrait)
 {
-  // class, trait
-  DO(test_binary(is_subtype, "C1", "T1", true));
-  DO(test_binary(is_subtype, "C1", "T2", false));
-  DO(test_binary(is_subtype, "C1", "T3", false));
-  DO(test_binary(is_subtype, "C3", "T1", true));
-  DO(test_binary(is_subtype, "C3", "T2", true));
-  DO(test_binary(is_subtype, "C3", "T3", true));
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
 
-  // class, interface
-  DO(test_binary(is_subtype, "C1", "I1", true));
-  DO(test_binary(is_subtype, "C1", "I2", false));
-  DO(test_binary(is_subtype, "C1", "I3", false));
-  DO(test_binary(is_subtype, "C3", "I1", true));
-  DO(test_binary(is_subtype, "C3", "I2", true));
-  DO(test_binary(is_subtype, "C3", "I3", true));
+    "trait T2\n"
+    "  fun g()\n"
 
-  // class, class
-  DO(test_binary(is_subtype, "C1", "C1", true));
-  DO(test_binary(is_subtype, "C1", "C3", false));
-  DO(test_binary(is_subtype, "C3", "C1", false));
+    "trait T3 is (T1 & T2)\n"
 
-  // trait, trait
-  DO(test_binary(is_subtype, "T1", "T1", true));
-  DO(test_binary(is_subtype, "T1", "T3", false));
-  DO(test_binary(is_subtype, "T3", "T1", true));
-  DO(test_binary(is_subtype, "T1", "T1b", false));
-  DO(test_binary(is_subtype, "T1b", "T1", false));
+    "class C1 is T1\n"
+    "  fun f() => None\n"
 
-  // interface, interface
-  DO(test_binary(is_subtype, "I1", "I1", true));
-  DO(test_binary(is_subtype, "I1", "I3", false));
-  DO(test_binary(is_subtype, "I3", "I1", true));
-  DO(test_binary(is_subtype, "I1", "I1b", true));
-  DO(test_binary(is_subtype, "I1b", "I1", true));
+    "class C3 is T3\n"
+    "  fun f() => None\n"
+    "  fun g() => None\n"
 
-  // trait, interface
-  DO(test_binary(is_subtype, "T1", "I1", true));
-  DO(test_binary(is_subtype, "T1", "I2", false));
-  DO(test_binary(is_subtype, "I1", "T1", false));
+    "interface Test\n"
+    "  fun z(c1: C1, c3: C3, t1: T1, t2: T2, t3: T3)";
 
-  // primitive, primitive
-  DO(test_binary(is_subtype, "P1", "P1", true));
-  DO(test_binary(is_subtype, "P1", "P2", false));
-  DO(test_binary(is_subtype, "P2", "P1", false));
+  TEST_COMPILE(src);
 
-  // primitive, trait
-  DO(test_binary(is_subtype, "P1", "T1 box", false));
-  DO(test_binary(is_subtype, "P1", "T2 box", false));
-  DO(test_binary(is_subtype, "P2", "T1 box", false));
-  DO(test_binary(is_subtype, "P2", "T2 box", true));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t2")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t3")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t2")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t3")));
+}
 
-  // union
-  DO(test_binary(is_subtype, "C1", "(C1 | C2)", true));
-  DO(test_binary(is_subtype, "C2", "(C1 | C2)", true));
-  DO(test_binary(is_subtype, "C3", "(C1 | C2)", false));
-  DO(test_binary(is_subtype, "(C1 | C2)", "C1", false));
-  DO(test_binary(is_subtype, "(C1 | C2)", "(C1 | C2)", true));
-  DO(test_binary(is_subtype, "C1", "(T1 | T2)", true));
-  DO(test_binary(is_subtype, "T1", "(C1 | C2)", false));
 
-  // intersect
-  DO(test_binary(is_subtype, "T1", "(T1 & T2)", false));
-  DO(test_binary(is_subtype, "C1", "(T1 & T2)", false));
-  DO(test_binary(is_subtype, "T3", "(T1 & T2)", true));
-  DO(test_binary(is_subtype, "C3", "(T1 & T2)", true));
-  DO(test_binary(is_subtype, "(T1 & T2)", "(T1 & T2)", true));
-  DO(test_binary(is_subtype, "(T1 & T2)", "C3", false));
+TEST_F(SubTypeTest, IsSubTypeClassInterface)
+{
+  const char* src =
+    "interface I1\n"
+    "  fun f()\n"
 
-  // subtype is intersect of non-independent and combinable types
-  // TODO: fix these
-  //DO(test_binary(is_subtype, "(I1 & I2)", "I3", true));
-  //DO(test_binary(is_subtype, "((C1 | C2) & (C1 | C3))", "C1", true));
+    "interface I2\n"
+    "  fun g()\n"
 
-  // tuple
-  DO(test_binary(is_subtype, "T1", "(T1, T1)", false));
-  DO(test_binary(is_subtype, "(T1, T1)", "T1", false));
-  DO(test_binary(is_subtype, "(C1, C2)", "(T1, T2)", true));
-  DO(test_binary(is_subtype, "(C1, C2)", "(T2, T1)", false));
-  DO(test_binary(is_subtype, "(T1, T2)", "(T1, T2)", true));
-  DO(test_binary(is_subtype, "(T1, T2)", "(C1, C2)", false));
+    "interface I3\n"
+    "  fun f()\n"
+    "  fun g()\n"
 
-  // capabilitites
-  DO(test_binary(is_subtype, "C1 ref", "T1 ref", true));
-  DO(test_binary(is_subtype, "C1 val", "T1 val", true));
-  DO(test_binary(is_subtype, "C1 box", "T1 box", true));
-  DO(test_binary(is_subtype, "C1 ref", "T1 box", true));
-  DO(test_binary(is_subtype, "C1 val", "T1 box", true));
-  DO(test_binary(is_subtype, "C1 ref", "T1 tag", true));
-  DO(test_binary(is_subtype, "C1 iso", "T1 ref", true));
-  DO(test_binary(is_subtype, "C1 iso", "T1 val", true));
-  DO(test_binary(is_subtype, "C1 iso", "T1 box", true));
-  DO(test_binary(is_subtype, "C1 iso", "T1 tag", true));
-  DO(test_binary(is_subtype, "C1 ref", "T1 val", false));
-  DO(test_binary(is_subtype, "C1 val", "T1 ref", false));
-  DO(test_binary(is_subtype, "C1 box", "T1 ref", false));
-  DO(test_binary(is_subtype, "C1 box", "T1 val", false));
-  DO(test_binary(is_subtype, "C1 tag", "T1 box", false));
-  DO(test_binary(is_subtype, "C1 tag", "T1 iso", false));
+    "class C1\n"
+    "  fun f() => None\n"
+
+    "class C3\n"
+    "  fun f() => None\n"
+    "  fun g() => None\n"
+
+    "interface Z\n"
+    "  fun z(c1: C1, c3: C3, i1: I1, i2: I2, i3: I3)";
+
+  TEST_COMPILE(src);
+  
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("i1")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i2")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i3")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i1")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i2")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i3")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeClassClass)
+{
+  const char* src =
+    "class C1\n"
+    "  fun f() => None\n"
+
+    "class C2\n"
+    "  fun f() => None\n"
+    "  fun g() => None\n"
+
+    "interface Z\n"
+    "  fun z(c1: C1, c2: C2)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("c2")));
+  ASSERT_FALSE(is_subtype(type_of("c2"), type_of("c1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeTraitTrait)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "trait T1b\n"
+    "  fun f()\n"
+
+    "trait T2\n"
+    "  fun g()\n"
+
+    "trait T3 is (T1 & T2)\n"
+
+    "interface Test\n"
+    "  fun z(t1: T1, t1b: T1b, t3: T3)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("t1")));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t3")));
+  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1")));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1b")));
+  ASSERT_FALSE(is_subtype(type_of("t1b"), type_of("t1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeInterfaceInterface)
+{
+  const char* src =
+    "interface I1\n"
+    "  fun f()\n"
+
+    "interface I1b\n"
+    "  fun f()\n"
+
+    "interface I2\n"
+    "  fun g()\n"
+
+    "interface I3 is (I1 & I2)\n"
+
+    "interface Test\n"
+    "  fun z(i1: I1, i1b: I1b, i3: I3)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1")));
+  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("i3")));
+  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1")));
+  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1b")));
+  ASSERT_TRUE(is_subtype(type_of("i1b"), type_of("i1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeTraitInterface)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "interface I1\n"
+    "  fun f()\n"
+
+    "interface I2\n"
+    "  fun g()\n"
+
+    "interface Test\n"
+    "  fun z(i1: I1, i2: I2, t1: T1)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("i1")));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("i2")));
+  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("t1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypePrimitivePrimitive)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+
+    "interface Test\n"
+    "  fun z(p1: P1, p2: P2)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("p1"), type_of("p1")));
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("p2")));
+  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("p1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "trait T2\n"
+    "  fun g()\n"
+
+    "primitive P1\n"
+
+    "primitive P2 is T2\n"
+    "  fun g() => None\n"
+
+    "interface Test\n"
+    "  fun z(p1: P1, p2: P2, t1: T1 box, t2: T2 box)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t1")));
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t2")));
+  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("t1")));
+  ASSERT_TRUE(is_subtype(type_of("p2"), type_of("t2")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeUnion)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "trait T2\n"
+    "  fun g()\n"
+
+    "trait T3 is (T1 & T2)\n"
+
+    "class C1 is T1\n"
+    "  fun f() => None\n"
+
+    "class C2 is T2\n"
+    "  fun g() => None\n"
+
+    "class C3 is T3\n"
+    "  fun f() => None\n"
+    "  fun g() => None\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2, c3: C3,\n"
+    "    t1: T1, t2: T2,\n"
+    "    c1or2: (C1 | C2), t1or2: (T1 | T2))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1or2")));
+  ASSERT_TRUE(is_subtype(type_of("c2"), type_of("c1or2")));
+  ASSERT_FALSE(is_subtype(type_of("c3"), type_of("c1or2")));
+  ASSERT_FALSE(is_subtype(type_of("c1or2"), type_of("c1")));
+  ASSERT_TRUE(is_subtype(type_of("c1or2"), type_of("c1or2")));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1or2")));
+  ASSERT_FALSE(is_subtype(type_of("t1or2"), type_of("c1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersect)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "trait T2\n"
+    "  fun g()\n"
+
+    "trait T3 is (T1 & T2)\n"
+
+    "class C1 is T1\n"
+    "  fun f() => None\n"
+
+    "class C2 is T2\n"
+    "  fun g() => None\n"
+
+    "class C3 is T3\n"
+    "  fun f() => None\n"
+    "  fun g() => None\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2, c3: C3,\n"
+    "    t1: T1, t2: T2, t3: T3,\n"
+    "    t1and2: (T1 & T2))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t1and2")));
+  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1and2")));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1and2")));
+  ASSERT_TRUE(is_subtype(type_of("t1and2"), type_of("t1and2")));
+  ASSERT_FALSE(is_subtype(type_of("t1and2"), type_of("c3")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectInterface)
+{
+  const char* src =
+    "interface I1\n"
+    "  fun f()\n"
+
+    "interface I2\n"
+    "  fun g()\n"
+
+    "interface I3\n"
+    "  fun f()\n"
+    "  fun g()\n"
+
+    "interface Test\n"
+    "  fun z(i1: I1, i2: I2, i3: I3,\n"
+    "    i1and2: (I1 & I2))";
+
+  TEST_COMPILE(src);
+
+  // TODO: Fix this, intersect of non-independent and combinable types
+  //ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3")));
+  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1and2")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectOfUnion)
+{
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+    "class C3\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2, c3: C3,\n"
+    "    iofu: ((C1 | C2) & (C1 | C3)))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("iofu")));
+  // TODO: Fix this, intersect of non-independent and combinable types
+  //ASSERT_TRUE(is_subtype(type_of("iofu"), type_of("c1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeTuple)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "trait T2\n"
+    "  fun g()\n"
+
+    "class C1 is T1\n"
+    "  fun f() => None\n"
+
+    "class C2 is T2\n"
+    "  fun g() => None\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2, t1: T1, t2: T2,\n"
+    "    c1c2: (C1, C2), t1t1: (T1, T1), t1t2: (T1, T2), t2t1: (T2, T1))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1t1")));
+  ASSERT_FALSE(is_subtype(type_of("t1t1"), type_of("t1")));
+  ASSERT_TRUE(is_subtype(type_of("c1c2"), type_of("t1t2")));
+  ASSERT_FALSE(is_subtype(type_of("c1c2"), type_of("t2t1")));
+  ASSERT_TRUE(is_subtype(type_of("t1t2"), type_of("t1t2")));
+  ASSERT_FALSE(is_subtype(type_of("t1t2"), type_of("c1c2")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeCap)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
+
+    "class C1 is T1\n"
+    "  fun f() => None\n"
+
+    "interface Test\n"
+    "  fun z(c1iso: C1 iso, c1ref: C1 ref, c1val: C1 val,\n"
+    "    c1box: C1 box, c1tag: C1 tag,\n"
+    "    t1iso: T1 iso, t1ref: T1 ref, t1val: T1 val,\n"
+    "    t1box: T1 box, t1tag: T1 tag)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1iso")));
+  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1iso")));
+  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1iso")));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1iso")));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1iso")));
+
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1ref")));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1ref")));
+  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1ref")));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1ref")));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1ref")));
+
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1val")));
+  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1val")));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1val")));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1val")));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1val")));
+
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1box")));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1box")));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1box")));
+  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1box")));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1box")));
+
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1tag")));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1tag")));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1tag")));
+  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1tag")));
+  ASSERT_TRUE (is_subtype(type_of("c1tag"), type_of("t1tag")));
 }
 
 
 TEST_F(SubTypeTest, IsEqType)
 {
-  DO(test_binary(is_eqtype, "C1", "C1", true));
-  DO(test_binary(is_eqtype, "C2", "C2", true));
-  DO(test_binary(is_eqtype, "T1", "T1", true));
-  DO(test_binary(is_eqtype, "T2", "T2", true));
-  DO(test_binary(is_eqtype, "I1", "I1", true));
-  DO(test_binary(is_eqtype, "I2", "I2", true));
+  const char* src =
+    "trait T1\n"
+    "  fun f()\n"
 
-  DO(test_binary(is_eqtype, "C1", "C2", false));
-  DO(test_binary(is_eqtype, "C2", "C1", false));
-  DO(test_binary(is_eqtype, "T1", "T2", false));
-  DO(test_binary(is_eqtype, "T2", "T1", false));
-  DO(test_binary(is_eqtype, "I1", "I2", false));
-  DO(test_binary(is_eqtype, "I2", "I1", false));
+    "trait T2\n"
+    "  fun g()\n"
 
-  // TODO: fix this
-  //DO(test_binary(is_eqtype, "I1", "I1b", true));
-  DO(test_binary(is_eqtype, "T1", "T1b", false));
+    "interface I1\n"
+    "  fun f()\n"
 
-  DO(test_binary(is_eqtype, "C1", "T1", false));
-  DO(test_binary(is_eqtype, "T1", "C1", false));
+    "interface I1b\n"
+    "  fun f()\n"
 
-  DO(test_binary(is_eqtype, "C1 iso", "C1 iso", true));
-  DO(test_binary(is_eqtype, "C1 ref", "C1 ref", true));
-  DO(test_binary(is_eqtype, "C1 val", "C1 val", true));
-  DO(test_binary(is_eqtype, "C1 box", "C1 box", true));
-  DO(test_binary(is_eqtype, "C1 tag", "C1 tag", true));
-  DO(test_binary(is_eqtype, "C1 iso", "C1 ref", false));
-  DO(test_binary(is_eqtype, "C1 ref", "C1 val", false));
-  DO(test_binary(is_eqtype, "C1 val", "C1 ref", false));
-  DO(test_binary(is_eqtype, "C1 box", "C1 val", false));
-  DO(test_binary(is_eqtype, "C1 box", "C1 ref", false));
+    "interface I2\n"
+    "  fun g()\n"
+
+    "class C1 is T1\n"
+    "  fun f() => None\n"
+
+    "class C2 is T2\n"
+    "  fun g() => None\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2, i1: I1, i1b: I1b, i2: I2, t1: T1, t2: T2)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_eqtype(type_of("c1"), type_of("c1")));
+  ASSERT_TRUE(is_eqtype(type_of("c2"), type_of("c2")));
+  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1")));
+  ASSERT_TRUE(is_eqtype(type_of("i2"), type_of("i2")));
+  ASSERT_TRUE(is_eqtype(type_of("t1"), type_of("t1")));
+  ASSERT_TRUE(is_eqtype(type_of("t2"), type_of("t2")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("c2")));
+  ASSERT_FALSE(is_eqtype(type_of("c2"), type_of("c1")));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("i2")));
+  ASSERT_FALSE(is_eqtype(type_of("i2"), type_of("i1")));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("t2")));
+  ASSERT_FALSE(is_eqtype(type_of("t2"), type_of("t1")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("i1")));
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("t1")));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("c1")));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("t1")));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("c1")));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("i1")));
+
+  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1b")));
+}
+
+
+TEST_F(SubTypeTest, IsEqTypeCap)
+{
+  const char* src =
+    "class C1\n"
+
+    "interface Test\n"
+    "  fun z(c1iso: C1 iso, c1ref: C1 ref, c1val: C1 val,\n"
+    "    c1box: C1 box, c1tag: C1 tag)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE (is_eqtype(type_of("c1iso"), type_of("c1iso")));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1iso")));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1iso")));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1iso")));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1iso")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1ref")));
+  ASSERT_TRUE (is_eqtype(type_of("c1ref"), type_of("c1ref")));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1ref")));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1ref")));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1ref")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1val")));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1val")));
+  ASSERT_TRUE (is_eqtype(type_of("c1val"), type_of("c1val")));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1val")));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1val")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1box")));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1box")));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1box")));
+  ASSERT_TRUE (is_eqtype(type_of("c1box"), type_of("c1box")));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1box")));
+
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1tag")));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1tag")));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1tag")));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1tag")));
+  ASSERT_TRUE (is_eqtype(type_of("c1tag"), type_of("c1tag")));
 }
 
 
 TEST_F(SubTypeTest, IsNone)
 {
-  DO(test_unary(is_none, "Bool", false));
-  DO(test_unary(is_none, "U8", false));
-  DO(test_unary(is_none, "U16", false));
-  DO(test_unary(is_none, "U32", false));
-  DO(test_unary(is_none, "U64", false));
-  DO(test_unary(is_none, "U128", false));
-  DO(test_unary(is_none, "I8", false));
-  DO(test_unary(is_none, "I16", false));
-  DO(test_unary(is_none, "I32", false));
-  DO(test_unary(is_none, "I64", false));
-  DO(test_unary(is_none, "I128", false));
-  DO(test_unary(is_none, "F32", false));
-  DO(test_unary(is_none, "F64", false));
-  DO(test_unary(is_none, "C1", false));
-  DO(test_unary(is_none, "T1", false));
-  DO(test_unary(is_none, "None", true));
-  DO(test_unary(is_none, "(Bool | None)", false));
-  DO(test_unary(is_none, "(Bool & None)", false));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    union: (Bool | None), intersect: (Bool & None))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_none(type_of("none")));
+  ASSERT_FALSE(is_none(type_of("bool")));
+  ASSERT_FALSE(is_none(type_of("u8")));
+  ASSERT_FALSE(is_none(type_of("u16")));
+  ASSERT_FALSE(is_none(type_of("u32")));
+  ASSERT_FALSE(is_none(type_of("usize")));
+  ASSERT_FALSE(is_none(type_of("u64")));
+  ASSERT_FALSE(is_none(type_of("u128")));
+  ASSERT_FALSE(is_none(type_of("i8")));
+  ASSERT_FALSE(is_none(type_of("i16")));
+  ASSERT_FALSE(is_none(type_of("i32")));
+  ASSERT_FALSE(is_none(type_of("isize")));
+  ASSERT_FALSE(is_none(type_of("i64")));
+  ASSERT_FALSE(is_none(type_of("i128")));
+  ASSERT_FALSE(is_none(type_of("f32")));
+  ASSERT_FALSE(is_none(type_of("f64")));
+  ASSERT_FALSE(is_none(type_of("c1")));
+  ASSERT_FALSE(is_none(type_of("p1")));
+  ASSERT_FALSE(is_none(type_of("t1")));
+  ASSERT_FALSE(is_none(type_of("union")));
+  ASSERT_FALSE(is_none(type_of("intersect")));
 }
 
 
 TEST_F(SubTypeTest, IsBool)
 {
-  DO(test_unary(is_bool, "Bool", true));
-  DO(test_unary(is_bool, "U8", false));
-  DO(test_unary(is_bool, "U16", false));
-  DO(test_unary(is_bool, "U32", false));
-  DO(test_unary(is_bool, "U64", false));
-  DO(test_unary(is_bool, "U128", false));
-  DO(test_unary(is_bool, "I8", false));
-  DO(test_unary(is_bool, "I16", false));
-  DO(test_unary(is_bool, "I32", false));
-  DO(test_unary(is_bool, "I64", false));
-  DO(test_unary(is_bool, "I128", false));
-  DO(test_unary(is_bool, "F32", false));
-  DO(test_unary(is_bool, "F64", false));
-  DO(test_unary(is_bool, "C1", false));
-  DO(test_unary(is_bool, "T1", false));
-  DO(test_unary(is_bool, "None", false));
-  DO(test_unary(is_bool, "(Bool | None)", false));
-  DO(test_unary(is_bool, "(Bool & None)", false));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    union: (Bool | None), intersect: (Bool & None))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_bool(type_of("none")));
+  ASSERT_TRUE(is_bool(type_of("bool")));
+  ASSERT_FALSE(is_bool(type_of("u8")));
+  ASSERT_FALSE(is_bool(type_of("u16")));
+  ASSERT_FALSE(is_bool(type_of("u32")));
+  ASSERT_FALSE(is_bool(type_of("usize")));
+  ASSERT_FALSE(is_bool(type_of("u64")));
+  ASSERT_FALSE(is_bool(type_of("u128")));
+  ASSERT_FALSE(is_bool(type_of("i8")));
+  ASSERT_FALSE(is_bool(type_of("i16")));
+  ASSERT_FALSE(is_bool(type_of("i32")));
+  ASSERT_FALSE(is_bool(type_of("isize")));
+  ASSERT_FALSE(is_bool(type_of("i64")));
+  ASSERT_FALSE(is_bool(type_of("i128")));
+  ASSERT_FALSE(is_bool(type_of("f32")));
+  ASSERT_FALSE(is_bool(type_of("f64")));
+  ASSERT_FALSE(is_bool(type_of("c1")));
+  ASSERT_FALSE(is_bool(type_of("p1")));
+  ASSERT_FALSE(is_bool(type_of("t1")));
+  ASSERT_FALSE(is_bool(type_of("union")));
+  ASSERT_FALSE(is_bool(type_of("intersect")));
 }
 
 
 TEST_F(SubTypeTest, IsFloat)
 {
-  DO(test_unary(is_float, "Bool", false));
-  DO(test_unary(is_float, "U8", false));
-  DO(test_unary(is_float, "U16", false));
-  DO(test_unary(is_float, "U32", false));
-  DO(test_unary(is_float, "U64", false));
-  DO(test_unary(is_float, "U128", false));
-  DO(test_unary(is_float, "I8", false));
-  DO(test_unary(is_float, "I16", false));
-  DO(test_unary(is_float, "I32", false));
-  DO(test_unary(is_float, "I64", false));
-  DO(test_unary(is_float, "I128", false));
-  DO(test_unary(is_float, "F32", true));
-  DO(test_unary(is_float, "F64", true));
-  DO(test_unary(is_float, "C1", false));
-  DO(test_unary(is_float, "T1", false));
-  DO(test_unary(is_float, "None", false));
-  DO(test_unary(is_float, "(F32 | None)", false));
-  DO(test_unary(is_float, "(F32 & None)", false));
-  DO(test_unary(is_float, "(F32 | F64)", false));
-  DO(test_unary(is_float, "(F32 & F64)", false));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    f32ornone: (F32 | None), f32andnone: (F32 & None),\n"
+    "    f32or64: (F32 | F64), f32and64: (F32 & F64))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_float(type_of("none")));
+  ASSERT_FALSE(is_float(type_of("bool")));
+  ASSERT_FALSE(is_float(type_of("u8")));
+  ASSERT_FALSE(is_float(type_of("u16")));
+  ASSERT_FALSE(is_float(type_of("u32")));
+  ASSERT_FALSE(is_float(type_of("usize")));
+  ASSERT_FALSE(is_float(type_of("u64")));
+  ASSERT_FALSE(is_float(type_of("u128")));
+  ASSERT_FALSE(is_float(type_of("i8")));
+  ASSERT_FALSE(is_float(type_of("i16")));
+  ASSERT_FALSE(is_float(type_of("i32")));
+  ASSERT_FALSE(is_float(type_of("isize")));
+  ASSERT_FALSE(is_float(type_of("i64")));
+  ASSERT_FALSE(is_float(type_of("i128")));
+  ASSERT_TRUE(is_float(type_of("f32")));
+  ASSERT_TRUE(is_float(type_of("f64")));
+  ASSERT_FALSE(is_float(type_of("c1")));
+  ASSERT_FALSE(is_float(type_of("p1")));
+  ASSERT_FALSE(is_float(type_of("t1")));
+  ASSERT_FALSE(is_float(type_of("f32ornone")));
+  ASSERT_FALSE(is_float(type_of("f32andnone")));
+  ASSERT_FALSE(is_float(type_of("f32or64")));
+  ASSERT_FALSE(is_float(type_of("f32and64")));
 }
 
 
 TEST_F(SubTypeTest, IsInteger)
 {
-  DO(test_unary(is_integer, "Bool", false));
-  DO(test_unary(is_integer, "U8", true));
-  DO(test_unary(is_integer, "U16", true));
-  DO(test_unary(is_integer, "U32", true));
-  DO(test_unary(is_integer, "U64", true));
-  DO(test_unary(is_integer, "U128", true));
-  DO(test_unary(is_integer, "I8", true));
-  DO(test_unary(is_integer, "I16", true));
-  DO(test_unary(is_integer, "I32", true));
-  DO(test_unary(is_integer, "I64", true));
-  DO(test_unary(is_integer, "I128", true));
-  DO(test_unary(is_integer, "F32", false));
-  DO(test_unary(is_integer, "F64", false));
-  DO(test_unary(is_integer, "C1", false));
-  DO(test_unary(is_integer, "T1", false));
-  DO(test_unary(is_integer, "None", false));
-  DO(test_unary(is_integer, "(U8 | None)", false));
-  DO(test_unary(is_integer, "(U8 & None)", false));
-  DO(test_unary(is_integer, "(U8 | I32)", false));
-  DO(test_unary(is_integer, "(U8 & I32)", false));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    u8ornone: (U8 | None), u8andnone: (U8 & None),\n"
+    "    u8ori32: (U8 | I32), u8andi32: (U8 & I32))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_integer(type_of("none")));
+  ASSERT_FALSE(is_integer(type_of("bool")));
+  ASSERT_TRUE(is_integer(type_of("u8")));
+  ASSERT_TRUE(is_integer(type_of("u16")));
+  ASSERT_TRUE(is_integer(type_of("u32")));
+  ASSERT_TRUE(is_integer(type_of("usize")));
+  ASSERT_TRUE(is_integer(type_of("u64")));
+  ASSERT_TRUE(is_integer(type_of("u128")));
+  ASSERT_TRUE(is_integer(type_of("i8")));
+  ASSERT_TRUE(is_integer(type_of("i16")));
+  ASSERT_TRUE(is_integer(type_of("i32")));
+  ASSERT_TRUE(is_integer(type_of("isize")));
+  ASSERT_TRUE(is_integer(type_of("i64")));
+  ASSERT_TRUE(is_integer(type_of("i128")));
+  ASSERT_FALSE(is_integer(type_of("f32")));
+  ASSERT_FALSE(is_integer(type_of("f64")));
+  ASSERT_FALSE(is_integer(type_of("c1")));
+  ASSERT_FALSE(is_integer(type_of("p1")));
+  ASSERT_FALSE(is_integer(type_of("t1")));
+  ASSERT_FALSE(is_integer(type_of("u8ornone")));
+  ASSERT_FALSE(is_integer(type_of("u8andnone")));
+  ASSERT_FALSE(is_integer(type_of("u8ori32")));
+  ASSERT_FALSE(is_integer(type_of("u8andi32")));
 }
 
 
 TEST_F(SubTypeTest, IsMachineWord)
 {
-  DO(test_unary(is_machine_word, "Bool", true));
-  DO(test_unary(is_machine_word, "U8", true));
-  DO(test_unary(is_machine_word, "U16", true));
-  DO(test_unary(is_machine_word, "U32", true));
-  DO(test_unary(is_machine_word, "U64", true));
-  DO(test_unary(is_machine_word, "U128", true));
-  DO(test_unary(is_machine_word, "I8", true));
-  DO(test_unary(is_machine_word, "I16", true));
-  DO(test_unary(is_machine_word, "I32", true));
-  DO(test_unary(is_machine_word, "I64", true));
-  DO(test_unary(is_machine_word, "I128", true));
-  DO(test_unary(is_machine_word, "F32", true));
-  DO(test_unary(is_machine_word, "F64", true));
-  DO(test_unary(is_machine_word, "C1", false));
-  DO(test_unary(is_machine_word, "T1", false));
-  DO(test_unary(is_machine_word, "None", false));
-  DO(test_unary(is_machine_word, "(U8 | None)", false));
-  DO(test_unary(is_machine_word, "(U8 & None)", false));
-  DO(test_unary(is_machine_word, "(U8 | I32)", false));
-  DO(test_unary(is_machine_word, "(U8 & I32)", false));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    u8ornone: (U8 | None), u8andnone: (U8 & None),\n"
+    "    u8ori32: (U8 | I32), u8andi32: (U8 & I32))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_machine_word(type_of("none")));
+  ASSERT_TRUE(is_machine_word(type_of("bool")));
+  ASSERT_TRUE(is_machine_word(type_of("u8")));
+  ASSERT_TRUE(is_machine_word(type_of("u16")));
+  ASSERT_TRUE(is_machine_word(type_of("u32")));
+  ASSERT_TRUE(is_machine_word(type_of("usize")));
+  ASSERT_TRUE(is_machine_word(type_of("u64")));
+  ASSERT_TRUE(is_machine_word(type_of("u128")));
+  ASSERT_TRUE(is_machine_word(type_of("i8")));
+  ASSERT_TRUE(is_machine_word(type_of("i16")));
+  ASSERT_TRUE(is_machine_word(type_of("i32")));
+  ASSERT_TRUE(is_machine_word(type_of("isize")));
+  ASSERT_TRUE(is_machine_word(type_of("i64")));
+  ASSERT_TRUE(is_machine_word(type_of("i128")));
+  ASSERT_TRUE(is_machine_word(type_of("f32")));
+  ASSERT_TRUE(is_machine_word(type_of("f64")));
+  ASSERT_FALSE(is_machine_word(type_of("c1")));
+  ASSERT_FALSE(is_machine_word(type_of("p1")));
+  ASSERT_FALSE(is_machine_word(type_of("t1")));
+  ASSERT_FALSE(is_machine_word(type_of("u8ornone")));
+  ASSERT_FALSE(is_machine_word(type_of("u8andnone")));
+  ASSERT_FALSE(is_machine_word(type_of("u8ori32")));
+  ASSERT_FALSE(is_machine_word(type_of("u8andi32")));
 }
 
 
 TEST_F(SubTypeTest, IsConcrete)
 {
-  DO(test_unary(is_concrete, "Bool", true));
-  DO(test_unary(is_concrete, "U8", true));
-  DO(test_unary(is_concrete, "U16", true));
-  DO(test_unary(is_concrete, "U32", true));
-  DO(test_unary(is_concrete, "U64", true));
-  DO(test_unary(is_concrete, "U128", true));
-  DO(test_unary(is_concrete, "I8", true));
-  DO(test_unary(is_concrete, "I16", true));
-  DO(test_unary(is_concrete, "I32", true));
-  DO(test_unary(is_concrete, "I64", true));
-  DO(test_unary(is_concrete, "I128", true));
-  DO(test_unary(is_concrete, "F32", true));
-  DO(test_unary(is_concrete, "F64", true));
-  DO(test_unary(is_concrete, "C1", true));
-  DO(test_unary(is_concrete, "T1", false));
-  DO(test_unary(is_concrete, "None", true));
-  DO(test_unary(is_concrete, "(T1 | None)", false));
-  DO(test_unary(is_concrete, "(T1 & None)", true));
-  DO(test_unary(is_concrete, "(C1 | T1)", false));
-  DO(test_unary(is_concrete, "(C1 & T1)", true));
+  const char* src =
+    "trait T1\n"
+    "class C1\n"
+    "primitive P1\n"
+
+    "interface Test\n"
+    "  fun z(none: None, bool: Bool,\n"
+    "    u8: U8, u16: U16, u32: U32, usize: USize, u64: U64, u128: U128,\n"
+    "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
+    "    f32: F32, f64: F64,\n"
+    "    c1: C1, p1: P1, t1: T1,\n"
+    "    t1ornone: (T1 | None), t1andnone: (T1 & None),\n"
+    "    c1ort1: (C1 | T1), c1andt1: (C1 & T1))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_concrete(type_of("none")));
+  ASSERT_TRUE(is_concrete(type_of("bool")));
+  ASSERT_TRUE(is_concrete(type_of("u8")));
+  ASSERT_TRUE(is_concrete(type_of("u16")));
+  ASSERT_TRUE(is_concrete(type_of("u32")));
+  ASSERT_TRUE(is_concrete(type_of("usize")));
+  ASSERT_TRUE(is_concrete(type_of("u64")));
+  ASSERT_TRUE(is_concrete(type_of("u128")));
+  ASSERT_TRUE(is_concrete(type_of("i8")));
+  ASSERT_TRUE(is_concrete(type_of("i16")));
+  ASSERT_TRUE(is_concrete(type_of("i32")));
+  ASSERT_TRUE(is_concrete(type_of("isize")));
+  ASSERT_TRUE(is_concrete(type_of("i64")));
+  ASSERT_TRUE(is_concrete(type_of("i128")));
+  ASSERT_TRUE(is_concrete(type_of("f32")));
+  ASSERT_TRUE(is_concrete(type_of("f64")));
+  ASSERT_TRUE(is_concrete(type_of("c1")));
+  ASSERT_TRUE(is_concrete(type_of("p1")));
+  ASSERT_FALSE(is_concrete(type_of("t1")));
+  ASSERT_FALSE(is_concrete(type_of("t1ornone")));
+  ASSERT_TRUE(is_concrete(type_of("t1andnone")));
+  ASSERT_FALSE(is_concrete(type_of("c1ort1")));
+  ASSERT_TRUE(is_concrete(type_of("c1andt1")));
 }
