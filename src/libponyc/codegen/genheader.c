@@ -250,11 +250,11 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
     if(ast_id(docstring) == TK_STRING)
       fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
 
-    // Forward declare an opaque type.
-    fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
-
-    if(!is_pointer(t->type) && !is_maybe(t->type))
+    if(!is_pointer(t->type) && !is_maybe(t->type) && !is_machine_word(t->type))
     {
+      // Forward declare an opaque type.
+      fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
+
       // Function signature for the allocator.
       printbuf(buf,
         "/* Allocate a %s without initialising it. */\n%s* %s_Alloc();\n\n",

@@ -236,6 +236,41 @@ static void add_traits_to_type(reachable_method_stack_t** s,
   }
 }
 
+static void add_fields(reachable_method_stack_t** s, reachable_types_t* r,
+  ast_t* type)
+{
+  ast_t* def = (ast_t*)ast_data(type);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+      {
+        const char* name = ast_name(ast_child(member));
+        ast_t* r_member = lookup(NULL, NULL, type, name);
+        assert(r_member != NULL);
+
+        AST_GET_CHILDREN(r_member, id, ftype);
+        add_type(s, r, ftype);
+
+        if(r_member != member)
+          ast_free_unattached(r_member);
+
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+}
+
 static void add_special(reachable_method_stack_t** s, reachable_type_t* t,
   ast_t* type, const char* special)
 {
@@ -339,12 +374,14 @@ static reachable_type_t* add_nominal(reachable_method_stack_t** s,
     case TK_CLASS:
       add_traits_to_type(s, r, t);
       add_special(s, t, type, "_final");
+      add_fields(s, r, type);
       break;
 
     case TK_ACTOR:
       add_traits_to_type(s, r, t);
       add_special(s, t, type, "_event_notify");
       add_special(s, t, type, "_final");
+      add_fields(s, r, type);
       break;
 
     default: {}
