@@ -94,6 +94,9 @@ primitive F32 is FloatingPoint[F32]
     ((bits() and 0x7F800000) == 0x7F800000) and  // exp
     ((bits() and 0x007FFFFF) != 0)  // mantissa
 
+  fun ldexp(x: F32, exponent: I32): F32 =>
+    @ldexpf[F32](x, exponent)
+
   fun frexp(): (F32, U32) =>
     var exponent: U32 = 0
     var mantissa = @frexp[F64](f64(), addressof exponent)
@@ -234,6 +237,9 @@ primitive F64 is FloatingPoint[F64]
     // True if exponent is all 1s and mantissa is non-0
     ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
     ((bits() and 0x000F_FFFF_FFFF_FFFF) != 0)  // mantissa
+
+  fun ldexp(x: F64, exponent: I32): F64 =>
+    @ldexp[F64](x, exponent)
 
   fun frexp(): (F64, U32) =>
     var exponent: U32 = 0

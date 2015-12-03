@@ -56,6 +56,7 @@ actor Main is TestList
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
+    test(_TestMath128)
 
     // Tests for all other packages.
     collections.Main.make().tests(test)
@@ -99,15 +100,13 @@ class iso _TestAbs is UnitTest
     h.expect_eq[U64](124,        I64(-124).abs())
     h.expect_eq[U64](0,          I64(0).abs())
 
-    ifdef not ilp32 then
-      h.expect_eq[U128](128,        I128(-128).abs())
-      h.expect_eq[U128](32768,      I128(-32768).abs())
-      h.expect_eq[U128](2147483648, I128(-2147483648).abs())
-      h.expect_eq[U128](128,        I128(-128).abs())
-      h.expect_eq[U128](3,          I128(-3).abs())
-      h.expect_eq[U128](124,        I128(-124).abs())
-      h.expect_eq[U128](0,          I128(0).abs())
-    end
+    h.expect_eq[U128](128,        I128(-128).abs())
+    h.expect_eq[U128](32768,      I128(-32768).abs())
+    h.expect_eq[U128](2147483648, I128(-2147483648).abs())
+    h.expect_eq[U128](128,        I128(-128).abs())
+    h.expect_eq[U128](3,          I128(-3).abs())
+    h.expect_eq[U128](124,        I128(-124).abs())
+    h.expect_eq[U128](0,          I128(0).abs())
 
     true
 
@@ -256,17 +255,15 @@ class iso _TestStringToIntLarge is UnitTest
     h.expect_eq[I64](-10, "-10".i64())
     h.expect_error(lambda()? => "30L".i64() end, "I64 30L")
 
-    ifdef not ilp32 then
-      h.expect_eq[U128](0, "0".u128())
-      h.expect_eq[U128](123, "123".u128())
-      h.expect_error(lambda()? => "-10".u128() end, "U128 -10")
-      h.expect_error(lambda()? => "30L".u128() end, "U128 30L")
+    h.expect_eq[U128](0, "0".u128())
+    h.expect_eq[U128](123, "123".u128())
+    h.expect_error(lambda()? => "-10".u128() end, "U128 -10")
+    h.expect_error(lambda()? => "30L".u128() end, "U128 30L")
 
-      h.expect_eq[I128](0, "0".i128())
-      h.expect_eq[I128](123, "123".i128())
-      h.expect_eq[I128](-10, "-10".i128())
-      h.expect_error(lambda()? => "30L".i128() end, "I128 30L")
-    end
+    h.expect_eq[I128](0, "0".i128())
+    h.expect_eq[I128](123, "123".i128())
+    h.expect_eq[I128](-10, "-10".i128())
+    h.expect_error(lambda()? => "30L".i128() end, "I128 30L")
 
     true
 
@@ -554,3 +551,85 @@ class iso _TestArraySlice is UnitTest
     else
       false
     end
+
+
+class iso _TestMath128 is UnitTest
+  """
+  Test 128 bit integer math.
+  """
+  fun name(): String => "builtin/Math128"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[F64](0, U128(0).f64())
+    h.expect_eq[F64](1, U128(1).f64())
+    h.expect_eq[F64](1e10, U128(10_000_000_000).f64())
+    h.expect_eq[F64](1e20, U128(100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[F64](0, I128(0).f64())
+    h.expect_eq[F64](1, I128(1).f64())
+    h.expect_eq[F64](1e10, I128(10_000_000_000).f64())
+    h.expect_eq[F64](1e20, I128(100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[F64](-1, I128(-1).f64())
+    h.expect_eq[F64](-1e10, I128(-10_000_000_000).f64())
+    h.expect_eq[F64](-1e20, I128(-100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[I128](0, 0 * 3)
+    h.expect_eq[I128](8, 2 * 4)
+    h.expect_eq[I128](1_000_000_000_000, 1_000_000 * 1_000_000)
+    h.expect_eq[I128](100_000_000_000_000_000_000,
+      10_000_000_000 * 10_000_000_000)
+
+    h.expect_eq[I128](-8, -2 * 4)
+    h.expect_eq[I128](-1_000_000_000_000, -1_000_000 * 1_000_000)
+    h.expect_eq[I128](-100_000_000_000_000_000_000,
+      -10_000_000_000 * 10_000_000_000)
+
+    h.expect_eq[I128](8, -2 * -4)
+    h.expect_eq[I128](1_000_000_000_000, -1_000_000 * -1_000_000)
+    h.expect_eq[I128](100_000_000_000_000_000_000,
+      -10_000_000_000 * -10_000_000_000)
+
+    var uzero = U128(0)
+    var izero = I128(0)
+
+    h.expect_eq[U128](0, 100 / uzero)
+    h.expect_eq[U128](2, 8 / 4)
+    h.expect_eq[U128](1_000_000, 1_000_000_000_000 / 1_000_000)
+    h.expect_eq[U128](10_000_000_000,
+      100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, 100 / izero)
+    h.expect_eq[I128](2, 8 / 4)
+    h.expect_eq[I128](1_000_000, 1_000_000_000_000 / 1_000_000)
+    h.expect_eq[I128](10_000_000_000,
+      100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, -100 / izero)
+    h.expect_eq[I128](-2, -8 / 4)
+    h.expect_eq[I128](-1_000_000, -1_000_000_000_000 / 1_000_000)
+    h.expect_eq[I128](-10_000_000_000,
+      -100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, -100 / -izero)
+    h.expect_eq[I128](2, -8 / -4)
+    h.expect_eq[I128](1_000_000, -1_000_000_000_000 / -1_000_000)
+    h.expect_eq[I128](10_000_000_000,
+      -100_000_000_000_000_000_000 / -10_000_000_000)
+
+    h.expect_eq[U128](0, 100 % uzero)
+    h.expect_eq[U128](5, 13 % 8)
+    h.expect_eq[U128](28, 40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](0, 100 % izero)
+    h.expect_eq[I128](5, 13 % 8)
+    h.expect_eq[I128](28, 40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](-5, -13 % 8)
+    h.expect_eq[I128](-28, -40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](5, 13 % -8)
+    h.expect_eq[I128](28, 40_000_000_028 % -10_000_000_000)
+
+    h.expect_eq[I128](-5, -13 % -8)
+    h.expect_eq[I128](-28, -40_000_000_028 % -10_000_000_000)

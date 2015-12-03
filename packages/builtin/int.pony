@@ -264,6 +264,9 @@ primitive I128 is _SignedInteger[I128, U128]
     _ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
       fill)
 
+  fun mul(y: I128): I128 =>
+    (u128() * y.u128()).i128()
+
   fun divmod(y: I128): (I128, I128) =>
     ifdef native128 then
       (this / y, this % y)
@@ -313,11 +316,12 @@ primitive I128 is _SignedInteger[I128, U128]
       r
     end
 
-  fun f32(): F32 => this.f64().f32()
+  fun f32(): F32 =>
+    f64().f32()
 
   fun f64(): F64 =>
     if this < 0 then
-      -(-this).f64()
+      -(-u128()).f64()
     else
-      this.u128().f64()
+      u128().f64()
     end

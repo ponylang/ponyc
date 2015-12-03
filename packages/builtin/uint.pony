@@ -322,6 +322,35 @@ primitive U128 is _UnsignedInteger[U128]
   =>
     _ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
 
+  fun mul(y: U128): U128 =>
+    ifdef native128 then
+      this * y
+    else
+      let x_hi = (this >> 64).u64()
+      let x_lo = this.u64()
+      let y_hi = (y >> 64).u64()
+      let y_lo = y.u64()
+
+      let mask = U64(0x00000000FFFFFFFF)
+
+      var lo = (x_lo and mask) * (y_lo and mask)
+      var t = lo >> 32
+      lo = lo and mask
+      t = t + ((x_lo >> 32) * (y_lo and mask))
+      lo = lo + ((t and mask) << 32)
+
+      var hi = t >> 32
+      t = lo >> 32
+      lo = lo and mask
+      t = t + ((y_lo >> 32) * (x_lo and mask))
+      lo = lo + ((t and mask) << 32)
+      hi = hi + (t >> 32)
+      hi = hi + ((x_lo >> 32) * (y_lo >> 32))
+      hi = hi + (x_hi * y_lo) + (x_lo * y_hi)
+
+      (hi.u128() << 64) or lo.u128()
+    end
+
   fun divmod(y: U128): (U128, U128) =>
     ifdef native128 then
       (this / y, this % y)
@@ -368,11 +397,10 @@ primitive U128 is _UnsignedInteger[U128]
       r
     end
 
-  fun f32(): F32 => this.f64().f32()
+  fun f32(): F32 =>
+    f64().f32()
 
   fun f64(): F64 =>
-    let low = this.u64()
-    let high = (this >> 64).u64()
-    let x = low.f64()
-    let y = high.f64() * (U128(1) << 64).f64()
-    x + y
+    let hi = (this >> 64).u64().f64()
+    let lo = u64().f64()
+    (hi.f64() * F64.ldexp(1, 64)) + lo

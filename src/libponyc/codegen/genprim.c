@@ -573,31 +573,24 @@ static void number_conversions(compile_t* c)
     {"U16", "u16", c->i16, 16, false, false},
     {"U32", "u32", c->i32, 32, false, false},
     {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
 
 #if defined(PLATFORM_IS_ILP32)
     {"ILong", "ilong", c->i32, 32, true, false},
     {"ULong", "ulong", c->i32, 32, false, false},
-
     {"ISize", "isize", c->i32, 32, true, false},
     {"USize", "usize", c->i32, 32, false, false},
 #elif defined(PLATFORM_IS_LP64)
     {"ILong", "ilong", c->i64, 64, true, false},
     {"ULong", "ulong", c->i64, 64, false, false},
-
     {"ISize", "isize", c->i64, 64, true, false},
     {"USize", "usize", c->i64, 64, false, false},
-
-    {"I128", "i128", c->i128, 128, true, false},
-    {"U128", "u128", c->i128, 128, false, false},
 #elif defined(PLATFORM_IS_LLP64)
     {"ILong", "ilong", c->i32, 32, true, false},
     {"ULong", "ulong", c->i32, 32, false, false},
-
     {"ISize", "isize", c->i64, 64, true, false},
     {"USize", "usize", c->i64, 64, false, false},
-
-    {"I128", "i128", c->i128, 128, true, false},
-    {"U128", "u128", c->i128, 128, false, false},
 #endif
 
     {"F32", "f32", c->f32, 32, false, true},
