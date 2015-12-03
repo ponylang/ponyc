@@ -92,7 +92,13 @@ class _TestPing is UDPNotify
 
     _ip = try
       (_, let service) = ip.name()
-      let list = DNS("255.255.255.255", service)
+
+      let list = if ip.ip4() then
+        DNS.broadcast_ip4(service)
+      else
+        DNS.broadcast_ip6(service)
+      end
+
       list(0)
     else
       _h.assert_failed("Couldn't make broadcast address")
@@ -125,6 +131,8 @@ class _TestPong is UDPNotify
     _h = h
 
   fun ref listening(sock: UDPSocket ref) =>
+    sock.set_broadcast(true)
+
     try
       let ip = sock.local_address()
       let h = _h

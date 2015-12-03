@@ -8,7 +8,8 @@ actor UDPSocket
   var _closed: Bool = false
   var _packet_size: USize
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
-  var _read_from: IPAddress iso = recover IPAddress end
+  var _read_from: IPAddress iso = IPAddress
+  embed _ip: IPAddress = IPAddress
 
   new create(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: USize = 1024)
@@ -20,6 +21,7 @@ actor UDPSocket
     _event = @os_listen_udp[AsioEventID](this, host.cstring(),
       service.cstring())
     _fd = @asio_event_fd(_event)
+    @os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -34,6 +36,7 @@ actor UDPSocket
     _event = @os_listen_udp4[AsioEventID](this, host.cstring(),
       service.cstring())
     _fd = @asio_event_fd(_event)
+    @os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -48,6 +51,7 @@ actor UDPSocket
     _event = @os_listen_udp6[AsioEventID](this, host.cstring(),
       service.cstring())
     _fd = @asio_event_fd(_event)
+    @os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -76,7 +80,11 @@ actor UDPSocket
     """
     Enable or disable broadcasting from this socket.
     """
-    @os_broadcast[None](_fd, state)
+    if _ip.ip4() then
+      @os_broadcast[None](_fd, state)
+    elseif _ip.ip6() then
+      @os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
+    end
 
   be set_multicast_interface(from: String = "") =>
     """
@@ -125,9 +133,7 @@ actor UDPSocket
     """
     Return the bound IP address.
     """
-    let ip = recover IPAddress end
-    @os_sockname[Bool](_fd, ip)
-    ip
+    _ip
 
   be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
@@ -279,7 +285,7 @@ actor UDPSocket
     ifdef windows then
       // On windows, wait until IOCP read operation has completed or been
       // cancelled.
-      if not _readable then
+      if _closed and not _readable then
         @asio_event_unsubscribe[None](_event)
       end
     else
