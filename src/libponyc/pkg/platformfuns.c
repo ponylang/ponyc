@@ -111,7 +111,7 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
 
   if(!strcmp(attribute, OS_NATIVE128_NAME))
   {
-#ifdef PLATFORM_IS_VISUAL_STUDIO
+#if defined(PLATFORM_IS_ILP32) || defined(PLATFORM_IS_VISUAL_STUDIO)
     *out_is_target = false;
 #else
     *out_is_target = true;
