@@ -57,6 +57,7 @@ actor Main is TestList
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
     test(_TestMath128)
+    test(_TestDivMod)
 
     // Tests for all other packages.
     collections.Main.make().tests(test)
@@ -633,3 +634,30 @@ class iso _TestMath128 is UnitTest
 
     h.expect_eq[I128](-5, -13 % -8)
     h.expect_eq[I128](-28, -40_000_000_028 % -10_000_000_000)
+
+class iso _TestDivMod is UnitTest
+  """
+  Test divmod on various bit widths.
+  """
+  fun name(): String => "builtin/DivMod"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[I8](5, 13 % 8)
+    h.expect_eq[I8](-5, -13 % 8)
+    h.expect_eq[I8](5, 13 % -8)
+    h.expect_eq[I8](-5, -13 % -8)
+
+    h.expect_eq[I16](5, 13 % 8)
+    h.expect_eq[I16](-5, -13 % 8)
+    h.expect_eq[I16](5, 13 % -8)
+    h.expect_eq[I16](-5, -13 % -8)
+
+    h.expect_eq[I32](5, 13 % 8)
+    h.expect_eq[I32](-5, -13 % 8)
+    h.expect_eq[I32](5, 13 % -8)
+    h.expect_eq[I32](-5, -13 % -8)
+
+    h.expect_eq[I64](5, 13 % 8)
+    h.expect_eq[I64](-5, -13 % 8)
+    h.expect_eq[I64](5, 13 % -8)
+    h.expect_eq[I64](-5, -13 % -8)
