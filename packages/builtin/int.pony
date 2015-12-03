@@ -275,25 +275,19 @@ primitive I128 is _SignedInteger[I128, U128]
         return (0, 0)
       end
 
-      var num: I128 = this
-      var den: I128 = y
-
-      var minus = if num < 0 then
-        num = -num
-        true
-      else
-        false
-      end
-
-      if den < 0 then
-        den = -den
-        minus = not minus
-      end
+      var num: I128 = if this >= 0 then this else -this end
+      var den: I128 = if y >= 0 then y else -y end
 
       (let q, let r) = num.u128().divmod(den.u128())
       (var q', var r') = (q.i128(), r.i128())
 
-      if minus then
+      if this < 0 then
+        r' = -r'
+
+        if y > 0 then
+          q' = -q'
+        end
+      elseif y < 0 then
         q' = -q'
       end
 
