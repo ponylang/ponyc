@@ -6,7 +6,9 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestBuffer)
-    test(_TestBroadcast)
+    ifdef not windows then
+      test(_TestBroadcast)
+    end
 
 class iso _TestBuffer is UnitTest
   """
