@@ -401,6 +401,35 @@ primitive U128 is _UnsignedInteger[U128]
     f64().f32()
 
   fun f64(): F64 =>
-    let hi = (this >> 64).u64().f64()
-    let lo = u64().f64()
-    (hi.f64() * F64.ldexp(1, 64)) + lo
+    if this == 0 then
+      return 0
+    end
+
+    var a = this
+    let sd = bitwidth() - clz()
+    var e = (sd - 1).u64()
+
+    if sd > 53 then
+      match sd
+      | 54 => a = a << 1
+      | 55 => None
+      else
+        a = (a >> (sd - 55)) or
+          if (a and (-1 >> ((bitwidth() + 55) - sd))) != 0 then 1 else 0 end
+      end
+
+      if (a and 4) != 0 then
+        a = a or 1
+      end
+
+      a = (a + 1) >> 2
+
+      if (a and (1 << 53)) != 0 then
+        a = a >> 1
+        e = e + 1
+      end
+    else
+      a = a << (53 - sd)
+    end
+
+    F64.from_bits(((e + 1023) << 52) or (a.u64() and 0xF_FFFF_FFFF_FFFF))
