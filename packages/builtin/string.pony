@@ -648,33 +648,36 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _set(_size, 0)
     this
 
-  fun cut(from: ISize, to: ISize = -1): String iso^ =>
+  fun cut(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
-    Returns a version of the string with the given range deleted. The range is
-    inclusive.
+    Returns a version of the string with the given range deleted.
+    Index range [`from` .. `to`) is half-open.
     """
     var s = clone()
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: ISize, to: ISize = -1): String ref^ =>
+  fun ref cut_in_place(from: ISize, to: ISize = ISize.max_value()): String ref^
+  =>
     """
     Cuts the given range out of the string.
+    Index range [`from` .. `to`) is half-open.
     """
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
 
-    if (start < _size) and (start <= finish) and (finish < _size) then
-      let len = _size - ((finish - start) + 1)
-      var j = finish + 1
+    if (start < _size) and (start < finish) and (finish <= _size) then
+      let fragment_len = finish - start
+      let new_size = _size - fragment_len
+      var i = start
 
-      while j < _size do
-        _set(start + (j - (finish + 1)), _ptr._apply(j))
-        j = j + 1
+      while i < new_size do
+        _set(i, _ptr._apply(i + fragment_len))
+        i = i + 1
       end
 
-      _size = len
-      _set(len, 0)
+      _size = _size - fragment_len
+      _set(_size, 0)
     end
     this
 
@@ -689,7 +692,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     try
       while true do
         i = find(s, i)
-        cut_in_place(i, (i + s.size().isize()) - 1)
+        cut_in_place(i, i + s.size().isize())
         n = n + 1
       end
     end
@@ -702,7 +705,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
     occurrences will be replaced.
     """
-    let from_len = from.size().isize() - 1
+    let from_len = from.size().isize()
     let to_len = to.size().isize()
     var offset = ISize(0)
     var occur = USize(0)

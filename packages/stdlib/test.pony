@@ -50,6 +50,7 @@ actor Main is TestList
     test(_TestStringStrip)
     test(_TestStringRemove)
     test(_TestStringSubstring)
+    test(_TestStringCut)
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
@@ -354,6 +355,19 @@ class iso _TestStringSubstring is UnitTest
     h.expect_eq[String]("3456", "0123456".substring(3, 7))
     h.expect_eq[String]("3456", "0123456".substring(3))
     h.expect_eq[String]("345", "0123456".substring(3, -1))
+
+    true
+
+class iso _TestStringCut is UnitTest
+  """
+  Test cutting part of a string
+  """
+  fun name(): String => "builtin/String.cut"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String]("01236", "0123456".cut(4, 6))
+    h.expect_eq[String]("0123", "0123456".cut(4, 7))
+    h.expect_eq[String]("0123", "0123456".cut(4))
 
     true
 
