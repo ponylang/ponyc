@@ -136,20 +136,20 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _size
 
-  fun codepoints(from: ISize = 0, to: ISize = -1): USize =>
+  fun codepoints(from: ISize = 0, to: ISize = ISize.max_value()): USize =>
     """
     Returns the number of unicode code points in the string between the two
-    offsets. From and to are inclusive.
+    offsets. Index range [`from` .. `to`) is half-open.
     """
     if _size == 0 then
       return 0
     end
 
     var i = offset_to_index(from)
-    var j = offset_to_index(to).min(_size - 1)
+    var j = offset_to_index(to).min(_size)
     var n = USize(0)
 
-    while i <= j do
+    while i < j do
       if (_ptr._apply(i) and 0xC0) != 0x80 then
         n = n + 1
       end
