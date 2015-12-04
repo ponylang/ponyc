@@ -118,12 +118,12 @@ class Regex
       while off < subject.size() do
         let m' = _match(subject, off, _PCRE2.not_empty())
         let m = Match._create(subject, m')
-        let off' = m.start_pos() - 1
+        let off' = m.start_pos()
         out.push(subject.substring(off.isize(), off'.isize()))
         off = m.end_pos() + 1
       end
     else
-      out.push(subject.substring(off.isize(), -1))
+      out.push(subject.substring(off.isize()))
     end
 
     out

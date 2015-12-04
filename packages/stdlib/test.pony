@@ -350,6 +350,11 @@ class iso _TestStringSubstring is UnitTest
   fun apply(h: TestHelper): TestResult =>
     h.expect_eq[String]("3456", "0123456".substring(3, 99))
 
+    h.expect_eq[String]("345", "0123456".substring(3, 6))
+    h.expect_eq[String]("3456", "0123456".substring(3, 7))
+    h.expect_eq[String]("3456", "0123456".substring(3))
+    h.expect_eq[String]("345", "0123456".substring(3, -1))
+
     true
 
 class iso _TestSpecialValuesF32 is UnitTest

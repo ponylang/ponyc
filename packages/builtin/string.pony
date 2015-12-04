@@ -430,16 +430,16 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
-  fun substring(from: ISize, to: ISize = -1): String iso^ =>
+  fun substring(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
-    Returns a substring. From and to are inclusive. Returns an empty string if
-    nothing is in the range.
+    Returns a substring. Index range [`from` .. `to`) is half-open.
+    Returns an empty string if nothing is in the range.
     """
     let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size - 1)
+    let finish = offset_to_index(to).min(_size)
 
-    if (start < _size) and (start <= finish) then
-      let len = (finish - start) + 1
+    if (start < _size) and (start < finish) then
+      let len = finish - start
       var str = recover String(len) end
       _ptr._offset(start)._copy_to(str._ptr, len)
       str._size = len
