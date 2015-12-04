@@ -368,6 +368,25 @@ TEST_F(SubTypeTest, IsSubTypeTuple)
 }
 
 
+TEST_F(SubTypeTest, IsSubTypeUnionOfTuple)
+{
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+
+    "interface Test\n"
+    "  fun z(c1: C1, c2: C2,\n"
+    "    uoft: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2)),\n"
+    "    tofu: ((C1 | C2), (C1 | C2)))";
+
+  TEST_COMPILE(src);
+
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("tofu")));
+  ASSERT_TRUE(is_subtype(type_of("uoft"), type_of("tofu")));
+  ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft")));
+}
+
+
 TEST_F(SubTypeTest, IsSubTypeCap)
 {
   const char* src =

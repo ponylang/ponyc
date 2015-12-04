@@ -611,35 +611,145 @@ static bool is_isect_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
+// Build the type of the specified element within tuples of the specified
+// cardinality within the given type.
+// The returned type (if any) must be freed with ast_free_unattached().
+// Returns: tuple element type, NULL for no such type.
+static ast_t* extract_tuple_elem_type(ast_t* type, size_t elem_index,
+  size_t cardinality)
+{
+  assert(type != NULL);
+  assert(elem_index < cardinality);
+
+  switch(ast_id(type))
+  {
+    case TK_DONTCARE:
+      return type;
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* r = NULL;
+
+      // Union child types.
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* child_t = extract_tuple_elem_type(p, elem_index, cardinality);
+
+        // Ignore NULL child types.
+        if(child_t != NULL)
+        {
+          if(r == NULL)
+          {
+            r = child_t;
+          }
+          else
+          {
+            BUILD(union_t, r, NODE(TK_UNIONTYPE, TREE(r) TREE(child_t)));
+            r = union_t;
+          }
+        }
+      }
+
+      return r;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* r = NULL;
+
+      // Intersect child types.
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* child_t = extract_tuple_elem_type(p, elem_index, cardinality);
+
+        if(child_t == NULL)
+        {
+          // Any impossible child means our whole type is impossible.
+          ast_free_unattached(r);
+          return NULL;
+        }
+
+        if(r == NULL)
+        {
+          r = child_t;
+        }
+        else
+        {
+          BUILD(isec_t, r, NODE(TK_ISECTTYPE, TREE(r) TREE(child_t)));
+          r = isec_t;
+        }
+      }
+
+      return r;
+    }
+
+    case TK_TUPLETYPE:
+      if(ast_childcount(type) != cardinality) // Type is wrong size.
+        return NULL;
+
+      // This tuple is the right size, return type of relevant element.
+      return ast_childidx(type, elem_index);
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+
+      ast_t* right_t = extract_tuple_elem_type(right, elem_index, cardinality);
+
+      if(right_t == NULL) // No valid type.
+        return NULL;
+
+      BUILD(t, left, NODE(TK_ARROW, TREE(left) TREE(right_t)));
+      return t;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      // Cannot be a tuple.
+      return NULL;
+
+    default:
+      ast_print(type);
+      assert(0);
+      return NULL;
+  }
+}
+
+
 // The subtype is a tuple, the supertype could be anything.
 static bool is_tuple_subtype(ast_t* sub, ast_t* super)
 {
-  switch(ast_id(super))
+  assert(sub != NULL);
+  assert(super != NULL);
+
+  // Deconstruct both sub and super together, even if super isn't directly a
+  // tuple.
+  size_t cardinality = ast_childcount(sub);
+  size_t i = 0;
+
+  // Check each element in turn.
+  for(ast_t* p = ast_child(sub); p != NULL; p = ast_sibling(p))
   {
-    case TK_NOMINAL:
-      // A tuple can never be a strict subtype of a nominal type.
+    ast_t* elem_t = extract_tuple_elem_type(super, i++, cardinality);
+
+    if(elem_t == NULL)  // No valid super type.
       return false;
 
-    case TK_TYPEPARAMREF:
-      // A tuple can never be a strict subtype of a type parameter.
+    bool r = is_subtype(p, elem_t);
+    ast_free_unattached(elem_t);
+
+    if(!r)  // Elements not subtypes.
       return false;
-
-    case TK_UNIONTYPE:
-      return is_subtype_union(sub, super);
-
-    case TK_ISECTTYPE:
-      return is_subtype_isect(sub, super);
-
-    case TK_TUPLETYPE:
-      return is_tuple_sub_tuple(sub, super);
-
-    case TK_ARROW:
-      return is_subtype_arrow(sub, super);
-
-    default: {}
   }
 
-  return false;
+  // All elements are subtypes.
+  return true;
 }
 
 // The subtype is a nominal, the supertype could be anything.
