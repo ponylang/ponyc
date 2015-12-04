@@ -64,7 +64,8 @@ static void consume_token_no_ast(parser_t* parser)
 }
 
 
-static void syntax_error(parser_t* parser, const char* expected)
+static void syntax_error(parser_t* parser, const char* expected,
+  ast_t* ast, const char* terminating)
 {
   assert(parser != NULL);
   assert(expected != NULL);
@@ -77,9 +78,20 @@ static void syntax_error(parser_t* parser, const char* expected)
   }
   else
   {
-    error(parser->source, token_line_number(parser->token),
-      token_line_position(parser->token),
-      "syntax error: expected %s after %s", expected, parser->last_matched);
+    if(terminating == NULL)
+    {
+      error(parser->source, token_line_number(parser->token),
+        token_line_position(parser->token),
+        "syntax error: expected %s after %s", expected, parser->last_matched);
+    }
+    else
+    {
+      assert(ast != NULL);
+      ast_error(ast, "syntax error: unterminated %s", terminating);
+      error(parser->source, token_line_number(parser->token),
+        token_line_position(parser->token),
+        "expected terminating %s before here", expected);
+    }
   }
 }
 
@@ -230,7 +242,8 @@ static void ditch_restart(parser_t* parser, rule_state_t* state)
 
     // Current token is not in legal set, ditch it
     if(trace_enable)
-      printf("  ignoring %d %s %s\n", id, lexer_print(id), token_print(parser->token));
+      printf("  ignoring %d %s %s\n", id, lexer_print(id),
+        token_print(parser->token));
 
     consume_token_no_ast(parser);
   }
@@ -306,7 +319,7 @@ static ast_t* handle_found(parser_t* parser, rule_state_t* state,
  *    RULE_NOT_FOUND if current token is not is specified set.
 */
 static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
-  const char* desc, bool* out_found)
+  const char* desc, const char* terminating, bool* out_found)
 {
   assert(parser != NULL);
   assert(state != NULL);
@@ -326,8 +339,6 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   }
 
   // Required token / sub rule not found
-  ast_free(state->ast);
-  state->ast = NULL;
 
   if(!state->matched)
   {
@@ -335,6 +346,8 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
     if(trace_enable)
       printf("Rule %s: Not matched\n", state->fn_name);
 
+    ast_free(state->ast);
+    state->ast = NULL;
     return RULE_NOT_FOUND;
   }
 
@@ -342,8 +355,10 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   if(trace_enable)
     printf("Rule %s: Error\n", state->fn_name);
 
-  syntax_error(parser, desc);
+  syntax_error(parser, desc, state->ast, terminating);
   parser->failed = true;
+  ast_free(state->ast);
+  state->ast = NULL;
 
   if(state->restart == NULL)
     return PARSE_ERROR;
@@ -356,6 +371,8 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
 
 /* Check if current token matches any in given set and consume on match.
  * Args:
+ *    terminating is the description of the structure this token terminates,
+ *      NULL for none. Used only for error messages.
  *    id_set is a TK_NONE terminated list.
  *    make_ast specifies whether to construct an AST node on match or discard
  *      consumed token.
@@ -369,7 +386,8 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
  *    NULL to propogate a restarted error.
  */
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const token_id* id_set, bool make_ast, bool* out_found)
+  const char* terminating, const token_id* id_set, bool make_ast,
+  bool* out_found)
 {
   assert(parser != NULL);
   assert(state != NULL);
@@ -434,7 +452,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(trace_enable)
     printf("Not compatible\n");
 
-  return handle_not_found(parser, state, desc, out_found);
+  return handle_not_found(parser, state, desc, terminating, out_found);
 }
 
 
@@ -488,7 +506,7 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   }
 
   // No rules in set can be matched
-  return handle_not_found(parser, state, desc, out_found);
+  return handle_not_found(parser, state, desc, NULL, out_found);
 }
 
 
@@ -601,7 +619,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
 
   if(ast == RULE_NOT_FOUND)
   {
-    syntax_error(parser, expected);
+    syntax_error(parser, expected, NULL, NULL);
     ast = NULL;
   }
 

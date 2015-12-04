@@ -102,7 +102,7 @@ DEF(typeparams);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
   RULE("type parameter", typeparam);
   WHILE(TK_COMMA, RULE("type parameter", typeparam));
-  SKIP(NULL, TK_RSQUARE);
+  TERMINATE("type parameters", TK_RSQUARE);
   DONE();
 
 // LSQUARE type {COMMA type} RSQUARE
@@ -111,7 +111,7 @@ DEF(typeargs);
   SKIP(NULL, TK_LSQUARE);
   RULE("type argument", type);
   WHILE(TK_COMMA, RULE("type argument", type));
-  SKIP(NULL, TK_RSQUARE);
+  TERMINATE("type arguments", TK_RSQUARE);
   DONE();
 
 // CAP
@@ -246,7 +246,7 @@ DEF(object);
   OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
-  SKIP(NULL, TK_END);
+  TERMINATE("object literal", TK_END);
   DONE();
   
 // ID [COLON type] [ASSIGN infix]
@@ -281,7 +281,7 @@ DEF(lambda);
   OPT TOKEN(NULL, TK_QUESTION);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
-  SKIP(NULL, TK_END);
+  TERMINATE("lambda expression", TK_END);
   SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
   SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
   SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
@@ -304,7 +304,7 @@ DEF(array);
   OPT RULE("element type", arraytype);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
-  SKIP(NULL, TK_RSQUARE);
+  TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
 // LSQUARE_NEW rawseq {COMMA rawseq} RSQUARE
@@ -315,7 +315,7 @@ DEF(nextarray);
   OPT RULE("element type", arraytype);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
-  SKIP(NULL, TK_RSQUARE);
+  TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
 // COMMA (rawseq | dontcare) {COMMA (rawseq | dontcare)}
@@ -369,7 +369,7 @@ DEF(ffi);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi arguments", positional);
   OPT RULE("ffi arguments", named);
-  SKIP(NULL, TK_RPAREN);
+  TERMINATE("ffi arguments", TK_RPAREN);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
@@ -411,7 +411,7 @@ DEF(call);
   SKIP(NULL, TK_LPAREN);
   OPT RULE("argument", positional);
   OPT RULE("argument", named);
-  SKIP(NULL, TK_RPAREN);
+  TERMINATE("call arguments", TK_RPAREN);
   DONE();
 
 // atom {dot | tilde | qualify | call}
@@ -500,7 +500,7 @@ DEF(idseq);
   RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
-// ELSE seq END
+// ELSE seq
 DEF(elseclause);
   PRINT_INLINE();
   SKIP(NULL, TK_ELSE);
@@ -527,7 +527,7 @@ DEF(cond);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
   OPT RULE("else clause", elseif, elseclause);
-  SKIP(NULL, TK_END);
+  TERMINATE("if expression", TK_END);
   DONE();
 
 // ELSEIF rawseq [$EXTRA rawseq] THEN seq [elseifdef | (ELSE seq)]
@@ -561,7 +561,7 @@ DEF(ifdef);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
   OPT RULE("else clause", elseifdef, elseclause);
-  SKIP(NULL, TK_END);
+  TERMINATE("ifdef expression", TK_END);
   // Order should be:
   // condition then_clause else_clause else_condition
   REORDER(0, 2, 3, 1);
@@ -593,7 +593,7 @@ DEF(match);
   RULE("match expression", rawseq);
   RULE("cases", cases);
   IF(TK_ELSE, RULE("else clause", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("match expression", TK_END);
   DONE();
 
 // WHILE rawseq DO seq [ELSE seq] END
@@ -605,7 +605,7 @@ DEF(whileloop);
   SKIP(NULL, TK_DO);
   RULE("while body", seq);
   IF(TK_ELSE, RULE("else clause", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("while loop", TK_END);
   DONE();
 
 // REPEAT seq UNTIL seq [ELSE seq] END
@@ -617,7 +617,7 @@ DEF(repeat);
   SKIP(NULL, TK_UNTIL);
   RULE("condition expression", seq);
   IF(TK_ELSE, RULE("else clause", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("repeat loop", TK_END);
   DONE();
 
 // FOR idseq IN rawseq DO rawseq [ELSE seq] END
@@ -635,7 +635,7 @@ DEF(forloop);
   SKIP(NULL, TK_DO);
   RULE("for body", rawseq);
   IF(TK_ELSE, RULE("else clause", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("for loop", TK_END);
   DONE();
 
 // idseq = rawseq
@@ -669,7 +669,7 @@ DEF(with);
   SKIP(NULL, TK_DO);
   RULE("with body", rawseq);
   IF(TK_ELSE, RULE("else clause", rawseq));
-  SKIP(NULL, TK_END);
+  TERMINATE("with expression", TK_END);
   DONE();
 
 // TRY seq [ELSE seq] [THEN seq] END
@@ -679,7 +679,7 @@ DEF(try_block);
   RULE("try body", seq);
   IF(TK_ELSE, RULE("try else body", seq));
   IF(TK_THEN, RULE("try then body", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("try expression", TK_END);
   DONE();
 
 // $TRY_NO_CHECK seq [ELSE seq] [THEN seq] END
@@ -690,7 +690,7 @@ DEF(test_try_block);
   RULE("try body", seq);
   IF(TK_ELSE, RULE("try else body", seq));
   IF(TK_THEN, RULE("try then body", seq));
-  SKIP(NULL, TK_END);
+  TERMINATE("try expression", TK_END);
   SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
@@ -701,7 +701,7 @@ DEF(recover);
   SCOPE();
   OPT RULE("capability", cap);
   RULE("recover body", rawseq);
-  SKIP(NULL, TK_END);
+  TERMINATE("recover expression", TK_END);
   DONE();
 
 // $BORROWED

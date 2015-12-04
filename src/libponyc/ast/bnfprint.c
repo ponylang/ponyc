@@ -768,6 +768,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
 
 #define SKIP(desc, ...) TOKEN(desc, __VA_ARGS__)
 
+#define TERMINATE(desc, ...) TOKEN(desc, __VA_ARGS__)
+
 #define RULE(desc, ...) \
   { \
     static const char* rules[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
