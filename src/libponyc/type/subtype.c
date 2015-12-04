@@ -493,26 +493,7 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
   return false;
 }
 
-// Both sub and super are tuples.
-static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super)
-{
-  // All elements must be pairwise subtypes.
-  ast_t* sub_child = ast_child(sub);
-  ast_t* super_child = ast_child(super);
-
-  while((sub_child != NULL) && (super_child != NULL))
-  {
-    if(!is_subtype(sub_child, super_child))
-      return false;
-
-    sub_child = ast_sibling(sub_child);
-    super_child = ast_sibling(super_child);
-  }
-
-  return (sub_child == NULL) && (super_child == NULL);
-}
-
-// The subtype is either a nominal or a tuple, the super type is a union.
+// The subtype is a nominal, the super type is a union.
 static bool is_subtype_union(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of one element of the union.
@@ -529,7 +510,7 @@ static bool is_subtype_union(ast_t* sub, ast_t* super)
   return false;
 }
 
-// The subtype is either a nominal or a tuple, the super type is an isect.
+// The subtype is a nominal, the super type is an isect.
 static bool is_subtype_isect(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of all elements of the intersection.
@@ -546,7 +527,7 @@ static bool is_subtype_isect(ast_t* sub, ast_t* super)
   return true;
 }
 
-// The subtype is a nominal, typeparamref or tuple, the super type is an arrow.
+// The subtype is a nominal or typeparamref, the super type is an arrow.
 static bool is_subtype_arrow(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of the lower bounds.
