@@ -164,7 +164,7 @@ class val URL
         end
 
         // Otherwise, we have a scheme. Set it and return the offset.
-        scheme = recover from.substring(0, i.isize() - 1).lower_in_place() end
+        scheme = recover from.substring(0, i.isize()).lower_in_place() end
         return i.isize() + 1
       else
         // Anything else is not a scheme.
@@ -191,9 +191,9 @@ class val URL
       let at = from.rfind("@", slash)
 
       let user_end = try from.find(":", i).min(at) else at end
-      user = from.substring(i, user_end - 1)
+      user = from.substring(i, user_end)
       if from.at(":", user_end) then
-        password = from.substring(user_end + 1, at - 1)
+        password = from.substring(user_end + 1, at)
       end
 
       i = at + 1
@@ -203,14 +203,14 @@ class val URL
       let colon = from.find(":", i)
 
       if colon < slash then
-        host = from.substring(i, colon - 1)
-        service = from.substring(colon + 1, slash - 1)
+        host = from.substring(i, colon)
+        service = from.substring(colon + 1, slash)
       else
         error
       end
     else
       // Has no port
-      host = from.substring(i, slash - 1)
+      host = from.substring(i, slash)
 
       service = match scheme
       | "http" => "80"
@@ -228,25 +228,25 @@ class val URL
     """
     try
       let q = from.find("?", offset)
-      path = from.substring(offset, q - 1)
+      path = from.substring(offset, q)
 
       try
         let h = from.find("#", q + 1)
-        query = from.substring(q + 1, h - 1)
-        fragment = from.substring(h + 1, -1)
+        query = from.substring(q + 1, h)
+        fragment = from.substring(h + 1)
       else
         // Has no fragment
-        query = from.substring(q + 1, -1)
+        query = from.substring(q + 1)
       end
     else
       // Has no query.
       try
         let h = from.find("#", offset + 1)
-        path = from.substring(offset, h - 1)
-        fragment = from.substring(h + 1, -1)
+        path = from.substring(offset, h)
+        fragment = from.substring(h + 1)
       else
         // Has no fragment
-        path = from.substring(offset, -1)
+        path = from.substring(offset)
       end
     end
 
