@@ -118,7 +118,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   heap_endgc(&actor->heap);
 
 #ifdef USE_TELEMETRY
-  ctx->time_in_gc += (cpu_tick()() - tsc);
+  ctx->time_in_gc += (cpu_tick() - tsc);
 #endif
 }
 
