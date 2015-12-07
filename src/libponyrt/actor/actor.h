@@ -26,8 +26,8 @@ typedef struct pony_actor_t
   uint8_t flags;
 
   // keep things accessed by other actors on a separate cache line
-  __pony_spec_align__(heap_t heap, 64); // 104 bytes
-  gc_t gc; // 80 bytes
+  __pony_spec_align__(heap_t heap, 64); // 52/104 bytes
+  gc_t gc; // 44/80 bytes
 } pony_actor_t;
 
 bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
