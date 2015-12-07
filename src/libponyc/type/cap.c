@@ -495,9 +495,13 @@ token_id cap_viewpoint(token_id view, token_id cap)
   switch(view)
   {
     case TK_TAG:
+    case TK_TAG_BIND:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
     case TK_CAP_ANY:
+    case TK_CAP_SEND_BIND:
+    case TK_CAP_SHARE_BIND:
+    case TK_CAP_ANY_BIND:
       return TK_NONE;
 
     default: {}
@@ -510,6 +514,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
   switch(view)
   {
     case TK_ISO:
+    case TK_ISO_BIND:
     {
       switch(cap)
       {
@@ -523,6 +528,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
     }
 
     case TK_TRN:
+    case TK_TRN_BIND:
     {
       switch(cap)
       {
@@ -537,9 +543,11 @@ token_id cap_viewpoint(token_id view, token_id cap)
     }
 
     case TK_REF:
+    case TK_REF_BIND:
       return cap;
 
     case TK_VAL:
+    case TK_VAL_BIND:
     {
       switch(cap)
       {
@@ -553,6 +561,8 @@ token_id cap_viewpoint(token_id view, token_id cap)
 
     case TK_BOX:
     case TK_CAP_READ:
+    case TK_BOX_BIND:
+    case TK_CAP_READ_BIND:
     {
       switch(cap)
       {

@@ -333,7 +333,7 @@ void replace_thistype(ast_t** astp, ast_t* type)
 
   if(ast_id(ast) == TK_THISTYPE)
   {
-    ast_replace(astp, type);
+    ast_replace(astp, ast_dup(type));
     return;
   }
 

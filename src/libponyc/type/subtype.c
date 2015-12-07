@@ -334,20 +334,42 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     if(sub_member == NULL)
       return false;
 
-    ast_t* r_sub_member = reify(sub_typeargs, sub_member, sub_typeparams,
+    ast_t* r_sub_member = ast_dup(sub_member);
+    replace_thistype(&r_sub_member, sub);
+
+    ast_t* rr_sub_member = reify(sub_typeargs, r_sub_member, sub_typeparams,
       sub_typeargs);
+
+    if(rr_sub_member != r_sub_member)
+    {
+      ast_free_unattached(r_sub_member);
+      r_sub_member = rr_sub_member;
+    }
 
     if(r_sub_member == NULL)
       return false;
 
-    ast_t* r_super_member = reify(super_typeargs, super_member,
+    flatten_arrows(&r_sub_member, false);
+
+    ast_t* r_super_member = ast_dup(super_member);
+    replace_thistype(&r_super_member, super);
+
+    ast_t* rr_super_member = reify(super_typeargs, r_super_member,
       super_typeparams, super_typeargs);
+
+    if(rr_super_member != r_super_member)
+    {
+      ast_free_unattached(r_super_member);
+      r_super_member = rr_super_member;
+    }
 
     if(r_super_member == NULL)
     {
       ast_free_unattached(r_sub_member);
       return false;
     }
+
+    flatten_arrows(&r_super_member, false);
 
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, sub, super);
     ast_free_unattached(r_sub_member);
