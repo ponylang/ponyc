@@ -160,7 +160,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NONE
         NONE));
 
-ast_append(members, eq);
+    ast_append(members, eq);
   }
 
   if(!has_member(members, "ne"))
@@ -425,8 +425,9 @@ static ast_result_t check_method(ast_t* method)
 }
 
 
-static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
+static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
   // Return type default to ref^ for classes, val^ for primitives, and
@@ -447,7 +448,7 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
       ast_setid(cap, tcap);
     }
 
-    ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
+    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL, false));
   }
 
   sugar_docstring(ast);
@@ -455,7 +456,7 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
+static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
   ast_setid(cap, TK_TAG);
@@ -463,7 +464,7 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
   if(ast_id(result) == TK_NONE)
   {
     // Return type is This tag
-    ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+    ast_replace(&result, type_for_this(opt, ast, TK_TAG, TK_NONE, false));
   }
 
   sugar_docstring(ast);
@@ -1226,8 +1227,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:
     case TK_INTERFACE:  return sugar_entity(t, ast, false, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
-    case TK_NEW:        return sugar_new(t, ast);
-    case TK_BE:         return sugar_be(t, ast);
+    case TK_NEW:        return sugar_new(options, ast);
+    case TK_BE:         return sugar_be(options, ast);
     case TK_FUN:        return sugar_fun(ast);
     case TK_RETURN:
     case TK_BREAK:      return sugar_return(t, ast);

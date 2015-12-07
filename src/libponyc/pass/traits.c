@@ -462,29 +462,26 @@ static bool record_default_body(ast_t* reified_method, ast_t* raw_method,
 // Process the given provided method for the given entity.
 // The method passed should be reified already and will be freed by this
 // function.
-static bool provided_method(ast_t* entity, ast_t* reified_method,
-  ast_t* raw_method, ast_t** last_method)
+static bool provided_method(pass_opt_t* opt, ast_t* entity,
+  ast_t* reified_method, ast_t* raw_method, ast_t** last_method)
 {
   assert(entity != NULL);
   assert(reified_method != NULL);
   assert(last_method != NULL);
 
-  const char* entity_name = ast_name(ast_child(entity));
+  AST_GET_CHILDREN(reified_method, cap, id, typeparams, params, result,
+    can_error, body, doc);
 
   if(ast_id(reified_method) == TK_BE || ast_id(reified_method) == TK_NEW)
   {
-    // Modify return type to the inheritting type
-    ast_t* ret_type = ast_childidx(reified_method, 4);
-    assert(ast_id(ret_type) == TK_NOMINAL);
+    // Modify return type to the inheriting type
+    ast_t* this_type = type_for_this(opt, entity, ast_id(cap),
+      TK_EPHEMERAL, true);
 
-    const char* pkg_name = package_name(ast_nearest(entity, TK_PACKAGE));
-    ast_set_name(ast_childidx(ret_type, 0), pkg_name);
-    ast_set_name(ast_childidx(ret_type, 1), entity_name);
+    ast_replace(&result, this_type);
   }
 
   // Ignore docstring
-  ast_t* doc = ast_childidx(reified_method, 7);
-
   if(ast_id(doc) == TK_STRING)
   {
     ast_set_name(doc, "");
@@ -492,7 +489,7 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
   }
 
   // Check for existing method of the same name
-  const char* name = ast_name(ast_childidx(reified_method, 1));
+  const char* name = ast_name(id);
   assert(name != NULL);
 
   ast_t* existing = ast_get(entity, name, NULL);
@@ -525,7 +522,7 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
 
 // Process the method provided to the given entity.
 // Stage 2.
-static bool provided_methods(ast_t* entity)
+static bool provided_methods(pass_opt_t* opt, ast_t* entity)
 {
   assert(entity != NULL);
 
@@ -584,7 +581,7 @@ static bool provided_methods(ast_t* entity)
         if(reified == NULL) // Reification error, already reported
           return false;
 
-        if(!provided_method(entity, reified, m, &last_member))
+        if(!provided_method(opt, entity, reified, m, &last_member))
           r = false;
       }
     }
@@ -968,8 +965,8 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
 
   bool r =
     provides_list(entity, options) && // Stage 1
-    provided_methods(entity) &&       // Stage 2
-    field_delegations(entity) &&      // Stage 3
+    provided_methods(options, entity) && // Stage 2
+    field_delegations(entity) && // Stage 3
     resolve_methods(entity, options); // Stage 4
 
   tidy_up(entity);

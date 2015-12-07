@@ -1,11 +1,11 @@
 #include "assemble.h"
 #include "subtype.h"
-#include "lookup.h"
 #include "cap.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "../pass/names.h"
+#include "../pass/flatten.h"
 #include "../pass/expr.h"
 #include <assert.h>
 
@@ -246,9 +246,10 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
   return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
-  token_id ephemeral)
+ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
+  token_id ephemeral, bool defs)
 {
+  typecheck_t* t = &opt->check;
   bool make_arrow = false;
 
   if(cap == TK_BOX)
@@ -280,9 +281,20 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
       ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
+      if(defs)
+      {
+        names_nominal(opt, ast, &typearg, false);
+
+        if(ast_id(typearg) == TK_TYPEPARAMREF)
+          flatten_typeparamref(typearg);
+      }
+
       typeparam = ast_sibling(typeparam);
     }
   }
+
+  if(defs)
+    names_nominal(opt, ast, &type, false);
 
   if(make_arrow)
   {

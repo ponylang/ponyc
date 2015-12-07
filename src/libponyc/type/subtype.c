@@ -136,7 +136,7 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
       if(isuper == NULL)
       {
         if(!is_subtype(sub_result, super_result))
-         return false;
+          return false;
 
         // If either result type is a machine word, the other must be as well.
         if(is_machine_word(sub_result) && !is_machine_word(super_result))
@@ -337,7 +337,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     ast_t* r_sub_member = reify(sub_typeargs, sub_member, sub_typeparams,
       sub_typeargs);
 
-    if(r_sub_member== NULL)
+    if(r_sub_member == NULL)
       return false;
 
     ast_t* r_super_member = reify(super_typeargs, super_member,
