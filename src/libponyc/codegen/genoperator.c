@@ -341,6 +341,15 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
 {
   switch(ast_id(left))
   {
+    case TK_SEQ:
+      // The actual expression is inside a sequence node.
+      while(ast_id(left) == TK_SEQ)
+      {
+        assert(ast_childcount(left) == 1);
+        left = ast_child(left);
+      }
+      return assign_rvalue(c, left, r_type, r_value);
+
     case TK_VAR:
     case TK_LET:
     {
