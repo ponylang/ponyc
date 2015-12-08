@@ -112,6 +112,8 @@ class Array[A] is Seq[A]
     """
     Insert an element into the array. Elements after this are moved up by one
     index, extending the array.
+    An out of bounds index raises an error.
+    The array is returned to allow call chaining.
     """
     if i < _size then
       reserve(_size + 1)
@@ -127,6 +129,8 @@ class Array[A] is Seq[A]
     """
     Delete an element from the array. Elements after this are moved down by one
     index, compacting the array.
+    An out of bounds index raises an error.
+    The deleted element is returned.
     """
     if i < _size then
       _size = _size - 1
@@ -139,6 +143,7 @@ class Array[A] is Seq[A]
     """
     Truncate an array to the given length, discarding excess elements. If the
     array is already smaller than len, do nothing.
+    The array is returned to allow call chaining.
     """
     _size = _size.min(len)
     this
@@ -148,6 +153,7 @@ class Array[A] is Seq[A]
   =>
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
+    The array is returned to allow call chaining.
     """
     dst.reserve(dst_idx + len)
     _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
@@ -160,6 +166,7 @@ class Array[A] is Seq[A]
   fun ref remove(i: USize, n: USize): Array[A]^ =>
     """
     Remove n elements from the array, beginning at index i.
+    The array is returned to allow call chaining.
     """
     if i < _size then
       let count = n.min(_size - i)
@@ -171,6 +178,7 @@ class Array[A] is Seq[A]
   fun ref clear(): Array[A]^ =>
     """
     Remove all elements from the array.
+    The array is returned to allow call chaining.
     """
     _size = 0
     this
@@ -178,6 +186,7 @@ class Array[A] is Seq[A]
   fun ref push(value: A): Array[A]^ =>
     """
     Add an element to the end of the array.
+    The array is returned to allow call chaining.
     """
     reserve(_size + 1)
     _ptr._update(_size, consume value)
@@ -187,12 +196,14 @@ class Array[A] is Seq[A]
   fun ref pop(): A^ ? =>
     """
     Remove an element from the end of the array.
+    The removed element is returned.
     """
     delete(_size - 1)
 
   fun ref unshift(value: A): Array[A]^ =>
     """
     Add an element to the beginning of the array.
+    The array is returned to allow call chaining.
     """
     try
       insert(0, consume value)
@@ -202,6 +213,7 @@ class Array[A] is Seq[A]
   fun ref shift(): A^ ? =>
     """
     Remove an element from the beginning of the array.
+    The removed element is returned.
     """
     delete(0)
 
@@ -210,6 +222,7 @@ class Array[A] is Seq[A]
   =>
     """
     Append the elements from a sequence, starting from the given offset.
+    The array is returned to allow call chaining.
     """
     if offset >= seq.size() then
       return this
@@ -233,6 +246,7 @@ class Array[A] is Seq[A]
   fun ref concat(iter: Iterator[A^]): Array[A]^ =>
     """
     Add iterated elements to the end of the array.
+    The array is returned to allow call chaining.
     """
     for v in iter do
       push(consume v)
@@ -286,6 +300,8 @@ class Array[A] is Seq[A]
   fun clone(): Array[this->A!]^ =>
     """
     Clone the array.
+    The new array contains references to the same elements that the old array
+    contains, the elements themselves are not copied.
     """
     let out = Array[this->A!](_size)
     _ptr._copy_to(out._ptr, _size)
@@ -296,6 +312,8 @@ class Array[A] is Seq[A]
     """
     Create a new array that is a clone of a portion of this array. The range is
     exclusive and saturated.
+    The new array contains references to the same elements that the old array
+    contains, the elements themselves are not copied.
     """
     let out = Array[this->A!]
     let last = _size.min(to)
@@ -322,8 +340,11 @@ class Array[A] is Seq[A]
 
   fun permute(indices: Iterator[USize]): Array[this->A!]^ ? =>
     """
+    Create a new array with the elements permuted.
     Permute to an arbitrary order that may include duplicates. An out of bounds
     index raises an error.
+    The new array contains references to the same elements that the old array
+    contains, the elements themselves are not copied.
     """
     let out = Array[this->A!]
     for i in indices do
@@ -333,7 +354,9 @@ class Array[A] is Seq[A]
 
   fun reverse(): Array[this->A!]^ =>
     """
-    Produce a new array in reverse order.
+    Create a new array with the elements in reverse order.
+    The new array contains references to the same elements that the old array
+    contains, the elements themselves are not copied.
     """
     clone().reverse_in_place()
 
