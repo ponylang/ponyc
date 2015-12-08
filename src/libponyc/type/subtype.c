@@ -1333,3 +1333,31 @@ bool is_entity(ast_t* type, token_id entity)
   assert(0);
   return false;
 }
+
+bool contains_dontcare(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_DONTCARE:
+      return true;
+
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(contains_dontcare(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    default: {}
+  }
+
+  return false;
+}

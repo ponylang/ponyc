@@ -41,6 +41,8 @@ bool is_known(ast_t* type);
 
 bool is_entity(ast_t* type, token_id entity);
 
+bool contains_dontcare(ast_t* ast);
+
 PONY_EXTERN_C_END
 
 #endif

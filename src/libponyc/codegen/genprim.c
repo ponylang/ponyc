@@ -889,13 +889,13 @@ void genprim_reachable_init(compile_t* c, ast_t* program)
 
           if(finit != NULL)
           {
-            reach(c->reachable, type, init, NULL);
+            reach(c->reachable, &c->next_type_id, type, init, NULL);
             ast_free_unattached(finit);
           }
 
           if(ffinal != NULL)
           {
-            reach(c->reachable, type, final, NULL);
+            reach(c->reachable, &c->next_type_id, type, final, NULL);
             ast_free_unattached(ffinal);
           }
 
