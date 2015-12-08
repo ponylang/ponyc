@@ -90,7 +90,7 @@ class val FilePath
     repeat
       let element = try
         offset = path.find(Path.sep(), offset) + 1
-        path.substring(0, offset - 2)
+        path.substring(0, offset - 1)
       else
         offset = -1
         path
