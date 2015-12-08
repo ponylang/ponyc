@@ -187,10 +187,10 @@ class File
 
       let r = ifdef linux then
         @fgets_unlocked[Pointer[U8]](result.cstring().usize() + offset,
-          len - offset, _handle)
+          result.space() - offset, _handle)
       else
         @fgets[Pointer[U8]](result.cstring().usize() + offset,
-          len - offset, _handle)
+          result.space() - offset, _handle)
       end
 
       result.recalc()
@@ -252,9 +252,10 @@ class File
       let result = recover String(len) end
 
       let r = ifdef linux then
-        @fread_unlocked[USize](result.cstring(), USize(1), len, _handle)
+        @fread_unlocked[USize](result.cstring(), USize(1), result.space(),
+          _handle)
       else
-        @fread[USize](result.cstring(), USize(1), len, _handle)
+        @fread[USize](result.cstring(), USize(1), result.space(), _handle)
       end
 
       result.truncate(r)

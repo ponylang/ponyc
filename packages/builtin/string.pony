@@ -15,7 +15,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     An empty string. Enough space for len bytes is reserved.
     """
     _size = 0
-    _alloc = len + 1
+    _alloc = len.min(len.max_value() - 1) + 1
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
@@ -161,9 +161,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
   fun space(): USize =>
     """
-    Returns the amount of allocated space.
+    Returns the space available for data, not including the null terminator.
     """
-    _alloc
+    _alloc - 1
 
   fun ref reserve(len: USize): String ref^ =>
     """
@@ -171,7 +171,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     null terminator.
     """
     if _alloc <= len then
-      _alloc = (len + 1).max(8).next_pow2()
+      _alloc = len.min(len.max_value() - 1) + 1
       _ptr = _ptr._realloc(_alloc)
     end
     this
@@ -179,13 +179,20 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   fun ref recalc(): String ref^ =>
     """
     Recalculates the string length. This is only needed if the string is
-    changed via an FFI call.
+    changed via an FFI call. If the string is not null terminated at the
+    allocated length, a null is added.
     """
     _size = 0
 
     while (_size < _alloc) and (_ptr._apply(_size) > 0) do
       _size = _size + 1
     end
+
+    if _size == _alloc then
+      _size = _size - 1
+      _set(_size, 0)
+    end
+
     this
 
   fun ref truncate(len: USize): String ref^ =>

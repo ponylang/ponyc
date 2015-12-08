@@ -81,6 +81,7 @@ class Regex
 
     var len = subject.size().max(64)
     let out = recover A(len) end
+    len = out.space()
     var rc = I32(0)
 
     repeat
@@ -92,6 +93,7 @@ class Regex
       if rc == -48 then
         len = len * 2
         out.reserve(len)
+        len = out.space()
       end
     until rc != -48 end
 

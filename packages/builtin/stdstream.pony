@@ -3,6 +3,7 @@ interface val ByteSeq
   Accept both a String and an Array[U8].
   """
   fun size(): USize
+  fun space(): USize
   fun cstring(): Pointer[U8] tag
   fun apply(i: USize): U8 ?
 
