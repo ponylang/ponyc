@@ -514,6 +514,8 @@ class iso _TestStringCompare is UnitTest
     test(h, Equal, "AB", "ab", 2 where ignore_case = true)
     test(h, Equal, "AB", "AB", 2 where ignore_case = true)
 
+    test(h, Equal, "foobar", "bar", 2, -2, -2)
+
     true
 
   fun test(h: TestHelper, expect: Compare, receiver: String box,
