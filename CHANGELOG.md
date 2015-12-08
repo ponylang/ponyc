@@ -35,6 +35,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - UDP broadcast for both IPv4 and IPv6.
 - Message batching.
 - Case functions.
+- Timeouts for PonyTest long tests.
 
 ### Changed
 

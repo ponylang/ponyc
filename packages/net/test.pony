@@ -186,9 +186,9 @@ class iso _TestBroadcast is UnitTest
 
   fun ref apply(h: TestHelper): TestResult =>
     _mgr = _TestBroadcastMgr(h)
-    LongTest
-
-  fun timeout() =>
+    2_000_000_000 // 2 second timeout
+    
+  fun timedout(t: TestHelper) =>
     try
       (_mgr as _TestBroadcastMgr).fail("timeout")
     end

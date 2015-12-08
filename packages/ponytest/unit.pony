@@ -1,5 +1,4 @@
-primitive LongTest
-type TestResult is (Bool | LongTest)
+type TestResult is (Bool | U64)
 
 
 trait UnitTest
@@ -28,6 +27,14 @@ trait UnitTest
     Return values:
     * true - test passed.
     * false - test failed.
-    * LongTest - test needs to run for longer. See package doc string.
+    * U64 - test needs to run for longer. Value given is timeout in nsec.
     * error - test failed.
     """
+
+  fun ref timedout(t: TestHelper) =>
+    """
+    Tear down a possibly hanging test.
+    Called when the timeout specified by the test function expires.
+    The default is to do nothing.
+    """
+    None
