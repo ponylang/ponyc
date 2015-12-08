@@ -35,6 +35,7 @@ trait UnitTest
     """
     Tear down a possibly hanging test.
     Called when the timeout specified by the test function expires.
+    There is no need for this function to call complete(false).
     The default is to do nothing.
     """
     None

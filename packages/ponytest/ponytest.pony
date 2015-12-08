@@ -128,9 +128,12 @@ Non-long tests can still call complete(), but it is ignored.
 Since failing tests may hang, a timeout must be specified for each long test.
 When the test function exits a timer is started with the specified timeout. If
 this timer fires before complete() is called the test is marked as a failure
-and the timeout is reported. The timedout() function is then called on the unit
-test object. This should perform whatever test specific tidy up is required to
-allow the program to exit.
+and the timeout is reported.
+
+On a timeout the timedout() function is called on the unit test object. This
+should perform whatever test specific tidy up is required to allow the program
+to exit. There is no need to call complete() if a timeout occurs, although it
+is not an error to do so.
 
 Long tests are indicated by returning the timeout to use from the test
 function. This is given as a U64 measured in nanoseconds.

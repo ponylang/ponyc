@@ -12,6 +12,7 @@ actor _TestRunner
   let _log_verbose: Bool
   let _env: Env
   let _timers: Timers
+  let _helper: TestHelper
   var _test_log: Array[String] iso = recover Array[String] end
   var _pass: Bool = false
   var _completed: Bool = false
@@ -36,6 +37,7 @@ actor _TestRunner
     _log_verbose = verbose
     _env = env
     _timers = timers
+    _helper = TestHelper._create(this, _env)
 
   be run() =>
     """
@@ -48,7 +50,7 @@ actor _TestRunner
     try
       // If the test throws then pass will keep its value of false, no extra
       // processing is needed.
-      pass = _test(TestHelper._create(this, _env))
+      pass = _test(_helper)
     else
       log("Test threw an error", false)
     end
@@ -134,5 +136,6 @@ actor _TestRunner
     """
     if not _completed then
       log("Test timed out without completing", false)
+      _test.timedout(_helper)
       complete(false)
     end
