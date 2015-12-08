@@ -15,9 +15,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - Adjust for ephemerality in cap_single().
 - Finalisation always occurs.
 - Type checking platform dependent FFI declarations on all platforms.
+- Interface subtyping takes receiver capabilities into account.
+- Pony-as-library support, particularly pony_register_thread().
 
 ### Added
 
+- 32-bit ARM port.
+- 32-bit X86 port.
 - Embedded fields.
 - C-style structs.
 - Maybe[A] to encode C-style structs that aren't present.
@@ -27,6 +31,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - Pooltrack and telemetry runtime builds.
 - ifdef expressions for platform dependent code.
 - User specified build flags.
+- Pure Pony implementation of 128 bit integer maths for 32-bit platforms.
+- UDP broadcast for both IPv4 and IPv6.
+- Message batching.
+- Case functions.
 
 ### Changed
 
@@ -36,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Set-based upper bounds for generic constraints.
 - Moved the position of a default capability in a type specification.
 - Replaced '&' with 'addressof' for taking address in FFI calls.
+- @jemc: use half-open ranges for String operations.
 
 ## [0.2.1] - 2015-10-06
 
