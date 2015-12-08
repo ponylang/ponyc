@@ -166,7 +166,7 @@ class Directory
         repeat
           let element = try
             offset = target.find(Path.sep(), offset) + 1
-            target.substring(0, offset - 2)
+            target.substring(0, offset - 1)
           else
             offset = -1
             target
