@@ -902,7 +902,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     var i = n
     var j: USize = offset_to_index(offset)
-    var k: USize = offset_to_index(that_offset)
+    var k: USize = that.offset_to_index(that_offset)
 
     if (j + n) > _size then
       return Less
