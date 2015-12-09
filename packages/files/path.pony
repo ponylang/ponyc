@@ -57,7 +57,7 @@ primitive Path
       try
         if is_sep(path(-1)) then
           if is_sep(next_path(0)) then
-            return clean(path + next_path.substring(1, -1))
+            return clean(path + next_path.substring(1))
           else
             return clean(path + next_path)
           end
@@ -286,10 +286,10 @@ primitive Path
 
       result.append("..")
       result.append(sep())
-      result.append(target_clean.substring(target_0, -1))
+      result.append(target_clean.substring(target_0))
       result
     else
-      target_clean.substring(target_0, -1)
+      target_clean.substring(target_0)
     end
 
   fun base(path: String): String =>
@@ -299,7 +299,7 @@ primitive Path
     """
     try
       var i = path.rfind(sep())
-      path.substring(i + 1, -1)
+      path.substring(i + 1)
     else
       path
     end
@@ -311,7 +311,7 @@ primitive Path
     """
     try
       var i = path.rfind(sep())
-      clean(path.substring(0, i - 1))
+      clean(path.substring(0, i))
     else
       path
     end
@@ -331,7 +331,7 @@ primitive Path
       end
 
       if i >= j then
-        return path.substring(i + 1, -1)
+        return path.substring(i + 1)
       end
     end
     ""
@@ -353,7 +353,7 @@ primitive Path
       end
 
       if _drive_letter(path, offset) then
-        return path.substring(0, offset + 1)
+        return path.substring(0, offset + 2)
       end
 
       try
@@ -361,7 +361,7 @@ primitive Path
           is_sep(path.at_offset(offset)) and
           is_sep(path.at_offset(offset + 1))
         then
-          return _network_share(path, offset + 2)
+          return _network_share(path, offset + 3)
         end
       end
     end
@@ -390,7 +390,7 @@ primitive Path
 
       try
         next = path.find("\\", next) - 1
-        path.substring(0, next)
+        path.substring(0, next + 1)
       else
         path
       end
@@ -481,11 +481,11 @@ primitive Path
     try
       while true do
         var next = path.find(list_sep(), offset)
-        array.push(clean(path.substring(offset, next - 1)))
+        array.push(clean(path.substring(offset, next)))
         offset = next + 1
       end
     else
-      array.push(clean(path.substring(offset, -1)))
+      array.push(clean(path.substring(offset)))
     end
 
     array

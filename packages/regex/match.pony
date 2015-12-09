@@ -50,6 +50,7 @@ class Match
     len = len + 1
 
     let out = recover A(len) end
+    len = out.space()
     rc = @pcre2_substring_copy_bynumber_8[I32](_match, i, out.cstring(),
       addressof len)
     if rc != 0 then error end
@@ -72,6 +73,7 @@ class Match
 
     len = len + 1
     let out = recover A(len) end
+    len = out.space()
 
     @pcre2_substring_copy_byname_8[I32](_match, name.cstring(), out.cstring(),
       addressof len)

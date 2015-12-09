@@ -102,27 +102,6 @@ static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
   return LLVMConstBitCast(fun, type);
 }
 
-static LLVMValueRef make_type_id(compile_t* c, const char* type_name)
-{
-  // Generate a named constant for the type that is set to a unique integer
-  // value for that type.
-  const char* name = genname_typeid(type_name);
-  LLVMValueRef global = LLVMGetNamedGlobal(c->module, name);
-
-  // Return the constant initialiser, not the global.
-  if(global != NULL)
-    return LLVMGetInitializer(global);
-
-  global = LLVMAddGlobal(c->module, c->i32, name);
-  LLVMSetGlobalConstant(global, true);
-  LLVMSetLinkage(global, LLVMInternalLinkage);
-
-  LLVMValueRef id = LLVMConstInt(c->i32, c->next_type_id++, false);
-  LLVMSetInitializer(global, id);
-
-  return id;
-}
-
 static uint32_t trait_count(compile_t* c, gentype_t* g)
 {
   switch(g->underlying)
@@ -148,19 +127,47 @@ static LLVMValueRef make_trait_count(compile_t* c, gentype_t* g)
   return LLVMConstInt(c->i32, trait_count(c, g), false);
 }
 
+static int cmp_uint32(const void* elem1, const void* elem2)
+{
+  uint32_t a = *((uint32_t*)elem1);
+  uint32_t b = *((uint32_t*)elem2);
+
+  if(a < b)
+    return -1;
+
+  if(a > b)
+    return 1;
+
+  return 0;
+}
+
+static size_t unique_uint32(uint32_t* list, size_t len)
+{
+  uint32_t* first = list;
+  uint32_t* last = list + len;
+  uint32_t* r = list;
+
+  while(++first != last)
+  {
+    if(!(*r == *first))
+      *(++r) = *first;
+  }
+
+  return (++r) - list;
+}
+
 static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
 {
   // The list is an array of integers.
   uint32_t count = trait_count(c, g);
-  LLVMTypeRef type = LLVMArrayType(c->i32, count);
 
   // If we have no traits, return a null pointer to a list.
   if(count == 0)
-    return LLVMConstNull(LLVMPointerType(type, 0));
+    return LLVMConstNull(LLVMPointerType(LLVMArrayType(c->i32, 0), 0));
 
-  // Create a constant array of trait identifiers.
-  size_t buf_size = count *sizeof(LLVMValueRef);
-  LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(buf_size);
+  // Sort the trait identifiers.
+  size_t tid_size = count * sizeof(uint32_t);
+  uint32_t* tid = (uint32_t*)pool_alloc_size(tid_size);
 
   reachable_type_t* t = reach_type(c->reachable, g->type_name);
   assert(t != NULL);
@@ -170,18 +177,31 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   reachable_type_t* provide;
 
   while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
-    list[index++] = make_type_id(c, provide->name);
+    tid[index++] = provide->type_id;
 
+  qsort(tid, index, sizeof(uint32_t), cmp_uint32);
+  index = unique_uint32(tid, index);
+
+  // Create a constant array of trait identifiers.
+  size_t list_size = index * sizeof(LLVMValueRef);
+  LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(list_size);
+
+  for(i = 0; i < index; i++)
+    list[i] = LLVMConstInt(c->i32, tid[i], false);
+
+  count = (uint32_t)index;
   LLVMValueRef trait_array = LLVMConstArray(c->i32, list, count);
 
   // Create a global to hold the array.
   const char* name = genname_traitlist(g->type_name);
+  LLVMTypeRef type = LLVMArrayType(c->i32, count);
   LLVMValueRef global = LLVMAddGlobal(c->module, type, name);
   LLVMSetGlobalConstant(global, true);
   LLVMSetLinkage(global, LLVMInternalLinkage);
   LLVMSetInitializer(global, trait_array);
 
-  pool_free_size(buf_size, list);
+  pool_free_size(tid_size, tid);
+  pool_free_size(list_size, list);
   return global;
 }
 
@@ -210,7 +230,7 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
     return LLVMConstNull(LLVMPointerType(type, 0));
 
   // Create a constant array of field descriptors.
-  size_t buf_size = count *sizeof(LLVMValueRef);
+  size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(buf_size);
 
   for(int i = 0; i < count; i++)
@@ -256,7 +276,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
   if(vtable_size == 0)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
-  size_t buf_size = vtable_size *sizeof(LLVMValueRef);
+  size_t buf_size = vtable_size * sizeof(LLVMValueRef);
   LLVMValueRef* vtable = (LLVMValueRef*)pool_alloc_size(buf_size);
   memset(vtable, 0, buf_size);
 
@@ -367,8 +387,9 @@ void gendesc_init(compile_t* c, gentype_t* g)
 
   // Generate a separate type ID for every type.
   LLVMValueRef args[DESC_LENGTH];
+  reachable_type_t* t = reach_type(c->reachable, g->type_name);
 
-  args[DESC_ID] = make_type_id(c, g->type_name);
+  args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
   args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
   args[DESC_TRAIT_COUNT] = make_trait_count(c, g);
   args[DESC_FIELD_COUNT] = make_field_count(c, g);
@@ -448,7 +469,9 @@ LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef desc, size_t index)
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
   // Get the trait identifier.
-  LLVMValueRef trait_id = gendesc_typeid(c, type);
+  reachable_type_t* t = reach_type(c->reachable, genname_type(type));
+  assert(t != NULL);
+  LLVMValueRef trait_id = LLVMConstInt(c->i32, t->type_id, false);
 
   // Read the count and the trait list from the descriptor.
   LLVMValueRef count = desc_field(c, desc, DESC_TRAIT_COUNT);
@@ -495,9 +518,4 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   LLVMAddIncoming(result, &test_id, &body_block, 1);
 
   return result;
-}
-
-LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
-{
-  return make_type_id(c, genname_type(type));
 }

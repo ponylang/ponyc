@@ -76,10 +76,12 @@ class iso _TestBuffer is UnitTest
     true
 
 class _TestPing is UDPNotify
+  let _mgr: _TestBroadcastMgr
   let _h: TestHelper
   let _ip: IPAddress
 
-  new create(h: TestHelper, ip: IPAddress) =>
+  new create(mgr: _TestBroadcastMgr, h: TestHelper, ip: IPAddress) =>
+    _mgr = mgr
     _h = h
 
     _ip = try
@@ -102,9 +104,7 @@ class _TestPing is UDPNotify
     sock.write("ping!", _ip)
 
   fun ref not_listening(sock: UDPSocket ref) =>
-    _h.assert_failed("Ping: not listening")
-    _h.complete(false)
-    sock.dispose()
+    _mgr.fail("Ping: not listening")
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
@@ -113,39 +113,22 @@ class _TestPing is UDPNotify
       _h.assert_eq[String box](s, "pong!")
     end
 
-    _h.complete(true)
-    sock.dispose()
+    _mgr.succeed()
 
 class _TestPong is UDPNotify
+  let _mgr: _TestBroadcastMgr
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(mgr: _TestBroadcastMgr, h: TestHelper) =>
+    _mgr = mgr
     _h = h
 
   fun ref listening(sock: UDPSocket ref) =>
     sock.set_broadcast(true)
-
-    try
-      let ip = sock.local_address()
-      let h = _h
-
-      if ip.ip4() then
-        UDPSocket.ip4(recover _TestPing(h, ip) end)
-      elseif ip.ip6() then
-        UDPSocket.ip6(recover _TestPing(h, ip) end)
-      else
-        error
-      end
-    else
-      _h.assert_failed("Pong: couldn't open ping")
-      _h.complete(false)
-      sock.dispose()
-    end
+    _mgr.pong_listening(sock.local_address())
 
   fun ref not_listening(sock: UDPSocket ref) =>
-    _h.assert_failed("Pong: not listening")
-    _h.complete(false)
-    sock.dispose()
+    _mgr.fail("Pong: not listening")
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
@@ -155,14 +138,57 @@ class _TestPong is UDPNotify
     end
 
     sock.write("pong!", from)
-    sock.dispose()
+
+actor _TestBroadcastMgr
+  let _h: TestHelper
+  let _pong: UDPSocket
+  var _ping: (UDPSocket | None) = None
+  var _fail: Bool = false
+
+  new create(h: TestHelper) =>
+    _h = h
+    _pong = UDPSocket(recover _TestPong(this, h) end)
+
+  be succeed() =>
+    if not _fail then
+      _pong.dispose()
+      try (_ping as UDPSocket).dispose() end
+      _h.complete(true)
+    end
+
+  be fail(msg: String) =>
+    if not _fail then
+      _fail = true
+      _pong.dispose()
+      try (_ping as UDPSocket).dispose() end
+      _h.assert_failed(msg)
+      _h.complete(false)
+    end
+
+  be pong_listening(ip: IPAddress) =>
+    if not _fail then
+      let h = _h
+
+      if ip.ip4() then
+        _ping = UDPSocket.ip4(recover _TestPing(this, h, ip) end)
+      else
+        _ping = UDPSocket.ip6(recover _TestPing(this, h, ip) end)
+      end
+    end
 
 class iso _TestBroadcast is UnitTest
   """
   Test broadcasting with UDP.
   """
+  var _mgr: (_TestBroadcastMgr | None) = None
+
   fun name(): String => "net/Broadcast"
 
-  fun apply(h: TestHelper): TestResult =>
-    UDPSocket(recover _TestPong(h) end)
-    LongTest
+  fun ref apply(h: TestHelper): TestResult =>
+    _mgr = _TestBroadcastMgr(h)
+    2_000_000_000 // 2 second timeout
+    
+  fun timedout(t: TestHelper) =>
+    try
+      (_mgr as _TestBroadcastMgr).fail("timeout")
+    end
