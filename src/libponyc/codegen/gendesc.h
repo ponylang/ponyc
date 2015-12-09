@@ -25,8 +25,6 @@ LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef desc, size_t index);
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* trait);
 
-LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type);
-
 PONY_EXTERN_C_END
 
 #endif

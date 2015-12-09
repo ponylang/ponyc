@@ -33,7 +33,7 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
         // Mark all non-polymorphic methods as reachable.
         if(ast_id(typeparams) == TK_NONE)
-          reach(c->reachable, type, ast_name(m_id), NULL);
+          reach(c->reachable, &c->next_type_id, type, ast_name(m_id), NULL);
         break;
       }
 

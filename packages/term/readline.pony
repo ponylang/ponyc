@@ -348,7 +348,7 @@ class Readline is ANSINotify
       var pos = _cur_prompt.codepoints()
 
       if _cur_pos > 0 then
-        pos = pos + _edit.codepoints(0, _cur_pos - 1)
+        pos = pos + _edit.codepoints(0, _cur_pos)
       end
 
       out.append("\r")

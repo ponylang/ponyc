@@ -377,8 +377,8 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   genprim_reachable_init(c, program);
-  reach(c->reachable, main_ast, create, NULL);
-  reach(c->reachable, env_ast, stringtab("_create"), NULL);
+  reach(c->reachable, &c->next_type_id, main_ast, create, NULL);
+  reach(c->reachable, &c->next_type_id, env_ast, stringtab("_create"), NULL);
   paint(c->reachable);
 
   gentype_t main_g;

@@ -109,7 +109,7 @@ actor Stdin
       var sum: USize = 0
 
       while true do
-        var len = USize(64)
+        var len = USize(32)
         var data = recover Array[U8].undefined(len) end
         var again: Bool = false
 

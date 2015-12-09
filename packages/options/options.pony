@@ -90,7 +90,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     Selects an option from the configuration depending on the current command
     line argument.
     """
-    let name: String box = candidate.substring(start, finish)
+    let name: String box = candidate.substring(start, finish + 1)
     var matches = Array[_Option]
     var selected: (_Option | None) = None
 
@@ -105,7 +105,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     | (let opt: _Option, 1) => _strip(opt, candidate, offset, finish) ; opt
     | (let opt: _Option, _) => _ErrorPrinter._ambiguous(matches)
     else
-      _ErrorPrinter._unrecognised(candidate.substring(0, finish))
+      _ErrorPrinter._unrecognised(candidate.substring(0, finish + 1))
     end
 
   fun ref _skip(): Bool =>

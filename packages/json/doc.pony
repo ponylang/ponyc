@@ -45,7 +45,7 @@ class JsonDoc
     _dump_whitespace()
     if _index < _source.size() then
       _peek_char()  // Setup _last_index
-      _error("Unexpected text found after top level value " + _last_char())
+      _error("Unexpected text found after top level value: " + _last_char())
       error
     end
 
@@ -420,7 +420,7 @@ class JsonDoc
     if _last_index == -1 then
       "EOF"
     else
-      _source.substring(_last_index.isize(), 1)
+      _source.substring(_last_index.isize(), _last_index.isize() + 1)
     end
 
   fun ref _error(msg: String) =>
