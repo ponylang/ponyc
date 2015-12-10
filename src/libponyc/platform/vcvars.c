@@ -13,7 +13,7 @@
 #define REG_VC_TOOLS_PATH \
   TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
-#define MAX_VER_LEN 10
+#define MAX_VER_LEN 20
 
 typedef struct search_t search_t;
 typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
