@@ -8,6 +8,7 @@
 #include "../asio/event.h"
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 // Disable warnings about deprecated non-unicode WSA functions.
@@ -425,8 +426,10 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
   int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
 #elif defined(PLATFORM_IS_WINDOWS)
-  int fd = (int)WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
+  UINT_PTR skt = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
     0, WSA_FLAG_OVERLAPPED);
+  assert((skt >> 31) == 0);
+  int fd = (int)skt;
 #else
   int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 #endif
@@ -450,7 +453,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!BindIoCompletionCallback((HANDLE)(long long)fd, iocp_callback, 0))
+  if(!BindIoCompletionCallback((HANDLE)(UINT_PTR)fd, iocp_callback, 0))
     r = 1;
 #endif
 
@@ -1023,7 +1026,7 @@ void os_shutdown(int fd)
 void os_closesocket(int fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  CancelIoEx((HANDLE)(long long)fd, NULL);
+  CancelIoEx((HANDLE)(UINT_PTR)fd, NULL);
   closesocket((SOCKET)fd);
 #else
   close(fd);
