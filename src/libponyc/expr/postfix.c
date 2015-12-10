@@ -312,8 +312,8 @@ static bool tuple_access(ast_t* ast)
   }
   else if (right_idx >= tuple_size)
   {
-    ast_error(right, "tuple index "__zu" is out of valid range. "
-      "Valid range is [1, "__zu"]", right_idx, tuple_size);
+    ast_error(right, "tuple index " __zu " is out of valid range. "
+      "Valid range is [1, " __zu "]", right_idx, tuple_size);
     return false;
   }
 

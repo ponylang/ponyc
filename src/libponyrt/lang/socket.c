@@ -450,7 +450,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!BindIoCompletionCallback((HANDLE)fd, iocp_callback, 0))
+  if(!BindIoCompletionCallback((HANDLE)(long long)fd, iocp_callback, 0))
     r = 1;
 #endif
 
@@ -1023,7 +1023,7 @@ void os_shutdown(int fd)
 void os_closesocket(int fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  CancelIoEx((HANDLE)fd, NULL);
+  CancelIoEx((HANDLE)(long long)fd, NULL);
   closesocket((SOCKET)fd);
 #else
   close(fd);
