@@ -428,7 +428,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #elif defined(PLATFORM_IS_WINDOWS)
   UINT_PTR skt = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
     0, WSA_FLAG_OVERLAPPED);
-  assert((skt >> 31) == 0);
+  assert((skt == INVALID_SOCKET) || ((skt >> 31) == 0));
   int fd = (int)skt;
 #else
   int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
