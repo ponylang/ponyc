@@ -1,4 +1,5 @@
 #include "traits.h"
+#include "sugar.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
@@ -1054,6 +1055,95 @@ static void local_types(ast_t* ast)
 }
 
 
+// Add eq() and ne() functions to the given entity.
+static bool add_comparable(ast_t* ast, pass_opt_t* options)
+{
+  assert(ast != NULL);
+
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
+  ast_t* typeargs = ast_from(typeparams, TK_NONE);
+  bool r = true;
+
+  for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
+  {
+    ast_t* p_id = ast_child(p);
+    
+    BUILD_NO_DEBUG(type, p_id,
+      NODE(TK_NOMINAL, NONE TREE(p_id) NONE NONE NONE));
+
+    ast_append(typeargs, type);
+    ast_setid(typeargs, TK_TYPEARGS);
+  }
+
+  if(!has_member(members, "eq"))
+  {
+    BUILD_NO_DEBUG(eq, members,
+      NODE(TK_FUN, AST_SCOPE
+        NODE(TK_BOX)
+        ID("eq")
+        NONE
+        NODE(TK_PARAMS,
+          NODE(TK_PARAM,
+            ID("that")
+            NODE(TK_NOMINAL, NONE TREE(id) TREE(typeargs) NONE NONE)
+            NONE))
+        NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
+        NONE
+        NODE(TK_SEQ,
+          NODE(TK_IS,
+            NODE(TK_THIS)
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE
+        NONE));
+
+    // Need to set function data field to point to originating type, ie ast.
+    // This won't be done when we catch up the passes since we've already
+    // processed that type.
+    ast_setdata(eq, ast);
+    ast_append(members, eq);
+    ast_set(ast, stringtab("eq"), eq, SYM_DEFINED);
+
+    if(!ast_passes_subtree(&eq, options, PASS_TRAITS))
+      r = false;
+  }
+
+  if(!has_member(members, "ne"))
+  {
+    BUILD_NO_DEBUG(ne, members,
+      NODE(TK_FUN, AST_SCOPE
+        NODE(TK_BOX)
+        ID("ne")
+        NONE
+        NODE(TK_PARAMS,
+          NODE(TK_PARAM,
+            ID("that")
+            NODE(TK_NOMINAL, NONE TREE(id) TREE(typeargs) NONE NONE)
+            NONE))
+        NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
+        NONE
+        NODE(TK_SEQ,
+          NODE(TK_ISNT,
+            NODE(TK_THIS)
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE
+        NONE));
+
+    // Need to set function data field to point to originating type, ie ast.
+    // This won't be done when we catch up the passes since we've already
+    // processed that type.
+    ast_setdata(ne, ast);
+    ast_append(members, ne);
+    ast_set(ast, stringtab("ne"), ne, SYM_DEFINED);
+
+    if(!ast_passes_subtree(&ne, options, PASS_TRAITS))
+      r = false;
+  }
+
+  ast_free_unattached(typeargs);
+  return r;
+}
+
+
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -1071,6 +1161,13 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_PRIMITIVE:
+      if(!trait_entity(ast, options))
+        return AST_ERROR;
+
+      if(!add_comparable(ast, options))
+        return AST_FATAL;
+      break;
+
     case TK_INTERFACE:
     case TK_TRAIT:
       if(!trait_entity(ast, options))

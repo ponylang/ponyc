@@ -39,7 +39,7 @@ static ast_t* make_create(ast_t* ast)
 }
 
 
-static bool has_member(ast_t* members, const char* name)
+bool has_member(ast_t* members, const char* name)
 {
   name = stringtab(name);
   ast_t* member = ast_child(members);
@@ -100,102 +100,6 @@ static void add_default_constructor(ast_t* ast)
 }
 
 
-static ast_t* make_nominal(ast_t* id, ast_t* typeargs)
-{
-  BUILD_NO_DEBUG(type, id,
-    NODE(TK_NOMINAL,
-      NONE
-      TREE(id)
-      TREE(typeargs)
-      NONE
-      NONE));
-
-  return type;
-}
-
-
-static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
-{
-  BUILD_NO_DEBUG(typeargs, typeparams, NODE(TK_TYPEARGS));
-
-  ast_t* typeparam = ast_child(typeparams);
-
-  while(typeparam != NULL)
-  {
-    ast_t* p_id = ast_child(typeparam);
-    ast_t* type = make_nominal(p_id, ast_from(id, TK_NONE));
-    ast_append(typeargs, type);
-
-    typeparam = ast_sibling(typeparam);
-  }
-
-  if(ast_child(typeargs) == NULL)
-    ast_setid(typeargs, TK_NONE);
-
-  ast_t* type = make_nominal(id, typeargs);
-
-  if(!has_member(members, "eq"))
-  {
-    BUILD_NO_DEBUG(eq, members,
-      NODE(TK_FUN, AST_SCOPE
-        NODE(TK_BOX)
-        ID("eq")
-        NONE
-        NODE(TK_PARAMS,
-          NODE(TK_PARAM,
-            ID("that")
-            TREE(type)
-            NONE))
-        NODE(TK_NOMINAL,
-          NONE
-          ID("Bool")
-          NONE
-          NONE
-          NONE)
-        NONE
-        NODE(TK_SEQ,
-          NODE(TK_IS,
-            NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NONE
-        NONE));
-
-    ast_append(members, eq);
-  }
-
-  if(!has_member(members, "ne"))
-  {
-    BUILD_NO_DEBUG(eq, members,
-      NODE(TK_FUN, AST_SCOPE
-        NODE(TK_BOX)
-        ID("ne")
-        NONE
-        NODE(TK_PARAMS,
-          NODE(TK_PARAM,
-            ID("that")
-            TREE(type)
-            NONE))
-        NODE(TK_NOMINAL,
-          NONE
-          ID("Bool")
-          NONE
-          NONE
-          NONE)
-        NONE
-        NODE(TK_SEQ,
-          NODE(TK_ISNT,
-            NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NONE
-        NONE));
-
-    ast_append(members, eq);
-  }
-
-  ast_free_unattached(type);
-}
-
-
 static ast_result_t sugar_module(ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
@@ -235,7 +139,7 @@ static ast_result_t sugar_module(ast_t* ast)
 
 
 static ast_result_t sugar_entity(typecheck_t* t, ast_t* ast, bool add_create,
-  bool add_eq, token_id def_def_cap)
+  token_id def_def_cap)
 {
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
 
@@ -244,9 +148,6 @@ static ast_result_t sugar_entity(typecheck_t* t, ast_t* ast, bool add_create,
 
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, def_def_cap);
-
-  if(add_eq)
-    add_comparable(id, typeparams, members);
 
   // Build a reverse sequence of all field initialisers.
   BUILD(init_seq, members, NODE(TK_SEQ));
@@ -1220,12 +1121,12 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_MODULE:     return sugar_module(ast);
-    case TK_PRIMITIVE:  return sugar_entity(t, ast, true, true, TK_VAL);
-    case TK_STRUCT:     return sugar_entity(t, ast, true, false, TK_REF);
-    case TK_CLASS:      return sugar_entity(t, ast, true, false, TK_REF);
-    case TK_ACTOR:      return sugar_entity(t, ast, true, false, TK_TAG);
+    case TK_PRIMITIVE:  return sugar_entity(t, ast, true, TK_VAL);
+    case TK_STRUCT:     return sugar_entity(t, ast, true, TK_REF);
+    case TK_CLASS:      return sugar_entity(t, ast, true, TK_REF);
+    case TK_ACTOR:      return sugar_entity(t, ast, true, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:  return sugar_entity(t, ast, false, false, TK_REF);
+    case TK_INTERFACE:  return sugar_entity(t, ast, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
     case TK_NEW:        return sugar_new(options, ast);
     case TK_BE:         return sugar_be(options, ast);
