@@ -1,6 +1,24 @@
-primitive Less
-primitive Equal
-primitive Greater
+primitive Less is Equatable[Compare]
+  fun string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  =>
+    "Less".string(fmt, prefix, prec, width, align, fill)
+
+primitive Equal is Equatable[Compare]
+  fun string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  =>
+    "Equal".string(fmt, prefix, prec, width, align, fill)
+
+primitive Greater is Equatable[Compare]
+  fun string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  =>
+    "Greater".string(fmt, prefix, prec, width, align, fill)
+
 
 type Compare is (Less | Equal | Greater)
 

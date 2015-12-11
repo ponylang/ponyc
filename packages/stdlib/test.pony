@@ -490,59 +490,45 @@ class iso _TestStringCompare is UnitTest
   fun name(): String => "builtin/String.compare"
 
   fun apply(h: TestHelper): TestResult =>
-    test(h, Equal, "foo", "foo", 3)
-    test(h, Greater, "foo", "bar", 3)
-    test(h, Less, "bar", "foo", 3)
+    h.expect_eq[Compare](Equal, "foo".compare_sub("foo", 3))
+    h.expect_eq[Compare](Greater, "foo".compare_sub("bar", 3))
+    h.expect_eq[Compare](Less, "bar".compare_sub("foo", 3))
 
-    test(h, Equal, "foobar", "foo", 3)
-    test(h, Greater, "foobar", "foo", 4)
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("foo", 3))
+    h.expect_eq[Compare](Greater, "foobar".compare_sub("foo", 4))
 
-    test(h, Less, "foobar", "oob", 3, 0)
-    test(h, Equal, "foobar", "oob", 3, 1)
+    h.expect_eq[Compare](Less, "foobar".compare_sub("oob", 3, 0))
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("oob", 3, 1))
 
-    test(h, Equal, "ab", "ab", 2 where ignore_case = false)
-    test(h, Greater, "ab", "Ab", 2 where ignore_case = false)
-    test(h, Greater, "ab", "aB", 2 where ignore_case = false)
-    test(h, Greater, "ab", "AB", 2 where ignore_case = false)
-    test(h, Less, "AB", "ab", 2 where ignore_case = false)
-    test(h, Equal, "AB", "AB", 2 where ignore_case = false)
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("Ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("aB", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("AB", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Less, "AB".compare_sub("ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("AB", 2 where ignore_case = false))
 
-    test(h, Equal, "ab", "ab", 2 where ignore_case = true)
-    test(h, Equal, "ab", "Ab", 2 where ignore_case = true)
-    test(h, Equal, "ab", "aB", 2 where ignore_case = true)
-    test(h, Equal, "ab", "AB", 2 where ignore_case = true)
-    test(h, Equal, "AB", "ab", 2 where ignore_case = true)
-    test(h, Equal, "AB", "AB", 2 where ignore_case = true)
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("Ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("aB", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("AB", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("AB", 2 where ignore_case = true))
 
-    test(h, Equal, "foobar", "bar", 2, -2, -2)
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
 
     true
-
-  fun test(h: TestHelper, expect: Compare, receiver: String box,
-    that: String box, n: USize, offset: ISize = 0, that_offset: ISize = 0,
-    ignore_case: Bool = false)
-  =>
-    let actual = receiver.compare_sub(that, n, offset, that_offset,
-      ignore_case)
-
-    if expect is actual then
-      return
-    end
-
-    h.assert_failed("Expected " + string(expect) + " got " + string(actual) +
-      " for \"" + receiver + "\".compare_sub(\"" + that + "\", " + n.string() +
-      ", " + offset.string() + ", " + that_offset.string() + ", " +
-      ignore_case.string() + ")")
-
-  fun string(x: Compare): String =>
-    match x
-    | Equal => "Equal"
-    | Less => "Less"
-    | Greater => "Greater"
-    else
-      // Needed until we have exhaustive match checking
-      ""
-    end
 
 
 class iso _TestArraySlice is UnitTest
