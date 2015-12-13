@@ -414,13 +414,15 @@ static ast_result_t sugar_fun(ast_t* ast)
 
 
 // If the given tree is a TK_NONE expand it to a source None
-static void expand_none(ast_t* ast)
+static void expand_none(ast_t* ast, bool is_scope)
 {
   if(ast_id(ast) != TK_NONE)
     return;
 
+  if(is_scope)
+    ast_scope(ast);
+
   ast_setid(ast, TK_SEQ);
-  ast_scope(ast);
   BUILD_NO_DEBUG(ref, ast, NODE(TK_REFERENCE, ID("None")));
   ast_add(ast, ref);
 }
@@ -435,7 +437,7 @@ static ast_result_t sugar_return(typecheck_t* t, ast_t* ast)
     assert(ast_id(return_value) == TK_NONE);
     ast_setid(return_value, TK_THIS);
   } else {
-    expand_none(return_value);
+    expand_none(return_value, false);
   }
 
   return AST_OK;
@@ -445,7 +447,7 @@ static ast_result_t sugar_return(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_else(ast_t* ast)
 {
   ast_t* else_clause = ast_childidx(ast, 2);
-  expand_none(else_clause);
+  expand_none(else_clause, true);
   return AST_OK;
 }
 
@@ -458,8 +460,8 @@ static ast_result_t sugar_try(ast_t* ast)
     // Then without else means we don't require a throwable in the try block
     ast_setid(ast, TK_TRY_NO_CHECK);
 
-  expand_none(else_clause);
-  expand_none(then_clause);
+  expand_none(else_clause, true);
+  expand_none(then_clause, true);
 
   return AST_OK;
 }
@@ -469,7 +471,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
 
-  expand_none(for_else);
+  expand_none(for_else, true);
   const char* iter_name = package_hygienic_id(t);
 
   BUILD(try_next, for_iter,
@@ -550,7 +552,7 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
   else
     try_token = TK_TRY;
 
-  expand_none(else_clause);
+  expand_none(else_clause, false);
 
   // First build a skeleton try block without the "with" variables
   BUILD(replace, *astp,
