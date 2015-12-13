@@ -862,6 +862,19 @@ static ast_result_t syntax_compile_error(ast_t* ast)
 }
 
 
+static ast_result_t syntax_cap_set(typecheck_t* t, ast_t* ast)
+{
+  // Cap sets can only appear in type parameter constraints.
+  if(t->frame->constraint == NULL)
+  {
+    ast_error(ast, "a capability set can only appear in a type constraint");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -918,6 +931,11 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
                         r = syntax_compile_intrinsic(ast); break;
     case TK_COMPILE_ERROR:
                         r = syntax_compile_error(ast); break;
+    case TK_CAP_READ:
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
+    case TK_CAP_ANY:    r = syntax_cap_set(t, ast); break;
+
     default: break;
   }
 
