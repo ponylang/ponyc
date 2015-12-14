@@ -248,7 +248,7 @@ DEF(object);
   RULE("object member", members);
   TERMINATE("object literal", TK_END);
   DONE();
-  
+
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);
@@ -778,7 +778,7 @@ DEF(term);
     try_block, recover, consume, pattern, test_seq, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
-  
+
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | test_<various>
 DEF(nextterm);
@@ -874,7 +874,7 @@ DEF(semi);
 // semi (exprseq | jump)
 DEF(semiexpr);
   AST_NODE(TK_FLATTEN);
-  RULE("semi", semi);
+  RULE("semicolon", semi);
   RULE("value", exprseq, jump);
   DONE();
 

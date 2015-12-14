@@ -611,7 +611,7 @@ static ast_result_t syntax_semi(ast_t* ast)
 
   if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
-    ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
+    ast_error(ast, "Unexpected semicolon, only use to separate expressions on"
       " the same line");
     return AST_ERROR;
   }
