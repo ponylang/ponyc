@@ -530,7 +530,7 @@ DEF(cond);
   TERMINATE("if expression", TK_END);
   DONE();
 
-// ELSEIF rawseq [$EXTRA rawseq] THEN seq [elseifdef | (ELSE seq)]
+// ELSEIF infix [$EXTRA infix] THEN seq [elseifdef | (ELSE seq)]
 DEF(elseifdef);
   AST_NODE(TK_IFDEF);
   SCOPE();
@@ -548,7 +548,7 @@ DEF(elseifdef);
   REORDER(0, 2, 3, 1);
   DONE();
 
-// IF rawseq [$EXTRA rawseq] THEN seq [elseifdef | (ELSE seq)] END
+// IFDEF infix [$EXTRA infix] THEN seq [elseifdef | (ELSE seq)] END
 DEF(ifdef);
   PRINT_INLINE();
   TOKEN(NULL, TK_IFDEF);

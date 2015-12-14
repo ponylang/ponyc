@@ -330,7 +330,7 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
     {
       assert(ast_id(type) == TK_NONE);
       ast_error(p,
-        "name and type not specified for parameter "__zu" of case function %s",
+        "name and type not specified for parameter " __zu " of case function %s",
         count, name);
       ok = false;
     }

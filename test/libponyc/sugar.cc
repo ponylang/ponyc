@@ -20,9 +20,7 @@ TEST_F(SugarTest, DataType)
   const char* full_form =
     "use \"builtin\"\n"
     "primitive val Foo\n"
-    "  new val create(): Foo val^ => true\n"
-    "  fun box eq(that:Foo): Bool => this is that\n"
-    "  fun box ne(that:Foo): Bool => this isnt that\n";
+    "  new val create(): Foo val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -315,9 +313,7 @@ TEST_F(SugarTest, ConstructorInDataType)
   const char* full_form =
     "use \"builtin\"\n"
     "primitive val Foo\n"
-    "  new val create(): Foo val^ => 3\n"
-    "  fun box eq(that:Foo): Bool => this is that\n"
-    "  fun box ne(that:Foo): Bool => this isnt that\n";
+    "  new val create(): Foo val^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1345,9 +1341,7 @@ TEST_F(SugarTest, ObjectSimple)
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new val create(): hygid val^ => true\n"
-    "  fun box eq(that: hygid): Bool => this is that\n"
-    "  fun box ne(that: hygid): Bool => this isnt that";
+    "  new val create(): hygid val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1425,9 +1419,7 @@ TEST_F(SugarTest, ObjectBox)
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new val create(): hygid val^ => true\n"
-    "  fun box eq(that: hygid): Bool => this is that\n"
-    "  fun box ne(that: hygid): Bool => this isnt that";
+    "  new val create(): hygid val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }

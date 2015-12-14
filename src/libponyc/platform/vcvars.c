@@ -13,7 +13,7 @@
 #define REG_VC_TOOLS_PATH \
   TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
-#define MAX_VER_LEN 10
+#define MAX_VER_LEN 20
 
 typedef struct search_t search_t;
 typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
@@ -21,6 +21,7 @@ typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 struct search_t
 {
   long latest_ver;
+  char name[MAX_VER_LEN + 1];
   char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
 };
@@ -140,6 +141,7 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
       p->latest_ver = new_ver;
       strcpy(p->path, new_path);
       strcpy(p->version, new_version);
+      strncpy(p->name, name, MAX_VER_LEN);
     }
   }
 }
@@ -156,7 +158,25 @@ static bool find_kernel32(vcvars_t* vcvars)
   }
 
   strcpy(vcvars->kernel32, sdk.path);
-  strcat(vcvars->kernel32, "Lib\\winv6.3\\um\\x64");
+  strcat(vcvars->kernel32, "Lib\\");
+  if(strcmp("v8.0", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32 , "win8");
+  }
+  else if(strcmp("v8.1", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32, "winv6.3");
+  }
+  else if(strcmp("v10.0", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32, sdk.version);
+    strcat(vcvars->kernel32, ".0");
+  }
+  else
+  {
+    return false;
+  }
+  strcat(vcvars->kernel32, "\\um\\x64");
 
   return true;
 }

@@ -145,7 +145,7 @@ void painter_print(painter_t* painter)
 {
   assert(painter != NULL);
 
-  printf("Painter typemaps are "__zu" bits\n",
+  printf("Painter typemaps are " __zu " bits\n",
     painter->typemap_size * sizeof(uint64_t) * 8);
 
   printf("Painter names:\n");
