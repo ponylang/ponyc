@@ -403,7 +403,7 @@ bool expr_recover(ast_t* ast)
   ast_inheritflags(ast);
 
   // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
+  ast_inheritstatus(ast_parent(ast), expr);
   return true;
 }
 

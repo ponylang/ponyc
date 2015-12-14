@@ -136,7 +136,7 @@ RULE(compile_error,
 GROUP(expr,
   local, infix, asop, tuple, consume, recover, prefix, dot, tilde,
   qualify, call, ffi_call,
-  if_expr, ifdef, loop, repeat, for_loop, with, match, try_expr, lambda,
+  if_expr, ifdef, whileloop, repeat, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
   bool_literal, id, rawseq, package_ref,
   this_ref, ref, fun_ref, type_ref, flet_ref, field_ref, local_ref);
@@ -176,9 +176,8 @@ RULE(consume,
 
 RULE(recover,
   HAS_TYPE(type)
-  IS_SCOPE
   CHILD(cap, none)
-  CHILD(rawseq),
+  CHILD(seq),
   TK_RECOVER);
 
 RULE(prefix,
@@ -261,7 +260,7 @@ RULE(if_expr,
   CHILD(seq, if_expr, none), // Else body
   TK_IF);
 
-RULE(loop,
+RULE(whileloop,
   IS_SCOPE
   HAS_TYPE(type)
   CHILD(rawseq)     // Condition
@@ -273,11 +272,9 @@ RULE(repeat,
   IS_SCOPE
   HAS_TYPE(type)
   CHILD(seq)        // Loop body
-  CHILD(seq)        // Condition
+  CHILD(rawseq)        // Condition
   CHILD(seq, none), // Else body
   TK_REPEAT);
-  // TODO: While and repeat are different, check parser.c is actually how we
-  // want it
 
 RULE(for_loop,
   HAS_TYPE(type)
@@ -303,7 +300,7 @@ RULE(match,
   TK_MATCH);
 
 RULE(cases,
-  IS_SCOPE
+  IS_SCOPE  // Cases is a scope to simplify branch consolidation.
   HAS_TYPE(type)  // Union of case types or "TK_CASES"
   ZERO_OR_MORE(match_case),
   TK_CASES);

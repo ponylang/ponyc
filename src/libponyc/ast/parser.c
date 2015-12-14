@@ -581,7 +581,7 @@ DEF(caseexpr);
 DEF(cases);
   PRINT_INLINE();
   AST_NODE(TK_CASES);
-  SCOPE();  // TODO: Why is cases a scope?
+  SCOPE();  // Cases a scope to simplify branch consolidation.
   SEQ("cases", caseexpr);
   DONE();
 
@@ -615,7 +615,7 @@ DEF(repeat);
   SCOPE();
   RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", seq);
+  RULE("condition expression", rawseq);
   IF(TK_ELSE, RULE("else clause", seq));
   TERMINATE("repeat loop", TK_END);
   DONE();
@@ -626,6 +626,7 @@ DEF(repeat);
 //   (ASSIGN (LET $1) iterator)
 //   (WHILE $1.has_next()
 //     (SEQ (ASSIGN idseq $1.next()) body) else))
+// The body is not a scope since the sugar wraps it in a seq for us.
 DEF(forloop);
   PRINT_INLINE();
   TOKEN(NULL, TK_FOR);
@@ -662,6 +663,8 @@ DEF(withexpr);
 //     (SEQ (ASSIGN idseq $1)* body)
 //     (SEQ (ASSIGN idseq $1)* else)
 //     (SEQ $1.dispose()*)))
+// The body and else clause aren't scopes since the sugar wraps them in seqs
+// for us.
 DEF(with);
   PRINT_INLINE();
   TOKEN(NULL, TK_WITH);
@@ -698,9 +701,8 @@ DEF(test_try_block);
 DEF(recover);
   PRINT_INLINE();
   TOKEN(NULL, TK_RECOVER);
-  SCOPE();
   OPT RULE("capability", cap);
-  RULE("recover body", rawseq);
+  RULE("recover body", seq);
   TERMINATE("recover expression", TK_END);
   DONE();
 
