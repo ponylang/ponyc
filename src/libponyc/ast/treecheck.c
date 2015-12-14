@@ -253,7 +253,12 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 
 // Defines for second pass, group and rule functions
 
-#define ROOT(...) GROUP(check_root, __VA_ARGS__)
+#define ROOT(...) \
+  check_res_t check_root(ast_t* ast) \
+  { \
+    const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
+    return check_from_list(ast, rules); \
+  }
 
 #define RULE(name, def, ...) \
   static check_res_t name(ast_t* ast) \
