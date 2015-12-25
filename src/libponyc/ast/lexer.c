@@ -313,7 +313,7 @@ static bool is_eof(lexer_t* lexer)
 }
 
 
-// Append the given token to the current token text
+// Append the given character to the current token text
 static void append_to_token(lexer_t* lexer, char c)
 {
   if(lexer->buflen >= lexer->alloc)

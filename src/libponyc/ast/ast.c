@@ -180,16 +180,64 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
   }
 }
 
+static void print_verbose(ast_t* ast, size_t indent, bool type)
+{
+  for(size_t i = 0; i < indent; i++)
+    printf(in);
+
+  ast_t* child = ast->child;
+  bool parens = type || (child != NULL) || (ast->type != NULL);
+
+  if(parens)
+    printf(type ? "[" : "(");
+
+  print_token(ast->t);
+  printf(":%p,%0x", ast, ast->flags);
+
+  if(ast->data != NULL)
+    printf(":data=%p", ast->data);
+
+  if(ast->symtab != NULL)
+  {
+    printf(":scope {\n");
+
+    size_t i = HASHMAP_BEGIN;
+    symbol_t* sym;
+
+    while((sym = symtab_next(ast->symtab, &i)) != NULL)
+      printf("  %s (%d): %p\n", sym->name, sym->status, sym->def);
+
+    printf("}");
+  }
+
+  printf("\n");
+
+  while(child != NULL)
+  {
+    print_verbose(child, indent + 1, false);
+    child = child->sibling;
+  }
+
+  if(ast->type != NULL)
+    print_verbose(ast->type, indent + 1, true);
+
+  if(parens || type)
+  {
+    for(size_t i = 0; i < indent; i++)
+      printf(in);
+
+    printf(type ? "]\n" : ")\n");
+  }
+}
+
 static void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent, type);
 
   if(len < width)
-  {
     print_compact(ast, indent, type);
-  } else {
+  else
     print_extended(ast, indent, type);
-  }
 
   printf("\n");
 }
@@ -1145,6 +1193,14 @@ void ast_print(ast_t* ast)
 
   print(ast, 0, false);
   printf("\n");
+}
+
+void ast_printverbose(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  print_verbose(ast, 0, false);
 }
 
 static void print_type(printbuf_t* buffer, ast_t* type);

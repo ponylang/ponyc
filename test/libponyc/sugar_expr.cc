@@ -15,17 +15,297 @@ class SugarExprTest : public PassTest
 {};
 
 
-/*
-TEST_F(SugarExprTest, PartialWithTypeArgs)
+// Partial application
+
+TEST_F(SugarExprTest, PartialMinimal)
 {
   const char* short_form =
-    "class Foo ref\n"
-    "  fun f[A]() =>\n"
-    "    this~f[A]()";
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x) => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverCapability)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T ref) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T ref) =>\n"
+    "    lambda ref()(hygid = x) => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverCapabilityFail)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T box) =>\n"
+    "    x~f()";
 
   TEST_ERROR(short_form);
 }
-*/
+
+
+TEST_F(SugarExprTest, PartialMemberAccessFail)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  let y: U32 = 4"
+    "  fun f() =>\n"
+    "    this~y";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarExprTest, PartialTupleElementAccessFail)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: (T, T)) =>\n"
+    "    x~_1()";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarExprTest, PartialSomeArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(3 where c = 4)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box(b: U32, d: U32)\n"
+    "      (hygid = x, a: U32 = (3), c: U32 = (4)) =>\n"
+    "      hygid.f(a, consume b, c, consume d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialAllArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(1, 2, 3, 4)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
+    "      d: U32 = (4)) =>\n"
+    "      hygid.f(a, b, c, d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialDefaultArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32 = 1, b: U32 = 2, c: U32 = 3, d: U32 = 4)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(5 where c = 6)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32 = 1, b: U32 = 2, c: U32 = 3, d: U32 = 4)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box(b: U32 = 2, d: U32 = 4)\n"
+    "      (hygid = x, a: U32 = (5), c: U32 = (6)) =>\n"
+    "      hygid.f(a, consume b, c, consume d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialResult)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(): U32\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(): U32\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x): U32 => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialBehaviour)
+{
+  const char* short_form =
+    "trait T\n"
+    "  be f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  be f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x): T tag => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialRaisesError)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(): U32 ?\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(): U32 ?\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x): U32 ? => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialParameterTypeParameters)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: T box)\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(t: T box, a: A) =>\n"
+    "    t~f(a)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: T box)\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(t: T box, a: A) =>\n"
+    "    lambda box()(hygid = t, a: A = (a)) => hygid.f(a) end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverTypeParameters)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(x: A) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(x: A) =>\n"
+    "    lambda box()(hygid = x) => hygid.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialFunctionTypeParameter)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f[A](a: A)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f[U32](3)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f[A](a: A)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()(hygid = x, a: U32 = (3)) => hygid.f[U32](a) end";
+
+  TEST_EQUIV(short_form, full_form);
+}
 
 
 // Lambdas

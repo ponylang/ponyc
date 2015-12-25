@@ -402,6 +402,7 @@ void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
 void ast_print(ast_t* ast);
+void ast_printverbose(ast_t* ast);
 const char* ast_print_type(ast_t* type);
 void ast_setwidth(size_t w);
 
