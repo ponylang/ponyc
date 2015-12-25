@@ -13,6 +13,13 @@ bool check_id(ast_t* id_node, const char* desc, int spec)
   assert(name != NULL);
   char prev = '\0';
 
+  // Ignore leading $, handled by lexer
+  if(*name == '$')
+  {
+    name++;
+    prev = '$';
+  }
+
   // Ignore leading _
   if(*name == '_')
   {

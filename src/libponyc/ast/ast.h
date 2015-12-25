@@ -304,7 +304,7 @@ enum
   AST_FLAG_CAN_SEND     = 0x40,
   AST_FLAG_MIGHT_SEND   = 0x80,
   AST_FLAG_IN_PARENS    = 0x100,
-  AST_FLAG_TEST_ONLY    = 0x200,
+  // Unused value 0x200
   AST_FLAG_BAD_SEMI     = 0x400,
   AST_FLAG_MISSING_SEMI = 0x800,
   AST_FLAG_PRESERVE     = 0x1000, // Do not process

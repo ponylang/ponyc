@@ -1123,15 +1123,6 @@ TEST_F(LexerTest, BlockCommentNestedDeeper)
 
 // Non-token tests
 
-TEST_F(LexerTest, IsAbstractKeyword)
-{
-  ASSERT_EQ(TK_PROGRAM, lexer_is_abstract_keyword("program"));
-  ASSERT_EQ(TK_CASE, lexer_is_abstract_keyword("case"));
-  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("foo"));
-  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("+"));
-}
-
-
 TEST_F(LexerTest, Print)
 {
   ASSERT_STREQ("match", lexer_print(TK_MATCH));

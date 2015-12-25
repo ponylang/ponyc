@@ -33,7 +33,7 @@ TEST_F(SugarExprTest, PartialMinimal)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x) => hygid.f() end";
+    "    lambda box()($1 = x) => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -55,7 +55,7 @@ TEST_F(SugarExprTest, PartialReceiverCapability)
 
     "class Foo\n"
     "  fun f(x: T ref) =>\n"
-    "    lambda ref()(hygid = x) => hygid.f() end";
+    "    lambda ref()($1 = x) => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -118,8 +118,8 @@ TEST_F(SugarExprTest, PartialSomeArgs)
     "class Foo\n"
     "  fun f(x: T) =>\n"
     "    lambda box(b: U32, d: U32)\n"
-    "      (hygid = x, a: U32 = (3), c: U32 = (4)) =>\n"
-    "      hygid.f(a, consume b, c, consume d)\n"
+    "      ($1 = x, a: U32 = (3), c: U32 = (4)) =>\n"
+    "      $1.f(a, consume b, c, consume d)\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -142,9 +142,9 @@ TEST_F(SugarExprTest, PartialAllArgs)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
+    "    lambda box()($1 = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
     "      d: U32 = (4)) =>\n"
-    "      hygid.f(a, b, c, d)\n"
+    "      $1.f(a, b, c, d)\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -168,8 +168,8 @@ TEST_F(SugarExprTest, PartialDefaultArgs)
     "class Foo\n"
     "  fun f(x: T) =>\n"
     "    lambda box(b: U32 = 2, d: U32 = 4)\n"
-    "      (hygid = x, a: U32 = (5), c: U32 = (6)) =>\n"
-    "      hygid.f(a, consume b, c, consume d)\n"
+    "      ($1 = x, a: U32 = (5), c: U32 = (6)) =>\n"
+    "      $1.f(a, consume b, c, consume d)\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -192,7 +192,7 @@ TEST_F(SugarExprTest, PartialResult)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x): U32 => hygid.f() end";
+    "    lambda box()($1 = x): U32 => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -214,7 +214,7 @@ TEST_F(SugarExprTest, PartialBehaviour)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x): T tag => hygid.f() end";
+    "    lambda box()($1 = x): T tag => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -236,7 +236,7 @@ TEST_F(SugarExprTest, PartialRaisesError)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x): U32 ? => hygid.f() end";
+    "    lambda box()($1 = x): U32 ? => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -258,7 +258,7 @@ TEST_F(SugarExprTest, PartialParameterTypeParameters)
 
     "class Foo[A: T #read]\n"
     "  fun f(t: T box, a: A) =>\n"
-    "    lambda box()(hygid = t, a: A = (a)) => hygid.f(a) end";
+    "    lambda box()($1 = t, a: A = (a)) => $1.f(a) end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -280,7 +280,7 @@ TEST_F(SugarExprTest, PartialReceiverTypeParameters)
 
     "class Foo[A: T #read]\n"
     "  fun f(x: A) =>\n"
-    "    lambda box()(hygid = x) => hygid.f() end";
+    "    lambda box()($1 = x) => $1.f() end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -302,7 +302,7 @@ TEST_F(SugarExprTest, PartialFunctionTypeParameter)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()(hygid = x, a: U32 = (3)) => hygid.f[U32](a) end";
+    "    lambda box()($1 = x, a: U32 = (3)) => $1.f[U32](a) end";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -540,12 +540,12 @@ TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)
 
     "class Foo[A: T]\n"
     "  fun f(x: A) =>\n"
-    "    Hygid[A].create(consume x)\n"
+    "    $T[A].create(consume x)\n"
 
-    "class Hygid[A: T]\n"
+    "class $T[A: T]\n"
     "  let _x: A\n"
-    "  new create(hygid: A) =>\n"
-    "    _x = consume hygid";
+    "  new create($1: A) =>\n"
+    "    _x = consume $1";
 
   TEST_EQUIV(short_form, full_form);
 }

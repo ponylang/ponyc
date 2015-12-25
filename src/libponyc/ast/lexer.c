@@ -169,6 +169,24 @@ static const lextoken_t keywords[] =
   { "true", TK_TRUE },
   { "false", TK_FALSE },
 
+  // #keywords.
+  {"#read", TK_CAP_READ},
+  {"#send", TK_CAP_SEND},
+  {"#share", TK_CAP_SHARE},
+  {"#any", TK_CAP_ANY},
+
+  // $keywords, for testing only.
+  {"$noseq", TK_TEST_NO_SEQ},
+  {"$scope", TK_TEST_SEQ_SCOPE},
+  {"$try_no_check", TK_TEST_TRY_NO_CHECK},
+  {"$borrowed", TK_TEST_BORROWED},
+  {"$updatearg", TK_TEST_UPDATEARG},
+  {"$extra", TK_TEST_EXTRA},
+  {"$ifdefand", TK_IFDEFAND},
+  {"$ifdefor", TK_IFDEFOR},
+  {"$ifdefnot", TK_IFDEFNOT},
+  {"$flag", TK_IFDEFFLAG},
+
   { NULL, (token_id)0 }
 };
 
@@ -203,7 +221,7 @@ static const lextoken_t abstract[] =
   { "val", TK_VAL_BIND },
   { "box", TK_BOX_BIND },
   { "tag", TK_TAG_BIND },
-
+  
   { "#read", TK_CAP_READ_BIND },
   { "#send", TK_CAP_SEND_BIND },
   { "#share", TK_CAP_SHARE_BIND },
@@ -254,36 +272,33 @@ static const lextoken_t abstract[] =
 
   { "\\n", TK_NEWLINE },
 
-  { "test", TK_TEST },
-  { NULL, (token_id)0 }
+  {"#read", TK_CAP_READ},
+  {"#send", TK_CAP_SEND},
+  {"#share", TK_CAP_SHARE},
+  {"#any", TK_CAP_ANY},
+
+  {"$noseq", TK_TEST_NO_SEQ},
+  {"$scope", TK_TEST_SEQ_SCOPE},
+  {"$try_no_check", TK_TEST_TRY_NO_CHECK},
+  {"$borrowed", TK_TEST_BORROWED},
+  {"$updatearg", TK_TEST_UPDATEARG},
+  {"$extra", TK_TEST_EXTRA},
+  {"$ifdefand", TK_IFDEFAND},
+  {"$ifdefor", TK_IFDEFOR},
+  {"$ifdefnot", TK_IFDEFNOT},
+  {"$flag", TK_IFDEFFLAG},
+
+  {NULL, (token_id)0}
 };
 
-static const lextoken_t test_keywords[] =
+
+static bool allow_test_symbols = false;
+
+
+void lexer_allow_test_symbols()
 {
-  { "$scope", TK_TEST_SEQ_SCOPE },
-  { "$seq", TK_TEST_SEQ },
-  { "$noseq", TK_TEST_NO_SEQ },
-  { "$try_no_check", TK_TEST_TRY_NO_CHECK },
-  { "$borrowed", TK_TEST_BORROWED },
-  { "$updatearg", TK_TEST_UPDATEARG },
-  { "$extra", TK_TEST_EXTRA },
-  { "$ifdefand", TK_IFDEFAND },
-  { "$ifdefor", TK_IFDEFOR },
-  { "$ifdefnot", TK_IFDEFNOT },
-  { "$flag", TK_IFDEFFLAG },
-
-  { NULL, (token_id)0 }
-};
-
-static const lextoken_t hash_keywords[] =
-{
-  { "#read", TK_CAP_READ },
-  { "#send", TK_CAP_SEND },
-  { "#share", TK_CAP_SHARE },
-  { "#any", TK_CAP_ANY },
-
-  { NULL, (token_id)0 }
-};
+  allow_test_symbols = true;
+}
 
 
 // Report an error at the specified location
@@ -1049,9 +1064,9 @@ static size_t read_id(lexer_t* lexer)
 }
 
 
-// Process an identifier the leading character of which has been seen, but not
-// consumed
-static token_t* identifier(lexer_t* lexer)
+// Process a keyword or identifier the leading character of which has been
+// seen, but not consumed
+static token_t* keyword(lexer_t* lexer, bool allow_identifiers)
 {
   size_t len = read_id(lexer);
   consume_chars(lexer, len);
@@ -1062,53 +1077,21 @@ static token_t* identifier(lexer_t* lexer)
       return make_token(lexer, p->id);
   }
 
-  return make_token_with_text(lexer, TK_ID);
-}
-
-
-// Process a hash identifier the leading # of which has been seen, but not
-// consumed
-static token_t* hash_identifier(lexer_t* lexer)
-{
-  // # already found, find rest of symbol.
-  // Only consume the remaining characters if we have a match.
-  consume_chars(lexer, 1);
-  append_to_token(lexer, '#');
-  size_t len = read_id(lexer);
-  consume_chars(lexer, len);
-
-  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
-  {
-    if(!strcmp(lexer->buffer, p->text))
-      return make_token(lexer, p->id);
-  }
+  if(allow_identifiers && len > 0)
+    return make_token_with_text(lexer, TK_ID);
 
   lex_error(lexer, "Unrecognized keyword: %s", lexer->buffer);
   return make_token(lexer, TK_LEX_ERROR);
 }
 
 
-// Process a test identifier the leading $ of which has been seen, but not
-// consumed
-static token_t* test_identifier(lexer_t* lexer)
+// Process a hash or test ($) keyword or identifier the leading # of which has
+// been seen, but not consumed.
+static token_t* hash_keyword(lexer_t* lexer, bool allow_identifiers)
 {
-  // $ already found, find rest of symbol.
-  // Only consume the remaining characters if we have a match.
+  append_to_token(lexer, look(lexer));  // # or $
   consume_chars(lexer, 1);
-  append_to_token(lexer, '$');
-  size_t len = read_id(lexer);
-
-  for(const lextoken_t* p = test_keywords; p->text != NULL; p++)
-  {
-    if(!strcmp(lexer->buffer, p->text))
-    {
-      consume_chars(lexer, len);
-      return make_token(lexer, p->id);
-    }
-  }
-
-  lex_error(lexer, "Unrecognized character: $");
-  return make_token(lexer, TK_LEX_ERROR);
+  return keyword(lexer, allow_identifiers);
 }
 
 
@@ -1232,11 +1215,26 @@ token_t* lexer_next(lexer_t* lexer)
         break;
 
       case '#':
-        t = hash_identifier(lexer);
+        t = hash_keyword(lexer, false);
         break;
 
       case '$':
-        t = test_identifier(lexer);
+        if(allow_test_symbols)
+        {
+          // In test mode.
+          // Special test keywords starting in $ allowed.
+          // Identifiers starting in $ allowed.
+          // A lone $ is still an error, to allow forcing a lex error.
+          t = hash_keyword(lexer, true);
+        }
+        else
+        {
+          // Not in test mode. Any $ is an error.
+          lex_error(lexer, "Unrecognized character: $");
+          consume_chars(lexer, 1);
+          t = make_token(lexer, TK_LEX_ERROR);
+        }
+
         break;
 
       default:
@@ -1246,7 +1244,7 @@ token_t* lexer_next(lexer_t* lexer)
         }
         else if(isalpha(c) || (c == '_'))
         {
-          t = identifier(lexer);
+          t = keyword(lexer, true);
         }
         else
         {
@@ -1280,29 +1278,5 @@ const char* lexer_print(token_id id)
       return p->text;
   }
 
-  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
-  {
-    if(id == p->id)
-      return p->text;
-  }
-
-  for(const lextoken_t* p = test_keywords; p->text != NULL; p++)
-  {
-    if(id == p->id)
-      return p->text;
-  }
-
   return NULL;
-}
-
-
-token_id lexer_is_abstract_keyword(const char* text)
-{
-  for(const lextoken_t* p = abstract; p->text != NULL; p++)
-  {
-    if(!strcmp(text, p->text))
-      return p->id;
-  }
-
-  return TK_LEX_ERROR;
 }
