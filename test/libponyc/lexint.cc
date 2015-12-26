@@ -562,4 +562,49 @@ TEST_F(LexIntTest, LexIntCastDouble)
   ASSERT_EQ(1e20, lexint_double(lexint(&a, 5, 0x6BC75E2D63100000)));
   ASSERT_EQ(3.4028236692093846e38,
     lexint_double(lexint(&a, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)));
+
+  // Checking mantissa precision and rounding.
+  // It's a pain to check the resulting double, due to decimal vs binary
+  // hassles, so instead we'll check the raw bits.
+  union
+  {
+    double d;
+    uint64_t i;
+  } r;
+
+  // 53 significant bits.
+  r.d = lexint_double(lexint(&a, 0, 0x123456789ABCDE));
+  ASSERT_EQ(0x43323456789ABCDE, r.i);
+
+  // 53 significant bits with trailing 0s, straddling high and low.
+  r.d = lexint_double(lexint(&a, 0x1234, 0x56789ABCDE000000));
+  ASSERT_EQ(0x44B23456789ABCDE, r.i);
+
+  // 53 significant bits with trailing 0s, all in high.
+  r.d = lexint_double(lexint(&a, 0x123456789ABCDE00, 0));
+  ASSERT_EQ(0x47B23456789ABCDE, r.i);
+
+  // 54 significant bits, ending 01 -> round down.
+  r.d = lexint_double(lexint(&a, 0, 0x35555555555555));
+  ASSERT_EQ(0x434AAAAAAAAAAAAA, r.i);
+
+  // 54 significant bits, ending 11 -> round up.
+  r.d = lexint_double(lexint(&a, 0, 0x35555555555557));
+  ASSERT_EQ(0x434AAAAAAAAAAAAC, r.i);
+
+  // 54 significant bits with trailing 0s, ending 01 -> round down.
+  r.d = lexint_double(lexint(&a, 0x1234, 0x56789ABCDE800000));
+  ASSERT_EQ(0x44B23456789ABCDE, r.i);
+
+  // 54 significant bits with trailing 0s, ending 11 -> round up.
+  r.d = lexint_double(lexint(&a, 0x1234, 0x56789ABCDD800000));
+  ASSERT_EQ(0x44B23456789ABCDE, r.i);
+
+  // 55 significant bits with trailing 0s, ending 011 -> round up.
+  r.d = lexint_double(lexint(&a, 0x1234, 0x56789ABCDEC00000));
+  ASSERT_EQ(0x44B23456789ABCDF, r.i);
+
+  // Round up carry causing mantissa overflow.
+  r.d = lexint_double(lexint(&a, 0, 0x1FFFFFFFFFFFFF8));
+  ASSERT_EQ(0x4380000000000000, r.i);
 }
