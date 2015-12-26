@@ -834,22 +834,9 @@ static token_t* character(lexer_t* lexer)
     // reported and this allows catching later errors.
     if(c >= 0)
       lexint_char(&value, c);
+
+    // TODO: Should we catch overflow and treat as an error?
   }
-}
-
-
-/** Add the given digit to a literal value, checking for overflow.
- * Returns true on success, false on overflow error.
- */
-static bool accum(lexer_t* lexer, lexint_t* v, int digit, uint32_t base)
-{
-  if(!lexint_accum(v, digit, base))
-  {
-    lex_error(lexer, "overflow in numeric literal");
-    return false;
-  }
-
-  return true;
 }
 
 
@@ -898,8 +885,11 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
       return false;
     }
 
-    if(!accum(lexer, out_value, digit, base))
+    if(!lexint_accum(out_value, digit, base))
+    {
+      lex_error(lexer, "overflow in numeric literal");
       return false;
+    }
 
     consume_chars(lexer, 1);
     digit_count++;
@@ -967,15 +957,17 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
       return make_token(lexer, TK_LEX_ERROR);
   }
 
-  lexint_sub64(&e, &e, mantissa_digit_count);
   token_t* t = make_token(lexer, TK_FLOAT);
 
   double ds = lexint_double(&significand);
   double de = lexint_double(&e);
 
+  // Note that we must negate the exponent (if required) before applying the
+  // mantissa digit count offset.
   if(exp_neg)
     de = -de;
 
+  de -= mantissa_digit_count;
   token_set_float(t, ds * pow(10.0, de));
   return t;
 }

@@ -226,18 +226,80 @@ bool lexint_accum(lexint_t* i, uint64_t digit, uint64_t base)
   return true;
 }
 
+// Support for clz (count leading zeros) is suprisingly platform, and even CPU,
+// dependent. Therefore, since we're not overly concerned with performance
+// within the lexer, we provide a software version here.
+static int count_leading_zeros(uint64_t n)
+{
+  if(n == 0)
+    return 64;
+
+  int count = 0;
+
+  if((n >> 32) == 0) { count += 32; n <<= 32; }
+  if((n >> 48) == 0) { count += 16; n <<= 16; }
+  if((n >> 56) == 0) { count += 8; n <<= 8; }
+  if((n >> 60) == 0) { count += 4; n <<= 4; }
+  if((n >> 62) == 0) { count += 2; n <<= 2; }
+  if((n >> 63) == 0) { count += 1; n <<= 1; }
+
+  return count;
+}
+
 double lexint_double(lexint_t* i)
 {
-  if((int64_t)i->high < 0)
-  {
-    // Treat as a signed number.
-    lexint_t t = *i;
-    t.high = ~t.high;
-    t.low = ~t.low;
-    lexint_add64(&t, &t, 1);
+  if(i->low == 0 && i->high == 0)
+    return 0;
 
-    return -(((double)t.high * ldexp(1.0, 64)) + (double)t.low);
+  int sig_bit_count = 128 - count_leading_zeros(i->high);
+
+  if(i->high == 0)
+    sig_bit_count = 64 - count_leading_zeros(i->low);
+
+  uint64_t exponent = sig_bit_count - 1;
+  uint64_t mantissa = i->low;
+
+  if(sig_bit_count <= 53)
+  {
+    // We can represent this number exactly.
+    mantissa <<= (53 - sig_bit_count);
+  }
+  else
+  {
+    // We can't exactly represents numbers of this size, have to truncate bits.
+    // We have to round, first shift so we have 55 bits of mantissa.
+    if(sig_bit_count == 54)
+    {
+      mantissa <<= 1;
+    }
+    else if(sig_bit_count > 55)
+    {
+      lexint_t t;
+      lexint_shr(&t, i, sig_bit_count - 55);
+      mantissa = t.low;
+      lexint_shl(&t, &t, sig_bit_count - 55);
+
+      if(lexint_cmp(&t, i) != 0)
+      {
+        // Some of the bits we're discarding are non-0. Round up mantissa.
+        mantissa |= 1;
+      }
+    }
+
+    // Round first 53 bits of mantissa to even an ditch extra 2 bits.
+    if((mantissa & 4) != 0)
+      mantissa |= 1;
+
+    mantissa = (mantissa + 1) >> 2;
+
+    if((mantissa & (1ULL << 53)) != 0)
+    {
+      mantissa >>= 1;
+      exponent += 1;
+    }
   }
 
-  return ((double)i->high * ldexp(1.0, 64)) + (double)i->low;
+  uint64_t raw_bits = ((exponent + 1023) << 52) | (mantissa & 0xFFFFFFFFFFFFF);
+  double* fp_bits = (double*)&raw_bits;
+  return *fp_bits;
 }

@@ -898,6 +898,16 @@ TEST_F(LexerTest, FloatDotAndE)
 }
 
 
+TEST_F(LexerTest, FloatDotAndNegativeE)
+{
+  const char* src = "1.234e-2";
+
+  expect(1, 1, TK_FLOAT, "0.01234");
+  expect(1, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, FloatLeading0)
 {
   const char* src = "01.234e2";

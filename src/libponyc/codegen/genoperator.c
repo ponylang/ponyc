@@ -100,6 +100,8 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  // TODO: This doesn't pick up `x / 0` for 128 bit numbers on platforms
+  // without native 128 bit support.
   if(!is_fp(r_value) &&
     LLVMIsConstant(r_value) &&
     (LLVMConstIntGetSExtValue(r_value) == 0)

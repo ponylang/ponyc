@@ -610,6 +610,7 @@ class iso _TestMath128 is UnitTest
     h.expect_eq[I128](100_000_000_000_000_000_000,
       -10_000_000_000 * -10_000_000_000)
 
+	// Stop compiler moaning about dividing by constant 0.
     var uzero = U128(0)
     var izero = I128(0)
 
