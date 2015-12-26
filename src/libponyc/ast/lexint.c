@@ -59,9 +59,12 @@ void lexint_shl(lexint_t* dst, lexint_t* a, uint64_t b)
   } else if(b == 64) {
     dst->high = a->low;
     dst->low = 0;
-  } else {
+  } else if(b > 0) {
     dst->high = (a->high << b) + (a->low >> (64 - b));
     dst->low = a->low << b;
+  } else {
+    dst->high = a->high;
+    dst->low = a->low;
   }
 }
 
@@ -76,9 +79,12 @@ void lexint_shr(lexint_t* dst, lexint_t* a, uint64_t b)
   } else if(b == 64) {
     dst->low = a->high;
     dst->high = 0;
-  } else {
+  } else if(b > 0) {
     dst->low = (a->high << (64 - b)) + (a->low >> b);
     dst->high = a->high >> b;
+  } else {
+   dst->high = a->high;
+   dst->low = a->low;
   }
 }
 
