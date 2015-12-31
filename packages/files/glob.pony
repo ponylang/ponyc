@@ -4,9 +4,11 @@ use "regex"
 
 interface GlobHandler
   """
-  A handler for `Glob.iglob`.
+  A handler for `Glob.iglob`.  Each path which matches the glob will be called
+  with the groups that matched the various wildcards supplies in the
+  `match_groups` array.
   """
-  fun ref apply(path: FilePath, match_groups: Array[String] ref)
+  fun ref apply(path: FilePath, match_groups: Array[String])
 
 primitive Glob
   """
@@ -137,21 +139,21 @@ primitive Glob
     """
     Returns an Array[FilePath] for each path below `root_path` that matches `pattern`.
 
-    The pattern may contain shell-style wildcards.  See the type
-    documentation on `Glob` for details.
+    The pattern may contain shell-style wildcards.  See the type documentation
+    on `Glob` for details.
     """
     let res = recover ref Array[FilePath] end
     iglob(root_path, pattern,
-          lambda ref(path: FilePath, match_groups: Array[String] ref)
-                    (r: Array[FilePath] ref = res) => r.push(path) end)
+          lambda ref(path: FilePath, match_groups: Array[String])
+                    (res = res) => res.push(path) end)
     res
 
   fun iglob(root_path: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
     """
     Calls `GlobHandler.apply` for each path below `root_path` that matches `pattern`.
 
-    The pattern may contain shell-style wildcards.  See the type
-    documentation on `Glob` for details.
+    The pattern may contain shell-style wildcards.  See the type documentation
+    on `Glob` for details.
     """
 
     // TODO: do something efficient by looking at parts of the pattern that do
