@@ -7,7 +7,7 @@ typedef struct delta_t
   size_t rc;
 } delta_t;
 
-static uint64_t delta_hash(delta_t* delta)
+static size_t delta_hash(delta_t* delta)
 {
   return hash_ptr(delta->actor);
 }

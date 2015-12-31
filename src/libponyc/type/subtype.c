@@ -136,7 +136,7 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
       if(isuper == NULL)
       {
         if(!is_subtype(sub_result, super_result))
-         return false;
+          return false;
 
         // If either result type is a machine word, the other must be as well.
         if(is_machine_word(sub_result) && !is_machine_word(super_result))
@@ -334,20 +334,42 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     if(sub_member == NULL)
       return false;
 
-    ast_t* r_sub_member = reify(sub_typeargs, sub_member, sub_typeparams,
+    ast_t* r_sub_member = ast_dup(sub_member);
+    replace_thistype(&r_sub_member, sub);
+
+    ast_t* rr_sub_member = reify(sub_typeargs, r_sub_member, sub_typeparams,
       sub_typeargs);
 
-    if(r_sub_member== NULL)
+    if(rr_sub_member != r_sub_member)
+    {
+      ast_free_unattached(r_sub_member);
+      r_sub_member = rr_sub_member;
+    }
+
+    if(r_sub_member == NULL)
       return false;
 
-    ast_t* r_super_member = reify(super_typeargs, super_member,
+    flatten_arrows(&r_sub_member, false);
+
+    ast_t* r_super_member = ast_dup(super_member);
+    replace_thistype(&r_super_member, super);
+
+    ast_t* rr_super_member = reify(super_typeargs, r_super_member,
       super_typeparams, super_typeargs);
+
+    if(rr_super_member != r_super_member)
+    {
+      ast_free_unattached(r_super_member);
+      r_super_member = rr_super_member;
+    }
 
     if(r_super_member == NULL)
     {
       ast_free_unattached(r_sub_member);
       return false;
     }
+
+    flatten_arrows(&r_super_member, false);
 
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, sub, super);
     ast_free_unattached(r_sub_member);
@@ -493,26 +515,7 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
   return false;
 }
 
-// Both sub and super are tuples.
-static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super)
-{
-  // All elements must be pairwise subtypes.
-  ast_t* sub_child = ast_child(sub);
-  ast_t* super_child = ast_child(super);
-
-  while((sub_child != NULL) && (super_child != NULL))
-  {
-    if(!is_subtype(sub_child, super_child))
-      return false;
-
-    sub_child = ast_sibling(sub_child);
-    super_child = ast_sibling(super_child);
-  }
-
-  return (sub_child == NULL) && (super_child == NULL);
-}
-
-// The subtype is either a nominal or a tuple, the super type is a union.
+// The subtype is a nominal, the super type is a union.
 static bool is_subtype_union(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of one element of the union.
@@ -529,7 +532,7 @@ static bool is_subtype_union(ast_t* sub, ast_t* super)
   return false;
 }
 
-// The subtype is either a nominal or a tuple, the super type is an isect.
+// The subtype is a nominal, the super type is an isect.
 static bool is_subtype_isect(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of all elements of the intersection.
@@ -546,7 +549,7 @@ static bool is_subtype_isect(ast_t* sub, ast_t* super)
   return true;
 }
 
-// The subtype is a nominal, typeparamref or tuple, the super type is an arrow.
+// The subtype is a nominal or typeparamref, the super type is an arrow.
 static bool is_subtype_arrow(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of the lower bounds.
@@ -611,35 +614,145 @@ static bool is_isect_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
+// Build the type of the specified element within tuples of the specified
+// cardinality within the given type.
+// The returned type (if any) must be freed with ast_free_unattached().
+// Returns: tuple element type, NULL for no such type.
+static ast_t* extract_tuple_elem_type(ast_t* type, size_t elem_index,
+  size_t cardinality)
+{
+  assert(type != NULL);
+  assert(elem_index < cardinality);
+
+  switch(ast_id(type))
+  {
+    case TK_DONTCARE:
+      return type;
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* r = NULL;
+
+      // Union child types.
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* child_t = extract_tuple_elem_type(p, elem_index, cardinality);
+
+        // Ignore NULL child types.
+        if(child_t != NULL)
+        {
+          if(r == NULL)
+          {
+            r = child_t;
+          }
+          else
+          {
+            BUILD(union_t, r, NODE(TK_UNIONTYPE, TREE(r) TREE(child_t)));
+            r = union_t;
+          }
+        }
+      }
+
+      return r;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* r = NULL;
+
+      // Intersect child types.
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* child_t = extract_tuple_elem_type(p, elem_index, cardinality);
+
+        if(child_t == NULL)
+        {
+          // Any impossible child means our whole type is impossible.
+          ast_free_unattached(r);
+          return NULL;
+        }
+
+        if(r == NULL)
+        {
+          r = child_t;
+        }
+        else
+        {
+          BUILD(isec_t, r, NODE(TK_ISECTTYPE, TREE(r) TREE(child_t)));
+          r = isec_t;
+        }
+      }
+
+      return r;
+    }
+
+    case TK_TUPLETYPE:
+      if(ast_childcount(type) != cardinality) // Type is wrong size.
+        return NULL;
+
+      // This tuple is the right size, return type of relevant element.
+      return ast_childidx(type, elem_index);
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+
+      ast_t* right_t = extract_tuple_elem_type(right, elem_index, cardinality);
+
+      if(right_t == NULL) // No valid type.
+        return NULL;
+
+      BUILD(t, left, NODE(TK_ARROW, TREE(left) TREE(right_t)));
+      return t;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      // Cannot be a tuple.
+      return NULL;
+
+    default:
+      ast_print(type);
+      assert(0);
+      return NULL;
+  }
+}
+
+
 // The subtype is a tuple, the supertype could be anything.
 static bool is_tuple_subtype(ast_t* sub, ast_t* super)
 {
-  switch(ast_id(super))
+  assert(sub != NULL);
+  assert(super != NULL);
+
+  // Deconstruct both sub and super together, even if super isn't directly a
+  // tuple.
+  size_t cardinality = ast_childcount(sub);
+  size_t i = 0;
+
+  // Check each element in turn.
+  for(ast_t* p = ast_child(sub); p != NULL; p = ast_sibling(p))
   {
-    case TK_NOMINAL:
-      // A tuple can never be a strict subtype of a nominal type.
+    ast_t* elem_t = extract_tuple_elem_type(super, i++, cardinality);
+
+    if(elem_t == NULL)  // No valid super type.
       return false;
 
-    case TK_TYPEPARAMREF:
-      // A tuple can never be a strict subtype of a type parameter.
+    bool r = is_subtype(p, elem_t);
+    ast_free_unattached(elem_t);
+
+    if(!r)  // Elements not subtypes.
       return false;
-
-    case TK_UNIONTYPE:
-      return is_subtype_union(sub, super);
-
-    case TK_ISECTTYPE:
-      return is_subtype_isect(sub, super);
-
-    case TK_TUPLETYPE:
-      return is_tuple_sub_tuple(sub, super);
-
-    case TK_ARROW:
-      return is_subtype_arrow(sub, super);
-
-    default: {}
   }
 
-  return false;
+  // All elements are subtypes.
+  return true;
 }
 
 // The subtype is a nominal, the supertype could be anything.
@@ -915,39 +1028,31 @@ bool is_bool(ast_t* type)
 
 bool is_float(ast_t* type)
 {
-  return is_literal(type, "F32") ||
-    is_literal(type, "F64");
+  return is_literal(type, "F32") || is_literal(type, "F64");
 }
 
 bool is_integer(ast_t* type)
 {
-  return is_literal(type, "I8") ||
-    is_literal(type, "I16") ||
-    is_literal(type, "I32") ||
-    is_literal(type, "I64") ||
-    is_literal(type, "I128") ||
-    is_literal(type, "U8") ||
-    is_literal(type, "U16") ||
-    is_literal(type, "U32") ||
-    is_literal(type, "U64") ||
-    is_literal(type, "U128");
-}
-
-bool is_machine_word(ast_t* type)
-{
-  return is_bool(type) ||
+  return
     is_literal(type, "I8") ||
     is_literal(type, "I16") ||
     is_literal(type, "I32") ||
     is_literal(type, "I64") ||
     is_literal(type, "I128") ||
+    is_literal(type, "ILong") ||
+    is_literal(type, "ISize") ||
     is_literal(type, "U8") ||
     is_literal(type, "U16") ||
     is_literal(type, "U32") ||
     is_literal(type, "U64") ||
     is_literal(type, "U128") ||
-    is_literal(type, "F32") ||
-    is_literal(type, "F64");
+    is_literal(type, "ULong") ||
+    is_literal(type, "USize");
+}
+
+bool is_machine_word(ast_t* type)
+{
+  return is_bool(type) || is_integer(type) || is_float(type);
 }
 
 bool is_signed(pass_opt_t* opt, ast_t* type)
@@ -1226,5 +1331,33 @@ bool is_entity(ast_t* type, token_id entity)
   }
 
   assert(0);
+  return false;
+}
+
+bool contains_dontcare(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_DONTCARE:
+      return true;
+
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(contains_dontcare(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    default: {}
+  }
+
   return false;
 }

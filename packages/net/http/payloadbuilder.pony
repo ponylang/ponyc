@@ -31,7 +31,7 @@ class _PayloadBuilder
   let _client: Bool
   var _state: _PayloadState
   var _payload: Payload
-  var _content_length: U64 = 0
+  var _content_length: USize = 0
   var _chunked: Bool = false
 
   new request() =>
@@ -117,11 +117,11 @@ class _PayloadBuilder
 
       try
         let method_end = line.find(" ")
-        _payload.method = line.substring(0, method_end - 1)
+        _payload.method = line.substring(0, method_end)
 
         let url_end = line.find(" ", method_end + 1)
-        _payload.url = URL.valid(line.substring(method_end + 1, url_end - 1))
-        _payload.proto = line.substring(url_end + 1, -1)
+        _payload.url = URL.valid(line.substring(method_end + 1, url_end))
+        _payload.proto = line.substring(url_end + 1)
 
         _state = _PayloadHeaders
         parse(buffer)
@@ -139,11 +139,11 @@ class _PayloadBuilder
 
       try
         let proto_end = line.find(" ")
-        _payload.proto = line.substring(0, proto_end - 1)
+        _payload.proto = line.substring(0, proto_end)
         _payload.status = line.read_int[U16](proto_end + 1)._1
 
         let status_end = line.find(" ", proto_end + 1)
-        _payload.method = line.substring(status_end + 1, -1)
+        _payload.method = line.substring(status_end + 1)
 
         _state = _PayloadHeaders
         parse(buffer)
@@ -163,13 +163,13 @@ class _PayloadBuilder
         if line.size() > 0 then
           try
             let i = line.find(":")
-            let key = recover val line.substring(0, i - 1).strip() end
-            let value = recover val line.substring(i + 1, -1).strip() end
+            let key = recover val line.substring(0, i).strip() end
+            let value = recover val line.substring(i + 1).strip() end
             _payload(key) = value
 
             match key.lower()
             | "content-length" =>
-              _content_length = value.read_int[U64]()._1
+              _content_length = value.read_int[USize]()._1
             | "transfer-encoding" =>
               try
                 value.find("chunked")
@@ -230,7 +230,7 @@ class _PayloadBuilder
       let line = buffer.line()
 
       if line.size() > 0 then
-        _content_length = line.read_int[U64](0, 16)._1
+        _content_length = line.read_int[USize](0, 16)._1
 
         if _content_length > 0 then
           _state = _PayloadChunk

@@ -15,7 +15,7 @@ typedef struct object_t
   bool reachable;
 } object_t;
 
-static uint64_t object_hash(object_t* obj)
+static size_t object_hash(object_t* obj)
 {
   return hash_ptr(obj->address);
 }

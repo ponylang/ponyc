@@ -3,15 +3,15 @@ actor TCPListener
   Listens for new network connections.
   """
   var _notify: TCPListenNotify
-  var _fd: U64
+  var _fd: U32
   var _event: AsioEventID = AsioEvent.none()
   var _closed: Bool = false
-  let _limit: U64
-  var _count: U64 = 0
+  let _limit: USize
+  var _count: USize = 0
   var _paused: Bool = false
 
   new create(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: U64 = 0)
+    service: String = "0", limit: USize = 0)
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -19,31 +19,33 @@ actor TCPListener
     _limit = limit
     _notify = consume notify
     _event = @os_listen_tcp[AsioEventID](this, host.cstring(), service.cstring())
-    _fd = @asio_event_data[U64](_event)
+    _fd = @asio_event_fd(_event)
     _notify_listening()
 
   new ip4(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: U64 = 0)
+    service: String = "0", limit: USize = 0)
   =>
     """
     Listens for IPv4 connections.
     """
     _limit = limit
     _notify = consume notify
-    _event = @os_listen_tcp4[AsioEventID](this, host.cstring(), service.cstring())
-    _fd = @asio_event_data[U64](_event)
+    _event = @os_listen_tcp4[AsioEventID](this, host.cstring(),
+      service.cstring())
+    _fd = @asio_event_fd(_event)
     _notify_listening()
 
   new ip6(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: U64 = 0)
+    service: String = "0", limit: USize = 0)
   =>
     """
     Listens for IPv6 connections.
     """
     _limit = limit
     _notify = consume notify
-    _event = @os_listen_tcp6[AsioEventID](this, host.cstring(), service.cstring())
-    _fd = @asio_event_data[U64](_event)
+    _event = @os_listen_tcp6[AsioEventID](this, host.cstring(),
+      service.cstring())
+    _fd = @asio_event_fd(_event)
     _notify_listening()
 
   be set_notify(notify: TCPListenNotify iso) =>
@@ -66,7 +68,7 @@ actor TCPListener
     @os_sockname[Bool](_fd, ip)
     ip
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """
@@ -79,7 +81,7 @@ actor TCPListener
     end
 
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](_event)
+      @asio_event_destroy(_event)
       _event = AsioEvent.none()
     end
 
@@ -95,14 +97,14 @@ actor TCPListener
       _accept()
     end
 
-  fun ref _accept(ns: U64 = 0) =>
+  fun ref _accept(ns: U32 = 0) =>
     """
     Accept connections as long as we have spawned fewer than our limit.
     """
-    if Platform.windows() then
+    ifdef windows then
       if ns == -1 then
         // Unsubscribe when we get an invalid socket in the event.
-        @asio_event_unsubscribe[None](_event)
+        @asio_event_unsubscribe(_event)
         return
       end
 
@@ -117,7 +119,7 @@ actor TCPListener
 
       // Queue an accept if we're not at the limit.
       if (_limit == 0) or (_count < _limit) then
-        @os_accept[U64](_event)
+        @os_accept[U32](_event)
       else
         _paused = true
       end
@@ -127,7 +129,7 @@ actor TCPListener
       end
 
       while (_limit == 0) or (_count < _limit) do
-        var fd = @os_accept[U64](_event)
+        var fd = @os_accept[U32](_event)
 
         match fd
         | -1 =>
@@ -144,7 +146,7 @@ actor TCPListener
       _paused = true
     end
 
-  fun ref _spawn(ns: U64) =>
+  fun ref _spawn(ns: U32) =>
     """
     Spawn a new connection.
     """
@@ -181,8 +183,8 @@ actor TCPListener
       _fd = -1
 
       // When not on windows, the unsubscribe is done immediately.
-      if not Platform.windows() then
-        @asio_event_unsubscribe[None](_event)
+      ifdef not windows then
+        @asio_event_unsubscribe(_event)
       end
 
       _notify.closed(this)

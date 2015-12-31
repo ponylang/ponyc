@@ -39,7 +39,7 @@ static ast_t* make_create(ast_t* ast)
 }
 
 
-static bool has_member(ast_t* members, const char* name)
+bool has_member(ast_t* members, const char* name)
 {
   name = stringtab(name);
   ast_t* member = ast_child(members);
@@ -100,102 +100,6 @@ static void add_default_constructor(ast_t* ast)
 }
 
 
-static ast_t* make_nominal(ast_t* id, ast_t* typeargs)
-{
-  BUILD_NO_DEBUG(type, id,
-    NODE(TK_NOMINAL,
-      NONE
-      TREE(id)
-      TREE(typeargs)
-      NONE
-      NONE));
-
-  return type;
-}
-
-
-static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
-{
-  BUILD_NO_DEBUG(typeargs, typeparams, NODE(TK_TYPEARGS));
-
-  ast_t* typeparam = ast_child(typeparams);
-
-  while(typeparam != NULL)
-  {
-    ast_t* p_id = ast_child(typeparam);
-    ast_t* type = make_nominal(p_id, ast_from(id, TK_NONE));
-    ast_append(typeargs, type);
-
-    typeparam = ast_sibling(typeparam);
-  }
-
-  if(ast_child(typeargs) == NULL)
-    ast_setid(typeargs, TK_NONE);
-
-  ast_t* type = make_nominal(id, typeargs);
-
-  if(!has_member(members, "eq"))
-  {
-    BUILD_NO_DEBUG(eq, members,
-      NODE(TK_FUN, AST_SCOPE
-        NODE(TK_BOX)
-        ID("eq")
-        NONE
-        NODE(TK_PARAMS,
-          NODE(TK_PARAM,
-            ID("that")
-            TREE(type)
-            NONE))
-        NODE(TK_NOMINAL,
-          NONE
-          ID("Bool")
-          NONE
-          NONE
-          NONE)
-        NONE
-        NODE(TK_SEQ,
-          NODE(TK_IS,
-            NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NONE
-        NONE));
-
-ast_append(members, eq);
-  }
-
-  if(!has_member(members, "ne"))
-  {
-    BUILD_NO_DEBUG(eq, members,
-      NODE(TK_FUN, AST_SCOPE
-        NODE(TK_BOX)
-        ID("ne")
-        NONE
-        NODE(TK_PARAMS,
-          NODE(TK_PARAM,
-            ID("that")
-            TREE(type)
-            NONE))
-        NODE(TK_NOMINAL,
-          NONE
-          ID("Bool")
-          NONE
-          NONE
-          NONE)
-        NONE
-        NODE(TK_SEQ,
-          NODE(TK_ISNT,
-            NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NONE
-        NONE));
-
-    ast_append(members, eq);
-  }
-
-  ast_free_unattached(type);
-}
-
-
 static ast_result_t sugar_module(ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
@@ -203,9 +107,10 @@ static ast_result_t sugar_module(ast_t* ast)
   ast_t* package = ast_parent(ast);
   assert(ast_id(package) == TK_PACKAGE);
 
-  if(strcmp(package_name(package), "$1") != 0)
+  if(strcmp(package_name(package), "$0") != 0)
   {
-    // Every module not in builtin has an implicit use builtin command
+    // Every module not in builtin has an implicit use builtin command.
+    // Since builtin is always the first package processed it is $0.
     BUILD(builtin, ast,
       NODE(TK_USE,
       NONE
@@ -234,7 +139,7 @@ static ast_result_t sugar_module(ast_t* ast)
 
 
 static ast_result_t sugar_entity(typecheck_t* t, ast_t* ast, bool add_create,
-  bool add_eq, token_id def_def_cap)
+  token_id def_def_cap)
 {
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
 
@@ -243,9 +148,6 @@ static ast_result_t sugar_entity(typecheck_t* t, ast_t* ast, bool add_create,
 
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, def_def_cap);
-
-  if(add_eq)
-    add_comparable(id, typeparams, members);
 
   // Build a reverse sequence of all field initialisers.
   BUILD(init_seq, members, NODE(TK_SEQ));
@@ -365,18 +267,19 @@ static void sugar_docstring(ast_t* ast)
 }
 
 
-// Check the parameters of the given method are proper parameters and not
+// Check the parameters are proper parameters and not
 // something nasty let in by the case method value parsing.
-static ast_result_t check_params(ast_t* method)
+static ast_result_t check_params(ast_t* params)
 {
-  assert(method != NULL);
-
+  assert(params != NULL);
   ast_result_t result = AST_OK;
-  ast_t* params = ast_childidx(method, 3);
 
   // Check each parameter.
   for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
   {
+    if(ast_id(p) == TK_ELLIPSIS)
+      continue;
+
     AST_GET_CHILDREN(p, id, type, def_arg);
 
     if(ast_id(id) != TK_ID)
@@ -396,6 +299,19 @@ static ast_result_t check_params(ast_t* method)
     }
   }
 
+  return result;
+}
+
+
+// Check for leftover stuff from case methods.
+static ast_result_t check_method(ast_t* method)
+{
+  assert(method != NULL);
+
+  ast_result_t result = AST_OK;
+  ast_t* params = ast_childidx(method, 3);
+  result = check_params(params);
+
   // Also check the guard expression doesn't exist.
   ast_t* guard = ast_childidx(method, 8);
   assert(guard != NULL);
@@ -410,8 +326,9 @@ static ast_result_t check_params(ast_t* method)
 }
 
 
-static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
+static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
   // Return type default to ref^ for classes, val^ for primitives, and
@@ -432,15 +349,15 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
       ast_setid(cap, tcap);
     }
 
-    ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
+    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL, false));
   }
 
   sugar_docstring(ast);
-  return check_params(ast);
+  return check_method(ast);
 }
 
 
-static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
+static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
   ast_setid(cap, TK_TAG);
@@ -448,11 +365,11 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
   if(ast_id(result) == TK_NONE)
   {
     // Return type is This tag
-    ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+    ast_replace(&result, type_for_this(opt, ast, TK_TAG, TK_NONE, false));
   }
 
   sugar_docstring(ast);
-  return check_params(ast);
+  return check_method(ast);
 }
 
 
@@ -492,18 +409,20 @@ static ast_result_t sugar_fun(ast_t* ast)
 {
   fun_defaults(ast);
   sugar_docstring(ast);
-  return check_params(ast);
+  return check_method(ast);
 }
 
 
 // If the given tree is a TK_NONE expand it to a source None
-static void expand_none(ast_t* ast)
+static void expand_none(ast_t* ast, bool is_scope)
 {
   if(ast_id(ast) != TK_NONE)
     return;
 
+  if(is_scope)
+    ast_scope(ast);
+
   ast_setid(ast, TK_SEQ);
-  ast_scope(ast);
   BUILD_NO_DEBUG(ref, ast, NODE(TK_REFERENCE, ID("None")));
   ast_add(ast, ref);
 }
@@ -518,7 +437,7 @@ static ast_result_t sugar_return(typecheck_t* t, ast_t* ast)
     assert(ast_id(return_value) == TK_NONE);
     ast_setid(return_value, TK_THIS);
   } else {
-    expand_none(return_value);
+    expand_none(return_value, false);
   }
 
   return AST_OK;
@@ -528,7 +447,7 @@ static ast_result_t sugar_return(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_else(ast_t* ast)
 {
   ast_t* else_clause = ast_childidx(ast, 2);
-  expand_none(else_clause);
+  expand_none(else_clause, true);
   return AST_OK;
 }
 
@@ -541,8 +460,8 @@ static ast_result_t sugar_try(ast_t* ast)
     // Then without else means we don't require a throwable in the try block
     ast_setid(ast, TK_TRY_NO_CHECK);
 
-  expand_none(else_clause);
-  expand_none(then_clause);
+  expand_none(else_clause, true);
+  expand_none(then_clause, true);
 
   return AST_OK;
 }
@@ -552,7 +471,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
 
-  expand_none(for_else);
+  expand_none(for_else, true);
   const char* iter_name = package_hygienic_id(t);
 
   BUILD(try_next, for_iter,
@@ -633,12 +552,12 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
   else
     try_token = TK_TRY;
 
-  expand_none(else_clause);
+  expand_none(else_clause, false);
 
   // First build a skeleton try block without the "with" variables
   BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(try_token, AST_SCOPE
+      NODE(try_token,
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE
@@ -1090,6 +1009,9 @@ static ast_result_t sugar_ffi(ast_t* ast)
   ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 2));
   ast_replace(&id, new_id);
 
+  if(ast_id(ast) == TK_FFIDECL)
+    return check_params(args);
+
   return AST_OK;
 }
 
@@ -1201,15 +1123,15 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_MODULE:     return sugar_module(ast);
-    case TK_PRIMITIVE:  return sugar_entity(t, ast, true, true, TK_VAL);
-    case TK_STRUCT:     return sugar_entity(t, ast, true, false, TK_REF);
-    case TK_CLASS:      return sugar_entity(t, ast, true, false, TK_REF);
-    case TK_ACTOR:      return sugar_entity(t, ast, true, false, TK_TAG);
+    case TK_PRIMITIVE:  return sugar_entity(t, ast, true, TK_VAL);
+    case TK_STRUCT:     return sugar_entity(t, ast, true, TK_REF);
+    case TK_CLASS:      return sugar_entity(t, ast, true, TK_REF);
+    case TK_ACTOR:      return sugar_entity(t, ast, true, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:  return sugar_entity(t, ast, false, false, TK_REF);
+    case TK_INTERFACE:  return sugar_entity(t, ast, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
-    case TK_NEW:        return sugar_new(t, ast);
-    case TK_BE:         return sugar_be(t, ast);
+    case TK_NEW:        return sugar_new(options, ast);
+    case TK_BE:         return sugar_be(options, ast);
     case TK_FUN:        return sugar_fun(ast);
     case TK_RETURN:
     case TK_BREAK:      return sugar_return(t, ast);

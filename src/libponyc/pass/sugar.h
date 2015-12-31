@@ -7,6 +7,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+// Report whether the given member list contains a member with the given name.
+bool has_member(ast_t* members, const char* name);
+
 // Apply default receiver capability and return value, if needed, for the given
 // function.
 void fun_defaults(ast_t* ast);

@@ -58,6 +58,7 @@ void asio_backend_terminate(asio_backend_t* b)
 
 DECLARE_THREAD_FN(asio_backend_dispatch)
 {
+  pony_register_thread();
   asio_backend_t* b = arg;
 
   while(b->epfd != -1)
@@ -96,7 +97,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
           uint64_t missed;
-          ssize_t rc = read((int)ev->data, &missed, sizeof(uint64_t));
+          ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
           (void)rc;
           flags |= ASIO_TIMER;
         }
@@ -120,8 +121,8 @@ static void timer_set_nsec(int fd, uint64_t nsec)
 
   ts.it_interval.tv_sec = 0;
   ts.it_interval.tv_nsec = 0;
-  ts.it_value.tv_sec = nsec / 1000000000;
-  ts.it_value.tv_nsec = nsec - (ts.it_value.tv_sec * 1000000000);
+  ts.it_value.tv_sec = (time_t)(nsec / 1000000000);
+  ts.it_value.tv_nsec = (long)(nsec - (ts.it_value.tv_sec * 1000000000));
 
   timerfd_settime(fd, 0, &ts, NULL);
 }
@@ -150,16 +151,15 @@ void asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
-    int fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    timer_set_nsec(fd, ev->data);
-    ev->data = fd;
+    ev->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    timer_set_nsec(ev->fd, ev->nsec);
     ep.events |= EPOLLIN;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->data, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
 }
 
-void asio_event_update(asio_event_t* ev, uintptr_t data)
+void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -168,7 +168,8 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 
   if(ev->flags & ASIO_TIMER)
   {
-    timer_set_nsec((int)ev->data, data);
+    ev->nsec = nsec;
+    timer_set_nsec(ev->fd, nsec);
   }
 }
 
@@ -187,14 +188,14 @@ void asio_event_unsubscribe(asio_event_t* ev)
     ev->noisy = false;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->data, NULL);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
 
   if(ev->flags & ASIO_TIMER)
   {
-    if(ev->data != (uintptr_t)-1)
+    if(ev->fd != -1)
     {
-      close((int)ev->data);
-      ev->data = -1;
+      close(ev->fd);
+      ev->fd = -1;
     }
   }
 

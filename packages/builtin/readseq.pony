@@ -2,12 +2,12 @@ interface box ReadSeq[A]
   """
   The readable interface of a sequence.
   """
-  fun size(): U64
+  fun size(): USize
     """
     Returns the number of elements in the sequence.
     """
 
-  fun apply(i: U64): A^ ?
+  fun apply(i: USize): A^ ?
     """
     Returns the i-th element of the sequence. Raises an error if the index
     is out of bounds. Note that this returns A^, not this->A.

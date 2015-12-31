@@ -155,11 +155,14 @@ static ast_result_t flatten_provides_list(ast_t* provider, int index)
   assert(provider != NULL);
 
   ast_t* provides = ast_childidx(provider, index);
+
+  if(ast_id(provides) == TK_NONE)
+    return AST_OK;
+
   ast_t* list = ast_from(provides, TK_PROVIDES);
   ast_t* list_end = NULL;
 
-  if(ast_id(provides) != TK_NONE &&
-    !flatten_provided_type(provides, provider, list, &list_end))
+  if(!flatten_provided_type(provides, provider, list, &list_end))
   {
     ast_free(list);
     return AST_ERROR;

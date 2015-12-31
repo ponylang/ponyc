@@ -10,10 +10,15 @@ the main actor constructor of this package to invoke those tests.
 All tests can be run by compiling and running packages/stdlib.
  """
 
+// Include ALL standard library packages here, even if they don't have tests.
+// That way stdlib can be used to type check the whole standard library,
+// generate docs for it, etc.
 use "ponytest"
+use assert = "assert"
 use base64 = "encode/base64"
 use capsicum = "capsicum"
 use collections = "collections"
+use debug = "debug"
 use files = "files"
 use http = "net/http"
 use json = "json"
@@ -44,6 +49,8 @@ actor Main is TestList
     test(_TestStringRstrip)
     test(_TestStringStrip)
     test(_TestStringRemove)
+    test(_TestStringSubstring)
+    test(_TestStringCut)
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
@@ -51,6 +58,8 @@ actor Main is TestList
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
+    test(_TestMath128)
+    test(_TestDivMod)
 
     // Tests for all other packages.
     base64.Main.make().tests(test)
@@ -120,7 +129,7 @@ class iso _TestStringRunes is UnitTest
       result.push(c)
     end
 
-    h.expect_eq[U64](expect.size(), result.size())
+    h.expect_eq[USize](expect.size(), result.size())
 
     for i in collections.Range(0, expect.size()) do
       h.expect_eq[U32](expect(i), result(i))
@@ -322,15 +331,44 @@ class iso _TestStringRemove is UnitTest
     let r3 = s3.remove("-")
     let r4 = s4.remove("-!")
 
-    h.expect_eq[U64](r1, 7)
-    h.expect_eq[U64](r2, 1)
-    h.expect_eq[U64](r3, 5)
-    h.expect_eq[U64](r4, 0)
+    h.expect_eq[USize](r1, 7)
+    h.expect_eq[USize](r2, 1)
+    h.expect_eq[USize](r3, 5)
+    h.expect_eq[USize](r4, 0)
 
     h.expect_eq[String](consume s1, "foobar")
     h.expect_eq[String](consume s2, "barbar")
     h.expect_eq[String](consume s3, "foobar!")
     h.expect_eq[String](consume s4, "f-o-o-b-a-r!")
+
+    true
+
+class iso _TestStringSubstring is UnitTest
+  """
+  Test copying range of characters.
+  """
+  fun name(): String => "builtin/String.substring"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String]("3456", "0123456".substring(3, 99))
+
+    h.expect_eq[String]("345", "0123456".substring(3, 6))
+    h.expect_eq[String]("3456", "0123456".substring(3, 7))
+    h.expect_eq[String]("3456", "0123456".substring(3))
+    h.expect_eq[String]("345", "0123456".substring(3, -1))
+
+    true
+
+class iso _TestStringCut is UnitTest
+  """
+  Test cutting part of a string
+  """
+  fun name(): String => "builtin/String.cut"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String]("01236", "0123456".cut(4, 6))
+    h.expect_eq[String]("0123", "0123456".cut(4, 7))
+    h.expect_eq[String]("0123", "0123456".cut(4))
 
     true
 
@@ -414,7 +452,7 @@ class iso _TestStringSplit is UnitTest
   fun apply(h: TestHelper): TestResult =>
     try
       var r = "1 2 3  4".split()
-      h.expect_eq[U64](r.size(), 5)
+      h.expect_eq[USize](r.size(), 5)
       h.expect_eq[String](r(0), "1")
       h.expect_eq[String](r(1), "2")
       h.expect_eq[String](r(2), "3")
@@ -422,7 +460,7 @@ class iso _TestStringSplit is UnitTest
       h.expect_eq[String](r(4), "4")
 
       r = "1 2 3  4".split(where n = 3)
-      h.expect_eq[U64](r.size(), 3)
+      h.expect_eq[USize](r.size(), 3)
       h.expect_eq[String](r(0), "1")
       h.expect_eq[String](r(1), "2")
       h.expect_eq[String](r(2), "3  4")
@@ -453,57 +491,45 @@ class iso _TestStringCompare is UnitTest
   fun name(): String => "builtin/String.compare"
 
   fun apply(h: TestHelper): TestResult =>
-    test(h, Equal, "foo", "foo", 3)
-    test(h, Greater, "foo", "bar", 3)
-    test(h, Less, "bar", "foo", 3)
+    h.expect_eq[Compare](Equal, "foo".compare_sub("foo", 3))
+    h.expect_eq[Compare](Greater, "foo".compare_sub("bar", 3))
+    h.expect_eq[Compare](Less, "bar".compare_sub("foo", 3))
 
-    test(h, Equal, "foobar", "foo", 3)
-    test(h, Greater, "foobar", "foo", 4)
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("foo", 3))
+    h.expect_eq[Compare](Greater, "foobar".compare_sub("foo", 4))
 
-    test(h, Less, "foobar", "oob", 3, 0)
-    test(h, Equal, "foobar", "oob", 3, 1)
+    h.expect_eq[Compare](Less, "foobar".compare_sub("oob", 3, 0))
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("oob", 3, 1))
 
-    test(h, Equal, "ab", "ab", 2 where ignore_case = false)
-    test(h, Greater, "ab", "Ab", 2 where ignore_case = false)
-    test(h, Greater, "ab", "aB", 2 where ignore_case = false)
-    test(h, Greater, "ab", "AB", 2 where ignore_case = false)
-    test(h, Less, "AB", "ab", 2 where ignore_case = false)
-    test(h, Equal, "AB", "AB", 2 where ignore_case = false)
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("Ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("aB", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Greater, "ab".compare_sub("AB", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Less, "AB".compare_sub("ab", 2 where ignore_case = false))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("AB", 2 where ignore_case = false))
 
-    test(h, Equal, "ab", "ab", 2 where ignore_case = true)
-    test(h, Equal, "ab", "Ab", 2 where ignore_case = true)
-    test(h, Equal, "ab", "aB", 2 where ignore_case = true)
-    test(h, Equal, "ab", "AB", 2 where ignore_case = true)
-    test(h, Equal, "AB", "ab", 2 where ignore_case = true)
-    test(h, Equal, "AB", "AB", 2 where ignore_case = true)
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("Ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("aB", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "ab".compare_sub("AB", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("ab", 2 where ignore_case = true))
+    h.expect_eq[Compare](
+      Equal, "AB".compare_sub("AB", 2 where ignore_case = true))
+
+    h.expect_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
 
     true
-
-  fun test(h: TestHelper, expect: Compare, receiver: String box,
-    that: String box, n: U64, offset: I64 = 0, that_offset: I64 = 0,
-    ignore_case: Bool = false)
-  =>
-    let actual = receiver.compare_sub(that, n, offset, that_offset,
-      ignore_case)
-
-    if expect is actual then
-      return
-    end
-
-    h.assert_failed("Expected " + string(expect) + " got " + string(actual) +
-      " for \"" + receiver + "\".compare_sub(\"" + that + "\", " + n.string() +
-      ", " + offset.string() + ", " + that_offset.string() + ", " +
-      ignore_case.string() + ")")
-
-  fun string(x: Compare): String =>
-    match x
-    | Equal => "Equal"
-    | Less => "Less"
-    | Greater => "Greater"
-    else
-      // Needed until we have exhaustive match checking
-      ""
-    end
 
 
 class iso _TestArraySlice is UnitTest
@@ -517,27 +543,27 @@ class iso _TestArraySlice is UnitTest
 
     try
       let b = a.slice(1, 4)
-      h.expect_eq[U64](b.size(), 3)
+      h.expect_eq[USize](b.size(), 3)
       h.expect_eq[String]("two", b(0))
       h.expect_eq[String]("three", b(1))
       h.expect_eq[String]("four", b(2))
 
       let c = a.slice(0, 5, 2)
-      h.expect_eq[U64](c.size(), 3)
+      h.expect_eq[USize](c.size(), 3)
       h.expect_eq[String]("one", c(0))
       h.expect_eq[String]("three", c(1))
       h.expect_eq[String]("five", c(2))
 
       let d = a.reverse()
-      h.expect_eq[U64](d.size(), 5)
+      h.expect_eq[USize](d.size(), 5)
       h.expect_eq[String]("five", d(0))
       h.expect_eq[String]("four", d(1))
       h.expect_eq[String]("three", d(2))
       h.expect_eq[String]("two", d(3))
       h.expect_eq[String]("one", d(4))
 
-      let e = a.permute(collections.Reverse[U64](4, 0, 2))
-      h.expect_eq[U64](e.size(), 3)
+      let e = a.permute(collections.Reverse(4, 0, 2))
+      h.expect_eq[USize](e.size(), 3)
       h.expect_eq[String]("five", e(0))
       h.expect_eq[String]("three", e(1))
       h.expect_eq[String]("one", e(2))
@@ -546,3 +572,113 @@ class iso _TestArraySlice is UnitTest
     else
       false
     end
+
+
+class iso _TestMath128 is UnitTest
+  """
+  Test 128 bit integer math.
+  """
+  fun name(): String => "builtin/Math128"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[F64](0, U128(0).f64())
+    h.expect_eq[F64](1, U128(1).f64())
+    h.expect_eq[F64](1e10, U128(10_000_000_000).f64())
+    h.expect_eq[F64](1e20, U128(100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[F64](0, I128(0).f64())
+    h.expect_eq[F64](1, I128(1).f64())
+    h.expect_eq[F64](1e10, I128(10_000_000_000).f64())
+    h.expect_eq[F64](1e20, I128(100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[F64](-1, I128(-1).f64())
+    h.expect_eq[F64](-1e10, I128(-10_000_000_000).f64())
+    h.expect_eq[F64](-1e20, I128(-100_000_000_000_000_000_000).f64())
+
+    h.expect_eq[I128](0, 0 * 3)
+    h.expect_eq[I128](8, 2 * 4)
+    h.expect_eq[I128](1_000_000_000_000, 1_000_000 * 1_000_000)
+    h.expect_eq[I128](100_000_000_000_000_000_000,
+      10_000_000_000 * 10_000_000_000)
+
+    h.expect_eq[I128](-8, -2 * 4)
+    h.expect_eq[I128](-1_000_000_000_000, -1_000_000 * 1_000_000)
+    h.expect_eq[I128](-100_000_000_000_000_000_000,
+      -10_000_000_000 * 10_000_000_000)
+
+    h.expect_eq[I128](8, -2 * -4)
+    h.expect_eq[I128](1_000_000_000_000, -1_000_000 * -1_000_000)
+    h.expect_eq[I128](100_000_000_000_000_000_000,
+      -10_000_000_000 * -10_000_000_000)
+
+	// Stop compiler moaning about dividing by constant 0.
+    var uzero = U128(0)
+    var izero = I128(0)
+
+    h.expect_eq[U128](0, 100 / uzero)
+    h.expect_eq[U128](2, 8 / 4)
+    h.expect_eq[U128](1_000_000, 1_000_000_000_000 / 1_000_000)
+    h.expect_eq[U128](10_000_000_000,
+      100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, 100 / izero)
+    h.expect_eq[I128](2, 8 / 4)
+    h.expect_eq[I128](1_000_000, 1_000_000_000_000 / 1_000_000)
+    h.expect_eq[I128](10_000_000_000,
+      100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, -100 / izero)
+    h.expect_eq[I128](-2, -8 / 4)
+    h.expect_eq[I128](-1_000_000, -1_000_000_000_000 / 1_000_000)
+    h.expect_eq[I128](-10_000_000_000,
+      -100_000_000_000_000_000_000 / 10_000_000_000)
+
+    h.expect_eq[I128](0, -100 / -izero)
+    h.expect_eq[I128](2, -8 / -4)
+    h.expect_eq[I128](1_000_000, -1_000_000_000_000 / -1_000_000)
+    h.expect_eq[I128](10_000_000_000,
+      -100_000_000_000_000_000_000 / -10_000_000_000)
+
+    h.expect_eq[U128](0, 100 % uzero)
+    h.expect_eq[U128](5, 13 % 8)
+    h.expect_eq[U128](28, 40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](0, 100 % izero)
+    h.expect_eq[I128](5, 13 % 8)
+    h.expect_eq[I128](28, 40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](-5, -13 % 8)
+    h.expect_eq[I128](-28, -40_000_000_028 % 10_000_000_000)
+
+    h.expect_eq[I128](5, 13 % -8)
+    h.expect_eq[I128](28, 40_000_000_028 % -10_000_000_000)
+
+    h.expect_eq[I128](-5, -13 % -8)
+    h.expect_eq[I128](-28, -40_000_000_028 % -10_000_000_000)
+
+class iso _TestDivMod is UnitTest
+  """
+  Test divmod on various bit widths.
+  """
+  fun name(): String => "builtin/DivMod"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[I8](5, 13 % 8)
+    h.expect_eq[I8](-5, -13 % 8)
+    h.expect_eq[I8](5, 13 % -8)
+    h.expect_eq[I8](-5, -13 % -8)
+
+    h.expect_eq[I16](5, 13 % 8)
+    h.expect_eq[I16](-5, -13 % 8)
+    h.expect_eq[I16](5, 13 % -8)
+    h.expect_eq[I16](-5, -13 % -8)
+
+    h.expect_eq[I32](5, 13 % 8)
+    h.expect_eq[I32](-5, -13 % 8)
+    h.expect_eq[I32](5, 13 % -8)
+    h.expect_eq[I32](-5, -13 % -8)
+
+    h.expect_eq[I64](5, 13 % 8)
+    h.expect_eq[I64](-5, -13 % 8)
+    h.expect_eq[I64](5, 13 % -8)
+    h.expect_eq[I64](-5, -13 % -8)

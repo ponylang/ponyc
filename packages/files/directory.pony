@@ -80,7 +80,7 @@ class Directory
         let h = @FindFirstFile[Pointer[_DirectoryHandle]](
           search.cstring(), find)
 
-        if h.u64() == -1 then
+        if h.usize() == -1 then
           error
         end
 
@@ -161,12 +161,12 @@ class Directory
       ifdef windows or osx then
         path'.mkdir()
       else
-        var offset: I64 = 0
+        var offset: ISize = 0
 
         repeat
           let element = try
             offset = target.find(Path.sep(), offset) + 1
-            target.substring(0, offset - 2)
+            target.substring(0, offset - 1)
           else
             offset = -1
             target
@@ -352,8 +352,9 @@ class Directory
       ifdef windows or osx then
         path'.set_time(atime, mtime)
       else
-        var tv: (I64, I64, I64, I64) =
-          (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
+        var tv: (ILong, ILong, ILong, ILong) =
+          (atime._1.ilong(), atime._2.ilong() / 1000,
+            mtime._1.ilong(), mtime._2.ilong() / 1000)
         @futimesat[I32](_fd, target.cstring(), addressof tv) == 0
       end
     else

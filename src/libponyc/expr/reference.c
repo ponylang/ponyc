@@ -800,7 +800,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   if(!cap_sendable(cap) && (t->frame->recover != NULL))
     cap = TK_TAG;
 
-  ast_t* type = type_for_this(t, ast, cap, TK_NONE);
+  ast_t* type = type_for_this(opt, ast, cap, TK_NONE, false);
 
   if(t->frame->def_arg != NULL)
   {

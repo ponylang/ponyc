@@ -2,7 +2,7 @@ interface tag Any
 
 primitive None is Stringable
   fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     "None".string(fmt, prefix, prec, width, align, fill)
@@ -18,7 +18,7 @@ primitive Bool is Stringable
   fun op_not(): Bool => not this
 
   fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     (if this then "true" else "false" end).string(fmt, prefix, prec, width,

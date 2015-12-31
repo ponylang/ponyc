@@ -1,4 +1,5 @@
 #include "traits.h"
+#include "sugar.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
@@ -298,13 +299,15 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
       const char* b_text = ast_name(sig_b);
 
       for(size_t i = 0; i < a_len; i++)
+      {
         if(a_text[i] != b_text[i])
           return false;
+      }
 
       return true;
     }
 
-    case TK_INT:     return ast_int(sig_a) == ast_int(sig_b);
+    case TK_INT:     return lexint_cmp(ast_int(sig_a), ast_int(sig_b)) == 0;
     case TK_FLOAT:   return ast_float(sig_a) == ast_float(sig_b);
 
     case TK_NOMINAL:
@@ -460,29 +463,26 @@ static bool record_default_body(ast_t* reified_method, ast_t* raw_method,
 // Process the given provided method for the given entity.
 // The method passed should be reified already and will be freed by this
 // function.
-static bool provided_method(ast_t* entity, ast_t* reified_method,
-  ast_t* raw_method, ast_t** last_method)
+static bool provided_method(pass_opt_t* opt, ast_t* entity,
+  ast_t* reified_method, ast_t* raw_method, ast_t** last_method)
 {
   assert(entity != NULL);
   assert(reified_method != NULL);
   assert(last_method != NULL);
 
-  const char* entity_name = ast_name(ast_child(entity));
+  AST_GET_CHILDREN(reified_method, cap, id, typeparams, params, result,
+    can_error, body, doc);
 
   if(ast_id(reified_method) == TK_BE || ast_id(reified_method) == TK_NEW)
   {
-    // Modify return type to the inheritting type
-    ast_t* ret_type = ast_childidx(reified_method, 4);
-    assert(ast_id(ret_type) == TK_NOMINAL);
+    // Modify return type to the inheriting type
+    ast_t* this_type = type_for_this(opt, entity, ast_id(cap),
+      TK_EPHEMERAL, true);
 
-    const char* pkg_name = package_name(ast_nearest(entity, TK_PACKAGE));
-    ast_set_name(ast_childidx(ret_type, 0), pkg_name);
-    ast_set_name(ast_childidx(ret_type, 1), entity_name);
+    ast_replace(&result, this_type);
   }
 
   // Ignore docstring
-  ast_t* doc = ast_childidx(reified_method, 7);
-
   if(ast_id(doc) == TK_STRING)
   {
     ast_set_name(doc, "");
@@ -490,7 +490,7 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
   }
 
   // Check for existing method of the same name
-  const char* name = ast_name(ast_childidx(reified_method, 1));
+  const char* name = ast_name(id);
   assert(name != NULL);
 
   ast_t* existing = ast_get(entity, name, NULL);
@@ -523,7 +523,7 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
 
 // Process the method provided to the given entity.
 // Stage 2.
-static bool provided_methods(ast_t* entity)
+static bool provided_methods(pass_opt_t* opt, ast_t* entity)
 {
   assert(entity != NULL);
 
@@ -582,7 +582,7 @@ static bool provided_methods(ast_t* entity)
         if(reified == NULL) // Reification error, already reported
           return false;
 
-        if(!provided_method(entity, reified, m, &last_member))
+        if(!provided_method(opt, entity, reified, m, &last_member))
           r = false;
       }
     }
@@ -966,8 +966,8 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
 
   bool r =
     provides_list(entity, options) && // Stage 1
-    provided_methods(entity) &&       // Stage 2
-    field_delegations(entity) &&      // Stage 3
+    provided_methods(options, entity) && // Stage 2
+    field_delegations(entity) && // Stage 3
     resolve_methods(entity, options); // Stage 4
 
   tidy_up(entity);
@@ -1055,6 +1055,95 @@ static void local_types(ast_t* ast)
 }
 
 
+// Add eq() and ne() functions to the given entity.
+static bool add_comparable(ast_t* ast, pass_opt_t* options)
+{
+  assert(ast != NULL);
+
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
+  ast_t* typeargs = ast_from(typeparams, TK_NONE);
+  bool r = true;
+
+  for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
+  {
+    ast_t* p_id = ast_child(p);
+    
+    BUILD_NO_DEBUG(type, p_id,
+      NODE(TK_NOMINAL, NONE TREE(p_id) NONE NONE NONE));
+
+    ast_append(typeargs, type);
+    ast_setid(typeargs, TK_TYPEARGS);
+  }
+
+  if(!has_member(members, "eq"))
+  {
+    BUILD_NO_DEBUG(eq, members,
+      NODE(TK_FUN, AST_SCOPE
+        NODE(TK_BOX)
+        ID("eq")
+        NONE
+        NODE(TK_PARAMS,
+          NODE(TK_PARAM,
+            ID("that")
+            NODE(TK_NOMINAL, NONE TREE(id) TREE(typeargs) NONE NONE)
+            NONE))
+        NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
+        NONE
+        NODE(TK_SEQ,
+          NODE(TK_IS,
+            NODE(TK_THIS)
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE
+        NONE));
+
+    // Need to set function data field to point to originating type, ie ast.
+    // This won't be done when we catch up the passes since we've already
+    // processed that type.
+    ast_setdata(eq, ast);
+    ast_append(members, eq);
+    ast_set(ast, stringtab("eq"), eq, SYM_DEFINED);
+
+    if(!ast_passes_subtree(&eq, options, PASS_TRAITS))
+      r = false;
+  }
+
+  if(!has_member(members, "ne"))
+  {
+    BUILD_NO_DEBUG(ne, members,
+      NODE(TK_FUN, AST_SCOPE
+        NODE(TK_BOX)
+        ID("ne")
+        NONE
+        NODE(TK_PARAMS,
+          NODE(TK_PARAM,
+            ID("that")
+            NODE(TK_NOMINAL, NONE TREE(id) TREE(typeargs) NONE NONE)
+            NONE))
+        NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
+        NONE
+        NODE(TK_SEQ,
+          NODE(TK_ISNT,
+            NODE(TK_THIS)
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE
+        NONE));
+
+    // Need to set function data field to point to originating type, ie ast.
+    // This won't be done when we catch up the passes since we've already
+    // processed that type.
+    ast_setdata(ne, ast);
+    ast_append(members, ne);
+    ast_set(ast, stringtab("ne"), ne, SYM_DEFINED);
+
+    if(!ast_passes_subtree(&ne, options, PASS_TRAITS))
+      r = false;
+  }
+
+  ast_free_unattached(typeargs);
+  return r;
+}
+
+
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -1072,6 +1161,13 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_PRIMITIVE:
+      if(!trait_entity(ast, options))
+        return AST_ERROR;
+
+      if(!add_comparable(ast, options))
+        return AST_FATAL;
+      break;
+
     case TK_INTERFACE:
     case TK_TRAIT:
       if(!trait_entity(ast, options))

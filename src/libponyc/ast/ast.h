@@ -304,7 +304,7 @@ enum
   AST_FLAG_CAN_SEND     = 0x40,
   AST_FLAG_MIGHT_SEND   = 0x80,
   AST_FLAG_IN_PARENS    = 0x100,
-  AST_FLAG_TEST_ONLY    = 0x200,
+  // Unused value 0x200
   AST_FLAG_BAD_SEMI     = 0x400,
   AST_FLAG_MISSING_SEMI = 0x800,
   AST_FLAG_PRESERVE     = 0x1000, // Do not process
@@ -357,7 +357,7 @@ const char* ast_name(ast_t* ast);
 size_t ast_name_len(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name);
 double ast_float(ast_t* ast);
-__uint128_t ast_int(ast_t* ast);
+lexint_t* ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
 void ast_settype(ast_t* ast, ast_t* type);
 void ast_erase(ast_t* ast);
@@ -402,6 +402,7 @@ void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
 void ast_print(ast_t* ast);
+void ast_printverbose(ast_t* ast);
 const char* ast_print_type(ast_t* type);
 void ast_setwidth(size_t w);
 

@@ -83,7 +83,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
 
-  size_t buf_size = count *sizeof(LLVMTypeRef);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
   count = 0;
 
@@ -167,7 +167,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(ftype);
-    size_t buf_size = count *sizeof(LLVMTypeRef);
+    size_t buf_size = count * sizeof(LLVMTypeRef);
     LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
     LLVMGetParamTypes(ftype, tparams);
 
@@ -258,7 +258,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   int count = LLVMCountParamTypes(f_type) + 2;
 
-  size_t buf_size = count *sizeof(LLVMTypeRef);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, &f_params[2]);
 
@@ -272,7 +272,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   pool_free_size(buf_size, f_params);
 
   // Allocate the message, setting its size and ID.
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   LLVMValueRef args[3];
 
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
@@ -426,6 +426,9 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return func;
   }
+
+  if(!strcmp(name, "_final"))
+    LLVMSetFunctionCallConv(func, LLVMCCallConv);
 
   codegen_startfun(c, func, ast_debug(fun));
   name_params(c, g->ast, ast_childidx(fun, 3), func);

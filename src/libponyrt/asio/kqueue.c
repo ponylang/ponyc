@@ -65,6 +65,7 @@ static void retry_loop(asio_backend_t* b)
 
 DECLARE_THREAD_FN(asio_backend_dispatch)
 {
+  pony_register_thread();
   asio_backend_t* b = arg;
   struct kevent fired[MAX_EVENTS];
 
@@ -148,13 +149,13 @@ void asio_event_subscribe(asio_event_t* ev)
   // EV_CLEAR enforces edge triggered behaviour.
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->data, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->data, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
 
@@ -162,21 +163,21 @@ void asio_event_subscribe(asio_event_t* ev)
   {
 #ifdef PLATFORM_IS_FREEBSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->data / 1000000, ev);
+      0, ev->nsec / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->data, ev);
+      NOTE_NSECONDS, ev->nsec, ev);
 #endif
     i++;
   }
 
   kevent(b->kq, event, i, NULL, 0, NULL);
 
-  if(ev->data == STDIN_FILENO)
+  if(ev->fd == STDIN_FILENO)
     retry_loop(b);
 }
 
-void asio_event_update(asio_event_t* ev, uintptr_t data)
+void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -194,12 +195,14 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 
   if(ev->flags & ASIO_TIMER)
   {
+    ev->nsec = nsec;
+
 #ifdef PLATFORM_IS_FREEBSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, data / 1000000, ev);
+      0, ev->nsec / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, data, ev);
+      NOTE_NSECONDS, ev->nsec, ev);
 #endif
     i++;
   }
@@ -231,13 +234,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->data, EVFILT_READ, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->data, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
     i++;
   }
 

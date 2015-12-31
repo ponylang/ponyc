@@ -20,7 +20,7 @@ static void* search(hashmap_t* map, size_t* pos, void* key, hash_fn hash,
   size_t index = h & mask;
   void* elem;
 
-  for(uint64_t i = 0; i <= mask; i++)
+  for(size_t i = 0; i <= mask; i++)
   {
     elem = map->buckets[index];
 

@@ -5,8 +5,11 @@ The PonyTest package provides a unit testing framework. It is designed to be as
 simple as possible to use, both for the unit test writer and the user running
 the tests.
 
-To help simplify test writing and distribution this package depends on no other
-packages (except builtin).
+To help simplify test writing and distribution this package depends on as few
+other packages as possible. Currently the required packages are:
+  builtin
+  time
+  collections
 
 Each unit test is a class, with a single test function. By default all tests
 run concurrently.
@@ -110,16 +113,38 @@ Simple tests run within a single function. When that function exits, either
 returning a result or throwing an error, the test is complete. This is not
 viable for tests that need to use actors.
 
-Long tests allow for delayed completion. Any test can return LongTest from its
-test function, indicating that the test needs to keep running. When the test is
-finally complete it calls the complete() function on its TestHelper.
+Long tests allow for delayed completion. Any test can specify on return from
+its test function that it is a long test, indicating that the test needs to
+keep running. When the test is finally complete it calls the complete()
+function on its TestHelper.
 
 The complete() function takes a Bool parameter to specify whether the test was
 a success. If any asserts fail then the test will be considered a failure
 regardless of the value of this parameter. However, complete() must still be
 called.
 
-Tests that do not return LongTest can still call complete(), but it is ignored.
+Non-long tests can still call complete(), but it is ignored.
+
+Since failing tests may hang, a timeout must be specified for each long test.
+When the test function exits a timer is started with the specified timeout. If
+this timer fires before complete() is called the test is marked as a failure
+and the timeout is reported.
+
+On a timeout the timedout() function is called on the unit test object. This
+should perform whatever test specific tidy up is required to allow the program
+to exit. There is no need to call complete() if a timeout occurs, although it
+is not an error to do so.
+
+Long tests are indicated by returning the timeout to use from the test
+function. This is given as a U64 measured in nanoseconds.
+
+Note that the timeout is only relevant when a test hangs and would otherwise
+prevent the test program from completing. Setting a very long timeout on tests
+that should not be able to hang is perfectly acceptable and will not make the
+test take any longer if successful.
+
+Timeouts should not be used as the standard method of detecting if a test has
+failed.
 
 ## Exclusion groups
 
@@ -139,6 +164,7 @@ concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
  """
 
+use "time"
 
 actor PonyTest
   """
@@ -149,14 +175,15 @@ actor PonyTest
   let _groups: Array[(String, _Group)] = Array[(String, _Group)]
   let _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
+  let _timers: Timers = Timers
   var _do_nothing: Bool = false
   var _filter: String = ""
   var _verbose: Bool = false
   var _sequential: Bool = false
   var _no_prog: Bool = false
   var _list_only: Bool = false
-  var _started: U64 = 0
-  var _finished: U64 = 0
+  var _started: USize = 0
+  var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
 
@@ -198,7 +225,8 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    group(_TestRunner(this, index, consume test, group, _verbose, _env))
+    group(_TestRunner(this, index, consume test, group, _verbose, _env,
+      _timers))
 
   fun ref _find_group(group_name: String): _Group =>
     """
@@ -225,7 +253,7 @@ actor PonyTest
     _groups.push((name, g))
     g
 
-  be _test_started(id: U64) =>
+  be _test_started(id: USize) =>
     """
     A test has started running, update status info.
     The id parameter is the test identifier handed out when we created the test
@@ -241,7 +269,7 @@ actor PonyTest
       end
     end
 
-  be _test_complete(id: U64, pass: Bool, log: Array[String] val) =>
+  be _test_complete(id: USize, pass: Bool, log: Array[String] val) =>
     """
     A test has completed, restore its result and update our status info.
     The id parameter is the test identifier handed out when we created the test
@@ -336,8 +364,8 @@ actor PonyTest
     """
     The tests are all complete, print out the results.
     """
-    var pass_count: U64 = 0
-    var fail_count: U64 = 0
+    var pass_count: USize = 0
+    var fail_count: USize = 0
 
     // First we print the result summary for each test, in the order that they
     // were given to us.
@@ -372,7 +400,7 @@ actor PonyTest
 
     _env.exitcode(-1)
 
-  fun _plural(n: U64): String =>
+  fun _plural(n: USize): String =>
     """
     Return a "s" or an empty string depending on whether the given number is 1.
     For use when printing possibly plural words, eg "test" or "tests".

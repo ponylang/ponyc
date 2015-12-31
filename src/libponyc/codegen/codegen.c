@@ -19,7 +19,7 @@ struct compile_local_t
   LLVMValueRef alloca;
 };
 
-static uint64_t compile_local_hash(compile_local_t* p)
+static size_t compile_local_hash(compile_local_t* p)
 {
   return hash_ptr(p->name);
 }
@@ -105,18 +105,22 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
 static void init_runtime(compile_t* c)
 {
-  c->str_1 = stringtab("$1");
+  c->str_builtin = stringtab("$0");
   c->str_Bool = stringtab("Bool");
   c->str_I8 = stringtab("I8");
   c->str_I16 = stringtab("I16");
   c->str_I32 = stringtab("I32");
   c->str_I64 = stringtab("I64");
   c->str_I128 = stringtab("I128");
+  c->str_ILong = stringtab("ILong");
+  c->str_ISize = stringtab("ISize");
   c->str_U8 = stringtab("U8");
   c->str_U16 = stringtab("U16");
   c->str_U32 = stringtab("U32");
   c->str_U64 = stringtab("U64");
   c->str_U128 = stringtab("U128");
+  c->str_ULong = stringtab("ULong");
+  c->str_USize = stringtab("USize");
   c->str_F32 = stringtab("F32");
   c->str_F64 = stringtab("F64");
   c->str_Pointer = stringtab("Pointer");
@@ -242,9 +246,9 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_sendv", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_alloc(i8*, i64)
+  // i8* pony_alloc(i8*, intptr)
   params[0] = c->void_ptr;
-  params[1] = c->i64;
+  params[1] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
@@ -258,26 +262,26 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_alloc_large(i8*, i64)
+  // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->void_ptr;
-  params[1] = c->i64;
+  params[1] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_realloc(i8*, i8*, i64)
+  // i8* pony_realloc(i8*, i8*, intptr)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
-  params[2] = c->i64;
+  params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_alloc_final(i8*, i64, c->final_fn)
+  // i8* pony_alloc_final(i8*, intptr, c->final_fn)
   params[0] = c->void_ptr;
-  params[1] = c->i64;
+  params[1] = c->intptr;
   params[2] = c->final_fn;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
@@ -404,7 +408,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
     builtin = package;
 
   c->reachable = reach_new();
-  reach_primitives(c->reachable, opt, builtin);
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
@@ -551,7 +554,7 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
 
       if(LLVMGetTypeKind(elem) == LLVMStructTypeKind)
       {
-        uint64_t size = LLVMABISizeOfType(c->target_data, elem);
+        size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
         LLVMSetDereferenceable(fun, i, size);
       }
 

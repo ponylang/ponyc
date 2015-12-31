@@ -6,7 +6,7 @@ class Match
   """
   var _match: Pointer[_Match]
   let _subject: ByteSeq
-  let _size: U64
+  let _size: U32
 
   new _create(subject: ByteSeq, m: Pointer[_Match]) =>
     """
@@ -14,29 +14,29 @@ class Match
     """
     _match = m
     _subject = subject
-    _size = @pcre2_get_ovector_count_8[U32](m).u64()
+    _size = @pcre2_get_ovector_count_8[U32](m)
 
-  fun size(): U64 =>
+  fun size(): U32 =>
     """
     Returns the capture size of the match.
     """
     _size
 
-  fun start_pos(): U64 =>
+  fun start_pos(): USize =>
     """
     Returns the character position of the first character in the match.
     """
-    @pcre2_get_startchar_8[U64](_match)
+    @pcre2_get_startchar_8[USize](_match)
 
-  fun end_pos(): U64 =>
+  fun end_pos(): USize =>
     """
     Returns the character position of the last character in the match.
     """
-    var len = U64(0)
+    var len = USize(0)
     @pcre2_substring_length_bynumber_8[I32](_match, U32(0), addressof len)
     start_pos() + (len - 1)
 
-  fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
+  fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U32): A^ ? =>
     """
     Returns a capture by number. Raises an error if the index is out of bounds.
     """
@@ -44,15 +44,15 @@ class Match
       error
     end
 
-    var len = U64(0)
-    var rc = @pcre2_substring_length_bynumber_8[I32](_match, i.u32(),
-        addressof len)
+    var len = USize(0)
+    var rc = @pcre2_substring_length_bynumber_8[I32](_match, i, addressof len)
     if rc != 0 then error end
     len = len + 1
 
     let out = recover A(len) end
-    rc = @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(),
-        addressof len)
+    len = out.space()
+    rc = @pcre2_substring_copy_bynumber_8[I32](_match, i, out.cstring(),
+      addressof len)
     if rc != 0 then error end
     out.truncate(len)
     out
@@ -63,7 +63,7 @@ class Match
     Returns a capture by name. Raises an error if the named capture does not
     exist.
     """
-    var len = U64(0)
+    var len = USize(0)
     let rc = @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
       addressof len)
 
@@ -73,6 +73,7 @@ class Match
 
     len = len + 1
     let out = recover A(len) end
+    len = out.space()
 
     @pcre2_substring_copy_byname_8[I32](_match, name.cstring(), out.cstring(),
       addressof len)
@@ -85,7 +86,7 @@ class Match
     anything will contain the empty string.
     """
     let res = recover Array[String] end
-    var i: U64 = 1
+    var i: U32 = 1
     while i < _size do
       try
         let g: String = apply(i)

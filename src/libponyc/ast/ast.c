@@ -180,16 +180,64 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
   }
 }
 
+static void print_verbose(ast_t* ast, size_t indent, bool type)
+{
+  for(size_t i = 0; i < indent; i++)
+    printf(in);
+
+  ast_t* child = ast->child;
+  bool parens = type || (child != NULL) || (ast->type != NULL);
+
+  if(parens)
+    printf(type ? "[" : "(");
+
+  print_token(ast->t);
+  printf(":%p,%0x", ast, ast->flags);
+
+  if(ast->data != NULL)
+    printf(":data=%p", ast->data);
+
+  if(ast->symtab != NULL)
+  {
+    printf(":scope {\n");
+
+    size_t i = HASHMAP_BEGIN;
+    symbol_t* sym;
+
+    while((sym = symtab_next(ast->symtab, &i)) != NULL)
+      printf("  %s (%d): %p\n", sym->name, sym->status, sym->def);
+
+    printf("}");
+  }
+
+  printf("\n");
+
+  while(child != NULL)
+  {
+    print_verbose(child, indent + 1, false);
+    child = child->sibling;
+  }
+
+  if(ast->type != NULL)
+    print_verbose(ast->type, indent + 1, true);
+
+  if(parens || type)
+  {
+    for(size_t i = 0; i < indent; i++)
+      printf(in);
+
+    printf(type ? "]\n" : ")\n");
+  }
+}
+
 static void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent, type);
 
   if(len < width)
-  {
     print_compact(ast, indent, type);
-  } else {
+  else
     print_extended(ast, indent, type);
-  }
 
   printf("\n");
 }
@@ -311,7 +359,9 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
   assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
-  token_set_int(t, value);
+
+  lexint_t lexint = {value, 0};
+  token_set_int(t, &lexint);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -513,7 +563,7 @@ double ast_float(ast_t* ast)
   return token_float(ast->t);
 }
 
-__uint128_t ast_int(ast_t* ast)
+lexint_t* ast_int(ast_t* ast)
 {
   assert(ast != NULL);
   return token_int(ast->t);
@@ -1145,6 +1195,14 @@ void ast_print(ast_t* ast)
   printf("\n");
 }
 
+void ast_printverbose(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  print_verbose(ast, 0, false);
+}
+
 static void print_type(printbuf_t* buffer, ast_t* type);
 
 static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
@@ -1180,9 +1238,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral, origpkg);
+      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral);
+      ast_t* origpkg = ast_sibling(ephemeral);
 
-      if(ast_id(origpkg) != TK_NONE)
+      if(origpkg != NULL && ast_id(origpkg) != TK_NONE)
         printbuf(buffer, "%s.", ast_name(origpkg));
 
       printbuf(buffer, "%s", ast_name(id));

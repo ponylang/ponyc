@@ -5,6 +5,9 @@ primitive Platform
   fun posix(): Bool => freebsd() or linux() or osx()
   fun windows(): Bool => compile_intrinsic
 
+  fun x86(): Bool => compile_intrinsic
+  fun arm(): Bool => compile_intrinsic
+
   fun lp64(): Bool => compile_intrinsic
   fun llp64(): Bool => compile_intrinsic
   fun ilp32(): Bool => compile_intrinsic

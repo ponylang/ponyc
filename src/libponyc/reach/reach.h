@@ -36,14 +36,12 @@ struct reachable_type_t
   ast_t* type;
   reachable_method_names_t methods;
   reachable_type_cache_t subtypes;
+  uint32_t type_id;
   uint32_t vtable_size;
 };
 
 /// Allocate a new set of reachable types.
 reachable_types_t* reach_new();
-
-/// Add primitive types to the reachable set.
-void reach_primitives(reachable_types_t* r, pass_opt_t* opt, ast_t* from);
 
 /// Free a set of reachable types.
 void reach_free(reachable_types_t* r);
@@ -53,8 +51,8 @@ void reach_free(reachable_types_t* r);
  * The type should be a nominal, including any typeargs. The supplied method
  * typeargs can be NULL if there are none.
  */
-void reach(reachable_types_t* r, ast_t* type, const char* name,
-  ast_t* typeargs);
+void reach(reachable_types_t* r, uint32_t* next_type_id, ast_t* type,
+  const char* name, ast_t* typeargs);
 
 reachable_type_t* reach_type(reachable_types_t* r, const char* name);
 

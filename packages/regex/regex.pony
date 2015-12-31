@@ -21,7 +21,7 @@ class Regex
     """
     let opt: U32 = _PCRE2.utf()
     var err: I32 = 0
-    var erroffset: U64 = 0
+    var erroffset: USize = 0
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
         _PCRE2.utf(), addressof err, addressof erroffset, Pointer[U8])
@@ -50,7 +50,7 @@ class Regex
     """
     not eq(subject)
 
-  fun apply(subject: ByteSeq, offset: U64 = 0): Match^ ? =>
+  fun apply(subject: ByteSeq, offset: USize = 0): Match^ ? =>
     """
     Match the supplied string, starting at the given offset. Returns a Match
     object that can give precise match details. Raises an error if there is no
@@ -62,7 +62,7 @@ class Regex
     Match._create(subject, m)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
-    value: ByteSeq box, offset: U64 = 0, global: Bool = false): A^ ?
+    value: ByteSeq box, offset: USize = 0, global: Bool = false): A^ ?
   =>
     """
     Perform a match on the subject, starting at the given offset, and create
@@ -74,13 +74,14 @@ class Regex
     end
 
     var opt = if global then
-          U32(0) 
-        else
-          _PCRE2.substitute_global()
-        end
+      _PCRE2.substitute_global()
+    else
+      U32(0)
+    end
 
     var len = subject.size().max(64)
     let out = recover A(len) end
+    len = out.space()
     var rc = I32(0)
 
     repeat
@@ -92,6 +93,7 @@ class Regex
       if rc == -48 then
         len = len * 2
         out.reserve(len)
+        len = out.space()
       end
     until rc != -48 end
 
@@ -102,35 +104,33 @@ class Regex
     out.truncate(len)
     out
 
-  fun split(subject: String, offset: U64 = 0): Array[String] iso^ ?
-  =>
+  fun split(subject: String, offset: USize = 0): Array[String] iso^ ? =>
     """
-    Split subject by non-empty occurrences of this pattern, returning a list of the
-    substrings.
+    Split subject by non-empty occurrences of this pattern, returning a list
+    of the substrings.
     """
     if _pattern.is_null() then
       error
     end
 
     let out = recover Array[String] end
+    var off = offset
 
-    var off = consume offset
     try
       while off < subject.size() do
         let m' = _match(subject, off, _PCRE2.not_empty())
         let m = Match._create(subject, m')
-        let off' = m.start_pos() - 1
-        out.push(subject.substring(off.i64(), off'.i64()))
+        let off' = m.start_pos()
+        out.push(subject.substring(off.isize(), off'.isize()))
         off = m.end_pos() + 1
       end
     else
-      out.push(subject.substring(off.i64(), -1))
+      out.push(subject.substring(off.isize()))
     end
 
     out
 
-
-  fun index(name: String box): U64 ? =>
+  fun index(name: String box): USize ? =>
     """
     Returns the index of a named capture. Raises an error if the named capture
     does not exist.
@@ -141,7 +141,7 @@ class Regex
       error
     end
 
-    rc.u64()
+    rc.usize()
 
   fun ref dispose() =>
     """
@@ -152,7 +152,9 @@ class Regex
       _pattern = Pointer[_Pattern]
     end
 
-  fun _match(subject: ByteSeq box, offset: U64, options: U32): Pointer[_Match]? =>
+  fun _match(subject: ByteSeq box, offset: USize, options: U32):
+    Pointer[_Match]?
+  =>
     """
     Match the subject and keep the capture results. Raises an error if there
     is no match.

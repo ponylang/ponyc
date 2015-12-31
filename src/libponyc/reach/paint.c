@@ -84,7 +84,7 @@ typedef struct name_record_t
 
 
 // We keep our name records in a hash map
-static uint64_t name_record_hash(name_record_t* p)
+static size_t name_record_hash(name_record_t* p)
 {
   return hash_ptr(p->name);
 }
@@ -145,7 +145,7 @@ void painter_print(painter_t* painter)
 {
   assert(painter != NULL);
 
-  printf("Painter typemaps are %lu bits\n",
+  printf("Painter typemaps are " __zu " bits\n",
     painter->typemap_size * sizeof(uint64_t) * 8);
 
   printf("Painter names:\n");

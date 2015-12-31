@@ -16,18 +16,18 @@ class iso _TestList is UnitTest
     a.push(0).push(1).push(2)
 
     let b = a.clone()
-    h.expect_eq[U64](b.size(), 3)
+    h.expect_eq[USize](b.size(), 3)
     h.expect_eq[U32](b(0), 0)
     h.expect_eq[U32](b(1), 1)
     h.expect_eq[U32](b(2), 2)
 
     b.remove(1)
-    h.expect_eq[U64](b.size(), 2)
+    h.expect_eq[USize](b.size(), 2)
     h.expect_eq[U32](b(0), 0)
     h.expect_eq[U32](b(1), 2)
 
     b.append_list(a)
-    h.expect_eq[U64](b.size(), 5)
+    h.expect_eq[USize](b.size(), 5)
     h.expect_eq[U32](b(0), 0)
     h.expect_eq[U32](b(1), 2)
     h.expect_eq[U32](b(2), 0)

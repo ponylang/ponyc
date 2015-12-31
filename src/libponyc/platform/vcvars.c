@@ -1,6 +1,8 @@
 #include <platform.h>
 #include "../ast/error.h"
 #include "../../libponyrt/mem/pool.h"
+#include <string.h>
+#include <stdlib.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
 
@@ -11,35 +13,36 @@
 #define REG_VC_TOOLS_PATH \
   TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
-#define MAX_VER_LEN 10
+#define MAX_VER_LEN 20
 
 typedef struct search_t search_t;
 typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 
 struct search_t
 {
+  long latest_ver;
+  char name[MAX_VER_LEN + 1];
   char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
 };
 
-void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
+static void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 {
-  if(RegQueryInfoKey(key, NULL, NULL, NULL,
-    count, largest_subkey, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
+  if(RegQueryInfoKey(key, NULL, NULL, NULL, count, largest_subkey, NULL, NULL,
+    NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
   {
     *count = 0;
     *largest_subkey = 0;
   }
 }
 
-bool query_registry(HKEY key, bool query_subkeys,
-  query_callback_fn fn, search_t* p)
+static bool query_registry(HKEY key, bool query_subkeys, query_callback_fn fn,
+  search_t* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
 
-  //Processing a leaf node in the registry, give it
-  //to the callback.
+  // Processing a leaf node in the registry, give it to the callback.
   if(!query_subkeys)
   {
     fn(key, NULL, p);
@@ -56,30 +59,20 @@ bool query_registry(HKEY key, bool query_subkeys,
   HKEY node;
   DWORD size = largest_subkey;
   char* name = (char*)pool_alloc_size(largest_subkey);
+  bool r = true;
 
   for(DWORD i = 0; i < sub_keys; ++i)
   {
-    if(RegEnumKeyEx(key, i, name, &size,
-      NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+    if(RegEnumKeyEx(key, i, name, &size, NULL, NULL, NULL, NULL)
+      != ERROR_SUCCESS ||
+      RegOpenKeyEx(key, name, 0, KEY_QUERY_VALUE, &node) != ERROR_SUCCESS)
     {
-      if(RegOpenKeyEx(key, name, 0, KEY_QUERY_VALUE, &node) == ERROR_SUCCESS)
-      {
-        fn(node, name, p);
-      }
-      else
-      {
-        pool_free_size(largest_subkey, name);
-        return false;
-      }
-
-      RegCloseKey(node);
+      r = false;
+      break;
     }
-    else
-    {
-      pool_free_size(largest_subkey, name);
-      return false;
-    }
-
+      
+    fn(node, name, p);
+    RegCloseKey(node);
     size = largest_subkey;
   }
 
@@ -90,29 +83,19 @@ bool query_registry(HKEY key, bool query_subkeys,
 static bool find_registry_key(char* path, query_callback_fn query,
   bool query_subkeys, search_t* p)
 {
-  bool success = true;
+  bool success = false;
   HKEY key;
 
-  //try global installations
+  // Try global installations then user-only.
   if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, path, 0,
-    (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
+      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) == ERROR_SUCCESS ||
+    RegOpenKeyEx(HKEY_CURRENT_USER, path, 0,
+      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) == ERROR_SUCCESS)
   {
-    //try user-only installations
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, path, 0,
-      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
-    {
-      success = false;
-    }
-  }
-
-  if(success)
-  {
-    if(!query_registry(key, query_subkeys, query, p))
-      success = false;
+    success = query_registry(key, query_subkeys, query, p);
   }
 
   RegCloseKey(key);
-
   return success;
 }
 
@@ -133,29 +116,32 @@ static void pick_vs_tools(HKEY key, char* name, search_t* p)
 
 static void pick_newest_sdk(HKEY key, char* name, search_t* p)
 {
-  //it seems to be the case that sub nodes ending
-  //with an 'A' are .NET Framework SDKs
+  // SDKs ending with 'A' are .NET Framework.
   if(name[strlen(name) - 1] == 'A')
     return;
 
   DWORD path_len = MAX_PATH;
   DWORD version_len = MAX_VER_LEN;
   char new_path[MAX_PATH];
+  char new_version[MAX_VER_LEN];
 
-  if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ,
-    NULL, new_path, &path_len) == ERROR_SUCCESS)
+  if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ, NULL,
+      new_path, &path_len) == ERROR_SUCCESS &&
+    RegGetValue(key, NULL, "ProductVersion", RRF_RT_REG_SZ, NULL, new_version,
+      &version_len) == ERROR_SUCCESS)
   {
-    char new_version[MAX_VER_LEN];
+    char* last_dot = strrchr(new_version, '.');
+    if(last_dot == NULL)
+      return;
 
-    if(RegGetValue(key, NULL, "ProductVersion",
-      RRF_RT_REG_SZ, NULL, new_version, &version_len) == ERROR_SUCCESS)
+    long new_ver = atol(last_dot + 1);
+
+    if((strlen(p->version) == 0) || (new_ver > p->latest_ver))
     {
-      if((strlen(p->version) == 0)
-        || (strncmp(p->version, new_version, strlen(p->version)) < 0))
-      {
-        strcpy(p->path, new_path);
-        strcpy(p->version, new_version);
-      }
+      p->latest_ver = new_ver;
+      strcpy(p->path, new_path);
+      strcpy(p->version, new_version);
+      strncpy(p->name, name, MAX_VER_LEN);
     }
   }
 }
@@ -172,7 +158,25 @@ static bool find_kernel32(vcvars_t* vcvars)
   }
 
   strcpy(vcvars->kernel32, sdk.path);
-  strcat(vcvars->kernel32, "Lib\\winv6.3\\um\\x64");
+  strcat(vcvars->kernel32, "Lib\\");
+  if(strcmp("v8.0", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32 , "win8");
+  }
+  else if(strcmp("v8.1", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32, "winv6.3");
+  }
+  else if(strcmp("v10.0", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32, sdk.version);
+    strcat(vcvars->kernel32, ".0");
+  }
+  else
+  {
+    return false;
+  }
+  strcat(vcvars->kernel32, "\\um\\x64");
 
   return true;
 }
@@ -183,16 +187,14 @@ static bool find_executable(const char* path, const char* name, char* dest)
   strcpy(exe, path);
   strcat(exe, name);
 
-  if((GetFileAttributes(exe) != INVALID_FILE_ATTRIBUTES))
-  {
-    strcpy(dest, exe);
-    return true;
-  }
-  else
+  if((GetFileAttributes(exe) == INVALID_FILE_ATTRIBUTES))
   {
     errorf(NULL, "unable to locate %s", name);
     return false;
   }
+  
+  strcpy(dest, exe);
+  return true;
 }
 
 static bool find_msvcrt_and_linker(vcvars_t* vcvars)
@@ -213,12 +215,10 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars)
   strcpy(vcvars->msvcrt, vs.path);
   strcat(vcvars->msvcrt, "VC\\lib\\amd64");
 
-  //Find the linker relative to vs.path. We expect one to be at vs.path\bin.
-  //The same applies to the lib archiver.
-  bool ok = find_executable(vs.path, "VC\\bin\\link.exe", vcvars->link);
-  ok &= find_executable(vs.path, "VC\\bin\\lib.exe", vcvars->ar);
-
-  return ok;
+  // Find the linker and lib archiver relative to vs.path.
+  return
+    find_executable(vs.path, "VC\\bin\\link.exe", vcvars->link) &&
+    find_executable(vs.path, "VC\\bin\\lib.exe", vcvars->ar);
 }
 
 bool vcvars_get(vcvars_t* vcvars)

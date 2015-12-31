@@ -38,6 +38,7 @@ enum
 
   OPT_PASSES,
   OPT_AST,
+  OPT_ASTPACKAGE,
   OPT_TRACE,
   OPT_WIDTH,
   OPT_IMMERR,
@@ -71,6 +72,7 @@ static opt_arg_t args[] =
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
+  {"astpackage", 0, OPT_ARG_NONE, OPT_ASTPACKAGE},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
@@ -136,7 +138,8 @@ static void usage()
     "    =asm          Output assembly.\n"
     "    =obj          Output an object file.\n"
     "    =all          The default: generate an executable.\n"
-    "  --ast, -a       Output an abstract syntax tree.\n"
+    "  --ast, -a       Output an abstract syntax tree for the whole program.\n"
+    "  --astpackage    Output an abstract syntax tree for the main package.\n"
     "  --trace, -t     Enable parse trace.\n"
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
@@ -195,15 +198,19 @@ static size_t get_width()
   return width;
 }
 
-static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
+static bool compile_package(const char* path, pass_opt_t* opt,
+  bool print_program_ast, bool print_package_ast)
 {
   ast_t* program = program_load(path, opt);
 
   if(program == NULL)
     return false;
 
-  if(print_ast)
+  if(print_program_ast)
     ast_print(program);
+
+  if(print_package_ast)
+    ast_print(ast_child(program));
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
@@ -222,7 +229,8 @@ int main(int argc, char* argv[])
   opt.output = ".";
 
   ast_setwidth(get_width());
-  bool print_ast = false;
+  bool print_program_ast = false;
+  bool print_package_ast = false;
 
   opt_state_t s;
   opt_init(args, &s, &argc, argv);
@@ -259,7 +267,8 @@ int main(int argc, char* argv[])
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
       case OPT_STATS: opt.print_stats = true; break;
 
-      case OPT_AST: print_ast = true; break;
+      case OPT_AST: print_program_ast = true; break;
+      case OPT_ASTPACKAGE: print_package_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
@@ -311,10 +320,11 @@ int main(int argc, char* argv[])
   {
     if(argc == 1)
     {
-      ok &= compile_package(".", &opt, print_ast);
+      ok &= compile_package(".", &opt, print_program_ast, print_package_ast);
     } else {
       for(int i = 1; i < argc; i++)
-        ok &= compile_package(argv[i], &opt, print_ast);
+        ok &= compile_package(argv[i], &opt, print_program_ast,
+          print_package_ast);
     }
   }
 

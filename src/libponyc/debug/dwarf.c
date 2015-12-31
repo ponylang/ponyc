@@ -52,8 +52,8 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
 
   if(!opaque)
   {
-    meta->size = LLVMABISizeOfType(dwarf->target_data, type) << 3;
-    meta->align = LLVMABIAlignmentOfType(dwarf->target_data, type) << 3;
+    meta->size = (size_t)(8 * LLVMABISizeOfType(dwarf->target_data, type));
+    meta->align = 8 * LLVMABIAlignmentOfType(dwarf->target_data, type);
   }
 }
 
@@ -187,8 +187,8 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
       offset++;
   }
 
-  meta.offset = 8 * LLVMOffsetOfElement(dwarf->target_data, structure,
-    offset + index);
+  meta.offset = (size_t)(8 * LLVMOffsetOfElement(dwarf->target_data, structure,
+    offset + index));
 
   symbols_field(dwarf->symbols, &meta);
 }

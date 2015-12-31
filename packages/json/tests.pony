@@ -21,7 +21,7 @@ actor Main is TestList
     test(_TestPrintString)
     test(_TestPrintArray)
     test(_TestPrintObject)
-    
+
     test(_TestParsePrint)
 
 
@@ -36,7 +36,7 @@ class iso _TestParseBasic is UnitTest
 
     doc.parse("true")
     h.expect_eq[Bool](true, doc.data as Bool)
-    
+
     doc.parse(" true   ")
     h.expect_eq[Bool](true, doc.data as Bool)
 
@@ -58,10 +58,10 @@ class iso _TestParseKeyword is UnitTest
 
     doc.parse("true")
     h.expect_eq[Bool](true, doc.data as Bool)
-    
+
     doc.parse("false")
     h.expect_eq[Bool](false, doc.data as Bool)
-    
+
     doc.parse("null")
     h.expect_eq[None](None, doc.data as None)
 
@@ -87,28 +87,28 @@ class iso _TestParseNumber is UnitTest
 
     doc.parse("13")
     h.expect_eq[I64](13, doc.data as I64)
-    
+
     doc.parse("-13")
     h.expect_eq[I64](-13, doc.data as I64)
-    
+
     doc.parse("1.5")
     h.expect_eq[F64](1.5, doc.data as F64)
-    
+
     doc.parse("-1.125")
     h.expect_eq[F64](-1.125, doc.data as F64)
-    
+
     doc.parse("1e3")
     h.expect_eq[F64](1000, doc.data as F64)
-    
+
     doc.parse("1e+3")
     h.expect_eq[F64](1000, doc.data as F64)
-    
+
     doc.parse("1e-3")
     h.expect_eq[F64](0.001, doc.data as F64)
-    
+
     doc.parse("1.23e3")
     h.expect_eq[F64](1230, doc.data as F64)
-    
+
     h.expect_error(lambda()? => JsonDoc.parse("0x4") end)
     h.expect_error(lambda()? => JsonDoc.parse("+1") end)
     h.expect_error(lambda()? => JsonDoc.parse("1.") end)
@@ -150,7 +150,7 @@ class iso _TestParseString is UnitTest
 
     doc.parse(""" "Foo\uD834\uDD1Ebar" """)
     h.expect_eq[String]("Foo\U01D11Ebar", doc.data as String)
-    
+
     h.expect_error(lambda()? => JsonDoc.parse(""" "Foo """) end)
     h.expect_error(lambda()? => JsonDoc.parse(""" "Foo\z" """) end)
     h.expect_error(lambda()? => JsonDoc.parse(""" "\u" """) end)
@@ -172,40 +172,40 @@ class iso _TestParseArray is UnitTest
     let doc: JsonDoc = JsonDoc
 
     doc.parse("[]")
-    h.expect_eq[U64](0, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](0, (doc.data as JsonArray).data.size())
 
     doc.parse("[ ]")
-    h.expect_eq[U64](0, (doc.data as JsonArray).data.size())
-    
+    h.expect_eq[USize](0, (doc.data as JsonArray).data.size())
+
     doc.parse("[true]")
-    h.expect_eq[U64](1, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](1, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
-    
+
     doc.parse("[ true ]")
-    h.expect_eq[U64](1, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](1, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
-    
+
     doc.parse("[true, false]")
-    h.expect_eq[U64](2, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](2, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     h.expect_eq[Bool](false, (doc.data as JsonArray).data(1) as Bool)
-    
+
     doc.parse("[true , 13,null]")
-    h.expect_eq[U64](3, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](3, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     h.expect_eq[I64](13, (doc.data as JsonArray).data(1) as I64)
     h.expect_eq[None](None, (doc.data as JsonArray).data(2) as None)
-    
+
     doc.parse("[true, [52, null]]")
-    h.expect_eq[U64](2, (doc.data as JsonArray).data.size())
+    h.expect_eq[USize](2, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
-    h.expect_eq[U64](2,
+    h.expect_eq[USize](2,
       ((doc.data as JsonArray).data(1) as JsonArray).data.size())
     h.expect_eq[I64](52,
       ((doc.data as JsonArray).data(1) as JsonArray).data(0) as I64)
     h.expect_eq[None](None,
       ((doc.data as JsonArray).data(1) as JsonArray).data(1) as None)
-    
+
     h.expect_error(lambda()? => JsonDoc.parse("[true true]") end)
     h.expect_error(lambda()? => JsonDoc.parse("[,]") end)
     h.expect_error(lambda()? => JsonDoc.parse("[true,]") end)
@@ -227,40 +227,40 @@ class iso _TestParseObject is UnitTest
     let doc: JsonDoc = JsonDoc
 
     doc.parse("{}")
-    h.expect_eq[U64](0, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](0, (doc.data as JsonObject).data.size())
 
     doc.parse("{ }")
-    h.expect_eq[U64](0, (doc.data as JsonObject).data.size())
-    
+    h.expect_eq[USize](0, (doc.data as JsonObject).data.size())
+
     doc.parse("""{"foo": true}""")
-    h.expect_eq[U64](1, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](1, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("foo") as Bool)
-    
+
     doc.parse("""{ "foo" :"true" }""")
-    h.expect_eq[U64](1, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](1, (doc.data as JsonObject).data.size())
     h.expect_eq[String]("true", (doc.data as JsonObject).data("foo") as String)
-    
+
     doc.parse("""{"a": true, "b": false}""")
-    h.expect_eq[U64](2, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](2, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
     h.expect_eq[Bool](false, (doc.data as JsonObject).data("b") as Bool)
-    
+
     doc.parse("""{"a": true , "b": 13,"c":null}""")
-    h.expect_eq[U64](3, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](3, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
     h.expect_eq[I64](13, (doc.data as JsonObject).data("b") as I64)
     h.expect_eq[None](None, (doc.data as JsonObject).data("c") as None)
-    
+
     doc.parse("""{"a": true, "b": {"c": 52, "d": null}}""")
-    h.expect_eq[U64](2, (doc.data as JsonObject).data.size())
+    h.expect_eq[USize](2, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
-    h.expect_eq[U64](2,
+    h.expect_eq[USize](2,
       ((doc.data as JsonObject).data("b") as JsonObject).data.size())
     h.expect_eq[I64](52,
       ((doc.data as JsonObject).data("b") as JsonObject).data("c") as I64)
     h.expect_eq[None](None,
       ((doc.data as JsonObject).data("b") as JsonObject).data("d") as None)
-    
+
     h.expect_error(lambda()? => JsonDoc.parse("""{"a": 1 "b": 2}""") end)
     h.expect_error(lambda()? => JsonDoc.parse("{,}") end)
     h.expect_error(lambda()? => JsonDoc.parse("""{"a": true,}""") end)
@@ -306,11 +306,11 @@ class iso _TestParseRFC1 is UnitTest
 
     let obj1 = doc.data as JsonObject
 
-    h.expect_eq[U64](1, obj1.data.size())
+    h.expect_eq[USize](1, obj1.data.size())
 
     let obj2 = obj1.data("Image") as JsonObject
 
-    h.expect_eq[U64](6, obj2.data.size())
+    h.expect_eq[USize](6, obj2.data.size())
     h.expect_eq[I64](800, obj2.data("Width") as I64)
     h.expect_eq[I64](600, obj2.data("Height") as I64)
     h.expect_eq[String]("View from 15th Floor", obj2.data("Title") as String)
@@ -318,15 +318,15 @@ class iso _TestParseRFC1 is UnitTest
 
     let obj3 = obj2.data("Thumbnail") as JsonObject
 
-    h.expect_eq[U64](3, obj3.data.size())
+    h.expect_eq[USize](3, obj3.data.size())
     h.expect_eq[I64](100, obj3.data("Width") as I64)
     h.expect_eq[I64](125, obj3.data("Height") as I64)
     h.expect_eq[String]("http://www.example.com/image/481989943",
       obj3.data("Url") as String)
 
     let array = obj2.data("IDs") as JsonArray
-    
-    h.expect_eq[U64](4, array.data.size())
+
+    h.expect_eq[USize](4, array.data.size())
     h.expect_eq[I64](116, array.data(0) as I64)
     h.expect_eq[I64](943, array.data(1) as I64)
     h.expect_eq[I64](234, array.data(2) as I64)
@@ -373,11 +373,11 @@ class iso _TestParseRFC2 is UnitTest
 
     let array = doc.data as JsonArray
 
-    h.expect_eq[U64](2, array.data.size())
+    h.expect_eq[USize](2, array.data.size())
 
     let obj1 = array.data(0) as JsonObject
 
-    h.expect_eq[U64](8, obj1.data.size())
+    h.expect_eq[USize](8, obj1.data.size())
     h.expect_eq[String]("zip", obj1.data("precision") as String)
     h.expect_true(((obj1.data("Latitude") as F64) - 37.7668).abs() < 0.001)
     h.expect_true(((obj1.data("Longitude") as F64) + 122.3959).abs() < 0.001)
@@ -389,7 +389,7 @@ class iso _TestParseRFC2 is UnitTest
 
     let obj2 = array.data(1) as JsonObject
 
-    h.expect_eq[U64](8, obj2.data.size())
+    h.expect_eq[USize](8, obj2.data.size())
     h.expect_eq[String]("zip", obj2.data("precision") as String)
     h.expect_true(((obj2.data("Latitude") as F64) - 37.371991).abs() < 0.001)
     h.expect_true(((obj2.data("Longitude") as F64) + 122.026020).abs() < 0.001)
@@ -504,18 +504,18 @@ class iso _TestPrintArray is UnitTest
     array.data.clear()
     array.data.push(true)
     h.expect_eq[String]("[\n  true\n]", doc.string())
-    
+
     array.data.clear()
     array.data.push(true)
     array.data.push(false)
     h.expect_eq[String]("[\n  true,\n  false\n]", doc.string())
-    
+
     array.data.clear()
     array.data.push(true)
     array.data.push(I64(13))
     array.data.push(None)
     h.expect_eq[String]("[\n  true,\n  13,\n  null\n]", doc.string())
-    
+
     array.data.clear()
     array.data.push(true)
     var nested: JsonArray = JsonArray
@@ -540,11 +540,11 @@ class iso _TestPrintObject is UnitTest
 
     doc.data = obj
     h.expect_eq[String]("{}", doc.string())
-    
+
     obj.data.clear()
     obj.data("foo") = true
     h.expect_eq[String]("{\n  \"foo\": true\n}", doc.string())
-    
+
     obj.data.clear()
     obj.data("a") = true
     obj.data("b") = I64(3)
@@ -600,7 +600,7 @@ class iso _TestParsePrint is UnitTest
     let printed = doc.string()
 
     // TODO: Sort out line endings on different platforms. For now normalise
-    // before comparing 
+    // before comparing
     let actual: String ref = printed.clone()
     actual.remove("\r")
 

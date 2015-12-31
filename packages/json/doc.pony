@@ -9,11 +9,11 @@ class JsonDoc
 
   // Internal state for parsing
   var _source: String = ""
-  var _index: U64 = 0
-  var _line: U64 = 1
-  var _err_line: U64 = 0    // Error information from last parse
+  var _index: USize = 0
+  var _line: USize = 1
+  var _err_line: USize = 0    // Error information from last parse
   var _err_msg: String = "" // ..
-  var _last_index: U64 = 0  // Last source index we peeked or got, for errors
+  var _last_index: USize = 0  // Last source index we peeked or got, for errors
 
   new iso create() =>
     """
@@ -45,11 +45,11 @@ class JsonDoc
     _dump_whitespace()
     if _index < _source.size() then
       _peek_char()  // Setup _last_index
-      _error("Unexpected text found after top level value " + _last_char())
+      _error("Unexpected text found after top level value: " + _last_char())
       error
     end
 
-  fun parse_report(): (U64 /* line */, String /*message */) =>
+  fun parse_report(): (USize /* line */, String /*message */) =>
     """
     Give details of the error that occured last time we attempted to parse.
     If parse was successful returns (0, "").
@@ -63,8 +63,8 @@ class JsonDoc
     """
     _dump_whitespace()
     match _peek_char(context)
-    | var c: U8 where (c >= 'a') and (c <= 'z') => _parse_keyword()
-    | var c: U8 where (c >= '0') and (c <= '9') => _parse_number()
+    | var c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()
+    | var c: U8 if (c >= '0') and (c <= '9') => _parse_number()
     | '-' => _parse_number()
     | '{' => _parse_object()
     | '[' => _parse_array()
@@ -110,7 +110,7 @@ class JsonDoc
     var frac_digits: U8 = 0
     var exp: I64 = 0
     var exp_digits: U8 = 0
-    
+
     // Start with integer part
     (let int, _) = _parse_decimal()
 
@@ -162,7 +162,7 @@ class JsonDoc
       digit_count = digit_count + 1
       c = _peek_char()
     end
-    
+
     if digit_count == 0 then
       _error("Expected number got '" + _last_char() + "'")
       error
@@ -182,7 +182,7 @@ class JsonDoc
       _get_char() // Consume }
       return JsonObject
     end
-    
+
     let map = Map[String, JsonType]
 
     // Find elements in object
@@ -210,7 +210,7 @@ class JsonDoc
         error
       end
     end
-    
+
     JsonObject.from_map(map)
 
   fun ref _parse_array(): JsonArray ? =>
@@ -225,14 +225,14 @@ class JsonDoc
       _get_char() // Consume ]
       return JsonArray
     end
-    
+
     let array = Array[JsonType]
-    
+
     // Find elements in array
     while true do
       array.push(_parse_value("array"))
       _dump_whitespace()
-      
+
       // Must now have another element, separated by a comma, or the end of the
       // array
       match _get_char("array")
@@ -243,7 +243,7 @@ class JsonDoc
         error
       end
     end
-    
+
     JsonArray.from_array(array)
 
   fun ref _parse_string(context: String): String ? =>
@@ -333,9 +333,9 @@ class JsonDoc
     while i < 4 do
       let d =
         match _get_char("Unicode escape sequence")
-        | var c: U8 where (c >= '0') and (c <= '9') => c - '0'
-        | var c: U8 where (c >= 'a') and (c <= 'f') => (c - 'a') + 10
-        | var c: U8 where (c >= 'A') and (c <= 'F') => (c - 'A') + 10
+        | var c: U8 if (c >= '0') and (c <= '9') => c - '0'
+        | var c: U8 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
+        | var c: U8 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
         else
           _error("Invalid character '" + _last_char() +
             "' in Unicode escape sequence")
@@ -404,14 +404,14 @@ class JsonDoc
     handle this appropriately.
     """
     let c = _peek_char(eof_context)
-    
+
     if c == '\n' then
       _line = _line + 1
     end
-    
+
     _index = _index + 1
     c
-    
+
   fun ref _last_char(): String =>
     """
     Get the last character peeked or got from the source as a String.
@@ -420,9 +420,9 @@ class JsonDoc
     if _last_index == -1 then
       "EOF"
     else
-      _source.substring(_last_index.i64(), 1)
+      _source.substring(_last_index.isize(), _last_index.isize() + 1)
     end
-    
+
   fun ref _error(msg: String) =>
     """
     Record an error with the given message.

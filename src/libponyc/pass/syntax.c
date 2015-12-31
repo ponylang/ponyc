@@ -844,7 +844,6 @@ static ast_result_t syntax_compile_error(ast_t* ast)
   if(ast_id(reason_seq) != TK_SEQ ||
     ast_id(ast_child(reason_seq)) != TK_STRING)
   {
-    ast_print(ast);
     ast_error(ast,
       "a compile error must have a string literal reason for the error");
     return AST_ERROR;
@@ -872,18 +871,6 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   assert(ast != NULL);
 
   token_id id = ast_id(ast);
-
-  // These node all use the data field as pointers to stuff
-  if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
-    return AST_OK;
-
-  if(ast_checkflag(ast, AST_FLAG_TEST_ONLY))
-  {
-    // Test node, not allowed outside parse pass
-    ast_error(ast, "Illegal character '$' found");
-    return AST_ERROR;
-  }
-
   ast_result_t r = AST_OK;
 
   switch(id)

@@ -82,15 +82,11 @@ EXCEPTION_DISPOSITION pony_personality_v0(EXCEPTION_RECORD *ExcRecord,
 {
   if(ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS || IS_UNWINDING(ExcRecord->ExceptionFlags))
     return ExceptionContinueSearch;
-  
+
   if(!(ExcRecord->ExceptionFlags  &
     (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)))
   {
-    lsda_t lsda;
-
-    lsda_init(&lsda, DispatcherContext);
-
-    if(lsda_scan(&lsda, NULL, &landing_pad) == _URC_CONTINUE_UNWIND)
+    if(!lsda_scan(DispatcherContext, &landing_pad))
       return ExceptionContinueSearch;
 
     RtlUnwindEx(EstablisherFrame, (PVOID)landing_pad, ExcRecord,

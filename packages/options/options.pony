@@ -35,7 +35,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
   let _arguments: Array[String ref]
   let _fatal: Bool
   var _configuration: Array[_Option] = _configuration.create()
-  var _index: U64 = 0
+  var _index: USize = 0
   var _error: Bool = false
 
   new create(env: Env, fatal: Bool = true) =>
@@ -63,7 +63,9 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     """
     _arguments
 
-  fun ref _strip(opt: _Option, matched: String ref, start: I64, finish: I64) =>
+  fun ref _strip(opt: _Option, matched: String ref,
+    start: ISize, finish: ISize)
+  =>
     """
     Strips accepted options from the copied array of command line arguments.
     """
@@ -81,14 +83,14 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       end
     end
 
-  fun ref _select(candidate: String ref, start: I64, offset: I64,
-    finish: I64): (_Option | ParseError)
+  fun ref _select(candidate: String ref, start: ISize, offset: ISize,
+    finish: ISize): (_Option | ParseError)
   =>
     """
     Selects an option from the configuration depending on the current command
     line argument.
     """
-    let name: String box = candidate.substring(start, finish)
+    let name: String box = candidate.substring(start, finish + 1)
     var matches = Array[_Option]
     var selected: (_Option | None) = None
 
@@ -103,7 +105,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     | (let opt: _Option, 1) => _strip(opt, candidate, offset, finish) ; opt
     | (let opt: _Option, _) => _ErrorPrinter._ambiguous(matches)
     else
-      _ErrorPrinter._unrecognised(candidate.substring(0, finish))
+      _ErrorPrinter._unrecognised(candidate.substring(0, finish + 1))
     end
 
   fun ref _skip(): Bool =>
@@ -176,7 +178,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       try
         let candidate = _arguments(_index)
 
-        (let start: I64, let offset: I64) =
+        (let start: ISize, let offset: ISize) =
           match (candidate(0), candidate(1))
           | ('-', '-') => (2, 0)
           | ('-', var char: U8) => (1, 1)
@@ -184,7 +186,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
             (0, 0) // unreachable
           end
 
-        let finish: I64 =
+        let finish: ISize =
           try
             candidate.find("=") - 1
           else

@@ -149,18 +149,18 @@ class val FilePath
       return false
     end
 
-    var offset: I64 = 0
+    var offset: ISize = 0
 
     repeat
       let element = try
         offset = path.find(Path.sep(), offset) + 1
-        path.substring(0, offset - 2)
+        path.substring(0, offset - 1)
       else
         offset = -1
         path
       end
 
-      if Platform.windows() then
+      ifdef windows then
         @_mkdir[I32](element.cstring())
       else
         @mkdir[I32](element.cstring(), U32(0x1FF))
@@ -195,7 +195,7 @@ class val FilePath
         end
       end
 
-      if Platform.windows() then
+      ifdef windows then
         if info.directory and not info.symlink then
           @_rmdir[I32](path.cstring()) == 0
         else
@@ -230,7 +230,7 @@ class val FilePath
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring()) != 0
     else
       @symlink[I32](path.cstring(), link_name.path.cstring()) == 0
@@ -246,7 +246,7 @@ class val FilePath
 
     let m = mode._os()
 
-    if Platform.windows() then
+    ifdef windows then
       @_chmod[I32](path.cstring(), m) == 0
     else
       @chmod[I32](path.cstring(), m) == 0
@@ -256,10 +256,14 @@ class val FilePath
     """
     Set the owner and group for a path. Does nothing on Windows.
     """
-    if not caps(FileChown) or Platform.windows() then
+    ifdef windows then
       false
     else
-      @chown[I32](path.cstring(), uid, gid) == 0
+      if caps(FileChown) then
+        @chown[I32](path.cstring(), uid, gid) == 0
+      else
+        false
+      end
     end
 
   fun touch(): Bool =>
@@ -276,11 +280,12 @@ class val FilePath
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       var tv: (I64, I64) = (atime._1, mtime._1)
       @_utime64[I32](path.cstring(), addressof tv) == 0
     else
-      var tv: (I64, I64, I64, I64) =
-        (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
+      var tv: (ILong, ILong, ILong, ILong) =
+        (atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000)
       @utimes[I32](path.cstring(), addressof tv) == 0
     end

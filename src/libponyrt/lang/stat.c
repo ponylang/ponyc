@@ -32,7 +32,7 @@ typedef struct pony_stat_t
   uint32_t hard_links;
   uint32_t uid;
   uint32_t gid;
-  uint64_t size;
+  size_t size;
   int64_t access_time;
   int64_t access_time_nsec;
   int64_t modified_time;

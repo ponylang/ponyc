@@ -97,7 +97,7 @@ static int add_ansi_code(char* buffer, const char* pre, const char* post,
   return prelen + postlen;
 }
 
-static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
+static bool add_input_record(char* buffer, size_t space, size_t *len,
   INPUT_RECORD* rec)
 {
   // Returns true if the record can be consumed.
@@ -109,7 +109,7 @@ static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
 
   // This is a key down event. Handle key repeats.
   DWORD mod = rec->Event.KeyEvent.dwControlKeyState;
-  uint64_t next_len = *len;
+  size_t next_len = *len;
   char out[8];
   int outlen;
 
@@ -333,10 +333,10 @@ static void stdin_tty()
 }
 #endif
 
-static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
+static char ansi_parse(const char* buffer, size_t* pos, size_t len,
   int* argc, int* argv)
 {
-  uint64_t n;
+  size_t n;
   int arg = -1;
   char code = -1;
 
@@ -436,11 +436,11 @@ bool os_stdin_setup()
 #endif
 }
 
-uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
+size_t os_stdin_read(char* buffer, size_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
-  uint64_t len = 0;
+  size_t len = 0;
 
   if(is_stdin_tty)
   {
@@ -514,7 +514,7 @@ bool os_fp_tty(FILE* fp)
     ((fp == stderr) && is_stderr_tty);
 }
 
-void os_std_write(FILE* fp, char* buffer, uint64_t len)
+void os_std_write(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
     return;
@@ -522,9 +522,9 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   if(!os_fp_tty(fp))
   {
     // Find ANSI codes and strip them from the output.
-    const uint64_t final = len - 1;
-    uint64_t last = 0;
-    uint64_t pos = 0;
+    const size_t final = len - 1;
+    size_t last = 0;
+    size_t pos = 0;
 
     while(pos < final)
     {
@@ -558,8 +558,8 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   HANDLE handle = (HANDLE)_get_osfhandle(_fileno(fp));
 
-  uint64_t last = 0;
-  uint64_t pos = 0;
+  size_t last = 0;
+  size_t pos = 0;
   DWORD n;
 
   while(pos < (len - 1))

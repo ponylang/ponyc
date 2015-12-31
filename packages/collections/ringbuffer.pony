@@ -3,10 +3,10 @@ class RingBuffer[A]
   A ring buffer.
   """
   let _array: Array[A]
-  let _mod: U64
-  var _write: U64 = 0
+  let _mod: USize
+  var _write: USize = 0
 
-  new create(len: U64) =>
+  new create(len: USize) =>
     """
     Create a ring buffer with a fixed size. The size will be rounded up to the
     next power of 2.
@@ -15,7 +15,7 @@ class RingBuffer[A]
     _mod = n - 1
     _array = Array[A](n)
 
-  fun head(): U64 ? =>
+  fun head(): USize ? =>
     """
     The first read that will succeed. If nothing has been written to the ring,
     this will raise an error.
@@ -30,19 +30,19 @@ class RingBuffer[A]
       error
     end
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     The number of elements that have been added to the ring.
     """
     _write
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     The available space in the ring.
     """
     _array.space()
 
-  fun apply(i: U64): this->A ? =>
+  fun apply(i: USize): this->A ? =>
     """
     Get the i-th element from the ring. If the i-th element has not yet been
     added or is no longer available, this will raise an error.

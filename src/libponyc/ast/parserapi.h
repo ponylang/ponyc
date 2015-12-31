@@ -115,7 +115,8 @@ void infix_reverse_builder(rule_state_t* state, ast_t* new_ast);
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id);
 
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const token_id* id_set, bool make_ast, bool* out_found);
+  const char* terminating, const token_id* id_set, bool make_ast,
+  bool* out_found);
 
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found);
@@ -263,7 +264,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
 #define TOKEN(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    ast_t* r = parse_token_set(parser, &state, desc, id_set, true, NULL); \
+    ast_t* r = parse_token_set(parser, &state, desc, NULL, id_set, true, \
+      NULL); \
     if(r != PARSE_OK) return r; \
   }
 
@@ -279,10 +281,29 @@ bool parse(ast_t* package, source_t* source, rule_t start,
 #define SKIP(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    ast_t* r = parse_token_set(parser, &state, desc, id_set, false, NULL); \
+    ast_t* r = parse_token_set(parser, &state, desc, NULL, id_set, false, \
+      NULL); \
     if(r != PARSE_OK) return r; \
   }
 
+
+/** Attempt to match one of the given set of tokens which terminate the
+ * described structure. Do not generate an AST node for the found token.
+ *
+ * Behaves exactly as SKIP(), other than the generated error messages.
+ *
+ * If OPT is not specified then a match is required or a syntax error occurs.
+ * The description is used for error reports and must be provided.
+ * Example:
+ *    TERMINATE("if expression", TK_END);
+ */
+#define TERMINATE(desc, ...) \
+  { \
+    static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
+    ast_t* r = parse_token_set(parser, &state, NULL, desc, id_set, false, \
+      NULL); \
+    if(r != PARSE_OK) return r; \
+  }
 
 /** Attempt to match one of the given set of rules.
  * If an optional token is not found a default TK_NONE node is created instead,
@@ -312,8 +333,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
     static const token_id id_set[] = { id, TK_NONE }; \
     state.deflt_id = TK_NONE; \
     bool found = false; \
-    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
-      false, &found); \
+    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), NULL, \
+      id_set, false, &found); \
     if(r != PARSE_OK) return r; \
     if(found) { \
       body; \
@@ -333,8 +354,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
     static const token_id id_set[] = { id, TK_NONE }; \
     state.deflt_id = TK_EOF; \
     bool found = false; \
-    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
-      false, &found); \
+    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), NULL, \
+      id_set, false, &found); \
     if(r != PARSE_OK) return r; \
     if(found) { \
       thenbody; \
@@ -357,8 +378,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
     while(true) \
     { \
       state.deflt_id = TK_EOF; \
-      ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
-        false, &found); \
+      ast_t* r = parse_token_set(parser, &state, token_id_desc(id), NULL, \
+        id_set, false, &found); \
       if(r != PARSE_OK) return r; \
       if(!found) break; \
       body; \

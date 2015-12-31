@@ -97,10 +97,14 @@ typedef const struct _pony_type_t
 /** Padding for actor types.
  *
  * 56 bytes: initial header, not including the type descriptor
- * 104 bytes: heap
- * 80 bytes: gc
+ * 52/104 bytes: heap
+ * 44/80 bytes: gc
  */
-#define PONY_ACTOR_PAD_SIZE 240
+#if INTPTR_MAX == INT64_MAX
+#  define PONY_ACTOR_PAD_SIZE 240
+#elif INTPTR_MAX == INT32_MAX
+#  define PONY_ACTOR_PAD_SIZE 156
+#endif
 
 typedef struct pony_actor_pad_t
 {
@@ -185,39 +189,6 @@ ATTRIBUTE_MALLOC(void* pony_alloc_final(pony_ctx_t* ctx, size_t size,
 
 /// Trigger GC next time the current actor is scheduled
 void pony_triggergc(pony_actor_t* actor);
-
-/**
- * If an actor is currently unscheduled, this will reschedule it. This is not
- * concurrency safe: only a single actor should reschedule another actor, and
- * it should be sure the target actor is actually unscheduled.
- */
-void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
- * The actor will no longer be scheduled. It will not handle messages on its
- * queue until it is rescheduled, or polled on a context. This is not
- * concurrency safe: this should be done on the current actor only.
- */
-void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
- * Call this to "become" an actor on a non-scheduler context, i.e. from outside
- * the pony runtime. Following this, pony API calls can be made as if the actor
- * in question were the current actor, eg. pony_alloc, pony_send, pony_create,
- * etc.
- *
- * This can be called with NULL to make no actor the "current" actor for a
- * thread.
- */
-void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
- * Call this to handle an application message on an actor. This will do two
- * things: first, it will possibly gc, and second it will possibly handle a
- * pending application message. If an application message is handled, it will
- * return true, otherwise false.
- */
-bool pony_poll(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /** Start gc tracing for sending.
  *
@@ -310,6 +281,16 @@ int pony_init(int argc, char** argv);
  */
 int pony_start(bool library);
 
+/**
+ * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
+ * done before calling pony_ctx(), and before calling any Pony code from the
+ * thread.
+ *
+ * The thread that calls pony_start() is automatically registered. It's safe,
+ * but not necessary, to call this more than once.
+ */
+void pony_register_thread();
+
 /** Signals that the pony runtime may terminate.
  *
  * This only needs to be called if pony_start() was called with library set to
@@ -325,6 +306,41 @@ int pony_stop();
  * returned.
  */
 void pony_exitcode(int code);
+
+/**
+ * If an actor is currently unscheduled, this will reschedule it. This is not
+ * concurrency safe: only a single actor should reschedule another actor, and
+ * it should be sure the target actor is actually unscheduled.
+ */
+void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor);
+
+/**
+ * The actor will no longer be scheduled. It will not handle messages on its
+ * queue until it is rescheduled, or polled on a context. This is not
+ * concurrency safe: this should be done on the current actor or an actor that
+ * has never been sent a message.
+ */
+void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor);
+
+/**
+ * Call this to "become" an actor on a non-scheduler context, i.e. from outside
+ * the pony runtime. Following this, pony API calls can be made as if the actor
+ * in question were the current actor, eg. pony_alloc, pony_send, pony_create,
+ * etc. This should only be called with an unscheduled actor.
+ *
+ * This can be called with NULL to make no actor the "current" actor for a
+ * thread.
+ */
+void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
+
+/**
+ * Call this to handle an application message on an actor. This will do two
+ * things: first, it will possibly gc, and second it will possibly handle a
+ * pending application message.
+ *
+ * A thread must pony_become an actor before it can pony_poll.
+ */
+void pony_poll(pony_ctx_t* ctx);
 
 #if defined(__cplusplus)
 }

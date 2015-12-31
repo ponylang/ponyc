@@ -1,7 +1,7 @@
 type AsioEventID is Pointer[AsioEvent] tag
 
 interface tag AsioEventNotify
-  be _event_notify(event: AsioEventID, flags: U32, arg: U64)
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32)
 
 primitive AsioEvent
   """
@@ -30,3 +30,9 @@ primitive AsioEvent
     Returns true if the event should be disposed of.
     """
     flags == 0
+
+  fun dispose(): U32 => 0
+  fun read(): U32 => 1 << 0
+  fun write(): U32 => 1 << 1
+  fun timer(): U32 => 1 << 2
+  fun read_write(): U32 => read() or write()

@@ -20,9 +20,7 @@ TEST_F(SugarTest, DataType)
   const char* full_form =
     "use \"builtin\"\n"
     "primitive val Foo\n"
-    "  new val create(): Foo val^ => true\n"
-    "  fun box eq(that:Foo): Bool => this is that\n"
-    "  fun box ne(that:Foo): Bool => this isnt that\n";
+    "  new val create(): Foo val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -315,9 +313,7 @@ TEST_F(SugarTest, ConstructorInDataType)
   const char* full_form =
     "use \"builtin\"\n"
     "primitive val Foo\n"
-    "  new val create(): Foo val^ => 3\n"
-    "  fun box eq(that:Foo): Bool => this is that\n"
-    "  fun box ne(that:Foo): Bool => this isnt that\n";
+    "  new val create(): Foo val^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -418,7 +414,7 @@ TEST_F(SugarTest, FunctionParamMustBeId)
 
   const char* bad3 =
     "trait Foo\n"
-    "  fun foo($x: U64) => 3";
+    "  fun foo($: U64) => 3";
 
   TEST_ERROR(bad3);
 }
@@ -600,17 +596,17 @@ TEST_F(SugarTest, ForWithoutElse)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
-    "  $seq(\n"
-    "    let hygid = $seq(1)\n"
-    "    while hygid.has_next() do\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    while $1.has_next() do\n"
     "      let i = $try_no_check\n"
-    "        hygid.next()\n"
+    "        $1.next()\n"
     "      else\n"
     "        continue\n"
     "      then\n"
     "        None\n"
     "      end\n"
-    "      $seq(2)\n"
+    "      (2)\n"
     "    else None end\n"
     "  )";
 
@@ -631,17 +627,17 @@ TEST_F(SugarTest, ForWithElse)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
-    "  $seq(\n"
-    "    let hygid = $seq(1)\n"
-    "    while hygid.has_next() do\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    while $1.has_next() do\n"
     "      let i = $try_no_check\n"
-    "        hygid.next()\n"
+    "        $1.next()\n"
     "      else\n"
     "        continue\n"
     "      then\n"
     "        None\n"
     "      end\n"
-    "      $seq(2)\n"
+    "      (2)\n"
     "    else 3 end\n"
     "  )";
 
@@ -662,17 +658,17 @@ TEST_F(SugarTest, MultiIteratorFor)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
-    "  $seq(\n"
-    "    let hygid = $seq(1)\n"
-    "    while hygid.has_next() do\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    while $1.has_next() do\n"
     "      (let i, let j) = $try_no_check\n"
-    "        hygid.next()\n"
+    "        $1.next()\n"
     "      else\n"
     "        continue\n"
     "      then\n"
     "        None\n"
     "      end\n"
-    "      $seq(2)\n"
+    "      (2)\n"
     "    else None end\n"
     "  )";
 
@@ -1208,7 +1204,7 @@ TEST_F(SugarTest, As)
     "  var create: U32\n"
     "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | let hygid: Foo ref => consume $borrowed hygid\n"
+    "    | let $1: Foo ref => consume $borrowed $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1231,8 +1227,8 @@ TEST_F(SugarTest, AsTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo ref, let hygid: Bar ref) =>\n"
-    "      (consume $borrowed hygid, consume $borrowed hygid)\n"
+    "    | (let $1: Foo ref, let $2: Bar ref) =>\n"
+    "      (consume $borrowed $1, consume $borrowed $2)\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1255,9 +1251,9 @@ TEST_F(SugarTest, AsNestedTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo ref, (let hygid: Bar ref, let hygid: Baz ref)) =>\n"
-    "      (consume $borrowed hygid,\n"
-    "        (consume $borrowed hygid, consume $borrowed hygid))\n"
+    "    | (let $1: Foo ref, (let $2: Bar ref, let $3: Baz ref)) =>\n"
+    "      (consume $borrowed $1,\n"
+    "        (consume $borrowed $2, consume $borrowed $3))\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1291,8 +1287,8 @@ TEST_F(SugarTest, AsDontCare2Tuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo ref, _) =>\n"
-    "      consume $borrowed hygid\n"
+    "    | (let $1: Foo ref, _) =>\n"
+    "      consume $borrowed $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1315,8 +1311,8 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo ref, _, let hygid: Baz ref) =>\n"
-    "      (consume $borrowed hygid, consume $borrowed hygid)\n"
+    "    | (let $1: Foo ref, _, let $2: Baz ref) =>\n"
+    "      (consume $borrowed $1, consume $borrowed $2)\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1338,16 +1334,14 @@ TEST_F(SugarTest, ObjectSimple)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create()\n"
+    "    $T.create()\n"
     "    None\n"
 
-    "primitive val hygid\n"
+    "primitive val $T\n"
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new val create(): hygid val^ => true\n"
-    "  fun box eq(that: hygid): Bool => this is that\n"
-    "  fun box ne(that: hygid): Bool => this isnt that";
+    "  new val create(): $T val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1366,15 +1360,15 @@ TEST_F(SugarTest, ObjectWithField)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create(3)\n"
+    "    $T.create(3)\n"
     "    None\n"
 
-    "class ref hygid\n"
+    "class ref $T\n"
     "  let x: T\n"
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new ref create(hygid: T): hygid ref^ => x = consume hygid";
+    "  new ref create($1: T): $T ref^ => x = consume $1";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1393,13 +1387,13 @@ TEST_F(SugarTest, ObjectWithBehaviour)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create()\n"
+    "    $T.create()\n"
     "    None\n"
 
-    "actor tag hygid\n"
-    "  be tag foo(): hygid tag =>\n"
+    "actor tag $T\n"
+    "  be tag foo(): $T tag =>\n"
     "    4\n"
-    "  new tag create(): hygid tag^ => true";
+    "  new tag create(): $T tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1418,16 +1412,14 @@ TEST_F(SugarTest, ObjectBox)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create()\n"
+    "    $T.create()\n"
     "    None\n"
 
-    "primitive val hygid\n"
+    "primitive val $T\n"
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new val create(): hygid val^ => true\n"
-    "  fun box eq(that: hygid): Bool => this is that\n"
-    "  fun box ne(that: hygid): Bool => this isnt that";
+    "  new val create(): $T val^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1446,14 +1438,14 @@ TEST_F(SugarTest, ObjectRef)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create()\n"
+    "    $T.create()\n"
     "    None\n"
 
-    "class ref hygid\n"
+    "class ref $T\n"
     "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
-    "  new ref create(): hygid ref^ => true";
+    "  new ref create(): $T ref^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1472,13 +1464,13 @@ TEST_F(SugarTest, ObjectTagWithBehaviour)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): None =>\n"
-    "    hygid.create()\n"
+    "    $T.create()\n"
     "    None\n"
 
-    "actor tag hygid\n"
-    "  be tag foo(): hygid tag =>\n"
+    "actor tag $T\n"
+    "  be tag foo(): $T tag =>\n"
     "    4\n"
-    "  new tag create(): hygid tag^ => true";
+    "  new tag create(): $T tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1504,7 +1496,6 @@ TEST_F(SugarTest, UseGuardNormalises)
   const char* full_form =
     "use \"builtin\"\n"
     "use \"test:Foo\" if\n"
-    //"  $noseq($flag windows $ifdefor $flag linux)\n"
     "  $flag windows $ifdefor $flag linux\n"
     "  $ifdefand $ifdefnot $flag debug";
 
@@ -1749,9 +1740,9 @@ TEST_F(SugarTest, CaseFunction)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(y: U64): (None | U64 | U64 | U64) =>\n"
-    "    hygid(consume y)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume y)\n"
+    "  fun box $1($2: U64): (None | U64 | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | 1 => 1\n"
     "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
@@ -1780,9 +1771,9 @@ TEST_F(SugarTest, CaseFunctionPlusOtherFun)
     "  var create: U32\n"
     "  fun box not_fib(): U64 => 1\n"
     "  fun box fib(y: U64): (None | U64 | U64 | U64) =>\n"
-    "    hygid(consume y)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume y)\n"
+    "  fun box $1($2: U64): (None | U64 | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | 1 => 1\n"
     "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
@@ -1811,18 +1802,18 @@ TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
     "  var create: U32\n"
     "  fun box other(): U64 => 1\n"
     "  fun box foo(x: U64): (None | U64 | U64) =>\n"
-    "    hygid(consume x)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume x)\n"
+    "  fun box $1($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let x: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end\n"
     "  fun box bar(y: U32): (None | U32 | U32) =>\n"
-    "    hygid(consume y)\n"
-    "  fun box hygid(hygid: U32): (None | U32 | U32) =>\n"
-    "    match consume hygid\n"
+    "    $3(consume y)\n"
+    "  fun box $3($4: U32): (None | U32 | U32) =>\n"
+    "    match consume $4\n"
     "    | 0 => 0\n"
     "    | let y: U32 => 1\n"
     "    else\n"
@@ -1847,9 +1838,9 @@ TEST_F(SugarTest, CaseFunctionParamNamedTwice)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(y: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
-    "    hygid(consume y)\n"
-    "  fun box hygid(hygid: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume y)\n"
+    "  fun box $1($2: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let y: U64 => 1\n"
     "    | let y: U64 => 2\n"
@@ -1874,9 +1865,9 @@ TEST_F(SugarTest, CaseFunction2Params)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: U64, b: U32): (None | U64 | U64) =>\n"
-    "    hygid(consume a, consume b)\n"
-    "  fun box hygid(hygid: U64, hygid: U32): (None | U64 | U64) =>\n"
-    "    match (consume hygid, consume hygid)\n"
+    "    $1(consume a, consume b)\n"
+    "  fun box $1($2: U64, $3: U32): (None | U64 | U64) =>\n"
+    "    match (consume $2, consume $3)\n"
     "    | (0, 0) => 0\n"
     "    | (let a: U64, let b: U32) => 1\n"
     "    else\n"
@@ -1900,9 +1891,9 @@ TEST_F(SugarTest, CaseFunctionParamTypeUnion)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: (U32 | U64)): (None | U64 | U64) =>\n"
-    "    hygid(consume a)\n"
-    "  fun box hygid(hygid: (U32 | U64)): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun box $1($2: (U32 | U64)): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | let a: U32 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -1926,9 +1917,9 @@ TEST_F(SugarTest, CaseFunctionReturnUnion)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: U64): (None | U64 | U32) =>\n"
-    "    hygid(consume a)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U32) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun box $1($2: U64): (None | U64 | U32) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -1952,9 +1943,9 @@ TEST_F(SugarTest, CaseFunctionCap)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun ref fib(a: U64): (None | U64 | U64) =>\n"
-    "    hygid(consume a)\n"
-    "  fun ref hygid(hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun ref $1($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -1990,9 +1981,9 @@ TEST_F(SugarTest, CaseFunctionOneErrors)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun ref fib(a: U64): (None | U64 | U64) ? =>\n"
-    "    hygid(consume a)\n"
-    "  fun ref hygid(hygid: U64): (None | U64 | U64) ? =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun ref $1($2: U64): (None | U64 | U64) ? =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2016,9 +2007,9 @@ TEST_F(SugarTest, CaseFunctionAllError)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun ref fib(a: U64): (None | U64 | U64) ? =>\n"
-    "    hygid(consume a)\n"
-    "  fun ref hygid(hygid: U64): (None | U64 | U64) ? =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun ref $1($2: U64): (None | U64 | U64) ? =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2115,9 +2106,9 @@ TEST_F(SugarTest, CaseFunctionDontCare)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: U64, b: U32): (None | U64 | U64 | U64) =>\n"
-    "    hygid(consume a, consume b)\n"
-    "  fun box hygid(hygid: U64, hygid: U32): (None | U64 | U64 | U64) =>\n"
-    "    match (consume hygid, consume hygid)\n"
+    "    $1(consume a, consume b)\n"
+    "  fun box $1($2: U64, $3: U32): (None | U64 | U64 | U64) =>\n"
+    "    match (consume $2, consume $3)\n"
     "    | (0, _) => 0\n"
     "    | (let a: U64, let b: U32) => 1\n"
     "    | (_, _) => 2\n"
@@ -2135,18 +2126,18 @@ TEST_F(SugarTest, CaseFunctionGuard)
     "class Foo\n"
     "  var create: U32\n"
     "  fun fib(0): U64 => 0\n"
-    "  fun fib(a: U64 where a > 3): U64 => 1";
+    "  fun fib(a: U64): U64 if a > 3 => 1";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: U64): (None | U64 | U64) =>\n"
-    "    hygid(consume a)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun box $1($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 where a.gt(3) => 1\n"
+    "    | let a: U64 if a.gt(3) => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2168,9 +2159,9 @@ TEST_F(SugarTest, CaseFunctionDefaultValue)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib(a: U64 = 4): (None | U64 | U64) =>\n"
-    "    hygid(consume a)\n"
-    "  fun box hygid(hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun box $1($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2206,9 +2197,9 @@ TEST_F(SugarTest, CaseBehaviour)
     "actor tag Foo\n"
     "  var create: U32\n"
     "  be tag fib(a: U64): Foo tag =>\n"
-    "    hygid(consume a)\n"
-    "  fun ref hygid(hygid: U64): None =>\n"
-    "    match consume hygid\n"
+    "    $1(consume a)\n"
+    "  fun ref $1($2: U64): None =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2257,9 +2248,9 @@ TEST_F(SugarTest, CaseFunctionTypeParam)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib[A: A](a: U64): (None | A | A) =>\n"
-    "    hygid[A](consume a)\n"
-    "  fun box hygid[A: A](hygid: U64): (None | A | A) =>\n"
-    "    match consume hygid\n"
+    "    $1[A](consume a)\n"
+    "  fun box $1[A: A]($2: U64): (None | A | A) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2283,9 +2274,9 @@ TEST_F(SugarTest, CaseFunction2TypeParams)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib[A: A, B: B](a: U64): (None | U64 | U64) =>\n"
-    "    hygid[A, B](consume a)\n"
-    "  fun box hygid[A: A, B: B](hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1[A, B](consume a)\n"
+    "  fun box $1[A: A, B: B]($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2309,9 +2300,9 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraint)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib[A: B](a: U64): (None | U64 | U64) =>\n"
-    "    hygid[A](consume a)\n"
-    "  fun box hygid[A: B](hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1[A](consume a)\n"
+    "  fun box $1[A: B]($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2335,9 +2326,9 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraintIntersect)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib[A: (B & C)](a: U64): (None | U64 | U64) =>\n"
-    "    hygid[A](consume a)\n"
-    "  fun box hygid[A: (B & C)](hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1[A](consume a)\n"
+    "  fun box $1[A: (B & C)]($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"
@@ -2386,9 +2377,9 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParam)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box fib[A: A = B](a: U64): (None | U64 | U64) =>\n"
-    "    hygid[A](consume a)\n"
-    "  fun box hygid[A: A = B](hygid: U64): (None | U64 | U64) =>\n"
-    "    match consume hygid\n"
+    "    $1[A](consume a)\n"
+    "  fun box $1[A: A = B]($2: U64): (None | U64 | U64) =>\n"
+    "    match consume $2\n"
     "    | 0 => 0\n"
     "    | let a: U64 => 1\n"
     "    else\n"

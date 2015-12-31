@@ -8,6 +8,7 @@
 #include "../asio/event.h"
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 // Disable warnings about deprecated non-unicode WSA functions.
@@ -34,19 +35,14 @@ typedef int SOCKET;
 #define MSG_NOSIGNAL 0
 #endif
 
-typedef uintptr_t PONYFD;
-
 PONY_EXTERN_C_BEGIN
 
-struct addrinfo* os_addrinfo(int family, const char* host,
-  const char* service);
+void os_closesocket(int fd);
 
-void os_closesocket(PONYFD fd);
-
+// This must match the pony IPAddress type in packages/net.
 typedef struct
 {
   pony_type_t* type;
-  int from_len;
   struct sockaddr_storage addr;
 } ipaddress_t;
 
@@ -99,8 +95,32 @@ static bool map_any_to_loopback(struct sockaddr* addr)
   return false;
 }
 
+static struct addrinfo* os_addrinfo_intern(int family, int socktype,
+  int proto, const char* host, const char* service, bool passive)
+{
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_flags = AI_ADDRCONFIG;
+  hints.ai_family = family;
+  hints.ai_socktype = socktype;
+  hints.ai_protocol = proto;
+
+  if(passive)
+    hints.ai_flags |= AI_PASSIVE;
+
+  if((host != NULL) && (host[0] == '\0'))
+    host = NULL;
+
+  struct addrinfo *result;
+
+  if(getaddrinfo(host, service, &hints, &result) != 0)
+    return NULL;
+
+  return result;
+}
+
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
-static int set_nonblocking(SOCKET s)
+static int set_nonblocking(int s)
 {
   int flags = fcntl(s, F_GETFL, 0);
   return fcntl(s, F_SETFL, flags | O_NONBLOCK);
@@ -127,6 +147,7 @@ typedef struct iocp_t
 {
   OVERLAPPED ov;
   iocp_op_t op;
+  int from_len;
   asio_event_t* ev;
 } iocp_t;
 
@@ -179,7 +200,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       if(err == ERROR_SUCCESS)
       {
         // Update the connect context.
-        setsockopt((SOCKET)iocp->ev->data, SOL_SOCKET,
+        setsockopt((SOCKET)iocp->ev->fd, SOL_SOCKET,
           SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
       }
 
@@ -196,8 +217,10 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       if(err == ERROR_SUCCESS)
       {
         // Update the accept context.
-        setsockopt((SOCKET)acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-          (char*)&iocp->ev->data, sizeof(SOCKET));
+        SOCKET s = (SOCKET)iocp->ev->fd;
+
+        setsockopt(acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+          (char*)&s, sizeof(SOCKET));
       } else {
         // Close the new socket.
         closesocket(acc->ns);
@@ -205,7 +228,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       }
 
       // Dispatch a read event with the new socket as the argument.
-      asio_event_send(iocp->ev, ASIO_READ, acc->ns);
+      asio_event_send(iocp->ev, ASIO_READ, (int)acc->ns);
       iocp_accept_destroy(acc);
       break;
     }
@@ -249,7 +272,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 
 static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
 {
-  SOCKET s = (SOCKET)ev->data;
+  SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
 
   if(!g_ConnectEx(s, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL, &iocp->ov))
@@ -266,7 +289,7 @@ static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
 
 static bool iocp_accept(asio_event_t* ev)
 {
-  SOCKET s = (SOCKET)ev->data;
+  SOCKET s = (SOCKET)ev->fd;
   WSAPROTOCOL_INFO proto;
 
   if(WSADuplicateSocket(s, GetCurrentProcessId(), &proto) != 0)
@@ -299,7 +322,7 @@ static bool iocp_accept(asio_event_t* ev)
 
 static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 {
-  SOCKET s = (SOCKET)ev->data;
+  SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
   DWORD sent;
 
@@ -321,7 +344,7 @@ static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 
 static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 {
-  SOCKET s = (SOCKET)ev->data;
+  SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD received;
   DWORD flags = 0;
@@ -342,7 +365,7 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
   return true;
 }
 
-static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
+static bool iocp_sendto(int fd, const char* data, size_t len,
   ipaddress_t* ipaddr)
 {
   socklen_t socklen = address_length(ipaddr);
@@ -372,7 +395,7 @@ static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
 static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   ipaddress_t* ipaddr)
 {
-  SOCKET s = (SOCKET)ev->data;
+  SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD flags = 0;
 
@@ -380,10 +403,10 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   buf.buf = data;
   buf.len = (u_long)len;
 
-  ipaddr->from_len = sizeof(ipaddr->addr);
+  iocp->from_len = sizeof(ipaddr->addr);
 
   if(WSARecvFrom(s, &buf, 1, NULL, &flags, (struct sockaddr*)&ipaddr->addr,
-    &ipaddr->from_len, &iocp->ov, NULL) != 0)
+    &iocp->from_len, &iocp->ov, NULL) != 0)
   {
     if(GetLastError() != WSA_IO_PENDING)
     {
@@ -397,16 +420,18 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
 
 #endif
 
-static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
+static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 {
 #if defined(PLATFORM_IS_LINUX)
-  SOCKET fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
+  int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
 #elif defined(PLATFORM_IS_WINDOWS)
-  SOCKET fd = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL, 0,
-    WSA_FLAG_OVERLAPPED);
+  UINT_PTR skt = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
+    0, WSA_FLAG_OVERLAPPED);
+  assert((skt == INVALID_SOCKET) || ((skt >> 31) == 0));
+  int fd = (int)skt;
 #else
-  SOCKET fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+  int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 #endif
 
   if(fd < 0)
@@ -417,8 +442,8 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
   if(reuse)
   {
     int reuseaddr = 1;
-    r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr,
-      sizeof(int));
+    r |= setsockopt((SOCKET)fd, SOL_SOCKET, SO_REUSEADDR,
+      (const char*)&reuseaddr, sizeof(int));
   }
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
@@ -428,18 +453,18 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!BindIoCompletionCallback((HANDLE)fd, iocp_callback, 0))
+  if(!BindIoCompletionCallback((HANDLE)(UINT_PTR)fd, iocp_callback, 0))
     r = 1;
 #endif
 
   if(r == 0)
-    return (PONYFD)fd;
+    return fd;
 
-  os_closesocket((PONYFD)fd);
+  os_closesocket(fd);
   return -1;
 }
 
-static asio_event_t* os_listen(pony_actor_t* owner, PONYFD fd,
+static asio_event_t* os_listen(pony_actor_t* owner, int fd,
   struct addrinfo *p, int proto)
 {
   if(bind((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen) != 0)
@@ -458,7 +483,7 @@ static asio_event_t* os_listen(pony_actor_t* owner, PONYFD fd,
   }
 
   // Create an event and subscribe it.
-  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ, true);
+  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ, 0, true);
 
 #ifdef PLATFORM_IS_WINDOWS
   // Start accept for TCP connections, but not for UDP.
@@ -478,7 +503,7 @@ static asio_event_t* os_listen(pony_actor_t* owner, PONYFD fd,
   return ev;
 }
 
-static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
+static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   const char* from)
 {
   map_any_to_loopback(p->ai_addr);
@@ -487,7 +512,8 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
 
   if(need_bind)
   {
-    struct addrinfo* result = os_addrinfo(p->ai_family, from, NULL);
+    struct addrinfo* result = os_addrinfo_intern(p->ai_family, 0, 0, from,
+      NULL, false);
     struct addrinfo* lp = result;
     bool bound = false;
 
@@ -527,7 +553,7 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
 
   // Create an event and subscribe it.
   asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
-    true);
+    0, true);
 
   if(!iocp_connect(ev, p))
   {
@@ -536,7 +562,7 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
     return false;
   }
 #else
-  int r = connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen);
+  int r = connect(fd, p->ai_addr, (int)p->ai_addrlen);
 
   if((r != 0) && (errno != EINPROGRESS))
   {
@@ -545,34 +571,10 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
   }
 
   // Create an event and subscribe it.
-  asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE, true);
+  asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE, 0, true);
 #endif
 
   return true;
-}
-
-static struct addrinfo* os_addrinfo_intern(int family, int socktype,
-  int proto, const char* host, const char* service, bool passive)
-{
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_flags = AI_ADDRCONFIG;
-  hints.ai_family = family;
-  hints.ai_socktype = socktype;
-  hints.ai_protocol = proto;
-
-  if(passive)
-    hints.ai_flags |= AI_PASSIVE;
-
-  if((host != NULL) && (host[0] == '\0'))
-    host = NULL;
-
-  struct addrinfo *result;
-
-  if(getaddrinfo(host, service, &hints, &result) != 0)
-    return NULL;
-
-  return result;
 }
 
 /**
@@ -589,9 +591,9 @@ static asio_event_t* os_socket_listen(pony_actor_t* owner, const char* host,
 
   while(p != NULL)
   {
-    PONYFD fd = socket_from_addrinfo(p, true);
+    int fd = socket_from_addrinfo(p, true);
 
-    if(fd != (PONYFD)-1)
+    if(fd != -1)
     {
       asio_event_t* ev = os_listen(owner, fd, p, proto);
       freeaddrinfo(result);
@@ -622,9 +624,9 @@ static int os_socket_connect(pony_actor_t* owner, const char* host,
 
   while(p != NULL)
   {
-    PONYFD fd = socket_from_addrinfo(p, reuse);
+    int fd = socket_from_addrinfo(p, reuse);
 
-    if(fd != (PONYFD)-1)
+    if(fd != -1)
     {
       if(os_connect(owner, fd, p, from))
         count++;
@@ -700,19 +702,19 @@ int os_connect_tcp6(pony_actor_t* owner, const char* host,
     IPPROTO_TCP);
 }
 
-PONYFD os_accept(asio_event_t* ev)
+int os_accept(asio_event_t* ev)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   // Queue an IOCP accept and return an INVALID_SOCKET.
   SOCKET ns = INVALID_SOCKET;
   iocp_accept(ev);
 #elif defined(PLATFORM_IS_LINUX)
-  SOCKET ns = accept4((SOCKET)ev->data, NULL, NULL, SOCK_NONBLOCK);
+  int ns = accept4(ev->fd, NULL, NULL, SOCK_NONBLOCK);
 
   if(ns == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
     ns = 0;
 #else
-  SOCKET ns = accept((SOCKET)ev->data, NULL, NULL);
+  int ns = accept(ev->fd, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
@@ -720,11 +722,11 @@ PONYFD os_accept(asio_event_t* ev)
     ns = 0;
 #endif
 
-  return (PONYFD)ns;
+  return (int)ns;
 }
 
 // Check this when a connection gets its first writeable event.
-bool os_connected(PONYFD fd)
+bool os_connected(int fd)
 {
   int val = 0;
   socklen_t len = sizeof(int);
@@ -789,6 +791,14 @@ bool os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
 
 struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 {
+  switch(family)
+  {
+    case 0: family = AF_UNSPEC; break;
+    case 1: family = AF_INET; break;
+    case 2: family = AF_INET6; break;
+    default: return NULL;
+  }
+
   return os_addrinfo_intern(family, 0, 0, host, service, true);
 }
 
@@ -831,7 +841,7 @@ bool os_ipv6(ipaddress_t* ipaddr)
   return ipaddr->addr.ss_family == AF_INET6;
 }
 
-bool os_sockname(PONYFD fd, ipaddress_t* ipaddr)
+bool os_sockname(int fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
 
@@ -842,7 +852,7 @@ bool os_sockname(PONYFD fd, ipaddress_t* ipaddr)
   return true;
 }
 
-bool os_peername(PONYFD fd, ipaddress_t* ipaddr)
+bool os_peername(int fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
 
@@ -873,7 +883,7 @@ size_t os_send(asio_event_t* ev, const char* buf, size_t len)
 
   return 0;
 #else
-  ssize_t sent = send((SOCKET)ev->data, buf, len, MSG_NOSIGNAL);
+  ssize_t sent = send(ev->fd, buf, len, MSG_NOSIGNAL);
 
   if(sent < 0)
   {
@@ -895,7 +905,7 @@ size_t os_recv(asio_event_t* ev, char* buf, size_t len)
 
   return 0;
 #else
-  ssize_t received = recv((SOCKET)ev->data, buf, len, 0);
+  ssize_t received = recv(ev->fd, buf, len, 0);
 
   if(received < 0)
   {
@@ -911,7 +921,7 @@ size_t os_recv(asio_event_t* ev, char* buf, size_t len)
 #endif
 }
 
-size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_sendto(int fd, const char* buf, size_t len, ipaddress_t* ipaddr)
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_sendto(fd, buf, len, ipaddr))
@@ -924,7 +934,7 @@ size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
   if(addrlen == (socklen_t)-1)
     pony_throw();
 
-  ssize_t sent = sendto((SOCKET)fd, buf, len, MSG_NOSIGNAL,
+  ssize_t sent = sendto(fd, buf, len, MSG_NOSIGNAL,
     (struct sockaddr*)&ipaddr->addr, addrlen);
 
   if(sent < 0)
@@ -950,7 +960,7 @@ size_t os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t recvd = recvfrom((SOCKET)(ev->data), (char*)buf, (int)len, 0,
+  ssize_t recvd = recvfrom(ev->fd, (char*)buf, len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
@@ -967,7 +977,7 @@ size_t os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 #endif
 }
 
-void os_keepalive(PONYFD fd, int secs)
+void os_keepalive(int fd, int secs)
 {
   SOCKET s = (SOCKET)fd;
 
@@ -1001,25 +1011,25 @@ void os_keepalive(PONYFD fd, int secs)
 #endif
 }
 
-void os_nodelay(PONYFD fd, bool state)
+void os_nodelay(int fd, bool state)
 {
   int val = state;
   setsockopt((SOCKET)fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&val,
     sizeof(int));
 }
 
-void os_shutdown(PONYFD fd)
+void os_shutdown(int fd)
 {
   shutdown((SOCKET)fd, 1);
 }
 
-void os_closesocket(PONYFD fd)
+void os_closesocket(int fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  CancelIoEx((HANDLE)fd, NULL);
+  CancelIoEx((HANDLE)(UINT_PTR)fd, NULL);
   closesocket((SOCKET)fd);
 #else
-  close((SOCKET)fd);
+  close(fd);
 #endif
 }
 
@@ -1086,10 +1096,17 @@ void os_socket_shutdown()
 #endif
 }
 
-void os_multicast_interface(PONYFD fd, const char* from)
+void os_broadcast(int fd, bool state)
+{
+  int broadcast = state ? 1 : 0;
+  setsockopt((SOCKET)fd, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast,
+    sizeof(broadcast));
+}
+
+void os_multicast_interface(int fd, const char* from)
 {
   // Use the first reported address.
-  struct addrinfo* p = os_addrinfo(AF_UNSPEC, from, NULL);
+  struct addrinfo* p = os_addrinfo_intern(AF_UNSPEC, 0, 0, from, NULL, true);
 
   if(p != NULL)
   {
@@ -1099,14 +1116,14 @@ void os_multicast_interface(PONYFD fd, const char* from)
   }
 }
 
-void os_multicast_loopback(PONYFD fd, bool loopback)
+void os_multicast_loopback(int fd, bool loopback)
 {
   uint8_t loop = loopback ? 1 : 0;
   setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&loop,
     sizeof(loop));
 }
 
-void os_multicast_ttl(PONYFD fd, uint8_t ttl)
+void os_multicast_ttl(int fd, uint8_t ttl)
 {
   setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&ttl,
     sizeof(ttl));
@@ -1119,7 +1136,7 @@ static uint32_t multicast_interface(int family, const char* host)
   if((host == NULL) || (host[0] == '\0'))
     return 0;
 
-  struct addrinfo* p = os_addrinfo(family, host, NULL);
+  struct addrinfo* p = os_addrinfo_intern(family, 0, 0, host, NULL, true);
 
   if(p == NULL)
     return 0;
@@ -1149,10 +1166,10 @@ static uint32_t multicast_interface(int family, const char* host)
   return interface;
 }
 
-static void multicast_change(PONYFD fd, const char* group, const char* to,
+static void multicast_change(int fd, const char* group, const char* to,
   bool join)
 {
-  struct addrinfo* rg = os_addrinfo(AF_UNSPEC, group, NULL);
+  struct addrinfo* rg = os_addrinfo_intern(AF_UNSPEC, 0, 0, group, NULL, true);
 
   if(rg == NULL)
     return;
@@ -1202,12 +1219,12 @@ static void multicast_change(PONYFD fd, const char* group, const char* to,
   freeaddrinfo(rg);
 }
 
-void os_multicast_join(PONYFD fd, const char* group, const char* to)
+void os_multicast_join(int fd, const char* group, const char* to)
 {
   multicast_change(fd, group, to, true);
 }
 
-void os_multicast_leave(PONYFD fd, const char* group, const char* to)
+void os_multicast_leave(int fd, const char* group, const char* to)
 {
   multicast_change(fd, group, to, false);
 }

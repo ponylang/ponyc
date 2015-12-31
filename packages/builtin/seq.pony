@@ -2,28 +2,28 @@ interface Seq[A]
   """
   A sequence of elements.
   """
-  new create(len: U64 = 0)
+  new create(len: USize = 0)
     """
     Create a sequence, reserving space for len elements.
     """
 
-  fun ref reserve(len: U64): Seq[A]^
+  fun ref reserve(len: USize): Seq[A]^
     """
     Reserve space for len elements.
     """
 
-  fun size(): U64
+  fun size(): USize
     """
     Returns the number of elements in the sequence.
     """
 
-  fun apply(i: U64): this->A ?
+  fun apply(i: USize): this->A ?
     """
     Returns the i-th element of the sequence. Raises an error if the index
     is out of bounds.
     """
 
-  fun ref update(i: U64, value: A): A^ ?
+  fun ref update(i: USize, value: A): A^ ?
     """
     Replaces the i-th element of the sequence. Returns the previous value.
     Raises an error if the index is out of bounds.
@@ -54,12 +54,12 @@ interface Seq[A]
     Removes an element from the beginning of the sequence.
     """
 
-  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): Seq[A]^
+  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1): Seq[A]^
     """
     Append the elements from a sequence, starting from the given offset.
     """
 
-  fun ref truncate(len: U64): Seq[A]^
+  fun ref truncate(len: USize): Seq[A]^
     """
     Truncate the sequence to the given length, discarding excess elements.
     If the sequence is already smaller than len, do nothing.

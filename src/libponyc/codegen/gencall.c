@@ -45,8 +45,8 @@ static LLVMValueRef make_arg(compile_t* c, LLVMTypeRef type, ast_t* arg)
   return gen_assign_cast(c, type, value, ast_type(arg));
 }
 
-static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
-  bool short_circuit, bool has_divmod)
+static bool special_case_operator(compile_t* c, ast_t* ast,
+  LLVMValueRef *value, bool short_circuit, bool native128)
 {
   AST_GET_CHILDREN(ast, positional, named, postfix);
   AST_GET_CHILDREN(postfix, left, method);
@@ -59,11 +59,11 @@ static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
     *value = gen_add(c, left, right);
   else if(name == c->str_sub)
     *value = gen_sub(c, left, right);
-  else if(name == c->str_mul)
+  else if((name == c->str_mul) && native128)
     *value = gen_mul(c, left, right);
-  else if((name == c->str_div) && has_divmod)
+  else if((name == c->str_div) && native128)
     *value = gen_div(c, left, right);
-  else if((name == c->str_mod) && has_divmod)
+  else if((name == c->str_mod) && native128)
     *value = gen_mod(c, left, right);
   else if(name == c->str_neg)
     *value = gen_neg(c, left);
@@ -131,7 +131,7 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 
   AST_GET_CHILDREN(receiver_type, package, id);
 
-  if(ast_name(package) != c->str_1)
+  if(ast_name(package) != c->str_builtin)
     return false;
 
   const char* name = ast_name(id);
@@ -143,10 +143,14 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
     (name == c->str_I16) ||
     (name == c->str_I32) ||
     (name == c->str_I64) ||
+    (name == c->str_ILong) ||
+    (name == c->str_ISize) ||
     (name == c->str_U8) ||
     (name == c->str_U16) ||
     (name == c->str_U32) ||
     (name == c->str_U64) ||
+    (name == c->str_ULong) ||
+    (name == c->str_USize) ||
     (name == c->str_F32) ||
     (name == c->str_F64)
     )
@@ -399,7 +403,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   AST_GET_CHILDREN(pattern_type, package, id);
 
   // Special case equality on primitive types.
-  if(ast_name(package) == c->str_1)
+  if(ast_name(package) == c->str_builtin)
   {
     const char* name = ast_name(id);
 
@@ -409,11 +413,15 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
       (name == c->str_I32) ||
       (name == c->str_I64) ||
       (name == c->str_I128) ||
+      (name == c->str_ILong) ||
+      (name == c->str_ISize) ||
       (name == c->str_U8) ||
       (name == c->str_U16) ||
       (name == c->str_U32) ||
       (name == c->str_U64) ||
       (name == c->str_U128) ||
+      (name == c->str_ULong) ||
+      (name == c->str_USize) ||
       (name == c->str_F32) ||
       (name == c->str_F64)
       )
@@ -624,7 +632,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
 
   // We explicitly want a boxed version.
   // Get the size of the structure.
-  size_t size = LLVMABISizeOfType(c->target_data, g->structure);
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // Get the finaliser, if there is one.
   const char* final = genname_finalise(g->type_name);
@@ -644,11 +652,11 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
       args[1] = LLVMConstInt(c->i32, index, false);
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     } else {
-      args[1] = LLVMConstInt(c->i64, size, false);
+      args[1] = LLVMConstInt(c->intptr, size, false);
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     }
   } else {
-    args[1] = LLVMConstInt(c->i64, size, false);
+    args[1] = LLVMConstInt(c->intptr, size, false);
     args[2] = LLVMConstBitCast(final_fun, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }

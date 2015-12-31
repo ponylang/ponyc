@@ -151,6 +151,7 @@ ast_t* reify(ast_t* orig, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
       NULL, NULL);
 
     ast_append(typeargs, r_typearg);
+    ast_setid(typeargs, TK_TYPEARGS);
     reify_one(&r_ast, typeparam, r_typearg);
     typeparam = ast_sibling(typeparam);
   }

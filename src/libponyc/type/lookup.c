@@ -53,25 +53,28 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
       case TK_FUN:
       {
         // Typecheck default args immediately.
-        AST_GET_CHILDREN(find, cap, id, typeparams, params);
-        ast_t* param = ast_child(params);
-
-        while(param != NULL)
+        if(opt != NULL)
         {
-          AST_GET_CHILDREN(param, name, type, def_arg);
+          AST_GET_CHILDREN(find, cap, id, typeparams, params);
+          ast_t* param = ast_child(params);
 
-          if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+          while(param != NULL)
           {
-            ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
+            AST_GET_CHILDREN(param, name, type, def_arg);
 
-            if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
-              PASS_EXPR) != AST_OK)
-              return false;
+            if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+            {
+              ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
 
-            ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
+              if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
+                PASS_EXPR) != AST_OK)
+                return false;
+
+              ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
+            }
+
+            param = ast_sibling(param);
           }
-
-          param = ast_sibling(param);
         }
         break;
       }
@@ -150,9 +153,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* typeargs = ast_childidx(type, 2);
 
   find = ast_dup(find);
-  orig = ast_dup(orig);
   replace_thistype(&find, orig);
-  ast_free_unattached(orig);
 
   ast_t* r_find = reify(from, find, typeparams, typeargs);
 

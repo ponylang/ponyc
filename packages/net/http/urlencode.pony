@@ -9,7 +9,7 @@ primitive URLEncode
     invalid, raise an error.
     """
     let out = recover String(from.size()) end
-    var i = U64(0)
+    var i = USize(0)
 
     while i < from.size() do
       let c = from(i)
@@ -48,7 +48,7 @@ primitive URLEncode
     URL decode a string. Raise an error if it isn't a valid URL encoded string.
     """
     let out = recover String(from.size()) end
-    var i = U64(0)
+    var i = USize(0)
 
     while i < from.size() do
       let c = from(i)
@@ -82,7 +82,7 @@ primitive URLEncode
     an error if anything is %-encoded that shouldn't be.
     """
     try
-      var i = U64(0)
+      var i = USize(0)
 
       while i < from.size() do
         let c = from(i)

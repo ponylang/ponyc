@@ -190,6 +190,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
+  check_tree(*astp);
+
   if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
     return r;
 
@@ -221,6 +223,7 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!pass_finalisers(*astp))
     return false;
 
+  check_tree(*astp);
   return true;
 }
 

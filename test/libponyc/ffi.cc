@@ -182,13 +182,13 @@ TEST_F(FFITest, DeclarationVoidStarPointer)
 }
 
 
-TEST_F(FFITest, DeclarationVoidStarU64)
+TEST_F(FFITest, DeclarationVoidStarUSize)
 {
   const char* src =
     "use @foo[U32](a: Pointer[None])\n"
 
     "class Foo\n"
-    "  fun f(x: U64) =>\n"
+    "  fun f(x: USize) =>\n"
     "    @foo[U32](x)";
 
   TEST_COMPILE(src);

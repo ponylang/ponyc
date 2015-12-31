@@ -15,11 +15,11 @@ __pony_spec_align__(
     {
       struct
       {
-        uint64_t aba;
+        uintptr_t aba;
         mpmcq_node_t* node;
       };
 
-      __int128_t dw;
+      dw_t dw;
     };
   } mpmcq_dwcas_t, 16
 );
