@@ -2,27 +2,33 @@
 
 use "regex"
 
+interface GlobHandler
+  """
+  A handler for `Glob.iglob`.
+  """
+  fun ref apply(path: FilePath, match_groups: Array[String] ref)
+
 primitive Glob
-  """Filename matching and globbing with shell patterns.
+  """
+  Filename matching and globbing with shell patterns.
 
   `fnmatch(file_name, pattern)` matches according to the local convention.
-  `fnmatchcase(file_name, pattern)` always takes case in account.  The functions
-  operate by translating the pattern into a regular expression.
+  `fnmatchcase(file_name, pattern)` always takes case into account.  The
+  functions operate by translating the pattern into a regular expression.
 
   The function translate(PATTERN) returns a regular expression corresponding to PATTERN.
 
+    Patterns are Unix shell style:
+        *       | matches multiple characters within a directory
+        **      | matches multiple characters across directories
+        ?       | matches any single character
+        [seq]   | matches any character in seq
+        [!seq]  | matches any char not in seq
   """
 
   fun fnmatch(name: String, pattern: String): Bool =>
     """
     Tests whether `name` matches `pattern`.
-
-    Patterns are Unix shell style:
-        *       | matches files
-        **      | matches files across directories
-        ?       | matches any single character
-        [seq]   | matches any character in seq
-        [!seq]  | matches any char not in seq
 
     An initial period in `name` is not special.
 
@@ -127,137 +133,45 @@ primitive Glob
     end
     res
 
-//     def glob(self, pathname, with_matches=False, include_hidden=False):
-//         """Return a list of paths matching a pathname pattern.
-//         The pattern may contain simple shell-style wildcards a la
-//         fnmatch. However, unlike fnmatch, filenames starting with a
-//         dot are special cases that are not matched by '*' and '?'
-//         patterns.
-//         If ``include_hidden`` is True, then files and folders starting with
-//         a dot are also returned.
-//         """
-//         return list(self.iglob(pathname, with_matches, include_hidden))
-
-//     def iglob(self, pathname, with_matches=False, include_hidden=False):
-//         """Return an iterator which yields the paths matching a pathname
-//         pattern.
-//         The pattern may contain simple shell-style wildcards a la
-//         fnmatch. However, unlike fnmatch, filenames starting with a
-//         dot are special cases that are not matched by '*' and '?'
-//         patterns.
-//         If ``with_matches`` is True, then for each matching path
-//         a 2-tuple will be returned; the second element if the tuple
-//         will be a list of the parts of the path that matched the individual
-//         wildcards.
-//         If ``include_hidden`` is True, then files and folders starting with
-//         a dot are also returned.
-//         """
-//         result = self._iglob(pathname, include_hidden=include_hidden)
-//         if with_matches:
-//             return result
-//         return map(lambda s: s[0], result)
-
-//     def _iglob(self, pathname, rootcall=True, include_hidden=False):
-//         """Internal implementation that backs :meth:`iglob`.
-//         ``rootcall`` is required to differentiate between the user's call to
-//         iglob(), and subsequent recursive calls, for the purposes of resolving
-//         certain special cases of ** wildcards. Specifically, "**" is supposed
-//         to include the current directory for purposes of globbing, but the
-//         directory itself should never be returned. So if ** is the lastmost
-//         part of the ``pathname`` given the user to the root call, we want to
-//         ignore the current directory. For this, we need to know which the root
-//         call is.
-//         """
-
-//         # Short-circuit if no glob magic
-//         if not has_magic(pathname):
-//             if self.exists(pathname):
-//                 yield pathname, ()
-//             return
-
-//         # If no directory part is left, assume the working directory
-//         dirname, basename = os.path.split(pathname)
-
-//         # If the directory is globbed, recurse to resolve.
-//         # If at this point there is no directory part left, we simply
-//         # continue with dirname="", which will search the current dir.
-//         # `os.path.split()` returns the argument itself as a dirname if it is a
-//         # drive or UNC path.  Prevent an infinite recursion if a drive or UNC path
-//         # contains magic characters (i.e. r'\\?\C:').
-//         if dirname != pathname and has_magic(dirname):
-//             # Note that this may return files, which will be ignored
-//             # later when we try to use them as directories.
-//             # Prefiltering them here would only require more IO ops.
-//             dirs = self._iglob(dirname, False, include_hidden)
-//         else:
-//             dirs = [(dirname, ())]
-
-//         # Resolve ``basename`` expr for every directory found
-//         for dirname, dir_groups in dirs:
-//             for name, groups in self.resolve_pattern(
-//                     dirname, basename, not rootcall, include_hidden):
-//                 yield os.path.join(dirname, name), dir_groups + groups
-
-  fun _resolve_pattern(dirname: FilePath, pattern: String, 
-      globstar_with_root: Bool, include_hidden: Bool):
-        Array[(String, Array[String])] val? =>
+  fun glob(root_path: FilePath, pattern: String): Array[FilePath] =>
     """
-    Applies `pattern` (contains no path elements) to the literal directory in
-    `dirname`.
+    Returns an Array[FilePath] for each path below `root_path` that matches `pattern`.
 
-    If `pattern==""`, this will filter for directories. This is a special case
-    that happens when the user's glob expression ends with a slash (in which
-    case we only want directories). It simpler and faster to filter here than
-    in `_iglob`.
+    The pattern may contain shell-style wildcards.  See the type
+    documentation on `Glob` for details.
+    """
+    let res = recover ref Array[FilePath] end
+    iglob(root_path, pattern,
+          lambda ref(path: FilePath, match_groups: Array[String] ref)
+                    (r: Array[FilePath] ref = res) => r.push(path) end)
+    res
+
+  fun iglob(root_path: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
+    """
+    Calls `GlobHandler.apply` for each path below `root_path` that matches `pattern`.
+
+    The pattern may contain shell-style wildcards.  See the type
+    documentation on `Glob` for details.
     """
 
-    // If no magic, short-circuit, only check for existence
-    if not has_magic(pattern) then
-      if pattern == "" then
-        if FileInfo(dirname).directory then
-          return recover [(pattern, Array[String])] end
-        end
-      else
-        if FilePath(dirname, pattern).exists() then
-          return recover [(pattern, Array[String])] end
-        end
-      end
-      return recover Array[(String, Array[String])] end
+    // TODO: do something efficient by looking at parts of the pattern that do
+    // not contain wildcards and expanding them before walking.
+    try
+      let regex = Regex(translate(Path.normcase(pattern)))
+      root_path.walk(lambda ref(dir: FilePath, entries: Array[String] ref)
+                               (regex = regex, glob_handler = glob_handler,
+                                pattern = pattern, root_path = root_path) =>
+          for e in entries.values() do
+            try 
+              let p = dir.join(e)
+              let m = regex(if Path.is_abs(pattern) then
+                              p.path
+                            else
+                              Path.rel(root_path.path, p.path)
+                            end)
+              glob_handler(p, m.groups())
+            end 
+          end
+        end)
     end
-
-    // if not dirname:
-    //     dirname = os.curdir
-
-    let names = recover ref Array[String] end
-    if pattern == "**" then
-      // Include the current directory in **, if asked; by adding
-      // an empty string as opposed to '.', we spare ourselves
-      // having to deal with os.path.normpath() later.
-      if globstar_with_root then
-        names.push("")
-      end
-      dirname.walk(lambda ref(dir_path: FilePath, dir_entries: Array[String] ref)
-                         (names: Array[String] ref = names) =>
-        for e in dir_entries.values() do
-          names.push(Path.join(dir_path.path, e))
-        end
-      end)
-    else
-      names.append(Directory(dirname).entries())
-    end
-
-    if include_hidden or _is_hidden(pattern) then
-      return filter(names, pattern)
-    end
-
-    // Remove hidden files, but take care to ensure that the empty string we
-    // may have added earlier remains.  Do not filter out the '' that we
-    // might have added earlier
-    let visible = Array[String](names.size())
-    for n in names.values() do
-      if not _is_hidden(n) then
-        visible.push(n)
-      end
-    end
-    filter(visible, pattern)
 

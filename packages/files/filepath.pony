@@ -99,7 +99,7 @@ class val FilePath
     """
     create(this, path', caps')
 
-  fun val walk(handler: WalkHandler, follow_links: Bool = false) =>
+  fun val walk(handler: WalkHandler ref, follow_links: Bool = false) =>
     """
     Walks a directory structure starting at this.
 
