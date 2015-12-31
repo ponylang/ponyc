@@ -215,27 +215,21 @@ static bool find_decl_flags(ast_t* package, const char* ffi_name,
   for(ast_t* m = ast_child(package); m != NULL; m = ast_sibling(m))
   {
     // Find all the FFI declarations in this module.
-    ast_t* use = ast_child(m);
-    assert(use != NULL);
-
-    if(ast_id(use) == TK_STRING) // Skip docstring.
-      use = ast_sibling(use);
-
-    // Check all the use commands.
-    while(ast_id(use) == TK_USE)
+    for(ast_t* use = ast_child(m); use != NULL; use = ast_sibling(use))
     {
-      AST_GET_CHILDREN(use, alias, decl, guard);
-
-      if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
+      if(ast_id(use) == TK_USE)
       {
-        // We have an FFI declaration for the specified name.
-        had_decl = true;
+        AST_GET_CHILDREN(use, alias, decl, guard);
 
-        if(ast_id(guard) != TK_NONE)
-          find_flags_in_cond(guard, config);
+        if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
+        {
+          // We have an FFI declaration for the specified name.
+          had_decl = true;
+
+          if(ast_id(guard) != TK_NONE)
+            find_flags_in_cond(guard, config);
+        }
       }
-
-      use = ast_sibling(use);
     }
   }
 
@@ -273,51 +267,45 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
   for(ast_t* m = ast_child(package); m != NULL; m = ast_sibling(m))
   {
     // Find all the FFI declarations in this module.
-    ast_t* use = ast_child(m);
-    assert(use != NULL);
-
-    if(ast_id(use) == TK_STRING) // Skip docstring.
-      use = ast_sibling(use);
-
-    // Check all the use commands.
-    while(ast_id(use) == TK_USE)
+    for(ast_t* use = ast_child(m); use != NULL; use = ast_sibling(use))
     {
-      AST_GET_CHILDREN(use, alias, decl, guard);
-
-      if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
+      if(ast_id(use) == TK_USE)
       {
-        // We have an FFI declaration for the specified name.
-        if(cond_eval(guard, config, false))
-        {
-          // This declaration is valid for this config.
-          had_valid_decl = true;
+        AST_GET_CHILDREN(use, alias, decl, guard);
 
-          if(decl_info->decl != NULL)
+        if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
+        {
+          // We have an FFI declaration for the specified name.
+          if(cond_eval(guard, config, false))
           {
-            // We already have a decalaration, is it the same one?
-            if(decl_info->decl != decl)
+            // This declaration is valid for this config.
+            had_valid_decl = true;
+
+            if(decl_info->decl != NULL)
             {
-              ast_error(call, "Multiple possible declarations for FFI call");
-              ast_error(decl_info->decl,
-                "This declaration valid for config: %s", decl_info->config);
-              ast_error(decl, "This declaration valid for config: %s",
-                buildflagset_print(config));
-              return false;
+              // We already have a decalaration, is it the same one?
+              if(decl_info->decl != decl)
+              {
+                ast_error(call, "Multiple possible declarations for FFI call");
+                ast_error(decl_info->decl,
+                  "This declaration valid for config: %s", decl_info->config);
+                ast_error(decl, "This declaration valid for config: %s",
+                  buildflagset_print(config));
+                return false;
+              }
             }
-          }
-          else
-          {
-            // Store the declaration found.
-            // We store the config string incase we need it for error messages
-            // later. We stringtab it because the version we are given is in a
-            // temporary buffer.
-            decl_info->decl = decl;
-            decl_info->config = stringtab(buildflagset_print(config));
+            else
+            {
+              // Store the declaration found.
+              // We store the config string incase we need it for error
+              // messages later. We stringtab it because the version we are
+              // given is in a temporary buffer.
+              decl_info->decl = decl;
+              decl_info->config = stringtab(buildflagset_print(config));
+            }
           }
         }
       }
-
-      use = ast_sibling(use);
     }
   }
 
