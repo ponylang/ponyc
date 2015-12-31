@@ -75,7 +75,7 @@ primitive Glob
     let res = String(n)
     try
       let alpha_num_regex = Regex("\\w")
-      var i: U64 = 0
+      var i: USize = 0
       while i < n do
         let c = pat(i)
         i = i+1
@@ -111,7 +111,7 @@ primitive Glob
               res.append("\\^")
               i = i + 1
             end
-            let sub = recover ref pat.substring(i.i64(), (j-1).i64()) end
+            let sub = recover ref pat.substring(i.isize(), j.isize()) end
             res.append(sub.replace("\\","\\\\"))
             res.append("])")
             i = j + 1

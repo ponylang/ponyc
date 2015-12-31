@@ -80,7 +80,7 @@ class iso _TestFilter is UnitTest
 
   fun apply(h: TestHelper): TestResult? =>
     let m = Glob.filter([ "12/a/Bcd", "12/q/abd", "34/b/Befd"], "*/?/B*d")
-    h.assert_eq[U64](2, m.size())
+    h.assert_eq[USize](2, m.size())
 
     h.expect_eq[String](m(0)._1, "12/a/Bcd")
     h.expect_array_eq[String](m(0)._2, ["12", "a", "c"])
