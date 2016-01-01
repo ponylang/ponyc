@@ -185,7 +185,7 @@ class iso _TestIGlob is UnitTest
         try
           match matches(0)
           | "a" => h.expect_eq[String](Path.rel(top.path, f.path), "a/1")
-          | "b" => h.expect_eq[String](Path.rel(top.path, f.path), "b/1")
+          | "c" => h.expect_eq[String](Path.rel(top.path, f.path), "c/1")
           else
             error
           end
