@@ -141,25 +141,10 @@ static int cmp_uint32(const void* elem1, const void* elem2)
   return 0;
 }
 
-static size_t unique_uint32(uint32_t* list, size_t len)
-{
-  uint32_t* first = list;
-  uint32_t* last = list + len;
-  uint32_t* r = list;
-
-  while(++first != last)
-  {
-    if(!(*r == *first))
-      *(++r) = *first;
-  }
-
-  return (++r) - list;
-}
-
 static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
 {
   // The list is an array of integers.
-  uint32_t count = trait_count(c, g);
+  const uint32_t count = trait_count(c, g);
 
   // If we have no traits, return a null pointer to a list.
   if(count == 0)
@@ -179,17 +164,16 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
     tid[index++] = provide->type_id;
 
-  qsort(tid, index, sizeof(uint32_t), cmp_uint32);
-  index = unique_uint32(tid, index);
+  assert(count == index && "Error finding type_ids to build a trait_list");
+  qsort(tid, count, sizeof(uint32_t), cmp_uint32);
 
   // Create a constant array of trait identifiers.
-  size_t list_size = index * sizeof(LLVMValueRef);
+  size_t list_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(list_size);
 
-  for(i = 0; i < index; i++)
+  for(i = 0; i < count; i++)
     list[i] = LLVMConstInt(c->i32, tid[i], false);
 
-  count = (uint32_t)index;
   LLVMValueRef trait_array = LLVMConstArray(c->i32, list, count);
 
   // Create a global to hold the array.
