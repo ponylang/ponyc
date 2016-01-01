@@ -65,15 +65,6 @@ primitive Glob
       end
       result
 
-  fun has_magic(pattern: String): Bool =>
-    """
-    Returns true if a pattern has magic characters.
-    """
-    try Regex("[*?[]") == pattern else true end
-
-  fun _is_hidden(path: String): Bool =>
-    try path(0) == '.' else false end
-
   fun translate(pat: String): String ref^ =>
     """
     Translates a shell `pattern` to a regular expression.
