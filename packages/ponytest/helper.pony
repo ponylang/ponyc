@@ -241,6 +241,71 @@ class val TestHelper
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
     true
 
+  fun assert_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
+  =>
+    """
+    Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
+    """
+    if not _check_array_eq_unordered[A]("Assert", expect, actual, msg) then
+      error
+    end
+
+  fun expect_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
+  =>
+    """
+    Expect that the contents of the 2 given ReadSeqs are equal ignoring order.
+    """
+    _check_array_eq_unordered[A]("Expect", expect, actual, msg)
+
+  fun _check_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
+    (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
+  =>
+    """
+    Check that the contents of the 2 given ReadSeqs are equal.
+    """
+    try
+      let missing = Array[A]
+      let consumed = Array[Bool].init(false, actual.size())
+      for e in expect.values() do
+        var found = false
+        var i: USize = -1
+        for a in actual.values() do
+          i = i + 1
+          if consumed(i) then continue end
+          if e == a then
+            consumed.update(i, true)
+            found = true
+            break
+          end
+        end
+        if not found then
+          missing.push(e)
+        end
+      end
+
+      let extra = Array[A]
+      for (i, c) in consumed.pairs() do
+        if not c then extra.push(actual(i)) end
+      end
+
+      if (extra.size() != 0) or (missing.size() != 0) then
+        assert_failed(verb + " EQ_UNORDERED failed. " + msg + " Expected (" +
+            _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
+            "\nMissing: " + _print_array[A](missing) +
+            "\nExtra: " + _print_array[A](extra))
+        return false
+      end
+      log(verb + " EQ_UNORDERED passed. " + msg + " Got (" +
+          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
+      true
+    else
+      assert_failed(verb + " EQ_UNORDERED failed from an internal error.")
+      false
+    end
+
+
   fun _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
     """
     Generate a printable string of the contents of the given readseq to use in

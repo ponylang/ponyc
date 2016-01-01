@@ -95,12 +95,12 @@ class iso _TestWalk is UnitTest
           lambda(dir: FilePath, entries: Array[String] ref)
                 (p = top.path, h = h) =>
         if dir.path == p then
-          h.expect_array_eq[String](entries, ["a", "b", "c", "d"])
+          h.expect_array_eq_unordered[String](["b", "c", "a", "d"], entries)
           entries.remove(2, 1)
         elseif dir.path.at("a", -1) then
-          h.expect_array_eq[String](entries, ["1", "2"])
+          h.expect_array_eq_unordered[String](["1", "2"], entries)
         elseif dir.path.at("d", -1) then
-          h.expect_array_eq[String](entries, ["5", "6"])
+          h.expect_array_eq_unordered[String](["5", "6"], entries)
         else
           h.assert_failed("Unexpected dir: " + dir.path)
         end
@@ -143,10 +143,10 @@ class iso _TestFilter is UnitTest
     h.assert_eq[USize](2, m.size())
 
     h.expect_eq[String](m(0)._1, "12/a/Bcd")
-    h.expect_array_eq[String](m(0)._2, ["12", "a", "c"])
+    h.expect_array_eq[String](["12", "a", "c"], m(0)._2)
 
     h.expect_eq[String](m(1)._1, "34/b/Befd")
-    h.expect_array_eq[String](m(1)._2, ["34", "b", "ef"])
+    h.expect_array_eq[String](["34", "b", "ef"], m(1)._2)
     true
 
 class iso _TestGlob is UnitTest
@@ -161,8 +161,8 @@ class iso _TestGlob is UnitTest
   fun apply(h: TestHelper): TestResult? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
-      h.expect_array_eq[String](_rel(top, Glob.glob(top, "*/1")), ["a/1", "c/1"])
-      h.expect_array_eq[String](_rel(top, Glob.glob(top, "1")), Array[String])
+      h.expect_array_eq_unordered[String](["a/1", "c/1"], _rel(top, Glob.glob(top, "*/1")))
+      h.expect_array_eq_unordered[String](Array[String], _rel(top, Glob.glob(top, "1")))
     then
       h.expect_true(top.remove())
     end
