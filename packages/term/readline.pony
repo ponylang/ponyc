@@ -275,7 +275,8 @@ class Readline is ANSINotify
         _out.print(completion)
       end
 
-      _refresh_line()
+      _edit = Strings.common_prefix(r)
+      end_key()
     end
 
   fun ref _dispatch(term: ANSITerm) =>
