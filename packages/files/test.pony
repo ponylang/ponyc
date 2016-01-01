@@ -162,6 +162,7 @@ class iso _TestGlob is UnitTest
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
       h.expect_array_eq[String](_rel(top, Glob.glob(top, "*/1")), ["a/1", "c/1"])
+      h.expect_array_eq[String](_rel(top, Glob.glob(top, "1")), Array[String])
     then
       h.expect_true(top.remove())
     end

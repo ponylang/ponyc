@@ -72,6 +72,7 @@ primitive Glob
     """
     let n = pat.size()
     let res = String(n)
+    res.append("\\A")  // start of string
     try
       let alpha_num_regex = Regex("\\w")
       var i: USize = 0
@@ -122,7 +123,7 @@ primitive Glob
           res.push(c)
         end
       end
-      res.append("\\Z(?ms)")  // (?ms) turns on the multiline and dotall flags
+      res.append("\\Z(?ms)")  // end of string + (?ms) multiline and dotall flags
     end
     res
 
