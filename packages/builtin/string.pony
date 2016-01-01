@@ -7,11 +7,11 @@ primitive Strings
   Common utility methods for strings.
   """
 
-  fun common_prefix(data: ReadSeq[Stringable]): String =>
+  fun common_prefix(data: ReadSeq[Stringable]): String iso^ =>
     """
     Creates a string that is the common prefix of the supplied strings, possibly empty.
     """
-    var res = ""
+    var res = "".clone()
     try
       let iter = data.values()
       if iter.has_next() then 
