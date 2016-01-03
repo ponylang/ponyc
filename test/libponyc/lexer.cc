@@ -898,6 +898,16 @@ TEST_F(LexerTest, FloatDotAndE)
 }
 
 
+TEST_F(LexerTest, FloatDotAndNegativeE)
+{
+  const char* src = "1.234e-2";
+
+  expect(1, 1, TK_FLOAT, "0.01234");
+  expect(1, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, FloatLeading0)
 {
   const char* src = "01.234e2";
@@ -1122,15 +1132,6 @@ TEST_F(LexerTest, BlockCommentNestedDeeper)
 
 
 // Non-token tests
-
-TEST_F(LexerTest, IsAbstractKeyword)
-{
-  ASSERT_EQ(TK_PROGRAM, lexer_is_abstract_keyword("program"));
-  ASSERT_EQ(TK_CASE, lexer_is_abstract_keyword("case"));
-  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("foo"));
-  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("+"));
-}
-
 
 TEST_F(LexerTest, Print)
 {

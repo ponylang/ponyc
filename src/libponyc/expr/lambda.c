@@ -1,4 +1,5 @@
 #include "lambda.h"
+#include "literal.h"
 #include "../ast/astbuild.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
@@ -9,7 +10,7 @@
 // Process the given capture and create the AST for the corresponding field.
 // Returns the create field AST, which must be freed by the caller.
 // Returns NULL on error.
-static ast_t* make_capture_field(ast_t* capture)
+static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 {
   assert(capture != NULL);
 
@@ -58,6 +59,12 @@ static ast_t* make_capture_field(ast_t* capture)
       // No type specified, use type of the captured expression
       type = ast_type(value);
     }
+    else
+    {
+      // Type given, infer literals
+      if(!coerce_literals(&value, type, opt))
+        return NULL;
+    }
   }
 
   if(is_typecheck_error(type))
@@ -92,7 +99,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Process captures
   for(ast_t* p = ast_child(captures); p != NULL; p = ast_sibling(p))
   {
-    ast_t* field = make_capture_field(p);
+    ast_t* field = make_capture_field(opt, p);
 
     if(field != NULL)
       ast_list_append(members, &last_member, field);

@@ -210,7 +210,7 @@ DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
   TOKEN("argument name", TK_ID);
   IFELSE(TK_TEST_UPDATEARG,
-    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(AST_FLAG_TEST_ONLY),
+    MAP_ID(TK_NAMEDARG, TK_UPDATEARG),
     {}
   );
   SKIP(NULL, TK_ASSIGN);
@@ -529,10 +529,7 @@ DEF(elseifdef);
   SCOPE();
   SKIP(NULL, TK_ELSEIF);
   RULE("condition expression", infix);
-  IF(TK_TEST_EXTRA,
-    RULE("else condition", infix);
-    SET_FLAG(AST_FLAG_TEST_ONLY)
-  );
+  IF(TK_TEST_EXTRA, RULE("else condition", infix));
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
   OPT RULE("else clause", elseifdef, elseclause);
@@ -547,10 +544,7 @@ DEF(ifdef);
   TOKEN(NULL, TK_IFDEF);
   SCOPE();
   RULE("condition expression", infix);
-  IF(TK_TEST_EXTRA,
-    RULE("else condition", infix);
-    SET_FLAG(AST_FLAG_TEST_ONLY)
-  );
+  IF(TK_TEST_EXTRA, RULE("else condition", infix));
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
   OPT RULE("else clause", elseifdef, elseclause);
@@ -574,7 +568,7 @@ DEF(caseexpr);
 DEF(cases);
   PRINT_INLINE();
   AST_NODE(TK_CASES);
-  SCOPE();  // TODO: Why is cases a scope?
+  SCOPE();  // Cases a scope to simplify branch consolidation.
   SEQ("cases", caseexpr);
   DONE();
 
@@ -608,7 +602,7 @@ DEF(repeat);
   SCOPE();
   RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", seq);
+  RULE("condition expression", rawseq);
   IF(TK_ELSE, RULE("else clause", seq));
   TERMINATE("repeat loop", TK_END);
   DONE();
@@ -619,6 +613,7 @@ DEF(repeat);
 //   (ASSIGN (LET $1) iterator)
 //   (WHILE $1.has_next()
 //     (SEQ (ASSIGN idseq $1.next()) body) else))
+// The body is not a scope since the sugar wraps it in a seq for us.
 DEF(forloop);
   PRINT_INLINE();
   TOKEN(NULL, TK_FOR);
@@ -655,6 +650,8 @@ DEF(withexpr);
 //     (SEQ (ASSIGN idseq $1)* body)
 //     (SEQ (ASSIGN idseq $1)* else)
 //     (SEQ $1.dispose()*)))
+// The body and else clause aren't scopes since the sugar wraps them in seqs
+// for us.
 DEF(with);
   PRINT_INLINE();
   TOKEN(NULL, TK_WITH);
@@ -684,16 +681,14 @@ DEF(test_try_block);
   IF(TK_ELSE, RULE("try else body", seq));
   IF(TK_THEN, RULE("try then body", seq));
   TERMINATE("try expression", TK_END);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // RECOVER [CAP] rawseq END
 DEF(recover);
   PRINT_INLINE();
   TOKEN(NULL, TK_RECOVER);
-  SCOPE();
   OPT RULE("capability", cap);
-  RULE("recover body", rawseq);
+  RULE("recover body", seq);
   TERMINATE("recover expression", TK_END);
   DONE();
 
@@ -702,7 +697,6 @@ DEF(test_borrowed);
   PRINT_INLINE();
   TOKEN(NULL, TK_TEST_BORROWED);
   MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // CONSUME [cap | test_borrowed] term
@@ -718,18 +712,6 @@ DEF(test_prefix);
   PRINT_INLINE();
   TOKEN(NULL, TK_IFDEFNOT);
   RULE("expression", term);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
-  DONE();
-
-// $SEQ '(' rawseq ')'
-// For testing only, thrown out by syntax pass
-DEF(test_seq);
-  PRINT_INLINE();
-  SKIP(NULL, TK_TEST_SEQ);
-  SKIP(NULL, TK_LPAREN);
-  RULE("sequence", rawseq);
-  SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // $NOSEQ '(' infix ')'
@@ -740,7 +722,6 @@ DEF(test_noseq);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", infix);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // $SCOPE '(' rawseq ')'
@@ -751,7 +732,6 @@ DEF(test_seq_scope);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   SCOPE();
   DONE();
 
@@ -761,14 +741,13 @@ DEF(test_ifdef_flag);
   PRINT_INLINE();
   TOKEN(NULL, TK_IFDEFFLAG);
   TOKEN(NULL, TK_ID);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | test_<various>
 DEF(term);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, pattern, test_seq, test_noseq,
+    try_block, recover, consume, pattern, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
@@ -776,7 +755,7 @@ DEF(term);
 // recover | consume | pattern | test_<various>
 DEF(nextterm);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, nextpattern, test_seq, test_noseq,
+    try_block, recover, consume, nextpattern, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
@@ -815,7 +794,6 @@ DEF(test_binop);
   INFIX_BUILD();
   TOKEN("binary operator", TK_IFDEFAND, TK_IFDEFOR);
   RULE("value", term);
-  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // term {binop | asop}

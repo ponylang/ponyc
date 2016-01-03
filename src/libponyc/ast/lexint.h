@@ -5,6 +5,7 @@
 
 PONY_EXTERN_C_BEGIN
 
+// Note that lexint_ts are always treated as unsigned.
 typedef struct lexint_t
 {
   uint64_t low;

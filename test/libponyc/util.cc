@@ -2,6 +2,7 @@
 #include <platform.h>
 
 #include <ast/ast.h>
+#include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
 #include <pass/pass.h>
@@ -61,11 +62,16 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
     return false;
   }
 
+  // Even in 2 ASTS that we consider to be the same, hygenic ids might not
+  // match each other.
+  // To catch all possible error cases we should keep a mapping of the hygenic
+  // ids in the 2 trees and check for a 1 to 1 correlation.
+  // For now just let all hygenic ids match each other. This will allow some
+  // errors through, but it's much easier for now.
   if(ast_id(expected) == TK_ID && ast_name(actual)[0] == '$' &&
-    (strncmp(ast_name(expected), "hygid", 5) == 0 ||
-    strncmp(ast_name(expected), "Hygid", 5) == 0))
+    ast_name(expected)[0] == '$')
   {
-    // Allow expected name starting "hygid" to match any hygenic ID
+    // Allow expected and actual hygenic names to match.
   }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
@@ -302,6 +308,7 @@ void PassTest::build_package(const char* pass, const char* src,
   ASSERT_NE((void*)NULL, package_name);
   ASSERT_NE((void*)NULL, out_package);
 
+  lexer_allow_test_symbols();
   package_add_magic(package_name, src);
 
   free_errors();
