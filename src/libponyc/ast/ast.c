@@ -1241,10 +1241,6 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "this");
       break;
 
-    case TK_BOXTYPE:
-      printbuf(buffer, "box");
-      break;
-
     case TK_DONTCARE:
       printbuf(buffer, "_");
       break;
@@ -1261,8 +1257,11 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "<type error>");
       break;
 
+    case TK_NONE:
+      break;
+
     default:
-      assert(0);
+      printbuf(buffer, "%s", token_print(type->t));
   }
 }
 

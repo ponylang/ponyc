@@ -401,19 +401,24 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 static ast_result_t syntax_arrowtype(ast_t* ast)
 {
   assert(ast != NULL);
+  AST_GET_CHILDREN(ast, left, right);
 
-  ast_t* rhs = ast_childidx(ast, 1);
-
-  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_THISTYPE)
+  switch(ast_id(right))
   {
-    ast_error(ast, "'this' cannot appear to the right of a viewpoint");
-    return AST_ERROR;
-  }
+    case TK_THISTYPE:
+      ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+      return AST_ERROR;
 
-  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_BOXTYPE)
-  {
-    ast_error(ast, "'box' cannot appear to the right of a viewpoint");
-    return AST_ERROR;
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      ast_error(ast, "refcaps cannot appear to the right of a viewpoint");
+      return AST_ERROR;
+
+    default: {}
   }
 
   return AST_OK;

@@ -623,7 +623,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
 
-  if(!is_subtype(type, param_type))
+  if(!is_subtype(type, param_type, false))
   {
     // We should have an object_ptr. Anything else should have been rejected
     // by the type checker. If we don't, it's a reified generic that could have
@@ -655,7 +655,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(gen_localdecl(c, pattern) == NULL)
     return false;
 
-  if(!is_subtype(type, pattern_type))
+  if(!is_subtype(type, pattern_type, false))
   {
     // We should have an object_ptr. Anything else should have been rejected
     // by the type checker. If we don't, it's a reified generic that could have

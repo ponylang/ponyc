@@ -393,7 +393,7 @@ RULE(local_ref,
 
 
 GROUP(type,
-  type_infix, type_tuple, type_arrow, type_this, box_type, nominal,
+  type_infix, type_tuple, type_arrow, type_this, cap, nominal,
   type_param_ref, dont_care, fun_type, error_type,
   literal_type, opliteral_type, control_type, dont_care);
 
@@ -433,7 +433,6 @@ RULE(type_param_ref,
 RULE(at, LEAF, TK_AT);
 RULE(bool_literal, HAS_TYPE(type), TK_TRUE, TK_FALSE);
 RULE(borrowed, LEAF, TK_BORROWED);
-RULE(box_type, LEAF, TK_BOXTYPE);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
 RULE(control_type, LEAF, TK_IF, TK_CASES, TK_COMPILE_INTRINSIC,
   TK_COMPILE_ERROR, TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR);

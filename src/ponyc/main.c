@@ -30,7 +30,6 @@ enum
 
   OPT_SAFE,
   OPT_IEEEMATH,
-  OPT_RESTRICT,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -64,7 +63,6 @@ static opt_arg_t args[] =
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
-  {"restrict", 0, OPT_ARG_NONE, OPT_RESTRICT},
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -111,7 +109,6 @@ static void usage()
     "  --safe          Allow only the listed packages to use C FFI.\n"
     "    =package      With no packages listed, only builtin is allowed.\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
-    "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
     "  --features      CPU features to enable or disable.\n"
@@ -225,7 +222,6 @@ int main(int argc, char* argv[])
   pass_opt_init(&opt);
 
   opt.release = true;
-  opt.no_restrict = true;
   opt.output = ".";
 
   ast_setwidth(get_width());
@@ -261,7 +257,6 @@ int main(int argc, char* argv[])
         break;
 
       case OPT_IEEEMATH: opt.ieee_math = true; break;
-      case OPT_RESTRICT: opt.no_restrict = false; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;

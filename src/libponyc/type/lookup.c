@@ -151,28 +151,10 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   }
 
   ast_t* typeargs = ast_childidx(type, 2);
-
-  find = ast_dup(find);
-  replace_thistype(&find, orig);
-
-  ast_t* r_find = reify(from, find, typeparams, typeargs);
-
-  if(r_find != find)
-  {
-    ast_free_unattached(find);
-    find = r_find;
-  }
-
-  if((find != NULL) && !flatten_arrows(&find, errors))
-  {
-    if(errors)
-      ast_error(from, "can't look this up on a tag");
-
-    ast_free_unattached(find);
-    return NULL;
-  }
-
-  return find;
+  ast_t* r_find = viewpoint_replacethis(find, orig);
+  ast_t* rr_find = reify(r_find, typeparams, typeargs);
+  ast_free_unattached(r_find);
+  return rr_find;
 }
 
 static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
@@ -244,8 +226,8 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
               {
                 // If we don't have a result yet, use this one.
                 result = r;
-              } else if(!is_subtype(r, result)) {
-                if(is_subtype(result, r))
+              } else if(!is_subtype(r, result, false)) {
+                if(is_subtype(result, r, false))
                 {
                   // Use the supertype function. Require the most specific
                   // arguments and return the least specific result.
@@ -308,8 +290,8 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
               {
                 // If we don't have a result yet, use this one.
                 result = r;
-              } else if(!is_subtype(result, r)) {
-                if(is_subtype(r, result))
+              } else if(!is_subtype(result, r, false)) {
+                if(is_subtype(r, result, false))
                 {
                   // Use the subtype function. Require the least specific
                   // arguments and return the most specific result.
