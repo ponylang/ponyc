@@ -186,7 +186,7 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
       if(next != NULL)
       {
         ast_error(next, "expression in patterns cannot be sequences");
-        return MATCHTYPE_DENY;
+        return false;
       }
 
       bool ok = is_valid_pattern(opt, child);
