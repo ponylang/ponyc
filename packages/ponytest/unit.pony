@@ -21,12 +21,6 @@ trait UnitTest
     """
     ""
 
-  fun ref run(t: TestHelper, env: Env): TestResult ? =>
-    """
-    Run the test but with access to the environment.  See `apply()`.
-    """
-    this(t)
-
   fun ref apply(t: TestHelper): TestResult ?
     """
     Run the test.
