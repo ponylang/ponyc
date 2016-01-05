@@ -379,7 +379,7 @@ static ast_t* add_method(ast_t* entity, ast_t* existing_method,
   {
     // Existing method is a local definition, new method must be a subtype
     // Stage 2A
-    if(is_subtype(existing_method, new_method))
+    if(is_subtype(existing_method, new_method, true))
       return existing_method;
 
     ast_error(existing_method,
@@ -577,7 +577,10 @@ static bool provided_methods(pass_opt_t* opt, ast_t* entity)
         // We have a provided method
         // Reify the method with the type parameters from trait definition and
         // type arguments from trait reference
-        ast_t* reified = reify(type_args, m, type_params, type_args);
+        if(!reify_defaults(type_params, type_args, true))
+          return false;
+
+        ast_t* reified = reify(m, type_params, type_args);
 
         if(reified == NULL) // Reification error, already reported
           return false;
@@ -601,7 +604,7 @@ static bool check_delegate(ast_t* entity, ast_t* field_type,
   assert(field_type != NULL);
   assert(delegated != NULL);
 
-  if(!is_subtype(field_type, delegated))
+  if(!is_subtype(field_type, delegated, true))
   {
     ast_error(delegated, "field not a subtype of delegate");
     ast_error(field_type, "field type: %s", ast_print_type(field_type));
@@ -1067,7 +1070,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
   for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
   {
     ast_t* p_id = ast_child(p);
-    
+
     BUILD_NO_DEBUG(type, p_id,
       NODE(TK_NOMINAL, NONE TREE(p_id) NONE NONE NONE));
 

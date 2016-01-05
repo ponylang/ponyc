@@ -49,7 +49,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
       c_type = ast_type(ele); // May have changed due to literals
 
-      if(!is_subtype(c_type, type))
+      if(!is_subtype(c_type, type, true))
       {
         ast_error(ele, "array element not a subtype of specified array type");
         ast_error(type_spec, "array type: %s", ast_print_type(type));

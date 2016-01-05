@@ -174,7 +174,6 @@ typedef struct pass_opt_t
   bool release;
   bool library;
   bool ieee_math;
-  bool no_restrict;
   bool print_stats;
   bool verify;
   bool strip_debug;

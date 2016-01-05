@@ -401,19 +401,24 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 static ast_result_t syntax_arrowtype(ast_t* ast)
 {
   assert(ast != NULL);
+  AST_GET_CHILDREN(ast, left, right);
 
-  ast_t* rhs = ast_childidx(ast, 1);
-
-  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_THISTYPE)
+  switch(ast_id(right))
   {
-    ast_error(ast, "'this' cannot appear to the right of a viewpoint");
-    return AST_ERROR;
-  }
+    case TK_THISTYPE:
+      ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+      return AST_ERROR;
 
-  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_BOXTYPE)
-  {
-    ast_error(ast, "'box' cannot appear to the right of a viewpoint");
-    return AST_ERROR;
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      ast_error(ast, "refcaps cannot appear to the right of a viewpoint");
+      return AST_ERROR;
+
+    default: {}
   }
 
   return AST_OK;
@@ -611,7 +616,7 @@ static ast_result_t syntax_semi(ast_t* ast)
 
   if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
-    ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
+    ast_error(ast, "Unexpected semicolon, only use to separate expressions on"
       " the same line");
     return AST_ERROR;
   }
@@ -862,6 +867,19 @@ static ast_result_t syntax_compile_error(ast_t* ast)
 }
 
 
+static ast_result_t syntax_cap_set(typecheck_t* t, ast_t* ast)
+{
+  // Cap sets can only appear in type parameter constraints.
+  if(t->frame->constraint == NULL)
+  {
+    ast_error(ast, "a capability set can only appear in a type constraint");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -906,6 +924,11 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
                         r = syntax_compile_intrinsic(ast); break;
     case TK_COMPILE_ERROR:
                         r = syntax_compile_error(ast); break;
+    case TK_CAP_READ:
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
+    case TK_CAP_ANY:    r = syntax_cap_set(t, ast); break;
+
     default: break;
   }
 

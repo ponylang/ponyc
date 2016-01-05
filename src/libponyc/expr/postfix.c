@@ -438,10 +438,13 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
+      if(!reify_defaults(typeparams, right, true))
+        return false;
+
       if(!check_constraints(left, typeparams, right, true))
         return false;
 
-      type = reify(left, type, typeparams, right);
+      type = reify(type, typeparams, right);
       typeparams = ast_childidx(type, 1);
       ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 

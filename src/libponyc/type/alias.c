@@ -5,22 +5,21 @@
 #include "../ast/astbuild.h"
 #include <assert.h>
 
-static ast_t* alias_for_type(ast_t* type, int index)
+static ast_t* alias_single(ast_t* type)
 {
-  ast_t* ephemeral = ast_childidx(type, index + 1);
+  ast_t* cap = cap_fetch(type);
+  ast_t* ephemeral = ast_sibling(cap);
 
   switch(ast_id(ephemeral))
   {
     case TK_EPHEMERAL:
       type = ast_dup(type);
-      ephemeral = ast_childidx(type, index + 1);
+      ephemeral = ast_sibling(cap_fetch(type));
       ast_setid(ephemeral, TK_NONE);
       return type;
 
     case TK_NONE:
     {
-      ast_t* cap = ast_childidx(type, index);
-
       switch(ast_id(cap))
       {
         case TK_ISO:
@@ -29,7 +28,7 @@ static ast_t* alias_for_type(ast_t* type, int index)
         case TK_CAP_ANY:
         case TK_NONE:
           type = ast_dup(type);
-          ephemeral = ast_childidx(type, index + 1);
+          ephemeral = ast_sibling(cap_fetch(type));
           ast_setid(ephemeral, TK_BORROWED);
           break;
 
@@ -49,37 +48,9 @@ static ast_t* alias_for_type(ast_t* type, int index)
   return NULL;
 }
 
-static ast_t* bind_for_type(ast_t* type, int index)
+static ast_t* recover_single(ast_t* type, token_id rcap)
 {
-  type = ast_dup(type);
-  ast_t* cap = ast_childidx(type, index);
-  token_id tcap = ast_id(cap);
-
-  switch(tcap)
-  {
-    case TK_ISO: tcap = TK_ISO_BIND; break;
-    case TK_TRN: tcap = TK_TRN_BIND; break;
-    case TK_REF: tcap = TK_REF_BIND; break;
-    case TK_VAL: tcap = TK_VAL_BIND; break;
-    case TK_BOX: tcap = TK_BOX_BIND; break;
-    case TK_TAG: tcap = TK_TAG_BIND; break;
-    case TK_CAP_READ: tcap = TK_CAP_READ_BIND; break;
-    case TK_CAP_SEND: tcap = TK_CAP_SEND_BIND; break;
-    case TK_CAP_SHARE: tcap = TK_CAP_SHARE_BIND; break;
-    case TK_CAP_ANY: tcap = TK_CAP_ANY_BIND; break;
-
-    default:
-      assert(0);
-      return NULL;
-  }
-
-  ast_setid(cap, tcap);
-  return type;
-}
-
-static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
-{
-  ast_t* cap = ast_childidx(type, index);
+  ast_t* cap = cap_fetch(type);
   token_id tcap = ast_id(cap);
 
   switch(tcap)
@@ -153,15 +124,15 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
   }
 
   type = ast_dup(type);
-  cap = ast_childidx(type, index);
+  cap = cap_fetch(type);
   ast_setid(cap, rcap);
   return type;
 }
 
-static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
+static ast_t* consume_single(ast_t* type, token_id ccap)
 {
   type = ast_dup(type);
-  ast_t* cap = ast_childidx(type, index);
+  ast_t* cap = cap_fetch(type);
   ast_t* eph = ast_sibling(cap);
   token_id tcap = ast_id(cap);
 
@@ -221,10 +192,8 @@ ast_t* alias(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return alias_for_type(type, 3);
-
     case TK_TYPEPARAMREF:
-      return alias_for_type(type, 1);
+      return alias_single(type);
 
     case TK_ARROW:
     {
@@ -255,15 +224,14 @@ ast_t* alias(ast_t* type)
 ast_t* bind_type(ast_t* type)
 {
   // A bind type is only ever used when checking constraints.
-  // We change tha capabilities to a bind capability. For example:
+  // We change the capabilities to a bind capability. For example:
   // ref <: #read when binding, but not when assigning.
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
     {
-      // bind each element
+      // Bind each element.
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* child = ast_child(type);
 
@@ -277,29 +245,13 @@ ast_t* bind_type(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return bind_for_type(type, 3);
-
     case TK_TYPEPARAMREF:
-      return bind_for_type(type, 1);
-
-    case TK_ARROW:
     {
-      // Bind just the right side. The left side is either 'this' or a type
-      // parameter, and stays the same.
-      AST_GET_CHILDREN(type, left, right);
-
-      BUILD(r_type, type,
-        NODE(TK_ARROW,
-          TREE(left)
-          TREE(bind_type(right))));
-
-      return r_type;
-    }
-
-    case TK_FUNTYPE:
-    case TK_INFERTYPE:
-    case TK_ERRORTYPE:
+      type = ast_dup(type);
+      ast_t* cap = cap_fetch(type);
+      ast_setid(cap, cap_bind(ast_id(cap)));
       return type;
+    }
 
     default: {}
   }
@@ -341,10 +293,8 @@ ast_t* consume_type(ast_t* type, token_id cap)
     }
 
     case TK_NOMINAL:
-      return consume_for_type(type, 3, cap);
-
     case TK_TYPEPARAMREF:
-      return consume_for_type(type, 1, cap);
+      return consume_single(type, cap);
 
     case TK_ARROW:
     {
@@ -402,10 +352,8 @@ ast_t* recover_type(ast_t* type, token_id cap)
     }
 
     case TK_NOMINAL:
-      return recover_for_type(type, 3, cap);
-
     case TK_TYPEPARAMREF:
-      return recover_for_type(type, 1, cap);
+      return recover_single(type, cap);
 
     case TK_ARROW:
     {

@@ -3,15 +3,12 @@
 #include "../type/assemble.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/typeparam.h"
 #include <assert.h>
 
 ast_result_t flatten_typeparamref(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, cap, ephemeral);
-
-  // Get the lowest capability that could fulfill the constraint.
-  ast_t* def = (ast_t*)ast_data(ast);
-  AST_GET_CHILDREN(def, name, constraint, default_type);
+  AST_GET_CHILDREN(ast, id, cap, eph);
 
   if(ast_id(cap) != TK_NONE)
   {
@@ -19,10 +16,7 @@ ast_result_t flatten_typeparamref(ast_t* ast)
     return AST_ERROR;
   }
 
-  // Set the typeparamref cap.
-  token_id tcap = cap_from_constraint(constraint);
-  ast_setid(cap, tcap);
-
+  typeparam_set_cap(ast);
   return AST_OK;
 }
 

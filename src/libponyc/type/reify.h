@@ -6,7 +6,9 @@
 
 PONY_EXTERN_C_BEGIN
 
-ast_t* reify(ast_t* orig, ast_t* ast, ast_t* typeparams, ast_t* typeargs);
+bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors);
+
+ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs);
 
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   bool report_errors);

@@ -51,7 +51,7 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
 ast_t* type_for_fun(ast_t* ast);
 
 /**
- * Change cap and ephemeral on a nominal, typeparamref or arrow type.
+ * Force the cap and ephemeral to the given value.
  */
 ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral);
 

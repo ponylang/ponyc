@@ -147,7 +147,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 
     init_type = alias(init_type);
 
-    if(!is_subtype(init_type, type))
+    if(!is_subtype(init_type, type, true))
     {
       ast_error(init,
         "default argument is not a subtype of the parameter type");
@@ -929,6 +929,9 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 
+  if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
   return check_constraints(typeargs, typeparams, typeargs, true);
 }
 
@@ -1022,7 +1025,8 @@ static bool check_return_type(ast_t* ast)
   ast_t* a_body_type = alias(body_type);
   bool ok = true;
 
-  if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
+  if(!is_subtype(body_type, type, true) ||
+    !is_subtype(a_body_type, a_type, true))
   {
     ast_t* last = ast_childlast(body);
     ast_error(last, "function body isn't the result type");

@@ -7,6 +7,7 @@
 #include "gencall.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
+#include "../type/matchtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
@@ -623,7 +624,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
 
-  if(!is_subtype(type, param_type))
+  if(!is_subtype(type, param_type, false))
   {
     // We should have an object_ptr. Anything else should have been rejected
     // by the type checker. If we don't, it's a reified generic that could have
@@ -655,7 +656,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(gen_localdecl(c, pattern) == NULL)
     return false;
 
-  if(!is_subtype(type, pattern_type))
+  if(!is_subtype(type, pattern_type, false))
   {
     // We should have an object_ptr. Anything else should have been rejected
     // by the type checker. If we don't, it's a reified generic that could have
@@ -815,17 +816,27 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
       next_block = else_block;
 
     AST_GET_CHILDREN(the_case, pattern, guard, body);
-
-    // Check the pattern.
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
     codegen_pushscope(c);
-    bool ok = static_match(c, match_value, match_type, pattern, next_block);
 
-    // Check the guard.
-    ok = ok && guard_match(c, guard, next_block);
+    ast_t* pattern_type = ast_type(pattern);
+    bool ok = true;
 
-    // Case body.
-    ok = ok && case_body(c, body, post_block, phi, phi_type.use_type);
+    if(is_matchtype(match_type, pattern_type) != MATCHTYPE_ACCEPT)
+    {
+      // If there's no possible match, jump directly to the next block.
+      LLVMBuildBr(c->builder, next_block);
+    } else {
+      // Check the pattern.
+      ok = static_match(c, match_value, match_type, pattern, next_block);
+
+      // Check the guard.
+      ok = ok && guard_match(c, guard, next_block);
+
+      // Case body.
+      ok = ok && case_body(c, body, post_block, phi, phi_type.use_type);
+    }
+
     codegen_popscope(c);
 
     if(!ok)
