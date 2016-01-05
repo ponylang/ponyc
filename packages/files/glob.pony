@@ -145,34 +145,34 @@ primitive Glob
       end)
     res
 
-  fun iglob(root_path: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
+  fun _apply_glob_to_walk(
+    pattern: String, compiled_pattern: Regex, root: FilePath,
+    glob_handler: GlobHandler ref, dir: FilePath, entries: Array[String] ref)
+  =>
+    for e in entries.values() do
+      try 
+        let p = dir.join(e)
+        let m = compiled_pattern(
+          if Path.is_abs(pattern) then
+            p.path
+          else
+            Path.rel(root.path, p.path)
+          end)
+        glob_handler(p, m.groups())
+      end 
+    end
+
+  fun iglob(root: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
     """
-    Calls `GlobHandler.apply` for each path below `root_path` that matches `pattern`.
+    Calls `GlobHandler.apply` for each path below `root` that matches `pattern`.
 
     The pattern may contain shell-style wildcards.  See the type documentation
     on `Glob` for details.
     """
-
     // TODO: do something efficient by looking at parts of the pattern that do
     // not contain wildcards and expanding them before walking.
     try
-      let regex = Regex(translate(Path.normcase(pattern)))
-      root_path.walk(
-        lambda ref(dir: FilePath, entries: Array[String] ref)
-          (regex, glob_handler, pattern, root_path)
-        =>
-          for e in entries.values() do
-            try 
-              let p = dir.join(e)
-              let m = regex(
-                if Path.is_abs(pattern) then
-                  p.path
-                else
-                  Path.rel(root_path.path, p.path)
-                end)
-              glob_handler(p, m.groups())
-            end 
-          end
-        end)
+      root.walk(this~_apply_glob_to_walk(
+        pattern , Regex(translate(Path.normcase(pattern))), root, glob_handler))
     end
 
