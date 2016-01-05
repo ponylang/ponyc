@@ -18,14 +18,15 @@ primitive Glob
   `fnmatchcase(file_name, pattern)` always takes case into account.  The
   functions operate by translating the pattern into a regular expression.
 
-  The function translate(PATTERN) returns a regular expression corresponding to PATTERN.
+  The function translate(PATTERN) returns a regular expression corresponding to
+  PATTERN.
 
-    Patterns are Unix shell style:
-        *       | matches multiple characters within a directory
-        **      | matches multiple characters across directories
-        ?       | matches any single character
-        [seq]   | matches any character in seq
-        [!seq]  | matches any char not in seq
+  Patterns are Unix shell style:
+      *       | matches multiple characters within a directory
+      **      | matches multiple characters across directories
+      ?       | matches any single character
+      [seq]   | matches any character in seq
+      [!seq]  | matches any char not in seq
   """
 
   fun fnmatch(name: String, pattern: String): Bool =>
@@ -40,30 +41,32 @@ primitive Glob
     fnmatchcase(Path.normcase(name), Path.normcase(pattern))
 
   fun fnmatchcase(name: String, pattern: String): Bool =>
-      """Tests whether `name` matches `pattern`, including case."""
-      try
-        Regex(translate(pattern)) == name
-      else
-        false
-      end
+    """Tests whether `name` matches `pattern`, including case."""
+    try
+      Regex(translate(pattern)) == name
+    else
+      false
+    end
 
-  fun filter(names: Array[String], pattern: String): Array[(String, Array[String])] val =>
-      """
-      Returns `name` and the matching subgroups for `names` that match `pattern`.
+  fun filter(names: Array[String], pattern: String):
+    Array[(String, Array[String])] val
+  =>
+    """
+    Returns `name` and the matching subgroups for `names` that match `pattern`.
 
-      All strings are first case-normalized if the operating system requires it.
-      """
-      let result = recover Array[(String, Array[String])] end
-      try
-        let regex = Regex(translate(Path.normcase(pattern)))
-        for name in names.values() do
-          try
-            let m = regex(Path.normcase(name))
-            result.push((name, m.groups()))
-          end
+    All strings are first case-normalized if the operating system requires it.
+    """
+    let result = recover Array[(String, Array[String])] end
+    try
+      let regex = Regex(translate(Path.normcase(pattern)))
+      for name in names.values() do
+        try
+          let m = regex(Path.normcase(name))
+          result.push((name, m.groups()))
         end
       end
-      result
+    end
+    result
 
   fun translate(pat: String): String ref^ =>
     """
@@ -135,9 +138,11 @@ primitive Glob
     on `Glob` for details.
     """
     let res = recover ref Array[FilePath] end
-    iglob(root_path, pattern,
-          lambda ref(path: FilePath, match_groups: Array[String])
-                    (res = res) => res.push(path) end)
+    iglob(
+      root_path, pattern,
+      lambda ref(path: FilePath, match_groups: Array[String])(res) =>
+        res.push(path)
+      end)
     res
 
   fun iglob(root_path: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
@@ -152,17 +157,19 @@ primitive Glob
     // not contain wildcards and expanding them before walking.
     try
       let regex = Regex(translate(Path.normcase(pattern)))
-      root_path.walk(lambda ref(dir: FilePath, entries: Array[String] ref)
-                               (regex = regex, glob_handler = glob_handler,
-                                pattern = pattern, root_path = root_path) =>
+      root_path.walk(
+        lambda ref(dir: FilePath, entries: Array[String] ref)
+          (regex, glob_handler, pattern, root_path)
+        =>
           for e in entries.values() do
             try 
               let p = dir.join(e)
-              let m = regex(if Path.is_abs(pattern) then
-                              p.path
-                            else
-                              Path.rel(root_path.path, p.path)
-                            end)
+              let m = regex(
+                if Path.is_abs(pattern) then
+                  p.path
+                else
+                  Path.rel(root_path.path, p.path)
+                end)
               glob_handler(p, m.groups())
             end 
           end

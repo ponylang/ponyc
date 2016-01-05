@@ -291,14 +291,17 @@ class val TestHelper
       end
 
       if (extra.size() != 0) or (missing.size() != 0) then
-        assert_failed(verb + " EQ_UNORDERED failed. " + msg + " Expected (" +
-            _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
-            "\nMissing: " + _print_array[A](missing) +
-            "\nExtra: " + _print_array[A](extra))
+        assert_failed(
+          verb + " EQ_UNORDERED failed. " + msg + " Expected (" +
+          _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
+          "\nMissing: " + _print_array[A](missing) +
+          "\nExtra: " + _print_array[A](extra))
         return false
       end
-      log(verb + " EQ_UNORDERED passed. " + msg + " Got (" +
-          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
+      log(
+        verb + " EQ_UNORDERED passed. " + msg + " Got (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+        true)
       true
     else
       assert_failed(verb + " EQ_UNORDERED failed from an internal error.")

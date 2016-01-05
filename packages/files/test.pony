@@ -75,8 +75,9 @@ primitive _FileHelper
 class iso _TestMkdtemp is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
   fun apply(h: TestHelper): TestResult? =>
-    h.expect_error(lambda()(h = h)? => FilePath.mkdtemp(h.env.root, "tmp") end,
-        "FilePath.mkdtemp should fail when path doesn't have a XXXXXX suffix")
+    h.expect_error(
+      lambda()(h)? => FilePath.mkdtemp(h.env.root, "tmp") end,
+      "FilePath.mkdtemp should fail when path doesn't have a XXXXXX suffix")
 
     let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestMkdtemp.XXXXXX")
     try
@@ -89,24 +90,24 @@ class iso _TestMkdtemp is UnitTest
 class iso _TestWalk is UnitTest
   fun name(): String => "files/FilePath.walk"
   fun apply(h: TestHelper): TestResult? =>
-    let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/3", "c/4", "d/5", "d/6"])
+    let top = _FileHelper.make_files(
+      h, ["a/1", "a/2", "b", "c/3", "c/4", "d/5", "d/6"])
     try
       top.walk(
-          lambda(dir: FilePath, entries: Array[String] ref)
-                (p = top.path, h = h) =>
-        if dir.path == p then
-          h.expect_array_eq_unordered[String](["b", "c", "a", "d"], entries)
-          entries.remove(2, 1)
-        elseif dir.path.at("a", -1) then
-          h.expect_array_eq_unordered[String](["1", "2"], entries)
-        elseif dir.path.at("d", -1) then
-          h.expect_array_eq_unordered[String](["5", "6"], entries)
-        else
-          h.assert_failed("Unexpected dir: " + dir.path)
-        end
-      end)
+        lambda(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
+          if dir.path == p then
+            h.expect_array_eq_unordered[String](["b", "c", "a", "d"], entries)
+            entries.remove(2, 1)
+          elseif dir.path.at("a", -1) then
+            h.expect_array_eq_unordered[String](["1", "2"], entries)
+          elseif dir.path.at("d", -1) then
+            h.expect_array_eq_unordered[String](["5", "6"], entries)
+          else
+            h.assert_failed("Unexpected dir: " + dir.path)
+          end
+        end)
     then
-    h.expect_true(top.remove())
+      h.expect_true(top.remove())
     end
     true
 
@@ -161,8 +162,10 @@ class iso _TestGlob is UnitTest
   fun apply(h: TestHelper): TestResult? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
-      h.expect_array_eq_unordered[String](["a/1", "c/1"], _rel(top, Glob.glob(top, "*/1")))
-      h.expect_array_eq_unordered[String](Array[String], _rel(top, Glob.glob(top, "1")))
+      h.expect_array_eq_unordered[String](
+        ["a/1", "c/1"], _rel(top, Glob.glob(top, "*/1")))
+      h.expect_array_eq_unordered[String](
+        Array[String], _rel(top, Glob.glob(top, "1")))
     then
       h.expect_true(top.remove())
     end
@@ -180,20 +183,20 @@ class iso _TestIGlob is UnitTest
   fun apply(h: TestHelper): TestResult? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
-      Glob.iglob(top, "*/1",
-          lambda(f: FilePath, matches: Array[String])
-                (top = top, h = h) =>
-        try
-          match matches(0)
-          | "a" => h.expect_eq[String](Path.rel(top.path, f.path), "a/1")
-          | "c" => h.expect_eq[String](Path.rel(top.path, f.path), "c/1")
+      Glob.iglob(
+        top, "*/1",
+        lambda(f: FilePath, matches: Array[String])(top, h) =>
+          try
+            match matches(0)
+            | "a" => h.expect_eq[String](Path.rel(top.path, f.path), "a/1")
+            | "c" => h.expect_eq[String](Path.rel(top.path, f.path), "c/1")
+            else
+              error
+            end
           else
-            error
+              h.assert_failed("Unexpected match: " + f.path)
           end
-        else
-            h.assert_failed("Unexpected match: " + f.path)
-        end
-      end)
+        end)
     then
       h.expect_true(top.remove())
     end
