@@ -25,6 +25,7 @@ use math = "math"
 use net = "net"
 use http = "net/http"
 use ssl = "net/ssl"
+use strings = "strings"
 use options = "options"
 use promises = "promises"
 use random = "random"
@@ -55,7 +56,6 @@ actor Main is TestList
     test(_TestStringSplit)
     test(_TestStringJoin)
     test(_TestStringCompare)
-    test(_TestStringsCommonPrefix)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
@@ -70,6 +70,7 @@ actor Main is TestList
     options.Main.make().tests(test)
     json.Main.make().tests(test)
     regex.Main.make().tests(test)
+    strings.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest
   """
@@ -529,24 +530,6 @@ class iso _TestStringCompare is UnitTest
 
     h.expect_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
 
-    true
-
-class iso _TestStringsCommonPrefix is UnitTest
-  """
-  Test Strings.common_prefix
-  """
-  fun name(): String => "builtin/Strings.common_prefix"
-
-  fun apply(h: TestHelper): TestResult =>
-    h.expect_eq[String]("", Strings.common_prefix(Array[String]))
-    h.expect_eq[String]("", Strings.common_prefix([""]))
-    h.expect_eq[String]("", Strings.common_prefix(["", "asdf"]))
-    h.expect_eq[String]("", Strings.common_prefix(["qwer", "asdf"]))
-    h.expect_eq[String]("", Strings.common_prefix(["asdf", "asdf", "qwer"]))
-    h.expect_eq[String]("asdf", Strings.common_prefix(["asdf", "asdf"]))
-    h.expect_eq[String]("as", Strings.common_prefix(["asdf", "asdf", "aser"]))
-    h.expect_eq[String]("a", Strings.common_prefix(["a", "asdf", "asdf", "aser"]))
-    h.expect_eq[String]("12", Strings.common_prefix([as Stringable: U32(1234), U32(12)]))
     true
 
 class iso _TestArraySlice is UnitTest
