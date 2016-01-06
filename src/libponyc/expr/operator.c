@@ -466,7 +466,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
         if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
         {
-          ast_error(ast, "cannot write to a field in a %s function",
+          ast_error(ast, "cannot write to a field in a %s function. If you are trying to change state in a function use fun ref",
             lexer_print(iso_id));
           ast_free_unattached(a_type);
           return false;
