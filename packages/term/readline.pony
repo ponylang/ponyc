@@ -1,6 +1,7 @@
 use "collections"
 use "files"
 use "promises"
+use strings = "strings"
 
 class Readline is ANSINotify
   """
@@ -275,7 +276,8 @@ class Readline is ANSINotify
         _out.print(completion)
       end
 
-      _refresh_line()
+      _edit = strings.CommonPrefix(r)
+      end_key()
     end
 
   fun ref _dispatch(term: ANSITerm) =>
