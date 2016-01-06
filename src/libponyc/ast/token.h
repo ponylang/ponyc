@@ -73,6 +73,7 @@ typedef enum token_id
   TK_UNARY_MINUS,
   TK_ELLIPSIS,
   TK_DONTCARE,
+  TK_CONSTANT,
 
   // Newline symbols, only used by lexer and parser
   TK_LPAREN_NEW,
@@ -198,6 +199,8 @@ typedef enum token_id
   TK_PARAMS,
   TK_PARAM,
   TK_TYPEARGS,
+  TK_VALUEFORMALPARAM,
+  TK_VALUEFORMALARG,
   TK_POSITIONALARGS,
   TK_NAMEDARGS,
   TK_NAMEDARG,
