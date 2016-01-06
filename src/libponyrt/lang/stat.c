@@ -145,7 +145,7 @@ static void unix_stat(pony_stat_t* p, struct stat* st)
   p->change_time_nsec = st->st_ctimespec.tv_nsec;
 #endif
 
-  p->size = st->st_size;
+  p->size = (size_t)st->st_size;
 }
 
 #endif

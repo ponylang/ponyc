@@ -557,11 +557,6 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
         size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
         LLVMSetDereferenceable(fun, i, size);
       }
-
-      // Set the noalias attribute on all arguments. This is fortran-like
-      // semantics for parameter aliasing, similar to C restrict.
-      if(!c->opt->no_restrict)
-        LLVMAddAttribute(arg, LLVMNoAliasAttribute);
     }
 
     arg = LLVMGetNextParam(arg);

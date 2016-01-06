@@ -5,11 +5,11 @@
 #include "reference.h"
 #include "../ast/lexer.h"
 #include "../pass/expr.h"
-#include "../type/assemble.h"
-#include "../type/subtype.h"
-#include "../type/matchtype.h"
 #include "../type/alias.h"
-#include "../type/viewpoint.h"
+#include "../type/assemble.h"
+#include "../type/matchtype.h"
+#include "../type/safeto.h"
+#include "../type/subtype.h"
 #include <assert.h>
 
 static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
@@ -413,7 +413,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // Assignment is based on the alias of the right hand side.
   ast_t* a_type = alias(r_type);
 
-  if(!is_subtype(a_type, l_type))
+  if(!is_subtype(a_type, l_type, true))
   {
     ast_error(ast, "right side must be a subtype of left side");
     ast_error(a_type, "right side type: %s", ast_print_type(a_type));
@@ -466,7 +466,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
         if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
         {
-          ast_error(ast, "cannot write to a field in a %s function",
+          ast_error(ast, "cannot write to a field in a %s function. If you are trying to change state in a function use fun ref",
             lexer_print(iso_id));
           ast_free_unattached(a_type);
           return false;

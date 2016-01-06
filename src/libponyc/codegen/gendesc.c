@@ -102,31 +102,6 @@ static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
   return LLVMConstBitCast(fun, type);
 }
 
-static uint32_t trait_count(compile_t* c, gentype_t* g)
-{
-  switch(g->underlying)
-  {
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-    case TK_ACTOR:
-    {
-      reachable_type_t* t = reach_type(c->reachable, g->type_name);
-      assert(t != NULL);
-
-      return (uint32_t)reachable_type_cache_size(&t->subtypes);
-    }
-
-    default: {}
-  }
-
-  return 0;
-}
-
-static LLVMValueRef make_trait_count(compile_t* c, gentype_t* g)
-{
-  return LLVMConstInt(c->i32, trait_count(c, g), false);
-}
-
 static int cmp_uint32(const void* elem1, const void* elem2)
 {
   uint32_t a = *((uint32_t*)elem1);
@@ -156,40 +131,72 @@ static size_t unique_uint32(uint32_t* list, size_t len)
   return (++r) - list;
 }
 
-static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
+static uint32_t trait_count(compile_t* c, gentype_t* g,
+  uint32_t** list, size_t* list_size)
+{
+  switch(g->underlying)
+  {
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+    {
+      reachable_type_t* t = reach_type(c->reachable, g->type_name);
+      assert(t != NULL);
+      uint32_t count = (uint32_t)reachable_type_cache_size(&t->subtypes);
+
+      if(count == 0)
+        return 0;
+
+      // Sort the trait identifiers.
+      size_t tid_size = count * sizeof(uint32_t);
+      uint32_t* tid = (uint32_t*)pool_alloc_size(tid_size);
+
+      size_t i = HASHMAP_BEGIN;
+      size_t index = 0;
+      reachable_type_t* provide;
+
+      while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
+        tid[index++] = provide->type_id;
+
+      qsort(tid, index, sizeof(uint32_t), cmp_uint32);
+      count = (uint32_t)unique_uint32(tid, index);
+
+      if(list != NULL)
+      {
+        *list = tid;
+        *list_size = tid_size;
+      } else {
+        pool_free_size(tid_size, tid);
+      }
+
+      return count;
+    }
+
+    default: {}
+  }
+
+  return 0;
+}
+
+static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g,
+  uint32_t* final_count)
 {
   // The list is an array of integers.
-  uint32_t count = trait_count(c, g);
+  uint32_t* tid;
+  size_t tid_size;
+  uint32_t count = trait_count(c, g, &tid, &tid_size);
 
   // If we have no traits, return a null pointer to a list.
   if(count == 0)
     return LLVMConstNull(LLVMPointerType(LLVMArrayType(c->i32, 0), 0));
 
-  // Sort the trait identifiers.
-  size_t tid_size = count * sizeof(uint32_t);
-  uint32_t* tid = (uint32_t*)pool_alloc_size(tid_size);
-
-  reachable_type_t* t = reach_type(c->reachable, g->type_name);
-  assert(t != NULL);
-
-  size_t i = HASHMAP_BEGIN;
-  size_t index = 0;
-  reachable_type_t* provide;
-
-  while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
-    tid[index++] = provide->type_id;
-
-  qsort(tid, index, sizeof(uint32_t), cmp_uint32);
-  index = unique_uint32(tid, index);
-
   // Create a constant array of trait identifiers.
-  size_t list_size = index * sizeof(LLVMValueRef);
+  size_t list_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(list_size);
 
-  for(i = 0; i < index; i++)
+  for(uint32_t i = 0; i < count; i++)
     list[i] = LLVMConstInt(c->i32, tid[i], false);
 
-  count = (uint32_t)index;
   LLVMValueRef trait_array = LLVMConstArray(c->i32, list, count);
 
   // Create a global to hold the array.
@@ -202,6 +209,8 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
 
   pool_free_size(tid_size, tid);
   pool_free_size(list_size, list);
+
+  *final_count = count;
   return global;
 }
 
@@ -331,14 +340,15 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 {
   const char* desc_name;
-  int traits = 0;
-  int fields = 0;
-  int vtable_size = 0;
+  uint32_t traits = 0;
+  uint32_t fields = 0;
+  uint32_t vtable_size = 0;
 
   if(g != NULL)
   {
+    // TODO: wrong trait count
     desc_name = g->desc_name;
-    traits = trait_count(c, g);
+    traits = trait_count(c, g, NULL, NULL);
 
     if(g->underlying == TK_TUPLETYPE)
     {
@@ -384,6 +394,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
 {
   // Initialise the global descriptor.
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
+  uint32_t trait_count = 0;
+  LLVMValueRef trait_list = make_trait_list(c, g, &trait_count);
 
   // Generate a separate type ID for every type.
   LLVMValueRef args[DESC_LENGTH];
@@ -391,7 +403,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
 
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
   args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
-  args[DESC_TRAIT_COUNT] = make_trait_count(c, g);
+  args[DESC_TRAIT_COUNT] = LLVMConstInt(c->i32, trait_count, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, g);
   args[DESC_TRACE] = make_function_ptr(c, genname_trace(g->type_name),
     c->trace_fn);
@@ -405,7 +417,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
     c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32,
     genfun_vtable_index(c, g, stringtab("_event_notify"), NULL), false);
-  args[DESC_TRAITS] = make_trait_list(c, g);
+  args[DESC_TRAITS] = trait_list;
   args[DESC_FIELDS] = make_field_list(c, g);
   args[DESC_VTABLE] = make_vtable(c, g);
 

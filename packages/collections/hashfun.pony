@@ -4,7 +4,7 @@ interface Hashable
   """
   fun hash(): U64
 
-trait val HashFunction[A]
+interface val HashFunction[A]
   """
   A pluggable hash function.
   """

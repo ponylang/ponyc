@@ -357,8 +357,13 @@ static void doc_type(docgen_t* docgen, ast_t* type)
       fprintf(docgen->type_file, "this");
       break;
 
-    case TK_BOXTYPE:
-      fprintf(docgen->type_file, "box");
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      fprintf(docgen->type_file, "%s", ast_get_print(type));
       break;
 
     default:
@@ -800,7 +805,7 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
   for(ast_t* p = ast_sibling(package_1); p != NULL; p = ast_sibling(p))
   {
     assert(ast_id(p) == TK_PACKAGE);
-    
+
     const char* name = package_qualified_name(p);
     doc_list_add(&packages, p, name);
   }

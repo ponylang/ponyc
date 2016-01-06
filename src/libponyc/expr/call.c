@@ -9,6 +9,7 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
+#include "../type/safeto.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
@@ -88,13 +89,19 @@ static bool check_type_params(ast_t** astp)
 
   BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
 
+  if(!reify_defaults(typeparams, typeargs, true))
+  {
+    ast_free_unattached(typeargs);
+    return false;
+  }
+
   if(!check_constraints(lhs, typeparams, typeargs, true))
   {
     ast_free_unattached(typeargs);
     return false;
   }
 
-  type = reify(lhs, type, typeparams, typeargs);
+  type = reify(type, typeparams, typeargs);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 
@@ -261,7 +268,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       }
     }
 
-    if(!is_subtype(a_type, p_type))
+    if(!is_subtype(a_type, p_type, true))
     {
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
@@ -378,7 +385,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     incomplete = false;
   }
 
-  bool ok = is_subtype(a_type, t_type);
+  bool ok = is_subtype(a_type, t_type, true);
 
   if(!ok)
   {
@@ -387,14 +394,14 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
     ast_error(cap, "target type: %s", ast_print_type(t_type));
 
-    if(!can_recover && cap_recover && is_subtype(r_type, t_type))
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type, false))
     {
       ast_error(ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
     }
 
-    if(incomplete && is_subtype(r_type, t_type))
+    if(incomplete && is_subtype(r_type, t_type, false))
     {
       ast_error(ast,
         "this would be possible if all the fields of 'this' were assigned to "
@@ -492,10 +499,10 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   AST_GET_CHILDREN(ftype, cap, typeparams, params, result);
 
   ast_t* type = ast_type(receiver);
-  ast_t* view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+  ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  bool ok = is_subtype(view_type, need_type);
+  bool ok = is_subtype(view_type, need_type, false);
   ast_free_unattached(view_type);
   ast_free_unattached(need_type);
 
@@ -510,10 +517,10 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
     if(ast_id(arg) != TK_NONE)
     {
       type = ast_type(arg);
-      view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+      view_type = viewpoint_type(ast_from(type, TK_BOX), type);
       need_type = ast_childidx(param, 1);
 
-      ok = is_subtype(view_type, need_type);
+      ok = is_subtype(view_type, need_type, false);
       ast_free_unattached(view_type);
       ast_free_unattached(need_type);
 

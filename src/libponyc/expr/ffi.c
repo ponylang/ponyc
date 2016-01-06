@@ -55,8 +55,9 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     ast_t* a_type = ast_type(arg);
 
-    if((a_type != NULL) && !void_star_param(p_type, a_type) &&
-      !is_subtype(a_type, p_type))
+    if((a_type != NULL) &&
+      !void_star_param(p_type, a_type) &&
+      !is_subtype(a_type, p_type, true))
     {
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
@@ -95,7 +96,7 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
 
-  if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
+  if((call_ret_type != NULL) && !is_eqtype(call_ret_type, decl_ret_type, true))
   {
     ast_error(call_ret_type, "call return type does not match declaration");
     return AST_ERROR;

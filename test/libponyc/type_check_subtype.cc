@@ -35,12 +35,12 @@ TEST_F(SubTypeTest, IsSubTypeClassTrait)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t2")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t3")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t2")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t3")));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t3"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t2"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t3"), true));
 }
 
 
@@ -68,13 +68,13 @@ TEST_F(SubTypeTest, IsSubTypeClassInterface)
     "  fun z(c1: C1, c3: C3, i1: I1, i2: I2, i3: I3)";
 
   TEST_COMPILE(src);
-  
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("i1")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i2")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i3")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i1")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i2")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i3")));
+
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("i1"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("i3"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i1"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i2"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("i3"), true));
 }
 
 
@@ -93,9 +93,9 @@ TEST_F(SubTypeTest, IsSubTypeClassClass)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("c2")));
-  ASSERT_FALSE(is_subtype(type_of("c2"), type_of("c1")));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("c2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c2"), type_of("c1"), true));
 }
 
 
@@ -118,11 +118,11 @@ TEST_F(SubTypeTest, IsSubTypeTraitTrait)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("t1")));
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t3")));
-  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1")));
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1b")));
-  ASSERT_FALSE(is_subtype(type_of("t1b"), type_of("t1")));
+  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t3"), true));
+  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1b"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1b"), type_of("t1"), true));
 }
 
 
@@ -145,11 +145,11 @@ TEST_F(SubTypeTest, IsSubTypeInterfaceInterface)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1")));
-  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("i3")));
-  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1")));
-  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1b")));
-  ASSERT_TRUE(is_subtype(type_of("i1b"), type_of("i1")));
+  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1"), true));
+  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("i3"), true));
+  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1"), true));
+  ASSERT_TRUE(is_subtype(type_of("i1"), type_of("i1b"), true));
+  ASSERT_TRUE(is_subtype(type_of("i1b"), type_of("i1"), true));
 }
 
 
@@ -170,9 +170,9 @@ TEST_F(SubTypeTest, IsSubTypeTraitInterface)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("i1")));
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("i2")));
-  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("t1")));
+  ASSERT_TRUE(is_subtype(type_of("t1"), type_of("i1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("i2"), true));
+  ASSERT_FALSE(is_subtype(type_of("i1"), type_of("t1"), true));
 }
 
 
@@ -187,9 +187,9 @@ TEST_F(SubTypeTest, IsSubTypePrimitivePrimitive)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("p1"), type_of("p1")));
-  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("p2")));
-  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("p1")));
+  ASSERT_TRUE(is_subtype(type_of("p1"), type_of("p1"), true));
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("p2"), true));
+  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("p1"), true));
 }
 
 
@@ -212,10 +212,10 @@ TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
 
   TEST_COMPILE(src);
 
-  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t1")));
-  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t2")));
-  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("t1")));
-  ASSERT_TRUE(is_subtype(type_of("p2"), type_of("t2")));
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("p1"), type_of("t2"), true));
+  ASSERT_FALSE(is_subtype(type_of("p2"), type_of("t1"), true));
+  ASSERT_TRUE(is_subtype(type_of("p2"), type_of("t2"), true));
 }
 
 
@@ -247,13 +247,13 @@ TEST_F(SubTypeTest, IsSubTypeUnion)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1or2")));
-  ASSERT_TRUE(is_subtype(type_of("c2"), type_of("c1or2")));
-  ASSERT_FALSE(is_subtype(type_of("c3"), type_of("c1or2")));
-  ASSERT_FALSE(is_subtype(type_of("c1or2"), type_of("c1")));
-  ASSERT_TRUE(is_subtype(type_of("c1or2"), type_of("c1or2")));
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1or2")));
-  ASSERT_FALSE(is_subtype(type_of("t1or2"), type_of("c1")));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("c1or2"), true));
+  ASSERT_TRUE(is_subtype(type_of("c2"), type_of("c1or2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c3"), type_of("c1or2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1or2"), type_of("c1"), true));
+  ASSERT_TRUE(is_subtype(type_of("c1or2"), type_of("c1or2"), true));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("t1or2"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1or2"), type_of("c1"), true));
 }
 
 
@@ -285,12 +285,12 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
 
   TEST_COMPILE(src);
 
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2")));
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t1and2")));
-  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1and2")));
-  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1and2")));
-  ASSERT_TRUE(is_subtype(type_of("t1and2"), type_of("t1and2")));
-  ASSERT_FALSE(is_subtype(type_of("t1and2"), type_of("c3")));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t1and2"), true));
+  ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1and2"), true));
+  ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1and2"), true));
+  ASSERT_TRUE(is_subtype(type_of("t1and2"), type_of("t1and2"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1and2"), type_of("c3"), true));
 }
 
 
@@ -315,7 +315,7 @@ TEST_F(SubTypeTest, IsSubTypeIntersectInterface)
 
   // TODO: Fix this, intersect of non-independent and combinable types
   //ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3")));
-  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1and2")));
+  ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1and2"), true));
 }
 
 
@@ -332,7 +332,7 @@ TEST_F(SubTypeTest, IsSubTypeIntersectOfUnion)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("iofu")));
+  ASSERT_TRUE(is_subtype(type_of("c1"), type_of("iofu"), true));
   // TODO: Fix this, intersect of non-independent and combinable types
   //ASSERT_TRUE(is_subtype(type_of("iofu"), type_of("c1")));
 }
@@ -359,12 +359,12 @@ TEST_F(SubTypeTest, IsSubTypeTuple)
 
   TEST_COMPILE(src);
 
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1t1")));
-  ASSERT_FALSE(is_subtype(type_of("t1t1"), type_of("t1")));
-  ASSERT_TRUE(is_subtype(type_of("c1c2"), type_of("t1t2")));
-  ASSERT_FALSE(is_subtype(type_of("c1c2"), type_of("t2t1")));
-  ASSERT_TRUE(is_subtype(type_of("t1t2"), type_of("t1t2")));
-  ASSERT_FALSE(is_subtype(type_of("t1t2"), type_of("c1c2")));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1t1"), type_of("t1"), true));
+  ASSERT_TRUE(is_subtype(type_of("c1c2"), type_of("t1t2"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1c2"), type_of("t2t1"), true));
+  ASSERT_TRUE(is_subtype(type_of("t1t2"), type_of("t1t2"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1t2"), type_of("c1c2"), true));
 }
 
 
@@ -381,9 +381,11 @@ TEST_F(SubTypeTest, IsSubTypeUnionOfTuple)
 
   TEST_COMPILE(src);
 
-  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("tofu")));
-  ASSERT_TRUE(is_subtype(type_of("uoft"), type_of("tofu")));
-  ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft")));
+  ASSERT_FALSE(is_subtype(type_of("c1"), type_of("tofu"), true));
+  ASSERT_TRUE(is_subtype(type_of("uoft"), type_of("tofu"), true));
+
+  // TODO: enable this test
+  // ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft"), true));
 }
 
 
@@ -404,35 +406,35 @@ TEST_F(SubTypeTest, IsSubTypeCap)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1iso")));
-  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1iso")));
-  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1iso")));
-  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1iso")));
-  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1iso")));
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1iso"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1iso"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1iso"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1iso"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1iso"), true));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1ref")));
-  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1ref")));
-  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1ref")));
-  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1ref")));
-  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1ref")));
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1ref"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1ref"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1ref"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1ref"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1ref"), true));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1val")));
-  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1val")));
-  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1val")));
-  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1val")));
-  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1val")));
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1val"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1val"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1val"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1val"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1val"), true));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1box")));
-  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1box")));
-  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1box")));
-  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1box")));
-  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1box")));
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1box"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1box"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1box"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1box"), true));
+  ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1box"), true));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1tag")));
-  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1tag")));
-  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1tag")));
-  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1tag")));
-  ASSERT_TRUE (is_subtype(type_of("c1tag"), type_of("t1tag")));
+  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1tag"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1tag"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1tag"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1tag"), true));
+  ASSERT_TRUE (is_subtype(type_of("c1tag"), type_of("t1tag"), true));
 }
 
 
@@ -465,28 +467,28 @@ TEST_F(SubTypeTest, IsEqType)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE(is_eqtype(type_of("c1"), type_of("c1")));
-  ASSERT_TRUE(is_eqtype(type_of("c2"), type_of("c2")));
-  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1")));
-  ASSERT_TRUE(is_eqtype(type_of("i2"), type_of("i2")));
-  ASSERT_TRUE(is_eqtype(type_of("t1"), type_of("t1")));
-  ASSERT_TRUE(is_eqtype(type_of("t2"), type_of("t2")));
+  ASSERT_TRUE(is_eqtype(type_of("c1"), type_of("c1"), true));
+  ASSERT_TRUE(is_eqtype(type_of("c2"), type_of("c2"), true));
+  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1"), true));
+  ASSERT_TRUE(is_eqtype(type_of("i2"), type_of("i2"), true));
+  ASSERT_TRUE(is_eqtype(type_of("t1"), type_of("t1"), true));
+  ASSERT_TRUE(is_eqtype(type_of("t2"), type_of("t2"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("c2")));
-  ASSERT_FALSE(is_eqtype(type_of("c2"), type_of("c1")));
-  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("i2")));
-  ASSERT_FALSE(is_eqtype(type_of("i2"), type_of("i1")));
-  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("t2")));
-  ASSERT_FALSE(is_eqtype(type_of("t2"), type_of("t1")));
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("c2"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c2"), type_of("c1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("i2"), true));
+  ASSERT_FALSE(is_eqtype(type_of("i2"), type_of("i1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("t2"), true));
+  ASSERT_FALSE(is_eqtype(type_of("t2"), type_of("t1"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("i1")));
-  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("t1")));
-  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("c1")));
-  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("t1")));
-  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("c1")));
-  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("i1")));
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("i1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1"), type_of("t1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("c1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("i1"), type_of("t1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("c1"), true));
+  ASSERT_FALSE(is_eqtype(type_of("t1"), type_of("i1"), true));
 
-  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1b")));
+  ASSERT_TRUE(is_eqtype(type_of("i1"), type_of("i1b"), true));
 }
 
 
@@ -501,35 +503,35 @@ TEST_F(SubTypeTest, IsEqTypeCap)
 
   TEST_COMPILE(src);
 
-  ASSERT_TRUE (is_eqtype(type_of("c1iso"), type_of("c1iso")));
-  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1iso")));
-  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1iso")));
-  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1iso")));
-  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1iso")));
+  ASSERT_TRUE (is_eqtype(type_of("c1iso"), type_of("c1iso"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1iso"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1iso"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1iso"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1iso"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1ref")));
-  ASSERT_TRUE (is_eqtype(type_of("c1ref"), type_of("c1ref")));
-  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1ref")));
-  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1ref")));
-  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1ref")));
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1ref"), true));
+  ASSERT_TRUE (is_eqtype(type_of("c1ref"), type_of("c1ref"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1ref"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1ref"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1ref"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1val")));
-  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1val")));
-  ASSERT_TRUE (is_eqtype(type_of("c1val"), type_of("c1val")));
-  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1val")));
-  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1val")));
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1val"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1val"), true));
+  ASSERT_TRUE (is_eqtype(type_of("c1val"), type_of("c1val"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1val"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1val"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1box")));
-  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1box")));
-  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1box")));
-  ASSERT_TRUE (is_eqtype(type_of("c1box"), type_of("c1box")));
-  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1box")));
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1box"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1box"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1box"), true));
+  ASSERT_TRUE (is_eqtype(type_of("c1box"), type_of("c1box"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1tag"), type_of("c1box"), true));
 
-  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1tag")));
-  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1tag")));
-  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1tag")));
-  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1tag")));
-  ASSERT_TRUE (is_eqtype(type_of("c1tag"), type_of("c1tag")));
+  ASSERT_FALSE(is_eqtype(type_of("c1iso"), type_of("c1tag"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1ref"), type_of("c1tag"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1val"), type_of("c1tag"), true));
+  ASSERT_FALSE(is_eqtype(type_of("c1box"), type_of("c1tag"), true));
+  ASSERT_TRUE (is_eqtype(type_of("c1tag"), type_of("c1tag"), true));
 }
 
 
@@ -788,4 +790,39 @@ TEST_F(SubTypeTest, IsConcrete)
   ASSERT_TRUE(is_concrete(type_of("t1andnone")));
   ASSERT_FALSE(is_concrete(type_of("c1ort1")));
   ASSERT_TRUE(is_concrete(type_of("c1andt1")));
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeArrow)
+{
+  const char* src =
+    "trait T1\n"
+    "interface Test\n"
+    "  fun f[A, B: T1 #read](a: A, this_a: this->A, b_a: B->A,\n"
+    "    b_b_a: B->B->A, box_a: box->A, val_a: val->A)\n"
+    "";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(is_subtype(type_of("a"), type_of("a"), true));
+  ASSERT_FALSE(is_subtype(type_of("a"), type_of("this_a"), true));
+  ASSERT_FALSE(is_subtype(type_of("a"), type_of("b_a"), true));
+  ASSERT_FALSE(is_subtype(type_of("a"), type_of("b_b_a"), true));
+
+  ASSERT_FALSE(is_subtype(type_of("this_a"), type_of("a"), true));
+  ASSERT_TRUE(is_subtype(type_of("this_a"), type_of("this_a"), true));
+  ASSERT_FALSE(is_subtype(type_of("this_a"), type_of("b_a"), true));
+  ASSERT_FALSE(is_subtype(type_of("this_a"), type_of("b_b_a"), true));
+
+  ASSERT_FALSE(is_subtype(type_of("b_a"), type_of("a"), true));
+  ASSERT_FALSE(is_subtype(type_of("b_a"), type_of("this_a"), true));
+  ASSERT_TRUE(is_subtype(type_of("b_a"), type_of("b_a"), true));
+  ASSERT_TRUE(is_subtype(type_of("b_a"), type_of("b_b_a"), true));
+
+  ASSERT_FALSE(is_subtype(type_of("b_b_a"), type_of("a"), true));
+  ASSERT_FALSE(is_subtype(type_of("b_b_a"), type_of("this_a"), true));
+  ASSERT_TRUE(is_subtype(type_of("b_b_a"), type_of("b_a"), true));
+  ASSERT_TRUE(is_subtype(type_of("b_b_a"), type_of("b_b_a"), true));
+
+  ASSERT_TRUE(is_subtype(type_of("val_a"), type_of("box_a"), true));
 }

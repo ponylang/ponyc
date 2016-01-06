@@ -401,7 +401,7 @@ TEST_F(MatchTypeTest, TypeParams)
 
     "class C2\n"
 
-    "interface Test\n"  
+    "interface Test\n"
     "  fun z[A1: C2 ref, A2: T1 ref, A3: T2 ref, A4: T2 box,\n"
     "    A5: (T1 ref | T2 ref)]\n"
     "    (c1: C1, c2: C2, t1: T1, t2: T2,\n"

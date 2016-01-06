@@ -1,7 +1,7 @@
 #include "names.h"
 #include "../ast/astbuild.h"
-// #include "../type/alias.h"
 #include "../type/reify.h"
+#include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -112,12 +112,15 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 
   if(expr)
   {
+    if(!reify_defaults(typeparams, typeargs, true))
+      return false;
+
     if(!check_constraints(typeargs, typeparams, typeargs, true))
       return false;
   }
 
   // Reify the alias.
-  ast_t* r_alias = reify(typeparams, alias, typeparams, typeargs);
+  ast_t* r_alias = reify(alias, typeparams, typeargs);
 
   if(r_alias == NULL)
     return false;
@@ -301,38 +304,47 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   return r;
 }
 
-static bool names_arrow(ast_t* ast)
+static bool names_arrow(ast_t** astp)
 {
-  ast_t* left = ast_child(ast);
+  AST_GET_CHILDREN(*astp, left, right);
 
   switch(ast_id(left))
   {
-    case TK_BOXTYPE:
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
     case TK_THISTYPE:
     case TK_TYPEPARAMREF:
+    {
+      ast_t* r_ast = viewpoint_type(left, right);
+      ast_replace(astp, r_ast);
       return true;
+    }
 
     default: {}
   }
 
-  ast_error(left, "only 'this', 'box' and type parameters can be viewpoints");
+  ast_error(left,
+    "only 'this', refcaps, and type parameters can be viewpoints");
   return false;
 }
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
   (void)options;
-  ast_t* ast = *astp;
 
-  switch(ast_id(ast))
+  switch(ast_id(*astp))
   {
     case TK_NOMINAL:
-      if(!names_nominal(options, ast, astp, false))
+      if(!names_nominal(options, *astp, astp, false))
         return AST_ERROR;
       break;
 
     case TK_ARROW:
-      if(!names_arrow(ast))
+      if(!names_arrow(astp))
         return AST_ERROR;
       break;
 

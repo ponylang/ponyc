@@ -78,7 +78,7 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
 static bool check_compile_error(ast_t* ast)
 {
   assert(ast != NULL);
-  
+
   if(ast_id(ast) != TK_SEQ)
     return true;
 
@@ -514,7 +514,8 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       ast_t* a_type = alias(type);
       ast_t* a_body_type = alias(body_type);
 
-      if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
+      if(!is_subtype(body_type, type, true) ||
+        !is_subtype(a_body_type, a_type, true))
       {
         ast_t* last = ast_childlast(body);
         ast_error(last, "returned value isn't the return type");
