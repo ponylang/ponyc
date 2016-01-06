@@ -977,6 +977,16 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   fun offset_to_index(i: ISize): USize =>
     if i < 0 then i.usize() + _size else i.usize() end
 
+  fun bool(): Bool ? =>
+    let s = lower()
+    if s == "true" then
+      return true
+    elseif s == "false" then
+      return false
+    else
+      error
+    end
+
   fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
   fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
   fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
