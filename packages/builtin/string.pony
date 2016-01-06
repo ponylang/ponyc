@@ -978,11 +978,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     if i < 0 then i.usize() + _size else i.usize() end
 
   fun bool(): Bool ? =>
-    let s = lower()
-    if s == "true" then
-      return true
-    elseif s == "false" then
-      return false
+    match lower()
+    | "true" => true
+    | "false" => false
     else
       error
     end
