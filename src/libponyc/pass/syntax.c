@@ -929,6 +929,17 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_CAP_SHARE:
     case TK_CAP_ANY:    r = syntax_cap_set(t, ast); break;
 
+    case TK_VALUEFORMALARG:
+    case TK_VALUEFORMALPARAM:
+      ast_error(ast, "Value formal parameters not yet supported");
+      r = AST_ERROR;
+      break;
+
+    case TK_CONSTANT:
+      ast_error(ast, "Compile time constants not yet supported");
+      r = AST_ERROR;
+      break;
+
     default: break;
   }
 

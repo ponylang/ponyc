@@ -89,6 +89,7 @@ static const lextoken_t symbols[] =
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
+  { "#", TK_CONSTANT },
 
   { "(", TK_LPAREN_NEW },
   { "[", TK_LSQUARE_NEW },
@@ -170,22 +171,22 @@ static const lextoken_t keywords[] =
   { "false", TK_FALSE },
 
   // #keywords.
-  {"#read", TK_CAP_READ},
-  {"#send", TK_CAP_SEND},
-  {"#share", TK_CAP_SHARE},
-  {"#any", TK_CAP_ANY},
+  { "#read", TK_CAP_READ },
+  { "#send", TK_CAP_SEND },
+  { "#share", TK_CAP_SHARE },
+  { "#any", TK_CAP_ANY },
 
   // $keywords, for testing only.
-  {"$noseq", TK_TEST_NO_SEQ},
-  {"$scope", TK_TEST_SEQ_SCOPE},
-  {"$try_no_check", TK_TEST_TRY_NO_CHECK},
-  {"$borrowed", TK_TEST_BORROWED},
-  {"$updatearg", TK_TEST_UPDATEARG},
-  {"$extra", TK_TEST_EXTRA},
-  {"$ifdefand", TK_IFDEFAND},
-  {"$ifdefor", TK_IFDEFOR},
-  {"$ifdefnot", TK_IFDEFNOT},
-  {"$flag", TK_IFDEFFLAG},
+  { "$noseq", TK_TEST_NO_SEQ },
+  { "$scope", TK_TEST_SEQ_SCOPE },
+  { "$try_no_check", TK_TEST_TRY_NO_CHECK },
+  { "$borrowed", TK_TEST_BORROWED },
+  { "$updatearg", TK_TEST_UPDATEARG },
+  { "$extra", TK_TEST_EXTRA },
+  { "$ifdefand", TK_IFDEFAND },
+  { "$ifdefor", TK_IFDEFOR },
+  { "$ifdefnot", TK_IFDEFNOT },
+  { "$flag", TK_IFDEFFLAG },
 
   { NULL, (token_id)0 }
 };
@@ -270,23 +271,6 @@ static const lextoken_t abstract[] =
   { "funapp", TK_FUNAPP },
 
   { "\\n", TK_NEWLINE },
-
-  {"#read", TK_CAP_READ},
-  {"#send", TK_CAP_SEND},
-  {"#share", TK_CAP_SHARE},
-  {"#any", TK_CAP_ANY},
-
-  {"$noseq", TK_TEST_NO_SEQ},
-  {"$scope", TK_TEST_SEQ_SCOPE},
-  {"$try_no_check", TK_TEST_TRY_NO_CHECK},
-  {"$borrowed", TK_TEST_BORROWED},
-  {"$updatearg", TK_TEST_UPDATEARG},
-  {"$extra", TK_TEST_EXTRA},
-  {"$ifdefand", TK_IFDEFAND},
-  {"$ifdefor", TK_IFDEFOR},
-  {"$ifdefnot", TK_IFDEFNOT},
-  {"$flag", TK_IFDEFFLAG},
-
   {NULL, (token_id)0}
 };
 
@@ -1055,34 +1039,72 @@ static size_t read_id(lexer_t* lexer)
 }
 
 
-// Process a keyword or identifier the leading character of which has been
-// seen, but not consumed
+// Process a keyword or identifier, possibly with a special prefix (eg '#').
+// Any prefix must have been consumed.
+// If no keyword is found the allow_identifiers parameter specifies whether an
+// identifier token should be created.
+// A lone prefix will not match as an identifier.
+// Both keywords and identifiers are greedy, consuming all legal characters.
+// Returns NULL if no match found.
 static token_t* keyword(lexer_t* lexer, bool allow_identifiers)
 {
   size_t len = read_id(lexer);
-  consume_chars(lexer, len);
 
   for(const lextoken_t* p = keywords; p->text != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->text))
+    {
+      consume_chars(lexer, len);
       return make_token(lexer, p->id);
+    }
   }
 
   if(allow_identifiers && len > 0)
+  {
+    consume_chars(lexer, len);
     return make_token_with_text(lexer, TK_ID);
+  }
 
-  lex_error(lexer, "Unrecognized keyword: %s", lexer->buffer);
-  return make_token(lexer, TK_LEX_ERROR);
+  return NULL;
 }
 
 
-// Process a hash or test ($) keyword or identifier the leading # of which has
-// been seen, but not consumed.
-static token_t* hash_keyword(lexer_t* lexer, bool allow_identifiers)
+// Process a hash, which has been seen, but not consumed.
+static token_t* hash(lexer_t* lexer)
 {
-  append_to_token(lexer, look(lexer));  // # or $
+  append_to_token(lexer, look(lexer));  // #
   consume_chars(lexer, 1);
-  return keyword(lexer, allow_identifiers);
+  token_t* t = keyword(lexer, false);
+
+  if(t != NULL)
+    return t;
+
+  // No hash keyword found, just return the hash.
+  return make_token(lexer, TK_CONSTANT);
+}
+
+
+// Process a dollar, which has been seen, but not consumed.
+static token_t* dollar(lexer_t* lexer)
+{
+  append_to_token(lexer, look(lexer));  // $
+  consume_chars(lexer, 1);
+
+  if(allow_test_symbols)
+  {
+    // Test mode, allow test keywords and identifiers.
+    // Note that a lone '$' is always an error to allow tests to force a lexer
+    // error.
+    token_t* t = keyword(lexer, true);
+
+    if(t != NULL)
+      return t;
+  }
+
+  // No test keyword or identifier found. Either we have just a lone '$' or
+  // we're not in test mode so no dollar symbols are allowed.
+  lex_error(lexer, "Unrecognized character: $");
+  return make_token(lexer, TK_LEX_ERROR);
 }
 
 
@@ -1206,26 +1228,11 @@ token_t* lexer_next(lexer_t* lexer)
         break;
 
       case '#':
-        t = hash_keyword(lexer, false);
+        t = hash(lexer);
         break;
 
       case '$':
-        if(allow_test_symbols)
-        {
-          // In test mode.
-          // Special test keywords starting in $ allowed.
-          // Identifiers starting in $ allowed.
-          // A lone $ is still an error, to allow forcing a lex error.
-          t = hash_keyword(lexer, true);
-        }
-        else
-        {
-          // Not in test mode. Any $ is an error.
-          lex_error(lexer, "Unrecognized character: $");
-          consume_chars(lexer, 1);
-          t = make_token(lexer, TK_LEX_ERROR);
-        }
-
+        t = dollar(lexer);
         break;
 
       default:
@@ -1236,6 +1243,7 @@ token_t* lexer_next(lexer_t* lexer)
         else if(isalpha(c) || (c == '_'))
         {
           t = keyword(lexer, true);
+          assert(t != NULL);
         }
         else
         {

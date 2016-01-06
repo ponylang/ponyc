@@ -21,6 +21,7 @@ DECL(nextexprseq);
 DECL(assignment);
 DECL(term);
 DECL(infix);
+DECL(postfix);
 DECL(parampattern);
 DECL(pattern);
 DECL(idseq);
@@ -89,6 +90,15 @@ DEF(typeparam);
   IF(TK_ASSIGN, RULE("default type", type));
   DONE();
 
+// LET ID [COLON type] [ASSIGN infix]
+DEF(typeparamvalue);
+  AST_NODE(TK_VALUEFORMALPARAM);
+  SKIP(NULL, TK_LET);
+  TOKEN("name", TK_ID);
+  IF(TK_COLON, RULE("type constraint", type));
+  IF(TK_ASSIGN, RULE("default value", infix));
+  DONE();
+
 // param {COMMA param}
 DEF(params);
   AST_NODE(TK_PARAMS);
@@ -100,17 +110,37 @@ DEF(params);
 DEF(typeparams);
   AST_NODE(TK_TYPEPARAMS);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
-  RULE("type parameter", typeparam);
-  WHILE(TK_COMMA, RULE("type parameter", typeparam));
+  RULE("type parameter", typeparam, typeparamvalue);
+  WHILE(TK_COMMA, RULE("type parameter", typeparam, typeparamvalue));
   TERMINATE("type parameters", TK_RSQUARE);
+  DONE();
+
+// TRUE | FALSE | INT | FLOAT | STRING
+DEF(literal);
+  TOKEN("literal", TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
+  DONE();
+
+// literal
+DEF(typeargliteral);
+  AST_NODE(TK_VALUEFORMALARG);
+  PRINT_INLINE();
+  RULE("type argument", literal);
+  DONE();
+
+// HASH postfix
+DEF(typeargconst);
+  AST_NODE(TK_VALUEFORMALARG);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_CONSTANT);
+  RULE("formal argument value", postfix);
   DONE();
 
 // LSQUARE type {COMMA type} RSQUARE
 DEF(typeargs);
   AST_NODE(TK_TYPEARGS);
   SKIP(NULL, TK_LSQUARE);
-  RULE("type argument", type);
-  WHILE(TK_COMMA, RULE("type argument", type));
+  RULE("type argument", type, typeargliteral, typeargconst);
+  WHILE(TK_COMMA, RULE("type argument", type, typeargliteral, typeargconst));
   TERMINATE("type arguments", TK_RSQUARE);
   DONE();
 
@@ -340,9 +370,9 @@ DEF(nextgroupedexpr);
   SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
-// THIS | TRUE | FALSE | INT | FLOAT | STRING
-DEF(literal);
-  TOKEN("literal", TK_THIS, TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
+// THIS
+DEF(thisliteral);
+  TOKEN(NULL, TK_THIS);
   DONE();
 
 DEF(ref);
@@ -366,14 +396,16 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi
 DEF(atom);
-  RULE("value", ref, literal, groupedexpr, array, object, lambda, ffi);
+  RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
+    ffi);
   DONE();
 
-// ref | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi
 DEF(nextatom);
-  RULE("value", ref, literal, nextgroupedexpr, nextarray, object, lambda, ffi);
+  RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
+    lambda, ffi);
   DONE();
 
 // DOT ID
