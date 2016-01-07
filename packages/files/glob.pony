@@ -132,7 +132,8 @@ primitive Glob
 
   fun glob(root_path: FilePath, pattern: String): Array[FilePath] =>
     """
-    Returns an Array[FilePath] for each path below `root_path` that matches `pattern`.
+    Returns an Array[FilePath] for each path below `root_path` that matches
+    `pattern`.
 
     The pattern may contain shell-style wildcards.  See the type documentation
     on `Glob` for details.
