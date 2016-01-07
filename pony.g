@@ -175,6 +175,7 @@ dot
 
 nextatom
   : ID
+  | 'this'
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
@@ -185,21 +186,13 @@ nextatom
 
 atom
   : ID
+  | 'this'
   | literal
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
   | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
-  ;
-
-literal
-  : 'this'
-  | 'true'
-  | 'false'
-  | INT
-  | FLOAT
-  | STRING
   ;
 
 tuple
@@ -232,7 +225,7 @@ type
 
 atomtype
   : 'this'
-  | 'box'
+  | cap
   | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
   | nominal
   ;
@@ -274,15 +267,27 @@ cap
   ;
 
 typeargs
-  : '[' type (',' type)* ']'
+  : '[' (type | literal | ('#' postfix)) (',' (type | literal | ('#' postfix)))* ']'
+  ;
+
+literal
+  : 'true'
+  | 'false'
+  | INT
+  | FLOAT
+  | STRING
   ;
 
 typeparams
-  : ('[' | LSQUARE_NEW) typeparam (',' typeparam)* ']'
+  : ('[' | LSQUARE_NEW) (typeparam | typeparamvalue) (',' (typeparam | typeparamvalue))* ']'
   ;
 
 params
   : (param | '...') (',' (param | '...'))*
+  ;
+
+typeparamvalue
+  : 'let' ID (':' type)? ('=' infix)?
   ;
 
 typeparam

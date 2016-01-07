@@ -2,34 +2,6 @@ use @memcmp[I32](dst: Pointer[U8] box, src: Pointer[U8] box, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
 
-primitive Strings
-  """
-  Common utility methods for strings.
-  """
-
-  fun common_prefix(data: ReadSeq[Stringable]): String iso^ =>
-    """
-    Creates a string that is the common prefix of the supplied strings, possibly empty.
-    """
-    var res = "".clone()
-    try
-      let iter = data.values()
-      if iter.has_next() then 
-        res = iter.next().string()
-        for d in iter do
-          var idx: USize = 0
-          let s = d.string()
-          while (idx < res.size()) and (idx < s.size()) do
-            if res(idx) != s(idx) then
-              break
-            end
-            idx = idx + 1
-          end
-          res = res.substring(0, idx.isize())
-        end
-      end
-    end
-    res
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """

@@ -15,20 +15,21 @@ All tests can be run by compiling and running packages/stdlib.
 // generate docs for it, etc.
 use "ponytest"
 use assert = "assert"
-use base64 = "encode/base64"
 use capsicum = "capsicum"
 use collections = "collections"
 use debug = "debug"
+use base64 = "encode/base64"
 use files = "files"
-use http = "net/http"
 use json = "json"
 use math = "math"
 use net = "net"
+use http = "net/http"
+use ssl = "net/ssl"
+use strings = "strings"
 use options = "options"
 use promises = "promises"
 use random = "random"
 use regex = "regex"
-use ssl = "net/ssl"
 use term = "term"
 use time = "time"
 
@@ -55,7 +56,6 @@ actor Main is TestList
     test(_TestStringSplit)
     test(_TestStringJoin)
     test(_TestStringCompare)
-    test(_TestStringsCommonPrefix)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
@@ -71,6 +71,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
     regex.Main.make().tests(test)
+    strings.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest
   """
@@ -532,24 +533,6 @@ class iso _TestStringCompare is UnitTest
 
     true
 
-class iso _TestStringsCommonPrefix is UnitTest
-  """
-  Test Strings.common_prefix
-  """
-  fun name(): String => "builtin/Strings.common_prefix"
-
-  fun apply(h: TestHelper): TestResult =>
-    h.expect_eq[String]("", Strings.common_prefix(Array[String]))
-    h.expect_eq[String]("", Strings.common_prefix([""]))
-    h.expect_eq[String]("", Strings.common_prefix(["", "asdf"]))
-    h.expect_eq[String]("", Strings.common_prefix(["qwer", "asdf"]))
-    h.expect_eq[String]("", Strings.common_prefix(["asdf", "asdf", "qwer"]))
-    h.expect_eq[String]("asdf", Strings.common_prefix(["asdf", "asdf"]))
-    h.expect_eq[String]("as", Strings.common_prefix(["asdf", "asdf", "aser"]))
-    h.expect_eq[String]("a", Strings.common_prefix(["a", "asdf", "asdf", "aser"]))
-    h.expect_eq[String]("12", Strings.common_prefix([as Stringable: U32(1234), U32(12)]))
-    true
-
 class iso _TestArraySlice is UnitTest
   """
   Test slicing arrays.
@@ -629,7 +612,7 @@ class iso _TestMath128 is UnitTest
     h.expect_eq[I128](100_000_000_000_000_000_000,
       -10_000_000_000 * -10_000_000_000)
 
-	// Stop compiler moaning about dividing by constant 0.
+    // Stop compiler moaning about dividing by constant 0.
     var uzero = U128(0)
     var izero = I128(0)
 
