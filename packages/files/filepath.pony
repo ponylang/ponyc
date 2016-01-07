@@ -19,8 +19,9 @@ class val FilePath
       caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
     """
-    Create a temp directory and returns a path to it. The caller must either
-    provide the root capability or an existing FilePath.
+    Create a temp directory and returns a path to it.  The directories name
+    will be based on `pattern'` which must end with `"XXXXXX"`.  The caller
+    must either provide the root capability or an existing FilePath.
 
     If the root capability is provided, pattern will be relative to the program's
     working directory. Otherwise, it will be relative to the existing FilePath,
@@ -31,17 +32,18 @@ class val FilePath
     """
     caps.union(caps')
 
-    let pattern = match base
-    | let b: AmbientAuth => Path.abs(pattern')
-    | let b: FilePath =>
-      if not b.caps(FileLookup) then
+    let pattern =
+      match base
+      | let b: AmbientAuth => Path.abs(pattern')
+      | let b: FilePath =>
+        if not b.caps(FileLookup) then
+          error
+        end
+        caps.intersect(b.caps)
+        Path.join(b.path, pattern')
+      else
         error
       end
-      caps.intersect(b.caps)
-      Path.join(b.path, pattern')
-    else
-      error
-    end
     if not pattern.at("XXXXXX", -6) then
       error
     end
