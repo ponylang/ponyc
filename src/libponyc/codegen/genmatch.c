@@ -348,8 +348,8 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   return true;
 }
 
-static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
-  ast_t* pattern, LLVMBasicBlockRef next_block)
+static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // First check cardinality.
   size_t size = ast_childcount(pattern);

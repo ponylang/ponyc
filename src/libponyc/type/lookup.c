@@ -193,7 +193,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
       while(child != NULL)
       {
-        ast_t* r = lookup_base(opt, from, orig, child, name, errors);
+        ast_t* r = lookup_base(opt, from, child, child, name, errors);
 
         if(r == NULL)
         {
@@ -273,7 +273,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
       while(child != NULL)
       {
-        ast_t* r = lookup_base(opt, from, orig, child, name, false);
+        ast_t* r = lookup_base(opt, from, child, child, name, false);
 
         if(r != NULL)
         {
