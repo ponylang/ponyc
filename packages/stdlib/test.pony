@@ -25,6 +25,7 @@ use math = "math"
 use net = "net"
 use http = "net/http"
 use ssl = "net/ssl"
+use strings = "strings"
 use options = "options"
 use promises = "promises"
 use random = "random"
@@ -69,6 +70,7 @@ actor Main is TestList
     options.Main.make().tests(test)
     json.Main.make().tests(test)
     regex.Main.make().tests(test)
+    strings.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest
   """
@@ -529,7 +531,6 @@ class iso _TestStringCompare is UnitTest
     h.expect_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
 
     true
-
 
 class iso _TestArraySlice is UnitTest
   """
