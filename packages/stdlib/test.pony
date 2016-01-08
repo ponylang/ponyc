@@ -156,6 +156,23 @@ class iso _TestIntToString is UnitTest
     true
 
 
+class iso _TestStringToBool is UnitTest
+  """
+  Test converting strings to Bools.
+  """
+  fun name(): String => "builtin/String.bool"
+
+  fun apply(h: TestHelper): TestResult ? =>
+    h.expect_eq[Bool](false, "false".bool())
+    h.expect_eq[Bool](false, "FALSE".bool())
+    h.expect_eq[Bool](true, "true".bool())
+    h.expect_eq[Bool](true, "TRUE".bool())
+
+    h.expect_error(lambda()? => "bogus".bool() end)
+
+    true
+
+
 class iso _TestStringToU8 is UnitTest
   """
   Test converting strings to U8s.
