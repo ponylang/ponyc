@@ -353,7 +353,7 @@ actor PonyTest
           "start with the given prefix.")
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")
-        _env.out.print("  --noprog          - Do not print progress messages.")
+        _env.out.print("  --no_prog         - Do not print progress messages.")
         _env.out.print("  --list            - List but do not run tests.")
         _do_nothing = true
         return
