@@ -1,5 +1,8 @@
 """
 ## PonyOptions package
+Implementing GNU extensions to the POSIX recommendations for command-line
+options.
+See: http://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html
 """
 
 primitive StringArgument
@@ -90,8 +93,8 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     Selects an option from the configuration depending on the current command
     line argument.
     """
-    let name: String box = candidate.substring(start, finish + 1)
-    var matches = Array[_Option]
+    let name: String box = candidate.substring(start, finish)
+    let matches = Array[_Option]
     var selected: (_Option | None) = None
 
     for opt in _configuration.values() do
@@ -186,14 +189,13 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
             (0, 0) // unreachable
           end
 
-        let finish: ISize =
+        let last = candidate.size().isize()
+        (let finish: ISize, let combined: Bool) =
           try
-            candidate.find("=") - 1
+            (candidate.find("="), true)
           else
-            if start == 1 then start else -1 end
+            (if start == 1 then start+1 else last end, false)
           end
-
-        let combined = (finish != start) and (finish != -1)
 
         match _select(candidate, start, offset, finish)
         | let err: ParseError => _error = true ; _index = _index + 1 ; err
