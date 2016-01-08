@@ -43,6 +43,7 @@ actor Main is TestList
     test(_TestAbs)
     test(_TestStringRunes)
     test(_TestIntToString)
+    test(_TestStringToBool)
     test(_TestStringToU8)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
