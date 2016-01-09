@@ -1,8 +1,5 @@
 """
 ## PonyOptions package
-Implementing GNU extensions to the POSIX recommendations for command-line
-options.
-See: http://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html
 """
 
 primitive StringArgument
