@@ -70,7 +70,7 @@ LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS = -march=$(arch)
-AR_FLAGS =
+AR_FLAGS = -rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
@@ -428,7 +428,7 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	$(SILENT)$(AR) -rcs $$@ $(ofiles) $(AR_FLAGS)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
 $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)
