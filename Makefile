@@ -23,6 +23,7 @@ else
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
     lto := yes
+    AR := /usr/bin/ar
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
