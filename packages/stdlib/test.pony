@@ -43,6 +43,7 @@ actor Main is TestList
     test(_TestAbs)
     test(_TestStringRunes)
     test(_TestIntToString)
+    test(_TestStringToBool)
     test(_TestStringToU8)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
@@ -152,6 +153,23 @@ class iso _TestIntToString is UnitTest
     h.expect_eq[String]("003", U32(3).string(where prec = 3))
     h.expect_eq[String]("  3", U32(3).string(where width = 3))
     h.expect_eq[String]("  003", U32(3).string(where prec = 3, width = 5))
+
+    true
+
+
+class iso _TestStringToBool is UnitTest
+  """
+  Test converting strings to Bools.
+  """
+  fun name(): String => "builtin/String.bool"
+
+  fun apply(h: TestHelper): TestResult ? =>
+    h.expect_eq[Bool](false, "false".bool())
+    h.expect_eq[Bool](false, "FALSE".bool())
+    h.expect_eq[Bool](true, "true".bool())
+    h.expect_eq[Bool](true, "TRUE".bool())
+
+    h.expect_error(lambda()? => "bogus".bool() end)
 
     true
 
