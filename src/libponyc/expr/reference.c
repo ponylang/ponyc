@@ -177,10 +177,17 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   // Viewpoint adapted type of the field.
   ast_t* type = viewpoint_type(l_type, f_type);
 
-  if(type == NULL)
+  if(ast_id(type) == TK_ARROW)
   {
-    ast_error(ast, "can't read a field from a tag");
-    return false;
+    ast_t* upper = viewpoint_upper(type);
+
+    if(upper == NULL)
+    {
+      ast_error(ast, "can't read a field through %s", ast_print_type(l_type));
+      return false;
+    }
+
+    ast_free_unattached(upper);
   }
 
   // Set the unadapted field type.

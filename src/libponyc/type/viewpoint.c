@@ -4,9 +4,16 @@
 #include "../ast/astbuild.h"
 #include <assert.h>
 
+enum
+{
+  VIEW_UPPER_NO,
+  VIEW_UPPER_YES,
+  VIEW_UPPER_FORCE
+};
+
 ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 {
-  bool upper = false;
+  int upper = VIEW_UPPER_NO;
 
   switch(ast_id(r_type))
   {
@@ -43,7 +50,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_REF_BIND:
         case TK_BOX_BIND:
           // A known refcap on the right can be compacted.
-          upper = true;
+          upper = VIEW_UPPER_YES;
           break;
 
         case TK_VAL:
@@ -53,7 +60,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_TAG_BIND:
         case TK_CAP_SHARE_BIND:
           // No refcap on the left modifies these.
-          return ast_dup(r_type);
+          upper = VIEW_UPPER_FORCE;
+          break;
 
         default: {}
       }
@@ -91,7 +99,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_CAP_READ_BIND:
         case TK_CAP_ANY_BIND:
           // Don't compact through an unknown refcap.
-          upper = false;
+          if(upper == VIEW_UPPER_YES)
+            upper = VIEW_UPPER_NO;
           break;
 
         default: {}
@@ -100,7 +109,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     }
 
     case TK_THISTYPE:
-      upper = false;
+      if(upper == VIEW_UPPER_YES)
+        upper = VIEW_UPPER_NO;
       break;
 
     case TK_ISO:
@@ -127,10 +137,12 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
   BUILD(arrow, l_type,
     NODE(TK_ARROW, TREE(ast_dup(l_type)) TREE(ast_dup(r_type))));
 
-  if(upper)
+  if(upper != VIEW_UPPER_NO)
   {
     ast_t* arrow_upper = viewpoint_upper(arrow);
-    assert(arrow_upper != NULL);
+
+    if(arrow_upper == NULL)
+      return arrow;
 
     if(arrow != arrow_upper)
     {
