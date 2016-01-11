@@ -541,7 +541,10 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   genfun_dwarf_return(c, body);
 
   // Return 'this'.
-  LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
+  if(g->primitive == NULL)
+    value = LLVMGetParam(func, 0);
+
+  LLVMBuildRet(c->builder, value);
   codegen_finishfun(c);
 
   ast_free_unattached(fun);

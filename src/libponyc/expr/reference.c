@@ -1010,7 +1010,6 @@ static bool check_fields_defined(ast_t* ast)
 
 static bool check_return_type(ast_t* ast)
 {
-  assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
   ast_t* body_type = ast_type(body);
 
@@ -1262,7 +1261,23 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_NEW:
-      return check_fields_defined(ast) && check_main_create(t, ast);
+    {
+      bool ok = true;
+
+      if(is_machine_word(type))
+      {
+        if(!check_return_type(ast))
+         ok = false;
+      }
+
+      if(!check_fields_defined(ast))
+        ok = false;
+
+      if(!check_main_create(t, ast))
+        ok = false;
+
+      return ok;
+    }
 
     case TK_FUN:
       return check_return_type(ast);

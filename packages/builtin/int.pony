@@ -1,5 +1,5 @@
 primitive I8 is _SignedInteger[I8, U8]
-  new create(value: I8 = 0) => compile_intrinsic
+  new create(value: I8 = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): I8 => a.i8()
 
   fun tag min_value(): I8 => -0x80
@@ -23,7 +23,7 @@ primitive I8 is _SignedInteger[I8, U8]
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
 primitive I16 is _SignedInteger[I16, U16]
-  new create(value: I16 = 0) => compile_intrinsic
+  new create(value: I16 = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): I16 => a.i16()
 
   fun tag min_value(): I16 => -0x8000
@@ -47,7 +47,7 @@ primitive I16 is _SignedInteger[I16, U16]
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
 primitive I32 is _SignedInteger[I32, U32]
-  new create(value: I32 = 0) => compile_intrinsic
+  new create(value: I32 = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): I32 => a.i32()
 
   fun tag min_value(): I32 => -0x8000_0000
@@ -71,7 +71,7 @@ primitive I32 is _SignedInteger[I32, U32]
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
 primitive I64 is _SignedInteger[I64, U64]
-  new create(value: I64 = 0) => compile_intrinsic
+  new create(value: I64 = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): I64 => a.i64()
 
   fun tag min_value(): I64 => -0x8000_0000_0000_0000
@@ -95,7 +95,7 @@ primitive I64 is _SignedInteger[I64, U64]
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
 primitive ILong is _SignedInteger[ILong, ULong]
-  new create(value: ILong = 0) => compile_intrinsic
+  new create(value: ILong = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): ILong => a.ilong()
 
   fun tag min_value(): ILong =>
@@ -168,7 +168,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
     end
 
 primitive ISize is _SignedInteger[ISize, USize]
-  new create(value: ISize = 0) => compile_intrinsic
+  new create(value: ISize = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): ISize => a.isize()
 
   fun tag min_value(): ISize =>
@@ -241,7 +241,7 @@ primitive ISize is _SignedInteger[ISize, USize]
     end
 
 primitive I128 is _SignedInteger[I128, U128]
-  new create(value: I128 = 0) => compile_intrinsic
+  new create(value: I128 = 0) => value
   fun tag from[A: (Number & Real[A] val)](a: A): I128 => a.i128()
 
   fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000

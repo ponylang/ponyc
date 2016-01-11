@@ -1,7 +1,7 @@
 primitive F32 is FloatingPoint[F32]
-  new create(value: F32 = 0) => compile_intrinsic
-  new pi() => compile_intrinsic
-  new e() => compile_intrinsic
+  new create(value: F32 = 0) => value
+  new pi() => 3.14159265358979323846
+  new e() => 2.71828182845904523536
 
   new from_bits(i: U32) => compile_intrinsic
   fun bits(): U32 => compile_intrinsic
@@ -143,9 +143,9 @@ primitive F32 is FloatingPoint[F32]
   fun u128(): U128 => f64().u128()
 
 primitive F64 is FloatingPoint[F64]
-  new create(value: F64 = 0) => compile_intrinsic
-  new pi() => compile_intrinsic
-  new e() => compile_intrinsic
+  new create(value: F64 = 0) => value
+  new pi() => 3.14159265358979323846
+  new e() => 2.71828182845904523536
 
   new from_bits(i: U64) => compile_intrinsic
   fun bits(): U64 => compile_intrinsic

@@ -300,8 +300,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &g))
     return NULL;
 
-  bool need_receiver = call_needs_receiver(postfix, &g);
-
   // Generate the arguments.
   LLVMTypeRef f_type = genfun_sig(c, &g, method_name, typeargs);
 
@@ -311,7 +309,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     return NULL;
   }
 
-  size_t count = ast_childcount(positional) + need_receiver;
+  size_t count = ast_childcount(positional) + 1;
   size_t buf_size = count * sizeof(void*);
 
   LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
@@ -319,7 +317,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMGetParamTypes(f_type, params);
 
   ast_t* arg = ast_child(positional);
-  int i = need_receiver;
+  int i = 1;
 
   while(arg != NULL)
   {
@@ -339,7 +337,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   // Generate the receiver. Must be done after the arguments because the args
   // could change things in the receiver expression that must be accounted for.
-  if(need_receiver)
+  if(call_needs_receiver(postfix, &g))
   {
     switch(ast_id(postfix))
     {
@@ -367,6 +365,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         assert(0);
         return NULL;
     }
+  } else {
+    // Use a null for the receiver type.
+    args[0] = LLVMConstNull(g.use_type);
   }
 
   // Always emit location info for a call, to prevent inlining errors. This may
