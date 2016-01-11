@@ -179,6 +179,7 @@ typedef struct pass_opt_t
   bool strip_debug;
   bool print_filenames;
   bool docs;
+  bool verbose;
   const char* output;
 
   char* triple;

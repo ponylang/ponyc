@@ -36,6 +36,7 @@ enum
   OPT_STATS,
 
   OPT_PASSES,
+  OPT_VERBOSE,
   OPT_AST,
   OPT_ASTPACKAGE,
   OPT_TRACE,
@@ -69,6 +70,7 @@ static opt_arg_t args[] =
   {"stats", 0, OPT_ARG_NONE, OPT_STATS},
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
+  {"verbose", 0, OPT_ARG_NONE, OPT_VERBOSE},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
   {"astpackage", 0, OPT_ARG_NONE, OPT_ASTPACKAGE},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
@@ -135,6 +137,7 @@ static void usage()
     "    =asm          Output assembly.\n"
     "    =obj          Output an object file.\n"
     "    =all          The default: generate an executable.\n"
+    "  --verbose       Print the compiler and linker commands.\n"
     "  --ast, -a       Output an abstract syntax tree for the whole program.\n"
     "  --astpackage    Output an abstract syntax tree for the main package.\n"
     "  --trace, -t     Enable parse trace.\n"
@@ -262,6 +265,7 @@ int main(int argc, char* argv[])
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
       case OPT_STATS: opt.print_stats = true; break;
 
+      case OPT_VERBOSE: opt.verbose = true; break;
       case OPT_AST: print_program_ast = true; break;
       case OPT_ASTPACKAGE: print_package_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
