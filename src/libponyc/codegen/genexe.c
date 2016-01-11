@@ -245,6 +245,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
 
+  if (c->opt->verbose) printf("%s\n", ld_cmd);
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
@@ -260,9 +261,11 @@ static bool link_exe(compile_t* c, ast_t* program,
     char* dsym_cmd = (char*)pool_alloc_size(dsym_len);
 
     snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+    if (c->opt->verbose) printf("%s\n", dsym_cmd);
     system(dsym_cmd);
 
     snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+    if (c->opt->verbose) printf("%s\n", dsym_cmd);
 
     if(system(dsym_cmd) != 0)
       errorf(NULL, "unable to create dsym");
@@ -302,6 +305,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     file_exe, file_o, lib_args
     );
 
+  if (c->opt->verbose)
+    printf("%s\n", ld_cmd);
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
@@ -340,6 +345,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
 
+  if (c->opt->verbose)
+    printf("%s\n", ld_cmd);
   if(system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);

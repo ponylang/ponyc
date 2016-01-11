@@ -166,6 +166,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
 #endif
 
+  if (c->opt->verbose) printf("%s\n", cmd);
   if(system(cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", cmd);
@@ -193,6 +194,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
     file_lib, file_o);
 
+  if (c->opt->verbose) printf("%s\n", cmd);
   if(system(cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", cmd);
