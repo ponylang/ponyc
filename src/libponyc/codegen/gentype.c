@@ -348,8 +348,7 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
 
   for(int i = 0; i < g->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
-      "");
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
     if(g->field_keys[i] != TK_EMBED)
     {
