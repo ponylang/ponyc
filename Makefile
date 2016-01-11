@@ -470,34 +470,34 @@ endif
 endef
 
 define EXPAND_INSTALL
-install: libponyc libponyrt ponyc
+install: libponyc libponyrt ponyc FORCE
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include
-	@cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
-	@cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
-	@cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
-	@cp src/libponyrt/pony.h $(destdir)/include
-	@cp -r packages $(destdir)/
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
+	$(SILENT)cp -r packages $(destdir)/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	@ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 
 $(eval $(call EXPAND_INSTALL))
 
 uninstall:
-	-@rm -rf $(destdir) 2>/dev/null ||:
-	-@rm $(prefix)/bin/ponyc 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
-	-@rm $(prefix)/include/pony.h 2>/dev/null ||:
+	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
@@ -602,3 +602,13 @@ help:
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'
 	@echo
+
+.PHONY: FORCE
+
+ifeq ($(OS),Windows_NT)
+FORCE:
+	@cmd /c true
+else
+FORCE:
+	@sh -c true
+endif
