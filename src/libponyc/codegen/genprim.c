@@ -684,7 +684,7 @@ static void fp_as_bits(compile_t* c)
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun, false);
-  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f32, "");
+  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 1), c->f32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -704,7 +704,7 @@ static void fp_as_bits(compile_t* c)
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun, false);
-  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f64, "");
+  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 1), c->f64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
