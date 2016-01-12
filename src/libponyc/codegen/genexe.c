@@ -238,15 +238,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(lib_args);
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
+  // Avoid incorrect ld, eg from macports.
   snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
-    "-o %s %s %s -lponyrt -lSystem",
+    "/usr/bin/ld -execute -no_pie -dead_strip -arch %.*s "
+    "-macosx_version_min 10.8 -o %s %s %s -lponyrt -lSystem",
     (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: %s", ld_cmd);
     pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -303,7 +304,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: %s", ld_cmd);
     pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -314,7 +315,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(!vcvars_get(&vcvars))
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: no vcvars");
     return false;
   }
 
@@ -341,7 +342,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) == -1)
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: %s", ld_cmd);
     pool_free_size(ld_len, ld_cmd);
     return false;
   }
