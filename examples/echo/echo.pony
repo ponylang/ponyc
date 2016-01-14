@@ -7,15 +7,15 @@ actor Main
 class Listener is TCPListenNotify
   let _env: Env
   var _host: String = ""
-  var _service: String = ""
+  var _port: String = ""
 
   new iso create(env: Env) =>
     _env = env
 
   fun ref listening(listen: TCPListener ref) =>
     try
-      (_host, _service) = listen.local_address().name()
-      _env.out.print("listening on " + _host + ":" + _service)
+      (_host, _port) = listen.local_address().name()
+      _env.out.print("listening on " + _host + ":" + _port)
     else
       _env.out.print("couldn't get local address")
       listen.close()
