@@ -37,78 +37,18 @@ static ast_t* eq_param_type(ast_t* pattern)
   return ast_childidx(param, 1);
 }
 
-static LLVMValueRef pointer_to_fields(compile_t* c, LLVMValueRef object)
-{
-  // Skip the descriptor.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, c->descriptor_ptr);
-  LLVMValueRef offset = LLVMConstInt(c->intptr, size, false);
-
-  LLVMValueRef base = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
-  LLVMValueRef result = LLVMBuildAdd(c->builder, base, offset, "");
-
-  // Return as a c->intptr.
-  return result;
-}
-
-static LLVMValueRef field_pointer(compile_t* c, LLVMValueRef base,
-  LLVMValueRef offset)
-{
-  offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
-  return LLVMBuildAdd(c->builder, base, offset, "");
-}
-
-static bool check_trait(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
-  LLVMBasicBlockRef next_block)
-{
-  LLVMValueRef test = gendesc_istrait(c, desc, pattern_type);
-
-  LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
-  LLVMBuildCondBr(c->builder, test, continue_block, next_block);
-  LLVMPositionBuilderAtEnd(c->builder, continue_block);
-
-  return true;
-}
-
-static bool check_entity(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
-  LLVMBasicBlockRef next_block)
-{
-  gentype_t g;
-
-  if(!gentype(c, pattern_type, &g))
-    return false;
-
-  LLVMValueRef left = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
-  LLVMValueRef right = LLVMConstPtrToInt(g.desc, c->intptr);
-  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, left, right, "");
-
-  LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
-  LLVMBuildCondBr(c->builder, test, continue_block, next_block);
-  LLVMPositionBuilderAtEnd(c->builder, continue_block);
-
-  return true;
-}
-
 static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
   LLVMBasicBlockRef next_block)
 {
-  ast_t* def = (ast_t*)ast_data(pattern_type);
+  LLVMValueRef test = gendesc_isnominal(c, desc, pattern_type);
 
-  switch(ast_id(def))
-  {
-    case TK_INTERFACE:
-    case TK_TRAIT:
-      return check_trait(c, desc, pattern_type, next_block);
+  if(test == GEN_NOVALUE)
+    return false;
 
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-    case TK_ACTOR:
-      return check_entity(c, desc, pattern_type, next_block);
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
+  LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  LLVMBuildCondBr(c->builder, test, continue_block, next_block);
+  LLVMPositionBuilderAtEnd(c->builder, continue_block);
+  return true;
 }
 
 static void check_cardinality(compile_t* c, LLVMValueRef desc, size_t size,
@@ -137,10 +77,9 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   for(int i = 0; pattern_child != NULL; i++)
   {
     // Get the field offset and field descriptor from the tuple descriptor.
-    LLVMValueRef field = gendesc_fielddesc(c, desc, i);
-    LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field, 0, "");
-    LLVMValueRef field_desc = LLVMBuildExtractValue(c->builder, field, 1, "");
-    LLVMValueRef field_ptr = field_pointer(c, ptr, offset);
+    LLVMValueRef field_info = gendesc_fieldinfo(c, desc, i);
+    LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
+    LLVMValueRef field_desc = gendesc_fielddesc(c, field_info);
 
     // If we have a null descriptor, load the object.
     LLVMBasicBlockRef null_block = codegen_block(c, "null_desc");
@@ -156,7 +95,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
       ptr_type, "");
     LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
-    object_ptr = pointer_to_fields(c, object);
+    object_ptr = gendesc_ptr_to_fields(c, object);
 
     if(!check_type(c, object_ptr, object_desc, pattern_child, next_block))
       return false;
@@ -310,10 +249,9 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   }
 
   // Get the field offset and field descriptor from the tuple descriptor.
-  LLVMValueRef field = gendesc_fielddesc(c, desc, elem);
-  LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field, 0, "");
-  LLVMValueRef field_desc = LLVMBuildExtractValue(c->builder, field, 1, "");
-  LLVMValueRef field_ptr = field_pointer(c, ptr, offset);
+  LLVMValueRef field_info = gendesc_fieldinfo(c, desc, elem);
+  LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
+  LLVMValueRef field_desc = gendesc_fielddesc(c, field_info);
 
   // If we have a null descriptor, load the object.
   LLVMBasicBlockRef null_block = codegen_block(c, "null_desc");
@@ -480,7 +418,7 @@ static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
   ast_t* param_type = eq_param_type(pattern);
 
   // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = pointer_to_fields(c, object);
+  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -496,7 +434,7 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   ast_t* pattern_type = ast_type(pattern);
 
   // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = pointer_to_fields(c, object);
+  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -531,7 +469,7 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
         return dynamic_match_object(c, object, desc, child, next_block);
 
       // Build a base pointer that skips the object header.
-      LLVMValueRef ptr = pointer_to_fields(c, object);
+      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
 
       // Destructure the match expression (or element thereof).
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
@@ -598,8 +536,8 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_ISECTTYPE:
     {
       // Read the dynamic type and get a base pointer.
+      LLVMValueRef ptr = gendesc_ptr_to_fields(c, value);
       LLVMValueRef desc = gendesc_fetch(c, value);
-      LLVMValueRef ptr = pointer_to_fields(c, value);
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
     }
 

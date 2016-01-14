@@ -461,12 +461,25 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
   return LLVMBuildLoad(c->builder, func_ptr, "");
 }
 
+LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object)
+{
+  // Skip the descriptor.
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, c->descriptor_ptr);
+  LLVMValueRef offset = LLVMConstInt(c->intptr, size, false);
+
+  LLVMValueRef base = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
+  LLVMValueRef result = LLVMBuildAdd(c->builder, base, offset, "");
+
+  // Return as a c->intptr.
+  return result;
+}
+
 LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc)
 {
   return desc_field(c, desc, DESC_FIELD_COUNT);
 }
 
-LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef desc, size_t index)
+LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
 {
   LLVMValueRef fields = desc_field(c, desc, DESC_FIELDS);
 
@@ -476,6 +489,50 @@ LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef desc, size_t index)
 
   LLVMValueRef field_desc = LLVMBuildGEP(c->builder, fields, gep, 2, "");
   return LLVMBuildLoad(c->builder, field_desc, "");
+}
+
+LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef field_info)
+{
+  LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_info, 0, "");
+  offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
+  return LLVMBuildAdd(c->builder, ptr, offset, "");
+}
+
+LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef field_info)
+{
+  LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
+  LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr,
+    LLVMPointerType(c->object_ptr, 0), "");
+  return LLVMBuildLoad(c->builder, object_ptr, "");
+}
+
+LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
+{
+  return LLVMBuildExtractValue(c->builder, field_info, 1, "");
+}
+
+LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
+{
+  ast_t* def = (ast_t*)ast_data(type);
+
+  switch(ast_id(def))
+  {
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      return gendesc_istrait(c, desc, type);
+
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+      return gendesc_isentity(c, desc, type);
+
+    default: {}
+  }
+
+  assert(0);
+  return GEN_NOVALUE;
 }
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
@@ -530,4 +587,16 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   LLVMAddIncoming(result, &test_id, &body_block, 1);
 
   return result;
+}
+
+LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
+{
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return GEN_NOVALUE;
+
+  LLVMValueRef left = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
+  LLVMValueRef right = LLVMConstPtrToInt(g.desc, c->intptr);
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, left, right, "");
 }
