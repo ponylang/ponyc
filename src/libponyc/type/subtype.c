@@ -700,13 +700,28 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super, bool errors)
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
 
-  // A struct has no descriptor, so can't be a subtype of an interface.
-  if(ast_id(sub_def) == TK_STRUCT)
-    return false;
-
   // Add an assumption: sub <: super
   if(push_assume(sub, super))
     return true;
+
+  bool ret = true;
+
+  // A struct has no descriptor, so can't be a subtype of an interface.
+  if(ast_id(sub_def) == TK_STRUCT)
+  {
+    ret = false;
+
+    if(errors)
+    {
+      ast_error(sub,
+        "%s is not a subtype of %s: a struct can't be a subtype of an "
+        "interface",
+        ast_print_type(sub), ast_print_type(super));
+    }
+  }
+
+  if(!is_sub_cap_and_eph(sub, super, errors))
+    ret = false;
 
   ast_t* sub_typeargs = ast_childidx(sub, 2);
   ast_t* sub_typeparams = ast_childidx(sub_def, 1);
@@ -716,8 +731,6 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super, bool errors)
 
   ast_t* super_members = ast_childidx(super_def, 4);
   ast_t* super_member = ast_child(super_members);
-
-  bool ret = true;
 
   while(super_member != NULL)
   {
