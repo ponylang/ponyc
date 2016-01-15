@@ -64,6 +64,8 @@ class iso _TestShortOptions is UnitTest
       | ("none", var arg: None) => none = true
       | ("i64", var arg: I64) => i64 = arg
       | ("f64", var arg: F64) => f64 = arg
+      else
+        h.assert_failed("Invalid option reported")
       end
     end
 

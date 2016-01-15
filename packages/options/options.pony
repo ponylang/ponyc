@@ -81,6 +81,9 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       if matched.size() == 0 then
         _arguments.delete(_index)
       end
+      if (matched.size() == 1) and (matched(0) == '-') then
+        _arguments.delete(_index)
+      end
     end
 
   fun ref _select(candidate: String ref, start: ISize, offset: ISize,
