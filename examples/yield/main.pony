@@ -195,7 +195,7 @@ actor Main
     var err : Bool = false 
 
     let options = Options(env) +
-      ("punk", "l", None) +
+      ("punk", "p", None) +
       ("lonely", "l", None) +
       ("bench", "b", I64Argument) +
       ("debug", "d", None)
