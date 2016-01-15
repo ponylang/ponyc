@@ -11,7 +11,9 @@
 * Atom: [language-pony](https://atom.io/packages/language-pony)
 * Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony)
 * Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
-* Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
+* Emacs:
+    - [ponylang-mode](https://github.com/abingham/ponylang-mode)
+    - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 
 # Installation
