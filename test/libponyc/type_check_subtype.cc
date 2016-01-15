@@ -281,7 +281,10 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
     "interface Test\n"
     "  fun z(c1: C1, c2: C2, c3: C3,\n"
     "    t1: T1, t2: T2, t3: T3,\n"
-    "    t1and2: (T1 & T2))";
+    "    t1and2: (T1 & T2),\n"
+    "    t3trn: T3 trn,\n"
+    "    t1val: T1 val,\n"
+    "    t1and2val: (T1 ref & T2 val))";
 
   TEST_COMPILE(src);
 
@@ -291,6 +294,13 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_TRUE(is_subtype(type_of("c3"), type_of("t1and2"), true));
   ASSERT_TRUE(is_subtype(type_of("t1and2"), type_of("t1and2"), true));
   ASSERT_FALSE(is_subtype(type_of("t1and2"), type_of("c3"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1val"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2val"), true));
+  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1and2val"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1and2val"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1and2val"), type_of("t1"), true));
+  ASSERT_FALSE(is_subtype(type_of("t1and2val"), type_of("t1val"), true));
 }
 
 

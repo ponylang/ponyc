@@ -389,8 +389,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
   if(!ok)
   {
-    ast_error(ast,
-      "receiver capability is not a subtype of method capability");
+    ast_error(ast, "receiver type is not a subtype of target type");
     ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
     ast_error(cap, "target type: %s", ast_print_type(t_type));
 

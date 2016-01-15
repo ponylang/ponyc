@@ -221,6 +221,9 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
       return false;
   }
 
+  operand_cap = cap_unbind(operand_cap);
+  pattern_cap = cap_unbind(pattern_cap);
+
   if((operand_cap == pattern_cap) || (pattern_cap == TK_TAG))
     return true;
 

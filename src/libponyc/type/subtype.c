@@ -1,8 +1,9 @@
 #include "subtype.h"
-#include "reify.h"
-#include "cap.h"
 #include "alias.h"
 #include "assemble.h"
+#include "cap.h"
+#include "matchtype.h"
+#include "reify.h"
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
@@ -554,24 +555,40 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, bool errors)
     default: {}
   }
 
-  // T1 <: T3 or T2 <: T3
+  // T1 <: T3
+  // match(T2, T3) != DENY
   // ---
   // (T1 & T2) <: T3
+
+  bool ok = false;
+  bool deny = false;
+
   for(ast_t* child = ast_child(sub);
     child != NULL;
     child = ast_sibling(child))
   {
     if(is_subtype(child, super, false))
-      return true;
+      ok = true;
+
+    if(is_matchtype(child, super) == MATCHTYPE_DENY)
+    {
+      if(errors)
+      {
+        ast_error(sub, "match denied %s to %s",
+          ast_print_type(sub), ast_print_type(super));
+      }
+
+      deny = true;
+    }
   }
 
-  if(errors)
+  if(!ok && errors)
   {
     ast_error(sub, "no element of %s is a subtype of %s",
       ast_print_type(sub), ast_print_type(super));
   }
 
-  return false;
+  return ok && !deny;
 }
 
 static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super, bool errors)
