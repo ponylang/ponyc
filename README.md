@@ -27,6 +27,17 @@ $ brew install ponyc
 
 ## Linux
 
+### Gentoo
+
+```bash
+layman -a stefantalpalaru
+emerge dev-lang/pony
+```
+
+A live ebuild is also available in the [overlay](https://github.com/stefantalpalaru/gentoo-overlay) (dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
+
+### Other distributions
+
 We're transitioning to bintray. For now, please build from source.
 
 ## Windows
@@ -39,8 +50,6 @@ You will need to build from source.
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well.
 
- > Note that Gentoo Linux users are currently affected by Gentoo [bug 457530](https://bugs.gentoo.org/show_bug.cgi?id=457530#c7) (hotfix linked.)
-
 This will build ponyc and compile helloworld:
 
 ```bash
@@ -48,7 +57,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on FreeBSD
+## Building on FreeBSD
 
 First, install the required dependencies:
 
@@ -66,7 +75,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
 
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew the required dependencies:
 
@@ -83,7 +92,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+## Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
 
 The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
