@@ -133,7 +133,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
   fun size(): USize =>
     """
-    Returns the size of the String in bytes
+    Returns the length of the string data in bytes.
     """
     _size
 
