@@ -199,7 +199,9 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     char* name = pony_dir_info_name(d);
     const char* p = strrchr(name, '.');
 
-    if(p != NULL && strcmp(p, EXTENSION) == 0)
+    if(p != NULL && strcmp(p, EXTENSION) == 0
+       // but ignore emacs lockfiles
+       && strncmp(name, ".#", 2) != 0)
     {
       char fullpath[FILENAME_MAX];
       path_cat(dir_path, name, fullpath);
