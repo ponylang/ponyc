@@ -4,7 +4,7 @@
 
 // Parsing tests regarding expressions
 
-#define TEST_AST(src, expect) DO(test_program_ast(src, "syntax", expect))
+#define TEST_AST(src, expect) DO(test_equiv(src,"syntax",expect,"syntax"))
 #define TEST_ERROR(src) DO(test_error(src, "syntax"))
 #define TEST_COMPILE(src) DO(test_compile(src, "syntax"))
 
@@ -244,4 +244,17 @@ TEST_F(ParseExprTest, CompileErrorNotAllowedOutsideIfdef)
     "    compile_error \"Reason\"";
 
   TEST_ERROR(src);
+}
+
+TEST_F(ParseExprTest, ExprErrorPatternCaptureType)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    let a: U8 = 'a'\n"
+    "    match a\n"
+    "    | let c => None\n"
+    "    end";
+
+  DO(test_error(src, "expr"));
 }
