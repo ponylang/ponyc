@@ -371,6 +371,10 @@ ast_t* recover_type(ast_t* type, token_id cap)
       return r_type;
     }
 
+    case TK_LITERAL:
+      ast_error(type, "Cannot infer type of recover literal (internal limitation). Add it with \"as TYPE\"");
+      return type;
+
     case TK_FUNTYPE:
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
