@@ -245,3 +245,16 @@ TEST_F(ParseExprTest, CompileErrorNotAllowedOutsideIfdef)
 
   TEST_ERROR(src);
 }
+
+TEST_F(ParseExprTest, CompileErrorMissingPatternType)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    let a: U8 = 'a'\n"
+    "    match a\n"
+    "    | let c => None\n"
+    "    end";
+
+  TEST_ERROR(src);
+}
