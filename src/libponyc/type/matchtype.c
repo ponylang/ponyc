@@ -4,7 +4,6 @@
 #include "subtype.h"
 #include "typeparam.h"
 #include "viewpoint.h"
-#include <assert.h>
 
 static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern)
 {
@@ -193,7 +192,7 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern)
     default: {}
   }
 
-  assert(0);
+  ast_error(operand, "missing tuple match type declaration");
   return MATCHTYPE_DENY;
 }
 
@@ -281,7 +280,7 @@ static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern)
     default: {}
   }
 
-  assert(0);
+  ast_error(operand, "missing nominal match type declaration");
   return MATCHTYPE_DENY;
 }
 
@@ -304,7 +303,7 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern)
     default: {}
   }
 
-  assert(0);
+  ast_error(operand, "missing nominal match type declaration");
   return MATCHTYPE_DENY;
 }
 
@@ -344,7 +343,7 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern)
     default: {}
   }
 
-  assert(0);
+  ast_error(operand, "missing nominal match type declaration");
   return MATCHTYPE_DENY;
 }
 
@@ -407,6 +406,6 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern)
     default: {}
   }
 
-  assert(0);
+  ast_error(operand, "missing match type declaration");
   return MATCHTYPE_DENY;
 }
