@@ -1,4 +1,5 @@
 use "time"
+use "debug"
 
 interface WalkHandler
   """
@@ -73,7 +74,7 @@ class val FilePath
 
     var temp = FilePath(parent, pre + Path.random())
 
-    while temp.exists() or not temp.mkdir() do
+    while not temp.mkdir(true) do
       temp = FilePath(parent, pre + Path.random())
     end
 
@@ -134,7 +135,7 @@ class val FilePath
       false
     end
 
-  fun val mkdir(): Bool =>
+  fun val mkdir(must_create: Bool = false): Bool =>
     """
     Creates the directory. Will recursively create each element. Returns true
     if the directory exists when we're done, false if it does not. If we do not
@@ -156,10 +157,22 @@ class val FilePath
         path
       end
 
-      ifdef windows then
-        @_mkdir[I32](element.cstring())
-      else
-        @mkdir[I32](element.cstring(), U32(0x1FF))
+      if element.size() > 0 then
+        let r = ifdef windows then
+          @_mkdir[I32](element.cstring())
+        else
+          @mkdir[I32](element.cstring(), U32(0x1FF))
+        end
+
+        if r != 0 then
+          if @os_errno[I32]() != @os_eexist[I32]() then
+            return false
+          end
+
+          if must_create and (offset < 0) then
+            return false
+          end
+        end
       end
     until offset < 0 end
 
