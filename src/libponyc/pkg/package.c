@@ -195,13 +195,16 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 
   while(pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
-    // Handle only files with the specified extension
+    // Handle only files with the specified extension that don't begin with
+    // a dot. This avoids including UNIX hidden files in a build.
     char* name = pony_dir_info_name(d);
+
+    if(name[0] == '.')
+      continue;
+
     const char* p = strrchr(name, '.');
 
-    if(p != NULL && strcmp(p, EXTENSION) == 0
-       // but ignore emacs lockfiles
-       && strncmp(name, ".#", 2) != 0)
+    if((p != NULL) && (strcmp(p, EXTENSION) == 0))
     {
       char fullpath[FILENAME_MAX];
       path_cat(dir_path, name, fullpath);
