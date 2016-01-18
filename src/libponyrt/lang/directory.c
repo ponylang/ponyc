@@ -5,6 +5,7 @@
 
 #if defined(PLATFORM_IS_WINDOWS)
 #include <direct.h>
+#include <errno.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
