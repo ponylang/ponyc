@@ -1,5 +1,4 @@
 use "time"
-use "debug"
 
 interface WalkHandler
   """
