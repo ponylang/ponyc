@@ -638,6 +638,12 @@ bool package_init(pass_opt_t* opt)
   package_add_paths(getenv("PONYPATH"));
   add_exec_dir();
 
+  // Finally we add OS specific paths.
+#ifdef PLATFORM_IS_POSIX_BASED
+  add_path("/usr/local/lib");
+  add_path("/opt/local/lib");
+#endif
+
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
 
