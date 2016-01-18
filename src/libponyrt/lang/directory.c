@@ -14,6 +14,16 @@ PONY_EXTERN_C_BEGIN
 
 const char* cwd;
 
+int os_eexist()
+{
+  return EEXIST;
+}
+
+int os_errno()
+{
+  return errno;
+}
+
 static bool skip_entry(const char* entry, size_t len)
 {
   if((len == 1) && (entry[0] == '.'))
