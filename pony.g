@@ -95,6 +95,7 @@ nextterm
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
   | nextpattern
+  | '#' postfix
   ;
 
 term
@@ -109,6 +110,7 @@ term
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
   | pattern
+  | '#' postfix
   ;
 
 withelem

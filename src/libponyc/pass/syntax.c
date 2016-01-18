@@ -936,7 +936,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_CONSTANT:
-      ast_error(ast, "Compile time constants not yet supported");
+      ast_error(ast, "Compile time expressions not yet supported");
       r = AST_ERROR;
       break;
 

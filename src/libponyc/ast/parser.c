@@ -120,6 +120,13 @@ DEF(literal);
   TOKEN("literal", TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
   DONE();
 
+// HASH postfix
+DEF(constexpr);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_CONSTANT);
+  RULE("formal argument value", postfix);
+  DONE();
+
 // literal
 DEF(typeargliteral);
   AST_NODE(TK_VALUEFORMALARG);
@@ -131,8 +138,7 @@ DEF(typeargliteral);
 DEF(typeargconst);
   AST_NODE(TK_VALUEFORMALARG);
   PRINT_INLINE();
-  TOKEN(NULL, TK_CONSTANT);
-  RULE("formal argument value", postfix);
+  RULE("formal argument value", constexpr);
   DONE();
 
 // LSQUARE type {COMMA type} RSQUARE
@@ -776,18 +782,18 @@ DEF(test_ifdef_flag);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | test_<various>
+// recover | consume | pattern | constexpr | test_<various>
 DEF(term);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, pattern, test_noseq,
+    try_block, recover, consume, pattern, constexpr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | test_<various>
+// recover | consume | pattern | constexpr | test_<various>
 DEF(nextterm);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, nextpattern, test_noseq,
+    try_block, recover, consume, nextpattern, constexpr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
