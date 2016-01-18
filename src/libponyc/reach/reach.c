@@ -650,8 +650,10 @@ static void reachable_method(reachable_method_stack_t** s,
       break;
     }
 
+    case TK_LITERAL:
+      assert(0&&"Known internal limitation. Not yet inferred literal type"); break;
     default:
-      assert(0);
+      assert(0&&"Not yet inferred method type. Need NOMINAL, UNIONTYPE or ISECTTYPE");
   }
 }
 
