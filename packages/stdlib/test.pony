@@ -64,12 +64,13 @@ actor Main is TestList
     test(_TestDivMod)
 
     // Tests for all other packages.
-    collections.Main.make().tests(test)
     base64.Main.make().tests(test)
-    net.Main.make().tests(test)
+    collections.Main.make().tests(test)
+    files.Main.make().tests(test)
     http.Main.make().tests(test)
-    options.Main.make().tests(test)
     json.Main.make().tests(test)
+    net.Main.make().tests(test)
+    options.Main.make().tests(test)
     regex.Main.make().tests(test)
     strings.Main.make().tests(test)
 
@@ -629,7 +630,7 @@ class iso _TestMath128 is UnitTest
     h.expect_eq[I128](100_000_000_000_000_000_000,
       -10_000_000_000 * -10_000_000_000)
 
-	// Stop compiler moaning about dividing by constant 0.
+    // Stop compiler moaning about dividing by constant 0.
     var uzero = U128(0)
     var izero = I128(0)
 

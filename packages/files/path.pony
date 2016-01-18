@@ -185,6 +185,18 @@ primitive Path
       "."
     end
 
+  fun normcase(path: String): String =>
+    """
+    Normalizes the case of path for the runtime platform.
+    """
+    if Platform.windows() then
+      recover val path.lower().replace("/", "\\") end
+    elseif Platform.osx() then
+      path.lower()
+    else
+      path
+    end
+
   fun cwd(): String =>
     """
     Returns the program's working directory. Setting the working directory is
@@ -290,6 +302,23 @@ primitive Path
       result
     else
       target_clean.substring(target_0)
+    end
+
+  fun split(path: String): (String, String) =>
+    """
+    Splits the path into a pair, (head, tail) where tail is the last pathname
+    component and head is everything leading up to that. The tail part will
+    never contain a slash; if path ends in a slash, tail will be empty. If
+    there is no slash in path, head will be empty. If path is empty, both head
+    and tail are empty. The path in head will be cleaned before it is returned.
+    In all cases, join(head, tail) returns a path to the same location as path
+    (but the strings may differ). Also see the functions dir() and base().
+    """
+    try
+      var i = path.rfind(sep())
+      (clean(path.substring(0, i)), path.substring(i+1))
+    else
+      ("", path)
     end
 
   fun base(path: String): String =>
