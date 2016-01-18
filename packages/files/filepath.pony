@@ -15,44 +15,6 @@ class val FilePath
   let path: String
   let caps: FileCaps = FileCaps
 
-  new val mkdtemp(base: (FilePath | AmbientAuth | None), pattern': String,
-      caps': FileCaps val = recover val FileCaps.all() end) ?
-  =>
-    """
-    Create a temp directory and returns a path to it.  The directories name
-    will be based on `pattern'` which must end with `"XXXXXX"`.  The caller
-    must either provide the root capability or an existing FilePath.
-
-    If the root capability is provided, pattern will be relative to the program's
-    working directory. Otherwise, it will be relative to the existing FilePath,
-    and the existing FilePath must be a prefix of the resulting path.
-
-    The resulting FilePath will have capabilities that are the intersection of
-    the supplied capabilities and the capabilities on the parent.
-    """
-    caps.union(caps')
-
-    let pattern =
-      match base
-      | let b: AmbientAuth => Path.abs(pattern')
-      | let b: FilePath =>
-        if not b.caps(FileLookup) then
-          error
-        end
-        caps.intersect(b.caps)
-        Path.join(b.path, pattern')
-      else
-        error
-      end
-    if not pattern.at("XXXXXX", -6) then
-      error
-    end
-    let dir = @mkdtemp[Pointer[U8]](pattern.cstring())
-    if dir.is_null() then
-      error
-    end
-    path = pattern
-
   new val create(base: (FilePath | AmbientAuth | None), path': String,
     caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
@@ -86,6 +48,38 @@ class val FilePath
     else
       error
     end
+
+  new val mkdtemp(base: (FilePath | AmbientAuth | None), prefix: String = "",
+    caps': FileCaps val = recover val FileCaps.all() end) ?
+  =>
+    """
+    Create a temporary directory and returns a path to it. The directory's name
+    will begin with `prefix`. The caller must either provide the root
+    capability or an existing FilePath.
+
+    If AmbientAuth is provided, pattern will be relative to the program's
+    working directory. Otherwise, it will be relative to the existing
+    FilePath, and the existing FilePath must be a prefix of the resulting path.
+
+    The resulting FilePath will have capabilities that are the intersection of
+    the supplied capabilities and the capabilities on the base.
+    """
+    (let dir, let pre) = Path.split(prefix)
+    let parent = FilePath(base, dir)
+
+    if not parent.mkdir() then
+      error
+    end
+
+    var temp = FilePath(parent, pre + Path.random())
+
+    while temp.exists() or not temp.mkdir() do
+      temp = FilePath(parent, pre + Path.random())
+    end
+
+    caps.union(caps')
+    caps.intersect(temp.caps)
+    path = temp.path
 
   new val _create(path': String, caps': FileCaps val) =>
     """

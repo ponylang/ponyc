@@ -518,3 +518,24 @@ primitive Path
     end
 
     array
+
+  fun random(len: USize = 6): String =>
+    """
+    Returns a pseudo-random base, suitable as a temporary file name or
+    directory name, but not guaranteed to not already exist.
+    """
+    let letters =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    let s = recover String(len) end
+    var n = USize(0)
+    var r = Time.nanos().usize()
+
+    try
+      while n < len do
+        let c = letters(r % letters.size())
+        r = r / letters.size()
+        s.push(c)
+        n = n + 1
+      end
+    end
+    s

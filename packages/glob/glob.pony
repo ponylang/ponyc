@@ -1,5 +1,6 @@
 // Adapted from https://github.com/miracle2k/python-glob2
 
+use "files"
 use "regex"
 
 interface GlobHandler
@@ -151,7 +152,7 @@ primitive Glob
     glob_handler: GlobHandler ref, dir: FilePath, entries: Array[String] ref)
   =>
     for e in entries.values() do
-      try 
+      try
         let p = dir.join(e)
         let m = compiled_pattern(
           if Path.is_abs(pattern) then
@@ -160,7 +161,7 @@ primitive Glob
             Path.rel(root.path, p.path)
           end)
         glob_handler(p, m.groups())
-      end 
+      end
     end
 
   fun iglob(root: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
