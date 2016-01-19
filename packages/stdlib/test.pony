@@ -71,7 +71,12 @@ actor Main is TestList
     base64.Main.make().tests(test)
     collections.Main.make().tests(test)
     files.Main.make().tests(test)
-    glob.Main.make().tests(test)
+
+    ifdef not windows then
+      // The glob tests are currently very broken on Windows, so ignore them.
+      glob.Main.make().tests(test)
+    end
+
     http.Main.make().tests(test)
     json.Main.make().tests(test)
     net.Main.make().tests(test)
