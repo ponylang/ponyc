@@ -17,7 +17,7 @@ primitive _FileHelper
         let fp = FilePath(top.path, dir_head._1)
         fp.mkdir()
         if dir_head._2 != "" then
-          Directory(fp).create_file(dir_head._2)
+          Directory(fp).create_file(dir_head._2).dispose()
         end
       else
         h.assert_failed("Failed to create file: " + f)
