@@ -7,8 +7,11 @@ For every new package, please add a Main actor and tests to the package in a
 file called 'test.pony'. Then add a corresponding use directive and a line to
 the main actor constructor of this package to invoke those tests.
 
+The test for the `builtin` package are included in this file, so `builtin`
+doesn't have to depend on this package.
+
 All tests can be run by compiling and running packages/stdlib.
- """
+"""
 
 // Include ALL standard library packages here, even if they don't have tests.
 // That way stdlib can be used to type check the whole standard library,
