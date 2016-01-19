@@ -608,6 +608,14 @@ static void add_exec_dir()
   *p = '\0';
   add_path(path);
 
+  // Allow ponyc to find the lib directory when it is installed.
+#ifdef PLATFORM_IS_WINDOWS
+  strcpy(p, "..\\lib");
+#else
+  strcpy(p, "../lib");
+#endif
+  add_path(path);
+
   // Allow ponyc to find the packages directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
   strcpy(p, "..\\packages");
