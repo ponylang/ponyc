@@ -53,7 +53,7 @@ class val FileInfo
 
     filepath = path
 
-    if not @os_fstat[Bool](fd, this) then
+    if not @os_fstat[Bool](fd, path.path.cstring(), this) then
       error
     end
 

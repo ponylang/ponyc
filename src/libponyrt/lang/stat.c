@@ -57,12 +57,12 @@ void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
   *ns = (epoch - (*s * 10000000)) * 100;
 }
 
-static void windows_stat(pony_stat_t* p, struct __stat64* st,
+static void windows_stat(const char* path, pony_stat_t* p, struct __stat64* st,
   DWORD attr, FILETIME* access, FILETIME* write, FILETIME* create)
 {
   WIN32_FILE_ATTRIBUTE_DATA fa;
 
-  if(!GetFileAttributesEx((char*)p->path, GetFileExInfoStandard, &fa))
+  if(!GetFileAttributesEx(path, GetFileExInfoStandard, &fa))
     return;
 
   p->symlink = (attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
@@ -169,7 +169,7 @@ bool os_fstatat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool os_fstat(int fd, pony_stat_t* p)
+bool os_fstat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -183,11 +183,12 @@ bool os_fstat(int fd, pony_stat_t* p)
   if(_fstat64(fd, &st) != 0)
     return false;
 
-  windows_stat(p, &st, fa.dwFileAttributes,
+  windows_stat(path, p, &st, fa.dwFileAttributes,
     &fa.ftLastAccessTime, &fa.ftLastWriteTime, &fa.ftCreationTime);
 
   return true;
 #elif defined(PLATFORM_IS_POSIX_BASED)
+  (void)path;
   struct stat st;
 
   if(fstat(fd, &st) != 0)
@@ -216,7 +217,7 @@ bool os_stat(const char* path, pony_stat_t* p)
     return true;
   }
 
-  windows_stat(p, &st, fa.dwFileAttributes,
+  windows_stat(path, p, &st, fa.dwFileAttributes,
     &fa.ftLastAccessTime, &fa.ftLastWriteTime, &fa.ftCreationTime);
 
   return true;

@@ -23,6 +23,11 @@ class Directory
   """
   let path: FilePath
   var _fd: I32 = -1
+  // We don't need a file descriptor in Windows. However we do still need to
+  // know whether we've disposed of this object, so we use the _fd to indicate
+  // this.
+  // 0 => not yet disposed of.
+  // =1 => disposed of.
 
   new create(from: FilePath) ? =>
     """
@@ -46,6 +51,8 @@ class Directory
       if _fd == -1 then
         error
       end
+    elseif windows then
+      _fd = 0
     end
 
     _FileDes.set_rights(_fd, path)
@@ -459,8 +466,11 @@ class Directory
     """
     Close the directory.
     """
-    ifdef posix then
-      @close[I32](_fd)
+    if _fd != -1 then
+      ifdef posix then
+        @close[I32](_fd)
+      end
+
       _fd = -1
     end
 
@@ -469,5 +479,7 @@ class Directory
     Close the file descriptor.
     """
     if _fd != -1 then
-      @close[I32](_fd)
+      ifdef posix then
+        @close[I32](_fd)
+      end
     end

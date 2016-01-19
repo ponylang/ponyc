@@ -13,9 +13,10 @@ primitive _FileHelper
     let top = Directory(FilePath.mkdtemp(h.env.root, "tmp._FileHelper."))
     for f in files.values() do
       try
-        let dir_head = Path.split(f)
+        // Since we embed paths, we use the posix separator, even on Windows.
+        let dir_head = Path.split(f, "/")
         let fp = FilePath(top.path, dir_head._1)
-        fp.mkdir()
+        let r = fp.mkdir()
         if dir_head._2 != "" then
           Directory(fp).create_file(dir_head._2).dispose()
         end

@@ -22,7 +22,7 @@ primitive Path
       c == '/'
     end
 
-  fun sep(): String =>
+  fun tag sep(): String =>
     """
     Return the path separator as a string.
     """
@@ -304,7 +304,7 @@ primitive Path
       target_clean.substring(target_0)
     end
 
-  fun split(path: String): (String, String) =>
+  fun split(path: String, separator: String = Path.sep()): (String, String) =>
     """
     Splits the path into a pair, (head, tail) where tail is the last pathname
     component and head is everything leading up to that. The tail part will
@@ -315,8 +315,8 @@ primitive Path
     (but the strings may differ). Also see the functions dir() and base().
     """
     try
-      var i = path.rfind(sep())
-      (clean(path.substring(0, i)), path.substring(i+1))
+      var i = path.rfind(separator)
+      (clean(path.substring(0, i)), path.substring(i+separator.size().isize()))
     else
       ("", path)
     end
