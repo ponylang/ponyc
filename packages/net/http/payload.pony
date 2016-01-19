@@ -177,7 +177,7 @@ class iso Payload
     list.push("\r\nHost: ")
     list.push(url.host)
     list.push(":")
-    list.push(url.service)
+    list.push(url.port.string())
     // TODO: basic authorization header
 
     list = _add_headers(consume list)

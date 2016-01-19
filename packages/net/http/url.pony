@@ -1,12 +1,3 @@
-use "assert"
-
-primitive URLNoSlashes
-
-type URLFormat is
-  ( FormatDefault
-  | URLNoSlashes
-  )
-
 class val URL
   """
   Holds the components of a URL. These are always stored as valid, URL-encoded
@@ -16,7 +7,7 @@ class val URL
   var user: String = ""
   var password: String = ""
   var host: String = ""
-  var service: String = ""
+  var port: U16 = 0
   var path: String = ""
   var query: String = ""
   var fragment: String = ""
@@ -27,47 +18,45 @@ class val URL
     """
     None
 
-  new val build(from: String) ? =>
+  new val build(from: String, percent_encoded: Bool = true) ? =>
     """
     Parse the URL string into its components. If it isn't URL encoded, encode
     it. If existing URL encoding is invalid, raise an error.
     """
-    var offset = _parse_scheme(from)
-    offset = _parse_authority(from, offset)
-    _parse_path(from, offset)
+    _parse(from)
 
-    user = URLEncode.encode(user, false)
-    password = URLEncode.encode(password, false)
-    host = URLEncode.encode(host, false)
-    service = URLEncode.encode(service, false)
-    path = URLEncode.encode(path)
-    query = URLEncode.encode(query, true, true)
-    fragment = URLEncode.encode(fragment)
+    if not URLEncode.check_scheme(scheme) then error end
+    user = URLEncode.encode(user, URLPartUser, percent_encoded)
+    password = URLEncode.encode(password, URLPartPassword, percent_encoded)
+    host = URLEncode.encode(host, URLPartHost, percent_encoded)
+    path = URLEncode.encode(path, URLPartPath, percent_encoded)
+    query = URLEncode.encode(query, URLPartQuery, percent_encoded)
+    fragment = URLEncode.encode(fragment, URLPartFragment, percent_encoded)
 
   new val valid(from: String) ? =>
     """
     Parse the URL string into its components. If it isn't URL encoded, raise an
     error.
     """
-    var offset = _parse_scheme(from)
-    offset = _parse_authority(from, offset)
-    _parse_path(from, offset)
+    _parse(from)
 
-    Fact(is_valid())
+    if not is_valid() then
+      error
+    end
 
   fun is_valid(): Bool =>
     """
     Return true if all elements are correctly URL encoded.
     """
-    URLEncode.check(user, false) and
-      URLEncode.check(password, false) and
-      URLEncode.check(host, false) and
-      URLEncode.check(service, false) and
-      URLEncode.check(path) and
-      URLEncode.check(query, true, true) and
-      URLEncode.check(fragment)
+    URLEncode.check_scheme(scheme) and
+      URLEncode.check(user, URLPartUser) and
+      URLEncode.check(password, URLPartPassword) and
+      URLEncode.check(host, URLPartHost) and
+      URLEncode.check(path, URLPartPath) and
+      URLEncode.check(query, URLPartQuery) and
+      URLEncode.check(fragment, URLPartFragment)
 
-  fun string(fmt: URLFormat = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -75,8 +64,7 @@ class val URL
     Combine the components into a string.
     """
     let len = scheme.size() + 3 + user.size() + 1 + password.size() + 1 +
-      host.size() + 1 + service.size() + path.size() + 1 + query.size() + 1 +
-      fragment.size()
+      host.size() + 6 + path.size() + 1 + query.size() + 1 + fragment.size()
     let s = recover String(len) end
 
     if scheme.size() > 0 then
@@ -84,10 +72,7 @@ class val URL
       s.append(":")
     end
 
-    if
-      (fmt isnt URLNoSlashes) and
-      ((scheme.size() > 0) or (user.size() > 0) or (host.size() > 0))
-    then
+    if (user.size() > 0) or (host.size() > 0) then
       s.append("//")
     end
 
@@ -105,9 +90,10 @@ class val URL
     if host.size() > 0 then
       s.append(host)
 
-      if service.size() > 0 then
+      // Do not output port if it's the scheme default.
+      if port != default_port() then
         s.append(":")
-        s.append(service)
+        s.append(port.string())
       end
     end
 
@@ -133,123 +119,168 @@ class val URL
     // TODO:
     this
 
-  fun ref _parse_scheme(from: String): ISize ? =>
+  fun default_port(): U16 =>
     """
-    The scheme is: [a-zA-Z][a-zA-Z0-9+-.]*:
+    Report the default port for our scheme.
+    Returns 0 for unrecognised schemes.
     """
-    var i = USize(0)
+    match scheme
+    | "http" => 80
+    | "https" => 443
+    else
+      0
+    end
 
-    while i < from.size() do
-      let c = from(i)
+  fun ref _parse(from: String) ? =>
+    """
+    Parse the given string as a URL.
+    Raises an error on invalid port number.
+    """
+    (var offset, scheme) = _parse_scheme(from)
+    (offset, let authority) = _parse_part(from, "//", "/?#", offset)
+    (offset, path) = _parse_part(from, "", "?#", offset)
+    (offset, query) = _parse_part(from, "?", "#", offset)
+    (offset, fragment) = _parse_part(from, "#", "", offset)
 
-      if ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z')) then
-        // Valid any time.
-        i = i + 1
-      elseif
-        ((c >= '0') and (c <= '9')) or
-        (c == '+') or
-        (c == '-') or
-        (c == '.')
-      then
-        // If it's the first character, it's not a scheme.
-        if i == 0 then
-          return 0
+    (var userinfo, var hostport) = _split(authority, '@')
+
+    if hostport.size() == 0 then
+      // No '@' found, hostport is whole of authority.
+      hostport = userinfo = ""
+    end
+
+    (user, password) = _split(userinfo, ':')
+    (host, var port_str) = _parse_hostport(hostport)
+
+    port =
+      if port_str.size() > 0 then
+        port_str.u16()
+      else
+        default_port()
+      end
+
+  fun _parse_scheme(from: String): (/*offset*/ISize, /*scheme*/String) =>
+    """
+    Find the scheme, if any, at the start of the given string.
+    The offset of the part following the scheme is returned.
+    """
+    // We have a scheme only if we have a ':' before any of "/?#".
+    try
+      var i = USize(0)
+
+      while i < from.size() do
+        let c = from(i)
+
+        if c == ':' then
+          // Scheme found.
+          return ((i + 1).isize(), from.substring(0, i.isize()))
+        end
+
+        if (c == '/') or (c == '?') or (c == '#') then
+          // No scheme.
+          return (0, "")
         end
 
         i = i + 1
-      elseif c == ':' then
-        // Can't start a URL with a colon.
-        if i == 0 then
-          error
+      end
+    end
+
+    // End of string reached without finding any relevant terminators.
+    (0, "")
+
+  fun _parse_part(from: String, prefix: String, terminators: String,
+    offset: ISize): (/*offset*/ISize, /*part*/String)
+  =>
+    """
+    Attempt to parse the specified part out of the given string.
+    Only attempt the parse if the given prefix is found first. Pass "" if no
+    prefix is needed.
+    The part ends when any one of the given terminator characters is found, or
+    the end of the input is reached.
+    The offset of the terminator is returned, if one is found.
+    """
+    if (prefix.size() > 0) and (not from.at(prefix, offset)) then
+      // Prefix not found.
+      return (offset, "")
+    end
+
+    let start = offset + prefix.size().isize()
+      
+    try
+      var i = start.usize()
+
+      while i < from.size() do
+        let c = from(i)
+        
+        var j = USize(0)
+        while j < terminators.size() do
+          if terminators(j) == c then
+            // Terminator found.
+            return (i.isize(), from.substring(start, i.isize()))
+          end
+
+          j = j + 1
         end
 
-        // Otherwise, we have a scheme. Set it and return the offset.
-        scheme = recover from.substring(0, i.isize()).lower_in_place() end
-        return i.isize() + 1
-      else
-        // Anything else is not a scheme.
-        return 0
+        i = i + 1
       end
     end
 
-    // The whole url is a valid scheme. Treat it as a path instead.
-    0
+    // No terminator found, take whole string.
+    (from.size().isize(), from.substring(start))
 
-  fun ref _parse_authority(from: String, offset: ISize): ISize =>
+  fun _split(src: String, separator: U8): (String, String) =>
     """
-    The authority is: //userinfo@host:port/
-    If the leading // isn't present, go straight to the path.
-    """
-    if not from.at("//", offset) then
-      return offset
-    end
-
-    var i = offset + 2
-    let slash = try from.find("/", i) else from.size().isize() end
-
-    try
-      let at = from.rfind("@", slash)
-
-      let user_end = try from.find(":", i).min(at) else at end
-      user = from.substring(i, user_end)
-      if from.at(":", user_end) then
-        password = from.substring(user_end + 1, at)
-      end
-
-      i = at + 1
-    end
-
-    try
-      let colon = from.find(":", i)
-
-      if colon < slash then
-        host = from.substring(i, colon)
-        service = from.substring(colon + 1, slash)
-      else
-        error
-      end
-    else
-      // Has no port
-      host = from.substring(i, slash)
-
-      service = match scheme
-      | "http" => "80"
-      | "https" => "443"
-      else
-        "0"
-      end
-    end
-
-    slash
-
-  fun ref _parse_path(from: String, offset: ISize) =>
-    """
-    The remainder is path[?query][#fragment]
+    Split the given string in 2 around the first instance of the specified
+    separator.
+    If the string does not contain the separator then the first resulting
+    string is the whole src and the second is empty.
     """
     try
-      let q = from.find("?", offset)
-      path = from.substring(offset, q)
+      var i = USize(0)
 
-      try
-        let h = from.find("#", q + 1)
-        query = from.substring(q + 1, h)
-        fragment = from.substring(h + 1)
-      else
-        // Has no fragment
-        query = from.substring(q + 1)
-      end
-    else
-      // Has no query.
-      try
-        let h = from.find("#", offset + 1)
-        path = from.substring(offset, h)
-        fragment = from.substring(h + 1)
-      else
-        // Has no fragment
-        path = from.substring(offset)
+      while i < src.size() do
+        if src(i) == separator then
+          // Separator found.
+          return (src.substring(0, i.isize()), src.substring((i + 1).isize()))
+        end
+
+        i = i + 1
       end
     end
 
-    if (path.size() == 0) and ((scheme.size() > 0) or (host.size() > 0)) then
-      path = "/"
+    // Separator not found.
+    (src, "")
+
+  fun _parse_hostport(hostport: String): (/*host*/String, /*port*/String) =>
+    """
+    Split the given "host and port" string into the host and port parts.
+    """
+    try
+      if (hostport.size() == 0) or (hostport(0) != '[') then
+        // This is not an IPv6 format host, just split at the first ':'.
+        return _split(hostport, ':')
+      end
+
+      // This is an IPv6 format host, need to find the ']'
+      var i = USize(0)
+      var terminator = U8(']')
+
+      while i < hostport.size() do
+        if hostport(i) == terminator then
+          if terminator == ':' then
+            // ':' found, now we can separate the host and port
+            return (hostport.substring(0, i.isize()),
+              hostport.substring((i + 1).isize()))
+          end
+
+          // ']' found, now find ':'
+          terminator = ':'
+        end
+
+        i = i + 1
+      end
     end
+
+    // ':' not found, we have no port.
+    (hostport, "")
