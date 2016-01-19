@@ -77,7 +77,7 @@ class Directory
       ifdef windows then
         var find = @windows_find_data[Pointer[_DirectoryEntry]]()
         let search = path' + "\\*"
-        let h = @FindFirstFile[Pointer[_DirectoryHandle]](
+        let h = @FindFirstFileA[Pointer[_DirectoryHandle]](
           search.cstring(), find)
 
         if h.usize() == -1 then
@@ -90,7 +90,7 @@ class Directory
           if not p.is_null() then
             list.push(recover String.from_cstring(consume p) end)
           end
-        until not @FindNextFile[Bool](h, find) end
+        until not @FindNextFileA[Bool](h, find) end
 
         @FindClose[Bool](h)
         @free[None](find)
