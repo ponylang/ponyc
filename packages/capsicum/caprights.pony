@@ -40,6 +40,7 @@ class CapRights0
     if caps(FileStat) then
       set(Cap.fstat())
       set(Cap.fstatfs())
+      set(Cap.fcntl())
     end
 
     if caps(FileSync) then set(Cap.fsync()) end
