@@ -88,9 +88,17 @@ class _TestPing is UDPNotify
       (_, let service) = ip.name()
 
       let list = if ip.ip4() then
-        DNS.broadcast_ip4(service)
+        ifdef freebsd then
+          DNS.ip4("", service)
+        else
+          DNS.broadcast_ip4(service)
+        end
       else
-        DNS.broadcast_ip6(service)
+        ifdef freebsd then
+          DNS.ip6("", service)
+        else
+          DNS.broadcast_ip6(service)
+        end
       end
 
       list(0)
@@ -187,7 +195,7 @@ class iso _TestBroadcast is UnitTest
   fun ref apply(h: TestHelper): TestResult =>
     _mgr = _TestBroadcastMgr(h)
     2_000_000_000 // 2 second timeout
-    
+
   fun timedout(t: TestHelper) =>
     try
       (_mgr as _TestBroadcastMgr).fail("timeout")
