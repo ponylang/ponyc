@@ -50,9 +50,10 @@ class iso _TestWalk is UnitTest
         lambda(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
           if dir.path == p then
             h.expect_array_eq_unordered[String](["b", "c", "a", "d"], entries)
-            entries.remove(2, 1)
           elseif dir.path.at("a", -1) then
             h.expect_array_eq_unordered[String](["1", "2"], entries)
+          elseif dir.path.at("c", -1) then
+            h.expect_array_eq_unordered[String](["3", "4"], entries)
           elseif dir.path.at("d", -1) then
             h.expect_array_eq_unordered[String](["5", "6"], entries)
           else
