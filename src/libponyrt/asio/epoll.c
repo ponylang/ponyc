@@ -24,12 +24,6 @@ struct asio_backend_t
   messageq_t q;
 };
 
-enum // Event requests
-{
-  ASIO_SET_SIGNAL = 9,
-  ASIO_CANCEL_SIGNAL = 10
-};
-
 static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = asio_get_backend();
@@ -65,47 +59,13 @@ static void handle_queue(asio_backend_t* b)
 
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
   {
+    asio_event_t* ev = msg->event;
+
     switch(msg->flags)
     {
       case ASIO_DISPOSABLE:
-        asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
-        break;
-
-      case ASIO_SET_SIGNAL:
-      {
-        int sig = (int)ev->nsec;
-
-        if(b->sighandlers[sig] == NULL)
-        {
-          b->sighandlers[sig] = ev;
-          signal(sig, signal_handler);
-          ev->fd = eventfd(0, EFD_NONBLOCK);
-
-          struct epoll_event ep;
-          ep.data.ptr = ev;
-          ep.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
-
-          epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
-        }
-        break;
-      }
-
-      case ASIO_CANCEL_SIGNAL:
-      {
-        asio_event_t* ev = msg->event;
-        int sig = (int)ev->nsec;
-
-        if(b->sighandlers[sig] == ev)
-        {
-          b->sighandlers[sig] = NULL;
-          signal(sig, SIG_DFL);
-          close(ev->fd);
-        }
-
-        ev->flags = ASIO_DISPOSABLE;
         asio_event_send(ev, ASIO_DISPOSABLE, 0);
         break;
-      }
 
       default: {}
     }
@@ -254,10 +214,17 @@ void asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    if(ev->nsec < MAX_SIGNAL)
-      send_request(ev, ASIO_SET_SIGNAL);
+    int sig = (int)ev->nsec;
+    asio_event_t* prev = NULL;
 
-    return;
+    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, ev))
+    {
+      signal(sig, signal_handler);
+      ev->fd = eventfd(0, EFD_NONBLOCK);
+      ep.events |= EPOLLIN;
+    } else {
+      return;
+    }
   }
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
@@ -305,12 +272,14 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    if(ev->nsec < MAX_SIGNAL)
+    int sig = (int)ev->nsec;
+    asio_event_t* prev = ev;
+
+    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, NULL))
     {
-      send_request(ev, ASIO_CANCEL_SIGNAL);
-    } else {
-      ev->flags = ASIO_DISPOSABLE;
-      asio_event_send(ev, ASIO_DISPOSABLE, 0);
+      signal(sig, SIG_DFL);
+      close(ev->fd);
+      ev->fd = -1;
     }
   }
 
