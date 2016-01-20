@@ -37,6 +37,33 @@ enum // Event requests
 };
 
 
+static void send_request(asio_event_t* ev, int req)
+{
+  asio_backend_t* b = asio_get_backend();
+
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  msg->event = ev;
+  msg->flags = req;
+  messageq_push(&b->q, (pony_msg_t*)msg);
+
+  SetEvent(b->wakeup);
+}
+
+
+static void signal_handler(int sig)
+{
+  if(sig >= MAX_SIGNAL)
+    return;
+
+  // Reset the signal handler.
+  signal(sig, signal_handler);
+  asio_backend_t* b = asio_get_backend();
+  asio_event_t* ev = b->sighandlers[sig];
+  asio_event_send(ev, ASIO_SIGNAL, 1);
+}
+
+
 void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 {
   // A timer has fired, notify the actor
@@ -149,8 +176,10 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
               int sig = (int)ev->nsec;
 
               if(b->sighandlers[sig] == NULL)
+              {
                 b->sighandlers[sig] = ev;
-
+                signal(sig, signal_handler);
+              }
               break;
             }
 
@@ -160,7 +189,10 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
               int sig = (int)ev->nsec;
 
               if(b->sighandlers[sig] == ev)
+              {
                 b->sighandlers[sig] = NULL;
+                signal(sig, SIG_DFL);
+              }
 
               ev->flags = ASIO_DISPOSABLE;
               asio_event_send(ev, ASIO_DISPOSABLE, 0);
@@ -196,33 +228,6 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
   messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
-}
-
-
-static void send_request(asio_event_t* ev, int req)
-{
-  asio_backend_t* b = asio_get_backend();
-
-  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(asio_msg_t)), 0);
-  msg->event = ev;
-  msg->flags = req;
-  messageq_push(&b->q, (pony_msg_t*)msg);
-
-  SetEvent(b->wakeup);
-}
-
-
-static void signal_handler(int sig)
-{
-  if(sig >= MAX_SIGNAL)
-    return;
-
-  // Reset the signal handler.
-  signal(sig, signal_handler);
-  asio_backend_t* b = asio_get_backend();
-  asio_event_t* ev = b->sighandlers[sig];
-  asio_event_send(ev, ASIO_SIGNAL, 1);
 }
 
 
