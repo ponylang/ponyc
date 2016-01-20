@@ -18,22 +18,23 @@ All tests can be run by compiling and running packages/stdlib.
 // generate docs for it, etc.
 use "ponytest"
 use assert = "assert"
+use base64 = "encode/base64"
 use capsicum = "capsicum"
 use collections = "collections"
 use debug = "debug"
-use base64 = "encode/base64"
 use files = "files"
 use glob = "glob"
+use http = "net/http"
 use json = "json"
 use math = "math"
 use net = "net"
-use http = "net/http"
-use ssl = "net/ssl"
-use strings = "strings"
 use options = "options"
 use promises = "promises"
 use random = "random"
 use regex = "regex"
+use signals = "signals"
+use ssl = "net/ssl"
+use strings = "strings"
 use term = "term"
 use time = "time"
 
@@ -82,6 +83,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
     regex.Main.make().tests(test)
+    signals.Main.make().tests(test)
     strings.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest

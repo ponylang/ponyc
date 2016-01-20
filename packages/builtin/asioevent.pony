@@ -35,4 +35,5 @@ primitive AsioEvent
   fun read(): U32 => 1 << 0
   fun write(): U32 => 1 << 1
   fun timer(): U32 => 1 << 2
+  fun signal(): U32 => 1 << 3
   fun read_write(): U32 => read() or write()

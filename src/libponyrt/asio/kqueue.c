@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 #include <assert.h>
 
 struct asio_backend_t
@@ -114,6 +115,10 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
             asio_event_send(ev, ASIO_TIMER, 0);
             break;
 
+          case EVFILT_SIGNAL:
+            asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
+            break;
+
           default: {}
         }
       }
@@ -143,7 +148,7 @@ void asio_event_subscribe(asio_event_t* ev)
   if(ev->noisy)
     asio_noisy_add();
 
-  struct kevent event[3];
+  struct kevent event[4];
   int i = 0;
 
   // EV_CLEAR enforces edge triggered behaviour.
@@ -168,6 +173,13 @@ void asio_event_subscribe(asio_event_t* ev)
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->nsec, ev);
 #endif
+    i++;
+  }
+
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    signal((int)ev->nsec, SIG_IGN);
+    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
 
@@ -247,6 +259,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
   if(ev->flags & ASIO_TIMER)
   {
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_DELETE, 0, 0, ev);
+    i++;
+  }
+
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    signal((int)ev->nsec, SIG_DFL);
+    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_DELETE, 0, 0, ev);
     i++;
   }
 

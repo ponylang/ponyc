@@ -9,6 +9,7 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <stdbool.h>
 
 struct asio_backend_t
@@ -103,6 +104,17 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         }
       }
 
+      if(ev->flags & ASIO_SIGNAL)
+      {
+        if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+        {
+          struct signalfd_siginfo info;
+          ssize_t rc = read(ev->fd, &info, sizeof(struct signalfd_siginfo));
+          (void)rc;
+          flags |= ASIO_SIGNAL;
+        }
+      }
+
       if(flags != 0)
         asio_event_send(ev, flags, 0);
     }
@@ -156,6 +168,17 @@ void asio_event_subscribe(asio_event_t* ev)
     ep.events |= EPOLLIN;
   }
 
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, ev->nsec);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
+    ev->fd = signalfd(-1, &mask, 0);
+    ep.events |= EPOLLIN;
+  }
+
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
 }
 
@@ -192,6 +215,20 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
+    if(ev->fd != -1)
+    {
+      close(ev->fd);
+      ev->fd = -1;
+    }
+  }
+
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, ev->nsec);
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
     if(ev->fd != -1)
     {
       close(ev->fd);

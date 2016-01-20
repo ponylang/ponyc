@@ -6,6 +6,7 @@
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include <string.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <winsock2.h>
 
@@ -14,10 +15,13 @@
 // request queue so that all operations can be performed in a single thread
 // (the asio background thread).
 
+#define MAX_SIGNAL 32
+
 struct asio_backend_t
 {
   HANDLE wakeup;
   bool stop;
+  asio_event_t* sighandlers[MAX_SIGNAL];
   messageq_t q;
 };
 
@@ -27,7 +31,9 @@ enum // Event requests
   ASIO_STDIN_NOTIFY = 5,
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
-  ASIO_CANCEL_TIMER = 8
+  ASIO_CANCEL_TIMER = 8,
+  ASIO_SET_SIGNAL = 9,
+  ASIO_CANCEL_SIGNAL = 10
 };
 
 
@@ -91,11 +97,13 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 
         while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
         {
+          asio_event_t* ev = msg->event;
+
           switch(msg->flags)
           {
             case ASIO_STDIN_NOTIFY:
               // Who to notify about stdin events has changed
-              stdin_event = msg->event;
+              stdin_event = ev;
 
               if(stdin_event == NULL) // No-one listening, don't wait on stdin
                 handleCount = 1;
@@ -113,26 +121,51 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
             case ASIO_SET_TIMER:
             {
               // Windows timer resolution is 100ns, adjust given time
-              int64_t dueTime = -(int64_t)msg->event->nsec / 100;
+              int64_t dueTime = -(int64_t)ev->nsec / 100;
               LARGE_INTEGER liDueTime;
               liDueTime.LowPart = (DWORD)(dueTime & 0xFFFFFFFF);
               liDueTime.HighPart = (LONG)(dueTime >> 32);
 
-              SetWaitableTimer(msg->event->timer, &liDueTime, 0, timer_fire,
-                (void*)msg->event, FALSE);
+              SetWaitableTimer(ev->timer, &liDueTime, 0, timer_fire,
+                (void*)ev, FALSE);
               break;
             }
 
             case ASIO_CANCEL_TIMER:
-              CancelWaitableTimer(msg->event->timer);
-              CloseHandle(msg->event->timer);
-              msg->event->timer = NULL;
+            {
+              CancelWaitableTimer(ev->timer);
+              CloseHandle(ev->timer);
+              ev->timer = NULL;
 
               // Now that we've called cancel no more fire APCs can happen for
               // this timer, so we're safe to send the dispose notify now.
-              msg->event->flags = ASIO_DISPOSABLE;
-              asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
+              ev->flags = ASIO_DISPOSABLE;
+              asio_event_send(ev, ASIO_DISPOSABLE, 0);
               break;
+            }
+
+            case ASIO_SET_SIGNAL:
+            {
+              int sig = (int)ev->nsec;
+
+              if(b->sighandlers[sig] == NULL)
+                b->sighandlers[sig] = ev;
+
+              break;
+            }
+
+            case ASIO_CANCEL_SIGNAL:
+            {
+              asio_event_t* ev = msg->event;
+              int sig = (int)ev->nsec;
+
+              if(b->sighandlers[sig] == ev)
+                b->sighandlers[sig] = NULL;
+
+              ev->flags = ASIO_DISPOSABLE;
+              asio_event_send(ev, ASIO_DISPOSABLE, 0);
+              break;
+            }
 
             default:  // Something's gone very wrong if we reach here
               break;
@@ -180,6 +213,19 @@ static void send_request(asio_event_t* ev, int req)
 }
 
 
+static void signal_handler(int sig)
+{
+  if(sig >= MAX_SIGNAL)
+    return;
+
+  // Reset the signal handler.
+  signal(sig, signal_handler);
+  asio_backend_t* b = asio_get_backend();
+  asio_event_t* ev = b->sighandlers[sig];
+  asio_event_send(ev, ASIO_SIGNAL, 1);
+}
+
+
 // Called from stdfd.c to resume waiting on stdin after a read
 void iocp_resume_stdin()
 {
@@ -207,6 +253,9 @@ void asio_event_subscribe(asio_event_t* ev)
     // ev->data is initially the time (in nsec) and ends up as the handle.
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
+  } else if((ev->flags & ASIO_SIGNAL) != 0) {
+    if(ev->nsec < MAX_SIGNAL)
+      send_request(ev, ASIO_SET_SIGNAL);
   } else if(ev->fd == 0) {
     // Need to subscribe to stdin
     send_request(ev, ASIO_STDIN_NOTIFY);
@@ -254,6 +303,14 @@ void asio_event_unsubscribe(asio_event_t* ev)
     // here it might overtake the set. So you put the cancel through the queue
     // as well.
     send_request(ev, ASIO_CANCEL_TIMER);
+  } else if((ev->flags & ASIO_SIGNAL) != 0) {
+    if(ev->nsec < MAX_SIGNAL)
+    {
+      send_request(ev, ASIO_CANCEL_SIGNAL);
+    } else {
+      ev->flags = ASIO_DISPOSABLE;
+      asio_event_send(ev, ASIO_DISPOSABLE, 0);
+    }
   } else if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0) {
     // Need to unsubscribe from stdin
     if(ev->fd == 0)
@@ -262,7 +319,6 @@ void asio_event_unsubscribe(asio_event_t* ev)
     ev->flags = ASIO_DISPOSABLE;
     asio_event_send(ev, ASIO_DISPOSABLE, 0);
   }
-
 }
 
 
