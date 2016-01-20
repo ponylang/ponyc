@@ -23,7 +23,7 @@ class iso _TestSignalINT is UnitTest
   fun name(): String => "signals/INT"
 
   fun ref apply(h: TestHelper): TestResult =>
-    let signal = SignalHandler(_TestSighupNotify(h), 2)
+    let signal = SignalHandler(_TestSighupNotify(h), Sig.int())
     signal.raise()
     _signal = signal
     2_000_000_000 // 2 second timeout

@@ -3,6 +3,19 @@ use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
 use @asio_event_unsubscribe[None](event: AsioEventID)
 use @asio_event_destroy[None](event: AsioEventID)
 
+primitive Sig
+  """
+  Define the portable signal numbers. Other signals can be used, but they are
+  not guaranteed to be portable.
+  """
+  fun hup(): U32 => 1
+  fun int(): U32 => 2
+  fun quit(): U32 => 3
+  fun abort(): U32 => 6
+  fun kill(): U32 => 9
+  fun alarm(): U32 => 14
+  fun term(): U32 => 15
+
 actor SignalHandler
   """
   Listen for a specific signal.
