@@ -144,8 +144,6 @@ actor UDPSocket
     end
 
     if not _closed then
-      _event = event
-
       if AsioEvent.readable(flags) then
         _readable = true
         _complete_reads(arg)
@@ -285,13 +283,15 @@ actor UDPSocket
     ifdef windows then
       // On windows, wait until IOCP read operation has completed or been
       // cancelled.
-      if _closed and not _readable then
+      if _closed and not _readable and not _event.is_null() then
         @asio_event_unsubscribe[None](_event)
       end
     else
       // Unsubscribe immediately.
-      @asio_event_unsubscribe[None](_event)
-      _readable = false
+      if not _event.is_null() then
+        @asio_event_unsubscribe[None](_event)
+        _readable = false
+      end
     end
 
     _closed = true
