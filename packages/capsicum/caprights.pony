@@ -24,14 +24,24 @@ class CapRights0
     if caps(FileCreate) then set(Cap.creat()) end
     if caps(FileChmod) then set(Cap.fchmod()) end
     if caps(FileChown) then set(Cap.fchown()) end
-    if caps(FileLink) then set(Cap.linkat()).set(Cap.symlinkat()) end
+
+    if caps(FileLink) then
+      set(Cap.linkat())
+      set(Cap.symlinkat())
+    end
+
     if caps(FileLookup) then set(Cap.lookup()) end
     if caps(FileMkdir) then set(Cap.mkdirat()) end
     if caps(FileRead) then set(Cap.read()) end
     if caps(FileRemove) then set(Cap.unlinkat()) end
     if caps(FileRename) then set(Cap.renameat()) end
     if caps(FileSeek) then set(Cap.seek()) end
-    if caps(FileStat) then set(Cap.fstat()) end
+
+    if caps(FileStat) then
+      set(Cap.fstat())
+      set(Cap.fstatfs())
+    end
+
     if caps(FileSync) then set(Cap.fsync()) end
     if caps(FileTime) then set(Cap.futimes()) end
     if caps(FileTruncate) then set(Cap.ftruncate()) end
