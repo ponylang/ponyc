@@ -134,7 +134,7 @@ bool check_id_field(ast_t* id_node)
 {
   // _?[a-z][A-Za-z0-9_]* (and no double or trailing underscores)
   return check_id(id_node, "field",
-    START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE);
+    START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE | ALLOW_TICK);
 }
 
 bool check_id_method(ast_t* id_node)
