@@ -19,6 +19,7 @@ All tests can be run by compiling and running packages/stdlib.
 use "ponytest"
 use assert = "assert"
 use base64 = "encode/base64"
+use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
 use collections = "collections"
 use debug = "debug"
@@ -70,6 +71,7 @@ actor Main is TestList
 
     // Tests for all other packages.
     base64.Main.make().tests(test)
+    bureaucracy.Main.make().tests(test)
     collections.Main.make().tests(test)
     files.Main.make().tests(test)
 
