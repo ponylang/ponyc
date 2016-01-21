@@ -51,3 +51,17 @@ primitive HashIs[A] is HashFunction[A]
     Determine equality by identity rather than structurally.
     """
     x is y
+
+primitive HashByteSeq
+  """
+  Hash and equality functions for arbitrary ByteSeq.
+  """
+  fun hash(x: ByteSeq): U64 =>
+    @hash_block[U64](x.cstring(), x.size())
+
+  fun eq(x: ByteSeq, y: ByteSeq): Bool =>
+    if x.size() == y.size() then
+      @memcmp[I32](x.cstring(), y.cstring(), x.size()) == 0
+    else
+      false
+    end
