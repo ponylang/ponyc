@@ -19,7 +19,7 @@ interface StdinNotify
     """
     None
 
-interface tag DisposeableActor
+interface tag DisposableActor
   """
   An interface used to asynchronously dispose of an actor.
   """

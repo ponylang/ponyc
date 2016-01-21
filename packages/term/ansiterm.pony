@@ -21,14 +21,14 @@ actor ANSITerm
   let _timers: Timers
   var _timer: (Timer tag | None) = None
   let _notify: ANSINotify
-  let _source: DisposeableActor
+  let _source: DisposableActor
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
   let _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
-  new create(notify: ANSINotify iso, source: DisposeableActor,
+  new create(notify: ANSINotify iso, source: DisposableActor,
     timers: Timers = Timers)
   =>
     """
