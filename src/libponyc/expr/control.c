@@ -86,14 +86,8 @@ static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
   // adds the conditions of outer ifdefs (if any) it may be that BOTH our then
   // and else conditions fail. In this case we can pick either one, since an
   // outer ifdef will throw away the whole branch this ifdef is in anyway.
-  // If both conditions fail we must NOT check for compile_errors in either
-  // clause.
-  // It is not possible for both conditions to be true.
   AST_GET_CHILDREN(ast, cond, then_clause, else_clause, else_cond);
   bool then_value = ifdef_cond_eval(cond, opt);
-  bool else_value = ifdef_cond_eval(else_cond, opt);
-
-  assert(!then_value || !else_value);
 
   ast_setid(ast, TK_IF);
   REPLACE(&cond, NODE(TK_SEQ, NODE(then_value ? TK_TRUE : TK_FALSE)));
