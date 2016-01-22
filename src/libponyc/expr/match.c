@@ -142,6 +142,11 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
         return false;
       }
+      if(ast_id(capture_type) == TK_NONE)
+      {
+        ast_error(pattern, "can't capture a type without a type declaration");
+        return false;
+      }
 
       // Set the pattern type to be the capture type.
       ast_settype(pattern, capture_type);
