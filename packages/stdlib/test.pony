@@ -85,7 +85,13 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
     regex.Main.make().tests(test)
-    signals.Main.make().tests(test)
+    
+    ifdef not windows then
+      // The signals tests currently abort the process on Windows, so ignore
+      // them.
+      signals.Main.make().tests(test)
+    end
+
     strings.Main.make().tests(test)
 
 class iso _TestAbs is UnitTest

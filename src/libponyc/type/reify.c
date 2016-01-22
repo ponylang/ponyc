@@ -162,15 +162,22 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
 
-  while((typeparam != NULL) && (typearg != NULL))
+  while(typeparam != NULL)
   {
+    ast_t* arg = typearg;
+
+    if(arg == NULL)
+      arg = ast_childidx(typeparam, 2); // Default type argument.
+    else
+      typearg = ast_sibling(typearg);
+
+    assert(arg != NULL);
+
     // Reify the typeparam with the typearg.
-    reify_one(&r_ast, typeparam, typearg);
+    reify_one(&r_ast, typeparam, arg);
     typeparam = ast_sibling(typeparam);
-    typearg = ast_sibling(typearg);
   }
 
-  assert(typeparam == NULL);
   assert(typearg == NULL);
   return r_ast;
 }
