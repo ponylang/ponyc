@@ -1398,9 +1398,6 @@ bool is_subtype(ast_t* sub, ast_t* super, bool errors)
     case TK_FUN:
       return is_fun_sub_fun(sub, super, errors);
 
-    case TK_COMPILE_ERROR:
-      return true;
-
     default: {}
   }
 
