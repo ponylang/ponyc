@@ -50,14 +50,17 @@ primitive _JsonPrint
           out.push(c.u8())
         elseif c < 0x10000 then
           out.append("\\u")
-          out.append(c.string(FormatHexBare where width = 4, fill = '0'))
+          let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
+            .set_fill('0')
+          out.append(c.string(fmt))
         else
           let high = (((c - 0x10000) >> 10) and 0x3FF) + 0xD800
           let low = ((c - 0x10000) and 0x3FF) + 0xDC00
+          let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
           out.append("\\u")
-          out.append(high.string(FormatHexBare where width = 4))
+          out.append(high.string(fmt))
           out.append("\\u")
-          out.append(low.string(FormatHexBare where width = 4))
+          out.append(low.string(fmt))
         end
       end
     end

@@ -256,13 +256,12 @@ primitive I128 is _SignedInteger[I128, U128]
   fun min(y: I128): I128 => if this < y then this else y end
   fun max(y: I128): I128 => if this > y then this else y end
   fun hash(): U64 => ((this.u128() >> 64).u64() xor this.u64()).hash()
-
-  fun string(fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = 1, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+    
+  fun string(
+    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
-      fill)
+    _ToString._u128(abs().u128(), this < 0, fmt)
 
   fun mul(y: I128): I128 =>
     (u128() * y.u128()).i128()

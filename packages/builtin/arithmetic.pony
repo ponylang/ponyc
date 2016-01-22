@@ -74,20 +74,19 @@ trait val Integer[A: Integer[A] val] is Real[A]
 trait val _SignedInteger[A: _SignedInteger[A,C] val,
     C: _UnsignedInteger[C] val] is Integer[A]
   fun abs(): C
-  fun string(fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
-      fill)
+    _ToString._u64(abs().u64(), i64() < 0, fmt)
 
 trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
-  fun string(fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
+    _ToString._u64(u64(), false, fmt)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun tag epsilon(): A
@@ -140,11 +139,11 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun asinh(): A
   fun atanh(): A
 
-  fun string(fmt: FormatFloat = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = 6, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatFloat, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
+    _ToString._f64(f64(), fmt)
 
 type Number is (Signed | Unsigned | Float)
 

@@ -310,11 +310,11 @@ class JsonDoc
     end
 
     let trailing = _parse_unicode_digits()
+    let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
 
     if (value >= 0xDC00) or (trailing < 0xDC00) or (trailing >= 0xE000) then
-      _error("Expected UTF-16 surrogate pair, got \\u" +
-        value.string(FormatHexBare where width = 4) + " \\u" +
-        trailing.string(FormatHexBare where width = 4))
+      _error("Expected UTF-16 surrogate pair, got \\u" + value.string(fmt) +
+        " \\u" + trailing.string(fmt))
       error
     end
 

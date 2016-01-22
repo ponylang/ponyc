@@ -1151,16 +1151,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   fun hash(): U64 =>
     @hash_block[U64](_ptr, _size)
 
-  fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
   =>
     // TODO: fill character
-    let copy_len = _size.min(prec.usize())
-    let len = copy_len.max(width.usize())
+    let copy_len = _size.min(fmt.precision().usize())
+    let len = copy_len.max(fmt.width().usize())
     let str = recover String(len) end
 
-    match align
+    match fmt.align()
     | AlignLeft =>
       _ptr._copy_to(str._ptr, copy_len)
       @memset(str._ptr.usize() + copy_len, U32(' '), len - copy_len)

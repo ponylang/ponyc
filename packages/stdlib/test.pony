@@ -171,9 +171,12 @@ class iso _TestIntToString is UnitTest
     h.expect_eq[String]("0", U32(0).string())
     h.expect_eq[String]("3", U32(3).string())
     h.expect_eq[String]("1234", U32(1234).string())
-    h.expect_eq[String]("003", U32(3).string(where prec = 3))
-    h.expect_eq[String]("  3", U32(3).string(where width = 3))
-    h.expect_eq[String]("  003", U32(3).string(where prec = 3, width = 5))
+    h.expect_eq[String]("003",
+      U32(3).string(FormatSettingsInt.set_precision(3)))
+    h.expect_eq[String]("  3",
+      U32(3).string(FormatSettingsInt.set_width(3)))
+    h.expect_eq[String]("  003",
+      U32(3).string(FormatSettingsInt.set_precision(3).set_width(5)))
 
     true
 
