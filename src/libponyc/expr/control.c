@@ -517,6 +517,6 @@ bool expr_compile_error(ast_t* ast)
   // compile_error is always the last expression in a sequence
   assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_DONTCARE));
+  ast_settype(ast, ast_from(ast, TK_COMPILE_ERROR));
   return true;
 }

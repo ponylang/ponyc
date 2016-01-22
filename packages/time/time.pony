@@ -11,7 +11,12 @@ use @mach_absolute_time[U64]() if osx
 type _Clock is (_ClockRealtime | _ClockMonotonic)
 
 primitive _ClockRealtime
-  fun apply(): U32 => 0
+  fun apply(): U32 =>
+    ifdef linux or freebsd then
+      0
+    else
+      compile_error "no clock_gettime realtime clock"
+    end
 
 primitive _ClockMonotonic
   fun apply(): U32 =>
@@ -20,7 +25,7 @@ primitive _ClockMonotonic
     elseif freebsd then
       4
     else
-      compile_error "no monotonic clock"
+      compile_error "no clock_gettime monotonic clock"
     end
 
 primitive Time
@@ -47,7 +52,7 @@ primitive Time
       var nsec = (epoch - (sec * 10000000)) * 100
       (sec, nsec)
     else
-      (0, 0)
+      compile_error "unsupported platform"
     end
 
   fun seconds(): I64 =>
@@ -69,7 +74,7 @@ primitive Time
       (let qpc, let qpf) = _query_performance_counter()
       (qpc * 1000) / qpf
     else
-      0
+      compile_error "unsupported platform"
     end
 
   fun micros(): U64 =>
@@ -85,7 +90,7 @@ primitive Time
       (let qpc, let qpf) = _query_performance_counter()
       (qpc * 1000000) / qpf
     else
-      0
+      compile_error "unsupported platform"
     end
 
   fun nanos(): U64 =>
@@ -101,7 +106,7 @@ primitive Time
       (let qpc, let qpf) = _query_performance_counter()
       (qpc * 1000000000) / qpf
     else
-      0
+      compile_error "unsupported platform"
     end
 
   fun wall_to_nanos(wall: (I64, I64)): U64 =>
@@ -131,7 +136,7 @@ primitive Time
       @"internal.x86.cpuid"[(I32, I32, I32, I32)](I32(0))
       @"llvm.x86.rdtsc"[U64]()
     else
-      0
+      compile_error "perf_begin only supported on x86"
     end
 
   fun perf_end(): U64 =>
@@ -146,7 +151,7 @@ primitive Time
       @"internal.x86.cpuid"[(I32, I32, I32, I32)](I32(0))
       ts
     else
-      0
+      compile_error "perf_end only supported on x86"
     end
 
   fun _clock_gettime(clock: _Clock): (I64, I64) =>
@@ -162,7 +167,7 @@ primitive Time
       @clock_gettime(clock(), addressof ts)
       (ts._1.i64(), ts._2.i64())
     else
-      (0, 0)
+      compile_error "no clock_gettime"
     end
 
   fun _query_performance_counter(): (U64 /* qpc */, U64 /* qpf */) =>
@@ -178,5 +183,5 @@ primitive Time
       let qpc = pc._1.u64() or (pc._2.u64() << 32)
       (qpc, qpf)
     else
-      (0, 0)
+      compile_error "no QueryPerformanceCounter"
     end

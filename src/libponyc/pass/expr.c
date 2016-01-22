@@ -162,6 +162,7 @@ bool is_control_type(ast_t* type)
     case TK_CONTINUE:
     case TK_RETURN:
     case TK_ERROR:
+    case TK_COMPILE_ERROR:
       return true;
 
     default: {}
