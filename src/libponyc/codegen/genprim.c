@@ -795,24 +795,28 @@ void genprim_reachable_init(compile_t* c, ast_t* program)
       {
         if(ast_id(entity) == TK_PRIMITIVE)
         {
-          ast_t* id = ast_child(entity);
-          ast_t* type = type_builtin(c->opt, entity, ast_name(id));
-          ast_t* finit = ast_get(entity, init, NULL);
-          ast_t* ffinal = ast_get(entity, final, NULL);
+          AST_GET_CHILDREN(entity, id, typeparams);
 
-          if(finit != NULL)
+          if(ast_id(typeparams) == TK_NONE)
           {
-            reach(c->reachable, &c->next_type_id, type, init, NULL);
-            ast_free_unattached(finit);
-          }
+            ast_t* type = type_builtin(c->opt, entity, ast_name(id));
+            ast_t* finit = ast_get(entity, init, NULL);
+            ast_t* ffinal = ast_get(entity, final, NULL);
 
-          if(ffinal != NULL)
-          {
-            reach(c->reachable, &c->next_type_id, type, final, NULL);
-            ast_free_unattached(ffinal);
-          }
+            if(finit != NULL)
+            {
+              reach(c->reachable, &c->next_type_id, type, init, NULL);
+              ast_free_unattached(finit);
+            }
 
-          ast_free_unattached(type);
+            if(ffinal != NULL)
+            {
+              reach(c->reachable, &c->next_type_id, type, final, NULL);
+              ast_free_unattached(ffinal);
+            }
+
+            ast_free_unattached(type);
+          }
         }
 
         entity = ast_sibling(entity);

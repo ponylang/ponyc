@@ -1106,6 +1106,12 @@ static bool check_primitive_init(typecheck_t* t, ast_t* ast)
 
   bool ok = true;
 
+  if(ast_id(ast_childidx(t->frame->type, 1)) != TK_NONE)
+  {
+    ast_error(ast, "a primitive with type parameters cannot have an _init");
+    ok = false;
+  }
+
   if(ast_id(ast) != TK_FUN)
   {
     ast_error(ast, "a primitive _init must be a function");
@@ -1158,7 +1164,7 @@ static bool check_primitive_init(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
-static bool check_finaliser(ast_t* ast)
+static bool check_finaliser(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
@@ -1166,6 +1172,13 @@ static bool check_finaliser(ast_t* ast)
     return true;
 
   bool ok = true;
+
+  if((ast_id(t->frame->type) == TK_PRIMITIVE) &&
+    (ast_id(ast_childidx(t->frame->type, 1)) != TK_NONE))
+  {
+    ast_error(ast, "a primitive with type parameters cannot have a _final");
+    ok = false;
+  }
 
   if(ast_id(ast) != TK_FUN)
   {
@@ -1255,7 +1268,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(!check_primitive_init(t, ast) || !check_finaliser(ast))
+  if(!check_primitive_init(t, ast) || !check_finaliser(t, ast))
     return false;
 
   switch(ast_id(ast))
