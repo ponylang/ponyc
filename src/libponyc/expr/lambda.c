@@ -137,7 +137,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT,
-      TREE(cap)
+      NONE
       NONE  // Provides list
       TREE(members)));
 
