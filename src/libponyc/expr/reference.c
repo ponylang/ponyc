@@ -12,6 +12,7 @@
 #include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
+#include "../ast/astbuild.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
@@ -807,7 +808,21 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   if(!cap_sendable(cap) && (t->frame->recover != NULL))
     cap = TK_TAG;
 
+  bool make_arrow = false;
+
+  if(cap == TK_BOX)
+  {
+    cap = TK_REF;
+    make_arrow = true;
+  }
+
   ast_t* type = type_for_this(opt, ast, cap, TK_NONE, false);
+
+  if(make_arrow)
+  {
+    BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
+    type = arrow;
+  }
 
   if(t->frame->def_arg != NULL)
   {

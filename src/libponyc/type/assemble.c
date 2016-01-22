@@ -262,14 +262,6 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
   token_id ephemeral, bool defs)
 {
   typecheck_t* t = &opt->check;
-  bool make_arrow = false;
-
-  if(cap == TK_BOX)
-  {
-    cap = TK_REF;
-    make_arrow = true;
-  }
-
   AST_GET_CHILDREN(t->frame->type, id, typeparams);
 
   BUILD(typeargs, ast, NODE(TK_NONE));
@@ -307,12 +299,6 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
 
   if(defs)
     names_nominal(opt, ast, &type, false);
-
-  if(make_arrow)
-  {
-    BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
-    return arrow;
-  }
 
   return type;
 }
