@@ -74,31 +74,6 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
-// Check whether the given ifdef clause is a compile_error.
-static bool check_compile_error(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  if(ast_id(ast) != TK_SEQ)
-    return true;
-
-  ast_t* clause_cmd = ast_child(ast);
-  if(ast_id(clause_cmd) == TK_COMPILE_ERROR)
-  {
-    // We've hit a compile error.
-    ast_t* reason_seq = ast_child(clause_cmd);
-    assert(ast_id(reason_seq) == TK_SEQ);
-
-    ast_t* reason = ast_child(reason_seq);
-    assert(ast_id(reason) == TK_STRING);
-
-    ast_error(clause_cmd, "compile error \"%s\"", ast_name(reason));
-    return false;
-  }
-
-  return true;
-}
-
 // Determine which branch of the given ifdef to use and convert the ifdef into
 // an if.
 static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
@@ -126,14 +101,6 @@ static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
 
   // Don't need else condition any more.
   ast_remove(else_cond);
-
-  // Check for compile_errors.
-  if(then_value && !check_compile_error(then_clause))
-    return false;
-
-  if(else_value && !check_compile_error(else_clause))
-    return false;
-
   return true;
 }
 
@@ -550,6 +517,6 @@ bool expr_compile_error(ast_t* ast)
   // compile_error is always the last expression in a sequence
   assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_ERROR));
+  ast_settype(ast, ast_from(ast, TK_DONTCARE));
   return true;
 }

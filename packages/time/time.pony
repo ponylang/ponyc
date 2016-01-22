@@ -20,7 +20,7 @@ primitive _ClockMonotonic
     elseif freebsd then
       4
     else
-      0
+      compile_error "no monotonic clock"
     end
 
 primitive Time
