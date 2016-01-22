@@ -53,6 +53,8 @@ class Directory
       end
     elseif windows then
       _fd = 0
+    else
+      compile_error "unsupported platform"
     end
 
     _FileDes.set_rights(_fd, path)
@@ -81,7 +83,31 @@ class Directory
     recover
       let list = Array[String]
 
-      ifdef windows then
+      ifdef posix then
+        if fd' == -1 then
+          error
+        end
+
+        let h = ifdef linux or freebsd then
+          let fd = @openat[I32](fd', ".".cstring(),
+            @o_rdonly() or @o_directory() or @o_cloexec())
+          @fdopendir[Pointer[_DirectoryHandle]](fd)
+        else
+          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
+        end
+
+        if h.is_null() then
+          error
+        end
+
+        while true do
+          let p = @unix_readdir[Pointer[U8] iso^](h)
+          if p.is_null() then break end
+          list.push(recover String.from_cstring(consume p) end)
+        end
+
+        @closedir[I32](h)
+      elseif windows then
         var find = @windows_find_data[Pointer[_DirectoryEntry]]()
         let search = path' + "\\*"
         let h = @FindFirstFileA[Pointer[_DirectoryHandle]](
@@ -102,29 +128,7 @@ class Directory
         @FindClose[Bool](h)
         @free[None](find)
       else
-        if fd' == -1 then
-          error
-        end
-
-        let h = ifdef osx then
-          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
-        else
-          let fd = @openat[I32](fd', ".".cstring(),
-            @o_rdonly() or @o_directory() or @o_cloexec())
-          @fdopendir[Pointer[_DirectoryHandle]](fd)
-        end
-
-        if h.is_null() then
-          error
-        end
-
-        while true do
-          let p = @unix_readdir[Pointer[U8] iso^](h)
-          if p.is_null() then break end
-          list.push(recover String.from_cstring(consume p) end)
-        end
-
-        @closedir[I32](h)
+        compile_error "unsupported platform"
       end
 
       consume list
@@ -141,12 +145,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    ifdef windows or osx then
-      recover create(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdonly() or @o_directory() or @o_cloexec())
       _relative(path', fd')
+    else
+      recover create(path') end
     end
 
   fun mkdir(target: String): Bool =>
@@ -165,9 +169,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      ifdef windows or osx then
-        path'.mkdir()
-      else
+      ifdef linux or freebsd then
         var offset: ISize = 0
 
         repeat
@@ -183,6 +185,8 @@ class Directory
         until offset < 0 end
 
         FileInfo(path').directory
+      else
+        path'.mkdir()
       end
     else
       false
@@ -204,12 +208,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    ifdef windows or osx then
-      recover File(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdwr() or @o_creat() or @o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
+    else
+      recover File(path') end
     end
 
   fun open_file(target: String): File iso^ ? =>
@@ -225,12 +229,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps - FileWrite)
 
-    ifdef windows or osx then
-      recover File(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdonly() or @o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
+    else
+      recover File(path') end
     end
 
   fun info(): FileInfo ? =>
@@ -279,10 +283,10 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    ifdef windows or osx then
-      FileInfo(path')
-    else
+    ifdef linux or freebsd then
       FileInfo._relative(_fd, path', target)
+    else
+      FileInfo(path')
     end
 
   fun chmodat(target: String, mode: FileMode box): Bool =>
@@ -300,10 +304,10 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      ifdef windows or osx then
-        path'.chmod(mode)
-      else
+      ifdef linux or freebsd then
         @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0)) == 0
+      else
+        path'.chmod(mode)
       end
     else
       false
@@ -324,10 +328,10 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      ifdef windows or osx then
-        path'.chown(uid, gid)
-      else
+      ifdef linux or freebsd then
         @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0)) == 0
+      else
+        path'.chown(uid, gid)
       end
     else
       false
@@ -356,13 +360,13 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      ifdef windows or osx then
-        path'.set_time(atime, mtime)
-      else
+      ifdef linux or freebsd then
         var tv: (ILong, ILong, ILong, ILong) =
           (atime._1.ilong(), atime._2.ilong() / 1000,
             mtime._1.ilong(), mtime._2.ilong() / 1000)
         @futimesat[I32](_fd, target.cstring(), addressof tv) == 0
+      else
+        path'.set_time(atime, mtime)
       end
     else
       false
@@ -386,10 +390,10 @@ class Directory
     try
       let path' = FilePath(path, link_name, path.caps)
 
-      ifdef windows or osx then
-        source.symlink(path')
-      else
+      ifdef linux or freebsd then
         @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring()) == 0
+      else
+        source.symlink(path')
       end
     else
       false
@@ -411,9 +415,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      ifdef windows or osx then
-        path'.remove()
-      else
+      ifdef linux or freebsd then
         let fi = FileInfo(path')
 
         if fi.directory and not fi.symlink then
@@ -429,6 +431,8 @@ class Directory
         else
           @unlinkat(_fd, target.cstring(), 0) == 0
         end
+      else
+        path'.remove()
       end
     else
       false
@@ -453,10 +457,10 @@ class Directory
       let path' = FilePath(path, source, path.caps)
       let path'' = FilePath(to.path, target, to.path.caps)
 
-      ifdef windows or osx then
-        path'.rename(path'')
-      else
+      ifdef linux or freebsd then
         @renameat[I32](_fd, source.cstring(), to._fd, target.cstring()) == 0
+      else
+        path'.rename(path'')
       end
     else
       false
