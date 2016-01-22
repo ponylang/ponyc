@@ -4,7 +4,6 @@
 
 // Parsing tests regarding expressions
 
-#define TEST_AST(src, expect) DO(test_program_ast(src, "syntax", expect))
 #define TEST_ERROR(src) DO(test_error(src, "syntax"))
 #define TEST_COMPILE(src) DO(test_compile(src, "syntax"))
 

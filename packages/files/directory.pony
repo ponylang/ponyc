@@ -27,7 +27,7 @@ class Directory
   // know whether we've disposed of this object, so we use the _fd to indicate
   // this.
   // 0 => not yet disposed of.
-  // =1 => disposed of.
+  // -1 => disposed of.
 
   new create(from: FilePath) ? =>
     """

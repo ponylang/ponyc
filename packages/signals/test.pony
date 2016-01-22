@@ -31,6 +31,7 @@ class iso _TestSignalINT is UnitTest
   fun timedout(h: TestHelper) =>
     try
       (_signal as SignalHandler).dispose()
-      h.assert_failed("timeout")
-      h.complete(false)
     end
+
+    h.assert_failed("timeout")
+    h.complete(false)
