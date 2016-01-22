@@ -14,6 +14,13 @@ PONY_EXTERN_C_BEGIN
 ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name);
 
 /**
+ * Same as above, but with typeargs.
+ * Validates the type.
+ */
+ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
+  ast_t* typeargs);
+
+/**
  * For some type A, creates the nominal type Pointer[A].
  */
 ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to);

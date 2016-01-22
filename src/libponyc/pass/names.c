@@ -110,11 +110,11 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   if(!names_resolvealias(opt, def, &alias))
     return false;
 
+  if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
   if(expr)
   {
-    if(!reify_defaults(typeparams, typeargs, true))
-      return false;
-
     if(!check_constraints(typeargs, typeparams, typeargs, true))
       return false;
   }
@@ -144,7 +144,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 static bool names_typeparam(ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, type, typeargs, cap, ephemeral);
+  AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
   assert(ast_id(package) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
@@ -156,7 +156,7 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   // Change to a typeparamref.
   REPLACE(astp,
     NODE(TK_TYPEPARAMREF,
-      TREE(type)
+      TREE(id)
       TREE(cap)
       TREE(ephemeral)));
 
@@ -167,7 +167,8 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
 static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, id, typeparams, cap, eph);
+  AST_GET_CHILDREN(ast, package, id, typeargs, cap, eph);
+  AST_GET_CHILDREN(def, def_id, typeparams, def_cap);
   token_id tcap = ast_id(cap);
 
   if(tcap == TK_NONE)
@@ -181,7 +182,7 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
         tcap = TK_CAP_ANY;
     } else {
       // Use the default capability.
-      tcap = ast_id(ast_childidx(def, 2));
+      tcap = ast_id(def_cap);
     }
   }
 
@@ -193,6 +194,10 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 
   // Store our definition for later use.
   ast_setdata(ast, def);
+
+  if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
   return true;
 }
 

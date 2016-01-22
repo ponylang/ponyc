@@ -127,20 +127,32 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   return type;
 }
 
-static ast_t* type_base(ast_t* from, const char* package, const char* name)
+static ast_t* type_base(ast_t* from, const char* package, const char* name,
+  ast_t* typeargs)
 {
+  if(typeargs == NULL)
+    typeargs = ast_from(from, TK_NONE);
+
   BUILD(ast, from,
     NODE(TK_NOMINAL,
       ID(package)
       ID(name)
-      NONE NONE NONE));
+      TREE(typeargs)
+      NONE
+      NONE));
 
   return ast;
 }
 
 ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 {
-  ast_t* ast = type_base(from, NULL, name);
+  return type_builtin_args(opt, from, name, NULL);
+}
+
+ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
+  ast_t* typeargs)
+{
+  ast_t* ast = type_base(from, NULL, name, typeargs);
 
   if(!names_nominal(opt, from, &ast, false))
   {
@@ -177,7 +189,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
 
 ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 {
-  return type_base(from, package, name);
+  return type_base(from, package, name, NULL);
 }
 
 ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)

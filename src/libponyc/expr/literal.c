@@ -245,15 +245,14 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
 
   // If the constraint is not a subtype of (Real[A] & Number) then there are no
   // legal types in the set
-  ast_t* number = type_builtin(opt, type_param, "Number");
-  ast_t* real = type_builtin(opt, type_param, "Real");
-  ast_setid(ast_childidx(real, 3), TK_BOX);
-
-  ast_t* p_ref = ast_childidx(real, 2);
-  REPLACE(&p_ref,
+  BUILD(typeargs, type_param,
     NODE(TK_TYPEARGS,
       NODE(TK_TYPEPARAMREF, DATA(type_param)
         ID(ast_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
+
+  ast_t* number = type_builtin(opt, type_param, "Number");
+  ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
+  ast_setid(ast_childidx(real, 3), TK_BOX);
 
   bool is_real = is_subtype(constraint, real, false);
   bool is_number = is_subtype(constraint, number, false);
