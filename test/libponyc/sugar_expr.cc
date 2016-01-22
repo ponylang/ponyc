@@ -350,7 +350,7 @@ TEST_F(SugarExprTest, LambdaFull)
 
     "class Foo\n"
     "  fun f(c: C val, d: D2 val) =>\n"
-    "    object iso\n"
+    "    object ref\n"
     "      let c: C val = c\n"
     "      let _c: C val = c\n"
     "      let _d: D val = d\n"
