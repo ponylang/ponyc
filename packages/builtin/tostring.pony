@@ -2,7 +2,7 @@ trait val FormatSpec
 trait val PrefixSpec
 
 interface Creatable
-  new val create()
+  new box create()
 
 interface box FormatSettings[F: FormatSpec val = FormatDefault,
   P: PrefixSpec val = PrefixDefault]
@@ -48,7 +48,7 @@ primitive FormatSettingsDefault
 
 class FormatSettingsHolder[F: FormatSpec val = FormatDefault,
   P: PrefixSpec val = PrefixDefault,
-  D: (FormatSettings[F, P] val & Creatable val) = FormatSettingsDefault]
+  D: (FormatSettings[F, P] #read & Creatable #read) = FormatSettingsDefault]
   """
   Modifiable format settings holder.
 
@@ -69,7 +69,7 @@ class FormatSettingsHolder[F: FormatSpec val = FormatDefault,
   var align': Align
   var fill': U32
 
-  new create(defaults: FormatSettings[F, P] val = D) =>
+  new create(defaults: FormatSettings[F, P] = D) =>
     """
     Initialise fields using the given default source.
     """
@@ -110,7 +110,7 @@ class FormatSettingsHolder[F: FormatSpec val = FormatDefault,
   fun ref set_fill(f: U32): FormatSettingsHolder[F, P, D] =>
     fill' = f
     this
-    
+
 interface box Stringable[F: FormatSpec val = FormatDefault,
   P: PrefixSpec val = PrefixDefault]
   """
@@ -159,7 +159,7 @@ type FormatInt is
   | FormatHexBare
   | FormatHexSmall
   | FormatHexSmallBare)
-  
+
 primitive FormatDefaultNumber
   """
   Default format settings for numbers.
