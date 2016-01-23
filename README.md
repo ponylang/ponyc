@@ -77,16 +77,22 @@ $ ./build/release/ponyc examples/helloworld
 
 ## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
 
-First, install [homebrew](http://brew.sh) if you haven't already. Then, brew the required dependencies:
+You'll need llvm 3.6 and the pcre2 library to build Pony.
 
+Either install them via [homebrew](http://brew.sh):
 ```
 $ brew update
 $ brew install llvm
 $ brew install pcre2
 ```
 
-This will build ponyc and compile helloworld:
+Or install them via macport:
+```
+$ sudo port install llvm-3.6 pcre2
+$ sudo port select --set llvm mp-llvm-3.6
+```
 
+Then launch the build with Make:
 ```
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
