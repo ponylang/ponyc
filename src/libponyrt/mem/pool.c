@@ -122,6 +122,7 @@ static __pony_thread_local pool_block_header_t pool_block_header;
 
 #ifdef USE_POOLTRACK
 #include "../ds/stack.h"
+#include "../sched/cpu.h"
 
 #define POOL_TRACK_FREE ((void*)0)
 #define POOL_TRACK_ALLOC ((void*)1)
