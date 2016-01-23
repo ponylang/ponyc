@@ -954,6 +954,43 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   if(!reify_defaults(typeparams, typeargs, true))
     return false;
 
+  if(!strcmp(name, "Maybe"))
+  {
+    // Maybe[A] must be bound to a struct.
+    assert(ast_childcount(typeargs) == 1);
+    ast_t* typeparam = ast_child(typeparams);
+    ast_t* typearg = ast_child(typeargs);
+    bool ok = false;
+
+    switch(ast_id(typearg))
+    {
+      case TK_NOMINAL:
+      {
+        ast_t* def = (ast_t*)ast_data(typearg);
+        ok = ast_id(def) == TK_STRUCT;
+        break;
+      }
+
+      case TK_TYPEPARAMREF:
+      {
+        ast_t* def = (ast_t*)ast_data(typearg);
+        ok = def == typeparam;
+        break;
+      }
+
+      default: {}
+    }
+
+    if(!ok)
+    {
+      ast_error(ast,
+        "%s is not allowed: the type argument to Maybe must be a struct",
+        ast_print_type(ast));
+
+      return false;
+    }
+  }
+
   return check_constraints(typeargs, typeparams, typeargs, true);
 }
 

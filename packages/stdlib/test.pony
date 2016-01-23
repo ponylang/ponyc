@@ -68,6 +68,7 @@ actor Main is TestList
     test(_TestArraySlice)
     test(_TestMath128)
     test(_TestDivMod)
+    test(_TestMaybe)
 
     // Tests for all other packages.
     base64.Main.make().tests(test)
@@ -85,7 +86,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
     regex.Main.make().tests(test)
-    
+
     ifdef not windows then
       // The signals tests currently abort the process on Windows, so ignore
       // them.
@@ -724,3 +725,35 @@ class iso _TestDivMod is UnitTest
     h.expect_eq[I64](-5, -13 % 8)
     h.expect_eq[I64](5, 13 % -8)
     h.expect_eq[I64](-5, -13 % -8)
+
+struct _TestStruct
+  var i: U32 = 0
+
+class iso _TestMaybe is UnitTest
+  """
+  Test the Maybe type.
+  """
+  fun name(): String => "builtin/Maybe"
+
+  fun apply(h: TestHelper): TestResult =>
+    let a = Maybe[_TestStruct].none()
+    h.expect_true(a.is_none())
+
+    try
+      let from_a = a()
+      h.expect_true(false)
+    end
+
+    let s = _TestStruct
+    s.i = 7
+
+    let b = Maybe[_TestStruct](s)
+    h.expect_false(b.is_none())
+
+    try
+      let from_b = b()
+      h.expect_eq[U32](s.i, from_b.i)
+    else
+      h.expect_true(false)
+    end
+    true
