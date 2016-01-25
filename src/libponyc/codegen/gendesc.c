@@ -12,17 +12,18 @@
 #define DESC_SIZE 1
 #define DESC_TRAIT_COUNT 2
 #define DESC_FIELD_COUNT 3
-#define DESC_TRACE 4
-#define DESC_SERIALISE 5
-#define DESC_DESERIALISE 6
-#define DESC_DISPATCH 7
-#define DESC_FINALISE 8
-#define DESC_EVENT_NOTIFY 9
-#define DESC_TRAITS 10
-#define DESC_FIELDS 11
-#define DESC_VTABLE 12
+#define DESC_FIELD_OFFSET 4
+#define DESC_TRACE 5
+#define DESC_SERIALISE 6
+#define DESC_DESERIALISE 7
+#define DESC_DISPATCH 8
+#define DESC_FINALISE 9
+#define DESC_EVENT_NOTIFY 10
+#define DESC_TRAITS 11
+#define DESC_FIELDS 12
+#define DESC_VTABLE 13
 
-#define DESC_LENGTH 13
+#define DESC_LENGTH 14
 
 static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   const char* name, token_id t)
@@ -222,6 +223,20 @@ static LLVMValueRef make_field_count(compile_t* c, gentype_t* g)
   return LLVMConstInt(c->i32, g->field_count, false);
 }
 
+static LLVMValueRef make_field_offset(compile_t* c, gentype_t* g)
+{
+  if(g->field_count == 0)
+    return LLVMConstInt(c->i32, 0, false);
+
+  int index = 1;
+
+  if(g->underlying == TK_ACTOR)
+    index++;
+
+  return LLVMConstInt(c->i32,
+    LLVMOffsetOfElement(c->target_data, g->structure, index), false);
+}
+
 static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
 {
   // The list is an array of field descriptors.
@@ -375,6 +390,7 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
   params[DESC_SIZE] = c->i32;
   params[DESC_TRAIT_COUNT] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
+  params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->trace_fn;
   params[DESC_DESERIALISE] = c->trace_fn;
@@ -405,6 +421,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
   args[DESC_TRAIT_COUNT] = LLVMConstInt(c->i32, trait_count, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, g);
+  args[DESC_FIELD_OFFSET] = make_field_offset(c, g);
   args[DESC_TRACE] = make_function_ptr(c, genname_trace(g->type_name),
     c->trace_fn);
   args[DESC_SERIALISE] = make_function_ptr(c, genname_serialise(g->type_name),
@@ -461,11 +478,12 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
   return LLVMBuildLoad(c->builder, func_ptr, "");
 }
 
-LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object)
+LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
+  LLVMValueRef desc)
 {
   // Skip the descriptor.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, c->descriptor_ptr);
-  LLVMValueRef offset = LLVMConstInt(c->intptr, size, false);
+  LLVMValueRef offset = desc_field(c, desc, DESC_FIELD_OFFSET);
+  offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
 
   LLVMValueRef base = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
   LLVMValueRef result = LLVMBuildAdd(c->builder, base, offset, "");

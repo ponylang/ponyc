@@ -95,7 +95,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
       ptr_type, "");
     LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
-    object_ptr = gendesc_ptr_to_fields(c, object);
+    object_ptr = gendesc_ptr_to_fields(c, object, object_desc);
 
     if(!check_type(c, object_ptr, object_desc, pattern_child, next_block))
       return false;
@@ -418,7 +418,7 @@ static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
   ast_t* param_type = eq_param_type(pattern);
 
   // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
+  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -434,7 +434,7 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   ast_t* pattern_type = ast_type(pattern);
 
   // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
+  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -469,7 +469,7 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
         return dynamic_match_object(c, object, desc, child, next_block);
 
       // Build a base pointer that skips the object header.
-      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
+      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
 
       // Destructure the match expression (or element thereof).
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
@@ -536,8 +536,8 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_ISECTTYPE:
     {
       // Read the dynamic type and get a base pointer.
-      LLVMValueRef ptr = gendesc_ptr_to_fields(c, value);
       LLVMValueRef desc = gendesc_fetch(c, value);
+      LLVMValueRef ptr = gendesc_ptr_to_fields(c, value, desc);
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
     }
 

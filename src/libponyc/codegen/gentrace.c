@@ -619,8 +619,8 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
       // This is a boxed tuple. Trace the box, then handle the elements.
       trace_tag(c, ctx, object);
 
-      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object);
       LLVMValueRef desc = gendesc_fetch(c, object);
+      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
       trace_dynamic_tuple(c, ctx, ptr, desc, type, orig, tuple);
       break;
     }

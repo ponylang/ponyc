@@ -83,6 +83,7 @@ typedef const struct _pony_type_t
   uint32_t size;
   uint32_t trait_count;
   uint32_t field_count;
+  uint32_t field_offset;
   pony_trace_fn trace;
   pony_trace_fn serialise;
   pony_trace_fn deserialise;

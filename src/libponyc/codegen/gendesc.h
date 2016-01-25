@@ -19,7 +19,8 @@ LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef object);
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour);
 
-LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object);
+LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
+  LLVMValueRef desc);
 
 LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc);
 
