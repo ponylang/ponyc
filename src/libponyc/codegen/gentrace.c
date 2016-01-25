@@ -336,7 +336,7 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type_args = ast_childidx(type, 2);
   ast_t* elem = ast_child(type_args);
 
-  LLVMValueRef test = genprim_maybe_is_null(c, elem, object);
+  LLVMValueRef test = LLVMBuildIsNull(c->builder, object, "");
   LLVMBasicBlockRef is_false = codegen_block(c, "");
   LLVMBasicBlockRef is_true = codegen_block(c, "");
   LLVMBuildCondBr(c->builder, test, is_true, is_false);

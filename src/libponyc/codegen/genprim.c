@@ -378,9 +378,6 @@ static void maybe_none(compile_t* c, gentype_t* g)
 
 static void maybe_apply(compile_t* c, gentype_t* g)
 {
-  ast_t* type_args = ast_childidx(g->ast, 2);
-  ast_t* elem = ast_child(type_args);
-
   // Returns the receiver if it isn't null.
   const char* name = genname_fun(g->type_name, "apply", NULL);
 
@@ -389,7 +386,7 @@ static void maybe_apply(compile_t* c, gentype_t* g)
   codegen_startfun(c, fun, false);
 
   LLVMValueRef result = LLVMGetParam(fun, 0);
-  LLVMValueRef test = genprim_maybe_is_null(c, elem, result);
+  LLVMValueRef test = LLVMBuildIsNull(c->builder, result, "");
 
   LLVMBasicBlockRef is_false = codegen_block(c, "");
   LLVMBasicBlockRef is_true = codegen_block(c, "");
@@ -406,9 +403,6 @@ static void maybe_apply(compile_t* c, gentype_t* g)
 
 static void maybe_is_none(compile_t* c, gentype_t* g)
 {
-  ast_t* type_args = ast_childidx(g->ast, 2);
-  ast_t* elem = ast_child(type_args);
-
   // Returns true if the receiver is null.
   const char* name = genname_fun(g->type_name, "is_none", NULL);
 
@@ -417,7 +411,7 @@ static void maybe_is_none(compile_t* c, gentype_t* g)
   codegen_startfun(c, fun, false);
 
   LLVMValueRef receiver = LLVMGetParam(fun, 0);
-  LLVMValueRef test = genprim_maybe_is_null(c, elem, receiver);
+  LLVMValueRef test = LLVMBuildIsNull(c->builder, receiver, "");
 
   LLVMBuildRet(c->builder, test);
   codegen_finishfun(c);
@@ -465,34 +459,6 @@ bool genprim_maybe(compile_t* c, gentype_t* g, bool prelim)
   dwarf_finish(&c->dwarf);
 
   return ok;
-}
-
-LLVMValueRef genprim_maybe_is_null(compile_t* c, ast_t* type,
-  LLVMValueRef value)
-{
-  LLVMValueRef test;
-
-  if(ast_id(type) != TK_TUPLETYPE)
-  {
-    test = LLVMBuildIsNull(c->builder, value, "");
-  } else {
-    test = LLVMConstInt(c->i1, 1, false);
-    ast_t* child = ast_child(type);
-    int i = 0;
-
-    while(child != NULL)
-    {
-      LLVMValueRef child_value = LLVMBuildExtractValue(c->builder, value,
-        i, "");
-      LLVMValueRef child_test = genprim_maybe_is_null(c, child, child_value);
-      test = LLVMBuildAnd(c->builder, test, child_test, "");
-
-      child = ast_sibling(child);
-      i++;
-    }
-  }
-
-  return test;
 }
 
 void genprim_array_trace(compile_t* c, gentype_t* g)
