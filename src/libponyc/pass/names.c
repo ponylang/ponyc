@@ -97,6 +97,20 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
   return true;
 }
 
+static bool names_typeargs(pass_opt_t* opt, ast_t* typeargs)
+{
+  for(ast_t* typearg = ast_child(typeargs);
+    typearg != NULL;
+    typearg = ast_sibling(typearg))
+  {
+    if(ast_visit_scope(&typearg, NULL, pass_names, opt,
+      PASS_NAME_RESOLUTION) != AST_OK)
+      return false;
+  }
+
+  return true;
+}
+
 static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   bool expr)
 {
@@ -111,6 +125,9 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
     return false;
 
   if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
+  if(!names_typeargs(opt, typeargs))
     return false;
 
   if(expr)
@@ -164,7 +181,7 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   return true;
 }
 
-static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
+static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, package, id, typeargs, cap, eph);
@@ -173,7 +190,7 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 
   if(tcap == TK_NONE)
   {
-    if(t->frame->constraint != NULL)
+    if(opt->check.frame->constraint != NULL)
     {
       // A primitive constraint is a val, otherwise #any.
       if(ast_id(def) == TK_PRIMITIVE)
@@ -196,6 +213,9 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   ast_setdata(ast, def);
 
   if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
+  if(!names_typeargs(opt, typeargs))
     return false;
 
   return true;
@@ -296,7 +316,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
       case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
-        r = names_type(t, astp, def);
+        r = names_type(opt, astp, def);
         break;
 
       default:
