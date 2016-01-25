@@ -50,6 +50,7 @@ actor Main is TestList
     test(_TestStringRunes)
     test(_TestIntToString)
     test(_TestStringToBool)
+    test(_TestStringToFloat)
     test(_TestStringToU8)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
@@ -195,6 +196,22 @@ class iso _TestStringToBool is UnitTest
     h.expect_eq[Bool](true, "TRUE".bool())
 
     h.expect_error(lambda()? => "bogus".bool() end)
+
+    true
+
+
+class iso _TestStringToFloat is UnitTest
+  """
+  Test converting strings to floats.
+  """
+  fun name(): String => "builtin/String.float"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[F32](4.125, "4.125".f32())
+    h.expect_eq[F64](4.125, "4.125".f64())
+
+    h.expect_eq[F32](-4.125e-3, "-4.125e-3".f32())
+    h.expect_eq[F64](-4.125e-3, "-4.125e-3".f64())
 
     true
 
