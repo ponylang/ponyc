@@ -94,6 +94,13 @@ static void view_free(view_t* view)
   if(view->view_rc == 0)
   {
     viewrefmap_destroy(&view->map);
+
+    if(view->delta != NULL)
+    {
+      deltamap_free(view->delta);
+      view->delta = NULL;
+    }
+
     POOL_FREE(view_t, view);
   }
 }
@@ -546,8 +553,6 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   {
     actor_destroy(view->actor);
     viewmap_remove(&d->views, view);
-
-    view->actor = NULL;
     view_free(view);
   }
 
@@ -659,6 +664,9 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     if(msg->id == ACTORMSG_BLOCK)
     {
       block_msg_t* m = (block_msg_t*)msg;
+
+      if(m->delta != NULL)
+        deltamap_free(m->delta);
 
       if(!actor_pendingdestroy(m->actor))
       {
@@ -823,12 +831,16 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
 
 void cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
 {
+  assert(ctx->current == actor);
+  assert(&actor->gc == gc);
+
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
   m->actor = actor;
   m->rc = gc_rc(gc);
   m->delta = gc_delta(gc);
+  assert(gc->delta == NULL);
 
   pony_sendv(ctx, cycle_detector, &m->msg);
 }

@@ -172,18 +172,18 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     return false;
   }
 
-  bool block = messageq_markempty(&actor->q);
-
-  // If we are blocking, tell the cycle detector.
-  if(block && !has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
+  // Tell the cycle detector we are blocking. We may not actually block if a
+  // message is received between now and when we try to mark our queue as
+  // empty, but that's ok, we have still logically blocked.
+  if(!has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
   {
     set_flag(actor, FLAG_BLOCKED);
     unset_flag(actor, FLAG_RC_CHANGED);
     cycle_block(ctx, actor, &actor->gc);
   }
 
-  // Return true (i.e. reschedule immediately) if we didn't block.
-  return !block;
+  // Return true (i.e. reschedule immediately) if our queue isn't empty.
+  return !messageq_markempty(&actor->q);
 }
 
 void actor_destroy(pony_actor_t* actor)
