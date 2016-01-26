@@ -16,6 +16,7 @@ actor Main is TestList
     test(_TestAbs)
     test(_TestStringRunes)
     test(_TestIntToString)
+    test(_TestFloatToString)
     test(_TestStringToBool)
     test(_TestStringToFloat)
     test(_TestStringToU8)
@@ -121,6 +122,21 @@ class iso _TestIntToString is UnitTest
       U32(3).string(FormatSettingsInt.set_width(3)))
     h.expect_eq[String]("  003",
       U32(3).string(FormatSettingsInt.set_precision(3).set_width(5)))
+
+
+class iso _TestFloatToString is UnitTest
+  """
+  Test converting floats to strings.
+  """
+  fun name(): String => "builtin/Float.string"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String]("0", F32(0).string())
+    h.expect_eq[String]("-0.35", F32(-3.5e-1).string())
+    h.expect_eq[String]("123.125", F32(123.125).string())
+    h.expect_eq[String]("0", F64(0).string())
+    h.expect_eq[String]("-0.35", F64(-3.5e-1).string())
+    h.expect_eq[String]("123.125", F64(123.125).string())
 
 
 class iso _TestStringToBool is UnitTest
