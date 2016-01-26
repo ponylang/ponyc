@@ -1,7 +1,8 @@
 use @memcmp[I32](dst: Pointer[U8] box, src: Pointer[U8] box, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-
+use @strtof[F32](nptr: Pointer[U8] box, endptr: USize)
+use @strtod[F64](nptr: Pointer[U8] box, endptr: USize)
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
@@ -1134,7 +1135,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var index = offset_to_index(offset)
 
     if index < _size then
-      @strtof[F32](_ptr.usize() + index, USize(0))
+      @strtof(_ptr._offset(index), 0)
     else
       F32(0)
     end
@@ -1143,7 +1144,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var index = offset_to_index(offset)
 
     if index < _size then
-      @strtod[F64](_ptr.usize() + index, USize(0))
+      @strtod(_ptr._offset(index), 0)
     else
       F64(0)
     end
