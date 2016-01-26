@@ -459,7 +459,8 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, typeargs, args);
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
+  bool err = (ast_id(can_err) == TK_QUESTION);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -527,7 +528,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
           false);
         func = LLVMAddFunction(c->module, f_name, f_type);
 
-        if(!ast_canerror(ast))
+        if(!err)
           LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
       }
 
@@ -537,7 +538,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
       LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
       func = LLVMAddFunction(c->module, f_name, f_type);
 
-      if(!ast_canerror(ast))
+      if(!err)
         LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
     }
   }
@@ -565,7 +566,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // instead of a call.
   LLVMValueRef result;
 
-  if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
+  if(err && (c->frame->invoke_target != NULL))
     result = invoke_fun(c, func, f_args, count, "", false);
   else
     result = LLVMBuildCall(c->builder, func, f_args, count, "");
