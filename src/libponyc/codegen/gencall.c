@@ -580,7 +580,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   LLVMTypeRef* f_params = NULL;
-  bool vararg = LLVMIsFunctionVarArg(f_type);
+  bool vararg = (LLVMIsFunctionVarArg(f_type) != 0);
 
   if(!vararg)
   {
