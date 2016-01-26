@@ -457,9 +457,26 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   return codegen_call(c, func, args, 2);
 }
 
+static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
+  gentype_t* g, bool err)
+{
+  LLVMTypeRef f_type = LLVMFunctionType(g->use_type, NULL, 0, true);
+  LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
+
+  if(!err)
+    LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
+
+  return func;
+}
+
 static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   gentype_t* g, ast_t* args, bool err)
 {
+  ast_t* last_arg = ast_childlast(args);
+
+  if((last_arg != NULL) && (ast_id(last_arg) == TK_ELLIPSIS))
+    return declare_ffi_vararg(c, f_name, g, err);
+
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
@@ -552,11 +569,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
       func = declare_ffi(c, f_name, &g, args, err);
     } else {
       // Make it varargs.
-      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
-      func = LLVMAddFunction(c->module, f_name, f_type);
-
-      if(!err)
-        LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
+      func = declare_ffi_vararg(c, f_name, &g, err);
     }
   }
 

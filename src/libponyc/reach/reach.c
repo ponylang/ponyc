@@ -543,12 +543,16 @@ static void reachable_ffi(reachable_method_stack_t** s, reachable_types_t* r,
 
   while(arg != NULL)
   {
-    ast_t* type = ast_type(arg);
+    if(ast_id(arg) != TK_ELLIPSIS)
+    {
+      ast_t* type = ast_type(arg);
 
-    if(type == NULL)
-      type = ast_childidx(arg, 1);
+      if(type == NULL)
+        type = ast_childidx(arg, 1);
 
-    add_type(s, r, next_type_id, type);
+      add_type(s, r, next_type_id, type);
+    }
+
     arg = ast_sibling(arg);
   }
 }
