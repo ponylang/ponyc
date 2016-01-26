@@ -353,13 +353,15 @@ static void maybe_create(compile_t* c, gentype_t* g)
 
   LLVMTypeRef params[2];
   params[0] = g->use_type;
-  params[1] = g->use_type;
+  params[1] = g->structure;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
-  LLVMBuildRet(c->builder, LLVMGetParam(fun, 1));
+  LLVMValueRef param = LLVMGetParam(fun, 1);
+  LLVMValueRef result = LLVMBuildBitCast(c->builder, param, g->use_type, "");
+  LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
 
@@ -381,7 +383,7 @@ static void maybe_apply(compile_t* c, gentype_t* g)
   // Returns the receiver if it isn't null.
   const char* name = genname_fun(g->type_name, "apply", NULL);
 
-  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &g->use_type, 1, false);
+  LLVMTypeRef ftype = LLVMFunctionType(g->structure, &g->use_type, 1, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
@@ -393,6 +395,7 @@ static void maybe_apply(compile_t* c, gentype_t* g)
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
   LLVMPositionBuilderAtEnd(c->builder, is_false);
+  result = LLVMBuildBitCast(c->builder, result, g->structure, "");
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
@@ -434,7 +437,8 @@ bool genprim_maybe(compile_t* c, gentype_t* g, bool prelim)
     return false;
 
   // Set the type to the element type.
-  g->use_type = elem_g.use_type;
+  g->use_type = c->void_ptr;
+  g->structure = elem_g.use_type;
 
   // Stop here for a preliminary type.
   if(prelim)
