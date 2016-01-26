@@ -525,18 +525,32 @@ static void reachable_ffi(reachable_method_stack_t** s, reachable_types_t* r,
   uint32_t* next_type_id, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
-  ast_t* decl = ast_get(ast, ast_name(name), NULL);
+  ast_t* decl = (ast_t*)ast_data(ast);
 
   if(decl != NULL)
   {
     AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
       decl_error);
 
+    args = params;
     return_typeargs = decl_ret_typeargs;
   }
 
   ast_t* return_type = ast_child(return_typeargs);
   add_type(s, r, next_type_id, return_type);
+
+  ast_t* arg = ast_child(args);
+
+  while(arg != NULL)
+  {
+    ast_t* type = ast_type(arg);
+
+    if(type == NULL)
+      type = ast_childidx(arg, 1);
+
+    add_type(s, r, next_type_id, type);
+    arg = ast_sibling(arg);
+  }
 }
 
 static void reachable_expr(reachable_method_stack_t** s, reachable_types_t* r,
