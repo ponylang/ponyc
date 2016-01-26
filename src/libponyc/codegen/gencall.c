@@ -457,6 +457,64 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   return codegen_call(c, func, args, 2);
 }
 
+static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
+  gentype_t* g, ast_t* args, bool err)
+{
+  int count = (int)ast_childcount(args);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  count = 0;
+
+  ast_t* arg = ast_child(args);
+
+  while(arg != NULL)
+  {
+    ast_t* p_type = ast_type(arg);
+
+    if(p_type == NULL)
+      p_type = ast_childidx(arg, 1);
+
+    gentype_t param_g;
+
+    if(!gentype(c, p_type, &param_g))
+      return NULL;
+
+    f_params[count++] = param_g.use_type;
+    arg = ast_sibling(arg);
+  }
+
+  // We may have generated the function by generating a parameter type.
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, f_name);
+
+  if(func == NULL)
+  {
+    LLVMTypeRef r_type;
+
+    if(g->underlying == TK_TUPLETYPE)
+    {
+      // Can't use the named type. Build an unnamed type with the same
+      // elements.
+      unsigned int count = LLVMCountStructElementTypes(g->use_type);
+      size_t buf_size = count * sizeof(LLVMTypeRef);
+      LLVMTypeRef* e_types = (LLVMTypeRef*)pool_alloc_size(buf_size);
+      LLVMGetStructElementTypes(g->use_type, e_types);
+      r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
+      pool_free_size(buf_size, e_types);
+    } else {
+      r_type = g->use_type;
+    }
+
+    LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count, false);
+    func = LLVMAddFunction(c->module, f_name, f_type);
+
+    if(!err)
+      LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
+  }
+
+  pool_free_size(buf_size, f_params);
+  return func;
+}
+
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
@@ -481,58 +539,17 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   if(func == NULL)
   {
     // If we have no prototype, declare one.
-    if(!strncmp(f_name, "llvm.", 5))
+    ast_t* decl = (ast_t*)ast_data(ast);
+
+    if(decl != NULL)
     {
+      // Define using the declared types.
+      AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_err);
+      err = (ast_id(decl_err) == TK_QUESTION);
+      func = declare_ffi(c, f_name, &g, decl_params, err);
+    } else if(!strncmp(f_name, "llvm.", 5)) {
       // Intrinsic, so use the exact types we supply.
-      int count = (int)ast_childcount(args);
-      size_t buf_size = count * sizeof(LLVMTypeRef);
-      LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
-      count = 0;
-
-      ast_t* arg = ast_child(args);
-
-      while(arg != NULL)
-      {
-        ast_t* p_type = ast_type(arg);
-        gentype_t param_g;
-
-        if(!gentype(c, p_type, &param_g))
-          return NULL;
-
-        f_params[count++] = param_g.use_type;
-        arg = ast_sibling(arg);
-      }
-
-      // We may have generated the function by generating a parameter type.
-      func = LLVMGetNamedFunction(c->module, f_name);
-
-      if(func == NULL)
-      {
-        LLVMTypeRef r_type;
-
-        if(g.underlying == TK_TUPLETYPE)
-        {
-          // Can't use the named type. Build an unnamed type with the same
-          // elements.
-          unsigned int count = LLVMCountStructElementTypes(g.use_type);
-          size_t buf_size = count * sizeof(LLVMTypeRef);
-          LLVMTypeRef* e_types = (LLVMTypeRef*)pool_alloc_size(buf_size);
-          LLVMGetStructElementTypes(g.use_type, e_types);
-          r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
-          pool_free_size(buf_size, e_types);
-        } else {
-          r_type = g.use_type;
-        }
-
-        LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count,
-          false);
-        func = LLVMAddFunction(c->module, f_name, f_type);
-
-        if(!err)
-          LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
-      }
-
-      pool_free_size(buf_size, f_params);
+      func = declare_ffi(c, f_name, &g, args, err);
     } else {
       // Make it varargs.
       LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
@@ -547,11 +564,30 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* f_args = (LLVMValueRef*)pool_alloc_size(buf_size);
+
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+  LLVMTypeRef* f_params = NULL;
+  bool vararg = LLVMIsFunctionVarArg(f_type);
+
+  if(!vararg)
+  {
+    f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+    LLVMGetParamTypes(f_type, f_params);
+  }
+
   ast_t* arg = ast_child(args);
 
   for(int i = 0; i < count; i++)
   {
     f_args[i] = gen_expr(c, arg);
+
+    if(!vararg && (LLVMGetTypeKind(f_params[i]) == LLVMPointerTypeKind))
+    {
+      if(LLVMGetTypeKind(LLVMTypeOf(f_args[i])) == LLVMIntegerTypeKind)
+        f_args[i] = LLVMBuildIntToPtr(c->builder, f_args[i], f_params[i], "");
+      else
+        f_args[i] = LLVMBuildBitCast(c->builder, f_args[i], f_params[i], "");
+    }
 
     if(f_args[i] == NULL)
     {
@@ -572,6 +608,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     result = LLVMBuildCall(c->builder, func, f_args, count, "");
 
   pool_free_size(buf_size, f_args);
+
+  if(!vararg)
+    pool_free_size(buf_size, f_params);
 
   // Special case a None return value, which is used for void functions.
   if(is_none(type))

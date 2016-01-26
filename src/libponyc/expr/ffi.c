@@ -115,6 +115,9 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     ast_seterror(call);
   }
 
+  // Store the declaration so that codegen can generate a non-variadic
+  // signature for the FFI call.
+  ast_setdata(call, decl);
   ast_settype(call, decl_ret_type);
   ast_inheritflags(call);
   return AST_OK;
