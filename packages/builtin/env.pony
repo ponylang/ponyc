@@ -41,7 +41,7 @@ class val Env
     out = out'
     err = err'
     args = args'
-    _envp = recover val Pointer[Pointer[U8]]._alloc(0) end
+    _envp = recover Pointer[Pointer[U8]] end
     _vars = vars'
 
   fun vars(): Array[String] val =>
