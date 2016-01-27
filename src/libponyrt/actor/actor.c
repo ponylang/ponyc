@@ -70,16 +70,20 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
     case ACTORMSG_CONF:
     {
       // If we aren't blocked, there's no need to respond.
-      if(has_flag(actor, FLAG_BLOCKED | FLAG_RC_CHANGED))
+      if(!has_flag(actor, FLAG_BLOCKED))
+        return false;
+
+      if(has_flag(actor, FLAG_RC_CHANGED))
       {
         // Send the pending rc change instead of confirming.
         unset_flag(actor, FLAG_RC_CHANGED);
         cycle_block(ctx, actor, &actor->gc);
-      } else if(has_flag(actor, FLAG_BLOCKED)) {
+      } else {
         // Nothing has changed since our last block message, send confirm.
         pony_msgi_t* m = (pony_msgi_t*)msg;
         cycle_ack(ctx, m->i);
       }
+
       return false;
     }
 

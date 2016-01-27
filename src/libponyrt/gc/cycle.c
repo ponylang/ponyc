@@ -467,6 +467,8 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
 
 static void deferred(pony_ctx_t* ctx, detector_t* d)
 {
+  d->since_deferred++;
+
   if(d->since_deferred < d->next_deferred)
     return;
 
@@ -601,8 +603,6 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
       viewmap_put(&d->deferred, view);
       view->deferred = true;
     }
-
-    d->since_deferred++;
 
     // look for cycles
     deferred(ctx, d);
