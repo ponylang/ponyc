@@ -67,6 +67,13 @@ class val TestHelper
     _runner.log(msg, false)
     _runner.fail()
 
+  fun expect_failed(msg: String): Bool =>
+      """
+      Record that an expectation failed and log the given message.
+      """
+      assert_failed(msg)
+      false
+
   fun assert_true(actual: Bool, msg: String = "") ? =>
     """
     Assert that the given expression is true.
@@ -82,8 +89,7 @@ class val TestHelper
     Expect that the given expression is true.
     """
     if not actual then
-      assert_failed("Expect true failed. " + msg)
-      return false
+      return expect_failed("Expect true failed. " + msg)
     end
     log("Expect true passed. " + msg, true)
     true
@@ -103,8 +109,7 @@ class val TestHelper
     Expect that the given expression is false.
     """
     if actual then
-      assert_failed("Expect false failed. " + msg)
-      return false
+      return expect_failed("Expect false failed. " + msg)
     end
     log("Expect false passed. " + msg, true)
     true
@@ -128,8 +133,7 @@ class val TestHelper
     """
     try
       test()
-      assert_failed("Expect error failed. " + msg)
-      false
+      expect_failed("Expect error failed. " + msg)
     else
       log("Expect error passed. " + msg, true)
       true
@@ -178,9 +182,8 @@ class val TestHelper
     Check that the 2 given expressions are equal.
     """
     if expect != actual then
-      assert_failed(verb + " EQ failed. " + msg +
+      return expect_failed(verb + " EQ failed. " + msg +
         " Expected (" + expect.string() + ") == (" + actual.string() + ")")
-      return false
     end
 
     log(verb + " EQ passed. " + msg +
@@ -232,9 +235,8 @@ class val TestHelper
     end
 
     if not ok then
-      assert_failed(verb + " EQ failed. " + msg + " Expected (" +
+      return expect_failed(verb + " EQ failed. " + msg + " Expected (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
-      return false
     end
 
     log(verb + " EQ passed. " + msg + " Got (" +
@@ -291,12 +293,11 @@ class val TestHelper
       end
 
       if (extra.size() != 0) or (missing.size() != 0) then
-        assert_failed(
+        return expect_failed(
           verb + " EQ_UNORDERED failed. " + msg + " Expected (" +
           _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
           "\nMissing: " + _print_array[A](missing) +
           "\nExtra: " + _print_array[A](extra))
-        return false
       end
       log(
         verb + " EQ_UNORDERED passed. " + msg + " Got (" +
@@ -304,8 +305,7 @@ class val TestHelper
         true)
       true
     else
-      assert_failed(verb + " EQ_UNORDERED failed from an internal error.")
-      false
+      expect_failed(verb + " EQ_UNORDERED failed from an internal error.")
     end
 
 
