@@ -6,29 +6,15 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct object_t object_t;
-
-void* object_address(object_t* obj);
-
-size_t object_rc(object_t* obj);
-
-bool object_marked(object_t* obj, uint32_t mark);
-
-void object_mark(object_t* obj, uint32_t mark);
-
-void object_inc(object_t* obj);
-
-void object_inc_more(object_t* obj);
-
-void object_inc_some(object_t* obj, size_t rc);
-
-bool object_dec(object_t* obj);
-
-bool object_dec_some(object_t* obj, size_t rc);
-
-bool object_reachable(object_t* obj);
-
-void object_markreachable(object_t* obj);
+typedef struct object_t
+{
+  void* address;
+  pony_final_fn final;
+  size_t rc;
+  uint32_t mark;
+  bool reachable;
+  bool immutable;
+} object_t;
 
 DECLARE_HASHMAP(objectmap, object_t);
 

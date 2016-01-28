@@ -6,15 +6,6 @@
 #include "../mem/pagemap.h"
 #include <assert.h>
 
-typedef struct object_t
-{
-  void* address;
-  pony_final_fn final;
-  size_t rc;
-  uint32_t mark;
-  bool reachable;
-} object_t;
-
 static size_t object_hash(object_t* obj)
 {
   return hash_ptr(obj->address);
@@ -32,6 +23,7 @@ static object_t* object_alloc(void* address, uint32_t mark)
   obj->final = NULL;
   obj->rc = 0;
   obj->reachable = true;
+  obj->immutable = false;
 
   // a new object is unmarked
   obj->mark = mark - 1;
@@ -41,68 +33,6 @@ static object_t* object_alloc(void* address, uint32_t mark)
 static void object_free(object_t* obj)
 {
   POOL_FREE(object_t, obj);
-}
-
-void* object_address(object_t* obj)
-{
-  return obj->address;
-}
-
-size_t object_rc(object_t* obj)
-{
-  return obj->rc;
-}
-
-bool object_marked(object_t* obj, uint32_t mark)
-{
-  return obj->mark == mark;
-}
-
-void object_mark(object_t* obj, uint32_t mark)
-{
-  obj->mark = mark;
-}
-
-void object_inc(object_t* obj)
-{
-  obj->rc++;
-  assert(obj->rc > 0);
-}
-
-void object_inc_more(object_t* obj)
-{
-  assert(obj->rc == 0);
-  obj->rc = GC_INC_MORE;
-}
-
-void object_inc_some(object_t* obj, size_t rc)
-{
-  obj->rc += rc;
-}
-
-bool object_dec(object_t* obj)
-{
-  assert(obj->rc > 0);
-  obj->rc--;
-  return obj->rc > 0;
-}
-
-bool object_dec_some(object_t* obj, size_t rc)
-{
-  assert(obj->rc >= rc);
-  obj->rc -= rc;
-
-  return obj->rc == 0;
-}
-
-bool object_reachable(object_t* obj)
-{
-  return obj->reachable;
-}
-
-void object_markreachable(object_t* obj)
-{
-  obj->reachable = true;
 }
 
 DEFINE_HASHMAP(objectmap, object_t, object_hash, object_cmp, pool_alloc_size,

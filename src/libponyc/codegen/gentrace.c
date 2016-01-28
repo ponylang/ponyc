@@ -367,12 +367,13 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   if(trace_fn != NULL)
   {
     // Cast the object to an object pointer.
-    LLVMValueRef args[3];
+    LLVMValueRef args[4];
     args[0] = ctx;
     args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
     args[2] = trace_fn;
+    args[3] = LLVMConstInt(c->i32, cap_single(type) == TK_VAL, false);
 
-    gencall_runtime(c, "pony_traceobject", args, 3, "");
+    gencall_runtime(c, "pony_traceobject", args, 4, "");
   } else {
     // Cast the object to a void pointer.
     LLVMValueRef args[2];
@@ -382,14 +383,16 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   }
 }
 
-static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object)
+static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
+  ast_t* type)
 {
   // We're an object.
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
   args[0] = ctx;
   args[1] = object;
+  args[2] = LLVMConstInt(c->i32, cap_single(type) == TK_VAL, false);
 
-  gencall_runtime(c, "pony_traceunknown", args, 2, "");
+  gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
 
 static bool trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
@@ -657,7 +660,7 @@ bool gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
       return true;
 
     case TRACE_UNKNOWN:
-      trace_unknown(c, ctx, value);
+      trace_unknown(c, ctx, value, type);
       return true;
 
     case TRACE_TAG:

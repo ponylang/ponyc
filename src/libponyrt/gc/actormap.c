@@ -8,14 +8,6 @@
 #include <string.h>
 #include <assert.h>
 
-typedef struct actorref_t
-{
-  pony_actor_t* actor;
-  size_t rc;
-  uint32_t mark;
-  objectmap_t map;
-} actorref_t;
-
 static size_t actorref_hash(actorref_t* aref)
 {
   return hash_ptr(aref->actor);
@@ -35,50 +27,6 @@ static actorref_t* actorref_alloc(pony_actor_t* actor, uint32_t mark)
   // a new actorref is unmarked
   aref->mark = mark - 1;
   return aref;
-}
-
-pony_actor_t* actorref_actor(actorref_t* aref)
-{
-  return aref->actor;
-}
-
-size_t actorref_rc(actorref_t* aref)
-{
-  return aref->rc;
-}
-
-objectmap_t* actorref_map(actorref_t* aref)
-{
-  return &aref->map;
-}
-
-bool actorref_marked(actorref_t* aref, uint32_t mark)
-{
-  return aref->mark == mark;
-}
-
-void actorref_mark(actorref_t* aref, uint32_t mark)
-{
-  aref->mark = mark;
-}
-
-void actorref_inc(actorref_t* aref)
-{
-  aref->rc++;
-  assert(aref->rc > 0);
-}
-
-void actorref_inc_more(actorref_t* aref)
-{
-  assert(aref->rc == 0);
-  aref->rc = GC_INC_MORE;
-}
-
-bool actorref_dec(actorref_t* aref)
-{
-  assert(aref->rc > 0);
-  aref->rc--;
-  return aref->rc > 0;
 }
 
 object_t* actorref_getobject(actorref_t* aref, void* address)
@@ -113,7 +61,7 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 
   while((obj = objectmap_next(&from->map, &i)) != NULL)
   {
-    if(object_marked(obj, mark))
+    if(obj->mark == mark)
       continue;
 
     objectmap_removeindex(&from->map, i);

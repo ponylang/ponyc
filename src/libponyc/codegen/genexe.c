@@ -181,7 +181,8 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
   args[2] = LLVMGetNamedFunction(c->module, env_trace);
-  gencall_runtime(c, "pony_traceobject", args, 3, "");
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  gencall_runtime(c, "pony_traceobject", args, 4, "");
 
   args[0] = ctx;
   gencall_runtime(c, "pony_send_done", args, 1, "");
@@ -274,7 +275,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  use_path(program, "/usr/local/lib", NULL, NULL);
   program_lib_build_args(program, "-L", "-Wl,--start-group ",
     "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);

@@ -9,23 +9,13 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct actorref_t actorref_t;
-
-pony_actor_t* actorref_actor(actorref_t* aref);
-
-size_t actorref_rc(actorref_t* aref);
-
-objectmap_t* actorref_map(actorref_t* aref);
-
-bool actorref_marked(actorref_t* aref, uint32_t mark);
-
-void actorref_mark(actorref_t* aref, uint32_t mark);
-
-void actorref_inc(actorref_t* aref);
-
-void actorref_inc_more(actorref_t* aref);
-
-bool actorref_dec(actorref_t* aref);
+typedef struct actorref_t
+{
+  pony_actor_t* actor;
+  size_t rc;
+  uint32_t mark;
+  objectmap_t map;
+} actorref_t;
 
 object_t* actorref_getobject(actorref_t* aref, void* address);
 

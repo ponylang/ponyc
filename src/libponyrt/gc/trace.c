@@ -55,9 +55,17 @@ void pony_recv_done(pony_ctx_t* ctx)
 #endif
 }
 
+void pony_mark_done(pony_ctx_t* ctx)
+{
+  gc_handlestack(ctx);
+  gc_sendacquire(ctx);
+  gc_sweep(ctx, actor_gc(ctx->current));
+  gc_done(actor_gc(ctx->current));
+}
+
 void pony_trace(pony_ctx_t* ctx, void* p)
 {
-  ctx->trace_object(ctx, p, NULL);
+  ctx->trace_object(ctx, p, NULL, false);
 }
 
 void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
@@ -65,12 +73,12 @@ void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
   ctx->trace_actor(ctx, p);
 }
 
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f)
+void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, int immutable)
 {
-  ctx->trace_object(ctx, p, f);
+  ctx->trace_object(ctx, p, f, immutable);
 }
 
-void pony_traceunknown(pony_ctx_t* ctx, void* p)
+void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable)
 {
   pony_type_t* type = *(pony_type_t**)p;
 
@@ -78,7 +86,7 @@ void pony_traceunknown(pony_ctx_t* ctx, void* p)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, type->trace);
+    ctx->trace_object(ctx, p, type->trace, immutable);
   }
 }
 
@@ -90,6 +98,6 @@ void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, NULL);
+    ctx->trace_object(ctx, p, NULL, false);
   }
 }

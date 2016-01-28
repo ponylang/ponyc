@@ -118,9 +118,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   if(actor->type->trace != NULL)
     actor->type->trace(ctx, actor);
 
-  gc_handlestack(ctx);
-  gc_sweep(ctx, &actor->gc);
-  gc_done(&actor->gc);
+  pony_mark_done(ctx);
   heap_endgc(&actor->heap);
 
 #ifdef USE_TELEMETRY

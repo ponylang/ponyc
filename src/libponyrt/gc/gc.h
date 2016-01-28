@@ -26,11 +26,11 @@ typedef struct gc_t
 
 DECLARE_STACK(gcstack, void);
 
-void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
+void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable);
 
-void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
+void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable);
 
-void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
+void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable);
 
 void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor);
 

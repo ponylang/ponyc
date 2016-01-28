@@ -310,18 +310,20 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_traceactor", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_traceobject(i8*, $object*, trace_fn)
+  // i8* pony_traceobject(i8*, $object*, trace_fn, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->trace_fn;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  params[3] = c->i32;
+  type = LLVMFunctionType(c->void_ptr, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceobject", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_traceunknown(i8*, $object*)
+  // i8* pony_traceunknown(i8*, $object*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  params[2] = c->i32;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 

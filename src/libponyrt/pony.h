@@ -239,14 +239,14 @@ void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p);
  * @param p The pointer being traced.
  * @param f The trace function for the object pointed to.
  */
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
+void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, int immutable);
 
 /** Trace unknown.
  *
  * This should be called for fields in an object with an unknown type, but
  * which are not tags.
  */
-void pony_traceunknown(pony_ctx_t* ctx, void* p);
+void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable);
 
 /** Trace a tag or an actor
  *
