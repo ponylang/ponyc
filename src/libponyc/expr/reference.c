@@ -347,6 +347,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
         ast_free_unattached(type);
+        return false;
       }
       break;
     }
