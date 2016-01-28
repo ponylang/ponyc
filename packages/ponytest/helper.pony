@@ -116,6 +116,38 @@ class val TestHelper
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
+  fun assert_isnt[A](not_expect: A, actual: A, msg: String = ""): Bool =>
+    """
+    Assert that the 2 given expressions resolve to different instances.
+    """
+    let not_expect' = identityof not_expect
+    let actual' = identityof actual
+    _check_ne[U64]("isn't", not_expect', actual', msg)
+
+  fun assert_ne[A: (Equatable[A] #read & Stringable #read)]
+    (not_expect: A, actual: A, msg: String = ""): Bool
+  =>
+    """
+    Assert that the 2 given expressions are not equal.
+    """
+    _check_ne[A]("ne", not_expect, actual, msg)
+
+  fun _check_ne[A: (Equatable[A] #read & Stringable)]
+    (check: String, not_expect: A, actual: A, msg: String): Bool
+  =>
+    """
+    Check that the 2 given expressions are not equal.
+    """
+    if not_expect == actual then
+      fail("Assert " + check + " failed. " + msg +
+        " Expected (" + not_expect.string() + ") != (" + actual.string() + ")")
+      return false
+    end
+
+    log("Assert " + check + " passed. " + msg +
+      " Got (" + not_expect.string() + ") != (" + actual.string() + ")", true)
+    true
+
   fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
   =>
