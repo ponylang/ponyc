@@ -448,10 +448,11 @@ void* ast_data(ast_t* ast)
   return ast->data;
 }
 
-void ast_setdata(ast_t* ast, void* data)
+ast_t* ast_setdata(ast_t* ast, void* data)
 {
   assert(ast != NULL);
   ast->data = data;
+  return ast;
 }
 
 bool ast_canerror(ast_t* ast)
@@ -544,6 +545,19 @@ const char* ast_name(ast_t* ast)
   assert(ast != NULL);
   return token_string(ast->t);
 }
+
+
+const char* ast_nice_name(ast_t* ast)
+{
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_ID);
+
+  if(ast->data != NULL)
+    return (const char*)ast->data;
+
+  return ast_name(ast);
+}
+
 
 size_t ast_name_len(ast_t* ast)
 {

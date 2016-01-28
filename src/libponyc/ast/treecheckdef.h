@@ -442,7 +442,7 @@ RULE(ephemeral, LEAF, TK_EPHEMERAL);
 RULE(error_type, LEAF, TK_ERRORTYPE);
 RULE(float_literal, HAS_TYPE(type), TK_FLOAT);
 RULE(gencap, LEAF, TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE, TK_CAP_ANY);
-RULE(id, HAS_TYPE(type), TK_ID);
+RULE(id, HAS_TYPE(type) HAS_DATA, TK_ID);
 RULE(int_literal, HAS_TYPE(type), TK_INT);
 RULE(literal_type, LEAF, TK_LITERAL, TK_LITERALBRANCH);
 RULE(none, LEAF, TK_NONE);

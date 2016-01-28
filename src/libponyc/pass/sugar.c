@@ -491,7 +491,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
     NODE(TK_SEQ,
       NODE(TK_ASSIGN, AST_NODEBUG
         TREE(for_iter)
-        NODE(TK_LET, ID(iter_name) NONE))
+        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
