@@ -211,6 +211,7 @@ RULE(call,
 
 RULE(ffi_call,
   HAS_TYPE(type)
+  HAS_DATA  // FFI declaration to use.
   CHILD(id, string)
   CHILD(type_args, none)
   CHILD(positional_args, none)
@@ -307,10 +308,12 @@ RULE(cases,
 
 RULE(match_case,
   IS_SCOPE
-  CHILD(expr, none)
+  CHILD(expr, no_case_expr)
   CHILD(rawseq, none)   // Guard
   CHILD(rawseq, none),  // Body
   TK_CASE);
+
+RULE(no_case_expr, HAS_TYPE(dont_care), TK_NONE);
 
 RULE(try_expr,
   HAS_TYPE(type)
