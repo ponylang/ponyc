@@ -8,20 +8,14 @@ class val TestHelper
   Each unit test is given a TestHelper when it is run. This is val and so can
   be passed between methods and actors within the test without restriction.
 
-  The assertion functions throw an error if the condition fails. This can be
-  propogated back to the top level test function, however it does not have to
-  be. Once one assertion fails the test will be marked as a failure, regardless
-  of what it does afterwards. It is perfectly acceptable to catch an error from
-  one assertion failure, continue with the test and failure further asserts.
-  All failed assertions will be reported.
+  The assertion functions check the relevant condition and mark the test as a
+  failure if appropriate. The success or failure of the condition is reported
+  back as a Bool which can be checked if a different code path is needed when
+  that condition fails.
 
-  The expect functions are provided to make this approach easier. Each behaves
-  exactly the same as the equivalent assert function, but does not throw an
-  error.
-
-  All assert and expect functions take an optional message argument. This is
-  simply a string that is printed as part of the error message when the
-  condition fails. It is intended to aid identifying what failed.
+  All assert functions take an optional message argument. This is simply a
+  string that is printed as part of the error message when the condition fails.
+  It is intended to aid identifying what failed.
   """
 
   let _runner: _TestRunner
@@ -40,176 +34,93 @@ class val TestHelper
     Log the given message.
 
     The verbose parameter allows messages to be printed only when the --verbose
-    command line option is used. For example, by default assert and expect
-    failures are logged, but passes are not. With --verbose both passes and
-    fails are reported.
+    command line option is used. For example, by default assert failures are
+    logged, but passes are not. With --verbose both passes and fails are
+    reported.
 
     Logs are printed one test at a time to avoid interleaving log lines from
     concurrent tests.
     """
     _runner.log(msg, verbose)
 
-  fun fail() =>
+  fun fail(msg: String = "Test failed") =>
     """
     Flag the test as having failed.
-    Note that this does not add anything to the log, which can make it
-    difficult to debug the test as the cause of the failure is not obvious. If
-    you do call this directly consider also writing a log message.
-    In general it is better to use the assert_* and expect_* functions.
     """
-    _runner.fail()
+    _runner.fail(msg)
 
-  fun assert_failed(msg: String) =>
-    """
-    Assert failure of the test.
-    Record that an assert failed and log the given message.
-    """
-    _runner.log(msg, false)
-    _runner.fail()
-
-  fun assert_true(actual: Bool, msg: String = "") ? =>
+  fun assert_true(actual: Bool, msg: String = ""): Bool =>
     """
     Assert that the given expression is true.
     """
     if not actual then
-      assert_failed("Assert true failed. " + msg)
-      error
-    end
-    log("Assert true passed. " + msg, true)
-
-  fun expect_true(actual: Bool, msg: String = ""): Bool =>
-    """
-    Expect that the given expression is true.
-    """
-    if not actual then
-      assert_failed("Expect true failed. " + msg)
+      fail("Assert true failed. " + msg)
       return false
     end
-    log("Expect true passed. " + msg, true)
+    log("Assert true passed. " + msg, true)
     true
 
-  fun assert_false(actual: Bool, msg: String = "") ? =>
+  fun assert_false(actual: Bool, msg: String = ""): Bool =>
     """
     Assert that the given expression is false.
     """
     if actual then
-      assert_failed("Assert false failed. " + msg)
-      error
-    end
-    log("Assert false passed. " + msg, true)
-
-  fun expect_false(actual: Bool, msg: String = ""): Bool =>
-    """
-    Expect that the given expression is false.
-    """
-    if actual then
-      assert_failed("Expect false failed. " + msg)
+      fail("Assert false failed. " + msg)
       return false
     end
-    log("Expect false passed. " + msg, true)
+    log("Assert false passed. " + msg, true)
     true
 
-  fun assert_error(test: ITest box, msg: String = "") ? =>
+  fun assert_error(test: ITest box, msg: String = ""): Bool =>
     """
     Assert that the given test function throws an error when run.
     """
     try
       test()
-      assert_failed("Assert error failed. " + msg)
-    else
-      log("Assert error passed. " + msg, true)
-      return
-    end
-    error
-
-  fun expect_error(test: ITest box, msg: String = ""): Bool =>
-    """
-    Expect that the given test function throws an error when run.
-    """
-    try
-      test()
-      assert_failed("Expect error failed. " + msg)
+      fail("Assert error failed. " + msg)
       false
     else
-      log("Expect error passed. " + msg, true)
+      log("Assert error passed. " + msg, true)
       true
     end
 
-  fun assert_is[A](expect: A, actual: A, msg: String = "") ? =>
+  fun assert_is[A](expect: A, actual: A, msg: String = ""): Bool =>
     """
     Assert that the 2 given expressions resolve to the same instance
     """
     let expect' = identityof expect
     let actual' = identityof actual
-    if not _check_eq[U64]("Assert", expect', actual', msg) then
-      error
-    end
-
-  fun expect_is[A](expect: A, actual: A, msg: String = ""): Bool =>
-    """
-    Expect that the 2 given expressions resolve to the same instance
-    """
-    let expect' = identityof expect
-    let actual' = identityof actual
-    _check_eq[U64]("Expect", expect', actual', msg)
+    _check_eq[U64]("is", expect', actual', msg)
 
   fun assert_eq[A: (Equatable[A] #read & Stringable #read)]
-    (expect: A, actual: A, msg: String = "") ?
+    (expect: A, actual: A, msg: String = ""): Bool
   =>
     """
     Assert that the 2 given expressions are equal.
     """
-    if not _check_eq[A]("Assert", expect, actual, msg) then
-      error
-    end
-
-  fun expect_eq[A: (Equatable[A] #read & Stringable #read)]
-    (expect: A, actual: A, msg: String = ""): Bool
-  =>
-    """
-    Expect that the 2 given expressions are equal.
-    """
-    _check_eq[A]("Expect", expect, actual, msg)
+    _check_eq[A]("eq", expect, actual, msg)
 
   fun _check_eq[A: (Equatable[A] #read & Stringable)]
-    (verb: String, expect: A, actual: A, msg: String): Bool
+    (check: String, expect: A, actual: A, msg: String): Bool
   =>
     """
     Check that the 2 given expressions are equal.
     """
     if expect != actual then
-      assert_failed(verb + " EQ failed. " + msg +
+      fail("Assert " + check + " failed. " + msg +
         " Expected (" + expect.string() + ") == (" + actual.string() + ")")
       return false
     end
 
-    log(verb + " EQ passed. " + msg +
+    log("Assert " + check + " passed. " + msg +
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
   fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
-    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
-  =>
-    """
-    Assert that the contents of the 2 given ReadSeqs are equal.
-    """
-    if not _check_array_eq[A]("Assert", expect, actual, msg) then
-      error
-    end
-
-  fun expect_array_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
   =>
     """
-    Expect that the contents of the 2 given ReadSeqs are equal.
-    """
-    _check_array_eq[A]("Expect", expect, actual, msg)
-
-  fun _check_array_eq[A: (Equatable[A] #read & Stringable #read)]
-    (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
-  =>
-    """
-    Check that the contents of the 2 given ReadSeqs are equal.
+    Assert that the contents of the 2 given ReadSeqs are equal.
     """
     var ok = true
 
@@ -232,38 +143,20 @@ class val TestHelper
     end
 
     if not ok then
-      assert_failed(verb + " EQ failed. " + msg + " Expected (" +
+      fail("Assert EQ failed. " + msg + " Expected (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
       return false
     end
 
-    log(verb + " EQ passed. " + msg + " Got (" +
+    log("Assert EQ passed. " + msg + " Got (" +
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
     true
 
   fun assert_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
-    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "") ?
-  =>
-    """
-    Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
-    """
-    if not _check_array_eq_unordered[A]("Assert", expect, actual, msg) then
-      error
-    end
-
-  fun expect_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
   =>
     """
-    Expect that the contents of the 2 given ReadSeqs are equal ignoring order.
-    """
-    _check_array_eq_unordered[A]("Expect", expect, actual, msg)
-
-  fun _check_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
-    (verb: String, expect: ReadSeq[A], actual: ReadSeq[A], msg: String): Bool
-  =>
-    """
-    Check that the contents of the 2 given ReadSeqs are equal.
+    Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
     """
     try
       let missing = Array[A]
@@ -291,23 +184,22 @@ class val TestHelper
       end
 
       if (extra.size() != 0) or (missing.size() != 0) then
-        assert_failed(
-          verb + " EQ_UNORDERED failed. " + msg + " Expected (" +
+        fail(
+          "Assert EQ_UNORDERED failed. " + msg + " Expected (" +
           _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
           "\nMissing: " + _print_array[A](missing) +
           "\nExtra: " + _print_array[A](extra))
         return false
       end
       log(
-        verb + " EQ_UNORDERED passed. " + msg + " Got (" +
+        "Assert EQ_UNORDERED passed. " + msg + " Got (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
         true)
       true
     else
-      assert_failed(verb + " EQ_UNORDERED failed from an internal error.")
+      fail("Assert EQ_UNORDERED failed from an internal error.")
       false
     end
-
 
   fun _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
     """
@@ -316,15 +208,25 @@ class val TestHelper
     """
     "[len=" + array.size().string() + ": " + ", ".join(array) + "]"
 
+  fun long_test(timeout: U64) =>
+    """
+    Indicate that this is a long running test that may continue after the
+    test function exits.
+    Once this function is called, complete() must be called to finish the test,
+    unless a timeout occurs.
+    The timeout is specified in nanseconds.
+    """
+    _runner.long_test(timeout)
+
   fun complete(success: Bool) =>
     """
-    MUST be called by each long test to indicate the test has finished.
+    MUST be called by each long test to indicate the test has finished, unless
+    a timeout occurs.
 
     The "success" parameter specifies whether the test succeeded. However if
     any asserts fail the test will be considered a failure, regardless of the
     value of this parameter.
 
-    No logging or asserting should be performed after this is called. Any that
-    is will be ignored.
+    Once this is called tear_down() may be called at any time.
     """
     _runner.complete(success)

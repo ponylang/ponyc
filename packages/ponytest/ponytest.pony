@@ -19,8 +19,7 @@ assertion functions. By default log messages are only shown for tests that
 fail.
 
 When any assertion function fails the test is counted as a fail. However, tests
-can also indicate failure by return false or throwing errors from the test
-function.
+can also indicate failure by raising an error in the test function.
 
 ## Example program
 
@@ -47,23 +46,21 @@ actor Main is TestList
 class iso _TestAdd is UnitTest
   fun name():String => "addition"
 
-  fun apply(h: TestHelper): TestResult ? =>
+  fun apply(h: TestHelper) =>
     h.assert_eq[U32](4, 2 + 2)
-    true
 
 class iso _TestSub is UnitTest
   fun name():String => "subtraction"
 
-  fun apply(h: TestHelper): TestResult ? =>
+  fun apply(h: TestHelper) =>
     h.assert_eq[U32](2, 4 - 2)
-    true
 ```
 
 The make() constructor is not needed for this example. However, it allows for
 easy aggregation of tests (see below) so it is recommended that all test Mains
 provide it.
 
-Main.create() is called only for program invocations on the current pacakge.
+Main.create() is called only for program invocations on the current package.
 Main.make() is called during aggregation. If so desired extra code can be added
 to either of these constructors to perform additional tasks.
 
@@ -110,33 +107,27 @@ contain any combination of its own tests and aggregated lists.
 ## Long tests
 
 Simple tests run within a single function. When that function exits, either
-returning a result or throwing an error, the test is complete. This is not
-viable for tests that need to use actors.
+returning or raising an error, the test is complete. This is not viable for
+tests that need to use actors.
 
-Long tests allow for delayed completion. Any test can specify on return from
-its test function that it is a long test, indicating that the test needs to
-keep running. When the test is finally complete it calls the complete()
-function on its TestHelper.
+Long tests allow for delayed completion. Any test can call long_test() on its
+TestHelper to indicate that it needs to keep running. When the test is finally
+complete it calls complete() on its TestHelper.
 
 The complete() function takes a Bool parameter to specify whether the test was
 a success. If any asserts fail then the test will be considered a failure
 regardless of the value of this parameter. However, complete() must still be
 called.
 
-Non-long tests can still call complete(), but it is ignored.
-
 Since failing tests may hang, a timeout must be specified for each long test.
 When the test function exits a timer is started with the specified timeout. If
 this timer fires before complete() is called the test is marked as a failure
 and the timeout is reported.
 
-On a timeout the timedout() function is called on the unit test object. This
+On a timeout the timed_out() function is called on the unit test object. This
 should perform whatever test specific tidy up is required to allow the program
 to exit. There is no need to call complete() if a timeout occurs, although it
 is not an error to do so.
-
-Long tests are indicated by returning the timeout to use from the test
-function. This is given as a U64 measured in nanoseconds.
 
 Note that the timeout is only relevant when a test hangs and would otherwise
 prevent the test program from completing. Setting a very long timeout on tests
@@ -162,7 +153,25 @@ concurrently with any other tests.
 The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
- """
+
+## Tear down
+
+Each unit test object may define a tear_down() function. This is called after
+the test has finished to allow tearing down of any complex environment that had
+to be set up for the test.
+
+The tear_down() function is called for each test regardless of whether it
+passed or failed. If a test times out tear_down() will be called after
+timed_out() returns.
+
+When a test is in an exclusion group, the tear_down() call is considered part
+of the tests run. The next test in the exclusion group will not start until
+after tear_down() returns on the current test.
+
+The test's TestHelper is handed to tear_down() and it is permitted to log
+messages and call assert functions during tear down.
+
+"""
 
 use "time"
 

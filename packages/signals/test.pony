@@ -22,16 +22,16 @@ class iso _TestSignalINT is UnitTest
 
   fun name(): String => "signals/INT"
 
-  fun ref apply(h: TestHelper): TestResult =>
+  fun ref apply(h: TestHelper) =>
     let signal = SignalHandler(_TestSighupNotify(h), Sig.int())
     signal.raise()
     _signal = signal
-    2_000_000_000 // 2 second timeout
+    h.long_test(2_000_000_000) // 2 second timeout
 
   fun timedout(h: TestHelper) =>
     try
       (_signal as SignalHandler).dispose()
     end
 
-    h.assert_failed("timeout")
+    h.fail("timeout")
     h.complete(false)

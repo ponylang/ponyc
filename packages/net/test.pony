@@ -14,7 +14,7 @@ class iso _TestBuffer is UnitTest
   """
   fun name(): String => "net/Buffer"
 
-  fun apply(h: TestHelper): TestResult ? =>
+  fun apply(h: TestHelper) ? =>
     let b = Buffer
 
     b.append(recover [as U8:
@@ -36,44 +36,42 @@ class iso _TestBuffer is UnitTest
     b.append(recover [as U8: 'r', 'e', '\r', '\n'] end)
 
     // These expectations peek into the buffer without consuming bytes.
-    h.expect_eq[U8](b.peek_u8(), 0x42)
-    h.expect_eq[U16](b.peek_u16_be(1), 0xDEAD)
-    h.expect_eq[U16](b.peek_u16_le(3), 0xDEAD)
-    h.expect_eq[U32](b.peek_u32_be(5), 0xDEADBEEF)
-    h.expect_eq[U32](b.peek_u32_le(9), 0xDEADBEEF)
-    h.expect_eq[U64](b.peek_u64_be(13), 0xDEADBEEFFEEDFACE)
-    h.expect_eq[U64](b.peek_u64_le(21), 0xDEADBEEFFEEDFACE)
-    h.expect_eq[U128](b.peek_u128_be(29), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
-    h.expect_eq[U128](b.peek_u128_le(45), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U8](b.peek_u8(), 0x42)
+    h.assert_eq[U16](b.peek_u16_be(1), 0xDEAD)
+    h.assert_eq[U16](b.peek_u16_le(3), 0xDEAD)
+    h.assert_eq[U32](b.peek_u32_be(5), 0xDEADBEEF)
+    h.assert_eq[U32](b.peek_u32_le(9), 0xDEADBEEF)
+    h.assert_eq[U64](b.peek_u64_be(13), 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U64](b.peek_u64_le(21), 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.peek_u128_be(29), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.peek_u128_le(45), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
-    h.expect_eq[U8](b.peek_u8(61), 'h')
-    h.expect_eq[U8](b.peek_u8(62), 'i')
+    h.assert_eq[U8](b.peek_u8(61), 'h')
+    h.assert_eq[U8](b.peek_u8(62), 'i')
 
     // These expectations consume bytes from the head of the buffer.
-    h.expect_eq[U8](b.u8(), 0x42)
-    h.expect_eq[U16](b.u16_be(), 0xDEAD)
-    h.expect_eq[U16](b.u16_le(), 0xDEAD)
-    h.expect_eq[U32](b.u32_be(), 0xDEADBEEF)
-    h.expect_eq[U32](b.u32_le(), 0xDEADBEEF)
-    h.expect_eq[U64](b.u64_be(), 0xDEADBEEFFEEDFACE)
-    h.expect_eq[U64](b.u64_le(), 0xDEADBEEFFEEDFACE)
-    h.expect_eq[U128](b.u128_be(), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
-    h.expect_eq[U128](b.u128_le(), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U8](b.u8(), 0x42)
+    h.assert_eq[U16](b.u16_be(), 0xDEAD)
+    h.assert_eq[U16](b.u16_le(), 0xDEAD)
+    h.assert_eq[U32](b.u32_be(), 0xDEADBEEF)
+    h.assert_eq[U32](b.u32_le(), 0xDEADBEEF)
+    h.assert_eq[U64](b.u64_be(), 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U64](b.u64_le(), 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.u128_be(), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.u128_le(), 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
-    h.expect_eq[String](b.line(), "hi")
-    h.expect_eq[String](b.line(), "there")
+    h.assert_eq[String](b.line(), "hi")
+    h.assert_eq[String](b.line(), "there")
 
     b.append(recover [as U8: 'h', 'i'] end)
 
     try
       b.line()
-      h.assert_failed("shouldn't have a line")
+      h.fail("shouldn't have a line")
     end
 
     b.append(recover [as U8: '!', '\n'] end)
-    h.expect_eq[String](b.line(), "hi!")
-
-    true
+    h.assert_eq[String](b.line(), "hi!")
 
 class _TestPing is UDPNotify
   let _mgr: _TestBroadcastMgr
@@ -103,7 +101,7 @@ class _TestPing is UDPNotify
 
       list(0)
     else
-      _h.assert_failed("Couldn't make broadcast address")
+      _h.fail("Couldn't make broadcast address")
       ip
     end
 
@@ -116,11 +114,8 @@ class _TestPing is UDPNotify
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
-    try
-      let s = String.append(consume data)
-      _h.assert_eq[String box](s, "pong!")
-    end
-
+    let s = String.append(consume data)
+    _h.assert_eq[String box](s, "pong!")
     _mgr.succeed()
 
 class _TestPong is UDPNotify
@@ -140,11 +135,8 @@ class _TestPong is UDPNotify
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
-    try
-      let s = String.append(consume data)
-      _h.assert_eq[String box](s, "ping!")
-    end
-
+    let s = String.append(consume data)
+    _h.assert_eq[String box](s, "ping!")
     sock.write("pong!", from)
 
 actor _TestBroadcastMgr
@@ -169,7 +161,7 @@ actor _TestBroadcastMgr
       _fail = true
       _pong.dispose()
       try (_ping as UDPSocket).dispose() end
-      _h.assert_failed(msg)
+      _h.fail(msg)
       _h.complete(false)
     end
 
@@ -192,9 +184,9 @@ class iso _TestBroadcast is UnitTest
 
   fun name(): String => "net/Broadcast"
 
-  fun ref apply(h: TestHelper): TestResult =>
+  fun ref apply(h: TestHelper) =>
     _mgr = _TestBroadcastMgr(h)
-    2_000_000_000 // 2 second timeout
+    h.long_test(2_000_000_000) // 2 second timeout
 
   fun timedout(t: TestHelper) =>
     try

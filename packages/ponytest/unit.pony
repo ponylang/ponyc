@@ -1,6 +1,3 @@
-type TestResult is (Bool | U64)
-
-
 trait UnitTest
   """
   Each unit test class must provide this trait. Simple tests only need to
@@ -21,21 +18,26 @@ trait UnitTest
     """
     ""
 
-  fun ref apply(t: TestHelper): TestResult ?
+  fun ref apply(h: TestHelper) ?
     """
     Run the test.
-    Return values:
-    * true - test passed.
-    * false - test failed.
-    * U64 - test needs to run for longer. Value given is timeout in nsec.
-    * error - test failed.
+    Raising an error is interpreted as a test failure.
     """
 
-  fun ref timedout(t: TestHelper) =>
+  fun ref timed_out(h: TestHelper) =>
     """
     Tear down a possibly hanging test.
-    Called when the timeout specified by the test function expires.
+    Called when the timeout specified by to long_test() expires.
     There is no need for this function to call complete(false).
+    tear_down() will still be called after this completes.
+    The default is to do nothing.
+    """
+    None
+
+  fun ref tear_down(h: TestHelper) =>
+    """
+    Tidy up after the test has completed.
+    Called for each run test, whether that test passed, succeeded or timed out.
     The default is to do nothing.
     """
     None

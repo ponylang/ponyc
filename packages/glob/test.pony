@@ -63,8 +63,8 @@ primitive _FileHelper
           Directory(fp).create_file(dir_head._2).dispose()
         end
       else
-        h.assert_failed("Failed to create file: " + f)
-        h.expect_true(top.path.remove())
+        h.fail("Failed to create file: " + f)
+        h.assert_true(top.path.remove())
         error
       end
     end
@@ -73,10 +73,9 @@ primitive _FileHelper
 class iso _TestFnMatchCase is UnitTest
   fun name(): String => "files/Glob.fnmatchcase"
 
-  fun apply(h: TestHelper): TestResult =>
-    h.expect_true(Glob.fnmatchcase("aBc", "aBc"))
-    h.expect_false(Glob.fnmatchcase("aBc", "abc"))
-    true
+  fun apply(h: TestHelper) =>
+    h.assert_true(Glob.fnmatchcase("aBc", "aBc"))
+    h.assert_false(Glob.fnmatchcase("aBc", "abc"))
 
 class iso _TestFnMatch is UnitTest
   let _glob: String
@@ -92,22 +91,21 @@ class iso _TestFnMatch is UnitTest
     "files/" + (if _matches then "" else "!" end) +
       "Glob.fnmatch(" + _glob + ", " + _path + ")"
 
-  fun apply(h: TestHelper): TestResult =>
+  fun apply(h: TestHelper) =>
     _matches == Glob.fnmatch(_glob, _path)
 
 class iso _TestFilter is UnitTest
   fun name(): String => "files/Glob.filter"
 
-  fun apply(h: TestHelper): TestResult? =>
+  fun apply(h: TestHelper) ? =>
     let m = Glob.filter([ "12/a/Bcd", "12/q/abd", "34/b/Befd"], "*/?/B*d")
     h.assert_eq[USize](2, m.size())
 
-    h.expect_eq[String](m(0)._1, "12/a/Bcd")
-    h.expect_array_eq[String](["12", "a", "c"], m(0)._2)
+    h.assert_eq[String](m(0)._1, "12/a/Bcd")
+    h.assert_array_eq[String](["12", "a", "c"], m(0)._2)
 
-    h.expect_eq[String](m(1)._1, "34/b/Befd")
-    h.expect_array_eq[String](["34", "b", "ef"], m(1)._2)
-    true
+    h.assert_eq[String](m(1)._1, "34/b/Befd")
+    h.assert_array_eq[String](["34", "b", "ef"], m(1)._2)
 
 class iso _TestGlob is UnitTest
   fun name(): String => "files/FilePath.glob"
@@ -118,17 +116,16 @@ class iso _TestGlob is UnitTest
     end
     res
 
-  fun apply(h: TestHelper): TestResult? =>
+  fun apply(h: TestHelper) ? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
-      h.expect_array_eq_unordered[String](
+      h.assert_array_eq_unordered[String](
         ["a/1", "c/1"], _rel(top, Glob.glob(top, "*/1")))
-      h.expect_array_eq_unordered[String](
+      h.assert_array_eq_unordered[String](
         Array[String], _rel(top, Glob.glob(top, "1")))
     then
-      h.expect_true(top.remove())
+      h.assert_true(top.remove())
     end
-    true
 
 class iso _TestIGlob is UnitTest
   fun name(): String => "files/FilePath.iglob"
@@ -139,7 +136,7 @@ class iso _TestIGlob is UnitTest
     end
     res
 
-  fun apply(h: TestHelper): TestResult? =>
+  fun apply(h: TestHelper) ? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
       Glob.iglob(
@@ -147,16 +144,15 @@ class iso _TestIGlob is UnitTest
         lambda(f: FilePath, matches: Array[String])(top, h) =>
           try
             match matches(0)
-            | "a" => h.expect_eq[String](Path.rel(top.path, f.path), "a/1")
-            | "c" => h.expect_eq[String](Path.rel(top.path, f.path), "c/1")
+            | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
+            | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
             else
               error
             end
           else
-              h.assert_failed("Unexpected match: " + f.path)
+              h.fail("Unexpected match: " + f.path)
           end
         end)
     then
-      h.expect_true(top.remove())
+      h.assert_true(top.remove())
     end
-    true
