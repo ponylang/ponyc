@@ -29,6 +29,10 @@ static bool safe_field_write(token_id cap, ast_t* type)
     {
       // Safe to write if the upper bounds is safe to write.
       ast_t* upper = viewpoint_upper(type);
+
+      if(upper == NULL)
+        return false;
+
       bool ok = safe_field_write(cap, upper);
 
       if(upper != type)
@@ -166,6 +170,10 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
       // type being considered is safe to write into the upper bounds of the
       // receiver.
       ast_t* upper = viewpoint_upper(receiver_type);
+
+      if(upper == NULL)
+        return false;
+
       bool ok = safe_to_autorecover(upper, type);
 
       if(upper != receiver_type)

@@ -368,6 +368,10 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern)
   // ---
   // T1 match T2->T3
   ast_t* pattern_upper = viewpoint_upper(pattern);
+
+  if(pattern_upper == NULL)
+    return MATCHTYPE_REJECT;
+
   matchtype_t ok = is_matchtype(operand, pattern_upper);
   ast_free_unattached(pattern_upper);
   return ok;
