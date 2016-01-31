@@ -867,6 +867,36 @@ static ast_result_t syntax_compile_error(ast_t* ast)
 }
 
 
+static ast_result_t syntax_cap(ast_t* ast)
+{
+  switch(ast_id(ast_parent(ast)))
+  {
+    case TK_NOMINAL:
+    case TK_ARROW:
+    case TK_OBJECT:
+    case TK_LAMBDA:
+    case TK_RECOVER:
+    case TK_CONSUME:
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+    case TK_TYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      return AST_OK;
+
+    default: {}
+  }
+
+  ast_error(ast, "a type cannot be only a capability");
+  return AST_ERROR;
+}
+
+
 static ast_result_t syntax_cap_set(typecheck_t* t, ast_t* ast)
 {
   // Cap sets can only appear in type parameter constraints.
@@ -924,6 +954,14 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
                         r = syntax_compile_intrinsic(ast); break;
     case TK_COMPILE_ERROR:
                         r = syntax_compile_error(ast); break;
+
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:        r = syntax_cap(ast); break;
+
     case TK_CAP_READ:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
