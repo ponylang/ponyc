@@ -723,7 +723,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     {
       ast_t* scope = ast_parent(ast);
       ast_t* id = ast_child(ast);
-      ast_set(scope, ast_name(id), id, SYM_DEFINED);
+      ast_set(scope, ast_name(id), id, SYM_UNDEFINED);
       break;
     }
 
