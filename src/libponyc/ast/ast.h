@@ -338,7 +338,7 @@ bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
 
 void* ast_data(ast_t* ast);
-void ast_setdata(ast_t* ast, void* data);
+ast_t* ast_setdata(ast_t* ast, void* data);
 bool ast_canerror(ast_t* ast);
 void ast_seterror(ast_t* ast);
 bool ast_cansend(ast_t* ast);
@@ -354,6 +354,7 @@ void ast_resetpass(ast_t* ast);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
+const char* ast_nice_name(ast_t* ast);
 size_t ast_name_len(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name);
 double ast_float(ast_t* ast);

@@ -278,6 +278,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
   messageq_push(&b->q, (pony_msg_t*)msg);
+
+  retry_loop(b);
 }
 
 #endif

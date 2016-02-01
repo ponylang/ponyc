@@ -13,17 +13,20 @@ actor Main is TestList
 
 primitive TestOptions
   fun from(renv: Env val, args: Array[String] val): Options =>
-    let env = recover val Env.create(renv.root, renv.input, renv.out, renv.err, args, None) end
+    let env = recover val Env.create(renv.root, renv.input, renv.out, renv.err,
+      args, None) end
     Options(env)
 
 class iso _TestLongOptions is UnitTest
   """
-  Long options start with two leading dashes, and can be lone, have a following arg, or combined arg with =.
+  Long options start with two leading dashes, and can be lone, have a following
+  arg, or combined arg with =.
   """
   fun name(): String => "options/Options.longOptions"
 
-  fun apply(h: TestHelper): TestResult =>
-    let options = TestOptions.from(h.env, recover ["--none", "--i64", "12345", "--f64=67.890"] end)
+  fun apply(h: TestHelper) =>
+    let options = TestOptions.from(h.env, recover ["--none", "--i64", "12345",
+      "--f64=67.890"] end)
     var none: Bool = false
     var i64: I64 = -1
     var f64: F64 = -1
@@ -39,19 +42,20 @@ class iso _TestLongOptions is UnitTest
       end
     end
 
-    h.expect_eq[Bool](true, none)
-    h.expect_eq[I64](12345, i64)
-    h.expect_eq[F64](67.890, f64)
-    true
+    h.assert_eq[Bool](true, none)
+    h.assert_eq[I64](12345, i64)
+    h.assert_eq[F64](67.890, f64)
 
 class iso _TestShortOptions is UnitTest
   """
-  Short options start with a single leading dash, and can be lone, have a following arg, or combined arg with =.
+  Short options start with a single leading dash, and can be lone, have a
+  following arg, or combined arg with =.
   """
   fun name(): String => "options/Options.shortOptions"
 
-  fun apply(h: TestHelper): TestResult =>
-    let options = TestOptions.from(h.env, recover val ["-n", "-i", "12345", "-f67.890"] end)
+  fun apply(h: TestHelper) =>
+    let options = TestOptions.from(h.env, recover val ["-n", "-i", "12345",
+      "-f67.890"] end)
     var none: Bool = false
     var i64: I64 = -1
     var f64: F64 = -1
@@ -65,14 +69,13 @@ class iso _TestShortOptions is UnitTest
       | ("i64", var arg: I64) => i64 = arg
       | ("f64", var arg: F64) => f64 = arg
       else
-        h.assert_failed("Invalid option reported")
+        h.fail("Invalid option reported")
       end
     end
 
-    h.expect_eq[Bool](true, none)
-    h.expect_eq[I64](12345, i64)
-    h.expect_eq[F64](67.890, f64)
-    true
+    h.assert_eq[Bool](true, none)
+    h.assert_eq[I64](12345, i64)
+    h.assert_eq[F64](67.890, f64)
 
 class iso _TestCombineShortOptions is UnitTest
   """
@@ -80,7 +83,7 @@ class iso _TestCombineShortOptions is UnitTest
   """
   fun name(): String => "options/Options.combineShort"
 
-  fun apply(h: TestHelper): TestResult =>
+  fun apply(h: TestHelper) =>
     let options = TestOptions.from(h.env, recover val ["-ab"] end)
     var aaa: Bool = false
     var bbb: Bool = false
@@ -94,9 +97,8 @@ class iso _TestCombineShortOptions is UnitTest
       end
     end
 
-    h.expect_eq[Bool](true, aaa)
-    h.expect_eq[Bool](true, bbb)
-    true
+    h.assert_eq[Bool](true, aaa)
+    h.assert_eq[Bool](true, bbb)
 
 class iso _TestCombineShortArg is UnitTest
   """
@@ -104,8 +106,9 @@ class iso _TestCombineShortArg is UnitTest
   """
   fun name(): String => "options/Options.combineShortArg"
 
-  fun apply(h: TestHelper): TestResult =>
-    let options = TestOptions.from(h.env, recover val ["-ab99", "-ac", "99"] end)
+  fun apply(h: TestHelper) =>
+    let options =
+      TestOptions.from(h.env, recover val ["-ab99", "-ac", "99"] end)
     var aaa: Bool = false
     var bbb: I64 = -1
     var ccc: I64 = -1
@@ -121,10 +124,9 @@ class iso _TestCombineShortArg is UnitTest
       end
     end
 
-    h.expect_eq[Bool](true, aaa)
-    h.expect_eq[I64](99, bbb)
-    h.expect_eq[I64](99, ccc)
-    true
+    h.assert_eq[Bool](true, aaa)
+    h.assert_eq[I64](99, bbb)
+    h.assert_eq[I64](99, ccc)
 
 class iso _TestArgLeadingDash is UnitTest
   """
@@ -133,8 +135,9 @@ class iso _TestArgLeadingDash is UnitTest
   """
   fun name(): String => "options/Options.testArgLeadingDash"
 
-  fun apply(h: TestHelper): TestResult =>
-    let options = TestOptions.from(h.env, recover val ["--aaa", "-2", "--bbb=-2"] end)
+  fun apply(h: TestHelper) =>
+    let options =
+      TestOptions.from(h.env, recover val ["--aaa", "-2", "--bbb=-2"] end)
     var aaa: I64 = -1
     var bbb: I64 = -1
     options
@@ -148,6 +151,5 @@ class iso _TestArgLeadingDash is UnitTest
       end
     end
 
-    h.expect_eq[I64](-1, aaa)
-    h.expect_eq[I64](-2, bbb)
-    true
+    h.assert_eq[I64](-1, aaa)
+    h.assert_eq[I64](-2, bbb)

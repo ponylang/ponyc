@@ -132,6 +132,12 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _ptr
 
+  fun _cstring(): Pointer[U8] box =>
+    """
+    Returns a C compatible pointer to a null terminated string.
+    """
+    _ptr
+
   fun size(): USize =>
     """
     Returns the length of the string data in bytes.
@@ -586,13 +592,11 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       error
     end
 
-  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1):
-    String ref^
+  fun ref append(seq: (ReadSeq[U8] | ByteSeq box), offset: USize = 0, len:
+    USize = -1): String ref^
   =>
     """
     Append the elements from a sequence, starting from the given offset.
-
-    TODO: optimise when it is a string or an array
     """
     if offset >= seq.size() then
       return this
@@ -601,13 +605,20 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
-    let cap = copy_len + offset
-    var i = offset
+    match seq
+    | let s: (String box | Array[U8] box) =>
+      s._cstring()._offset(offset)._copy_to(_ptr._offset(_size), copy_len)
+      _size = _size + copy_len
+      _set(_size, 0)
+    else
+      let cap = copy_len + offset
+      var i = offset
 
-    try
-      while i < cap do
-        push(seq(i))
-        i = i + 1
+      try
+        while i < cap do
+          push(seq(i))
+          i = i + 1
+        end
       end
     end
 

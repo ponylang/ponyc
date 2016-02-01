@@ -696,17 +696,44 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   scheduler_terminate();
 }
 
+#ifndef NDEBUG
+
 static void dump_view(view_t* view)
 {
-  printf("%p: " __zu " (%s)\n",
-    view->actor, view->rc, view->blocked ? "blocked" : "unblocked");
+  printf("%p: " __zu "/" __zu " (%s)%s%s\n",
+    view->actor, view->rc, view->actor->gc.rc,
+    view->blocked ? "blocked" : "unblocked",
+    view->rc == view->actor->gc.rc ? "" : " ERROR",
+    view->actor->gc.delta == NULL ? "" : " DELTA");
 
   size_t i = HASHMAP_BEGIN;
   viewref_t* p;
+  actorref_t* aref;
 
   while((p = viewrefmap_next(&view->map, &i)) != NULL)
   {
-    printf("\t%p: " __zu "\n", p->view->actor, p->rc);
+    aref = actormap_getactor(&view->actor->gc.foreign, p->view->actor);
+
+    if(aref != NULL)
+    {
+      printf("\t%p: " __zu "/" __zu " %s\n",
+        p->view->actor, p->rc, actorref_rc(aref),
+        p->rc == actorref_rc(aref) ? "" : "ERROR");
+    } else {
+      printf("\t%p: " __zu " ERROR\n", p->view->actor, p->rc);
+    }
+  }
+
+  if(actormap_size(&view->actor->gc.foreign) != viewrefmap_size(&view->map))
+  {
+    printf("\t--- ERROR\n");
+
+    i = HASHMAP_BEGIN;
+
+    while((aref = actormap_next(&view->actor->gc.foreign, &i)) != NULL)
+    {
+      printf("\t%p: " __zu "\n", actorref_actor(aref), actorref_rc(aref));
+    }
   }
 }
 
@@ -750,6 +777,8 @@ void check_views()
   }
 }
 
+#endif
+
 static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
   pony_msg_t* msg)
 {
@@ -778,12 +807,14 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
+#ifndef NDEBUG
     default:
     {
       // Never happens, used to keep debug functions.
       dump_views();
       check_views();
     }
+#endif
   }
 }
 

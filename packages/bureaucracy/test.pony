@@ -14,11 +14,11 @@ class iso _TestCustodian is UnitTest
   """
   fun name(): String => "bureaucracy/Custodian"
 
-  fun ref apply(h: TestHelper): TestResult =>
+  fun ref apply(h: TestHelper) =>
+    h.long_test(2_000_000_000) // 2 second timeout
     let c = Custodian
     c(_TestDisposable(h))
     c.dispose()
-    2_000_000_000 // 2 second timeout
 
 class iso _TestRegistrar is UnitTest
   """
@@ -26,7 +26,8 @@ class iso _TestRegistrar is UnitTest
   """
   fun name(): String => "bureaucracy/Registrar"
 
-  fun ref apply(h: TestHelper): TestResult =>
+  fun ref apply(h: TestHelper) =>
+    h.long_test(2_000_000_000) // 2 second timeout
     let r = Registrar
     r("test") = _TestDisposable(h)
 
@@ -36,8 +37,6 @@ class iso _TestRegistrar is UnitTest
           value.dispose()
         end
       end)
-
-    2_000_000_000 // 2 second timeout
 
 actor _TestDisposable
   let _h: TestHelper

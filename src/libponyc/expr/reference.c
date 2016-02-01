@@ -347,6 +347,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
         ast_free_unattached(type);
+        return false;
       }
       break;
     }
@@ -545,7 +546,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       if(type != NULL && ast_id(type) == TK_INFERTYPE)
       {
-        ast_error(ast, "cannot infer type of %s\n", name);
+        ast_error(ast, "cannot infer type of %s\n", ast_nice_name(def));
         ast_settype(def, ast_from(def, TK_ERRORTYPE));
         ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
         return false;
