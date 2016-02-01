@@ -132,7 +132,12 @@ elseif
 idseq
   : ID
   | '_'
-  | ('(' | LPAREN_NEW) idseq (',' idseq)* ')'
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  ;
+
+idseq_in_seq
+  : ID
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
   ;
 
 nextpattern

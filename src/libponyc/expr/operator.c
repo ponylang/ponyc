@@ -388,13 +388,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(&opt->check, left, is_result_needed(ast)))
+  if(l_type == NULL || !is_lvalue(&opt->check, left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
   }
-
-  assert(l_type != NULL);
 
   if(!coerce_literals(&right, l_type, opt))
     return false;
