@@ -580,6 +580,8 @@ class iso _TestArrayInsert is UnitTest
     c.insert(2, "four")
     h.assert_array_eq[String](["one", "three", "four"], c)
 
+    h.assert_error(lambda()? => ["one", "three"].insert(3, "invalid") end)
+
 
 class iso _TestMath128 is UnitTest
   """
