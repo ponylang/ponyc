@@ -568,22 +568,17 @@ class iso _TestArrayInsert is UnitTest
   fun name(): String => "builtin/Array.insert"
 
   fun apply(h: TestHelper) ? =>
-    let a = _iso_array(["one", "three"])
+    let a = ["one", "three"]
     a.insert(0, "zero")
-    h.assert_array_eq[String](["zero", "one", "three"], consume a)
+    h.assert_array_eq[String](["zero", "one", "three"], a)
 
-    let b = _iso_array(["one", "three"])
+    let b = ["one", "three"]
     b.insert(1, "two")
-    h.assert_array_eq[String](["one", "two", "three"], consume b)
+    h.assert_array_eq[String](["one", "two", "three"], b)
 
-    let c = _iso_array(["one", "three"])
+    let c = ["one", "three"]
     c.insert(2, "four")
-    h.assert_array_eq[String](["one", "three", "four"], consume c)
-
-  fun _iso_array(elements: Array[String]): Array[String] iso^ =>
-    let array = recover Array[String] end
-    for element in elements.values() do array.push(element) end
-    consume array
+    h.assert_array_eq[String](["one", "three", "four"], c)
 
 
 class iso _TestMath128 is UnitTest
