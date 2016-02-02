@@ -24,7 +24,7 @@ DECL(infix);
 DECL(postfix);
 DECL(parampattern);
 DECL(pattern);
-DECL(idseq);
+DECL(idseq_in_seq);
 DECL(members);
 
 
@@ -56,6 +56,7 @@ DECL(members);
 
 // DONTCARE
 DEF(dontcare);
+  PRINT_INLINE();
   TOKEN(NULL, TK_DONTCARE);
   DONE();
 
@@ -502,33 +503,33 @@ DEF(nextpattern);
   RULE("pattern", local, nextparampattern);
   DONE();
 
-// idseq
-DEF(idseq_in_seq);
-  AST_NODE(TK_SEQ);
-  RULE("variable name", idseq);
-  DONE();
-
 // (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
   PRINT_INLINE();
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("variable name", idseq_in_seq);
-  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq));
+  RULE("variable name", idseq_in_seq, dontcare);
+  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq, dontcare));
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// ID | '_'
+// ID
 DEF(idseqsingle);
   PRINT_INLINE();
   AST_NODE(TK_LET);
-  TOKEN("variable name", TK_ID, TK_DONTCARE);
+  TOKEN("variable name", TK_ID);
   AST_NODE(TK_NONE);  // Type
+  DONE();
+
+// idseq
+DEF(idseq_in_seq);
+  AST_NODE(TK_SEQ);
+  RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
 // ID | '_' | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
-  RULE("variable name", idseqsingle, idseqmulti);
+  RULE("variable name", idseqsingle, dontcare, idseqmulti);
   DONE();
 
 // ELSE seq
