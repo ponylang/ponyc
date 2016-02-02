@@ -1,6 +1,6 @@
 # Getting help 
 
-* [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
+* [Open an issue!](https://github.com/ponylang/ponyc/issues)
 * Use the [mailing list](mailto:ponydev@lists.ponylang.org).
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
 * A tutorial is available [here](http://tutorial.ponylang.org).
@@ -9,7 +9,7 @@
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 * Atom: [language-pony](https://atom.io/packages/language-pony)
-* Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony)
+* Visual Studio: [VS-pony](https://github.com/ponylang/VS-pony)
 * Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
@@ -46,7 +46,7 @@ You will need to build from source.
 
 # Building ponyc from source
 
-## Building on Linux [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+## Building on Linux [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well.
 
@@ -75,7 +75,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 You'll need llvm 3.6 and the pcre2 library to build Pony.
 
