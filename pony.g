@@ -274,7 +274,25 @@ cap
   ;
 
 typeargs
-  : '[' (type | literal | ('#' postfix)) (',' (type | literal | ('#' postfix)))* ']'
+  : '[' typearg (',' typearg)* ']'
+  ;
+
+typeparams
+  : ('[' | LSQUARE_NEW) typeparam (',' typeparam)* ']'
+  ;
+
+params
+  : (param | '...') (',' (param | '...'))*
+  ;
+
+typeparam
+  : ID (':' type)? ('=' typearg)?
+  ;
+
+typearg
+  : type
+  | literal
+  | '#' postfix
   ;
 
 literal
@@ -283,22 +301,6 @@ literal
   | INT
   | FLOAT
   | STRING
-  ;
-
-typeparams
-  : ('[' | LSQUARE_NEW) (typeparam | typeparamvalue) (',' (typeparam | typeparamvalue))* ']'
-  ;
-
-params
-  : (param | '...') (',' (param | '...'))*
-  ;
-
-typeparamvalue
-  : 'let' ID (':' type)? ('=' infix)?
-  ;
-
-typeparam
-  : ID (':' type)? ('=' type)?
   ;
 
 param

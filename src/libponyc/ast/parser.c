@@ -83,39 +83,6 @@ DEF(ellipsis);
   TOKEN(NULL, TK_ELLIPSIS);
   DONE();
 
-// ID [COLON type] [ASSIGN type]
-DEF(typeparam);
-  AST_NODE(TK_TYPEPARAM);
-  TOKEN("name", TK_ID);
-  IF(TK_COLON, RULE("type constraint", type));
-  IF(TK_ASSIGN, RULE("default type", type));
-  DONE();
-
-// LET ID [COLON type] [ASSIGN infix]
-DEF(typeparamvalue);
-  AST_NODE(TK_VALUEFORMALPARAM);
-  SKIP(NULL, TK_LET);
-  TOKEN("name", TK_ID);
-  IF(TK_COLON, RULE("type constraint", type));
-  IF(TK_ASSIGN, RULE("default value", infix));
-  DONE();
-
-// param {COMMA param}
-DEF(params);
-  AST_NODE(TK_PARAMS);
-  RULE("parameter", param, ellipsis);
-  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
-  DONE();
-
-// LSQUARE typeparam {COMMA typeparam} RSQUARE
-DEF(typeparams);
-  AST_NODE(TK_TYPEPARAMS);
-  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
-  RULE("type parameter", typeparam, typeparamvalue);
-  WHILE(TK_COMMA, RULE("type parameter", typeparam, typeparamvalue));
-  TERMINATE("type parameters", TK_RSQUARE);
-  DONE();
-
 // TRUE | FALSE | INT | FLOAT | STRING
 DEF(literal);
   TOKEN("literal", TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
@@ -142,12 +109,41 @@ DEF(typeargconst);
   RULE("formal argument value", constexpr);
   DONE();
 
+// type | typeargliteral | typeargconst
+DEF(typearg);
+  RULE("type argument", type, typeargliteral, typeargconst);
+  DONE();
+
+// ID [COLON type] [ASSIGN typearg]
+DEF(typeparam);
+  AST_NODE(TK_TYPEPARAM);
+  TOKEN("name", TK_ID);
+  IF(TK_COLON, RULE("type constraint", type));
+  IF(TK_ASSIGN, RULE("default type argument", typearg));
+  DONE();
+
+// param {COMMA param}
+DEF(params);
+  AST_NODE(TK_PARAMS);
+  RULE("parameter", param, ellipsis);
+  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
+  DONE();
+
+// LSQUARE typeparam {COMMA typeparam} RSQUARE
+DEF(typeparams);
+  AST_NODE(TK_TYPEPARAMS);
+  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
+  RULE("type parameter", typeparam);
+  WHILE(TK_COMMA, RULE("type parameter", typeparam));
+  TERMINATE("type parameters", TK_RSQUARE);
+  DONE();
+
 // LSQUARE type {COMMA type} RSQUARE
 DEF(typeargs);
   AST_NODE(TK_TYPEARGS);
   SKIP(NULL, TK_LSQUARE);
-  RULE("type argument", type, typeargliteral, typeargconst);
-  WHILE(TK_COMMA, RULE("type argument", type, typeargliteral, typeargconst));
+  RULE("type argument", typearg);
+  WHILE(TK_COMMA, RULE("type argument", typearg));
   TERMINATE("type arguments", TK_RSQUARE);
   DONE();
 
