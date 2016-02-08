@@ -932,6 +932,43 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 }
 
 
+bool literal_is(ast_t* ast, pass_opt_t* options)
+{
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
+
+  AST_GET_CHILDREN(ast, left, right);
+
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
+    return false;
+
+  if(!is_type_literal(l_type) && !is_type_literal(r_type))
+    // No literals here.
+    return true;
+
+  if(is_type_literal(l_type) && !is_type_literal(r_type))
+  {
+    // Coerce left to type of right.
+    return coerce_literals(&left, r_type, options);
+  }
+
+  if(!is_type_literal(l_type) && is_type_literal(r_type))
+  {
+    // Coerce right to type of left.
+    return coerce_literals(&right, l_type, options);
+  }
+
+  // Both sides are literals, that's a problem.
+  assert(is_type_literal(l_type));
+  assert(is_type_literal(r_type));
+  ast_error(ast, "Cannot infer type of operands");
+  return false;
+}
+
+
 void literal_unify_control(ast_t* ast, pass_opt_t* options)
 {
   unify(ast, options, false);
