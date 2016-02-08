@@ -51,7 +51,7 @@ TEST_F(SugarTraitTest, FieldDelegateTypeCannotBeConrete)
 }
 
 
-TEST_F(SugarTraitTest, FieldDelegateTypeCannotBeUnimplementedInterface)
+TEST_F(SugarTraitTest, FieldDelegateTypeCanBeUnimplementedInterface)
 {
   const char* short_form =
     "interface T\n"
@@ -60,11 +60,11 @@ TEST_F(SugarTraitTest, FieldDelegateTypeCannotBeUnimplementedInterface)
     "class Foo\n"
     "  var bar: T delegate T";
 
-  TEST_ERROR(short_form);
+  TEST_COMPILE(short_form);
 }
 
 
-TEST_F(SugarTraitTest, FieldDelegateTypeCannotBeUnimplementedTrait)
+TEST_F(SugarTraitTest, FieldDelegateTypeCanBeUnimplementedTrait)
 {
   const char* short_form =
     "trait T\n"
@@ -73,7 +73,7 @@ TEST_F(SugarTraitTest, FieldDelegateTypeCannotBeUnimplementedTrait)
     "class Foo\n"
     "  var bar: T delegate T";
 
-  TEST_ERROR(short_form);
+  TEST_COMPILE(short_form);
 }
 
 
