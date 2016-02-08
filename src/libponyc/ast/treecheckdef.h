@@ -16,7 +16,7 @@ RULE(package,
   IS_SCOPE  // name -> entity
   HAS_DATA  // package_t
   ZERO_OR_MORE(module)
-  OPTIONAL(string),
+  OPTIONAL(string), // Package doc string
   TK_PACKAGE);
 
 RULE(module,
@@ -108,7 +108,7 @@ RULE(param,
   TK_PARAM);
 
 RULE(seq,
-  IS_SCOPE
+  IS_SCOPE  // name -> local ID node
   HAS_TYPE(type)
   ONE_OR_MORE(jump, intrinsic, compile_error, expr, semi),
   TK_SEQ);
