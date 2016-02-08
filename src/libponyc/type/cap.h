@@ -22,6 +22,14 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
   token_id pattern_cap, token_id pattern_eph);
 
 /**
+ * Every possible instantiation of the left side is locally compatible with
+ * every possible instantiation of the right side. This relationship is
+ * symmetric.
+ */
+bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
+  token_id right_cap, token_id right_eph);
+
+/**
  * Get the capability ast for a nominal type or type parameter reference.
  */
 ast_t* cap_fetch(ast_t* type);

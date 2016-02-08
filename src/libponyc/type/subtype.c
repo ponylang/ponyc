@@ -514,26 +514,6 @@ static bool is_isect_sub_isect(ast_t* sub, ast_t* super, bool errors)
   return true;
 }
 
-static bool is_isect_sub_interface(ast_t* sub, ast_t* super, bool errors)
-{
-  // TODO: can satisfy the interface in aggregate
-  for(ast_t* child = ast_child(sub);
-    child != NULL;
-    child = ast_sibling(child))
-  {
-    if(is_subtype(child, super, false))
-      return true;
-  }
-
-  if(errors)
-  {
-    ast_error(sub, "no element of %s is a subtype of %s",
-      ast_print_type(sub), ast_print_type(super));
-  }
-
-  return false;
-}
-
 static bool is_isect_sub_x(ast_t* sub, ast_t* super, bool errors)
 {
   switch(ast_id(super))
@@ -546,9 +526,13 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, bool errors)
     {
       ast_t* super_def = (ast_t*)ast_data(super);
 
+      // TODO: can satisfy the interface in aggregate
+      // Must still account for accept_subtype
       // (T1 & T2) <: I k
       if(ast_id(super_def) == TK_INTERFACE)
-        return is_isect_sub_interface(sub, super, errors);
+      {
+        // return is_isect_sub_interface(sub, super, errors);
+      }
       break;
     }
 
@@ -556,29 +540,34 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, bool errors)
   }
 
   // T1 <: T3
-  // match(T2, T3) != DENY
+  // T2 <: T3 or accept_subtype(T2, T3)
   // ---
   // (T1 & T2) <: T3
 
   bool ok = false;
-  bool deny = false;
+  bool accept = true;
+
+  // TODO: if (T1 <: T3) and (T2 <: T3), no need to check accept_subtype
+  // works already except for (T1 & T2) <: (T3 & T4)
+  // because is_isect_sub_isect breaks that down
 
   for(ast_t* child = ast_child(sub);
     child != NULL;
     child = ast_sibling(child))
   {
     if(is_subtype(child, super, false))
-      ok = true;
-
-    if(is_matchtype(child, super) == MATCHTYPE_DENY)
     {
+      ok = true;
+    } else if(!accept_subtype(child, super)) {
+      accept_subtype(child, super);
+
       if(errors)
       {
-        ast_error(sub, "match denied %s to %s",
-          ast_print_type(sub), ast_print_type(super));
+        ast_error(child, "%s prevents %s from being a subtype of %s",
+          ast_print_type(child), ast_print_type(sub), ast_print_type(super));
       }
 
-      deny = true;
+      accept = false;
     }
   }
 
@@ -588,7 +577,7 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, bool errors)
       ast_print_type(sub), ast_print_type(super));
   }
 
-  return ok && !deny;
+  return ok && accept;
 }
 
 static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super, bool errors)
