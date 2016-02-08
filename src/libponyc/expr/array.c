@@ -49,11 +49,18 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
       c_type = ast_type(ele); // May have changed due to literals
 
-      if(!is_subtype(c_type, type, true))
+      errorframe_t info = NULL;
+      if(!is_subtype(c_type, type, &info))
       {
-        ast_error(ele, "array element not a subtype of specified array type");
-        ast_error(type_spec, "array type: %s", ast_print_type(type));
-        ast_error(c_type, "element type: %s", ast_print_type(c_type));
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, ele,
+          "array element not a subtype of specified array type");
+        ast_error_frame(&frame, type_spec, "array type: %s",
+          ast_print_type(type));
+        ast_error_frame(&frame, c_type, "element type: %s",
+          ast_print_type(c_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame);
         return false;
       }
     }

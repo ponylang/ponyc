@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "error.h"
 #include "token.h"
 #include "symtab.h"
 #include "source.h"
@@ -136,6 +137,8 @@ void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
+void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
+  __attribute__((format(printf, 3, 4)));
 
 // Foreach macro, will apply macro M to each of up to 30 other arguments
 #define FOREACH(M, ...) \

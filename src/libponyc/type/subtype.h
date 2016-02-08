@@ -3,6 +3,7 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
+#include "../ast/error.h"
 #include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
@@ -11,9 +12,9 @@ bool is_literal(ast_t* type, const char* name);
 
 bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super);
 
-bool is_subtype(ast_t* sub, ast_t* super, bool errors);
+bool is_subtype(ast_t* sub, ast_t* super, errorframe_t* errors);
 
-bool is_eqtype(ast_t* a, ast_t* b, bool errors);
+bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errors);
 
 bool is_pointer(ast_t* type);
 

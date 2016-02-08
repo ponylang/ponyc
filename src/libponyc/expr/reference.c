@@ -148,12 +148,18 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 
     init_type = alias(init_type);
 
-    if(!is_subtype(init_type, type, true))
+    errorframe_t info = NULL;
+    if(!is_subtype(init_type, type, &info))
     {
-      ast_error(init,
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, init,
         "default argument is not a subtype of the parameter type");
-      ast_error(type, "parameter type: %s", ast_print_type(type));
-      ast_error(init, "default argument type: %s", ast_print_type(init_type));
+      ast_error_frame(&frame, type, "parameter type: %s",
+        ast_print_type(type));
+      ast_error_frame(&frame, init, "default argument type: %s",
+        ast_print_type(init_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
       ast_free_unattached(init_type);
       return false;
     }
@@ -1084,13 +1090,19 @@ static bool check_return_type(ast_t* ast)
   ast_t* a_body_type = alias(body_type);
   bool ok = true;
 
-  if(!is_subtype(body_type, type, true) ||
-    !is_subtype(a_body_type, a_type, true))
+  errorframe_t info = NULL;
+  if(!is_subtype(body_type, type, &info) ||
+    !is_subtype(a_body_type, a_type, &info))
   {
+    errorframe_t frame = NULL;
     ast_t* last = ast_childlast(body);
-    ast_error(last, "function body isn't the result type");
-    ast_error(type, "function return type: %s", ast_print_type(type));
-    ast_error(body_type, "function body type: %s", ast_print_type(body_type));
+    ast_error_frame(&frame, last, "function body isn't the result type");
+    ast_error_frame(&frame, type, "function return type: %s",
+      ast_print_type(type));
+    ast_error_frame(&frame, body_type, "function body type: %s",
+      ast_print_type(body_type));
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
     ok = false;
   }
 

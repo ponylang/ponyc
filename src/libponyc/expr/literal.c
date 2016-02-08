@@ -217,7 +217,7 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
-    if(is_subtype(uif, type, false))
+    if(is_subtype(uif, type, NULL))
       set |= (1 << i);
 
     ast_free(uif);
@@ -254,8 +254,8 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
   ast_setid(ast_childidx(real, 3), TK_BOX);
 
-  bool is_real = is_subtype(constraint, real, false);
-  bool is_number = is_subtype(constraint, number, false);
+  bool is_real = is_subtype(constraint, real, NULL);
+  bool is_number = is_subtype(constraint, number, NULL);
   ast_free(number);
   ast_free(real);
 

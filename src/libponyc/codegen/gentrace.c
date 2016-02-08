@@ -450,7 +450,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
   LLVMBasicBlockRef is_true = codegen_block(c, "");
   LLVMBasicBlockRef is_false = codegen_block(c, "");
 
-  if(!is_subtype(orig, tuple, false))
+  if(!is_subtype(orig, tuple, NULL))
   {
     LLVMValueRef dynamic_count = gendesc_fieldcount(c, desc);
     LLVMValueRef static_count = LLVMConstInt(c->i32, cardinality, false);

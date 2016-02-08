@@ -499,31 +499,36 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   {
     // Method is local or provided by delegation. Provided method must be a
     // suitable supertype.
-    if(is_subtype(existing_method, method, true))
+    errorframe_t err = NULL;
+    if(is_subtype(existing_method, method, &err))
       return true;
+
+    errorframe_t frame = NULL;
 
     if(info->local_define)
     {
-      ast_error(trait_ref,
+      ast_error_frame(&frame, trait_ref,
         "method '%s' provided here is not compatible with local version",
         method_name);
-      ast_error(method, "provided method");
-      ast_error(existing_method, "local method");
+      ast_error_frame(&frame, method, "provided method");
+      ast_error_frame(&frame, existing_method, "local method");
     }
     else
     {
       assert(info->delegated_field != NULL);
       assert(info->trait_ref != NULL);
 
-      ast_error(trait_ref, "provided method '%s' is not compatible with "
-        "delegated version, provided type: %s", method_name,
+      ast_error_frame(&frame, trait_ref, "provided method '%s' is not "
+        "compatible with delegated version, provided type: %s", method_name,
         ast_print_type(method));
-      ast_error(info->trait_ref,
+      ast_error_frame(&frame, info->trait_ref,
         "method delegated from field '%s' has type: %s",
         ast_name(ast_child(info->delegated_field)),
         ast_print_type(existing_method));
     }
 
+    errorframe_append(&frame, &err);
+    errorframe_report(&frame);
     info->failed = true;
     return false;
   }
@@ -779,11 +784,18 @@ static bool delegated_methods(ast_t* entity, pass_opt_t* opt)
         if(!trait_entity(trait, opt))
           return false;
 
-        if(!is_subtype(f_type, trait_ref, true))
+        errorframe_t err = NULL;
+        if(!is_subtype(f_type, trait_ref, &err))
         {
-          ast_error(trait_ref, "field not a subtype of delegate");
-          ast_error(f_type, "field type: %s", ast_print_type(f_type));
-          ast_error(trait_ref, "delegate type: %s", ast_print_type(trait_ref));
+          errorframe_t frame = NULL;
+          ast_error_frame(&frame, trait_ref,
+            "field not a subtype of delegate");
+          ast_error_frame(&frame, f_type,
+            "field type: %s", ast_print_type(f_type));
+          ast_error_frame(&frame, trait_ref,
+            "delegate type: %s", ast_print_type(trait_ref));
+          errorframe_append(&frame, &err);
+          errorframe_report(&frame);
           r = false;
         }
         else

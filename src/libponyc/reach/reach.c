@@ -198,7 +198,7 @@ static void add_types_to_trait(reachable_method_stack_t** s,
       case TK_INTERFACE:
       {
         // Use the same typeid.
-        if(interface && is_eqtype(t->type, t2->type, false))
+        if(interface && is_eqtype(t->type, t2->type, NULL))
           t->type_id = t2->type_id;
         break;
       }
@@ -206,7 +206,7 @@ static void add_types_to_trait(reachable_method_stack_t** s,
       case TK_PRIMITIVE:
       case TK_CLASS:
       case TK_ACTOR:
-        if(is_subtype(t2->type, t->type, false))
+        if(is_subtype(t2->type, t->type, NULL))
         {
           reachable_type_cache_put(&t->subtypes, t2);
           reachable_type_cache_put(&t2->subtypes, t);
@@ -236,7 +236,7 @@ static void add_traits_to_type(reachable_method_stack_t** s,
     {
       case TK_INTERFACE:
       case TK_TRAIT:
-        if(is_subtype(t->type, t2->type, false))
+        if(is_subtype(t->type, t2->type, NULL))
         {
           reachable_type_cache_put(&t->subtypes, t2);
           reachable_type_cache_put(&t2->subtypes, t);

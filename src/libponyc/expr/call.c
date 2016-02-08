@@ -268,11 +268,16 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       }
     }
 
-    if(!is_subtype(a_type, p_type, true))
+    errorframe_t info = NULL;
+    if(!is_subtype(a_type, p_type, &info))
     {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter type: %s", ast_print_type(p_type));
-      ast_error(arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, param, "parameter type: %s",
+        ast_print_type(p_type));
+      ast_error_frame(&frame, arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
 
       ast_free_unattached(a_type);
       return false;
@@ -385,27 +390,36 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     incomplete = false;
   }
 
-  bool ok = is_subtype(a_type, t_type, true);
+  errorframe_t info = NULL;
+  bool ok = is_subtype(a_type, t_type, &info);
 
   if(!ok)
   {
-    ast_error(ast, "receiver type is not a subtype of target type");
-    ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
-    ast_error(cap, "target type: %s", ast_print_type(t_type));
+    errorframe_t frame = NULL;
 
-    if(!can_recover && cap_recover && is_subtype(r_type, t_type, false))
+    ast_error_frame(&frame, ast,
+      "receiver type is not a subtype of target type");
+    ast_error_frame(&frame, receiver,
+      "receiver type: %s", ast_print_type(a_type));
+    ast_error_frame(&frame, cap,
+      "target type: %s", ast_print_type(t_type));
+
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
     }
 
-    if(incomplete && is_subtype(r_type, t_type, false))
+    if(incomplete && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if all the fields of 'this' were assigned to "
         "at this point");
     }
+
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
   }
 
   if(a_type != r_type)
@@ -501,7 +515,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  bool ok = is_subtype(view_type, need_type, false);
+  bool ok = is_subtype(view_type, need_type, NULL);
   ast_free_unattached(view_type);
   ast_free_unattached(need_type);
 
@@ -519,7 +533,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
       view_type = viewpoint_type(ast_from(type, TK_BOX), type);
       need_type = ast_childidx(param, 1);
 
-      ok = is_subtype(view_type, need_type, false);
+      ok = is_subtype(view_type, need_type, NULL);
       ast_free_unattached(view_type);
       ast_free_unattached(need_type);
 

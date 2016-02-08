@@ -1360,6 +1360,19 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
+void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
+{
+  assert(frame != NULL);
+  assert(ast != NULL);
+  assert(fmt != NULL);
+
+  va_list ap;
+  va_start(ap, fmt);
+  errorframev(frame, token_source(ast->t), token_line_number(ast->t),
+    token_line_position(ast->t), fmt, ap);
+  va_end(ap);
+}
+
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children)
 {

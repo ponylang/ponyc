@@ -257,7 +257,7 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
   token_id tcap = ast_id(p_cap);
   token_id teph = ast_id(p_eph);
   ast_t* r_operand = set_cap_and_ephemeral(operand, tcap, teph);
-  bool provides = is_subtype(pattern, r_operand, false);
+  bool provides = is_subtype(pattern, r_operand, NULL);
   ast_free_unattached(r_operand);
 
   // If the pattern doesn't provide the operand, reject the match.
@@ -288,7 +288,7 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   token_id tcap = ast_id(p_cap);
   token_id teph = ast_id(p_eph);
   ast_t* r_operand = set_cap_and_ephemeral(operand, tcap, teph);
-  bool provides = is_subtype(r_operand, pattern, false);
+  bool provides = is_subtype(r_operand, pattern, NULL);
   ast_free_unattached(r_operand);
 
   // If the operand doesn't provide the pattern (trait or interface), reject

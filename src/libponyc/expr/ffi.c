@@ -55,13 +55,19 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     ast_t* a_type = ast_type(arg);
 
+    errorframe_t info = NULL;
     if((a_type != NULL) &&
       !void_star_param(p_type, a_type) &&
-      !is_subtype(a_type, p_type, true))
+      !is_subtype(a_type, p_type, &info))
     {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter type: %s", ast_print_type(p_type));
-      ast_error(arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, param, "parameter type: %s",
+        ast_print_type(p_type));
+      ast_error_frame(&frame, arg, "argument type: %s",
+        ast_print_type(a_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
       return AST_ERROR;
     }
 
@@ -96,9 +102,15 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
 
-  if((call_ret_type != NULL) && !is_eqtype(call_ret_type, decl_ret_type, true))
+  errorframe_t info = NULL;
+  if((call_ret_type != NULL) &&
+    !is_eqtype(call_ret_type, decl_ret_type, &info))
   {
-    ast_error(call_ret_type, "call return type does not match declaration");
+    errorframe_t frame = NULL;
+    ast_error_frame(&frame, call_ret_type,
+      "call return type does not match declaration");
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
     return AST_ERROR;
   }
 
