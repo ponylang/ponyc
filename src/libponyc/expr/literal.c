@@ -932,7 +932,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool literal_is(ast_t* ast, pass_opt_t* options)
+bool literal_is(ast_t* ast, pass_opt_t* options, bool is_or_isnt)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
@@ -961,10 +961,35 @@ bool literal_is(ast_t* ast, pass_opt_t* options)
     return coerce_literals(&right, l_type, options);
   }
 
-  // Both sides are literals, that's a problem.
+  // Both sides are literals: int, float or string
   assert(is_type_literal(l_type));
   assert(is_type_literal(r_type));
-  ast_error(ast, "Cannot infer type of operands");
+  if (ast_id(left) == ast_id(right) || !is_or_isnt)
+  {
+    bool r;
+    switch (ast_id(left))
+    {
+      case TK_INT:
+        r = lexint_cmp(ast_int(left), ast_int(right)) == 0 ? true : false;
+        break;
+      case TK_FLOAT:
+        r = ast_float(left) == ast_float(right) ? true : false;
+        break;
+      case TK_STRING:
+        r = ast_name_len(left) == ast_name_len(right)
+          && memcmp(ast_name(left), ast_name(right), ast_name_len(left)) == 0
+          ? true : false;
+        break;
+      default:
+        ast_error(ast, "Wrong literal type of operands");
+        return false;
+    }
+    if (is_or_isnt != r)
+      ast_error(ast, "Wrong literal values of operands");
+    return is_or_isnt ? r : !r;
+  }
+
+  ast_error(ast, "Wrong type of operands");
   return false;
 }
 
