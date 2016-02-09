@@ -347,6 +347,7 @@ RULE(array_literal,
   TK_ARRAY);
 
 RULE(object_literal,
+  HAS_DATA  // Nice name to use for anonymous type, optional.
   CHILD(cap, none)
   CHILD(provides, none)
   CHILD(members),

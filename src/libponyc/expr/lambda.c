@@ -1,6 +1,7 @@
 #include "lambda.h"
 #include "literal.h"
 #include "../ast/astbuild.h"
+#include "../ast/printbuf.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
 #include "../type/sanitise.h"
@@ -134,12 +135,38 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 
   ast_list_append(members, &last_member, apply);
 
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "lambda(");
+  bool first = true;
+
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    if(first)
+      first = false;
+    else
+      printbuf(buf, ", ");
+
+    printbuf(buf, "%s", ast_print_type(ast_childidx(p, 1)));
+  }
+
+  printbuf(buf, ")");
+
+  if(ast_id(ret_type) != TK_NONE)
+    printbuf(buf, ": %s", ast_print_type(ret_type));
+
+  if(ast_id(raises) != TK_NONE)
+    printbuf(buf, " ?");
+
+  printbuf(buf, " end");
+
   // Replace lambda with object literal
   REPLACE(astp,
-    NODE(TK_OBJECT,
+    NODE(TK_OBJECT, DATA(stringtab(buf->m))
       NONE
       NONE  // Provides list
       TREE(members)));
+
+  printbuf_free(buf);
 
   // Catch up passes
   return ast_passes_subtree(astp, opt, PASS_EXPR);

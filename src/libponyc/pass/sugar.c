@@ -666,16 +666,20 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_result_t r = AST_OK;
 
   AST_GET_CHILDREN(ast, cap, provides, members);
-  ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
+  const char* c_id = package_hygienic_id(t);
 
   ast_t* t_params;
   ast_t* t_args;
   collect_type_params(ast, &t_params, &t_args);
 
+  const char* nice_id = (const char*)ast_data(ast);
+  if(nice_id == NULL)
+    nice_id = "object literal";
+
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_CLASS, AST_SCOPE
-      TREE(c_id)
+      NICE_ID(c_id, nice_id)
       TREE(t_params)
       NONE
       TREE(provides)
@@ -696,7 +700,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NONE
       NONE));
 
-  BUILD(type_ref, ast, NODE(TK_REFERENCE, TREE(c_id)));
+  BUILD(type_ref, ast, NODE(TK_REFERENCE, ID(c_id)));
 
   if(ast_id(t_args) != TK_NONE)
   {
@@ -1161,7 +1165,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
     printbuf(buf, ": %s", ast_print_type(ret_type));
 
   if(ast_id(error) != TK_NONE)
-    printbuf(buf, "?");
+    printbuf(buf, " ?");
 
   printbuf(buf, "}");
 
@@ -1185,6 +1189,8 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
           NONE))// Guard
       NONE    // @
       NONE)); // Doc string
+
+  printbuf_free(buf);
 
   // We will replace {..} with $0
   REPLACE(astp,
