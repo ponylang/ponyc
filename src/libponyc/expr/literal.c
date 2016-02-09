@@ -932,7 +932,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool literal_is(ast_t* ast, pass_opt_t* options)
+bool literal_is(ast_t* ast, pass_opt_t* options, bool is_or_isnt)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
@@ -964,9 +964,9 @@ bool literal_is(ast_t* ast, pass_opt_t* options)
   // Both sides are literals: int, float or string
   assert(is_type_literal(l_type));
   assert(is_type_literal(r_type));
-  if (ast_id(left) == ast_id(right))
+  if (ast_id(left) == ast_id(right) || !is_or_isnt)
   {
-    bool r = true;
+    bool r;
     switch (ast_id(left))
     {
       case TK_INT:
@@ -984,9 +984,9 @@ bool literal_is(ast_t* ast, pass_opt_t* options)
         ast_error(ast, "Wrong literal type of operands");
         return false;
     }
-    if (!r)
+    if (is_or_isnt != r)
       ast_error(ast, "Wrong literal values of operands");
-    return r;
+    return is_or_isnt ? r : !r;
   }
 
   ast_error(ast, "Wrong type of operands");

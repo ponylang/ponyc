@@ -189,7 +189,8 @@ bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
   ast_settype(ast, type_builtin(opt, ast, "Bool"));
   ast_inheritflags(ast);
-  return literal_is(ast, opt);
+  // only called with TK_IS or TK_ISNT operators
+  return literal_is(ast, opt, ast_id(ast) == TK_IS);
 }
 
 typedef struct infer_path_t

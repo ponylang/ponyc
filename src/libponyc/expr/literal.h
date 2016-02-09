@@ -34,7 +34,8 @@ bool literal_call(ast_t* ast, pass_opt_t* options);
 /// Handle an identity comparison, possibly involving literals.
 /// On exit all literals will have been removed from the expression or the type
 /// of the expression will have been set.
-bool literal_is(ast_t* ast, pass_opt_t* options);
+/// If is_or_isnt is false the check is for the ISNT operator.
+bool literal_is(ast_t* ast, pass_opt_t* options, bool is_or_isnt);
 
 /// Combine the literal branches in the given control block, if possible.
 /// Should only be called once all branches have been type checked.
