@@ -135,3 +135,15 @@ TEST_F(LocalInferTest, DeclAndNot)
 
   TEST_EQUIV(short_form, full_form);
 }
+
+TEST_F(LocalInferTest, RecoverLitExpr)
+{
+  const char* src =
+    "class C\n"
+    "  new create(offset: U64) =>\n"
+    "  let a:Array[I32] val = recover [1, 2, 3, 4] end";
+
+  // Cannot infer yet the recover literal, limitation GH #358
+  //TEST_COMPILE(src);
+  TEST_ERROR(src);
+}
