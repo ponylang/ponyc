@@ -2,6 +2,7 @@
 #include "casemethod.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
+#include "../ast/printbuf.h"
 #include "../pkg/ifdef.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
@@ -11,6 +12,7 @@
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
+#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
@@ -1114,6 +1116,100 @@ static ast_result_t sugar_let(typecheck_t* t, ast_t* ast)
 }
 
 
+static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
+{
+  assert(astp != NULL);
+  ast_t* ast = *astp;
+  assert(ast != NULL);
+
+  AST_EXTRACT_CHILDREN(ast, apply_cap, apply_t_params, params, ret_type, error,
+    interface_cap, ephemeral);
+
+  const char* i_name = package_hygienic_id(&opt->check);
+
+  ast_t* interface_t_params;
+  ast_t* t_args;
+  collect_type_params(ast, &interface_t_params, &t_args);
+
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "{(");
+
+  // Convert parameter type list to a normal parameter list.
+  int p_no = 1;
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    if(p_no > 1)
+      printbuf(buf, ", ");
+
+    printbuf(buf, "%s", ast_print_type(p));
+
+    char name[12];
+    snprintf(name, sizeof(name), "p%d", p_no);
+
+    REPLACE(&p,
+      NODE(TK_PARAM,
+        ID(name)
+        TREE(p)
+        NONE));
+
+    p_no++;
+  }
+
+  printbuf(buf, ")");
+
+  if(ast_id(ret_type) != TK_NONE)
+    printbuf(buf, ": %s", ast_print_type(ret_type));
+
+  if(ast_id(error) != TK_NONE)
+    printbuf(buf, "?");
+
+  printbuf(buf, "}");
+
+  // Create a new anonymous type.
+  BUILD(def, ast,
+    NODE(TK_INTERFACE, AST_SCOPE
+      NICE_ID(i_name, buf->m)
+      TREE(interface_t_params)
+      NONE  // Cap
+      NONE  // Provides
+      NODE(TK_MEMBERS,
+        NODE(TK_FUN, AST_SCOPE
+          TREE(apply_cap)
+          ID("apply")
+          TREE(apply_t_params)
+          TREE(params)
+          TREE(ret_type)
+          TREE(error)
+          NONE  // Body
+          NONE  // Doc string
+          NONE))// Guard
+      NONE    // @
+      NONE)); // Doc string
+
+  // We will replace {..} with $0
+  REPLACE(astp,
+    NODE(TK_NOMINAL,
+      NONE  // Package
+      ID(i_name)
+      TREE(t_args)
+      TREE(interface_cap)
+      TREE(ephemeral)));
+
+  // Add new type to current module and bring it up to date with passes.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  if(!ast_passes_type(&def, opt))
+    return AST_FATAL;
+
+  // Sugar the call.
+  if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
+    return AST_FATAL;
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -1170,6 +1266,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_USE:        return sugar_use(ast);
     case TK_SEMI:       return sugar_semi(options, astp);
     case TK_LET:        return sugar_let(t, ast);
+    case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);
     default:            return AST_OK;
   }
 }

@@ -1488,6 +1488,96 @@ TEST_F(SugarTest, ObjectRefWithBehaviour)
 }
 
 
+TEST_F(SugarTest, LambdaTypeSimple)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f(x: {()})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f(x: $T): None\n"
+
+    "interface ref $T\n"
+    "  fun box apply(): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeParamsAndReturn)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f(x: {(U32, U16): Bool})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f(x: $T): None\n"
+
+    "interface ref $T\n"
+    "  fun box apply(p1: U32, p2: U16): Bool";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeFunTypeParams)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f(x: {[A: F64, B: F32](A, U16): B})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f(x: $T): None\n"
+
+    "interface ref $T\n"
+    "  fun box apply[A: F64, B: F32](p1: A, p2: U16): B";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeCapAndError)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f(x: {ref (U32, U16): Bool ?})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f(x: $T): None\n"
+
+    "interface ref $T\n"
+    "  fun ref apply(p1: U32, p2: U16): Bool ?";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeScopeTypeParams)
+{
+  const char* short_form =
+    "trait Foo[A: F64, B: F32]\n"
+    "  fun f(x: {(A, U16): B})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: F64, B: F32]\n"
+    "  fun box f(x: $T[A, B]): None\n"
+
+    "interface ref $T[A: F64, B: F32]\n"
+    "  fun box apply(p1: A, p2: U16): B";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =

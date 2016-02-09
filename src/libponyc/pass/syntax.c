@@ -887,6 +887,7 @@ static ast_result_t syntax_cap(ast_t* ast)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
+    case TK_LAMBDATYPE:
       return AST_OK;
 
     default: {}

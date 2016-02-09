@@ -212,6 +212,7 @@ static const lextoken_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
+  { "lambdatype", TK_LAMBDATYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 

@@ -89,7 +89,7 @@ DEF(literal);
   DONE();
 
 // HASH postfix
-DEF(constexpr);
+DEF(const_expr);
   PRINT_INLINE();
   TOKEN(NULL, TK_CONSTANT);
   RULE("formal argument value", postfix);
@@ -106,7 +106,7 @@ DEF(typeargliteral);
 DEF(typeargconst);
   AST_NODE(TK_VALUEFORMALARG);
   PRINT_INLINE();
-  RULE("formal argument value", constexpr);
+  RULE("formal argument value", const_expr);
   DONE();
 
 // type | typeargliteral | typeargconst
@@ -219,9 +219,34 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | cap | typeexpr | nominal)
+// type (COMMA type)*
+DEF(typelist);
+  PRINT_INLINE();
+  AST_NODE(TK_PARAMS);
+  RULE("parameter type", type);
+  WHILE(TK_COMMA, RULE("parameter type", type));
+  DONE();
+
+// LBRACE [CAP] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
+// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | BORROWED]
+DEF(lambdatype);
+  AST_NODE(TK_LAMBDATYPE);
+  SKIP(NULL, TK_LBRACE);
+  OPT RULE("capability", cap);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", typelist);
+  SKIP(NULL, TK_RPAREN);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_RBRACE);
+  OPT RULE("capability", cap, gencap);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  DONE();
+
+// (thistype | cap | typeexpr | nominal | lambdatype)
 DEF(atomtype);
-  RULE("type", thistype, cap, groupedtype, nominal);
+  RULE("type", thistype, cap, groupedtype, nominal, lambdatype);
   DONE();
 
 // ARROW type
@@ -779,18 +804,18 @@ DEF(test_ifdef_flag);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | constexpr | test_<various>
+// recover | consume | pattern | const_expr | test_<various>
 DEF(term);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, pattern, constexpr, test_noseq,
+    try_block, recover, consume, pattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | constexpr | test_<various>
+// recover | consume | pattern | const_expr | test_<various>
 DEF(nextterm);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, nextpattern, constexpr, test_noseq,
+    try_block, recover, consume, nextpattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 

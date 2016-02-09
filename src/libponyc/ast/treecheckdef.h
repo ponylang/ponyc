@@ -394,7 +394,7 @@ RULE(local_ref,
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, cap, nominal,
-  type_param_ref, dont_care, fun_type, error_type,
+  type_param_ref, dont_care, fun_type, error_type, lambda_type,
   literal_type, opliteral_type, control_type, dont_care);
 
 RULE(type_infix, ONE_OR_MORE(type), TK_UNIONTYPE, TK_ISECTTYPE);
@@ -412,6 +412,18 @@ RULE(fun_type,
   CHILD(params, none)
   CHILD(type, none), // Return type
   TK_FUNTYPE);
+
+RULE(lambda_type,
+  CHILD(cap, none)  // Apply function cap
+  CHILD(type_params, none)
+  CHILD(type_list, none)  // Params
+  CHILD(type, none) // Return type
+  CHILD(question, none)
+  CHILD(cap, gencap, none)  // Type reference cap
+  CHILD(borrowed, ephemeral, none),
+  TK_LAMBDATYPE);
+
+RULE(type_list, ONE_OR_MORE(type), TK_PARAMS);
 
 RULE(nominal,
   HAS_DATA  // Definition of referred type

@@ -235,6 +235,11 @@ atomtype
   | cap
   | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
   | nominal
+  | lambdatype
+  ;
+
+lambdatype
+  : '{' cap? typeparams? ('(' | LPAREN_NEW) (type (',' type)*)? ')' (':' type)? '?'? '}' (cap | gencap)? ('^' | '!')?
   ;
 
 tupletype

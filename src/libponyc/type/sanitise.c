@@ -28,8 +28,10 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 
   // New type arguments binds to old type parameter
   BUILD(new_arg, orig_param,
-    NODE(TK_TYPEPARAMREF, DATA(orig_param)  
+    NODE(TK_NOMINAL,
+      NONE  // Package
       ID(name)
+      NONE  // Type args
       NONE  // cap
       NONE)); // ephemeral
 
