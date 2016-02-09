@@ -761,6 +761,16 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       break;
     }
 
+    case TK_RECOVER:
+    {
+      ast_t* expr = ast_childidx(literal_expr, 1);
+      if(!coerce_literal_to_type(&expr, target_type, chain, options,
+        report_errors))
+        return false;
+
+      break;
+    }
+
     default:
       ast_error(literal_expr, "Internal error, coerce_literal_to_type node %s",
         ast_get_print(literal_expr));

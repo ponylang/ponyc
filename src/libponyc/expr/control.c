@@ -351,6 +351,12 @@ bool expr_recover(ast_t* ast)
   if(is_typecheck_error(type))
     return false;
 
+  if(is_type_literal(type))
+  {
+    make_literal_type(ast);
+    return true;
+  }
+
   ast_t* r_type = recover_type(type, ast_id(cap));
 
   if(r_type == NULL)
