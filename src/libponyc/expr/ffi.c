@@ -147,7 +147,7 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
   assert(name != NULL);
 
   ast_t* decl;
-  if(!ffi_get_decl(&opt->check, ast, &decl))
+  if(!ffi_get_decl(&opt->check, ast, &decl, opt))
     return AST_ERROR;
 
   if(decl != NULL)  // We have a declaration

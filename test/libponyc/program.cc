@@ -24,7 +24,7 @@ TEST(ProgramTest, PackageID)
 }
 
 
-TEST(ProgramTest, NoLibs)
+TEST(ProgramTest, DISABLED_NoLibs)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
@@ -36,7 +36,7 @@ TEST(ProgramTest, NoLibs)
 }
 
 
-TEST(ProgramTest, OneLib)
+TEST(ProgramTest, DISABLED_OneLib)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
@@ -52,7 +52,7 @@ TEST(ProgramTest, OneLib)
 }
 
 
-TEST(ProgramTest, OneLibWithAmbles)
+TEST(ProgramTest, DISABLED_OneLibWithAmbles)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
@@ -68,7 +68,7 @@ TEST(ProgramTest, OneLibWithAmbles)
 }
 
 
-TEST(ProgramTest, MultipleLibs)
+TEST(ProgramTest, DISABLED_MultipleLibs)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
@@ -86,7 +86,7 @@ TEST(ProgramTest, MultipleLibs)
 }
 
 
-TEST(ProgramTest, MultipleLibsWithAmbles)
+TEST(ProgramTest, DISABLED_MultipleLibsWithAmbles)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
@@ -106,7 +106,7 @@ TEST(ProgramTest, MultipleLibsWithAmbles)
 }
 
 
-TEST(ProgramTest, RepeatedLibs)
+TEST(ProgramTest, DISABLED_RepeatedLibs)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);

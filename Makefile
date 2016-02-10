@@ -36,6 +36,7 @@ endif
 # Default settings (silent debug build).
 config ?= debug
 arch ?= native
+bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
   SILENT = @
@@ -67,16 +68,16 @@ prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
-BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
+BUILD_FLAGS = -m$(bits) -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch)
+LINKER_FLAGS = -m$(bits) -march=$(arch)
 AR_FLAGS = -rcs
-ALL_CFLAGS = -std=gnu11 -fexceptions \
+ALL_CFLAGS = -m$(bits) -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
-ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
+ALL_CXXFLAGS = -m$(bits) -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
-BITS := $(shell getconf LONG_BIT)
+BITS := $(bits)
 
 ifeq ($(BITS),64)
 	BUILD_FLAGS += -mcx16

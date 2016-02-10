@@ -332,6 +332,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  package_init(&opt);
   limit_passes(&opt, pass);
   *out_package = program_load(stringtab(package_name), &opt);
   pass_opt_done(&opt);

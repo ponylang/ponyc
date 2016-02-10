@@ -196,7 +196,7 @@ void lexint_char(lexint_t* i, int c)
 
 bool lexint_accum(lexint_t* i, uint64_t digit, uint64_t base)
 {
-#if !defined(PLATFORM_IS_ILP32) && !defined(PLATFORM_IS_WINDOWS)
+#ifdef USE_NATIVE128
   NATIVE(v1, i);
   __uint128_t v2 = v1 * base;
 

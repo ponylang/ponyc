@@ -1022,7 +1022,7 @@ static ast_result_t sugar_ffi(ast_t* ast)
 }
 
 
-static ast_result_t sugar_ifdef(typecheck_t* t, ast_t* ast)
+static ast_result_t sugar_ifdef(typecheck_t* t, ast_t* ast, pass_opt_t* options)
 {
   assert(t != NULL);
   assert(ast != NULL);
@@ -1055,13 +1055,13 @@ static ast_result_t sugar_ifdef(typecheck_t* t, ast_t* ast)
 
   // Normalise condition so and, or and not nodes aren't sugared to function
   // calls.
-  if(!ifdef_cond_normalise(&cond))
+  if(!ifdef_cond_normalise(&cond, options))
   {
     ast_error(ast, "ifdef condition will never be true");
     return AST_ERROR;
   }
 
-  if(!ifdef_cond_normalise(&else_cond))
+  if(!ifdef_cond_normalise(&else_cond, options))
   {
     ast_error(ast, "ifdef condition is always true");
     return AST_ERROR;
@@ -1071,7 +1071,7 @@ static ast_result_t sugar_ifdef(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t sugar_use(ast_t* ast)
+static ast_result_t sugar_use(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
 
@@ -1079,7 +1079,7 @@ static ast_result_t sugar_use(ast_t* ast)
   // calls.
   ast_t* guard = ast_childidx(ast, 2);
 
-  if(!ifdef_cond_normalise(&guard))
+  if(!ifdef_cond_normalise(&guard, options))
   {
     ast_error(ast, "use guard condition will never be true");
     return AST_ERROR;
@@ -1268,8 +1268,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NOT:        return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
     case TK_FFICALL:    return sugar_ffi(ast);
-    case TK_IFDEF:      return sugar_ifdef(t, ast);
-    case TK_USE:        return sugar_use(ast);
+    case TK_IFDEF:      return sugar_ifdef(t, ast, options);
+    case TK_USE:        return sugar_use(ast, options);
     case TK_SEMI:       return sugar_semi(options, astp);
     case TK_LET:        return sugar_let(t, ast);
     case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);

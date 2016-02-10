@@ -2,6 +2,7 @@
 #define PLATFORMFUNS_H
 
 #include <platform.h>
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -23,7 +24,7 @@ PONY_EXTERN_C_BEGIN
  * @param out_is true if the specified attribute is set, false otherwise
  * @return true on success, false is specified attribute does not exist
  */
-bool os_is_target(const char* attribute, bool release, bool* out_is_target);
+bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 
