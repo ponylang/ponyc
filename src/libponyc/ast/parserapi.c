@@ -87,10 +87,13 @@ static void syntax_error(parser_t* parser, const char* expected,
     else
     {
       assert(ast != NULL);
-      ast_error(ast, "syntax error: unterminated %s", terminating);
-      error(parser->source, token_line_number(parser->token),
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, ast, "syntax error: unterminated %s",
+        terminating);
+      errorframe(&frame, parser->source, token_line_number(parser->token),
         token_line_position(parser->token),
         "expected terminating %s before here", expected);
+      errorframe_report(&frame);
     }
   }
 }

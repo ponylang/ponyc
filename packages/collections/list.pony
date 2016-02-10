@@ -89,7 +89,7 @@ class List[A] is Seq[A]
     Adds a node to the head of the list.
     """
     match _head
-    | var head': ListNode[A] =>
+    | let head': ListNode[A] =>
       head'.prepend(node)
     else
       _set_both(node)
@@ -101,7 +101,7 @@ class List[A] is Seq[A]
     Adds a node to the tail of the list.
     """
     match _tail
-    | var tail': ListNode[A] =>
+    | let tail': ListNode[A] =>
       tail'.append(node)
     else
       _set_both(node)

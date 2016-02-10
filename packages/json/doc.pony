@@ -63,8 +63,8 @@ class JsonDoc
     """
     _dump_whitespace()
     match _peek_char(context)
-    | var c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()
-    | var c: U8 if (c >= '0') and (c <= '9') => _parse_number()
+    | let c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()
+    | let c: U8 if (c >= '0') and (c <= '9') => _parse_number()
     | '-' => _parse_number()
     | '{' => _parse_object()
     | '[' => _parse_array()
@@ -333,9 +333,9 @@ class JsonDoc
     while i < 4 do
       let d =
         match _get_char("Unicode escape sequence")
-        | var c: U8 if (c >= '0') and (c <= '9') => c - '0'
-        | var c: U8 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
-        | var c: U8 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
+        | let c: U8 if (c >= '0') and (c <= '9') => c - '0'
+        | let c: U8 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
+        | let c: U8 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
         else
           _error("Invalid character '" + _last_char() +
             "' in Unicode escape sequence")
@@ -385,7 +385,7 @@ class JsonDoc
 
       match eof_context
       | None => return 0  // EOF is allowed
-      | var context: String =>
+      | let context: String =>
         // EOF not allowed
         _error("Unexpected EOF in " + context)
       end

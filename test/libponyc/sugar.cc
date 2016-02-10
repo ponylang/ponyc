@@ -771,6 +771,164 @@ TEST_F(SugarTest, CaseWithNoBodyMultiple)
 }
 
 
+TEST_F(SugarTest, CasePatternCapture)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | let x: U32 => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | $let x: U32 => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CasePatternCaptureVar)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | var x: U32 => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CasePatternCaptureInTuple)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | (let x: U32, let y: U16) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | ($let x: U32, $let y: U16) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CasePatternCaptureInNestedTuple)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | (4, (let y: U16, _)) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | (4, ($let y: U16, _)) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CasePatternCaptureNoType)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | let x => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CasePatternCaptureTupleType)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | let x: (U32, U16) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, CasePatternNotCaptureInSequence)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | (4\n"
+    "       let x: U32) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "    match(a)\n"
+    "    | (4\n"
+    "       let x: U32) => 1\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, MatchWithNoElse)
 {
   const char* short_form =
@@ -1204,7 +1362,7 @@ TEST_F(SugarTest, As)
     "  var create: U32\n"
     "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | let $1: Foo ref => consume $borrowed $1\n"
+    "    | $let $1: Foo ref => consume $borrowed $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1227,7 +1385,7 @@ TEST_F(SugarTest, AsTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
-    "    | (let $1: Foo ref, let $2: Bar ref) =>\n"
+    "    | ($let $1: Foo ref, $let $2: Bar ref) =>\n"
     "      (consume $borrowed $1, consume $borrowed $2)\n"
     "    else\n"
     "      error\n"
@@ -1251,7 +1409,7 @@ TEST_F(SugarTest, AsNestedTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
-    "    | (let $1: Foo ref, (let $2: Bar ref, let $3: Baz ref)) =>\n"
+    "    | ($let $1: Foo ref, ($let $2: Bar ref, $let $3: Baz ref)) =>\n"
     "      (consume $borrowed $1,\n"
     "        (consume $borrowed $2, consume $borrowed $3))\n"
     "    else\n"
@@ -1287,7 +1445,7 @@ TEST_F(SugarTest, AsDontCare2Tuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | (let $1: Foo ref, _) =>\n"
+    "    | ($let $1: Foo ref, _) =>\n"
     "      consume $borrowed $1\n"
     "    else\n"
     "      error\n"
@@ -1311,7 +1469,7 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
     "  var create: U32\n"
     "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    match a\n"
-    "    | (let $1: Foo ref, _, let $2: Baz ref) =>\n"
+    "    | ($let $1: Foo ref, _, $let $2: Baz ref) =>\n"
     "      (consume $borrowed $1, consume $borrowed $2)\n"
     "    else\n"
     "      error\n"
@@ -1835,7 +1993,7 @@ TEST_F(SugarTest, CaseFunction)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | 1 => 1\n"
-    "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
+    "    | $let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -1866,7 +2024,7 @@ TEST_F(SugarTest, CaseFunctionPlusOtherFun)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | 1 => 1\n"
-    "    | let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
+    "    | $let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -1896,7 +2054,7 @@ TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
     "  fun box $1($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let x: U64 => 1\n"
+    "    | $let x: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end\n"
@@ -1905,7 +2063,7 @@ TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
     "  fun box $3($4: U32): (None | U32 | U32) =>\n"
     "    match consume $4\n"
     "    | 0 => 0\n"
-    "    | let y: U32 => 1\n"
+    "    | $let y: U32 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -1932,8 +2090,8 @@ TEST_F(SugarTest, CaseFunctionParamNamedTwice)
     "  fun box $1($2: (U64 | U64)): (None | U64 | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let y: U64 => 1\n"
-    "    | let y: U64 => 2\n"
+    "    | $let y: U64 => 1\n"
+    "    | $let y: U64 => 2\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -1959,7 +2117,7 @@ TEST_F(SugarTest, CaseFunction2Params)
     "  fun box $1($2: U64, $3: U32): (None | U64 | U64) =>\n"
     "    match (consume $2, consume $3)\n"
     "    | (0, 0) => 0\n"
-    "    | (let a: U64, let b: U32) => 1\n"
+    "    | ($let a: U64, $let b: U32) => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -1984,8 +2142,8 @@ TEST_F(SugarTest, CaseFunctionParamTypeUnion)
     "    $1(consume a)\n"
     "  fun box $1($2: (U32 | U64)): (None | U64 | U64) =>\n"
     "    match consume $2\n"
-    "    | let a: U32 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U32 => 0\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2011,7 +2169,7 @@ TEST_F(SugarTest, CaseFunctionReturnUnion)
     "  fun box $1($2: U64): (None | U64 | U32) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2037,7 +2195,7 @@ TEST_F(SugarTest, CaseFunctionCap)
     "  fun ref $1($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2075,7 +2233,7 @@ TEST_F(SugarTest, CaseFunctionOneErrors)
     "  fun ref $1($2: U64): (None | U64 | U64) ? =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2101,7 +2259,7 @@ TEST_F(SugarTest, CaseFunctionAllError)
     "  fun ref $1($2: U64): (None | U64 | U64) ? =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2200,7 +2358,7 @@ TEST_F(SugarTest, CaseFunctionDontCare)
     "  fun box $1($2: U64, $3: U32): (None | U64 | U64 | U64) =>\n"
     "    match (consume $2, consume $3)\n"
     "    | (0, _) => 0\n"
-    "    | (let a: U64, let b: U32) => 1\n"
+    "    | ($let a: U64, $let b: U32) => 1\n"
     "    | (_, _) => 2\n"
     "    else\n"
     "      None\n"
@@ -2227,7 +2385,7 @@ TEST_F(SugarTest, CaseFunctionGuard)
     "  fun box $1($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 if a.gt(3) => 1\n"
+    "    | $let a: U64 if a.gt(3) => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2253,7 +2411,7 @@ TEST_F(SugarTest, CaseFunctionDefaultValue)
     "  fun box $1($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2291,7 +2449,7 @@ TEST_F(SugarTest, CaseBehaviour)
     "  fun ref $1($2: U64): None =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end\n"
@@ -2342,7 +2500,7 @@ TEST_F(SugarTest, CaseFunctionTypeParam)
     "  fun box $1[A: A]($2: U64): (None | A | A) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2368,7 +2526,7 @@ TEST_F(SugarTest, CaseFunction2TypeParams)
     "  fun box $1[A: A, B: B]($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2394,7 +2552,7 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraint)
     "  fun box $1[A: B]($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2420,7 +2578,7 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraintIntersect)
     "  fun box $1[A: (B & C)]($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -2471,7 +2629,7 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParam)
     "  fun box $1[A: A = B]($2: U64): (None | U64 | U64) =>\n"
     "    match consume $2\n"
     "    | 0 => 0\n"
-    "    | let a: U64 => 1\n"
+    "    | $let a: U64 => 1\n"
     "    else\n"
     "      None\n"
     "    end";

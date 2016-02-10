@@ -206,7 +206,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FUN:        r = expr_fun(options, ast); break;
     case TK_SEQ:        r = expr_seq(options, ast); break;
     case TK_VAR:
-    case TK_LET:        r = expr_local(t, ast); break;
+    case TK_LET:        r = expr_local(ast); break;
     case TK_BREAK:      r = expr_break(t, ast); break;
     case TK_CONTINUE:   r = expr_continue(t, ast); break;
     case TK_RETURN:     r = expr_return(options, ast); break;
@@ -228,6 +228,8 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_MATCH:      r = expr_match(options, ast); break;
     case TK_CASES:      r = expr_cases(ast); break;
     case TK_CASE:       r = expr_case(options, ast); break;
+    case TK_MATCH_CAPTURE:
+                        r = expr_match_capture(ast); break;
     case TK_TUPLE:      r = expr_tuple(ast); break;
     case TK_ARRAY:      r = expr_array(options, astp); break;
     case TK_REFERENCE:  r = expr_reference(options, astp); break;

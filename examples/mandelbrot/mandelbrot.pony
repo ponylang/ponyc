@@ -100,7 +100,7 @@ actor Main
 
   be draw(offset: USize, pixels: Array[U8] val) =>
     match outfile
-    | var out: File =>
+    | let out: File =>
       out.seek_start(header + offset)
       out.write(pixels)
       if (actors = actors - 1) == 1 then
@@ -110,7 +110,7 @@ actor Main
 
   fun ref create_outfile() =>
     match outfile
-    | var f: File =>
+    | let f: File =>
       f.print("P4\n " + width.string() + " " + width.string() + "\n")
       header = f.size()
       f.set_length((width * (width >> 3)) + header)
@@ -147,11 +147,11 @@ actor Main
 
     for option in options do
       match option
-      | ("iterations", var arg: I64) => iterations = arg.usize()
-      | ("limit", var arg: F64) => limit = arg.f32()
-      | ("chunks", var arg: I64) => chunks = arg.usize()
-      | ("width", var arg: I64) => width = arg.usize()
-      | ("output", var arg: String) =>
+      | ("iterations", let arg: I64) => iterations = arg.usize()
+      | ("limit", let arg: F64) => limit = arg.f32()
+      | ("chunks", let arg: I64) => chunks = arg.usize()
+      | ("width", let arg: I64) => width = arg.usize()
+      | ("output", let arg: String) =>
         outfile = try File(FilePath(env.root, arg)) end
       | let err: ParseError => err.report(env.out) ; usage(env) ; error
       end

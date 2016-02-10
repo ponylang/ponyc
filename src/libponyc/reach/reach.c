@@ -441,8 +441,7 @@ static void reachable_pattern(reachable_method_stack_t** s,
     case TK_NONE:
       break;
 
-    case TK_VAR:
-    case TK_LET:
+    case TK_MATCH_CAPTURE:
     {
       AST_GET_CHILDREN(ast, idseq, type);
       add_type(s, r, next_type_id, type);

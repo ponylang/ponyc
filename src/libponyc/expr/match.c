@@ -128,25 +128,9 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   switch(ast_id(pattern))
   {
-    case TK_VAR:
-    case TK_LET:
-    {
-      // Disallow capturing tuples.
-      AST_GET_CHILDREN(pattern, id, capture_type);
-
-      if(ast_id(capture_type) == TK_TUPLETYPE)
-      {
-        ast_error(capture_type,
-          "can't capture a tuple, change this into a tuple of capture "
-          "expressions");
-
-        return false;
-      }
-
-      // Set the pattern type to be the capture type.
-      ast_settype(pattern, capture_type);
+    case TK_MATCH_CAPTURE:
+      // Captures are always OK.
       return true;
-    }
 
     case TK_TUPLE:
     {
@@ -178,88 +162,75 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
     }
 
     case TK_SEQ:
-    {
-      // Patterns cannot contain sequences.
-      ast_t* child = ast_child(pattern);
-      ast_t* next = ast_sibling(child);
+      if(ast_childcount(pattern) == 1)  // This may be a just a capture.
+        return is_valid_pattern(opt, ast_child(pattern));
 
-      if(next != NULL)
-      {
-        ast_error(next, "expression in patterns cannot be sequences");
-        return false;
-      }
-
-      bool ok = is_valid_pattern(opt, child);
-      ast_settype(pattern, ast_type(child));
-      return ok;
-    }
+      // Treat this like other nodes.
+      break;
 
     case TK_DONTCARE:
       // It's always ok not to care.
       return true;
 
     default:
-    {
-      // Structural equality, pattern.eq(match).
-      ast_t* fun = lookup(opt, pattern, pattern_type, stringtab("eq"));
-
-      if(fun == NULL)
-      {
-        ast_error(pattern,
-          "this pattern element doesn't support structural equality");
-
-        return false;
-      }
-
-      if(ast_id(fun) != TK_FUN)
-      {
-        ast_error(pattern, "eq is not a function on this pattern element");
-        ast_error(fun, "definition of eq is here");
-        ast_free_unattached(fun);
-        return false;
-      }
-
-      AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
-      bool ok = true;
-
-      if(ast_id(typeparams) != TK_NONE)
-      {
-        ast_error(pattern, "polymorphic eq not supported in pattern matching");
-        ok = false;
-      }
-
-      if(!is_bool(result))
-      {
-        ast_error(pattern, "eq must return Bool when pattern matching");
-        ok = false;
-      }
-
-      if(ast_id(partial) != TK_NONE)
-      {
-        ast_error(pattern, "eq cannot be partial when pattern matching");
-        ok = false;
-      }
-
-      ast_t* param = ast_child(params);
-
-      if(param == NULL || ast_sibling(param) != NULL)
-      {
-        ast_error(pattern,
-          "eq must take a single argument when pattern matching");
-
-        ok = false;
-      } else {
-        AST_GET_CHILDREN(param, param_id, param_type);
-        ast_settype(pattern, param_type);
-      }
-
-      ast_free_unattached(fun);
-      return ok;
-    }
+      break;
   }
 
-  assert(0);
-  return false;
+  // Structural equality, pattern.eq(match).
+  ast_t* fun = lookup(opt, pattern, pattern_type, stringtab("eq"));
+
+  if(fun == NULL)
+  {
+    ast_error(pattern,
+      "this pattern element doesn't support structural equality");
+
+    return false;
+  }
+
+  if(ast_id(fun) != TK_FUN)
+  {
+    ast_error(pattern, "eq is not a function on this pattern element");
+    ast_error(fun, "definition of eq is here");
+    ast_free_unattached(fun);
+    return false;
+  }
+
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
+  bool ok = true;
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(pattern, "polymorphic eq not supported in pattern matching");
+    ok = false;
+  }
+
+  if(!is_bool(result))
+  {
+    ast_error(pattern, "eq must return Bool when pattern matching");
+    ok = false;
+  }
+
+  if(ast_id(partial) != TK_NONE)
+  {
+    ast_error(pattern, "eq cannot be partial when pattern matching");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param == NULL || ast_sibling(param) != NULL)
+  {
+    ast_error(pattern,
+      "eq must take a single argument when pattern matching");
+
+    ok = false;
+  } else {
+    AST_GET_CHILDREN(param, param_id, param_type);
+    ast_settype(pattern, param_type);
+  }
+
+  ast_free_unattached(fun);
+  return ok;
 }
 
 // Infer the types of any literals in the pattern of the given case
@@ -347,4 +318,17 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_free_unattached(operand_type);
   ast_inheritflags(ast);
   return ok;
+}
+
+bool expr_match_capture(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* type = ast_childidx(ast, 1);
+  assert(type != NULL);
+
+  // Capture type is as specified.
+  ast_settype(ast, type);
+  ast_settype(ast_child(ast), type);
+  return true;
 }

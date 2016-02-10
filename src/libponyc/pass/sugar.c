@@ -598,12 +598,83 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 }
 
 
+// Find all captures in the given pattern.
+static bool sugar_match_capture(ast_t* pattern)
+{
+  switch(ast_id(pattern))
+  {
+    case TK_VAR:
+      ast_error(pattern,
+        "match captures may not be declared with `var`, use `let`");
+      return false;
+
+    case TK_LET:
+    {
+      AST_GET_CHILDREN(pattern, id, capture_type);
+
+      if(ast_id(capture_type) == TK_NONE)
+      {
+        ast_error(pattern,
+          "capture types cannot be inferred, please specify type of %s",
+          ast_name(id));
+
+        return false;
+      }
+
+      // Disallow capturing tuples.
+      if(ast_id(capture_type) == TK_TUPLETYPE)
+      {
+        ast_error(capture_type,
+          "can't capture a tuple, change this into a tuple of capture "
+          "expressions");
+
+        return false;
+      }
+
+      // Change this to a capture.
+      ast_setid(pattern, TK_MATCH_CAPTURE);
+      return true;
+    }
+
+    case TK_TUPLE:
+    {
+      // Check all tuple elements.
+      bool r = true;
+
+      for(ast_t* p = ast_child(pattern); p != NULL; p = ast_sibling(p))
+      {
+        if(!sugar_match_capture(p))
+          r = false;
+      }
+
+      return r;
+    }
+
+    case TK_SEQ:
+      // Captures in a sequence must be the only element.
+      if(ast_childcount(pattern) != 1)
+        return true;
+
+      return sugar_match_capture(ast_child(pattern));
+
+    default:
+      // Anything else isn't a capture.
+      return true;
+  }
+}
+
+
 static ast_result_t sugar_case(ast_t* ast)
 {
-  ast_t* body = ast_childidx(ast, 2);
+  ast_result_t r = AST_OK;
+
+  AST_GET_CHILDREN(ast, pattern, guard, body);
+
+  if(!sugar_match_capture(pattern))
+    r = AST_ERROR;
 
   if(ast_id(body) != TK_NONE)
-    return AST_OK;
+    return r;
 
   // We have no body, take a copy of the next case with a body
   ast_t* next = ast;
@@ -618,7 +689,7 @@ static ast_result_t sugar_case(ast_t* ast)
   }
 
   ast_replace(&body, next_body);
-  return AST_OK;
+  return r;
 }
 
 

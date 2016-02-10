@@ -47,6 +47,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_VAR:
     case TK_LET:
+    case TK_MATCH_CAPTURE:
       ret = gen_localdecl(c, ast);
       break;
 

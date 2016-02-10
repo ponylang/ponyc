@@ -187,6 +187,7 @@ static const lextoken_t keywords[] =
   { "$ifdefor", TK_IFDEFOR },
   { "$ifdefnot", TK_IFDEFNOT },
   { "$flag", TK_IFDEFFLAG },
+  { "$let", TK_MATCH_CAPTURE },
 
   { NULL, (token_id)0 }
 };
@@ -251,6 +252,7 @@ static const lextoken_t abstract[] =
   { "array", TK_ARRAY },
   { "cases", TK_CASES },
   { "case", TK_CASE },
+  { "capture", TK_MATCH_CAPTURE },
   { "try", TK_TRY_NO_CHECK },
 
   { "reference", TK_REFERENCE },

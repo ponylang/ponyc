@@ -440,6 +440,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 
     case TK_LET:
     case TK_VAR:
+    case TK_MATCH_CAPTURE:
     {
       ast_t* scope = ast_parent(ast);
       ast_t* id = ast_child(ast);

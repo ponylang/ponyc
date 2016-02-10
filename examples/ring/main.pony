@@ -16,7 +16,7 @@ actor Ring
   be pass(i: USize) =>
     if i > 0 then
       match _next
-      | var n: Ring =>
+      | let n: Ring =>
         n.pass(i - 1)
       end
     else
