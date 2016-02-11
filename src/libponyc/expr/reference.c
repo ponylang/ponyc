@@ -573,6 +573,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
           break;
 
         case TK_LET:
+        case TK_MATCH_CAPTURE:
           ast_setid(ast, TK_LETREF);
           break;
 
@@ -614,9 +615,8 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
   return false;
 }
 
-bool expr_local(typecheck_t* t, ast_t* ast)
+bool expr_local(ast_t* ast)
 {
-  assert(t != NULL);
   assert(ast != NULL);
   assert(ast_type(ast) != NULL);
 
@@ -628,15 +628,11 @@ bool expr_local(typecheck_t* t, ast_t* ast)
     // No type specified, infer it later
     if(!is_assigned_to(ast, false))
     {
-      if(t->frame->pattern != NULL)
-        ast_error(ast, "cannot infer type of capture variables");
-      else
-        ast_error(ast, "locals must specify a type or be assigned a value");
-
+      ast_error(ast, "locals must specify a type or be assigned a value");
       return false;
     }
   }
-  else if(ast_id(ast) == TK_LET && t->frame->pattern == NULL)
+  else if(ast_id(ast) == TK_LET)
   {
     // Let, check we have a value assigned
     if(!is_assigned_to(ast, false))

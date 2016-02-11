@@ -69,11 +69,11 @@ actor Main
 
     for option in options do
       match option
-      | ("table", var arg: I64) => _logtable = arg.usize()
-      | ("iterate", var arg: I64) => _iterate = arg.usize()
-      | ("chunk", var arg: I64) => _chunk = arg.usize()
-      | ("streamers", var arg: I64) => _streamer_count = arg.usize()
-      | ("updaters", var arg: I64) => _updater_count = arg.usize()
+      | ("table", let arg: I64) => _logtable = arg.usize()
+      | ("iterate", let arg: I64) => _iterate = arg.usize()
+      | ("chunk", let arg: I64) => _chunk = arg.usize()
+      | ("streamers", let arg: I64) => _streamer_count = arg.usize()
+      | ("updaters", let arg: I64) => _updater_count = arg.usize()
       | let err: ParseError => err.report(_env.out) ; usage() ; error
       end
     end

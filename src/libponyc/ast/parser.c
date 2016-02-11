@@ -479,10 +479,10 @@ DEF(nextpostfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
-// (VAR | LET | EMBED) ID [COLON type]
+// (VAR | LET | EMBED | $LET) ID [COLON type]
 DEF(local);
   PRINT_INLINE();
-  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED, TK_MATCH_CAPTURE);
   TOKEN("variable name", TK_ID);
   IF(TK_COLON, RULE("variable type", type));
   DONE();

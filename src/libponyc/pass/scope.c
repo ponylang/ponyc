@@ -215,6 +215,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
         return AST_ERROR;
       break;
 
+    case TK_MATCH_CAPTURE:
     case TK_LET:
     case TK_VAR:
       if(!scope_local(t, ast))

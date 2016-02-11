@@ -216,6 +216,7 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
+  TK_MATCH_CAPTURE,
 
   TK_REFERENCE,
   TK_PACKAGEREF,

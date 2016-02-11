@@ -135,7 +135,7 @@ RULE(compile_error,
 
 GROUP(expr,
   local, infix, asop, tuple, consume, recover, prefix, dot, tilde,
-  qualify, call, ffi_call,
+  qualify, call, ffi_call, match_capture,
   if_expr, ifdef, whileloop, repeat, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
   bool_literal, id, rawseq, package_ref,
@@ -146,6 +146,12 @@ RULE(local,
   CHILD(id)
   CHILD(type, none),
   TK_LET, TK_VAR);
+
+RULE(match_capture,
+  HAS_TYPE(type)
+  CHILD(id)
+  CHILD(type),
+  TK_MATCH_CAPTURE);
 
 RULE(infix,
   HAS_TYPE(type)

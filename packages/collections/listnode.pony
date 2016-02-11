@@ -42,11 +42,11 @@ class ListNode[A]
     end
 
     match _list
-    | var list': List[A] =>
+    | let list': List[A] =>
       that.remove()
 
       match _prev
-      | var  prev': ListNode[A] =>
+      | let  prev': ListNode[A] =>
         prev'._next = that
       else
         list'._set_head(that)
@@ -70,11 +70,11 @@ class ListNode[A]
     end
 
     match _list
-    | var list': List[A] =>
+    | let list': List[A] =>
       that.remove()
 
       match _next
-      | var  next': ListNode[A] =>
+      | let  next': ListNode[A] =>
         next'._prev = that
       else
         list'._set_tail(that)
@@ -93,20 +93,20 @@ class ListNode[A]
     Remove a node from a list.
     """
     match _list
-    | var list': List[A] =>
+    | let list': List[A] =>
       match (_prev, _next)
-      | (var prev': ListNode[A], var next': ListNode[A]) =>
+      | (let prev': ListNode[A], let next': ListNode[A]) =>
         // We're in the middle of the list.
         prev'._next = _next
         next'._prev = _prev
         _prev = None
         _next = None
-      | (var prev': ListNode[A], None) =>
+      | (let prev': ListNode[A], None) =>
         // We're the tail.
         prev'._next = None
         list'._set_tail(prev')
         _prev = None
-      | (None, var next': ListNode[A]) =>
+      | (None, let next': ListNode[A]) =>
         // We're the head.
         next'._prev = None
         list'._set_head(next')
