@@ -1664,6 +1664,24 @@ TEST_F(SugarTest, LambdaTypeSimple)
 }
 
 
+TEST_F(SugarTest, LambdaTypeNamed)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f(x: {bar ()})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f(x: $T): None\n"
+
+    "interface ref $T\n"
+    "  fun box bar(): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, LambdaTypeParamsAndReturn)
 {
   const char* short_form =

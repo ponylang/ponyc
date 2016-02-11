@@ -331,6 +331,7 @@ RULE(try_expr,
 RULE(lambda,
   HAS_TYPE(type)
   CHILD(cap, none)
+  CHILD(id, none)
   CHILD(type_params, none)
   CHILD(params, none)
   CHILD(lambda_captures, none)
@@ -422,6 +423,7 @@ RULE(fun_type,
 
 RULE(lambda_type,
   CHILD(cap, none)  // Apply function cap
+  CHILD(id, none)
   CHILD(type_params, none)
   CHILD(type_list, none)  // Params
   CHILD(type, none) // Return type

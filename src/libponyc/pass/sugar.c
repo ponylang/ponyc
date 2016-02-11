@@ -1197,8 +1197,8 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_EXTRACT_CHILDREN(ast, apply_cap, apply_t_params, params, ret_type, error,
-    interface_cap, ephemeral);
+  AST_EXTRACT_CHILDREN(ast, apply_cap, apply_name, apply_t_params, params,
+    ret_type, error, interface_cap, ephemeral);
 
   const char* i_name = package_hygienic_id(&opt->check);
 
@@ -1240,6 +1240,11 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   printbuf(buf, "}");
 
+  const char* fn_name = "apply";
+
+  if(ast_id(apply_name) == TK_ID)
+    fn_name = ast_name(apply_name);
+
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_INTERFACE, AST_SCOPE
@@ -1250,7 +1255,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
       NODE(TK_MEMBERS,
         NODE(TK_FUN, AST_SCOPE
           TREE(apply_cap)
-          ID("apply")
+          ID(fn_name)
           TREE(apply_t_params)
           TREE(params)
           TREE(ret_type)

@@ -702,6 +702,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   REPLACE(astp,
     NODE(TK_LAMBDA,
       NODE(apply_cap)
+      NONE  // Lambda function name.
       NONE  // Lambda type params.
       TREE(lambda_params)
       TREE(captures)
@@ -714,10 +715,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           TREE(call_receiver)))));
 
   // Need to preserve various lambda children.
-  ast_setflag(ast_childidx(*astp, 1), AST_FLAG_PRESERVE); // Type params.
-  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Parameters.
-  ast_setflag(ast_childidx(*astp, 4), AST_FLAG_PRESERVE); // Return type.
-  ast_setflag(ast_childidx(*astp, 6), AST_FLAG_PRESERVE); // Body.
+  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.
+  ast_setflag(ast_childidx(*astp, 3), AST_FLAG_PRESERVE); // Parameters.
+  ast_setflag(ast_childidx(*astp, 5), AST_FLAG_PRESERVE); // Return type.
+  ast_setflag(ast_childidx(*astp, 7), AST_FLAG_PRESERVE); // Body.
 
   // Catch up to this pass.
   return ast_passes_subtree(astp, opt, PASS_EXPR);

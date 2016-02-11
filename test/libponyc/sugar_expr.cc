@@ -524,6 +524,24 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
 }
 
 
+TEST_F(SugarExprTest, LambdaNamed)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    lambda bar() => None end";
+
+  const char* full_form =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    object\n"
+    "      fun bar() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 // Early sugar that may cause errors in type checking
 
 TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)

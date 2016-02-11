@@ -252,7 +252,6 @@ static const lextoken_t abstract[] =
   { "array", TK_ARRAY },
   { "cases", TK_CASES },
   { "case", TK_CASE },
-  { "capture", TK_MATCH_CAPTURE },
   { "try", TK_TRY_NO_CHECK },
 
   { "reference", TK_REFERENCE },
