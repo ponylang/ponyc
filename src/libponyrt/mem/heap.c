@@ -21,7 +21,7 @@ typedef struct chunk_t
 } chunk_t;
 
 typedef char block_t[POOL_ALIGN];
-typedef void (*chunk_fn)(chunk_t* chunk);
+typedef void (*chunk_fn)(chunk_t* chunk, uint32_t mark);
 
 #define SIZECLASS_SIZE(sizeclass) (HEAP_MIN << (sizeclass))
 #define SIZECLASS_MASK(sizeclass) (~(SIZECLASS_SIZE(sizeclass) - 1))
@@ -70,27 +70,23 @@ static void large_pagemap(char* m, size_t size, chunk_t* chunk)
   }
 }
 
-static void clear_small(chunk_t* chunk)
+static void clear_chunk(chunk_t* chunk, uint32_t mark)
 {
-  chunk->slots = sizeclass_empty[chunk->size];
-  chunk->shallow = chunk->slots;
+  chunk->slots = mark;
+  chunk->shallow = mark;
 }
 
-static void clear_large(chunk_t* chunk)
+static void destroy_small(chunk_t* chunk, uint32_t mark)
 {
-  chunk->slots = 1;
-  chunk->shallow = 1;
-}
-
-static void destroy_small(chunk_t* chunk)
-{
+  (void)mark;
   pagemap_set(chunk->m, NULL);
   POOL_FREE(block_t, chunk->m);
   POOL_FREE(chunk_t, chunk);
 }
 
-static void destroy_large(chunk_t* chunk)
+static void destroy_large(chunk_t* chunk, uint32_t mark)
 {
+  (void)mark;
   large_pagemap(chunk->m, chunk->size, NULL);
 
   if(chunk->m != NULL)
@@ -100,7 +96,7 @@ static void destroy_large(chunk_t* chunk)
 }
 
 static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
-  uint32_t empty)
+  uint32_t empty, size_t size)
 {
   size_t used = 0;
   chunk_t* next;
@@ -119,7 +115,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
       destroy_small(chunk);
     } else {
       used += sizeof(block_t) -
-        (__pony_popcount(chunk->slots) * SIZECLASS_SIZE(chunk->size));
+        (__pony_popcount(chunk->slots) * size);
       chunk->next = *avail;
       *avail = chunk;
     }
@@ -155,14 +151,14 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
   return list;
 }
 
-static void chunk_list(chunk_fn f, chunk_t* current)
+static void chunk_list(chunk_fn f, chunk_t* current, uint32_t mark)
 {
   chunk_t* next;
 
   while(current != NULL)
   {
     next = current->next;
-    f(current);
+    f(current, mark);
     current = next;
   }
 }
@@ -195,12 +191,12 @@ void heap_init(heap_t* heap)
 
 void heap_destroy(heap_t* heap)
 {
-  chunk_list(destroy_large, heap->large);
+  chunk_list(destroy_large, heap->large, 0);
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    chunk_list(destroy_small, heap->small_free[i]);
-    chunk_list(destroy_small, heap->small_full[i]);
+    chunk_list(destroy_small, heap->small_free[i], 0);
+    chunk_list(destroy_small, heap->small_full[i], 0);
   }
 }
 
@@ -337,11 +333,12 @@ bool heap_startgc(heap_t* heap)
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    chunk_list(clear_small, heap->small_free[i]);
-    chunk_list(clear_small, heap->small_full[i]);
+    uint32_t mark = sizeclass_empty[i];
+    chunk_list(clear_chunk, heap->small_free[i], mark);
+    chunk_list(clear_chunk, heap->small_full[i], mark);
   }
 
-  chunk_list(clear_large, heap->large);
+  chunk_list(clear_chunk, heap->large, 1);
 
   // reset used to zero
   heap->used = 0;
@@ -452,8 +449,11 @@ void heap_endgc(heap_t* heap)
     chunk_t** avail = &heap->small_free[i];
     chunk_t** full = &heap->small_full[i];
 
-    used += sweep_small(list1, avail, full, sizeclass_empty[i]);
-    used += sweep_small(list2, avail, full, sizeclass_empty[i]);
+    size_t size = SIZECLASS_SIZE(chunk->size);
+    uint32_t empty = sizeclass_empty[i];
+
+    used += sweep_small(list1, avail, full, empty, size);
+    used += sweep_small(list2, avail, full, empty, size);
   }
 
   heap->large = sweep_large(heap->large, &used);
