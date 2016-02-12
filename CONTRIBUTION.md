@@ -34,5 +34,5 @@ Pull request
 Provide the same information as you would for a [feature request](#feature-request). Also briefly
 describe what the implementation might look like.
 
-[complete-issue-list]: //github.com/CausalityLtd/ponyc/search?q=&type=Issues&utf8=%E2%9C%93
-[new-issue]: //github.com/CausalityLtd/ponyc/issues/new
+[complete-issue-list]: //github.com/ponylang/ponyc/search?q=&type=Issues&utf8=%E2%9C%93
+[new-issue]: //github.com/ponylang/ponyc/issues/new

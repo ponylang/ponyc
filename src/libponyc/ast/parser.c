@@ -24,7 +24,7 @@ DECL(infix);
 DECL(postfix);
 DECL(parampattern);
 DECL(pattern);
-DECL(idseq);
+DECL(idseq_in_seq);
 DECL(members);
 
 
@@ -56,6 +56,7 @@ DECL(members);
 
 // DONTCARE
 DEF(dontcare);
+  PRINT_INLINE();
   TOKEN(NULL, TK_DONTCARE);
   DONE();
 
@@ -82,46 +83,13 @@ DEF(ellipsis);
   TOKEN(NULL, TK_ELLIPSIS);
   DONE();
 
-// ID [COLON type] [ASSIGN type]
-DEF(typeparam);
-  AST_NODE(TK_TYPEPARAM);
-  TOKEN("name", TK_ID);
-  IF(TK_COLON, RULE("type constraint", type));
-  IF(TK_ASSIGN, RULE("default type", type));
-  DONE();
-
-// LET ID [COLON type] [ASSIGN infix]
-DEF(typeparamvalue);
-  AST_NODE(TK_VALUEFORMALPARAM);
-  SKIP(NULL, TK_LET);
-  TOKEN("name", TK_ID);
-  IF(TK_COLON, RULE("type constraint", type));
-  IF(TK_ASSIGN, RULE("default value", infix));
-  DONE();
-
-// param {COMMA param}
-DEF(params);
-  AST_NODE(TK_PARAMS);
-  RULE("parameter", param, ellipsis);
-  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
-  DONE();
-
-// LSQUARE typeparam {COMMA typeparam} RSQUARE
-DEF(typeparams);
-  AST_NODE(TK_TYPEPARAMS);
-  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
-  RULE("type parameter", typeparam, typeparamvalue);
-  WHILE(TK_COMMA, RULE("type parameter", typeparam, typeparamvalue));
-  TERMINATE("type parameters", TK_RSQUARE);
-  DONE();
-
 // TRUE | FALSE | INT | FLOAT | STRING
 DEF(literal);
   TOKEN("literal", TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
   DONE();
 
 // HASH postfix
-DEF(constexpr);
+DEF(const_expr);
   PRINT_INLINE();
   TOKEN(NULL, TK_CONSTANT);
   RULE("formal argument value", postfix);
@@ -138,15 +106,44 @@ DEF(typeargliteral);
 DEF(typeargconst);
   AST_NODE(TK_VALUEFORMALARG);
   PRINT_INLINE();
-  RULE("formal argument value", constexpr);
+  RULE("formal argument value", const_expr);
+  DONE();
+
+// type | typeargliteral | typeargconst
+DEF(typearg);
+  RULE("type argument", type, typeargliteral, typeargconst);
+  DONE();
+
+// ID [COLON type] [ASSIGN typearg]
+DEF(typeparam);
+  AST_NODE(TK_TYPEPARAM);
+  TOKEN("name", TK_ID);
+  IF(TK_COLON, RULE("type constraint", type));
+  IF(TK_ASSIGN, RULE("default type argument", typearg));
+  DONE();
+
+// param {COMMA param}
+DEF(params);
+  AST_NODE(TK_PARAMS);
+  RULE("parameter", param, ellipsis);
+  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
+  DONE();
+
+// LSQUARE typeparam {COMMA typeparam} RSQUARE
+DEF(typeparams);
+  AST_NODE(TK_TYPEPARAMS);
+  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
+  RULE("type parameter", typeparam);
+  WHILE(TK_COMMA, RULE("type parameter", typeparam));
+  TERMINATE("type parameters", TK_RSQUARE);
   DONE();
 
 // LSQUARE type {COMMA type} RSQUARE
 DEF(typeargs);
   AST_NODE(TK_TYPEARGS);
   SKIP(NULL, TK_LSQUARE);
-  RULE("type argument", type, typeargliteral, typeargconst);
-  WHILE(TK_COMMA, RULE("type argument", type, typeargliteral, typeargconst));
+  RULE("type argument", typearg);
+  WHILE(TK_COMMA, RULE("type argument", typearg));
   TERMINATE("type arguments", TK_RSQUARE);
   DONE();
 
@@ -222,9 +219,35 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | cap | typeexpr | nominal)
+// type (COMMA type)*
+DEF(typelist);
+  PRINT_INLINE();
+  AST_NODE(TK_PARAMS);
+  RULE("parameter type", type);
+  WHILE(TK_COMMA, RULE("parameter type", type));
+  DONE();
+
+// LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
+// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | BORROWED]
+DEF(lambdatype);
+  AST_NODE(TK_LAMBDATYPE);
+  SKIP(NULL, TK_LBRACE);
+  OPT RULE("capability", cap);
+  OPT TOKEN("function name", TK_ID);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", typelist);
+  SKIP(NULL, TK_RPAREN);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_RBRACE);
+  OPT RULE("capability", cap, gencap);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  DONE();
+
+// (thistype | cap | typeexpr | nominal | lambdatype)
 DEF(atomtype);
-  RULE("type", thistype, cap, groupedtype, nominal);
+  RULE("type", thistype, cap, groupedtype, nominal, lambdatype);
   DONE();
 
 // ARROW type
@@ -295,12 +318,13 @@ DEF(lambdacaptures);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// LAMBDA [CAP] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// LAMBDA [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
 // [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
 DEF(lambda);
   PRINT_INLINE();
   TOKEN(NULL, TK_LAMBDA);
   OPT RULE("capability", cap);
+  OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
@@ -311,10 +335,10 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   TERMINATE("lambda expression", TK_END);
-  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
-  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
-  SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
-  SET_CHILD_FLAG(6, AST_FLAG_PRESERVE); // Body
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(7, AST_FLAG_PRESERVE); // Body
   DONE();
 
 // AS type ':'
@@ -381,10 +405,17 @@ DEF(thisliteral);
   TOKEN(NULL, TK_THIS);
   DONE();
 
+// ID
 DEF(ref);
   PRINT_INLINE();
   AST_NODE(TK_REFERENCE);
   TOKEN("name", TK_ID);
+  DONE();
+
+// __LOC
+DEF(location);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_LOCATION);
   DONE();
 
 // AT (ID | STRING) typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
@@ -402,16 +433,16 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    ffi);
+    ffi, location);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, ffi);
+    lambda, ffi, location);
   DONE();
 
 // DOT ID
@@ -457,10 +488,10 @@ DEF(nextpostfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
-// (VAR | LET | EMBED) ID [COLON type]
+// (VAR | LET | EMBED | $LET) ID [COLON type]
 DEF(local);
   PRINT_INLINE();
-  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED, TK_MATCH_CAPTURE);
   TOKEN("variable name", TK_ID);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
@@ -502,33 +533,33 @@ DEF(nextpattern);
   RULE("pattern", local, nextparampattern);
   DONE();
 
-// idseq
-DEF(idseq_in_seq);
-  AST_NODE(TK_SEQ);
-  RULE("variable name", idseq);
-  DONE();
-
 // (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
   PRINT_INLINE();
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("variable name", idseq_in_seq);
-  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq));
+  RULE("variable name", idseq_in_seq, dontcare);
+  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq, dontcare));
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// ID | '_'
+// ID
 DEF(idseqsingle);
   PRINT_INLINE();
   AST_NODE(TK_LET);
-  TOKEN("variable name", TK_ID, TK_DONTCARE);
+  TOKEN("variable name", TK_ID);
   AST_NODE(TK_NONE);  // Type
+  DONE();
+
+// idseq
+DEF(idseq_in_seq);
+  AST_NODE(TK_SEQ);
+  RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
 // ID | '_' | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
-  RULE("variable name", idseqsingle, idseqmulti);
+  RULE("variable name", idseqsingle, dontcare, idseqmulti);
   DONE();
 
 // ELSE seq
@@ -782,18 +813,18 @@ DEF(test_ifdef_flag);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | constexpr | test_<various>
+// recover | consume | pattern | const_expr | test_<various>
 DEF(term);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, pattern, constexpr, test_noseq,
+    try_block, recover, consume, pattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
 // cond | ifdef | match | whileloop | repeat | forloop | with | try |
-// recover | consume | pattern | constexpr | test_<various>
+// recover | consume | pattern | const_expr | test_<various>
 DEF(nextterm);
   RULE("value", cond, ifdef, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, nextpattern, constexpr, test_noseq,
+    try_block, recover, consume, nextpattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 

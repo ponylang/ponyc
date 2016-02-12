@@ -189,9 +189,8 @@ bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
   ast_settype(ast, type_builtin(opt, ast, "Bool"));
   ast_inheritflags(ast);
-  return true;
+  return literal_is(ast, opt);
 }
-
 
 typedef struct infer_path_t
 {
@@ -388,13 +387,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(&opt->check, left, is_result_needed(ast)))
+  if(l_type == NULL || !is_lvalue(&opt->check, left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
   }
-
-  assert(l_type != NULL);
 
   if(!coerce_literals(&right, l_type, opt))
     return false;
@@ -413,11 +410,17 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // Assignment is based on the alias of the right hand side.
   ast_t* a_type = alias(r_type);
 
-  if(!is_subtype(a_type, l_type, true))
+  errorframe_t info = NULL;
+  if(!is_subtype(a_type, l_type, &info))
   {
-    ast_error(ast, "right side must be a subtype of left side");
-    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
-    ast_error(l_type, "left side type: %s", ast_print_type(l_type));
+    errorframe_t frame = NULL;
+    ast_error_frame(&frame, ast, "right side must be a subtype of left side");
+    ast_error_frame(&frame, a_type, "right side type: %s",
+      ast_print_type(a_type));
+    ast_error_frame(&frame, l_type, "left side type: %s",
+      ast_print_type(l_type));
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
     ast_free_unattached(a_type);
     return false;
   }

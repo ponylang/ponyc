@@ -217,7 +217,7 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
-    if(is_subtype(uif, type, false))
+    if(is_subtype(uif, type, NULL))
       set |= (1 << i);
 
     ast_free(uif);
@@ -254,8 +254,8 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
   ast_setid(ast_childidx(real, 3), TK_BOX);
 
-  bool is_real = is_subtype(constraint, real, false);
-  bool is_number = is_subtype(constraint, number, false);
+  bool is_real = is_subtype(constraint, real, NULL);
+  bool is_number = is_subtype(constraint, number, NULL);
   ast_free(number);
   ast_free(real);
 
@@ -558,10 +558,10 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 
       if((test > 0) || (!neg_plus_one && (test == 0)))
       {
-        // Illegal value. Note that we report an error, but don't return an
-        // error, so other errors may be found.
+        // Illegal value.
         ast_error(literal, "Literal value is out of range for type (%s)",
           chain_head->name);
+        return false;
       }
     }
   }
@@ -761,6 +761,16 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       break;
     }
 
+    case TK_RECOVER:
+    {
+      ast_t* expr = ast_childidx(literal_expr, 1);
+      if(!coerce_literal_to_type(&expr, target_type, chain, options,
+        report_errors))
+        return false;
+
+      break;
+    }
+
     default:
       ast_error(literal_expr, "Internal error, coerce_literal_to_type node %s",
         ast_get_print(literal_expr));
@@ -929,6 +939,43 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   make_literal_type(ast);
   return true;
+}
+
+
+bool literal_is(ast_t* ast, pass_opt_t* options)
+{
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
+
+  AST_GET_CHILDREN(ast, left, right);
+
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
+    return false;
+
+  if(!is_type_literal(l_type) && !is_type_literal(r_type))
+    // No literals here.
+    return true;
+
+  if(is_type_literal(l_type) && !is_type_literal(r_type))
+  {
+    // Coerce left to type of right.
+    return coerce_literals(&left, r_type, options);
+  }
+
+  if(!is_type_literal(l_type) && is_type_literal(r_type))
+  {
+    // Coerce right to type of left.
+    return coerce_literals(&right, l_type, options);
+  }
+
+  // Both sides are literals, that's a problem.
+  assert(is_type_literal(l_type));
+  assert(is_type_literal(r_type));
+  ast_error(ast, "Cannot infer type of operands");
+  return false;
 }
 
 

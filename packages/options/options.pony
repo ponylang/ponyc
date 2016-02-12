@@ -184,7 +184,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
         (let start: ISize, let offset: ISize) =
           match (candidate(0), candidate(1))
           | ('-', '-') => (2, 0)
-          | ('-', var char: U8) => (1, 1)
+          | ('-', let char: U8) => (1, 1)
           else
             (0, 0) // unreachable
           end
@@ -221,7 +221,7 @@ class _Option
 
   fun matches(name: String box, shortmatch: Bool): Bool =>
     match (short, shortmatch)
-    | (var x: String, true) => return name.compare_sub(x, 1) is Equal
+    | (let x: String, true) => return name.compare_sub(x, 1) is Equal
     end
 
     long == name

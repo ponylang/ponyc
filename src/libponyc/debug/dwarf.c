@@ -256,7 +256,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   const char* name = ast_name(ast_child(ast));
 
   dwarf_meta_t meta;
-  meta_local(&meta, ast, name, type, entry, storage, 0, ast_id(ast) == TK_LET);
+  meta_local(&meta, ast, name, type, entry, storage, 0, ast_id(ast) != TK_VAR);
 
   meta.inst = inst;
 

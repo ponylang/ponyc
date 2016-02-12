@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "error.h"
 #include "token.h"
 #include "symtab.h"
 #include "source.h"
@@ -13,279 +14,6 @@
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 extern "C" {
 #endif
-
-/* Description of AST forms produced after parse fix pass.
-
-We define what each type of node should contain. For convenience we also define
-categories of node types. Node types are all capitals and correspond to the
-token_id of the same name but starting with TK_. Categories are all lower case.
-
-Node definitions look like this:
-
-NODE_TYPE: child node types in order
-data: contents of data pointer (not used if omitted)
-symtab: mapping stored in symbol table (not used if omitted)
-Notes (optional)
-
-Category definitions list the node type or sub-categories they contain:
-
-category
---------
-data: contents of data pointer (not used if omitted)
-symtab: mapping stored in symbol table (not used if omitted)
-Notes (optional)
-(
-  List of contained node types and sub-categories
-)
-
-Data, symtab and notes for a category apply to all contained members.
-All members defined within a category are indented to aid clarity.
-
-NONE indicates TK_NONE throughout.
-
-
-PROGRAM: {PACKAGE}
-data: program_t
-symtab: path -> PACKAGE
-Always the root node.
-
-PACKAGE: {MODULE} [STRING]
-data: package_t
-symtab: name -> entity
-
-MODULE: {USE} {entity}
-data: source_t
-symtab: name -> PACKAGE | entity
-
-USE: [ID] (STRING | FFIDECL) [expr]
-The string child is the URI, including optional scheme specifier.
-
-SPECIFIER: ID TYPEARGS [POSITIONALARGS] NONE
-
-entity
-------
-data: typechecking state
-symtab: name -> TYPEPARAM | FVAR | FVAL | method
-(
-  TYPE: ID [TYPEPARAMS] cap [TYPES] NONE NONE [STRING]
-  PRIMITIVE: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
-  TRAIT: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
-  CLASS: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
-  ACTOR: ID [TYPEPARAMS] NONE [TYPES] MEMBERS [AT] [STRING]
-)
-
-MEMBERS: {FVAR | FLET | method}
-
-FVAR: ID [type] [infix]
-FLET: ID [type] [infix]
-EMBED: ID [type] [infix]
-
-method
-------
-data: During traits pass, trait method body came from (NULL for none).
-symtab: name -> TYPEPARAM | PARAM
-(
-  NEW: cap ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
-  BE: cap ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
-  FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ] [STRING]
-)
-
-TYPEPARAMS: {TYPEPARAM}
-
-TYPEPARAM: ID [type] [type]
-The second child is the contraint type, the third is the default type.
-
-QUESTION: no children
-
-TYPES: {type}
-
-type
-----
-(
-  UNIONTYPE: {type}
-  data: During parse and parsefix passes indicates if union was immediately
-  inside grouping parentheses in the source. 1 => in parentheses, 0 => not.
-
-  ISECTTYPE: {type}
-  data: During parse and parsefix passes indicates if intersect was immediately
-  inside grouping parentheses in the source. 1 => in parentheses, 0 => not.
-
-  ARROW: type type
-  TUPLETYPE: {type}
-  THISTYPE: no children
-
-  TYPEPARAMREF: ID [cap] [EPHEMERAL | BORROWED]
-  data: typeparam definition
-
-  NOMINAL: [ID] ID [TYPEARGS] cap [EPHEMERAL | BORROWED] [ID]
-  data: type definition
-)
-
-cap
----
-(
-  ISO: no children
-  TRN: no children
-  REF: no children
-  VAL: no children
-  BOX: no children
-  TAG: no children
-)
-
-TYPEARGS: {type}
-
-PARAMS: {PARAM}
-
-PARAM: (ID type [infix] | ELLIPSIS)
-The sequence child is the default value tree.
-
-ELLIPSIS: no children
-
-SEQ: {jump | expr}
-symtab: name -> VAR | VAL
-data:
-  During parsing, whether sequence is a test scope (1) or not (0)
-  During type checking, whether the expr can error or not
-Some SEQ nodes do not have symbol tables. These are indicated in the parent
-nodes.
-
-jump
-----
-data: during type checking, whether the expr can error or not
-(
-  CONTINUE: no children
-  ERROR: no children
-  BREAK: expr
-  RETURN: expr
-)
-
-expr
-----
-data: during type checking, whether the expr can error or not
-(
-  local
-  prefix
-  postfix
-  control
-  infix
-  atom
-)
-
-infix
------
-data: During parse and parsefix passes infix operators other than assign use
-the data field to indicate if they were immediately inside grouping parentheses
-in the source. 1 => in parentheses, 0 => not.
-(
-  MULTIPLY: expr expr
-  DIVIDE: expr expr
-  MOD: expr expr
-  PLUS: expr expr
-  MINUS: expr expr
-  LSHIFT: expr expr
-  RSHIFT: expr expr
-  LT: expr expr
-  LE: expr expr
-  GE: expr expr
-  GT: expr expr
-  EQ: expr expr
-  NE: expr expr
-  IS: expr expr
-  ISNT: expr expr
-  AND: expr expr
-  XOR: expr expr
-  OR: expr expr
-  ASSIGN: expr expr // note that the LHS comes second, to handle init tracking
-)
-
-local
------
-(
-  VAR: ID [type]
-  LET: ID [type]
-)
-
-prefix
-------
-(
-  CONSUME: cap expr
-  RECOVER: cap expr
-  NOT: expr
-  MINUS: expr
-)
-
-postfix
--------
-(
-  DOT: expr (ID | INT)
-  BANG: expr INT
-  QUALIFY: expr TYPEARGS
-  CALL: [POSITIONALARGS] [NAMEDARGS] expr // note the receiver comes last
-
-  AT: ID TYPEARGS [POSITIONALARGS] NONE
-  The final child is initially any named arguments. The parse fix pass gives an
-  error if this is not NONE.
-)
-
-control
--------
-(
-  IF: SEQ SEQ [SEQ]
-  symtab: name -> VAR | VAL
-  Children are (in order) condition, then body, else body.
-  The condition child does not have a symbol table.
-
-  MATCH: SEQ CASES [SEQ]
-  The first child is the expression to switch on and it does not have a symbol
-  table.
-  The final child is the else body.
-
-  WHILE: SEQ SEQ [SEQ]
-  symtab: name -> VAR | VAL
-  Children are (in order) condition, loop body, else body.
-  The condition child does not have a symbol table.
-
-  REPEAT: SEQ SEQ [SEQ]
-  symtab: name -> VAR | VAL
-  Children are (in order) loop body, condition.
-  The loop body child does not have a symbol table.
-
-  FOR: (LET | TUPLE) SEQ SEQ [SEQ]
-  Children are (in order) iterator(s), iterator initialiser, loop body,
-  else body.
-
-  TRY: SEQ [SEQ] [SEQ]
-  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
-  instruction
-  Children are (in order) try body, else body, then body.
-
-  CASES: {CASE}
-)
-
-CASE: [INFIX] [SEQ] [SEQ]
-symtab: name -> VAR | VAL
-Children are (in order) pattern, guard, body.
-
-atom
-----
-(
-  TUPLE: {expr}
-  ARRAY: [TYPE] {expr}
-  OBJECT: [TYPES] MEMBERS
-  THIS: no children
-  INT: no children
-  FLOAT: no children
-  STRING: no children
-
-  ID: no children
-  data: During codegen, holds the LLVMValueRef for the alloca.
-)
-
-POSITIONALARGS: {SEQ}
-NAMEDARGS: {NAMEDARG}
-NAMEDARG: ID SEQ
-
-*/
 
 typedef struct ast_t ast_t;
 
@@ -304,7 +32,7 @@ enum
   AST_FLAG_CAN_SEND     = 0x40,
   AST_FLAG_MIGHT_SEND   = 0x80,
   AST_FLAG_IN_PARENS    = 0x100,
-  // Unused value 0x200
+  AST_FLAG_AMBIGUOUS    = 0x200,
   AST_FLAG_BAD_SEMI     = 0x400,
   AST_FLAG_MISSING_SEMI = 0x800,
   AST_FLAG_PRESERVE     = 0x1000, // Do not process
@@ -409,6 +137,8 @@ void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
+void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
+  __attribute__((format(printf, 3, 4)));
 
 // Foreach macro, will apply macro M to each of up to 30 other arguments
 #define FOREACH(M, ...) \

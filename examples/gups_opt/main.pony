@@ -19,10 +19,10 @@ class Config
 
     for option in options do
       match option
-      | ("table", var arg: I64) => logtable = arg.usize()
-      | ("iterate", var arg: I64) => iterate = arg.usize()
-      | ("chunk", var arg: I64) => logchunk = arg.usize()
-      | ("actors", var arg: I64) => logactors = arg.usize()
+      | ("table", let arg: I64) => logtable = arg.usize()
+      | ("iterate", let arg: I64) => iterate = arg.usize()
+      | ("chunk", let arg: I64) => logchunk = arg.usize()
+      | ("actors", let arg: I64) => logactors = arg.usize()
       | let err: ParseError =>
         err.report(env.out)
         env.out.print(

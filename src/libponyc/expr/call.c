@@ -6,6 +6,7 @@
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
@@ -201,8 +202,22 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
     return false;
   }
 
+  if(ast_id(def_arg) == TK_LOCATION)
+  {
+    // Default argument is __loc. Expand call location.
+    ast_t* location = expand_location(arg);
+    ast_add(arg, location);
+
+    if(!ast_passes_subtree(&location, opt, PASS_EXPR))
+      return false;
+  }
+  else
+  {
+    // Just use default argument.
+    ast_add(arg, def_arg);
+  }
+
   ast_setid(arg, TK_SEQ);
-  ast_add(arg, def_arg);
 
   if(!expr_seq(opt, arg))
     return false;
@@ -268,11 +283,16 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       }
     }
 
-    if(!is_subtype(a_type, p_type, true))
+    errorframe_t info = NULL;
+    if(!is_subtype(a_type, p_type, &info))
     {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter type: %s", ast_print_type(p_type));
-      ast_error(arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, param, "parameter type: %s",
+        ast_print_type(p_type));
+      ast_error_frame(&frame, arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
 
       ast_free_unattached(a_type);
       return false;
@@ -385,27 +405,36 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     incomplete = false;
   }
 
-  bool ok = is_subtype(a_type, t_type, true);
+  errorframe_t info = NULL;
+  bool ok = is_subtype(a_type, t_type, &info);
 
   if(!ok)
   {
-    ast_error(ast, "receiver type is not a subtype of target type");
-    ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
-    ast_error(cap, "target type: %s", ast_print_type(t_type));
+    errorframe_t frame = NULL;
 
-    if(!can_recover && cap_recover && is_subtype(r_type, t_type, false))
+    ast_error_frame(&frame, ast,
+      "receiver type is not a subtype of target type");
+    ast_error_frame(&frame, receiver,
+      "receiver type: %s", ast_print_type(a_type));
+    ast_error_frame(&frame, cap,
+      "target type: %s", ast_print_type(t_type));
+
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
     }
 
-    if(incomplete && is_subtype(r_type, t_type, false))
+    if(incomplete && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if all the fields of 'this' were assigned to "
         "at this point");
     }
+
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
   }
 
   if(a_type != r_type)
@@ -501,7 +530,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  bool ok = is_subtype(view_type, need_type, false);
+  bool ok = is_subtype(view_type, need_type, NULL);
   ast_free_unattached(view_type);
   ast_free_unattached(need_type);
 
@@ -519,7 +548,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
       view_type = viewpoint_type(ast_from(type, TK_BOX), type);
       need_type = ast_childidx(param, 1);
 
-      ok = is_subtype(view_type, need_type, false);
+      ok = is_subtype(view_type, need_type, NULL);
       ast_free_unattached(view_type);
       ast_free_unattached(need_type);
 
@@ -688,6 +717,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   REPLACE(astp,
     NODE(TK_LAMBDA,
       NODE(apply_cap)
+      NONE  // Lambda function name.
       NONE  // Lambda type params.
       TREE(lambda_params)
       TREE(captures)
@@ -700,10 +730,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           TREE(call_receiver)))));
 
   // Need to preserve various lambda children.
-  ast_setflag(ast_childidx(*astp, 1), AST_FLAG_PRESERVE); // Type params.
-  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Parameters.
-  ast_setflag(ast_childidx(*astp, 4), AST_FLAG_PRESERVE); // Return type.
-  ast_setflag(ast_childidx(*astp, 6), AST_FLAG_PRESERVE); // Body.
+  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.
+  ast_setflag(ast_childidx(*astp, 3), AST_FLAG_PRESERVE); // Parameters.
+  ast_setflag(ast_childidx(*astp, 5), AST_FLAG_PRESERVE); // Return type.
+  ast_setflag(ast_childidx(*astp, 7), AST_FLAG_PRESERVE); // Body.
 
   // Catch up to this pass.
   return ast_passes_subtree(astp, opt, PASS_EXPR);

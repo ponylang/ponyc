@@ -239,8 +239,7 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   // If we have a capture, generate the alloca now.
   switch(ast_id(pattern))
   {
-    case TK_VAR:
-    case TK_LET:
+    case TK_MATCH_CAPTURE:
       if(gen_localdecl(c, pattern) == NULL)
         return false;
       break;
@@ -386,8 +385,7 @@ static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr,
     case TK_NONE:
       return true;
 
-    case TK_VAR:
-    case TK_LET:
+    case TK_MATCH_CAPTURE:
       // Capture the match expression (or element thereof).
       return dynamic_capture_ptr(c, ptr, desc, pattern, next_block);
 
@@ -455,8 +453,7 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
     case TK_NONE:
       return true;
 
-    case TK_VAR:
-    case TK_LET:
+    case TK_MATCH_CAPTURE:
       // Capture the match expression (or element thereof).
       return dynamic_capture_object(c, object, desc, pattern, next_block);
 
@@ -562,7 +559,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
 
-  if(!is_subtype(type, param_type, false))
+  if(!is_subtype(type, param_type, NULL))
   {
     // Switch to dynamic value checking.
     assert(LLVMTypeOf(value) == c->object_ptr);
@@ -583,7 +580,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(gen_localdecl(c, pattern) == NULL)
     return false;
 
-  if(!is_subtype(type, pattern_type, false))
+  if(!is_subtype(type, pattern_type, NULL))
   {
     // Switch to dynamic capture.
     assert(LLVMTypeOf(value) == c->object_ptr);
@@ -602,8 +599,7 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_NONE:
       return true;
 
-    case TK_VAR:
-    case TK_LET:
+    case TK_MATCH_CAPTURE:
       // Capture the match expression (or element thereof).
       return static_capture(c, value, type, pattern, next_block);
 

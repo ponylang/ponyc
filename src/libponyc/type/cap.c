@@ -342,6 +342,114 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
   return false;
 }
 
+bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
+  token_id right_cap, token_id right_eph)
+{
+  // Transform the cap based on the aliasing info.
+  cap_aliasing(&left_cap, &left_eph);
+  cap_aliasing(&right_cap, &right_eph);
+
+  // Ignore compatibility for bind caps.
+  if((cap_unbind(left_cap) != left_cap) ||
+    (cap_unbind(right_cap) != right_cap))
+    return true;
+
+  if((left_cap == TK_TAG) || (right_cap == TK_TAG))
+    return true;
+
+  // Every possible value of left must be compatible with every possible value
+  // of right.
+  switch(left_cap)
+  {
+    case TK_ISO:
+      switch(right_cap)
+      {
+        case TK_ISO:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(right_cap)
+      {
+        case TK_TRN:
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(right_cap)
+      {
+        case TK_REF:
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+      switch(right_cap)
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_BOX:
+      switch(right_cap)
+      {
+        case TK_TRN:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_READ:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_READ:
+      switch(right_cap)
+      {
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_SEND:
+      break;
+
+    case TK_CAP_SHARE:
+      switch(right_cap)
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  return false;
+}
+
 ast_t* cap_fetch(ast_t* type)
 {
   switch(ast_id(type))

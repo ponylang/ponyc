@@ -36,9 +36,9 @@ class iso _TestLongOptions is UnitTest
       .add("f64", "f", F64Argument, Optional)
     for option in options do
       match option
-      | ("none", var arg: None) => none = true
-      | ("i64", var arg: I64) => i64 = arg
-      | ("f64", var arg: F64) => f64 = arg
+      | ("none", let arg: None) => none = true
+      | ("i64", let arg: I64) => i64 = arg
+      | ("f64", let arg: F64) => f64 = arg
       end
     end
 
@@ -65,9 +65,9 @@ class iso _TestShortOptions is UnitTest
       .add("f64", "f", F64Argument, Optional)
     for option in options do
       match option
-      | ("none", var arg: None) => none = true
-      | ("i64", var arg: I64) => i64 = arg
-      | ("f64", var arg: F64) => f64 = arg
+      | ("none", let arg: None) => none = true
+      | ("i64", let arg: I64) => i64 = arg
+      | ("f64", let arg: F64) => f64 = arg
       else
         h.fail("Invalid option reported")
       end
@@ -119,8 +119,8 @@ class iso _TestCombineShortArg is UnitTest
     for option in options do
       match option
       | ("aaa", _) => aaa = true
-      | ("bbb", var arg: I64) => bbb = arg
-      | ("ccc", var arg: I64) => ccc = arg
+      | ("bbb", let arg: I64) => bbb = arg
+      | ("ccc", let arg: I64) => ccc = arg
       end
     end
 
@@ -146,8 +146,8 @@ class iso _TestArgLeadingDash is UnitTest
       .add("ttt", "2", None, Optional)  // to ignore the -2
     for option in options do
       match option
-      | ("aaa", var arg: I64) => aaa = arg
-      | ("bbb", var arg: I64) => bbb = arg
+      | ("aaa", let arg: I64) => aaa = arg
+      | ("bbb", let arg: I64) => bbb = arg
       end
     end
 

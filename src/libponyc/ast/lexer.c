@@ -166,6 +166,7 @@ static const lextoken_t keywords[] =
 
   { "identityof", TK_IDENTITY },
   { "addressof", TK_ADDRESS },
+  { "__loc", TK_LOCATION },
 
   { "true", TK_TRUE },
   { "false", TK_FALSE },
@@ -187,6 +188,7 @@ static const lextoken_t keywords[] =
   { "$ifdefor", TK_IFDEFOR },
   { "$ifdefnot", TK_IFDEFNOT },
   { "$flag", TK_IFDEFFLAG },
+  { "$let", TK_MATCH_CAPTURE },
 
   { NULL, (token_id)0 }
 };
@@ -212,6 +214,7 @@ static const lextoken_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
+  { "lambdatype", TK_LAMBDATYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 

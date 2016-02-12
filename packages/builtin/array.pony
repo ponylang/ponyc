@@ -115,7 +115,7 @@ class Array[A] is Seq[A]
     An out of bounds index raises an error.
     The array is returned to allow call chaining.
     """
-    if i < _size then
+    if i <= _size then
       reserve(_size + 1)
       _ptr._offset(i)._insert(1, _size - i)
       _ptr._update(i, consume value)

@@ -17,12 +17,12 @@ static void append_one_to_union(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(append, child, false))
+    if(is_subtype(append, child, NULL))
     {
       // If the incoming type is a subtype of a type that is already in the
       // union, then do not bother to append it.
       return;
-    } else if(is_subtype(child, append, false)) {
+    } else if(is_subtype(child, append, NULL)) {
       // If a type in the union is a subtype of the incoming type, then remove
       // it from the union.
       ast_remove(child);
@@ -42,12 +42,12 @@ static void append_one_to_isect(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(child, append, false))
+    if(is_subtype(child, append, NULL))
     {
       // If the incoming type is a supertype of a type that is already in the
       // intersection, then do not bother to append it.
       return;
-    } else if(is_subtype(append, child, false)) {
+    } else if(is_subtype(append, child, NULL)) {
       // If a type in the intersection is a supertype of the incoming type,
       // then remove it from the intersection.
       ast_remove(child);
@@ -94,7 +94,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   if(r_type == NULL)
     return l_type;
 
-  if(is_subtype(l_type, r_type, false))
+  if(is_subtype(l_type, r_type, NULL))
   {
     if(is_union)
       return r_type;
@@ -102,7 +102,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
       return l_type;
   }
 
-  if(is_subtype(r_type, l_type, false))
+  if(is_subtype(r_type, l_type, NULL))
   {
     if(is_union)
       return l_type;

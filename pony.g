@@ -132,7 +132,12 @@ elseif
 idseq
   : ID
   | '_'
-  | ('(' | LPAREN_NEW) idseq (',' idseq)* ')'
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  ;
+
+idseq_in_seq
+  : ID
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
   ;
 
 nextpattern
@@ -182,7 +187,7 @@ nextatom
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
-  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 
@@ -193,7 +198,7 @@ atom
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
-  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 
@@ -230,6 +235,11 @@ atomtype
   | cap
   | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
   | nominal
+  | lambdatype
+  ;
+
+lambdatype
+  : '{' cap? ID? typeparams? ('(' | LPAREN_NEW) (type (',' type)*)? ')' (':' type)? '?'? '}' (cap | gencap)? ('^' | '!')?
   ;
 
 tupletype
@@ -269,7 +279,25 @@ cap
   ;
 
 typeargs
-  : '[' (type | literal | ('#' postfix)) (',' (type | literal | ('#' postfix)))* ']'
+  : '[' typearg (',' typearg)* ']'
+  ;
+
+typeparams
+  : ('[' | LSQUARE_NEW) typeparam (',' typeparam)* ']'
+  ;
+
+params
+  : (param | '...') (',' (param | '...'))*
+  ;
+
+typeparam
+  : ID (':' type)? ('=' typearg)?
+  ;
+
+typearg
+  : type
+  | literal
+  | '#' postfix
   ;
 
 literal
@@ -278,22 +306,6 @@ literal
   | INT
   | FLOAT
   | STRING
-  ;
-
-typeparams
-  : ('[' | LSQUARE_NEW) (typeparam | typeparamvalue) (',' (typeparam | typeparamvalue))* ']'
-  ;
-
-params
-  : (param | '...') (',' (param | '...'))*
-  ;
-
-typeparamvalue
-  : 'let' ID (':' type)? ('=' infix)?
-  ;
-
-typeparam
-  : ID (':' type)? ('=' type)?
   ;
 
 param
