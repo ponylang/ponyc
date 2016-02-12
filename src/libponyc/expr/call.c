@@ -6,6 +6,7 @@
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
@@ -201,8 +202,22 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
     return false;
   }
 
+  if(ast_id(def_arg) == TK_LOCATION)
+  {
+    // Default argument is __loc. Expand call location.
+    ast_t* location = expand_location(arg);
+    ast_add(arg, location);
+
+    if(!ast_passes_subtree(&location, opt, PASS_EXPR))
+      return false;
+  }
+  else
+  {
+    // Just use default argument.
+    ast_add(arg, def_arg);
+  }
+
   ast_setid(arg, TK_SEQ);
-  ast_add(arg, def_arg);
 
   if(!expr_seq(opt, arg))
     return false;

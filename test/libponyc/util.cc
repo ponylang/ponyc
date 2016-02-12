@@ -58,7 +58,8 @@ static const char* _builtin =
   "  new create() => 0\n"
   "primitive None\n"
   "primitive Bool\n"
-  "class Pointer[A]";
+  "class val String\n"
+  "class Pointer[A]\n";
 
 
 // Check whether the 2 given ASTs are identical

@@ -241,6 +241,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
                         r = expr_compile_error(ast); break;
     case TK_COMPILE_INTRINSIC:
                         r = expr_compile_intrinsic(t, ast); break;
+    case TK_LOCATION:   r = expr_location(options, ast); break;
     case TK_POSITIONALARGS:
     case TK_NAMEDARGS:
     case TK_NAMEDARG:

@@ -166,6 +166,7 @@ static const lextoken_t keywords[] =
 
   { "identityof", TK_IDENTITY },
   { "addressof", TK_ADDRESS },
+  { "__loc", TK_LOCATION },
 
   { "true", TK_TRUE },
   { "false", TK_FALSE },

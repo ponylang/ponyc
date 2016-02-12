@@ -542,6 +542,68 @@ TEST_F(SugarExprTest, LambdaNamed)
 }
 
 
+TEST_F(SugarExprTest, Location)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    __loc";
+
+  const char* full_form =
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box bar(): None =>\n"
+    "    object\n"
+    "      fun tag file(): String => \"\"\n"
+    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag line(): USize => 4\n"
+    "      fun tag pos(): USize => 5\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LocationDefaultArg)
+{
+  const char* short_form =
+    "interface val SourceLoc\n"
+    "  fun file(): String\n"
+    "  fun method(): String\n"
+    "  fun line(): USize\n"
+    "  fun pos(): USize\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    wombat()\n"
+    "  fun wombat(x: SourceLoc = __loc) =>\n"
+    "    None";
+
+  const char* full_form =
+    "interface val SourceLoc\n"
+    "  fun file(): String\n"
+    "  fun method(): String\n"
+    "  fun line(): USize\n"
+    "  fun pos(): USize\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    wombat(object\n"
+    "      fun tag file(): String => \"\"\n"
+    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag line(): USize => 9\n"
+    "      fun tag pos(): USize => 12\n"
+    "    end)\n"
+    "  fun wombat(x: SourceLoc = __loc) =>\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 // Early sugar that may cause errors in type checking
 
 TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)

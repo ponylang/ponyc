@@ -405,10 +405,17 @@ DEF(thisliteral);
   TOKEN(NULL, TK_THIS);
   DONE();
 
+// ID
 DEF(ref);
   PRINT_INLINE();
   AST_NODE(TK_REFERENCE);
   TOKEN("name", TK_ID);
+  DONE();
+
+// __LOC
+DEF(location);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_LOCATION);
   DONE();
 
 // AT (ID | STRING) typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
@@ -426,16 +433,16 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    ffi);
+    ffi, location);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, ffi);
+    lambda, ffi, location);
   DONE();
 
 // DOT ID

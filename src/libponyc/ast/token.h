@@ -164,6 +164,7 @@ typedef enum token_id
 
   TK_IDENTITY,
   TK_ADDRESS,
+  TK_LOCATION,
 
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,

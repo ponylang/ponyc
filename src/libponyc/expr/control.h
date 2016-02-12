@@ -18,6 +18,7 @@ bool expr_continue(typecheck_t* t, ast_t* ast);
 bool expr_return(pass_opt_t* opt, ast_t* ast);
 bool expr_error(ast_t* ast);
 bool expr_compile_error(ast_t* ast);
+bool expr_location(pass_opt_t* opt, ast_t* ast);
 
 PONY_EXTERN_C_END
 
