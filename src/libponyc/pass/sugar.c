@@ -1197,8 +1197,8 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_EXTRACT_CHILDREN(ast, apply_cap, apply_t_params, params, ret_type, error,
-    interface_cap, ephemeral);
+  AST_EXTRACT_CHILDREN(ast, apply_cap, apply_name, apply_t_params, params,
+    ret_type, error, interface_cap, ephemeral);
 
   const char* i_name = package_hygienic_id(&opt->check);
 
@@ -1240,6 +1240,11 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   printbuf(buf, "}");
 
+  const char* fn_name = "apply";
+
+  if(ast_id(apply_name) == TK_ID)
+    fn_name = ast_name(apply_name);
+
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_INTERFACE, AST_SCOPE
@@ -1250,7 +1255,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
       NODE(TK_MEMBERS,
         NODE(TK_FUN, AST_SCOPE
           TREE(apply_cap)
-          ID("apply")
+          ID(fn_name)
           TREE(apply_t_params)
           TREE(params)
           TREE(ret_type)
@@ -1280,6 +1285,84 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
     return AST_FATAL;
 
   // Sugar the call.
+  if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
+    return AST_FATAL;
+
+  return AST_OK;
+}
+
+
+ast_t* expand_location(ast_t* location)
+{
+  assert(location != NULL);
+
+  const char* file_name = ast_source(location)->file;
+
+  if(file_name == NULL)
+    file_name = "";
+
+  // Find name of containing method.
+  const char* method_name = "";
+  for(ast_t* method = location; method != NULL; method = ast_parent(method))
+  {
+    token_id variety = ast_id(method);
+
+    if(variety == TK_FUN || variety == TK_BE || variety == TK_NEW)
+    {
+      method_name = ast_name(ast_childidx(method, 1));
+      break;
+    }
+  }
+
+  // Create an object literal.
+  BUILD(ast, location,
+    NODE(TK_OBJECT, DATA("__loc")
+      NONE  // Capability
+      NONE  // Provides
+      NODE(TK_MEMBERS,
+        NODE(TK_FUN, AST_SCOPE
+          NODE(TK_TAG) ID("file") NONE NONE
+          NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
+          NONE
+          NODE(TK_SEQ, STRING(file_name))
+          NONE NONE)
+        NODE(TK_FUN, AST_SCOPE
+          NODE(TK_TAG) ID("method") NONE NONE
+          NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
+          NONE
+          NODE(TK_SEQ, STRING(method_name))
+          NONE NONE)
+        NODE(TK_FUN, AST_SCOPE
+          NODE(TK_TAG) ID("line") NONE NONE
+          NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
+          NONE
+          NODE(TK_SEQ, INT(ast_line(location)))
+          NONE NONE)
+        NODE(TK_FUN, AST_SCOPE
+          NODE(TK_TAG) ID("pos") NONE NONE
+          NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
+          NONE
+          NODE(TK_SEQ, INT(ast_pos(location)))
+          NONE NONE))));
+
+  return ast;
+}
+
+
+static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
+{
+  assert(astp != NULL);
+  ast_t* ast = *astp;
+  assert(ast != NULL);
+
+  if(ast_id(ast_parent(ast)) == TK_PARAM)
+    // Location is a default argument, do not expand yet.
+    return AST_OK;
+
+  ast_t* location = expand_location(ast);
+  ast_replace(astp, location);
+
+  // Sugar the expanded object.
   if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
     return AST_FATAL;
 
@@ -1344,6 +1427,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_SEMI:       return sugar_semi(options, astp);
     case TK_LET:        return sugar_let(t, ast);
     case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);
+    case TK_LOCATION:   return sugar_location(options, astp);
     default:            return AST_OK;
   }
 }

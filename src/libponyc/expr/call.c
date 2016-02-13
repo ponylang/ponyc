@@ -6,6 +6,7 @@
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
@@ -201,8 +202,22 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
     return false;
   }
 
+  if(ast_id(def_arg) == TK_LOCATION)
+  {
+    // Default argument is __loc. Expand call location.
+    ast_t* location = expand_location(arg);
+    ast_add(arg, location);
+
+    if(!ast_passes_subtree(&location, opt, PASS_EXPR))
+      return false;
+  }
+  else
+  {
+    // Just use default argument.
+    ast_add(arg, def_arg);
+  }
+
   ast_setid(arg, TK_SEQ);
-  ast_add(arg, def_arg);
 
   if(!expr_seq(opt, arg))
     return false;
@@ -702,6 +717,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   REPLACE(astp,
     NODE(TK_LAMBDA,
       NODE(apply_cap)
+      NONE  // Lambda function name.
       NONE  // Lambda type params.
       TREE(lambda_params)
       TREE(captures)
@@ -714,10 +730,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           TREE(call_receiver)))));
 
   // Need to preserve various lambda children.
-  ast_setflag(ast_childidx(*astp, 1), AST_FLAG_PRESERVE); // Type params.
-  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Parameters.
-  ast_setflag(ast_childidx(*astp, 4), AST_FLAG_PRESERVE); // Return type.
-  ast_setflag(ast_childidx(*astp, 6), AST_FLAG_PRESERVE); // Body.
+  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.
+  ast_setflag(ast_childidx(*astp, 3), AST_FLAG_PRESERVE); // Parameters.
+  ast_setflag(ast_childidx(*astp, 5), AST_FLAG_PRESERVE); // Return type.
+  ast_setflag(ast_childidx(*astp, 7), AST_FLAG_PRESERVE); // Body.
 
   // Catch up to this pass.
   return ast_passes_subtree(astp, opt, PASS_EXPR);

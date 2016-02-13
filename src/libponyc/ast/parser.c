@@ -227,12 +227,13 @@ DEF(typelist);
   WHILE(TK_COMMA, RULE("parameter type", type));
   DONE();
 
-// LBRACE [CAP] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
+// LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
 // [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | BORROWED]
 DEF(lambdatype);
   AST_NODE(TK_LAMBDATYPE);
   SKIP(NULL, TK_LBRACE);
   OPT RULE("capability", cap);
+  OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", typelist);
@@ -317,12 +318,13 @@ DEF(lambdacaptures);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// LAMBDA [CAP] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// LAMBDA [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
 // [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
 DEF(lambda);
   PRINT_INLINE();
   TOKEN(NULL, TK_LAMBDA);
   OPT RULE("capability", cap);
+  OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
@@ -333,10 +335,10 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   TERMINATE("lambda expression", TK_END);
-  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
-  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
-  SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
-  SET_CHILD_FLAG(6, AST_FLAG_PRESERVE); // Body
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(7, AST_FLAG_PRESERVE); // Body
   DONE();
 
 // AS type ':'
@@ -403,10 +405,17 @@ DEF(thisliteral);
   TOKEN(NULL, TK_THIS);
   DONE();
 
+// ID
 DEF(ref);
   PRINT_INLINE();
   AST_NODE(TK_REFERENCE);
   TOKEN("name", TK_ID);
+  DONE();
+
+// __LOC
+DEF(location);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_LOCATION);
   DONE();
 
 // AT (ID | STRING) typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
@@ -424,16 +433,16 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    ffi);
+    ffi, location);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi
+// ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, ffi);
+    lambda, ffi, location);
   DONE();
 
 // DOT ID

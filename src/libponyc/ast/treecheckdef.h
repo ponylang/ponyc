@@ -138,7 +138,7 @@ GROUP(expr,
   qualify, call, ffi_call, match_capture,
   if_expr, ifdef, whileloop, repeat, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
-  bool_literal, id, rawseq, package_ref,
+  bool_literal, id, rawseq, package_ref, location,
   this_ref, ref, fun_ref, type_ref, flet_ref, field_ref, local_ref);
 
 RULE(local,
@@ -331,6 +331,7 @@ RULE(try_expr,
 RULE(lambda,
   HAS_TYPE(type)
   CHILD(cap, none)
+  CHILD(id, none)
   CHILD(type_params, none)
   CHILD(params, none)
   CHILD(lambda_captures, none)
@@ -422,6 +423,7 @@ RULE(fun_type,
 
 RULE(lambda_type,
   CHILD(cap, none)  // Apply function cap
+  CHILD(id, none)
   CHILD(type_params, none)
   CHILD(type_list, none)  // Params
   CHILD(type, none) // Return type
@@ -464,6 +466,7 @@ RULE(gencap, LEAF, TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE, TK_CAP_ANY);
 RULE(id, HAS_TYPE(type) HAS_DATA, TK_ID);
 RULE(int_literal, HAS_TYPE(type), TK_INT);
 RULE(literal_type, LEAF, TK_LITERAL, TK_LITERALBRANCH);
+RULE(location, HAS_TYPE(nominal), TK_LOCATION);
 RULE(none, LEAF, TK_NONE);
 RULE(opliteral_type, HAS_DATA, TK_OPERATORLITERAL);
 RULE(question, LEAF, TK_QUESTION);

@@ -525,3 +525,9 @@ bool expr_compile_error(ast_t* ast)
   ast_settype(ast, ast_from(ast, TK_COMPILE_ERROR));
   return true;
 }
+
+bool expr_location(pass_opt_t* opt, ast_t* ast)
+{
+  ast_settype(ast, type_builtin(opt, ast, "SourceLoc"));
+  return true;
+}

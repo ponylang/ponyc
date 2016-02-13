@@ -558,10 +558,10 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 
       if((test > 0) || (!neg_plus_one && (test == 0)))
       {
-        // Illegal value. Note that we report an error, but don't return an
-        // error, so other errors may be found.
+        // Illegal value.
         ast_error(literal, "Literal value is out of range for type (%s)",
           chain_head->name);
+        return false;
       }
     }
   }

@@ -90,8 +90,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_GET_CHILDREN(ast, cap, t_params, params, captures, ret_type, raises,
-    body);
+  AST_GET_CHILDREN(ast, cap, name, t_params, params, captures, ret_type,
+    raises, body);
 
   ast_t* members = ast_from(ast, TK_MEMBERS);
   ast_t* last_member = NULL;
@@ -120,11 +120,16 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_clearflag(ret_type, AST_FLAG_PRESERVE);
   ast_clearflag(body, AST_FLAG_PRESERVE);
 
+  const char* fn_name = "apply";
+
+  if(ast_id(name) == TK_ID)
+    fn_name = ast_name(name);
+
   // Make the apply function
   BUILD(apply, ast,
     NODE(TK_FUN, AST_SCOPE
       TREE(cap)
-      ID("apply")
+      ID(fn_name)
       TREE(t_params)
       TREE(params)
       TREE(ret_type)
