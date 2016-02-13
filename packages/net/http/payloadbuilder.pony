@@ -189,7 +189,7 @@ class _PayloadBuilder
           if
             (_payload.status == 204) or
             (_payload.status == 304) or
-            (_payload.status < 200)
+            ((_payload.status > 0) and (_payload.status < 200))
           then
             _state = _PayloadReady
           elseif _chunked then
