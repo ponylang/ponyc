@@ -153,8 +153,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       return 0
     end
 
-    var i = offset_to_index(from)
-    var j = offset_to_index(to).min(_size)
+    var i = _offset_to_index(from)
+    var j = _offset_to_index(to).min(_size)
     var n = USize(0)
 
     while i < j do
@@ -220,7 +220,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     replacement character) and a length of one. Raise an error if the offset is
     out of bounds.
     """
-    let i = offset_to_index(offset)
+    let i = _offset_to_index(offset)
     let err: (U32, U8) = (0xFFFD, 1)
 
     if i >= _size then error end
@@ -319,14 +319,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns the byte at the given offset. Raise an error if the offset is out
     of bounds.
     """
-    this(offset_to_index(offset))
+    this(_offset_to_index(offset))
 
   fun ref update_offset(offset: ISize, value: U8): U8 ? =>
     """
     Changes a byte in the string, returning the previous byte at that offset.
     Raise an error if the offset is out of bounds.
     """
-    this(offset_to_index(offset)) = value
+    this(_offset_to_index(offset)) = value
 
   fun clone(): String iso^ =>
     """
@@ -343,7 +343,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
     """
-    var i = offset_to_index(offset)
+    var i = _offset_to_index(offset)
     var steps = nth + 1
 
     while i < _size do
@@ -372,7 +372,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Return the index of n-th instance of s in the string starting from the end.
     Raise an error if there is no n-th occurence of s or s is empty.
     """
-    var i = offset_to_index(offset) - s._size
+    var i = _offset_to_index(offset) - s._size
     var steps = nth + 1
 
     while i < _size do
@@ -423,7 +423,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Returns true if the substring s is present at the given offset.
     """
-    var i = offset_to_index(offset)
+    var i = _offset_to_index(offset)
 
     if (i + s.size()) <= _size then
       @memcmp(_ptr._offset(i), s._ptr, s._size) == 0
@@ -435,7 +435,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
-    var i = offset_to_index(offset)
+    var i = _offset_to_index(offset)
 
     if i < _size then
       let n = len.min(_size - i)
@@ -450,8 +450,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns a substring. Index range [`from` .. `to`) is half-open.
     Returns an empty string if nothing is in the range.
     """
-    let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size)
+    let start = _offset_to_index(from)
+    let finish = _offset_to_index(to).min(_size)
 
     if (start < _size) and (start < finish) then
       let len = finish - start
@@ -647,7 +647,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     offset is out of bounds.
     """
     reserve(_size + that._size)
-    var index = offset_to_index(offset).min(_size)
+    var index = _offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + that._size,
       _ptr.usize() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
@@ -660,7 +660,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
     reserve(_size + 1)
-    var index = offset_to_index(offset).min(_size)
+    var index = _offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + 1, _ptr.usize() + index,
       _size - index)
     _set(index, value)
@@ -683,8 +683,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Cuts the given range out of the string.
     Index range [`from` .. `to`) is half-open.
     """
-    let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size)
+    let start = _offset_to_index(from)
+    let finish = _offset_to_index(to).min(_size)
 
     if (start < _size) and (start < finish) and (finish <= _size) then
       let fragment_len = finish - start
@@ -914,8 +914,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Starting at this + offset, compare n bytes with that + offset.
     """
     var i = n
-    var j: USize = offset_to_index(offset)
-    var k: USize = that.offset_to_index(that_offset)
+    var j: USize = _offset_to_index(offset)
+    var k: USize = that._offset_to_index(that_offset)
 
     if (j + n) > _size then
       return Less
@@ -987,7 +987,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     _size <= that._size
 
-  fun offset_to_index(i: ISize): USize =>
+  fun _offset_to_index(i: ISize): USize =>
     if i < 0 then i.usize() + _size else i.usize() end
 
   fun bool(): Bool ? =>
@@ -1038,7 +1038,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     A leading minus is allowed for signed integer types.
     Underscore characters are allowed throughout the integer and are ignored.
     """
-    let start_index = offset_to_index(offset)
+    let start_index = _offset_to_index(offset)
     var index = start_index
     var value: A = 0
     var had_digit = false
@@ -1143,7 +1143,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     (10, 0)
 
   fun f32(offset: ISize = 0): F32 =>
-    var index = offset_to_index(offset)
+    var index = _offset_to_index(offset)
 
     if index < _size then
       @strtof(_ptr._offset(index), 0)
@@ -1152,7 +1152,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
   fun f64(offset: ISize = 0): F64 =>
-    var index = offset_to_index(offset)
+    var index = _offset_to_index(offset)
 
     if index < _size then
       @strtod(_ptr._offset(index), 0)
