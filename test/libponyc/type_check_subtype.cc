@@ -324,7 +324,10 @@ TEST_F(SubTypeTest, IsSubTypeIntersectInterface)
   TEST_COMPILE(src);
 
   // TODO: Fix this, intersect of non-independent and combinable types
-  //ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3")));
+  // (I1 & I2) <: I3
+  //ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3"), NULL));
+
+  // I3 <: (I1 & I2)
   ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1and2"), NULL));
 }
 
@@ -343,8 +346,10 @@ TEST_F(SubTypeTest, IsSubTypeIntersectOfUnion)
   TEST_COMPILE(src);
 
   ASSERT_TRUE(is_subtype(type_of("c1"), type_of("iofu"), NULL));
+
   // TODO: Fix this, intersect of non-independent and combinable types
-  //ASSERT_TRUE(is_subtype(type_of("iofu"), type_of("c1")));
+  // ((C1 | C2) & (C1 | C3)) <: C1
+  //ASSERT_TRUE(is_subtype(type_of("iofu"), type_of("c1"), NULL));
 }
 
 
@@ -386,16 +391,27 @@ TEST_F(SubTypeTest, IsSubTypeUnionOfTuple)
 
     "interface Test\n"
     "  fun z(c1: C1, c2: C2,\n"
-    "    uoft: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2)),\n"
+    "    uoft3: ((C1, C1) | (C1, C2) | (C2, C1)),\n"
+    "    uoft4: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2)),\n"
     "    tofu: ((C1 | C2), (C1 | C2)))";
 
   TEST_COMPILE(src);
 
+  // C1 <!: ((C1 | C2), (C1 | C2))
   ASSERT_FALSE(is_subtype(type_of("c1"), type_of("tofu"), NULL));
-  ASSERT_TRUE(is_subtype(type_of("uoft"), type_of("tofu"), NULL));
 
-  // TODO: enable this test
-  // ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft"), NULL));
+  // ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2)) <: ((C1 | C2), (C1 | C2))
+  ASSERT_TRUE(is_subtype(type_of("uoft4"), type_of("tofu"), NULL));
+
+  // ((C1, C1) | (C1, C2) | (C2, C1)) <: ((C1 | C2), (C1 | C2))
+  ASSERT_TRUE(is_subtype(type_of("uoft3"), type_of("tofu"), NULL));
+
+  // TODO: Fix this, union of tuples vs tuple of unions
+  // ((C1 | C2), (C1 | C2)) <: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2))
+  //ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft4"), NULL));
+
+  // ((C1 | C2), (C1 | C2)) <!: ((C1, C1) | (C1, C2) | (C2, C1))
+  ASSERT_FALSE(is_subtype(type_of("tofu"), type_of("uoft3"), NULL));
 }
 
 
