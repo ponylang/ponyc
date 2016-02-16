@@ -550,96 +550,90 @@ static void number_conversions(compile_t* c)
 
   num_conv_t* conv;
 
-  if(ilp32)
+  num_conv_t ilp32_conv[] =
   {
-    num_conv_t my_conv[] =
-    {
-      {"I8", "i8", c->i8, 8, true, false},
-      {"I16", "i16", c->i16, 16, true, false},
-      {"I32", "i32", c->i32, 32, true, false},
-      {"I64", "i64", c->i64, 64, true, false},
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
 
-      {"U8", "u8", c->i8, 8, false, false},
-      {"U16", "u16", c->i16, 16, false, false},
-      {"U32", "u32", c->i32, 32, false, false},
-      {"U64", "u64", c->i64, 64, false, false},
-      {"I128", "i128", c->i128, 128, true, false},
-      {"U128", "u128", c->i128, 128, false, false},
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
 
-      {"ILong", "ilong", c->i32, 32, true, false},
-      {"ULong", "ulong", c->i32, 32, false, false},
-      {"ISize", "isize", c->i32, 32, true, false},
-      {"USize", "usize", c->i32, 32, false, false},
+    {"ILong", "ilong", c->i32, 32, true, false},
+    {"ULong", "ulong", c->i32, 32, false, false},
+    {"ISize", "isize", c->i32, 32, true, false},
+    {"USize", "usize", c->i32, 32, false, false},
 
-      {"F32", "f32", c->f32, 32, false, true},
-      {"F64", "f64", c->f64, 64, false, true},
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
 
-      {NULL, NULL, NULL, false, false, false}
-    };
+    {NULL, NULL, NULL, false, false, false}
+  };
 
-    conv = my_conv;
-  }
+  num_conv_t lp64_conv[] =
+  {
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
+
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
+
+    {"ILong", "ilong", c->i64, 64, true, false},
+    {"ULong", "ulong", c->i64, 64, false, false},
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
+
+    {NULL, NULL, NULL, false, false, false}
+  };
+
+  num_conv_t llp64_conv[] =
+  {
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
+
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
+
+    {"ILong", "ilong", c->i32, 32, true, false},
+    {"ULong", "ulong", c->i32, 32, false, false},
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
+
+    {NULL, NULL, NULL, false, false, false}
+  };
+
+  if(ilp32)
+    conv = ilp32_conv;
 
   if(lp64)
-  {
-    num_conv_t my_conv[] =
-    {
-      {"I8", "i8", c->i8, 8, true, false},
-      {"I16", "i16", c->i16, 16, true, false},
-      {"I32", "i32", c->i32, 32, true, false},
-      {"I64", "i64", c->i64, 64, true, false},
-
-      {"U8", "u8", c->i8, 8, false, false},
-      {"U16", "u16", c->i16, 16, false, false},
-      {"U32", "u32", c->i32, 32, false, false},
-      {"U64", "u64", c->i64, 64, false, false},
-      {"I128", "i128", c->i128, 128, true, false},
-      {"U128", "u128", c->i128, 128, false, false},
-
-      {"ILong", "ilong", c->i64, 64, true, false},
-      {"ULong", "ulong", c->i64, 64, false, false},
-      {"ISize", "isize", c->i64, 64, true, false},
-      {"USize", "usize", c->i64, 64, false, false},
-
-      {"F32", "f32", c->f32, 32, false, true},
-      {"F64", "f64", c->f64, 64, false, true},
-
-      {NULL, NULL, NULL, false, false, false}
-    };
-
-    conv = my_conv;
-  }
-
+    conv = lp64_conv;
 
   if(llp64)
-  {
-    num_conv_t my_conv[] =
-    {
-      {"I8", "i8", c->i8, 8, true, false},
-      {"I16", "i16", c->i16, 16, true, false},
-      {"I32", "i32", c->i32, 32, true, false},
-      {"I64", "i64", c->i64, 64, true, false},
+    conv = llp64_conv;
 
-      {"U8", "u8", c->i8, 8, false, false},
-      {"U16", "u16", c->i16, 16, false, false},
-      {"U32", "u32", c->i32, 32, false, false},
-      {"U64", "u64", c->i64, 64, false, false},
-      {"I128", "i128", c->i128, 128, true, false},
-      {"U128", "u128", c->i128, 128, false, false},
-
-      {"ILong", "ilong", c->i32, 32, true, false},
-      {"ULong", "ulong", c->i32, 32, false, false},
-      {"ISize", "isize", c->i64, 64, true, false},
-      {"USize", "usize", c->i64, 64, false, false},
-
-      {"F32", "f32", c->f32, 32, false, true},
-      {"F64", "f64", c->f64, 64, false, true},
-
-      {NULL, NULL, NULL, false, false, false}
-    };
-
-    conv = my_conv;
-  }
 
   assert(conv != NULL);
 
