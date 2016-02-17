@@ -504,6 +504,7 @@ void codegen_shutdown(pass_opt_t* opt)
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);
 
+  LLVMResetFatalErrorHandler();
   LLVMShutdown();
 }
 

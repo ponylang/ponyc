@@ -243,7 +243,6 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
 
 void PassTest::test_compile(const char* src, const char* pass)
 {
-  package_add_magic("builtin", _builtin_src);
   DO(build_package(pass, src, _first_pkg_path, true, &program));
 
   package = ast_child(program);
@@ -253,7 +252,6 @@ void PassTest::test_compile(const char* src, const char* pass)
 
 void PassTest::test_error(const char* src, const char* pass)
 {
-  package_add_magic("builtin", _builtin_src);
   DO(build_package(pass, src, _first_pkg_path, false, &program));
 
   package = NULL;
@@ -325,17 +323,22 @@ void PassTest::build_package(const char* pass, const char* src,
   ASSERT_NE((void*)NULL, package_name);
   ASSERT_NE((void*)NULL, out_package);
 
-  lexer_allow_test_symbols();
-  package_add_magic(package_name, src);
-
-  free_errors();
-  package_suppress_build_message();
-
   pass_opt_t opt;
   pass_opt_init(&opt);
   package_init(&opt);
+
+  lexer_allow_test_symbols();
+
+  package_add_magic("builtin", _builtin_src);
+
+  package_add_magic(package_name, src);
+
+  package_suppress_build_message();
+
   limit_passes(&opt, pass);
   *out_package = program_load(stringtab(package_name), &opt);
+
+  package_done(&opt, false);
   pass_opt_done(&opt);
 
   if(check_good)
@@ -345,6 +348,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
     ASSERT_NE((void*)NULL, *out_package);
   }
+
 }
 
 
