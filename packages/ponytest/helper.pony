@@ -49,107 +49,120 @@ class val TestHelper
     """
     _runner.fail(msg)
 
-  fun assert_true(actual: Bool, msg: String = ""): Bool =>
+  fun assert_true(actual: Bool, msg: String = "", loc: SourceLoc = __loc)
+    : Bool
+  =>
     """
     Assert that the given expression is true.
     """
     if not actual then
-      fail("Assert true failed. " + msg)
+      fail(_format_loc(loc) + "Assert true failed. " + msg)
       return false
     end
-    log("Assert true passed. " + msg, true)
+    log(_format_loc(loc) + "Assert true passed. " + msg, true)
     true
 
-  fun assert_false(actual: Bool, msg: String = ""): Bool =>
+  fun assert_false(actual: Bool, msg: String = "", loc: SourceLoc = __loc)
+    : Bool
+  =>
     """
     Assert that the given expression is false.
     """
     if actual then
-      fail("Assert false failed. " + msg)
+      fail(_format_loc(loc) + "Assert false failed. " + msg)
       return false
     end
-    log("Assert false passed. " + msg, true)
+    log(_format_loc(loc) + "Assert false passed. " + msg, true)
     true
 
-  fun assert_error(test: ITest box, msg: String = ""): Bool =>
+  fun assert_error(test: ITest box, msg: String = "", loc: SourceLoc = __loc)
+    : Bool
+  =>
     """
     Assert that the given test function throws an error when run.
     """
     try
       test()
-      fail("Assert error failed. " + msg)
+      fail(_format_loc(loc) + "Assert error failed. " + msg)
       false
     else
-      log("Assert error passed. " + msg, true)
+      log(_format_loc(loc) + "Assert error passed. " + msg, true)
       true
     end
 
-  fun assert_is[A](expect: A, actual: A, msg: String = ""): Bool =>
+  fun assert_is[A](expect: A, actual: A, msg: String = "",
+    loc: SourceLoc = __loc): Bool
+  =>
     """
     Assert that the 2 given expressions resolve to the same instance
     """
     let expect' = identityof expect
     let actual' = identityof actual
-    _check_eq[U64]("is", expect', actual', msg)
+    _check_eq[U64]("is", expect', actual', msg, loc)
 
   fun assert_eq[A: (Equatable[A] #read & Stringable #read)]
-    (expect: A, actual: A, msg: String = ""): Bool
+    (expect: A, actual: A, msg: String = "", loc: SourceLoc = __loc): Bool
   =>
     """
     Assert that the 2 given expressions are equal.
     """
-    _check_eq[A]("eq", expect, actual, msg)
+    _check_eq[A]("eq", expect, actual, msg, loc)
 
   fun _check_eq[A: (Equatable[A] #read & Stringable)]
-    (check: String, expect: A, actual: A, msg: String): Bool
+    (check: String, expect: A, actual: A, msg: String, loc: SourceLoc)
+    : Bool
   =>
     """
     Check that the 2 given expressions are equal.
     """
     if expect != actual then
-      fail("Assert " + check + " failed. " + msg +
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
         " Expected (" + expect.string() + ") == (" + actual.string() + ")")
       return false
     end
 
-    log("Assert " + check + " passed. " + msg +
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
-  fun assert_isnt[A](not_expect: A, actual: A, msg: String = ""): Bool =>
+  fun assert_isnt[A](not_expect: A, actual: A, msg: String = "",
+    loc: SourceLoc = __loc): Bool
+  =>
     """
     Assert that the 2 given expressions resolve to different instances.
     """
     let not_expect' = identityof not_expect
     let actual' = identityof actual
-    _check_ne[U64]("isn't", not_expect', actual', msg)
+    _check_ne[U64]("isn't", not_expect', actual', msg, loc)
 
   fun assert_ne[A: (Equatable[A] #read & Stringable #read)]
-    (not_expect: A, actual: A, msg: String = ""): Bool
+    (not_expect: A, actual: A, msg: String = "", loc: SourceLoc = __loc): Bool
   =>
     """
     Assert that the 2 given expressions are not equal.
     """
-    _check_ne[A]("ne", not_expect, actual, msg)
+    _check_ne[A]("ne", not_expect, actual, msg, loc)
 
   fun _check_ne[A: (Equatable[A] #read & Stringable)]
-    (check: String, not_expect: A, actual: A, msg: String): Bool
+    (check: String, not_expect: A, actual: A, msg: String, loc: SourceLoc)
+    : Bool
   =>
     """
     Check that the 2 given expressions are not equal.
     """
     if not_expect == actual then
-      fail("Assert " + check + " failed. " + msg +
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
         " Expected (" + not_expect.string() + ") != (" + actual.string() + ")")
       return false
     end
 
-    log("Assert " + check + " passed. " + msg +
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
       " Got (" + not_expect.string() + ") != (" + actual.string() + ")", true)
     true
 
   fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)]
-    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "",
+    loc: SourceLoc = __loc): Bool
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal.
@@ -175,17 +188,18 @@ class val TestHelper
     end
 
     if not ok then
-      fail("Assert EQ failed. " + msg + " Expected (" +
+      fail(_format_loc(loc) + "Assert EQ failed. " + msg + " Expected (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
       return false
     end
 
-    log("Assert EQ passed. " + msg + " Got (" +
+    log(_format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
       _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
     true
 
   fun assert_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)]
-    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = ""): Bool
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "",
+    loc: SourceLoc = __loc): Bool
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
@@ -217,14 +231,15 @@ class val TestHelper
 
       if (extra.size() != 0) or (missing.size() != 0) then
         fail(
-          "Assert EQ_UNORDERED failed. " + msg + " Expected (" +
+          _format_loc(loc) + "Assert EQ_UNORDERED failed. " + msg +
+          " Expected (" +
           _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
           "\nMissing: " + _print_array[A](missing) +
           "\nExtra: " + _print_array[A](extra))
         return false
       end
       log(
-        "Assert EQ_UNORDERED passed. " + msg + " Got (" +
+        _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
         _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
         true)
       true
@@ -232,6 +247,9 @@ class val TestHelper
       fail("Assert EQ_UNORDERED failed from an internal error.")
       false
     end
+
+  fun _format_loc(loc: SourceLoc): String =>
+    loc.file() + ":" + loc.line().string() + ": "
 
   fun _print_array[A: Stringable #read](array: ReadSeq[A]): String =>
     """
