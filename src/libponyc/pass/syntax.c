@@ -667,7 +667,7 @@ static const char* _illegal_flags[] =
 // Check the given ast is a valid ifdef condition.
 // The context parameter is for error messages and should be a literal string
 // such as "ifdef condition" or "use guard".
-static bool syntax_ifdef_cond(ast_t* ast, const char* context)
+static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(context != NULL);
@@ -694,7 +694,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context)
 
       bool r = true;
       bool result;
-      if(os_is_target(lower_case, true, &result))
+      if(os_is_target(lower_case, true, &result, options))
         r = false;
 
       for(int i = 0; _illegal_flags[i] != NULL; i++)
@@ -717,7 +717,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context)
     {
       const char* name = ast_name(ast_child(ast));
       bool result;
-      if(!os_is_target(name, true, &result))
+      if(!os_is_target(name, true, &result, options))
       {
         ast_error(ast, "\"%s\" is not a valid platform flag\n", name);
         return false;
@@ -743,7 +743,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context)
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
   {
-    if(!syntax_ifdef_cond(p, context))
+    if(!syntax_ifdef_cond(p, context, options))
       return false;
   }
 
@@ -751,18 +751,18 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context)
 }
 
 
-static ast_result_t syntax_ifdef(ast_t* ast)
+static ast_result_t syntax_ifdef(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
 
-  if(!syntax_ifdef_cond(ast_child(ast), "ifdef condition"))
+  if(!syntax_ifdef_cond(ast_child(ast), "ifdef condition", options))
     return AST_ERROR;
 
   return AST_OK;
 }
 
 
-static ast_result_t syntax_use(ast_t* ast)
+static ast_result_t syntax_use(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, url, guard);
@@ -770,7 +770,7 @@ static ast_result_t syntax_use(ast_t* ast)
   if(ast_id(id) != TK_NONE && !check_id_package(id))
     return AST_ERROR;
 
-  if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(guard, "use guard"))
+  if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(guard, "use guard", options))
     return AST_ERROR;
 
   return AST_OK;
@@ -947,8 +947,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_VAR:        r = syntax_local(ast); break;
     case TK_EMBED:      r = syntax_embed(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
-    case TK_IFDEF:      r = syntax_ifdef(ast); break;
-    case TK_USE:        r = syntax_use(ast); break;
+    case TK_IFDEF:      r = syntax_ifdef(ast, options); break;
+    case TK_USE:        r = syntax_use(ast, options); break;
     case TK_LAMBDACAPTURE:
                         r = syntax_lambda_capture(ast); break;
     case TK_COMPILE_INTRINSIC:

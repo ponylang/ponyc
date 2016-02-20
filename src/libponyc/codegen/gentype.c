@@ -4,6 +4,7 @@
 #include "genprim.h"
 #include "gentrace.h"
 #include "genfun.h"
+#include "genopt.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -103,6 +104,10 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
+    bool ilp32 = target_is_ilp32(c->opt->triple);
+    bool llp64 = target_is_llp64(c->opt->triple);
+    bool lp64 = target_is_lp64(c->opt->triple);
+
     if(package == c->str_builtin)
     {
       if(name == c->str_Bool)
@@ -127,34 +132,30 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = c->i128;
       else if(name == c->str_U128)
         g->primitive = c->i128;
-#if defined(PLATFORM_IS_ILP32)
-      else if(name == c->str_ILong)
+      else if(ilp32 && name == c->str_ILong)
         g->primitive = c->i32;
-      else if(name == c->str_ULong)
+      else if(ilp32 && name == c->str_ULong)
         g->primitive = c->i32;
-      else if(name == c->str_ISize)
+      else if(ilp32 && name == c->str_ISize)
         g->primitive = c->i32;
-      else if(name == c->str_USize)
+      else if(ilp32 && name == c->str_USize)
         g->primitive = c->i32;
-#elif defined(PLATFORM_IS_LP64)
-      else if(name == c->str_ILong)
+      else if(lp64 && name == c->str_ILong)
         g->primitive = c->i64;
-      else if(name == c->str_ULong)
+      else if(lp64 && name == c->str_ULong)
         g->primitive = c->i64;
-      else if(name == c->str_ISize)
+      else if(lp64 && name == c->str_ISize)
         g->primitive = c->i64;
-      else if(name == c->str_USize)
+      else if(lp64 && name == c->str_USize)
         g->primitive = c->i64;
-#elif defined(PLATFORM_IS_LLP64)
-      else if(name == c->str_ILong)
+      else if(llp64 && name == c->str_ILong)
         g->primitive = c->i32;
-      else if(name == c->str_ULong)
+      else if(llp64 && name == c->str_ULong)
         g->primitive = c->i32;
-      else if(name == c->str_ISize)
+      else if(llp64 && name == c->str_ISize)
         g->primitive = c->i64;
-      else if(name == c->str_USize)
+      else if(llp64 && name == c->str_USize)
         g->primitive = c->i64;
-#endif
       else if(name == c->str_F32)
         g->primitive = c->f32;
       else if(name == c->str_F64)

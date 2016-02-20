@@ -957,7 +957,7 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
-void package_done(pass_opt_t* opt)
+void package_done(pass_opt_t* opt, bool handle_errors)
 {
   codegen_shutdown(opt);
 
@@ -969,8 +969,11 @@ void package_done(pass_opt_t* opt)
 
   package_clear_magic();
 
-  print_errors();
-  free_errors();
+  if(handle_errors)
+  {
+    print_errors();
+    free_errors();
+  }
 }
 
 
