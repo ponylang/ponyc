@@ -48,79 +48,6 @@ static void name_params(compile_t* c, ast_t* type, ast_t* params,
   }
 }
 
-static bool gen_field_init(compile_t* c, gentype_t* g)
-{
-  LLVMValueRef this_ptr = LLVMGetParam(codegen_fun(c), 0);
-
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  // Struct index of the current field.
-  int index = 1;
-
-  if(ast_id(def) == TK_ACTOR)
-    index++;
-
-  // Iterate through all fields.
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        // Skip this field if it has no initialiser.
-        AST_GET_CHILDREN(member, id, type, body);
-
-        if(ast_id(body) != TK_NONE)
-        {
-          // Reify the initialiser.
-          ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
-          ast_t* var = lookup(NULL, NULL, this_type, ast_name(id));
-          ast_free_unattached(this_type);
-
-          assert(var != NULL);
-          body = ast_childidx(var, 2);
-
-          // TODO: embed fields
-
-          // Get the field pointer.
-          dwarf_location(&c->dwarf, body);
-          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr,
-            index, "");
-
-          // Cast the initialiser to the field type.
-          LLVMValueRef r_value = gen_expr(c, body);
-
-          if(r_value == NULL)
-            return false;
-
-          LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-          LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value,
-            ast_type(body));
-
-          if(cast_value == NULL)
-            return false;
-
-          // Store the result.
-          LLVMBuildStore(c->builder, cast_value, l_value);
-        }
-
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return true;
-}
-
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
@@ -131,7 +58,7 @@ static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
   if(typeargs != NULL)
   {
     ast_t* typeparams = ast_childidx(fun, 2);
-    ast_t* r_fun = reify(typeparams, fun, typeparams, typeargs);
+    ast_t* r_fun = reify(fun, typeparams, typeargs);
     ast_free_unattached(fun);
     fun = r_fun;
     assert(fun != NULL);
@@ -156,7 +83,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
 
-  size_t buf_size = count *sizeof(LLVMTypeRef);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
   count = 0;
 
@@ -240,7 +167,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(ftype);
-    size_t buf_size = count *sizeof(LLVMTypeRef);
+    size_t buf_size = count * sizeof(LLVMTypeRef);
     LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
     LLVMGetParamTypes(ftype, tparams);
 
@@ -331,7 +258,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   int count = LLVMCountParamTypes(f_type) + 2;
 
-  size_t buf_size = count *sizeof(LLVMTypeRef);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, &f_params[2]);
 
@@ -345,7 +272,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   pool_free_size(buf_size, f_params);
 
   // Allocate the message, setting its size and ID.
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   LLVMValueRef args[3];
 
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
@@ -500,6 +427,9 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
+  if(!strcmp(name, "_final"))
+    LLVMSetFunctionCallConv(func, LLVMCCallConv);
+
   codegen_startfun(c, func, ast_debug(fun));
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
@@ -599,12 +529,6 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
-  if(!gen_field_init(c, g))
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
-
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
 
@@ -617,7 +541,10 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   genfun_dwarf_return(c, body);
 
   // Return 'this'.
-  LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
+  if(g->primitive == NULL)
+    value = LLVMGetParam(func, 0);
+
+  LLVMBuildRet(c->builder, value);
   codegen_finishfun(c);
 
   ast_free_unattached(fun);
@@ -639,12 +566,6 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   codegen_startfun(c, func, ast_debug(fun));
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
-
-  if(!gen_field_init(c, g))
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
@@ -683,7 +604,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
 static bool genfun_allocator(compile_t* c, gentype_t* g)
 {
   // No allocator for primitive types or pointers.
-  if((g->primitive != NULL) || is_pointer(g->ast))
+  if((g->primitive != NULL) || is_pointer(g->ast) || is_maybe(g->ast))
     return true;
 
   const char* funname = genname_fun(g->type_name, "Alloc", NULL);
@@ -696,6 +617,7 @@ static bool genfun_allocator(compile_t* c, gentype_t* g)
   switch(g->underlying)
   {
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
       // Allocate the object or return the global instance.
       result = gencall_alloc(c, g);

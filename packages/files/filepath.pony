@@ -1,5 +1,11 @@
 use "time"
 
+interface WalkHandler
+  """
+  A handler for `FilePath.walk`.
+  """
+  fun ref apply(dir_path: FilePath, dir_entries: Array[String] ref)
+
 class val FilePath
   """
   A FilePath represents a capability to access a path. The path will be
@@ -43,6 +49,38 @@ class val FilePath
       error
     end
 
+  new val mkdtemp(base: (FilePath | AmbientAuth | None), prefix: String = "",
+    caps': FileCaps val = recover val FileCaps.all() end) ?
+  =>
+    """
+    Create a temporary directory and returns a path to it. The directory's name
+    will begin with `prefix`. The caller must either provide the root
+    capability or an existing FilePath.
+
+    If AmbientAuth is provided, pattern will be relative to the program's
+    working directory. Otherwise, it will be relative to the existing
+    FilePath, and the existing FilePath must be a prefix of the resulting path.
+
+    The resulting FilePath will have capabilities that are the intersection of
+    the supplied capabilities and the capabilities on the base.
+    """
+    (let dir, let pre) = Path.split(prefix)
+    let parent = FilePath(base, dir)
+
+    if not parent.mkdir() then
+      error
+    end
+
+    var temp = FilePath(parent, pre + Path.random())
+
+    while not temp.mkdir(true) do
+      temp = FilePath(parent, pre + Path.random())
+    end
+
+    caps.union(caps')
+    caps.intersect(temp.caps)
+    path = temp.path
+
   new val _create(path': String, caps': FileCaps val) =>
     """
     Internal constructor.
@@ -56,6 +94,28 @@ class val FilePath
     Return a new path relative to this one.
     """
     create(this, path', caps')
+
+  fun val walk(handler: WalkHandler ref, follow_links: Bool = false) =>
+    """
+    Walks a directory structure starting at this.
+
+    `handler(dir_path, dir_entries)` will be called for each directory
+    starting with this one.  The handler can control which subdirectories are
+    expanded by removing them from the `dir_entries` list.
+    """
+    try
+      var entries: Array[String] ref = Directory(this).entries()
+      handler(this, entries)
+      for e in entries.values() do
+        let p = this.join(e)
+        if not follow_links and FileInfo(p).symlink then
+          continue
+        end
+        p.walk(handler, follow_links)
+      end
+    else
+      return
+    end
 
   fun val canonical(): FilePath ? =>
     """
@@ -74,7 +134,7 @@ class val FilePath
       false
     end
 
-  fun val mkdir(): Bool =>
+  fun val mkdir(must_create: Bool = false): Bool =>
     """
     Creates the directory. Will recursively create each element. Returns true
     if the directory exists when we're done, false if it does not. If we do not
@@ -85,21 +145,33 @@ class val FilePath
       return false
     end
 
-    var offset: I64 = 0
+    var offset: ISize = 0
 
     repeat
       let element = try
         offset = path.find(Path.sep(), offset) + 1
-        path.substring(0, offset - 2)
+        path.substring(0, offset - 1)
       else
         offset = -1
         path
       end
 
-      if Platform.windows() then
-        @_mkdir[I32](element.cstring())
-      else
-        @mkdir[I32](element.cstring(), U32(0x1FF))
+      if element.size() > 0 then
+        let r = ifdef windows then
+          @_mkdir[I32](element.cstring())
+        else
+          @mkdir[I32](element.cstring(), U32(0x1FF))
+        end
+
+        if r != 0 then
+          if @os_errno[I32]() != @os_eexist[I32]() then
+            return false
+          end
+
+          if must_create and (offset < 0) then
+            return false
+          end
+        end
       end
     until offset < 0 end
 
@@ -131,7 +203,7 @@ class val FilePath
         end
       end
 
-      if Platform.windows() then
+      ifdef windows then
         if info.directory and not info.symlink then
           @_rmdir[I32](path.cstring()) == 0
         else
@@ -166,7 +238,7 @@ class val FilePath
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring()) != 0
     else
       @symlink[I32](path.cstring(), link_name.path.cstring()) == 0
@@ -182,7 +254,7 @@ class val FilePath
 
     let m = mode._os()
 
-    if Platform.windows() then
+    ifdef windows then
       @_chmod[I32](path.cstring(), m) == 0
     else
       @chmod[I32](path.cstring(), m) == 0
@@ -192,10 +264,14 @@ class val FilePath
     """
     Set the owner and group for a path. Does nothing on Windows.
     """
-    if not caps(FileChown) or Platform.windows() then
+    ifdef windows then
       false
     else
-      @chown[I32](path.cstring(), uid, gid) == 0
+      if caps(FileChown) then
+        @chown[I32](path.cstring(), uid, gid) == 0
+      else
+        false
+      end
     end
 
   fun touch(): Bool =>
@@ -212,11 +288,12 @@ class val FilePath
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       var tv: (I64, I64) = (atime._1, mtime._1)
       @_utime64[I32](path.cstring(), addressof tv) == 0
     else
-      var tv: (I64, I64, I64, I64) =
-        (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
+      var tv: (ILong, ILong, ILong, ILong) =
+        (atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000)
       @utimes[I32](path.cstring(), addressof tv) == 0
     end

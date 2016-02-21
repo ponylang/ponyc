@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members
@@ -34,7 +34,7 @@ field
   ;
 
 method
-  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 rawseq
@@ -60,7 +60,7 @@ semiexpr
   ;
 
 jump
-  : ('return' | 'break' | 'continue' | 'error' | 'compiler_intrinsic') rawseq?
+  : ('return' | 'break' | 'continue' | 'error' | 'compile_intrinsic' | 'compile_error') rawseq?
   ;
 
 nextassignment
@@ -84,8 +84,8 @@ binop
   ;
 
 nextterm
-  : ('var' | 'let' | 'embed') ID (':' type)?
-  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
   | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
@@ -94,13 +94,13 @@ nextterm
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | 'addressof' | MINUS_NEW | 'identityof') term
-  | nextpostfix
+  | nextpattern
+  | '#' postfix
   ;
 
 term
-  : ('var' | 'let' | 'embed') ID (':' type)?
-  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
   | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
@@ -109,8 +109,8 @@ term
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') term
-  | postfix
+  | pattern
+  | '#' postfix
   ;
 
 withelem
@@ -118,7 +118,11 @@ withelem
   ;
 
 caseexpr
-  : '|' infix? ('where' rawseq)? ('=>' rawseq)?
+  : '|' pattern? ('if' rawseq)? ('=>' rawseq)?
+  ;
+
+elseifdef
+  : 'elseif' infix 'then' rawseq (elseifdef | ('else' rawseq))?
   ;
 
 elseif
@@ -128,7 +132,32 @@ elseif
 idseq
   : ID
   | '_'
-  | ('(' | LPAREN_NEW) idseq (',' idseq)* ')'
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  ;
+
+idseq_in_seq
+  : ID
+  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  ;
+
+nextpattern
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | nextparampattern
+  ;
+
+pattern
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | parampattern
+  ;
+
+nextparampattern
+  : ('not' | 'addressof' | MINUS_NEW | 'identityof') parampattern
+  | nextpostfix
+  ;
+
+parampattern
+  : ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') parampattern
+  | postfix
   ;
 
 nextpostfix
@@ -153,31 +182,24 @@ dot
 
 nextatom
   : ID
+  | 'this'
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
-  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 
 atom
   : ID
+  | 'this'
   | literal
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
-  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
-  ;
-
-literal
-  : 'this'
-  | 'true'
-  | 'false'
-  | INT
-  | FLOAT
-  | STRING
   ;
 
 tuple
@@ -210,9 +232,14 @@ type
 
 atomtype
   : 'this'
-  | 'box'
+  | cap
   | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
   | nominal
+  | lambdatype
+  ;
+
+lambdatype
+  : '{' cap? ID? typeparams? ('(' | LPAREN_NEW) (type (',' type)*)? ')' (':' type)? '?'? '}' (cap | gencap)? ('^' | '!')?
   ;
 
 tupletype
@@ -252,7 +279,7 @@ cap
   ;
 
 typeargs
-  : '[' type (',' type)* ']'
+  : '[' typearg (',' typearg)* ']'
   ;
 
 typeparams
@@ -264,11 +291,25 @@ params
   ;
 
 typeparam
-  : ID (':' type)? ('=' type)?
+  : ID (':' type)? ('=' typearg)?
+  ;
+
+typearg
+  : type
+  | literal
+  | '#' postfix
+  ;
+
+literal
+  : 'true'
+  | 'false'
+  | INT
+  | FLOAT
+  | STRING
   ;
 
 param
-  : ID ':' type ('=' infix)?
+  : (parampattern | '_') (':' type)? ('=' infix)?
   ;
 
 antlr_0

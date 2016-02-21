@@ -2,13 +2,12 @@ class _Then[A: Any #share, B: Any #share]
   """
   A step in a promise pipeline.
   """
-  let _fulfill: (Fulfill[A, B] | None)
-  let _rejected: (Reject[B] | None)
+  let _fulfill: Fulfill[A, B]
+  let _rejected: Reject[B]
   let _promise: Promise[B]
   var _active: Bool = true
 
-  new iso create(fulfill: (Fulfill[A, B] | None) = None,
-    rejected: (Reject[B] | None) = None)
+  new iso create(fulfill: Fulfill[A, B], rejected: Reject[B])
   =>
     """
     A step is represented by a fulfill function and a reject function.
@@ -31,7 +30,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise((_fulfill as Fulfill[A, B])(value))
+        _promise(_fulfill(value))
       else
         _promise.reject()
       end
@@ -45,7 +44,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise((_rejected as Reject[B])())
+        _promise(_rejected())
       else
         _promise.reject()
       end

@@ -5,8 +5,11 @@ The PonyTest package provides a unit testing framework. It is designed to be as
 simple as possible to use, both for the unit test writer and the user running
 the tests.
 
-To help simplify test writing and distribution this package depends on no other
-packages (except builtin).
+To help simplify test writing and distribution this package depends on as few
+other packages as possible. Currently the required packages are:
+  builtin
+  time
+  collections
 
 Each unit test is a class, with a single test function. By default all tests
 run concurrently.
@@ -16,8 +19,7 @@ assertion functions. By default log messages are only shown for tests that
 fail.
 
 When any assertion function fails the test is counted as a fail. However, tests
-can also indicate failure by return false or throwing errors from the test
-function.
+can also indicate failure by raising an error in the test function.
 
 ## Example program
 
@@ -44,23 +46,21 @@ actor Main is TestList
 class iso _TestAdd is UnitTest
   fun name():String => "addition"
 
-  fun apply(h: TestHelper): TestResult =>
+  fun apply(h: TestHelper) =>
     h.assert_eq[U32](4, 2 + 2)
-    true
 
 class iso _TestSub is UnitTest
   fun name():String => "subtraction"
 
-  fun apply(h: TestHelper): TestResult =>
+  fun apply(h: TestHelper) =>
     h.assert_eq[U32](2, 4 - 2)
-    true
 ```
 
 The make() constructor is not needed for this example. However, it allows for
 easy aggregation of tests (see below) so it is recommended that all test Mains
 provide it.
 
-Main.create() is called only for program invocations on the current pacakge.
+Main.create() is called only for program invocations on the current package.
 Main.make() is called during aggregation. If so desired extra code can be added
 to either of these constructors to perform additional tasks.
 
@@ -107,19 +107,35 @@ contain any combination of its own tests and aggregated lists.
 ## Long tests
 
 Simple tests run within a single function. When that function exits, either
-returning a result or throwing an error, the test is complete. This is not
-viable for tests that need to use actors.
+returning or raising an error, the test is complete. This is not viable for
+tests that need to use actors.
 
-Long tests allow for delayed completion. Any test can return LongTest from its
-test function, indicating that the test needs to keep running. When the test is
-finally complete it calls the complete() function on its TestHelper.
+Long tests allow for delayed completion. Any test can call long_test() on its
+TestHelper to indicate that it needs to keep running. When the test is finally
+complete it calls complete() on its TestHelper.
 
 The complete() function takes a Bool parameter to specify whether the test was
 a success. If any asserts fail then the test will be considered a failure
 regardless of the value of this parameter. However, complete() must still be
 called.
 
-Tests that do not return LongTest can still call complete(), but it is ignored.
+Since failing tests may hang, a timeout must be specified for each long test.
+When the test function exits a timer is started with the specified timeout. If
+this timer fires before complete() is called the test is marked as a failure
+and the timeout is reported.
+
+On a timeout the timed_out() function is called on the unit test object. This
+should perform whatever test specific tidy up is required to allow the program
+to exit. There is no need to call complete() if a timeout occurs, although it
+is not an error to do so.
+
+Note that the timeout is only relevant when a test hangs and would otherwise
+prevent the test program from completing. Setting a very long timeout on tests
+that should not be able to hang is perfectly acceptable and will not make the
+test take any longer if successful.
+
+Timeouts should not be used as the standard method of detecting if a test has
+failed.
 
 ## Exclusion groups
 
@@ -137,8 +153,27 @@ concurrently with any other tests.
 The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
- """
 
+## Tear down
+
+Each unit test object may define a tear_down() function. This is called after
+the test has finished to allow tearing down of any complex environment that had
+to be set up for the test.
+
+The tear_down() function is called for each test regardless of whether it
+passed or failed. If a test times out tear_down() will be called after
+timed_out() returns.
+
+When a test is in an exclusion group, the tear_down() call is considered part
+of the tests run. The next test in the exclusion group will not start until
+after tear_down() returns on the current test.
+
+The test's TestHelper is handed to tear_down() and it is permitted to log
+messages and call assert functions during tear down.
+
+"""
+
+use "time"
 
 actor PonyTest
   """
@@ -149,14 +184,15 @@ actor PonyTest
   let _groups: Array[(String, _Group)] = Array[(String, _Group)]
   let _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
+  let _timers: Timers = Timers
   var _do_nothing: Bool = false
   var _filter: String = ""
   var _verbose: Bool = false
   var _sequential: Bool = false
   var _no_prog: Bool = false
   var _list_only: Bool = false
-  var _started: U64 = 0
-  var _finished: U64 = 0
+  var _started: USize = 0
+  var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
 
@@ -198,7 +234,8 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    group(TestHelper._create(this, index, consume test, group, _verbose))
+    group(_TestRunner(this, index, consume test, group, _verbose, _env,
+      _timers))
 
   fun ref _find_group(group_name: String): _Group =>
     """
@@ -225,7 +262,7 @@ actor PonyTest
     _groups.push((name, g))
     g
 
-  be _test_started(id: U64) =>
+  be _test_started(id: USize) =>
     """
     A test has started running, update status info.
     The id parameter is the test identifier handed out when we created the test
@@ -241,7 +278,7 @@ actor PonyTest
       end
     end
 
-  be _test_complete(id: U64, pass: Bool, log: Array[String] val) =>
+  be _test_complete(id: USize, pass: Bool, log: Array[String] val) =>
     """
     A test has completed, restore its result and update our status info.
     The id parameter is the test identifier handed out when we created the test
@@ -325,7 +362,7 @@ actor PonyTest
           "start with the given prefix.")
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")
-        _env.out.print("  --no_prog         - Do not print progress messages.")
+        _env.out.print("  --noprog          - Do not print progress messages.")
         _env.out.print("  --list            - List but do not run tests.")
         _do_nothing = true
         return
@@ -336,8 +373,8 @@ actor PonyTest
     """
     The tests are all complete, print out the results.
     """
-    var pass_count: U64 = 0
-    var fail_count: U64 = 0
+    var pass_count: USize = 0
+    var fail_count: USize = 0
 
     // First we print the result summary for each test, in the order that they
     // were given to us.
@@ -372,7 +409,7 @@ actor PonyTest
 
     _env.exitcode(-1)
 
-  fun _plural(n: U64): String =>
+  fun _plural(n: USize): String =>
     """
     Return a "s" or an empty string depending on whether the given number is 1.
     For use when printing possibly plural words, eg "test" or "tests".

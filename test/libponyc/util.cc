@@ -2,6 +2,7 @@
 #include <platform.h>
 
 #include <ast/ast.h>
+#include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
 #include <pass/pass.h>
@@ -17,63 +18,48 @@ using std::string;
 
 static const char* _builtin =
   "primitive U8\n"
+  "  new create() => 0\n"
   "primitive I8\n"
-  "  fun neg():I8 => compiler_intrinsic\n"
+  "  new create() => 0\n"
+  "  fun neg():I8 => -this\n"
   "primitive U16\n"
+  "  new create() => 0\n"
   "primitive I16\n"
-  "  fun neg():I16 => compiler_intrinsic\n"
+  "  new create() => 0\n"
+  "  fun neg():I16 => -this\n"
   "primitive U32\n"
+  "  new create() => 0\n"
   "primitive I32\n"
-  "  fun neg():I32 => compiler_intrinsic\n"
+  "  new create() => 0\n"
+  "  fun neg():I32 => -this\n"
   "primitive U64\n"
+  "  new create() => 0\n"
   "primitive I64\n"
-  "  fun neg():I64 => compiler_intrinsic\n"
+  "  new create() => 0\n"
+  "  fun neg():I64 => -this\n"
   "primitive U128\n"
+  "  new create() => 0\n"
   "primitive I128\n"
-  "  fun neg():I128 => compiler_intrinsic\n"
+  "  new create() => 0\n"
+  "  fun neg():I128 => -this\n"
+  "primitive ULong\n"
+  "  new create() => 0\n"
+  "primitive ILong\n"
+  "  new create() => 0\n"
+  "  fun neg():ILong => -this\n"
+  "primitive USize\n"
+  "  new create() => 0\n"
+  "primitive ISize\n"
+  "  new create() => 0\n"
+  "  fun neg():ISize => -this\n"
   "primitive F32\n"
+  "  new create() => 0\n"
   "primitive F64\n"
+  "  new create() => 0\n"
   "primitive None\n"
   "primitive Bool\n"
-  "class Pointer[A]";
-
-
-// Replace any underscores in the given type string with "DontCare" and append
-// it to the other given string
-static void append_type(const char* type, string* target)
-{
-  assert(type != NULL);
-  assert(target != NULL);
-
-  for(const char* p = type; *p != '\0'; p++)
-  {
-    if(*p == '_')
-      target->append("DontCare");
-    else
-      target->push_back(*p);
-  }
-}
-
-
-// Replace any nominal references to "DontCare" in the given AST with
-// TK_DONTCAREs
-static void replace_dontcares(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  if(ast_id(ast) == TK_NOMINAL)
-  {
-    if(strcmp(ast_name(ast_childidx(ast, 1)), "DontCare") == 0)
-    {
-      ast_erase(ast);
-      ast_setid(ast, TK_DONTCARE);
-      return;
-    }
-  }
-
-  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-    replace_dontcares(p);
-}
+  "class val String\n"
+  "class Pointer[A]\n";
 
 
 // Check whether the 2 given ASTs are identical
@@ -93,11 +79,16 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
     return false;
   }
 
+  // Even in 2 ASTS that we consider to be the same, hygenic ids might not
+  // match each other.
+  // To catch all possible error cases we should keep a mapping of the hygenic
+  // ids in the 2 trees and check for a 1 to 1 correlation.
+  // For now just let all hygenic ids match each other. This will allow some
+  // errors through, but it's much easier for now.
   if(ast_id(expected) == TK_ID && ast_name(actual)[0] == '$' &&
-    (strncmp(ast_name(expected), "hygid", 5) == 0 ||
-    strncmp(ast_name(expected), "Hygid", 5) == 0))
+    ast_name(expected)[0] == '$')
   {
-    // Allow expected name starting "hygid" to match any hygenic ID
+    // Allow expected and actual hygenic names to match.
   }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
@@ -180,11 +171,6 @@ void PassTest::SetUp()
   program = NULL;
   package = NULL;
   module = NULL;
-  walk_ast = NULL;
-  prog_type_1 = NULL;
-  prog_type_2 = NULL;
-  prog_type_3 = NULL;
-  prog_type_4 = NULL;
   _builtin_src = _builtin;
   _first_pkg_path = "prog";
   package_clear_magic();
@@ -199,11 +185,6 @@ void PassTest::TearDown()
   program = NULL;
   package = NULL;
   module = NULL;
-  walk_ast = NULL;
-  prog_type_1 = NULL;
-  prog_type_2 = NULL;
-  prog_type_3 = NULL;
-  prog_type_4 = NULL;
 }
 
 
@@ -260,66 +241,6 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
 }
 
 
-void PassTest::generate_types(const char* extra_src, const char* type1,
-  const char* type2, const char* type3,
-  const char* typeparam1_name, const char* tp1_constraint,
-  const char* typeparam2_name, const char* tp2_constraint)
-{
-  assert(extra_src != NULL);
-  assert(type1 != NULL);
-
-  if(type2 == NULL) type2 = "None";
-  if(type3 == NULL) type3 = "None";
-  if(typeparam1_name == NULL) typeparam1_name = "TP1";
-  if(typeparam2_name == NULL) typeparam2_name = "TP2";
-
-  // First setup our program source
-  string prog_src =
-    "primitive DontCare\n"
-    "actor GenTypes[";
-
-  prog_src += typeparam1_name;
-
-  if(tp1_constraint != NULL)
-    prog_src += string(": ") + tp1_constraint;
-
-  prog_src += string(", ") + typeparam2_name;
-
-  if(tp2_constraint != NULL)
-    prog_src += string(": ") + tp2_constraint;
-
-  prog_src += "]\n";
-  prog_src += "  fun f(p1: ";
-  append_type(type1, &prog_src);
-  prog_src += ", p2: ";
-  append_type(type2, &prog_src);
-  prog_src += ", p3: ";
-  append_type(type3, &prog_src);
-  prog_src += ") => None\n\n";
-  prog_src += extra_src;
-
-  // Next build our program
-  DO(test_compile(prog_src.c_str(), "expr"));
-
-  // Finally, extract the resulting type ASTs
-  DO(lookup_member("GenTypes", "f", TK_FUN));
-  DO(child(3); check(TK_PARAMS));
-  ast_t* params = walk_ast;
-  replace_dontcares(params);
-
-  DO(child(0); child(1));
-  prog_type_1 = walk_ast;
-
-  DO(walk(params); child(1); child(1));
-  prog_type_2 = walk_ast;
-
-  DO(walk(params); child(2); child(1));
-  prog_type_3 = walk_ast;
-}
-
-
-// Test methods
-
 void PassTest::test_compile(const char* src, const char* pass)
 {
   package_add_magic("builtin", _builtin_src);
@@ -355,169 +276,42 @@ void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
 }
 
 
-// Walk methods
-
-void PassTest::walk(ast_t* start)
+ast_t* PassTest::type_of(const char* name)
 {
-  ASSERT_NE((void*)NULL, start);
-  walk_ast = start;
+  assert(name != NULL);
+  assert(program != NULL);
+  return type_of_within(program, name);
 }
 
 
-void PassTest::child(size_t index)
+ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
 {
-  ASSERT_NE((void*)NULL, walk_ast);
+  assert(ast != NULL);
+  assert(name != NULL);
 
-  if(index >= ast_childcount(walk_ast))
-  {
-    printf("Cannot find child index %lu, only %lu children present\n", index,
-      ast_childcount(walk_ast));
-    ASSERT_TRUE(false);
-  }
-
-  walk_ast = ast_childidx(walk_ast, index);
-  ASSERT_NE((void*)NULL, walk_ast);
-}
-
-
-void PassTest::sibling()
-{
-  ASSERT_NE((void*)NULL, walk_ast);
-  walk_ast = ast_sibling(walk_ast);
-}
-
-
-void PassTest::parent()
-{
-  ASSERT_NE((void*)NULL, walk_ast);
-  walk_ast = ast_parent(walk_ast);
-}
-
-
-void PassTest::type()
-{
-  ASSERT_NE((void*)NULL, walk_ast);
-  walk_ast = ast_type(walk_ast);
-}
-
-
-void PassTest::check(token_id expected_id)
-{
-  ASSERT_NE((void*)NULL, walk_ast);
-  ASSERT_EQ(expected_id, ast_id(walk_ast));
-}
-
-
-// Lookup methods
-
-void PassTest::lookup_in(ast_t* ast, const char* name)
-{
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_NE((void*)NULL, name);
-
-  walk_ast = NULL;
   symtab_t* symtab = ast_get_symtab(ast);
+  assert(symtab != NULL);
 
-  if(symtab == NULL)
-  {
-    printf("Cannot lookup \"%s\", node has no symbol table\n", name);
-    ASSERT_TRUE(false);
-  }
-
-  walk_ast = (ast_t*)symtab_find(symtab, stringtab(name), NULL);
+  return symtab_find(symtab, stringtab(name), NULL);
 }
 
 
-void PassTest::lookup_in(ast_t* ast, const char* name, token_id expected_id)
+ast_t* PassTest::lookup_type(const char* name)
 {
-  DO(lookup_in(ast, name));
-
-  if(walk_ast == NULL)
-  {
-    printf("Expected symtab entry for \"%s\" not found\n", name);
-    ASSERT_TRUE(false);
-  }
-
-  ASSERT_EQ(expected_id, ast_id(walk_ast));
+  assert(package != NULL);
+  return lookup_in(package, name);
 }
 
 
-void PassTest::lookup(const char* name)
+ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 {
-  ASSERT_NE((void*)NULL, walk_ast);
-  lookup_in(walk_ast, name);
-}
+  assert(type_name != NULL);
+  assert(member_name != NULL);
 
+  ast_t* type = lookup_type(type_name);
+  assert(type != NULL);
 
-void PassTest::lookup(const char* name, token_id expected_id)
-{
-  ASSERT_NE((void*)NULL, walk_ast);
-  lookup_in(walk_ast, name, expected_id);
-}
-
-
-void PassTest::lookup_type(const char* name)
-{
-  ASSERT_NE((void*)NULL, name);
-  ASSERT_NE((void*)NULL, package);
-
-  walk_ast = NULL;
-  symtab_t* symtab = ast_get_symtab(package);
-  ASSERT_NE((void*)NULL, symtab);
-
-  walk_ast = (ast_t*)symtab_find(symtab, stringtab(name), NULL);
-}
-
-
-void PassTest::lookup_type(const char* name, token_id expected_id)
-{
-  ASSERT_NE((void*)NULL, name);
-  ASSERT_NE((void*)NULL, package);
-
-  DO(lookup_type(name));
-
-  if(walk_ast == NULL)
-  {
-    printf("Expected type \"%s\" not found\n", name);
-    ASSERT_TRUE(false);
-  }
-
-  ASSERT_EQ(expected_id, ast_id(walk_ast));
-}
-
-
-void PassTest::lookup_member(const char* type_name, const char* member_name)
-{
-  ASSERT_NE((void*)NULL, type_name);
-  ASSERT_NE((void*)NULL, member_name);
-  ASSERT_NE((void*)NULL, package);
-
-  DO(lookup_type(type_name));
-  ASSERT_NE((void*)NULL, walk_ast);
-
-  // Lookup method
-  symtab_t* symtab = ast_get_symtab(walk_ast);
-  ASSERT_NE((void*)NULL, symtab);
-
-  walk_ast = (ast_t*)symtab_find(symtab, stringtab(member_name), NULL);
-}
-
-
-void PassTest::lookup_member(const char* type_name, const char* member_name,
-  token_id expected_id)
-{
-  ASSERT_NE((void*)NULL, type_name);
-  ASSERT_NE((void*)NULL, member_name);
-
-  DO(lookup_member(type_name, member_name));
-
-  if(walk_ast == NULL)
-  {
-    printf("Expected member \"%s.%s\" not found\n", type_name, member_name);
-    ASSERT_TRUE(false);
-  }
-
-  ASSERT_EQ(expected_id, ast_id(walk_ast));
+  return lookup_in(type, member_name);
 }
 
 
@@ -531,6 +325,7 @@ void PassTest::build_package(const char* pass, const char* src,
   ASSERT_NE((void*)NULL, package_name);
   ASSERT_NE((void*)NULL, out_package);
 
+  lexer_allow_test_symbols();
   package_add_magic(package_name, src);
 
   free_errors();
@@ -549,4 +344,43 @@ void PassTest::build_package(const char* pass, const char* src,
 
     ASSERT_NE((void*)NULL, *out_package);
   }
+}
+
+
+ast_t* PassTest::type_of_within(ast_t* ast, const char* name)
+{
+  assert(ast != NULL);
+  assert(name != NULL);
+
+  // Is this node the definition we're looking for?
+  switch(ast_id(ast))
+  {
+    case TK_PARAM:
+    case TK_LET:
+    case TK_VAR:
+    case TK_FLET:
+    case TK_FVAR:
+      if(strcmp(name, ast_name(ast_child(ast))) == 0)
+      {
+        // Match found
+        return ast_childidx(ast, 1);
+      }
+
+      break;
+
+    default:
+      break;
+  }
+
+  // Check children.
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  {
+    ast_t* r = type_of_within(p, name);
+
+    if(r != NULL)
+      return r;
+  }
+
+  // Not found.
+  return NULL;
 }

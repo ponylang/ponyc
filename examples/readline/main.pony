@@ -37,16 +37,10 @@ actor Main
     let term = ANSITerm(Readline(recover Handler end, env.out), env.input)
     term.prompt("0 > ")
 
-    let notify = recover
-      object
-        let term: ANSITerm = term
-
-        fun ref apply(data: Array[U8] iso) =>
-          term(consume data)
-
-        fun ref dispose() =>
-          term.dispose()
-      end
+    let notify = object iso
+      let term: ANSITerm = term
+      fun ref apply(data: Array[U8] iso) => term(consume data)
+      fun ref dispose() => term.dispose()
     end
 
     env.input(consume notify)

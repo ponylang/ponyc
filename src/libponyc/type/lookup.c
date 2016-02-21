@@ -53,25 +53,28 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
       case TK_FUN:
       {
         // Typecheck default args immediately.
-        AST_GET_CHILDREN(find, cap, id, typeparams, params);
-        ast_t* param = ast_child(params);
-
-        while(param != NULL)
+        if(opt != NULL)
         {
-          AST_GET_CHILDREN(param, name, type, def_arg);
+          AST_GET_CHILDREN(find, cap, id, typeparams, params);
+          ast_t* param = ast_child(params);
 
-          if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+          while(param != NULL)
           {
-            ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
+            AST_GET_CHILDREN(param, name, type, def_arg);
 
-            if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
-              PASS_EXPR) != AST_OK)
-              return false;
+            if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+            {
+              ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
 
-            ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
+              if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
+                PASS_EXPR) != AST_OK)
+                return false;
+
+              ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
+            }
+
+            param = ast_sibling(param);
           }
-
-          param = ast_sibling(param);
         }
         break;
       }
@@ -148,30 +151,10 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   }
 
   ast_t* typeargs = ast_childidx(type, 2);
-
-  find = ast_dup(find);
-  orig = ast_dup(orig);
-  replace_thistype(&find, orig);
-  ast_free_unattached(orig);
-
-  ast_t* r_find = reify(from, find, typeparams, typeargs);
-
-  if(r_find != find)
-  {
-    ast_free_unattached(find);
-    find = r_find;
-  }
-
-  if((find != NULL) && !flatten_arrows(&find, errors))
-  {
-    if(errors)
-      ast_error(from, "can't look this up on a tag");
-
-    ast_free_unattached(find);
-    return NULL;
-  }
-
-  return find;
+  ast_t* r_find = viewpoint_replacethis(find, orig);
+  ast_t* rr_find = reify(r_find, typeparams, typeargs);
+  ast_free_unattached(r_find);
+  return rr_find;
 }
 
 static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
@@ -210,7 +193,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
       while(child != NULL)
       {
-        ast_t* r = lookup_base(opt, from, orig, child, name, errors);
+        ast_t* r = lookup_base(opt, from, child, child, name, errors);
 
         if(r == NULL)
         {
@@ -243,8 +226,8 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
               {
                 // If we don't have a result yet, use this one.
                 result = r;
-              } else if(!is_subtype(r, result)) {
-                if(is_subtype(result, r))
+              } else if(!is_subtype(r, result, NULL)) {
+                if(is_subtype(result, r, NULL))
                 {
                   // Use the supertype function. Require the most specific
                   // arguments and return the least specific result.
@@ -290,7 +273,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
       while(child != NULL)
       {
-        ast_t* r = lookup_base(opt, from, orig, child, name, false);
+        ast_t* r = lookup_base(opt, from, child, child, name, false);
 
         if(r != NULL)
         {
@@ -307,8 +290,8 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
               {
                 // If we don't have a result yet, use this one.
                 result = r;
-              } else if(!is_subtype(result, r)) {
-                if(is_subtype(r, result))
+              } else if(!is_subtype(result, r, NULL)) {
+                if(is_subtype(r, result, NULL))
                 {
                   // Use the subtype function. Require the least specific
                   // arguments and return the most specific result.

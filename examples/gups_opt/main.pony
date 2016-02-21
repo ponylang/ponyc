@@ -3,10 +3,10 @@ use "time"
 use "collections"
 
 class Config
-  var logtable: U64 = 20
-  var iterate: U64 = 10000
-  var logchunk: U64 = 10
-  var logactors: U64 = 2
+  var logtable: USize = 20
+  var iterate: USize = 10000
+  var logchunk: USize = 10
+  var logactors: USize = 2
 
   fun ref apply(env: Env): Bool =>
     var options = Options(env)
@@ -19,10 +19,10 @@ class Config
 
     for option in options do
       match option
-      | ("table", var arg: I64) => logtable = arg.u64()
-      | ("iterate", var arg: I64) => iterate = arg.u64()
-      | ("chunk", var arg: I64) => logchunk = arg.u64()
-      | ("actors", var arg: I64) => logactors = arg.u64()
+      | ("table", let arg: I64) => logtable = arg.usize()
+      | ("iterate", let arg: I64) => iterate = arg.usize()
+      | ("chunk", let arg: I64) => logchunk = arg.usize()
+      | ("actors", let arg: I64) => logactors = arg.usize()
       | let err: ParseError =>
         err.report(env.out)
         env.out.print(
@@ -50,8 +50,8 @@ actor Main
   let _env: Env
   let _config: Config = Config
 
-  var _updates: U64 = 0
-  var _confirm: U64 = 0
+  var _updates: USize = 0
+  var _confirm: USize = 0
   let _start: U64
   var _actors: Array[Updater] val
 
@@ -69,7 +69,7 @@ actor Main
 
       var updaters = recover Array[Updater](actor_count) end
 
-      for i in Range[U64](0, actor_count) do
+      for i in Range(0, actor_count) do
         updaters.push(Updater(this, actor_count, i, loglocal, chunk_size,
           chunk_iterate * i))
       end
@@ -107,11 +107,11 @@ actor Main
 
 actor Updater
   let _main: Main
-  let _index: U64
-  let _updaters: U64
-  let _chunk: U64
-  let _mask: U64
-  let _loglocal: U64
+  let _index: USize
+  let _updaters: USize
+  let _chunk: USize
+  let _mask: USize
+  let _loglocal: USize
 
   let _output: Array[Array[U64] iso]
   let _reuse: List[Array[U64] iso] = List[Array[U64] iso]
@@ -119,8 +119,8 @@ actor Updater
   var _table: Array[U64]
   var _rand: U64
 
-  new create(main:Main, updaters: U64, index: U64, loglocal: U64, chunk: U64,
-    seed: U64)
+  new create(main:Main, updaters: USize, index: USize, loglocal: USize,
+    chunk: USize, seed: USize)
   =>
     _main = main
     _index = index
@@ -129,7 +129,7 @@ actor Updater
     _mask = updaters - 1
     _loglocal = loglocal
 
-    _rand = PolyRand.seed(seed)
+    _rand = PolyRand.seed(seed.u64())
     _output = _output.create(updaters)
 
     let size = 1 << loglocal
@@ -138,19 +138,19 @@ actor Updater
     var offset = index * size
 
     try
-      for i in Range[U64](0, size) do
-        _table(i) = i + offset
+      for i in Range(0, size) do
+        _table(i) = (i + offset).u64()
       end
     end
 
-  be start(others: Array[Updater] val, iterate: U64) =>
+  be start(others: Array[Updater] val, iterate: USize) =>
     _others = others
     iteration(iterate)
 
-  be apply(iterate: U64) =>
+  be apply(iterate: USize) =>
     iteration(iterate)
 
-  fun ref iteration(iterate: U64) =>
+  fun ref iteration(iterate: USize) =>
     let chk = _chunk
 
     for i in Range(0, _updaters) do
@@ -165,7 +165,7 @@ actor Updater
 
     for i in Range(0, _chunk) do
       var datum = _rand = PolyRand(_rand)
-      var updater = (datum >> _loglocal) and _mask
+      var updater = ((datum >> _loglocal.u64()) and _mask.u64()).usize()
 
       try
         if updater == _index then
@@ -200,7 +200,7 @@ actor Updater
     try
       for i in Range(0, data.size()) do
         let datum = data(i)
-        var j = (datum >> _loglocal) and _mask
+        var j = ((datum >> _loglocal.u64()) and _mask.u64()).usize()
         _table(j) = _table(j) xor datum
       end
 
@@ -240,9 +240,9 @@ primitive PolyRand
       while i > 0 do
         temp = 0
 
-        for j in Range(0, 64) do
+        for j in Range[U64](0, 64) do
           if ((r >> j) and 1) != 0 then
-            temp = temp xor m2(j)
+            temp = temp xor m2(j.usize())
           end
         end
 

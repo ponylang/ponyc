@@ -27,6 +27,8 @@ typedef struct typecheck_frame_t
   ast_t* loop_else;
   ast_t* try_expr;
   ast_t* recover;
+  ast_t* ifdef_cond;
+  ast_t* ifdef_clause;
 
   struct typecheck_frame_t* prev;
 } typecheck_frame_t;

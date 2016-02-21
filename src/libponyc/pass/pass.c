@@ -22,7 +22,7 @@
 bool limit_passes(pass_opt_t* opt, const char* pass)
 {
   pass_id i = PASS_PARSE;
-  
+
   while(true)
   {
     if(strcmp(pass, pass_name(i)) == 0)
@@ -190,6 +190,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
+  check_tree(*astp);
+
   if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
     return r;
 
@@ -221,6 +223,7 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!pass_finalisers(*astp))
     return false;
 
+  check_tree(*astp);
   return true;
 }
 
@@ -234,10 +237,10 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 bool ast_passes_type(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
-  
+
   assert(ast_id(ast) == TK_ACTOR || ast_id(ast) == TK_CLASS ||
-    ast_id(ast) == TK_PRIMITIVE || ast_id(ast) == TK_TRAIT ||
-    ast_id(ast) == TK_INTERFACE);
+    ast_id(ast) == TK_STRUCT || ast_id(ast) == TK_PRIMITIVE ||
+    ast_id(ast) == TK_TRAIT || ast_id(ast) == TK_INTERFACE);
 
   // We don't have the right frame stack for an entity, set up appropriate
   // frames

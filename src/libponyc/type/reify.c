@@ -6,7 +6,7 @@
 #include "../ast/token.h"
 #include <assert.h>
 
-static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_TYPEPARAMREF);
@@ -14,7 +14,7 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   ast_t* param_name = ast_child(typeparam);
 
   if(ast_name(ref_name) != ast_name(param_name))
-    return false;
+    return;
 
   // Keep ephemerality.
   switch(ast_id(ast_childidx(ast, 2)))
@@ -32,88 +32,119 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 
     default:
       assert(0);
-      return false;
   }
 
   ast_replace(astp, typearg);
-  return true;
 }
 
-static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_arrow(ast_t** astp)
 {
   ast_t* ast = *astp;
+  assert(ast_id(ast) == TK_ARROW);
+  AST_GET_CHILDREN(ast, left, right);
+
+  ast_t* r_left = left;
+  ast_t* r_right = right;
+
+  if(ast_id(left) == TK_ARROW)
+  {
+    AST_GET_CHILDREN(left, l_left, l_right);
+    r_left = l_left;
+    r_right = viewpoint_type(l_right, right);
+  }
+
+  ast_t* r_type = viewpoint_type(r_left, r_right);
+  ast_replace(astp, r_type);
+}
+
+static void reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+{
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    reify_one(&child, typeparam, typearg);
+    child = ast_sibling(child);
+  }
+
   ast_t* type = ast_type(ast);
 
   if(type != NULL)
     reify_one(&type, typeparam, typearg);
 
-  if(ast_id(ast) == TK_TYPEPARAMREF)
-    return reify_typeparamref(astp, typeparam, typearg);
-
-  ast_t* child = ast_child(ast);
-  bool flatten = false;
-
-  while(child != NULL)
+  switch(ast_id(ast))
   {
-    flatten |= reify_one(&child, typeparam, typearg);
-    child = ast_sibling(child);
+    case TK_TYPEPARAMREF:
+      reify_typeparamref(astp, typeparam, typearg);
+      break;
+
+    case TK_ARROW:
+      reify_arrow(astp);
+      break;
+
+    default: {}
   }
-
-  // Flatten type expressions after reifying them.
-  if(flatten)
-  {
-    switch(ast_id(ast))
-    {
-      case TK_ARROW:
-      {
-        AST_GET_CHILDREN(ast, left, right);
-        ast = viewpoint_type(left, right);
-
-        if(ast == NULL)
-          return false;
-
-        if(ast == right)
-          ast = ast_dup(ast);
-
-        ast_replace(astp, ast);
-        return true;
-      }
-
-      default: {}
-    }
-  }
-
-  return false;
 }
 
-static ast_t* reify_without_defaults(ast_t* ast, ast_t* typeparams,
-  ast_t* typeargs, ast_t** lastparam, ast_t** lastarg)
+bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors)
 {
-  // Duplicate the node.
-  ast_t* r_ast = ast_dup(ast);
+  assert(
+    (ast_id(typeparams) == TK_TYPEPARAMS) ||
+    (ast_id(typeparams) == TK_NONE)
+    );
+  assert(
+    (ast_id(typeargs) == TK_TYPEARGS) ||
+    (ast_id(typeargs) == TK_NONE)
+    );
 
-  // Iterate pairwise through the params and the args.
-  ast_t* typeparam = ast_child(typeparams);
-  ast_t* typearg = ast_child(typeargs);
+  size_t param_count = ast_childcount(typeparams);
+  size_t arg_count = ast_childcount(typeargs);
 
-  while((typeparam != NULL) && (typearg != NULL))
+  if(param_count == arg_count)
+    return true;
+
+  if(param_count < arg_count)
   {
-    // Reify the typeparam with the typearg.
-    reify_one(&r_ast, typeparam, typearg);
-    typeparam = ast_sibling(typeparam);
-    typearg = ast_sibling(typearg);
+    if(errors)
+    {
+      ast_error(typeargs, "too many type arguments");
+      ast_error(typeparams, "definition is here");
+    }
+
+    return false;
   }
 
-  if(lastparam != NULL)
-    *lastparam = typeparam;
+  // Pick up default type arguments if they exist.
+  ast_setid(typeargs, TK_TYPEARGS);
+  ast_t* typeparam = ast_childidx(typeparams, arg_count);
 
-  if(lastarg != NULL)
-    *lastarg = typearg;
+  while(typeparam != NULL)
+  {
+    ast_t* defarg = ast_childidx(typeparam, 2);
 
-  return r_ast;
+    if(ast_id(defarg) == TK_NONE)
+      break;
+
+    ast_append(typeargs, defarg);
+    typeparam = ast_sibling(typeparam);
+  }
+
+  if(typeparam != NULL)
+  {
+    if(errors)
+    {
+      ast_error(typeargs, "not enough type arguments");
+      ast_error(typeparams, "definition is here");
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
-ast_t* reify(ast_t* orig, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
   assert(
     (ast_id(typeparams) == TK_TYPEPARAMS) ||
@@ -125,77 +156,57 @@ ast_t* reify(ast_t* orig, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     );
 
   // Duplicate the node.
-  ast_t* typeparam;
-  ast_t* typearg;
-  ast_t* r_ast = reify_without_defaults(ast, typeparams, typeargs, &typeparam,
-    &typearg);
+  ast_t* r_ast = ast_dup(ast);
 
-  if(typearg != NULL)
+  // Iterate pairwise through the typeparams and typeargs.
+  ast_t* typeparam = ast_child(typeparams);
+  ast_t* typearg = ast_child(typeargs);
+
+  while((typeparam != NULL) && (typearg != NULL))
   {
-    ast_error(orig, "too many type arguments");
-    ast_error(typeparams, "definition is here");
-    ast_free(r_ast);
-    return NULL;
-  }
-
-  // Pick up default type arguments if they exist.
-  while(typeparam != NULL)
-  {
-    typearg = ast_childidx(typeparam, 2);
-
-    if(ast_id(typearg) == TK_NONE)
-      break;
-
-    // Reify the default typearg with the typeargs we have so far.
-    ast_t* r_typearg = reify_without_defaults(typearg, typeparams, typeargs,
-      NULL, NULL);
-
-    ast_append(typeargs, r_typearg);
-    reify_one(&r_ast, typeparam, r_typearg);
+    reify_one(&r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
+    typearg = ast_sibling(typearg);
   }
 
-  if(typeparam != NULL)
-  {
-    ast_error(orig, "not enough type arguments");
-    ast_error(typeparams, "definition is here");
-    ast_free(r_ast);
-    return NULL;
-  }
-
+  assert(typeparam == NULL);
+  assert(typearg == NULL);
   return r_ast;
 }
 
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   bool report_errors)
 {
-  // Reify the type parameters with the typeargs.
-  ast_t* r_typeparams = reify(orig, typeparams, typeparams, typeargs);
-
-  if(r_typeparams == NULL)
-    return false;
-
-  ast_t* r_typeparam = ast_child(r_typeparams);
   ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
 
-  while(r_typeparam != NULL)
+  while(typeparam != NULL)
   {
-    // Use the reified constraint.
-    ast_t* r_constraint = ast_childidx(r_typeparam, 1);
-    r_constraint = bind_type(r_constraint);
+    // Reify the constraint.
+    ast_t* constraint = ast_childidx(typeparam, 1);
+    ast_t* bind_constraint = bind_type(constraint);
+    ast_t* r_constraint = reify(bind_constraint, typeparams, typeargs);
+
+    if(bind_constraint != r_constraint)
+      ast_free_unattached(bind_constraint);
 
     // A bound type must be a subtype of the constraint.
-    if(!is_subtype(typearg, r_constraint))
+    errorframe_t info = NULL;
+    if(!is_subtype(typearg, r_constraint, report_errors ? &info : NULL))
     {
       if(report_errors)
       {
-        ast_error(orig, "type argument is outside its constraint");
-        ast_error(typearg, "argument: %s", ast_print_type(typearg));
-        ast_error(typeparam, "constraint: %s", ast_print_type(r_constraint));
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, orig,
+          "type argument is outside its constraint");
+        ast_error_frame(&frame, typearg,
+          "argument: %s", ast_print_type(typearg));
+        ast_error_frame(&frame, typeparam,
+          "constraint: %s", ast_print_type(r_constraint));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame);
       }
 
-      ast_free_unattached(r_typeparams);
       ast_free_unattached(r_constraint);
       return false;
     }
@@ -203,8 +214,6 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
     ast_free_unattached(r_constraint);
 
     // A constructable constraint can only be fulfilled by a concrete typearg.
-    ast_t* constraint = ast_childidx(typeparam, 1);
-
     if(is_constructable(constraint) && !is_concrete(typearg))
     {
       if(report_errors)
@@ -215,18 +224,14 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
         ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
       }
 
-      ast_free_unattached(r_typeparams);
       return false;
     }
 
-    r_typeparam = ast_sibling(r_typeparam);
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }
 
-  assert(r_typeparam == NULL);
+  assert(typeparam == NULL);
   assert(typearg == NULL);
-
-  ast_free_unattached(r_typeparams);
   return true;
 }

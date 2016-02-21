@@ -225,3 +225,56 @@ void cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   Sleep(0);
 #endif
 }
+
+uint64_t cpu_tick()
+{
+#if defined PLATFORM_IS_ARM
+# if defined(__APPLE__)
+  return mach_absolute_time();
+# else
+#   if defined ARMV6
+  // V6 is the earliest arch that has a standard cyclecount
+  uint32_t pmccntr;
+  uint32_t pmuseren;
+  uint32_t pmcntenset;
+
+  // Read the user mode perf monitor counter access permissions.
+  asm volatile ("mrc p15, 0, %0, c9, c14, 0" : "=r" (pmuseren));
+
+  // Allows reading perfmon counters for user mode code.
+  if(pmuseren & 1)
+  {
+    asm volatile ("mrc p15, 0, %0, c9, c12, 1" : "=r" (pmcntenset));
+
+    // Is it counting?
+    if(pmcntenset & 0x80000000ul)
+    {
+      // The counter is set up to count every 64th cycle
+      asm volatile ("mrc p15, 0, %0, c9, c13, 0" : "=r" (pmccntr));
+      return pmccntr << 6;
+    }
+  }
+#   endif
+
+#   if defined(PLATFORM_IS_LINUX)
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  return (ts.tv_sec * 1000000000) + ts.tv_nsec;
+#   else
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (ts.tv_sec * 1000000000) + ts.tv_nsec;
+#   endif
+# endif
+#elif defined PLATFORM_IS_X86
+# if defined(PLATFORM_IS_CLANG_OR_GCC)
+#   ifdef __clang__
+  return __builtin_readcyclecounter();
+#   else
+  return __builtin_ia32_rdtsc();
+#   endif
+# elif defined(PLATFORM_IS_WINDOWS)
+  return __rdtsc();
+# endif
+#endif
+}

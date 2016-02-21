@@ -14,31 +14,34 @@
 
 #define UIF_ERROR       -1
 #define UIF_NO_TYPES    0
-#define UIF_INT_MASK    0x03FF
-#define UIF_ALL_TYPES   0x0FFF
-#define UIF_CONSTRAINED 0x1000
-#define UIF_COUNT       12
+#define UIF_INT_MASK    0x03FFF
+#define UIF_ALL_TYPES   0x0FFFF
+#define UIF_CONSTRAINED 0x10000
+#define UIF_COUNT       16
 
 static struct
 {
   const char* name;
-  uint64_t limit_high;  // The lowest positive value that's too big
-  uint64_t limit_low;   // "
+  lexint_t limit;
   bool neg_plus_one;    // Is a negated value allowed to be 1 bigger
 } _str_uif_types[UIF_COUNT] =
 {
-  { "U8", 0, 0x100, false },
-  { "U16", 0, 0x10000, false },
-  { "U32", 0, 0x100000000LL, false },
-  { "U64", 1, 0, false },
-  { "U128", 0, 0, false },  // Limit checked by lexer
-  { "I8", 0, 0x80, true },
-  { "I16", 0, 0x8000, true },
-  { "I32", 0, 0x80000000, true },
-  { "I64", 0, 0x8000000000000000ULL, true },
-  { "I128", 0x8000000000000000ULL, 0, true },
-  { "F32", 0, 0, false },
-  { "F64", 0, 0, false }
+  { "U8", {0x100, 0}, false },
+  { "U16", {0x10000, 0}, false },
+  { "U32", {0x100000000LL, 0}, false },
+  { "U64", {0, 1}, false },
+  { "U128", {0, 0}, false },  // Limit checked by lexer
+  { "ULong", {0, 1}, false }, // Limited to 64 bits
+  { "USize", {0, 1}, false }, // Limited to 64 bits
+  { "I8", {0x80, 0}, true },
+  { "I16", {0x8000, 0}, true },
+  { "I32", {0x80000000, 0}, true },
+  { "I64", {0x8000000000000000ULL, 0}, true },
+  { "I128", {0, 0x8000000000000000ULL}, true },
+  { "ILong", {0x8000000000000000ULL, 0}, true }, // Limited to 64 bits
+  { "ISize", {0x8000000000000000ULL, 0}, true }, // Limited to 64 bits
+  { "F32", {0, 0}, false },
+  { "F64", {0, 0}, false }
 };
 
 
@@ -214,7 +217,7 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
-    if(is_subtype(uif, type))
+    if(is_subtype(uif, type, NULL))
       set |= (1 << i);
 
     ast_free(uif);
@@ -242,18 +245,17 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
 
   // If the constraint is not a subtype of (Real[A] & Number) then there are no
   // legal types in the set
-  ast_t* number = type_builtin(opt, type_param, "Number");
-  ast_t* real = type_builtin(opt, type_param, "Real");
-  ast_setid(ast_childidx(real, 3), TK_BOX);
-
-  ast_t* p_ref = ast_childidx(real, 2);
-  REPLACE(&p_ref,
+  BUILD(typeargs, type_param,
     NODE(TK_TYPEARGS,
       NODE(TK_TYPEPARAMREF, DATA(type_param)
         ID(ast_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
 
-  bool is_real = is_subtype(constraint, real);
-  bool is_number = is_subtype(constraint, number);
+  ast_t* number = type_builtin(opt, type_param, "Number");
+  ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
+  ast_setid(ast_childidx(real, 3), TK_BOX);
+
+  bool is_real = is_subtype(constraint, real, NULL);
+  bool is_number = is_subtype(constraint, number, NULL);
   ast_free(number);
   ast_free(real);
 
@@ -525,16 +527,8 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
     // Note we don't check for types bound to type parameters.
     int i = chain_head->cached_uif_index;
 
-    if(_str_uif_types[i].limit_low != 0 || _str_uif_types[i].limit_high != 0)
+    if(_str_uif_types[i].limit.low != 0 || _str_uif_types[i].limit.high != 0)
     {
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-      UnsignedInt128 limit(_str_uif_types[i].limit_high,
-        _str_uif_types[i].limit_low);
-#else
-      __uint128_t limit = (((__uint128_t)_str_uif_types[i].limit_high) << 64) |
-        _str_uif_types[i].limit_low;
-#endif
-
       // There is a limit specified for this type, the literal must be smaller
       // than that.
       bool neg_plus_one = false;
@@ -559,14 +553,15 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
           neg_plus_one = true;
       }
 
-      __uint128_t actual = ast_int(literal);
+      lexint_t* actual = ast_int(literal);
+      int test = lexint_cmp(actual, &_str_uif_types[i].limit);
 
-      if((actual > limit) || (!neg_plus_one && actual == limit))
+      if((test > 0) || (!neg_plus_one && (test == 0)))
       {
-        // Illegal value. Note that we report an error, but don't return an
-        // error, so other errors may be found.
+        // Illegal value.
         ast_error(literal, "Literal value is out of range for type (%s)",
           chain_head->name);
+        return false;
       }
     }
   }
@@ -766,6 +761,16 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       break;
     }
 
+    case TK_RECOVER:
+    {
+      ast_t* expr = ast_childidx(literal_expr, 1);
+      if(!coerce_literal_to_type(&expr, target_type, chain, options,
+        report_errors))
+        return false;
+
+      break;
+    }
+
     default:
       ast_error(literal_expr, "Internal error, coerce_literal_to_type node %s",
         ast_get_print(literal_expr));
@@ -934,6 +939,43 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   make_literal_type(ast);
   return true;
+}
+
+
+bool literal_is(ast_t* ast, pass_opt_t* options)
+{
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
+
+  AST_GET_CHILDREN(ast, left, right);
+
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
+    return false;
+
+  if(!is_type_literal(l_type) && !is_type_literal(r_type))
+    // No literals here.
+    return true;
+
+  if(is_type_literal(l_type) && !is_type_literal(r_type))
+  {
+    // Coerce left to type of right.
+    return coerce_literals(&left, r_type, options);
+  }
+
+  if(!is_type_literal(l_type) && is_type_literal(r_type))
+  {
+    // Coerce right to type of left.
+    return coerce_literals(&right, l_type, options);
+  }
+
+  // Both sides are literals, that's a problem.
+  assert(is_type_literal(l_type));
+  assert(is_type_literal(r_type));
+  ast_error(ast, "Cannot infer type of operands");
+  return false;
 }
 
 

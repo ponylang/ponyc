@@ -9,6 +9,7 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 
 static bool is_method_called(ast_t* ast)
@@ -43,6 +44,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
       switch(ast_id(def))
       {
         case TK_PRIMITIVE:
+        case TK_STRUCT:
         case TK_CLASS:
           ast_setid(ast, TK_NEWREF);
           break;
@@ -297,14 +299,26 @@ static bool tuple_access(ast_t* ast)
     return false;
   }
 
-  // Make sure our index is in bounds.
-  type = ast_childidx(type, (size_t)ast_int(right));
+  // Make sure our index is in bounds.  make_tuple_index automatically shifts
+  // from one indexed to zero, so we have to use -1 and >= for our comparisons.
+  size_t right_idx = (size_t)ast_int(right)->low;
+  size_t tuple_size = ast_childcount(type);
 
-  if(type == NULL)
+  if (right_idx == (size_t)-1)
   {
-    ast_error(right, "tuple index is out of bounds");
+    ast_error(right,
+      "tuples are one indexed not zero indexed. Did you mean _1?");
     return false;
   }
+  else if (right_idx >= tuple_size)
+  {
+    ast_error(right, "tuple index " __zu " is out of valid range. "
+      "Valid range is [1, " __zu "]", right_idx, tuple_size);
+    return false;
+  }
+
+  type = ast_childidx(type, right_idx);
+  assert(type != NULL);
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
@@ -424,10 +438,13 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
+      if(!reify_defaults(typeparams, right, true))
+        return false;
+
       if(!check_constraints(left, typeparams, right, true))
         return false;
 
-      type = reify(left, type, typeparams, right);
+      type = reify(type, typeparams, right);
       typeparams = ast_childidx(type, 1);
       ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 

@@ -21,14 +21,14 @@ actor ANSITerm
   let _timers: Timers
   var _timer: (Timer tag | None) = None
   let _notify: ANSINotify
-  let _source: DisposeableActor
+  let _source: DisposableActor
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
   let _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
-  new create(notify: ANSINotify iso, source: DisposeableActor,
+  new create(notify: ANSINotify iso, source: DisposableActor,
     timers: Timers = Timers)
   =>
     """
@@ -100,7 +100,7 @@ actor ANSITerm
         | '~' => _keypad()
         | ';' =>
           _escape = _EscapeMod
-        | where (c >= '0') and (c <= '9') =>
+        | if (c >= '0') and (c <= '9') =>
           // Escape number.
           _esc_num = (_esc_num * 10) + (c - '0')
           _esc_buf.push(c)
@@ -116,7 +116,7 @@ actor ANSITerm
         | 'H' => _home()
         | 'F' => _end()
         | '~' => _keypad()
-        | where (c >= '0') and (c <= '9') =>
+        | if (c >= '0') and (c <= '9') =>
           // Escape modifier.
           _esc_mod = (_esc_mod * 10) + (c - '0')
           _esc_buf.push(c)

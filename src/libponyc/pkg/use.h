@@ -16,7 +16,8 @@ typedef bool(*use_handler_t)(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options);
 
 // Set the test handler. This is for use only for testing.
-void use_test_handler(use_handler_t handler, bool allow_alias);
+void use_test_handler(use_handler_t handler, bool allow_alias,
+  bool allow_guard);
 
 PONY_EXTERN_C_END
 

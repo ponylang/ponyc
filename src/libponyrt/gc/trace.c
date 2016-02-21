@@ -1,6 +1,7 @@
 #include "trace.h"
 #include "gc.h"
 #include "../sched/scheduler.h"
+#include "../sched/cpu.h"
 #include "../actor/actor.h"
 #include <assert.h>
 
@@ -11,7 +12,7 @@ void pony_gc_send(pony_ctx_t* ctx)
   ctx->trace_actor = gc_sendactor;
 
 #ifdef USE_TELEMETRY
-  ctx->tsc = __pony_rdtsc();
+  ctx->tsc = cpu_tick();
 #endif
 }
 
@@ -22,7 +23,7 @@ void pony_gc_recv(pony_ctx_t* ctx)
   ctx->trace_actor = gc_recvactor;
 
 #ifdef USE_TELEMETRY
-  ctx->tsc = __pony_rdtsc();
+  ctx->tsc = cpu_tick();
 #endif
 }
 
@@ -40,7 +41,7 @@ void pony_send_done(pony_ctx_t* ctx)
   gc_done(actor_gc(ctx->current));
 
 #ifdef USE_TELEMETRY
-  ctx->time_in_send_scan += (__pony_rdtsc() - ctx->tsc);
+  ctx->time_in_send_scan += (cpu_tick() - ctx->tsc);
 #endif
 }
 
@@ -50,7 +51,7 @@ void pony_recv_done(pony_ctx_t* ctx)
   gc_done(actor_gc(ctx->current));
 
 #ifdef USE_TELEMETRY
-  ctx->time_in_recv_scan += (__pony_rdtsc() - ctx->tsc);
+  ctx->time_in_recv_scan += (cpu_tick() - ctx->tsc);
 #endif
 }
 

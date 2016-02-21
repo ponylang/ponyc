@@ -1,15 +1,23 @@
+use "net"
 use "net/http"
 
 actor Main
   new create(env: Env) =>
-    let service = try env.args(1) else "50000" end
-    let limit = try env.args(2).u64() else 100 end
-    Server(Info(env), Handle, CommonLog(env.out) where service = service,
+    match env.root
+    | let a: AmbientAuth =>
+      let service = try env.args(1) else "50000" end
+      let limit = try env.args(2).usize() else 100 end
+      let tcp: TCPServer val = recover NetworkInterface(a) end
+      Server(tcp, Info(env), Handle, CommonLog(env.out) where service = service,
       limit = limit)
     // Server(Info(env), Handle, ContentsLog(env.out) where service = service,
     //   limit = limit)
     // Server(Info(env), Handle, DiscardLog where service = service,
     //   limit = limit)
+    else
+      env.err.print("cannot use network: no root")
+    end
+
 
 class Info
   let _env: Env

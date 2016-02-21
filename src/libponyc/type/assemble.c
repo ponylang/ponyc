@@ -1,11 +1,11 @@
 #include "assemble.h"
 #include "subtype.h"
-#include "lookup.h"
 #include "cap.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "../pass/names.h"
+#include "../pass/flatten.h"
 #include "../pass/expr.h"
 #include <assert.h>
 
@@ -17,12 +17,12 @@ static void append_one_to_union(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(append, child))
+    if(is_subtype(append, child, NULL))
     {
       // If the incoming type is a subtype of a type that is already in the
       // union, then do not bother to append it.
       return;
-    } else if(is_subtype(child, append)) {
+    } else if(is_subtype(child, append, NULL)) {
       // If a type in the union is a subtype of the incoming type, then remove
       // it from the union.
       ast_remove(child);
@@ -42,12 +42,12 @@ static void append_one_to_isect(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(child, append))
+    if(is_subtype(child, append, NULL))
     {
       // If the incoming type is a supertype of a type that is already in the
       // intersection, then do not bother to append it.
       return;
-    } else if(is_subtype(append, child)) {
+    } else if(is_subtype(append, child, NULL)) {
       // If a type in the intersection is a supertype of the incoming type,
       // then remove it from the intersection.
       ast_remove(child);
@@ -94,7 +94,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   if(r_type == NULL)
     return l_type;
 
-  if(is_subtype(l_type, r_type))
+  if(is_subtype(l_type, r_type, NULL))
   {
     if(is_union)
       return r_type;
@@ -102,7 +102,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
       return l_type;
   }
 
-  if(is_subtype(r_type, l_type))
+  if(is_subtype(r_type, l_type, NULL))
   {
     if(is_union)
       return l_type;
@@ -127,20 +127,32 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   return type;
 }
 
-static ast_t* type_base(ast_t* from, const char* package, const char* name)
+static ast_t* type_base(ast_t* from, const char* package, const char* name,
+  ast_t* typeargs)
 {
+  if(typeargs == NULL)
+    typeargs = ast_from(from, TK_NONE);
+
   BUILD(ast, from,
     NODE(TK_NOMINAL,
       ID(package)
       ID(name)
-      NONE NONE NONE));
+      TREE(typeargs)
+      NONE
+      NONE));
 
   return ast;
 }
 
 ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 {
-  ast_t* ast = type_base(from, NULL, name);
+  return type_builtin_args(opt, from, name, NULL);
+}
+
+ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
+  ast_t* typeargs)
+{
+  ast_t* ast = type_base(from, NULL, name, typeargs);
 
   if(!names_nominal(opt, from, &ast, false))
   {
@@ -177,7 +189,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
 
 ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 {
-  return type_base(from, package, name);
+  return type_base(from, package, name, NULL);
 }
 
 ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
@@ -246,17 +258,10 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
   return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
-  token_id ephemeral)
+ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
+  token_id ephemeral, bool defs)
 {
-  bool make_arrow = false;
-
-  if(cap == TK_BOX)
-  {
-    cap = TK_REF;
-    make_arrow = true;
-  }
-
+  typecheck_t* t = &opt->check;
   AST_GET_CHILDREN(t->frame->type, id, typeparams);
 
   BUILD(typeargs, ast, NODE(TK_NONE));
@@ -280,15 +285,20 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
       ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
+      if(defs)
+      {
+        names_nominal(opt, ast, &typearg, false);
+
+        if(ast_id(typearg) == TK_TYPEPARAMREF)
+          flatten_typeparamref(typearg);
+      }
+
       typeparam = ast_sibling(typeparam);
     }
   }
 
-  if(make_arrow)
-  {
-    BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
-    return arrow;
-  }
+  if(defs)
+    names_nominal(opt, ast, &type, false);
 
   return type;
 }

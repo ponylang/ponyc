@@ -195,11 +195,16 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 
   while(pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
-    // Handle only files with the specified extension
+    // Handle only files with the specified extension that don't begin with
+    // a dot. This avoids including UNIX hidden files in a build.
     char* name = pony_dir_info_name(d);
+
+    if(name[0] == '.')
+      continue;
+
     const char* p = strrchr(name, '.');
 
-    if(p != NULL && strcmp(p, EXTENSION) == 0)
+    if((p != NULL) && (strcmp(p, EXTENSION) == 0))
     {
       char fullpath[FILENAME_MAX];
       path_cat(dir_path, name, fullpath);
@@ -603,6 +608,14 @@ static void add_exec_dir()
   *p = '\0';
   add_path(path);
 
+  // Allow ponyc to find the lib directory when it is installed.
+#ifdef PLATFORM_IS_WINDOWS
+  strcpy(p, "..\\lib");
+#else
+  strcpy(p, "../lib");
+#endif
+  add_path(path);
+
   // Allow ponyc to find the packages directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
   strcpy(p, "..\\packages");
@@ -632,6 +645,12 @@ bool package_init(pass_opt_t* opt)
   // that are relative to the compiler location on disk.
   package_add_paths(getenv("PONYPATH"));
   add_exec_dir();
+
+  // Finally we add OS specific paths.
+#ifdef PLATFORM_IS_POSIX_BASED
+  add_path("/usr/local/lib");
+  add_path("/opt/local/lib");
+#endif
 
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
@@ -757,8 +776,19 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 
   options->program_pass = PASS_PARSE;
 
-  if(package_load(program, path, options) == NULL ||
-    !ast_passes_program(program, options))
+  // Always load builtin package first, then the specified one.
+  if(package_load(program, stringtab("builtin"), options) == NULL ||
+    package_load(program, path, options) == NULL)
+  {
+    ast_free(program);
+    return NULL;
+  }
+
+  // Reorder packages so specified package is first.
+  ast_t* builtin = ast_pop(program);
+  ast_append(program, builtin);
+
+  if(!ast_passes_program(program, options))
   {
     ast_free(program);
     return NULL;
@@ -770,6 +800,8 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 {
+  assert(from != NULL);
+
   const char* magic = find_magic_package(path);
   const char* full_path = path;
   const char* qualified_name = path;
@@ -784,7 +816,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     if(full_path == NULL)
       return NULL;
 
-    if((from != NULL) && is_relative)
+    if((from != program) && is_relative)
     {
       // Package to load is relative to from, build the qualified name
       // The qualified name should be relative to the program being built
@@ -835,7 +867,11 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   }
 
   if(!ast_passes_subtree(&package, options, options->program_pass))
+  {
+    // If these passes failed, don't run future passes.
+    ast_setflag(package, AST_FLAG_PRESERVE);
     return NULL;
+  }
 
   return package;
 }

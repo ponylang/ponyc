@@ -49,18 +49,7 @@ actor Client
     """
     Gets or creates a client for the given URL.
     """
-    let port = if url.service.size() == 0 then
-      match url.scheme
-      | "http" => "80"
-      | "https" => "443"
-      else
-        error
-      end
-    else
-      url.service
-    end
-
-    let hs = _HostService(url.scheme, url.host, port)
+    let hs = _HostService(url.scheme, url.host, url.port.string())
 
     try
       _clients(hs)

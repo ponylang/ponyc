@@ -53,11 +53,14 @@ bool frame_push(typecheck_t* t, ast_t* ast)
     case TK_MODULE:
       pop = push_frame(t);
       t->frame->module = ast;
+      t->frame->ifdef_cond = NULL;
+      t->frame->ifdef_clause = ast;
       break;
 
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       pop = push_frame(t);
@@ -230,6 +233,24 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           } else if(else_clause == ast) {
             pop = push_frame(t);
             t->frame->loop_else = ast;
+          }
+          break;
+        }
+
+        case TK_IFDEF:
+        {
+          AST_GET_CHILDREN(parent, cond, body, else_clause, else_cond);
+
+          if(body == ast)
+          {
+            pop = push_frame(t);
+            t->frame->ifdef_cond = cond;
+            t->frame->ifdef_clause = body;
+          }
+          else if(else_clause == ast) {
+            pop = push_frame(t);
+            t->frame->ifdef_cond = else_cond;
+            t->frame->ifdef_clause = else_clause;
           }
           break;
         }

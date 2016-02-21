@@ -1,6 +1,7 @@
 #include "../libponyc/ast/parserapi.h"
 #include "../libponyc/ast/bnfprint.h"
 #include "../libponyc/pkg/package.h"
+#include "../libponyc/pkg/buildflagset.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
 #include "../libponyc/ast/treecheck.h"
@@ -20,6 +21,7 @@ enum
 {
   OPT_VERSION,
   OPT_DEBUG,
+  OPT_BUILDFLAG,
   OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
@@ -28,7 +30,6 @@ enum
 
   OPT_SAFE,
   OPT_IEEEMATH,
-  OPT_RESTRICT,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -36,6 +37,7 @@ enum
 
   OPT_PASSES,
   OPT_AST,
+  OPT_ASTPACKAGE,
   OPT_TRACE,
   OPT_WIDTH,
   OPT_IMMERR,
@@ -52,6 +54,7 @@ static opt_arg_t args[] =
 {
   {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
+  {"define", 'D', OPT_ARG_REQUIRED, OPT_BUILDFLAG},
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
@@ -60,7 +63,6 @@ static opt_arg_t args[] =
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
-  {"restrict", 0, OPT_ARG_NONE, OPT_RESTRICT},
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -68,6 +70,7 @@ static opt_arg_t args[] =
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
+  {"astpackage", 0, OPT_ARG_NONE, OPT_ASTPACKAGE},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
@@ -92,6 +95,8 @@ static void usage()
     "Options:\n"
     "  --version, -v   Print the version of the compiler and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
+    "  --define, -D    Define the specified build flag.\n"
+    "    =name\n"
     "  --strip, -s     Strip debug info.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
@@ -104,7 +109,6 @@ static void usage()
     "  --safe          Allow only the listed packages to use C FFI.\n"
     "    =package      With no packages listed, only builtin is allowed.\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
-    "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
     "  --features      CPU features to enable or disable.\n"
@@ -131,7 +135,8 @@ static void usage()
     "    =asm          Output assembly.\n"
     "    =obj          Output an object file.\n"
     "    =all          The default: generate an executable.\n"
-    "  --ast, -a       Output an abstract syntax tree.\n"
+    "  --ast, -a       Output an abstract syntax tree for the whole program.\n"
+    "  --astpackage    Output an abstract syntax tree for the main package.\n"
     "  --trace, -t     Enable parse trace.\n"
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
@@ -190,15 +195,19 @@ static size_t get_width()
   return width;
 }
 
-static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
+static bool compile_package(const char* path, pass_opt_t* opt,
+  bool print_program_ast, bool print_package_ast)
 {
   ast_t* program = program_load(path, opt);
 
   if(program == NULL)
     return false;
 
-  if(print_ast)
+  if(print_program_ast)
     ast_print(program);
+
+  if(print_package_ast)
+    ast_print(ast_child(program));
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
@@ -213,11 +222,11 @@ int main(int argc, char* argv[])
   pass_opt_init(&opt);
 
   opt.release = true;
-  opt.no_restrict = true;
   opt.output = ".";
 
   ast_setwidth(get_width());
-  bool print_ast = false;
+  bool print_program_ast = false;
+  bool print_package_ast = false;
 
   opt_state_t s;
   opt_init(args, &s, &argc, argv);
@@ -235,6 +244,7 @@ int main(int argc, char* argv[])
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;
+      case OPT_BUILDFLAG: define_build_flag(s.arg_val); break;
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
@@ -247,13 +257,13 @@ int main(int argc, char* argv[])
         break;
 
       case OPT_IEEEMATH: opt.ieee_math = true; break;
-      case OPT_RESTRICT: opt.no_restrict = false; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
       case OPT_STATS: opt.print_stats = true; break;
 
-      case OPT_AST: print_ast = true; break;
+      case OPT_AST: print_program_ast = true; break;
+      case OPT_ASTPACKAGE: print_package_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
@@ -305,10 +315,11 @@ int main(int argc, char* argv[])
   {
     if(argc == 1)
     {
-      ok &= compile_package(".", &opt, print_ast);
+      ok &= compile_package(".", &opt, print_program_ast, print_package_ast);
     } else {
       for(int i = 1; i < argc; i++)
-        ok &= compile_package(argv[i], &opt, print_ast);
+        ok &= compile_package(argv[i], &opt, print_program_ast,
+          print_package_ast);
     }
   }
 

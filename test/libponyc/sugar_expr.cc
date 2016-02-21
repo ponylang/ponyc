@@ -15,17 +15,297 @@ class SugarExprTest : public PassTest
 {};
 
 
-/*
-TEST_F(SugarExprTest, PartialWithTypeArgs)
+// Partial application
+
+TEST_F(SugarExprTest, PartialMinimal)
 {
   const char* short_form =
-    "class Foo ref\n"
-    "  fun f[A]() =>\n"
-    "    this~f[A]()";
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x) => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverCapability)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T ref) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T ref) =>\n"
+    "    lambda ref()($1 = x) => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverCapabilityFail)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun ref f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T box) =>\n"
+    "    x~f()";
 
   TEST_ERROR(short_form);
 }
-*/
+
+
+TEST_F(SugarExprTest, PartialMemberAccessFail)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  let y: U32 = 4"
+    "  fun f() =>\n"
+    "    this~y";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarExprTest, PartialTupleElementAccessFail)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo\n"
+    "  fun f(x: (T, T)) =>\n"
+    "    x~_1()";
+
+  TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarExprTest, PartialSomeArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(3 where c = 4)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box(b: U32, d: U32)\n"
+    "      ($1 = x, a: U32 = (3), c: U32 = (4)) =>\n"
+    "      $1.f(a, consume b, c, consume d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialAllArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(1, 2, 3, 4)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32, b: U32, c: U32, d: U32)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
+    "      d: U32 = (4)) =>\n"
+    "      $1.f(a, b, c, d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialDefaultArgs)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: U32 = 1, b: U32 = 2, c: U32 = 3, d: U32 = 4)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f(5 where c = 6)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: U32 = 1, b: U32 = 2, c: U32 = 3, d: U32 = 4)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box(b: U32 = 2, d: U32 = 4)\n"
+    "      ($1 = x, a: U32 = (5), c: U32 = (6)) =>\n"
+    "      $1.f(a, consume b, c, consume d)\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialResult)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(): U32\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(): U32\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x): U32 => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialBehaviour)
+{
+  const char* short_form =
+    "trait T\n"
+    "  be f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  be f()\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x): T tag => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialRaisesError)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(): U32 ?\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(): U32 ?\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x): U32 ? => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialParameterTypeParameters)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f(a: T box)\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(t: T box, a: A) =>\n"
+    "    t~f(a)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f(a: T box)\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(t: T box, a: A) =>\n"
+    "    lambda box()($1 = t, a: A = (a)) => $1.f(a) end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialReceiverTypeParameters)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(x: A) =>\n"
+    "    x~f()";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f()\n"
+
+    "class Foo[A: T #read]\n"
+    "  fun f(x: A) =>\n"
+    "    lambda box()($1 = x) => $1.f() end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, PartialFunctionTypeParameter)
+{
+  const char* short_form =
+    "trait T\n"
+    "  fun f[A](a: A)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    x~f[U32](3)";
+
+  const char* full_form =
+    "trait T\n"
+    "  fun f[A](a: A)\n"
+
+    "class Foo\n"
+    "  fun f(x: T) =>\n"
+    "    lambda box()($1 = x, a: U32 = (3)) => $1.f[U32](a) end";
+
+  TEST_EQUIV(short_form, full_form);
+}
 
 
 // Lambdas
@@ -70,11 +350,11 @@ TEST_F(SugarExprTest, LambdaFull)
 
     "class Foo\n"
     "  fun f(c: C val, d: D2 val) =>\n"
-    "    object iso\n"
+    "    object ref\n"
     "      let c: C val = c\n"
     "      let _c: C val = c\n"
     "      let _d: D val = d\n"
-    "      fun apply(a: A, b: B): A => a\n"
+    "      fun iso apply(a: A, b: B): A => a\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -244,6 +524,86 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
 }
 
 
+TEST_F(SugarExprTest, LambdaNamed)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    lambda bar() => None end";
+
+  const char* full_form =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    object\n"
+    "      fun bar() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, Location)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    __loc";
+
+  const char* full_form =
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box bar(): None =>\n"
+    "    object\n"
+    "      fun tag file(): String => \"\"\n"
+    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag line(): USize => 4\n"
+    "      fun tag pos(): USize => 5\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LocationDefaultArg)
+{
+  const char* short_form =
+    "interface val SourceLoc\n"
+    "  fun file(): String\n"
+    "  fun method(): String\n"
+    "  fun line(): USize\n"
+    "  fun pos(): USize\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    wombat()\n"
+    "  fun wombat(x: SourceLoc = __loc) =>\n"
+    "    None";
+
+  const char* full_form =
+    "interface val SourceLoc\n"
+    "  fun file(): String\n"
+    "  fun method(): String\n"
+    "  fun line(): USize\n"
+    "  fun pos(): USize\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun bar() =>\n"
+    "    wombat(object\n"
+    "      fun tag file(): String => \"\"\n"
+    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag line(): USize => 9\n"
+    "      fun tag pos(): USize => 12\n"
+    "    end)\n"
+    "  fun wombat(x: SourceLoc = __loc) =>\n"
+    "    None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 // Early sugar that may cause errors in type checking
 
 TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)
@@ -260,12 +620,12 @@ TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)
 
     "class Foo[A: T]\n"
     "  fun f(x: A) =>\n"
-    "    Hygid[A].create(consume x)\n"
+    "    $T[A].create(consume x)\n"
 
-    "class Hygid[A: T]\n"
+    "class $T[A: T]\n"
     "  let _x: A\n"
-    "  new create(hygid: A) =>\n"
-    "    _x = consume hygid";
+    "  new create($1: A) =>\n"
+    "    _x = consume $1";
 
   TEST_EQUIV(short_form, full_form);
 }

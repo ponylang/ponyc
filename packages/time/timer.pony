@@ -46,15 +46,15 @@ class Timer
     """
     _node
 
-  fun ref _slop(bits: U64) =>
+  fun ref _slop(bits: USize) =>
     """
     Apply slop bits to the expiration time and interval. This reduces the
     precision by the given number of bits, effectively quantizing time.
     """
-    _expiration = _expiration >> bits
+    _expiration = _expiration >> bits.u64()
 
     if _interval > 0 then
-      _interval = (_interval >> bits).max(1)
+      _interval = (_interval >> bits.u64()).max(1)
     end
 
   fun ref _fire(current: U64): Bool =>

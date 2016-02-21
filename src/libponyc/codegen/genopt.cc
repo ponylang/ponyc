@@ -168,7 +168,7 @@ public:
       return false;
     }
 
-    size_t alloc_size = int_size->getZExtValue();
+    uint64_t alloc_size = int_size->getZExtValue();
 
     if(small)
     {
@@ -513,7 +513,25 @@ static void optimise(compile_t* c)
     addHeapToStackPass);
 
   pmb.populateFunctionPassManager(fpm);
+
+#ifdef PLATFORM_IS_ARM
+  // On ARM, without this, trace functions are being loaded with a double
+  // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
+  // the trace function address, but then ldr r2, [r0] is done to move the
+  // address into the 3rd arg to pony_traceobject. This double indirection
+  // gives a garbage trace function. In release mode, a different path is used
+  // and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
+  // results in the alternate (working) asm being used for a debug build.
+  if(!c->opt->release)
+    pmb.OptLevel = 1;
+#endif
   pmb.populateModulePassManager(mpm);
+
+#ifdef PLATFORM_IS_ARM
+  if(!c->opt->release)
+    pmb.OptLevel = 0;
+#endif
+
   pmb.populateLTOPassManager(lpm);
 
   if(c->opt->strip_debug)

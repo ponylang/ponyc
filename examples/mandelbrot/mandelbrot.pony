@@ -3,8 +3,9 @@ use "options"
 use "collections"
 
 actor Worker
-  new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
-    limit: F32, real: Array[F32] val, imaginary: Array[F32] val)
+  new mandelbrot(main: Main, x: USize, y: USize, width: USize,
+    iterations: USize, limit: F32, real: Array[F32] val,
+    imaginary: Array[F32] val)
   =>
     var view: Array[U8] iso =
       recover
@@ -20,10 +21,10 @@ actor Worker
       while row < y do
         let prefetch_i = imaginary(row)
 
-        var col: U64 = 0
+        var col: USize = 0
 
         while col < width do
-          var j: U64 = 0
+          var j: USize = 0
 
           while j < 8 do
             group_r.update(j, real(col + j))
@@ -36,7 +37,7 @@ actor Worker
 
           repeat
             var mask: U8 = 0x80
-            var k: U64 = 0
+            var k: USize = 0
 
             while k < 8 do
               let r = group_r(k)
@@ -65,12 +66,12 @@ actor Worker
     end
 
 actor Main
-  var iterations: U64 = 50
+  var iterations: USize = 50
   var limit: F32 = 4.0
-  var chunks: U64 = 16
-  var width: U64 = 16000
-  var actors: U64 = 0
-  var header: U64 = 0
+  var chunks: USize = 16
+  var width: USize = 16000
+  var actors: USize = 0
+  var header: USize = 0
   var real: Array[F32] val = recover Array[F32] end
   var imaginary: Array[F32] val = recover Array[F32] end
   var outfile: (File | None) = None
@@ -97,9 +98,9 @@ actor Main
       create_outfile()
     end
 
-  be draw(offset: U64, pixels: Array[U8] val) =>
+  be draw(offset: USize, pixels: Array[U8] val) =>
     match outfile
-    | var out: File =>
+    | let out: File =>
       out.seek_start(header + offset)
       out.write(pixels)
       if (actors = actors - 1) == 1 then
@@ -109,7 +110,7 @@ actor Main
 
   fun ref create_outfile() =>
     match outfile
-    | var f: File =>
+    | let f: File =>
       f.print("P4\n " + width.string() + " " + width.string() + "\n")
       header = f.size()
       f.set_length((width * (width >> 3)) + header)
@@ -122,8 +123,8 @@ actor Main
 
     if rest == 0 then rest = chunks end
 
-    var x: U64 = 0
-    var y: U64 = 0
+    var x: USize = 0
+    var y: USize = 0
 
     for i in Range(0, actors - 1) do
       x = i * chunks
@@ -146,11 +147,11 @@ actor Main
 
     for option in options do
       match option
-      | ("iterations", var arg: I64) => iterations = arg.u64()
-      | ("limit", var arg: F64) => limit = arg.f32()
-      | ("chunks", var arg: I64) => chunks = arg.u64()
-      | ("width", var arg: I64) => width = arg.u64()
-      | ("output", var arg: String) =>
+      | ("iterations", let arg: I64) => iterations = arg.usize()
+      | ("limit", let arg: F64) => limit = arg.f32()
+      | ("chunks", let arg: I64) => chunks = arg.usize()
+      | ("width", let arg: I64) => width = arg.usize()
+      | ("output", let arg: String) =>
         outfile = try File(FilePath(env.root, arg)) end
       | let err: ParseError => err.report(env.out) ; usage(env) ; error
       end

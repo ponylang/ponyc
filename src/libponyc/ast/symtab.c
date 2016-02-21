@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <assert.h>
 
-static uint64_t sym_hash(symbol_t* sym)
+static size_t sym_hash(symbol_t* sym)
 {
   return hash_ptr(sym->name);
 }

@@ -33,7 +33,7 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
         // Mark all non-polymorphic methods as reachable.
         if(ast_id(typeparams) == TK_NONE)
-          reach(c->reachable, type, ast_name(m_id), NULL);
+          reach(c->reachable, &c->next_type_id, type, ast_name(m_id), NULL);
         break;
       }
 
@@ -160,11 +160,15 @@ static bool link_lib(compile_t* c, const char* file_o)
   size_t len = 32 + strlen(file_lib) + strlen(file_o);
   char* cmd = (char*)pool_alloc_size(len);
 
+#if defined(PLATFORM_IS_MACOSX)
+  snprintf(cmd, len, "/usr/bin/ar -rcs %s %s", file_lib, file_o);
+#else
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
+#endif
 
   if(system(cmd) != 0)
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: %s", cmd);
     pool_free_size(len, cmd);
     return false;
   }
@@ -179,7 +183,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 
   if(!vcvars_get(&vcvars))
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: no vcvars");
     return false;
   }
 
@@ -191,7 +195,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 
   if(system(cmd) == -1)
   {
-    errorf(NULL, "unable to link");
+    errorf(NULL, "unable to link: %s", cmd);
     pool_free_size(len, cmd);
     return false;
   }

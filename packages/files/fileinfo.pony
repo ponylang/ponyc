@@ -16,7 +16,7 @@ class val FileInfo
   let hard_links: U32 = 0
   let uid: U32 = 0
   let gid: U32 = 0
-  let size: U64 = 0
+  let size: USize = 0
   let access_time: (I64, I64) = (0, 0)
   let modified_time: (I64, I64) = (0, 0)
   let change_time: (I64, I64) = (0, 0)
@@ -53,7 +53,7 @@ class val FileInfo
 
     filepath = path
 
-    if not @os_fstat[Bool](fd, this) then
+    if not @os_fstat[Bool](fd, path.path.cstring(), this) then
       error
     end
 

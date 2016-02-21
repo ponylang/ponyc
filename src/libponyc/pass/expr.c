@@ -25,6 +25,7 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_IF:
+    case TK_IFDEF:
     case TK_WHILE:
     case TK_MATCH:
       // Condition needed, body/else needed only if parent needed.
@@ -161,6 +162,7 @@ bool is_control_type(ast_t* type)
     case TK_CONTINUE:
     case TK_RETURN:
     case TK_ERROR:
+    case TK_COMPILE_ERROR:
       return true;
 
     default: {}
@@ -204,7 +206,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FUN:        r = expr_fun(options, ast); break;
     case TK_SEQ:        r = expr_seq(options, ast); break;
     case TK_VAR:
-    case TK_LET:        r = expr_local(t, ast); break;
+    case TK_LET:        r = expr_local(ast); break;
     case TK_BREAK:      r = expr_break(t, ast); break;
     case TK_CONTINUE:   r = expr_continue(t, ast); break;
     case TK_RETURN:     r = expr_return(options, ast); break;
@@ -217,6 +219,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TILDE:      r = expr_tilde(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
     case TK_CALL:       r = expr_call(options, astp); break;
+    case TK_IFDEF:
     case TK_IF:         r = expr_if(options, ast); break;
     case TK_WHILE:      r = expr_while(options, ast); break;
     case TK_REPEAT:     r = expr_repeat(options, ast); break;
@@ -225,6 +228,8 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_MATCH:      r = expr_match(options, ast); break;
     case TK_CASES:      r = expr_cases(ast); break;
     case TK_CASE:       r = expr_case(options, ast); break;
+    case TK_MATCH_CAPTURE:
+                        r = expr_match_capture(ast); break;
     case TK_TUPLE:      r = expr_tuple(ast); break;
     case TK_ARRAY:      r = expr_array(options, astp); break;
     case TK_REFERENCE:  r = expr_reference(options, astp); break;
@@ -232,8 +237,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
     case TK_ERROR:      r = expr_error(ast); break;
-    case TK_COMPILER_INTRINSIC:
-                        r = expr_compiler_intrinsic(t, ast); break;
+    case TK_COMPILE_ERROR:
+                        r = expr_compile_error(ast); break;
+    case TK_COMPILE_INTRINSIC:
+                        r = expr_compile_intrinsic(t, ast); break;
+    case TK_LOCATION:   r = expr_location(options, ast); break;
     case TK_POSITIONALARGS:
     case TK_NAMEDARGS:
     case TK_NAMEDARG:

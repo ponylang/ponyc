@@ -737,6 +737,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
 #define CUSTOMBUILD(builder_fn)
 #define INFIX_BUILD()
 #define INFIX_REVERSE()
+#define WRAP(child_idx, wrapper_id)
+#define UNWRAP(child_idx, wrapper_id)
 #define REORDER(...)
 #define REWRITE(body)
 #define SET_FLAG(f)
@@ -765,6 +767,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
   }
 
 #define SKIP(desc, ...) TOKEN(desc, __VA_ARGS__)
+
+#define TERMINATE(desc, ...) TOKEN(desc, __VA_ARGS__)
 
 #define RULE(desc, ...) \
   { \

@@ -597,7 +597,6 @@ TEST_F(ParseEntityTest, LetFieldMustHaveType)
 }
 
 
-/*
 TEST_F(ParseEntityTest, FieldDelegate)
 {
   const char* src =
@@ -611,6 +610,10 @@ TEST_F(ParseEntityTest, FieldDelegate)
 TEST_F(ParseEntityTest, FieldDelegateCanBeIntersect)
 {
   const char* src =
+    "trait T\n"
+    "trait T1\n"
+    "trait T2\n"
+
     "class Foo\n"
     "  var bar: T delegate (T1 & T2)";
 
@@ -621,6 +624,10 @@ TEST_F(ParseEntityTest, FieldDelegateCanBeIntersect)
 TEST_F(ParseEntityTest, FieldDelegateCannotBeUnion)
 {
   const char* src =
+    "trait T\n"
+    "trait T1\n"
+    "trait T2\n"
+
     "class Foo\n"
     "  var bar: T delegate (T1 | T2)";
 
@@ -631,6 +638,10 @@ TEST_F(ParseEntityTest, FieldDelegateCannotBeUnion)
 TEST_F(ParseEntityTest, FieldDelegateCannotBeTuple)
 {
   const char* src =
+    "trait T\n"
+    "trait T1\n"
+    "trait T2\n"
+
     "class Foo\n"
     "  var bar: T delegate (T1, T2)";
 
@@ -641,6 +652,10 @@ TEST_F(ParseEntityTest, FieldDelegateCannotBeTuple)
 TEST_F(ParseEntityTest, FieldDelegateCannotBeArrow)
 {
   const char* src =
+    "trait T\n"
+    "trait T1\n"
+    "trait T2\n"
+
     "class Foo\n"
     "  var bar: T delegate T1->T2";
 
@@ -651,12 +666,75 @@ TEST_F(ParseEntityTest, FieldDelegateCannotBeArrow)
 TEST_F(ParseEntityTest, FieldDelegateCannotHaveCapability)
 {
   const char* src =
+    "trait T\n"
+    "trait T1\n"
+
     "class Foo\n"
     "  var bar: T delegate T1 ref";
 
   TEST_ERROR(src);
 }
-*/
+
+
+// Provides list tests
+
+TEST_F(ParseEntityTest, ProvidesListCanBeIntersect)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+
+    "class Foo is (T1 & T2)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, ProvidesListCannotBeUnion)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+
+    "class Foo is (T1 | T2)";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, ProvidesListCannotBeTuple)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+
+    "class Foo is (T1, T2)";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, ProvidesListCannotBeArrow)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+
+    "class Foo is T1->T2";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, ProvidesListCannotHaveCapability)
+{
+  const char* src =
+    "trait T1\n"
+
+    "class Foo is T1 ref";
+
+  TEST_ERROR(src);
+}
 
 
 // Use command
@@ -664,10 +742,10 @@ TEST_F(ParseEntityTest, FieldDelegateCannotHaveCapability)
 TEST_F(ParseEntityTest, UseUri)
 {
   const char* src =
-    "use \"foo1\" "
-    "use bar = \"foo2\" "
-    "use \"foo3\" if wombat "
-    "use bar = \"foo4\" if wombat";
+    "use \"foo1\"\n"
+    "use bar = \"foo2\"\n"
+    "use \"foo3\" if debug\n"
+    "use bar = \"foo4\" if debug";
 
   TEST_COMPILE(src);
 }
@@ -676,10 +754,18 @@ TEST_F(ParseEntityTest, UseUri)
 TEST_F(ParseEntityTest, UseFfi)
 {
   const char* src =
-    "use @foo1[U32](a:I32, b:String, ...) ?"
-    "use @foo2[U32]() if wombat";
+    "use @foo1[U32](a:I32, b:String, ...) ?\n"
+    "use @foo2[U32]() if debug";
 
   TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, UseMustBeBeforeClass)
+{
+  const char* src = "class Foo use \"foo\"";
+
+  TEST_ERROR(src);
 }
 
 
@@ -717,7 +803,7 @@ TEST_F(ParseEntityTest, UseFfiEllipsisMustBeLast)
 
 TEST_F(ParseEntityTest, UseGuardsAreExpressions)
 {
-  const char* src = "use \"foo\" if a and b";
+  const char* src = "use \"foo\" if linux and debug";
 
   TEST_COMPILE(src);
 }
@@ -725,19 +811,162 @@ TEST_F(ParseEntityTest, UseGuardsAreExpressions)
 
 TEST_F(ParseEntityTest, UseGuardsDoNotAllowOperatorPrecedence)
 {
-  const char* src1 = "use \"foo\" if (a and b) or c";
+  const char* src1 = "use \"foo\" if (linux and debug) or windows";
 
   TEST_COMPILE(src1);
 
-  const char* src2 = "use \"foo\" if a and b or c";
+  const char* src2 = "use \"foo\" if linux and debug or windows";
 
   TEST_ERROR(src2);
 }
 
 
-TEST_F(ParseEntityTest, UseMustBeBeforeClass)
+TEST_F(ParseEntityTest, UseGuardsUserAndPlatformFlagsCanCollide)
 {
-  const char* src = "class Foo use \"foo\"";
+  const char* src1 = "use \"foo\" if \"linuxfoo\"";
+
+  TEST_COMPILE(src1);
+
+  const char* src2 = "use \"foo\" if \"linux\"";
+
+  TEST_ERROR(src2);
+
+  const char* src3 = "use \"foo\" if \"LINUX\"";
+
+  TEST_ERROR(src3);
+}
+
+
+TEST_F(ParseEntityTest, UseGuardsOutlawedFlagName)
+{
+  const char* src1 = "use \"foo\" if \"ndebug\"";
+
+  TEST_ERROR(src1);
+
+  const char* src2 = "use \"foo\" if \"NDEBUG\"";
+
+  TEST_ERROR(src2);
+}
+
+
+TEST_F(ParseEntityTest, UserFlagInCondition)
+{
+  const char* src =
+    "use \"foo\" if \"wombat\"";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, UnquotedUserFlagInCondition)
+{
+  const char* src =
+    "use \"foo\" if wombat";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, OsNameCaseSensitiveInConditionRight)
+{
+  const char* src =
+    "use \"foo\" if windows";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, OsNameCaseSensitiveInConditionWrong)
+{
+  const char* src =
+    "use \"foo\" if WINDOWS";
+
+  TEST_ERROR(src);
+}
+
+
+// Compile intrinsic
+
+TEST_F(ParseEntityTest, CompileIntrinsicAllowedAsFunctionBody)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    compile_intrinsic";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, DocstringAllowedBeforeCompileIntrinsic)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    \"We do something\"\n"
+    "    compile_intrinsic";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ParseEntityTest, TwoDocstringsNotAllowedBeforeCompileIntrinsic)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    \"We do something\"\n"
+    "    \"And something else\"\n"
+    "    compile_intrinsic";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, NonDocExpressionNotAllowedBeforeCompileIntrinsic)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    let x = 3\n"
+    "    compile_intrinsic";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, DocstringNotAllowedAfterCompileIntrinsic)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    compile_intrinsic\n"
+    "    \"We do something\"";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, NonDocExpressionNotAllowedAfterCompileIntrinsic)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    compile_intrinsic\n"
+    "    let x = 3";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, CompileIntrinsicNotAllowedInControlStructure)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    if x then\n"
+    "      compile_intrinsic\n"
+    "    end";
 
   TEST_ERROR(src);
 }

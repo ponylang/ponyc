@@ -10,6 +10,10 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct lexer_t lexer_t;
 
+/** Allow test symbols to be generated in all lexers.
+ * Should only be used for unit tests.
+ */
+void lexer_allow_test_symbols();
 
 /** Create a new lexer to handle the given source.
  * The created lexer must be freed later with lexer_close().
@@ -34,12 +38,6 @@ token_t* lexer_next(lexer_t* lexer);
  * Returns NULL for non-fixed tokens.
  */
 const char* lexer_print(token_id id);
-
-/** Report the abstract keyword that the given text represents, if any.
- * Returns the ID of the given abstract keyword or TK_LEX_ERROR if the text is
- * not an abstract keyword.
- */
-token_id lexer_is_abstract_keyword(const char* text);
 
 PONY_EXTERN_C_END
 

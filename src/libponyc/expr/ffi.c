@@ -1,6 +1,7 @@
 #include "ffi.h"
 #include "literal.h"
 #include "../type/subtype.h"
+#include "../pkg/ifdef.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -18,10 +19,14 @@ static bool void_star_param(ast_t* param_type, ast_t* arg_type)
     return false;
 
   // Parameter type is Pointer[None]
+  // If the argument is Pointer[A], Maybe[A] or USize, allow it
+  while(ast_id(arg_type) == TK_ARROW)
+    arg_type = ast_childidx(arg_type, 1);
 
-  if(is_pointer(arg_type) || is_literal(arg_type, "U64"))
-    // Argument is Pointer[Something] or U64, allow it
-      return true;
+  if(is_pointer(arg_type) ||
+    is_maybe(arg_type) ||
+    is_literal(arg_type, "USize"))
+    return true;
 
   return false;
 }
@@ -50,12 +55,19 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     ast_t* a_type = ast_type(arg);
 
-    if((a_type != NULL) && !void_star_param(p_type, a_type) &&
-      !is_subtype(a_type, p_type))
+    errorframe_t info = NULL;
+    if((a_type != NULL) &&
+      !void_star_param(p_type, a_type) &&
+      !is_subtype(a_type, p_type, &info))
     {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter type: %s", ast_print_type(p_type));
-      ast_error(arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, param, "parameter type: %s",
+        ast_print_type(p_type));
+      ast_error_frame(&frame, arg, "argument type: %s",
+        ast_print_type(a_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
       return AST_ERROR;
     }
 
@@ -90,9 +102,15 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
 
-  if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
+  errorframe_t info = NULL;
+  if((call_ret_type != NULL) &&
+    !is_eqtype(call_ret_type, decl_ret_type, &info))
   {
-    ast_error(call_ret_type, "call return type does not match declaration");
+    errorframe_t frame = NULL;
+    ast_error_frame(&frame, call_ret_type,
+      "call return type does not match declaration");
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
     return AST_ERROR;
   }
 
@@ -109,6 +127,9 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     ast_seterror(call);
   }
 
+  // Store the declaration so that codegen can generate a non-variadic
+  // signature for the FFI call.
+  ast_setdata(call, decl);
   ast_settype(call, decl_ret_type);
   ast_inheritflags(call);
   return AST_OK;
@@ -125,7 +146,9 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   assert(name != NULL);
 
-  ast_t* decl = ast_get(ast, ast_name(name), NULL);
+  ast_t* decl;
+  if(!ffi_get_decl(&opt->check, ast, &decl))
+    return AST_ERROR;
 
   if(decl != NULL)  // We have a declaration
     return declared_ffi(opt, ast, decl);

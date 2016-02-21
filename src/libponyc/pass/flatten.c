@@ -2,15 +2,13 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
+#include "../type/subtype.h"
+#include "../type/typeparam.h"
 #include <assert.h>
 
 ast_result_t flatten_typeparamref(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, cap, ephemeral);
-
-  // Get the lowest capability that could fulfill the constraint.
-  ast_t* def = (ast_t*)ast_data(ast);
-  AST_GET_CHILDREN(def, name, constraint, default_type);
+  AST_GET_CHILDREN(ast, id, cap, eph);
 
   if(ast_id(cap) != TK_NONE)
   {
@@ -18,10 +16,7 @@ ast_result_t flatten_typeparamref(ast_t* ast)
     return AST_ERROR;
   }
 
-  // Set the typeparamref cap.
-  token_id tcap = cap_from_constraint(constraint);
-  ast_setid(cap, tcap);
-
+  typeparam_set_cap(ast);
   return AST_OK;
 }
 
@@ -154,11 +149,14 @@ static ast_result_t flatten_provides_list(ast_t* provider, int index)
   assert(provider != NULL);
 
   ast_t* provides = ast_childidx(provider, index);
+
+  if(ast_id(provides) == TK_NONE)
+    return AST_OK;
+
   ast_t* list = ast_from(provides, TK_PROVIDES);
   ast_t* list_end = NULL;
 
-  if(ast_id(provides) != TK_NONE &&
-    !flatten_provided_type(provides, provider, list, &list_end))
+  if(!flatten_provided_type(provides, provider, list, &list_end))
   {
     ast_free(list);
     return AST_ERROR;
@@ -202,11 +200,26 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_FVAR:
     case TK_FLET:
-    case TK_EMBED:
       return flatten_provides_list(ast, 3);
+
+    case TK_EMBED:
+    {
+      AST_GET_CHILDREN(ast, id, type, init);
+
+      // An embedded field must have a known, class type.
+      if(!is_known(type) ||
+        (!is_entity(type, TK_STRUCT) && !is_entity(type, TK_CLASS)))
+      {
+        ast_error(ast, "embedded fields must be classes or structs");
+        return AST_ERROR;
+      }
+
+      return flatten_provides_list(ast, 3);
+    }
 
     case TK_ACTOR:
     case TK_CLASS:
+    case TK_STRUCT:
     case TK_PRIMITIVE:
     case TK_TRAIT:
     case TK_INTERFACE:

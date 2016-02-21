@@ -5,8 +5,14 @@
 
 #include <platform.h>
 
-#define PAGEMAP_ADDRESSBITS 48
-#define PAGEMAP_LEVELS 3
+#ifdef PLATFORM_IS_ILP32
+# define PAGEMAP_ADDRESSBITS 32
+# define PAGEMAP_LEVELS 2
+#else
+# define PAGEMAP_ADDRESSBITS 48
+# define PAGEMAP_LEVELS 3
+#endif
+
 #define PAGEMAP_BITS (PAGEMAP_ADDRESSBITS - POOL_ALIGN_BITS) / PAGEMAP_LEVELS
 #define PAGEMAP_EXCESS (PAGEMAP_ADDRESSBITS - POOL_ALIGN_BITS) % PAGEMAP_LEVELS
 
@@ -36,10 +42,16 @@ typedef struct pagemap_level_t
  */
 static const pagemap_level_t level[PAGEMAP_LEVELS] =
 {
+#if PAGEMAP_LEVELS >= 3
   { L3_SHIFT, (1 << L3_MASK) - 1, (1 << L3_MASK) * sizeof(void*),
     POOL_INDEX((1 << L3_MASK) * sizeof(void*)) },
+#endif
+
+#if PAGEMAP_LEVELS >= 2
   { L2_SHIFT, (1 << L2_MASK) - 1, (1 << L2_MASK) * sizeof(void*),
-    POOL_INDEX((1 << L3_MASK) * sizeof(void*)) },
+    POOL_INDEX((1 << L2_MASK) * sizeof(void*)) },
+#endif
+
   { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*),
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };

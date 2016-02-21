@@ -100,6 +100,8 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  // TODO: This doesn't pick up `x / 0` for 128 bit numbers on platforms
+  // without native 128 bit support.
   if(!is_fp(r_value) &&
     LLVMIsConstant(r_value) &&
     (LLVMConstIntGetSExtValue(r_value) == 0)
@@ -341,6 +343,15 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
 {
   switch(ast_id(left))
   {
+    case TK_SEQ:
+      // The actual expression is inside a sequence node.
+      while(ast_id(left) == TK_SEQ)
+      {
+        assert(ast_childcount(left) == 1);
+        left = ast_child(left);
+      }
+      return assign_rvalue(c, left, r_type, r_value);
+
     case TK_VAR:
     case TK_LET:
     {
@@ -357,6 +368,12 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       // The result is the previous value of the field.
       LLVMValueRef l_value = gen_fieldptr(c, left);
       return assign_one(c, l_value, r_value, r_type);
+    }
+
+    case TK_EMBEDREF:
+    {
+      // Do nothing. The embed field was already passed as the receiver.
+      return GEN_NOVALUE;
     }
 
     case TK_VARREF:

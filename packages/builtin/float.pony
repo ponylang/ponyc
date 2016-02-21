@@ -1,10 +1,10 @@
 primitive F32 is FloatingPoint[F32]
-  new create(value: F32 = 0) => compiler_intrinsic
-  new pi() => compiler_intrinsic
-  new e() => compiler_intrinsic
+  new create(value: F32 = 0) => value
+  new pi() => 3.14159265358979323846
+  new e() => 2.71828182845904523536
 
-  new from_bits(i: U32) => compiler_intrinsic
-  fun bits(): U32 => compiler_intrinsic
+  new from_bits(i: U32) => compile_intrinsic
+  fun bits(): U32 => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
 
   fun tag min_value(): F32 =>
@@ -71,15 +71,13 @@ primitive F32 is FloatingPoint[F32]
     38
 
   fun abs(): F32 => @"llvm.fabs.f32"[F32](this)
-  fun min(y: F32): F32 => if this < y then this else y end
-    //@"llvm.minnum.f32"[F32](this, y)
-  fun max(y: F32): F32 => if this > y then this else y end
-    //@"llvm.maxnum.f32"[F32](this, y)
-
   fun ceil(): F32 => @"llvm.ceil.f32"[F32](this)
   fun floor(): F32 => @"llvm.floor.f32"[F32](this)
   fun round(): F32 => @"llvm.round.f32"[F32](this)
   fun trunc(): F32 => @"llvm.trunc.f32"[F32](this)
+
+  fun min(y: F32): F32 => if this < y then this else y end
+  fun max(y: F32): F32 => if this > y then this else y end
 
   fun finite(): Bool =>
     """
@@ -96,6 +94,9 @@ primitive F32 is FloatingPoint[F32]
     ((bits() and 0x7F800000) == 0x7F800000) and  // exp
     ((bits() and 0x007FFFFF) != 0)  // mantissa
 
+  fun ldexp(x: F32, exponent: I32): F32 =>
+    @ldexpf[F32](x, exponent)
+
   fun frexp(): (F32, U32) =>
     var exponent: U32 = 0
     var mantissa = @frexp[F64](f64(), addressof exponent)
@@ -108,7 +109,7 @@ primitive F32 is FloatingPoint[F32]
 
   fun pow(y: F32): F32 => @"llvm.pow.f32"[F32](this, y)
   fun powi(y: I32): F32 =>
-    if Platform.windows() then
+    ifdef windows then
       pow(y.f32())
     else
       @"llvm.powi.f32"[F32](this, y)
@@ -142,12 +143,12 @@ primitive F32 is FloatingPoint[F32]
   fun u128(): U128 => f64().u128()
 
 primitive F64 is FloatingPoint[F64]
-  new create(value: F64 = 0) => compiler_intrinsic
-  new pi() => compiler_intrinsic
-  new e() => compiler_intrinsic
+  new create(value: F64 = 0) => value
+  new pi() => 3.14159265358979323846
+  new e() => 2.71828182845904523536
 
-  new from_bits(i: U64) => compiler_intrinsic
-  fun bits(): U64 => compiler_intrinsic
+  new from_bits(i: U64) => compile_intrinsic
+  fun bits(): U64 => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
 
   fun tag min_value(): F64 =>
@@ -214,15 +215,13 @@ primitive F64 is FloatingPoint[F64]
     308
 
   fun abs(): F64 => @"llvm.fabs.f64"[F64](this)
-  fun min(y: F64): F64 => if this < y then this else y end
-    //@"llvm.minnum.f64"[F64](this, y)
-  fun max(y: F64): F64 => if this > y then this else y end
-    //@"llvm.maxnum.f64"[F64](this, y)
-
   fun ceil(): F64 => @"llvm.ceil.f64"[F64](this)
   fun floor(): F64 => @"llvm.floor.f64"[F64](this)
   fun round(): F64 => @"llvm.round.f64"[F64](this)
   fun trunc(): F64 => @"llvm.trunc.f64"[F64](this)
+
+  fun min(y: F64): F64 => if this < y then this else y end
+  fun max(y: F64): F64 => if this > y then this else y end
 
   fun finite(): Bool =>
     """
@@ -239,6 +238,9 @@ primitive F64 is FloatingPoint[F64]
     ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
     ((bits() and 0x000F_FFFF_FFFF_FFFF) != 0)  // mantissa
 
+  fun ldexp(x: F64, exponent: I32): F64 =>
+    @ldexp[F64](x, exponent)
+
   fun frexp(): (F64, U32) =>
     var exponent: U32 = 0
     var mantissa = @frexp[F64](this, addressof exponent)
@@ -251,7 +253,7 @@ primitive F64 is FloatingPoint[F64]
 
   fun pow(y: F64): F64 => @"llvm.pow.f64"[F64](this, y)
   fun powi(y: I32): F64 =>
-    if Platform.windows() then
+    ifdef windows then
       pow(y.f64())
     else
       @"llvm.powi.f64"[F64](this, y)

@@ -4,16 +4,48 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [unreleased] - unreleased
 
+### Fixed
+
+- Check for Main.create before reachability analysis.
+- Interface subtyping need not be invariant on type args.
+- @fowles: handle regex empty match.
+- @praetonus: readline history handling.
+- Put unbox constructors on machine words into the vtable.
+- @jonas-l: parse URL with omitted password.
+- Adjust for ephemerality in cap_single().
+- Finalisation always occurs.
+- Type checking platform dependent FFI declarations on all platforms.
+- Interface subtyping takes receiver capabilities into account.
+- Pony-as-library support, particularly pony_register_thread().
+
 ### Added
 
+- 32-bit ARM port.
+- 32-bit X86 port.
+- Embedded fields.
+- C-style structs.
+- Maybe[A] to encode C-style structs that aren't present.
 - OpenFile and CreateFile primitives to return well-typed errors.
+- @fowles: String.join
+- Array slice, permute, reverse.
+- Pooltrack and telemetry runtime builds.
+- ifdef expressions for platform dependent code.
+- User specified build flags.
+- Pure Pony implementation of 128 bit integer maths for 32-bit platforms.
+- UDP broadcast for both IPv4 and IPv6.
+- Message batching.
+- Case functions.
+- Timeouts for PonyTest long tests.
 
 ### Changed
 
+- Interfaces are invariant if they are structurally equivalent.
+- Improved type checking with configuration management.
 - Improved realloc behaviour after heap_alloc_large.
 - Set-based upper bounds for generic constraints.
 - Moved the position of a default capability in a type specification.
 - Replaced '&' with 'addressof' for taking address in FFI calls.
+- @jemc: use half-open ranges for String operations.
 
 ## [0.2.1] - 2015-10-06
 

@@ -23,6 +23,10 @@ static const char* c_type_name(compile_t* c, const char* name)
     return "int64_t";
   else if(name == c->str_I128)
     return "__int128_t";
+  else if(name == c->str_ILong)
+    return "long";
+  else if(name == c->str_ISize)
+    return "ssize_t";
   else if(name == c->str_U8)
     return "char";
   else if(name == c->str_U16)
@@ -33,6 +37,10 @@ static const char* c_type_name(compile_t* c, const char* name)
     return "uint64_t";
   else if(name == c->str_U128)
     return "__uint128_t";
+  else if(name == c->str_ULong)
+    return "unsigned long";
+  else if(name == c->str_USize)
+    return "size_t";
   else if(name == c->str_F32)
     return "float";
   else if(name == c->str_F64)
@@ -62,7 +70,7 @@ static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* elem = ast_child(typeargs);
 
-  if(is_pointer(elem))
+  if(is_pointer(elem) || is_maybe(elem))
     return print_pointer_type(c, buf, elem) + 1;
 
   print_base_type(c, buf, elem);
@@ -71,9 +79,8 @@ static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
 
 static void print_type_name(compile_t* c, printbuf_t* buf, ast_t* type)
 {
-  if(is_pointer(type))
+  if(is_pointer(type) || is_maybe(type))
   {
-    printbuf(buf, "const ");
     int depth = print_pointer_type(c, buf, type);
 
     for(int i = 0; i < depth; i++)
@@ -124,7 +131,7 @@ static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
   if(typeargs != NULL)
   {
     ast_t* typeparams = ast_childidx(fun, 2);
-    ast_t* r_fun = reify(typeparams, fun, typeparams, typeargs);
+    ast_t* r_fun = reify(fun, typeparams, typeargs);
     ast_free_unattached(fun);
     fun = r_fun;
     assert(fun != NULL);
@@ -243,11 +250,11 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
     if(ast_id(docstring) == TK_STRING)
       fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
 
-    // Forward declare an opaque type.
-    fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
-
-    if(!is_pointer(t->type))
+    if(!is_pointer(t->type) && !is_maybe(t->type) && !is_machine_word(t->type))
     {
+      // Forward declare an opaque type.
+      fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
+
       // Function signature for the allocator.
       printbuf(buf,
         "/* Allocate a %s without initialising it. */\n%s* %s_Alloc();\n\n",

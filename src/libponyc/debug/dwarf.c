@@ -26,7 +26,7 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     else if(is_bool(ast))
       meta->flags |= DWARF_BOOLEAN;
   }
-  else if(is_pointer(ast) || !is_concrete(ast) ||
+  else if(is_pointer(ast) || is_maybe(ast) || !is_concrete(ast) ||
     (is_constructable(ast) && field))
   {
     type = g->use_type;
@@ -52,8 +52,8 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
 
   if(!opaque)
   {
-    meta->size = LLVMABISizeOfType(dwarf->target_data, type) << 3;
-    meta->align = LLVMABIAlignmentOfType(dwarf->target_data, type) << 3;
+    meta->size = (size_t)(8 * LLVMABISizeOfType(dwarf->target_data, type));
+    meta->align = 8 * LLVMABIAlignmentOfType(dwarf->target_data, type);
   }
 }
 
@@ -179,14 +179,16 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   if(composite->underlying != TK_TUPLETYPE)
   {
     structure = composite->structure;
-    offset++;
+
+    if(composite->underlying != TK_STRUCT)
+      offset++;
 
     if(composite->underlying == TK_ACTOR)
       offset++;
   }
 
-  meta.offset = 8 * LLVMOffsetOfElement(dwarf->target_data, structure,
-    offset + index);
+  meta.offset = (size_t)(8 * LLVMOffsetOfElement(dwarf->target_data, structure,
+    offset + index));
 
   symbols_field(dwarf->symbols, &meta);
 }
@@ -254,7 +256,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   const char* name = ast_name(ast_child(ast));
 
   dwarf_meta_t meta;
-  meta_local(&meta, ast, name, type, entry, storage, 0, ast_id(ast) == TK_LET);
+  meta_local(&meta, ast, name, type, entry, storage, 0, ast_id(ast) != TK_VAR);
 
   meta.inst = inst;
 

@@ -31,11 +31,11 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
       break;
     }
 
-    case TK_FFIDECL:
     case TK_TYPE:
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
     case TK_TYPEPARAM:
@@ -113,13 +113,8 @@ static void set_fields_undefined(ast_t* ast)
       case TK_FLET:
       case TK_EMBED:
       {
-        AST_GET_CHILDREN(member, id, type, expr);
-
-        // If this field has an initialiser, we accept SYM_DEFINED for it.
-        if(ast_id(expr) != TK_NONE)
-          break;
-
         // Mark this field as SYM_UNDEFINED.
+        AST_GET_CHILDREN(member, id, type, expr);
         ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
         break;
       }
@@ -205,14 +200,10 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       return scope_entity(t, ast);
-
-    case TK_FFIDECL:
-      if(!set_scope(t, t->frame->package, ast_child(ast), ast))
-        return AST_ERROR;
-      break;
 
     case TK_PARAM:
       if(!set_scope(t, ast, ast_child(ast), ast))
@@ -224,6 +215,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
         return AST_ERROR;
       break;
 
+    case TK_MATCH_CAPTURE:
     case TK_LET:
     case TK_VAR:
       if(!scope_local(t, ast))

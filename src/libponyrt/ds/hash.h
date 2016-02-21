@@ -84,7 +84,7 @@ void* hashmap_next(hashmap_t* map, size_t* i);
 
 #define DEFINE_HASHMAP(name, type, hash, cmp, alloc, fr, free_elem) \
   typedef struct name##_t name##_t; \
-  typedef uint64_t (*name##_hash_fn)(type* m); \
+  typedef size_t (*name##_hash_fn)(type* m); \
   typedef bool (*name##_cmp_fn)(type* a, type* b); \
   typedef void (*name##_free_fn)(type* a); \
   typedef void (*name##_trace_fn)(void* a); \

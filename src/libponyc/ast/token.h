@@ -3,6 +3,7 @@
 
 #include <platform.h>
 
+#include "lexint.h"
 #include "error.h"
 #include "source.h"
 #include <stdbool.h>
@@ -72,6 +73,7 @@ typedef enum token_id
   TK_UNARY_MINUS,
   TK_ELLIPSIS,
   TK_DONTCARE,
+  TK_CONSTANT,
 
   // Newline symbols, only used by lexer and parser
   TK_LPAREN_NEW,
@@ -79,13 +81,14 @@ typedef enum token_id
   TK_MINUS_NEW,
 
   // Keywords
-  TK_COMPILER_INTRINSIC,
+  TK_COMPILE_INTRINSIC,
 
   TK_USE,
   TK_TYPE,
   TK_INTERFACE,
   TK_TRAIT,
   TK_PRIMITIVE,
+  TK_STRUCT,
   TK_CLASS,
   TK_ACTOR,
   TK_OBJECT,
@@ -135,6 +138,7 @@ typedef enum token_id
   TK_RECOVER,
 
   TK_IF,
+  TK_IFDEF,
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
@@ -151,6 +155,7 @@ typedef enum token_id
   TK_TRY_NO_CHECK,
   TK_WITH,
   TK_ERROR,
+  TK_COMPILE_ERROR,
 
   TK_NOT,
   TK_AND,
@@ -159,6 +164,7 @@ typedef enum token_id
 
   TK_IDENTITY,
   TK_ADDRESS,
+  TK_LOCATION,
 
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
@@ -171,13 +177,18 @@ typedef enum token_id
   TK_FFIDECL,
   TK_FFICALL,
 
+  TK_IFDEFAND,
+  TK_IFDEFOR,
+  TK_IFDEFNOT,
+  TK_IFDEFFLAG,
+
   TK_PROVIDES,
   TK_UNIONTYPE,
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_THISTYPE,
-  TK_BOXTYPE,
   TK_FUNTYPE,
+  TK_LAMBDATYPE,
   TK_INFERTYPE,
   TK_ERRORTYPE,
 
@@ -190,6 +201,8 @@ typedef enum token_id
   TK_PARAMS,
   TK_PARAM,
   TK_TYPEARGS,
+  TK_VALUEFORMALPARAM,
+  TK_VALUEFORMALARG,
   TK_POSITIONALARGS,
   TK_NAMEDARGS,
   TK_NAMEDARG,
@@ -204,6 +217,7 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
+  TK_MATCH_CAPTURE,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -228,12 +242,12 @@ typedef enum token_id
   TK_FLATTEN,  // Used by parser macros for tree building
 
   // Token types for testing
-  TK_TEST,
-  TK_TEST_SEQ,
+  TK_TEST_NO_SEQ,
   TK_TEST_SEQ_SCOPE,
   TK_TEST_TRY_NO_CHECK,
   TK_TEST_BORROWED,
-  TK_TEST_UPDATEARG
+  TK_TEST_UPDATEARG,
+  TK_TEST_EXTRA
 } token_id;
 
 
@@ -265,10 +279,10 @@ void token_free(token_t* token);
 token_id token_get_id(token_t* token);
 
 /** Report the given token's literal value.
-  * Only valid for TK_STRING and TK_ID tokens.
-  * The returned string must not be deleted and is valid for the lifetime of the
-  * token.
-  */
+ * Only valid for TK_STRING and TK_ID tokens.
+ * The returned string must not be deleted and is valid for the lifetime of the
+ * token.
+ */
 const char* token_string(token_t* token);
 
 /** Report the given token's literal string length.
@@ -280,12 +294,12 @@ size_t token_string_len(token_t* token);
 double token_float(token_t* token);
 
 /// Report the given token's literal value. Only valid for TK_INT tokens.
-__uint128_t token_int(token_t* token);
+lexint_t* token_int(token_t* token);
 
 /** Return a string for printing the given token.
-  * The returned string must not be deleted and is only valid until the next call
-  * to token_print() for that token, or until the token is deleted.
-  */
+ * The returned string must not be deleted and is only valid until the next
+ * call to token_print() for that token, or until the token is deleted.
+ */
 const char* token_print(token_t* token);
 
 /** Return a string to describe the given token id.
@@ -326,7 +340,7 @@ void token_set_string(token_t* token, const char* value, size_t length);
 void token_set_float(token_t* token, double value);
 
 /// Set the given token's literal value. Only valid for TK_INT tokens.
-void token_set_int(token_t* token, __uint128_t value);
+void token_set_int(token_t* token, lexint_t* value);
 
 /// Set the given token's position within its source file and optionally the
 /// source file.

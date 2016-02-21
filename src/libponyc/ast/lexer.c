@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "lexint.h"
 #include "token.h"
 #include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
@@ -88,6 +89,7 @@ static const lextoken_t symbols[] =
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
+  { "#", TK_CONSTANT },
 
   { "(", TK_LPAREN_NEW },
   { "[", TK_LSQUARE_NEW },
@@ -99,13 +101,14 @@ static const lextoken_t symbols[] =
 static const lextoken_t keywords[] =
 {
   { "_", TK_DONTCARE },
-  { "compiler_intrinsic", TK_COMPILER_INTRINSIC },
+  { "compile_intrinsic", TK_COMPILE_INTRINSIC },
 
   { "use", TK_USE },
   { "type", TK_TYPE },
   { "interface", TK_INTERFACE },
   { "trait", TK_TRAIT },
   { "primitive", TK_PRIMITIVE },
+  { "struct", TK_STRUCT },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
@@ -138,6 +141,7 @@ static const lextoken_t keywords[] =
   { "recover", TK_RECOVER },
 
   { "if", TK_IF },
+  { "ifdef", TK_IFDEF },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
@@ -153,6 +157,7 @@ static const lextoken_t keywords[] =
   { "try", TK_TRY },
   { "with", TK_WITH },
   { "error", TK_ERROR },
+  { "compile_error", TK_COMPILE_ERROR },
 
   { "not", TK_NOT },
   { "and", TK_AND },
@@ -161,9 +166,29 @@ static const lextoken_t keywords[] =
 
   { "identityof", TK_IDENTITY },
   { "addressof", TK_ADDRESS },
+  { "__loc", TK_LOCATION },
 
   { "true", TK_TRUE },
   { "false", TK_FALSE },
+
+  // #keywords.
+  { "#read", TK_CAP_READ },
+  { "#send", TK_CAP_SEND },
+  { "#share", TK_CAP_SHARE },
+  { "#any", TK_CAP_ANY },
+
+  // $keywords, for testing only.
+  { "$noseq", TK_TEST_NO_SEQ },
+  { "$scope", TK_TEST_SEQ_SCOPE },
+  { "$try_no_check", TK_TEST_TRY_NO_CHECK },
+  { "$borrowed", TK_TEST_BORROWED },
+  { "$updatearg", TK_TEST_UPDATEARG },
+  { "$extra", TK_TEST_EXTRA },
+  { "$ifdefand", TK_IFDEFAND },
+  { "$ifdefor", TK_IFDEFOR },
+  { "$ifdefnot", TK_IFDEFNOT },
+  { "$flag", TK_IFDEFFLAG },
+  { "$let", TK_MATCH_CAPTURE },
 
   { NULL, (token_id)0 }
 };
@@ -188,22 +213,22 @@ static const lextoken_t abstract[] =
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
-  { "boxtype", TK_BOXTYPE },
   { "funtype", TK_FUNTYPE },
+  { "lambdatype", TK_LAMBDATYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 
-  { "iso", TK_ISO_BIND },
-  { "trn", TK_TRN_BIND },
-  { "ref", TK_REF_BIND },
-  { "val", TK_VAL_BIND },
-  { "box", TK_BOX_BIND },
-  { "tag", TK_TAG_BIND },
+  { "iso (bind)", TK_ISO_BIND },
+  { "trn (bind)", TK_TRN_BIND },
+  { "ref (bind)", TK_REF_BIND },
+  { "val (bind)", TK_VAL_BIND },
+  { "box (bind)", TK_BOX_BIND },
+  { "tag (bind)", TK_TAG_BIND },
 
-  { "#read", TK_CAP_READ_BIND },
-  { "#send", TK_CAP_SEND_BIND },
-  { "#share", TK_CAP_SHARE_BIND },
-  { "#any", TK_CAP_ANY_BIND },
+  { "#read (bind)", TK_CAP_READ_BIND },
+  { "#send (bind)", TK_CAP_SEND_BIND },
+  { "#share (bind)", TK_CAP_SHARE_BIND },
+  { "#any (bind)", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },
@@ -249,31 +274,17 @@ static const lextoken_t abstract[] =
   { "funapp", TK_FUNAPP },
 
   { "\\n", TK_NEWLINE },
-
-  { "test", TK_TEST },
-  { NULL, (token_id)0 }
+  {NULL, (token_id)0}
 };
 
-static const lextoken_t test_keywords[] =
+
+static bool allow_test_symbols = false;
+
+
+void lexer_allow_test_symbols()
 {
-  { "$scope", TK_TEST_SEQ_SCOPE },
-  { "$seq", TK_TEST_SEQ },
-  { "$try_no_check", TK_TEST_TRY_NO_CHECK },
-  { "$borrowed", TK_TEST_BORROWED },
-  { "$updatearg", TK_TEST_UPDATEARG },
-
-  { NULL, (token_id)0 }
-};
-
-static const lextoken_t hash_keywords[] =
-{
-  { "#read", TK_CAP_READ },
-  { "#send", TK_CAP_SEND },
-  { "#share", TK_CAP_SHARE },
-  { "#any", TK_CAP_ANY },
-
-  { NULL, (token_id)0 }
-};
+  allow_test_symbols = true;
+}
 
 
 // Report an error at the specified location
@@ -303,7 +314,7 @@ static bool is_eof(lexer_t* lexer)
 }
 
 
-// Append the given token to the current token text
+// Append the given character to the current token text
 static void append_to_token(lexer_t* lexer, char c)
 {
   if(lexer->buflen >= lexer->alloc)
@@ -781,7 +792,9 @@ static token_t* string(lexer_t* lexer)
 static token_t* character(lexer_t* lexer)
 {
   consume_chars(lexer, 1);  // Leading '
-  __uint128_t value = 0;
+
+  lexint_t value;
+  lexint_zero(&value);
 
   while(true)
   {
@@ -794,7 +807,7 @@ static token_t* character(lexer_t* lexer)
     {
       consume_chars(lexer, 1);
       token_t* t = make_token(lexer, TK_INT);
-      token_set_int(t, value);
+      token_set_int(t, &value);
       return t;
     }
 
@@ -806,35 +819,10 @@ static token_t* character(lexer_t* lexer)
     // Just ignore bad escapes here and carry on. They've already been
     // reported and this allows catching later errors.
     if(c >= 0)
-      value = (value << 8) | c;
+      lexint_char(&value, c);
+
+    // TODO: Should we catch overflow and treat as an error?
   }
-}
-
-
-/** Add the given digit to a literal value, checking for overflow.
- * Returns true on success, false on overflow error.
- */
-static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
-{
-  __uint128_t v1 = *v;
-  __uint128_t v2 = v1 * base;
-
-  if((v2 / base) != v1)
-  {
-    lex_error(lexer, "overflow in numeric literal");
-    return false;
-  }
-
-  v2 += digit;
-
-  if(v2 < v1)
-  {
-    lex_error(lexer, "overflow in numeric literal");
-    return false;
-  }
-
-  *v = v2;
-  return true;
 }
 
 
@@ -848,7 +836,7 @@ static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
  * The value read is added onto the end of any existing value in out_value.
  */
 static bool lex_integer(lexer_t* lexer, uint32_t base,
-  __uint128_t* out_value, uint32_t* out_digit_count, bool end_on_e,
+  lexint_t* out_value, uint32_t* out_digit_count, bool end_on_e,
   const char* context)
 {
   uint32_t digit_count = 0;
@@ -883,8 +871,11 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
       return false;
     }
 
-    if(!accum(lexer, out_value, digit, base))
+    if(!lexint_accum(out_value, digit, base))
+    {
+      lex_error(lexer, "overflow in numeric literal");
       return false;
+    }
 
     consume_chars(lexer, 1);
     digit_count++;
@@ -905,10 +896,14 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 
 // Process a real literal, the leading integral part has already been read.
 // The . or e has been seen but not consumed.
-static token_t* real(lexer_t* lexer, __uint128_t integral_value)
+static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 {
-  __uint128_t significand = integral_value;
-  __int128_t e = 0;
+  lexint_t significand = *integral_value;
+
+  lexint_t e;
+  lexint_zero(&e);
+  bool exp_neg = false;
+
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
   assert(c == '.' || c == 'e' || c == 'E');
@@ -937,34 +932,29 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
   {
     consume_chars(lexer, 1);  // Consume e
 
-    bool exp_neg = false;
-
     if((look(lexer) == '+') || (look(lexer) == '-'))
     {
       exp_neg = (look(lexer) == '-');
       consume_chars(lexer, 1);
     }
 
-    __uint128_t exp_value = 0;
-    if(!lex_integer(lexer, 10, &exp_value, NULL, false,
+    if(!lex_integer(lexer, 10, &e, NULL, false,
       "real number exponent"))
       return make_token(lexer, TK_LEX_ERROR);
-
-    if(exp_neg)
-      e = -exp_value;
-    else
-      e = exp_value;
   }
 
-  e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  token_set_float(t, (double)significand * pow(10.0, e));
-#else
-  token_set_float(t, (double)significand * pow(10.0, (double)e));
-#endif
+  double ds = lexint_double(&significand);
+  double de = lexint_double(&e);
 
+  // Note that we must negate the exponent (if required) before applying the
+  // mantissa digit count offset.
+  if(exp_neg)
+    de = -de;
+
+  de -= mantissa_digit_count;
+  token_set_float(t, ds * pow(10.0, de));
   return t;
 }
 
@@ -974,12 +964,14 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 static token_t* nondecimal_number(lexer_t* lexer, int base,
   const char* context)
 {
-  __uint128_t value = 0;
+  lexint_t value;
+  lexint_zero(&value);
+
   if(!lex_integer(lexer, base, &value, NULL, false, context))
     return make_token(lexer, TK_LEX_ERROR);
 
   token_t* t = make_token(lexer, TK_INT);
-  token_set_int(t, value);
+  token_set_int(t, &value);
   return t;
 }
 
@@ -1007,15 +999,17 @@ static token_t* number(lexer_t* lexer)
   }
 
   // Decimal
-  __uint128_t value = 0;
+  lexint_t value;
+  lexint_zero(&value);
+
   if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
     return make_token(lexer, TK_LEX_ERROR);
 
   if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
-    return real(lexer, value);
+    return real(lexer, &value);
 
   token_t* t = make_token(lexer, TK_INT);
-  token_set_int(t, value);
+  token_set_int(t, &value);
   return t;
 }
 
@@ -1048,66 +1042,70 @@ static size_t read_id(lexer_t* lexer)
 }
 
 
-// Process an identifier the leading character of which has been seen, but not
-// consumed
-static token_t* identifier(lexer_t* lexer)
+// Process a keyword or identifier, possibly with a special prefix (eg '#').
+// Any prefix must have been consumed.
+// If no keyword is found the allow_identifiers parameter specifies whether an
+// identifier token should be created.
+// A lone prefix will not match as an identifier.
+// Both keywords and identifiers are greedy, consuming all legal characters.
+// Returns NULL if no match found.
+static token_t* keyword(lexer_t* lexer, bool allow_identifiers)
 {
   size_t len = read_id(lexer);
-  consume_chars(lexer, len);
 
   for(const lextoken_t* p = keywords; p->text != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->text))
-      return make_token(lexer, p->id);
-  }
-
-  return make_token_with_text(lexer, TK_ID);
-}
-
-
-// Process a hash identifier the leading # of which has been seen, but not
-// consumed
-static token_t* hash_identifier(lexer_t* lexer)
-{
-  // # already found, find rest of symbol.
-  // Only consume the remaining characters if we have a match.
-  consume_chars(lexer, 1);
-  append_to_token(lexer, '#');
-  size_t len = read_id(lexer);
-
-  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
-  {
-    if(!strcmp(lexer->buffer, p->text))
     {
       consume_chars(lexer, len);
       return make_token(lexer, p->id);
     }
   }
 
-  lex_error(lexer, "Unrecognized character: #");
-  return make_token(lexer, TK_LEX_ERROR);
+  if(allow_identifiers && len > 0)
+  {
+    consume_chars(lexer, len);
+    return make_token_with_text(lexer, TK_ID);
+  }
+
+  return NULL;
 }
 
 
-// Process a test identifier the leading $ of which has been seen, but not
-// consumed
-static token_t* test_identifier(lexer_t* lexer)
+// Process a hash, which has been seen, but not consumed.
+static token_t* hash(lexer_t* lexer)
 {
-  // $ already found, find rest of symbol.
-  // Only consume the remaining characters if we have a match.
+  append_to_token(lexer, look(lexer));  // #
   consume_chars(lexer, 1);
-  append_to_token(lexer, '$');
-  size_t len = read_id(lexer);
+  token_t* t = keyword(lexer, false);
 
-  for(const lextoken_t* p = test_keywords; p->text != NULL; p++)
+  if(t != NULL)
+    return t;
+
+  // No hash keyword found, just return the hash.
+  return make_token(lexer, TK_CONSTANT);
+}
+
+
+// Process a dollar, which has been seen, but not consumed.
+static token_t* dollar(lexer_t* lexer)
+{
+  append_to_token(lexer, look(lexer));  // $
+  consume_chars(lexer, 1);
+
+  if(allow_test_symbols)
   {
-    if(!strcmp(lexer->buffer, p->text))
-    {
-      consume_chars(lexer, len);
-      return make_token(lexer, p->id);
-    }
+    // Test mode, allow test keywords and identifiers.
+    // Note that a lone '$' is always an error to allow tests to force a lexer
+    // error.
+    token_t* t = keyword(lexer, true);
+
+    if(t != NULL)
+      return t;
   }
 
+  // No test keyword or identifier found. Either we have just a lone '$' or
+  // we're not in test mode so no dollar symbols are allowed.
   lex_error(lexer, "Unrecognized character: $");
   return make_token(lexer, TK_LEX_ERROR);
 }
@@ -1233,11 +1231,11 @@ token_t* lexer_next(lexer_t* lexer)
         break;
 
       case '#':
-        t = hash_identifier(lexer);
+        t = hash(lexer);
         break;
 
       case '$':
-        t = test_identifier(lexer);
+        t = dollar(lexer);
         break;
 
       default:
@@ -1247,7 +1245,8 @@ token_t* lexer_next(lexer_t* lexer)
         }
         else if(isalpha(c) || (c == '_'))
         {
-          t = identifier(lexer);
+          t = keyword(lexer, true);
+          assert(t != NULL);
         }
         else
         {
@@ -1281,29 +1280,5 @@ const char* lexer_print(token_id id)
       return p->text;
   }
 
-  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
-  {
-    if(id == p->id)
-      return p->text;
-  }
-
-  for(const lextoken_t* p = test_keywords; p->text != NULL; p++)
-  {
-    if(id == p->id)
-      return p->text;
-  }
-
   return NULL;
-}
-
-
-token_id lexer_is_abstract_keyword(const char* text)
-{
-  for(const lextoken_t* p = abstract; p->text != NULL; p++)
-  {
-    if(!strcmp(text, p->text))
-      return p->id;
-  }
-
-  return TK_LEX_ERROR;
 }

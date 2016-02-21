@@ -4,33 +4,33 @@ class List[A] is Seq[A]
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None
-  var _size: U64 = 0
+  var _size: USize = 0
 
-  new create(len: U64 = 0) =>
+  new create(len: USize = 0) =>
     """
     Do nothing, but be compatible with Seq.
     """
     None
 
-  fun ref reserve(len: U64): List[A]^ =>
+  fun ref reserve(len: USize): List[A]^ =>
     """
     Do nothing, but be compatible with Seq.
     """
     this
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     Returns the number of items in the list.
     """
     _size
 
-  fun apply(i: U64 = 0): this->A ? =>
+  fun apply(i: USize = 0): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
     index(i)()
 
-  fun ref update(i: U64, value: A): A^ ? =>
+  fun ref update(i: USize, value: A): A^ ? =>
     """
     Change the i-th element, raising an error if the index is out of bounds.
     Returns the previous value, which may be None if the node has been popped
@@ -38,7 +38,7 @@ class List[A] is Seq[A]
     """
     index(i)() = consume value
 
-  fun index(i: U64): this->ListNode[A] ? =>
+  fun index(i: USize): this->ListNode[A] ? =>
     """
     Gets the i-th node, raising an error if the index is out of bounds.
     """
@@ -47,7 +47,7 @@ class List[A] is Seq[A]
     end
 
     var node = _head as this->ListNode[A]
-    var j = U64(0)
+    var j = USize(0)
 
     while j < i do
       node = node.next() as this->ListNode[A]
@@ -56,7 +56,7 @@ class List[A] is Seq[A]
 
     node
 
-  fun ref remove(i: U64): List[A]^ ? =>
+  fun ref remove(i: USize): List[A]^ ? =>
     """
     Remove the i-th node, raising an error if the index is out of bounds.
     """
@@ -89,7 +89,7 @@ class List[A] is Seq[A]
     Adds a node to the head of the list.
     """
     match _head
-    | var head': ListNode[A] =>
+    | let head': ListNode[A] =>
       head'.prepend(node)
     else
       _set_both(node)
@@ -101,7 +101,7 @@ class List[A] is Seq[A]
     Adds a node to the tail of the list.
     """
     match _tail
-    | var tail': ListNode[A] =>
+    | let tail': ListNode[A] =>
       tail'.append(node)
     else
       _set_both(node)
@@ -154,7 +154,8 @@ class List[A] is Seq[A]
     """
     head().remove().pop()
 
-  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): List[A]^ =>
+  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1): List[A]^
+  =>
     """
     Append the elements from a sequence, starting from the given offset.
     """
@@ -177,7 +178,7 @@ class List[A] is Seq[A]
 
     this
 
-  fun ref truncate(len: U64): List[A]^ =>
+  fun ref truncate(len: USize): List[A]^ =>
     """
     Truncate the list to the given length, discarding excess elements.
     If the list is already smaller than len, do nothing.

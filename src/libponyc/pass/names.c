@@ -1,7 +1,7 @@
 #include "names.h"
 #include "../ast/astbuild.h"
-// #include "../type/alias.h"
 #include "../type/reify.h"
+#include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -62,23 +62,25 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
 static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
-  ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
+  int state = ast_checkflag(def,
+    AST_FLAG_RECURSE_1 | AST_FLAG_DONE_1 | AST_FLAG_ERROR_1);
 
   switch(state)
   {
-    case AST_STATE_INITIAL:
-      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
+    case 0:
+      ast_setflag(def, AST_FLAG_RECURSE_1);
       break;
 
-    case AST_STATE_INPROGRESS:
+    case AST_FLAG_RECURSE_1:
       ast_error(def, "type aliases can't be recursive");
-      ast_setdata(def, (void*)AST_STATE_ERROR);
+      ast_clearflag(def, AST_FLAG_RECURSE_1);
+      ast_setflag(def, AST_FLAG_ERROR_1);
       return false;
 
-    case AST_STATE_DONE:
+    case AST_FLAG_DONE_1:
       return true;
 
-    case AST_STATE_ERROR:
+    case AST_FLAG_ERROR_1:
       return false;
 
     default:
@@ -90,7 +92,22 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
     PASS_NAME_RESOLUTION) != AST_OK)
     return false;
 
-  ast_setdata(def, (void*)AST_STATE_DONE);
+  ast_clearflag(def, AST_FLAG_RECURSE_1);
+  ast_setflag(def, AST_FLAG_DONE_1);
+  return true;
+}
+
+static bool names_typeargs(pass_opt_t* opt, ast_t* typeargs)
+{
+  for(ast_t* typearg = ast_child(typeargs);
+    typearg != NULL;
+    typearg = ast_sibling(typearg))
+  {
+    if(ast_visit_scope(&typearg, NULL, pass_names, opt,
+      PASS_NAME_RESOLUTION) != AST_OK)
+      return false;
+  }
+
   return true;
 }
 
@@ -107,6 +124,12 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   if(!names_resolvealias(opt, def, &alias))
     return false;
 
+  if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
+  if(!names_typeargs(opt, typeargs))
+    return false;
+
   if(expr)
   {
     if(!check_constraints(typeargs, typeparams, typeargs, true))
@@ -114,7 +137,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   }
 
   // Reify the alias.
-  ast_t* r_alias = reify(typeparams, alias, typeparams, typeargs);
+  ast_t* r_alias = reify(alias, typeparams, typeargs);
 
   if(r_alias == NULL)
     return false;
@@ -138,7 +161,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 static bool names_typeparam(ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, type, typeargs, cap, ephemeral);
+  AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
   assert(ast_id(package) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
@@ -150,7 +173,7 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   // Change to a typeparamref.
   REPLACE(astp,
     NODE(TK_TYPEPARAMREF,
-      TREE(type)
+      TREE(id)
       TREE(cap)
       TREE(ephemeral)));
 
@@ -158,15 +181,16 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   return true;
 }
 
-static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
+static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, id, typeparams, cap, eph);
+  AST_GET_CHILDREN(ast, package, id, typeargs, cap, eph);
+  AST_GET_CHILDREN(def, def_id, typeparams, def_cap);
   token_id tcap = ast_id(cap);
 
   if(tcap == TK_NONE)
   {
-    if(t->frame->constraint != NULL)
+    if(opt->check.frame->constraint != NULL)
     {
       // A primitive constraint is a val, otherwise #any.
       if(ast_id(def) == TK_PRIMITIVE)
@@ -175,18 +199,25 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
         tcap = TK_CAP_ANY;
     } else {
       // Use the default capability.
-      tcap = ast_id(ast_childidx(def, 2));
+      tcap = ast_id(def_cap);
     }
   }
 
   ast_setid(cap, tcap);
 
-  // Keep the actual package id.
+  // We keep the actual package id for printing out in errors, etc.
   ast_append(ast, package);
   ast_replace(&package, package_id(def));
 
   // Store our definition for later use.
   ast_setdata(ast, def);
+
+  if(!reify_defaults(typeparams, typeargs, true))
+    return false;
+
+  if(!names_typeargs(opt, typeargs))
+    return false;
+
   return true;
 }
 
@@ -282,9 +313,10 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
       case TK_INTERFACE:
       case TK_TRAIT:
       case TK_PRIMITIVE:
+      case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
-        r = names_type(t, astp, def);
+        r = names_type(opt, astp, def);
         break;
 
       default:
@@ -297,38 +329,47 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   return r;
 }
 
-static bool names_arrow(ast_t* ast)
+static bool names_arrow(ast_t** astp)
 {
-  ast_t* left = ast_child(ast);
+  AST_GET_CHILDREN(*astp, left, right);
 
   switch(ast_id(left))
   {
-    case TK_BOXTYPE:
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
     case TK_THISTYPE:
     case TK_TYPEPARAMREF:
+    {
+      ast_t* r_ast = viewpoint_type(left, right);
+      ast_replace(astp, r_ast);
       return true;
+    }
 
     default: {}
   }
 
-  ast_error(left, "only 'this', 'box' and type parameters can be viewpoints");
+  ast_error(left,
+    "only 'this', refcaps, and type parameters can be viewpoints");
   return false;
 }
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
   (void)options;
-  ast_t* ast = *astp;
 
-  switch(ast_id(ast))
+  switch(ast_id(*astp))
   {
     case TK_NOMINAL:
-      if(!names_nominal(options, ast, astp, false))
+      if(!names_nominal(options, *astp, astp, false))
         return AST_ERROR;
       break;
 
     case TK_ARROW:
-      if(!names_arrow(ast))
+      if(!names_arrow(astp))
         return AST_ERROR;
       break;
 

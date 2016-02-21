@@ -7,15 +7,16 @@
 printbuf_t* printbuf_new()
 {
   printbuf_t* buf = POOL_ALLOC(printbuf_t);
-  memset(buf, 0, sizeof(printbuf_t));
+  buf->m = (char*)malloc(32);
+  buf->m[0] = '\0';
+  buf->size = 32;
+  buf->offset = 0;
   return buf;
 }
 
 void printbuf_free(printbuf_t* buf)
 {
-  if(buf->m != NULL)
-    free(buf->m);
-
+  free(buf->m);
   POOL_FREE(printbuf_t, buf);
 }
 

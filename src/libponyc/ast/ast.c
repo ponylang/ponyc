@@ -37,10 +37,10 @@
 // The private bits of the flags values
 enum
 {
-  AST_ORPHAN = 0x2000,
+  AST_ORPHAN = 0x10,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
-    AST_FLAG_MIGHT_SEND | AST_FLAG_IN_PROGRESS),
-  AST_ALL_FLAGS = 0x3FFF
+    AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
+  AST_ALL_FLAGS = 0x7FFFF
 };
 
 
@@ -180,16 +180,64 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
   }
 }
 
+static void print_verbose(ast_t* ast, size_t indent, bool type)
+{
+  for(size_t i = 0; i < indent; i++)
+    printf(in);
+
+  ast_t* child = ast->child;
+  bool parens = type || (child != NULL) || (ast->type != NULL);
+
+  if(parens)
+    printf(type ? "[" : "(");
+
+  print_token(ast->t);
+  printf(":%p,%0x", ast, ast->flags);
+
+  if(ast->data != NULL)
+    printf(":data=%p", ast->data);
+
+  if(ast->symtab != NULL)
+  {
+    printf(":scope {\n");
+
+    size_t i = HASHMAP_BEGIN;
+    symbol_t* sym;
+
+    while((sym = symtab_next(ast->symtab, &i)) != NULL)
+      printf("  %s (%d): %p\n", sym->name, sym->status, sym->def);
+
+    printf("}");
+  }
+
+  printf("\n");
+
+  while(child != NULL)
+  {
+    print_verbose(child, indent + 1, false);
+    child = child->sibling;
+  }
+
+  if(ast->type != NULL)
+    print_verbose(ast->type, indent + 1, true);
+
+  if(parens || type)
+  {
+    for(size_t i = 0; i < indent; i++)
+      printf(in);
+
+    printf(type ? "]\n" : ")\n");
+  }
+}
+
 static void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent, type);
 
   if(len < width)
-  {
     print_compact(ast, indent, type);
-  } else {
+  else
     print_extended(ast, indent, type);
-  }
 
   printf("\n");
 }
@@ -234,7 +282,9 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
 
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
-  n->flags = ast->flags & (AST_FLAG_PASS_MASK | AST_INHERIT_FLAGS);
+  n->flags = ast->flags & AST_ALL_FLAGS;
+  // We don't actually want to copy the orphan flag, but the following if
+  // always explicitly sets or clears it.
 
   if(parent == NULL)
     set_scope_no_parent(n, ast->parent);
@@ -309,7 +359,9 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
   assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
-  token_set_int(t, value);
+
+  lexint_t lexint = {value, 0};
+  token_set_int(t, &lexint);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -396,10 +448,11 @@ void* ast_data(ast_t* ast)
   return ast->data;
 }
 
-void ast_setdata(ast_t* ast, void* data)
+ast_t* ast_setdata(ast_t* ast, void* data)
 {
   assert(ast != NULL);
   ast->data = data;
+  return ast;
 }
 
 bool ast_canerror(ast_t* ast)
@@ -435,21 +488,6 @@ void ast_setmightsend(ast_t* ast)
 void ast_clearmightsend(ast_t* ast)
 {
   ast_clearflag(ast, AST_FLAG_MIGHT_SEND);
-}
-
-bool ast_inprogress(ast_t* ast)
-{
-  return ast_checkflag(ast, AST_FLAG_IN_PROGRESS) != 0;
-}
-
-void ast_setinprogress(ast_t* ast)
-{
-  ast_setflag(ast, AST_FLAG_IN_PROGRESS);
-}
-
-void ast_clearinprogress(ast_t* ast)
-{
-  ast_clearflag(ast, AST_FLAG_IN_PROGRESS);
 }
 
 void ast_inheritflags(ast_t* ast)
@@ -508,6 +546,19 @@ const char* ast_name(ast_t* ast)
   return token_string(ast->t);
 }
 
+
+const char* ast_nice_name(ast_t* ast)
+{
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_ID);
+
+  if(ast->data != NULL)
+    return (const char*)ast->data;
+
+  return ast_name(ast);
+}
+
+
 size_t ast_name_len(ast_t* ast)
 {
   assert(ast != NULL);
@@ -526,7 +577,7 @@ double ast_float(ast_t* ast)
   return token_float(ast->t);
 }
 
-__uint128_t ast_int(ast_t* ast)
+lexint_t* ast_int(ast_t* ast)
 {
   assert(ast != NULL);
   return token_int(ast->t);
@@ -1158,6 +1209,14 @@ void ast_print(ast_t* ast)
   printf("\n");
 }
 
+void ast_printverbose(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  print_verbose(ast, 0, false);
+}
+
 static void print_type(printbuf_t* buffer, ast_t* type);
 
 static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
@@ -1193,12 +1252,17 @@ static void print_type(printbuf_t* buffer, ast_t* type)
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral, origpkg);
+      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral);
+      ast_t* origpkg = ast_sibling(ephemeral);
 
-      if(ast_id(origpkg) != TK_NONE)
+      if(origpkg != NULL && ast_id(origpkg) != TK_NONE)
         printbuf(buffer, "%s.", ast_name(origpkg));
 
-      printbuf(buffer, "%s", ast_name(id));
+      ast_t* def = (ast_t*)ast_data(type);
+      if(def != NULL)
+        id = ast_child(def);
+
+      printbuf(buffer, "%s", ast_nice_name(id));
 
       if(ast_id(typeargs) != TK_NONE)
         print_typeexpr(buffer, typeargs, ", ", true);
@@ -1227,7 +1291,7 @@ static void print_type(printbuf_t* buffer, ast_t* type)
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, ephemeral);
-      printbuf(buffer, "%s", ast_name(id));
+      printbuf(buffer, "%s", ast_nice_name(id));
 
       if(ast_id(cap) != TK_NONE)
         printbuf(buffer, " %s", token_print(cap->t));
@@ -1251,10 +1315,6 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "this");
       break;
 
-    case TK_BOXTYPE:
-      printbuf(buffer, "box");
-      break;
-
     case TK_DONTCARE:
       printbuf(buffer, "_");
       break;
@@ -1271,8 +1331,11 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "<type error>");
       break;
 
+    case TK_NONE:
+      break;
+
     default:
-      assert(0);
+      printbuf(buffer, "%s", token_print(type->t));
   }
 }
 
@@ -1297,6 +1360,19 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_list ap;
   va_start(ap, fmt);
   errorv(token_source(ast->t), token_line_number(ast->t),
+    token_line_position(ast->t), fmt, ap);
+  va_end(ap);
+}
+
+void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
+{
+  assert(frame != NULL);
+  assert(ast != NULL);
+  assert(fmt != NULL);
+
+  va_list ap;
+  va_start(ap, fmt);
+  errorframev(frame, token_source(ast->t), token_line_number(ast->t),
     token_line_position(ast->t), fmt, ap);
   va_end(ap);
 }

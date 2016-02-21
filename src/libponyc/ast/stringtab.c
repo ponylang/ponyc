@@ -21,9 +21,9 @@ typedef struct stringtab_entry_t
   size_t buf_size;
 } stringtab_entry_t;
 
-static uint64_t stringtab_hash(stringtab_entry_t* a)
+static size_t stringtab_hash(stringtab_entry_t* a)
 {
-  return hash_block(a->str, a->len);
+  return (size_t)hash_block(a->str, a->len);
 }
 
 static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
@@ -91,7 +91,7 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   if(n != NULL)
   {
-    pool_free_size(len, (void*)string);
+    pool_free_size(buf_size, (void*)string);
     return n->str;
   }
 

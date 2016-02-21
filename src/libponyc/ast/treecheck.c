@@ -5,6 +5,14 @@
 #include <assert.h>
 
 
+// This define causes the tree checker to assert immediately on error, rather
+// than waiting until it has checked the entire tree. This means that only one
+// error can be spotted in each run of the program, but can make errors far
+// easier to track down.
+// Use this when debugging, but leave disabled when committing.
+//#define IMMEDIATE_FAIL
+
+
 typedef enum
 {
   CHK_OK,        // Tree found and check
@@ -12,21 +20,29 @@ typedef enum
   CHK_ERROR      // Error has occurred
 } check_res_t;
 
+typedef check_res_t (*check_fn_t)(ast_t* ast);
+
 typedef struct check_state_t
 {
   bool is_scope;
   bool has_data;
+  check_fn_t type;
   ast_t* child;
   size_t child_index;
 } check_state_t;
 
 
-typedef check_res_t (*check_fn_t)(ast_t* ast);
-
-static check_res_t check_ast(ast_t* ast);
-
-
 static bool _enabled = false;
+
+
+// Print an error preamble for the given node.
+static void error_preamble(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  printf("Internal error: AST node %d (%s), ", ast_id(ast),
+    ast_get_print(ast));
+}
 
 
 // Check whether the specified id is in the given list.
@@ -99,13 +115,25 @@ static bool check_children(ast_t* ast, check_state_t* state,
   // Didn't find enough matching children
   if(state->child == NULL)
   {
-    printf("Internal error: AST node id %d has %ld child%s, expected more\n",
-      ast_id(ast), state->child_index, (state->child_index == 1) ? "" : "ren");
+    error_preamble(ast);
+    printf("found " __zu " child%s, expected more\n", state->child_index,
+      (state->child_index == 1) ? "" : "ren");
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
   }
   else
   {
-    printf("Internal error: AST node id %d, child %ld has invalid id %d\n",
-      ast_id(ast), state->child_index, ast_id(state->child));
+    error_preamble(ast);
+    printf("child " __zu " has invalid id %d\n", state->child_index,
+      ast_id(state->child));
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
   }
 
   return false;
@@ -121,24 +149,87 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   assert(ast != NULL);
   assert(state != NULL);
 
+
+  ast_t* type_field = ast_type(ast);
+
+  if(type_field != NULL)
+  {
+    if(state->type == NULL)
+    {
+      error_preamble(ast);
+      printf("unexpected type\n");
+      ast_error(ast, "Here");
+      ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+      assert(false);
+#endif
+      return CHK_ERROR;
+    }
+
+    check_res_t r = state->type(type_field);
+
+    if(r == CHK_ERROR)  // Propogate error
+      return CHK_ERROR;
+
+    if(r == CHK_NOT_FOUND)
+    {
+      error_preamble(ast);
+      printf("type field has invalid id %d\n", ast_id(type_field));
+      ast_error(ast, "Here");
+      ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+      assert(false);
+#endif
+      return CHK_ERROR;
+    }
+  }
+
   if(state->child != NULL)
   {
-    printf("Internal error: AST node id %d, child %ld (id %d) unexpected\n",
-      ast_id(ast), state->child_index, ast_id(state->child));
+    error_preamble(ast);
+    printf("child " __zu " (id %d, %s) unexpected\n", state->child_index,
+      ast_id(state->child), ast_get_print(state->child));
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
   if(ast_data(ast) != NULL && !state->has_data)
   {
-    printf("Internal error: AST node id %d, unexpected data %p\n",
-      ast_id(ast), ast_data(ast));
+    error_preamble(ast);
+    printf("unexpected data %p\n", ast_data(ast));
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
   if(ast_has_scope(ast) && !state->is_scope)
   {
-    printf("Internal error: AST node id %d unexpectedly has scope\n",
-      ast_id(ast));
+    error_preamble(ast);
+    printf("unexpected scope\n");
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
+    return CHK_ERROR;
+  }
+
+  if(!ast_has_scope(ast) && state->is_scope)
+  {
+    error_preamble(ast);
+    printf("expected scope not found\n");
+    ast_error(ast, "Here");
+    ast_print(ast);
+#ifdef IMMEDIATE_FAIL
+    assert(false);
+#endif
     return CHK_ERROR;
   }
 
@@ -148,9 +239,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 
 // Defines for first pass, forward declare group and rule functions
 #define TREE_CHECK
-#define ROOT(name)
-#define RULE(name, def, ...) static check_res_t name(ast_t* ast);
-#define GROUP(name, ...)     static check_res_t name(ast_t* ast);
+#define ROOT(...)
+#define RULE(name, def, ...) static check_res_t name(ast_t* ast)
+#define GROUP(name, ...)     static check_res_t name(ast_t* ast)
 #define LEAF                 
 
 #include "treecheckdef.h"
@@ -162,14 +253,22 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 
 // Defines for second pass, group and rule functions
 
-#define ROOT(name) void check_tree_do_not_call() { name(NULL); }
+#define ROOT(...) \
+  check_res_t check_root(ast_t* ast) \
+  { \
+    const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
+    return check_from_list(ast, rules); \
+  }
 
 #define RULE(name, def, ...) \
   static check_res_t name(ast_t* ast) \
   { \
     const token_id ids[] = { __VA_ARGS__, TK_EOF }; \
     if(!is_id_in_list(ast_id(ast), ids)) return CHK_NOT_FOUND; \
-    return check_ast(ast); \
+    check_state_t state = {false, false, NULL, NULL, 0}; \
+    state.child = ast_child(ast); \
+    def \
+    return check_extras(ast, &state); \
   }
 
 #define GROUP(name, ...) \
@@ -179,26 +278,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     return check_from_list(ast, rules); \
   }
 
-#include "treecheckdef.h"
-
-#undef ROOT
-#undef RULE
-#undef GROUP
-
-
-// Defines for third pass, node definitions in per TK_* switch
-
-#define ROOT(name)
-
-#define RULE(name, def, ...) \
-  FOREACH(CASES, __VA_ARGS__) \
-  def \
-  break;
-
-#define CASES(id) case id:
-#define GROUP(name, ...)
 #define IS_SCOPE state.is_scope = true;
 #define HAS_DATA state.has_data = true;
+#define HAS_TYPE(type_fn) state.type = type_fn;
 
 #define CHILDREN(min, max, ...) \
   { \
@@ -213,28 +295,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #define ZERO_OR_MORE(...) CHILDREN(0, -1, __VA_ARGS__)
 #define ONE_OR_MORE(...)  CHILDREN(1, -1, __VA_ARGS__)
 
-
-// Check the given AST node.
-// Returns:
-//  CHK_OK i
-static check_res_t check_ast(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  check_state_t state = { false, false, NULL, 0 };
-  state.child = ast_child(ast);
-
-  switch(ast_id(ast))
-  {
 #include "treecheckdef.h"
-
-    default:
-      printf("Internal error: No definition for AST node %d\n", ast_id(ast));
-      return CHK_ERROR;
-  }
-
-  return check_extras(ast, &state);
-}
 
 
 void enable_check_tree(bool enable)
@@ -248,6 +309,15 @@ void check_tree(ast_t* tree)
   if(!_enabled)
     return;
 
-  assert(check_ast(tree) == CHK_OK);
-  (void)tree; // Keep compiler happy in release builds
+#ifdef NDEBUG
+  // Keep compiler happy in release builds.
+  (void)tree;
+#else
+  // Only check tree in debug builds.
+  assert(tree != NULL);
+  check_res_t r = check_root(tree);
+  assert(r != CHK_ERROR);
+
+  // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.
+#endif
 }

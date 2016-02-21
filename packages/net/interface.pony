@@ -5,13 +5,13 @@ trait TCPClient
 
 trait TCPServer
   fun listen(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: U64 = 0,
+    service: String = "0", limit: USize = 0,
     v: IPVersion = None): TCPListener
 
 trait UDPEndpoint
   fun udp_socket(notify: UDPNotify iso,
     host: String = "", service: String = "0",
-    size: U64 = 1024, v: IPVersion = None): UDPSocket
+    size: USize = 1024, v: IPVersion = None): UDPSocket
 
 
 class NetworkInterface is (TCPClient & TCPServer & UDPEndpoint)
@@ -33,7 +33,7 @@ class NetworkInterface is (TCPClient & TCPServer & UDPEndpoint)
     end
 
   fun listen(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: U64 = 0,
+    service: String = "0", limit: USize = 0,
     v: IPVersion = None): TCPListener =>
     match v
     | IPv4 => TCPListener._ip4(consume notify, host, service, limit)
@@ -44,7 +44,7 @@ class NetworkInterface is (TCPClient & TCPServer & UDPEndpoint)
 
   fun udp_socket(notify: UDPNotify iso,
     host: String = "", service: String = "0",
-    size: U64 = 1024, v: IPVersion = None): UDPSocket =>
+    size: USize = 1024, v: IPVersion = None): UDPSocket =>
     match v
     | IPv4 => UDPSocket._ip4(consume notify, host, service, size)
     | IPv6 => UDPSocket._ip6(consume notify, host, service, size)

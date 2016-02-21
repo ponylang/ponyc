@@ -1,9 +1,12 @@
+#include "call.h"
 #include "control.h"
 #include "literal.h"
+#include "../ast/astbuild.h"
 #include "../ast/frame.h"
 #include "../ast/token.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../pkg/ifdef.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
@@ -71,20 +74,48 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+// Determine which branch of the given ifdef to use and convert the ifdef into
+// an if.
+static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast != NULL);
+
+  // We turn the ifdef node into an if so that codegen doesn't need to know
+  // about ifdefs at all.
+  // We need to determine which branch to take. Note that since normalisation
+  // adds the conditions of outer ifdefs (if any) it may be that BOTH our then
+  // and else conditions fail. In this case we can pick either one, since an
+  // outer ifdef will throw away the whole branch this ifdef is in anyway.
+  AST_GET_CHILDREN(ast, cond, then_clause, else_clause, else_cond);
+  bool then_value = ifdef_cond_eval(cond, opt);
+
+  ast_setid(ast, TK_IF);
+  REPLACE(&cond, NODE(TK_SEQ, NODE(then_value ? TK_TRUE : TK_FALSE)));
+  // Don't need to set condition type since we've finished type checking it.
+
+  // Don't need else condition any more.
+  ast_remove(else_cond);
+  return true;
+}
+
 bool expr_if(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
-  ast_t* cond_type = ast_type(cond);
 
-  if(is_typecheck_error(cond_type))
-    return false;
-
-  if(!is_bool(cond_type))
+  if(ast_id(ast) == TK_IF)
   {
-    ast_error(cond, "condition must be a Bool");
-    return false;
+    ast_t* cond_type = ast_type(cond);
+
+    if(is_typecheck_error(cond_type))
+      return false;
+
+    if(!is_bool(cond_type))
+    {
+      ast_error(cond, "condition must be a Bool");
+      return false;
+    }
   }
 
   ast_t* l_type = ast_type(left);
@@ -125,6 +156,10 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
+
+  if(ast_id(ast) == TK_IFDEF)
+    return resolve_ifdef(opt, ast);
+
   return true;
 }
 
@@ -316,6 +351,12 @@ bool expr_recover(ast_t* ast)
   if(is_typecheck_error(type))
     return false;
 
+  if(is_type_literal(type))
+  {
+    make_literal_type(ast);
+    return true;
+  }
+
   ast_t* r_type = recover_type(type, ast_id(cap));
 
   if(r_type == NULL)
@@ -329,7 +370,7 @@ bool expr_recover(ast_t* ast)
   ast_inheritflags(ast);
 
   // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
+  ast_inheritstatus(ast_parent(ast), expr);
   return true;
 }
 
@@ -389,12 +430,6 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
 
-  if(t->frame->method_body == NULL)
-  {
-    ast_error(ast, "return must occur in a method body");
-    return false;
-  }
-
   // return is always the last expression in a sequence
   assert(ast_sibling(ast) == NULL);
 
@@ -427,19 +462,16 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(t->frame->method))
   {
     case TK_NEW:
-      if(!is_none(body_type))
+      if(is_this_incomplete(t, ast))
       {
-        ast_error(ast, "return in a constructor must return None");
+        ast_error(ast,
+          "all fields must be defined before constructor returns");
         ok = false;
       }
       break;
 
     case TK_BE:
-      if(!is_none(body_type))
-      {
-        ast_error(ast, "return in a behaviour must return None");
-        ok = false;
-      }
+      assert(is_none(body_type));
       break;
 
     default:
@@ -449,13 +481,19 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       ast_t* a_type = alias(type);
       ast_t* a_body_type = alias(body_type);
 
-      if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
+      errorframe_t info = NULL;
+      if(!is_subtype(body_type, type, &info) ||
+        !is_subtype(a_body_type, a_type, &info))
       {
+        errorframe_t frame = NULL;
         ast_t* last = ast_childlast(body);
-        ast_error(last, "returned value isn't the return type");
-        ast_error(type, "function return type: %s", ast_print_type(type));
-        ast_error(body_type, "returned value type: %s",
+        ast_error_frame(&frame, last, "returned value isn't the return type");
+        ast_error_frame(&frame, type, "function return type: %s",
+          ast_print_type(type));
+        ast_error_frame(&frame, body_type, "returned value type: %s",
           ast_print_type(body_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame);
         ok = false;
       }
 
@@ -476,5 +514,20 @@ bool expr_error(ast_t* ast)
 
   ast_settype(ast, ast_from(ast, TK_ERROR));
   ast_seterror(ast);
+  return true;
+}
+
+bool expr_compile_error(ast_t* ast)
+{
+  // compile_error is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
+
+  ast_settype(ast, ast_from(ast, TK_COMPILE_ERROR));
+  return true;
+}
+
+bool expr_location(pass_opt_t* opt, ast_t* ast)
+{
+  ast_settype(ast, type_builtin(opt, ast, "SourceLoc"));
   return true;
 }

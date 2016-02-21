@@ -29,10 +29,11 @@
 #define POOL_ALIGN_MASK (POOL_ALIGN - 1)
 
 /// When we mmap, pull at least this many bytes.
+#ifdef PLATFORM_IS_ILP32
+#define POOL_MMAP (16 * 1024 * 1024) // 16 MB
+#else
 #define POOL_MMAP (128 * 1024 * 1024) // 128 MB
-
-/// Combines an ABA counter with a pointer.
-typedef __int128_t pool_aba_t;
+#endif
 
 /// An item on a per-size thread-local free list.
 typedef struct pool_item_t
@@ -64,11 +65,11 @@ typedef struct pool_cmp_t
   {
     struct
     {
-      uint64_t aba;
+      uintptr_t aba;
       pool_central_t* node;
     };
 
-    pool_aba_t dw;
+    dw_t dw;
   };
 } pool_cmp_t;
 
@@ -77,7 +78,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  pool_aba_t central;
+  dw_t central;
 } pool_global_t;
 
 /// An item on a thread-local list of free blocks.
@@ -121,6 +122,7 @@ static __pony_thread_local pool_block_header_t pool_block_header;
 
 #ifdef USE_POOLTRACK
 #include "../ds/stack.h"
+#include "../sched/cpu.h"
 
 #define POOL_TRACK_FREE ((void*)0)
 #define POOL_TRACK_ALLOC ((void*)1)
@@ -149,19 +151,23 @@ static void pool_event_print(int thread, void* op, size_t event, size_t tsc,
   void* addr, size_t size)
 {
   if(op == POOL_TRACK_ALLOC)
-    printf("%d ALLOC %zu (%zu): %p, %zu\n", thread, event, tsc, addr, size);
+    printf("%d ALLOC "__zu" ("__zu"): %p, "__zu"\n",
+      thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_FREE)
-    printf("%d FREE %zu (%zu): %p, %zu\n", thread, event, tsc, addr, size);
+    printf("%d FREE "__zu" ("__zu"): %p, "__zu"\n",
+      thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PUSH)
-    printf("%d PUSH %zu (%zu): %p, %zu\n", thread, event, tsc, addr, size);
+    printf("%d PUSH "__zu" ("__zu"): %p, "__zu"\n",
+      thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PULL)
-    printf("%d PULL %zu (%zu): %p, %zu\n", thread, event, tsc, addr, size);
+    printf("%d PULL "__zu" ("__zu"): %p, "__zu"\n",
+      thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PUSH_LIST)
-    printf("%d PUSH LIST %zu (%zu): %zu, %zu\n", thread, event, tsc,
-      (size_t)addr, size);
+    printf("%d PUSH LIST "__zu" ("__zu"): "__zu", "__zu"\n",
+      thread, event, tsc, (size_t)addr, size);
   else if(op == POOL_TRACK_PULL_LIST)
-    printf("%d PULL LIST %zu (%zu): %zu, %zu\n", thread, event, tsc,
-      (size_t)addr, size);
+    printf("%d PULL LIST "__zu" ("__zu"): "__zu", "__zu"\n",
+      thread, event, tsc, (size_t)addr, size);
 }
 
 void pool_track(int thread_filter, void* addr_filter, int op_filter,
@@ -271,7 +277,7 @@ static void track_alloc(void* p, size_t size)
   track.stack = pool_track_push(track.stack, POOL_TRACK_ALLOC);
   track.stack = pool_track_push(track.stack, p);
   track.stack = pool_track_push(track.stack, (void*)size);
-  track.stack = pool_track_push(track.stack, (void*)__pony_rdtsc());
+  track.stack = pool_track_push(track.stack, (void*)cpu_tick());
 
   track.internal = false;
 }
@@ -279,24 +285,25 @@ static void track_alloc(void* p, size_t size)
 static void track_free(void* p, size_t size)
 {
   track_init();
-
-  if(track.internal)
-    return;
+  assert(!track.internal);
 
   track.internal = true;
 
   track.stack = pool_track_push(track.stack, POOL_TRACK_FREE);
   track.stack = pool_track_push(track.stack, p);
   track.stack = pool_track_push(track.stack, (void*)size);
-  track.stack = pool_track_push(track.stack, (void*)__pony_rdtsc());
+  track.stack = pool_track_push(track.stack, (void*)cpu_tick());
 
   track.internal = false;
 }
 
 static void track_push(pool_item_t* p, size_t length, size_t size)
 {
+  track_init();
+  assert(!track.internal);
+
   track.internal = true;
-  size_t tsc = __pony_rdtsc();
+  uint64_t tsc = cpu_tick();
 
   track.stack = pool_track_push(track.stack, POOL_TRACK_PUSH_LIST);
   track.stack = pool_track_push(track.stack, (void*)length);
@@ -317,8 +324,11 @@ static void track_push(pool_item_t* p, size_t length, size_t size)
 
 static void track_pull(pool_item_t* p, size_t length, size_t size)
 {
+  track_init();
+  assert(!track.internal);
+
   track.internal = true;
-  size_t tsc = __pony_rdtsc();
+  uint64_t tsc = cpu_tick();
 
   track.stack = pool_track_push(track.stack, POOL_TRACK_PULL_LIST);
   track.stack = pool_track_push(track.stack, (void*)length);
@@ -341,6 +351,7 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 #define TRACK_FREE(PTR, SIZE) track_free(PTR, SIZE)
 #define TRACK_PUSH(PTR, LEN, SIZE) track_push(PTR, LEN, SIZE)
 #define TRACK_PULL(PTR, LEN, SIZE) track_pull(PTR, LEN, SIZE)
+#define TRACK_EXTERNAL() (!track.internal)
 
 #else
 
@@ -348,6 +359,7 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 #define TRACK_FREE(PTR, SIZE)
 #define TRACK_PUSH(PTR, LEN, SIZE)
 #define TRACK_PULL(PTR, LEN, SIZE)
+#define TRACK_EXTERNAL() (true)
 
 #endif
 
@@ -464,23 +476,24 @@ static void pool_free_pages(void* p, size_t size)
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
 {
-  assert(thread->length == global->count);
-  TRACK_PUSH(thread->pool, thread->length, global->size);
-
   pool_cmp_t cmp, xchg;
   pool_central_t* p = (pool_central_t*)thread->pool;
   p->length = thread->length;
+
+  thread->pool = NULL;
+  thread->length = 0;
+
+  assert(p->length == global->count);
+  TRACK_PUSH((pool_item_t*)p, p->length, global->size);
+
   cmp.dw = global->central;
+  xchg.node = p;
 
   do
   {
     p->central = cmp.node;
-    xchg.node = p;
     xchg.aba = cmp.aba + 1;
   } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
-
-  thread->pool = NULL;
-  thread->length = 0;
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -501,11 +514,12 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
 
   pool_item_t* p = (pool_item_t*)next;
-  thread->pool = p->next;
-  thread->length = next->length - 1;
 
   assert(next->length == global->count);
   TRACK_PULL(p, next->length, global->size);
+
+  thread->pool = p->next;
+  thread->length = next->length - 1;
 
   return p;
 }
@@ -524,11 +538,14 @@ static void* pool_get(pool_local_t* pool, size_t index)
     return p;
   }
 
-  // Try to get a new free list from the per-size global list of free lists.
-  p = pool_pull(thread, global);
+  if(TRACK_EXTERNAL())
+  {
+    // Try to get a new free list from the per-size global list of free lists.
+    p = pool_pull(thread, global);
 
-  if(p != NULL)
-    return p;
+    if(p != NULL)
+      return p;
+  }
 
   if(global->size < POOL_ALIGN)
   {

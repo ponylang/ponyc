@@ -1,6 +1,7 @@
 use "collections"
 use "files"
 use "promises"
+use strings = "strings"
 
 class Readline is ANSINotify
   """
@@ -11,16 +12,16 @@ class Readline is ANSINotify
   let _path: (FilePath | None)
   let _history: Array[String]
   let _queue: Array[String] = Array[String]
-  let _maxlen: U64
+  let _maxlen: USize
 
   var _edit: String iso = recover String end
   var _cur_prompt: String = ""
-  var _cur_line: U64 = 0
-  var _cur_pos: I64 = 0
+  var _cur_line: USize = 0
+  var _cur_pos: ISize = 0
   var _blocked: Bool = true
 
   new iso create(notify: ReadlineNotify iso, out: OutStream,
-    path: (FilePath | None) = None, maxlen: U64 = 0)
+    path: (FilePath | None) = None, maxlen: USize = 0)
   =>
     """
     Create a readline handler to be passed to stdin. It begins blocked. Set an
@@ -49,7 +50,7 @@ class Readline is ANSINotify
     | 0x0A => _dispatch(term) // LF
     | 0x0B =>
       // ctrl-k, delete to the end of the line.
-      _edit.truncate(_cur_pos.u64())
+      _edit.truncate(_cur_pos.usize())
     | 0x0C => _clear() // ctrl-l
     | 0x0D => _dispatch(term) // CR
     | 0x0E => down() // ctrl-n
@@ -61,7 +62,7 @@ class Readline is ANSINotify
       home()
     | 0x17 => _delete_prev_word() // ctrl-w
     | 0x7F => _backspace() // backspace
-    | where input < 0x20 => None // unknown control character
+    | if input < 0x20 => None // unknown control character
     else
       // Insert.
       _edit.insert_byte(_cur_pos, input)
@@ -143,12 +144,12 @@ class Readline is ANSINotify
     Move right.
     """
     try
-      if _cur_pos < _edit.size().i64() then
+      if _cur_pos < _edit.size().isize() then
         _cur_pos = _cur_pos + 1
       end
 
       while
-        (_cur_pos < _edit.size().i64()) and
+        (_cur_pos < _edit.size().isize()) and
         ((_edit.at_offset(_cur_pos) and 0xC0) == 0x80)
       do
         _cur_pos = _cur_pos + 1
@@ -169,7 +170,7 @@ class Readline is ANSINotify
     """
     End of the line.
     """
-    _cur_pos = _edit.size().i64()
+    _cur_pos = _edit.size().isize()
     _refresh_line()
 
   fun ref _backspace() =>
@@ -199,12 +200,12 @@ class Readline is ANSINotify
     Forward delete.
     """
     try
-      if _cur_pos < _edit.size().i64() then
+      if _cur_pos < _edit.size().isize() then
         _edit.delete(_cur_pos, 1)
       end
 
       while
-        (_cur_pos < _edit.size().i64()) and
+        (_cur_pos < _edit.size().isize()) and
         ((_edit.at_offset(_cur_pos) and 0xC0) == 0x80)
       do
         _edit.delete(_cur_pos, 1)
@@ -225,10 +226,10 @@ class Readline is ANSINotify
     Swap the previous character with the current one.
     """
     try
-      if (_cur_pos > 0) and (_cur_pos < _edit.size().i64()) then
-        _edit(_cur_pos.u64()) =
-          _edit((_cur_pos - 1).u64()) =
-            _edit(_cur_pos.u64())
+      if (_cur_pos > 0) and (_cur_pos < _edit.size().isize()) then
+        _edit(_cur_pos.usize()) =
+          _edit((_cur_pos - 1).usize()) =
+            _edit(_cur_pos.usize())
       end
 
       _refresh_line()
@@ -241,15 +242,15 @@ class Readline is ANSINotify
     try
       let old = _cur_pos
 
-      while (_cur_pos > 0) and (_edit((_cur_pos - 1).u64()) == ' ') do
+      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize()) == ' ') do
         _cur_pos = _cur_pos - 1
       end
 
-      while (_cur_pos > 0) and (_edit((_cur_pos - 1).u64()) != ' ') do
+      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize()) != ' ') do
         _cur_pos = _cur_pos - 1
       end
 
-      _edit.delete(_cur_pos, (old - _cur_pos).u64())
+      _edit.delete(_cur_pos, (old - _cur_pos).usize())
       _refresh_line()
     end
 
@@ -275,7 +276,8 @@ class Readline is ANSINotify
         _out.print(completion)
       end
 
-      _refresh_line()
+      _edit = strings.CommonPrefix(r)
+      end_key()
     end
 
   fun ref _dispatch(term: ANSITerm) =>
@@ -348,11 +350,11 @@ class Readline is ANSINotify
       var pos = _cur_prompt.codepoints()
 
       if _cur_pos > 0 then
-        pos = pos + _edit.codepoints(0, _cur_pos - 1)
+        pos = pos + _edit.codepoints(0, _cur_pos)
       end
 
       out.append("\r")
-      out.append(ANSI.right(pos))
+      out.append(ANSI.right(pos.u32()))
       _out.write(consume out)
     end
 

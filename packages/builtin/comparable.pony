@@ -1,6 +1,18 @@
-primitive Less
-primitive Equal
-primitive Greater
+primitive Less is Equatable[Compare]
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  =>
+    "Less".string(fmt)
+
+primitive Equal is Equatable[Compare]
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  =>
+    "Equal".string(fmt)
+
+primitive Greater is Equatable[Compare]
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  =>
+    "Greater".string(fmt)
+
 
 type Compare is (Less | Equal | Greater)
 

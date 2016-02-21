@@ -21,6 +21,7 @@ typedef struct gentype_t
 
   int field_count;
   ast_t** fields;
+  token_id* field_keys;
 
   LLVMTypeRef desc_type;
   LLVMValueRef desc;
@@ -28,6 +29,8 @@ typedef struct gentype_t
 
   LLVMValueRef dispatch_fn;
   LLVMValueRef dispatch_switch;
+
+  bool done;
 } gentype_t;
 
 bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g);

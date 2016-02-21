@@ -6,9 +6,11 @@
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
+#include "../type/safeto.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
@@ -31,9 +33,9 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
   return expr_call(opt, astp);
 }
 
-static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
+bool is_this_incomplete(typecheck_t* t, ast_t* ast)
 {
-  // If we're in a field initialiser, we're incomplete by definition.
+  // If we're in a default argument, we're incomplete by definition.
   if(t->frame->method == NULL)
     return true;
 
@@ -88,13 +90,19 @@ static bool check_type_params(ast_t** astp)
 
   BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
 
+  if(!reify_defaults(typeparams, typeargs, true))
+  {
+    ast_free_unattached(typeargs);
+    return false;
+  }
+
   if(!check_constraints(lhs, typeparams, typeargs, true))
   {
     ast_free_unattached(typeargs);
     return false;
   }
 
-  type = reify(lhs, type, typeparams, typeargs);
+  type = reify(type, typeparams, typeargs);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 
@@ -194,8 +202,22 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
     return false;
   }
 
+  if(ast_id(def_arg) == TK_LOCATION)
+  {
+    // Default argument is __loc. Expand call location.
+    ast_t* location = expand_location(arg);
+    ast_add(arg, location);
+
+    if(!ast_passes_subtree(&location, opt, PASS_EXPR))
+      return false;
+  }
+  else
+  {
+    // Just use default argument.
+    ast_add(arg, def_arg);
+  }
+
   ast_setid(arg, TK_SEQ);
-  ast_add(arg, def_arg);
 
   if(!expr_seq(opt, arg))
     return false;
@@ -261,11 +283,16 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       }
     }
 
-    if(!is_subtype(a_type, p_type))
+    errorframe_t info = NULL;
+    if(!is_subtype(a_type, p_type, &info))
     {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter type: %s", ast_print_type(p_type));
-      ast_error(arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, param, "parameter type: %s",
+        ast_print_type(p_type));
+      ast_error_frame(&frame, arg, "argument type: %s", ast_print_type(a_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame);
 
       ast_free_unattached(a_type);
       return false;
@@ -327,7 +354,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   ast_t* receiver = ast_child(lhs);
 
   // Dig through function qualification.
-  if(ast_id(receiver) == TK_FUNREF)
+  if(ast_id(receiver) == TK_FUNREF || ast_id(receiver) == TK_FUNAPP)
     receiver = ast_child(receiver);
 
   // Receiver type, alias of receiver type, and target type.
@@ -378,28 +405,36 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     incomplete = false;
   }
 
-  bool ok = is_subtype(a_type, t_type);
+  errorframe_t info = NULL;
+  bool ok = is_subtype(a_type, t_type, &info);
 
   if(!ok)
   {
-    ast_error(ast,
-      "receiver capability is not a subtype of method capability");
-    ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
-    ast_error(cap, "target type: %s", ast_print_type(t_type));
+    errorframe_t frame = NULL;
 
-    if(!can_recover && cap_recover && is_subtype(r_type, t_type))
+    ast_error_frame(&frame, ast,
+      "receiver type is not a subtype of target type");
+    ast_error_frame(&frame, receiver,
+      "receiver type: %s", ast_print_type(a_type));
+    ast_error_frame(&frame, cap,
+      "target type: %s", ast_print_type(t_type));
+
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
     }
 
-    if(incomplete && is_subtype(r_type, t_type))
+    if(incomplete && is_subtype(r_type, t_type, NULL))
     {
-      ast_error(ast,
+      ast_error_frame(&frame, ast,
         "this would be possible if all the fields of 'this' were assigned to "
         "at this point");
     }
+
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
   }
 
   if(a_type != r_type)
@@ -492,10 +527,10 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   AST_GET_CHILDREN(ftype, cap, typeparams, params, result);
 
   ast_t* type = ast_type(receiver);
-  ast_t* view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+  ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  bool ok = is_subtype(view_type, need_type);
+  bool ok = is_subtype(view_type, need_type, NULL);
   ast_free_unattached(view_type);
   ast_free_unattached(need_type);
 
@@ -510,10 +545,10 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
     if(ast_id(arg) != TK_NONE)
     {
       type = ast_type(arg);
-      view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+      view_type = viewpoint_type(ast_from(type, TK_BOX), type);
       need_type = ast_childidx(param, 1);
 
-      ok = is_subtype(view_type, need_type);
+      ok = is_subtype(view_type, need_type, NULL);
       ast_free_unattached(view_type);
       ast_free_unattached(need_type);
 
@@ -528,8 +563,24 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   return TK_BOX;
 }
 
+// Sugar for partial application, which we convert to a lambda.
 static bool partial_application(pass_opt_t* opt, ast_t** astp)
 {
+  /* Example that we refer to throughout this function.
+   * ```pony
+   * class C
+   *   fun f[T](a: A, b: B = b_default): R
+   *
+   * let recv: T = ...
+   * recv~f[T2](foo)
+   * ```
+   *
+   * Partial call is converted to:
+   * ```pony
+   * lambda(b: B = b_default)($0 = recv, a = foo): R => $0.f[T2](a, consume b)
+   * ```
+   */
+
   ast_t* ast = *astp;
   typecheck_t* t = &opt->check;
 
@@ -537,17 +588,19 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  assert(ast_id(lhs) == TK_FUNAPP || ast_id(lhs) == TK_BEAPP ||
+    ast_id(lhs) == TK_NEWAPP);
 
   // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
   AST_GET_CHILDREN(lhs, receiver, method);
-  ast_t* qualify = NULL;
+  ast_t* type_args = NULL;
 
   switch(ast_id(receiver))
   {
     case TK_NEWAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
-      qualify = method;
+      type_args = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
 
@@ -561,203 +614,129 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   token_id apply_cap = partial_application_cap(type, receiver, positional);
-  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+  AST_GET_CHILDREN(type, cap, type_params, target_params, result);
 
-  // Create a new anonymous type.
-  ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
-
-  BUILD(def, ast,
-    NODE(TK_CLASS, AST_SCOPE
-      TREE(c_id)
-      NONE
-      NONE
-      NONE
-      NODE(TK_MEMBERS)
-      NONE
-      NONE));
-
-  // We will have a create method in the type.
-  BUILD(create, ast,
-    NODE(TK_NEW, AST_SCOPE
-      NONE
-      ID("create")
-      NONE
-      NODE(TK_PARAMS)
-      NONE
-      NONE
-      NODE(TK_SEQ)
-      NONE));
-
-  // We will have an apply method in the type.
   token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
+  const char* recv_name = package_hygienic_id(t);
 
-  BUILD(apply, ast,
-    NODE(TK_FUN, AST_SCOPE
-      NODE(apply_cap)
-      ID("apply")
-      NONE
-      NODE(TK_PARAMS)
-      TREE(sanitise_type(result))
-      NODE(can_error)
-      NODE(TK_SEQ)
-      NONE));
+  // Build captures. We always have at least one capture, for receiver.
+  // Capture: `$0 = recv`
+  BUILD(captures, receiver,
+    NODE(TK_LAMBDACAPTURES,
+      NODE(TK_LAMBDACAPTURE,
+        ID(recv_name)
+        NONE  // Infer type.
+        TREE(receiver))));
 
-  // We will replace partial application with $0.create(...)
-  BUILD(call_receiver, ast, NODE(TK_REFERENCE, TREE(c_id)));
-  BUILD(call_dot, ast, NODE(TK_DOT, TREE(call_receiver) ID("create")));
+  // Process arguments.
+  ast_t* given_arg = ast_child(positional);
+  ast_t* target_param = ast_child(target_params);
+  ast_t* lambda_params = ast_from(target_params, TK_NONE);
+  ast_t* lambda_call_args = ast_from(positional, TK_NONE);
 
-  BUILD(call, ast,
-    NODE(TK_CALL,
-      NONE
-      NODE(TK_NAMEDARGS)
-      TREE(call_dot)));
-
-  ast_t* class_members = ast_childidx(def, 4);
-  ast_t* create_params = ast_childidx(create, 3);
-  ast_t* create_body = ast_childidx(create, 6);
-  ast_t* apply_params = ast_childidx(apply, 3);
-  ast_t* apply_body = ast_childidx(apply, 6);
-  ast_t* call_namedargs = ast_childidx(call, 1);
-
-  // Add the receiver to the anonymous type.
-  ast_t* r_id = ast_from_string(receiver, package_hygienic_id(t));
-  ast_t* r_field_id = ast_from_string(receiver, package_hygienic_id(t));
-  ast_t* r_type = ast_type(receiver);
-
-  if(is_typecheck_error(r_type))
-    // TODO: well that's a memory leak then, r_id etc
-    return false;
-
-  r_type = sanitise_type(r_type);
-
-  // A field in the type.
-  BUILD(r_field, receiver,
-    NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE NONE));
-
-  // A parameter of the constructor.
-  BUILD(r_ctor_param, receiver, NODE(TK_PARAM, TREE(r_id) TREE(r_type) NONE));
-
-  // An assignment in the constructor body.
-  BUILD(r_assign, receiver,
-    NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(r_id)))
-      NODE(TK_REFERENCE, TREE(r_field_id))));
-
-  // A named argument at the call site.
-  BUILD(r_call_seq, receiver, NODE(TK_SEQ, TREE(receiver)));
-  BUILD(r_call_arg, receiver, NODE(TK_NAMEDARG, TREE(r_id) TREE(r_call_seq)));
-  ast_settype(r_call_seq, r_type);
-
-  ast_append(class_members, r_field);
-  ast_append(create_params, r_ctor_param);
-  ast_append(create_body, r_assign);
-  ast_append(call_namedargs, r_call_arg);
-
-  // Qualify the method call if necessary.
-  BUILD(apply_method, ast,
-    NODE(TK_DOT,
-      NODE(TK_REFERENCE, TREE(r_field_id))
-      TREE_CLEAR_PASS(method)));
-
-  if(qualify != NULL)
+  while(given_arg != NULL)
   {
-    BUILD(apply_qualified, ast,
-      NODE(TK_QUALIFY)
-      TREE(apply_method)
-      TREE(qualify));
+    assert(target_param != NULL);
+    const char* target_p_name = ast_name(ast_child(target_param));
 
-    apply_method = apply_qualified;
-  }
-
-  // Add a call to the original method to the apply body.
-  BUILD(apply_call, ast,
-    NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS)
-      NONE
-      TREE(apply_method)));
-
-  ast_append(apply_body, apply_call);
-  ast_t* apply_args = ast_child(apply_call);
-
-  // Add the arguments to the anonymous type.
-  ast_t* arg = ast_child(positional);
-  ast_t* param = ast_child(params);
-
-  while(arg != NULL)
-  {
-    AST_GET_CHILDREN(param, id, p_type);
-    const char* name = ast_name(id);
-
-    if(ast_id(arg) == TK_NONE)
+    if(ast_id(given_arg) == TK_NONE)
     {
-      // A parameter of the apply method, using the same name, type and default
-      // argument.
-      ast_append(apply_params, sanitise_type(param));
+      // This argument is not supplied already, must be a lambda parameter.
+      // Like `b` in example above.
+      // Build a new a new TK_PARAM node rather than copying the target one,
+      // since the target has already been processed to expr pass, and we need
+      // a clean one.
+      AST_GET_CHILDREN(target_param, p_id, p_type, p_default);
 
-      // An arg in the call to the original method.
-      BUILD(apply_arg, param,
+      // Parameter: `b: B = b_default`
+      BUILD(lambda_param, target_param,
+        NODE(TK_PARAM,
+          TREE(p_id)
+          TREE(sanitise_type(p_type))
+          TREE(p_default)));
+
+      ast_append(lambda_params, lambda_param);
+      ast_setid(lambda_params, TK_PARAMS);
+
+      // Argument: `consume b`
+      BUILD(target_arg, lambda_param,
         NODE(TK_SEQ,
           NODE(TK_CONSUME,
-            NODE(TK_NONE)
-            NODE(TK_REFERENCE, ID(name)))));
+            NONE
+            NODE(TK_REFERENCE, ID(target_p_name)))));
 
-      ast_append(apply_args, apply_arg);
-    } else {
-      ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
-      p_type = sanitise_type(p_type);
+      ast_append(lambda_call_args, target_arg);
+      ast_setid(lambda_call_args, TK_POSITIONALARGS);
+    }
+    else
+    {
+      // This argument is supplied to the partial, capture it.
+      // Like `a` in example above.
+      // Capture: `a = foo`
+      BUILD(capture, given_arg,
+        NODE(TK_LAMBDACAPTURE,
+          ID(target_p_name)
+          NONE
+          TREE(given_arg)));
 
-      // A field in the type.
-      BUILD(field, arg, NODE(TK_FLET, ID(name) TREE(p_type) NONE NONE));
+      ast_append(captures, capture);
 
-      // A parameter of the constructor.
-      BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(p_type) NONE));
+      // Argument: `a`
+      BUILD(target_arg, given_arg,
+        NODE(TK_SEQ,
+          NODE(TK_REFERENCE, ID(target_p_name))));
 
-      // An assignment in the constructor body.
-      BUILD(assign, arg,
-        NODE(TK_ASSIGN,
-          NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-          NODE(TK_REFERENCE, ID(name))));
-
-      // A named argument at the call site.
-      BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
-
-      // An arg in the call to the original method.
-      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, ID(name))));
-
-      ast_append(class_members, field);
-      ast_append(create_params, ctor_param);
-      ast_append(create_body, assign);
-      ast_append(call_namedargs, call_arg);
-      ast_append(apply_args, apply_arg);
+      ast_append(lambda_call_args, target_arg);
+      ast_setid(lambda_call_args, TK_POSITIONALARGS);
     }
 
-    arg = ast_sibling(arg);
-    param = ast_sibling(param);
+    given_arg = ast_sibling(given_arg);
+    target_param = ast_sibling(target_param);
   }
 
-  // Add create and apply to the anonymous type.
-  ast_append(class_members, create);
-  ast_append(class_members, apply);
+  assert(target_param == NULL);
 
-  // Typecheck the anonymous type.
-  ast_append(t->frame->module, def);
+  // Build lambda expression.
+  // `$0.f`
+  BUILD(call_receiver, ast,
+    NODE(TK_DOT,
+      NODE(TK_REFERENCE, ID(recv_name))
+      TREE(method)));
 
-  if(!ast_passes_type(&def, opt))
-    return false;
+  if(type_args != NULL)
+  {
+    // The partial call has type args, add them to the actual call in apply().
+    // `$0.f[T2]`
+    BUILD(qualified, type_args,
+      NODE(TK_QUALIFY,
+        TREE(call_receiver)
+        TREE(type_args)));
+    call_receiver = qualified;
+  }
 
-  // Typecheck the create call.
-  if(!expr_reference(opt, &call_receiver))
-    return false;
+  REPLACE(astp,
+    NODE(TK_LAMBDA,
+      NODE(apply_cap)
+      NONE  // Lambda function name.
+      NONE  // Lambda type params.
+      TREE(lambda_params)
+      TREE(captures)
+      TREE(sanitise_type(result))
+      NODE(can_error)
+      NODE(TK_SEQ,
+        NODE(TK_CALL,
+          TREE(lambda_call_args)
+          NONE  // Named args.
+          TREE(call_receiver)))));
 
-  if(!expr_dot(opt, &call_dot))
-    return false;
+  // Need to preserve various lambda children.
+  ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.
+  ast_setflag(ast_childidx(*astp, 3), AST_FLAG_PRESERVE); // Parameters.
+  ast_setflag(ast_childidx(*astp, 5), AST_FLAG_PRESERVE); // Return type.
+  ast_setflag(ast_childidx(*astp, 7), AST_FLAG_PRESERVE); // Body.
 
-  if(!expr_call(opt, &call))
-    return false;
-
-  // Replace the partial application with the create call.
-  ast_replace(astp, call);
-  return true;
+  // Catch up to this pass.
+  return ast_passes_subtree(astp, opt, PASS_EXPR);
 }
 
 bool expr_call(pass_opt_t* opt, ast_t** astp)

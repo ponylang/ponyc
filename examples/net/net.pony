@@ -3,7 +3,7 @@ use "net/ssl"
 
 actor Main
   new create(env: Env) =>
-    var i = U64(1)
+    var i = USize(1)
 
     let ssl = try
       if env.args(i) == "ssl" then
@@ -17,7 +17,7 @@ actor Main
     end
 
     let limit = try
-      env.args(i).u64()
+      env.args(i).usize()
     else
       1
     end
@@ -27,8 +27,8 @@ actor Main
       let network = NetworkInterface(r)
       try
         network.listen(recover Listener(env, ssl, limit) end)
+        network.udp_socket(recover Pong(env) end)
       end
     else
       env.out.print("no root in Env!")
     end
-    // UDPSocket(recover Pong(env) end)

@@ -34,12 +34,12 @@ primitive X509
       error
     end
 
-    let common = recover String(len.u64()) end
+    let common = recover String(len.usize()) end
     @X509_NAME_get_text_by_NID[I32](subject, I32(13), common.cstring(),
       len + 1)
     common.recalc()
 
-    if common.size() != len.u64() then
+    if common.size() != len.usize() then
       error
     end
 
@@ -88,7 +88,7 @@ primitive X509
                 let s = String.copy_cstring(data)
 
                 // If it contains NULL bytes, don't include it.
-                if s.size() != len.u64() then
+                if s.size() != len.usize() then
                   error
                 end
 

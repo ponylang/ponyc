@@ -1,7 +1,3 @@
-primitive LongTest
-type TestResult is (Bool | LongTest)
-
-
 trait UnitTest
   """
   Each unit test class must provide this trait. Simple tests only need to
@@ -22,12 +18,26 @@ trait UnitTest
     """
     ""
 
-  fun ref apply(t: TestHelper): TestResult ?
+  fun ref apply(h: TestHelper) ?
     """
     Run the test.
-    Return values:
-    * true - test passed.
-    * false - test failed.
-    * LongTest - test needs to run for longer. See package doc string.
-    * error - test failed.
+    Raising an error is interpreted as a test failure.
     """
+
+  fun ref timed_out(h: TestHelper) =>
+    """
+    Tear down a possibly hanging test.
+    Called when the timeout specified by to long_test() expires.
+    There is no need for this function to call complete(false).
+    tear_down() will still be called after this completes.
+    The default is to do nothing.
+    """
+    None
+
+  fun ref tear_down(h: TestHelper) =>
+    """
+    Tidy up after the test has completed.
+    Called for each run test, whether that test passed, succeeded or timed out.
+    The default is to do nothing.
+    """
+    None

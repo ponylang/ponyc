@@ -41,6 +41,9 @@ static void make_box_type(compile_t* c, gentype_t* g)
 static void make_global_descriptor(compile_t* c, gentype_t* g)
 {
   // Fetch or create a descriptor type.
+  if(g->underlying == TK_STRUCT)
+    return;
+
   if(g->underlying == TK_TUPLETYPE)
     g->field_count = (int)ast_childcount(g->ast);
 
@@ -100,7 +103,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if(package == c->str_1)
+    if(package == c->str_builtin)
     {
       if(name == c->str_Bool)
         g->primitive = c->i1;
@@ -124,12 +127,42 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = c->i128;
       else if(name == c->str_U128)
         g->primitive = c->i128;
+#if defined(PLATFORM_IS_ILP32)
+      else if(name == c->str_ILong)
+        g->primitive = c->i32;
+      else if(name == c->str_ULong)
+        g->primitive = c->i32;
+      else if(name == c->str_ISize)
+        g->primitive = c->i32;
+      else if(name == c->str_USize)
+        g->primitive = c->i32;
+#elif defined(PLATFORM_IS_LP64)
+      else if(name == c->str_ILong)
+        g->primitive = c->i64;
+      else if(name == c->str_ULong)
+        g->primitive = c->i64;
+      else if(name == c->str_ISize)
+        g->primitive = c->i64;
+      else if(name == c->str_USize)
+        g->primitive = c->i64;
+#elif defined(PLATFORM_IS_LLP64)
+      else if(name == c->str_ILong)
+        g->primitive = c->i32;
+      else if(name == c->str_ULong)
+        g->primitive = c->i32;
+      else if(name == c->str_ISize)
+        g->primitive = c->i64;
+      else if(name == c->str_USize)
+        g->primitive = c->i64;
+#endif
       else if(name == c->str_F32)
         g->primitive = c->f32;
       else if(name == c->str_F64)
         g->primitive = c->f64;
       else if(name == c->str_Pointer)
         return genprim_pointer(c, g, prelim);
+      else if(name == c->str_Maybe)
+        return genprim_maybe(c, g, prelim);
       else if(name == c->str_Platform)
         return true;
     }
@@ -184,6 +217,7 @@ static void setup_tuple_fields(gentype_t* g)
 {
   g->field_count = (int)ast_childcount(g->ast);
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
+  g->field_keys = NULL;
 
   ast_t* child = ast_child(g->ast);
   size_t index = 0;
@@ -201,6 +235,7 @@ static void setup_type_fields(gentype_t* g)
 
   g->field_count = 0;
   g->fields = NULL;
+  g->field_keys = NULL;
 
   ast_t* def = (ast_t*)ast_data(g->ast);
 
@@ -234,6 +269,7 @@ static void setup_type_fields(gentype_t* g)
     return;
 
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
+  g->field_keys = (token_id*)calloc(g->field_count, sizeof(token_id));
 
   member = ast_child(members);
   size_t index = 0;
@@ -247,10 +283,11 @@ static void setup_type_fields(gentype_t* g)
       case TK_EMBED:
       {
         AST_GET_CHILDREN(member, name, type, init);
-        g->fields[index] = reify(typeparams, ast_type(member), typeparams,
-          typeargs);
+        g->fields[index] = reify(ast_type(member), typeparams, typeargs);
+
         // TODO: Are we sure the AST source file is correct?
         ast_setpos(g->fields[index], NULL, ast_line(name), ast_pos(name));
+        g->field_keys[index] = ast_id(member);
         index++;
         break;
       }
@@ -268,9 +305,11 @@ static void free_fields(gentype_t* g)
     ast_free_unattached(g->fields[i]);
 
   free(g->fields);
+  free(g->field_keys);
 
   g->field_count = 0;
   g->fields = NULL;
+  g->field_keys = NULL;
 }
 
 static void make_dispatch(compile_t* c, gentype_t* g)
@@ -282,6 +321,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Create a dispatch function.
   const char* dispatch_name = genname_dispatch(g->type_name);
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
+  LLVMSetFunctionCallConv(g->dispatch_fn, LLVMCCallConv);
   codegen_startfun(c, g->dispatch_fn, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
@@ -308,24 +348,28 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
 
   for(int i = 0; i < g->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
-      "");
-    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gentrace(c, ctx, value, g->fields[i]);
-  }
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
-  return need_trace;
-}
+    if(g->field_keys[i] != TK_EMBED)
+    {
+      // Call the trace function indirectly depending on rcaps.
+      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+      need_trace |= gentrace(c, ctx, value, g->fields[i]);
+    } else {
+      // Call the trace function directly without marking the field.
+      const char* fun = genname_trace(genname_type(g->fields[i]));
+      LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, fun);
 
-static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef ctx,
-  LLVMValueRef tuple)
-{
-  bool need_trace = false;
+      if(trace_fn != NULL)
+      {
+        LLVMValueRef args[2];
+        args[0] = ctx;
+        args[1] = LLVMBuildBitCast(c->builder, field, c->object_ptr, "");
 
-  for(int i = 0; i < g->field_count; i++)
-  {
-    LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
-    need_trace |= gentrace(c, ctx, value, g->fields[i]);
+        LLVMBuildCall(c->builder, trace_fn, args, 2, "");
+        need_trace = true;
+      }
+    }
   }
 
   return need_trace;
@@ -344,7 +388,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if((package == c->str_1) && (name == c->str_Array))
+    if((package == c->str_builtin) && (name == c->str_Array))
     {
       genprim_array_trace(c, g);
       return true;
@@ -364,58 +408,17 @@ static bool make_trace(compile_t* c, gentype_t* g)
     "object");
 
   // If we don't ever trace anything, delete this function.
-  bool need_trace;
+  int extra = 0;
 
-  if(g->underlying == TK_TUPLETYPE)
-  {
-    // Create another function that traces the tuple members.
-    const char* trace_tuple_name = genname_tracetuple(g->type_name);
+  // Non-structs have a type descriptor.
+  if(g->underlying != TK_STRUCT)
+    extra++;
 
-    LLVMTypeRef param_types[3];
-    param_types[0] = c->void_ptr;
-    param_types[1] = g->primitive;
+  // Actors have a pad.
+  if(g->underlying == TK_ACTOR)
+    extra++;
 
-    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type,
-      param_types, 2, false);
-
-    LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
-      trace_tuple_type);
-
-    codegen_startfun(c, trace_tuple_fn, false);
-    LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
-
-    LLVMValueRef tuple_ctx = LLVMGetParam(trace_tuple_fn, 0);
-    LLVMValueRef tuple_value = LLVMGetParam(trace_tuple_fn, 1);
-
-    need_trace = trace_elements(c, g, tuple_ctx, tuple_value);
-
-    LLVMBuildRetVoid(c->builder);
-    codegen_finishfun(c);
-
-    if(need_trace)
-    {
-      // Get the tuple primitive.
-      LLVMValueRef tuple_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
-      LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
-
-      // Call the tuple trace function with the unboxed primitive type.
-      LLVMValueRef args[2];
-      args[0] = ctx;
-      args[1] = tuple;
-
-      LLVMBuildCall(c->builder, trace_tuple_fn, args, 2, "");
-    } else {
-      LLVMDeleteFunction(trace_tuple_fn);
-    }
-  } else {
-    int extra = 1;
-
-    // Actors have a pad.
-    if(g->underlying == TK_ACTOR)
-      extra++;
-
-    need_trace = trace_fields(c, g, ctx, object, extra);
-  }
+  bool need_trace = trace_fields(c, g, ctx, object, extra);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
@@ -434,7 +437,9 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying != TK_TUPLETYPE)
   {
     type = g->structure;
-    extra++;
+
+    if(g->underlying != TK_STRUCT)
+      extra++;
   } else {
     type = g->primitive;
   }
@@ -446,7 +451,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
   LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
-  if(g->underlying != TK_TUPLETYPE)
+  if(extra > 0)
     elements[0] = LLVMPointerType(g->desc_type, 0);
 
   // Create the actor pad as element 1.
@@ -459,14 +464,30 @@ static bool make_struct(compile_t* c, gentype_t* g)
   for(int i = 0; i < g->field_count; i++)
   {
     gentype_t field_g;
+    bool ok;
 
-    if(!gentype_prelim(c, g->fields[i], &field_g))
+    if((g->field_keys != NULL) && (g->field_keys[i] == TK_EMBED))
+    {
+      ok = gentype(c, g->fields[i], &field_g);
+      elements[i + extra] = field_g.structure;
+    } else {
+      ok = gentype_prelim(c, g->fields[i], &field_g);
+      elements[i + extra] = field_g.use_type;
+    }
+
+    if(!ok)
     {
       pool_free_size(buf_size, elements);
       return false;
     }
+  }
 
-    elements[i + extra] = field_g.use_type;
+  // An embedded field may have caused the current type to be fully generated
+  // at this point. If so, finish gracefully.
+  if(!LLVMIsOpaqueStruct(type))
+  {
+    g->done = true;
+    return true;
   }
 
   LLVMStructSetBody(type, elements, g->field_count + extra, false);
@@ -523,12 +544,15 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     setup_type_fields(g);
 
     // Forward declare debug symbols for this nominal, if needed.
-    // At this point, this can only be TK_CLASS, TK_PRIMITIVE, or TK_ACTOR
-    // ast nodes. TK_TYPE has been translated to any of the former during
-    // reification.
+    // At this point, this can only be TK_STRUCT, TK_CLASS, TK_PRIMITIVE, or
+    // TK_ACTOR ast nodes. TK_TYPE has been translated to any of the former
+    // during reification.
     dwarf_forward(&c->dwarf, g);
 
-    bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+    bool ok = make_struct(c, g);
+
+    if(!g->done)
+      ok = ok && make_trace(c, g) && make_components(c, g);
 
     if(!ok)
     {
@@ -537,7 +561,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     }
 
     // Finalise symbols for composite type.
-    dwarf_composite(&c->dwarf, g);
+    if(!g->done)
+      dwarf_composite(&c->dwarf, g);
   } else {
     // Emit debug symbols for a basic type (U8, U16, U32...)
     dwarf_basic(&c->dwarf, g);
@@ -546,32 +571,37 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     make_box_type(c, g);
   }
 
-  // Generate a dispatch function if necessary.
-  make_dispatch(c, g);
-
-  // Create a unique global instance if we need one.
-  make_global_instance(c, g);
-
-  // Generate all the methods.
-  if(!genfun_methods(c, g))
+  if(!g->done)
   {
-    free_fields(g);
-    return false;
+    // Generate a dispatch function if necessary.
+    make_dispatch(c, g);
+
+    // Create a unique global instance if we need one.
+    make_global_instance(c, g);
+
+    // Generate all the methods.
+    if(!genfun_methods(c, g))
+    {
+      free_fields(g);
+      return false;
+    }
+
+    if(g->underlying != TK_STRUCT)
+      gendesc_init(c, g);
+
+    // Finish off the dispatch function.
+    if(g->underlying == TK_ACTOR)
+    {
+      codegen_startfun(c, g->dispatch_fn, false);
+      codegen_finishfun(c);
+    }
+
+    // Finish the dwarf frame.
+    dwarf_finish(&c->dwarf);
   }
-
-  gendesc_init(c, g);
-
-  // Finish off the dispatch function.
-  if(g->underlying == TK_ACTOR)
-  {
-    codegen_startfun(c, g->dispatch_fn, false);
-    codegen_finishfun(c);
-  }
-
-  // Finish the dwarf frame.
-  dwarf_finish(&c->dwarf);
 
   free_fields(g);
+  g->done = true;
   return true;
 }
 
@@ -585,7 +615,7 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   dwarf_forward(&c->dwarf, g);
 
-  bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+  bool ok = make_struct(c, g) && make_components(c, g);
 
   // Finalise debug symbols for tuple type.
   dwarf_composite(&c->dwarf, g);
@@ -612,34 +642,6 @@ bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g)
   }
 
   return gentype(c, ast, g);
-}
-
-static bool contains_dontcare(ast_t* ast)
-{
-  switch(ast_id(ast))
-  {
-    case TK_DONTCARE:
-      return true;
-
-    case TK_TUPLETYPE:
-    {
-      ast_t* child = ast_child(ast);
-
-      while(child != NULL)
-      {
-        if(contains_dontcare(child))
-          return true;
-
-        child = ast_sibling(child);
-      }
-
-      return false;
-    }
-
-    default: {}
-  }
-
-  return false;
 }
 
 bool gentype(compile_t* c, ast_t* ast, gentype_t* g)

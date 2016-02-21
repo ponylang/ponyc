@@ -3,6 +3,24 @@
 #include <string.h>
 #include <assert.h>
 
+#ifndef NDEBUG
+
+size_t messageq_size_debug(messageq_t* q)
+{
+  pony_msg_t* tail = q->tail;
+  size_t count = 0;
+
+  while(tail->next != NULL)
+  {
+    count++;
+    tail = tail->next;
+  }
+
+  return count;
+}
+
+#endif
+
 void messageq_init(messageq_t* q)
 {
   pony_msg_t* stub = POOL_ALLOC(pony_msg_t);
@@ -11,6 +29,10 @@ void messageq_init(messageq_t* q)
 
   q->head = (pony_msg_t*)((uintptr_t)stub | 1);
   q->tail = stub;
+
+#ifndef NDEBUG
+  messageq_size_debug(q);
+#endif
 }
 
 void messageq_destroy(messageq_t* q)

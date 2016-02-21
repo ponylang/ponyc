@@ -79,11 +79,11 @@ class iso Payload
     """
     _body
 
-  fun body_size(): U64 =>
+  fun body_size(): USize =>
     """
     Get the total size of the body.
     """
-    var len = U64(0)
+    var len = USize(0)
 
     for v in _body.values() do
       len = len + v.size()
@@ -177,7 +177,7 @@ class iso Payload
     list.push("\r\nHost: ")
     list.push(url.host)
     list.push(":")
-    list.push(url.service)
+    list.push(url.port.string())
     // TODO: basic authorization header
 
     list = _add_headers(consume list)

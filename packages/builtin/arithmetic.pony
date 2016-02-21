@@ -1,18 +1,22 @@
 trait val _ArithmeticConvertible
-  fun i8(): I8 => compiler_intrinsic
-  fun i16(): I16 => compiler_intrinsic
-  fun i32(): I32 => compiler_intrinsic
-  fun i64(): I64 => compiler_intrinsic
-  fun i128(): I128 => compiler_intrinsic
+  fun i8(): I8 => compile_intrinsic
+  fun i16(): I16 => compile_intrinsic
+  fun i32(): I32 => compile_intrinsic
+  fun i64(): I64 => compile_intrinsic
+  fun i128(): I128 => compile_intrinsic
+  fun ilong(): ILong => compile_intrinsic
+  fun isize(): ISize => compile_intrinsic
 
-  fun u8(): U8 => compiler_intrinsic
-  fun u16(): U16 => compiler_intrinsic
-  fun u32(): U32 => compiler_intrinsic
-  fun u64(): U64 => compiler_intrinsic
-  fun u128(): U128 => compiler_intrinsic
+  fun u8(): U8 => compile_intrinsic
+  fun u16(): U16 => compile_intrinsic
+  fun u32(): U32 => compile_intrinsic
+  fun u64(): U64 => compile_intrinsic
+  fun u128(): U128 => compile_intrinsic
+  fun ulong(): ULong => compile_intrinsic
+  fun usize(): USize => compile_intrinsic
 
-  fun f32(): F32 => compiler_intrinsic
-  fun f64(): F64 => compiler_intrinsic
+  fun f32(): F32 => compile_intrinsic
+  fun f64(): F64 => compile_intrinsic
 
 trait val Real[A: Real[A] val] is
   (Stringable & _ArithmeticConvertible & Comparable[A])
@@ -36,8 +40,8 @@ trait val Real[A: Real[A] val] is
   fun ge(y: box->A): Bool => this >= y
   fun gt(y: box->A): Bool => this > y
 
-  fun max(that: A): A
-  fun min(that: A): A
+  fun min(y: A): A
+  fun max(y: A): A
 
   fun hash(): U64 =>
     var x = u64()
@@ -70,20 +74,19 @@ trait val Integer[A: Integer[A] val] is Real[A]
 trait val _SignedInteger[A: _SignedInteger[A,C] val,
     C: _UnsignedInteger[C] val] is Integer[A]
   fun abs(): C
-  fun string(fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
-      fill)
+    _ToString._u64(abs().u64(), i64() < 0, fmt)
 
 trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
-  fun string(fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
+    _ToString._u64(u64(), false, fmt)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun tag epsilon(): A
@@ -104,6 +107,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun finite(): Bool
   fun nan(): Bool
 
+  fun ldexp(x: A, exponent: I32): A
   fun frexp(): (A, U32)
   fun log(): A
   fun log2(): A
@@ -135,16 +139,16 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun asinh(): A
   fun atanh(): A
 
-  fun string(fmt: FormatFloat = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: U64 = 6, width: U64 = 0,
-    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  fun string(
+    fmt: FormatSettings[FormatFloat, PrefixNumber] = FormatDefaultNumber)
+    : String iso^
   =>
-    _ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
+    _ToString._f64(f64(), fmt)
 
 type Number is (Signed | Unsigned | Float)
 
-type Signed is (I8 | I16 | I32 | I64 | I128)
+type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
 
-type Unsigned is (U8 | U16 | U32 | U64 | U128)
+type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)
 
 type Float is (F32 | F64)

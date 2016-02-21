@@ -1,6 +1,7 @@
 #ifndef ASTBUILD_H
 #define ASTBUILD_H
 
+#include "stringtab.h"
 
 // Macros for building ASTs
 
@@ -108,6 +109,10 @@
 
 /// Add a TK_ID node with the given ID name
 #define ID(name) TREE(ast_from_string(basis_ast, name));
+
+/// Add a TK_ID node with the given ID name and nice name
+#define NICE_ID(name, nice) \
+  TREE(ast_setdata(ast_from_string(basis_ast, name), (void*)stringtab(nice)));
 
 /// Add a TK_STRING node with the given string value
 #define STRING(value) \

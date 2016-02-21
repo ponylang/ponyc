@@ -23,6 +23,7 @@ else
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
     lto := yes
+    AR := /usr/bin/ar
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
@@ -66,12 +67,21 @@ prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
-BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
+BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -mcx16 -march=$(arch)
-AR_FLAGS =
-ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
+LINKER_FLAGS = -march=$(arch)
+AR_FLAGS = -rcs
+ALL_CFLAGS = -std=gnu11 -fexceptions \
+  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
+
+# Determine pointer size in bits.
+BITS := $(shell getconf LONG_BIT)
+
+ifeq ($(BITS),64)
+	BUILD_FLAGS += -mcx16
+	LINKER_FLAGS += -mcx16
+endif
 
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
@@ -291,7 +301,7 @@ ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 # make targets
 targets := $(libraries) $(binaries) $(tests)
 
-.PHONY: all $(targets)
+.PHONY: all $(targets) install uninstall clean stats deploy prerelease
 all: $(targets)
 	@:
 
@@ -418,7 +428,7 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	$(SILENT)$(AR) -rcs $$@ $(ofiles) $(AR_FLAGS)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
 $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)
@@ -465,30 +475,30 @@ install: libponyc libponyrt ponyc
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include
-	@cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
-	@cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
-	@cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
-	@cp src/libponyrt/pony.h $(destdir)/include
-	@cp -r packages $(destdir)/
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
+	$(SILENT)cp -r packages $(destdir)/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	@ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 
 $(eval $(call EXPAND_INSTALL))
 
 uninstall:
-	-@rm -rf $(destdir) 2>/dev/null ||:
-	-@rm $(prefix)/bin/ponyc 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
-	-@rm $(prefix)/include/pony.h 2>/dev/null ||:
+	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
+	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
@@ -504,18 +514,19 @@ setversion:
 $(eval $(call EXPAND_RELEASE))
 
 release: prerelease setversion
-	@git add VERSION
-	@git commit -m "Releasing version $(tag)"
-	@git tag $(tag)
-	@git push
-	@git push --tags
-	@git checkout release
-	@git pull
-	@git merge master
-	@git push
-	@git checkout $(branch)
+	$(SILENT)git add VERSION
+	$(SILENT)git commit -m "Releasing version $(tag)"
+	$(SILENT)git tag $(tag)
+	$(SILENT)git push
+	$(SILENT)git push --tags
+	$(SILENT)git checkout release
+	$(SILENT)git pull
+	$(SILENT)git merge master
+	$(SILENT)git push
+	$(SILENT)git checkout $(branch)
 endif
 
+# Note: linux only
 deploy: test
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
@@ -524,23 +535,23 @@ deploy: test
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
-	@cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
-	@cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
-	@cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
-	@cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
-	@ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
-	@ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
-	@ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
-	@ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
-	@cp -r packages $(package)/usr/lib/pony/$(package_version)/
-	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	@fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	@fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	@git archive release > build/bin/$(archive)
-	@cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
-	@tar rvf build/bin/$(archive) stdlib-docs
-	@bzip2 build/bin/$(archive)
-	@rm -rf $(package) build/bin/$(archive) stdlib-docs
+	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
+	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
+	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	$(SILENT)git archive release > build/bin/$(archive)
+	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
+	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
+	$(SILENT)bzip2 build/bin/$(archive)
+	$(SILENT)rm -rf $(package) build/bin/$(archive) stdlib-docs
 
 stats:
 	@echo

@@ -3,8 +3,6 @@ class Body
   var y: F64
   var z: F64
 
-  //var pad: F64 = F64(0)
-
   var vx: F64
   var vy: F64
   var vz: F64
@@ -115,8 +113,8 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    let n: U64 = try
-      env.args(1).u64()
+    let n = try
+      env.args(1).usize()
     else
       50000000
     end
@@ -132,7 +130,7 @@ actor Main
     offset_momentum()
     print_energy()
 
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < n do
       advance(0.01)
@@ -143,7 +141,7 @@ actor Main
 
   fun ref advance(dt: F64) =>
     let count = system.size()
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < count do
       try
@@ -193,7 +191,7 @@ actor Main
   fun ref energy(): F64 =>
     let count = system.size()
     var e: F64 = 0
-    var i: U64 = 0
+    var i: USize = 0
 
     while i < count do
       try
@@ -217,7 +215,7 @@ actor Main
     var pz: F64 = 0
 
     try
-      var i: U64 = 0
+      var i: USize = 0
 
       while i < system.size() do
         var body = system(i)

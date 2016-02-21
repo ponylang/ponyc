@@ -35,7 +35,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
   let _arguments: Array[String ref]
   let _fatal: Bool
   var _configuration: Array[_Option] = _configuration.create()
-  var _index: U64 = 0
+  var _index: USize = 0
   var _error: Bool = false
 
   new create(env: Env, fatal: Bool = true) =>
@@ -63,7 +63,9 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     """
     _arguments
 
-  fun ref _strip(opt: _Option, matched: String ref, start: I64, finish: I64) =>
+  fun ref _strip(opt: _Option, matched: String ref,
+    start: ISize, finish: ISize)
+  =>
     """
     Strips accepted options from the copied array of command line arguments.
     """
@@ -79,17 +81,20 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       if matched.size() == 0 then
         _arguments.delete(_index)
       end
+      if (matched.size() == 1) and (matched(0) == '-') then
+        _arguments.delete(_index)
+      end
     end
 
-  fun ref _select(candidate: String ref, start: I64, offset: I64,
-    finish: I64): (_Option | ParseError)
+  fun ref _select(candidate: String ref, start: ISize, offset: ISize,
+    finish: ISize): (_Option | ParseError)
   =>
     """
     Selects an option from the configuration depending on the current command
     line argument.
     """
     let name: String box = candidate.substring(start, finish)
-    var matches = Array[_Option]
+    let matches = Array[_Option]
     var selected: (_Option | None) = None
 
     for opt in _configuration.values() do
@@ -103,7 +108,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     | (let opt: _Option, 1) => _strip(opt, candidate, offset, finish) ; opt
     | (let opt: _Option, _) => _ErrorPrinter._ambiguous(matches)
     else
-      _ErrorPrinter._unrecognised(candidate.substring(0, finish))
+      _ErrorPrinter._unrecognised(candidate.substring(0, finish + 1))
     end
 
   fun ref _skip(): Bool =>
@@ -176,22 +181,21 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       try
         let candidate = _arguments(_index)
 
-        (let start: I64, let offset: I64) =
+        (let start: ISize, let offset: ISize) =
           match (candidate(0), candidate(1))
           | ('-', '-') => (2, 0)
-          | ('-', var char: U8) => (1, 1)
+          | ('-', let char: U8) => (1, 1)
           else
             (0, 0) // unreachable
           end
 
-        let finish: I64 =
+        let last = candidate.size().isize()
+        (let finish: ISize, let combined: Bool) =
           try
-            candidate.find("=") - 1
+            (candidate.find("="), true)
           else
-            if start == 1 then start else -1 end
+            (if start == 1 then start+1 else last end, false)
           end
-
-        let combined = (finish != start) and (finish != -1)
 
         match _select(candidate, start, offset, finish)
         | let err: ParseError => _error = true ; _index = _index + 1 ; err
@@ -217,7 +221,7 @@ class _Option
 
   fun matches(name: String box, shortmatch: Bool): Bool =>
     match (short, shortmatch)
-    | (var x: String, true) => return name.compare_sub(x, 1) is Equal
+    | (let x: String, true) => return name.compare_sub(x, 1) is Equal
     end
 
     long == name

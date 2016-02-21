@@ -3,7 +3,7 @@ class MT is Random
   A Mersenne Twister. This is a non-cryptographic random number generator.
   """
   var _state: Array[U64]
-  var _index: U64
+  var _index: USize
 
   new create(seed: U64 = 5489) =>
     """
@@ -16,10 +16,10 @@ class MT is Random
     var x = seed
 
     _state.push(x)
-    var i: U64 = 1
+    var i: USize = 1
 
     while i < _n() do
-      x = ((x xor (x >> 62)) * 6364136223846793005) + i
+      x = ((x xor (x >> 62)) * 6364136223846793005) + i.u64()
       _state.push(x)
       i = i + 1
     end
@@ -51,7 +51,7 @@ class MT is Random
     try
       _index = 0
       var x = _state(0)
-      var i: U64 = 0
+      var i: USize = 0
 
       while i < _m() do
         x = _lower(i, x)
@@ -69,9 +69,9 @@ class MT is Random
       _upper(_n1(), _state(_n1()))
     end
 
-  fun tag _n(): U64 => 312
-  fun tag _m(): U64 => 156
-  fun tag _n1(): U64 => _n() - 1
+  fun tag _n(): USize => 312
+  fun tag _m(): USize => 156
+  fun tag _n1(): USize => _n() - 1
 
   fun tag _mask(x: U64, y: U64): U64 =>
     (x and 0xffffffff80000000) or (y and 0x000000007fffffff)
@@ -82,12 +82,12 @@ class MT is Random
     let z = _mask(x, y)
     (z >> 1) xor _matrix(z)
 
-  fun ref _lower(i: U64, x: U64): U64 ? =>
+  fun ref _lower(i: USize, x: U64): U64 ? =>
     let y = _state(i + 1)
     _state(i) = _state(i + _m()) xor _mix(x, y)
     y
 
-  fun ref _upper(i: U64, x: U64): U64 ? =>
+  fun ref _upper(i: USize, x: U64): U64 ? =>
     let y = _state(i + 1)
     _state(i) = _state(i - _m()) xor _mix(x, y)
     y

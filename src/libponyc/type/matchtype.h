@@ -36,7 +36,13 @@ typedef enum
  *
  * Return REJECT if no such type can exist.
  */
-matchtype_t is_matchtype(ast_t* operand_type, ast_t* pattern_type);
+matchtype_t is_matchtype(ast_t* operand, ast_t* pattern);
+
+/**
+ * Returns false if some instantiation of sub would deny a matchtype with
+ * super. This is used to prevent intersection types from violating refcaps.
+ */
+bool accept_subtype(ast_t* sub, ast_t* super);
 
 PONY_EXTERN_C_END
 

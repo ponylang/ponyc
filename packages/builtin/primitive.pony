@@ -1,14 +1,12 @@
 interface tag Any
 
 primitive None is Stringable
-  fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
   =>
-    "None".string(fmt, prefix, prec, width, align, fill)
+    "None".string(fmt)
 
 primitive Bool is Stringable
-  new create(from: Bool) => compiler_intrinsic
+  new create(from: Bool) => from
 
   fun eq(y: Bool): Bool => this == y
   fun ne(y: Bool): Bool => this != y
@@ -17,9 +15,6 @@ primitive Bool is Stringable
   fun op_xor(y: Bool): Bool => this xor y
   fun op_not(): Bool => not this
 
-  fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
   =>
-    (if this then "true" else "false" end).string(fmt, prefix, prec, width,
-      align, fill)
+    (if this then "true" else "false" end).string(fmt)

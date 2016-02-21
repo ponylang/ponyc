@@ -14,15 +14,15 @@ static size_t count = 0;
 static bool immediate_report = false;
 
 
-static void print_error(errormsg_t* e)
+static void print_errormsg(errormsg_t* e, const char* indent)
 {
   if(e->file != NULL)
   {
-    printf("%s:", e->file);
+    printf("%s%s:", indent, e->file);
 
     if(e->line != 0)
     {
-      printf("%ld:%ld: ", (long int)e->line, (long int)e->pos);
+      printf(__zu ":" __zu ": ", e->line, e->pos);
     }
     else {
       printf(" ");
@@ -33,7 +33,8 @@ static void print_error(errormsg_t* e)
 
   if(e->source != NULL)
   {
-    printf("%s\n", e->source);
+    printf("%s%s\n", indent, e->source);
+    printf("%s", indent);
 
     for(size_t i = 0; i < (e->pos - 1); i++)
     {
@@ -44,6 +45,20 @@ static void print_error(errormsg_t* e)
     }
 
     printf("^\n");
+  }
+}
+
+static void print_error(errormsg_t* e)
+{
+  printf("Error:\n");
+  print_errormsg(e, "");
+
+  if(e->frame != NULL)
+  {
+    printf("    Info:\n");
+
+    for(errormsg_t* p = e->frame; p != NULL; p = p->frame)
+      print_errormsg(p, "    ");
   }
 }
 
@@ -65,6 +80,24 @@ static void add_error(errormsg_t* e)
   count++;
 }
 
+static void append_to_frame(errorframe_t* frame, errormsg_t* e)
+{
+  assert(frame != NULL);
+
+  if(*frame == NULL)
+  {
+    *frame = e;
+  }
+  else
+  {
+    errormsg_t* p = *frame;
+    while(p->frame != NULL)
+      p = p->frame;
+
+    p->frame = e;
+  }
+}
+
 errormsg_t* get_errors()
 {
   return head;
@@ -73,6 +106,16 @@ errormsg_t* get_errors()
 size_t get_error_count()
 {
   return count;
+}
+
+static void free_error(errormsg_t* e)
+{
+  while(e != NULL)
+  {
+    errormsg_t* next = e->frame;
+    POOL_FREE(errormsg_t, e);
+    e = next;
+  }
 }
 
 void free_errors()
@@ -84,7 +127,7 @@ void free_errors()
   while(e != NULL)
   {
     errormsg_t* next = e->next;
-    POOL_FREE(errormsg_t, e);
+    free_error(e);
     e = next;
   }
 
@@ -105,8 +148,8 @@ void print_errors()
   }
 }
 
-void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
-  va_list ap)
+static errormsg_t* make_errorv(source_t* source, size_t line, size_t pos,
+  const char* fmt, va_list ap)
 {
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
@@ -149,7 +192,13 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
     e->source = stringtab(buf);
   }
 
-  add_error(e);
+  return e;
+}
+
+void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
+  va_list ap)
+{
+  add_error(make_errorv(source, line, pos, fmt, ap));
 }
 
 void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
@@ -160,7 +209,25 @@ void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
   va_end(ap);
 }
 
-void errorfv(const char* file, const char* fmt, va_list ap)
+void errorframev(errorframe_t* frame, source_t* source, size_t line,
+  size_t pos, const char* fmt, va_list ap)
+{
+  assert(frame != NULL);
+  append_to_frame(frame, make_errorv(source, line, pos, fmt, ap));
+}
+
+void errorframe(errorframe_t* frame, source_t* source, size_t line, size_t pos,
+  const char* fmt, ...)
+{
+  assert(frame != NULL);
+
+  va_list ap;
+  va_start(ap, fmt);
+  errorframev(frame, source, line, pos, fmt, ap);
+  va_end(ap);
+}
+
+static errormsg_t* make_errorfv(const char* file, const char* fmt, va_list ap)
 {
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
@@ -170,7 +237,12 @@ void errorfv(const char* file, const char* fmt, va_list ap)
 
   e->file = stringtab(file);
   e->msg = stringtab(buf);
-  add_error(e);
+  return e;
+}
+
+void errorfv(const char* file, const char* fmt, va_list ap)
+{
+  add_error(make_errorfv(file, fmt, ap));
 }
 
 void errorf(const char* file, const char* fmt, ...)
@@ -179,6 +251,56 @@ void errorf(const char* file, const char* fmt, ...)
   va_start(ap, fmt);
   errorfv(file, fmt, ap);
   va_end(ap);
+}
+
+void errorframefv(errorframe_t* frame, const char* file, const char* fmt,
+  va_list ap)
+{
+  assert(frame != NULL);
+  append_to_frame(frame, make_errorfv(file, fmt, ap));
+}
+
+void errorframef(errorframe_t* frame, const char* file, const char* fmt, ...)
+{
+  assert(frame != NULL);
+
+  va_list ap;
+  va_start(ap, fmt);
+  errorframefv(frame, file, fmt, ap);
+  va_end(ap);
+}
+
+void errorframe_append(errorframe_t* first, errorframe_t* second)
+{
+  assert(first != NULL);
+  assert(second != NULL);
+
+  append_to_frame(first, *second);
+  *second = NULL;
+}
+
+bool errorframe_has_errors(errorframe_t* frame)
+{
+  assert(frame != NULL);
+  return frame != NULL;
+}
+
+void errorframe_report(errorframe_t* frame)
+{
+  assert(frame != NULL);
+
+  if(*frame != NULL)
+    add_error(*frame);
+
+  *frame = NULL;
+}
+
+void errorframe_discard(errorframe_t* frame)
+{
+  assert(frame != NULL);
+
+  free_error(*frame);
+  *frame = NULL;
 }
 
 void error_set_immediate(bool immediate)

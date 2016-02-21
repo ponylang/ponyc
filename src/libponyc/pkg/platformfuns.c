@@ -59,6 +59,26 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
     return true;
   }
 
+  if(!strcmp(attribute, OS_X86_NAME))
+  {
+#ifdef PLATFORM_IS_X86
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_ARM_NAME))
+  {
+#ifdef PLATFORM_IS_ARM
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
   if(!strcmp(attribute, OS_LP64_NAME))
   {
 #ifdef PLATFORM_IS_LP64
@@ -89,9 +109,9 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
     return true;
   }
 
-  if(!strcmp(attribute, OS_HAS_I128_NAME))
+  if(!strcmp(attribute, OS_NATIVE128_NAME))
   {
-#ifdef PLATFORM_IS_VISUAL_STUDIO
+#if defined(PLATFORM_IS_ILP32) || defined(PLATFORM_IS_VISUAL_STUDIO)
     *out_is_target = false;
 #else
     *out_is_target = true;

@@ -12,13 +12,25 @@ primitive DNS
     """
     Gets all IPv4 addresses for a host and service.
     """
-    _resolve(2, host, service, root)
+    _resolve(1, host, service, root)
 
   fun ip6(root: AmbientAuth, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv6 addresses for a host and service.
     """
-    _resolve(10, host, service, root)
+    _resolve(2, host, service, root)
+
+  fun broadcast_ip4(root: AmbientAuth, service: String): Array[IPAddress] iso^ =>
+    """
+    Link-local IP4 broadcast address.
+    """
+    ip4(root, "255.255.255.255", service)
+
+  fun broadcast_ip6(root: AmbientAuth, service: String): Array[IPAddress] iso^ =>
+    """
+    Link-local IP6 broadcast address.
+    """
+    ip6(root, "FF02::1", service)
 
   fun is_ip4(host: String): Bool =>
     """

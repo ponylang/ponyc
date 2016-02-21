@@ -5,6 +5,7 @@
 
 #if defined(PLATFORM_IS_WINDOWS)
 #include <direct.h>
+#include <errno.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
@@ -13,6 +14,16 @@
 PONY_EXTERN_C_BEGIN
 
 const char* cwd;
+
+int os_eexist()
+{
+  return EEXIST;
+}
+
+int os_errno()
+{
+  return errno;
+}
 
 static bool skip_entry(const char* entry, size_t len)
 {

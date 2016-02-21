@@ -3,7 +3,7 @@ primitive ANSI
   These strings can be embedded in text when writing to a StdStream to create
   a text-based UI.
   """
-  fun up(n: U64 = 0): String =>
+  fun up(n: U32 = 0): String =>
     """
     Move the cursor up n lines. 0 is the same as 1.
     """
@@ -13,7 +13,7 @@ primitive ANSI
       "\x1B[" + n.string() + "A"
     end
 
-  fun down(n: U64 = 0): String =>
+  fun down(n: U32 = 0): String =>
     """
     Move the cursor down n lines. 0 is the same as 1.
     """
@@ -23,7 +23,7 @@ primitive ANSI
       "\x1B[" + n.string() + "B"
     end
 
-  fun right(n: U64 = 0): String =>
+  fun right(n: U32 = 0): String =>
     """
     Move the cursor right n columns. 0 is the same as 1.
     """
@@ -33,7 +33,7 @@ primitive ANSI
       "\x1B[" + n.string() + "C"
     end
 
-  fun left(n: U64 = 0): String =>
+  fun left(n: U32 = 0): String =>
     """
     Move the cursor left n columns. 0 is the same as 1.
     """
@@ -43,7 +43,7 @@ primitive ANSI
       "\x1B[" + n.string() + "D"
     end
 
-  fun cursor(x: U64 = 0, y: U64 = 0): String =>
+  fun cursor(x: U32 = 0, y: U32 = 0): String =>
     """
     Move the cursor to line y, column x. 0 is the same as 1. This indexes from
     the top left corner of the screen.

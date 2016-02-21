@@ -4,12 +4,12 @@ use "time"
 
 actor Main
   let _env: Env
-  var _logtable: U64 = 20
-  var _iterate: U64 = 10000
-  var _chunk: U64 = 1024
-  var _streamer_count: U64 = 4
-  var _updater_count: U64 = 8
-  var _updates: U64 = 0
+  var _logtable: USize = 20
+  var _iterate: USize = 10000
+  var _chunk: USize = 1024
+  var _streamer_count: USize = 4
+  var _updater_count: USize = 8
+  var _updates: USize = 0
   var _to: Array[Updater] val
   var _start: U64
 
@@ -69,11 +69,11 @@ actor Main
 
     for option in options do
       match option
-      | ("table", var arg: I64) => _logtable = arg.u64()
-      | ("iterate", var arg: I64) => _iterate = arg.u64()
-      | ("chunk", var arg: I64) => _chunk = arg.u64()
-      | ("streamers", var arg: I64) => _streamer_count = arg.u64()
-      | ("updaters", var arg: I64) => _updater_count = arg.u64()
+      | ("table", let arg: I64) => _logtable = arg.usize()
+      | ("iterate", let arg: I64) => _iterate = arg.usize()
+      | ("chunk", let arg: I64) => _chunk = arg.usize()
+      | ("streamers", let arg: I64) => _streamer_count = arg.usize()
+      | ("updaters", let arg: I64) => _updater_count = arg.usize()
       | let err: ParseError => err.report(_env.out) ; usage() ; error
       end
     end
@@ -95,19 +95,20 @@ actor Streamer
   let updaters: Array[Updater] val
   let shift: U64
   let mask: U64
-  let chunk: U64
+  let chunk: USize
   let rand: PolyRand
 
-  new create(main': Main, updaters': Array[Updater] val, size: U64, chunk': U64,
-    seed: U64) =>
+  new create(main': Main, updaters': Array[Updater] val, size: USize,
+    chunk': USize, seed: USize)
+  =>
     main = main'
     updaters = updaters'
-    shift = size.bitwidth() - size.clz()
-    mask = updaters.size() - 1
+    shift = (size.bitwidth() - size.clz()).u64()
+    mask = (updaters.size() - 1).u64()
     chunk = chunk'
-    rand = PolyRand(seed)
+    rand = PolyRand(seed.u64())
 
-  be apply(iterate: U64) =>
+  be apply(iterate: USize) =>
     let upts = updaters.size()
     let chks = chunk
 
@@ -120,7 +121,7 @@ actor Streamer
     try
       for i in Range(0, chks) do
         var datum = rand()
-        var updater = (datum >> shift) and mask
+        var updater = ((datum >> shift) and mask).usize()
         list(updater).push(datum)
       end
 
@@ -144,19 +145,19 @@ actor Streamer
 actor Updater
   var table: Array[U64] ref
 
-  new create(index: U64, size: U64) =>
+  new create(index: USize, size: USize) =>
     table = Array[U64](size)
 
-    var offset = index * size
+    var offset = index.u64() * size.u64()
 
-    for i in Range(0, size) do
+    for i in Range[U64](0, size.u64()) do
       table.push(i + offset)
     end
 
   be apply(data: Array[U64] val) =>
     try
       for datum in data.values() do
-        var i = datum and (table.size() - 1)
+        var i = (datum and (table.size() - 1).u64()).usize()
         table(i) = table(i) xor datum
       end
     end
@@ -200,7 +201,7 @@ class PolyRand
         var temp: U64 = 0
 
         for j in Range(0, 64) do
-          if ((last >> j) and 1) != 0 then
+          if ((last >> j.u64()) and 1) != 0 then
             try temp = temp xor m2(j) end
           end
         end

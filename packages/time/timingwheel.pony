@@ -5,18 +5,16 @@ class _TimingWheel
   A timing wheel in a hierarchical set of timing wheels. Each wheel covers 6
   bits of precision.
   """
-  let _index: U64
   let _shift: U64
   let _adjust: U64
   var _pending: U64 = 0
   let _list: Array[List[Timer]]
 
-  new create(index: U64) =>
+  new create(index: USize) =>
     """
     Create a timing wheel at the given hierarchical level.
     """
-    _index = index
-    _shift = index * _bits()
+    _shift = (index * _bits()).u64()
     _adjust = if index > 0 then 1 else 0 end
     _list = Array[List[Timer]](_max())
 
@@ -32,8 +30,8 @@ class _TimingWheel
     let slot = ((timer._next() >> _shift) - _adjust) and _mask()
 
     try
-      let list = _list(slot)
-      _list(slot).append_node(timer._get_node())
+      let list = _list(slot.usize())
+      _list(slot.usize()).append_node(timer._get_node())
       _pending = _pending or (1 << slot)
     end
 
@@ -61,7 +59,7 @@ class _TimingWheel
 
     while (pending and _pending) != 0 do
       let slot = (pending and _pending).ctz()
-      try list.append_list(_list(slot)) end
+      try list.append_list(_list(slot.usize())) end
       _pending = _pending and not (1 << slot)
     end
 
@@ -75,7 +73,8 @@ class _TimingWheel
     if _pending != 0 then
       let slot = _slot(current)
       let mask = (1 << _shift) - 1
-      ((_pending.rotr(slot).ctz() + _adjust) << _shift) - (current and mask)
+      ((_pending.rotr(slot).ctz() + _adjust).u64() << _shift.u64()) -
+        (current and mask)
     else
       -1
     end
@@ -96,6 +95,6 @@ class _TimingWheel
     """
     (time >> _shift) and _mask()
 
-  fun tag _bits(): U64 => 6
-  fun tag _max(): U64 => 1 << _bits()
-  fun tag _mask(): U64 => _max() - 1
+  fun tag _bits(): USize => 6
+  fun tag _max(): USize => 1 << _bits()
+  fun tag _mask(): U64 => (_max() - 1).u64()

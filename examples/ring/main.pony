@@ -13,10 +13,10 @@ actor Ring
   be set(neighbor: Ring) =>
     _next = neighbor
 
-  be pass(i: U64) =>
+  be pass(i: USize) =>
     if i > 0 then
       match _next
-      | var n: Ring =>
+      | let n: Ring =>
         n.pass(i - 1)
       end
     else
@@ -26,7 +26,7 @@ actor Ring
 actor Main
   var _ring_size: U32 = 3
   var _ring_count: U32 = 1
-  var _pass: U64 = 10
+  var _pass: USize = 10
 
   var _env: Env
 
@@ -41,7 +41,7 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    var i: U64 = 1
+    var i: USize = 1
 
     while i < _env.args.size() do
       // Every option has an argument.
@@ -55,7 +55,7 @@ actor Main
       | "--count" =>
         _ring_count = value.u32()
       | "--pass" =>
-        _pass = value.u64()
+        _pass = value.usize()
       else
         error
       end

@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define SCHED_BATCH 100
+
 static DECLARE_THREAD_FN(run_thread);
 
 typedef enum
@@ -60,7 +62,7 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 /**
  * Sends a message to a thread.
  */
-static void send_msg(uint32_t to, sched_msg_t msg, uint64_t arg)
+static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
@@ -201,7 +203,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
   send_msg(0, SCHED_BLOCK, 0);
-  uint64_t tsc = __pony_rdtsc();
+  uint64_t tsc = cpu_tick();
   pony_actor_t* actor;
 
   while(true)
@@ -216,7 +218,7 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     if(actor != NULL)
       break;
 
-    uint64_t tsc2 = __pony_rdtsc();
+    uint64_t tsc2 = cpu_tick();
 
     if(quiescent(sched, tsc, tsc2))
       return NULL;
@@ -258,7 +260,7 @@ static void run(scheduler_t* sched)
     }
 
     // Run the current actor and get the next actor.
-    bool reschedule = actor_run(&sched->ctx, actor);
+    bool reschedule = actor_run(&sched->ctx, actor, SCHED_BATCH);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -423,6 +425,7 @@ bool scheduler_start(bool library)
   if(library)
   {
     start = 0;
+    pony_register_thread();
   } else {
     start = 1;
     scheduler[0].tid = pony_thread_self();
@@ -452,7 +455,7 @@ void scheduler_stop()
 
 void scheduler_add(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(ctx != NULL)
+  if(ctx->scheduler != NULL)
   {
     // Add to the current scheduler thread.
     push(ctx->scheduler, actor);
@@ -471,6 +474,17 @@ void scheduler_terminate()
 uint32_t scheduler_cores()
 {
   return scheduler_count;
+}
+
+void pony_register_thread()
+{
+  if(this_scheduler != NULL)
+    return;
+
+  // Create a scheduler_t, even though we will only use the pony_ctx_t.
+  this_scheduler = POOL_ALLOC(scheduler_t);
+  memset(this_scheduler, 0, sizeof(scheduler_t));
+  this_scheduler->tid = pony_thread_self();
 }
 
 pony_ctx_t* pony_ctx()

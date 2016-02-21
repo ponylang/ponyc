@@ -14,7 +14,9 @@ typedef enum
   SYM_NOCASE,
   SYM_DEFINED,
   SYM_UNDEFINED,
-  SYM_CONSUMED
+  SYM_CONSUMED,
+  SYM_FFIDECL,
+  SYM_ERROR
 } sym_status_t;
 
 typedef struct symbol_t

@@ -23,13 +23,18 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options);
 
 /// Handle a member access, possibly involving literals.
 /// On exit all literals will have been removed from the expression or the type
-/// type of the expression will have been set.
+/// of the expression will have been set.
 bool literal_member_access(ast_t* ast, pass_opt_t* options);
 
 /// Handle a call, possibly involving literals.
 /// On exit all literals will have been removed from the expression or the type
-/// type of the expression will have been set.
+/// of the expression will have been set.
 bool literal_call(ast_t* ast, pass_opt_t* options);
+
+/// Handle an identity comparison, possibly involving literals.
+/// On exit all literals will have been removed from the expression or the type
+/// of the expression will have been set.
+bool literal_is(ast_t* ast, pass_opt_t* options);
 
 /// Combine the literal branches in the given control block, if possible.
 /// Should only be called once all branches have been type checked.

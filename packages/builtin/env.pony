@@ -11,7 +11,7 @@ class val Env
   let _envp: Pointer[Pointer[U8]] val
   let _vars: (Array[String] val | None)
 
-  new _create(argc: U64, argv: Pointer[Pointer[U8]] val,
+  new _create(argc: U32, argv: Pointer[Pointer[U8]] val,
     envp: Pointer[Pointer[U8]] val)
   =>
     """
@@ -25,7 +25,7 @@ class val Env
     out = StdStream._out()
     err = StdStream._err()
 
-    args = _strings_from_pointers(argv, argc)
+    args = _strings_from_pointers(argv, argc.usize())
     _envp = envp
     _vars = None
 
@@ -41,7 +41,7 @@ class val Env
     out = out'
     err = err'
     args = args'
-    _envp = recover val Pointer[Pointer[U8]]._alloc(0) end
+    _envp = recover Pointer[Pointer[U8]] end
     _vars = vars'
 
   fun vars(): Array[String] val =>
@@ -66,8 +66,8 @@ class val Env
     """
     @pony_exitcode[None](code)
 
-  fun tag _count_strings(data: Pointer[Pointer[U8]] val): U64 =>
-    var i: U64 = 0
+  fun tag _count_strings(data: Pointer[Pointer[U8]] val): USize =>
+    var i: USize = 0
 
     while
       let entry = data._apply(i)
@@ -77,11 +77,11 @@ class val Env
     end
     i
 
-  fun tag _strings_from_pointers(data: Pointer[Pointer[U8]] val, len: U64):
+  fun tag _strings_from_pointers(data: Pointer[Pointer[U8]] val, len: USize):
     Array[String] iso^
   =>
     let array = recover Array[String](len) end
-    var i: U64 = 0
+    var i: USize = 0
 
     while
       let entry = data._apply(i = i + 1)

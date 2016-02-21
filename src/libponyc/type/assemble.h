@@ -14,6 +14,13 @@ PONY_EXTERN_C_BEGIN
 ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name);
 
 /**
+ * Same as above, but with typeargs.
+ * Validates the type.
+ */
+ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
+  ast_t* typeargs);
+
+/**
  * For some type A, creates the nominal type Pointer[A].
  */
 ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to);
@@ -42,8 +49,8 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type);
 /**
  * Build a type to describe the current class/actor.
  */
-ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
-  token_id ephemeral);
+ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
+  token_id ephemeral, bool defs);
 
 /**
  * Build a type to describe a function signature.
@@ -51,7 +58,7 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
 ast_t* type_for_fun(ast_t* ast);
 
 /**
- * Change cap and ephemeral on a nominal, typeparamref or arrow type.
+ * Force the cap and ephemeral to the given value.
  */
 ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral);
 

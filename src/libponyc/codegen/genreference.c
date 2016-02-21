@@ -33,7 +33,10 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
 
       ast_t* def = (ast_t*)ast_data(l_type);
       ast_t* field = ast_get(def, ast_name(right), NULL);
-      int index = (int)ast_index(field) + 1;
+      int index = (int)ast_index(field);
+
+      if(ast_id(def) != TK_STRUCT)
+        index++;
 
       if(ast_id(def) == TK_ACTOR)
         index++;
@@ -44,7 +47,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
     case TK_TUPLETYPE:
     {
       assert(ast_id(right) == TK_INT);
-      int index = (int)ast_int(right);
+      int index = (int)ast_int(right)->low;
 
       return LLVMBuildExtractValue(c->builder, l_value, index, "");
     }
@@ -104,7 +107,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   // If we contain TK_DONTCARE, we have no usable value.
   if(g.primitive == NULL)
-    return GEN_NOVALUE;
+    return GEN_NOTNEEDED;
 
   LLVMValueRef tuple = LLVMGetUndef(g.primitive);
   int i = 0;
@@ -120,7 +123,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // variable declaration. This is ok, since the tuple value will never be
     // used.
     if(value == GEN_NOVALUE)
-      return GEN_NOVALUE;
+      return GEN_NOTNEEDED;
 
     tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
@@ -233,9 +236,15 @@ static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
       uint32_t width = LLVMGetIntTypeWidth(type);
 
       if(width < 64)
+      {
         value = LLVMBuildZExt(c->builder, value, c->i64, "");
-      else if(width > 64)
+      } else if(width == 128) {
+        LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
+        LLVMValueRef high = LLVMBuildLShr(c->builder, value, shift, "");
+        high = LLVMBuildTrunc(c->builder, high, c->i64, "");
         value = LLVMBuildTrunc(c->builder, value, c->i64, "");
+        value = LLVMBuildXor(c->builder, value, high, "");
+      }
 
       return value;
     }
@@ -281,12 +290,9 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &g))
     return NULL;
 
-  __uint128_t value = ast_int(ast);
-  uint64_t low = (uint64_t)value;
-  uint64_t high = (uint64_t)(value >> 64);
-
-  LLVMValueRef vlow = LLVMConstInt(c->i128, low, false);
-  LLVMValueRef vhigh = LLVMConstInt(c->i128, high, false);
+  lexint_t* value = ast_int(ast);
+  LLVMValueRef vlow = LLVMConstInt(c->i128, value->low, false);
+  LLVMValueRef vhigh = LLVMConstInt(c->i128, value->high, false);
   LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
   vhigh = LLVMConstShl(vhigh, shift);
   vhigh = LLVMConstAdd(vhigh, vlow);
@@ -336,8 +342,8 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
     return NULL;
 
   args[0] = g.desc;
-  args[1] = LLVMConstInt(c->i64, len, false);
-  args[2] = LLVMConstInt(c->i64, 0, false);
+  args[1] = LLVMConstInt(c->intptr, len, false);
+  args[2] = LLVMConstInt(c->intptr, len + 1, false);
   args[3] = str_ptr;
 
   LLVMValueRef inst = LLVMConstNamedStruct(g.structure, args, 4);

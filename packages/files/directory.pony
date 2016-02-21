@@ -23,6 +23,11 @@ class Directory
   """
   let path: FilePath
   var _fd: I32 = -1
+  // We don't need a file descriptor in Windows. However we do still need to
+  // know whether we've disposed of this object, so we use the _fd to indicate
+  // this.
+  // 0 => not yet disposed of.
+  // -1 => disposed of.
 
   new create(from: FilePath) ? =>
     """
@@ -39,13 +44,17 @@ class Directory
 
     path = from
 
-    if Platform.posix() then
+    ifdef posix then
       _fd = @open[I32](from.path.cstring(),
         @o_rdonly() or @o_directory() or @o_cloexec())
 
       if _fd == -1 then
         error
       end
+    elseif windows then
+      _fd = 0
+    else
+      compile_error "unsupported platform"
     end
 
     _FileDes.set_rights(_fd, path)
@@ -74,34 +83,18 @@ class Directory
     recover
       let list = Array[String]
 
-      if Platform.windows() then
-        var find = @windows_find_data[Pointer[_DirectoryEntry]]()
-        let search = path' + "\\*"
-        let h = @FindFirstFile[Pointer[_DirectoryHandle]](
-          search.cstring(), find)
-
-        if h.u64() == -1 then
-          error
-        end
-
-        repeat
-          let p = @windows_readdir[Pointer[U8] iso^](find)
-
-          if not p.is_null() then
-            list.push(recover String.from_cstring(consume p) end)
-          end
-        until not @FindNextFile[Bool](h, find) end
-
-        @FindClose[Bool](h)
-        @free[None](find)
-      else
+      ifdef posix then
         if fd' == -1 then
           error
         end
 
-        let fd = @openat[I32](fd', ".".cstring(),
-          @o_rdonly() or @o_directory() or @o_cloexec())
-        let h = @fdopendir[Pointer[_DirectoryHandle]](fd)
+        let h = ifdef linux or freebsd then
+          let fd = @openat[I32](fd', ".".cstring(),
+            @o_rdonly() or @o_directory() or @o_cloexec())
+          @fdopendir[Pointer[_DirectoryHandle]](fd)
+        else
+          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
+        end
 
         if h.is_null() then
           error
@@ -114,6 +107,28 @@ class Directory
         end
 
         @closedir[I32](h)
+      elseif windows then
+        var find = @windows_find_data[Pointer[_DirectoryEntry]]()
+        let search = path' + "\\*"
+        let h = @FindFirstFileA[Pointer[_DirectoryHandle]](
+          search.cstring(), find)
+
+        if h.usize() == -1 then
+          error
+        end
+
+        repeat
+          let p = @windows_readdir[Pointer[U8] iso^](find)
+
+          if not p.is_null() then
+            list.push(recover String.from_cstring(consume p) end)
+          end
+        until not @FindNextFileA[Bool](h, find) end
+
+        @FindClose[Bool](h)
+        @free[None](find)
+      else
+        compile_error "unsupported platform"
       end
 
       consume list
@@ -130,12 +145,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
-      recover create(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdonly() or @o_directory() or @o_cloexec())
       _relative(path', fd')
+    else
+      recover create(path') end
     end
 
   fun mkdir(target: String): Bool =>
@@ -154,15 +169,13 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.mkdir()
-      else
-        var offset: I64 = 0
+      ifdef linux or freebsd then
+        var offset: ISize = 0
 
         repeat
           let element = try
             offset = target.find(Path.sep(), offset) + 1
-            target.substring(0, offset - 2)
+            target.substring(0, offset - 1)
           else
             offset = -1
             target
@@ -172,6 +185,8 @@ class Directory
         until offset < 0 end
 
         FileInfo(path').directory
+      else
+        path'.mkdir()
       end
     else
       false
@@ -193,12 +208,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
-      recover File(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdwr() or @o_creat() or @o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
+    else
+      recover File(path') end
     end
 
   fun open_file(target: String): File iso^ ? =>
@@ -214,12 +229,12 @@ class Directory
 
     let path' = FilePath(path, target, path.caps - FileWrite)
 
-    if Platform.windows() or Platform.osx() then
-      recover File(path') end
-    else
+    ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
         @o_rdonly() or @o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
+    else
+      recover File(path') end
     end
 
   fun info(): FileInfo ? =>
@@ -268,10 +283,10 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() or Platform.osx() then
-      FileInfo(path')
-    else
+    ifdef linux or freebsd then
       FileInfo._relative(_fd, path', target)
+    else
+      FileInfo(path')
     end
 
   fun chmodat(target: String, mode: FileMode box): Bool =>
@@ -289,10 +304,10 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.chmod(mode)
-      else
+      ifdef linux or freebsd then
         @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0)) == 0
+      else
+        path'.chmod(mode)
       end
     else
       false
@@ -313,10 +328,10 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.chown(uid, gid)
-      else
+      ifdef linux or freebsd then
         @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0)) == 0
+      else
+        path'.chown(uid, gid)
       end
     else
       false
@@ -345,12 +360,13 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.set_time(atime, mtime)
-      else
-        var tv: (I64, I64, I64, I64) =
-          (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
+      ifdef linux or freebsd then
+        var tv: (ILong, ILong, ILong, ILong) =
+          (atime._1.ilong(), atime._2.ilong() / 1000,
+            mtime._1.ilong(), mtime._2.ilong() / 1000)
         @futimesat[I32](_fd, target.cstring(), addressof tv) == 0
+      else
+        path'.set_time(atime, mtime)
       end
     else
       false
@@ -374,10 +390,10 @@ class Directory
     try
       let path' = FilePath(path, link_name, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        source.symlink(path')
-      else
+      ifdef linux or freebsd then
         @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring()) == 0
+      else
+        source.symlink(path')
       end
     else
       false
@@ -399,9 +415,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.remove()
-      else
+      ifdef linux or freebsd then
         let fi = FileInfo(path')
 
         if fi.directory and not fi.symlink then
@@ -417,6 +431,8 @@ class Directory
         else
           @unlinkat(_fd, target.cstring(), 0) == 0
         end
+      else
+        path'.remove()
       end
     else
       false
@@ -441,10 +457,10 @@ class Directory
       let path' = FilePath(path, source, path.caps)
       let path'' = FilePath(to.path, target, to.path.caps)
 
-      if Platform.windows() or Platform.osx() then
-        path'.rename(path'')
-      else
+      ifdef linux or freebsd then
         @renameat[I32](_fd, source.cstring(), to._fd, target.cstring()) == 0
+      else
+        path'.rename(path'')
       end
     else
       false
@@ -454,8 +470,11 @@ class Directory
     """
     Close the directory.
     """
-    if Platform.posix() then
-      @close[I32](_fd)
+    if _fd != -1 then
+      ifdef posix then
+        @close[I32](_fd)
+      end
+
       _fd = -1
     end
 
@@ -464,5 +483,7 @@ class Directory
     Close the file descriptor.
     """
     if _fd != -1 then
-      @close[I32](_fd)
+      ifdef posix then
+        @close[I32](_fd)
+      end
     end

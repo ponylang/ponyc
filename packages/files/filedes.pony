@@ -13,7 +13,7 @@ primitive _FileDes
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       path.chmod(mode)
     else
       @fchmod[I32](fd, mode._os()) == 0
@@ -23,10 +23,14 @@ primitive _FileDes
     """
     Set the owner and group for this file. Does nothing on Windows.
     """
-    if (fd == -1) or not path.caps(FileChown) or Platform.windows() then
+    ifdef windows then
       false
     else
-      @fchown[I32](fd, uid, gid) == 0
+      if (fd != -1) and path.caps(FileChown) then
+        @fchown[I32](fd, uid, gid) == 0
+      else
+        false
+      end
     end
 
   fun touch(fd: I32, path: FilePath): Bool =>
@@ -45,11 +49,12 @@ primitive _FileDes
       return false
     end
 
-    if Platform.windows() then
+    ifdef windows then
       path.set_time(atime, mtime)
     else
-      var tv: (I64, I64, I64, I64) =
-        (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
+      var tv: (ILong, ILong, ILong, ILong) =
+        (atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000)
       @futimes[I32](fd, addressof tv) == 0
     end
 
@@ -57,14 +62,16 @@ primitive _FileDes
     """
     Set the Capsicum rights on the file descriptor.
     """
-    if Platform.freebsd() and (fd != -1) then
-      let cap = CapRights.from(path.caps)
+    ifdef freebsd or "capsicum" then
+      if fd != -1 then
+        let cap = CapRights.from(path.caps)
 
-      if not writeable then
-        cap.unset(Cap.write())
-      end
+        if not writeable then
+          cap.unset(Cap.write())
+        end
 
-      if not cap.limit(fd) then
-        error
+        if not cap.limit(fd) then
+          error
+        end
       end
     end

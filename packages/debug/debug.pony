@@ -7,53 +7,42 @@ primitive Debug
   """
   This is a debug only print utility.
   """
-  fun apply(data: (Stringable | ReadSeq[Stringable]),
-    sep: String = ", ", stream: DebugStream = DebugOut)
+  fun apply(msg: Stringable, sep: String, stream: DebugStream = DebugOut) =>
+    """
+    If platform is debug configured, print a stringable. The default output
+    stream is stdout.
+    """
+    ifdef debug then
+      _print(msg.string(), stream)
+    end
+
+  fun apply(msg: ReadSeq[Stringable], sep: String = ", ",
+    stream: DebugStream)
   =>
     """
-    If platform is debug configured, print either a single stringable or a
-    sequence of stringables. The default separator is ", ", and the default
-    output stream is stdout.
+    If platform is debug configured, print a sequence of stringables. The
+    default separator is ", ", and the default output stream is stdout.
     """
-    if Platform.debug() then
-      match data
-      | let arg: Stringable =>
-        _print(stream, arg.string() + "\n")
-      | let args: ReadSeq[Stringable] =>
-        let buf = recover String end
-
-        if args.size() > 0 then
-          for arg in args.values() do
-            buf.append(arg.string())
-            buf.append(sep)
-          end
-
-          buf.truncate(buf.size() - sep.size())
-          buf.append("\n")
-
-          _print(stream, consume buf)
-        end
-      end
+    ifdef debug then
+      _print(sep.join(msg), stream)
     end
 
   fun out(msg: Stringable = "") =>
     """
     If platform is debug configured, print message to standard output
     """
-    _print(DebugOut, msg.string() + "\n")
+    _print(msg.string(), DebugOut)
 
   fun err(msg: Stringable = "") =>
     """
     If platform is debug configured, print message to standard error
     """
-    _print(DebugErr, msg.string() + "\n")
+    _print(msg.string(), DebugErr)
 
-  fun _print(stream: DebugStream, msg: String) =>
-    if Platform.debug() then
-      if msg.size() > 0 then
-        try
-          @fwrite[U64](msg.cstring(), U64(1), msg.size(), _stream(stream))
-        end
+  fun _print(msg: String, stream: DebugStream) =>
+    ifdef debug then
+      try
+        @fprintf[I32](_stream(stream), "%s\n".cstring(), msg.cstring())
       end
     end
 

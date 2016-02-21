@@ -4,14 +4,14 @@ use "net/ssl"
 
 class Listener is TCPListenNotify
   let _env: Env
-  let _limit: U64
+  let _limit: USize
   let _sslctx: (SSLContext | None)
   var _host: String = ""
   var _service: String = ""
-  var _count: U64 = 0
+  var _count: USize = 0
   let _root: AmbientAuth
 
-  new create(env: Env, ssl: Bool, limit: U64) ? =>
+  new create(env: Env, ssl: Bool, limit: USize) ? =>
     _env = env
     _root = match env.root
 	  | let r: AmbientAuth => r

@@ -9,19 +9,19 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
   """
   let _map: HashMap[A!, A, H]
 
-  new create(prealloc: U64 = 8) =>
+  new create(prealloc: USize = 8) =>
     """
     Defaults to a prealloc of 8.
     """
     _map = _map.create(prealloc)
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     The number of items in the set.
     """
     _map.size()
 
-  fun space(): U64 =>
+  fun space(): USize =>
     """
     The available space in the set.
     """
@@ -61,26 +61,13 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     _map.remove(value)._2
 
-  fun ref concat(iter: Iterator[A^]): HashSet[A, H]^ =>
-    """
-    Add everything in iter to the set.
-    """
-    for value in iter do
-      set(consume value)
-    end
-
-    this
-
-  fun ref union[K: HashFunction[A] val = H](that: HashSet[A^, K]):
-    HashSet[A, H]^
-  =>
+  fun ref union(that: Iterator[A^]): HashSet[A, H]^ =>
     """
     Add everything in that to the set.
     """
-    for value in that.values() do
+    for value in that do
       set(consume value)
     end
-
     this
 
   fun ref intersect[K: HashFunction[box->A!] val = H](
@@ -96,36 +83,29 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
         unset(value)
       end
     end
-
     this
 
-  fun ref difference[K: HashFunction[A] val = H](
-    that: HashSet[A^, K]): HashSet[A, H]^
-  =>
+  fun ref difference(that: Iterator[A^]): HashSet[A, H]^ =>
     """
     Remove elements in this which are also in that. Add elements in that which
     are not in this.
     """
-    for value in that.values() do
+    for value in that do
       try
         extract(value)
       else
         set(consume value)
       end
     end
-
     this
 
-  fun ref remove[K: HashFunction[box->A!] val = H](
-    that: HashSet[box->A!, K]): HashSet[A, H]^
-  =>
+  fun ref remove(that: Iterator[box->A!]): HashSet[A, H]^ =>
     """
     Remove everything that is in that.
     """
-    for value in that.values() do
+    for value in that do
       unset(value)
     end
-
     this
 
   fun add[K: HashFunction[this->A!] val = H](value: this->A!):
@@ -136,7 +116,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     clone[K]().set(value)
 
-  fun sub[K: HashFunction[this->A!] val = H](value: this->A!):
+  fun sub[K: HashFunction[this->A!] val = H](value: box->this->A!):
     HashSet[this->A!, K]^
   =>
     """
@@ -144,7 +124,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     clone[K]().unset(value)
 
-  fun op_or[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
+  fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -157,7 +137,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_and[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
+  fun op_and[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -173,7 +153,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_xor[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
+  fun op_xor[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -198,7 +178,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun without[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
+  fun without[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -272,14 +252,14 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     that <= this
 
-  fun next_index(prev: U64 = -1): U64 ? =>
+  fun next_index(prev: USize = -1): USize ? =>
     """
     Given an index, return the next index that has a populated value. Raise an
     error if there is no next populated index.
     """
     _map.next_index(prev)
 
-  fun index(i: U64): this->A ? =>
+  fun index(i: USize): this->A ? =>
     """
     Returns the value at a given index. Raise an error if the index is not
     populated.
@@ -298,8 +278,8 @@ class SetValues[A, H: HashFunction[A!] val, S: HashSet[A, H] #read] is
   An iterator over the values in a set.
   """
   let _set: S
-  var _i: U64 = -1
-  var _count: U64 = 0
+  var _i: USize = -1
+  var _count: USize = 0
 
   new create(set: S) =>
     """

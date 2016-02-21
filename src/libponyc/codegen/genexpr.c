@@ -34,8 +34,11 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_FVARREF:
     case TK_FLETREF:
-    case TK_EMBEDREF:
       ret = gen_fieldload(c, ast);
+      break;
+
+    case TK_EMBEDREF:
+      ret = gen_fieldptr(c, ast);
       break;
 
     case TK_PARAMREF:
@@ -44,6 +47,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_VAR:
     case TK_LET:
+    case TK_MATCH_CAPTURE:
       ret = gen_localdecl(c, ast);
       break;
 
@@ -157,11 +161,17 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = GEN_NOVALUE;
       break;
 
-    case TK_COMPILER_INTRINSIC:
-      ast_error(ast, "unimplemented compiler intrinsic");
-      LLVMBuildUnreachable(c->builder);
-      ret = GEN_NOVALUE;
-      break;
+    case TK_COMPILE_INTRINSIC:
+      ast_error(ast, "unimplemented compile intrinsic");
+      return NULL;
+
+    case TK_COMPILE_ERROR:
+    {
+      ast_t* reason_seq = ast_child(ast);
+      ast_t* reason = ast_child(reason_seq);
+      ast_error(ast, "compile error: %s", ast_name(reason));
+      return NULL;
+    }
 
     default:
       ast_error(ast, "not implemented (codegen unknown)");

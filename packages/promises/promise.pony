@@ -42,8 +42,8 @@ actor Promise[A: Any #share]
 
     _list.clear()
 
-  fun tag next[B: Any #share](fulfill: (Fulfill[A, B] | None) = None,
-    rejected: (Reject[B] | None) = None): Promise[B]
+  fun tag next[B: Any #share](fulfill: Fulfill[A, B],
+    rejected: Reject[B] = RejectAlways[B]): Promise[B]
   =>
     """
     Chain a promise after this one.

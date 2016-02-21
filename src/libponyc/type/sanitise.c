@@ -28,8 +28,10 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 
   // New type arguments binds to old type parameter
   BUILD(new_arg, orig_param,
-    NODE(TK_TYPEPARAMREF, DATA(orig_param)  
+    NODE(TK_NOMINAL,
+      NONE  // Package
       ID(name)
+      NONE  // Type args
       NONE  // cap
       NONE)); // ephemeral
 
@@ -71,7 +73,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
     collect_type_param(p, params, args);
 
-  ast_t* method_t_params = ast_childidx(method, 1);
+  ast_t* method_t_params = ast_childidx(method, 2);
 
   // Collect type parameters defined on the method
   for(ast_t* p = ast_child(method_t_params); p != NULL; p = ast_sibling(p))
@@ -92,7 +94,7 @@ static void sanitise(ast_t** astp)
 
   ast_clearflag(*astp, AST_FLAG_PASS_MASK);
 
-  if(ast_id(type) == TK_PARAMREF)
+  if(ast_id(type) == TK_TYPEPARAMREF)
   {
     // We have a type param reference, convert to a nominal
     ast_t* def = (ast_t*)ast_data(type);
