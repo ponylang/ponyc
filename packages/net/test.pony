@@ -86,19 +86,20 @@ class _TestPing is UDPNotify
     _ip = try
       match _h.env.root
       | let root: AmbientAuth =>
-          (_, let service) = ip.name()
+          let dns = NetworkInterface(root)
+          (_, let service) = ip.name(dns)
 
           let list = if ip.ip4() then
             ifdef freebsd then
-              DNS.ip4(root, "", service)
+              dns.resolve("", service)
             else
-              DNS.broadcast_ip4(root, service)
+              dns.broadcast(service, IPv4)
             end
           else
             ifdef freebsd then
-              DNS.ip6(root, "", service)
+              dns.resolve("", service)
             else
-              DNS.broadcast_ip6(root, service)
+              dns.broadcast(service, IPv6)
             end
           end
 

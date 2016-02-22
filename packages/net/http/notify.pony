@@ -1,3 +1,5 @@
+use "net"
+
 interface val ResponseHandler
   """
   Handles responses to HTTP requests.
@@ -24,6 +26,11 @@ interface val Logger
   =>
     """
     Called after the server has handled a request.
+    """
+
+  fun val client_ip(addr: IPAddress): String ? =>
+    """
+    Convert client IP address to string.
     """
 
 interface ServerNotify

@@ -39,17 +39,12 @@ class val IPAddress
       None
     end
     
-  fun name(reversedns: Bool = false, servicename: Bool = false,
-	   root: (AmbientAuth | None) = None):
+  fun name(dns: DNSClient box, reversedns: Bool = false, servicename: Bool = false):
     (String, String) ?
   =>
     """
     Return the host and service name.
     """
-    match root
-    | None => if reversedns then error end
-    end
-
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
 

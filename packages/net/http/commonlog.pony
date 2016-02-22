@@ -1,3 +1,4 @@
+use "net"
 use "time"
 
 class CommonLog is Logger
@@ -5,9 +6,19 @@ class CommonLog is Logger
   Logs HTTP requests in the common log format.
   """
   let _out: OutStream
+  let _dns: DNSClient val
 
-  new val create(out: OutStream) =>
+  new val create(out: OutStream, dns: DNSClient val) =>
     _out = out
+    _dns = dns
+
+  fun val client_ip(addr: IPAddress): String ? =>
+    try
+      (let host, let port) = addr.name(_dns)
+      host
+    else
+      error
+    end
 
   fun val apply(ip: String, request: Payload val, response: Payload val) =>
     let list = recover Array[String](24) end
