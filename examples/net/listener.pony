@@ -13,11 +13,7 @@ class Listener is TCPListenNotify
 
   new create(env: Env, ssl: Bool, limit: USize) ? =>
     _env = env
-    _root = match env.root
-	  | let r: AmbientAuth => r
-	  else
-	    error
-	  end
+    _root = env.root as AmbientAuth
     _limit = limit
 
     let cert = try FilePath(_root, "./test/pony/net/cert.pem") else error end
