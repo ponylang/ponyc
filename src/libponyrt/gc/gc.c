@@ -199,7 +199,15 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
     immutable = false;
   } else if(obj->rc <= 1) {
+    // If we haven't seen this object, it's an object that is reached from
+    // another immutable object we received. Invent some references to this
+    // object and acquire it. This object should either be immutable or a tag.
+    assert((obj->rc > 0) || immutable || (f == NULL));
+
     // Add to the acquire message and decrement.
+    if(immutable)
+      obj->immutable = true;
+
     obj->rc += (GC_INC_MORE - 1);
     acquire_object(ctx, actor, p, obj->immutable);
   } else {
@@ -265,7 +273,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     // to acquire it in order to inform the owner it is now immutable. But we
     // also need to continue tracing, to protect the contents until the owner
     // has received the acquire messages.
-    obj->rc += (GC_INC_MORE - 1);
+    obj->rc += GC_INC_MORE;
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
 
@@ -273,35 +281,15 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   } else if(obj->rc == 0) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received. Invent some references to this
-    // object and acquire it.
+    // object and acquire it. This object should either be immutable or a tag.
+    assert(immutable || (f == NULL));
+
     if(immutable)
       obj->immutable = true;
 
     obj->rc += GC_INC_MORE;
     acquire_object(ctx, actor, p, obj->immutable);
-  } else {
-    // TODO: ?
   }
-
-  if(!immutable)
-    recurse(ctx, p, f);
-
-
-
-
-  obj->mark = gc->mark;
-
-  if(obj->rc == 0)
-  {
-    obj->rc += GC_INC_MORE;
-    acquire_object(ctx, actor, p, );
-    gc->delta = deltamap_update(gc->delta, aref->actor, aref->rc);
-  }
-
-  // TODO: if we weren't received as immutable, still have to trace
-  // and tell the owner its immutable now, so the receiver's partial trace
-  // doesn't cause errors
-  immutable = object_immutable(obj, immutable);
 
   if(!immutable)
     recurse(ctx, p, f);
@@ -404,12 +392,28 @@ void gc_createactor(pony_actor_t* current, pony_actor_t* actor)
 {
   gc_t* gc = actor_gc(current);
   actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
-  actorref_inc_more(aref);
-
-  gc->delta = deltamap_update(gc->delta,
-    actorref_actor(aref), actorref_rc(aref));
-
+  aref->rc = GC_INC_MORE;
+  gc->delta = deltamap_update(gc->delta, actor, aref->rc);
   heap_used(actor_heap(current), GC_ACTOR_HEAP_EQUIV);
+}
+
+void gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
+{
+  objectmap_t* map = &gc->local;
+  size_t i = HASHMAP_BEGIN;
+  object_t* obj;
+
+  while((obj = objectmap_next(map, &i)) != NULL)
+  {
+    if(obj->immutable && (obj->rc > 0))
+    {
+      // Mark in our heap and recurse if it wasn't already marked.
+      void* p = obj->address;
+      chunk_t* chunk = (chunk_t*)pagemap_get(p);
+      pony_type_t* type = *(pony_type_t**)p;
+      mark_local_object(ctx, p, chunk, type->trace);
+    }
+  }
 }
 
 void gc_handlestack(pony_ctx_t* ctx)
@@ -433,17 +437,22 @@ void gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 
 bool gc_acquire(gc_t* gc, actorref_t* aref)
 {
-  size_t rc = actorref_rc(aref);
+  size_t rc = aref->rc;
   gc->rc += rc;
 
-  objectmap_t* map = actorref_map(aref);
+  objectmap_t* map = &aref->map;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
   while((obj = objectmap_next(map, &i)) != NULL)
   {
-    object_t* obj_local = objectmap_getobject(&gc->local, object_address(obj));
-    object_inc_some(obj_local, object_rc(obj));
+    // Add to our RC.
+    object_t* obj_local = objectmap_getobject(&gc->local, obj->address);
+    obj_local->rc += obj->rc;
+
+    // Mark as immutable if necessary.
+    if(obj->immutable)
+      obj_local->immutable = true;
   }
 
   actorref_free(aref);
@@ -452,26 +461,29 @@ bool gc_acquire(gc_t* gc, actorref_t* aref)
 
 bool gc_release(gc_t* gc, actorref_t* aref)
 {
-  size_t rc = actorref_rc(aref);
+  size_t rc = aref->rc;
   assert(gc->rc >= rc);
   gc->rc -= rc;
 
-  objectmap_t* map = actorref_map(aref);
+  objectmap_t* map = &aref->map;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
   while((obj = objectmap_next(map, &i)) != NULL)
   {
-    void* p = object_address(obj);
+    void* p = obj->address;
     object_t* obj_local = objectmap_getobject(&gc->local, p);
 
-    if(object_dec_some(obj_local, object_rc(obj)))
+    assert(obj_local->rc >= obj->rc);
+    obj_local->rc -= obj->rc;
+
+    if(obj_local->rc == 0)
     {
       // The local rc for this object has dropped to zero. We keep track of
       // whether or not the object was reachable. If we go to 0 rc and it
       // wasn't reachable, we free it. If we receive the object in a message,
       // mark it as reachable again.
-      if(!object_reachable(obj_local))
+      if(!obj_local->reachable)
       {
         chunk_t* chunk = (chunk_t*)pagemap_get(p);
         heap_free(chunk, p);
@@ -503,7 +515,7 @@ void gc_sendacquire(pony_ctx_t* ctx)
   while((aref = actormap_next(&ctx->acquire, &i)) != NULL)
   {
     actormap_removeindex(&ctx->acquire, i);
-    pony_sendp(ctx, actorref_actor(aref), ACTORMSG_ACQUIRE, aref);
+    pony_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
   }
 
   actormap_destroy(&ctx->acquire);

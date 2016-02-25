@@ -57,6 +57,7 @@ void pony_recv_done(pony_ctx_t* ctx)
 
 void pony_mark_done(pony_ctx_t* ctx)
 {
+  gc_markimmutable(ctx, actor_gc(ctx->current));
   gc_handlestack(ctx);
   gc_sendacquire(ctx);
   gc_sweep(ctx, actor_gc(ctx->current));

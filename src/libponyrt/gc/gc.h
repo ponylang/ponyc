@@ -40,6 +40,8 @@ void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void gc_createactor(pony_actor_t* current, pony_actor_t* actor);
 
+void gc_markimmutable(pony_ctx_t* ctx, gc_t* gc);
+
 void gc_handlestack(pony_ctx_t* ctx);
 
 void gc_sweep(pony_ctx_t* ctx, gc_t* gc);
