@@ -717,8 +717,8 @@ static void dump_view(view_t* view)
     if(aref != NULL)
     {
       printf("\t%p: " __zu "/" __zu " %s\n",
-        p->view->actor, p->rc, actorref_rc(aref),
-        p->rc == actorref_rc(aref) ? "" : "ERROR");
+        p->view->actor, p->rc, aref->rc,
+        p->rc == aref->rc ? "" : "ERROR");
     } else {
       printf("\t%p: " __zu " ERROR\n", p->view->actor, p->rc);
     }
@@ -732,7 +732,7 @@ static void dump_view(view_t* view)
 
     while((aref = actormap_next(&view->actor->gc.foreign, &i)) != NULL)
     {
-      printf("\t%p: " __zu "\n", actorref_actor(aref), actorref_rc(aref));
+      printf("\t%p: " __zu "\n", aref->actor, aref->rc);
     }
   }
 }

@@ -90,6 +90,7 @@ void pagemap_set(const void* m, void* v)
       if(!_atomic_cas(pv, &prev, p))
       {
         pool_free(level[i].size_index, p);
+        *pv = prev;
       }
     }
 

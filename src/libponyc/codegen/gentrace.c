@@ -196,7 +196,6 @@ static trace_t trace_type_union(ast_t* type)
     child != NULL;
     child = ast_sibling(child))
   {
-    // TODO: if we can't pull the child out, ignore it?
     trace = trace_type_combine(trace, trace_type(child));
   }
 

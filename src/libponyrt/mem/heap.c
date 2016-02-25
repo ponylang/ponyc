@@ -112,7 +112,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
       chunk->next = *full;
       *full = chunk;
     } else if(chunk->slots == empty) {
-      destroy_small(chunk);
+      destroy_small(chunk, 0);
     } else {
       used += sizeof(block_t) -
         (__pony_popcount(chunk->slots) * size);
@@ -142,7 +142,7 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
       list = chunk;
       *used += chunk->size;
     } else {
-      destroy_large(chunk);
+      destroy_large(chunk, 0);
     }
 
     chunk = next;
@@ -449,7 +449,7 @@ void heap_endgc(heap_t* heap)
     chunk_t** avail = &heap->small_free[i];
     chunk_t** full = &heap->small_full[i];
 
-    size_t size = SIZECLASS_SIZE(chunk->size);
+    size_t size = SIZECLASS_SIZE(i);
     uint32_t empty = sizeclass_empty[i];
 
     used += sweep_small(list1, avail, full, empty, size);
