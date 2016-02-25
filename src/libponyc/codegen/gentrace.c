@@ -27,6 +27,8 @@ typedef enum
   TRACE_PRIMITIVE,
   TRACE_MAYBE,
   TRACE_ACTOR,
+  TRACE_KNOWN_VAL,
+  TRACE_UNKNOWN_VAL,
   TRACE_KNOWN,
   TRACE_UNKNOWN,
   TRACE_TAG,
@@ -55,6 +57,10 @@ static trace_t trace_union_primitive(trace_t a)
     case TRACE_KNOWN:
     case TRACE_UNKNOWN:
       return TRACE_UNKNOWN;
+
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
+      return TRACE_UNKNOWN_VAL;
 
     case TRACE_TAG:
       return TRACE_TAG;
@@ -86,6 +92,10 @@ static trace_t trace_union_actor(trace_t a)
     case TRACE_UNKNOWN:
       return TRACE_UNKNOWN;
 
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
+      return TRACE_UNKNOWN_VAL;
+
     case TRACE_TAG:
     case TRACE_TAG_OR_ACTOR:
       return TRACE_TAG_OR_ACTOR;
@@ -111,6 +121,33 @@ static trace_t trace_union_known_or_unknown(trace_t a)
     case TRACE_UNKNOWN:
       return TRACE_UNKNOWN;
 
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
+    case TRACE_TAG:
+    case TRACE_TAG_OR_ACTOR:
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+      return TRACE_DYNAMIC;
+
+    default: {}
+  }
+
+  assert(0);
+  return TRACE_NONE;
+}
+
+static trace_t trace_union_known_or_unknown_val(trace_t a)
+{
+  assert(a >= TRACE_KNOWN);
+
+  switch(a)
+  {
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
+      return TRACE_UNKNOWN_VAL;
+
+    case TRACE_KNOWN:
+    case TRACE_UNKNOWN:
     case TRACE_TAG:
     case TRACE_TAG_OR_ACTOR:
     case TRACE_DYNAMIC:
@@ -173,6 +210,10 @@ static trace_t trace_type_combine(trace_t a, trace_t b)
     case TRACE_UNKNOWN:
       return trace_union_known_or_unknown(b);
 
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
+      return trace_union_known_or_unknown_val(b);
+
     case TRACE_TAG:
     case TRACE_TAG_OR_ACTOR:
       return trace_union_tag_or_actor(b);
@@ -222,9 +263,11 @@ static trace_t trace_type_isect(ast_t* type)
 
       case TRACE_PRIMITIVE: // Primitive, any refcap.
       case TRACE_ACTOR: // Actor, tag.
+      case TRACE_KNOWN_VAL:
       case TRACE_KNOWN: // Class or struct, not tag.
         return t;
 
+      case TRACE_UNKNOWN_VAL:
       case TRACE_UNKNOWN: // Trait or interface, not tag.
       case TRACE_TAG: // Class or struct, tag.
       case TRACE_TAG_OR_ACTOR: // Trait or interface, tag.
@@ -247,8 +290,16 @@ static trace_t trace_type_nominal(ast_t* type)
   {
     case TK_INTERFACE:
     case TK_TRAIT:
-      if(cap_single(type) == TK_TAG)
-        return TRACE_TAG_OR_ACTOR;
+      switch(cap_single(type))
+      {
+        case TK_VAL:
+          return TRACE_UNKNOWN_VAL;
+
+        case TK_TAG:
+          return TRACE_TAG_OR_ACTOR;
+
+        default: {}
+      }
 
       return TRACE_UNKNOWN;
 
@@ -260,8 +311,16 @@ static trace_t trace_type_nominal(ast_t* type)
       if(is_maybe(type))
         return TRACE_MAYBE;
 
-      if(cap_single(type) == TK_TAG)
-        return TRACE_TAG;
+      switch(cap_single(type))
+      {
+        case TK_VAL:
+          return TRACE_KNOWN_VAL;
+
+        case TK_TAG:
+          return TRACE_TAG;
+
+        default: {}
+      }
 
       return TRACE_KNOWN;
 
@@ -348,7 +407,7 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 }
 
 static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  ast_t* type)
+  ast_t* type, bool immutable)
 {
   gentype_t g;
 
@@ -370,7 +429,7 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
     args[0] = ctx;
     args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
     args[2] = trace_fn;
-    args[3] = LLVMConstInt(c->i32, cap_single(type) == TK_VAL, false);
+    args[3] = LLVMConstInt(c->i32, immutable, false);
 
     gencall_runtime(c, "pony_traceobject", args, 4, "");
   } else {
@@ -383,13 +442,13 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  ast_t* type)
+  bool immutable)
 {
   // We're an object.
   LLVMValueRef args[3];
   args[0] = ctx;
   args[1] = object;
-  args[2] = LLVMConstInt(c->i32, cap_single(type) == TK_VAL, false);
+  args[2] = LLVMConstInt(c->i32, immutable, false);
 
   gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
@@ -654,12 +713,20 @@ bool gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
       trace_actor(c, ctx, value);
       return true;
 
+    case TRACE_KNOWN_VAL:
+      trace_known(c, ctx, value, type, true);
+      return true;
+
+    case TRACE_UNKNOWN_VAL:
+      trace_unknown(c, ctx, value, true);
+      return true;
+
     case TRACE_KNOWN:
-      trace_known(c, ctx, value, type);
+      trace_known(c, ctx, value, type, false);
       return true;
 
     case TRACE_UNKNOWN:
-      trace_unknown(c, ctx, value, type);
+      trace_unknown(c, ctx, value, false);
       return true;
 
     case TRACE_TAG:
