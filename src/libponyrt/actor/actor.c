@@ -129,7 +129,7 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   while(actor->continuation != NULL)
   {
     msg = actor->continuation;
-    actor->continuation = NULL;
+    actor->continuation = msg->next;
     bool ret = handle_message(ctx, actor, msg);
     pool_free(msg->size, msg);
 
@@ -352,8 +352,7 @@ void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
 
 void pony_continuation(pony_actor_t* to, pony_msg_t* m)
 {
-  assert(to->continuation == NULL);
-  m->next = NULL;
+  m->next = to->continuation;
   to->continuation = m;
 }
 
