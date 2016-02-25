@@ -39,6 +39,7 @@ actor Main is TestList
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestMaybe)
+    test(_TestValtrace)
 
 
 class iso _TestAbs is UnitTest
