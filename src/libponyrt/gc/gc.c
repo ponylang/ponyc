@@ -411,7 +411,7 @@ void gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
       void* p = obj->address;
       chunk_t* chunk = (chunk_t*)pagemap_get(p);
       pony_type_t* type = *(pony_type_t**)p;
-      mark_local_object(ctx, p, chunk, type->trace);
+      mark_local_object(ctx, chunk, p, type->trace);
     }
   }
 }
