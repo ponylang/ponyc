@@ -108,7 +108,7 @@ static void cond_normalise(ast_t** astp)
 
 // Evaluate the given ifdef condition for the given config, or our target build
 // if no config is given.
-static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release)
+static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release, pass_opt_t* options)
 {
   assert(ast != NULL);
 
@@ -121,19 +121,19 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release)
     case TK_IFDEFAND:
     {
       AST_GET_CHILDREN(ast, left, right);
-      return cond_eval(left, config, release) &&
-        cond_eval(right, config, release);
+      return cond_eval(left, config, release, options) &&
+        cond_eval(right, config, release, options);
     }
 
     case TK_IFDEFOR:
     {
       AST_GET_CHILDREN(ast, left, right);
-      return cond_eval(left, config, release) ||
-        cond_eval(right, config, release);
+      return cond_eval(left, config, release, options) ||
+        cond_eval(right, config, release, options);
     }
 
     case TK_IFDEFNOT:
-      return !cond_eval(ast_child(ast), config, release);
+      return !cond_eval(ast_child(ast), config, release, options);
 
     case TK_IFDEFFLAG:
     {
@@ -145,8 +145,10 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release)
 
       // No config given, lookup platform flag for current build.
       bool val;
-      if(os_is_target(name, release, &val))
+      if(os_is_target(name, release, &val, options))
+      {
         return val;
+      }
 
       // Not a platform flag, must be a user flag.
       return is_build_flag_defined(name);
@@ -253,7 +255,7 @@ typedef struct ffi_decl_t
 // All other cases are errors, which will be reported by this function.
 // Returns: true on success, false on failure.
 static bool find_decl_for_config(ast_t* call, ast_t* package,
-  const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info)
+  const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info, pass_opt_t* options)
 {
   assert(call != NULL);
   assert(package != NULL);
@@ -276,7 +278,7 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
         if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
         {
           // We have an FFI declaration for the specified name.
-          if(cond_eval(guard, config, false))
+          if(cond_eval(guard, config, false, options))
           {
             // This declaration is valid for this config.
             had_valid_decl = true;
@@ -350,7 +352,7 @@ static void check_config_count(buildflagset_t* config, ast_t* location)
 // build config, within the specified ifdef condition (NULL for none).
 // Returns: true on success, false on failure.
 static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
-  ast_t** out_decl)
+  ast_t** out_decl, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(package != NULL);
@@ -377,11 +379,11 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
 
   while(buildflagset_next(config))
   {
-    if(ifdef_cond == NULL || cond_eval(ifdef_cond, config, false))
+    if(ifdef_cond == NULL || cond_eval(ifdef_cond, config, false, options))
     {
       // ifdef condition true, or not in an ifdef.
       // Look for valid FFI declaration.
-      if(!find_decl_for_config(ast, package, ffi_name, config, &decl_info))
+      if(!find_decl_for_config(ast, package, ffi_name, config, &decl_info, options))
       {
         // Config has failed.
         buildflagset_free(config);
@@ -399,7 +401,7 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
 }
 
 
-bool ifdef_cond_normalise(ast_t** astp)
+bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* options)
 {
   assert(astp != NULL);
   assert(*astp != NULL);
@@ -417,7 +419,7 @@ bool ifdef_cond_normalise(ast_t** astp)
 
   while(buildflagset_next(config))
   {
-    if(cond_eval(*astp, config, false))
+    if(cond_eval(*astp, config, false, options))
       // Condition is true for this config.
       return true;
   }
@@ -434,11 +436,11 @@ bool ifdef_cond_eval(ast_t* ast, pass_opt_t* options)
   if(ast_id(ast) == TK_NONE)  // No condition to evaluate
     return true;
 
-  return cond_eval(ast, NULL, options->release);
+  return cond_eval(ast, NULL, options->release, options);
 }
 
 
-bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl)
+bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl, pass_opt_t* options)
 {
   assert(t != NULL);
   assert(ast != NULL);
@@ -464,7 +466,7 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl)
   {
     // We've not looked that up yet.
     assert(decl == NULL);
-    if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl))
+    if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, options))
     {
       // That went wrong. Record that so we don't try again.
       symtab_add(symtab, ffi_name, NULL, SYM_ERROR);

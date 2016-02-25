@@ -5,6 +5,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
+#include "genopt.h"
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
@@ -109,7 +110,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
   const char* method_name = ast_name(method);
   bool is_target;
 
-  if(os_is_target(method_name, c->opt->release, &is_target))
+  if(os_is_target(method_name, c->opt->release, &is_target, c->opt))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
   ast_error(ast, "unknown Platform setting");
@@ -160,8 +161,7 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 
   if((name == c->str_I128) || (name == c->str_U128))
   {
-    bool native128;
-    os_is_target(OS_NATIVE128_NAME, c->opt->release, &native128);
+    bool native128 = target_is_native128(c->opt->triple);
     return special_case_operator(c, ast, value, false, native128);
   }
 

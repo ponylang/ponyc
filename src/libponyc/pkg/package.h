@@ -118,7 +118,7 @@ bool package_allow_ffi(typecheck_t* t);
 /**
  * Cleans up the list of search directories and shuts down the code generator.
  */
-void package_done(pass_opt_t* opt);
+void package_done(pass_opt_t* opt, bool handle_errors);
 
 bool is_path_absolute(const char* path);
 

@@ -36,6 +36,7 @@ endif
 # Default settings (silent debug build).
 config ?= debug
 arch ?= native
+bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
   SILENT = @
@@ -76,7 +77,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
-BITS := $(shell getconf LONG_BIT)
+BITS := $(bits)
 
 ifeq ($(BITS),64)
 	BUILD_FLAGS += -mcx16

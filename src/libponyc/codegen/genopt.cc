@@ -7,6 +7,7 @@
 #endif
 
 #include "genopt.h"
+#include <string.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DataLayout.h>
@@ -514,7 +515,8 @@ static void optimise(compile_t* c)
 
   pmb.populateFunctionPassManager(fpm);
 
-#ifdef PLATFORM_IS_ARM
+  if(target_is_arm(c->opt->triple))
+  {
   // On ARM, without this, trace functions are being loaded with a double
   // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
   // the trace function address, but then ldr r2, [r0] is done to move the
@@ -522,15 +524,17 @@ static void optimise(compile_t* c)
   // gives a garbage trace function. In release mode, a different path is used
   // and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
   // results in the alternate (working) asm being used for a debug build.
-  if(!c->opt->release)
-    pmb.OptLevel = 1;
-#endif
+    if(!c->opt->release)
+      pmb.OptLevel = 1;
+  }
+
   pmb.populateModulePassManager(mpm);
 
-#ifdef PLATFORM_IS_ARM
-  if(!c->opt->release)
-    pmb.OptLevel = 0;
-#endif
+  if(target_is_arm(c->opt->triple))
+  {
+    if(!c->opt->release)
+      pmb.OptLevel = 0;
+  }
 
   pmb.populateLTOPassManager(lpm);
 
@@ -573,3 +577,85 @@ bool genopt(compile_t* c)
 
   return true;
 }
+
+bool target_is_linux(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSLinux();
+}
+
+bool target_is_freebsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSFreeBSD();
+}
+
+bool target_is_macosx(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isMacOSX();
+}
+
+bool target_is_windows(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSWindows();
+}
+
+bool target_is_posix(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux();
+}
+
+bool target_is_x86(char* t)
+{
+  Triple triple = Triple(t);
+
+  const char* arch = Triple::getArchTypePrefix(triple.getArch());
+
+  return !strcmp("x86", arch);
+}
+
+bool target_is_arm(char* t)
+{
+  Triple triple = Triple(t);
+
+  const char* arch = Triple::getArchTypePrefix(triple.getArch());
+
+  return !strcmp("arm", arch);
+}
+
+bool target_is_lp64(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isArch64Bit() && !triple.isOSWindows();
+}
+
+bool target_is_llp64(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isArch64Bit() && triple.isOSWindows();
+}
+
+bool target_is_ilp32(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isArch32Bit();
+}
+
+bool target_is_native128(char* t)
+{
+  Triple triple = Triple(t);
+
+  return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
+}
+

@@ -454,6 +454,7 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeNativeTarget();
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllTargetInfos();
   LLVMInitializeAllAsmPrinters();
   LLVMInitializeAllAsmParsers();
   LLVMEnablePrettyStackTrace();
@@ -505,6 +506,7 @@ void codegen_shutdown(pass_opt_t* opt)
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);
 
+  LLVMResetFatalErrorHandler();
   LLVMShutdown();
 }
 

@@ -4,10 +4,13 @@
 #include "genfun.h"
 #include "gencall.h"
 #include "gentrace.h"
+#include "genopt.h"
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../debug/dwarf.h"
 #include "../type/assemble.h"
+
+#include <assert.h>
 
 static void pointer_create(compile_t* c, gentype_t* g)
 {
@@ -540,7 +543,14 @@ typedef struct num_conv_t
 
 static void number_conversions(compile_t* c)
 {
-  num_conv_t conv[] =
+  bool ilp32 = target_is_ilp32(c->opt->triple);
+  bool llp64 = target_is_llp64(c->opt->triple);
+  bool lp64 = target_is_lp64(c->opt->triple);
+
+
+  num_conv_t* conv;
+
+  num_conv_t ilp32_conv[] =
   {
     {"I8", "i8", c->i8, 8, true, false},
     {"I16", "i16", c->i16, 16, true, false},
@@ -554,22 +564,10 @@ static void number_conversions(compile_t* c)
     {"I128", "i128", c->i128, 128, true, false},
     {"U128", "u128", c->i128, 128, false, false},
 
-#if defined(PLATFORM_IS_ILP32)
     {"ILong", "ilong", c->i32, 32, true, false},
     {"ULong", "ulong", c->i32, 32, false, false},
     {"ISize", "isize", c->i32, 32, true, false},
     {"USize", "usize", c->i32, 32, false, false},
-#elif defined(PLATFORM_IS_LP64)
-    {"ILong", "ilong", c->i64, 64, true, false},
-    {"ULong", "ulong", c->i64, 64, false, false},
-    {"ISize", "isize", c->i64, 64, true, false},
-    {"USize", "usize", c->i64, 64, false, false},
-#elif defined(PLATFORM_IS_LLP64)
-    {"ILong", "ilong", c->i32, 32, true, false},
-    {"ULong", "ulong", c->i32, 32, false, false},
-    {"ISize", "isize", c->i64, 64, true, false},
-    {"USize", "usize", c->i64, 64, false, false},
-#endif
 
     {"F32", "f32", c->f32, 32, false, true},
     {"F64", "f64", c->f64, 64, false, true},
@@ -577,8 +575,69 @@ static void number_conversions(compile_t* c)
     {NULL, NULL, NULL, false, false, false}
   };
 
-  bool native128;
-  os_is_target(OS_NATIVE128_NAME, c->opt->release, &native128);
+  num_conv_t lp64_conv[] =
+  {
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
+
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
+
+    {"ILong", "ilong", c->i64, 64, true, false},
+    {"ULong", "ulong", c->i64, 64, false, false},
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
+
+    {NULL, NULL, NULL, false, false, false}
+  };
+
+  num_conv_t llp64_conv[] =
+  {
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
+
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"I128", "i128", c->i128, 128, true, false},
+    {"U128", "u128", c->i128, 128, false, false},
+
+    {"ILong", "ilong", c->i32, 32, true, false},
+    {"ULong", "ulong", c->i32, 32, false, false},
+    {"ISize", "isize", c->i64, 64, true, false},
+    {"USize", "usize", c->i64, 64, false, false},
+
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
+
+    {NULL, NULL, NULL, false, false, false}
+  };
+
+  if(ilp32)
+    conv = ilp32_conv;
+
+  if(lp64)
+    conv = lp64_conv;
+
+  if(llp64)
+    conv = llp64_conv;
+
+
+  assert(conv != NULL);
+
+  bool native128 = target_is_native128(c->opt->triple);
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
@@ -690,51 +749,53 @@ static void fp_as_bits(compile_t* c)
 
 static void make_cpuid(compile_t* c)
 {
-#ifdef PLATFORM_IS_X86
-  LLVMTypeRef elems[4] = {c->i32, c->i32, c->i32, c->i32};
-  LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, elems, 4, false);
-  LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
-  LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
-  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun, false);
+  if(target_is_x86(c->opt->triple))
+  {
+    LLVMTypeRef elems[4] = {c->i32, c->i32, c->i32, c->i32};
+    LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, elems, 4, false);
+    LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
+    LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
+    LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+    codegen_startfun(c, fun, false);
 
-  LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
-    "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
-  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
+    LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
+      "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
+    LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, cpuid, &zero, 1, "");
-  LLVMBuildRet(c->builder, result);
+    LLVMValueRef result = LLVMBuildCall(c->builder, cpuid, &zero, 1, "");
+    LLVMBuildRet(c->builder, result);
 
-  codegen_finishfun(c);
-#else
-  (void)c;
-#endif
+    codegen_finishfun(c);
+  } else {
+    (void)c;
+  }
 }
 
 static void make_rdtscp(compile_t* c)
 {
-#ifdef PLATFORM_IS_X86
-  // i64 @llvm.x86.rdtscp(i8*)
-  LLVMTypeRef f_type = LLVMFunctionType(c->i64, &c->void_ptr, 1, false);
-  LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp", f_type);
+  if(target_is_x86(c->opt->triple))
+  {
+    // i64 @llvm.x86.rdtscp(i8*)
+    LLVMTypeRef f_type = LLVMFunctionType(c->i64, &c->void_ptr, 1, false);
+    LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp", f_type);
 
-  // i64 @internal.x86.rdtscp(i32*)
-  LLVMTypeRef i32_ptr = LLVMPointerType(c->i32, 0);
-  f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
-  LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
-  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun, false);
+    // i64 @internal.x86.rdtscp(i32*)
+    LLVMTypeRef i32_ptr = LLVMPointerType(c->i32, 0);
+    f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
+    LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
+    LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+    codegen_startfun(c, fun, false);
 
-  // Cast i32* to i8* and call the intrinsic.
-  LLVMValueRef arg = LLVMGetParam(fun, 0);
-  arg = LLVMBuildBitCast(c->builder, arg, c->void_ptr, "");
-  LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, &arg, 1, "");
-  LLVMBuildRet(c->builder, result);
+    // Cast i32* to i8* and call the intrinsic.
+    LLVMValueRef arg = LLVMGetParam(fun, 0);
+    arg = LLVMBuildBitCast(c->builder, arg, c->void_ptr, "");
+    LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, &arg, 1, "");
+    LLVMBuildRet(c->builder, result);
 
-  codegen_finishfun(c);
-#else
-  (void)c;
-#endif
+    codegen_finishfun(c);
+  } else {
+    (void)c;
+  }
 }
 
 void genprim_builtins(compile_t* c)
