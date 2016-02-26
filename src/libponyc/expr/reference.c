@@ -393,8 +393,13 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   ast_t* case_ast = ast_get_case(ast, name, NULL);
   if(case_ast != NULL)
   {
-    assert(ast_child(case_ast) != NULL);
-    const char* try_name = ast_name(ast_child(case_ast));
+    ast_t* id = case_ast;
+
+    if(ast_id(id) != TK_ID)
+      id = ast_child(id);
+
+    assert(ast_id(id) == TK_ID);
+    const char* try_name = ast_name(id);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;
