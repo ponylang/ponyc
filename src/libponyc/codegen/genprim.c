@@ -483,6 +483,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
 
+  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
@@ -500,34 +501,46 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
   gencall_runtime(c, "pony_trace", args, 2, "");
-  LLVMBuildBr(c->builder, cond_block);
+  LLVMValueRef branch = LLVMBuildBr(c->builder, cond_block);
 
   // While the index is less than the count, trace an element. The initial
   // index when coming from the entry block is zero.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
   LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
-  LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(trace_fn);
   LLVMAddIncoming(phi, &zero, &entry_block, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
   LLVMBuildCondBr(c->builder, test, body_block, post_block);
 
   // The phi node is the index. Get the element and trace it.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
-  LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
-  elem = LLVMBuildLoad(c->builder, elem, "");
-  gentrace(c, ctx, elem, typearg);
+  LLVMValueRef elem_ptr = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
+  LLVMValueRef elem = LLVMBuildLoad(c->builder, elem_ptr, "");
 
-  // Add one to the phi node and branch back to the cond block.
-  LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
-  LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
-  body_block = LLVMGetInsertBlock(c->builder);
-  LLVMAddIncoming(phi, &inc, &body_block, 1);
-  LLVMBuildBr(c->builder, cond_block);
+  if(gentrace(c, ctx, elem, typearg))
+  {
+    // Add one to the phi node and branch back to the cond block.
+    LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
+    LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
+    body_block = LLVMGetInsertBlock(c->builder);
+    LLVMAddIncoming(phi, &inc, &body_block, 1);
+    LLVMBuildBr(c->builder, cond_block);
 
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+  } else {
+    // No tracing is required.
+    LLVMInstructionEraseFromParent(branch);
+    LLVMInstructionEraseFromParent(elem);
+    LLVMInstructionEraseFromParent(elem_ptr);
+
+    LLVMDeleteBasicBlock(cond_block);
+    LLVMDeleteBasicBlock(body_block);
+    LLVMDeleteBasicBlock(post_block);
+    LLVMPositionBuilderAtEnd(c->builder, entry_block);
+  }
+
+
   LLVMBuildRetVoid(c->builder);
-
   codegen_finishfun(c);
 }
 
