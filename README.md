@@ -1,7 +1,7 @@
 # Getting help 
 
 * [Open an issue!](https://github.com/ponylang/ponyc/issues)
-* Use the [mailing list](mailto:ponydev@lists.ponylang.org).
+* Use the [mailing list](mailto:pony+user@groups.io).
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
 * A tutorial is available [here](http://tutorial.ponylang.org).
 
