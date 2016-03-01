@@ -14,6 +14,7 @@
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
+    - [pony-snippets](https://github.com/SeanTAllen/pony-snippets)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 
 # Installation
