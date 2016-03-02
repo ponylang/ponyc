@@ -7,6 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestMkdtemp)
     test(_TestWalk)
+    test(_TestDirectoryOpen)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
@@ -62,4 +63,19 @@ class iso _TestWalk is UnitTest
         end)
     then
       h.assert_true(top.remove())
+    end
+
+
+class iso _TestDirectoryOpen is UnitTest
+  fun name(): String => "files/File.open.directory"
+  fun apply(h: TestHelper) ? =>
+    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestDiropen.")
+
+    try
+      h.assert_true(FileInfo(tmp).directory)
+      let file = File.open(tmp)
+      h.assert_true(file.errno() is FileError)
+      h.assert_false(file.valid())
+    then
+      h.assert_true(tmp.remove())
     end
