@@ -47,6 +47,7 @@ static bool viewref_cmp(viewref_t* a, viewref_t* b)
 
 static void viewref_free(viewref_t* vref)
 {
+  // TODO: view_free(vref->view) ?
   POOL_FREE(viewref_t, vref);
 }
 
@@ -570,14 +571,15 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
 {
   view_t* view = get_view(d, actor, true);
 
-  // apply any previous delta
-  apply_delta(d, view);
-
-  // store the new delta
-  view->delta = map;
-
   // update reference count
   view->rc = rc;
+
+  // apply any previous delta and store the new delta
+  if(map != NULL)
+  {
+    apply_delta(d, view);
+    view->delta = map;
+  }
 
   // record that we're blocked
   view->blocked = true;
