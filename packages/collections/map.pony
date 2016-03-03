@@ -86,6 +86,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     try
       (let i, let found) = _search(key)
+      let key' = key
       _array(i) = (consume key, consume value)
 
       if not found then
@@ -93,6 +94,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
+          return this(key')
         end
       end
 
