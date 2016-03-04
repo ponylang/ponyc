@@ -3,6 +3,9 @@ primitive Lists
   Helper functions for List. All functions are non-destructive.
   """
   fun unit[A](a: A): List[A] => List[A].push(consume a)
+    """
+    Builds a new list from an element.
+    """
 
   fun map[A: Any #read, B](l: List[A], f: {(A!): B^} val): List[B] =>
     """
@@ -250,6 +253,9 @@ primitive Lists
     end
 
   fun reverse[A: Any #read](l: List[A]): List[A] =>
+    """
+    Builds a new list by reversing the elements in the list.
+    """
     try
       _reverse[A](l.head(), List[A])
     else
