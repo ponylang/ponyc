@@ -2,10 +2,11 @@ primitive Lists
   """
   Helper functions for List. All functions are non-destructive.
   """
-  fun unit[A](a: A): List[A] => List[A].push(consume a)
+  fun unit[A](a: A): List[A] =>
     """
     Builds a new list from an element.
     """
+    List[A].push(consume a)
 
   fun map[A: Any #read, B](l: List[A], f: {(A!): B^} val): List[B] =>
     """
@@ -102,21 +103,21 @@ primitive Lists
     Returns true if every element satisfies the provided predicate, false otherwise.
     """
     try
-      return _every[A](l.head(), f)
+      _every[A](l.head(), f)
     else
-      return true
+      true
     end
 
   fun _every[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): Bool =>
     try
       let a: A = ln()
       if (not(f(a))) then
-        return false
+        false
       else
-        return _every[A](ln.next() as ListNode[A], f)
+        _every[A](ln.next() as ListNode[A], f)
       end
     else
-      return true
+      true
     end
 
   fun exists[A: Any #read](l: List[A], f: {(A!): Bool} val): Bool =>
@@ -124,21 +125,21 @@ primitive Lists
     Returns true if at least one element satisfies the provided predicate, false otherwise.
     """
     try
-      return _exists[A](l.head(), f)
+      _exists[A](l.head(), f)
     else
-      return false
+      false
     end
 
   fun _exists[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): Bool =>
     try
       let a: A = ln()
       if (f(a)) then
-        return true
+        true
       else
-        return _exists[A](ln.next() as ListNode[A], f)
+        _exists[A](ln.next() as ListNode[A], f)
       end
     else
-      return false
+      false
     end
 
   fun partition[A: Any #read](l: List[A], f: {(A!): Bool} val): (List[A], List[A]) =>
