@@ -27,7 +27,7 @@ typedef struct symbol_t
   size_t branch_count;
 } symbol_t;
 
-DECLARE_HASHMAP(symtab, symbol_t);
+DECLARE_HASHMAP(symtab, symtab_t, symbol_t);
 
 bool is_type_name(const char* name);
 

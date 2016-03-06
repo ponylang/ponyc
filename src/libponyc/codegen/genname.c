@@ -108,7 +108,7 @@ static const char* build_name(const char* a, const char* b, ast_t* elements,
     len += strlen(cap_str) + 1;
   }
 
-  char* name = (char*)pool_alloc_size(len);
+  char* name = (char*)ponyint_pool_alloc_size(len);
 
   if(a != NULL)
     strcpy(name, a);

@@ -158,7 +158,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   printf("Archiving %s\n", file_lib);
 
   size_t len = 32 + strlen(file_lib) + strlen(file_o);
-  char* cmd = (char*)pool_alloc_size(len);
+  char* cmd = (char*)ponyint_pool_alloc_size(len);
 
 #if defined(PLATFORM_IS_MACOSX)
   snprintf(cmd, len, "/usr/bin/ar -rcs %s %s", file_lib, file_o);
@@ -169,11 +169,11 @@ static bool link_lib(compile_t* c, const char* file_o)
   if(system(cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", cmd);
-    pool_free_size(len, cmd);
+    ponyint_pool_free_size(len, cmd);
     return false;
   }
 
-  pool_free_size(len, cmd);
+  ponyint_pool_free_size(len, cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
   const char* file_lib = suffix_filename(c->opt->output, "", c->filename,
     ".lib");
@@ -188,7 +188,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   }
 
   size_t len = 128 + strlen(file_lib) + strlen(file_o);
-  char* cmd = (char*)pool_alloc_size(len);
+  char* cmd = (char*)ponyint_pool_alloc_size(len);
 
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
     file_lib, file_o);
@@ -196,11 +196,11 @@ static bool link_lib(compile_t* c, const char* file_o)
   if(system(cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", cmd);
-    pool_free_size(len, cmd);
+    ponyint_pool_free_size(len, cmd);
     return false;
   }
 
-  pool_free_size(len, cmd);
+  ponyint_pool_free_size(len, cmd);
 #endif
 
   return true;

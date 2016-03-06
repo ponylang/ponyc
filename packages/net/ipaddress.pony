@@ -19,13 +19,13 @@ class val IPAddress
     """
     Returns true for an IPv4 address.
     """
-    @os_ipv4[Bool](this)
+    @pony_os_ipv4[Bool](this)
 
   fun ip6(): Bool =>
     """
     Returns true for an IPv6 address.
     """
-    @os_ipv6[Bool](this)
+    @pony_os_ipv6[Bool](this)
 
   fun name(reversedns: Bool = false, servicename: Bool = false):
     (String, String) ?
@@ -36,8 +36,8 @@ class val IPAddress
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
 
-    if not @os_nameinfo[Bool](this, addressof host, addressof serv, reversedns,
-      servicename) then
+    if not @pony_os_nameinfo[Bool](this, addressof host, addressof serv,
+      reversedns, servicename) then
       error
     end
 

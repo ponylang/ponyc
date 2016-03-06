@@ -3,9 +3,9 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool os_socket_init();
+bool ponyint_os_sockets_init();
 
-void os_socket_shutdown();
+void ponyint_os_sockets_final();
 
 PONY_EXTERN_C_END
 

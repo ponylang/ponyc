@@ -10,7 +10,7 @@
 
 static size_t sym_hash(symbol_t* sym)
 {
-  return hash_ptr(sym->name);
+  return ponyint_hash_ptr(sym->name);
 }
 
 static bool sym_cmp(symbol_t* a, symbol_t* b)
@@ -33,7 +33,7 @@ static void sym_free(symbol_t* sym)
 static const char* name_without_case(const char* name)
 {
   size_t len = strlen(name) + 1;
-  char* buf = (char*)pool_alloc_size(len);
+  char* buf = (char*)ponyint_pool_alloc_size(len);
 
   if(is_type_name(name))
   {
@@ -47,8 +47,8 @@ static const char* name_without_case(const char* name)
   return stringtab_consume(buf, len);
 }
 
-DEFINE_HASHMAP(symtab, symbol_t, sym_hash, sym_cmp, pool_alloc_size,
-  pool_free_size, sym_free);
+DEFINE_HASHMAP(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
+  ponyint_pool_alloc_size, ponyint_pool_free_size, sym_free);
 
 bool is_type_name(const char* name)
 {

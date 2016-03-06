@@ -12,7 +12,7 @@ static bool ptr_cmp(const char* a, const char* b)
   return a == b;
 }
 
-DEFINE_LIST(strlist, const char, ptr_cmp, NULL);
+DEFINE_LIST(strlist, strlist_t, const char, ptr_cmp, NULL);
 
 typedef struct stringtab_entry_t
 {
@@ -23,7 +23,7 @@ typedef struct stringtab_entry_t
 
 static size_t stringtab_hash(stringtab_entry_t* a)
 {
-  return (size_t)hash_block(a->str, a->len);
+  return (size_t)ponyint_hash_block(a->str, a->len);
 }
 
 static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
@@ -33,13 +33,14 @@ static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
 
 static void stringtab_free(stringtab_entry_t* a)
 {
-  pool_free_size(a->buf_size, (char*)a->str);
+  ponyint_pool_free_size(a->buf_size, (char*)a->str);
   POOL_FREE(stringtab_entry_t, a);
 }
 
-DECLARE_HASHMAP(strtable, stringtab_entry_t);
-DEFINE_HASHMAP(strtable, stringtab_entry_t, stringtab_hash, stringtab_cmp,
-  pool_alloc_size, pool_free_size, stringtab_free);
+DECLARE_HASHMAP(strtable, strtable_t, stringtab_entry_t);
+DEFINE_HASHMAP(strtable, strtable_t, stringtab_entry_t, stringtab_hash,
+  stringtab_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
+  stringtab_free);
 
 static strtable_t table;
 
@@ -67,7 +68,7 @@ const char* stringtab_len(const char* string, size_t len)
   if(n != NULL)
     return n->str;
 
-  char* dst = (char*)pool_alloc_size(len + 1);
+  char* dst = (char*)ponyint_pool_alloc_size(len + 1);
   memcpy(dst, string, len);
   dst[len] = '\0';
 
@@ -91,7 +92,7 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   if(n != NULL)
   {
-    pool_free_size(buf_size, (void*)string);
+    ponyint_pool_free_size(buf_size, (void*)string);
     return n->str;
   }
 

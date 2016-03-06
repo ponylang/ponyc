@@ -1078,7 +1078,7 @@ static ast_result_t sugar_ffi(ast_t* ast)
   }
 
   // Prefix '@' to the name
-  char* new_name = (char*)pool_alloc_size(len + 2);
+  char* new_name = (char*)ponyint_pool_alloc_size(len + 2);
   new_name[0] = '@';
   memcpy(new_name + 1, name, len);
   new_name[len + 1] = '\0';

@@ -1,12 +1,12 @@
 use "time"
 
-use @o_rdonly[I32]()
-use @o_rdwr[I32]()
-use @o_creat[I32]()
-use @o_trunc[I32]()
-use @o_directory[I32]()
-use @o_cloexec[I32]()
-use @at_removedir[I32]()
+use @ponyint_o_rdonly[I32]()
+use @ponyint_o_rdwr[I32]()
+use @ponyint_o_creat[I32]()
+use @ponyint_o_trunc[I32]()
+use @ponyint_o_directory[I32]()
+use @ponyint_o_cloexec[I32]()
+use @ponyint_at_removedir[I32]()
 use @unlinkat[I32](fd: I32, target: Pointer[U8] tag, flags: I32)
 
 primitive _DirectoryHandle
@@ -46,7 +46,7 @@ class Directory
 
     ifdef posix then
       _fd = @open[I32](from.path.cstring(),
-        @o_rdonly() or @o_directory() or @o_cloexec())
+        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
 
       if _fd == -1 then
         error
@@ -90,7 +90,8 @@ class Directory
 
         let h = ifdef linux or freebsd then
           let fd = @openat[I32](fd', ".".cstring(),
-            @o_rdonly() or @o_directory() or @o_cloexec())
+            @ponyint_o_rdonly() or @ponyint_o_directory() or
+            @ponyint_o_cloexec())
           @fdopendir[Pointer[_DirectoryHandle]](fd)
         else
           @opendir[Pointer[_DirectoryHandle]](path'.cstring())
@@ -101,14 +102,14 @@ class Directory
         end
 
         while true do
-          let p = @unix_readdir[Pointer[U8] iso^](h)
+          let p = @ponyint_unix_readdir[Pointer[U8] iso^](h)
           if p.is_null() then break end
           list.push(recover String.from_cstring(consume p) end)
         end
 
         @closedir[I32](h)
       elseif windows then
-        var find = @windows_find_data[Pointer[_DirectoryEntry]]()
+        var find = @ponyint_windows_find_data[Pointer[_DirectoryEntry]]()
         let search = path' + "\\*"
         let h = @FindFirstFileA[Pointer[_DirectoryHandle]](
           search.cstring(), find)
@@ -118,7 +119,7 @@ class Directory
         end
 
         repeat
-          let p = @windows_readdir[Pointer[U8] iso^](find)
+          let p = @ponyint_windows_readdir[Pointer[U8] iso^](find)
 
           if not p.is_null() then
             list.push(recover String.from_cstring(consume p) end)
@@ -147,7 +148,7 @@ class Directory
 
     ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
-        @o_rdonly() or @o_directory() or @o_cloexec())
+        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
       _relative(path', fd')
     else
       recover create(path') end
@@ -210,7 +211,8 @@ class Directory
 
     ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
-        @o_rdwr() or @o_creat() or @o_cloexec(), I32(0x1B6))
+        @ponyint_o_rdwr() or @ponyint_o_creat() or @ponyint_o_cloexec(),
+        I32(0x1B6))
       recover File._descriptor(fd', path') end
     else
       recover File(path') end
@@ -231,7 +233,7 @@ class Directory
 
     ifdef linux or freebsd then
       let fd' = @openat[I32](_fd, target.cstring(),
-        @o_rdonly() or @o_cloexec(), I32(0x1B6))
+        @ponyint_o_rdonly() or @ponyint_o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
     else
       recover File(path') end
@@ -427,7 +429,7 @@ class Directory
             end
           end
 
-          @unlinkat(_fd, target.cstring(), @at_removedir()) == 0
+          @unlinkat(_fd, target.cstring(), @ponyint_at_removedir()) == 0
         else
           @unlinkat(_fd, target.cstring(), 0) == 0
         end

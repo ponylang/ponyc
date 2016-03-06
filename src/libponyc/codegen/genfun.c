@@ -84,7 +84,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
   size_t count = ast_childcount(params) + 1;
 
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   count = 0;
 
   // Get a type for the receiver.
@@ -101,7 +101,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
     if(!gentype(c, ptype, &ptype_g))
     {
       ast_error(ptype, "couldn't generate parameter type");
-      pool_free_size(buf_size, tparams);
+      ponyint_pool_free_size(buf_size, tparams);
       return NULL;
     }
 
@@ -114,7 +114,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
   // Generate the function type.
   LLVMTypeRef r = LLVMFunctionType(result, tparams, (int)count, false);
 
-  pool_free_size(buf_size, tparams);
+  ponyint_pool_free_size(buf_size, tparams);
   return r;
 }
 
@@ -168,11 +168,11 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(ftype);
     size_t buf_size = count * sizeof(LLVMTypeRef);
-    LLVMTypeRef* tparams = (LLVMTypeRef*)pool_alloc_size(buf_size);
+    LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(ftype, tparams);
 
     ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
-    pool_free_size(buf_size, tparams);
+    ponyint_pool_free_size(buf_size, tparams);
   }
 
   // Generate the function prototype.
@@ -195,7 +195,7 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   size_t count = ast_childcount(params) + 1;
 
   size_t buf_size = (count + 1) * sizeof(const char*);
-  const char** pnames = (const char**)pool_alloc_size(buf_size);
+  const char** pnames = (const char**)ponyint_pool_alloc_size(buf_size);
   count = 0;
 
   // Return value type name and receiver type name.
@@ -234,7 +234,7 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
     index++;
   }
 
-  pool_free_size(buf_size, pnames);
+  ponyint_pool_free_size(buf_size, pnames);
 }
 
 static void genfun_dwarf_return(compile_t* c, ast_t* body)
@@ -259,7 +259,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   int count = LLVMCountParamTypes(f_type) + 2;
 
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, &f_params[2]);
 
   // The first one becomes the message size, the second the message ID.
@@ -269,13 +269,13 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, count,
     false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
-  pool_free_size(buf_size, f_params);
+  ponyint_pool_free_size(buf_size, f_params);
 
   // Allocate the message, setting its size and ID.
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   LLVMValueRef args[3];
 
-  args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
+  args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
@@ -332,7 +332,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
 
   int count = LLVMCountParams(handler);
   size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
   // Trace the message.
@@ -361,7 +361,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
   codegen_call(c, handler, args, count);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
-  pool_free_size(buf_size, args);
+  ponyint_pool_free_size(buf_size, args);
 }
 
 LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,

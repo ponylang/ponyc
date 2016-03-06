@@ -194,20 +194,20 @@ void pony_triggergc(pony_actor_t* actor);
 /** Start gc tracing for sending.
  *
  * Call this before sending a message if it has anything in it that can be
- * GCed. Then trace all the GCable items, then call pony_gc_done.
+ * GCed. Then trace all the GCable items, then call pony_send_done.
  */
 void pony_gc_send(pony_ctx_t* ctx);
 
 /** Start gc tracing for receiving.
  *
  * Call this when receiving a message if it has anything in it that can be
- * GCed. Then trace all the GCable items, then call pony_gc_done.
+ * GCed. Then trace all the GCable items, then call pony_recv_done.
  */
 void pony_gc_recv(pony_ctx_t* ctx);
 
 /** Finish gc tracing for sending.
  *
- * Call this after tracing the GC-able contents.
+ * Call this after tracing the GCable contents.
  */
 void pony_send_done(pony_ctx_t* ctx);
 

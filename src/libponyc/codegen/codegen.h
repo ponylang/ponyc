@@ -37,7 +37,7 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 #define GEN_NOTNEEDED (LLVMConstInt(c->i1, 1, false))
 
 typedef struct compile_local_t compile_local_t;
-DECLARE_HASHMAP(compile_locals, compile_local_t);
+DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 
 typedef struct compile_frame_t
 {

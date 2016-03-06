@@ -1,10 +1,10 @@
 use "collections"
 
-use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
-use @asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
-use @asio_event_unsubscribe[None](event: AsioEventID)
-use @asio_event_destroy[None](event: AsioEventID)
+use @pony_asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 
 actor Timers
   """
@@ -52,7 +52,7 @@ actor Timers
 
       if (_map.size() == 0) and (not _event.is_null()) then
         // Unsubscribe an existing event.
-        @asio_event_unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     end
@@ -67,7 +67,7 @@ actor Timers
     _map.clear()
 
     if not _event.is_null() then
-      @asio_event_unsubscribe(_event)
+      @pony_asio_event_unsubscribe(_event)
       _event = AsioEvent.none()
     end
 
@@ -76,7 +76,7 @@ actor Timers
     When the event fires, advance the timing wheels.
     """
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy(event)
+      @pony_asio_event_destroy(event)
     elseif event is _event then
       _advance()
     end
@@ -107,15 +107,15 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
+        _event = @pony_asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
       end
     else
       if nsec != -1 then
         // Update an existing event.
-        @asio_event_setnsec(_event, nsec)
+        @pony_asio_event_setnsec(_event, nsec)
       else
         // Unsubscribe an existing event.
-        @asio_event_unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     end

@@ -72,7 +72,7 @@ typedef struct flag_t
 static size_t flag_hash(flag_t* flag)
 {
   assert(flag != NULL);
-  return hash_ptr(flag->name);
+  return ponyint_hash_ptr(flag->name);
 }
 
 static bool flag_cmp(flag_t* a, flag_t* b)
@@ -98,9 +98,9 @@ static void flag_free(flag_t* flag)
   POOL_FREE(flag_t, flag);
 }
 
-DECLARE_HASHMAP(flagtab, flag_t);
-DEFINE_HASHMAP(flagtab, flag_t, flag_hash, flag_cmp, pool_alloc_size,
-  pool_free_size, flag_free);
+DECLARE_HASHMAP(flagtab, flagtab_t, flag_t);
+DEFINE_HASHMAP(flagtab, flagtab_t, flag_t, flag_hash, flag_cmp,
+  ponyint_pool_alloc_size, ponyint_pool_free_size, flag_free);
 
 
 struct buildflagset_t
@@ -145,7 +145,7 @@ void buildflagset_free(buildflagset_t* set)
     POOL_FREE(flagtab_t, set->flags);
 
     if(set->buffer_size > 0)
-      pool_free_size(set->buffer_size, set->text_buffer);
+      ponyint_pool_free_size(set->buffer_size, set->text_buffer);
 
     POOL_FREE(buildflagset_t, set);
   }
@@ -486,9 +486,9 @@ const char* buildflagset_print(buildflagset_t* set)
   {
     // Buffer we have isn't big enough, make it bigger then go round again.
     if(set->buffer_size > 0)
-      pool_free_size(set->buffer_size, set->text_buffer);
+      ponyint_pool_free_size(set->buffer_size, set->text_buffer);
 
-    set->text_buffer = (char*)pool_alloc_size(size_needed);
+    set->text_buffer = (char*)ponyint_pool_alloc_size(size_needed);
     set->buffer_size = size_needed;
     set->text_buffer[0] = '\0';
     buildflagset_print(set);
