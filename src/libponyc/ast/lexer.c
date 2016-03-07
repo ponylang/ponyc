@@ -896,7 +896,8 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 
 // Process a real literal, the leading integral part has already been read.
 // The . or e has been seen but not consumed.
-static token_t* real(lexer_t* lexer, lexint_t* integral_value)
+static token_t* real(lexer_t* lexer, lexint_t* integral_value,
+  uint32_t integral_digit_count)
 {
   lexint_t significand = *integral_value;
 
@@ -941,6 +942,56 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
     if(!lex_integer(lexer, 10, &e, NULL, false,
       "real number exponent"))
       return make_token(lexer, TK_LEX_ERROR);
+  }
+
+  if(exp_neg && (lexint_cmp64(&e, (uint64_t)integral_digit_count) < 0))
+  {
+    // Treat this as an integer in exponential notation,
+    // where we must apply the negative exponent to the significand.
+    lexint_add64(&e, &e, mantissa_digit_count);
+    while(lexint_cmp64(&e, 0) > 0)
+    {
+      lexint_sub64(&e, &e, 1);
+      lexint_div64(&significand, &significand, 10);
+    }
+
+    token_t* t = make_token(lexer, TK_INT);
+    token_set_int(t, &significand);
+    return t;
+  }
+
+  if(!exp_neg && (lexint_cmp64(&e, (uint64_t)mantissa_digit_count )>= 0))
+  {
+    // Treat this as an integer in exponential notation,
+    // where we must apply the positive exponent to the significand.
+    // However, we must watch out for overflow as we increase
+    // the significand, bailing out to float interpretation if so.
+    lexint_t e_copy = e;
+    lexint_t significand_copy = significand;
+    bool overflow = false;
+
+    lexint_sub64(&e_copy, &e_copy, mantissa_digit_count);
+    while(lexint_cmp64(&e_copy, 0) > 0)
+    {
+      lexint_t significand_tmp = significand_copy;
+      lexint_sub64(&e_copy, &e_copy, 1);
+      lexint_mul64(&significand_tmp, &significand_copy, 10);
+
+      if(lexint_cmp(&significand_tmp, &significand_copy) <= 0)
+      {
+        overflow = true;
+        break;
+      }
+
+      significand_copy = significand_tmp;
+    }
+
+    if(!overflow)
+    {
+      token_t* t = make_token(lexer, TK_INT);
+      token_set_int(t, &significand_copy);
+      return t;
+    }
   }
 
   token_t* t = make_token(lexer, TK_FLOAT);
@@ -999,14 +1050,15 @@ static token_t* number(lexer_t* lexer)
   }
 
   // Decimal
+  uint32_t digit_count;
   lexint_t value;
   lexint_zero(&value);
 
-  if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
+  if(!lex_integer(lexer, 10, &value, &digit_count, true, "decimal number"))
     return make_token(lexer, TK_LEX_ERROR);
 
   if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
-    return real(lexer, &value);
+    return real(lexer, &value, digit_count);
 
   token_t* t = make_token(lexer, TK_INT);
   token_set_int(t, &value);
