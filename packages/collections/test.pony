@@ -81,6 +81,7 @@ class iso _TestListsMap is UnitTest
     let f = lambda(a: U32): U32 => consume a * 2 end
     let c = Lists.map[U32,U32](a, f)
 
+    h.assert_eq[USize](c.size(), 3)
     h.assert_eq[U32](c(0), 0)
     h.assert_eq[U32](c(1), 2)
     h.assert_eq[U32](c(2), 4)
@@ -97,6 +98,7 @@ class iso _TestListsFlatMap is UnitTest
     let f = lambda(a: U32): List[U32] => List[U32].push(consume a * 2) end
     let c = Lists.flat_map[U32,U32](a, f)
 
+    h.assert_eq[USize](c.size(), 3)
     h.assert_eq[U32](c(0), 0)
     h.assert_eq[U32](c(1), 2)
     h.assert_eq[U32](c(2), 4)
@@ -115,6 +117,7 @@ class iso _TestListsFlatten is UnitTest
 
     let b: List[U32] = Lists.flatten[U32](a)
 
+    h.assert_eq[USize](b.size(), 5)
     h.assert_eq[U32](b(0), 0)
     h.assert_eq[U32](b(1), 1)
     h.assert_eq[U32](b(2), 2)
@@ -158,10 +161,11 @@ class iso _TestListsFold is UnitTest
     let g = lambda(acc: List[U32], x: U32): List[U32] => acc.push(x * 2) end
     let resList = Lists.fold[U32,List[U32]](a, g, List[U32])
 
-    try h.assert_eq[U32](resList(0), 0) else error end
-    try h.assert_eq[U32](resList(1), 2) else error end
-    try h.assert_eq[U32](resList(2), 4) else error end
-    try h.assert_eq[U32](resList(3), 6) else error end
+    h.assert_eq[USize](resList.size(), 4)
+    h.assert_eq[U32](resList(0), 0)
+    h.assert_eq[U32](resList(1), 2)
+    h.assert_eq[U32](resList(2), 4)
+    h.assert_eq[U32](resList(3), 6)
 
     true
 
@@ -223,10 +227,12 @@ class iso _TestListsPartition is UnitTest
     let isEven = lambda(x: U32): Bool => x % 2 == 0 end
     (let evens, let odds) = Lists.partition[U32](a, isEven)
 
-    try h.assert_eq[U32](evens(0), 0) else error end
-    try h.assert_eq[U32](evens(1), 2) else error end
-    try h.assert_eq[U32](odds(0), 1) else error end
-    try h.assert_eq[U32](odds(1), 3) else error end
+    h.assert_eq[USize](evens.size(), 2)
+    h.assert_eq[U32](evens(0), 0)
+    h.assert_eq[U32](evens(1), 2)
+    h.assert_eq[USize](odds.size(), 2)
+    h.assert_eq[U32](odds(0), 1)
+    h.assert_eq[U32](odds(1), 3)
 
     let b = List[U32]
     (let emptyEvens, let emptyOdds) = Lists.partition[U32](b, isEven)
@@ -249,10 +255,10 @@ class iso _TestListsDrop is UnitTest
     let e = Lists.drop[U32](a, 6)
 
     h.assert_eq[USize](b.size(), 3)
-    try h.assert_eq[U32](b(0), 2) else error end
-    try h.assert_eq[U32](b(2), 4) else error end
+    h.assert_eq[U32](b(0), 2)
+    h.assert_eq[U32](b(2), 4)
     h.assert_eq[USize](c.size(), 1)
-    try h.assert_eq[U32](c(0), 4) else error end
+    h.assert_eq[U32](c(0), 4)
     h.assert_eq[USize](d.size(), 0)
     h.assert_eq[USize](e.size(), 0)
 
@@ -276,25 +282,25 @@ class iso _TestListsTake is UnitTest
     let m = Lists.take[U32](a, 0)
 
     h.assert_eq[USize](b.size(), 2)
-    try h.assert_eq[U32](b(0), 0) else error end
-    try h.assert_eq[U32](b(1), 1) else error end
+    h.assert_eq[U32](b(0), 0)
+    h.assert_eq[U32](b(1), 1)
     h.assert_eq[USize](c.size(), 4)
-    try h.assert_eq[U32](c(0), 0) else error end
-    try h.assert_eq[U32](c(1), 1) else error end
-    try h.assert_eq[U32](c(2), 2) else error end
-    try h.assert_eq[U32](c(3), 3) else error end
+    h.assert_eq[U32](c(0), 0)
+    h.assert_eq[U32](c(1), 1)
+    h.assert_eq[U32](c(2), 2)
+    h.assert_eq[U32](c(3), 3)
     h.assert_eq[USize](d.size(), 5)
-    try h.assert_eq[U32](d(0), 0) else error end
-    try h.assert_eq[U32](d(1), 1) else error end
-    try h.assert_eq[U32](d(2), 2) else error end
-    try h.assert_eq[U32](d(3), 3) else error end
-    try h.assert_eq[U32](d(4), 4) else error end
+    h.assert_eq[U32](d(0), 0)
+    h.assert_eq[U32](d(1), 1)
+    h.assert_eq[U32](d(2), 2)
+    h.assert_eq[U32](d(3), 3)
+    h.assert_eq[U32](d(4), 4)
     h.assert_eq[USize](e.size(), 5)
-    try h.assert_eq[U32](e(0), 0) else error end
-    try h.assert_eq[U32](e(1), 1) else error end
-    try h.assert_eq[U32](e(2), 2) else error end
-    try h.assert_eq[U32](e(3), 3) else error end
-    try h.assert_eq[U32](e(4), 4) else error end
+    h.assert_eq[U32](e(0), 0)
+    h.assert_eq[U32](e(1), 1)
+    h.assert_eq[U32](e(2), 2)
+    h.assert_eq[U32](e(3), 3)
+    h.assert_eq[U32](e(4), 4)
     h.assert_eq[USize](m.size(), 0)
 
     let empty = List[U32]
@@ -320,18 +326,18 @@ class iso _TestListsTakeWhile is UnitTest
     let e = Lists.take_while[U32](a, z)
 
     h.assert_eq[USize](b.size(), 5)
-    try h.assert_eq[U32](b(0), 0) else error end
-    try h.assert_eq[U32](b(1), 1) else error end
-    try h.assert_eq[U32](b(2), 2) else error end
-    try h.assert_eq[U32](b(3), 3) else error end
-    try h.assert_eq[U32](b(4), 4) else error end
+    h.assert_eq[U32](b(0), 0)
+    h.assert_eq[U32](b(1), 1)
+    h.assert_eq[U32](b(2), 2)
+    h.assert_eq[U32](b(3), 3)
+    h.assert_eq[U32](b(4), 4)
     h.assert_eq[USize](c.size(), 4)
-    try h.assert_eq[U32](c(0), 0) else error end
-    try h.assert_eq[U32](c(1), 1) else error end
-    try h.assert_eq[U32](c(2), 2) else error end
-    try h.assert_eq[U32](c(3), 3) else error end
+    h.assert_eq[U32](c(0), 0)
+    h.assert_eq[U32](c(1), 1)
+    h.assert_eq[U32](c(2), 2)
+    h.assert_eq[U32](c(3), 3)
     h.assert_eq[USize](d.size(), 1)
-    try h.assert_eq[U32](d(0), 0) else error end
+    h.assert_eq[U32](d(0), 0)
     h.assert_eq[USize](e.size(), 0)
 
     let empty = List[U32]
@@ -362,10 +368,12 @@ class iso _TestListsReverse is UnitTest
     let b = Lists.reverse[U32](a)
 
 
+    h.assert_eq[USize](a.size(), 3)
     h.assert_eq[U32](a(0), 0)
     h.assert_eq[U32](a(1), 1)
     h.assert_eq[U32](a(2), 2)
 
+    h.assert_eq[USize](b.size(), 3)
     h.assert_eq[U32](b(0), 2)
     h.assert_eq[U32](b(1), 1)
     h.assert_eq[U32](b(2), 0)

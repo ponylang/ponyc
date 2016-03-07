@@ -18,7 +18,11 @@ primitive Lists
       List[B]
     end
 
-  fun _map[A: Any #read, B](ln: ListNode[A], f: {(A!): B^} val, acc: List[B]): List[B] =>
+  fun _map[A: Any #read, B](ln: ListNode[A], f: {(A!): B^} val, acc: List[B]):
+  List[B] =>
+    """
+    Private helper for map, recursively working with ListNodes.
+    """
     try acc.push(f(ln())) end
 
     try
@@ -29,8 +33,8 @@ primitive Lists
 
   fun flat_map[A: Any #read, B](l: List[A], f: {(A!): List[B]} val): List[B] =>
     """
-    Builds a new list by applying a function to every member of the list and using the elements
-    of the resulting lists.
+    Builds a new list by applying a function to every member of the list and
+    using the elements of the resulting lists.
     """
     try
       _flat_map[A,B](l.head(), f, List[List[B]])
@@ -38,7 +42,11 @@ primitive Lists
       List[B]
     end
 
-  fun _flat_map[A: Any #read, B](ln: ListNode[A], f: {(A!): List[B]} val, acc: List[List[B]]): List[B] =>
+  fun _flat_map[A: Any #read, B](ln: ListNode[A], f: {(A!): List[B]} val,
+  acc: List[List[B]]): List[B] =>
+    """
+    Private helper for flat_map, recursively working with ListNodes.
+    """
     try acc.push(f(ln())) end
 
     try
@@ -67,10 +75,14 @@ primitive Lists
       List[A]
     end
 
-  fun _filter[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val, acc: List[A]): List[A] =>
+  fun _filter[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val,
+  acc: List[A]): List[A] =>
+    """
+    Private helper for filter, recursively working with ListNodes.
+    """
     try
       let cur = ln()
-      if (f(cur)) then acc.push(consume cur) end
+      if f(cur) then acc.push(consume cur) end
     end
 
     try
@@ -79,7 +91,8 @@ primitive Lists
       acc
     end
 
-  fun fold[A: Any #read,B: Any #read](l: List[A], f: {(B!, A!): B^} val, acc: B): B =>
+  fun fold[A: Any #read,B: Any #read](l: List[A], f: {(B!, A!): B^} val,
+  acc: B): B =>
     """
     Folds the elements of the list using the supplied function.
     """
@@ -89,7 +102,11 @@ primitive Lists
       acc
     end
 
-  fun _fold[A: Any #read,B: Any #read](ln: ListNode[A], f: {(B!, A!): B^} val, acc: B!): B =>
+  fun _fold[A: Any #read,B: Any #read](ln: ListNode[A], f: {(B!, A!): B^} val,
+  acc: B!): B =>
+    """
+    Private helper for fold, recursively working with ListNodes.
+    """
     let nextAcc: B! = try f(acc, ln()) else acc end
 
     try
@@ -100,7 +117,8 @@ primitive Lists
 
   fun every[A: Any #read](l: List[A], f: {(A!): Bool} val): Bool =>
     """
-    Returns true if every element satisfies the provided predicate, false otherwise.
+    Returns true if every element satisfies the provided predicate, false
+    otherwise.
     """
     try
       _every[A](l.head(), f)
@@ -109,9 +127,12 @@ primitive Lists
     end
 
   fun _every[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): Bool =>
+    """
+    Private helper for every, recursively working with ListNodes.
+    """
     try
       let a: A = ln()
-      if (not(f(a))) then
+      if not(f(a)) then
         false
       else
         _every[A](ln.next() as ListNode[A], f)
@@ -122,7 +143,8 @@ primitive Lists
 
   fun exists[A: Any #read](l: List[A], f: {(A!): Bool} val): Bool =>
     """
-    Returns true if at least one element satisfies the provided predicate, false otherwise.
+    Returns true if at least one element satisfies the provided predicate,
+    false otherwise.
     """
     try
       _exists[A](l.head(), f)
@@ -131,9 +153,12 @@ primitive Lists
     end
 
   fun _exists[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): Bool =>
+    """
+    Private helper for exists, recursively working with ListNodes.
+    """
     try
       let a: A = ln()
-      if (f(a)) then
+      if f(a) then
         true
       else
         _exists[A](ln.next() as ListNode[A], f)
@@ -142,15 +167,17 @@ primitive Lists
       false
     end
 
-  fun partition[A: Any #read](l: List[A], f: {(A!): Bool} val): (List[A], List[A]) =>
+  fun partition[A: Any #read](l: List[A], f: {(A!): Bool} val): (List[A],
+  List[A]) =>
     """
-    Builds a pair of lists, the first of which is made up of the elements satisfying the supplied
-    predicate and the second of which is made up of those that do not.
+    Builds a pair of lists, the first of which is made up of the elements
+    satisfying the supplied predicate and the second of which is made up of
+    those that do not.
     """
     let l1: List[A] = List[A]
     let l2: List[A] = List[A]
     for item in l.values() do
-      if (f(item)) then l1.push(item) else l2.push(item) end
+      if f(item) then l1.push(item) else l2.push(item) end
     end
     (l1, l2)
 
@@ -158,7 +185,7 @@ primitive Lists
     """
     Builds a list by dropping the first n elements.
     """
-    if (l.size() < (n + 1)) then return List[A] end
+    if l.size() < (n + 1) then return List[A] end
 
     try
       _drop[A](l.clone().head(), n)
@@ -167,15 +194,18 @@ primitive Lists
     end
 
   fun _drop[A: Any #read](ln: ListNode[A], n: USize): List[A] =>
+    """
+    Private helper for drop, working with ListNodes.
+    """
     var count = n
     var cur: ListNode[A] = ln
-    while(count > 0) do
+    while count > 0 do
       try cur = cur.next() as ListNode[A] else return List[A] end
       count = count - 1
     end
     let res = List[A]
     try res.push(cur()) end
-    while (cur.has_next()) do
+    while cur.has_next() do
       try
         cur = cur.next() as ListNode[A]
         res.push(cur())
@@ -187,7 +217,7 @@ primitive Lists
     """
     Builds a list of the first n elements.
     """
-    if (l.size() <= n) then l end
+    if l.size() <= n then l end
 
     try
       _take[A](l.clone().head(), n)
@@ -196,10 +226,13 @@ primitive Lists
     end
 
   fun _take[A: Any #read](ln: ListNode[A], n: USize): List[A] =>
+    """
+    Private helper for take, working with ListNodes.
+    """
     var count = n
     let res = List[A]
     var cur: ListNode[A] = ln
-    while(count > 0) do
+    while count > 0 do
       try res.push(cur()) end
       try cur = cur.next() as ListNode[A] else return res end
       count = count - 1
@@ -208,7 +241,8 @@ primitive Lists
 
   fun take_while[A: Any #read](l: List[A], f: {(A!): Bool} val): List[A] =>
     """
-    Builds a list of elements satisfying the provided predicate until one does not.
+    Builds a list of elements satisfying the provided predicate until one does
+    not.
     """
     try
       _take_while[A](l.clone().head(), f)
@@ -216,14 +250,18 @@ primitive Lists
       List[A]
     end
 
-  fun _take_while[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): List[A] =>
+  fun _take_while[A: Any #read](ln: ListNode[A], f: {(A!): Bool} val): List[A]
+  =>
+    """
+    Private helper for take_while, working with ListNodes.
+    """
     let res = List[A]
     var cur: ListNode[A] = ln
     try
       let initial = cur()
       if f(initial) then res.push(initial) else return res end
     end
-    while(cur.has_next()) do
+    while cur.has_next() do
       try cur = cur.next() as ListNode[A] else return res end
       try
         let value = cur()
@@ -243,6 +281,9 @@ primitive Lists
     end
 
   fun _contains[A: (Any #read & Equatable[A])](ln: ListNode[A], a: A): Bool =>
+    """
+    Private helper for contains, recursively working with ListNodes.
+    """
     try
       if ln() == a then
         true
@@ -264,6 +305,9 @@ primitive Lists
     end
 
   fun _reverse[A: Any #read](ln: ListNode[A], acc: List[A]): List[A] =>
+    """
+    Private helper for reverse, recursively working with ListNodes.
+    """
     try acc.unshift(ln()) end
 
     try
