@@ -57,7 +57,7 @@ primitive HashByteSeq
   Hash and equality functions for arbitrary ByteSeq.
   """
   fun hash(x: ByteSeq): U64 =>
-    @hash_block[U64](x.cstring(), x.size())
+    @ponyint_hash_block[U64](x.cstring(), x.size())
 
   fun eq(x: ByteSeq, y: ByteSeq): Bool =>
     if x.size() == y.size() then

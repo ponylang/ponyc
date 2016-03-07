@@ -25,33 +25,33 @@ static asio_base_t running_base;
  *  not need to maintain a thread pool. Instead, I/O is processed in the
  *  context of the owning actor.
  */
-asio_backend_t* asio_get_backend()
+asio_backend_t* ponyint_asio_get_backend()
 {
   return running_base.backend;
 }
 
-void asio_init()
+void ponyint_asio_init()
 {
-  running_base.backend = asio_backend_init();
+  running_base.backend = ponyint_asio_backend_init();
 }
 
-bool asio_start()
+bool ponyint_asio_start()
 {
-  if(!pony_thread_create(&running_base.tid, asio_backend_dispatch, -1,
+  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch, -1,
     running_base.backend))
     return false;
 
   return true;
 }
 
-bool asio_stop()
+bool ponyint_asio_stop()
 {
   if(_atomic_load(&running_base.noisy_count) > 0)
     return false;
 
   if(running_base.backend != NULL)
   {
-    asio_backend_terminate(running_base.backend);
+    ponyint_asio_backend_final(running_base.backend);
     pony_thread_join(running_base.tid);
 
     running_base.backend = NULL;
@@ -61,12 +61,12 @@ bool asio_stop()
   return true;
 }
 
-void asio_noisy_add()
+void ponyint_asio_noisy_add()
 {
   _atomic_add(&running_base.noisy_count, 1);
 }
 
-void asio_noisy_remove()
+void ponyint_asio_noisy_remove()
 {
   _atomic_add(&running_base.noisy_count, -1);
 }

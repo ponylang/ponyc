@@ -19,9 +19,9 @@ class val Env
     actor is created.
     """
     root = AmbientAuth._create()
-    @os_stdout_setup[None]()
+    @pony_os_stdout_setup[None]()
 
-    input = Stdin._create(@os_stdin_setup[Bool]())
+    input = Stdin._create(@pony_os_stdin_setup[Bool]())
     out = StdStream._out()
     err = StdStream._err()
 

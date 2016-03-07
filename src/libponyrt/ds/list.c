@@ -9,7 +9,7 @@ typedef struct list_t
   struct list_t* next;
 } list_t;
 
-list_t* list_pop(list_t* list, void** data)
+list_t* ponyint_list_pop(list_t* list, void** data)
 {
   list_t* l = list;
   list = l->next;
@@ -19,7 +19,7 @@ list_t* list_pop(list_t* list, void** data)
   return list;
 }
 
-list_t* list_push(list_t* list, void* data)
+list_t* ponyint_list_push(list_t* list, void* data)
 {
   list_t* l = (list_t*)POOL_ALLOC(list_t);
   l->data = data;
@@ -28,7 +28,7 @@ list_t* list_push(list_t* list, void* data)
   return l;
 }
 
-list_t* list_append(list_t* list, void* data)
+list_t* ponyint_list_append(list_t* list, void* data)
 {
   list_t* l = (list_t*)POOL_ALLOC(list_t);
   l->data = data;
@@ -46,15 +46,15 @@ list_t* list_append(list_t* list, void* data)
   return list;
 }
 
-list_t* list_next(list_t* list)
+list_t* ponyint_list_next(list_t* list)
 {
   return list->next;
 }
 
-list_t* list_index(list_t* list, ssize_t index)
+list_t* ponyint_list_index(list_t* list, ssize_t index)
 {
   if(index < 0)
-    index = list_length(list) + index;
+    index = ponyint_list_length(list) + index;
 
   for(int i = 0; (list != NULL) && (i < index); i++)
     list = list->next;
@@ -62,12 +62,12 @@ list_t* list_index(list_t* list, ssize_t index)
   return list;
 }
 
-void* list_data(list_t* list)
+void* ponyint_list_data(list_t* list)
 {
   return list->data;
 }
 
-void* list_find(list_t* list, cmp_fn f, void* data)
+void* ponyint_list_find(list_t* list, cmp_fn f, void* data)
 {
   while(list != NULL)
   {
@@ -80,7 +80,7 @@ void* list_find(list_t* list, cmp_fn f, void* data)
   return NULL;
 }
 
-ssize_t list_findindex(list_t* list, cmp_fn f, void* data)
+ssize_t ponyint_list_findindex(list_t* list, cmp_fn f, void* data)
 {
   size_t index = 0;
 
@@ -96,11 +96,11 @@ ssize_t list_findindex(list_t* list, cmp_fn f, void* data)
   return -1;
 }
 
-bool list_subset(list_t* a, list_t* b, cmp_fn f)
+bool ponyint_list_subset(list_t* a, list_t* b, cmp_fn f)
 {
   while(a != NULL)
   {
-    if(list_find(b, f, a->data) == NULL)
+    if(ponyint_list_find(b, f, a->data) == NULL)
       return false;
 
     a = a->next;
@@ -109,7 +109,7 @@ bool list_subset(list_t* a, list_t* b, cmp_fn f)
   return true;
 }
 
-bool list_equals(list_t* a, list_t* b, cmp_fn f)
+bool ponyint_list_equals(list_t* a, list_t* b, cmp_fn f)
 {
   while(a != NULL)
   {
@@ -123,7 +123,7 @@ bool list_equals(list_t* a, list_t* b, cmp_fn f)
   return b == NULL;
 }
 
-list_t* list_map(list_t* list, map_fn f, void* arg)
+list_t* ponyint_list_map(list_t* list, map_fn f, void* arg)
 {
   list_t* to = NULL;
 
@@ -132,15 +132,15 @@ list_t* list_map(list_t* list, map_fn f, void* arg)
     void* result = f(list->data, (void*)arg);
 
     if(result != NULL)
-      to = list_push(to, result);
+      to = ponyint_list_push(to, result);
 
     list = list->next;
   }
 
-  return list_reverse(to);
+  return ponyint_list_reverse(to);
 }
 
-list_t* list_reverse(list_t* list)
+list_t* ponyint_list_reverse(list_t* list)
 {
   list_t* to = NULL;
 
@@ -155,7 +155,7 @@ list_t* list_reverse(list_t* list)
   return to;
 }
 
-size_t list_length(list_t* list)
+size_t ponyint_list_length(list_t* list)
 {
   size_t len = 0;
 
@@ -168,7 +168,7 @@ size_t list_length(list_t* list)
   return len;
 }
 
-void list_free(list_t* list, free_fn f)
+void ponyint_list_free(list_t* list, free_fn f)
 {
   list_t* next;
 

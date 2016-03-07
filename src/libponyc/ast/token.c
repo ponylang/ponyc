@@ -63,7 +63,7 @@ void token_free(token_t* token)
     return;
 
   if(token->printed != NULL)
-    pool_free_size(64, token->printed);
+    ponyint_pool_free_size(64, token->printed);
 
   POOL_FREE(token_t, token);
 }
@@ -125,7 +125,7 @@ const char* token_print(token_t* token)
 
     case TK_INT:
       if (token->printed == NULL)
-        token->printed = (char*)pool_alloc_size(64);
+        token->printed = (char*)ponyint_pool_alloc_size(64);
 
       snprintf(token->printed, 64, "%llu",
         (unsigned long long)token->integer.low);
@@ -134,7 +134,7 @@ const char* token_print(token_t* token)
     case TK_FLOAT:
     {
       if(token->printed == NULL)
-        token->printed = (char*)pool_alloc_size(64);
+        token->printed = (char*)ponyint_pool_alloc_size(64);
 
       int r = snprintf(token->printed, 64, "%g", token->real);
 
@@ -156,7 +156,7 @@ const char* token_print(token_t* token)
     return p;
 
   if(token->printed == NULL)
-    token->printed = (char*)pool_alloc_size(64);
+    token->printed = (char*)ponyint_pool_alloc_size(64);
 
   snprintf(token->printed, 64, "Unknown_token_%d", token->id);
   return token->printed;

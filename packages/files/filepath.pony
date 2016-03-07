@@ -164,7 +164,7 @@ class val FilePath
         end
 
         if r != 0 then
-          if @os_errno[I32]() != @os_eexist[I32]() then
+          if @pony_os_errno[I32]() != @pony_os_eexist[I32]() then
             return false
           end
 

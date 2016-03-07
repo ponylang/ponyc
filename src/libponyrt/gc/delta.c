@@ -9,7 +9,7 @@ typedef struct delta_t
 
 static size_t delta_hash(delta_t* delta)
 {
-  return hash_ptr(delta->actor);
+  return ponyint_hash_ptr(delta->actor);
 }
 
 static bool delta_cmp(delta_t* a, delta_t* b)
@@ -22,30 +22,31 @@ static void delta_free(delta_t* delta)
   POOL_FREE(delta_t, delta);
 }
 
-pony_actor_t* delta_actor(delta_t* delta)
+pony_actor_t* ponyint_delta_actor(delta_t* delta)
 {
   return delta->actor;
 }
 
-size_t delta_rc(delta_t* delta)
+size_t ponyint_delta_rc(delta_t* delta)
 {
   return delta->rc;
 }
 
-DEFINE_HASHMAP(deltamap, delta_t, delta_hash, delta_cmp, pool_alloc_size,
-  pool_free_size, delta_free);
+DEFINE_HASHMAP(ponyint_deltamap, deltamap_t, delta_t, delta_hash, delta_cmp,
+  ponyint_pool_alloc_size, ponyint_pool_free_size, delta_free);
 
-deltamap_t* deltamap_update(deltamap_t* map, pony_actor_t* actor, size_t rc)
+deltamap_t* ponyint_deltamap_update(deltamap_t* map, pony_actor_t* actor,
+  size_t rc)
 {
   if(map == NULL)
   {
     // allocate a new map with space for at least one element
     map = (deltamap_t*)POOL_ALLOC(deltamap_t);
-    deltamap_init(map, 1);
+    ponyint_deltamap_init(map, 1);
   } else {
     delta_t key;
     key.actor = actor;
-    delta_t* delta = deltamap_get(map, &key);
+    delta_t* delta = ponyint_deltamap_get(map, &key);
 
     if(delta != NULL)
     {
@@ -58,12 +59,12 @@ deltamap_t* deltamap_update(deltamap_t* map, pony_actor_t* actor, size_t rc)
   delta->actor = actor;
   delta->rc = rc;
 
-  deltamap_put(map, delta);
+  ponyint_deltamap_put(map, delta);
   return map;
 }
 
-void deltamap_free(deltamap_t* map)
+void ponyint_deltamap_free(deltamap_t* map)
 {
-  deltamap_destroy(map);
+  ponyint_deltamap_destroy(map);
   POOL_FREE(deltamap_t, map);
 }

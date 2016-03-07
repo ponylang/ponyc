@@ -216,7 +216,7 @@ static bool lsda_init(lsda_t* lsda, exception_context_t* context)
   return true;
 }
 
-bool lsda_scan(exception_context_t* context, uintptr_t* lp)
+bool ponyint_lsda_scan(exception_context_t* context, uintptr_t* lp)
 {
   lsda_t lsda;
 

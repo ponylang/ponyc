@@ -30,7 +30,7 @@ source_t* source_open(const char* file)
 
   source_t* source = POOL_ALLOC(source_t);
   source->file = stringtab(file);
-  source->m = (char*)pool_alloc_size(size);
+  source->m = (char*)ponyint_pool_alloc_size(size);
   source->len = size;
 
   ssize_t read = fread(source->m, sizeof(char), size, fp);
@@ -38,7 +38,7 @@ source_t* source_open(const char* file)
   if(read < size)
   {
     errorf(file, "failed to read entire file");
-    pool_free_size(source->len, source->m);
+    ponyint_pool_free_size(source->len, source->m);
     POOL_FREE(source_t, source);
     fclose(fp);
     return NULL;
@@ -54,7 +54,7 @@ source_t* source_open_string(const char* source_code)
   source_t* source = POOL_ALLOC(source_t);
   source->file = NULL;
   source->len = strlen(source_code);
-  source->m = (char*)pool_alloc_size(source->len);
+  source->m = (char*)ponyint_pool_alloc_size(source->len);
 
   memcpy(source->m, source_code, source->len);
 
@@ -68,7 +68,7 @@ void source_close(source_t* source)
     return;
 
   if(source->m != NULL)
-    pool_free_size(source->len, source->m);
+    ponyint_pool_free_size(source->len, source->m);
 
   POOL_FREE(source_t, source);
 }

@@ -49,9 +49,9 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 {
   opt_state_t s;
   int id;
-  opt_init(args, &s, &argc, argv);
+  ponyint_opt_init(args, &s, &argc, argv);
 
-  while((id = opt_next(&s)) != -1)
+  while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
     {
@@ -86,15 +86,15 @@ int pony_init(int argc, char** argv)
   argc = parse_opts(argc, argv, &opt);
 
 #if defined(PLATFORM_IS_LINUX)
-  pony_numa_init();
+  ponyint_numa_init();
 #endif
 
-  heap_setinitialgc(opt.gc_initial);
-  heap_setnextgcfactor(opt.gc_factor);
+  ponyint_heap_setinitialgc(opt.gc_initial);
+  ponyint_heap_setnextgcfactor(opt.gc_factor);
 
   pony_exitcode(0);
-  pony_ctx_t* ctx = scheduler_init(opt.threads, opt.noyield);
-  cycle_create(ctx,
+  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield);
+  ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
 
   return argc;
@@ -102,10 +102,10 @@ int pony_init(int argc, char** argv)
 
 int pony_start(bool library)
 {
-  if(!os_socket_init())
+  if(!ponyint_os_sockets_init())
     return -1;
 
-  if(!scheduler_start(library))
+  if(!ponyint_sched_start(library))
     return -1;
 
   if(library)
@@ -116,8 +116,8 @@ int pony_start(bool library)
 
 int pony_stop()
 {
-  scheduler_stop();
-  os_socket_shutdown();
+  ponyint_sched_stop();
+  ponyint_os_sockets_final();
 
   return _atomic_load(&exit_code);
 }

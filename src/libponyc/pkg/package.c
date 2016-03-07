@@ -369,7 +369,7 @@ static const char* id_to_string(const char* prefix, size_t id)
 
   size_t len = strlen(prefix);
   size_t buf_size = len + 32;
-  char* buffer = (char*)pool_alloc_size(buf_size);
+  char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
   return stringtab_consume(buffer, buf_size);
 }
@@ -406,7 +406,7 @@ static const char* string_to_symbol(const char* string)
 
   size_t len = strlen(string);
   size_t buf_size = len + prefix + 1;
-  char* buf = (char*)pool_alloc_size(buf_size);
+  char* buf = (char*)ponyint_pool_alloc_size(buf_size);
   memcpy(buf + prefix, string, len + 1);
 
   if(prefix)
@@ -438,7 +438,7 @@ static const char* symbol_suffix(const char* symbol, size_t suffix)
 {
   size_t len = strlen(symbol);
   size_t buf_size = len + 32;
-  char* buf = (char*)pool_alloc_size(buf_size);
+  char* buf = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
   return stringtab_consume(buf, buf_size);
@@ -828,7 +828,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
         size_t base_name_len = strlen(base_name);
         size_t path_len = strlen(path);
         size_t len = base_name_len + path_len + 2;
-        char* q_name = (char*)pool_alloc_size(len);
+        char* q_name = (char*)ponyint_pool_alloc_size(len);
         memcpy(q_name, base_name, base_name_len);
         q_name[base_name_len] = '/';
         memcpy(q_name + base_name_len + 1, path, path_len);

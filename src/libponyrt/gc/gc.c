@@ -7,19 +7,19 @@
 
 #define GC_ACTOR_HEAP_EQUIV 1024
 
-DEFINE_STACK(gcstack, void);
+DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
 static void acquire_actor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  actorref_t* aref = actormap_getorput(&ctx->acquire, actor, 0);
+  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
   aref->rc += GC_INC_MORE;
 }
 
 static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor, void* address,
   bool immutable)
 {
-  actorref_t* aref = actormap_getorput(&ctx->acquire, actor, 0);
-  object_t* obj = actorref_getorput(aref, address, 0);
+  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
+  object_t* obj = ponyint_actorref_getorput(aref, address, 0);
 
   obj->rc += GC_INC_MORE;
   obj->immutable = immutable;
@@ -29,8 +29,8 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
 {
   if(f != NULL)
   {
-    ctx->stack = gcstack_push(ctx->stack, p);
-    ctx->stack = gcstack_push(ctx->stack, f);
+    ctx->stack = ponyint_gcstack_push(ctx->stack, p);
+    ctx->stack = ponyint_gcstack_push(ctx->stack, f);
   }
 }
 
@@ -71,7 +71,7 @@ static void send_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     aref->rc--;
   }
 
-  gc->delta = deltamap_update(gc->delta, aref->actor, aref->rc);
+  gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
 }
 
 static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
@@ -81,8 +81,8 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
 
   aref->mark = gc->mark;
   aref->rc++;
-  gc->delta = deltamap_update(gc->delta, aref->actor, aref->rc);
-  heap_used(actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+  gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
+  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
@@ -99,17 +99,17 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     // some references to this actor and acquire it.
     aref->rc += GC_INC_MORE;
     acquire_actor(ctx, aref->actor);
-    gc->delta = deltamap_update(gc->delta, aref->actor, aref->rc);
+    gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
 
-  heap_used(actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void send_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   bool immutable)
 {
-  gc_t* gc = actor_gc(ctx->current);
-  object_t* obj = objectmap_getorput(&gc->local, p, gc->mark);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -132,8 +132,8 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   bool immutable)
 {
   // get the object
-  gc_t* gc = actor_gc(ctx->current);
-  object_t* obj = objectmap_getobject(&gc->local, p);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  object_t* obj = ponyint_objectmap_getobject(&gc->local, p);
   assert(obj != NULL);
 
   if(obj->mark == gc->mark)
@@ -161,21 +161,21 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   if(f != NULL)
   {
     // Mark in our heap and recurse if it wasn't already marked.
-    if(!heap_mark(chunk, p))
+    if(!ponyint_heap_mark(chunk, p))
       recurse(ctx, p, f);
   } else {
     // No recurse function, so do a shallow mark. If the same address is
     // later marked with a recurse function, it will recurse.
-    heap_mark_shallow(chunk, p);
+    ponyint_heap_mark_shallow(chunk, p);
   }
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   void* p, pony_trace_fn f, bool immutable)
 {
-  gc_t* gc = actor_gc(ctx->current);
-  actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
-  object_t* obj = actorref_getorput(aref, p, gc->mark);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -222,9 +222,9 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   void* p, pony_trace_fn f, bool immutable, chunk_t* chunk)
 {
-  gc_t* gc = actor_gc(ctx->current);
-  actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
-  object_t* obj = actorref_getorput(aref, p, gc->mark);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -234,7 +234,8 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
   // If this is our first reference, add to our heap used size.
   if(obj->rc == 0)
-    heap_used(actor_heap(ctx->current), heap_size(chunk));
+    ponyint_heap_used(ponyint_actor_heap(ctx->current),
+      ponyint_heap_size(chunk));
 
   // Inc, mark and recurse.
   obj->rc++;
@@ -250,9 +251,9 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   void* p, pony_trace_fn f, bool immutable, chunk_t* chunk)
 {
-  gc_t* gc = actor_gc(ctx->current);
-  actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
-  object_t* obj = actorref_getorput(aref, p, gc->mark);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -264,7 +265,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   obj->mark = gc->mark;
 
   // Add to heap used size.
-  heap_used(actor_heap(ctx->current), heap_size(chunk));
+  ponyint_heap_used(ponyint_actor_heap(ctx->current), ponyint_heap_size(chunk));
 
   if(immutable && !obj->immutable && (obj->rc > 0))
   {
@@ -295,9 +296,10 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     recurse(ctx, p, f);
 }
 
-void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
+void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
 {
-  chunk_t* chunk = (chunk_t*)pagemap_get(p);
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -306,7 +308,7 @@ void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     return;
   }
 
-  pony_actor_t* actor = heap_owner(chunk);
+  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     send_local_object(ctx, p, f, immutable);
@@ -314,9 +316,10 @@ void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     send_remote_object(ctx, actor, p, f, immutable);
 }
 
-void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
+void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
 {
-  chunk_t* chunk = (chunk_t*)pagemap_get(p);
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -325,7 +328,7 @@ void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     return;
   }
 
-  pony_actor_t* actor = heap_owner(chunk);
+  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     recv_local_object(ctx, p, f, immutable);
@@ -333,9 +336,10 @@ void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     recv_remote_object(ctx, actor, p, f, immutable, chunk);
 }
 
-void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
+void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
 {
-  chunk_t* chunk = (chunk_t*)pagemap_get(p);
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -344,7 +348,7 @@ void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     return;
   }
 
-  pony_actor_t* actor = heap_owner(chunk);
+  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     mark_local_object(ctx, chunk, p, f);
@@ -352,90 +356,90 @@ void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, bool immutable)
     mark_remote_object(ctx, actor, p, f, immutable, chunk);
 }
 
-void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  gc_t* gc = actor_gc(ctx->current);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
 
   if(actor == ctx->current)
   {
     send_local_actor(gc);
   } else {
-    actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
+    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
     send_remote_actor(ctx, gc, aref);
   }
 }
 
-void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  gc_t* gc = actor_gc(ctx->current);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
 
   if(actor == ctx->current)
   {
     recv_local_actor(gc);
   } else {
-    actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
+    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
     recv_remote_actor(ctx, gc, aref);
   }
 }
 
-void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(actor == ctx->current)
     return;
 
-  gc_t* gc = actor_gc(ctx->current);
-  actorref_t* aref = actormap_getactor(&gc->foreign, actor);
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  actorref_t* aref = ponyint_actormap_getactor(&gc->foreign, actor);
   mark_remote_actor(ctx, gc, aref);
 }
 
-void gc_createactor(pony_actor_t* current, pony_actor_t* actor)
+void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
 {
-  gc_t* gc = actor_gc(current);
-  actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
+  gc_t* gc = ponyint_actor_gc(current);
+  actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   aref->rc = GC_INC_MORE;
-  gc->delta = deltamap_update(gc->delta, actor, aref->rc);
-  heap_used(actor_heap(current), GC_ACTOR_HEAP_EQUIV);
+  gc->delta = ponyint_deltamap_update(gc->delta, actor, aref->rc);
+  ponyint_heap_used(ponyint_actor_heap(current), GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
+void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
 {
   objectmap_t* map = &gc->local;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
-  while((obj = objectmap_next(map, &i)) != NULL)
+  while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
     if(obj->immutable && (obj->rc > 0))
     {
       // Mark in our heap and recurse if it wasn't already marked.
       void* p = obj->address;
-      chunk_t* chunk = (chunk_t*)pagemap_get(p);
+      chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
       pony_type_t* type = *(pony_type_t**)p;
       mark_local_object(ctx, chunk, p, type->trace);
     }
   }
 }
 
-void gc_handlestack(pony_ctx_t* ctx)
+void ponyint_gc_handlestack(pony_ctx_t* ctx)
 {
   pony_trace_fn f;
   void *p;
 
   while(ctx->stack != NULL)
   {
-    ctx->stack = gcstack_pop(ctx->stack, (void**)&f);
-    ctx->stack = gcstack_pop(ctx->stack, &p);
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, (void**)&f);
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, &p);
     f(ctx, p);
   }
 }
 
-void gc_sweep(pony_ctx_t* ctx, gc_t* gc)
+void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
-  gc->finalisers -= objectmap_sweep(&gc->local);
-  gc->delta = actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
+  gc->finalisers -= ponyint_objectmap_sweep(&gc->local);
+  gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
-bool gc_acquire(gc_t* gc, actorref_t* aref)
+bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)
 {
   size_t rc = aref->rc;
   gc->rc += rc;
@@ -444,10 +448,10 @@ bool gc_acquire(gc_t* gc, actorref_t* aref)
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
-  while((obj = objectmap_next(map, &i)) != NULL)
+  while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
     // Add to our RC.
-    object_t* obj_local = objectmap_getobject(&gc->local, obj->address);
+    object_t* obj_local = ponyint_objectmap_getobject(&gc->local, obj->address);
     obj_local->rc += obj->rc;
 
     // Mark as immutable if necessary.
@@ -455,11 +459,11 @@ bool gc_acquire(gc_t* gc, actorref_t* aref)
       obj_local->immutable = true;
   }
 
-  actorref_free(aref);
+  ponyint_actorref_free(aref);
   return rc > 0;
 }
 
-bool gc_release(gc_t* gc, actorref_t* aref)
+bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
 {
   size_t rc = aref->rc;
   assert(gc->rc >= rc);
@@ -469,10 +473,10 @@ bool gc_release(gc_t* gc, actorref_t* aref)
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
-  while((obj = objectmap_next(map, &i)) != NULL)
+  while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
     void* p = obj->address;
-    object_t* obj_local = objectmap_getobject(&gc->local, p);
+    object_t* obj_local = ponyint_objectmap_getobject(&gc->local, p);
 
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
@@ -485,55 +489,55 @@ bool gc_release(gc_t* gc, actorref_t* aref)
       // mark it as reachable again.
       if(!obj_local->reachable)
       {
-        chunk_t* chunk = (chunk_t*)pagemap_get(p);
-        heap_free(chunk, p);
+        chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+        ponyint_heap_free(chunk, p);
       }
     }
   }
 
-  actorref_free(aref);
+  ponyint_actorref_free(aref);
   return rc > 0;
 }
 
-size_t gc_rc(gc_t* gc)
+size_t ponyint_gc_rc(gc_t* gc)
 {
   return gc->rc;
 }
 
-deltamap_t* gc_delta(gc_t* gc)
+deltamap_t* ponyint_gc_delta(gc_t* gc)
 {
   deltamap_t* delta = gc->delta;
   gc->delta = NULL;
   return delta;
 }
 
-void gc_sendacquire(pony_ctx_t* ctx)
+void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
 
-  while((aref = actormap_next(&ctx->acquire, &i)) != NULL)
+  while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
   {
-    actormap_removeindex(&ctx->acquire, i);
+    ponyint_actormap_removeindex(&ctx->acquire, i);
     pony_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
   }
 
-  actormap_destroy(&ctx->acquire);
+  ponyint_actormap_destroy(&ctx->acquire);
   memset(&ctx->acquire, 0, sizeof(actormap_t));
 }
 
-void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
+void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
 {
-  gc->delta = actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
+  gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
-void gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
+void ponyint_gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
 {
   if(!ctx->finalising)
   {
     // If we aren't finalising an actor, register the finaliser.
-    gc_t* gc = actor_gc(ctx->current);
-    objectmap_register_final(&gc->local, p, final, gc->mark);
+    gc_t* gc = ponyint_actor_gc(ctx->current);
+    ponyint_objectmap_register_final(&gc->local, p, final, gc->mark);
     gc->finalisers++;
   } else {
     // Otherwise, put the finaliser on the gc stack.
@@ -541,7 +545,7 @@ void gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
   }
 }
 
-void gc_final(pony_ctx_t* ctx, gc_t* gc)
+void ponyint_gc_final(pony_ctx_t* ctx, gc_t* gc)
 {
   if(gc->finalisers == 0)
     return;
@@ -550,7 +554,7 @@ void gc_final(pony_ctx_t* ctx, gc_t* gc)
   ctx->finalising = true;
 
   // Run all finalisers in the object map.
-  objectmap_final(&gc->local);
+  ponyint_objectmap_final(&gc->local);
 
   // Finalise any objects that were created during finalisation.
   pony_final_fn f;
@@ -558,27 +562,27 @@ void gc_final(pony_ctx_t* ctx, gc_t* gc)
 
   while(ctx->stack != NULL)
   {
-    ctx->stack = gcstack_pop(ctx->stack, (void**)&f);
-    ctx->stack = gcstack_pop(ctx->stack, &p);
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, (void**)&f);
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, &p);
     f(p);
   }
 
   ctx->finalising = false;
 }
 
-void gc_done(gc_t* gc)
+void ponyint_gc_done(gc_t* gc)
 {
   gc->mark++;
 }
 
-void gc_destroy(gc_t* gc)
+void ponyint_gc_destroy(gc_t* gc)
 {
-  objectmap_destroy(&gc->local);
-  actormap_destroy(&gc->foreign);
+  ponyint_objectmap_destroy(&gc->local);
+  ponyint_actormap_destroy(&gc->foreign);
 
   if(gc->delta != NULL)
   {
-    deltamap_free(gc->delta);
+    ponyint_deltamap_free(gc->delta);
     gc->delta = NULL;
   }
 }

@@ -21,7 +21,7 @@ struct compile_local_t
 
 static size_t compile_local_hash(compile_local_t* p)
 {
-  return hash_ptr(p->name);
+  return ponyint_hash_ptr(p->name);
 }
 
 static bool compile_local_cmp(compile_local_t* a, compile_local_t* b)
@@ -34,8 +34,9 @@ static void compile_local_free(compile_local_t* p)
   POOL_FREE(compile_local_t, p);
 }
 
-DEFINE_HASHMAP(compile_locals, compile_local_t, compile_local_hash,
-  compile_local_cmp, pool_alloc_size, pool_free_size, compile_local_free);
+DEFINE_HASHMAP(compile_locals, compile_locals_t, compile_local_t,
+  compile_local_hash, compile_local_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, compile_local_free);
 
 static void fatal_error(const char* reason)
 {
@@ -231,10 +232,10 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // void pony_destroy($object*)
+  // void ponyint_destroy($object*)
   params[0] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
-  value = LLVMAddFunction(c->module, "pony_destroy", type);
+  value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   //LLVMSetReturnNoAlias(value);
 
@@ -749,7 +750,7 @@ const char* suffix_filename(const char* dir, const char* prefix,
   // Copy to a string with space for a suffix.
   size_t len = strlen(dir) + strlen(prefix) + strlen(file) + strlen(extension)
     + 4;
-  char* filename = (char*)pool_alloc_size(len);
+  char* filename = (char*)ponyint_pool_alloc_size(len);
 
   // Start with no suffix.
 #ifdef PLATFORM_IS_WINDOWS
@@ -781,7 +782,7 @@ const char* suffix_filename(const char* dir, const char* prefix,
   if(suffix >= 100)
   {
     errorf(NULL, "couldn't pick an unused file name");
-    pool_free_size(len, filename);
+    ponyint_pool_free_size(len, filename);
     return NULL;
   }
 

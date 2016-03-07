@@ -312,8 +312,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   size_t count = ast_childcount(positional) + 1;
   size_t buf_size = count * sizeof(void*);
 
-  LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
-  LLVMTypeRef* params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, params);
 
   ast_t* arg = ast_child(positional);
@@ -325,8 +325,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     if(value == NULL)
     {
-      pool_free_size(buf_size, args);
-      pool_free_size(buf_size, params);
+      ponyint_pool_free_size(buf_size, args);
+      ponyint_pool_free_size(buf_size, params);
       return NULL;
     }
 
@@ -392,8 +392,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       r = codegen_call(c, func, args, i);
   }
 
-  pool_free_size(buf_size, args);
-  pool_free_size(buf_size, params);
+  ponyint_pool_free_size(buf_size, args);
+  ponyint_pool_free_size(buf_size, params);
   return r;
 }
 
@@ -479,7 +479,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
 
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   count = 0;
 
   ast_t* arg = ast_child(args);
@@ -513,10 +513,10 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
       // elements.
       unsigned int count = LLVMCountStructElementTypes(g->use_type);
       size_t buf_size = count * sizeof(LLVMTypeRef);
-      LLVMTypeRef* e_types = (LLVMTypeRef*)pool_alloc_size(buf_size);
+      LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
       LLVMGetStructElementTypes(g->use_type, e_types);
       r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
-      pool_free_size(buf_size, e_types);
+      ponyint_pool_free_size(buf_size, e_types);
     } else {
       r_type = g->use_type;
     }
@@ -528,7 +528,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
       LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
   }
 
-  pool_free_size(buf_size, f_params);
+  ponyint_pool_free_size(buf_size, f_params);
   return func;
 }
 
@@ -576,7 +576,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // Generate the arguments.
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* f_args = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   LLVMTypeRef* f_params = NULL;
@@ -584,7 +584,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   if(!vararg)
   {
-    f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+    f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(f_type, f_params);
   }
 
@@ -604,7 +604,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     if(f_args[i] == NULL)
     {
-      pool_free_size(buf_size, f_args);
+      ponyint_pool_free_size(buf_size, f_args);
       return NULL;
     }
 
@@ -620,10 +620,10 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   else
     result = LLVMBuildCall(c->builder, func, f_args, count, "");
 
-  pool_free_size(buf_size, f_args);
+  ponyint_pool_free_size(buf_size, f_args);
 
   if(!vararg)
-    pool_free_size(buf_size, f_params);
+    ponyint_pool_free_size(buf_size, f_params);
 
   // Special case a None return value, which is used for void functions.
   if(is_none(type))
@@ -702,7 +702,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
   {
     if(size <= HEAP_MAX)
     {
-      uint32_t index = heap_index(size);
+      uint32_t index = ponyint_heap_index(size);
       args[1] = LLVMConstInt(c->i32, index, false);
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     } else {

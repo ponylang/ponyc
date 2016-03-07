@@ -12,7 +12,7 @@
 
 typedef struct elem_t elem_t;
 
-DECLARE_HASHMAP(testmap, elem_t);
+DECLARE_HASHMAP(testmap, testmap_t, elem_t);
 
 class HashMapTest: public testing::Test
 {
@@ -32,8 +32,9 @@ class HashMapTest: public testing::Test
     static void free_buckets(size_t size, void* p);
 };
 
-DEFINE_HASHMAP(testmap, elem_t, HashMapTest::hash_tst, HashMapTest::cmp_tst,
-  malloc, HashMapTest::free_buckets, HashMapTest::free_elem);
+DEFINE_HASHMAP(testmap, testmap_t, elem_t, HashMapTest::hash_tst,
+  HashMapTest::cmp_tst, malloc, HashMapTest::free_buckets,
+  HashMapTest::free_elem);
 
 struct elem_t
 {
@@ -71,7 +72,7 @@ elem_t* HashMapTest::get_element()
 
 size_t HashMapTest::hash_tst(elem_t* p)
 {
-  return hash_size(p->key);
+  return ponyint_hash_size(p->key);
 }
 
 bool HashMapTest::cmp_tst(elem_t* a, elem_t* b)

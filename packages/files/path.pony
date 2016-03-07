@@ -202,7 +202,7 @@ primitive Path
     Returns the program's working directory. Setting the working directory is
     not supported, as it is not concurrency-safe.
     """
-    recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
+    recover String.from_cstring(@pony_os_cwd[Pointer[U8]]()) end
 
   fun abs(path: String): String =>
     """
@@ -480,7 +480,7 @@ primitive Path
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    var cstring = @os_realpath[Pointer[U8] iso^](path.cstring())
+    var cstring = @pony_os_realpath[Pointer[U8] iso^](path.cstring())
 
     if cstring.is_null() then
       error

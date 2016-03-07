@@ -4,12 +4,12 @@
 /**
  * Allocates memory in the virtual address space.
  */
-void* virtual_alloc(size_t bytes);
+void* ponyint_virt_alloc(size_t bytes);
 
 /**
  * Deallocates a chunk of memory that was previously allocated with
- * virtual_alloc.
+ * ponyint_virt_alloc.
  */
-void virtual_free(void* p, size_t bytes);
+void ponyint_virt_free(void* p, size_t bytes);
 
 #endif

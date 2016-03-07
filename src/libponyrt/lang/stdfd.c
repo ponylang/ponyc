@@ -14,12 +14,12 @@
 
 PONY_EXTERN_C_BEGIN
 
-FILE* os_stdout()
+FILE* pony_os_stdout()
 {
   return stdout;
 }
 
-FILE* os_stderr()
+FILE* pony_os_stderr()
 {
   return stderr;
 }
@@ -367,7 +367,7 @@ static char ansi_parse(const char* buffer, size_t* pos, size_t len,
   return code;
 }
 
-void os_stdout_setup()
+void pony_os_stdout_setup()
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle;
@@ -404,7 +404,7 @@ void os_stdout_setup()
 #endif
 }
 
-bool os_stdin_setup()
+bool pony_os_stdin_setup()
 {
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
@@ -436,7 +436,7 @@ bool os_stdin_setup()
 #endif
 }
 
-size_t os_stdin_read(char* buffer, size_t space, bool* out_again)
+size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -484,7 +484,7 @@ size_t os_stdin_read(char* buffer, size_t space, bool* out_again)
   }
 
   if(len != 0)  // Start listening to stdin notifications again
-    iocp_resume_stdin();
+    ponyint_iocp_resume_stdin();
 
   *out_again = false;
   return len;
@@ -507,19 +507,19 @@ size_t os_stdin_read(char* buffer, size_t space, bool* out_again)
 #endif
 }
 
-bool os_fp_tty(FILE* fp)
+static bool fp_tty(FILE* fp)
 {
   return
     ((fp == stdout) && is_stdout_tty) ||
     ((fp == stderr) && is_stderr_tty);
 }
 
-void os_std_write(FILE* fp, char* buffer, size_t len)
+void pony_os_std_write(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
     return;
 
-  if(!os_fp_tty(fp))
+  if(!fp_tty(fp))
   {
     // Find ANSI codes and strip them from the output.
     const size_t final = len - 1;

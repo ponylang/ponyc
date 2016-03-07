@@ -48,8 +48,8 @@ primitive Debug
 
   fun _stream(stream: DebugStream): Pointer[U8] ? =>
     match stream
-    | DebugOut => @os_stdout[Pointer[U8]]()
-    | DebugErr => @os_stderr[Pointer[U8]]()
+    | DebugOut => @pony_os_stdout[Pointer[U8]]()
+    | DebugErr => @pony_os_stderr[Pointer[U8]]()
     else
       error
     end
