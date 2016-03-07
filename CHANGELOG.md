@@ -47,6 +47,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - --verbose,-V option for compiler informational messages.
 - Logger package
 - `ArrayValues.rewind()` method.
+- Nanos primitive in time package.
 
 ### Changed
 

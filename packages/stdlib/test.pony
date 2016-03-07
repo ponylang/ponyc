@@ -71,3 +71,4 @@ actor Main is TestList
     end
 
     strings.Main.make().tests(test)
+    time.Main.make().tests(test)
