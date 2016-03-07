@@ -58,7 +58,7 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
 
 static void** root;
 
-void* pagemap_get(const void* m)
+void* ponyint_pagemap_get(const void* m)
 {
   void** v = root;
 
@@ -74,7 +74,7 @@ void* pagemap_get(const void* m)
   return v;
 }
 
-void pagemap_set(const void* m, void* v)
+void ponyint_pagemap_set(const void* m, void* v)
 {
   void*** pv = &root;
   void* p;
@@ -83,13 +83,13 @@ void pagemap_set(const void* m, void* v)
   {
     if(*pv == NULL)
     {
-      p = pool_alloc(level[i].size_index);
+      p = ponyint_pool_alloc(level[i].size_index);
       memset(p, 0, level[i].size);
       void** prev = NULL;
 
       if(!_atomic_cas(pv, &prev, p))
       {
-        pool_free(level[i].size_index, p);
+        ponyint_pool_free(level[i].size_index, p);
         *pv = prev;
       }
     }

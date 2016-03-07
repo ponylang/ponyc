@@ -132,8 +132,8 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
 
 // Cat together the given strings into a newly allocated buffer.
 // Any unneeded strings should be passed as "", not NULL.
-// The returned buffer must be freed with pool_free_size() when no longer
-// needed.
+// The returned buffer must be freed with ponyint_pool_free_size() when
+// no longer needed.
 // The out_buf_size parameter returns the size of the buffer (which is needed
 // for freeing), not the length of the string.
 static char* doc_cat(const char* a, const char* b, const char* c,
@@ -153,7 +153,7 @@ static char* doc_cat(const char* a, const char* b, const char* c,
   size_t e_len = strlen(e);
   size_t buf_len = a_len + b_len + c_len + d_len + e_len + 1;
 
-  char* buffer = (char*)pool_alloc_size(buf_len);
+  char* buffer = (char*)ponyint_pool_alloc_size(buf_len);
   char *p = buffer;
 
   if(a_len > 0) { memcpy(p, a, a_len); p += a_len; }
@@ -181,7 +181,7 @@ static char* doc_cat(const char* a, const char* b, const char* c,
 // Write the TQFN for the given type to a new buffer.
 // By default the type name is taken from the given AST, however this can be
 // overridden by the type_name parameter. Pass NULL to use the default.
-// The returned buffer must be freed using pool_free_size when no longer
+// The returned buffer must be freed using ponyint_pool_free_size when no longer
 // needed. Note that the size reported is the size of the buffer and includes a
 // terminator.
 static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
@@ -243,7 +243,7 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
   if(file == NULL)
     errorf(NULL, "Could not write documentation to file %s", buffer);
 
-  pool_free_size(buf_len, buffer);
+  ponyint_pool_free_size(buf_len, buffer);
   return file;
 }
 
@@ -303,7 +303,7 @@ static void doc_type(docgen_t* docgen, ast_t* type)
 
       // Links are of the form: [text](target)
       fprintf(docgen->type_file, "[%s](%s)", ast_name(id), tqfn);
-      pool_free_size(link_len, tqfn);
+      ponyint_pool_free_size(link_len, tqfn);
 
       doc_type_list(docgen, tparams, "\\[", ", ", "\\]");
 
@@ -619,7 +619,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   fprintf(docgen->index_file, "  - %s %s: \"%s.md\"\n",
     ast_get_print(ast), name, tqfn);
 
-  pool_free_size(tqfn_len, tqfn);
+  ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "%s %s", ast_get_print(ast), name);
@@ -737,7 +737,7 @@ static void doc_package_home(docgen_t* docgen, ast_t* package,
       package_qualified_name(package));
   }
 
-  pool_free_size(tqfn_len, tqfn);
+  ponyint_pool_free_size(tqfn_len, tqfn);
 
   fclose(docgen->type_file);
   docgen->type_file = NULL;
@@ -847,7 +847,7 @@ static void doc_rm_star(const char* path)
 #else
       remove(buf);
 #endif
-      pool_free_size(buf_len, buf);
+      ponyint_pool_free_size(buf_len, buf);
     }
   }
 
@@ -934,8 +934,8 @@ void generate_docs(ast_t* program, pass_opt_t* options)
    fclose(docgen.home_file);
 
   if(docgen.base_dir != NULL)
-    pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
+    ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
 
   if(docgen.sub_dir != NULL)
-    pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
+    ponyint_pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
 }

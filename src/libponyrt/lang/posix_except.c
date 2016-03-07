@@ -72,7 +72,7 @@ _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
   {
     case _US_VIRTUAL_UNWIND_FRAME:
     {
-      if(!lsda_scan(context, &landing_pad))
+      if(!ponyint_lsda_scan(context, &landing_pad))
         return continue_unwind(exception, context);
 
       // Save r13.
@@ -128,7 +128,7 @@ _Unwind_Reason_Code pony_personality_v0(int version, _Unwind_Action actions,
   // The search phase sets up the landing pad.
   if(actions & _UA_SEARCH_PHASE)
   {
-    if(!lsda_scan(context, &landing_pad))
+    if(!ponyint_lsda_scan(context, &landing_pad))
       return _URC_CONTINUE_UNWIND;
 
     return _URC_HANDLER_FOUND;

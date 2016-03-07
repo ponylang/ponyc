@@ -14,25 +14,25 @@ typedef struct Stack
   struct Stack* prev;
 } Stack;
 
-Stack* stack_pop(Stack* stack, void** data);
+Stack* ponyint_stack_pop(Stack* stack, void** data);
 
-Stack* stack_push(Stack* list, void* data);
+Stack* ponyint_stack_push(Stack* list, void* data);
 
-#define DECLARE_STACK(name, elem) \
-  typedef struct name##_t name##_t; \
-  name##_t* name##_pop(name##_t* stack, elem** data); \
-  name##_t* name##_push(name##_t* stack, elem* data); \
+#define DECLARE_STACK(name, name_t, elem) \
+  typedef struct name_t name_t; \
+  name_t* name##_pop(name_t* stack, elem** data); \
+  name_t* name##_push(name_t* stack, elem* data); \
 
-#define DEFINE_STACK(name, elem) \
-  struct name##_t {}; \
+#define DEFINE_STACK(name, name_t, elem) \
+  struct name_t {}; \
   \
-  name##_t* name##_pop(name##_t* stack, elem** data) \
+  name_t* name##_pop(name_t* stack, elem** data) \
   { \
-    return (name##_t*)stack_pop((Stack*)stack, (void**)data); \
+    return (name_t*)ponyint_stack_pop((Stack*)stack, (void**)data); \
   } \
-  name##_t* name##_push(name##_t* stack, elem* data) \
+  name_t* name##_push(name_t* stack, elem* data) \
   { \
-    return (name##_t*)stack_push((Stack*)stack, data); \
+    return (name_t*)ponyint_stack_push((Stack*)stack, data); \
   } \
 
 PONY_EXTERN_C_END

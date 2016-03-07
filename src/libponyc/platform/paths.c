@@ -104,7 +104,7 @@ void pony_mkdir(const char* path)
   // Copy the given path into a new buffer, one directory at a time, creating
   // each as we go
   size_t path_len = strlen(path);
-  char* buf = (char*)pool_alloc_size(path_len + 1); // + 1 for terminator
+  char* buf = (char*)ponyint_pool_alloc_size(path_len + 1); // +1 for terminator
 
   for(size_t i = 0; i < path_len; i++)
   {
@@ -134,5 +134,5 @@ void pony_mkdir(const char* path)
   mkdir(path, 0777);
 #endif
 
-  pool_free_size(path_len + 1, buf);
+  ponyint_pool_free_size(path_len + 1, buf);
 }

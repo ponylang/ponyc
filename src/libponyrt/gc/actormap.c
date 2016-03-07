@@ -10,7 +10,7 @@
 
 static size_t actorref_hash(actorref_t* aref)
 {
-  return hash_ptr(aref->actor);
+  return ponyint_hash_ptr(aref->actor);
 }
 
 static bool actorref_cmp(actorref_t* a, actorref_t* b)
@@ -29,28 +29,30 @@ static actorref_t* actorref_alloc(pony_actor_t* actor, uint32_t mark)
   return aref;
 }
 
-object_t* actorref_getobject(actorref_t* aref, void* address)
+object_t* ponyint_actorref_getobject(actorref_t* aref, void* address)
 {
-  return objectmap_getobject(&aref->map, address);
+  return ponyint_objectmap_getobject(&aref->map, address);
 }
 
-object_t* actorref_getorput(actorref_t* aref, void* address, uint32_t mark)
+object_t* ponyint_actorref_getorput(actorref_t* aref, void* address,
+  uint32_t mark)
 {
-  return objectmap_getorput(&aref->map, address, mark);
+  return ponyint_objectmap_getorput(&aref->map, address, mark);
 }
 
-void actorref_free(actorref_t* aref)
+void ponyint_actorref_free(actorref_t* aref)
 {
-  objectmap_destroy(&aref->map);
+  ponyint_objectmap_destroy(&aref->map);
   POOL_FREE(actorref_t, aref);
 }
 
-DEFINE_HASHMAP(actormap, actorref_t, actorref_hash, actorref_cmp,
-  pool_alloc_size, pool_free_size, actorref_free);
+DEFINE_HASHMAP(ponyint_actormap, actormap_t, actorref_t, actorref_hash,
+  actorref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
+  ponyint_actorref_free);
 
 static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 {
-  size_t size = objectmap_size(&from->map);
+  size_t size = ponyint_objectmap_size(&from->map);
 
   if(size == 0)
     return NULL;
@@ -59,21 +61,21 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
-  while((obj = objectmap_next(&from->map, &i)) != NULL)
+  while((obj = ponyint_objectmap_next(&from->map, &i)) != NULL)
   {
     if(obj->mark == mark)
       continue;
 
-    objectmap_removeindex(&from->map, i);
+    ponyint_objectmap_removeindex(&from->map, i);
 
     if(to == NULL)
     {
       // Guarantee we don't resize during insertion.
       to = actorref_alloc(from->actor, mark);
-      objectmap_init(&to->map, size);
+      ponyint_objectmap_init(&to->map, size);
     }
 
-    objectmap_put(&to->map, obj);
+    ponyint_objectmap_put(&to->map, obj);
   }
 
   return to;
@@ -84,52 +86,52 @@ static void send_release(pony_ctx_t* ctx, actorref_t* aref)
   if(aref == NULL)
     return;
 
-  if(actor_pendingdestroy(aref->actor) ||
-    ((aref->rc == 0) && (objectmap_size(&aref->map) == 0))
+  if(ponyint_actor_pendingdestroy(aref->actor) ||
+    ((aref->rc == 0) && (ponyint_objectmap_size(&aref->map) == 0))
     )
   {
-    actorref_free(aref);
+    ponyint_actorref_free(aref);
     return;
   }
 
   pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
 }
 
-actorref_t* actormap_getactor(actormap_t* map, pony_actor_t* actor)
+actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor)
 {
   actorref_t key;
   key.actor = actor;
 
-  return actormap_get(map, &key);
+  return ponyint_actormap_get(map, &key);
 }
 
-actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor,
+actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark)
 {
-  actorref_t* aref = actormap_getactor(map, actor);
+  actorref_t* aref = ponyint_actormap_getactor(map, actor);
 
   if(aref != NULL)
     return aref;
 
   aref = actorref_alloc(actor, mark);
-  actormap_put(map, aref);
+  ponyint_actormap_put(map, aref);
   return aref;
 }
 
-deltamap_t* actormap_sweep(pony_ctx_t* ctx, actormap_t* map, uint32_t mark,
-  deltamap_t* delta)
+deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
+  uint32_t mark, deltamap_t* delta)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
 
-  while((aref = actormap_next(map, &i)) != NULL)
+  while((aref = ponyint_actormap_next(map, &i)) != NULL)
   {
     if(aref->mark == mark)
     {
       aref = move_unmarked_objects(aref, mark);
     } else {
-      actormap_removeindex(map, i);
-      delta = deltamap_update(delta, aref->actor, 0);
+      ponyint_actormap_removeindex(map, i);
+      delta = ponyint_deltamap_update(delta, aref->actor, 0);
     }
 
     send_release(ctx, aref);

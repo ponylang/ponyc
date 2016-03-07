@@ -83,7 +83,7 @@ class Array[A] is Seq[A]
     the array.
     """
     if _alloc < len then
-      _alloc = len.max(8).next_pow2()
+      _alloc = len.max(8).ponyint_next_pow2()
       _ptr = _ptr._realloc(_alloc)
     end
     this

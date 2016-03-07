@@ -18,13 +18,13 @@ class Date
     """
     Create a date from a POSIX time.
     """
-    @os_gmtime[None](this, seconds, nanoseconds)
+    @ponyint_gmtime[None](this, seconds, nanoseconds)
 
   fun time(): I64 =>
     """
     Return a POSIX time. Treats the date as UTC.
     """
-    @os_timegm[I64](this)
+    @ponyint_timegm[I64](this)
 
   fun ref normal(): Date^ =>
     """
@@ -33,7 +33,7 @@ class Date
     eg. adding 1000 to hours to advance the time by 1000 hours, and then
     normalising the date.
     """
-    @os_gmtime[None](this, time(), nsec)
+    @ponyint_gmtime[None](this, time(), nsec)
     this
 
   fun format(fmt: String): String =>
@@ -41,5 +41,5 @@ class Date
     Format the time as for strftime.
     """
     recover
-      String.from_cstring(@os_formattime[Pointer[U8]](this, fmt.cstring()))
+      String.from_cstring(@ponyint_formattime[Pointer[U8]](this, fmt.cstring()))
     end

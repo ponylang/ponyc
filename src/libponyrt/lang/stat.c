@@ -49,7 +49,7 @@ typedef struct pony_stat_t
 
 #ifdef PLATFORM_IS_WINDOWS
 
-void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
+static void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
 {
   int64_t epoch = ((int64_t)ft->dwHighDateTime << 32) | ft->dwLowDateTime;
   epoch -= 116444736000000000;
@@ -166,7 +166,7 @@ static void unix_symlink(int r, pony_stat_t* p, struct stat* st)
 
 #endif
 
-bool os_fstatat(int fd, const char* path, pony_stat_t* p)
+bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS) || defined(PLATFORM_IS_MACOSX)
   (void)fd;
@@ -189,7 +189,7 @@ bool os_fstatat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool os_fstat(int fd, const char* path, pony_stat_t* p)
+bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -219,7 +219,7 @@ bool os_fstat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool os_stat(const char* path, pony_stat_t* p)
+bool pony_os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   WIN32_FILE_ATTRIBUTE_DATA fa;

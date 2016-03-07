@@ -38,7 +38,7 @@ class val FileInfo
 
     filepath = from
 
-    if not @os_stat[Bool](filepath.path.cstring(), this) then
+    if not @pony_os_stat[Bool](filepath.path.cstring(), this) then
       error
     end
 
@@ -53,7 +53,7 @@ class val FileInfo
 
     filepath = path
 
-    if not @os_fstat[Bool](fd, path.path.cstring(), this) then
+    if not @pony_os_fstat[Bool](fd, path.path.cstring(), this) then
       error
     end
 
@@ -64,6 +64,6 @@ class val FileInfo
 
     filepath = path
 
-    if not @os_fstatat[Bool](fd, from.cstring(), this) then
+    if not @pony_os_fstatat[Bool](fd, from.cstring(), this) then
       error
     end

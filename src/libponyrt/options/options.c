@@ -170,7 +170,8 @@ static int missing_argument(opt_state_t* s)
     return -2;
 }
 
-void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv)
+void ponyint_opt_init(const opt_arg_t* args, opt_state_t* s, int* argc,
+  char** argv)
 {
   s->argc = argc;
   s->argv = argv;
@@ -184,7 +185,7 @@ void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv)
   s->remove = 0;
 }
 
-int opt_next(opt_state_t* s)
+int ponyint_opt_next(opt_state_t* s)
 {
   s->arg_val = NULL;
   
@@ -204,7 +205,7 @@ int opt_next(opt_state_t* s)
   if(m == NULL)
   {
     s->opt_start += strlen(s->opt_start);
-    return opt_next(s);
+    return ponyint_opt_next(s);
   }
   else if(m == (opt_arg_t*)1)
   {

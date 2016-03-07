@@ -52,7 +52,7 @@ static bool use_numa = false;
   err += (_##sym == NULL); \
 }
 
-void pony_numa_init()
+void ponyint_numa_init()
 {
   void* lib = dlopen("libnuma.so.1", RTLD_LAZY);
   int err = 0;
@@ -86,7 +86,7 @@ void pony_numa_init()
   _numa_set_localalloc();
 }
 
-uint32_t pony_numa_cores()
+uint32_t ponyint_numa_cores()
 {
   if(use_numa)
     return _numa_num_task_cpus();
@@ -94,7 +94,7 @@ uint32_t pony_numa_cores()
   return 0;
 }
 
-void pony_numa_core_list(uint32_t* list)
+void ponyint_numa_core_list(uint32_t* list)
 {
   if(!use_numa)
     return;
@@ -128,7 +128,7 @@ void pony_numa_core_list(uint32_t* list)
   _numa_bitmask_free(cpu);
 }
 
-uint32_t pony_numa_node_of_cpu(uint32_t cpu)
+uint32_t ponyint_numa_node_of_cpu(uint32_t cpu)
 {
   if(use_numa)
     return _numa_node_of_cpu(cpu);

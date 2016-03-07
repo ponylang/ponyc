@@ -47,7 +47,7 @@ static void tm_to_date(struct tm* tm, int nsec, date_t* date)
   date->day_of_year = tm->tm_yday;
 }
 
-int64_t os_timegm(date_t* date)
+int64_t ponyint_timegm(date_t* date)
 {
   struct tm tm;
   date_to_tm(date, &tm);
@@ -59,7 +59,7 @@ int64_t os_timegm(date_t* date)
 #endif
 }
 
-void os_gmtime(date_t* date, int64_t sec, int64_t nsec)
+void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
 {
   time_t overflow_sec = (time_t)(nsec / 1000000000);
   nsec -= (overflow_sec * 1000000000);
@@ -83,7 +83,7 @@ void os_gmtime(date_t* date, int64_t sec, int64_t nsec)
   tm_to_date(&tm, (int)nsec, date);
 }
 
-char* os_formattime(date_t* date, const char* fmt)
+char* ponyint_formattime(date_t* date, const char* fmt)
 {
   pony_ctx_t* ctx = pony_ctx();
   char* buffer;

@@ -59,9 +59,9 @@ static size_t symbol_hash(debug_sym_t* symbol);
 static bool symbol_cmp(debug_sym_t* a, debug_sym_t* b);
 static void symbol_free(debug_sym_t* symbol);
 
-DECLARE_HASHMAP(symbolmap, debug_sym_t);
-DEFINE_HASHMAP(symbolmap, debug_sym_t, symbol_hash, symbol_cmp,
-  pool_alloc_size, pool_free_size, symbol_free);
+DECLARE_HASHMAP(symbolmap, symbolmap_t, debug_sym_t);
+DEFINE_HASHMAP(symbolmap, symbolmap_t, debug_sym_t, symbol_hash, symbol_cmp,
+  ponyint_pool_alloc_size, ponyint_pool_free_size, symbol_free);
 
 struct symbols_t
 {
@@ -78,7 +78,7 @@ struct symbols_t
 
 static size_t symbol_hash(debug_sym_t* symbol)
 {
-  return hash_ptr(symbol->name);
+  return ponyint_hash_ptr(symbol->name);
 }
 
 static bool symbol_cmp(debug_sym_t* a, debug_sym_t* b)

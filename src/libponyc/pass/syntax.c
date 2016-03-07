@@ -687,7 +687,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
 
       // Create an all lower case version of the name for comparisons.
       size_t len = strlen(name) + 1;
-      char* lower_case = (char*)pool_alloc_size(len);
+      char* lower_case = (char*)ponyint_pool_alloc_size(len);
 
       for(size_t i = 0; i < len; i++)
         lower_case[i] = (char)tolower(name[i]);
@@ -701,7 +701,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
         if(strcmp(lower_case, _illegal_flags[i]) == 0)
           r = false;
 
-      pool_free_size(len, lower_case);
+      ponyint_pool_free_size(len, lower_case);
 
       if(!r)
       {

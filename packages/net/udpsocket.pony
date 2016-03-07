@@ -18,10 +18,10 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp[AsioEventID](this, host.cstring(),
+    _event = @pony_os_listen_udp[AsioEventID](this, host.cstring(),
       service.cstring())
-    _fd = @asio_event_fd(_event)
-    @os_sockname[Bool](_fd, _ip)
+    _fd = @pony_asio_event_fd(_event)
+    @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -33,10 +33,10 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp4[AsioEventID](this, host.cstring(),
+    _event = @pony_os_listen_udp4[AsioEventID](this, host.cstring(),
       service.cstring())
-    _fd = @asio_event_fd(_event)
-    @os_sockname[Bool](_fd, _ip)
+    _fd = @pony_asio_event_fd(_event)
+    @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -48,10 +48,10 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp6[AsioEventID](this, host.cstring(),
+    _event = @pony_os_listen_udp6[AsioEventID](this, host.cstring(),
       service.cstring())
-    _fd = @asio_event_fd(_event)
-    @os_sockname[Bool](_fd, _ip)
+    _fd = @pony_asio_event_fd(_event)
+    @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
     _notify_listening()
     _start_next_read()
@@ -81,9 +81,9 @@ actor UDPSocket
     Enable or disable broadcasting from this socket.
     """
     if _ip.ip4() then
-      @os_broadcast[None](_fd, state)
+      @pony_os_broadcast[None](_fd, state)
     elseif _ip.ip6() then
-      @os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
+      @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
     end
 
   be set_multicast_interface(from: String = "") =>
@@ -92,7 +92,7 @@ actor UDPSocket
     for multicast addresses. This can be used to force a specific interface. To
     revert to allowing the OS to choose, call with an empty string.
     """
-    @os_multicast_interface[None](_fd, from.cstring())
+    @pony_os_multicast_interface[None](_fd, from.cstring())
 
   be set_multicast_loopback(loopback: Bool) =>
     """
@@ -100,20 +100,20 @@ actor UDPSocket
     sending system if it has subscribed to that address. Disabling loopback
     prevents this.
     """
-    @os_multicast_loopback[None](_fd, loopback)
+    @pony_os_multicast_loopback[None](_fd, loopback)
 
   be set_multicast_ttl(ttl: U8) =>
     """
     Set the TTL for multicast sends. Defaults to 1.
     """
-    @os_multicast_ttl[None](_fd, ttl)
+    @pony_os_multicast_ttl[None](_fd, ttl)
 
   be multicast_join(group: String, to: String = "") =>
     """
     Add a multicast group. This can be limited to packets arriving on a
     specific interface.
     """
-    @os_multicast_join[None](_fd, group.cstring(), to.cstring())
+    @pony_os_multicast_join[None](_fd, group.cstring(), to.cstring())
 
   be multicast_leave(group: String, to: String = "") =>
     """
@@ -121,7 +121,7 @@ actor UDPSocket
     specific interface. No attempt is made to check that this socket has
     previously added this group.
     """
-    @os_multicast_leave[None](_fd, group.cstring(), to.cstring())
+    @pony_os_multicast_leave[None](_fd, group.cstring(), to.cstring())
 
   be dispose() =>
     """
@@ -159,7 +159,7 @@ actor UDPSocket
     end
 
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](_event)
+      @pony_asio_event_destroy[None](_event)
       _event = AsioEvent.none()
     end
 
@@ -185,7 +185,7 @@ actor UDPSocket
           var len = _packet_size
           var data = recover Array[U8].undefined(len) end
           var from = recover IPAddress end
-          len = @os_recvfrom[USize](_event, data.cstring(), data.space(),
+          len = @pony_os_recvfrom[USize](_event, data.cstring(), data.space(),
             from) ?
 
           if len == 0 then
@@ -246,7 +246,7 @@ actor UDPSocket
     """
     ifdef windows then
       try
-        @os_recvfrom[USize](_event, _read_buf.cstring(), _read_buf.space(),
+        @pony_os_recvfrom[USize](_event, _read_buf.cstring(), _read_buf.space(),
           _read_from) ?
       else
         _readable = false
@@ -260,7 +260,7 @@ actor UDPSocket
     """
     if not _closed then
       try
-        @os_sendto[USize](_fd, data.cstring(), data.size(), to) ?
+        @pony_os_sendto[USize](_fd, data.cstring(), data.size(), to) ?
       else
         _close()
       end
@@ -284,12 +284,12 @@ actor UDPSocket
       // On windows, wait until IOCP read operation has completed or been
       // cancelled.
       if _closed and not _readable and not _event.is_null() then
-        @asio_event_unsubscribe[None](_event)
+        @pony_asio_event_unsubscribe[None](_event)
       end
     else
       // Unsubscribe immediately.
       if not _event.is_null() then
-        @asio_event_unsubscribe[None](_event)
+        @pony_asio_event_unsubscribe[None](_event)
         _readable = false
       end
     end
@@ -299,6 +299,6 @@ actor UDPSocket
     if _fd != -1 then
       _notify.closed(this)
       // On windows, this will also cancel all outstanding IOCP operations.
-      @os_closesocket[None](_fd)
+      @pony_os_socket_close[None](_fd)
       _fd = -1
     end

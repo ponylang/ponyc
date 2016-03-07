@@ -449,7 +449,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
     extra++;
 
   size_t buf_size = (g->field_count + extra) * sizeof(LLVMTypeRef);
-  LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
   if(extra > 0)
@@ -478,7 +478,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
 
     if(!ok)
     {
-      pool_free_size(buf_size, elements);
+      ponyint_pool_free_size(buf_size, elements);
       return false;
     }
   }
@@ -497,7 +497,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying == TK_TUPLETYPE)
     make_box_type(c, g);
 
-  pool_free_size(buf_size, elements);
+  ponyint_pool_free_size(buf_size, elements);
   return true;
 }
 

@@ -10,8 +10,10 @@
 #include <string.h>
 #include <assert.h>
 
-DECLARE_STACK(reachable_method_stack, reachable_method_t);
-DEFINE_STACK(reachable_method_stack, reachable_method_t);
+DECLARE_STACK(reachable_method_stack, reachable_method_stack_t,
+  reachable_method_t);
+DEFINE_STACK(reachable_method_stack, reachable_method_stack_t,
+  reachable_method_t);
 
 static reachable_type_t* add_type(reachable_method_stack_t** s,
   reachable_types_t* r, uint32_t* next_type_id, ast_t* type);
@@ -25,7 +27,7 @@ static void reachable_expr(reachable_method_stack_t** s,
 
 static size_t reachable_method_hash(reachable_method_t* m)
 {
-  return hash_ptr(m->name);
+  return ponyint_hash_ptr(m->name);
 }
 
 static bool reachable_method_cmp(reachable_method_t* a, reachable_method_t* b)
@@ -40,13 +42,13 @@ static void reachable_method_free(reachable_method_t* m)
   POOL_FREE(reachable_method_t, m);
 }
 
-DEFINE_HASHMAP(reachable_methods, reachable_method_t, reachable_method_hash,
-  reachable_method_cmp, pool_alloc_size, pool_free_size, reachable_method_free
-  );
+DEFINE_HASHMAP(reachable_methods, reachable_methods_t, reachable_method_t,
+  reachable_method_hash, reachable_method_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, reachable_method_free);
 
 static size_t reachable_method_name_hash(reachable_method_name_t* m)
 {
-  return hash_ptr(m->name);
+  return ponyint_hash_ptr(m->name);
 }
 
 static bool reachable_method_name_cmp(reachable_method_name_t* a,
@@ -61,13 +63,14 @@ static void reachable_method_name_free(reachable_method_name_t* m)
   POOL_FREE(reachable_method_name_t, m);
 }
 
-DEFINE_HASHMAP(reachable_method_names, reachable_method_name_t,
-  reachable_method_name_hash, reachable_method_name_cmp, pool_alloc_size,
-  pool_free_size, reachable_method_name_free);
+DEFINE_HASHMAP(reachable_method_names, reachable_method_names_t,
+  reachable_method_name_t, reachable_method_name_hash,
+  reachable_method_name_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
+  reachable_method_name_free);
 
 static size_t reachable_type_hash(reachable_type_t* t)
 {
-  return hash_ptr(t->name);
+  return ponyint_hash_ptr(t->name);
 }
 
 static bool reachable_type_cmp(reachable_type_t* a, reachable_type_t* b)
@@ -83,11 +86,13 @@ static void reachable_type_free(reachable_type_t* t)
   POOL_FREE(reachable_type_t, t);
 }
 
-DEFINE_HASHMAP(reachable_types, reachable_type_t, reachable_type_hash,
-  reachable_type_cmp, pool_alloc_size, pool_free_size, reachable_type_free);
+DEFINE_HASHMAP(reachable_types, reachable_types_t, reachable_type_t,
+  reachable_type_hash, reachable_type_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, reachable_type_free);
 
-DEFINE_HASHMAP(reachable_type_cache, reachable_type_t, reachable_type_hash,
-  reachable_type_cmp, pool_alloc_size, pool_free_size, NULL);
+DEFINE_HASHMAP(reachable_type_cache, reachable_type_cache_t, reachable_type_t,
+  reachable_type_hash, reachable_type_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, NULL);
 
 static void add_rmethod(reachable_method_stack_t** s,
   reachable_type_t* t, reachable_method_name_t* n, ast_t* typeargs)

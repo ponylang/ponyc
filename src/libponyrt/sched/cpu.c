@@ -57,10 +57,10 @@ static bool cpu_physical(uint32_t cpu)
 }
 #endif
 
-uint32_t cpu_count()
+uint32_t ponyint_cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
-  uint32_t count = pony_numa_cores();
+  uint32_t count = ponyint_numa_cores();
 
   if(count > 0)
     return count;
@@ -124,24 +124,24 @@ uint32_t cpu_count()
 #endif
 }
 
-void cpu_assign(uint32_t count, scheduler_t* scheduler)
+void ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
-  uint32_t cpu_count = pony_numa_cores();
+  uint32_t cpu_count = ponyint_numa_cores();
 
   if(cpu_count > 0)
   {
-    uint32_t* list = pool_alloc_size(cpu_count * sizeof(uint32_t));
-    pony_numa_core_list(list);
+    uint32_t* list = ponyint_pool_alloc_size(cpu_count * sizeof(uint32_t));
+    ponyint_numa_core_list(list);
 
     for(uint32_t i = 0; i < count; i++)
     {
       uint32_t cpu = list[i % cpu_count];
       scheduler[i].cpu = cpu;
-      scheduler[i].node = pony_numa_node_of_cpu(cpu);
+      scheduler[i].node = ponyint_numa_node_of_cpu(cpu);
     }
 
-    pool_free_size(cpu_count * sizeof(uint32_t), list);
+    ponyint_pool_free_size(cpu_count * sizeof(uint32_t), list);
     return;
   }
 
@@ -172,7 +172,7 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 #endif
 }
 
-void cpu_affinity(uint32_t cpu)
+void ponyint_cpu_affinity(uint32_t cpu)
 {
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   // Affinity is handled when spawning the thread.
@@ -195,7 +195,7 @@ void cpu_affinity(uint32_t cpu)
 /**
  * Only nanosleep if sufficient cycles have elapsed.
  */
-void cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
+void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 {
   // 10m cycles is about 3ms
   if((tsc2 - tsc) < 10000000)
@@ -226,7 +226,7 @@ void cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 #endif
 }
 
-uint64_t cpu_tick()
+uint64_t ponyint_cpu_tick()
 {
 #if defined PLATFORM_IS_ARM
 # if defined(__APPLE__)

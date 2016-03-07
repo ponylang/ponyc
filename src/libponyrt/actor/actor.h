@@ -30,29 +30,25 @@ typedef struct pony_actor_t
   gc_t gc; // 44/80 bytes
 } pony_actor_t;
 
-bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
+bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
 
-void actor_destroy(pony_actor_t* actor);
+void ponyint_actor_destroy(pony_actor_t* actor);
 
-gc_t* actor_gc(pony_actor_t* actor);
+gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
-heap_t* actor_heap(pony_actor_t* actor);
+heap_t* ponyint_actor_heap(pony_actor_t* actor);
 
-bool actor_pendingdestroy(pony_actor_t* actor);
+bool ponyint_actor_pendingdestroy(pony_actor_t* actor);
 
-void actor_setpendingdestroy(pony_actor_t* actor);
+void ponyint_actor_setpendingdestroy(pony_actor_t* actor);
 
-void actor_final(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_actor_final(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void actor_setsystem(pony_actor_t* actor);
+void ponyint_actor_setsystem(pony_actor_t* actor);
 
-pony_actor_t* actor_next(pony_actor_t* actor);
-
-void actor_setnext(pony_actor_t* actor, pony_actor_t* next);
-
-void pony_destroy(pony_actor_t* actor);
+void ponyint_destroy(pony_actor_t* actor);
 
 PONY_EXTERN_C_END
 

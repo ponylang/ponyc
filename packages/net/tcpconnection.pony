@@ -1,10 +1,10 @@
 use "collections"
 
-use @asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
-use @asio_event_fd[U32](event: AsioEventID)
-use @asio_event_unsubscribe[None](event: AsioEventID)
-use @asio_event_destroy[None](event: AsioEventID)
+use @pony_asio_event_fd[U32](event: AsioEventID)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 
 actor TCPConnection
   """
@@ -32,7 +32,7 @@ actor TCPConnection
     will be made from the specified interface.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp[U32](this, host.cstring(),
+    _connect_count = @pony_os_connect_tcp[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
@@ -43,7 +43,7 @@ actor TCPConnection
     Connect via IPv4.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp4[U32](this, host.cstring(),
+    _connect_count = @pony_os_connect_tcp4[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
@@ -54,7 +54,7 @@ actor TCPConnection
     Connect via IPv6.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp6[U32](this, host.cstring(),
+    _connect_count = @pony_os_connect_tcp6[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
@@ -66,7 +66,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
+    _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
     _connected = true
 
     _queue_read()
@@ -111,7 +111,7 @@ actor TCPConnection
     Return the local IP address.
     """
     let ip = recover IPAddress end
-    @os_sockname[Bool](_fd, ip)
+    @pony_os_sockname[Bool](_fd, ip)
     ip
 
   fun remote_address(): IPAddress =>
@@ -119,7 +119,7 @@ actor TCPConnection
     Return the remote IP address.
     """
     let ip = recover IPAddress end
-    @os_peername[Bool](_fd, ip)
+    @pony_os_peername[Bool](_fd, ip)
     ip
 
   fun ref set_nodelay(state: Bool) =>
@@ -128,7 +128,7 @@ actor TCPConnection
     socket.
     """
     if _connected then
-      @os_nodelay[None](_fd, state)
+      @pony_os_nodelay[None](_fd, state)
     end
 
   fun ref set_keepalive(secs: U32) =>
@@ -138,7 +138,7 @@ actor TCPConnection
     is disabled by default. This can only be set on a connected socket.
     """
     if _connected then
-      @os_keepalive[None](_fd, secs)
+      @pony_os_keepalive[None](_fd, secs)
     end
 
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
@@ -148,12 +148,12 @@ actor TCPConnection
     if event isnt _event then
       if AsioEvent.writeable(flags) then
         // A connection has completed.
-        var fd = @asio_event_fd(event)
+        var fd = @pony_asio_event_fd(event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
           // We don't have a connection yet.
-          if @os_connected[Bool](fd) then
+          if @pony_os_connected[Bool](fd) then
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
@@ -168,20 +168,20 @@ actor TCPConnection
             _pending_writes()
           else
             // The connection failed, unsubscribe the event and close.
-            @asio_event_unsubscribe(event)
-            @os_closesocket[None](fd)
+            @pony_asio_event_unsubscribe(event)
+            @pony_os_socket_close[None](fd)
             _notify_connecting()
           end
         else
           // We're already connected, unsubscribe the event and close.
-          @asio_event_unsubscribe(event)
-          @os_closesocket[None](fd)
+          @pony_asio_event_unsubscribe(event)
+          @pony_os_socket_close[None](fd)
         end
       else
         // It's not our event.
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
-          @asio_event_destroy(event)
+          @pony_asio_event_destroy(event)
         end
       end
     else
@@ -199,7 +199,7 @@ actor TCPConnection
       end
 
       if AsioEvent.disposable(flags) then
-        @asio_event_destroy(event)
+        @pony_asio_event_destroy(event)
         _event = AsioEvent.none()
       end
 
@@ -222,14 +222,15 @@ actor TCPConnection
       ifdef windows then
         try
           // Add an IOCP write.
-          @os_send[USize](_event, data.cstring(), data.size()) ?
+          @pony_os_send[USize](_event, data.cstring(), data.size()) ?
           _pending.push((data, 0))
         end
       else
         if _writeable then
           try
             // Send as much data as possible.
-            var len = @os_send[USize](_event, data.cstring(), data.size()) ?
+            var len =
+              @pony_os_send[USize](_event, data.cstring(), data.size()) ?
 
             if len < data.size() then
               // Send any remaining data later.
@@ -291,8 +292,8 @@ actor TCPConnection
           (let data, let offset) = node()
 
           // Write as much data as possible.
-          let len = @os_send[USize](_event, data.cstring().usize() + offset,
-            data.size() - offset) ?
+          let len = @pony_os_send[USize](_event,
+            data.cstring().usize() + offset, data.size() - offset) ?
 
           if (len + offset) < data.size() then
             // Send remaining data later.
@@ -342,7 +343,7 @@ actor TCPConnection
     """
     ifdef windows then
       try
-        @os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
+        @pony_os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
       else
         _hard_close()
       end
@@ -360,8 +361,8 @@ actor TCPConnection
 
         while _readable and not _shutdown_peer do
           // Read as much data as possible.
-          let len =
-            @os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
+          let len = @pony_os_recv[USize](_event, _read_buf.cstring(),
+            _read_buf.space()) ?
 
           var next = _read_buf.space()
 
@@ -430,7 +431,7 @@ actor TCPConnection
       _shutdown = true
 
       if _connected then
-        @os_shutdown[None](_fd)
+        @pony_os_socket_shutdown[None](_fd)
       else
         _shutdown_peer = true
       end
@@ -444,7 +445,7 @@ actor TCPConnection
       // On windows, wait until all outstanding IOCP operations have completed
       // or been cancelled.
       if not _connected and not _readable and (_pending.size() == 0) then
-        @asio_event_unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
       end
     end
 
@@ -463,14 +464,14 @@ actor TCPConnection
 
     ifdef not windows then
       // Unsubscribe immediately and drop all pending writes.
-      @asio_event_unsubscribe(_event)
+      @pony_asio_event_unsubscribe(_event)
       _pending.clear()
       _readable = false
       _writeable = false
     end
 
     // On windows, this will also cancel all outstanding IOCP operations.
-    @os_closesocket[None](_fd)
+    @pony_os_socket_close[None](_fd)
     _fd = -1
 
     _notify.closed(this)

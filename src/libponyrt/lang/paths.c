@@ -5,7 +5,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-char* os_realpath(const char* path)
+char* pony_os_realpath(const char* path)
 {
 #ifdef PLATFORM_IS_WINDOWS
   char resolved[FILENAME_MAX];

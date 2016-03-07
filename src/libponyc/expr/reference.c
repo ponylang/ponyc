@@ -380,7 +380,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   else
   {
     // Try with a leading underscore
-    char* buf = (char*)pool_alloc_size(name_len + 2);
+    char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
     buf[0] = '_';
     strncpy(buf + 1, name, name_len + 1);
     const char* try_name = stringtab_consume(buf, name_len + 2);

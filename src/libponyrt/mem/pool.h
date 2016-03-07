@@ -12,17 +12,17 @@ PONY_EXTERN_C_BEGIN
 #define POOL_ALIGN_BITS 10
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
 
-__pony_spec_malloc__(void* pool_alloc(size_t index));
-void pool_free(size_t index, void* p);
+__pony_spec_malloc__(void* ponyint_pool_alloc(size_t index));
+void ponyint_pool_free(size_t index, void* p);
 
-__pony_spec_malloc__(void* pool_alloc_size(size_t size));
-void pool_free_size(size_t size, void* p);
+__pony_spec_malloc__(void* ponyint_pool_alloc_size(size_t size));
+void ponyint_pool_free_size(size_t size, void* p);
 
-size_t pool_index(size_t size);
+size_t ponyint_pool_index(size_t size);
 
-size_t pool_size(size_t index);
+size_t ponyint_pool_size(size_t index);
 
-size_t pool_adjust_size(size_t size);
+size_t ponyint_pool_adjust_size(size_t size);
 
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
@@ -45,10 +45,10 @@ size_t pool_adjust_size(size_t size);
     ))))))))))))))))
 
 #define POOL_ALLOC(TYPE) \
-  (TYPE*) pool_alloc(POOL_INDEX(sizeof(TYPE)))
+  (TYPE*) ponyint_pool_alloc(POOL_INDEX(sizeof(TYPE)))
 
 #define POOL_FREE(TYPE, VALUE) \
-  pool_free(POOL_INDEX(sizeof(TYPE)), VALUE)
+  ponyint_pool_free(POOL_INDEX(sizeof(TYPE)), VALUE)
 
 PONY_EXTERN_C_END
 

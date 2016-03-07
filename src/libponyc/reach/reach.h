@@ -11,10 +11,13 @@ typedef struct reachable_method_t reachable_method_t;
 typedef struct reachable_method_name_t reachable_method_name_t;
 typedef struct reachable_type_t reachable_type_t;
 
-DECLARE_HASHMAP(reachable_methods, reachable_method_t);
-DECLARE_HASHMAP(reachable_method_names, reachable_method_name_t);
-DECLARE_HASHMAP(reachable_types, reachable_type_t);
-DECLARE_HASHMAP(reachable_type_cache, reachable_type_t);
+DECLARE_HASHMAP(reachable_methods, reachable_methods_t,
+  reachable_method_t);
+DECLARE_HASHMAP(reachable_method_names, reachable_method_names_t,
+  reachable_method_name_t);
+DECLARE_HASHMAP(reachable_types, reachable_types_t, reachable_type_t);
+DECLARE_HASHMAP(reachable_type_cache, reachable_type_cache_t,
+  reachable_type_t);
 
 struct reachable_method_t
 {

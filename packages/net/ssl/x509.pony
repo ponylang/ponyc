@@ -103,7 +103,7 @@ primitive X509
             // Build a String from the ASN1 data.
             let data = @ASN1_STRING_data[Pointer[U8]](value)
             let len = @ASN1_STRING_length[I32](value)
-            String.from_cstring(@os_ip_string[Pointer[U8]](data, len))
+            String.from_cstring(@pony_os_ip_string[Pointer[U8]](data, len))
           end)
       end
 

@@ -47,13 +47,13 @@ typedef struct asio_base_t asio_base_t;
 /** Initializes an ASIO backend.
  *
  */
-asio_backend_t* asio_backend_init();
+asio_backend_t* ponyint_asio_backend_init();
 
 /// Call this when the scheduler is initialised.
-void asio_init();
+void ponyint_asio_init();
 
 /// Call this when the scheduler runs its threads.
-bool asio_start();
+bool ponyint_asio_start();
 
 /** Returns the underlying mechanism for I/O event notification of the running
  * ASIO base.
@@ -65,7 +65,7 @@ bool asio_start();
  *
  * If there is no current running backend, one will be started.
  */
-asio_backend_t* asio_get_backend();
+asio_backend_t* ponyint_asio_get_backend();
 
 /** Attempts to stop an asynchronous event mechanism.
  *
@@ -75,15 +75,15 @@ asio_backend_t* asio_get_backend();
  * Subscribers need to release their interest in an I/O resource before we can
  * shut down.
  */
-bool asio_stop();
+bool ponyint_asio_stop();
 
 /** Add a noisy event subscription.
  */
-void asio_noisy_add();
+void ponyint_asio_noisy_add();
 
 /** Remove a noisy event subscription.
  */
-void asio_noisy_remove();
+void ponyint_asio_noisy_remove();
 
 /** Destroys an ASIO backend.
  *
@@ -92,7 +92,7 @@ void asio_noisy_remove();
  * Destroying a backend causes the dispatch loop to be exited, such that the
  * ASIO thread can terminate.
  */
-void asio_backend_terminate(asio_backend_t* backend);
+void ponyint_asio_backend_final(asio_backend_t* backend);
 
 /** Entry point for the ASIO thread.
  *
@@ -102,14 +102,14 @@ void asio_backend_terminate(asio_backend_t* backend);
  * The return code of the ASIO thread is not of interest. Therefore, the ASIO
  * thread is detached an does not need to be joined.
  */
-DECLARE_THREAD_FN(asio_backend_dispatch);
+DECLARE_THREAD_FN(ponyint_asio_backend_dispatch);
 
 
 #ifdef ASIO_USE_IOCP
 
 // Resume waiting on stdin after a read.
 // Should only be called from stdfd.c.
-void iocp_resume_stdin();
+void ponyint_iocp_resume_stdin();
 
 #endif
 
