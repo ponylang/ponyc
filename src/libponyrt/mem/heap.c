@@ -65,7 +65,7 @@ static void large_pagemap(char* m, size_t size, chunk_t* chunk)
 
   while(m < end)
   {
-    pagemap_set(m, chunk);
+    ponyint_pagemap_set(m, chunk);
     m += POOL_ALIGN;
   }
 }
@@ -79,7 +79,7 @@ static void clear_chunk(chunk_t* chunk, uint32_t mark)
 static void destroy_small(chunk_t* chunk, uint32_t mark)
 {
   (void)mark;
-  pagemap_set(chunk->m, NULL);
+  ponyint_pagemap_set(chunk->m, NULL);
   POOL_FREE(block_t, chunk->m);
   POOL_FREE(chunk_t, chunk);
 }
@@ -90,7 +90,7 @@ static void destroy_large(chunk_t* chunk, uint32_t mark)
   large_pagemap(chunk->m, chunk->size, NULL);
 
   if(chunk->m != NULL)
-    pool_free_size(chunk->size, chunk->m);
+    ponyint_pool_free_size(chunk->size, chunk->m);
 
   POOL_FREE(chunk_t, chunk);
 }
@@ -163,19 +163,19 @@ static void chunk_list(chunk_fn f, chunk_t* current, uint32_t mark)
   }
 }
 
-uint32_t heap_index(size_t size)
+uint32_t ponyint_heap_index(size_t size)
 {
   // size is in range 1..HEAP_MAX
   // change to 0..((HEAP_MAX / HEAP_MIN) - 1) and look up in table
   return sizeclass_table[(size - 1) >> HEAP_MINBITS];
 }
 
-void heap_setinitialgc(size_t size)
+void ponyint_heap_setinitialgc(size_t size)
 {
   heap_initialgc = (size_t)1 << size;
 }
 
-void heap_setnextgcfactor(double factor)
+void ponyint_heap_setnextgcfactor(double factor)
 {
   if(factor < 1.0)
     factor = 1.0;
@@ -183,13 +183,13 @@ void heap_setnextgcfactor(double factor)
   heap_nextgc_factor = factor;
 }
 
-void heap_init(heap_t* heap)
+void ponyint_heap_init(heap_t* heap)
 {
   memset(heap, 0, sizeof(heap_t));
   heap->next_gc = heap_initialgc;
 }
 
-void heap_destroy(heap_t* heap)
+void ponyint_heap_destroy(heap_t* heap)
 {
   chunk_list(destroy_large, heap->large, 0);
 
@@ -200,19 +200,19 @@ void heap_destroy(heap_t* heap)
   }
 }
 
-void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
 {
   if(size == 0)
   {
     return NULL;
   } else if(size <= HEAP_MAX) {
-    return heap_alloc_small(actor, heap, heap_index(size));
+    return ponyint_heap_alloc_small(actor, heap, ponyint_heap_index(size));
   } else {
-    return heap_alloc_large(actor, heap, size);
+    return ponyint_heap_alloc_large(actor, heap, size);
   }
 }
 
-void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
+void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   uint32_t sizeclass)
 {
   chunk_t* chunk = heap->small_free[sizeclass];
@@ -245,7 +245,7 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->shallow = n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
 
-    pagemap_set(n->m, n);
+    ponyint_pagemap_set(n->m, n);
 
     heap->small_free[sizeclass] = n;
     chunk = n;
@@ -258,14 +258,14 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   return m;
 }
 
-void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
 {
-  size = pool_adjust_size(size);
+  size = ponyint_pool_adjust_size(size);
 
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
   chunk->actor = actor;
   chunk->size = size;
-  chunk->m = (char*) pool_alloc_size(size);
+  chunk->m = (char*) ponyint_pool_alloc_size(size);
   chunk->slots = 0;
   chunk->shallow = 0;
 
@@ -278,27 +278,28 @@ void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   return chunk->m;
 }
 
-void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
+void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
+  size_t size)
 {
   if(p == NULL)
-    return heap_alloc(actor, heap, size);
+    return ponyint_heap_alloc(actor, heap, size);
 
-  chunk_t* chunk = (chunk_t*)pagemap_get(p);
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   if(chunk == NULL)
   {
     // Get new memory and copy from the old memory.
-    void* q = heap_alloc(actor, heap, size);
+    void* q = ponyint_heap_alloc(actor, heap, size);
     memcpy(q, p, size);
     return q;
   }
 
   if(chunk->size < HEAP_SIZECLASSES)
   {
-    // Previous allocation was a heap_alloc_small.
+    // Previous allocation was a ponyint_heap_alloc_small.
     if(size <= HEAP_MAX)
     {
-      uint32_t sizeclass = heap_index(size);
+      uint32_t sizeclass = ponyint_heap_index(size);
 
       // If the new allocation is the same size or smaller, return the old one.
       if(sizeclass <= chunk->size)
@@ -306,27 +307,27 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
     }
 
     // Get new memory and copy from the old memory.
-    void* q = heap_alloc(actor, heap, size);
+    void* q = ponyint_heap_alloc(actor, heap, size);
     memcpy(q, p, SIZECLASS_SIZE(chunk->size));
     return q;
   }
 
-  // Previous allocation was a heap_alloc_large.
+  // Previous allocation was a ponyint_heap_alloc_large.
   if(size <= chunk->size)
     return p;
 
   // Get new memory and copy from the old memory.
-  void* q = heap_alloc(actor, heap, size);
+  void* q = ponyint_heap_alloc(actor, heap, size);
   memcpy(q, p, chunk->size);
   return q;
 }
 
-void heap_used(heap_t* heap, size_t size)
+void ponyint_heap_used(heap_t* heap, size_t size)
 {
   heap->used += size;
 }
 
-bool heap_startgc(heap_t* heap)
+bool ponyint_heap_startgc(heap_t* heap)
 {
   if(heap->used <= heap->next_gc)
     return false;
@@ -345,7 +346,7 @@ bool heap_startgc(heap_t* heap)
   return true;
 }
 
-bool heap_mark(chunk_t* chunk, void* p)
+bool ponyint_heap_mark(chunk_t* chunk, void* p)
 {
   // If it's an internal pointer, we shallow mark it instead. This will
   // preserve the external pointer, but allow us to mark and recurse the
@@ -380,7 +381,7 @@ bool heap_mark(chunk_t* chunk, void* p)
   return marked;
 }
 
-void heap_mark_shallow(chunk_t* chunk, void* p)
+void ponyint_heap_mark_shallow(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
   {
@@ -397,7 +398,7 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
   }
 }
 
-bool heap_ismarked(chunk_t* chunk, void* p)
+bool ponyint_heap_ismarked(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
     return (chunk->slots & chunk->shallow) == 0;
@@ -409,13 +410,13 @@ bool heap_ismarked(chunk_t* chunk, void* p)
   return (chunk->slots & chunk->shallow & slot) == 0;
 }
 
-void heap_free(chunk_t* chunk, void* p)
+void ponyint_heap_free(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
   {
     if(p == chunk->m)
     {
-      pool_free_size(chunk->size, chunk->m);
+      ponyint_pool_free_size(chunk->size, chunk->m);
       chunk->m = NULL;
       chunk->slots = 1;
     }
@@ -434,7 +435,7 @@ void heap_free(chunk_t* chunk, void* p)
   }
 }
 
-void heap_endgc(heap_t* heap)
+void ponyint_heap_endgc(heap_t* heap)
 {
   size_t used = 0;
 
@@ -468,7 +469,7 @@ void heap_endgc(heap_t* heap)
     heap->next_gc = heap_initialgc;
 }
 
-pony_actor_t* heap_owner(chunk_t* chunk)
+pony_actor_t* ponyint_heap_owner(chunk_t* chunk)
 {
   // FIX: false sharing
   // reading from something that will never be written
@@ -480,7 +481,7 @@ pony_actor_t* heap_owner(chunk_t* chunk)
   return chunk->actor;
 }
 
-size_t heap_size(chunk_t* chunk)
+size_t ponyint_heap_size(chunk_t* chunk)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
     return chunk->size;

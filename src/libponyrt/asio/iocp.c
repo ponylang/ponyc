@@ -39,13 +39,13 @@ enum // Event requests
 
 static void send_request(asio_event_t* ev, int req)
 {
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
 
   SetEvent(b->wakeup);
 }
@@ -58,24 +58,24 @@ static void signal_handler(int sig)
 
   // Reset the signal handler.
   signal(sig, signal_handler);
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
   asio_event_t* ev = b->sighandlers[sig];
-  asio_event_send(ev, ASIO_SIGNAL, 1);
+  pony_asio_event_send(ev, ASIO_SIGNAL, 1);
 }
 
 
-void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
+static void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 {
   // A timer has fired, notify the actor
-  asio_event_send((asio_event_t*)arg, ASIO_TIMER, 0);
+  pony_asio_event_send((asio_event_t*)arg, ASIO_TIMER, 0);
 }
 
 
-asio_backend_t* asio_backend_init()
+asio_backend_t* ponyint_asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
   memset(b, 0, sizeof(asio_backend_t));
-  messageq_init(&b->q);
+  ponyint_messageq_init(&b->q);
 
   b->wakeup = CreateEvent(NULL, FALSE, FALSE, NULL);
   b->stop = false;
@@ -90,14 +90,14 @@ asio_backend_t* asio_backend_init()
 }
 
 
-void asio_backend_terminate(asio_backend_t* b)
+void ponyint_asio_backend_final(asio_backend_t* b)
 {
   b->stop = true;
   SetEvent(b->wakeup);
 }
 
 
-DECLARE_THREAD_FN(asio_backend_dispatch)
+DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   pony_register_thread();
   asio_backend_t* b = (asio_backend_t*)arg;
@@ -122,7 +122,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         // time we reach here.
         asio_msg_t* msg;
 
-        while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
+        while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
         {
           asio_event_t* ev = msg->event;
 
@@ -167,7 +167,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
               // Now that we've called cancel no more fire APCs can happen for
               // this timer, so we're safe to send the dispose notify now.
               ev->flags = ASIO_DISPOSABLE;
-              asio_event_send(ev, ASIO_DISPOSABLE, 0);
+              pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
               break;
             }
 
@@ -195,7 +195,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
               }
 
               ev->flags = ASIO_DISPOSABLE;
-              asio_event_send(ev, ASIO_DISPOSABLE, 0);
+              pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
               break;
             }
 
@@ -216,7 +216,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 
         // Notify the stdin event listener
         stdin_event->flags = ASIO_READ;
-        asio_event_send(stdin_event, ASIO_READ, 0);
+        pony_asio_event_send(stdin_event, ASIO_READ, 0);
         break;
 
       default:
@@ -225,30 +225,30 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
   }
 
   CloseHandle(b->wakeup);
-  messageq_destroy(&b->q);
+  ponyint_messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
 }
 
 
 // Called from stdfd.c to resume waiting on stdin after a read
-void iocp_resume_stdin()
+void ponyint_iocp_resume_stdin()
 {
   send_request(NULL, ASIO_STDIN_RESUME);
 }
 
 
-void asio_event_subscribe(asio_event_t* ev)
+void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
     return;
 
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   if(ev->noisy)
-    asio_noisy_add();
+    ponyint_asio_noisy_add();
 
   if((ev->flags & ASIO_TIMER) != 0)
   {
@@ -268,7 +268,7 @@ void asio_event_subscribe(asio_event_t* ev)
 }
 
 
-void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -286,18 +286,18 @@ void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 }
 
 
-void asio_event_unsubscribe(asio_event_t* ev)
+void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
     return;
 
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   if(ev->noisy)
   {
-    asio_noisy_remove();
+    ponyint_asio_noisy_remove();
     ev->noisy = false;
   }
 
@@ -314,7 +314,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
       send_request(ev, ASIO_CANCEL_SIGNAL);
     } else {
       ev->flags = ASIO_DISPOSABLE;
-      asio_event_send(ev, ASIO_DISPOSABLE, 0);
+      pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
     }
   } else if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0) {
     // Need to unsubscribe from stdin
@@ -322,7 +322,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
       send_request(NULL, ASIO_STDIN_NOTIFY);
 
     ev->flags = ASIO_DISPOSABLE;
-    asio_event_send(ev, ASIO_DISPOSABLE, 0);
+    pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
   }
 }
 

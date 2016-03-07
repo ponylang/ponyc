@@ -15,12 +15,12 @@ PONY_EXTERN_C_BEGIN
 
 const char* cwd;
 
-int os_eexist()
+int pony_os_eexist()
 {
   return EEXIST;
 }
 
-int os_errno()
+int pony_os_errno()
 {
   return errno;
 }
@@ -36,7 +36,7 @@ static bool skip_entry(const char* entry, size_t len)
   return false;
 }
 
-char* os_cwd()
+char* pony_os_cwd()
 {
   if(cwd == NULL)
   {
@@ -59,12 +59,12 @@ char* os_cwd()
 
 #if defined(PLATFORM_IS_WINDOWS)
 
-WIN32_FIND_DATA* windows_find_data()
+WIN32_FIND_DATA* ponyint_windows_find_data()
 {
   return (WIN32_FIND_DATA*)malloc(sizeof(WIN32_FIND_DATA));
 }
 
-const char* windows_readdir(WIN32_FIND_DATA* find)
+const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 {
   size_t len = strlen(find->cFileName) + 1;
 
@@ -81,44 +81,44 @@ const char* windows_readdir(WIN32_FIND_DATA* find)
 
 #if defined(PLATFORM_IS_POSIX_BASED)
 
-int o_rdonly()
+int ponyint_o_rdonly()
 {
   return O_RDONLY;
 }
 
-int o_rdwr()
+int ponyint_o_rdwr()
 {
   return O_RDWR;
 }
 
-int o_creat()
+int ponyint_o_creat()
 {
   return O_CREAT;
 }
 
-int o_trunc()
+int ponyint_o_trunc()
 {
   return O_TRUNC;
 }
 
-int o_directory()
+int ponyint_o_directory()
 {
   return O_DIRECTORY;
 }
 
-int o_cloexec()
+int ponyint_o_cloexec()
 {
   return O_CLOEXEC;
 }
 
 #if !defined(PLATFORM_IS_MACOSX)
-int at_removedir()
+int ponyint_at_removedir()
 {
   return AT_REMOVEDIR;
 }
 #endif
 
-const char* unix_readdir(DIR* dir)
+const char* ponyint_unix_readdir(DIR* dir)
 {
   struct dirent de;
   struct dirent* d;

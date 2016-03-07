@@ -65,14 +65,14 @@ static void resize(hashmap_t* map, hash_fn hash, cmp_fn cmp, alloc_fn alloc,
     curr = b[i];
 
     if(valid(curr))
-      hashmap_put(map, curr, hash, cmp, alloc, fr);
+      ponyint_hashmap_put(map, curr, hash, cmp, alloc, fr);
   }
 
   if((fr != NULL) && (b != NULL))
     fr(s * sizeof(void*), b);
 }
 
-void hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc)
+void ponyint_hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc)
 {
   if(size > 0)
   {
@@ -82,7 +82,7 @@ void hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc)
     if(size < 8)
       size = 8;
     else
-      size = next_pow2(size);
+      size = ponyint_next_pow2(size);
   }
 
   map->count = 0;
@@ -97,7 +97,7 @@ void hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc)
   }
 }
 
-void hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
+void ponyint_hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
 {
   if(free_elem != NULL)
   {
@@ -120,7 +120,7 @@ void hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
   map->buckets = NULL;
 }
 
-void* hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp)
+void* ponyint_hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp)
 {
   if(map->count == 0)
     return NULL;
@@ -129,11 +129,11 @@ void* hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp)
   return search(map, &pos, key, hash, cmp);
 }
 
-void* hashmap_put(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
+void* ponyint_hashmap_put(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
   alloc_fn alloc, free_size_fn fr)
 {
   if(map->size == 0)
-    hashmap_init(map, 4, alloc);
+    ponyint_hashmap_init(map, 4, alloc);
 
   size_t pos;
   void* elem = search(map, &pos, entry, hash, cmp);
@@ -151,7 +151,8 @@ void* hashmap_put(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
   return elem;
 }
 
-void* hashmap_remove(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp)
+void* ponyint_hashmap_remove(hashmap_t* map, void* entry, hash_fn hash,
+  cmp_fn cmp)
 {
   if(map->count == 0)
     return NULL;
@@ -168,7 +169,7 @@ void* hashmap_remove(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp)
   return elem;
 }
 
-void* hashmap_removeindex(hashmap_t* map, size_t index)
+void* ponyint_hashmap_removeindex(hashmap_t* map, size_t index)
 {
   if(map->size <= index)
     return NULL;
@@ -183,7 +184,7 @@ void* hashmap_removeindex(hashmap_t* map, size_t index)
   return elem;
 }
 
-void* hashmap_next(hashmap_t* map, size_t* i)
+void* ponyint_hashmap_next(hashmap_t* map, size_t* i)
 {
   if(map->count == 0)
     return NULL;
@@ -208,7 +209,7 @@ void* hashmap_next(hashmap_t* map, size_t* i)
   return NULL;
 }
 
-size_t hashmap_size(hashmap_t* map)
+size_t ponyint_hashmap_size(hashmap_t* map)
 {
   return map->count;
 }

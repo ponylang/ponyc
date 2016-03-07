@@ -65,26 +65,26 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
   return v0 ^ v1 ^ v2 ^ v3;
 }
 
-uint64_t hash_block(const void* p, size_t len)
+uint64_t ponyint_hash_block(const void* p, size_t len)
 {
   return siphash24(the_key, (const char*)p, len);
 }
 
-uint64_t hash_str(const char* str)
+uint64_t ponyint_hash_str(const char* str)
 {
   return siphash24(the_key, str, strlen(str));
 }
 
-size_t hash_ptr(const void* p)
+size_t ponyint_hash_ptr(const void* p)
 {
 #ifdef PLATFORM_IS_ILP32
-  return hash_int32((uintptr_t)p);
+  return ponyint_hash_int32((uintptr_t)p);
 #else
-  return hash_int64((uintptr_t)p);
+  return ponyint_hash_int64((uintptr_t)p);
 #endif
 }
 
-uint64_t hash_int64(uint64_t key)
+uint64_t ponyint_hash_int64(uint64_t key)
 {
   key = ~key + (key << 21);
   key = key ^ (key >> 24);
@@ -97,7 +97,7 @@ uint64_t hash_int64(uint64_t key)
   return key;
 }
 
-uint32_t hash_int32(uint32_t key)
+uint32_t ponyint_hash_int32(uint32_t key)
 {
   key = ~key + (key << 15);
   key = key ^ (key >> 12);
@@ -108,16 +108,16 @@ uint32_t hash_int32(uint32_t key)
   return key;
 }
 
-size_t hash_size(size_t key)
+size_t ponyint_hash_size(size_t key)
 {
 #ifdef PLATFORM_IS_ILP32
-  return hash_int32(key);
+  return ponyint_hash_int32(key);
 #else
-  return hash_int64(key);
+  return ponyint_hash_int64(key);
 #endif
 }
 
-size_t next_pow2(size_t i)
+size_t ponyint_next_pow2(size_t i)
 {
   i--;
 

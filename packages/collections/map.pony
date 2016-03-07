@@ -27,7 +27,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     resize. Defaults to 6.
     """
     let len = (prealloc * 4) / 3
-    let n = len.next_pow2().max(8)
+    let n = len.ponyint_next_pow2().max(8)
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -174,7 +174,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Minimise the memory used for the map.
     """
-    _resize(((_size * 4) / 3).next_pow2().max(8))
+    _resize(((_size * 4) / 3).ponyint_next_pow2().max(8))
     this
 
   fun clone[H2: HashFunction[this->K!] val = H]():

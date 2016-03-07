@@ -37,7 +37,7 @@ typedef struct viewref_t
 
 static size_t viewref_hash(viewref_t* vref)
 {
-  return hash_ptr(vref->view);
+  return ponyint_hash_ptr(vref->view);
 }
 
 static bool viewref_cmp(viewref_t* a, viewref_t* b)
@@ -51,19 +51,19 @@ static void viewref_free(viewref_t* vref)
   POOL_FREE(viewref_t, vref);
 }
 
-DECLARE_STACK(viewrefstack, viewref_t);
-DEFINE_STACK(viewrefstack, viewref_t);
+DECLARE_STACK(ponyint_viewrefstack, viewrefstack_t, viewref_t);
+DEFINE_STACK(ponyint_viewrefstack, viewrefstack_t, viewref_t);
 
-DECLARE_HASHMAP(viewrefmap, viewref_t);
-DEFINE_HASHMAP(viewrefmap, viewref_t, viewref_hash, viewref_cmp,
-  pool_alloc_size, pool_free_size, viewref_free);
+DECLARE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t);
+DEFINE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t, viewref_hash,
+  viewref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size, viewref_free);
 
 enum
 {
   COLOR_BLACK,
   COLOR_GREY,
   COLOR_WHITE
-} color_t;
+} ponyint_color_t;
 
 struct view_t
 {
@@ -80,7 +80,7 @@ struct view_t
 
 static size_t view_hash(view_t* view)
 {
-  return hash_ptr(view->actor);
+  return ponyint_hash_ptr(view->actor);
 }
 
 static bool view_cmp(view_t* a, view_t* b)
@@ -94,11 +94,11 @@ static void view_free(view_t* view)
 
   if(view->view_rc == 0)
   {
-    viewrefmap_destroy(&view->map);
+    ponyint_viewrefmap_destroy(&view->map);
 
     if(view->delta != NULL)
     {
-      deltamap_free(view->delta);
+      ponyint_deltamap_free(view->delta);
       view->delta = NULL;
     }
 
@@ -107,9 +107,9 @@ static void view_free(view_t* view)
 }
 
 // no element free for a viewmap. views are kept in many maps.
-DECLARE_HASHMAP(viewmap, view_t);
-DEFINE_HASHMAP(viewmap, view_t, view_hash, view_cmp, pool_alloc_size,
-  pool_free_size, NULL);
+DECLARE_HASHMAP(ponyint_viewmap, viewmap_t, view_t);
+DEFINE_HASHMAP(ponyint_viewmap, viewmap_t, view_t, view_hash, view_cmp,
+  ponyint_pool_alloc_size, ponyint_pool_free_size, NULL);
 
 struct perceived_t
 {
@@ -121,7 +121,7 @@ struct perceived_t
 
 static size_t perceived_hash(perceived_t* per)
 {
-  return hash_size(per->token);
+  return ponyint_hash_size(per->token);
 }
 
 static bool perceived_cmp(perceived_t* a, perceived_t* b)
@@ -131,13 +131,14 @@ static bool perceived_cmp(perceived_t* a, perceived_t* b)
 
 static void perceived_free(perceived_t* per)
 {
-  viewmap_destroy(&per->map);
+  ponyint_viewmap_destroy(&per->map);
   POOL_FREE(perceived_t, per);
 }
 
-DECLARE_HASHMAP(perceivedmap, perceived_t);
-DEFINE_HASHMAP(perceivedmap, perceived_t, perceived_hash, perceived_cmp,
-  pool_alloc_size, pool_free_size, perceived_free);
+DECLARE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t);
+DEFINE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t,
+  perceived_hash, perceived_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, perceived_free);
 
 typedef struct detector_t
 {
@@ -169,7 +170,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
   view_t key;
   key.actor = actor;
 
-  view_t* view = viewmap_get(&d->views, &key);
+  view_t* view = ponyint_viewmap_get(&d->views, &key);
 
   if((view == NULL) && create)
   {
@@ -178,7 +179,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->actor = actor;
     view->view_rc = 1;
 
-    viewmap_put(&d->views, view);
+    ponyint_viewmap_put(&d->views, view);
     d->created++;
   }
 
@@ -196,11 +197,11 @@ static void apply_delta(detector_t* d, view_t* view)
   size_t i = HASHMAP_BEGIN;
   delta_t* delta;
 
-  while((delta = deltamap_next(map, &i)) != NULL)
+  while((delta = ponyint_deltamap_next(map, &i)) != NULL)
   {
     // If rc is 0, we skip creating a view for the actor.
-    pony_actor_t* actor = delta_actor(delta);
-    size_t rc = delta_rc(delta);
+    pony_actor_t* actor = ponyint_delta_actor(delta);
+    size_t rc = ponyint_delta_rc(delta);
 
     // If the referenced actor has never blocked, we will insert a view_t
     // that has blocked set to false.
@@ -214,19 +215,19 @@ static void apply_delta(detector_t* d, view_t* view)
 
     if(rc > 0)
     {
-      viewref_t* ref = viewrefmap_get(&view->map, &key);
+      viewref_t* ref = ponyint_viewrefmap_get(&view->map, &key);
 
       if(ref == NULL)
       {
         ref = (viewref_t*)POOL_ALLOC(viewref_t);
         ref->view = find;
-        viewrefmap_put(&view->map, ref);
+        ponyint_viewrefmap_put(&view->map, ref);
         find->view_rc++;
       }
 
       ref->rc = rc;
     } else {
-      viewref_t* ref = viewrefmap_remove(&view->map, &key);
+      viewref_t* ref = ponyint_viewrefmap_remove(&view->map, &key);
 
       if(ref != NULL)
       {
@@ -236,7 +237,7 @@ static void apply_delta(detector_t* d, view_t* view)
     }
   }
 
-  deltamap_free(map);
+  ponyint_deltamap_free(map);
   view->delta = NULL;
 }
 
@@ -250,7 +251,7 @@ static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 
   if(view->deferred)
   {
-    viewmap_remove(&d->deferred, view);
+    ponyint_viewmap_remove(&d->deferred, view);
     view->deferred = false;
   }
 
@@ -270,19 +271,19 @@ static void scan_grey(detector_t* d, view_t* view, size_t rc)
 {
   viewref_t* ref;
   viewref_t head = {view, rc};
-  viewrefstack_t* stack = viewrefstack_push(NULL, &head);
+  viewrefstack_t* stack = ponyint_viewrefstack_push(NULL, &head);
 
   while(stack != NULL)
   {
-    stack = viewrefstack_pop(stack, &ref);
+    stack = ponyint_viewrefstack_pop(stack, &ref);
 
     if(mark_grey(d, ref->view, ref->rc))
     {
       size_t i = HASHMAP_BEGIN;
       viewref_t* child;
 
-      while((child = viewrefmap_next(&ref->view->map, &i)) != NULL)
-        stack = viewrefstack_push(stack, child);
+      while((child = ponyint_viewrefmap_next(&ref->view->map, &i)) != NULL)
+        stack = ponyint_viewrefstack_push(stack, child);
     }
   }
 }
@@ -314,19 +315,19 @@ static int scan_black(view_t* view, size_t rc)
   int count = 0;
   viewref_t* ref;
   viewref_t head = {view, rc};
-  viewrefstack_t* stack = viewrefstack_push(NULL, &head);
+  viewrefstack_t* stack = ponyint_viewrefstack_push(NULL, &head);
 
   while(stack != NULL)
   {
-    stack = viewrefstack_pop(stack, &ref);
+    stack = ponyint_viewrefstack_pop(stack, &ref);
 
     if(mark_black(ref->view, ref->rc, &count))
     {
       size_t i = HASHMAP_BEGIN;
       viewref_t* child;
 
-      while((child = viewrefmap_next(&ref->view->map, &i)) != NULL)
-        stack = viewrefstack_push(stack, child);
+      while((child = ponyint_viewrefmap_next(&ref->view->map, &i)) != NULL)
+        stack = ponyint_viewrefstack_push(stack, child);
     }
   }
 
@@ -360,19 +361,19 @@ static int scan_white(view_t* view)
   int count = 0;
   viewref_t* ref;
   viewref_t head = {view, 0};
-  viewrefstack_t* stack = viewrefstack_push(NULL, &head);
+  viewrefstack_t* stack = ponyint_viewrefstack_push(NULL, &head);
 
   while(stack != NULL)
   {
-    stack = viewrefstack_pop(stack, &ref);
+    stack = ponyint_viewrefstack_pop(stack, &ref);
 
     if(mark_white(ref->view, &count))
     {
       size_t i = HASHMAP_BEGIN;
       viewref_t* child;
 
-      while((child = viewrefmap_next(&ref->view->map, &i)) != NULL)
-        stack = viewrefstack_push(stack, child);
+      while((child = ponyint_viewrefmap_next(&ref->view->map, &i)) != NULL)
+        stack = ponyint_viewrefstack_push(stack, child);
     }
   }
 
@@ -387,7 +388,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
     assert(view->perceived == NULL);
 
     view->perceived = per;
-    viewmap_put(&per->map, view);
+    ponyint_viewmap_put(&per->map, view);
   }
 
   return mark_black(view, rc, count);
@@ -399,19 +400,19 @@ static int collect_white(perceived_t* per, view_t* view, size_t rc)
   int count = 0;
   viewref_t* ref;
   viewref_t head = {view, rc};
-  viewrefstack_t* stack = viewrefstack_push(NULL, &head);
+  viewrefstack_t* stack = ponyint_viewrefstack_push(NULL, &head);
 
   while(stack != NULL)
   {
-    stack = viewrefstack_pop(stack, &ref);
+    stack = ponyint_viewrefstack_pop(stack, &ref);
 
     if(collect_view(per, ref->view, ref->rc, &count))
     {
       size_t i = HASHMAP_BEGIN;
       viewref_t* child;
 
-      while((child = viewrefmap_next(&ref->view->map, &i)) != NULL)
-        stack = viewrefstack_push(stack, child);
+      while((child = ponyint_viewrefmap_next(&ref->view->map, &i)) != NULL)
+        stack = ponyint_viewrefstack_push(stack, child);
     }
   }
 
@@ -424,7 +425,7 @@ static void send_conf(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   size_t count = 0;
   view_t* view;
 
-  while((view = viewmap_next(&per->map, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
     pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
     count++;
@@ -453,14 +454,14 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   per->token = d->next_token++;
   per->ack = 0;
   per->last_conf = HASHMAP_BEGIN;
-  viewmap_init(&per->map, count);
-  perceivedmap_put(&d->perceived, per);
+  ponyint_viewmap_init(&per->map, count);
+  ponyint_perceivedmap_put(&d->perceived, per);
 
   int count2 = collect_white(per, view, 0);
 
   (void)count2;
   assert(count2 == count);
-  assert(viewmap_size(&per->map) == (size_t)count);
+  assert(ponyint_viewmap_size(&per->map) == (size_t)count);
 
   send_conf(ctx, d, per);
   return true;
@@ -479,10 +480,10 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  while((view = viewmap_next(&d->deferred, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
   {
     assert(view->deferred == true);
-    viewmap_removeindex(&d->deferred, i);
+    ponyint_viewmap_removeindex(&d->deferred, i);
     view->deferred = false;
 
     if(!detect(ctx, d, view))
@@ -513,53 +514,53 @@ static void expire(detector_t* d, view_t* view)
   size_t i = HASHMAP_BEGIN;
   view_t* pview;
 
-  while((pview = viewmap_next(&per->map, &i)) != NULL)
+  while((pview = ponyint_viewmap_next(&per->map, &i)) != NULL)
     pview->perceived = NULL;
 
-  perceivedmap_remove(&d->perceived, per);
+  ponyint_perceivedmap_remove(&d->perceived, per);
   perceived_free(per);
   view->perceived = NULL;
 }
 
 static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 {
-  perceivedmap_remove(&d->perceived, per);
+  ponyint_perceivedmap_remove(&d->perceived, per);
 
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
   // mark actors in the cycle as pending destruction
-  while((view = viewmap_next(&per->map, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
     assert(view->perceived == per);
 
     // remove from the deferred set
     if(view->deferred)
-      viewmap_remove(&d->deferred, view);
+      ponyint_viewmap_remove(&d->deferred, view);
 
     // invoke the actor's finalizer
-    actor_setpendingdestroy(view->actor);
-    actor_final(ctx, view->actor);
+    ponyint_actor_setpendingdestroy(view->actor);
+    ponyint_actor_final(ctx, view->actor);
   }
 
   // actors being collected that have references to actors that are not in
-  // the cycle now send gc_release messages to those actors
+  // the cycle now send ponyint_gc_release messages to those actors
   i = HASHMAP_BEGIN;
 
-  while((view = viewmap_next(&per->map, &i)) != NULL)
-    actor_sendrelease(ctx, view->actor);
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
+    ponyint_actor_sendrelease(ctx, view->actor);
 
   // destroy the actor and free the view on the actor
   i = HASHMAP_BEGIN;
 
-  while((view = viewmap_next(&per->map, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    actor_destroy(view->actor);
-    viewmap_remove(&d->views, view);
+    ponyint_actor_destroy(view->actor);
+    ponyint_viewmap_remove(&d->views, view);
     view_free(view);
   }
 
-  d->destroyed += viewmap_size(&per->map);
+  d->destroyed += ponyint_viewmap_size(&per->map);
 
   // free the perceived cycle
   perceived_free(per);
@@ -592,7 +593,7 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
     // remove from the deferred set
     if(view->deferred)
     {
-      viewmap_remove(&d->deferred, view);
+      ponyint_viewmap_remove(&d->deferred, view);
       view->deferred = false;
     }
 
@@ -602,7 +603,7 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
     // add to the deferred set
     if(!view->deferred)
     {
-      viewmap_put(&d->deferred, view);
+      ponyint_viewmap_put(&d->deferred, view);
       view->deferred = true;
     }
 
@@ -617,7 +618,7 @@ static void unblock(detector_t* d, pony_actor_t* actor)
   key.actor = actor;
 
   // we must be in the views, because we must have blocked in order to unblock
-  view_t* view = viewmap_get(&d->views, &key);
+  view_t* view = ponyint_viewmap_get(&d->views, &key);
   assert(view != NULL);
 
   // record that we're unblocked
@@ -626,7 +627,7 @@ static void unblock(detector_t* d, pony_actor_t* actor)
   // remove from the deferred set
   if(view->deferred)
   {
-    viewmap_remove(&d->deferred, view);
+    ponyint_viewmap_remove(&d->deferred, view);
     view->deferred = false;
   }
 
@@ -639,14 +640,14 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
   perceived_t key;
   key.token = token;
 
-  perceived_t* per = perceivedmap_get(&d->perceived, &key);
+  perceived_t* per = ponyint_perceivedmap_get(&d->perceived, &key);
 
   if(per == NULL)
     return;
 
   per->ack++;
 
-  if(per->ack == viewmap_size(&per->map))
+  if(per->ack == ponyint_viewmap_size(&per->map))
   {
     collect(ctx, d, per);
     return;
@@ -661,19 +662,19 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   // Find block messages and invoke finalisers for those actors
   pony_msg_t* msg;
 
-  while((msg = messageq_pop(&self->q)) != NULL)
+  while((msg = ponyint_messageq_pop(&self->q)) != NULL)
   {
     if(msg->id == ACTORMSG_BLOCK)
     {
       block_msg_t* m = (block_msg_t*)msg;
 
       if(m->delta != NULL)
-        deltamap_free(m->delta);
+        ponyint_deltamap_free(m->delta);
 
-      if(!actor_pendingdestroy(m->actor))
+      if(!ponyint_actor_pendingdestroy(m->actor))
       {
-        actor_setpendingdestroy(m->actor);
-        actor_final(ctx, m->actor);
+        ponyint_actor_setpendingdestroy(m->actor);
+        ponyint_actor_final(ctx, m->actor);
       }
     }
   }
@@ -685,17 +686,17 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   // Invoke the actor's finalizer. Note that system actors and unscheduled
   // actors will not necessarily be finalised. If the actor isn't marked as
   // blocked, it has already been destroyed.
-  while((view = viewmap_next(&d->views, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
-    if(view->blocked && !actor_pendingdestroy(view->actor))
+    if(view->blocked && !ponyint_actor_pendingdestroy(view->actor))
     {
-      actor_setpendingdestroy(view->actor);
-      actor_final(ctx, view->actor);
+      ponyint_actor_setpendingdestroy(view->actor);
+      ponyint_actor_final(ctx, view->actor);
     }
   }
 
   // Terminate the scheduler.
-  scheduler_terminate();
+  ponyint_sched_terminate();
 }
 
 #ifndef NDEBUG
@@ -712,9 +713,9 @@ static void dump_view(view_t* view)
   viewref_t* p;
   actorref_t* aref;
 
-  while((p = viewrefmap_next(&view->map, &i)) != NULL)
+  while((p = ponyint_viewrefmap_next(&view->map, &i)) != NULL)
   {
-    aref = actormap_getactor(&view->actor->gc.foreign, p->view->actor);
+    aref = ponyint_actormap_getactor(&view->actor->gc.foreign, p->view->actor);
 
     if(aref != NULL)
     {
@@ -726,33 +727,34 @@ static void dump_view(view_t* view)
     }
   }
 
-  if(actormap_size(&view->actor->gc.foreign) != viewrefmap_size(&view->map))
+  if(ponyint_actormap_size(&view->actor->gc.foreign) != \
+    ponyint_viewrefmap_size(&view->map))
   {
     printf("\t--- ERROR\n");
 
     i = HASHMAP_BEGIN;
 
-    while((aref = actormap_next(&view->actor->gc.foreign, &i)) != NULL)
+    while((aref = ponyint_actormap_next(&view->actor->gc.foreign, &i)) != NULL)
     {
       printf("\t%p: " __zu "\n", aref->actor, aref->rc);
     }
   }
 }
 
-void dump_views()
+static void dump_views()
 {
   detector_t* d = (detector_t*)cycle_detector;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  while((view = viewmap_next(&d->views, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
     apply_delta(d, view);
     dump_view(view);
   }
 }
 
-void check_view(detector_t* d, view_t* view)
+static void check_view(detector_t* d, view_t* view)
 {
   if(view->perceived != NULL)
   {
@@ -767,13 +769,13 @@ void check_view(detector_t* d, view_t* view)
   printf("%p: %s\n", view->actor, count > 0 ? "COLLECTABLE" : "uncollectable");
 }
 
-void check_views()
+static void check_views()
 {
   detector_t* d = (detector_t*)cycle_detector;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  while((view = viewmap_next(&d->views, &i)) != NULL)
+  while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
     check_view(d, view);
   }
@@ -838,7 +840,7 @@ static pony_type_t cycle_type =
   NULL
 };
 
-void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
   uint32_t max_deferred, uint32_t conf_group)
 {
   if(min_deferred > 30)
@@ -854,7 +856,7 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
     conf_group = 30;
 
   cycle_detector = pony_create(ctx, &cycle_type);
-  actor_setsystem(cycle_detector);
+  ponyint_actor_setsystem(cycle_detector);
 
   detector_t* d = (detector_t*)cycle_detector;
   d->min_deferred = (size_t)1 << (size_t)min_deferred;
@@ -863,7 +865,7 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
   d->next_deferred = min_deferred;
 }
 
-void cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
+void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
 {
   assert(ctx->current == actor);
   assert(&actor->gc == gc);
@@ -872,30 +874,30 @@ void cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
   m->actor = actor;
-  m->rc = gc_rc(gc);
-  m->delta = gc_delta(gc);
+  m->rc = ponyint_gc_rc(gc);
+  m->delta = ponyint_gc_delta(gc);
   assert(gc->delta == NULL);
 
   pony_sendv(ctx, cycle_detector, &m->msg);
 }
 
-void cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   pony_sendp(ctx, cycle_detector, ACTORMSG_UNBLOCK, actor);
 }
 
-void cycle_ack(pony_ctx_t* ctx, size_t token)
+void ponyint_cycle_ack(pony_ctx_t* ctx, size_t token)
 {
   pony_sendi(ctx, cycle_detector, ACTORMSG_ACK, token);
 }
 
-void cycle_terminate(pony_ctx_t* ctx)
+void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
   pony_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
 }
 
-bool is_cycle(pony_actor_t* actor)
+bool ponyint_is_cycle(pony_actor_t* actor)
 {
   return actor == cycle_detector;
 }

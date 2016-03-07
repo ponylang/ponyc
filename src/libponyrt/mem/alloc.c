@@ -13,7 +13,7 @@
 #include <mach/vm_statistics.h>
 #endif
 
-void* virtual_alloc(size_t bytes)
+void* ponyint_virt_alloc(size_t bytes)
 {
   void* p;
 
@@ -41,7 +41,7 @@ void* virtual_alloc(size_t bytes)
   return p;
 }
 
-void virtual_free(void* p, size_t bytes)
+void ponyint_virt_free(void* p, size_t bytes)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   VirtualFree(p, 0, MEM_RELEASE);

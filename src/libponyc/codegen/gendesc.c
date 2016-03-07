@@ -39,7 +39,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
 
   // Leave space for a receiver if it's a constructor vtable entry.
   size_t buf_size = (count + 1) * sizeof(LLVMTypeRef);
-  LLVMTypeRef* params = (LLVMTypeRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
@@ -67,7 +67,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
-  LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
   if(t != TK_NEW)
   {
@@ -87,8 +87,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  pool_free_size(buf_size, params);
-  pool_free_size(buf_size, args);
+  ponyint_pool_free_size(buf_size, params);
+  ponyint_pool_free_size(buf_size, args);
   return LLVMConstBitCast(unbox_fun, c->void_ptr);
 }
 
@@ -150,7 +150,7 @@ static uint32_t trait_count(compile_t* c, gentype_t* g,
 
       // Sort the trait identifiers.
       size_t tid_size = count * sizeof(uint32_t);
-      uint32_t* tid = (uint32_t*)pool_alloc_size(tid_size);
+      uint32_t* tid = (uint32_t*)ponyint_pool_alloc_size(tid_size);
 
       size_t i = HASHMAP_BEGIN;
       size_t index = 0;
@@ -167,7 +167,7 @@ static uint32_t trait_count(compile_t* c, gentype_t* g,
         *list = tid;
         *list_size = tid_size;
       } else {
-        pool_free_size(tid_size, tid);
+        ponyint_pool_free_size(tid_size, tid);
       }
 
       return count;
@@ -193,7 +193,7 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g,
 
   // Create a constant array of trait identifiers.
   size_t list_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(list_size);
+  LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc_size(list_size);
 
   for(uint32_t i = 0; i < count; i++)
     list[i] = LLVMConstInt(c->i32, tid[i], false);
@@ -208,8 +208,8 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g,
   LLVMSetLinkage(global, LLVMInternalLinkage);
   LLVMSetInitializer(global, trait_array);
 
-  pool_free_size(tid_size, tid);
-  pool_free_size(list_size, list);
+  ponyint_pool_free_size(tid_size, tid);
+  ponyint_pool_free_size(list_size, list);
 
   *final_count = count;
   return global;
@@ -255,7 +255,7 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
 
   // Create a constant array of field descriptors.
   size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* list = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
   for(int i = 0; i < count; i++)
   {
@@ -289,7 +289,7 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
   LLVMSetLinkage(global, LLVMInternalLinkage);
   LLVMSetInitializer(global, field_array);
 
-  pool_free_size(buf_size, list);
+  ponyint_pool_free_size(buf_size, list);
   return global;
 }
 
@@ -301,7 +301,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
   size_t buf_size = vtable_size * sizeof(LLVMValueRef);
-  LLVMValueRef* vtable = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
   memset(vtable, 0, buf_size);
 
   reachable_type_t* t = reach_type(c->reachable, g->type_name);
@@ -348,7 +348,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
   }
 
   LLVMValueRef r = LLVMConstArray(c->void_ptr, vtable, vtable_size);
-  pool_free_size(buf_size, vtable);
+  ponyint_pool_free_size(buf_size, vtable);
   return r;
 }
 

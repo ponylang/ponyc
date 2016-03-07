@@ -229,13 +229,13 @@ int main(int argc, char* argv[])
   bool print_package_ast = false;
 
   opt_state_t s;
-  opt_init(args, &s, &argc, argv);
+  ponyint_opt_init(args, &s, &argc, argv);
 
   bool ok = true;
   bool print_usage = false;
   int id;
 
-  while((id = opt_next(&s)) != -1)
+  while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
     {

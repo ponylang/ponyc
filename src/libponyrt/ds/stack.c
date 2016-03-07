@@ -12,7 +12,7 @@ static Stack* stack_new(Stack* prev, void* data)
   return stack;
 }
 
-Stack* stack_pop(Stack* stack, void** data)
+Stack* ponyint_stack_pop(Stack* stack, void** data)
 {
   assert(stack != NULL);
   assert(data != NULL);
@@ -30,7 +30,7 @@ Stack* stack_pop(Stack* stack, void** data)
   return stack;
 }
 
-Stack* stack_push(Stack* stack, void* data)
+Stack* ponyint_stack_push(Stack* stack, void* data)
 {
   if((stack != NULL) && (stack->index < STACK_COUNT))
   {

@@ -19,11 +19,11 @@ struct asio_backend_t
   messageq_t q;
 };
 
-asio_backend_t* asio_backend_init()
+asio_backend_t* ponyint_asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
   memset(b, 0, sizeof(asio_backend_t));
-  messageq_init(&b->q);
+  ponyint_messageq_init(&b->q);
 
   b->kq = kqueue();
 
@@ -44,7 +44,7 @@ asio_backend_t* asio_backend_init()
   return b;
 }
 
-void asio_backend_terminate(asio_backend_t* b)
+void ponyint_asio_backend_final(asio_backend_t* b)
 {
   char c = 1;
   write(b->wakeup[1], &c, 1);
@@ -54,8 +54,8 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
-    asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
+  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+    pony_asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
 }
 
 static void retry_loop(asio_backend_t* b)
@@ -64,7 +64,7 @@ static void retry_loop(asio_backend_t* b)
   write(b->wakeup[1], &c, 1);
 }
 
-DECLARE_THREAD_FN(asio_backend_dispatch)
+DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   pony_register_thread();
   asio_backend_t* b = arg;
@@ -99,24 +99,24 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         switch(ep->filter)
         {
           case EVFILT_READ:
-            asio_event_send(ev, ASIO_READ, 0);
+            pony_asio_event_send(ev, ASIO_READ, 0);
             break;
 
           case EVFILT_WRITE:
             if(ep->flags & EV_EOF)
             {
-              asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+              pony_asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
             } else {
-              asio_event_send(ev, ASIO_WRITE, 0);
+              pony_asio_event_send(ev, ASIO_WRITE, 0);
             }
             break;
 
           case EVFILT_TIMER:
-            asio_event_send(ev, ASIO_TIMER, 0);
+            pony_asio_event_send(ev, ASIO_TIMER, 0);
             break;
 
           case EVFILT_SIGNAL:
-            asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
+            pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
             break;
 
           default: {}
@@ -127,12 +127,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
     handle_queue(b);
   }
 
-  messageq_destroy(&b->q);
+  ponyint_messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
 }
 
-void asio_event_subscribe(asio_event_t* ev)
+void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -143,10 +143,10 @@ void asio_event_subscribe(asio_event_t* ev)
     return;
   }
 
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   if(ev->noisy)
-    asio_noisy_add();
+    ponyint_asio_noisy_add();
 
   struct kevent event[4];
   int i = 0;
@@ -189,7 +189,7 @@ void asio_event_subscribe(asio_event_t* ev)
     retry_loop(b);
 }
 
-void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -200,7 +200,7 @@ void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     return;
   }
 
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   struct kevent event[1];
   int i = 0;
@@ -222,7 +222,7 @@ void asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   kevent(b->kq, event, i, NULL, 0, NULL);
 }
 
-void asio_event_unsubscribe(asio_event_t* ev)
+void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -233,11 +233,11 @@ void asio_event_unsubscribe(asio_event_t* ev)
     return;
   }
 
-  asio_backend_t* b = asio_get_backend();
+  asio_backend_t* b = ponyint_asio_get_backend();
 
   if(ev->noisy)
   {
-    asio_noisy_remove();
+    ponyint_asio_noisy_remove();
     ev->noisy = false;
   }
 
@@ -277,7 +277,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
-  messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
 
   retry_loop(b);
 }

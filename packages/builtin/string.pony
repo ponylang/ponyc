@@ -1161,7 +1161,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
   fun hash(): U64 =>
-    @hash_block[U64](_ptr, _size)
+    @ponyint_hash_block[U64](_ptr, _size)
 
   fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
   =>

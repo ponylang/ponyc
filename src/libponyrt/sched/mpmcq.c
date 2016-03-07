@@ -9,7 +9,7 @@ struct mpmcq_node_t
   void* volatile data;
 };
 
-void mpmcq_init(mpmcq_t* q)
+void ponyint_mpmcq_init(mpmcq_t* q)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
   node->data = NULL;
@@ -19,14 +19,14 @@ void mpmcq_init(mpmcq_t* q)
   q->tail.node = node;
 }
 
-void mpmcq_destroy(mpmcq_t* q)
+void ponyint_mpmcq_destroy(mpmcq_t* q)
 {
   POOL_FREE(mpmcq_node_t, q->tail.node);
   q->head = NULL;
   q->tail.node = NULL;
 }
 
-void mpmcq_push(mpmcq_t* q, void* data)
+void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
   node->data = data;
@@ -36,7 +36,7 @@ void mpmcq_push(mpmcq_t* q, void* data)
   _atomic_store(&prev->next, node);
 }
 
-void mpmcq_push_single(mpmcq_t* q, void* data)
+void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
   node->data = data;
@@ -48,7 +48,7 @@ void mpmcq_push_single(mpmcq_t* q, void* data)
   prev->next = node;
 }
 
-void* mpmcq_pop(mpmcq_t* q)
+void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
   mpmcq_dwcas_t cmp, xchg;
   mpmcq_node_t* next;

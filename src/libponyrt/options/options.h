@@ -32,8 +32,9 @@ typedef struct opt_state_t
   int remove;
 } opt_state_t;
 
-void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv);
+void ponyint_opt_init(const opt_arg_t* args, opt_state_t* s, int* argc,
+  char** argv);
 
-int opt_next(opt_state_t* s);
+int ponyint_opt_next(opt_state_t* s);
 
 #endif

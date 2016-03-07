@@ -7,7 +7,7 @@
 
 typedef struct elem_t elem_t;
 
-DECLARE_LIST(testlist, elem_t);
+DECLARE_LIST(testlist, testlist_t, elem_t);
 
 class ListTest: public testing::Test
 {
@@ -16,7 +16,7 @@ class ListTest: public testing::Test
     static bool compare(elem_t* a, elem_t* b);
 };
 
-DEFINE_LIST(testlist, elem_t, ListTest::compare, NULL);
+DEFINE_LIST(testlist, testlist_t, elem_t, ListTest::compare, NULL);
 
 struct elem_t
 {
@@ -35,7 +35,7 @@ elem_t* ListTest::times2(elem_t* e, void* arg)
   return e;
 }
 
-/** Calling list_append with NULL as argument
+/** Calling ponyint_list_append with NULL as argument
  *  returns a new list with a single element.
  */
 TEST_F(ListTest, InitializeList)
@@ -50,7 +50,7 @@ TEST_F(ListTest, InitializeList)
   testlist_free(list);
 }
 
-/** A call to list_length returns the number of elements
+/** A call to ponyint_list_length returns the number of elements
  *  until the end of the list is reached.
  */
 TEST_F(ListTest, ListLength)
@@ -68,7 +68,7 @@ TEST_F(ListTest, ListLength)
   testlist_free(list);
 }
 
-/** A call to list_append appends an element to
+/** A call to ponyint_list_append appends an element to
  *  the end of the list.
  *
  *  After pushing an element, the resulting
@@ -98,7 +98,7 @@ TEST_F(ListTest, AppendElement)
   testlist_free(list);
 }
 
-/** A call to list_push prepends an element to the list.
+/** A call to ponyint_list_push prepends an element to the list.
  *
  *  The pointer returned points to the new head.
  */
@@ -119,8 +119,8 @@ TEST_F(ListTest, PushElement)
   testlist_free(list);
 }
 
-/** A call to list_pop provides the head of the list.
- *  The second element prior to list_pop becomes the new head.
+/** A call to ponyint_list_pop provides the head of the list.
+ *  The second element prior to ponyint_list_pop becomes the new head.
  */
 TEST_F(ListTest, ListPop)
 {
@@ -145,7 +145,7 @@ TEST_F(ListTest, ListPop)
   testlist_free(list);
 }
 
-/** A call to list_index (with index > 0) advances
+/** A call to ponyint_list_index (with index > 0) advances
  *  the list pointer to the element at position
  *  "index" (starting from 0).
  */
@@ -165,7 +165,7 @@ TEST_F(ListTest, ListIndexAbsolute)
   testlist_free(list);
 }
 
-/** A call to list_index with a negative index
+/** A call to ponyint_list_index with a negative index
  *  allows to traverse the list relative to its end.
  */
 TEST_F(ListTest, ListIndexRelative)
@@ -188,10 +188,10 @@ TEST_F(ListTest, ListIndexRelative)
   testlist_free(list);
 }
 
-/** A call to list_find returns a matching element according
+/** A call to ponyint_list_find returns a matching element according
  *  to the provided compare function.
  *
- *  If an element is not in the list, list_find returns NULL.
+ *  If an element is not in the list, ponyint_list_find returns NULL.
  */
 TEST_F(ListTest, ListFind)
 {
@@ -215,7 +215,7 @@ TEST_F(ListTest, ListFind)
   testlist_free(list);
 }
 
-/** A call to list_findindex returns the position
+/** A call to ponyint_list_findindex returns the position
  *  of an element within the list, -1 otherwise.
  */
 TEST_F(ListTest, ListFindIndex)
@@ -289,7 +289,7 @@ TEST_F(ListTest, ListSubset)
   testlist_free(b);
 }
 
-/** A call to list_reverse the returns a pointer
+/** A call to ponyint_list_reverse the returns a pointer
  *  to a new list of reversed order.
  */
 TEST_F(ListTest, ListReverse)
@@ -319,7 +319,7 @@ TEST_F(ListTest, ListReverse)
   ASSERT_EQ(e, &e1);
 }
 
-/** A call to list_map invokes the provided map function
+/** A call to ponyint_list_map invokes the provided map function
  *  for each element within the list.
  */
 TEST_F(ListTest, ListMap)

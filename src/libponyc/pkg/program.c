@@ -88,7 +88,7 @@ static const char* quoted_locator(ast_t* use, const char* locator)
   }
 
   size_t len = strlen(locator);
-  char* quoted = (char*)pool_alloc_size(len + 3);
+  char* quoted = (char*)ponyint_pool_alloc_size(len + 3);
   quoted[0] = '"';
   memcpy(quoted + 1, locator, len);
   quoted[len + 1] = '"';

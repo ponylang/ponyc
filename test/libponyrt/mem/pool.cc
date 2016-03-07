@@ -8,8 +8,8 @@ typedef char block_t[32];
 
 TEST(Pool, Fifo)
 {
-  void* p1 = pool_alloc(0);
-  pool_free(0, p1);
+  void* p1 = ponyint_pool_alloc(0);
+  ponyint_pool_free(0, p1);
 
   void* p2 = POOL_ALLOC(block_t);
   ASSERT_EQ(p1, p2);
@@ -18,16 +18,16 @@ TEST(Pool, Fifo)
 
 TEST(Pool, Size)
 {
-  void* p1 = pool_alloc(0);
-  pool_free(0, p1);
+  void* p1 = ponyint_pool_alloc(0);
+  ponyint_pool_free(0, p1);
 
-  void* p2 = pool_alloc_size(17);
+  void* p2 = ponyint_pool_alloc_size(17);
   ASSERT_EQ(p1, p2);
-  pool_free_size(17, p2);
+  ponyint_pool_free_size(17, p2);
 
-  void* p3 = pool_alloc(0);
+  void* p3 = ponyint_pool_alloc(0);
   ASSERT_EQ(p2, p3);
-  pool_free(0, p3);
+  ponyint_pool_free(0, p3);
 }
 
 TEST(Pool, ExceedBlock)
@@ -66,7 +66,7 @@ TEST(Pool, ExceedBlock)
 
 TEST(Pool, LargeAlloc)
 {
-  void* p = pool_alloc_size(1 << 20);
+  void* p = ponyint_pool_alloc_size(1 << 20);
   ASSERT_TRUE(p != NULL);
-  pool_free_size(1 << 20, p);
+  ponyint_pool_free_size(1 << 20, p);
 }

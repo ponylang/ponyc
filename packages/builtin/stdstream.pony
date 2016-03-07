@@ -48,13 +48,13 @@ actor StdStream
     """
     Create an async stream for stdout.
     """
-    _stream = @os_stdout[Pointer[None]]()
+    _stream = @pony_os_stdout[Pointer[None]]()
 
   new _err() =>
     """
     Create an async stream for stderr.
     """
-    _stream = @os_stderr[Pointer[None]]()
+    _stream = @pony_os_stderr[Pointer[None]]()
 
   be print(data: ByteSeq) =>
     """
@@ -90,4 +90,4 @@ actor StdStream
     """
     Write the bytes without explicitly flushing.
     """
-    @os_std_write[None](_stream, data.cstring(), data.size())
+    @pony_os_std_write[None](_stream, data.cstring(), data.size())
