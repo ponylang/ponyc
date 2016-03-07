@@ -858,11 +858,11 @@ TEST_F(LexerTest, FloatDotOnly)
 }
 
 
-TEST_F(LexerTest, FloatEOnly)
+TEST_F(LexerTest, FloatEOnlyAsInt)
 {
   const char* src = "1e3";
 
-  expect(1, 1, TK_FLOAT, "1000.0");
+  expect(1, 1, TK_INT, "1000");
   expect(1, 4, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -878,11 +878,11 @@ TEST_F(LexerTest, FloatNegativeE)
 }
 
 
-TEST_F(LexerTest, FloatPositiveE)
+TEST_F(LexerTest, FloatPositiveEAsInt)
 {
   const char* src = "1e+2";
 
-  expect(1, 1, TK_FLOAT, "100.0");
+  expect(1, 1, TK_INT, "100");
   expect(1, 5, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -935,6 +935,26 @@ TEST_F(LexerTest, FloatIllegalExp)
   expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
   expect(1, 7, TK_ID, "fg");
   expect(1, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatSmallNumberLargeEAsInt)
+{
+  const char* src = "1.234e4";
+
+  expect(1, 1, TK_INT, "12340");
+  expect(1, 8, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatLargeEAsFloat)
+{
+  const char* src = "1e40";
+
+  expect(1, 1, TK_FLOAT, "1e+40");
+  expect(1, 5, TK_EOF, "EOF");
   DO(test(src));
 }
 
