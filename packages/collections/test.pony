@@ -7,6 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestList)
     test(_TestRing)
+    test(_TestListsFrom)
     test(_TestListsMap)
     test(_TestListsFlatMap)
     test(_TestListsFlatten)
@@ -70,6 +71,24 @@ class iso _TestRing is UnitTest
     h.assert_eq[U64](a(5), 5)
 
     h.assert_error(lambda()(a)? => a(6) end, "Read ring 6")
+
+class iso _TestListsFrom is UnitTest
+  fun name(): String => "collections/Lists/from()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = Lists.from[U32]([1, 3, 5, 7, 9])
+
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[U32](a(0), 1)
+    h.assert_eq[U32](a(1), 3)
+    h.assert_eq[U32](a(2), 5)
+    h.assert_eq[U32](a(3), 7)
+    h.assert_eq[U32](a(4), 9)
+
+    let b = Lists.from[U32](Array[U32])
+    h.assert_eq[USize](b.size(), 0)
+
+    true
 
 class iso _TestListsMap is UnitTest
   fun name(): String => "collections/Lists/map()"

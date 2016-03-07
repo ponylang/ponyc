@@ -8,6 +8,22 @@ primitive Lists
     """
     List[A].push(consume a)
 
+  fun from[A: Any #read](arr: Array[A]): List[A] =>
+    """
+    Builds a new list from the members of the array passed in
+    """
+    let l = List[A]
+    var count: USize = 0
+    try
+      while count < arr.size() do
+        l.push(arr(count))
+        count = count + 1
+      end
+      l
+    else
+      List[A]
+    end
+
   fun map[A: Any #read, B](l: List[A], f: {(A!): B^} val): List[B] =>
     """
     Builds a new list by applying a function to every member of the list.
