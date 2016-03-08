@@ -1754,6 +1754,26 @@ TEST_F(SugarTest, LambdaTypeScopeTypeParams)
 }
 
 
+TEST_F(SugarTest, LambdaTypeScopeTypeParamsInFlet)
+{
+  const char* short_form =
+    "class Foo[A: F64, B: F32]\n"
+    "  let f: {(A, U16): B}";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo[A: F64, B: F32]\n"
+    "  let f: $T[A, B]\n"
+    "  new iso create(): Foo[A, B] iso^ =>\n"
+    "    true\n"
+
+    "interface ref $T[A: F64, B: F32]\n"
+    "  fun box apply(p1: A, p2: U16): B";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =
