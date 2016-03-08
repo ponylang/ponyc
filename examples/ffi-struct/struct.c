@@ -1,21 +1,21 @@
-struct Inner
+typedef struct Inner
 {
-	int x;
-};
+  int x;
+} Inner;
 
-struct Outer
+typedef struct Outer
 {
-	struct Inner inner_embed;
-	struct Inner* inner_var;
-};
+  struct Inner inner_embed;
+  struct Inner* inner_var;
+} Outer;
 
-void modify_via_outer(struct Outer* s)
+void modify_via_outer(Outer* s)
 {
-	s->inner_embed.x = 10;
-	s->inner_var->x = 15;
+  s->inner_embed.x = 10;
+  s->inner_var->x = 15;
 }
 
-void modify_inner(struct Inner* s)
+void modify_inner(Inner* s)
 {
-	s->x = 5;
+  s->x = 5;
 }
