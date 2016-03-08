@@ -90,3 +90,13 @@ deploy:
       condition: $UPLOAD = yes
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
+
+after_success:
+  - if [[ $TRAVIS_BRANCH == 'master' && $TRAVIS_PULL_REQUEST == 'false' ]]; then
+      git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}";
+      git fetch gh-token && git fetch gh-token gh-pages:gh-pages;
+      build/release/ponyc packages/stdlib --docs;
+      cd stdlib-docs;
+      sudo -H pip install mkdocs;
+      mkdocs gh-deploy -v --clean --remote-name gh-token;
+    fi;
