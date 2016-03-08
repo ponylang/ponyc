@@ -8,6 +8,7 @@ actor Main is TestList
     test(_TestList)
     test(_TestMap)
     test(_TestRing)
+    test(_TestListsFrom)
     test(_TestListsMap)
     test(_TestListsFlatMap)
     test(_TestListsFlatten)
@@ -47,6 +48,24 @@ class iso _TestList is UnitTest
     h.assert_eq[U32](b(2), 0)
     h.assert_eq[U32](b(3), 1)
     h.assert_eq[U32](b(4), 2)
+
+class iso _TestListsFrom is UnitTest
+  fun name(): String => "collections/Lists/from()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = List[U32].from([1, 3, 5, 7, 9])
+
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[U32](a(0), 1)
+    h.assert_eq[U32](a(1), 3)
+    h.assert_eq[U32](a(2), 5)
+    h.assert_eq[U32](a(3), 7)
+    h.assert_eq[U32](a(4), 9)
+
+    let b = List[U32].from(Array[U32])
+    h.assert_eq[USize](b.size(), 0)
+
+    true
 
 class iso _TestMap is UnitTest
   fun name(): String => "collections/Map"
@@ -132,8 +151,8 @@ class iso _TestListsMap is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2)
 
-    let f = lambda(a: U32): U32 => consume a * 2 end
-    let c = Lists.map[U32,U32](a, f)
+    let f = lambda(a: U32): U32 => a * 2 end
+    let c = a.map[U32](f)
 
     h.assert_eq[USize](c.size(), 3)
     h.assert_eq[U32](c(0), 0)
@@ -149,8 +168,8 @@ class iso _TestListsFlatMap is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2)
 
-    let f = lambda(a: U32): List[U32] => List[U32].push(consume a * 2) end
-    let c = Lists.flat_map[U32,U32](a, f)
+    let f = lambda(a: U32): List[U32] => List[U32].push(a * 2) end
+    let c = a.flat_map[U32](f)
 
     h.assert_eq[USize](c.size(), 3)
     h.assert_eq[U32](c(0), 0)
@@ -191,8 +210,8 @@ class iso _TestListsFilter is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2).push(3)
 
-    let f = lambda(a: U32): Bool => consume a > 1 end
-    let b = Lists.filter[U32](a, f)
+    let f = lambda(a: U32): Bool => a > 1 end
+    let b = a.filter(f)
 
     h.assert_eq[USize](b.size(), 2)
     h.assert_eq[U32](b(0), 2)
@@ -208,12 +227,12 @@ class iso _TestListsFold is UnitTest
     a.push(0).push(1).push(2).push(3)
 
     let f = lambda(acc: U32, x: U32): U32 => acc + x end
-    let value = Lists.fold[U32,U32](a, f, 0)
+    let value = a.fold[U32](f, 0)
 
     h.assert_eq[U32](value, 6)
 
     let g = lambda(acc: List[U32], x: U32): List[U32] => acc.push(x * 2) end
-    let resList = Lists.fold[U32,List[U32]](a, g, List[U32])
+    let resList = a.fold[List[U32]](g, List[U32])
 
     h.assert_eq[USize](resList.size(), 4)
     h.assert_eq[U32](resList(0), 0)
@@ -233,16 +252,16 @@ class iso _TestListsEvery is UnitTest
     let f = lambda(x: U32): Bool => x < 4 end
     let g = lambda(x: U32): Bool => x < 3 end
     let z = lambda(x: U32): Bool => x < 0 end
-    let lessThan4 = Lists.every[U32](a, f)
-    let lessThan3 = Lists.every[U32](a, g)
-    let lessThan0 = Lists.every[U32](a, z)
+    let lessThan4 = a.every(f)
+    let lessThan3 = a.every(g)
+    let lessThan0 = a.every(z)
 
     h.assert_eq[Bool](lessThan4, true)
     h.assert_eq[Bool](lessThan3, false)
     h.assert_eq[Bool](lessThan0, false)
 
     let b = List[U32]
-    let empty = Lists.every[U32](b, f)
+    let empty = b.every(f)
     h.assert_eq[Bool](empty, true)
 
     true
@@ -257,16 +276,16 @@ class iso _TestListsExists is UnitTest
     let f = lambda(x: U32): Bool => x > 2 end
     let g = lambda(x: U32): Bool => x >= 0 end
     let z = lambda(x: U32): Bool => x < 0 end
-    let gt2 = Lists.exists[U32](a, f)
-    let gte0 = Lists.exists[U32](a, g)
-    let lt0 = Lists.exists[U32](a, z)
+    let gt2 = a.exists(f)
+    let gte0 = a.exists(g)
+    let lt0 = a.exists(z)
 
     h.assert_eq[Bool](gt2, true)
     h.assert_eq[Bool](gte0, true)
     h.assert_eq[Bool](lt0, false)
 
     let b = List[U32]
-    let empty = Lists.exists[U32](b, f)
+    let empty = b.exists(f)
     h.assert_eq[Bool](empty, false)
 
     true
@@ -279,7 +298,7 @@ class iso _TestListsPartition is UnitTest
     a.push(0).push(1).push(2).push(3)
 
     let isEven = lambda(x: U32): Bool => x % 2 == 0 end
-    (let evens, let odds) = Lists.partition[U32](a, isEven)
+    (let evens, let odds) = a.partition(isEven)
 
     h.assert_eq[USize](evens.size(), 2)
     h.assert_eq[U32](evens(0), 0)
@@ -289,7 +308,7 @@ class iso _TestListsPartition is UnitTest
     h.assert_eq[U32](odds(1), 3)
 
     let b = List[U32]
-    (let emptyEvens, let emptyOdds) = Lists.partition[U32](b, isEven)
+    (let emptyEvens, let emptyOdds) = b.partition(isEven)
 
     h.assert_eq[USize](emptyEvens.size(), 0)
     h.assert_eq[USize](emptyOdds.size(), 0)
@@ -303,10 +322,10 @@ class iso _TestListsDrop is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2).push(3).push(4)
 
-    let b = Lists.drop[U32](a, 2)
-    let c = Lists.drop[U32](a, 4)
-    let d = Lists.drop[U32](a, 5)
-    let e = Lists.drop[U32](a, 6)
+    let b = a.drop(2)
+    let c = a.drop(4)
+    let d = a.drop(5)
+    let e = a.drop(6)
 
     h.assert_eq[USize](b.size(), 3)
     h.assert_eq[U32](b(0), 2)
@@ -317,7 +336,7 @@ class iso _TestListsDrop is UnitTest
     h.assert_eq[USize](e.size(), 0)
 
     let empty = List[U32]
-    let l = Lists.drop[U32](empty, 3)
+    let l = empty.drop(3)
     h.assert_eq[USize](l.size(), 0)
 
     true
@@ -329,11 +348,11 @@ class iso _TestListsTake is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2).push(3).push(4)
 
-    let b = Lists.take[U32](a, 2)
-    let c = Lists.take[U32](a, 4)
-    let d = Lists.take[U32](a, 5)
-    let e = Lists.take[U32](a, 6)
-    let m = Lists.take[U32](a, 0)
+    let b = a.take(2)
+    let c = a.take(4)
+    let d = a.take(5)
+    let e = a.take(6)
+    let m = a.take(0)
 
     h.assert_eq[USize](b.size(), 2)
     h.assert_eq[U32](b(0), 0)
@@ -358,7 +377,7 @@ class iso _TestListsTake is UnitTest
     h.assert_eq[USize](m.size(), 0)
 
     let empty = List[U32]
-    let l = Lists.take[U32](empty, 3)
+    let l = empty.take(3)
     h.assert_eq[USize](l.size(), 0)
 
     true
@@ -374,10 +393,10 @@ class iso _TestListsTakeWhile is UnitTest
     let g = lambda(x: U32): Bool => x < 4 end
     let y = lambda(x: U32): Bool => x < 1 end
     let z = lambda(x: U32): Bool => x < 0 end
-    let b = Lists.take_while[U32](a, f)
-    let c = Lists.take_while[U32](a, g)
-    let d = Lists.take_while[U32](a, y)
-    let e = Lists.take_while[U32](a, z)
+    let b = a.take_while(f)
+    let c = a.take_while(g)
+    let d = a.take_while(y)
+    let e = a.take_while(z)
 
     h.assert_eq[USize](b.size(), 5)
     h.assert_eq[U32](b(0), 0)
@@ -395,7 +414,7 @@ class iso _TestListsTakeWhile is UnitTest
     h.assert_eq[USize](e.size(), 0)
 
     let empty = List[U32]
-    let l = Lists.take_while[U32](empty, g)
+    let l = empty.take_while(g)
     h.assert_eq[USize](l.size(), 0)
 
     true
@@ -407,8 +426,10 @@ class iso _TestListsContains is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2)
 
-    h.assert_eq[Bool](Lists.contains[U32](a, 0), true)
-    h.assert_eq[Bool](Lists.contains[U32](a, 3), false)
+    h.assert_eq[Bool](a.contains(0), true)
+    h.assert_eq[Bool](a.contains(1), true)
+    h.assert_eq[Bool](a.contains(2), true)
+    h.assert_eq[Bool](a.contains(3), false)
 
     true
 
@@ -419,8 +440,7 @@ class iso _TestListsReverse is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2)
 
-    let b = Lists.reverse[U32](a)
-
+    let b = a.reverse()
 
     h.assert_eq[USize](a.size(), 3)
     h.assert_eq[U32](a(0), 0)

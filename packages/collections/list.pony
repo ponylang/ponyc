@@ -12,6 +12,20 @@ class List[A] is Seq[A]
     """
     None
 
+  new unit(a: A) =>
+    """
+    Builds a new list from an element.
+    """
+    push(consume a)
+
+  new from(seq: Array[A^]) =>
+    """
+    Builds a new list from the sequence passed in.
+    """
+    for value in seq.values() do
+      push(consume value)
+    end
+
   fun ref reserve(len: USize): List[A]^ =>
     """
     Do nothing, but be compatible with Seq.
@@ -200,8 +214,277 @@ class List[A] is Seq[A]
     for v in values() do
       out.push(v)
     end
-
     out
+
+  fun map[B](f: {(this->A!): B^} box): List[B]^ =>
+    """
+    Builds a new list by applying a function to every member of the list.
+    """
+    try
+      _map[B](head(), f, List[B])
+    else
+      List[B]
+    end
+
+  fun _map[B](ln: this->ListNode[A], f: {(this->A!): B^} box, acc: List[B])
+    : List[B]^
+  =>
+    """
+    Private helper for map, recursively working with ListNodes.
+    """
+    try acc.push(f(ln())) end
+
+    try
+      _map[B](ln.next() as this->ListNode[A], f, acc)
+    else
+      acc
+    end
+
+  fun flat_map[B](f: {(this->A!): List[B]} box): List[B]^ =>
+    """
+    Builds a new list by applying a function to every member of the list and
+    using the elements of the resulting lists.
+    """
+    try
+      _flat_map[B](head(), f, List[List[B]])
+    else
+      List[B]
+    end
+
+  fun _flat_map[B](ln: this->ListNode[A], f: {(this->A!): List[B]} box,
+    acc: List[List[B]]): List[B]^
+  =>
+    """
+    Private helper for flat_map, recursively working with ListNodes.
+    """
+    try acc.push(f(ln())) end
+
+    try
+      _flat_map[B](ln.next() as this->ListNode[A], f, acc)
+    else
+      Lists.flatten[B](acc)
+    end
+
+  fun filter(f: {(this->A!): Bool} box): List[this->A!]^ =>
+    """
+    Builds a new list with those elements that satisfy a provided predicate.
+    """
+    try
+      _filter(head(), f, List[this->A!])
+    else
+      List[this->A!]
+    end
+
+  fun _filter(ln: this->ListNode[A], f: {(this->A!): Bool} box,
+    acc: List[this->A!]): List[this->A!]
+  =>
+    """
+    Private helper for filter, recursively working with ListNodes.
+    """
+    try
+      let cur = ln()
+      if f(cur) then acc.push(cur) end
+    end
+
+    try
+      _filter(ln.next() as this->ListNode[A], f, acc)
+    else
+      acc
+    end
+
+  fun fold[B](f: {(B!, this->A!): B^} box, acc: B): B =>
+    """
+    Folds the elements of the list using the supplied function.
+    """
+    let h = try
+      head()
+    else
+      return acc
+    end
+
+    _fold[B](h, f, consume acc)
+
+  fun _fold[B](ln: this->ListNode[A], f: {(B!, this->A!): B^} box, acc: B): B
+  =>
+    """
+    Private helper for fold, recursively working with ListNodes.
+    """
+    let nextAcc: B = try f(acc, ln()) else consume acc end
+    let h = try
+      ln.next() as this->ListNode[A]
+    else
+      return nextAcc
+    end
+
+    _fold[B](h, f, consume nextAcc)
+
+  fun every(f: {(this->A!): Bool} box): Bool =>
+    """
+    Returns true if every element satisfies the provided predicate, false
+    otherwise.
+    """
+    try
+      _every(head(), f)
+    else
+      true
+    end
+
+  fun _every(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
+    """
+    Private helper for every, recursively working with ListNodes.
+    """
+    try
+      if not(f(ln())) then
+        false
+      else
+        _every(ln.next() as this->ListNode[A], f)
+      end
+    else
+      true
+    end
+
+  fun exists(f: {(this->A!): Bool} box): Bool =>
+    """
+    Returns true if at least one element satisfies the provided predicate,
+    false otherwise.
+    """
+    try
+      _exists(head(), f)
+    else
+      false
+    end
+
+  fun _exists(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
+    """
+    Private helper for exists, recursively working with ListNodes.
+    """
+    try
+      if f(ln()) then
+        true
+      else
+        _exists(ln.next() as this->ListNode[A], f)
+      end
+    else
+      false
+    end
+
+  fun partition(f: {(this->A!): Bool} box): (List[this->A!]^, List[this->A!]^)
+  =>
+    """
+    Builds a pair of lists, the first of which is made up of the elements
+    satisfying the supplied predicate and the second of which is made up of
+    those that do not.
+    """
+    let l1 = List[this->A!]
+    let l2 = List[this->A!]
+    for item in values() do
+      if f(item) then l1.push(item) else l2.push(item) end
+    end
+    (l1, l2)
+
+  fun drop(n: USize): List[this->A!]^ =>
+    """
+    Builds a list by dropping the first n elements.
+    """
+    let l = List[this->A!]
+
+    if size() > n then
+      try
+        var node = index(n)
+
+        for i in Range(n, size()) do
+          l.push(node())
+          node = node.next() as this->ListNode[A]
+        end
+      end
+    end
+    l
+
+  fun take(n: USize): List[this->A!] =>
+    """
+    Builds a list of the first n elements.
+    """
+    let l = List[this->A!]
+
+    if size() > 0 then
+      try
+        var node = head()
+
+        for i in Range(0, n.min(size())) do
+          l.push(node())
+          node = node.next() as this->ListNode[A]
+        end
+      end
+    end
+    l
+
+  fun take_while(f: {(this->A!): Bool} box): List[this->A!]^ =>
+    """
+    Builds a list of elements satisfying the provided predicate until one does
+    not.
+    """
+    let l = List[this->A!]
+
+    if size() > 0 then
+      try
+        var node = head()
+
+        for i in Range(0, size()) do
+          let item = node()
+          if f(item) then l.push(item) else return l end
+          node = node.next() as this->ListNode[A]
+        end
+      end
+    end
+    l
+
+  fun reverse(): List[this->A!]^ =>
+    """
+    Builds a new list by reversing the elements in the list.
+    """
+    try
+      _reverse(head(), List[this->A!])
+    else
+      List[this->A!]
+    end
+
+  fun _reverse(ln: this->ListNode[A], acc: List[this->A!]): List[this->A!]^ =>
+    """
+    Private helper for reverse, recursively working with ListNodes.
+    """
+    try acc.unshift(ln()) end
+
+    try
+      _reverse(ln.next() as this->ListNode[A], acc)
+    else
+      acc
+    end
+
+  fun contains[B: (A & HasEq[A!] #read) = A](a: box->B): Bool =>
+    """
+    Returns true if the list contains the provided element, false otherwise.
+    """
+    try
+      _contains[B](head(), a)
+    else
+      false
+    end
+
+  fun _contains[B: (A & HasEq[A!] #read) = A](ln: this->ListNode[A],
+    a: box->B): Bool
+  =>
+    """
+    Private helper for contains, recursively working with ListNodes.
+    """
+    try
+      if a == ln() then
+        true
+      else
+        _contains[B](ln.next() as this->ListNode[A], a)
+      end
+    else
+      false
+    end
 
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
