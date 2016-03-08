@@ -9,7 +9,9 @@ use @modify_via_outer[None](s: Outer)
 use @modify_inner[None](s: Inner)
 
 // Unlike classes, Pony structs have the same binary layout as C structs and
-// can be transparently used in C functions
+// can be transparently used in C functions.
+// Structs do not have a type descriptor, which means they cannot be used in
+// algebraic types or implement traits/interfaces.
 struct Inner
   var x: I32 = 0
 
@@ -30,7 +32,7 @@ actor Main
     env.out.print(s.inner_embed.x.string()) // Prints 10
     env.out.print(s.inner_var.x.string()) // Prints 15
 
-    // The syntax is the same for embed and var/let fields
+    // The syntax is the same for embed and var/let fields.
     @modify_inner(s.inner_embed)
     @modify_inner(s.inner_var)
     env.out.print(s.inner_embed.x.string()) // Prints 5
