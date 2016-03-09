@@ -11,7 +11,7 @@ actor UDPSocket
   var _read_from: IPAddress iso = IPAddress
   embed _ip: IPAddress = IPAddress
 
-  new create(notify: UDPNotify iso, host: String = "", service: String = "0",
+  new _create(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: USize = 1024)
   =>
     """
@@ -26,7 +26,7 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
+  new _ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: USize = 1024)
   =>
     """
@@ -41,7 +41,7 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
+  new _ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: USize = 1024)
   =>
     """

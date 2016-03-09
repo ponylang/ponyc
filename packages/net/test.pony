@@ -2,6 +2,7 @@ use "ponytest"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
+
   new make() => None
 
   fun tag tests(test: PonyTest) =>
@@ -83,27 +84,34 @@ class _TestPing is UDPNotify
     _h = h
 
     _ip = try
-      (_, let service) = ip.name()
+      match _h.env.root
+      | let root: AmbientAuth =>
+          let dns = NetworkInterface(root)
+          (_, let service) = ip.name(dns)
 
-      let list = if ip.ip4() then
-        ifdef freebsd then
-          DNS.ip4("", service)
+          let list = if ip.ip4() then
+            ifdef freebsd then
+              dns.resolve("", service)
+            else
+              dns.broadcast(service, IPv4)
+            end
+          else
+            ifdef freebsd then
+              dns.resolve("", service)
+            else
+              dns.broadcast(service, IPv6)
+            end
+          end
+
+          list(0)
         else
-          DNS.broadcast_ip4(service)
+          _h.fail("Couldn't make broadcast address")
+          ip
         end
       else
-        ifdef freebsd then
-          DNS.ip6("", service)
-        else
-          DNS.broadcast_ip6(service)
-        end
+        _h.fail("Cannot get network from env")
+        ip
       end
-
-      list(0)
-    else
-      _h.fail("Couldn't make broadcast address")
-      ip
-    end
 
   fun ref listening(sock: UDPSocket ref) =>
     sock.set_broadcast(true)
@@ -141,13 +149,15 @@ class _TestPong is UDPNotify
 
 actor _TestBroadcastMgr
   let _h: TestHelper
+  let _net: NetworkInterface iso
   let _pong: UDPSocket
   var _ping: (UDPSocket | None) = None
   var _fail: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(h: TestHelper, net: NetworkInterface iso) =>
     _h = h
-    _pong = UDPSocket(recover _TestPong(this, h) end)
+    _net = consume net
+    _pong = _net.udp_socket(recover _TestPong(this, h) end)
 
   be succeed() =>
     if not _fail then
@@ -169,11 +179,8 @@ actor _TestBroadcastMgr
     if not _fail then
       let h = _h
 
-      if ip.ip4() then
-        _ping = UDPSocket.ip4(recover _TestPing(this, h, ip) end)
-      else
-        _ping = UDPSocket.ip6(recover _TestPing(this, h, ip) end)
-      end
+      _ping = _net.udp_socket(recover _TestPing(this, h, ip) end
+                              where v=ip.version())
     end
 
 class iso _TestBroadcast is UnitTest
@@ -185,8 +192,14 @@ class iso _TestBroadcast is UnitTest
   fun name(): String => "net/Broadcast"
 
   fun ref apply(h: TestHelper) =>
-    _mgr = _TestBroadcastMgr(h)
-    h.long_test(2_000_000_000) // 2 second timeout
+    match h.env.root
+    | let a: AmbientAuth =>
+      let net = recover NetworkInterface(a) end
+      _mgr = _TestBroadcastMgr(h, consume net)
+      h.long_test(2_000_000_000) // 2 second timeout
+    else
+      h.fail("cannot create NetworkInterface from test env: no root")
+    end
 
   fun timedout(t: TestHelper) =>
     try

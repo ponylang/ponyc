@@ -1,25 +1,35 @@
+use "net"
 use "net/http"
 
 actor Main
   new create(env: Env) =>
-    let service = try env.args(1) else "50000" end
-    let limit = try env.args(2).usize() else 100 end
-    Server(Info(env), Handle, CommonLog(env.out) where service = service,
+    match env.root
+    | let a: AmbientAuth =>
+      let service = try env.args(1) else "50000" end
+      let limit = try env.args(2).usize() else 100 end
+      let net: NetworkInterface val = recover NetworkInterface(a) end
+      Server(net, Info(env, net), Handle, CommonLog(env.out, net) where service = service,
       limit = limit)
     // Server(Info(env), Handle, ContentsLog(env.out) where service = service,
     //   limit = limit)
     // Server(Info(env), Handle, DiscardLog where service = service,
     //   limit = limit)
+    else
+      env.err.print("cannot use network: no root")
+    end
+
 
 class Info
   let _env: Env
+  let _dns: DNSClient val
 
-  new iso create(env: Env) =>
+  new iso create(env: Env, dns: DNSClient val) =>
     _env = env
+    _dns = dns
 
   fun ref listening(server: Server ref) =>
     try
-      (let host, let service) = server.local_address().name()
+      (let host, let service) = server.local_address().name(_dns)
       _env.out.print("Listening on " + host + ":" + service)
     else
       _env.out.print("Couldn't get local address.")

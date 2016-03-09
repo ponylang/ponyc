@@ -2,9 +2,15 @@ use "net"
 
 class Pong is UDPNotify
   let _env: Env
+  let _network: UDPEndpoint val
 
-  new create(env: Env) =>
+  new create(env: Env) ? =>
     _env = env
+    _network = match env.root
+	  | let r: AmbientAuth => recover NetworkInterface(r) end
+	  else
+	    error
+	  end
 
   fun ref listening(sock: UDPSocket ref) =>
     try
@@ -14,13 +20,7 @@ class Pong is UDPNotify
 
       let env = _env
 
-      if ip.ip4() then
-        UDPSocket.ip4(recover Ping(env, ip) end)
-      elseif ip.ip6() then
-        UDPSocket.ip6(recover Ping(env, ip) end)
-      else
-        error
-      end
+      _network.udp_socket(recover Ping(env, ip) end where v=ip.version())
     else
       _env.out.print("Pong: couldn't get local name")
       sock.dispose()

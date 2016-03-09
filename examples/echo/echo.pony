@@ -2,7 +2,14 @@ use "net"
 
 actor Main
   new create(env: Env) =>
-    let listener = TCPListener.ip4(Listener(env))
+    match env.root
+    | let a: AmbientAuth =>
+      let net = NetworkInterface(a)
+      let listener = net.listen(Listener(env)
+                                where v=IPv4)
+    else
+      env.err.print("no root")
+    end
 
 class Listener is TCPListenNotify
   let _env: Env

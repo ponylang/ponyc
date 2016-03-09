@@ -27,7 +27,19 @@ class val IPAddress
     """
     @pony_os_ipv6[Bool](this)
 
-  fun name(reversedns: Bool = false, servicename: Bool = false):
+  fun version(): IPVersion =>
+    """
+    Returns IP version of this address.
+    """
+    if this.ip4() then
+      IPv4
+    elseif this.ip6() then
+      IPv6
+    else
+      None
+    end
+    
+  fun name(dns: DNSClient box, reversedns: Bool = false, servicename: Bool = false):
     (String, String) ?
   =>
     """
@@ -43,3 +55,7 @@ class val IPAddress
 
     (recover String.from_cstring(consume host) end,
       recover String.from_cstring(consume serv) end)
+
+primitive IPv4
+primitive IPv6
+type IPVersion is (IPv4 | IPv6 | None)

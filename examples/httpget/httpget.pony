@@ -1,24 +1,34 @@
 use "assert"
 use "collections"
+use "files"
+use "net"
 use "net/http"
 use "net/ssl"
 
 actor Main
+
+  new create(env: Env) =>
+    match env.root
+    | None => env.out.print("No root!")
+    | let r: AmbientAuth => Go(env, r)
+    end
+
+
+actor Go
   let _env: Env
   let _client: Client
 
-  new create(env: Env) =>
+  new create(env: Env, root: AmbientAuth) =>
     _env = env
-
     let sslctx = try
       recover
         SSLContext
           .set_client_verify(true)
-          .set_authority("./test/pony/httpget/cacert.pem")
+          .set_authority(FilePath(root, "./test/pony/httpget/cacert.pem"))
       end
     end
 
-    _client = Client(consume sslctx)
+    _client = Client(recover NetworkInterface(root) end, consume sslctx)
 
     for i in Range(1, env.args.size()) do
       try
