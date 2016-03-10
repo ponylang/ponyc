@@ -8,7 +8,6 @@
 #endif
 
 #include <llvm/IR/Function.h>
-#include <llvm/Support/Host.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)

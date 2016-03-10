@@ -136,9 +136,7 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config 2> /dev/null))
-    LLVM_CONFIG = llvm-config
-  else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
+  ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.7
   else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.6
@@ -146,6 +144,8 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
 		LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+  else ifneq (,$(shell which llvm-config 2> /dev/null))
+    LLVM_CONFIG = llvm-config
   endif
 endif
 

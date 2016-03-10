@@ -14,13 +14,9 @@
 #endif
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DIBuilder.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Path.h>
-#include <llvm/IR/Metadata.h>
-#include <llvm/Config/llvm-config.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)

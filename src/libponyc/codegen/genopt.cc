@@ -11,9 +11,7 @@
 #include <string.h>
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/CallSite.h>
-#include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/DebugInfo.h>
@@ -30,9 +28,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <llvm/ADT/Triple.h>
 #include <llvm/ADT/SmallSet.h>
-#include <llvm/ADT/SmallVector.h>
 
 #include "../../libponyrt/mem/heap.h"
 
@@ -56,8 +52,8 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
   Instruction* i = inst;
 
   /* Starting with LLVM 3.7.0-final getDebugLog may return a
-   * DebugLoc without a valid underlying MDNode* for instructions 
-   * that have no direct source location, instead of returning 0 
+   * DebugLoc without a valid underlying MDNode* for instructions
+   * that have no direct source location, instead of returning 0
    * for getLine().
    */
 #if PONY_LLVM >= 307
