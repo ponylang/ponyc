@@ -76,7 +76,7 @@ void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
 
 void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, int immutable)
 {
-  ctx->trace_object(ctx, p, f, immutable);
+  ctx->trace_object(ctx, p, f, immutable != 0);
 }
 
 void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable)
@@ -87,7 +87,7 @@ void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, type->trace, immutable);
+    ctx->trace_object(ctx, p, type->trace, immutable != 0);
   }
 }
 
