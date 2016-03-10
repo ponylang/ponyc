@@ -4,6 +4,7 @@
 #  pragma warning(disable:4244)
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
+#  pragma warning(disable:4624) //TODO: CHECK
 #endif
 
 #include "genopt.h"
@@ -54,7 +55,16 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
 
   Instruction* i = inst;
 
+  /* Starting with LLVM 3.7.0-final getDebugLog may return a
+   * DebugLoc without a valid underlying MDNode* for instructions 
+   * that have no direct source location, instead of returning 0 
+   * for getLine().
+   */
+#if PONY_LLVM >= 307
+  while(!i->getDebugLoc())
+#else
   while(i->getDebugLoc().getLine() == 0)
+#endif
   {
     BasicBlock::iterator iter = i;
 
@@ -67,29 +77,43 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
   DebugLoc loc = i->getDebugLoc();
 
 #if PONY_LLVM >= 307
-  DIScope scope = DIScope(cast_or_null<MDScope>(loc.getScope()));
+  DILocation* location = loc.get();
+  DIScope* scope = location->getScope();
+  DILocation* at = location->getInlinedAt();
+
 #else
   DIScope scope = DIScope(loc.getScope());
-#endif
-
   MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
+#endif
 
   if(at != NULL)
   {
 #if PONY_LLVM >= 307
-    DIScope scope_at = DIScope(cast_or_null<MDScope>(at->getScope()));
+    DIScope* scope_at = at->getScope();
+
+    errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
+      scope_at->getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
 #else
     DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
-#endif
 
     errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(),
       scope_at.getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
-  } else {
+#endif
+  }
+  else {
+#if PONY_LLVM >= 307
+    errorf(NULL, "[%s] %s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
+#else
     errorf(NULL, "[%s] %s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
+#endif
   }
 }
 

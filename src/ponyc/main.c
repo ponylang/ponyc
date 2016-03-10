@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
     }
   }
 
-#ifdef PLATFORM_IS_WINDOWS
+#if defined(PLATFORM_IS_WINDOWS)
   opt.strip_debug = true;
 #endif
 

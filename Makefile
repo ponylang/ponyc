@@ -569,8 +569,6 @@ clean:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
 help:
-	@echo $(LLVM_CONFIG)
-	@echo
 	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
