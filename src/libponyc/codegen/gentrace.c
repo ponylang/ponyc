@@ -541,6 +541,8 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
       case TRACE_ACTOR:
       case TRACE_KNOWN:
       case TRACE_UNKNOWN:
+      case TRACE_KNOWN_VAL:
+      case TRACE_UNKNOWN_VAL:
       case TRACE_TAG:
       case TRACE_TAG_OR_ACTOR:
       case TRACE_DYNAMIC:
@@ -651,6 +653,8 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   {
     case TRACE_KNOWN:
     case TRACE_UNKNOWN:
+    case TRACE_KNOWN_VAL:
+    case TRACE_UNKNOWN_VAL:
     case TRACE_ACTOR:
       LLVMBuildBr(c->builder, next_block);
       break;
