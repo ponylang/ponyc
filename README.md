@@ -85,13 +85,12 @@ You'll need llvm 3.7.1 and the pcre2 library to build Pony.
 Either install them via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install homebrew/versions/llvm37
-$ brew install pcre2
+$ brew install homebrew/versions/llvm37 pcre2 libressl
 ```
 
 Or install them via macport:
 ```
-$ sudo port install llvm-3.7 pcre2
+$ sudo port install llvm-3.7 pcre2 libressl
 $ sudo port select --set llvm mp-llvm-3.7
 ```
 
