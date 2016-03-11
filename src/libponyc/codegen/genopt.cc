@@ -21,6 +21,7 @@
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #else
+#include <llvm/ADT/Triple.h>
 #include <llvm/PassManager.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #endif
