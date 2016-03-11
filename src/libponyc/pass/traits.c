@@ -29,7 +29,7 @@
  * 3. Compatible inheritance.
  *    If T gets an M from either (1) or (2) then we use "compatible"
  *    inheritance.
- *    Each M from T's provides list must be a supertype of T.M. 
+ *    Each M from T's provides list must be a supertype of T.M.
  *    Any default bodies of M from the provides list are ignored, even if T.M
  *    has no body.
  * 4. Identical inheritance.
@@ -434,9 +434,11 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_EMBED:
     case TK_PARAM:
     case TK_TYPEPARAM:
+    {
       assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED);
       break;
+    }
 
     case TK_LET:
     case TK_VAR:
@@ -445,6 +447,14 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       ast_t* scope = ast_parent(ast);
       ast_t* id = ast_child(ast);
       ast_set(scope, ast_name(id), id, SYM_DEFINED);
+      break;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      assert(ast_child(ast) != NULL);
+      ast_t* def = ast_get(ast, ast_name(ast_child(ast)), NULL);
+      ast_setdata(ast, def);
       break;
     }
 
@@ -752,7 +762,7 @@ static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
     ast_free_unattached(reified);
     return false;
   }
-  
+
   // Convert the newly added method into a delegation redirection.
   make_delegation(new_method, field, trait_ref, entity);
   return true;
