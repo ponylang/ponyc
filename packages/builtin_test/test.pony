@@ -31,6 +31,7 @@ actor Main is TestList
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
+    test(_TestStringCount)
     test(_TestStringCompare)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
@@ -479,6 +480,26 @@ class iso _TestStringJoin is UnitTest
     h.assert_eq[String](" ".join([as Stringable: U32(1), U32(4)]), "1 4")
     h.assert_eq[String](" ".join(Array[String]), "")
 
+
+class iso _TestStringCount is UnitTest
+  """
+  Test String.count
+  """
+  fun name(): String => "builtin/String.count"
+
+  fun apply(h: TestHelper) =>
+    let testString: String = "testString"
+    h.assert_eq[USize](testString.count(testString), 1)
+    h.assert_eq[USize](testString.count("testString"), 1)
+    h.assert_eq[USize]("testString".count(testString), 1)
+    h.assert_eq[USize]("".count("zomg"), 0)
+    h.assert_eq[USize]("zomg".count(""), 0)
+    h.assert_eq[USize]("azomg".count("zomg"), 1)
+    h.assert_eq[USize]("zomga".count("zomg"), 1)
+    h.assert_eq[USize]("atatat".count("at"), 3)
+    h.assert_eq[USize]("atatbat".count("at"), 3)
+    h.assert_eq[USize]("atata".count("ata"), 1)
+    h.assert_eq[USize]("tttt".count("tt"), 2)
 
 class iso _TestStringCompare is UnitTest
   """

@@ -411,7 +411,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
     try
-      while k < j do
+      while k <= j do
         k = find(s, k) + s.size().isize()
         i = i + 1
       end
