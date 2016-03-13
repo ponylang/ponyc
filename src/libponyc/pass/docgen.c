@@ -417,7 +417,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
   if(fields->next == NULL)  // No fields
     return;
 
-  fprintf(docgen->type_file, "# %s\n\n", title);
+  fprintf(docgen->type_file, "## %s\n\n", title);
 
   for(ast_list_t* p = fields->next; p != NULL; p = p->next)
   {
@@ -530,16 +530,16 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   assert(name != NULL);
 
   // Sub heading
-  fprintf(docgen->type_file, "## %s %s()\n", ast_get_print(method), name);
+  //fprintf(docgen->type_file, "### %s %s()\n", ast_get_print(method), name);
 
-  // Reconstruct signature
-  fprintf(docgen->type_file, "%s", ast_get_print(method));
+  // Reconstruct signature for subheading
+  fprintf(docgen->type_file, "### %s", ast_get_print(method));
 
   if(ast_id(method) == TK_FUN)
   {
     const char* cap_text = doc_get_cap(cap);
     if(cap_text != NULL)
-      fprintf(docgen->type_file, " %s\n", cap_text);
+      fprintf(docgen->type_file, " %s ", cap_text);
   }
 
   fprintf(docgen->type_file, " %s", name);
@@ -555,14 +555,11 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   if(ast_id(error) == TK_QUESTION)
     fprintf(docgen->type_file, " ?");
 
-  // Further information
-  fprintf(docgen->type_file, "\n\n");
-  fprintf(docgen->type_file, "%s", (name[0] == '_') ? "Private" : "Public");
 
   if(ast_id(error) == TK_QUESTION)
     fprintf(docgen->type_file, ", may raise an error");
 
-  fprintf(docgen->type_file, ".\n\n");
+  fprintf(docgen->type_file, "\n\n");
 
   // Finally the docstring, if any
   if(ast_id(doc) != TK_NONE)
@@ -584,7 +581,7 @@ static void doc_methods(docgen_t* docgen, ast_list_t* methods,
   if(methods->next == NULL)
     return;
 
-  fprintf(docgen->type_file, "# %s\n\n", variety);
+  fprintf(docgen->type_file, "## %s\n\n", variety);
 
   for(ast_list_t* p = methods->next; p != NULL; p = p->next)
     doc_method(docgen, p->ast);
@@ -622,11 +619,13 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-  fprintf(docgen->type_file, "%s %s", ast_get_print(ast), name);
+  fprintf(docgen->type_file, "# %s >> %s %s",
+    package_qualified_name(package),
+    ast_get_print(ast),
+    name);
   doc_type_params(docgen, tparams);
   doc_type_list(docgen, provides, " is ", ", ", "");
-  fprintf(docgen->type_file, "\n\nIn package \"%s\".\n\n",
-    package_qualified_name(package));
+  fprintf(docgen->type_file, "\n\n");
 
   fprintf(docgen->type_file, "%s", (name[0] == '_') ? "Private" : "Public");
 
