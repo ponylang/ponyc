@@ -2,9 +2,9 @@
 # Signals package
 
 The Signals package provides support for handling Unix style signals.
-For each signal that you want to handle, you need to create a SignalHandler
-and a corresponding SignalNotify object. Each SignalHandler runs as it own
-actor and upon receiving the signal will call its corresponding SignalNotify's
+For each signal that you want to handle, you need to create a `SignalHandler`
+and a corresponding `SignalNotify` object. Each SignalHandler runs as it own
+actor and upon receiving the signal will call its corresponding `SignalNotify`'s
 apply method.
 
 ## Example program
@@ -35,14 +35,14 @@ class TermHandler is SignalNotify
 
 ## Signal portability
 
-The Sig primitive provides support for portable signal handling across Linux,
+The `Sig` primitive provides support for portable signal handling across Linux,
 FreeBSD and OSX. Signals are not supported on Windows and attempting to use them
 will cause a compilation error.
 
 ## Shutting down handlers
 
-Unlike a TCPConnection and other forms of input receiving, creating a
-SignalHandler will not keep your program running. As such, you are not required
+Unlike a `TCPConnection` and other forms of input receiving, creating a
+`SignalHandler` will not keep your program running. As such, you are not required
 to call `dispose` on your signal handlers in order to shutdown your program.
 
 """
