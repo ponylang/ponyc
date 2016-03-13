@@ -542,7 +542,7 @@ static void doc_method(docgen_t* docgen, ast_t* method)
       fprintf(docgen->type_file, " %s ", cap_text);
   }
 
-  fprintf(docgen->type_file, " %s", name);
+  fprintf(docgen->type_file, " __%s__", name);
   doc_type_params(docgen, t_params);
   doc_params(docgen, params);
 
@@ -554,10 +554,6 @@ static void doc_method(docgen_t* docgen, ast_t* method)
 
   if(ast_id(error) == TK_QUESTION)
     fprintf(docgen->type_file, " ?");
-
-
-  if(ast_id(error) == TK_QUESTION)
-    fprintf(docgen->type_file, ", may raise an error");
 
   fprintf(docgen->type_file, "\n\n");
 
