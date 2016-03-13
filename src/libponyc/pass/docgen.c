@@ -619,19 +619,18 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-  fprintf(docgen->type_file, "# %s >> %s %s",
-    package_qualified_name(package),
+    fprintf(docgen->type_file, "# %s %s/%s",
     ast_get_print(ast),
+    package_qualified_name(package),
     name);
+
   doc_type_params(docgen, tparams);
   doc_type_list(docgen, provides, " is ", ", ", "");
   fprintf(docgen->type_file, "\n\n");
 
   const char* cap_text = doc_get_cap(cap);
   if(cap_text != NULL)
-    fprintf(docgen->type_file, ", default capability %s", cap_text);
-
-  fprintf(docgen->type_file, ".\n\n");
+    fprintf(docgen->type_file, "__Default capability__: _%s_\n\n", cap_text);
 
   if(ast_id(c_api) == TK_AT)
     fprintf(docgen->type_file, "May be called from C.\n");
