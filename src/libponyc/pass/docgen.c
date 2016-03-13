@@ -627,8 +627,6 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   doc_type_list(docgen, provides, " is ", ", ", "");
   fprintf(docgen->type_file, "\n\n");
 
-  fprintf(docgen->type_file, "%s", (name[0] == '_') ? "Private" : "Public");
-
   const char* cap_text = doc_get_cap(cap);
   if(cap_text != NULL)
     fprintf(docgen->type_file, ", default capability %s", cap_text);
