@@ -27,7 +27,7 @@ actor Custodian
       let actor3 = Actor3
 
       let custodian = Custodian
-      custodian(actor1)(actor2)(actor2)
+      custodian(actor1)(actor2)(actor3)
 
       SignalHandler(TermHandler(custodian), Sig.term())
 
