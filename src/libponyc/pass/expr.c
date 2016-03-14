@@ -51,6 +51,7 @@ bool is_result_needed(ast_t* ast)
     case TK_CASES:
     case TK_TRY:
     case TK_TRY_NO_CHECK:
+    case TK_RECOVER:
       // Only if parent needed.
       return is_result_needed(parent);
 
