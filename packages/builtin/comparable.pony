@@ -16,6 +16,9 @@ primitive Greater is Equatable[Compare]
 
 type Compare is (Less | Equal | Greater)
 
+interface HasEq[A]
+  fun eq(that: box->A): Bool
+
 interface Equatable[A: Equatable[A] #read]
   fun eq(that: box->A): Bool => this is that
   fun ne(that: box->A): Bool => not eq(that)

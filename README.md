@@ -4,6 +4,7 @@
 * Use the [mailing list](mailto:pony+user@groups.io).
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
 * A tutorial is available [here](http://tutorial.ponylang.org).
+* Standard library docs are available [here](http://ponylang.github.io/ponyc/).
 
 # Editor support
 
@@ -49,7 +50,8 @@ You will need to build from source.
 
 ## Building on Linux [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-First, install LLVM 3.6 using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well.
+First, install LLVM 3.7.1 using your package manager. You may need to install
+zlib, ncurses, pcre2, and ssl as well.
 
 This will build ponyc and compile helloworld:
 
@@ -64,7 +66,7 @@ First, install the required dependencies:
 
 ```bash
 sudo pkg install gmake
-sudo pkg install llvm36
+sudo pkg install llvm37
 sudo pkg install pcre2
 sudo pkg install libunwind
 ```
@@ -78,19 +80,18 @@ $ ./build/release/ponyc examples/helloworld
 
 ## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.6 and the pcre2 library to build Pony.
+You'll need llvm 3.7.1 and the pcre2 library to build Pony.
 
 Either install them via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install llvm
-$ brew install pcre2
+$ brew install homebrew/versions/llvm37 pcre2 libressl
 ```
 
 Or install them via macport:
 ```
-$ sudo port install llvm-3.6 pcre2
-$ sudo port select --set llvm mp-llvm-3.6
+$ sudo port install llvm-3.7 pcre2 libressl
+$ sudo port select --set llvm mp-llvm-3.7
 ```
 
 Then launch the build with Make:
@@ -99,9 +100,9 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-## Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+## Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
 
-The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM 3.7 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
 

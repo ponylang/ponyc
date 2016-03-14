@@ -4,10 +4,14 @@
 #  pragma warning(disable:4244)
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
+#  pragma warning(disable:4624) //TODO: CHECK
 #endif
 
 #include <llvm/IR/Function.h>
+
+#if PONY_LLVM < 307
 #include <llvm/Support/Host.h>
+#endif
 
 #ifdef _MSC_VER
 #  pragma warning(pop)

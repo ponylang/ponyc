@@ -4,15 +4,14 @@
 #  pragma warning(disable:4244)
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
+#  pragma warning(disable:4624) //TODO: CHECK
 #endif
 
 #include "genopt.h"
 #include <string.h>
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/CallSite.h>
-#include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/DebugInfo.h>
@@ -22,6 +21,7 @@
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #else
+#include <llvm/ADT/Triple.h>
 #include <llvm/PassManager.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #endif
@@ -29,9 +29,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <llvm/ADT/Triple.h>
 #include <llvm/ADT/SmallSet.h>
-#include <llvm/ADT/SmallVector.h>
 
 #include "../../libponyrt/mem/heap.h"
 
@@ -54,7 +52,16 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
 
   Instruction* i = inst;
 
+  /* Starting with LLVM 3.7.0-final getDebugLog may return a
+   * DebugLoc without a valid underlying MDNode* for instructions
+   * that have no direct source location, instead of returning 0
+   * for getLine().
+   */
+#if PONY_LLVM >= 307
+  while(!i->getDebugLoc())
+#else
   while(i->getDebugLoc().getLine() == 0)
+#endif
   {
     BasicBlock::iterator iter = i;
 
@@ -67,29 +74,43 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
   DebugLoc loc = i->getDebugLoc();
 
 #if PONY_LLVM >= 307
-  DIScope scope = DIScope(cast_or_null<MDScope>(loc.getScope()));
+  DILocation* location = loc.get();
+  DIScope* scope = location->getScope();
+  DILocation* at = location->getInlinedAt();
+
 #else
   DIScope scope = DIScope(loc.getScope());
-#endif
-
   MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
+#endif
 
   if(at != NULL)
   {
 #if PONY_LLVM >= 307
-    DIScope scope_at = DIScope(cast_or_null<MDScope>(at->getScope()));
+    DIScope* scope_at = at->getScope();
+
+    errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
+      scope_at->getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
 #else
     DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
-#endif
 
     errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(),
       scope_at.getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
-  } else {
+#endif
+  }
+  else {
+#if PONY_LLVM >= 307
+    errorf(NULL, "[%s] %s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
+#else
     errorf(NULL, "[%s] %s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
+#endif
   }
 }
 
@@ -508,7 +529,12 @@ static void optimise(compile_t* c)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
+
+#if !defined(PLATFORM_IS_MACOSX)
+  // The LoadCombine optimisation can result in IR errors inside LLVM on OSX.
+  // These errors don't occur on Linux or Windows.
   pmb.LoadCombine = true;
+#endif
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -517,13 +543,13 @@ static void optimise(compile_t* c)
 
   if(target_is_arm(c->opt->triple))
   {
-  // On ARM, without this, trace functions are being loaded with a double
-  // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
-  // the trace function address, but then ldr r2, [r0] is done to move the
-  // address into the 3rd arg to pony_traceobject. This double indirection
-  // gives a garbage trace function. In release mode, a different path is used
-  // and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
-  // results in the alternate (working) asm being used for a debug build.
+    // On ARM, without this, trace functions are being loaded with a double
+    // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
+    // the trace function address, but then ldr r2, [r0] is done to move the
+    // address into the 3rd arg to pony_traceobject. This double indirection
+    // gives a garbage trace function. In release mode, a different path is
+    // used and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
+    // results in the alternate (working) asm being used for a debug build.
     if(!c->opt->release)
       pmb.OptLevel = 1;
   }

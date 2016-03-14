@@ -10,16 +10,13 @@
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4291)
+#  pragma warning(disable:4624) //TODO: CHECK
 #endif
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DIBuilder.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Path.h>
-#include <llvm/IR/Metadata.h>
-#include <llvm/Config/llvm-config.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -35,10 +32,17 @@ struct debug_sym_t
 {
   const char* name;
 
+#if PONY_LLVM >= 307
+  DIType* type;
+  DIType* qualified;
+  DIType* actual;
+  DICompositeType* prelim;
+#else
   DIType type;
   DIType qualified;
   DIType actual;
   DICompositeType prelim;
+#endif
 };
 
 struct debug_frame_t
@@ -46,10 +50,13 @@ struct debug_frame_t
   const char* type_name;
 
   size_t size;
-
   std::vector<llvm::Metadata *> members;
 
+#if PONY_LLVM >= 307
+  DIScope* scope;
+#else
   DIDescriptor scope;
+#endif
   DebugLoc location;
 
   debug_frame_t* prev;
@@ -69,7 +76,11 @@ struct symbols_t
 
   DIBuilder* builder;
   IRBuilderBase* ir;
+#if PONY_LLVM >= 307
+  DICompileUnit* unit;
+#else
   DICompileUnit unit;
+#endif
 
   bool release;
 
@@ -102,10 +113,12 @@ static debug_sym_t* get_entry(symbols_t* symbols, const char* name)
   {
     value = POOL_ALLOC(debug_sym_t);
     value->name = key.name;
+#if PONY_LLVM < 307
     value->type = DIType();
     value->qualified = DIType();
     value->prelim = DICompositeType();
     value->actual = DIType();
+#endif
 
     symbolmap_put(&symbols->map, value);
   }
@@ -113,7 +126,12 @@ static debug_sym_t* get_entry(symbols_t* symbols, const char* name)
   return value;
 }
 
-static DIFile get_file(symbols_t* symbols, const char* fullpath)
+#if PONY_LLVM >= 307
+static DIFile*
+#else
+static DIFile
+#endif
+get_file(symbols_t* symbols, const char* fullpath)
 {
   StringRef name = sys::path::filename(fullpath);
   StringRef path = sys::path::parent_path(fullpath);
@@ -131,12 +149,10 @@ void symbols_init(symbols_t** symbols, LLVMBuilderRef builder,
 
   Module* m = unwrap(module);
 
-#ifndef PLATFORM_IS_WINDOWS
   unsigned version = llvm::DEBUG_METADATA_VERSION;
 
   m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", version);
   m->addModuleFlag(llvm::Module::Error, "Debug Info Version", version);
-#endif
 
   s->builder = new DIBuilder(*m);
   s->ir = unwrap(builder);
@@ -220,11 +236,21 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 {
   debug_sym_t* d = get_entry(symbols, meta->name);
 
+#if PONY_LLVM >= 307
+  DIFile* file = get_file(symbols, meta->file);
+#else
   DIFile file = get_file(symbols, meta->file);
+#endif
 
+#if PONY_LLVM >= 307
+  DICompositeType* composite = symbols->builder->createClassType(symbols->unit,
+    meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
+    0, NULL, DINodeArray());
+#else
   DICompositeType composite = symbols->builder->createClassType(symbols->unit,
     meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
     0, DIType(), DIArray());
+#endif
 
   d->type = symbols->builder->createPointerType(composite, meta->size,
     meta->align);
@@ -239,8 +265,13 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 {
   debug_sym_t* d = get_entry(symbols, name);
 
+#if PONY_LLVM >= 307
+  DICompositeType* type = symbols->builder->createClassType(symbols->unit,
+    name, NULL, 0, 0, 0, 0, 0, NULL, DINodeArray());
+#else
   DICompositeType type = symbols->builder->createClassType(symbols->unit,
-    name, DIFile(), 0, 0, 0, 0, 0, DIType(), DIArray());
+    name, DIFile(), 0, 0, 0, 0, 0, DIDerivedType(), DIArray());
+#endif
 
   d->type = symbols->builder->createPointerType(type, 0, 0);
 
@@ -254,7 +285,11 @@ void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)
 {
   debug_sym_t* d = get_entry(symbols, meta->name);
 
+#if PONY_LLVM >= 307
+  DIFile* file = get_file(symbols, meta->file);
+#else
   DIFile file = get_file(symbols, meta->file);
+#endif
   uint16_t tag = DW_TAG_class_type;
   uint16_t qualifier = DW_TAG_const_type;
 
@@ -296,16 +331,28 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
   if((meta->flags & DWARF_PRIVATE) != 0)
     visibility = DW_ACCESS_private;
 
+#if PONY_LLVM >= 307
+  DIType* use_type = d->type;
+#else
   DIType use_type = d->type;
+#endif
 
   if(meta->flags & DWARF_CONSTANT)
     use_type = d->qualified;
 
+#if PONY_LLVM >= 307
+  DIFile* file = get_file(symbols, meta->file);
+
+  DIDerivedType* member = symbols->builder->createMemberType(symbols->unit,
+    meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
+    visibility, use_type);
+#else
   DIFile file = get_file(symbols, meta->file);
 
   DIDerivedType member = symbols->builder->createMemberType(symbols->unit,
     meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
     visibility, use_type);
+#endif
 
   frame->members.push_back(member);
 }
@@ -325,38 +372,69 @@ void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
     params.push_back(current->qualified);
   }
 
+#if PONY_LLVM >= 307
+  DIFile* file = get_file(symbols, meta->file);
+#else
   DIFile file = get_file(symbols, meta->file);
+#endif
 
+#if PONY_LLVM >= 307
+  DISubroutineType* type = symbols->builder->createSubroutineType(file,
+    symbols->builder->getOrCreateTypeArray(params));
+#else
   DICompositeType type = symbols->builder->createSubroutineType(file,
     symbols->builder->getOrCreateTypeArray(params));
+#endif
 
   Function* f = dyn_cast_or_null<Function>(unwrap(ir));
   debug_sym_t* d = get_entry(symbols, symbols->frame->type_name);
 
+#if PONY_LLVM >= 307
+  symbols->frame->scope = symbols->builder->createMethod(d->actual,
+    meta->name, meta->mangled, file, (int)meta->line, type, false, true,
+    0, 0, NULL, 0, symbols->release, f);
+#else
   symbols->frame->scope = symbols->builder->createMethod(d->actual,
     meta->name, meta->mangled, file, (int)meta->line, type, false, true,
     0, 0, DIType(), 0, symbols->release, f);
+#endif
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
 {
   // The composite was previously forward declared, and a preliminary
   // debug symbol exists.
+#if PONY_LLVM >= 307
+  DIFile* file = get_file(symbols, meta->file);
+  DINodeArray fields = symbols->builder->getOrCreateArray(symbols->frame->members);
+#else
   DIFile file = get_file(symbols, meta->file);
   DIArray fields = symbols->builder->getOrCreateArray(symbols->frame->members);
+#endif
 
   debug_sym_t* d = get_entry(symbols, meta->name);
 
   if(meta->flags & DWARF_TUPLE)
   {
+#if PONY_LLVM >= 307
+    d->actual = symbols->builder->createStructType(symbols->unit,
+      meta->name, file, (int)meta->line, meta->size, meta->align, 0, NULL,
+      fields);
+#else
     d->actual = symbols->builder->createStructType(symbols->unit,
       meta->name, file, (int)meta->line, meta->size, meta->align, 0, DIType(),
       fields);
+#endif
 
     d->type = d->actual;
   } else {
+#if PONY_LLVM >= 307
+    d->actual = symbols->builder->createClassType(symbols->unit, meta->name,
+      file, (int)meta->line, meta->size, meta->align, 0, 0, NULL, fields);
+#else
     d->actual = symbols->builder->createClassType(symbols->unit, meta->name,
       file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
+#endif
   }
 
 #if PONY_LLVM >= 307
@@ -368,8 +446,13 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
 {
+#if PONY_LLVM >= 307
+  DIScope* parent = symbols->frame->prev->scope;
+  DIFile* file = get_file(symbols, meta->file);
+#else
   DIDescriptor parent = symbols->frame->prev->scope;
   DIFile file = get_file(symbols, meta->file);
+#endif
 
   assert((MDNode*)parent != NULL);
 
@@ -385,8 +468,13 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
   debug_sym_t* d = get_entry(symbols, meta->mangled);
   debug_frame_t* frame = symbols->frame;
 
+#if PONY_LLVM >= 307
+  DIType* type = d->type;
+  DIFile* file = get_file(symbols, meta->file);
+#else
   DIType type = d->type;
   DIFile file = get_file(symbols, meta->file);
+#endif
 
   if(is_arg)
   {
@@ -400,24 +488,47 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
   if(meta->flags & DWARF_ARTIFICIAL)
     type = symbols->builder->createArtificialType(type);
 
+#if PONY_LLVM >= 307
+  DILocalVariable* info = symbols->builder->createLocalVariable(tag, frame->scope,
+    meta->name, file, (unsigned)meta->line, type, true, 0, index);
+
+  DIExpression* complex = symbols->builder->createExpression();
+#else
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
     meta->name, file, (unsigned)meta->line, type, true, 0, index);
 
   DIExpression complex = symbols->builder->createExpression();
+#endif
+
   Value* ref = unwrap(meta->storage);
   Instruction* intrinsic;
+  DebugLoc location = DebugLoc::get((unsigned)meta->line,
+    (unsigned)meta->pos, frame->scope);
 
   if(meta->inst != NULL)
   {
     Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));
+#if PONY_LLVM >= 307
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, location,
+      before);
+#else
     intrinsic = symbols->builder->insertDeclare(ref, info, complex, before);
+#endif
   } else {
     BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));
+#if PONY_LLVM >= 307
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, location, end);
+#else
     intrinsic = symbols->builder->insertDeclare(ref, info, complex, end);
+#endif
   }
 
+#if PONY_LLVM < 307
   intrinsic->setDebugLoc(DebugLoc::get((unsigned)meta->line,
     (unsigned)meta->pos, frame->scope));
+#else
+  (void)intrinsic;
+#endif
 }
 
 void symbols_location(symbols_t* symbols, size_t line, size_t pos)

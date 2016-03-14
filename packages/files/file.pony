@@ -104,7 +104,12 @@ class File
 
     if
       not from.caps(FileRead) or
-      try FileInfo(from).directory else true end
+      try
+        let info' = FileInfo(from)
+        info'.directory or info'.pipe
+      else
+        true
+      end
     then
       _errno = FileError
     else

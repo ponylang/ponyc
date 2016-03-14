@@ -450,8 +450,10 @@ bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)
 
   while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
-    // Add to our RC.
-    object_t* obj_local = ponyint_objectmap_getobject(&gc->local, obj->address);
+    // Add to our RC. The object may not be in our object map, if it was
+    // reached through another immutable reference.
+    object_t* obj_local = ponyint_objectmap_getorput(&gc->local, obj->address,
+      gc->mark);
     obj_local->rc += obj->rc;
 
     // Mark as immutable if necessary.

@@ -74,7 +74,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
   type = sanitise_type(type);
 
   BUILD(field, id_node,
-    NODE(TK_FLET,
+    NODE(TK_FVAR,
       TREE(id_node)
       TREE(type)
       TREE(value)

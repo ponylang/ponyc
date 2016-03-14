@@ -1268,6 +1268,13 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   printbuf_free(buf);
 
+  // Add new type to current module and bring it up to date with passes.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  if(!ast_passes_type(&def, opt))
+    return AST_FATAL;
+
   // We will replace {..} with $0
   REPLACE(astp,
     NODE(TK_NOMINAL,
@@ -1276,13 +1283,6 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
       TREE(t_args)
       TREE(interface_cap)
       TREE(ephemeral)));
-
-  // Add new type to current module and bring it up to date with passes.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
-
-  if(!ast_passes_type(&def, opt))
-    return AST_FATAL;
 
   // Sugar the call.
   if(!ast_passes_subtree(astp, opt, PASS_SUGAR))

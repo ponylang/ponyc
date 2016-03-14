@@ -87,7 +87,6 @@ endif
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
-LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
 ifdef use
   ifneq (,$(filter $(use), valgrind))
@@ -137,25 +136,21 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config 2> /dev/null))
+  ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.7
+  else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.6
+  else ifneq (,$(shell which llvm-config36 2> /dev/null))
+    LLVM_CONFIG = llvm-config36
+  else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
+		LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+  else ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
   endif
-
-  ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.6
-  endif
-
-  ifneq (,$(shell which llvm-config36 2> /dev/null))
-    LLVM_CONFIG = llvm-config36
-  endif
-endif
-
-ifneq ("$(wildcard $(LLVM_FALLBACK))","")
-  LLVM_CONFIG = $(LLVM_FALLBACK)
 endif
 
 ifndef LLVM_CONFIG
-  $(error No LLVM 3.6 installation found!)
+  $(error No LLVM installation found!)
 endif
 
 $(shell mkdir -p $(PONY_BUILD_DIR))
@@ -574,7 +569,6 @@ clean:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
 help:
-	@echo
 	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
