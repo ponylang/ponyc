@@ -182,6 +182,18 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
   while(typeparam != NULL)
   {
+    if(ast_id(typearg) == TK_TYPEPARAMREF)
+    {
+      ast_t* def = (ast_t*)ast_data(typearg);
+
+      if(def == typeparam)
+      {
+        typeparam = ast_sibling(typeparam);
+        typearg = ast_sibling(typearg);
+        continue;
+      }
+    }
+
     // Reify the constraint.
     ast_t* constraint = ast_childidx(typeparam, 1);
     ast_t* bind_constraint = bind_type(constraint);
