@@ -447,8 +447,22 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
-    LLVMValueRef ret = gen_assign_cast(c, r_type, value,
-      ast_childidx(fun, 4));
+    // If the result type is known to be a tuple, do the correct assignment
+    // cast even if the body type is not a tuple.
+    ast_t* body_type = ast_type(body);
+    ast_t* result_type = ast_childidx(fun, 4);
+
+    if(ast_id(result_type) == TK_TUPLETYPE)
+      body_type = result_type;
+
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
+
+    if(ret == NULL)
+    {
+      ast_free_unattached(fun);
+      return NULL;
+    }
+
     LLVMBuildRet(c->builder, ret);
   }
 

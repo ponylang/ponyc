@@ -243,6 +243,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
     case LLVMHalfTypeKind:
     case LLVMFloatTypeKind:
     case LLVMDoubleTypeKind:
+      assert(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind);
       return gen_unbox(c, type, r_value);
 
     case LLVMPointerTypeKind:
@@ -255,7 +256,10 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
 
     case LLVMStructTypeKind:
       if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
+      {
         r_value = gen_unbox(c, type, r_value);
+        assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMStructTypeKind);
+      }
 
       return assign_to_tuple(c, l_type, r_value, type);
 
