@@ -1,0 +1,70 @@
+debug: true
+
+branches:
+  - master
+
+clone:
+  tags: true
+
+build:
+  arm_ponyc:
+    image: dipinhora/ponyc-builder:0.0.2
+    commands:
+      - CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ make arch=armv7-a bits=32 config=$$PONYC_CONFIG libponyrt
+      - mv build/$$PONYC_CONFIG/libponyrt.a build/arm-libponyrt.a
+      - rm -r build/$$PONYC_CONFIG
+    when:
+      matrix:
+        PONYC_VERSION: armhf
+  main_ponyc:
+    image: dipinhora/ponyc-builder:0.0.2
+    commands:
+      - make config=$$PONYC_CONFIG test
+      - rm build/$$PONYC_CONFIG/libponyc.tests
+      - rm build/$$PONYC_CONFIG/libponyrt.tests
+
+publish:
+  docker:
+    username: $$DOCKER_HUB_USERNAME
+    password: $$DOCKER_HUB_PASSWORD
+    email: $$DOCKER_HUB_EMAIL
+    repo: dipinhora/ponyc
+    file: Dockerfile
+    storage_driver: overlay
+    build_args:
+      - PONYC_CONFIG=$$PONYC_CONFIG
+    tag:
+      - $$BRANCH-$$COMMIT-$$PONYC_CONFIG-$$PONYC_VERSION
+    when:
+      event: push
+
+  docker:
+    username: $$DOCKER_HUB_USERNAME
+    password: $$DOCKER_HUB_PASSWORD
+    email: $$DOCKER_HUB_EMAIL
+    repo: dipinhora/ponyc
+    file: Dockerfile
+    storage_driver: overlay
+    build_args:
+      - PONYC_CONFIG=$$PONYC_CONFIG
+    tag:
+      - $$TAG-$$PONYC_CONFIG-$$PONYC_VERSION
+    when:
+      event: tag
+
+notify:
+  slack:
+    webhook_url: $$SLACK_WEBHOOK
+    channel: b-drone-ci
+    username: drone-ci
+    template: >
+      build `#{{ build.number }}` for {{repo.clone_url}} for commit `{{build.commit}}` in branch `{{build.branch}}` by `@{{build.author}}` with a message ```{{build.message}}``` finished with a `{{ build.status }}` status.
+
+matrix:
+  PONYC_CONFIG:
+    - debug
+    - release
+  PONYC_VERSION:
+    - armhf
+    - amd64
+
