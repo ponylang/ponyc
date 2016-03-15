@@ -47,7 +47,8 @@ enum
 
   OPT_BNF,
   OPT_ANTLR,
-  OPT_ANTLRRAW
+  OPT_ANTLRRAW,
+  OPT_PIC
 };
 
 static opt_arg_t args[] =
@@ -81,7 +82,7 @@ static opt_arg_t args[] =
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
-
+  {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   OPT_ARGS_FINISH
 };
 
@@ -103,6 +104,7 @@ static void usage()
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
+	"  --pic           Use PIC code regardless of libraries.\n"
     "  --docs, -g      Generate code documentation.\n"
     "\n"
     "Rarely needed options:\n"
@@ -248,6 +250,7 @@ int main(int argc, char* argv[])
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
+	  case OPT_PIC: opt.pic = true; break;
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_DOCS: opt.docs = true; break;
 

@@ -361,12 +361,12 @@ define CONFIGURE_COMPILER
 
   ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)
-    flags := $(ALL_CXXFLAGS)
+    flags := $(ALL_CXXFLAGS) $(CXXFLAGS)
   endif
 
   ifeq ($(suffix $(1)),.c)
     compiler := $(CC)
-    flags := $(ALL_CFLAGS)
+    flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
 endef
 
