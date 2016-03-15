@@ -447,7 +447,8 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
-    LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(body));
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value,
+      ast_childidx(fun, 4));
     LLVMBuildRet(c->builder, ret);
   }
 
