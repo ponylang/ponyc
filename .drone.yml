@@ -2,6 +2,7 @@ debug: true
 
 branches:
   - master
+  - refs/tags/*
 
 clone:
   tags: true
