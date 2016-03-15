@@ -58,7 +58,9 @@ notify:
     channel: b-drone-ci
     username: drone-ci
     template: >
-      build `#{{ build.number }}` for {{repo.clone_url}} for commit `{{build.commit}}` in branch `{{build.branch}}` by `@{{build.author}}` with a message ```{{build.message}}``` finished with a `{{ build.status }}` status.
+      build `#{{ build.number }}` for {{repo.clone_url}} for commit `{{build.commit}}` 
+      in branch `{{build.branch}}` by `@{{build.author}}` with a message ```{{build.message}}``` 
+      finished with a `{{ build.status }}` status.
 
 matrix:
   PONYC_CONFIG:
