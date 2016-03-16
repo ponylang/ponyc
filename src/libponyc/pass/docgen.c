@@ -644,8 +644,10 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
   ast_list_t news = { NULL, NULL, NULL };
-  ast_list_t bes = { NULL, NULL, NULL };
-  ast_list_t funs = { NULL, NULL, NULL };
+  ast_list_t pub_bes = { NULL, NULL, NULL };
+  ast_list_t priv_bes = { NULL, NULL, NULL };
+  ast_list_t pub_funs = { NULL, NULL, NULL };
+  ast_list_t priv_funs = { NULL, NULL, NULL };
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
@@ -662,11 +664,13 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
         break;
 
       case TK_BE:
-        doc_list_add_named(&bes, p, 1, true, true);
+        doc_list_add_named(&pub_bes, p, 1, true, false);
+        doc_list_add_named(&priv_bes, p, 1, false, true);
         break;
 
       case TK_FUN:
-        doc_list_add_named(&funs, p, 1, true, true);
+        doc_list_add_named(&pub_funs, p, 1, true, false);
+        doc_list_add_named(&priv_funs, p, 1, false, true);
         break;
 
       default:
@@ -678,13 +682,17 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   // Handle member variety lists
   doc_fields(docgen, &pub_fields, "Public fields");
   doc_methods(docgen, &news, "Constructors");
-  doc_methods(docgen, &bes, "Behaviours");
-  doc_methods(docgen, &funs, "Functions");
+  doc_methods(docgen, &pub_bes, "Public Behaviours");
+  doc_methods(docgen, &pub_funs, "Public Functions");
+  doc_methods(docgen, &priv_bes, "Private Behaviours");
+  doc_methods(docgen, &priv_funs, "Private Functions");
 
   doc_list_free(&pub_fields);
   doc_list_free(&news);
-  doc_list_free(&bes);
-  doc_list_free(&funs);
+  doc_list_free(&pub_bes);
+  doc_list_free(&priv_bes);
+  doc_list_free(&pub_funs);
+  doc_list_free(&priv_funs);
 
   fclose(docgen->type_file);
   docgen->type_file = NULL;
@@ -818,6 +826,7 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
   }
 
   // Process packages
+  docgen->package_file = NULL;
   doc_package(docgen, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)
