@@ -41,6 +41,7 @@ actor Main is TestList
     test(_TestDivMod)
     test(_TestMaybePointer)
     test(_TestValtrace)
+    test(_TestCCallback)
 
 
 class iso _TestAbs is UnitTest
@@ -739,3 +740,19 @@ class iso _TestMaybePointer is UnitTest
 
     let from_b = b()
     h.assert_eq[U32](s.i, from_b.i)
+
+
+class Callback
+  fun apply(value: I32): I32 =>
+    value * 2
+
+class iso _TestCCallback is UnitTest
+  """
+  Test C callbacks.
+  """
+  fun name(): String => "builtin/CCallback"
+
+  fun apply(h: TestHelper) =>
+    let cb: Callback = Callback
+    let r = @pony_test_callback[I32](cb, addressof cb.apply, I32(3))
+    h.assert_eq[I32](6, r)

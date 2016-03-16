@@ -706,11 +706,22 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Set the type to Pointer[ast_type(expr)].
+  // Set the type to Pointer[ast_type(expr)]. Set to Pointer[None] for function
+  // pointers.
   ast_t* expr_type = ast_type(expr);
 
   if(is_typecheck_error(expr_type))
     return false;
+
+  switch(ast_id(expr))
+  {
+    case TK_FUNREF:
+    case TK_BEREF:
+      expr_type = type_builtin(opt, ast, "None");
+      break;
+
+    default: {}
+  }
 
   ast_t* type = type_pointer_to(opt, expr_type);
   ast_settype(ast, type);
