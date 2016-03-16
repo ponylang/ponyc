@@ -205,7 +205,7 @@ class val TestHelper
     Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
     """
     try
-      let missing = Array[A]
+      let missing = Array[box->A]
       let consumed = Array[Bool].init(false, actual.size())
       for e in expect.values() do
         var found = false
@@ -224,7 +224,7 @@ class val TestHelper
         end
       end
 
-      let extra = Array[A]
+      let extra = Array[box->A]
       for (i, c) in consumed.pairs() do
         if not c then extra.push(actual(i)) end
       end
@@ -234,8 +234,8 @@ class val TestHelper
           _format_loc(loc) + "Assert EQ_UNORDERED failed. " + msg +
           " Expected (" +
           _print_array[A](expect) + ") == (" + _print_array[A](actual) + "):" +
-          "\nMissing: " + _print_array[A](missing) +
-          "\nExtra: " + _print_array[A](extra))
+          "\nMissing: " + _print_array[box->A](missing) +
+          "\nExtra: " + _print_array[box->A](extra))
         return false
       end
       log(

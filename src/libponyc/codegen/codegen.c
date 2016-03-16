@@ -125,7 +125,7 @@ static void init_runtime(compile_t* c)
   c->str_F32 = stringtab("F32");
   c->str_F64 = stringtab("F64");
   c->str_Pointer = stringtab("Pointer");
-  c->str_Maybe = stringtab("Maybe");
+  c->str_Maybe = stringtab("MaybePointer");
   c->str_Array = stringtab("Array");
   c->str_Platform = stringtab("Platform");
 

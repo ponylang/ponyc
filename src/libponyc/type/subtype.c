@@ -777,22 +777,18 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
     }
 
     // Reify the method on the subtype.
-    ast_t* r_sub_member = viewpoint_replacethis(sub_member, sub);
-    ast_t* rr_sub_member = reify(r_sub_member, sub_typeparams, sub_typeargs);
-    ast_free_unattached(r_sub_member);
-    assert(rr_sub_member != NULL);
+    ast_t* r_sub_member = reify(sub_member, sub_typeparams, sub_typeargs);
+    assert(r_sub_member != NULL);
 
     // Reify the method on the supertype.
-    ast_t* r_super_member = viewpoint_replacethis(super_member, super);
-    ast_t* rr_super_member = reify(r_super_member, super_typeparams,
+    ast_t* r_super_member = reify(super_member, super_typeparams,
       super_typeargs);
-    ast_free_unattached(r_super_member);
-    assert(rr_super_member != NULL);
+    assert(r_super_member != NULL);
 
     // Check the reified methods.
-    bool ok = is_fun_sub_fun(rr_sub_member, rr_super_member, errors);
-    ast_free_unattached(rr_sub_member);
-    ast_free_unattached(rr_super_member);
+    bool ok = is_fun_sub_fun(r_sub_member, r_super_member, errors);
+    ast_free_unattached(r_sub_member);
+    ast_free_unattached(r_super_member);
 
     if(!ok)
     {
@@ -800,7 +796,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
 
       if(errors != NULL)
       {
-        ast_error_frame(errors, sub,
+        ast_error_frame(errors, sub_member,
           "%s is not a subtype of %s: method %s has an incompatible signature",
           ast_print_type(sub), ast_print_type(super),
           ast_name(super_member_id));
@@ -814,8 +810,8 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
   return ret;
 }
 
-  static bool nominal_provides_trait(ast_t* type, ast_t* trait,
-    errorframe_t* errors)
+static bool nominal_provides_trait(ast_t* type, ast_t* trait,
+  errorframe_t* errors)
 {
   // Get our typeparams and typeargs.
   ast_t* def = (ast_t*)ast_data(type);
@@ -1448,7 +1444,7 @@ bool is_pointer(ast_t* type)
 
 bool is_maybe(ast_t* type)
 {
-  return is_literal(type, "Maybe");
+  return is_literal(type, "MaybePointer");
 }
 
 bool is_none(ast_t* type)

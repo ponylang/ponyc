@@ -706,11 +706,22 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Set the type to Pointer[ast_type(expr)].
+  // Set the type to Pointer[ast_type(expr)]. Set to Pointer[None] for function
+  // pointers.
   ast_t* expr_type = ast_type(expr);
 
   if(is_typecheck_error(expr_type))
     return false;
+
+  switch(ast_id(expr))
+  {
+    case TK_FUNREF:
+    case TK_BEREF:
+      expr_type = type_builtin(opt, ast, "None");
+      break;
+
+    default: {}
+  }
 
   ast_t* type = type_pointer_to(opt, expr_type);
   ast_settype(ast, type);
@@ -962,9 +973,9 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   if(!reify_defaults(typeparams, typeargs, true))
     return false;
 
-  if(!strcmp(name, "Maybe"))
+  if(!strcmp(name, "MaybePointer"))
   {
-    // Maybe[A] must be bound to a struct.
+    // MaybePointer[A] must be bound to a struct.
     assert(ast_childcount(typeargs) == 1);
     ast_t* typeparam = ast_child(typeparams);
     ast_t* typearg = ast_child(typeargs);
@@ -992,7 +1003,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
     if(!ok)
     {
       ast_error(ast,
-        "%s is not allowed: the type argument to Maybe must be a struct",
+        "%s is not allowed: the type argument to MaybePointer must be a struct",
         ast_print_type(ast));
 
       return false;

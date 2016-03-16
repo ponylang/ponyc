@@ -95,8 +95,6 @@ class Regex
     Match the supplied string, starting at the given offset. Returns a Match
     object that can give precise match details. Raises an error if there is no
     match.
-
-    TODO: global match
     """
     let m = _match(subject, offset, U32(0))
     Match._create(subject, m)

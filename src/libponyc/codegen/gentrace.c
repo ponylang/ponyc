@@ -138,7 +138,7 @@ static trace_t trace_union_known_or_unknown(trace_t a)
 
 static trace_t trace_union_known_or_unknown_val(trace_t a)
 {
-  assert(a >= TRACE_KNOWN);
+  assert(a >= TRACE_KNOWN_VAL);
 
   switch(a)
   {

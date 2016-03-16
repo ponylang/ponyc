@@ -11,7 +11,6 @@ actor Main is TestList
     test(_TestListsFrom)
     test(_TestListsMap)
     test(_TestListsFlatMap)
-    test(_TestListsFlatten)
     test(_TestListsFilter)
     test(_TestListsFold)
     test(_TestListsEvery)
@@ -168,38 +167,16 @@ class iso _TestListsFlatMap is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2)
 
-    let f = lambda(a: U32): List[U32] => List[U32].push(a * 2) end
+    let f = lambda(a: U32): List[U32] => List[U32].push(a).push(a * 2) end
     let c = a.flat_map[U32](f)
 
-    h.assert_eq[USize](c.size(), 3)
+    h.assert_eq[USize](c.size(), 6)
     h.assert_eq[U32](c(0), 0)
-    h.assert_eq[U32](c(1), 2)
-    h.assert_eq[U32](c(2), 4)
-
-    true
-
-class iso _TestListsFlatten is UnitTest
-  fun name(): String => "collections/Lists/flatten()"
-
-  fun apply(h: TestHelper) ? =>
-    let a = List[List[U32]]
-    let l1 = List[U32].push(0).push(1)
-    let l2 = List[U32].push(2).push(3)
-    let l3 = List[U32].push(4)
-    a.push(l1).push(l2).push(l3)
-
-    let b: List[U32] = Lists.flatten[U32](a)
-
-    h.assert_eq[USize](b.size(), 5)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 1)
-    h.assert_eq[U32](b(2), 2)
-    h.assert_eq[U32](b(3), 3)
-    h.assert_eq[U32](b(4), 4)
-
-    let c = List[List[U32]]
-    let d = Lists.flatten[U32](c)
-    h.assert_eq[USize](d.size(), 0)
+    h.assert_eq[U32](c(1), 0)
+    h.assert_eq[U32](c(2), 1)
+    h.assert_eq[U32](c(3), 2)
+    h.assert_eq[U32](c(4), 2)
+    h.assert_eq[U32](c(5), 4)
 
     true
 

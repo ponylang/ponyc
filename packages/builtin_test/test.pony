@@ -39,8 +39,9 @@ actor Main is TestList
     test(_TestArrayInsert)
     test(_TestMath128)
     test(_TestDivMod)
-    test(_TestMaybe)
+    test(_TestMaybePointer)
     test(_TestValtrace)
+    test(_TestCCallback)
 
 
 class iso _TestAbs is UnitTest
@@ -719,14 +720,14 @@ class iso _TestDivMod is UnitTest
 struct _TestStruct
   var i: U32 = 0
 
-class iso _TestMaybe is UnitTest
+class iso _TestMaybePointer is UnitTest
   """
-  Test the Maybe type.
+  Test the MaybePointer type.
   """
-  fun name(): String => "builtin/Maybe"
+  fun name(): String => "builtin/MaybePointer"
 
   fun apply(h: TestHelper) ? =>
-    let a = Maybe[_TestStruct].none()
+    let a = MaybePointer[_TestStruct].none()
     h.assert_true(a.is_none())
 
     h.assert_error(lambda()(a)? => let from_a = a() end)
@@ -734,8 +735,24 @@ class iso _TestMaybe is UnitTest
     let s = _TestStruct
     s.i = 7
 
-    let b = Maybe[_TestStruct](s)
+    let b = MaybePointer[_TestStruct](s)
     h.assert_false(b.is_none())
 
     let from_b = b()
     h.assert_eq[U32](s.i, from_b.i)
+
+
+class Callback
+  fun apply(value: I32): I32 =>
+    value * 2
+
+class iso _TestCCallback is UnitTest
+  """
+  Test C callbacks.
+  """
+  fun name(): String => "builtin/CCallback"
+
+  fun apply(h: TestHelper) =>
+    let cb: Callback = Callback
+    let r = @pony_test_callback[I32](cb, addressof cb.apply, I32(3))
+    h.assert_eq[I32](6, r)
