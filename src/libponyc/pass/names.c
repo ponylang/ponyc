@@ -5,19 +5,6 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
-static void names_applycap_index(ast_t* ast, ast_t* cap, ast_t* ephemeral,
-  int index)
-{
-  ast_t* a_cap = ast_childidx(ast, index);
-  ast_t* a_ephemeral = ast_sibling(a_cap);
-
-  if(ast_id(cap) != TK_NONE)
-    ast_replace(&a_cap, cap);
-
-  if(ast_id(ephemeral) != TK_NONE)
-    ast_replace(&a_ephemeral, ephemeral);
-}
-
 static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 {
   switch(ast_id(ast))
@@ -25,30 +12,48 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
-    case TK_TYPEPARAMREF:
     {
-      if(ast_id(cap) != TK_NONE)
+      // Apply the capability and ephemerality to each element of the type
+      // expression.
+      for(ast_t* child = ast_child(ast);
+        child != NULL;
+        child = ast_sibling(child))
       {
-        ast_error(cap,
-          "can't specify a capability for an alias to a type expression or "
-          "type parameter");
-        return false;
-      }
-
-      if(ast_id(ephemeral) != TK_NONE)
-      {
-        ast_error(ephemeral,
-          "can't specify a capability for an alias to a type expression or "
-          "type parameter");
-        return false;
+        names_applycap(child, cap, ephemeral);
       }
 
       return true;
     }
 
-    case TK_NOMINAL:
-      names_applycap_index(ast, cap, ephemeral, 3);
+    case TK_TYPEPARAMREF:
+    {
+      AST_GET_CHILDREN(ast, id, tcap, teph);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap,
+          "can't specify a capability for an alias to a type parameter");
+        return false;
+      }
+
+      if(ast_id(ephemeral) != TK_NONE)
+        ast_replace(&teph, ephemeral);
+
       return true;
+    }
+
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(ast, pkg, id, typeargs, tcap, teph);
+
+      if(ast_id(cap) != TK_NONE)
+        ast_replace(&tcap, cap);
+
+      if(ast_id(ephemeral) != TK_NONE)
+        ast_replace(&teph, ephemeral);
+
+      return true;
+    }
 
     case TK_ARROW:
       return names_applycap(ast_childidx(ast, 1), cap, ephemeral);

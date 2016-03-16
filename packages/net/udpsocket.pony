@@ -62,7 +62,7 @@ actor UDPSocket
     """
     _write(data, to)
 
-  be writev(data: ByteSeqIter val, to: IPAddress) =>
+  be writev(data: ByteSeqIter, to: IPAddress) =>
     """
     Write a sequence of sequences of bytes.
     """

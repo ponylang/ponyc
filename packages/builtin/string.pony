@@ -619,8 +619,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       error
     end
 
-  fun ref append(seq: (ReadSeq[U8] | ByteSeq box), offset: USize = 0, len:
-    USize = -1): String ref^
+  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1)
+    : String ref^
   =>
     """
     Append the elements from a sequence, starting from the given offset.
