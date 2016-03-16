@@ -21,6 +21,25 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
+  new val from_array(data: Array[U8] val) =>
+    """
+    Create a string from an array, reusing the underlying data pointer if the
+    array is null terminated, or copying the data if it is not.
+    """
+    _size = data.size()
+
+    if
+      (_size > 0) and
+      try (data(_size - 1) == 0) else false end
+    then
+      _alloc = data.space()
+      _ptr = data._cstring()._unsafe()
+    else
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      data._cstring()._copy_to(_ptr, _alloc)
+    end
+
   new from_cstring(str: Pointer[U8], len: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
@@ -137,6 +156,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns a C compatible pointer to a null terminated string.
     """
     _ptr
+
+  fun val array(): Array[U8] val =>
+    """
+    Returns an Array[U8] that that reuses the underlying data pointer.
+    """
+    recover
+      Array[U8].from_cstring(_ptr._unsafe(), _size, _alloc)
+    end
 
   fun size(): USize =>
     """
@@ -334,7 +361,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     let len = _size
     let str = recover String(len) end
-    _ptr._copy_to(str._ptr, len + 1)
+    _ptr._copy_to(str._ptr._unsafe(), len + 1)
     str._size = len
     str
 
@@ -456,7 +483,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     if (start < _size) and (start < finish) then
       let len = finish - start
       var str = recover String(len) end
-      _ptr._offset(start)._copy_to(str._ptr, len)
+      _ptr._offset(start)._copy_to(str._ptr._unsafe(), len)
       str._size = len
       str._set(len, 0)
       str
@@ -618,6 +645,39 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         while i < cap do
           push(seq(i))
           i = i + 1
+        end
+      end
+    end
+
+    this
+
+  fun ref concat(iter: Iterator[U8], offset: USize = 0, len: USize = -1)
+    : String ref^
+  =>
+    """
+    Add len iterated bytes to the end of the string, starting from the given
+    offset. The string is returned to allow call chaining.
+    """
+    try
+      var n = USize(0)
+
+      while n < offset do
+        if iter.has_next() then
+          iter.next()
+        else
+          return this
+        end
+
+        n = n + 1
+      end
+
+      n = 0
+
+      while n < len do
+        if iter.has_next() then
+          push(iter.next())
+        else
+          return this
         end
       end
     end
@@ -873,7 +933,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
   fun iso _append(s: String box): String iso^ =>
     reserve(s._size + _size)
-    s._ptr._copy_to(_ptr._offset_tag(_size), s._size + 1) // + 1 for null
+    s._ptr._copy_to(_ptr._unsafe()._offset(_size), s._size + 1) // + 1 for null
     _size = s._size + _size
     consume this
 
@@ -1163,8 +1223,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   fun hash(): U64 =>
     @ponyint_hash_block[U64](_ptr, _size)
 
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
-  =>
+  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^ =>
     // TODO: fill character
     let copy_len = _size.min(fmt.precision().usize())
     let len = copy_len.max(fmt.width().usize())
@@ -1172,15 +1231,15 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     match fmt.align()
     | AlignLeft =>
-      _ptr._copy_to(str._ptr, copy_len)
+      _ptr._copy_to(str._ptr._unsafe(), copy_len)
       @memset(str._ptr.usize() + copy_len, U32(' '), len - copy_len)
     | AlignRight =>
       @memset(str._ptr, U32(' '), len - copy_len)
-      _ptr._copy_to(str._ptr._offset_tag(len - copy_len), copy_len)
+      _ptr._copy_to(str._ptr._unsafe()._offset(len - copy_len), copy_len)
     | AlignCenter =>
       let half = (len - copy_len) / 2
       @memset(str._ptr, U32(' '), half)
-      _ptr._copy_to(str._ptr._offset_tag(half), copy_len)
+      _ptr._copy_to(str._ptr._unsafe()._offset(half), copy_len)
       @memset(str._ptr.usize() + copy_len + half, U32(' '),
         len - copy_len - half)
     end

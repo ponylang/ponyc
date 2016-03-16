@@ -22,6 +22,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun tag _unsafe(): Pointer[A] ref =>
+    """
+    Unsafe change in reference capability.
+    """
+    compile_intrinsic
+
   fun _apply(i: USize): this->A =>
     """
     Retrieve index i.
@@ -35,12 +41,6 @@ struct Pointer[A]
     compile_intrinsic
 
   fun _offset(n: USize): this->Pointer[A] =>
-    """
-    Return a pointer to the n-th element.
-    """
-    compile_intrinsic
-
-  fun tag _offset_tag(n: USize): Pointer[A] tag =>
     """
     Return a pointer to the n-th element.
     """
@@ -62,7 +62,7 @@ struct Pointer[A]
     """
     compile_intrinsic
 
-  fun _copy_to(that: Pointer[this->A!] tag, n: USize): this->Pointer[A] =>
+  fun _copy_to(that: Pointer[this->A!], n: USize): this->Pointer[A] =>
     """
     Copy n elements from this to that.
     """

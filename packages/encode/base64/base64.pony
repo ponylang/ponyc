@@ -14,12 +14,14 @@ primitive Base64
     """
     encode(data, '+', '/', '=', 76)
 
-  fun encode_url(data: ByteSeq box, pad: Bool = false): String iso^ =>
+  fun encode_url[A: Seq[U8] iso = String iso](data: ByteSeq box,
+    pad: Bool = false): A^
+  =>
     """
     Encode for URLs (RFC 4648). Padding characters are stripped by default.
     """
     let c: U8 = if pad then '=' else 0 end
-    encode(data, '-', '_', c)
+    encode[A](data, '-', '_', c)
 
   fun encode[A: Seq[U8] iso = String iso](data: ByteSeq box, at62: U8 = '+',
     at63: U8 = '/', pad: U8 = '=', linelen: USize = 0,

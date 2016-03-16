@@ -54,9 +54,18 @@ interface Seq[A]
     Removes an element from the beginning of the sequence.
     """
 
-  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1): Seq[A]^
+  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+    len: USize = -1): Seq[A]^
     """
-    Append the elements from a sequence, starting from the given offset.
+    Add len elements to the end of the list, starting from the given
+    offset.
+    """
+
+  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
+    : Seq[A]^
+    """
+    Add len iterated elements to the end of the list, starting from the given
+    offset.
     """
 
   fun ref truncate(len: USize): Seq[A]^
