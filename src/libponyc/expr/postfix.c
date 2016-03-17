@@ -265,7 +265,7 @@ static bool make_tuple_index(ast_t** astp)
   ast_t* ast = *astp;
   const char* name = ast_name(ast);
 
-  if(name[0] != '_')
+  if(!is_name_private(name))
     return false;
 
   for(size_t i = 1; name[i] != '\0'; i++)
