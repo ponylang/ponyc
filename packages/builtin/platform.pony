@@ -1,3 +1,9 @@
+"""
+# Builtin package
+
+The builtin package is home to standard library members that require compiler
+support. For details on specific packages, see their individual entity entries.
+"""
 primitive Platform
   fun freebsd(): Bool => compile_intrinsic
   fun linux(): Bool => compile_intrinsic
