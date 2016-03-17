@@ -1,4 +1,5 @@
 #include "docgen.h"
+#include "../pass/names.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 #include <assert.h>
@@ -113,16 +114,16 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   const char* name = ast_name(ast_childidx(ast, id_index));
   assert(name != NULL);
 
-  if(name[0] == '$')  // Ignore internally generated names
+  if(is_name_internal_test(name))  // Ignore internally generated names
     return;
 
-  if(name[0] == '_' && !allow_private)  // Ignore private
+  if(is_name_private(name) && !allow_private)  // Ignore private
     return;
 
-  if(name[0] != '_' && !allow_public)  // Ignore public
+  if(!is_name_private(name) && !allow_public)  // Ignore public
     return;
 
-  if(name[0] == '_')  // Ignore leading underscore for ordering
+  if(is_name_private(name))  // Ignore leading underscore for ordering
     name++;
 
   doc_list_add(list, ast, name);

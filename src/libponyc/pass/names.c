@@ -5,6 +5,29 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
+bool is_name_private(const char* name)
+{
+  return name[0] == '_';
+}
+
+bool is_name_type(const char* name)
+{
+  if(*name == '_')
+    name++;
+    
+  return (*name >= 'A') && (*name <= 'Z');
+}
+
+bool is_name_ffi(const char* name)
+{
+  return name[0] == '@';
+}
+
+bool is_name_internal_test(const char* name)
+{
+  return name[0] == '$';
+}
+
 static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 {
   switch(ast_id(ast))
@@ -236,7 +259,7 @@ static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
   {
     const char* name = ast_name(package_id);
 
-    if(name[0] == '$')
+    if(is_name_internal_test(name))
       scope = ast_get(ast_nearest(scope, TK_PROGRAM), name, NULL);
     else
       scope = ast_get(scope, name, NULL);
@@ -299,7 +322,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
     r = false;
   } else {
     // Check for a private type.
-    if(!local_package && (name[0] == '_'))
+    if(!local_package && is_name_private(name))
     {
       ast_error(type_id, "can't access a private type from another package");
       r = false;

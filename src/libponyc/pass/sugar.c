@@ -1,5 +1,6 @@
 #include "sugar.h"
 #include "casemethod.h"
+#include "names.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/printbuf.h"
@@ -289,7 +290,7 @@ static ast_result_t check_params(ast_t* params)
       ast_error(p, "expected parameter name");
       result = AST_ERROR;
     }
-    else if(ast_name(id)[0] != '$' && !check_id_param(id))
+    else if(!is_name_internal_test(ast_name(id)) && !check_id_param(id))
     {
       result = AST_ERROR;
     }
