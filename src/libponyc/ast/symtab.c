@@ -1,6 +1,7 @@
 #include "symtab.h"
 #include "stringtab.h"
 #include "ast.h"
+#include "../pass/names.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -35,7 +36,7 @@ static const char* name_without_case(const char* name)
   size_t len = strlen(name) + 1;
   char* buf = (char*)ponyint_pool_alloc_size(len);
 
-  if(is_type_name(name))
+  if(is_name_type(name))
   {
     for(size_t i = 0; i < len; i++)
       buf[i] = (char)toupper(name[i]);
@@ -49,14 +50,6 @@ static const char* name_without_case(const char* name)
 
 DEFINE_HASHMAP(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
   ponyint_pool_alloc_size, ponyint_pool_free_size, sym_free);
-
-bool is_type_name(const char* name)
-{
-  if(*name == '_')
-    name++;
-
-  return (*name >= 'A') && (*name <= 'Z');
-}
 
 symtab_t* symtab_new()
 {
@@ -246,7 +239,7 @@ bool symtab_can_merge_public(symtab_t* dst, symtab_t* src)
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
-    if((sym->name[0] == '_') ||
+    if(is_name_private(sym->name) ||
       (sym->status == SYM_NOCASE) ||
       !strcmp(sym->name, "Main"))
       continue;
@@ -265,7 +258,7 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
-    if((sym->name[0] == '_') ||
+    if(is_name_private(sym->name) ||
       (sym->status == SYM_NOCASE) ||
       !strcmp(sym->name, "Main"))
       continue;

@@ -369,7 +369,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
 
   size_t name_len = strlen(name);
 
-  if(name[0] == '_')
+  if(is_name_private(name))
   {
     // Try without leading underscore
     const char* try_name = stringtab(name + 1);

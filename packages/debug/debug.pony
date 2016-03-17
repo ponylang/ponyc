@@ -1,3 +1,21 @@
+"""
+# Debug package
+
+Provides facilities to create output to either `STDOUT` or `STDERR` that will
+only appear when the platform is debug configured. To create a binary with
+debug configured, pass the `-d` flag to `ponyc` when compiling e.g.:
+
+`ponyc -d`
+
+## Example code
+
+```
+actor Main
+  new create(env: Env) =>
+    Debug.out("This will only bee seen when configured for debug info")
+    env.out.print("This will always be seen")
+```
+"""
 primitive DebugOut
 primitive DebugErr
 
