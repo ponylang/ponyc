@@ -81,21 +81,17 @@ void pony_closedir(PONY_DIR* dir)
 #endif
 }
 
-bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
+PONY_DIRINFO* pony_dir_entry_next(PONY_DIR* dir)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if (FindNextFile(dir->ptr, &dir->info) != 0)
-  {
-    *res = &dir->info;
-    return true;
-  }
+  if(FindNextFile(dir->ptr, &dir->info) != 0)
+    return &dir->info;
 
-  *res = NULL;
-  return false;
+  return NULL;
 #elif defined(PLATFORM_IS_POSIX_BASED)
-  return readdir_r(dir, entry, res) == 0;
+  return readdir(dir);
 #else
-  return false;
+  return NULL;
 #endif
 }
 
