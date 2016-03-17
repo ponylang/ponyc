@@ -1205,7 +1205,22 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   ast_t* interface_t_params;
   ast_t* t_args;
-  collect_type_params(ast, &interface_t_params, &t_args);
+  collect_type_params(ast, NULL, &t_args);
+
+  // We will replace {..} with $0
+  REPLACE(astp,
+    NODE(TK_NOMINAL,
+      NONE  // Package
+      ID(i_name)
+      TREE(t_args)
+      TREE(interface_cap)
+      TREE(ephemeral)));
+
+  ast = *astp;
+
+  // Fetch the interface type parameters after we replace the ast, so that if
+  // we are an interface type parameter, we get ourselves as the constraint.
+  collect_type_params(ast, &interface_t_params, NULL);
 
   printbuf_t* buf = printbuf_new();
   printbuf(buf, "{(");
@@ -1275,15 +1290,6 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   if(!ast_passes_type(&def, opt))
     return AST_FATAL;
-
-  // We will replace {..} with $0
-  REPLACE(astp,
-    NODE(TK_NOMINAL,
-      NONE  // Package
-      ID(i_name)
-      TREE(t_args)
-      TREE(interface_cap)
-      TREE(ephemeral)));
 
   // Sugar the call.
   if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
