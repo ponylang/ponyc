@@ -9,7 +9,7 @@ clone:
 
 build:
   arm_ponyc:
-    image: dipinhora/ponyc-builder:0.0.2
+    image: sendence/ponyc-builder:0.0.2
     commands:
       - CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ make arch=armv7-a bits=32 config=$$PONYC_CONFIG libponyrt
       - mv build/$$PONYC_CONFIG/libponyrt.a build/arm-libponyrt.a
@@ -18,7 +18,7 @@ build:
       matrix:
         PONYC_VERSION: armhf
   main_ponyc:
-    image: dipinhora/ponyc-builder:0.0.2
+    image: sendence/ponyc-builder:0.0.2
     commands:
       - make config=$$PONYC_CONFIG test
       - rm build/$$PONYC_CONFIG/libponyc.tests
@@ -29,7 +29,7 @@ publish:
     username: $$DOCKER_HUB_USERNAME
     password: $$DOCKER_HUB_PASSWORD
     email: $$DOCKER_HUB_EMAIL
-    repo: dipinhora/ponyc
+    repo: sendence/ponyc
     file: Dockerfile
     storage_driver: overlay
     build_args:
@@ -43,7 +43,7 @@ publish:
     username: $$DOCKER_HUB_USERNAME
     password: $$DOCKER_HUB_PASSWORD
     email: $$DOCKER_HUB_EMAIL
-    repo: dipinhora/ponyc
+    repo: sendence/ponyc
     file: Dockerfile
     storage_driver: overlay
     build_args:

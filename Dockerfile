@@ -1,4 +1,4 @@
-FROM dipinhora/ponyc-runner:0.0.1
+FROM sendence/ponyc-runner:0.0.1
 
 COPY . /build
 
