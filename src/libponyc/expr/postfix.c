@@ -490,10 +490,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   ast_t* type = ast_type(left);
 
   if(type == NULL)
-  {
-    ast_error(ast, "invalid left hand side");
     return false;
-  }
 
   if(!literal_member_access(ast, opt))
     return false;

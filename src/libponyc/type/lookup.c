@@ -6,6 +6,7 @@
 #include "../ast/token.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../expr/literal.h"
 #include <string.h>
 #include <assert.h>
 
@@ -66,8 +67,11 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
             {
               ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
 
-              if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
+              if(ast_visit_scope(&param, NULL, pass_expr, opt,
                 PASS_EXPR) != AST_OK)
+                return false;
+
+              if(!coerce_literals(&def_arg, type, opt))
                 return false;
 
               ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
