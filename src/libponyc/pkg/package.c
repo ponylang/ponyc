@@ -230,7 +230,13 @@ static const char* try_path(const char* base, const char* path)
   if(pony_realpath(composite, file) != file)
     return NULL;
 
-  return stringtab(file);
+  struct stat s;
+  int err = stat(file, &s);
+
+  if((err != -1) && S_ISDIR(s.st_mode))
+    return stringtab(file);
+
+  return NULL;
 }
 
 
