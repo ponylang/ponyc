@@ -841,15 +841,14 @@ static void doc_rm_star(const char* path)
   assert(path != NULL);
 
   PONY_ERRNO err;
-  PONY_DIRINFO entry;
-  PONY_DIRINFO* result;
-
   PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
     return;
 
-  while(pony_dir_entry_next(dir, &entry, &result) && (result != NULL))
+  PONY_DIRINFO* result;
+
+  while((result = pony_dir_entry_next(dir)) != NULL)
   {
     char* name = pony_dir_info_name(result);
 
