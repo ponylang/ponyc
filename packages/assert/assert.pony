@@ -1,3 +1,11 @@
+"""
+# Assert package
+
+Contains runtime assertions. If you are looking for assertion that only run
+when your code was compiled with the `debug` flag, check out `Assert`. For
+assertions that are always enabled, check out `Fact`.
+"""
+
 primitive Assert
   """
   This is a debug only assertion. If the test is false, it will print any
