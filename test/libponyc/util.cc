@@ -17,7 +17,7 @@ using std::string;
 
 
 static const char* _builtin =
-  "primitive U8\n"
+  "primitive U8 is Real[U8]\n"  // for literal inference tests
   "  new create() => 0\n"
   "primitive I8\n"
   "  new create() => 0\n"
@@ -56,6 +56,11 @@ static const char* _builtin =
   "  new create() => 0\n"
   "primitive F64\n"
   "  new create() => 0\n"
+  "type Number is (Signed | Unsigned | Float)\n"
+  "type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)\n"
+  "type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)\n"
+  "type Float is (F32 | F64)\n"
+  "trait val Real[A: Real[A] val]\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
