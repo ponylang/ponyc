@@ -159,6 +159,8 @@ bool is_control_type(ast_t* type)
     case TK_TRY:
     case TK_MATCH:
     case TK_CASES:
+    case TK_WHILE:
+    case TK_REPEAT:
     case TK_BREAK:
     case TK_CONTINUE:
     case TK_RETURN:
