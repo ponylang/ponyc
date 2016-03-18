@@ -80,8 +80,6 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
 uint32_t ponyint_sched_cores();
 
-void ponyint_sched_terminate();
-
 PONY_EXTERN_C_END
 
 #endif
