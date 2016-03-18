@@ -1,6 +1,5 @@
 #include "sugar.h"
 #include "casemethod.h"
-#include "names.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/printbuf.h"

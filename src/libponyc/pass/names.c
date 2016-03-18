@@ -1,32 +1,10 @@
 #include "names.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../type/reify.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include <assert.h>
-
-bool is_name_private(const char* name)
-{
-  return name[0] == '_';
-}
-
-bool is_name_type(const char* name)
-{
-  if(*name == '_')
-    name++;
-    
-  return (*name >= 'A') && (*name <= 'Z');
-}
-
-bool is_name_ffi(const char* name)
-{
-  return name[0] == '@';
-}
-
-bool is_name_internal_test(const char* name)
-{
-  return name[0] == '$';
-}
 
 static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 {

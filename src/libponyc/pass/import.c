@@ -1,7 +1,7 @@
 #include "import.h"
 #include "../ast/ast.h"
 #include "../ast/symtab.h"
-#include "../pass/names.h"
+#include "../ast/id.h"
 #include <assert.h>
 #include <string.h>
 

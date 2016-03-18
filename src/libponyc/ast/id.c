@@ -158,8 +158,28 @@ bool check_id_local(ast_t* id_node)
     START_LOWER | ALLOW_UNDERSCORE | ALLOW_TICK);
 }
 
+bool is_name_type(const char* name)
+{
+  if(*name == '$')
+    name++;
+    
+  if(*name == '_')
+    name++;
 
-//bool is_id_type(const char* id);
+  return (*name >= 'A') && (*name <= 'Z');
+}
 
+bool is_name_private(const char* name)
+{
+  return name[0] == '_' || (is_name_internal_test(name) && name[1] == '_');
+}
 
-//bool is_private(const char* id);
+bool is_name_ffi(const char* name)
+{
+  return name[0] == '@';
+}
+
+bool is_name_internal_test(const char* name)
+{
+  return name[0] == '$';
+}
