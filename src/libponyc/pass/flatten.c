@@ -204,13 +204,40 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_EMBED:
     {
-      AST_GET_CHILDREN(ast, id, type, init);
-
       // An embedded field must have a known, class type.
-      if(!is_known(type) ||
-        (!is_entity(type, TK_STRUCT) && !is_entity(type, TK_CLASS)))
+      AST_GET_CHILDREN(ast, id, type, init);
+      bool ok = true;
+
+      if(ast_id(type) != TK_NOMINAL)
+        ok = false;
+
+      ast_t* def = (ast_t*)ast_data(type);
+
+      if(def == NULL)
       {
-        ast_error(ast, "embedded fields must be classes or structs");
+        ok = false;
+      } else {
+        switch(ast_id(def))
+        {
+          case TK_STRUCT:
+          case TK_CLASS:
+            break;
+
+          default:
+            ok = false;
+            break;
+        }
+      }
+
+      if(!ok)
+      {
+        ast_error(type, "embedded fields must be classes or structs");
+        return AST_ERROR;
+      }
+
+      if(cap_single(type) == TK_TAG)
+      {
+        ast_error(type, "embedded fields cannot be tag");
         return AST_ERROR;
       }
 
