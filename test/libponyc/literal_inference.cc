@@ -10,7 +10,7 @@
 class LiteralTest : public PassTest
 {
   protected:
-    void check_type_for_simple_let(const char* type_name, const char* src) {
+    void check_type_for_assign(const char* type_name, const char* src) {
       TEST_COMPILE(src);
 
       ast_t* foo_type = type_of("foo");  // Find type of foo
@@ -64,7 +64,7 @@ TEST_F(LiteralTest, CantInferLitExpr)
 }
 
 
-TEST_F(LiteralTest, CantInferUnionType)
+TEST_F(LiteralTest, CantInferUnionAmbiguousType)
 {
   const char* src =
     "class Foo\n"
@@ -96,7 +96,7 @@ TEST_F(LiteralTest, LetSimple)
     "  fun f() =>\n"
     "    let foo: U8 = 3";
 
-  check_type_for_simple_let("U8", src);
+  DO(check_type_for_assign("U8", src));
 }
 
 
@@ -107,7 +107,7 @@ TEST_F(LiteralTest, LetUnambiguousUnion)
     "  fun f() =>\n"
     "    let foo: (U8 | String) = 3";
 
-  check_type_for_simple_let("U8", src);
+  DO(check_type_for_assign("U8", src));
 }
 
 
@@ -118,7 +118,7 @@ TEST_F(LiteralTest, LetUnionSameType)
     "  fun f() =>\n"
     "    let foo: (U8 | U8) = 3";  // FIXME should union'ing same type together actually be allowed?
 
-  check_type_for_simple_let("U8", src);
+  DO(check_type_for_assign("U8", src));
 }
 
 
