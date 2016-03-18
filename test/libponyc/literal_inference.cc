@@ -90,7 +90,7 @@ TEST_F(LiteralTest, CantInferIntersectionType)
   const char* src =
     "class Foo\n"
     "  new create() =>\n"
-    "    let x: (U8 & U32) = 17\n";  // FIXME 'Multiple possible types for literal' isn't right here. There no types possible.
+    "    let x: (U8 & U32) = 17\n";
 
   TEST_ERROR(src);
 }
@@ -136,7 +136,7 @@ TEST_F(LiteralTest, LetUnionSameType)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    let x: (U8 | U8) = 3";  // FIXME should union'ing same type together actually be allowed?
+    "    let x: (U8 | U8) = 3";
 
   DO(check_type_for_assign("U8", TK_NOMINAL, src));
 }
