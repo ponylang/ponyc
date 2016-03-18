@@ -1,5 +1,5 @@
 #include "docgen.h"
-#include "../pass/names.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 #include <assert.h>

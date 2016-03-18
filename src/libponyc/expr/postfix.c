@@ -2,6 +2,7 @@
 #include "reference.h"
 #include "literal.h"
 #include "call.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"

@@ -13,6 +13,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>

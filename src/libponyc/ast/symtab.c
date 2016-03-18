@@ -1,7 +1,7 @@
 #include "symtab.h"
 #include "stringtab.h"
 #include "ast.h"
-#include "../pass/names.h"
+#include "id.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>

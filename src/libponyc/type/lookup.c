@@ -4,9 +4,9 @@
 #include "viewpoint.h"
 #include "subtype.h"
 #include "../ast/token.h"
+#include "../ast/id.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
-#include "../pass/names.h"
 #include "../expr/literal.h"
 #include <string.h>
 #include <assert.h>
