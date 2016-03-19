@@ -97,5 +97,6 @@ after_success:
       build/release/ponyc packages/stdlib --docs;
       cd stdlib-docs;
       sudo -H pip install mkdocs;
+      sed -i '' 's/site_name: stdlib/site_name: Pony Standard Library/' mkdocs.yml
       mkdocs gh-deploy -v --clean --remote-name gh-token;
     fi;
