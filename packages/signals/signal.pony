@@ -12,7 +12,7 @@ apply method.
 The following program will listen for the TERM signal and output a message to
 standard out if it is received.
 
-```
+```pony
 use "signals"
 
 actor Main

@@ -8,7 +8,7 @@ trait TestList
     """
     Add all the tests in this suite to the given test object.
     Typically the implementation of this function will be of the form:
-    ```
+    ```pony
     fun tests(test: PonyTest) =>
       test(_TestClass1)
       test(_TestClass2)

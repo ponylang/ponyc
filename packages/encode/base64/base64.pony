@@ -9,7 +9,7 @@ To learn more about Base64, we suggest you check out the
 
 ## Example code
 
-```
+```pony
 use "encode/base64"
 
 actor Main

@@ -28,7 +28,7 @@ actor Custodian
   receives a TERM signal. We can set up a Custodian that knows about each
   of our actors and when a TERM signal is received, is disposed of.
 
-  ```
+  ```pony
   use "bureaucracy"
   use "signals"
 
