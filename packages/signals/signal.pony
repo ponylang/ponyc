@@ -42,8 +42,9 @@ will cause a compilation error.
 ## Shutting down handlers
 
 Unlike a `TCPConnection` and other forms of input receiving, creating a
-`SignalHandler` will not keep your program running. As such, you are not required
-to call `dispose` on your signal handlers in order to shutdown your program.
+`SignalHandler` will not keep your program running. As such, you are not
+required to call `dispose` on your signal handlers in order to shutdown your
+program.
 
 """
 
