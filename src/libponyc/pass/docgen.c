@@ -621,7 +621,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-    fprintf(docgen->type_file, "# %s %s/%s",
+  fprintf(docgen->type_file, "# %s %s/%s",
     ast_get_print(ast),
     package_qualified_name(package),
     name);
