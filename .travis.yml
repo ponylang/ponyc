@@ -98,7 +98,7 @@ after_success:
       cd stdlib-docs;
       sudo -H pip install mkdocs;
       sudo -H pip install mkdocs-material;
-      sed -i '' 's/theme: readthedocs/theme: material/' mkdocs.yml
-      sed -i '' 's/site_name: stdlib/site_name: Pony Standard Library/' mkdocs.yml
+      sed -i '' 's/theme: readthedocs/theme: material/' mkdocs.yml;
+      sed -i '' 's/site_name: stdlib/site_name: Pony Standard Library/' mkdocs.yml;
       mkdocs gh-deploy -v --clean --remote-name gh-token;
     fi;
