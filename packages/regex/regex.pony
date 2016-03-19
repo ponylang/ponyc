@@ -5,7 +5,7 @@ The Regex package provides support for Perl compatible regular expressions.
 
 ## Example program
 
-```
+```pony
 use "regex"
 
 actor Main

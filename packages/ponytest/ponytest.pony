@@ -29,7 +29,7 @@ for the package.
 
 The following is a complete program with 2 trivial tests.
 
-```
+```pony
 use "ponytest"
 
 actor Main is TestList
@@ -84,7 +84,7 @@ This can be achieved by writing an aggregate test list class, which calls the
 list function for each package. The following is an example that aggregates the
 tests from packages `foo` and `bar`.
 
-```
+```pony
 use "ponytest"
 use foo = "foo"
 use bar = "bar"
