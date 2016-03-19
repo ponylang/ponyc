@@ -1,4 +1,17 @@
+"""
+# Random package
+
+The Random package provides support generating random numbers. The package
+provides random number generators you can use in your code, a dice roller and
+a trait for implementing your own random number generator.
+"""
 trait Random
+  """
+  The `Random` trait should be implemented by all random number generators. The
+  only method you need to implement is `fun ref next(): 64`. Once that method
+  has been implemented, the `Random` trait provides default implementations of
+  conversions to other number types.
+  """
   fun tag has_next(): Bool =>
     """
     If used as an iterator, this always has another value.
