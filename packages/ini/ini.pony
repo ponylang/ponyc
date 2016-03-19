@@ -1,3 +1,32 @@
+"""
+# Ini package
+
+The Ini package provides support for parsing
+[INI file](https://en.wikipedia.org/wiki/INI_file) formatted text.
+
+* Currently _does not_ support multi-line entries.
+* Any keys not in a section will be placed in the section ""
+* Empty sections are dropped
+
+# Example code
+// Parses the file 'example.ini' in the current working directory
+// Output all the content
+use "ini"
+use "files"
+
+actor Main
+  new create(env:Env) =>
+    try
+      let ini_file = File(FilePath(env.root, "example.ini"))
+      let sections = IniParse(ini_file.lines())
+      for section in sections.keys() do
+        env.out.print("Section name is: " + section)
+        for key in sections(section).keys() do
+          env.out.print(key + " = " + sections(section)(key))
+        end
+      end
+    end
+"""
 primitive IniIncompleteSection
 primitive IniNoDelimeter
 
