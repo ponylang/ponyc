@@ -49,6 +49,8 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
 static bool reachable_actors(compile_t* c, ast_t* program)
 {
+  printf("Library reachability\n");
+
   // Look for C-API actors in every package.
   bool found = false;
   ast_t* package = ast_child(program);
@@ -92,61 +94,8 @@ static bool reachable_actors(compile_t* c, ast_t* program)
     return false;
   }
 
+  printf("Selector painting\n");
   paint(c->reachable);
-  return true;
-}
-
-static bool generate_actor(compile_t* c, ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-  ast_t* type = type_builtin(c->opt, ast, ast_name(id));
-
-  if(type == NULL)
-    return false;
-
-  gentype_t g;
-  bool ok = gentype(c, type, &g);
-  ast_free_unattached(type);
-
-  return ok;
-}
-
-static bool generate_actors(compile_t* c, ast_t* program)
-{
-  // Look for C-API actors in every package.
-  ast_t* package = ast_child(program);
-
-  while(package != NULL)
-  {
-    ast_t* module = ast_child(package);
-
-    while(module != NULL)
-    {
-      ast_t* entity = ast_child(module);
-
-      while(entity != NULL)
-      {
-        if(ast_id(entity) == TK_ACTOR)
-        {
-          ast_t* c_api = ast_childidx(entity, 5);
-
-          if(ast_id(c_api) == TK_AT)
-          {
-            // We have an actor marked as C-API.
-            if(!generate_actor(c, entity))
-              return false;
-          }
-        }
-
-        entity = ast_sibling(entity);
-      }
-
-      module = ast_sibling(module);
-    }
-
-    package = ast_sibling(package);
-  }
-
   return true;
 }
 
@@ -208,10 +157,8 @@ static bool link_lib(compile_t* c, const char* file_o)
 
 bool genlib(compile_t* c, ast_t* program)
 {
-  genprim_reachable_init(c, program);
-
   if(!reachable_actors(c, program) ||
-    !generate_actors(c, program) ||
+    !gentypes(c) ||
     !genheader(c)
     )
     return false;

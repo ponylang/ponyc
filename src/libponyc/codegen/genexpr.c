@@ -15,16 +15,9 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 {
   LLVMValueRef ret;
   bool has_scope = ast_has_scope(ast);
-  bool has_source = codegen_hassource(c);
 
   if(has_scope)
-  {
-    codegen_pushscope(c);
-
-    // Dwarf a new lexical scope, if necessary.
-    if(has_source)
-      dwarf_lexicalscope(&c->dwarf, ast);
-  }
+    codegen_pushscope(c, ast);
 
   switch(ast_id(ast))
   {
@@ -179,12 +172,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   }
 
   if(has_scope)
-  {
     codegen_popscope(c);
-
-    if(has_source)
-      dwarf_finish(&c->dwarf);
-  }
 
   return ret;
 }

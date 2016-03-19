@@ -1,5 +1,4 @@
 #include "genident.h"
-#include "gentype.h"
 #include "gendesc.h"
 #include "genexpr.h"
 #include <assert.h>
@@ -123,16 +122,17 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
-  // Emit debug location of is keyword
-  dwarf_location(&c->dwarf, ast);
-
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  return gen_is_value(c, left_type, right_type, l_value, r_value);
+  codegen_debugloc(c, ast);
+  LLVMValueRef result = gen_is_value(c, left_type, right_type,
+    l_value, r_value);
+  codegen_debugloc(c, NULL);
+  return result;
 }
 
 LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)

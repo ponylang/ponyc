@@ -1,5 +1,6 @@
 #include "genbox.h"
 #include "gencall.h"
+#include <assert.h>
 
 LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 {
@@ -8,16 +9,14 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
   if(LLVMGetTypeKind(l_type) == LLVMPointerTypeKind)
     return value;
 
-  gentype_t g;
+  reachable_type_t* t = reach_type(c->reachable, type);
+  assert(t != NULL);
 
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  if(l_type != g.primitive)
+  if(l_type != t->primitive)
     return NULL;
 
   // Allocate the object.
-  LLVMValueRef this_ptr = gencall_allocstruct(c, &g);
+  LLVMValueRef this_ptr = gencall_allocstruct(c, t);
 
   // Store the primitive in element 1.
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
@@ -33,17 +32,15 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
   if(LLVMGetTypeKind(l_type) != LLVMPointerTypeKind)
     return object;
 
-  gentype_t g;
+  reachable_type_t* t = reach_type(c->reachable, type);
+  assert(t != NULL);
 
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  if(g.primitive == NULL)
+  if(t->primitive == NULL)
     return object;
 
   // Extract the primitive type from element 1 and return it.
-  LLVMValueRef this_ptr = LLVMBuildBitCast(c->builder, object, g.structure_ptr,
-    "");
+  LLVMValueRef this_ptr = LLVMBuildBitCast(c->builder, object,
+    t->structure_ptr, "");
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
 
   return LLVMBuildLoad(c->builder, value_ptr, "");

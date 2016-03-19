@@ -38,16 +38,6 @@
     var = parent; \
   }
 
-#define BUILD_NO_DEBUG(var, existing, ...) \
-  ast_t* var; \
-  { \
-    ast_t* existing_no_debug = ast_from(existing, ast_id(existing)); \
-    ast_setdebug(existing_no_debug, false); \
-    BUILD(build_ast, existing_no_debug, __VA_ARGS__); \
-    ast_free(existing_no_debug); \
-    var = build_ast; \
-  }
-
 /** Builds an AST to replace the specified existing tree.
  * The provided existing must be an ast_t**.
  */
@@ -123,9 +113,6 @@
 
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
-
-/// Turn off debug info for the enclosing node
-#define AST_NODEBUG ast_setdebug(parent, false);
 
 /// Set the data field of the enclosing node
 #define DATA(target) ast_setdata(parent, (void*)(target));

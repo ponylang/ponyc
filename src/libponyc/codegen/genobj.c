@@ -1,5 +1,4 @@
 #include "genobj.h"
-#include "../debug/dwarf.h"
 #include <llvm-c/BitWriter.h>
 
 const char* genobj(compile_t* c)

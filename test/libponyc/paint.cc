@@ -27,8 +27,9 @@ protected:
   void add_type(const char* name)
   {
     _current_type = POOL_ALLOC(reachable_type_t);
+    memset(_current_type, 0, sizeof(reachable_type_t));
     _current_type->name = stringtab(name);
-    _current_type->type = NULL;
+    _current_type->ast = NULL;
     reachable_method_names_init(&_current_type->methods, 0);
     reachable_type_cache_init(&_current_type->subtypes, 0);
     _current_type->vtable_size = 0;
@@ -39,12 +40,14 @@ protected:
   void add_method(const char* name)
   {
     reachable_method_name_t* mn = POOL_ALLOC(reachable_method_name_t);
+    memset(mn, 0, sizeof(reachable_method_name_t));
     mn->name = stringtab(name);
     reachable_methods_init(&mn->r_methods, 0);
 
     reachable_method_names_put(&_current_type->methods, mn);
 
     reachable_method_t* method = POOL_ALLOC(reachable_method_t);
+    memset(method, 0, sizeof(reachable_method_t));
     method->name = stringtab(name);
     method->typeargs = NULL;
     method->r_fun = NULL;
@@ -79,7 +82,9 @@ protected:
 
     while((mn = reachable_method_names_next(&type->methods, &i)) != NULL)
     {
-      reachable_method_t m2 = { mn->name, NULL, NULL, 0 };
+      reachable_method_t m2;
+      memset(&m2, 0, sizeof(reachable_method_t));
+      m2.name = mn->name;
       reachable_method_t* method = reachable_methods_get(&mn->r_methods, &m2);
 
       assert(method != NULL);
@@ -107,8 +112,11 @@ protected:
 
       if(mn != NULL)
       {
-        reachable_method_t m2 = { stringtab(name), NULL, NULL, 0 };
-        reachable_method_t* method = reachable_methods_get(&mn->r_methods, &m2);
+        reachable_method_t m2;
+        memset(&m2, 0, sizeof(reachable_method_t));
+        m2.name = stringtab(name);
+        reachable_method_t* method =
+          reachable_methods_get(&mn->r_methods, &m2);
 
         ASSERT_NE((void*)NULL, method);
 

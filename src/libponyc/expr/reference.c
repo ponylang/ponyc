@@ -1379,13 +1379,8 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_compile_intrinsic(typecheck_t* t, ast_t* ast)
+bool expr_compile_intrinsic(ast_t* ast)
 {
-  assert(t->frame->method_body != NULL);
-
-  // Disable debuglocs on calls to this method.
-  ast_setdebug(t->frame->method, false);
-
   ast_settype(ast, ast_from(ast, TK_COMPILE_INTRINSIC));
   return true;
 }

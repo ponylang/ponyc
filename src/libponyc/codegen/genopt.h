@@ -19,7 +19,6 @@ bool target_is_llp64(char* triple);
 bool target_is_ilp32(char* triple);
 bool target_is_native128(char* triple);
 
-
 PONY_EXTERN_C_END
 
 #endif

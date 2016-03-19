@@ -142,6 +142,11 @@ class val URL
     (offset, query) = _parse_part(from, "?", "#", offset)
     (offset, fragment) = _parse_part(from, "#", "", offset)
 
+    if path.size() == 0 then
+      // An empty path is a root path.
+      path = "/"
+    end
+
     (var userinfo, var hostport) = _split(authority, '@')
 
     if hostport.size() == 0 then
@@ -205,13 +210,13 @@ class val URL
     end
 
     let start = offset + prefix.size().isize()
-      
+
     try
       var i = start.usize()
 
       while i < from.size() do
         let c = from(i)
-        
+
         var j = USize(0)
         while j < terminators.size() do
           if terminators(j) == c then

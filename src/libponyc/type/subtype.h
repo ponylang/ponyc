@@ -4,7 +4,6 @@
 #include <platform.h>
 #include "../ast/ast.h"
 #include "../ast/error.h"
-#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -32,7 +31,7 @@ bool is_integer(ast_t* type);
 
 bool is_machine_word(ast_t* type);
 
-bool is_signed(pass_opt_t* opt, ast_t* type);
+bool is_signed(ast_t* type);
 
 bool is_constructable(ast_t* type);
 

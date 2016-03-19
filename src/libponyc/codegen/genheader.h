@@ -3,7 +3,6 @@
 
 #include <platform.h>
 #include "codegen.h"
-#include "gentype.h"
 
 PONY_EXTERN_C_BEGIN
 

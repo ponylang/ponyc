@@ -1,5 +1,4 @@
 #include "genmatch.h"
-#include "gentype.h"
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genoperator.h"
@@ -11,7 +10,6 @@
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
-#include "../ast/stringtab.h"
 #include <assert.h>
 
 static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
@@ -26,10 +24,10 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
 static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block);
 
-static ast_t* eq_param_type(ast_t* pattern)
+static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 {
   ast_t* pattern_type = ast_type(pattern);
-  ast_t* fun = lookup(NULL, pattern, pattern_type, stringtab("eq"));
+  ast_t* fun = lookup(NULL, pattern, pattern_type, c->str_eq);
 
   AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
   ast_t* param = ast_child(params);
@@ -212,12 +210,8 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   if(l_value == NULL)
     return false;
 
-  gentype_t g;
-
-  if(!gentype(c, param_type, &g))
-    return false;
-
-  LLVMValueRef r_value = gen_assign_cast(c, g.use_type, value, param_type);
+  reachable_type_t* t = reach_type(c->reachable, param_type);
+  LLVMValueRef r_value = gen_assign_cast(c, t->use_type, value, param_type);
 
   if(r_value == NULL)
     return false;
@@ -326,7 +320,7 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // Get the type of the right-hand side of the pattern's eq() function.
-  ast_t* param_type = eq_param_type(pattern);
+  ast_t* param_type = eq_param_type(c, pattern);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -337,12 +331,8 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   // it isn't a boxed primitive, as that would go through the other path, ie
   // dynamic_match_object(). We also know it isn't an unboxed tuple. We can
   // load from ptr with a type based on the static type of the pattern.
-  gentype_t g;
-
-  if(!gentype(c, param_type, &g))
-    return false;
-
-  LLVMTypeRef ptr_type = LLVMPointerType(g.use_type, 0);
+  reachable_type_t* t = reach_type(c->reachable, param_type);
+  LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
   ptr = LLVMBuildIntToPtr(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
@@ -365,12 +355,8 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // it isn't a boxed primitive or tuple, as that would go through the other
   // path, ie dynamic_match_object(). We also know it isn't an unboxed tuple.
   // We can load from ptr with a type based on the static type of the pattern.
-  gentype_t g;
-
-  if(!gentype(c, pattern_type, &g))
-    return false;
-
-  LLVMTypeRef ptr_type = LLVMPointerType(g.use_type, 0);
+  reachable_type_t* t = reach_type(c->reachable, pattern_type);
+  LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
   ptr = LLVMBuildIntToPtr(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
@@ -413,7 +399,7 @@ static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // Get the type of the right-hand side of the pattern's eq() function.
-  ast_t* param_type = eq_param_type(pattern);
+  ast_t* param_type = eq_param_type(c, pattern);
 
   // Build a base pointer that skips the object header.
   LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
@@ -557,7 +543,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // Get the type of the right-hand side of the pattern's eq() function.
-  ast_t* param_type = eq_param_type(pattern);
+  ast_t* param_type = eq_param_type(c, pattern);
 
   if(!is_subtype(type, param_type, NULL))
   {
@@ -684,12 +670,12 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
   // We will have no type if all case have control types.
-  gentype_t phi_type;
+  LLVMTypeRef phi_type = NULL;
 
-  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
+  if(needed && !is_control_type(type))
   {
-    assert(0);
-    return NULL;
+    reachable_type_t* t_phi = reach_type(c->reachable, type);
+    phi_type = t_phi->use_type;
   }
 
   ast_t* match_type = alias(ast_type(match_expr));
@@ -712,7 +698,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
 
     if(needed)
-      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+      phi = LLVMBuildPhi(c->builder, phi_type, "");
     else
       phi = GEN_NOTNEEDED;
   }
@@ -731,7 +717,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     AST_GET_CHILDREN(the_case, pattern, guard, body);
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
-    codegen_pushscope(c);
+    codegen_pushscope(c, the_case);
 
     ast_t* pattern_type = ast_type(pattern);
     bool ok = true;
@@ -748,7 +734,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
       ok = ok && guard_match(c, guard, next_block);
 
       // Case body.
-      ok = ok && case_body(c, body, post_block, phi, phi_type.use_type);
+      ok = ok && case_body(c, body, post_block, phi, phi_type);
     }
 
     codegen_popscope(c);
@@ -767,8 +753,8 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   // Else body.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-  codegen_pushscope(c);
-  bool ok = case_body(c, else_expr, post_block, phi, phi_type.use_type);
+  codegen_pushscope(c, else_expr);
+  bool ok = case_body(c, else_expr, post_block, phi, phi_type);
   codegen_popscope(c);
 
   if(!ok)

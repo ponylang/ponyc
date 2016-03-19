@@ -74,8 +74,6 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
               if(!coerce_literals(&def_arg, type, opt))
                 return false;
-
-              ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
             }
 
             param = ast_sibling(param);
