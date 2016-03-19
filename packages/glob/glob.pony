@@ -1,5 +1,12 @@
-// Adapted from https://github.com/miracle2k/python-glob2
+"""
+# Glob package
 
+The Glob package provides the ability find all pathnames matching a given
+pattern based on Unix shell rules. Its adapted from the
+[glob2 python module](https://github.com/miracle2k/python-glob2).
+
+See `primitive Glob` for additional usage details.
+"""
 use "files"
 use "regex"
 
@@ -177,4 +184,3 @@ primitive Glob
       root.walk(this~_apply_glob_to_walk(
         pattern , Regex(translate(Path.normcase(pattern))), root, glob_handler))
     end
-
