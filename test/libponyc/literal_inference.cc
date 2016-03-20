@@ -10,14 +10,17 @@
 class LiteralTest : public PassTest
 {
   protected:
-    void check_type_for_assign(const char* type_name, token_id tk_type, const char* src) {
+    void check_type_for_assign(const char* type_name, token_id tk_type, const char* var, const char* src) {
       TEST_COMPILE(src);
 
-      ast_t* x_type = type_of("x");      // Find type of x
+      ast_t* x_type = type_of(var);      // Find type of x
       ast_t* x = ast_parent(x_type);     // Declaration of foo is parent of type
       ast_t* assign = ast_parent(x);     // Assignment is the parent of declaration of x
       ast_t* three = ast_child(assign);  // Literal is the first child of the assignment
       ast_t* type = ast_type(three);     // Finally we get to the type of the literal
+
+      ast_print(assign);
+      ast_print(type);
 
       ASSERT_ID(tk_type, type);
 
@@ -31,8 +34,7 @@ class LiteralTest : public PassTest
         default:
           FAIL(); // Unexpected tk_type
       }
-  }
-
+    }
 };
 
 
@@ -74,7 +76,18 @@ TEST_F(LiteralTest, CantInferLitExpr)
 }
 
 
-TEST_F(LiteralTest, CantInferUnionAmbiguousType)
+TEST_F(LiteralTest, CantInferNumericTypesWithoutVarType)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create() =>\n"
+    "    let x = 17";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInferAmbiguousUnion)
 {
   const char* src =
     "class Foo\n"
@@ -85,7 +98,7 @@ TEST_F(LiteralTest, CantInferUnionAmbiguousType)
 }
 
 
-TEST_F(LiteralTest, CantInferIntersectionType)
+TEST_F(LiteralTest, CantInferEmptyIntersection)
 {
   const char* src =
     "class Foo\n"
@@ -96,12 +109,23 @@ TEST_F(LiteralTest, CantInferIntersectionType)
 }
 
 
-TEST_F(LiteralTest, InferInsufficientlySpecifiedGeneric)
+TEST_F(LiteralTest, CantInferInsufficientlySpecifiedGeneric)
 {
   const char* src =
     "class Foo[A]\n"
     "  new create() =>\n"
     "    let x: A = 17";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInferThroughGenericSubtype)
+{
+  const char* src =
+    " class Foo[A: U8, B: A]\n"
+    "  new create() =>\n"
+    "    let x: B = 17";   // FIXME feels like this should work - 'let x: A = 17' does
 
   TEST_ERROR(src);
 }
@@ -116,7 +140,7 @@ TEST_F(LiteralTest, LetSimple)
     "  fun f() =>\n"
     "    let x: U8 = 3";
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, src));
+  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
 }
 
 
@@ -127,7 +151,7 @@ TEST_F(LiteralTest, LetUnambiguousUnion)
     "  fun f() =>\n"
     "    let x: (U8 | String) = 3";
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, src));
+  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
 }
 
 
@@ -138,7 +162,7 @@ TEST_F(LiteralTest, LetUnionSameType)
     "  fun f() =>\n"
     "    let x: (U8 | U8) = 3";
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, src));
+  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
 }
 
 
@@ -149,5 +173,56 @@ TEST_F(LiteralTest, LetSufficientlySpecifiedGeneric)
     "  new create() =>\n"
     "    let x: A = 17";
 
-  DO(check_type_for_assign("A", TK_TYPEPARAMREF, src));
+  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
 }
+
+
+TEST_F(LiteralTest, LetTuple)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create() =>\n"
+    "    (let x: U8, let y: U32) = (8, 32)";
+
+  DO(check_type_for_assign("U8",  TK_NOMINAL, "x", src));
+  DO(check_type_for_assign("U32", TK_NOMINAL, "y", src));
+}
+
+
+TEST_F(LiteralTest, LetTupleNested)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create() =>\n"
+    "    ((let w: U8, let x: U16), (let y: U32, let z: U64)) = ((2, 3), (4, 5))";
+
+  DO(check_type_for_assign("U8",  TK_NOMINAL, "w", src));
+  DO(check_type_for_assign("U16", TK_NOMINAL, "x", src));
+  DO(check_type_for_assign("U32", TK_NOMINAL, "y", src));
+  DO(check_type_for_assign("U64", TK_NOMINAL, "z", src));
+}
+
+
+TEST_F(LiteralTest, LetTupleOfGeneric_FirstOnly)
+{
+  const char* src =
+    "class Foo[A: U8, B: U32]\n"
+    "  new create() =>\n"
+    "    (let x: A, let y: A) = (16, 32)";
+
+  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
+  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "y", src));
+}
+
+// TEST_F(LiteralTest, LetTupleOfGeneric_FirstAndSecond)   // FIXME only diff here is 'let y: B', but it doesn't work
+// {
+//   const char* src =
+//     "class Foo[A: U8, B: U32]\n"
+//     "  new create() =>\n"
+//     "    (let x: A, let y: B) = (16, 32)";
+
+//   DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
+//   DO(check_type_for_assign("B", TK_TYPEPARAMREF, "y", src));
+// }
+
+
