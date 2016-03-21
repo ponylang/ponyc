@@ -145,6 +145,18 @@ Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
 */
 
+typedef enum verbosity_level
+{
+  VERBOSITY_QUIET     = 0,
+  VERBOSITY_DEFAULT   = 1,
+  VERBOSITY_INFO      = 2,
+  VERBOSITY_TOOL_INFO = 3,
+  VERBOSITY_ALL       = 4
+} verbosity_level;
+
+#define PONY_LOG(opt, level, args) \
+        { if((opt)->verbosity >= (level)) { printf args ;} }
+
 typedef enum pass_id
 {
   PASS_PARSE,
@@ -179,6 +191,7 @@ typedef struct pass_opt_t
   bool strip_debug;
   bool print_filenames;
   bool docs;
+  verbosity_level verbosity;
   const char* output;
 
   char* triple;

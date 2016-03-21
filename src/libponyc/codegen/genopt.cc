@@ -516,7 +516,8 @@ static void optimise(compile_t* c)
 
   if(c->opt->release)
   {
-    printf("Optimising\n");
+    PONY_LOG(c->opt, VERBOSITY_INFO, ("Optimising\n"));
+
     pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
   } else {
@@ -585,7 +586,8 @@ bool genopt(compile_t* c)
 
   if(c->opt->verify)
   {
-    printf("Verifying\n");
+    PONY_LOG(c->opt,VERBOSITY_INFO, ("Verifying\n"));
+    
     char* msg = NULL;
 
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
@@ -682,4 +684,3 @@ bool target_is_native128(char* t)
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
 }
-
