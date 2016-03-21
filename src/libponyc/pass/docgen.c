@@ -30,9 +30,9 @@ typedef struct docgen_t
   FILE* index_file;
   FILE* home_file;
   FILE* package_file;
-  printbuf_t* test_entities;
-  printbuf_t* public_entities;
-  printbuf_t* private_entities;
+  printbuf_t* test_types;
+  printbuf_t* public_types;
+  printbuf_t* private_types;
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
@@ -621,9 +621,9 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   assert(docgen != NULL);
   assert(docgen->index_file != NULL);
   assert(docgen->package_file != NULL);
-  assert(docgen->test_entities != NULL);
-  assert(docgen->public_entities != NULL);
-  assert(docgen->private_entities != NULL);
+  assert(docgen->test_types != NULL);
+  assert(docgen->public_types != NULL);
+  assert(docgen->private_types != NULL);
   assert(docgen->type_file == NULL);
   assert(ast != NULL);
   assert(package != NULL);
@@ -646,10 +646,10 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   fprintf(docgen->index_file, "  - %s %s: \"%s.md\"\n",
     ast_get_print(ast), name, tqfn);
 
-  // Add to appropriate package entities buffer
-  printbuf_t* buffer = docgen->public_entities;
-  if (is_for_testing(name, provides)) buffer = docgen->test_entities;
-  else if (name[0] == '_') buffer = docgen->private_entities;
+  // Add to appropriate package types buffer
+  printbuf_t* buffer = docgen->public_types;
+  if (is_for_testing(name, provides)) buffer = docgen->test_types;
+  else if (name[0] == '_') buffer = docgen->private_types;
   printbuf(buffer,
            "* [%s %s](%s.md)\n",
            ast_get_print(ast), name, tqfn);
@@ -745,9 +745,9 @@ static void doc_package_home(docgen_t* docgen,
   assert(docgen->index_file != NULL);
   assert(docgen->home_file != NULL);
   assert(docgen->package_file == NULL);
-  assert(docgen->test_entities == NULL);
-  assert(docgen->public_entities == NULL);
-  assert(docgen->private_entities == NULL);
+  assert(docgen->test_types == NULL);
+  assert(docgen->public_types == NULL);
+  assert(docgen->private_types == NULL);
   assert(docgen->type_file == NULL);
   assert(package != NULL);
   assert(ast_id(package) == TK_PACKAGE);
@@ -787,9 +787,9 @@ static void doc_package_home(docgen_t* docgen,
 
   ponyint_pool_free_size(tqfn_len, tqfn);
 
-  docgen->test_entities = printbuf_new();
-  docgen->public_entities = printbuf_new();
-  docgen->private_entities = printbuf_new();
+  docgen->test_types = printbuf_new();
+  docgen->public_types = printbuf_new();
+  docgen->private_types = printbuf_new();
   docgen->package_file = docgen->type_file;
   docgen->type_file = NULL;
 }
@@ -801,9 +801,9 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
   assert(ast != NULL);
   assert(ast_id(ast) == TK_PACKAGE);
   assert(docgen->package_file == NULL);
-  assert(docgen->test_entities == NULL);
-  assert(docgen->public_entities == NULL);
-  assert(docgen->private_entities == NULL);
+  assert(docgen->test_types == NULL);
+  assert(docgen->public_types == NULL);
+  assert(docgen->private_types == NULL);
 
   ast_list_t types = { NULL, NULL, NULL };
   ast_t* package_doc = NULL;
@@ -843,21 +843,21 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     doc_entity(docgen, p->ast, ast);
 
   // Add listing of subpackages and links
-  fprintf(docgen->package_file, "\n\n## Public Entities\n\n");
-  fprintf(docgen->package_file, "%s", docgen->public_entities->m);
-  fprintf(docgen->package_file, "\n\n## Private Entities\n\n");
-  fprintf(docgen->package_file, "%s", docgen->private_entities->m);
-  fprintf(docgen->package_file, "\n\n## Test Entities\n\n");
-  fprintf(docgen->package_file, "%s", docgen->test_entities->m);
+  fprintf(docgen->package_file, "\n\n## Public Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->public_types->m);
+  fprintf(docgen->package_file, "\n\n## Private Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->private_types->m);
+  fprintf(docgen->package_file, "\n\n## Test Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->test_types->m);
 
   fclose(docgen->package_file);
   docgen->package_file = NULL;
-  printbuf_free(docgen->test_entities);
-  printbuf_free(docgen->public_entities);
-  printbuf_free(docgen->private_entities);
-  docgen->test_entities = NULL;
-  docgen->public_entities = NULL;
-  docgen->private_entities = NULL;
+  printbuf_free(docgen->test_types);
+  printbuf_free(docgen->public_types);
+  printbuf_free(docgen->private_types);
+  docgen->test_types = NULL;
+  docgen->public_types = NULL;
+  docgen->private_types = NULL;
 }
 
 
@@ -884,9 +884,9 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
 
   // Process packages
   docgen->package_file = NULL;
-  docgen->test_entities = NULL;
-  docgen->public_entities = NULL;
-  docgen->private_entities = NULL;
+  docgen->test_types = NULL;
+  docgen->public_types = NULL;
+  docgen->private_types = NULL;
   doc_package(docgen, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)
