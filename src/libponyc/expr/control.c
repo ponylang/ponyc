@@ -124,6 +124,9 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
+    return false;
+
   ast_t* type = NULL;
   size_t branch_count = 0;
 
@@ -143,7 +146,7 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   if(type == NULL)
   {
-    if(ast_sibling(ast) != NULL)
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
       ast_error(ast_sibling(ast), "unreachable code");
       return false;

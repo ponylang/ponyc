@@ -751,8 +751,12 @@ uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
 
       while(child != NULL)
       {
-        const char* type_name = genname_type(child);
-        uint32_t index = vtable_index(c, type_name, name, typeargs);
+        gentype_t cg;
+
+        if(!gentype(c, child, &cg))
+          return (uint32_t)-1;
+
+        uint32_t index = genfun_vtable_index(c, &cg, name, typeargs);
 
         if(index != (uint32_t)-1)
           return index;

@@ -1,5 +1,6 @@
 #include "mpmcq.h"
 #include "../mem/pool.h"
+#include "../sched/cpu.h"
 
 typedef struct mpmcq_node_t mpmcq_node_t;
 
@@ -80,7 +81,9 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // pointer of our new tail to NULL, and we wait until the data pointer of
   // the old tail is NULL.
   _atomic_store(&next->data, NULL);
-  while(_atomic_load(&cmp.node->data) != NULL);
+
+  while(_atomic_load(&cmp.node->data) != NULL)
+    ponyint_cpu_relax();
 
   // Free the old tail. The new tail is the next node.
   POOL_FREE(mpmcq_node_t, cmp.node);

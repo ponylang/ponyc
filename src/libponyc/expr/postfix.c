@@ -2,6 +2,7 @@
 #include "reference.h"
 #include "literal.h"
 #include "call.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
@@ -265,7 +266,7 @@ static bool make_tuple_index(ast_t** astp)
   ast_t* ast = *astp;
   const char* name = ast_name(ast);
 
-  if(name[0] != '_')
+  if(!is_name_private(name))
     return false;
 
   for(size_t i = 1; name[i] != '\0'; i++)
@@ -490,10 +491,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   ast_t* type = ast_type(left);
 
   if(type == NULL)
-  {
-    ast_error(ast, "invalid left hand side");
     return false;
-  }
 
   if(!literal_member_access(ast, opt))
     return false;

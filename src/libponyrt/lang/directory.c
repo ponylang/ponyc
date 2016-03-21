@@ -120,13 +120,11 @@ int ponyint_at_removedir()
 
 const char* ponyint_unix_readdir(DIR* dir)
 {
-  struct dirent de;
   struct dirent* d;
 
   while(true)
   {
-    if(readdir_r(dir, &de, &d) != 0)
-      break;
+    d = readdir(dir);
 
     if(d == NULL)
       break;

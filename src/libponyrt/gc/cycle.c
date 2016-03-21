@@ -694,9 +694,6 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
       ponyint_actor_final(ctx, view->actor);
     }
   }
-
-  // Terminate the scheduler.
-  ponyint_sched_terminate();
 }
 
 #ifndef NDEBUG

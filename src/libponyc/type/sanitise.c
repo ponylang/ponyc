@@ -7,8 +7,6 @@
 static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 {
   assert(orig_param != NULL);
-  assert(params != NULL);
-  assert(args != NULL);
 
   // Get original type parameter info
   AST_GET_CHILDREN(orig_param, id, constraint, deflt);
@@ -18,42 +16,43 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
   assert(constraint != NULL);
 
   // New type parameter has the same constraint as the old one (sanitised)
-  BUILD(new_param, orig_param,
-    NODE(TK_TYPEPARAM,
-      ID(name)
-      TREE(constraint)
-      NONE));
+  if(params != NULL)
+  {
+    BUILD(new_param, orig_param,
+      NODE(TK_TYPEPARAM,
+        ID(name)
+        TREE(constraint)
+        NONE));
 
-  ast_append(params, new_param);
+    ast_append(params, new_param);
+    ast_setid(params, TK_TYPEPARAMS);
+  }
 
   // New type arguments binds to old type parameter
-  BUILD(new_arg, orig_param,
-    NODE(TK_NOMINAL,
-      NONE  // Package
-      ID(name)
-      NONE  // Type args
-      NONE  // cap
-      NONE)); // ephemeral
+  if(args != NULL)
+  {
+    BUILD(new_arg, orig_param,
+      NODE(TK_NOMINAL,
+        NONE  // Package
+        ID(name)
+        NONE  // Type args
+        NONE  // cap
+        NONE)); // ephemeral
 
-  ast_append(args, new_arg);
-
-  // Since we have a type parameter the params and args node should not be
-  // TK_NONE
-  ast_setid(params, TK_TYPEPARAMS);
-  ast_setid(args, TK_TYPEARGS);
+    ast_append(args, new_arg);
+    ast_setid(args, TK_TYPEARGS);
+  }
 }
 
 
 void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
 {
   assert(ast != NULL);
-  assert(out_params != NULL);
-  assert(out_args != NULL);
 
   // Create params and args as TK_NONE, we'll change them if we find any type
   // params
-  ast_t* params = ast_from(ast, TK_NONE);
-  ast_t* args = ast_from(ast, TK_NONE);
+  ast_t* params = out_params ? ast_from(ast, TK_NONE) : NULL;
+  ast_t* args = out_args ? ast_from(ast, TK_NONE) : NULL;
 
   // Find enclosing entity
   ast_t* entity = ast;
@@ -90,12 +89,15 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
       collect_type_param(p, params, args);
   }
 
-  *out_params = params;
-  *out_args = args;
+  if(out_params != NULL)
+    *out_params = params;
+
+  if(out_args != NULL)
+    *out_args = args;
 }
 
 
-// Sanitise the given type (sub)AST, which has already been copied 
+// Sanitise the given type (sub)AST, which has already been copied
 static void sanitise(ast_t** astp)
 {
   assert(astp != NULL);

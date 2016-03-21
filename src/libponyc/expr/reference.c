@@ -13,6 +13,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
@@ -369,7 +370,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
 
   size_t name_len = strlen(name);
 
-  if(name[0] == '_')
+  if(is_name_private(name))
   {
     // Try without leading underscore
     const char* try_name = stringtab(name + 1);
@@ -492,6 +493,12 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
     case TK_PARAM:
     {
+      if(t->frame->def_arg != NULL)
+      {
+        ast_error(ast, "can't reference a parameter in a default argument");
+        return false;
+      }
+
       if(!def_before_use(def, ast, name))
         return false;
 
@@ -502,12 +509,6 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       if(!valid_reference(opt, ast, type, status))
         return false;
-
-      if(t->frame->def_arg != NULL)
-      {
-        ast_error(ast, "can't reference a parameter in a default argument");
-        return false;
-      }
 
       if(!sendable(type) && (t->frame->recover != NULL))
       {
@@ -812,6 +813,12 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
 
+  if(t->frame->def_arg != NULL)
+  {
+    ast_error(ast, "can't reference 'this' in a default argument");
+    return false;
+  }
+
   sym_status_t status;
   ast_get(ast, stringtab("this"), &status);
 
@@ -841,12 +848,6 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   {
     BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
     type = arrow;
-  }
-
-  if(t->frame->def_arg != NULL)
-  {
-    ast_error(ast, "can't reference 'this' in a default argument");
-    return false;
   }
 
   // Get the nominal type, which may be the right side of an arrow type.

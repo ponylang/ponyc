@@ -4,6 +4,7 @@
 
 #include <ast/ast.h>
 #include <ast/id_internal.h>
+#include <ast/id.h>
 
 #include "util.h"
 
@@ -159,4 +160,50 @@ TEST_F(IdTest, Prime)
   DO(test_id("foo'", true, ALLOW_TICK));
   DO(test_id("foo''", true, ALLOW_TICK));
   DO(test_id("foo'''", true, ALLOW_TICK));
+}
+
+
+TEST_F(IdTest, PrivateName)
+{
+  ASSERT_TRUE(is_name_private("_foo"));
+  ASSERT_TRUE(is_name_private("_Foo"));
+  ASSERT_TRUE(is_name_private("$_foo"));
+  ASSERT_TRUE(is_name_private("$_Foo"));
+  ASSERT_FALSE(is_name_private("foo"));
+  ASSERT_FALSE(is_name_private("Foo"));
+  ASSERT_FALSE(is_name_private("$foo"));
+  ASSERT_FALSE(is_name_private("$Foo"));
+}
+
+
+TEST_F(IdTest, TypeName)
+{
+  ASSERT_TRUE(is_name_type("Foo"));
+  ASSERT_TRUE(is_name_type("_Foo"));
+  ASSERT_TRUE(is_name_type("$Foo"));
+  ASSERT_TRUE(is_name_type("$_Foo"));
+  ASSERT_FALSE(is_name_type("foo"));
+  ASSERT_FALSE(is_name_type("_foo"));
+  ASSERT_FALSE(is_name_type("$foo"));
+  ASSERT_FALSE(is_name_type("$_foo"));
+}
+
+
+TEST_F(IdTest, FFIType)
+{
+  ASSERT_TRUE(is_name_ffi("@foo"));
+  ASSERT_FALSE(is_name_ffi("foo"));
+}
+
+
+TEST_F(IdTest, InternalTypeName)
+{
+  ASSERT_TRUE(is_name_internal_test("$foo"));
+  ASSERT_TRUE(is_name_internal_test("$_foo"));
+  ASSERT_TRUE(is_name_internal_test("$Foo"));
+  ASSERT_TRUE(is_name_internal_test("$_Foo"));
+  ASSERT_FALSE(is_name_internal_test("foo"));
+  ASSERT_FALSE(is_name_internal_test("_foo"));
+  ASSERT_FALSE(is_name_internal_test("Foo"));
+  ASSERT_FALSE(is_name_internal_test("_Foo"));
 }

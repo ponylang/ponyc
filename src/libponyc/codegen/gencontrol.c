@@ -233,15 +233,22 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // last iteration), the else clause generates the value.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value = gen_expr(c, else_clause);
+  LLVMBasicBlockRef else_from = NULL;
 
-  if(r_value == NULL)
-    return NULL;
+  if(r_value != GEN_NOVALUE)
+  {
+    if(r_value == NULL)
+      return NULL;
 
-  if(needed)
-    r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
+    if(needed)
+      r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
 
-  LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
-  LLVMBuildBr(c->builder, post_block);
+    else_from = LLVMGetInsertBlock(c->builder);
+    LLVMBuildBr(c->builder, post_block);
+  }
+
+  if(is_control_type(type))
+    return GEN_NOVALUE;
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -340,6 +347,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   // Only happens for a continue in the last iteration.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef else_value = gen_expr(c, else_clause);
+  LLVMBasicBlockRef else_from = NULL;
 
   if(else_value == NULL)
     return NULL;
@@ -347,8 +355,14 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(needed)
     else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
 
-  LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
-  LLVMBuildBr(c->builder, post_block);
+  if(else_value != GEN_NOVALUE)
+  {
+    else_from = LLVMGetInsertBlock(c->builder);
+    LLVMBuildBr(c->builder, post_block);
+  }
+
+  if(is_control_type(type))
+    return GEN_NOVALUE;
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -506,7 +520,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
     false);
 
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 7 && LLVM_VERSION_PATCH == 0
+#if PONY_LLVM == 307 && LLVM_VERSION_PATCH == 0
   // This backwards-incompatible API change to LLVMBuildLandingPad is only in
   // LLVM 3.7.0. In 3.7.1 and all later versions, backward-compatibility was
   // restored.

@@ -1,4 +1,6 @@
 #include "docgen.h"
+#include "../ast/id.h"
+#include "../ast/printbuf.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 #include <assert.h>
@@ -28,6 +30,9 @@ typedef struct docgen_t
   FILE* index_file;
   FILE* home_file;
   FILE* package_file;
+  printbuf_t* test_types;
+  printbuf_t* public_types;
+  printbuf_t* private_types;
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
@@ -113,16 +118,16 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   const char* name = ast_name(ast_childidx(ast, id_index));
   assert(name != NULL);
 
-  if(name[0] == '$')  // Ignore internally generated names
+  if(is_name_internal_test(name))  // Ignore internally generated names
     return;
 
-  if(name[0] == '_' && !allow_private)  // Ignore private
+  if(is_name_private(name) && !allow_private)  // Ignore private
     return;
 
-  if(name[0] != '_' && !allow_public)  // Ignore public
+  if(!is_name_private(name) && !allow_public)  // Ignore public
     return;
 
-  if(name[0] == '_')  // Ignore leading underscore for ordering
+  if(is_name_private(name))  // Ignore leading underscore for ordering
     name++;
 
   doc_list_add(list, ast, name);
@@ -402,6 +407,30 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   fprintf(docgen->type_file, "%s", postamble);
 }
 
+static bool is_for_testing(const char* name, ast_t* list)
+{
+  assert(name != NULL);
+  assert(list != NULL);
+
+  if (strncmp(name, "_Test", 5) == 0) return true;
+
+  if(ast_id(list) == TK_NONE)
+    return false;
+
+  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
+  {
+    if (ast_id(p) == TK_NOMINAL)
+    {
+      ast_t* id = ast_childidx(p, 1);
+
+      if (strncmp(ast_name(id), "TestList", 8) == 0) return true;
+    }
+  }
+
+  return false;
+}
+
+
 
 // Functions to handle everything else
 
@@ -592,6 +621,9 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   assert(docgen != NULL);
   assert(docgen->index_file != NULL);
   assert(docgen->package_file != NULL);
+  assert(docgen->test_types != NULL);
+  assert(docgen->public_types != NULL);
+  assert(docgen->private_types != NULL);
   assert(docgen->type_file == NULL);
   assert(ast != NULL);
   assert(package != NULL);
@@ -614,13 +646,18 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   fprintf(docgen->index_file, "  - %s %s: \"%s.md\"\n",
     ast_get_print(ast), name, tqfn);
 
-  fprintf(docgen->package_file, "* [%s %s](%s.md)\n",
-    ast_get_print(ast), name, tqfn);
+  // Add to appropriate package types buffer
+  printbuf_t* buffer = docgen->public_types;
+  if (is_for_testing(name, provides)) buffer = docgen->test_types;
+  else if (name[0] == '_') buffer = docgen->private_types;
+  printbuf(buffer,
+           "* [%s %s](%s.md)\n",
+           ast_get_print(ast), name, tqfn);
 
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-    fprintf(docgen->type_file, "# %s %s/%s",
+  fprintf(docgen->type_file, "# %s %s/%s",
     ast_get_print(ast),
     package_qualified_name(package),
     name);
@@ -708,6 +745,9 @@ static void doc_package_home(docgen_t* docgen,
   assert(docgen->index_file != NULL);
   assert(docgen->home_file != NULL);
   assert(docgen->package_file == NULL);
+  assert(docgen->test_types == NULL);
+  assert(docgen->public_types == NULL);
+  assert(docgen->private_types == NULL);
   assert(docgen->type_file == NULL);
   assert(package != NULL);
   assert(ast_id(package) == TK_PACKAGE);
@@ -745,11 +785,11 @@ static void doc_package_home(docgen_t* docgen,
   }
 
 
-  // Add listing of subpackages and links
-  fprintf(docgen->type_file, "\n\n## Entities\n\n");
-
   ponyint_pool_free_size(tqfn_len, tqfn);
 
+  docgen->test_types = printbuf_new();
+  docgen->public_types = printbuf_new();
+  docgen->private_types = printbuf_new();
   docgen->package_file = docgen->type_file;
   docgen->type_file = NULL;
 }
@@ -761,6 +801,9 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
   assert(ast != NULL);
   assert(ast_id(ast) == TK_PACKAGE);
   assert(docgen->package_file == NULL);
+  assert(docgen->test_types == NULL);
+  assert(docgen->public_types == NULL);
+  assert(docgen->private_types == NULL);
 
   ast_list_t types = { NULL, NULL, NULL };
   ast_t* package_doc = NULL;
@@ -799,8 +842,22 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
   for(ast_list_t* p = types.next; p != NULL; p = p->next)
     doc_entity(docgen, p->ast, ast);
 
+  // Add listing of subpackages and links
+  fprintf(docgen->package_file, "\n\n## Public Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->public_types->m);
+  fprintf(docgen->package_file, "\n\n## Private Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->private_types->m);
+  fprintf(docgen->package_file, "\n\n## Test Types\n\n");
+  fprintf(docgen->package_file, "%s", docgen->test_types->m);
+
   fclose(docgen->package_file);
   docgen->package_file = NULL;
+  printbuf_free(docgen->test_types);
+  printbuf_free(docgen->public_types);
+  printbuf_free(docgen->private_types);
+  docgen->test_types = NULL;
+  docgen->public_types = NULL;
+  docgen->private_types = NULL;
 }
 
 
@@ -827,6 +884,9 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
 
   // Process packages
   docgen->package_file = NULL;
+  docgen->test_types = NULL;
+  docgen->public_types = NULL;
+  docgen->private_types = NULL;
   doc_package(docgen, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)
@@ -840,15 +900,14 @@ static void doc_rm_star(const char* path)
   assert(path != NULL);
 
   PONY_ERRNO err;
-  PONY_DIRINFO entry;
-  PONY_DIRINFO* result;
-
   PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
     return;
 
-  while(pony_dir_entry_next(dir, &entry, &result) && (result != NULL))
+  PONY_DIRINFO* result;
+
+  while((result = pony_dir_entry_next(dir)) != NULL)
   {
     char* name = pony_dir_info_name(result);
 

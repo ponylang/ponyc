@@ -1,5 +1,6 @@
 #include "names.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../type/reify.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
@@ -236,7 +237,7 @@ static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
   {
     const char* name = ast_name(package_id);
 
-    if(name[0] == '$')
+    if(is_name_internal_test(name))
       scope = ast_get(ast_nearest(scope, TK_PROGRAM), name, NULL);
     else
       scope = ast_get(scope, name, NULL);
@@ -299,7 +300,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
     r = false;
   } else {
     // Check for a private type.
-    if(!local_package && (name[0] == '_'))
+    if(!local_package && is_name_private(name))
     {
       ast_error(type_id, "can't access a private type from another package");
       r = false;

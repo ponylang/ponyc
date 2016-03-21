@@ -34,12 +34,17 @@ bool check_id_param(ast_t* id_node);
 /// If name is illegal an error will be generated.
 bool check_id_local(ast_t* id_node);
 
+/// Report whether the given id name is a type name
+bool is_name_type(const char* name);
 
-/// Report whether the given id is a type name
-//bool is_id_type(const char* id);
+// Report whether the given id name is private
+bool is_name_private(const char* name);
 
-// Report whether the given id is private
-//bool is_private(const char* id);
+// Report whether the given id name is an FFI declaration
+bool is_name_ffi(const char* name);
+
+// Report whether the given id name is for an internal test
+bool is_name_internal_test(const char* name);
 
 PONY_EXTERN_C_END
 

@@ -703,7 +703,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   // Jump to the first case.
   LLVMBuildBr(c->builder, pattern_block);
 
-  LLVMValueRef phi = GEN_NOTNEEDED;
+  LLVMValueRef phi = GEN_NOVALUE;
 
   if(!is_control_type(type))
   {
@@ -713,6 +713,8 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     if(needed)
       phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+    else
+      phi = GEN_NOTNEEDED;
   }
 
   // Iterate over the cases.
