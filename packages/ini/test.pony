@@ -19,6 +19,8 @@ class iso _TestIniParse is UnitTest
       key 2 =     value 2
 
       [Section 2]
+
+      [Section 3]
       key 2 = value 3
              key 1   =   value 1;Not a comment
       """
@@ -26,7 +28,9 @@ class iso _TestIniParse is UnitTest
     let array: Array[String] = source.split("\r\n")
     let map = IniParse(array.values())
 
+    h.assert_eq[Bool](map.contains("Section 2"), true)
+
     h.assert_eq[String](map("")("key 1"), "value 1")
     h.assert_eq[String](map("Section 1")("key 2"), "value 2")
-    h.assert_eq[String](map("Section 2")("key 2"), "value 3")
-    h.assert_eq[String](map("Section 2")("key 1"), "value 1;Not a comment")
+    h.assert_eq[String](map("Section 3")("key 2"), "value 3")
+    h.assert_eq[String](map("Section 3")("key 1"), "value 1;Not a comment")
