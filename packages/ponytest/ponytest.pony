@@ -7,9 +7,10 @@ the tests.
 
 To help simplify test writing and distribution this package depends on as few
 other packages as possible. Currently the required packages are:
-  builtin
-  time
-  collections
+
+* builtin
+* time
+* collections
 
 Each unit test is a class, with a single test function. By default all tests
 run concurrently.
