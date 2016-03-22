@@ -28,11 +28,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     let len = (prealloc * 4) / 3
     let n = len.ponyint_next_pow2().max(8)
-    _array = _array.create(n)
-
-    for i in Range(0, n) do
-      _array.push(_MapEmpty)
-    end
+    _array = _array.init(_MapEmpty, n)
 
   fun size(): USize =>
     """
@@ -198,11 +194,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _size = 0
     // Our default prealloc of 6 corresponds to an array alloc size of 8.
     let n: USize = 8
-    _array = _array.create(n)
-
-    for i in Range(0, n) do
-      _array.push(_MapEmpty)
-    end
+    _array = _array.init(_MapEmpty, n)
     this
 
   fun _search(key: box->K!): (USize, Bool) =>
@@ -231,7 +223,7 @@ class HashMap[K, V, H: HashFunction[K] val]
           end
         | _MapDeleted =>
           if idx_del > mask then
-            idx_del = i
+            idx_del = idx
           end
         end
 
@@ -248,12 +240,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     let old = _array
     let old_len = old.size()
 
-    _array = _array.create(len)
+    _array = _array.init(_MapEmpty, len)
     _size = 0
-
-    for i in Range(0, len) do
-      _array.push(_MapEmpty)
-    end
 
     try
       for i in Range(0, old_len) do
