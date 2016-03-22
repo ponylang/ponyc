@@ -31,8 +31,15 @@ examples.
 
 Pull request
 ------------
-Provide the same information as you would for a [feature request](#feature-request). Also briefly
-describe what the implementation might look like.
+Provide the same information as you would for a [feature request](#feature-request).
+
+We ask that you:
+
+* [Write a good commit message](http://chris.beams.io/posts/git-commit/)
+* Issue 1 Pull Request per feature. Don't lump unrelated changes together.
+* [Squash all commits down into a single logical commit](http://blog.steveklabnik.com/posts/2012-11-08-how-to-squash-commits-in-a-github-pull-request) for your PR.
+* Make sure you update CHANGELOG.md to account for your change
+
 
 [complete-issue-list]: //github.com/ponylang/ponyc/search?q=&type=Issues&utf8=%E2%9C%93
 [new-issue]: //github.com/ponylang/ponyc/issues/new
