@@ -16,6 +16,8 @@ void ponyint_cpu_affinity(uint32_t cpu);
 
 void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield);
 
+void ponyint_cpu_relax();
+
 uint64_t ponyint_cpu_tick();
 
 PONY_EXTERN_C_END

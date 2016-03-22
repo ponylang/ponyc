@@ -1,22 +1,10 @@
 #include "names.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../type/reify.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include <assert.h>
-
-static void names_applycap_index(ast_t* ast, ast_t* cap, ast_t* ephemeral,
-  int index)
-{
-  ast_t* a_cap = ast_childidx(ast, index);
-  ast_t* a_ephemeral = ast_sibling(a_cap);
-
-  if(ast_id(cap) != TK_NONE)
-    ast_replace(&a_cap, cap);
-
-  if(ast_id(ephemeral) != TK_NONE)
-    ast_replace(&a_ephemeral, ephemeral);
-}
 
 static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 {
@@ -25,30 +13,48 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
-    case TK_TYPEPARAMREF:
     {
-      if(ast_id(cap) != TK_NONE)
+      // Apply the capability and ephemerality to each element of the type
+      // expression.
+      for(ast_t* child = ast_child(ast);
+        child != NULL;
+        child = ast_sibling(child))
       {
-        ast_error(cap,
-          "can't specify a capability for an alias to a type expression or "
-          "type parameter");
-        return false;
-      }
-
-      if(ast_id(ephemeral) != TK_NONE)
-      {
-        ast_error(ephemeral,
-          "can't specify a capability for an alias to a type expression or "
-          "type parameter");
-        return false;
+        names_applycap(child, cap, ephemeral);
       }
 
       return true;
     }
 
-    case TK_NOMINAL:
-      names_applycap_index(ast, cap, ephemeral, 3);
+    case TK_TYPEPARAMREF:
+    {
+      AST_GET_CHILDREN(ast, id, tcap, teph);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap,
+          "can't specify a capability for an alias to a type parameter");
+        return false;
+      }
+
+      if(ast_id(ephemeral) != TK_NONE)
+        ast_replace(&teph, ephemeral);
+
       return true;
+    }
+
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(ast, pkg, id, typeargs, tcap, teph);
+
+      if(ast_id(cap) != TK_NONE)
+        ast_replace(&tcap, cap);
+
+      if(ast_id(ephemeral) != TK_NONE)
+        ast_replace(&teph, ephemeral);
+
+      return true;
+    }
 
     case TK_ARROW:
       return names_applycap(ast_childidx(ast, 1), cap, ephemeral);
@@ -231,7 +237,7 @@ static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
   {
     const char* name = ast_name(package_id);
 
-    if(name[0] == '$')
+    if(is_name_internal_test(name))
       scope = ast_get(ast_nearest(scope, TK_PROGRAM), name, NULL);
     else
       scope = ast_get(scope, name, NULL);
@@ -294,7 +300,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
     r = false;
   } else {
     // Check for a private type.
-    if(!local_package && (name[0] == '_'))
+    if(!local_package && is_name_private(name))
     {
       ast_error(type_id, "can't access a private type from another package");
       r = false;

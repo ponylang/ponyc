@@ -30,17 +30,20 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  // We might already have a type due to a return expression.
-  ast_t* type = ast_type(ast);
-  ast_t* last = ast_childlast(ast);
+  if(ok)
+  {
+    // We might already have a type due to a return expression.
+    ast_t* type = ast_type(ast);
+    ast_t* last = ast_childlast(ast);
 
-  if((type != NULL) && !coerce_literals(&last, type, opt))
-    return false;
+    if((type != NULL) && !coerce_literals(&last, type, opt))
+      return false;
 
-  // Type is unioned with the type of the last child.
-  type = control_type_add_branch(type, last);
-  ast_settype(ast, type);
-  ast_inheritflags(ast);
+    // Type is unioned with the type of the last child.
+    type = control_type_add_branch(type, last);
+    ast_settype(ast, type);
+    ast_inheritflags(ast);
+  }
 
   if(!ast_has_scope(ast))
     return ok;
@@ -121,6 +124,9 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
+    return false;
+
   ast_t* type = NULL;
   size_t branch_count = 0;
 
@@ -140,7 +146,7 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   if(type == NULL)
   {
-    if(ast_sibling(ast) != NULL)
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
       ast_error(ast_sibling(ast), "unreachable code");
       return false;
@@ -275,13 +281,6 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
-  // It has to be possible for the left side to result in an error.
-  if((ast_id(ast) == TK_TRY) && !ast_canerror(body))
-  {
-    ast_error(body, "try expression never results in an error");
-    return false;
-  }
-
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
   ast_t* then_type = ast_type(then_clause);
@@ -290,6 +289,13 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
     is_typecheck_error(else_type) ||
     is_typecheck_error(then_type))
     return false;
+
+  // It has to be possible for the left side to result in an error.
+  if((ast_id(ast) == TK_TRY) && !ast_canerror(body))
+  {
+    ast_error(body, "try expression never results in an error");
+    return false;
+  }
 
   ast_t* type = NULL;
 

@@ -189,11 +189,10 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     return false;
   }
 
-  PONY_DIRINFO dirent;
   PONY_DIRINFO* d;
   bool r = true;
 
-  while(pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
+  while((d = pony_dir_entry_next(dir)) != NULL)
   {
     // Handle only files with the specified extension that don't begin with
     // a dot. This avoids including UNIX hidden files in a build.
@@ -231,7 +230,13 @@ static const char* try_path(const char* base, const char* path)
   if(pony_realpath(composite, file) != file)
     return NULL;
 
-  return stringtab(file);
+  struct stat s;
+  int err = stat(file, &s);
+
+  if((err != -1) && S_ISDIR(s.st_mode))
+    return stringtab(file);
+
+  return NULL;
 }
 
 

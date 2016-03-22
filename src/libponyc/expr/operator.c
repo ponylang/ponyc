@@ -401,6 +401,12 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(r_type))
     return false;
 
+  if(is_control_type(r_type))
+  {
+    ast_error(ast, "the right hand side does not return a value");
+    return false;
+  }
+
   if(!infer_locals(left, r_type))
     return false;
 
@@ -469,7 +475,9 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
         if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
         {
-          ast_error(ast, "cannot write to a field in a %s function. If you are trying to change state in a function use fun ref",
+          ast_error(ast,
+            "cannot write to a field in a %s function. If you are trying to "
+            "change state in a function use fun ref",
             lexer_print(iso_id));
           ast_free_unattached(a_type);
           return false;

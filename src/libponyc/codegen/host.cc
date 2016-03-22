@@ -9,6 +9,10 @@
 
 #include <llvm/IR/Function.h>
 
+#if PONY_LLVM < 307
+#include <llvm/Support/Host.h>
+#endif
+
 #ifdef _MSC_VER
 #  pragma warning(pop)
 #endif

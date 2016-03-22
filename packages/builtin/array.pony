@@ -38,7 +38,7 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  new from_cstring(ptr: Pointer[A] ref, len: USize, alloc: USize = 0) =>
+  new from_cstring(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
     copied.
@@ -217,8 +217,8 @@ class Array[A] is Seq[A]
     """
     delete(0)
 
-  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1):
-    Array[A]^
+  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+    len: USize = -1): Array[A]^
   =>
     """
     Append the elements from a sequence, starting from the given offset.
@@ -243,13 +243,35 @@ class Array[A] is Seq[A]
 
     this
 
-  fun ref concat(iter: Iterator[A^]): Array[A]^ =>
+  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
+    : Array[A]^
+  =>
     """
-    Add iterated elements to the end of the array.
-    The array is returned to allow call chaining.
+    Add len iterated elements to the end of the array, starting from the given
+    offset. The array is returned to allow call chaining.
     """
-    for v in iter do
-      push(consume v)
+    try
+      var n = USize(0)
+
+      while n < offset do
+        if iter.has_next() then
+          iter.next()
+        else
+          return this
+        end
+
+        n = n + 1
+      end
+
+      n = 0
+
+      while n < len do
+        if iter.has_next() then
+          push(iter.next())
+        else
+          return this
+        end
+      end
     end
 
     this
@@ -301,19 +323,21 @@ class Array[A] is Seq[A]
     """
     Clone the array.
     The new array contains references to the same elements that the old array
-    contains, the elements themselves are not copied.
+    contains, the elements themselves are not cloned.
     """
     let out = Array[this->A!](_size)
     _ptr._copy_to(out._ptr, _size)
     out._size = _size
     out
 
-  fun slice(from: USize = 0, to: USize = -1, step: USize = 1): Array[this->A!]^ =>
+  fun slice(from: USize = 0, to: USize = -1, step: USize = 1)
+    : Array[this->A!]^
+  =>
     """
     Create a new array that is a clone of a portion of this array. The range is
     exclusive and saturated.
     The new array contains references to the same elements that the old array
-    contains, the elements themselves are not copied.
+    contains, the elements themselves are not cloned.
     """
     let out = Array[this->A!]
     let last = _size.min(to)

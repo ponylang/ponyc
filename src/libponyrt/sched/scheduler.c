@@ -144,8 +144,9 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
   {
     if(sched->asio_stopped)
     {
-      // Reset the ACK token in case we are rescheduling ourself.
-      ponyint_cycle_terminate(&sched->ctx);
+      for(uint32_t i = 0; i < scheduler_count; i++)
+        send_msg(i, SCHED_TERMINATE, 0);
+
       sched->ack_token++;
       sched->ack_count = 0;
     } else if(ponyint_asio_stop()) {
@@ -319,6 +320,8 @@ static void ponyint_sched_shutdown()
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
 
+  ponyint_cycle_terminate(&scheduler[0].ctx);
+
 #ifdef USE_TELEMETRY
   printf("\"telemetry\": [\n");
 #endif
@@ -463,12 +466,6 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
     // Put on the shared mpmcq.
     ponyint_mpmcq_push(&inject, actor);
   }
-}
-
-void ponyint_sched_terminate()
-{
-  for(uint32_t i = 0; i < scheduler_count; i++)
-    send_msg(i, SCHED_TERMINATE, 0);
 }
 
 uint32_t ponyint_sched_cores()

@@ -1,6 +1,7 @@
 #include "import.h"
 #include "../ast/ast.h"
 #include "../ast/symtab.h"
+#include "../ast/id.h"
 #include <assert.h>
 #include <string.h>
 
@@ -37,8 +38,8 @@ static bool import_use(ast_t* ast)
 
   while((sym = symtab_next(src_symtab, &i)) != NULL)
   {
-    if((sym->name[0] == '_') || // Public symbols only.
-      (sym->name[0] == '@') ||  // Don't merge FFI declarations.
+    if(is_name_private(sym->name) || // Public symbols only.
+      is_name_ffi(sym->name) ||  // Don't merge FFI declarations.
       (sym->status == SYM_NOCASE) ||
       (strcmp(sym->name, "Main") == 0))
       continue;

@@ -224,9 +224,9 @@ endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
 # (1) a name (stored in prebuilt)
-# (2) the linker flags necessary to link against the prebuilt library/libraries.
-# (3) a list of include directories for a set of libraries.
-# (4) a list of the libraries to link against.
+# (2) the linker flags necessary to link against the prebuilt libraries
+# (3) a list of include directories for a set of libraries
+# (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
@@ -356,17 +356,14 @@ define ENUMERATE
 endef
 
 define CONFIGURE_COMPILER
-  $(eval compiler := $(CC))
-  $(eval flags := $(ALL_CFLAGS) $(CFLAGS) $(CXXFLAGS))
-
   ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)
-    flags := $(ALL_CXXFLAGS)
+    flags := $(ALL_CXXFLAGS) $(CXXFLAGS)
   endif
 
   ifeq ($(suffix $(1)),.c)
     compiler := $(CC)
-    flags := $(ALL_CFLAGS)
+    flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
 endef
 

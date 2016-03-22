@@ -19,7 +19,7 @@ static bool void_star_param(ast_t* param_type, ast_t* arg_type)
     return false;
 
   // Parameter type is Pointer[None]
-  // If the argument is Pointer[A], Maybe[A] or USize, allow it
+  // If the argument is Pointer[A], MaybePointer[A] or USize, allow it
   while(ast_id(arg_type) == TK_ARROW)
     arg_type = ast_childidx(arg_type, 1);
 

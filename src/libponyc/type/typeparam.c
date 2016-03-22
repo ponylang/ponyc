@@ -443,12 +443,14 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
   ast_t* def = (ast_t*)ast_data(typeparamref);
   ast_t* constraint = ast_childidx(def, 1);
 
-  if(ast_id(constraint) == TK_TYPEPARAMREF)
+  while((constraint != NULL) && (ast_id(constraint) == TK_TYPEPARAMREF))
   {
     ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
     if(constraint_def == def)
       return NULL;
+
+    constraint = ast_childidx(constraint_def, 1);
   }
 
   return constraint;

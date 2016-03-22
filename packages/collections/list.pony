@@ -168,10 +168,11 @@ class List[A] is Seq[A]
     """
     head().remove().pop()
 
-  fun ref append(seq: ReadSeq[A], offset: USize = 0, len: USize = -1): List[A]^
+  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+    len: USize = -1): List[A]^
   =>
     """
-    Append the elements from a sequence, starting from the given offset.
+    Append len elements from a sequence, starting from the given offset.
     """
     if offset >= seq.size() then
       return this
@@ -187,6 +188,33 @@ class List[A] is Seq[A]
       while i < cap do
         push(seq(i))
         i = i + 1
+      end
+    end
+
+    this
+
+  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
+    : List[A]^
+  =>
+    """
+    Add len iterated elements to the end of the list, starting from the given
+    offset.
+    """
+    try
+      for i in Range(0, offset) do
+        if iter.has_next() then
+          iter.next()
+        else
+          return this
+        end
+      end
+
+      for i in Range(0, len) do
+        if iter.has_next() then
+          push(iter.next())
+        else
+          return this
+        end
       end
     end
 
@@ -246,23 +274,23 @@ class List[A] is Seq[A]
     using the elements of the resulting lists.
     """
     try
-      _flat_map[B](head(), f, List[List[B]])
+      _flat_map[B](head(), f, List[B])
     else
       List[B]
     end
 
   fun _flat_map[B](ln: this->ListNode[A], f: {(this->A!): List[B]} box,
-    acc: List[List[B]]): List[B]^
+    acc: List[B]): List[B]^
   =>
     """
     Private helper for flat_map, recursively working with ListNodes.
     """
-    try acc.push(f(ln())) end
+    try acc.append_list(f(ln())) end
 
     try
       _flat_map[B](ln.next() as this->ListNode[A], f, acc)
     else
-      Lists.flatten[B](acc)
+      acc
     end
 
   fun filter(f: {(this->A!): Bool} box): List[this->A!]^ =>

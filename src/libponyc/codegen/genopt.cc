@@ -21,6 +21,7 @@
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #else
+#include <llvm/ADT/Triple.h>
 #include <llvm/PassManager.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #endif
@@ -528,7 +529,12 @@ static void optimise(compile_t* c)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
+
+#if !defined(PLATFORM_IS_MACOSX)
+  // The LoadCombine optimisation can result in IR errors inside LLVM on OSX.
+  // These errors don't occur on Linux or Windows.
   pmb.LoadCombine = true;
+#endif
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -537,13 +543,13 @@ static void optimise(compile_t* c)
 
   if(target_is_arm(c->opt->triple))
   {
-  // On ARM, without this, trace functions are being loaded with a double
-  // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
-  // the trace function address, but then ldr r2, [r0] is done to move the
-  // address into the 3rd arg to pony_traceobject. This double indirection
-  // gives a garbage trace function. In release mode, a different path is used
-  // and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
-  // results in the alternate (working) asm being used for a debug build.
+    // On ARM, without this, trace functions are being loaded with a double
+    // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
+    // the trace function address, but then ldr r2, [r0] is done to move the
+    // address into the 3rd arg to pony_traceobject. This double indirection
+    // gives a garbage trace function. In release mode, a different path is
+    // used and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
+    // results in the alternate (working) asm being used for a debug build.
     if(!c->opt->release)
       pmb.OptLevel = 1;
   }

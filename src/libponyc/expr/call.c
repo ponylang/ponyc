@@ -194,7 +194,7 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
 static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 {
   // Pick up a default argument.
-  ast_t* def_arg = ast_childidx(param, 2);
+  AST_GET_CHILDREN(param, id, type, def_arg);
 
   if(ast_id(def_arg) == TK_NONE)
   {

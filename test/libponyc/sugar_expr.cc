@@ -351,9 +351,9 @@ TEST_F(SugarExprTest, LambdaFull)
     "class Foo\n"
     "  fun f(c: C val, d: D2 val) =>\n"
     "    object ref\n"
-    "      let c: C val = c\n"
-    "      let _c: C val = c\n"
-    "      let _d: D val = d\n"
+    "      var c: C val = c\n"
+    "      var _c: C val = c\n"
+    "      var _d: D val = d\n"
     "      fun iso apply(a: A, b: B): A => a\n"
     "    end";
 
@@ -418,7 +418,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalLet)
     "  fun f() =>\n"
     "    let x: U32 = 4\n"
     "    object\n"
-    "      let x: U32 = x"
+    "      var x: U32 = x"
     "      fun apply() => None\n"
     "    end";
 
@@ -443,7 +443,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalVar)
     "  fun f() =>\n"
     "    var x: U32 = 4\n"
     "    object\n"
-    "      let x: U32 = x"
+    "      var x: U32 = x"
     "      fun apply() => None\n"
     "    end";
 
@@ -466,7 +466,7 @@ TEST_F(SugarExprTest, LambdaCaptureParameter)
     "class Foo\n"
     "  fun f(x: U32) =>\n"
     "    object\n"
-    "      let x: U32 = x"
+    "      var x: U32 = x"
     "      fun apply() => None\n"
     "    end";
 
@@ -491,7 +491,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldLet)
     "  let x: U32 = 4\n"
     "  fun f() =>\n"
     "    object\n"
-    "      let x: U32 = x"
+    "      var x: U32 = x"
     "      fun apply() => None\n"
     "    end";
 
@@ -516,7 +516,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
     "  var x: U32 = 4\n"
     "  fun f() =>\n"
     "    object\n"
-    "      let x: U32 = x"
+    "      var x: U32 = x"
     "      fun apply() => None\n"
     "    end";
 

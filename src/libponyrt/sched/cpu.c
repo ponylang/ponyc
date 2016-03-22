@@ -226,6 +226,13 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 #endif
 }
 
+void ponyint_cpu_relax()
+{
+#if defined(PLATFORM_IS_X86) && !defined(PLATFORM_IS_VISUAL_STUDIO)
+  asm volatile("pause" ::: "memory");
+#endif
+}
+
 uint64_t ponyint_cpu_tick()
 {
 #if defined PLATFORM_IS_ARM

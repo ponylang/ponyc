@@ -1,17 +1,10 @@
-interface val ByteSeq
-  """
-  Accept both a String and an Array[U8].
-  """
-  fun size(): USize
-  fun space(): USize
-  fun cstring(): Pointer[U8] tag
-  fun apply(i: USize): U8 ?
+type ByteSeq is (String | Array[U8] val)
 
 interface val ByteSeqIter
   """
-  Accept an iterable collection of String or Array[U8].
+  Accept an iterable collection of String or Array[U8] val.
   """
-  fun values(): Iterator[ByteSeq]
+  fun values(): Iterator[this->ByteSeq box]
 
 interface tag OutStream
   """

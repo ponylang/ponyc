@@ -1,24 +1,31 @@
-language:
-  - c
-  - c++
+language: c
 
 sudo: required
 
 addons:
   apt:
     sources:
+      - llvm-toolchain-precise-3.6
       - llvm-toolchain-precise-3.7
       - ubuntu-toolchain-r-test
     packages:
       - gcc-4.9
       - g++-4.9
+      - llvm-3.6
+      - llvm-3.6-dev
       - llvm-3.7
       - llvm-3.7-dev
 
 matrix:
   include:
     - os: linux
+      env: LLVM_CONFIG="llvm-config-3.6"
+    - os: linux
+      env: LLVM_CONFIG="llvm-config-3.7"
     - os: osx
+      env: LLVM_CONFIG="llvm-config-3.6"
+    - os: osx
+      env: LLVM_CONFIG="llvm-config-3.7"
 
 install:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ];
@@ -33,7 +40,7 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ];
     then
       brew update;
-      brew install llvm37 pcre2 libressl;
+      brew install llvm36 llvm37 pcre2 libressl;
     fi;
 
 script:
@@ -88,5 +95,6 @@ after_success:
       build/release/ponyc packages/stdlib --docs;
       cd stdlib-docs;
       sudo -H pip install mkdocs;
+      sed -i '' 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml;
       mkdocs gh-deploy -v --clean --remote-name gh-token;
     fi;

@@ -13,7 +13,10 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   ast_t* ref_name = ast_child(ast);
   ast_t* param_name = ast_child(typeparam);
 
-  if(ast_name(ref_name) != ast_name(param_name))
+  ast_t* ref_def = ast_get(ref_name, ast_name(ref_name), NULL);
+  ast_t* param_def = ast_get(param_name, ast_name(param_name), NULL);
+
+  if(ref_def != param_def)
     return;
 
   // Keep ephemerality.
@@ -182,6 +185,18 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
   while(typeparam != NULL)
   {
+    if(ast_id(typearg) == TK_TYPEPARAMREF)
+    {
+      ast_t* def = (ast_t*)ast_data(typearg);
+
+      if(def == typeparam)
+      {
+        typeparam = ast_sibling(typeparam);
+        typearg = ast_sibling(typearg);
+        continue;
+      }
+    }
+
     // Reify the constraint.
     ast_t* constraint = ast_childidx(typeparam, 1);
     ast_t* bind_constraint = bind_type(constraint);

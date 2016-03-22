@@ -87,6 +87,17 @@ static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
+static void pointer_unsafe(compile_t* c, gentype_t* g)
+{
+  const char* name = genname_fun(g->type_name, "_unsafe", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &g->use_type, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun, false);
+  LLVMBuildRet(c->builder, LLVMGetParam(fun, 0));
+  codegen_finishfun(c);
+}
+
 static void pointer_apply(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   const char* name = genname_fun(g->type_name, "_apply", NULL);
@@ -133,14 +144,13 @@ static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
-static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
-  const char* name)
+static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem_g->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-  name = genname_fun(g->type_name, name, NULL);
+  const char* name = genname_fun(g->type_name, "_offset", NULL);
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
@@ -333,10 +343,10 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_alloc(c, g, &elem_g);
 
   pointer_realloc(c, g, &elem_g);
+  pointer_unsafe(c, g);
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);
-  pointer_offset(c, g, &elem_g, "_offset");
-  pointer_offset(c, g, &elem_g, "_offset_tag");
+  pointer_offset(c, g, &elem_g);
   pointer_insert(c, g, &elem_g);
   pointer_delete(c, g, &elem_g);
   pointer_copy_to(c, g, &elem_g);
