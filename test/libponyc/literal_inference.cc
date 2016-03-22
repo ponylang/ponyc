@@ -19,9 +19,6 @@ class LiteralTest : public PassTest
       ast_t* three = ast_child(assign);  // Literal is the first child of the assignment
       ast_t* type = ast_type(three);     // Finally we get to the type of the literal
 
-      ast_print(assign);
-      ast_print(type);
-
       ASSERT_ID(tk_type, type);
 
       switch(tk_type) {
@@ -34,6 +31,31 @@ class LiteralTest : public PassTest
         default:
           FAIL(); // Unexpected tk_type
       }
+    }
+
+    void check_trivial(const char* type_name, const char* value) {
+      const char* src =
+        "class Foo\n"
+        "  fun f() =>\n"
+        "    let x: ";
+
+      std::string str(src);
+      str.append(type_name).append(" = ").append(value);
+
+      DO(check_type_for_assign(type_name, TK_NOMINAL, "x", str.c_str()));
+    }
+
+
+    void check_trivial_fail(const char* type_name, const char* value) {
+      const char* src =
+        "class Foo\n"
+        "  fun f() =>\n"
+        "    let x: ";
+
+      std::string str(src);
+      str.append(type_name).append(" = ").append(value);
+
+      TEST_ERROR(str.c_str());
     }
 };
 
@@ -76,6 +98,32 @@ TEST_F(LiteralTest, CantInferLitExpr)
 }
 
 
+TEST_F(LiteralTest, CantInferFloatLiteralFromIntType)
+{
+  DO(check_trivial_fail("U8",   "3.0"));
+  DO(check_trivial_fail("U16",  "3.0"));
+  DO(check_trivial_fail("U32",  "3.0"));
+  DO(check_trivial_fail("U64",  "3.0"));
+  DO(check_trivial_fail("U128", "3.0"));
+
+  DO(check_trivial_fail("I8",   "3.0"));
+  DO(check_trivial_fail("I16",  "3.0"));
+  DO(check_trivial_fail("I32",  "3.0"));
+  DO(check_trivial_fail("I64",  "3.0"));
+  DO(check_trivial_fail("I128", "3.0"));
+}
+
+
+TEST_F(LiteralTest, CantInferNumericLiteralFromNonNumericType)
+{
+  DO(check_trivial_fail("String", "3"));
+  DO(check_trivial_fail("String", "3.0"));
+
+  DO(check_trivial_fail("Bool", "3"));
+  DO(check_trivial_fail("Bool", "3.0"));
+}
+
+
 TEST_F(LiteralTest, CantInferNumericTypesWithoutVarType)
 {
   const char* src =
@@ -97,6 +145,16 @@ TEST_F(LiteralTest, CantInferAmbiguousUnion)
   TEST_ERROR(src);
 }
 
+
+TEST_F(LiteralTest, CantInferIntegerLiteralWithAmbiguousUnion)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create() =>\n"
+    "    let x: (U8 | F32) = 17";  // could be either U8 or F32
+
+  TEST_ERROR(src);
+}
 
 TEST_F(LiteralTest, CantInferEmptyIntersection)
 {
@@ -131,16 +189,28 @@ TEST_F(LiteralTest, CantInferThroughGenericSubtype)
 }
 
 
+
 // Happy paths
 
-TEST_F(LiteralTest, LetSimple)
+TEST_F(LiteralTest, TrivialLetAllNumericTypes)
 {
-  const char* src =
-    "class Foo\n"
-    "  fun f() =>\n"
-    "    let x: U8 = 3";
+  DO(check_trivial("U8",   "3"));
+  DO(check_trivial("U16",  "3"));
+  DO(check_trivial("U32",  "3"));
+  DO(check_trivial("U64",  "3"));
+  DO(check_trivial("U128", "3"));
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
+  DO(check_trivial("I8",   "3"));
+  DO(check_trivial("I16",  "3"));
+  DO(check_trivial("I32",  "3"));
+  DO(check_trivial("I64",  "3"));
+  DO(check_trivial("I128", "3"));
+
+  DO(check_trivial("F32",  "3"));
+  DO(check_trivial("F64",  "3"));
+
+  DO(check_trivial("F32",  "3.0"));
+  DO(check_trivial("F64",  "3.0"));
 }
 
 
@@ -153,6 +223,17 @@ TEST_F(LiteralTest, LetUnambiguousUnion)
 
   DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
 }
+
+
+// TEST_F(LiteralTest, LetUnambiguousUnionBecauseFloatingLiteral)   -- FIXME currently fails
+// {
+//   const char* src =
+//     "class Foo\n"
+//     "  fun f() =>\n"
+//     "    let x: (U128 | F64) = 36000.0";  // .0 forces this to be F64
+
+//   DO(check_type_for_assign("F64", TK_NOMINAL, "x", src));
+// }
 
 
 TEST_F(LiteralTest, LetUnionSameType)
