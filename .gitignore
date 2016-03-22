@@ -8,6 +8,8 @@ tags
 *.a
 *.exe
 *.sublime*
+.idea/
+*.iml
 .*.swp
 *.dSYM/
 build/
