@@ -6,7 +6,6 @@ The Ini package provides support for parsing
 
 * Currently _does not_ support multi-line entries.
 * Any keys not in a section will be placed in the section ""
-* Empty sections are dropped
 
 # Example code
 // Parses the file 'example.ini' in the current working directory
@@ -28,11 +27,11 @@ actor Main
     end
 """
 primitive IniIncompleteSection
-primitive IniNoDelimeter
+primitive IniNoDelimiter
 
 type IniError is
   ( IniIncompleteSection
-  | IniNoDelimeter
+  | IniNoDelimiter
   )
 
 interface IniNotify
@@ -45,6 +44,13 @@ interface IniNotify
     occur before a section name, the section can be an empty string. Return
     false to halt processing.
     """
+
+  fun ref add_section(section: String): Bool =>
+    """
+    This is called for every valid section in the INI file. Return false
+    to halt processing.
+    """
+    true
 
   fun ref errors(line: USize, err: IniError): Bool =>
     """
@@ -59,8 +65,8 @@ primitive Ini
   fun apply(lines: Iterator[String box], f: IniNotify): Bool =>
     """
     This accepts a string iterator and calls the IniNotify for each new entry.
-    Empty sections won't be reported. If any errors are encountered, this will
-    return false. Otherwise, it returns true.
+    If any errors are encountered, this will return false. Otherwise, it returns
+    true.
     """
     var section = ""
     var lineno = USize(0)
@@ -85,6 +91,9 @@ primitive Ini
             current.delete(current.find("]", 1), -1)
             current.delete(0)
             section = consume current
+            if not f.add_section(section) then
+              return ok
+            end
           else
             ok = false
 
@@ -126,7 +135,7 @@ primitive Ini
           else
             ok = false
 
-            if not f.errors(lineno, IniNoDelimeter) then
+            if not f.errors(lineno, IniNoDelimiter) then
               return false
             end
           end

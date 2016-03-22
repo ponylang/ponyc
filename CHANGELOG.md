@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Type checking platform dependent FFI declarations on all platforms.
 - Interface subtyping takes receiver capabilities into account.
 - Pony-as-library support, particularly pony_register_thread().
+- Bug in `HashMap._search`.
 
 ### Added
 
@@ -36,6 +37,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Message batching.
 - Case functions.
 - Timeouts for PonyTest long tests.
+- contains() method on HashMap
+- Support for empty sections in ini parsing.
 
 ### Changed
 
