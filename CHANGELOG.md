@@ -37,6 +37,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Message batching.
 - Case functions.
 - Timeouts for PonyTest long tests.
+- contains() method on HashMap
+- Support for empty sections in ini parsing.
 
 ### Changed
 
