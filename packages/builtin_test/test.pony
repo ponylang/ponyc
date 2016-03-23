@@ -509,6 +509,13 @@ class iso _TestStringCompare is UnitTest
   fun name(): String => "builtin/String.compare"
 
   fun apply(h: TestHelper) =>
+    h.assert_eq[Compare](Equal, "foo".compare("foo"))
+    h.assert_eq[Compare](Greater, "foo".compare("bar"))
+    h.assert_eq[Compare](Less, "bar".compare("foo"))
+    
+    h.assert_eq[Compare](Less, "bc".compare("abc"))
+    h.assert_eq[Compare](Greater, "abc".compare("bc"))
+
     h.assert_eq[Compare](Equal, "foo".compare_sub("foo", 3))
     h.assert_eq[Compare](Greater, "foo".compare_sub("bar", 3))
     h.assert_eq[Compare](Less, "bar".compare_sub("foo", 3))
