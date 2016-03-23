@@ -965,7 +965,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Lexically compare two strings.
     """
-    compare_sub(that, _size)
+    compare_sub(that, _size.max(that._size))
 
   fun compare_sub(that: String box, n: USize, offset: ISize = 0,
     that_offset: ISize = 0, ignore_case: Bool = false): Compare
