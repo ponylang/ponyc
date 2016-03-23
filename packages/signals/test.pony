@@ -28,7 +28,7 @@ class iso _TestSignalINT is UnitTest
     _signal = signal
     h.long_test(2_000_000_000) // 2 second timeout
 
-  fun timedout(h: TestHelper) =>
+  fun timed_out(h: TestHelper) =>
     try
       (_signal as SignalHandler).dispose()
     end
