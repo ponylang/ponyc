@@ -965,33 +965,51 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Lexically compare two strings.
     """
-    compare_sub(that, _size)
+    compare_sub(that, _size.max(that._size))
 
   fun compare_sub(that: String box, n: USize, offset: ISize = 0,
     that_offset: ISize = 0, ignore_case: Bool = false): Compare
   =>
     """
-    Starting at this + offset, compare n bytes with that + offset.
+    Lexically compare at most `n` bytes of the substring of `this` starting at
+    `offset` with the substring of `that` starting at `that_offset`. The
+    comparison is case sensitive unless `ignore_case` is `true`.
+
+    If the substring of `this` is a proper prefix of the substring of `that`,
+    then `this` is `Less` than `that`. Likewise, if `that` is a proper prefix of
+    `this`, then `this` is `Greater` than `that`.
+
+    Both `offset` and `that_offset` can be negative, in which case the offsets
+    are computed from the end of the string.
+
+    If `n + offset` is greater than the length of `this`, or `n + that_offset`
+    is greater than the length of `that`, then the number of positions compared
+    will be reduced to the length of the longest substring.
+
+    Needs to be made UTF-8 safe.
     """
-    var i = n
     var j: USize = offset_to_index(offset)
     var k: USize = that.offset_to_index(that_offset)
-
-    if (j + n) > _size then
-      return Less
-    elseif (k + n) > that._size then
-      return Greater
-    end
+    var i = n.min((_size - j).max(that._size - k))
 
     while i > 0 do
-      var c1 = _ptr._apply(j)
-      var c2 = that._ptr._apply(k)
+      // this and that are equal up to this point
+      if j >= _size then
+        // this is shorter
+        return Less
+      elseif k >= that._size then
+        // that is shorter
+        return Greater
+      end
 
+      let c1 = _ptr._apply(j)
+      let c2 = that._ptr._apply(k)
       if
         not ((c1 == c2) or
           (ignore_case and ((c1 or 0x20) == (c2 or 0x20)) and
             ((c1 or 0x20) >= 'a') and ((c1 or 0x20) <= 'z')))
       then
+        // this and that differ here
         return if c1.i32() > c2.i32() then Greater else Less end
       end
 

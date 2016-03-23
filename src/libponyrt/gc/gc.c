@@ -486,7 +486,7 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
 
-    if(obj_local->rc == 0)
+    if((obj_local->rc == 0) && (obj_local->final == NULL))
     {
       // The local rc for this object has dropped to zero. We keep track of
       // whether or not the object was reachable. If we go to 0 rc and it

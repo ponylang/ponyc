@@ -119,6 +119,17 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
+  fun contains(k: box->K!): Bool =>
+    """
+    Checks whether the map contains the key k
+    """
+    try
+      apply(k)
+      true
+    else
+      false
+    end
+
   fun ref concat(iter: Iterator[(K^, V^)]) =>
     """
     Add K, V pairs from the iterator to the map.
