@@ -990,7 +990,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     var j: USize = offset_to_index(offset)
     var k: USize = that.offset_to_index(that_offset)
-    var i = n.min( (_size - j).max(that._size - k) )
+    var i = n.min((_size - j).max(that._size - k))
 
     while i > 0 do
       // this and that are equal up to this point
