@@ -188,7 +188,7 @@ class iso _TestBroadcast is UnitTest
     _mgr = _TestBroadcastMgr(h)
     h.long_test(2_000_000_000) // 2 second timeout
 
-  fun timedout(t: TestHelper) =>
+  fun timed_out(t: TestHelper) =>
     try
       (_mgr as _TestBroadcastMgr).fail("timeout")
     end
