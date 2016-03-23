@@ -19,7 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Pony-as-library support, particularly pony_register_thread().
 - Bug in `HashMap._search`.
 - Crashing gc bug caused by "force freeing" objects with finalizers.
-- Bug in `String.compare`.
+- Bug in `String.compare` and `String.compare_sub`.
 
 ### Added
 
