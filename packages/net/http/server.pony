@@ -10,14 +10,17 @@ actor Server
   let _notify: ServerNotify
   var _handler: RequestHandler
   var _logger: Logger
+  let _reversedns: (DNSLookupAuth | None)
   let _sslctx: (SSLContext | None)
   let _listen: TCPListener
   var _address: IPAddress
   var _dirty_routes: Bool = false
 
-  new create(notify: ServerNotify iso, handler: RequestHandler,
-    logger: Logger = DiscardLog, host: String = "", service: String = "0",
-    limit: USize = 0, sslctx: (SSLContext | None) = None)
+  new create(auth: TCPListenerAuth, notify: ServerNotify iso,
+    handler: RequestHandler, logger: Logger = DiscardLog,
+    host: String = "", service: String = "0", limit: USize = 0,
+    sslctx: (SSLContext | None) = None,
+    reversedns: (DNSLookupAuth | None) = None)
   =>
     """
     Create a server bound to the given host and service.
@@ -25,8 +28,10 @@ actor Server
     _notify = consume notify
     _handler = handler
     _logger = logger
+    _reversedns = reversedns
     _sslctx = sslctx
-    _listen = TCPListener(_ServerListener(this, sslctx, _handler, _logger),
+    _listen = TCPListener(auth,
+      _ServerListener(this, sslctx, _handler, _logger, _reversedns),
       host, service, limit)
     _address = recover IPAddress end
 
@@ -35,14 +40,16 @@ actor Server
     Replace the request handler.
     """
     _handler = handler
-    _listen.set_notify(_ServerListener(this, _sslctx, _handler, _logger))
+    _listen.set_notify(
+      _ServerListener(this, _sslctx, _handler, _logger, _reversedns))
 
   be set_logger(logger: Logger) =>
     """
     Replace the logger.
     """
     _logger = logger
-    _listen.set_notify(_ServerListener(this, _sslctx, _handler, _logger))
+    _listen.set_notify(
+      _ServerListener(this, _sslctx, _handler, _logger, _reversedns))
 
   be dispose() =>
     """

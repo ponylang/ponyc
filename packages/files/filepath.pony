@@ -15,7 +15,7 @@ class val FilePath
   let path: String
   let caps: FileCaps = FileCaps
 
-  new val create(base: (FilePath | AmbientAuth | None), path': String,
+  new val create(base: (FilePath | AmbientAuth), path': String,
     caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
     """
@@ -49,7 +49,7 @@ class val FilePath
       error
     end
 
-  new val mkdtemp(base: (FilePath | AmbientAuth | None), prefix: String = "",
+  new val mkdtemp(base: (FilePath | AmbientAuth), prefix: String = "",
     caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
     """

@@ -5,7 +5,9 @@ actor Main
     let caps = recover val FileCaps.set(FileRead).set(FileStat) end
 
     try
-      with file = OpenFile(FilePath(env.root, env.args(1), caps)) as File do
+      with file = OpenFile(
+        FilePath(env.root as AmbientAuth, env.args(1), caps)) as File
+      do
         env.out.print(file.path.path)
         for line in file.lines() do
           env.out.print(line)
