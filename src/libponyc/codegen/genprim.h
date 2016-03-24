@@ -7,11 +7,13 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim);
+void genprim_pointer_methods(compile_t* c, reachable_type_t* t);
 
-bool genprim_maybe(compile_t* c, gentype_t* g, bool prelim);
+void genprim_maybe_methods(compile_t* c, reachable_type_t* t);
 
-void genprim_array_trace(compile_t* c, gentype_t* g);
+void genprim_array_trace(compile_t* c, reachable_type_t* t);
+
+void genprim_platform_methods(compile_t* c, reachable_type_t* t);
 
 void genprim_builtins(compile_t* c);
 

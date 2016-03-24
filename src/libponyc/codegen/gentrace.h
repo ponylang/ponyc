@@ -7,7 +7,11 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type);
+bool gentrace_needed(ast_t* type);
+
+void gentrace_prototype(compile_t* c, reachable_type_t* t);
+
+void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type);
 
 PONY_EXTERN_C_END
 

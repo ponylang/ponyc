@@ -1011,16 +1011,14 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
   {
     ast_t* p_id = ast_child(p);
 
-    BUILD_NO_DEBUG(type, p_id,
-      NODE(TK_NOMINAL, NONE TREE(p_id) NONE NONE NONE));
-
+    BUILD(type, p_id, NODE(TK_NOMINAL, NONE TREE(p_id) NONE NONE NONE));
     ast_append(typeargs, type);
     ast_setid(typeargs, TK_TYPEARGS);
   }
 
   if(!has_member(members, "eq"))
   {
-    BUILD_NO_DEBUG(eq, members,
+    BUILD(eq, members,
       NODE(TK_FUN, AST_SCOPE
         NODE(TK_BOX)
         ID("eq")
@@ -1052,7 +1050,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
 
   if(!has_member(members, "ne"))
   {
-    BUILD_NO_DEBUG(ne, members,
+    BUILD(ne, members,
       NODE(TK_FUN, AST_SCOPE
         NODE(TK_BOX)
         ID("ne")

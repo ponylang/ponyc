@@ -1,6 +1,5 @@
 #include "gencontrol.h"
 #include "genexpr.h"
-#include "gentype.h"
 #include "gencall.h"
 #include "genname.h"
 #include "../pass/expr.h"
@@ -37,11 +36,11 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
-  gentype_t phi_type;
-
   // We will have no type if both branches have return statements.
-  if(!is_control_type(type) && !gentype(c, type, &phi_type))
-    return NULL;
+  reachable_type_t* phi_type = NULL;
+
+  if(!is_control_type(type))
+    phi_type = reach_type(c->reachable, type);
 
   LLVMValueRef c_value = gen_expr(c, cond);
 
@@ -79,8 +78,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(gen_left)
   {
     l_value = gen_expr(c, left);
-  } else if(!is_control_type(type)) {
-    l_value = LLVMConstNull(phi_type.use_type);
+  } else if(phi_type != NULL) {
+    l_value = LLVMConstNull(phi_type->use_type);
   } else {
     LLVMBuildUnreachable(c->builder);
     l_value = GEN_NOVALUE;
@@ -89,7 +88,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(l_value != GEN_NOVALUE)
   {
     if(needed)
-      l_value = gen_assign_cast(c, phi_type.use_type, l_value, left_type);
+      l_value = gen_assign_cast(c, phi_type->use_type, l_value, left_type);
 
     if(l_value == NULL)
       return NULL;
@@ -105,8 +104,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(gen_right)
   {
     r_value = gen_expr(c, right);
-  } else if(!is_control_type(type)) {
-    r_value = LLVMConstNull(phi_type.use_type);
+  } else if(phi_type != NULL) {
+    r_value = LLVMConstNull(phi_type->use_type);
   } else {
     LLVMBuildUnreachable(c->builder);
     r_value = GEN_NOVALUE;
@@ -116,7 +115,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(r_value != GEN_NOVALUE)
   {
     if(needed)
-      r_value = gen_assign_cast(c, phi_type.use_type, r_value, right_type);
+      r_value = gen_assign_cast(c, phi_type->use_type, r_value, right_type);
 
     if(r_value == NULL)
       return NULL;
@@ -134,7 +133,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(needed)
   {
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type->use_type, "");
 
     if(l_value != GEN_NOVALUE)
       LLVMAddIncoming(phi, &l_value, &then_block, 1);
@@ -157,13 +156,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  gentype_t phi_type;
+  reachable_type_t* phi_type = NULL;
 
-  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
-  {
-    assert(0);
-    return NULL;
-  }
+  if(needed && !is_control_type(type))
+    phi_type = reach_type(c->reachable, type);
 
   LLVMBasicBlockRef init_block = codegen_block(c, "while_init");
   LLVMBasicBlockRef body_block = codegen_block(c, "while_body");
@@ -181,7 +177,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
 
     if(needed)
-      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+      phi = LLVMBuildPhi(c->builder, phi_type->use_type, "");
   }
 
   // Push the loop status.
@@ -203,7 +199,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   LLVMValueRef l_value = gen_expr(c, body);
 
   if(needed)
-    l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_type);
+    l_value = gen_assign_cast(c, phi_type->use_type, l_value, body_type);
 
   if(l_value == NULL)
     return NULL;
@@ -241,7 +237,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
       return NULL;
 
     if(needed)
-      r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
+      r_value = gen_assign_cast(c, phi_type->use_type, r_value, else_type);
 
     else_from = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
@@ -276,13 +272,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  gentype_t phi_type;
+  reachable_type_t* phi_type = NULL;
 
-  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
-  {
-    assert(0);
-    return NULL;
-  }
+  if(needed && !is_control_type(type))
+    phi_type = reach_type(c->reachable, type);
 
   LLVMBasicBlockRef body_block = codegen_block(c, "repeat_body");
   LLVMBasicBlockRef cond_block = codegen_block(c, "repeat_cond");
@@ -300,7 +293,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
 
     if(needed)
-      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+      phi = LLVMBuildPhi(c->builder, phi_type->use_type, "");
   }
 
   // Push the loop status.
@@ -311,7 +304,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMValueRef value = gen_expr(c, body);
 
   if(needed)
-    value = gen_assign_cast(c, phi_type.use_type, value, body_type);
+    value = gen_assign_cast(c, phi_type->use_type, value, body_type);
 
   if(value == NULL)
     return NULL;
@@ -353,7 +346,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     return NULL;
 
   if(needed)
-    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+    else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);
 
   if(else_value != GEN_NOVALUE)
   {
@@ -383,9 +376,6 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
-  // Emit debug location for break keyword
-  dwarf_location(&c->dwarf, ast);
-
   ast_t* body = ast_child(ast);
   ast_t* body_type = ast_type(body);
 
@@ -417,25 +407,27 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   }
 
   // Jump to the break target.
+  codegen_debugloc(c, ast);
   LLVMBuildBr(c->builder, target);
+  codegen_debugloc(c, NULL);
+
   return GEN_NOVALUE;
 }
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
-  // Emit debug location of continue keyword
-  dwarf_location(&c->dwarf, ast);
+  (void)ast;
 
   // Jump to the continue target.
+  codegen_debugloc(c, ast);
   LLVMBuildBr(c->builder, c->frame->continue_target);
+  codegen_debugloc(c, NULL);
+
   return GEN_NOVALUE;
 }
 
 LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 {
-  // Emit debug location of return keyword
-  dwarf_location(&c->dwarf, ast);
-
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
 
@@ -450,6 +442,8 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(codegen_fun(c)));
   LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
+  codegen_debugloc(c, ast);
+
   if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
   {
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(expr));
@@ -458,6 +452,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
     LLVMBuildRetVoid(c->builder);
   }
 
+  codegen_debugloc(c, NULL);
   return GEN_NOVALUE;
 }
 
@@ -470,11 +465,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  gentype_t phi_type;
+  reachable_type_t* phi_type = NULL;
 
   // We will have no type if both branches have return statements.
-  if(!is_control_type(type) && !gentype(c, type, &phi_type))
-    return NULL;
+  if(!is_control_type(type))
+    phi_type = reach_type(c->reachable, type);
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef else_block = codegen_block(c, "try_else");
@@ -494,7 +489,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   {
     if(needed)
     {
-      body_value = gen_assign_cast(c, phi_type.use_type, body_value,
+      body_value = gen_assign_cast(c, phi_type->use_type, body_value,
         body_type);
     }
 
@@ -540,7 +535,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   {
     if(needed)
     {
-      else_value = gen_assign_cast(c, phi_type.use_type, else_value,
+      else_value = gen_assign_cast(c, phi_type->use_type, else_value,
         else_type);
     }
 
@@ -562,7 +557,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(needed)
   {
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type->use_type, "");
 
     if(body_value != GEN_NOVALUE)
       LLVMAddIncoming(phi, &body_value, &block, 1);
@@ -581,13 +576,13 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   size_t clause;
   ast_t* try_expr = ast_try_clause(ast, &clause);
 
-  // Emit debug location of error keyword
-  dwarf_location(&c->dwarf, ast);
-
   // Do the then block only if we error out in the else clause.
   if((try_expr != NULL) && (clause == 1))
     gen_expr(c, ast_childidx(try_expr, 2));
 
+  codegen_debugloc(c, ast);
   gencall_throw(c);
+  codegen_debugloc(c, NULL);
+
   return GEN_NOVALUE;
 }

@@ -5,6 +5,7 @@
 #include "genname.h"
 #include "gendesc.h"
 #include "gencall.h"
+#include "genopt.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -51,10 +52,7 @@ static compile_frame_t* push_frame(compile_t* c)
   compile_locals_init(&frame->locals, 0);
 
   if(c->frame != NULL)
-  {
-    frame->has_source = c->frame->has_source;
     frame->prev = c->frame;
-  }
 
   c->frame = frame;
   return frame;
@@ -66,12 +64,6 @@ static void pop_frame(compile_t* c)
   compile_locals_destroy(&frame->locals);
 
   c->frame = frame->prev;
-
-  if(c->frame != NULL)
-    c->dwarf.has_source = c->frame->has_source;
-  else
-    c->dwarf.has_source = true;
-
   POOL_FREE(compile_frame_t, frame);
 }
 
@@ -128,6 +120,8 @@ static void init_runtime(compile_t* c)
   c->str_Maybe = stringtab("MaybePointer");
   c->str_Array = stringtab("Array");
   c->str_Platform = stringtab("Platform");
+  c->str_Main = stringtab("Main");
+  c->str_Env = stringtab("Env");
 
   c->str_add = stringtab("add");
   c->str_sub = stringtab("sub");
@@ -147,6 +141,12 @@ static void init_runtime(compile_t* c)
   c->str_le = stringtab("le");
   c->str_ge = stringtab("ge");
   c->str_gt = stringtab("gt");
+
+  c->str_this = stringtab("this");
+  c->str_create = stringtab("create");
+  c->str__create = stringtab("_create");
+  c->str__init = stringtab("_init");
+  c->str__final = stringtab("_final");
 
   LLVMTypeRef type;
   LLVMTypeRef params[4];
@@ -213,7 +213,7 @@ static void init_runtime(compile_t* c)
   c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
 
   // descriptor, filled in
-  c->descriptor_type = gendesc_type(c, NULL);
+  gendesc_basetype(c, c->descriptor_type);
 
   // define object
   params[0] = c->descriptor_ptr;
@@ -415,6 +415,11 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->filename = package_filename(package);
 
   // LLVM context and machine settings.
+  if(c->opt->library || target_is_ilp32(opt->triple))
+    c->callconv = LLVMCCallConv;
+  else
+    c->callconv = LLVMFastCallConv;
+
   c->context = LLVMContextCreate();
   c->machine = make_machine(opt);
   c->target_data = LLVMGetTargetMachineData(c->machine);
@@ -432,6 +437,12 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // IR builder.
   c->builder = LLVMCreateBuilderInContext(c->context);
+  c->di = LLVMNewDIBuilder(c->module);
+
+  // TODO: what LANG id should be used?
+  c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di, 0x0004,
+    package_filename(package), package_path(package), "ponyc-" PONY_VERSION,
+    c->opt->release);
 
   // Empty frame stack.
   c->frame = NULL;
@@ -442,6 +453,7 @@ static void codegen_cleanup(compile_t* c)
   while(c->frame != NULL)
     pop_frame(c);
 
+  LLVMDIBuilderDestroy(c->di);
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
@@ -512,7 +524,6 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
-  printf("Generating\n");
   pony_mkdir(opt->output);
 
   compile_t c;
@@ -520,11 +531,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  genprim_builtins(&c);
-
-  // Emit debug info for this compile unit.
-  dwarf_init(&c.dwarf, c.opt, c.builder, c.target_data, c.module);
-  dwarf_compileunit(&c.dwarf, program);
+  genprim_reachable_init(&c, program);
 
   bool ok;
 
@@ -541,9 +548,7 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
 {
   // Add the function and set the calling convention.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
-
-  if(!c->opt->library)
-    LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
+  LLVMSetFunctionCallConv(fun, c->callconv);
 
   LLVMValueRef arg = LLVMGetFirstParam(fun);
   uint32_t i = 1;
@@ -570,51 +575,64 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
   return fun;
 }
 
-void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
+void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
+  LLVMMetadataRef scope)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;
-  frame->restore_builder = LLVMGetInsertBlock(c->builder);
-  frame->has_source = has_source;
   frame->is_function = true;
-  c->dwarf.has_source = has_source;
-
-  // Reset debug locations
-  dwarf_location(&c->dwarf, NULL);
+  frame->di_file = file;
+  frame->di_scope = scope;
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
     LLVMBasicBlockRef block = codegen_block(c, "entry");
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
+
+  LLVMSetCurrentDebugLocation2(c->builder, 0, 0, NULL);
 }
 
 void codegen_finishfun(compile_t* c)
 {
-  if(c->frame->restore_builder != NULL)
-    LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
-
-  // Reset debug locations
-  dwarf_location(&c->dwarf, NULL);
-
   pop_frame(c);
 }
 
-void codegen_pushscope(compile_t* c)
+void codegen_pushscope(compile_t* c, ast_t* ast)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
-  frame->restore_builder = frame->prev->restore_builder;
   frame->break_target = frame->prev->break_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = frame->prev->invoke_target;
+  frame->di_file = frame->prev->di_file;
+
+  if(frame->prev->di_scope != NULL)
+  {
+    source_t* source = ast_source(ast);
+    LLVMMetadataRef file = LLVMDIBuilderCreateFile(c->di, source->file);
+
+    frame->di_scope = LLVMDIBuilderCreateLexicalBlock(c->di,
+      frame->prev->di_scope, file,
+      (unsigned)ast_line(ast), (unsigned)ast_pos(ast));
+  }
 }
 
 void codegen_popscope(compile_t* c)
 {
   pop_frame(c);
+}
+
+LLVMMetadataRef codegen_difile(compile_t* c)
+{
+  return c->frame->di_file;
+}
+
+LLVMMetadataRef codegen_discope(compile_t* c)
+{
+  return c->frame->di_scope;
 }
 
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
@@ -623,10 +641,11 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
-  frame->restore_builder = frame->prev->restore_builder;
   frame->break_target = break_target;
   frame->continue_target = continue_target;
   frame->invoke_target = frame->prev->invoke_target;
+  frame->di_file = frame->prev->di_file;
+  frame->di_scope = frame->prev->di_scope;
 }
 
 void codegen_poploop(compile_t* c)
@@ -639,15 +658,27 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
-  frame->restore_builder = frame->prev->restore_builder;
   frame->break_target = frame->prev->break_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = invoke_target;
+  frame->di_file = frame->prev->di_file;
+  frame->di_scope = frame->prev->di_scope;
 }
 
 void codegen_poptry(compile_t* c)
 {
   pop_frame(c);
+}
+
+void codegen_debugloc(compile_t* c, ast_t* ast)
+{
+  if(ast != NULL)
+  {
+    LLVMSetCurrentDebugLocation2(c->builder,
+      (unsigned)ast_line(ast), (unsigned)ast_pos(ast), c->frame->di_scope);
+  } else {
+    LLVMSetCurrentDebugLocation2(c->builder, 0, 0, NULL);
+  }
 }
 
 LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
@@ -731,16 +762,8 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count)
 {
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
-
-  if(!c->opt->library)
-    LLVMSetInstructionCallConv(result, GEN_CALLCONV);
-
+  LLVMSetInstructionCallConv(result, c->callconv);
   return result;
-}
-
-bool codegen_hassource(compile_t* c)
-{
-  return c->frame->has_source;
 }
 
 const char* suffix_filename(const char* dir, const char* prefix,

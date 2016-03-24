@@ -172,7 +172,7 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
     return;
 
   // Get a reified function.
-  ast_t* fun = get_fun(t->type, name, typeargs);
+  ast_t* fun = get_fun(t->ast, name, typeargs);
 
   if(fun == NULL)
     return;
@@ -200,7 +200,7 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
     case TK_NEW:
     case TK_BE:
     {
-      ast_t* def = (ast_t*)ast_data(t->type);
+      ast_t* def = (ast_t*)ast_data(t->ast);
 
       if(ast_id(def) == TK_ACTOR)
         printbuf(buf, "__send");
@@ -212,7 +212,7 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
   }
 
   printbuf(buf, "(");
-  print_type_name(c, buf, t->type);
+  print_type_name(c, buf, t->ast);
   printbuf(buf, " self");
 
   print_params(c, buf, params);
@@ -244,13 +244,13 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
     // Print the docstring if we have one.
-    ast_t* def = (ast_t*)ast_data(t->type);
+    ast_t* def = (ast_t*)ast_data(t->ast);
     ast_t* docstring = ast_childidx(def, 6);
 
     if(ast_id(docstring) == TK_STRING)
       fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
 
-    if(!is_pointer(t->type) && !is_maybe(t->type) && !is_machine_word(t->type))
+    if(!is_pointer(t->ast) && !is_maybe(t->ast) && !is_machine_word(t->ast))
     {
       // Forward declare an opaque type.
       fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);

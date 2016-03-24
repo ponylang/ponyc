@@ -1491,19 +1491,16 @@ bool is_machine_word(ast_t* type)
   return is_bool(type) || is_integer(type) || is_float(type);
 }
 
-bool is_signed(pass_opt_t* opt, ast_t* type)
+bool is_signed(ast_t* type)
 {
-  if(type == NULL)
-    return false;
-
-  ast_t* builtin = type_builtin(opt, type, "Signed");
-
-  if(builtin == NULL)
-    return false;
-
-  bool ok = is_subtype(type, builtin, NULL);
-  ast_free_unattached(builtin);
-  return ok;
+  return
+    is_literal(type, "I8") ||
+    is_literal(type, "I16") ||
+    is_literal(type, "I32") ||
+    is_literal(type, "I64") ||
+    is_literal(type, "I128") ||
+    is_literal(type, "ILong") ||
+    is_literal(type, "ISize");
 }
 
 bool is_constructable(ast_t* type)

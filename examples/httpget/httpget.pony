@@ -14,7 +14,7 @@ actor Main
       recover
         SSLContext
           .set_client_verify(true)
-          .set_authority("./test/pony/httpget/cacert.pem")
+          .set_authority("cacert.pem")
       end
     end
 
