@@ -207,7 +207,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   }
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "-L", "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
@@ -223,6 +223,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-macosx_version_min 10.8 -o %s %s %s -lponyrt -lSystem",
     (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
+
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
 
   if(system(ld_cmd) != 0)
   {
@@ -251,7 +253,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "-L", "-Wl,--start-group ",
     "-Wl,--end-group ", "-l", "");
@@ -280,6 +282,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     file_exe, file_o, lib_args
     );
 
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
@@ -299,7 +303,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
     ".exe");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "/LIBPATH:", "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
@@ -317,6 +321,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     "%s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
     vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
+
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
 
   if(system(ld_cmd) == -1)
   {

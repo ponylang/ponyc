@@ -524,6 +524,8 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
+  PONY_LOG(opt, VERBOSITY_INFO, ("Generating\n"));
+
   pony_mkdir(opt->output);
 
   compile_t c;

@@ -851,8 +851,9 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 
   package = create_package(program, full_path, qualified_name);
 
-  if(report_build)
-    printf("Building %s -> %s\n", path, full_path);
+  if(report_build) {
+    PONY_LOG(options, VERBOSITY_INFO, ("Building %s -> %s\n", path, full_path));
+  }
 
   if(magic != NULL)
   {

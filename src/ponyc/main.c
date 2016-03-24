@@ -35,6 +35,7 @@ enum
   OPT_TRIPLE,
   OPT_STATS,
 
+  OPT_VERBOSE,
   OPT_PASSES,
   OPT_AST,
   OPT_ASTPACKAGE,
@@ -68,6 +69,7 @@ static opt_arg_t args[] =
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", 0, OPT_ARG_NONE, OPT_STATS},
 
+  {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
   {"astpackage", 0, OPT_ARG_NONE, OPT_ASTPACKAGE},
@@ -118,6 +120,12 @@ static void usage()
     "  --stats         Print some compiler stats.\n"
     "\n"
     "Debugging options:\n"
+    "  --verbose, -V   Verbosity level.\n"
+    "    =0            Only print errors.\n"
+    "    =1            Print info on compiler stages.\n"
+    "    =2            More detailed compilation information.\n"
+    "    =3            External tool command lines.\n"
+    "    =4            Very low-level detail.\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
     "    =syntax\n"
@@ -274,6 +282,17 @@ int main(int argc, char* argv[])
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
       case OPT_ANTLRRAW: print_grammar(true, false); return 0;
+
+      case OPT_VERBOSE:
+        {
+          int v = atoi(s.arg_val);
+          if (v >= 0 && v <= 4) {
+            opt.verbosity = (verbosity_level)v;
+          } else {
+            ok = false;
+          }
+        }
+        break;
 
       case OPT_PASSES:
         if(!limit_passes(&opt, s.arg_val))
