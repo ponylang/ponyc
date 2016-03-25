@@ -17,44 +17,52 @@ using std::string;
 
 
 static const char* _builtin =
-  "primitive U8 is Real[U8]\n"  // for literal inference tests
+  "primitive U8 is Real[U8]\n"
   "  new create() => 0\n"
-  "primitive I8\n"
+  "  fun mul(a: U8): U8 => 0\n"
+  "primitive I8 is Real[I8]"
   "  new create() => 0\n"
   "  fun neg():I8 => -this\n"
-  "primitive U16\n"
+  "primitive U16 is Real[U16]"
   "  new create() => 0\n"
-  "primitive I16\n"
+  "primitive I16 is Real[I16]"
   "  new create() => 0\n"
   "  fun neg():I16 => -this\n"
-  "primitive U32\n"
+  "  fun mul(a: I16): I16 => 0\n"
+  "primitive U32 is Real[U32]"
   "  new create() => 0\n"
-  "primitive I32\n"
+  "primitive I32 is Real[I32]"
   "  new create() => 0\n"
   "  fun neg():I32 => -this\n"
-  "primitive U64\n"
+  "primitive U64 is Real[U64]"
   "  new create() => 0\n"
-  "primitive I64\n"
+  "primitive I64 is Real[I64]"
   "  new create() => 0\n"
   "  fun neg():I64 => -this\n"
-  "primitive U128\n"
+  "  fun mul(a: I64): I64 => 0\n"  
+  "  fun op_or(a: I64): I64 => 0\n"
+  "  fun op_and(a: I64): I64 => 0\n"  
+  "  fun op_xor(a: I64): I64 => 0\n"
+  "primitive U128 is Real[U128]"
   "  new create() => 0\n"
-  "primitive I128\n"
+  "  fun mul(a: U128): U128 => 0\n"
+  "  fun div(a: U128): U128 => 0\n"
+  "primitive I128 is Real[I128]"
   "  new create() => 0\n"
   "  fun neg():I128 => -this\n"
-  "primitive ULong\n"
+  "primitive ULong is Real[ULong]"
   "  new create() => 0\n"
-  "primitive ILong\n"
+  "primitive ILong is Real[ILong]"
   "  new create() => 0\n"
   "  fun neg():ILong => -this\n"
-  "primitive USize\n"
+  "primitive USize is Real[USize]"
   "  new create() => 0\n"
-  "primitive ISize\n"
+  "primitive ISize is Real[ISize]"
   "  new create() => 0\n"
   "  fun neg():ISize => -this\n"
-  "primitive F32\n"
+  "primitive F32 is Real[F32]"
   "  new create() => 0\n"
-  "primitive F64\n"
+  "primitive F64 is Real[F64]"
   "  new create() => 0\n"
   "type Number is (Signed | Unsigned | Float)\n"
   "type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)\n"
@@ -64,7 +72,21 @@ static const char* _builtin =
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
-  "class Pointer[A]\n";
+  "class Pointer[A]\n"
+  "interface Seq[A]\n"
+  // Fake up arrays and iterators enough to allow tests to
+  // - create array literals
+  // - call .values() iterator in a for loop
+  "class Array[A] is Seq[A]\n"
+  "  new create(len: USize, alloc: USize = 0) => true\n"
+  "  fun ref push(value: A): Array[A]^ => this\n"
+  "  fun values(): Iterator[A] => object ref\n"
+  "    fun ref has_next(): Bool => false\n"
+  "    fun ref next(): A ? => error\n"
+  "  end\n"
+  "interface Iterator[A]\n"
+  "  fun ref has_next(): Bool\n"
+  "  fun ref next(): A ?\n";
 
 
 // Check whether the 2 given ASTs are identical
@@ -287,6 +309,13 @@ ast_t* PassTest::type_of(const char* name)
 }
 
 
+ast_t* PassTest::numeric_literal(uint64_t num)
+{
+  assert(program != NULL);
+  return numeric_literal_within(program, num);
+}
+
+
 ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
 {
   assert(ast != NULL);
@@ -386,6 +415,30 @@ ast_t* PassTest::type_of_within(ast_t* ast, const char* name)
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
   {
     ast_t* r = type_of_within(p, name);
+
+    if(r != NULL)
+      return r;
+  }
+
+  // Not found.
+  return NULL;
+}
+
+
+ast_t* PassTest::numeric_literal_within(ast_t* ast, uint64_t num)
+{
+  assert(ast != NULL);
+
+  // Is this node the definition we're looking for?
+  if (ast_id(ast) == TK_INT && lexint_cmp64(ast_int(ast), num) == 0)
+  {
+    return ast;
+  }
+
+  // Check children.
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  {
+    ast_t* r = numeric_literal_within(p, num);
 
     if(r != NULL)
       return r;

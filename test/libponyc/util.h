@@ -86,6 +86,10 @@ protected:
   // Returns: the AST of the named definition, NULL if not found.
   ast_t* lookup_member(const char* type_name, const char* member_name);
 
+  // Lookup the first instance of the given integer as a number literal in 
+  // the previously loaded package
+  ast_t* numeric_literal(uint64_t num);
+
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
@@ -100,6 +104,8 @@ private:
   // If there are multiple matches the first found will be returned.
   // Returns: type of specified name, NULL if none found.
   ast_t* type_of_within(ast_t* ast, const char* name);
+
+  ast_t* numeric_literal_within(ast_t* ast, uint64_t num);
 };
 
 

@@ -10,7 +10,8 @@
 class LiteralTest : public PassTest
 {
   protected:
-    void check_type_for_assign(const char* type_name, token_id tk_type, const char* var, const char* src) {
+    void check_type_for_assign(const char* type_name, token_id tk_type, const char* var, const char* src)
+    {
       TEST_COMPILE(src);
 
       ast_t* x_type = type_of(var);      // Find type of x
@@ -22,6 +23,24 @@ class LiteralTest : public PassTest
       ASSERT_ID(tk_type, type);
 
       switch(tk_type) {
+        case TK_NOMINAL:
+          ASSERT_STREQ(type_name, ast_name(ast_childidx(type, 1)));  // Child index 1 of a nominal is the type name
+          break;
+        case TK_TYPEPARAMREF:
+          ASSERT_STREQ(type_name, ast_name(ast_childidx(type, 0)));  // Child index 0 of a type param is the type name
+          break;
+        default:
+          FAIL(); // Unexpected tk_type
+      }
+    }
+
+    void check_type(const char* type_name, token_id tk_type, ast_t* ast) 
+    {
+      ast_t* type = ast_type(ast);
+      ASSERT_ID(tk_type, type);
+
+      switch(tk_type) 
+      {
         case TK_NOMINAL:
           ASSERT_STREQ(type_name, ast_name(ast_childidx(type, 1)));  // Child index 1 of a nominal is the type name
           break;
@@ -62,7 +81,7 @@ class LiteralTest : public PassTest
 
 // First the limitations.
 
-TEST_F(LiteralTest, CantInferLitIs)
+TEST_F(LiteralTest, CantInfer_Is)
 {
   const char* src =
     "class Foo\n"
@@ -74,7 +93,7 @@ TEST_F(LiteralTest, CantInferLitIs)
 }
 
 
-TEST_F(LiteralTest, CantInferLitIsnt)
+TEST_F(LiteralTest, CantInfer_Isnt)
 {
   const char* src =
     "class Foo\n"
@@ -86,7 +105,7 @@ TEST_F(LiteralTest, CantInferLitIsnt)
 }
 
 
-TEST_F(LiteralTest, CantInferLitExpr)
+TEST_F(LiteralTest, CantInfer_Is_Expr)
 {
   const char* src =
     "class Foo\n"
@@ -98,7 +117,57 @@ TEST_F(LiteralTest, CantInferLitExpr)
 }
 
 
-TEST_F(LiteralTest, CantInferFloatLiteralFromIntType)
+TEST_F(LiteralTest, CantInfer_Op_IntAndFloat )
+{
+  const char* src =
+    "class Foo10b\n"
+    "  fun test(): I32 => 7 and 16.0\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Op_FloatAndInt )
+{
+  const char* src =
+    "class Foo11b\n"
+    "  fun test(): I32 => 7.0 and 16\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Op_FloatAndInt_Float )
+{
+  const char* src =
+    "class Foo12b\n"
+    "  fun test(): F32 => 7.0 and 16\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Op_IntAndFloat_Float )
+{
+  const char* src =
+    "class Foo13b\n"
+    "  fun test(): F32 => 7 and 16.0\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Op_Equals )
+{
+  const char* src =
+    "class Foo14b\n"
+    "  fun test(): Bool => 34 == 79\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Let_FloatLiteralFromIntType)
 {
   DO(check_trivial_fail("U8",   "3.0"));
   DO(check_trivial_fail("U16",  "3.0"));
@@ -114,7 +183,7 @@ TEST_F(LiteralTest, CantInferFloatLiteralFromIntType)
 }
 
 
-TEST_F(LiteralTest, CantInferNumericLiteralFromNonNumericType)
+TEST_F(LiteralTest, CantInfer_Let_NonNumericType)
 {
   DO(check_trivial_fail("String", "3"));
   DO(check_trivial_fail("String", "3.0"));
@@ -124,7 +193,7 @@ TEST_F(LiteralTest, CantInferNumericLiteralFromNonNumericType)
 }
 
 
-TEST_F(LiteralTest, CantInferNumericTypesWithoutVarType)
+TEST_F(LiteralTest, CantInfer_Let_NoType)
 {
   const char* src =
     "class Foo\n"
@@ -135,7 +204,7 @@ TEST_F(LiteralTest, CantInferNumericTypesWithoutVarType)
 }
 
 
-TEST_F(LiteralTest, CantInferAmbiguousUnion)
+TEST_F(LiteralTest, CantInfer_Let_AmbiguousUnion1)
 {
   const char* src =
     "class Foo\n"
@@ -146,7 +215,7 @@ TEST_F(LiteralTest, CantInferAmbiguousUnion)
 }
 
 
-TEST_F(LiteralTest, CantInferIntegerLiteralWithAmbiguousUnion)
+TEST_F(LiteralTest, CantInfer_Let_AmbiguousUnion2)
 {
   const char* src =
     "class Foo\n"
@@ -156,7 +225,7 @@ TEST_F(LiteralTest, CantInferIntegerLiteralWithAmbiguousUnion)
   TEST_ERROR(src);
 }
 
-TEST_F(LiteralTest, CantInferEmptyIntersection)
+TEST_F(LiteralTest, CantInfer_Let_EmptyIntersection)
 {
   const char* src =
     "class Foo\n"
@@ -167,7 +236,7 @@ TEST_F(LiteralTest, CantInferEmptyIntersection)
 }
 
 
-TEST_F(LiteralTest, CantInferInsufficientlySpecifiedGeneric)
+TEST_F(LiteralTest, CantInfer_Let_InsufficientlySpecifiedGeneric)
 {
   const char* src =
     "class Foo[A]\n"
@@ -178,7 +247,7 @@ TEST_F(LiteralTest, CantInferInsufficientlySpecifiedGeneric)
 }
 
 
-TEST_F(LiteralTest, CantInferThroughGenericSubtype)
+TEST_F(LiteralTest, CantInfer_Let_GenericSubtype)
 {
   const char* src =
     " class Foo[A: U8, B: A]\n"
@@ -189,10 +258,123 @@ TEST_F(LiteralTest, CantInferThroughGenericSubtype)
 }
 
 
+TEST_F(LiteralTest, CantInfer_Parameter_GenericSubtype)
+{
+  const char* src =
+    "class Foo6[A : U8, B: A]\n"
+    "  fun run() => test(8)\n"
+    "  fun test(a: B) => true\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Parameter_AmbiguousUnion)
+{
+  const char* src =
+    "class Foo3\n"
+    "  fun run() => test(8)\n"
+    "  fun test(a: (U8|U32)) => true\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Return_InvalidUnion )
+{
+  const char* src =
+    "class Foo4\n"
+    "  fun test(): ( Bool | String ) => 2\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Array_UnambiguousUnion )
+{
+  const char* src =
+    "class Foo5a\n"
+    "  fun run() => test([8])\n"       // FIXME? inferred as Array[I32], not Array[String|I32]
+    "  fun test(a: Array[ (String | I32) ] ): Bool => true\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Control_LiteralMatch )
+{
+  const char* src =    
+    "class Foo10c\n"
+    "  fun test(): Bool => \n"
+    "    match 8\n"
+    "    | I16 => true\n"
+    "    end\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Control_InvalidMatchElse)
+{
+  const char* src =    
+    "class Foo11c\n"
+    "  fun test(q: Bool): I16 => \n"
+    "    match q\n"
+    "    | true => 1\n"
+    "    | false => 1\n"
+    "    else\n"
+    "      7.0\n"
+    "    end\n";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LiteralTest, CantInfer_Control_UnusedLiteral)
+{
+  const char* src =    
+    "class Foo12c\n"
+    "  fun test(q: Bool): F64 ? => 79; error\n";
+
+  TEST_ERROR(src);
+}
+    
+
+TEST_F(LiteralTest, CantInfer_Control_InvalidWhileReturnValue)
+{
+  const char* src =
+    "class Foo13c\n"
+    "  fun test(): String =>\n"
+    "    while true do\n"
+    "      72\n"
+    "    else\n"
+    "      ""\n"
+    "    end\n";
+
+  TEST_ERROR(src);
+}
+    
+
+TEST_F(LiteralTest, CantInfer_Control_InvalidWhileElseValue )
+{
+  const char* src =
+    "class Foo14c\n"
+    "  fun test(): String =>\n"
+    "    while true do\n"
+    "      ""\n"
+    "    else\n"
+    "      63\n"
+    "    end\n";
+
+  TEST_ERROR(src);
+}
+
+
+
 
 // Happy paths
 
-TEST_F(LiteralTest, TrivialLetAllNumericTypes)
+TEST_F(LiteralTest, Let_AllNumericTypes)
 {
   DO(check_trivial("U8",   "3"));
   DO(check_trivial("U16",  "3"));
@@ -214,14 +396,16 @@ TEST_F(LiteralTest, TrivialLetAllNumericTypes)
 }
 
 
-TEST_F(LiteralTest, LetUnambiguousUnion)
+TEST_F(LiteralTest, Let_UnambiguousUnion)
 {
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
     "    let x: (U8 | String) = 3";
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(3)));
 }
 
 
@@ -236,74 +420,565 @@ TEST_F(LiteralTest, LetUnambiguousUnion)
 // }
 
 
-TEST_F(LiteralTest, LetUnionSameType)
+TEST_F(LiteralTest, Let_UnionSameType)
 {
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
     "    let x: (U8 | U8) = 3";
 
-  DO(check_type_for_assign("U8", TK_NOMINAL, "x", src));
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(3)));
 }
 
 
-TEST_F(LiteralTest, LetSufficientlySpecifiedGeneric)
+TEST_F(LiteralTest, Let_SufficientlySpecifiedGeneric)
 {
   const char* src =
     "class Foo[A: U8]\n"
     "  new create() =>\n"
     "    let x: A = 17";
 
-  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
+  TEST_COMPILE(src);
+
+  DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(17)));
 }
 
 
-TEST_F(LiteralTest, LetTuple)
+TEST_F(LiteralTest, Let_Tuple)
 {
   const char* src =
     "class Foo\n"
     "  new create() =>\n"
     "    (let x: U8, let y: U32) = (8, 32)";
 
-  DO(check_type_for_assign("U8",  TK_NOMINAL, "x", src));
-  DO(check_type_for_assign("U32", TK_NOMINAL, "y", src));
+  TEST_COMPILE(src);
+
+  DO(check_type("U8",  TK_NOMINAL, numeric_literal(8)));
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(32)));
 }
 
 
-TEST_F(LiteralTest, LetTupleNested)
+TEST_F(LiteralTest, Let_NestedTuple)
 {
   const char* src =
     "class Foo\n"
     "  new create() =>\n"
     "    ((let w: U8, let x: U16), (let y: U32, let z: U64)) = ((2, 3), (4, 5))";
 
-  DO(check_type_for_assign("U8",  TK_NOMINAL, "w", src));
-  DO(check_type_for_assign("U16", TK_NOMINAL, "x", src));
-  DO(check_type_for_assign("U32", TK_NOMINAL, "y", src));
-  DO(check_type_for_assign("U64", TK_NOMINAL, "z", src));
+  TEST_COMPILE(src);
+
+  DO(check_type("U8",  TK_NOMINAL, numeric_literal(2)));
+  DO(check_type("U16", TK_NOMINAL, numeric_literal(3)));
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(4)));
+  DO(check_type("U64", TK_NOMINAL, numeric_literal(5)));
 }
 
 
-TEST_F(LiteralTest, LetTupleOfGeneric_FirstOnly)
+TEST_F(LiteralTest, Let_TupleOfGeneric_FirstOnly)
 {
   const char* src =
     "class Foo[A: U8, B: U32]\n"
     "  new create() =>\n"
     "    (let x: A, let y: A) = (16, 32)";
-
-  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
-  DO(check_type_for_assign("A", TK_TYPEPARAMREF, "y", src));
+  
+  TEST_COMPILE(src);
+  
+  DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(16)));
+  DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(32)));
 }
 
-// TEST_F(LiteralTest, LetTupleOfGeneric_FirstAndSecond)   // FIXME only diff here is 'let y: B', but it doesn't work
-// {
-//   const char* src =
-//     "class Foo[A: U8, B: U32]\n"
-//     "  new create() =>\n"
-//     "    (let x: A, let y: B) = (16, 32)";
 
-//   DO(check_type_for_assign("A", TK_TYPEPARAMREF, "x", src));
-//   DO(check_type_for_assign("B", TK_TYPEPARAMREF, "y", src));
-// }
+TEST_F(LiteralTest, Let_TupleOfGeneric_FirstAndSecond)
+{
+  const char* src =
+    "class Foo[A: U8, B: U32]\n"
+    "  new create() =>\n"
+    "    (let x: A, let y: B) = (16, 32)";
+
+  TEST_COMPILE(src);
+  
+  DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(16)));
+  DO(check_type("B", TK_TYPEPARAMREF, numeric_literal(32)));
+}
 
 
+TEST_F(LiteralTest, Parameter_Simple)
+{
+  const char* src =
+    "class Foo1\n"
+    "  fun run() => test(128)\n"
+    "  fun test(a: U128) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(128)));
+}
+
+
+TEST_F(LiteralTest, Parameter_Second)
+{
+  const char* src =
+    "class Foo1a\n"
+    "  fun run() => test(\"\", 128)\n"
+    "  fun test(a: String, b: U128) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U128",  TK_NOMINAL, numeric_literal(128)));
+}
+
+
+TEST_F(LiteralTest, Parameter_Tuple)
+{
+  const char* src =
+    "class Foo2\n"
+    "  fun run() => test((8, 32))\n"
+    "  fun test(a: (U8, U32)) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8",  TK_NOMINAL, numeric_literal(8)));
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(32)));
+}
+
+
+TEST_F(LiteralTest, Parameter_NestedTuple)
+{
+  const char* src =
+    "class Foo2a\n"
+    "  fun run() => test((8, (\"\", 32)))\n"
+    "  fun test(a: (U8, (String, U32)) ) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8",  TK_NOMINAL, numeric_literal(8)));
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(32)));
+}
+
+
+TEST_F(LiteralTest, Parameter_Union)
+{
+  const char* src =
+    "class Foo4\n"
+    "  fun run() => test(64)\n"
+    "  fun test(a: (Bool | U64 | String) ) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U64",  TK_NOMINAL, numeric_literal(64)));
+}
+
+
+TEST_F(LiteralTest, Parameter_TupleOfUnions)
+{
+  const char* src =
+    "class Foo7\n"
+    "  fun run() => test((8, 32))\n"
+    "  fun test(a: ((U8 | String), (Bool | U32)) ) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8",  TK_NOMINAL, numeric_literal(8)));
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(32)));
+}
+
+
+TEST_F(LiteralTest, Parameter_Generic)
+{
+  const char* src =
+    "class Foo5[A : U8]\n"
+    "  fun run() => test(8)\n"
+    "  fun test(a: A) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("A",  TK_TYPEPARAMREF, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Parameter_TupleOfUnionOfGeneric)
+{
+  const char* src =
+    "class Foo7a[A : U32]\n"
+    "  fun run() => test((79, 1032))\n"
+    "  fun test(a: (U8, (String | A)) ) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(79)));
+  DO(check_type("A",  TK_TYPEPARAMREF, numeric_literal(1032)));
+}
+
+
+TEST_F(LiteralTest, Return_Simple)
+{
+  const char* src =
+    "class Foo1\n"
+    "  fun test(): U128 => 17\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(17)));
+}
+
+
+TEST_F(LiteralTest, Return_TupleOfUnionOfGeneric)
+{
+  const char* src =
+    "class Foo2[A]\n"
+    "  fun test(): (String, (U8|A)) => (\"\", 2)\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(2)));
+}
+
+
+TEST_F(LiteralTest, Return_UnionOfTuple)
+{
+  const char* src =
+    "class Foo3\n"
+    "  fun test(): ( (String, U32) | (U16, String) ) => (\"\", 2)\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(2)));
+}
+
+
+TEST_F(LiteralTest, UseReturn_Simple)
+{
+  const char* src =
+    "class Foo10\n"
+    "  fun run() => 8 * test()\n"
+    "  fun test(): U8 => 2\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, UseReturn_Tuple)
+{
+  const char* src =
+    "class Foo11\n"
+    "  fun run() => 8 * test()._2\n"
+    "  fun test(): (String, I16) => (\"\", 16)\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I16", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Type_Simple)
+{
+  const char* src =
+    "type T is ( (String, U32) | (U16, String) )\n"
+    "\n"
+    "class Foo1t\n"
+    "  fun test(): T => (\"\", 2)\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U32", TK_NOMINAL, numeric_literal(2)));
+}
+
+
+TEST_F(LiteralTest, Array_Simple)
+{
+  const char* src =
+    "class Foo1a\n"
+    "  fun test(): Array[U8] => [8]\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U8", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Array_Parameter)
+{
+  const char* src =
+    "class Foo2a\n"
+    "  fun run() => test([8])\n"
+    "  fun test(a: Array[I32]): Bool => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Array_ParameterOfUnionOfArray)
+{
+  const char* src =
+    "class Foo3a\n"
+    "  fun run() => test([8])\n"
+    "  fun test(a: (Array[String] | Array[I32]) ): Bool => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Array_ParameterOfArrayOfUnion)
+{
+  const char* src =
+    "class Foo4a\n"
+    "  fun run() => test([8, \"\"])\n"
+    "  fun test(a: Array[ (String | I32) ] ): Bool => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(8)));
+}
+
+
+TEST_F(LiteralTest, Binary_SimpleMul)
+{
+  const char* src =
+    "class Foo1b\n"
+    "  fun test(): I64 => 64 * 79\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(64)));
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Binary_SimpleXor)
+{
+  const char* src =
+    "class Foo2b\n"
+    "  fun test(): I64 => 64 xor 79\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(64)));
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Binary_VarOr)
+{
+  const char* src =
+    "class Foo2ba\n"
+    "  fun test(y: I64): I64 => y or 79\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Binary_ParameterOfTupleOfBinary)
+{
+  const char* src =
+    "class Foo3b\n"
+    "  fun run() => test((\"\", 64 and 79))\n"
+    "  fun test(a: (String, I64)) : Bool => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(64)));
+  DO(check_type("I64", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Binary_VarLhsEquals)
+{
+  const char* src =
+    "class Foo4b\n"
+    "  fun test(y: I32): Bool => y == 79\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Binary_VarRhsEquals)
+{
+  const char* src =
+    "class Foo5b\n"
+    "  fun test(y: I32): Bool => 79 == y\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Control_If)
+{
+  const char* src =
+   "class Foo1c\n"
+    "  fun test(): USize => if true then 79 elseif false then 234 else 123 end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("USize", TK_NOMINAL, numeric_literal(79)));
+  DO(check_type("USize", TK_NOMINAL, numeric_literal(234)));
+  DO(check_type("USize", TK_NOMINAL, numeric_literal(123)));
+}
+
+
+TEST_F(LiteralTest, Control_MatchResult)
+{
+  const char* src =
+    "class Foo2c\n"
+    "  fun test(q: Bool): I16 => \n"
+    "    match q\n"
+    "    | true => 1\n"
+    "    | false => 11\n"
+    "    else\n"
+    "      7\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I16", TK_NOMINAL, numeric_literal(1)));
+  DO(check_type("I16", TK_NOMINAL, numeric_literal(11)));
+  DO(check_type("I16", TK_NOMINAL, numeric_literal(7)));
+}
+
+
+TEST_F(LiteralTest, Control_MatchResultFloat)
+{
+  const char* src =
+    "class Foo3c\n"
+    "  fun test(q: Bool): F64 => \n"
+    "    match q\n"
+    "    | true => 1\n"
+    "    | false => 11\n"
+    "    else\n"
+    "      7\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(1)));
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(11)));
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(7)));
+}
+
+
+TEST_F(LiteralTest, Control_MatchPatternTuple)
+{
+  const char* src =
+    "class Foo4c\n"
+    "  fun test(q: (U16, F32)): Bool => \n"
+    "    match q\n"
+    "    | (16, 17) => true\n"
+    "    | (32, 33) => false\n"
+    "    else\n"
+    "      false\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U16", TK_NOMINAL, numeric_literal(16)));
+  DO(check_type("U16", TK_NOMINAL, numeric_literal(32)));
+  DO(check_type("F32", TK_NOMINAL, numeric_literal(17)));
+  DO(check_type("F32", TK_NOMINAL, numeric_literal(33)));
+}
+
+
+TEST_F(LiteralTest, Control_TryErrorOnlyBody)
+{
+  const char* src =
+    "class Foo5c\n"
+    "  fun test(): F64 => try error else 73 end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(73)));
+}
+
+
+TEST_F(LiteralTest, Control_TryExpressionBody)
+{
+  const char* src =
+    "class Foo6c\n"
+    "  fun run() => test(true)\n"
+    "  fun test(q: Bool): F64 => try if q then 166 else error end else 73 end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(166)));
+  DO(check_type("F64", TK_NOMINAL, numeric_literal(73)));
+}
+
+
+TEST_F(LiteralTest, Control_WhileBreakHasValue)
+{
+  const char* src =
+    "class Foo7c\n"
+    "  fun test(): (U128, Bool) =>\n"
+    "    while true do\n"
+    "      if false then\n"
+    "        (72 * 16, true)\n"
+    "      else\n"
+    "        break (14, true)\n"
+    "      end\n"
+    "    else\n"
+    "      (63 / 12, false)\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(72)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(16)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(14)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(63)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(12)));
+}
+
+
+TEST_F(LiteralTest, Control_WhileBreakHasNoValue)
+{
+  const char* src =
+    "class Foo8c\n"
+    "  fun test(): (None | (U128, Bool)) =>\n"
+    "    while true do\n"
+    "      if false then\n"
+    "        (72 * 16, true)\n"
+    "      else\n"
+    "        break\n"
+    "      end\n"
+    "    else\n"
+    "      (63 / 12, false)\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(72)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(16)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(63)));
+  DO(check_type("U128", TK_NOMINAL, numeric_literal(12)));
+}
+
+
+TEST_F(LiteralTest, Control_ForSimple)
+{
+  const char* src =
+    "class Foo9c\n"
+    "  fun test(q: Array[String], r: Bool): U64 =>\n"
+    "    for x in q.values() do\n"
+    "      if r then 3 else 4 end\n"
+    "    else\n"
+    "      0\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("U64", TK_NOMINAL, numeric_literal(3)));
+  DO(check_type("U64", TK_NOMINAL, numeric_literal(4)));
+  DO(check_type("U64", TK_NOMINAL, numeric_literal(0)));
+}
