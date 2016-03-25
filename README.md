@@ -53,8 +53,44 @@ You will need to build from source.
 ## Building on Linux [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 First, install LLVM 3.6.2, 3.7.1 or 3.8 using your package manager. You may 
-need to install zlib, ncurses, pcre2, and ssl as well. On Ubuntu 15.10 this is 
-done with:
+need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some
+specific distributions follow.
+
+### Debian Jesse
+
+Add the following to `/etc/apt/sources`:
+
+```
+deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
+deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
+```
+
+```bash
+$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev libssl-dev
+llvm-3.8-dev
+```
+
+Debian Jesse and some other Linux distributions don't include pcre2 in their
+package manager. pcre2 is used by the Pony regex package. To download and
+build pcre2 from source:
+
+```bash
+$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+$ tar xvf pcre2-10.21.tar.bz2
+$ cd pcre2-10.21
+$ ./configure --prefix=/usr
+$ make
+$ sudo make install
+```
+
+To build ponyc and compile helloworld:
+
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
+
+### Ubuntu 15.10
 
 ```bash
 $ sudo apt-get install build-essential git llvm-dev \
