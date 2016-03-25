@@ -22,7 +22,9 @@
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
-The homebrew version is currently woefully out of date. We are transitioning to a new release system that will keep homebrew up to date. For now, please build from source.
+The homebrew version is currently woefully out of date. We are transitioning to 
+a new release system that will keep homebrew up to date. For now, please build 
+from source.
 
 ```bash
 $ brew update 
@@ -38,7 +40,9 @@ layman -a stefantalpalaru
 emerge dev-lang/pony
 ```
 
-A live ebuild is also available in the [overlay](https://github.com/stefantalpalaru/gentoo-overlay) (dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
+A live ebuild is also available in the 
+[overlay](https://github.com/stefantalpalaru/gentoo-overlay) 
+(dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
 
 ### Other distributions
 
@@ -50,7 +54,8 @@ You will need to build from source.
 
 # Building ponyc from source
 
-## Building on Linux [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
+## Building on Linux 
+[![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 First, install LLVM 3.6.2, 3.7.1 or 3.8 using your package manager. You may 
 need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some
@@ -117,7 +122,10 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that the LLVM 3.8 apt packages do not include debug symbols. As a result, the `ponyc config=debug` build fails when using those packages. If you need a debug compiler built with LLVM 3.8, you will need to build LLVM from source.
+Please note that the LLVM 3.8 apt packages do not include debug symbols. As a 
+result, the `ponyc config=debug` build fails when using those packages. If you 
+need a debug compiler built with LLVM 3.8, you will need to build LLVM from 
+source.
 
 ## Building on FreeBSD
 
@@ -137,9 +145,12 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not have this problem, and works fine with LLVM 3.7 and 3.8.
+Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently 
+produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not 
+have this problem, and works fine with LLVM 3.7 and 3.8.
 
-## Building on Mac OS X [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
+## Building on Mac OS X 
+[![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 You'll need llvm 3.6.2, 3.7.1, or 3.8 and the pcre2 library to build Pony.
 
@@ -161,11 +172,16 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-## Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
+## Building on Windows 
+[![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
 
-The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 or 3.8 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM prebuilt binaries for Windows do NOT include the LLVM development 
+tools and libraries. Instead, you will have to build and install LLVM 3.7 or 
+3.8 from source. You will need to make sure that the path to LLVM/bin (location 
+of llvm-config) is in your PATH variable.
 
-You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
+You will also need to build and install premake5 (not premake4) from source. We 
+need premake5 in order to support current versions of Visual Studio.
 
 You may also need to install zlib and ncurses.
 
