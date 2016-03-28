@@ -17,6 +17,16 @@ class Handler is ReadlineNotify
       _i = _i + 1
       prompt(_i.string() + " > ")
     end
+    _update_commands(line)
+
+  fun ref _update_commands(line: String) =>
+    for command in _commands.values() do
+      if command.at(line, 0) then
+        return
+      end
+    end
+
+    _commands.push(line)
 
   fun ref tab(line: String): Seq[String] box =>
     let r = Array[String]
