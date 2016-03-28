@@ -23,46 +23,50 @@ actor TCPConnection
   var _shutdown_peer: Bool = false
   let _pending: List[(ByteSeq, USize)] = _pending.create()
   var _read_buf: Array[U8] iso
+  var _max_size: USize
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", size: USize = 64)
+    from: String = "", init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
     will be made from the specified interface.
     """
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].undefined(init_size) end
+    _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
   new ip4(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", size: USize = 64)
+    from: String = "", init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Connect via IPv4.
     """
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].undefined(init_size) end
+    _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp4[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
   new ip6(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", size: USize = 64)
+    from: String = "", init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Connect via IPv6.
     """
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].undefined(init_size) end
+    _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp6[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
   new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,
-    size: USize = 64) 
+    init_size: USize = 64, max_size: USize = 16384) 
   =>
     """
     A new connection accepted on a server.
@@ -73,7 +77,8 @@ actor TCPConnection
     _fd = fd
     _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
     _connected = true
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].undefined(init_size) end
+    _max_size = max_size
 
     _queue_read()
     _notify.accepted(this)
@@ -333,7 +338,7 @@ actor TCPConnection
         close()
         return
       | _read_buf.space() =>
-        next = next * 2
+        next = _max_size.min(next * 2)
       end
 
       let data = _read_buf = recover Array[U8].undefined(next) end
@@ -379,7 +384,7 @@ actor TCPConnection
             return
           | _read_buf.space() =>
             // Increase the read buffer size.
-            next = next * 2
+            next = _max_size.min(next * 2)
           end
 
           let data = _read_buf = recover Array[U8].undefined(next) end

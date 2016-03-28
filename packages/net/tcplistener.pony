@@ -9,10 +9,10 @@ actor TCPListener
   let _limit: USize
   var _count: USize = 0
   var _paused: Bool = false
-  var _size: USize
+  var _init_size: USize
 
   new create(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, size: USize = 64)
+    service: String = "0", limit: USize = 0, init_size: USize = 64)
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -21,12 +21,12 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp[AsioEventID](this, host.cstring(),
       service.cstring())
-    _size = size
+    _init_size = init_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
   new ip4(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, size: USize = 64)
+    service: String = "0", limit: USize = 0, init_size: USize = 64)
   =>
     """
     Listens for IPv4 connections.
@@ -35,12 +35,12 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp4[AsioEventID](this, host.cstring(),
       service.cstring())
-    _size = size
+    _init_size = init_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
   new ip6(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, size: USize = 64)
+    service: String = "0", limit: USize = 0, init_size: USize = 64)
   =>
     """
     Listens for IPv6 connections.
@@ -49,7 +49,7 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp6[AsioEventID](this, host.cstring(),
       service.cstring())
-    _size = size
+    _init_size = init_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
@@ -156,7 +156,7 @@ actor TCPListener
     Spawn a new connection.
     """
     try
-      TCPConnection._accept(this, _notify.connected(this), ns, _size)
+      TCPConnection._accept(this, _notify.connected(this), ns, _init_size)
       _count = _count + 1
     else
       @pony_os_socket_close[None](ns)
