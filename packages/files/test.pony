@@ -11,7 +11,8 @@ actor Main is TestList
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
-    let top = Directory(FilePath.mkdtemp(h.env.root, "tmp._FileHelper."))
+    let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
+      "tmp._FileHelper."))
     for f in files.values() do
       try
         // Since we embed paths, we use the posix separator, even on Windows.
@@ -33,7 +34,7 @@ primitive _FileHelper
 class iso _TestMkdtemp is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
   fun apply(h: TestHelper) ? =>
-    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestMkdtemp.")
+    let tmp = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.TestMkdtemp.")
     try
       h.assert_true(FileInfo(tmp).directory)
     then
@@ -69,7 +70,7 @@ class iso _TestWalk is UnitTest
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
   fun apply(h: TestHelper) ? =>
-    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestDiropen.")
+    let tmp = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.TestDiropen.")
 
     try
       h.assert_true(FileInfo(tmp).directory)

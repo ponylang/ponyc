@@ -2,7 +2,11 @@ use "net"
 
 actor Main
   new create(env: Env) =>
-    TCPListener(Listener(env.out))
+    try
+      TCPListener(env.root as AmbientAuth, Listener(env.out))
+    else
+      env.out.print("unable to use the network")
+    end
 
 class Listener is TCPListenNotify
   let _out: OutStream

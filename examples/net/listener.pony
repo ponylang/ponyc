@@ -1,5 +1,6 @@
 use "net"
 use "net/ssl"
+use "files"
 
 class Listener is TCPListenNotify
   let _env: Env
@@ -15,10 +16,13 @@ class Listener is TCPListenNotify
 
     _sslctx = if ssl then
       try
+        let auth = env.root as AmbientAuth
         recover
           SSLContext
-            .set_authority("./test/pony/net/cert.pem")
-            .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
+            .set_authority(FilePath(auth, "./test/pony/net/cert.pem"))
+            .set_cert(
+              FilePath(auth, "./test/pony/net/cert.pem"),
+              FilePath(auth, "./test/pony/net/key.pem"))
             .set_client_verify(true)
             .set_server_verify(true)
         end
@@ -73,10 +77,11 @@ class Listener is TCPListenNotify
       match _sslctx
       | let ctx: SSLContext =>
         let ssl = ctx.client()
-        TCPConnection(SSLConnection(ClientSide(env), consume ssl), _host,
-          _service)
+        TCPConnection(_env.root as AmbientAuth,
+          SSLConnection(ClientSide(env), consume ssl), _host, _service)
       else
-        TCPConnection(ClientSide(env), _host, _service)
+        TCPConnection(_env.root as AmbientAuth,
+          ClientSide(env), _host, _service)
       end
     else
       _env.out.print("couldn't create client side")

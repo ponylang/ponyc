@@ -152,7 +152,7 @@ actor Main
       | ("chunks", let arg: I64) => chunks = arg.usize()
       | ("width", let arg: I64) => width = arg.usize()
       | ("output", let arg: String) =>
-        outfile = try File(FilePath(env.root, arg)) end
+        outfile = try File(FilePath(env.root as AmbientAuth, arg)) end
       | let err: ParseError => err.report(env.out) ; usage(env) ; error
       end
     end
