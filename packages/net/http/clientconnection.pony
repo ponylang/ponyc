@@ -6,6 +6,7 @@ actor _ClientConnection
   """
   Manages a persistent and possibly pipelined TCP connection to an HTTP server.
   """
+  let _auth: TCPConnectionAuth
   let _host: String
   let _service: String
   let _sslctx: (SSLContext | None)
@@ -14,12 +15,13 @@ actor _ClientConnection
   let _sent: List[Payload val] = _sent.create()
   var _conn: (TCPConnection | None) = None
 
-  new create(host: String, service: String, sslctx: (SSLContext | None) = None,
-    pipeline: Bool = true)
+  new create(auth: TCPConnectionAuth, host: String, service: String,
+    sslctx: (SSLContext | None) = None, pipeline: Bool = true)
   =>
     """
     Create a connection for the given host and service.
     """
+    _auth = auth
     _host = host
     _service = service
     _sslctx = sslctx
@@ -130,10 +132,10 @@ actor _ClientConnection
     _conn = try
       let ctx = _sslctx as SSLContext
       let ssl = ctx.client(_host)
-      TCPConnection(SSLConnection(_ResponseBuilder(this), consume ssl),
+      TCPConnection(_auth, SSLConnection(_ResponseBuilder(this), consume ssl),
         _host, _service)
     else
-      TCPConnection(_ResponseBuilder(this), _host, _service)
+      TCPConnection(_auth, _ResponseBuilder(this), _host, _service)
     end
 
   fun ref _cancel_all() =>

@@ -1,5 +1,7 @@
 use "collections"
 
+type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
+
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32
@@ -11,8 +13,8 @@ actor UDPSocket
   var _read_from: IPAddress iso = IPAddress
   embed _ip: IPAddress = IPAddress
 
-  new create(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new create(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for both IPv4 and IPv6 datagrams.
@@ -27,8 +29,8 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new ip4(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for IPv4 datagrams.
@@ -43,8 +45,8 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new ip6(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for IPv6 datagrams.

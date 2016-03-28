@@ -27,17 +27,18 @@ class val IPAddress
     """
     @pony_os_ipv6[Bool](this)
 
-  fun name(reversedns: Bool = false, servicename: Bool = false):
-    (String, String) ?
+  fun name(reversedns: (DNSLookupAuth | None) = None,
+    servicename: Bool = false): (String, String) ?
   =>
     """
     Return the host and service name.
     """
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
+    let reverse = reversedns isnt None
 
     if not @pony_os_nameinfo[Bool](this, addressof host, addressof serv,
-      reversedns, servicename) then
+      reverse, servicename) then
       error
     end
 

@@ -1,3 +1,5 @@
+type TCPListenerAuth is (AmbientAuth | NetAuth | TCPAuth | TCPListenAuth)
+
 actor TCPListener
   """
   Listens for new network connections.
@@ -11,8 +13,9 @@ actor TCPListener
   var _paused: Bool = false
   var _init_size: USize
 
-  new create(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, init_size: USize = 64)
+  new create(auth: TCPListenerAuth, notify: TCPListenNotify iso,
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64)
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -25,8 +28,9 @@ actor TCPListener
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
-  new ip4(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, init_size: USize = 64)
+  new ip4(auth: TCPListenerAuth, notify: TCPListenNotify iso,
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64)
   =>
     """
     Listens for IPv4 connections.
@@ -39,8 +43,9 @@ actor TCPListener
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
-  new ip6(notify: TCPListenNotify iso, host: String = "",
-    service: String = "0", limit: USize = 0, init_size: USize = 64)
+  new ip6(auth: TCPListenerAuth, notify: TCPListenNotify iso,
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64)
   =>
     """
     Listens for IPv6 connections.

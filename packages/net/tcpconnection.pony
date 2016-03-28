@@ -6,6 +6,8 @@ use @pony_asio_event_fd[U32](event: AsioEventID)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
+type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
+
 actor TCPConnection
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
@@ -25,8 +27,9 @@ actor TCPConnection
   var _read_buf: Array[U8] iso
   var _max_size: USize
 
-  new create(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", init_size: USize = 64, max_size: USize = 16384)
+  new create(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
+    host: String, service: String, from: String = "", init_size: USize = 64, 
+    max_size: USize = 16384)
   =>
     """
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
@@ -39,8 +42,9 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip4(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", init_size: USize = 64, max_size: USize = 16384)
+  new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
+    host: String, service: String, from: String = "", init_size: USize = 64, 
+    max_size: USize = 16384)
   =>
     """
     Connect via IPv4.
@@ -52,8 +56,9 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip6(notify: TCPConnectionNotify iso, host: String, service: String,
-    from: String = "", init_size: USize = 64, max_size: USize = 16384)
+  new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
+    host: String, service: String, from: String = "", init_size: USize = 64, 
+    max_size: USize = 16384)
   =>
     """
     Connect via IPv6.
