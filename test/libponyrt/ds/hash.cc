@@ -10,9 +10,9 @@
 #define INITIAL_SIZE 8
 #define BELOW_HALF (INITIAL_SIZE + (2 - 1)) / 2
 
-typedef struct elem_t elem_t;
+typedef struct hash_elem_t hash_elem_t;
 
-DECLARE_HASHMAP(testmap, testmap_t, elem_t);
+DECLARE_HASHMAP(testmap, testmap_t, hash_elem_t);
 
 class HashMapTest: public testing::Test
 {
@@ -22,21 +22,21 @@ class HashMapTest: public testing::Test
     virtual void SetUp();
     virtual void TearDown();
 
-    elem_t* get_element();
+    hash_elem_t* get_element();
     void put_elements(size_t count);
 
   public:
-    static size_t hash_tst(elem_t* p);
-    static bool cmp_tst(elem_t* a, elem_t* b);
-    static void free_elem(elem_t* p);
+    static size_t hash_tst(hash_elem_t* p);
+    static bool cmp_tst(hash_elem_t* a, hash_elem_t* b);
+    static void free_elem(hash_elem_t* p);
     static void free_buckets(size_t size, void* p);
 };
 
-DEFINE_HASHMAP(testmap, testmap_t, elem_t, HashMapTest::hash_tst,
+DEFINE_HASHMAP(testmap, testmap_t, hash_elem_t, HashMapTest::hash_tst,
   HashMapTest::cmp_tst, malloc, HashMapTest::free_buckets,
   HashMapTest::free_elem);
 
-struct elem_t
+struct hash_elem_t
 {
   size_t key;
   size_t val;
@@ -54,7 +54,7 @@ void HashMapTest::TearDown()
 
 void HashMapTest::put_elements(size_t count)
 {
-  elem_t* curr = NULL;
+  hash_elem_t* curr = NULL;
 
   for(size_t i = 0; i < count; i++)
   {
@@ -65,22 +65,22 @@ void HashMapTest::put_elements(size_t count)
   }
 }
 
-elem_t* HashMapTest::get_element()
+hash_elem_t* HashMapTest::get_element()
 {
-  return (elem_t*) malloc(sizeof(elem_t));
+  return (hash_elem_t*) malloc(sizeof(hash_elem_t));
 }
 
-size_t HashMapTest::hash_tst(elem_t* p)
+size_t HashMapTest::hash_tst(hash_elem_t* p)
 {
   return ponyint_hash_size(p->key);
 }
 
-bool HashMapTest::cmp_tst(elem_t* a, elem_t* b)
+bool HashMapTest::cmp_tst(hash_elem_t* a, hash_elem_t* b)
 {
   return a->key == b->key;
 }
 
-void HashMapTest::free_elem(elem_t* p)
+void HashMapTest::free_elem(hash_elem_t* p)
 {
   free(p);
 }
@@ -120,7 +120,7 @@ TEST_F(HashMapTest, Resize)
   // the map was not resized yet.
   ASSERT_EQ((size_t)INITIAL_SIZE, _map.contents.size);
 
-  elem_t* curr = get_element();
+  hash_elem_t* curr = get_element();
   curr->key = BELOW_HALF;
 
   testmap_put(&_map, curr);
@@ -135,13 +135,13 @@ TEST_F(HashMapTest, Resize)
  */
 TEST_F(HashMapTest, InsertAndRetrieve)
 {
-  elem_t* e = get_element();
+  hash_elem_t* e = get_element();
   e->key = 1;
   e->val = 42;
 
   testmap_put(&_map, e);
 
-  elem_t* n = testmap_get(&_map, e);
+  hash_elem_t* n = testmap_get(&_map, e);
 
   ASSERT_EQ(e->val, n->val);
 }
@@ -151,15 +151,15 @@ TEST_F(HashMapTest, InsertAndRetrieve)
  */
 TEST_F(HashMapTest, TryGetNonExistent)
 {
-  elem_t* e1 = get_element();
-  elem_t* e2 = get_element();
+  hash_elem_t* e1 = get_element();
+  hash_elem_t* e2 = get_element();
 
   e1->key = 1;
   e2->key = 2;
 
   testmap_put(&_map, e1);
 
-  elem_t* n = testmap_get(&_map, e2);
+  hash_elem_t* n = testmap_get(&_map, e2);
 
   ASSERT_EQ(NULL, n);
 }
@@ -169,18 +169,18 @@ TEST_F(HashMapTest, TryGetNonExistent)
  */
 TEST_F(HashMapTest, ReplacingElementReturnsReplaced)
 {
-  elem_t* e1 = get_element();
-  elem_t* e2 = get_element();
+  hash_elem_t* e1 = get_element();
+  hash_elem_t* e2 = get_element();
 
   e1->key = 1;
   e2->key = 1;
 
   testmap_put(&_map, e1);
 
-  elem_t* n = testmap_put(&_map, e2);
+  hash_elem_t* n = testmap_put(&_map, e2);
   ASSERT_EQ(n, e1);
 
-  elem_t* m = testmap_get(&_map, e2);
+  hash_elem_t* m = testmap_get(&_map, e2);
   ASSERT_EQ(m, e2);
 }
 
@@ -191,8 +191,8 @@ TEST_F(HashMapTest, ReplacingElementReturnsReplaced)
  */
 TEST_F(HashMapTest, DeleteElement)
 {
-  elem_t* e1 = get_element();
-  elem_t* e2 = get_element();
+  hash_elem_t* e1 = get_element();
+  hash_elem_t* e2 = get_element();
 
   e1->key = 1;
   e2->key = 2;
@@ -204,14 +204,14 @@ TEST_F(HashMapTest, DeleteElement)
 
   ASSERT_EQ(l, (size_t)2);
 
-  elem_t* n1 = testmap_remove(&_map, e1);
+  hash_elem_t* n1 = testmap_remove(&_map, e1);
 
   l = testmap_size(&_map);
 
   ASSERT_EQ(n1, e1);
   ASSERT_EQ(l, (size_t)1);
 
-  elem_t* n2 = testmap_get(&_map, e2);
+  hash_elem_t* n2 = testmap_get(&_map, e2);
 
   ASSERT_EQ(n2, e2);
 }
@@ -221,7 +221,7 @@ TEST_F(HashMapTest, DeleteElement)
  */
 TEST_F(HashMapTest, MapIterator)
 {
-  elem_t* curr = NULL;
+  hash_elem_t* curr = NULL;
   size_t expect = 0;
 
   for(uint32_t i = 0; i < 100; i++)
@@ -257,11 +257,11 @@ TEST_F(HashMapTest, MapIterator)
  */
 TEST_F(HashMapTest, RemoveByIndex)
 {
-  elem_t* curr = NULL;
+  hash_elem_t* curr = NULL;
   put_elements(100);
 
   size_t i = HASHMAP_BEGIN;
-  elem_t* p = NULL;
+  hash_elem_t* p = NULL;
 
   while((curr = testmap_next(&_map, &i)) != NULL)
   {
@@ -272,7 +272,7 @@ TEST_F(HashMapTest, RemoveByIndex)
     }
   }
 
-  elem_t* n = testmap_removeindex(&_map, i);
+  hash_elem_t* n = testmap_removeindex(&_map, i);
 
   ASSERT_EQ(n, p);
   ASSERT_EQ(NULL, testmap_get(&_map, p));

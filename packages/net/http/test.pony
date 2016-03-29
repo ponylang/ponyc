@@ -56,7 +56,7 @@ class iso _Encode is UnitTest
       "%23%3C%3E%5B%5D%7B%7D%7C%5E%25",
       URLEncode.encode("#<>[]{}|^ %23%3C%3E%5B%5D%7B%7D%7C%5E%25",
         URLPartUser))
-        
+
     h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPassword))
     h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartHost))
     h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPath))
@@ -71,7 +71,7 @@ class iso _Encode is UnitTest
     h.assert_eq[String](":@/%3F", URLEncode.encode(":@/?", URLPartPath))
     h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartQuery))
     h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartFragment))
-    
+
 class iso _EncodeBad is UnitTest
   fun name(): String => "net/http/URLEncode.encode_bad"
 
@@ -79,7 +79,7 @@ class iso _EncodeBad is UnitTest
     h.assert_error(lambda()? => URLEncode.encode("%2G", URLPartUser) end)
     h.assert_error(lambda()? => URLEncode.encode("%xx", URLPartUser) end)
     h.assert_error(lambda()? => URLEncode.encode("%2", URLPartUser) end)
-      
+
 class iso _EncodeIPv6 is UnitTest
   fun name(): String => "net/http/URLEncode.encode_ipv6"
 
@@ -165,7 +165,7 @@ class iso _Check is UnitTest
     h.assert_eq[Bool](false, URLEncode.check("?", URLPartPath))
     h.assert_eq[Bool](true, URLEncode.check(":@/?", URLPartQuery))
     h.assert_eq[Bool](true, URLEncode.check(":@/?", URLPartFragment))
-    
+
 class iso _CheckBad is UnitTest
   fun name(): String => "net/http/URLEncode.check_bad"
 
@@ -182,7 +182,7 @@ class iso _CheckScheme is UnitTest
     h.assert_eq[Bool](false, URLEncode.check_scheme("_"))
     h.assert_eq[Bool](false, URLEncode.check_scheme(":"))
     h.assert_eq[Bool](false, URLEncode.check_scheme("%41"))
-    
+
 class iso _CheckIPv6 is UnitTest
   fun name(): String => "net/http/URLEncode.check_ipv6"
 
@@ -195,7 +195,7 @@ class iso _CheckIPv6 is UnitTest
     h.assert_eq[Bool](false, URLEncode.check("[1]2", URLPartHost))
     h.assert_eq[Bool](false, URLEncode.check("[1", URLPartHost))
     h.assert_eq[Bool](false, URLEncode.check("1]", URLPartHost))
-    
+
 class iso _Decode is UnitTest
   fun name(): String => "net/http/URLEncode.decode"
 
@@ -210,7 +210,7 @@ class iso _Decode is UnitTest
 
     h.assert_eq[String]("#<>[]{}|^ #<>[]{}|^ %",
       URLEncode.decode("#<>[]{}|^ %23%3C%3E%5B%5D%7B%7D%7C%5E%20%25"))
-    
+
 class iso _DecodeBad is UnitTest
   fun name(): String => "net/http/URLEncode.decode_bad"
 
@@ -227,7 +227,7 @@ class iso _BuildBasic is UnitTest
       URL.build("https://user:password@host.name:12345/path?query#fragment"),
       "https", "user", "password", "host.name", 12345, "/path", "query",
       "fragment")
-    
+
     _Test(h,
       URL.build("http://rosettacode.org/wiki/Category]Pony"),
       "http", "", "", "rosettacode.org", 80, "/wiki/Category%5DPony", "", "")
@@ -240,52 +240,52 @@ class iso _BuildBasic is UnitTest
       "Parametric_polymorphism")
 
     _Test(h, URL.build("http://user@host"),
-      "http", "user", "", "host", 80, "", "", "")
-    
+      "http", "user", "", "host", 80, "/", "", "")
+
 class iso _BuildMissingParts is UnitTest
   fun name(): String => "net/http/URL.build_missing_parts"
 
   fun apply(h: TestHelper) ? =>
     _Test(h, URL.build("https://user@host.name/path#fragment"),
       "https", "user", "", "host.name", 443, "/path", "", "fragment")
-      
+
     _Test(h, URL.build("https://user@host.name#fragment"),
-      "https", "user", "", "host.name", 443, "", "", "fragment")
-      
+      "https", "user", "", "host.name", 443, "/", "", "fragment")
+
     _Test(h, URL.build("//host.name/path"),
       "", "", "", "host.name", 0, "/path", "", "")
-      
+
     _Test(h, URL.build("/path"),
       "", "", "", "", 0, "/path", "", "")
-      
+
     _Test(h, URL.build("?query"),
-      "", "", "", "", 0, "", "query", "")
-      
+      "", "", "", "", 0, "/", "query", "")
+
     _Test(h, URL.build("#fragment"),
-      "", "", "", "", 0, "", "", "fragment")
-      
+      "", "", "", "", 0, "/", "", "fragment")
+
     _Test(h, URL.build("https://host.name/path#frag?ment"),
       "https", "", "", "host.name", 443, "/path", "", "frag?ment")
-      
+
     _Test(h, URL.build("https://user@host.name?quer/y#fragment"),
-      "https", "user", "", "host.name", 443, "", "quer/y", "fragment")
-    
+      "https", "user", "", "host.name", 443, "/", "quer/y", "fragment")
+
 class iso _BuildBad is UnitTest
   fun name(): String => "net/http/URL.build_bad"
 
   fun apply(h: TestHelper) =>
     h.assert_error(lambda()? =>
       URL.build("htt_ps://user@host.name/path#fragment") end)
-    
+
     h.assert_error(lambda()? =>
       URL.build("https://[11::24_]/path") end)
-    
+
     h.assert_error(lambda()? =>
       URL.build("https://[11::24/path") end)
-    
+
     h.assert_error(lambda()? =>
       URL.build("https://host%2Gname/path") end)
-    
+
     h.assert_error(lambda()? =>
       URL.build("https://hostname/path%") end)
 
@@ -304,16 +304,16 @@ class iso _Valid is UnitTest
       URL.valid("https://user:password@host.name:12345/path?query#fragment"),
       "https", "user", "password", "host.name", 12345, "/path", "query",
       "fragment")
-    
+
     h.assert_error(lambda()? =>
       URL.valid("http://rosettacode.org/wiki/Category[Pony]") end)
-    
+
     h.assert_error(lambda()? =>
       URL.valid("https://en.wikipedia|org/wiki/Polymorphism_" +
         "(computer_science)#Parametric_polymorphism") end)
 
     _Test(h, URL.valid("http://user@host"),
-      "http", "user", "", "host", 80, "", "", "")
+      "http", "user", "", "host", 80, "/", "", "")
 
 class iso _ToStringFun is UnitTest
   fun name(): String => "net/http/URL.to_string"
@@ -323,11 +323,11 @@ class iso _ToStringFun is UnitTest
       "https://user:password@host.name:12345/path?query#fragment",
       URL.build("https://user:password@host.name:12345/path?query#fragment")
         .string())
-    
+
     h.assert_eq[String]("http://rosettacode.org/wiki/Category%5DPony",
       URL.build("http://rosettacode.org/wiki/Category]Pony").string())
 
-    h.assert_eq[String]("http://user@host",
+    h.assert_eq[String]("http://user@host/",
       URL.build("http://user@host").string())
 
     // Default ports should be omitted.

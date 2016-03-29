@@ -14,7 +14,6 @@ typedef struct token_t
   size_t line;
   size_t pos;
   char* printed;
-  bool debug_info;
 
   union
   {
@@ -35,7 +34,6 @@ token_t* token_new(token_id id)
   token_t* t = POOL_ALLOC(token_t);
   memset(t, 0, sizeof(token_t));
   t->id = id;
-  t->debug_info = true;
   return t;
 }
 
@@ -206,13 +204,6 @@ size_t token_line_position(token_t* token)
 }
 
 
-bool token_debug(token_t* token)
-{
-  assert(token != NULL);
-  return token->debug_info;
-}
-
-
 // Write accessors
 
 void token_set_id(token_t* token, token_id id)
@@ -260,10 +251,4 @@ void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 
   token->line = line;
   token->pos = pos;
-}
-
-void token_set_debug(token_t* token, bool state)
-{
-  assert(token != NULL);
-  token->debug_info = state;
 }

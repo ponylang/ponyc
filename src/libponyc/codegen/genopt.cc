@@ -4,7 +4,7 @@
 #  pragma warning(disable:4244)
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
-#  pragma warning(disable:4624) //TODO: CHECK
+#  pragma warning(disable:4624)
 #endif
 
 #include "genopt.h"
@@ -45,12 +45,10 @@ using namespace llvm::legacy;
 
 static __pony_thread_local compile_t* the_compiler;
 
-static void print_transform(compile_t* c, Instruction* inst, const char* s)
+static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
   if((c == NULL) || !c->opt->print_stats)
     return;
-
-  Instruction* i = inst;
 
   /* Starting with LLVM 3.7.0-final getDebugLog may return a
    * DebugLoc without a valid underlying MDNode* for instructions
@@ -63,12 +61,10 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
   while(i->getDebugLoc().getLine() == 0)
 #endif
   {
-    BasicBlock::iterator iter = i;
+    i = i->getNextNode();
 
-    if(++iter == i->getParent()->end())
+    if(i == nullptr)
       return;
-
-    i = iter;
   }
 
   DebugLoc loc = i->getDebugLoc();
@@ -77,7 +73,6 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
   DILocation* location = loc.get();
   DIScope* scope = location->getScope();
   DILocation* at = location->getInlinedAt();
-
 #else
   DIScope scope = DIScope(loc.getScope());
   MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
@@ -91,7 +86,8 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
     errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
-      scope_at->getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
+      scope_at->getFilename().str().c_str(), at->getLine(),
+      at->getColumn(), s);
 #else
     DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
 
@@ -145,7 +141,7 @@ public:
     {
       for(auto iter = block->begin(), end = block->end(); iter != end; ++iter)
       {
-        Instruction* inst = iter;
+        Instruction* inst = &(*iter);
 
         if(runOnInstruction(builder, inst, dt))
           changed = true;
@@ -214,7 +210,8 @@ public:
       (*iter)->setTailCall(false);
 
     // TODO: for variable size alloca, don't insert at the beginning.
-    Instruction* begin = call.getCaller()->getEntryBlock().begin();
+    Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
+
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, "",
       begin);
 
@@ -381,19 +378,18 @@ public:
       }
     }
 
-    typedef std::pair<BasicBlock*, BasicBlock::iterator> Work;
+    typedef std::pair<BasicBlock*, Instruction*> Work;
     SmallVector<Work, 16> work;
     SmallSet<BasicBlock*, 16> visited;
 
-    BasicBlock::iterator start = alloc;
-    ++start;
+    Instruction* start = alloc->getNextNode();
     work.push_back(Work(alloc_block, start));
 
     while(!work.empty())
     {
       Work w = work.pop_back_val();
       BasicBlock* bb = w.first;
-      BasicBlock::iterator iter = w.second;
+      Instruction* inst = w.second;
 
       if(user_blocks.count(bb))
       {
@@ -405,20 +401,22 @@ public:
           return true;
         }
 
-        for(auto end = bb->end(); iter != end; ++iter)
+        while(inst != nullptr)
         {
-          if((&(*iter) == def) || (&(*iter) == alloc))
+          if((inst == def) || (inst == alloc))
             break;
 
-          if(users.count(iter))
+          if(users.count(inst))
           {
             print_transform(c, alloc, "captured allocation");
-            print_transform(c, &(*iter), "captured here (reused)");
+            print_transform(c, inst, "captured here (reused)");
             return true;
           }
+
+          inst = inst->getNextNode();
         }
       }
-      else if((bb == def_block) || ((bb == alloc_block) && (iter != start)))
+      else if((bb == def_block) || ((bb == alloc_block) && (inst != start)))
       {
         continue;
       }
@@ -429,29 +427,29 @@ public:
       for(unsigned i = 0; i < count; i++)
       {
         BasicBlock* successor = term->getSuccessor(i);
-        iter = successor->begin();
+        inst = &successor->front();
         bool found = false;
 
-        while(isa<PHINode>(iter))
+        while(isa<PHINode>(inst))
         {
-          if(def == cast<PHINode>(iter)->getIncomingValueForBlock(bb))
+          if(def == cast<PHINode>(inst)->getIncomingValueForBlock(bb))
           {
             print_transform(c, alloc, "captured allocation");
-            print_transform(c, &(*iter), "captured here (phi use)");
+            print_transform(c, inst, "captured here (phi use)");
             return true;
           }
 
-          if(def == &(*iter))
+          if(def == inst)
             found = true;
 
-          ++iter;
+          inst = inst->getNextNode();
         }
 
         if(!found &&
           visited.insert(successor).second &&
           dt.dominates(def_block, successor))
         {
-          work.push_back(Work(successor, iter));
+          work.push_back(Work(successor, inst));
         }
       }
     }
@@ -518,7 +516,8 @@ static void optimise(compile_t* c)
 
   if(c->opt->release)
   {
-    printf("Optimising\n");
+    PONY_LOG(c->opt, VERBOSITY_INFO, ("Optimising\n"));
+
     pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
   } else {
@@ -581,13 +580,14 @@ static void optimise(compile_t* c)
 
 bool genopt(compile_t* c)
 {
-  // Finalise the DWARF info.
-  dwarf_finalise(&c->dwarf);
+  // Finalise the debug info.
+  LLVMDIBuilderFinalize(c->di);
   optimise(c);
 
   if(c->opt->verify)
   {
-    printf("Verifying\n");
+    PONY_LOG(c->opt,VERBOSITY_INFO, ("Verifying\n"));
+    
     char* msg = NULL;
 
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
@@ -684,4 +684,3 @@ bool target_is_native128(char* t)
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
 }
-

@@ -21,8 +21,6 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options);
 
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options);
 
-ast_result_t pass_nodebug(ast_t** astp, pass_opt_t* options);
-
 PONY_EXTERN_C_END
 
 #endif

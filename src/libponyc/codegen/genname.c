@@ -134,8 +134,10 @@ const char* genname_type(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
+      return build_name(NULL, "$union", ast, NULL, false, false);
+
     case TK_ISECTTYPE:
-      return stringtab("$object");
+      return build_name(NULL, "$isect", ast, NULL, false, false);
 
     case TK_TUPLETYPE:
       return build_name(NULL, "$tuple", ast, NULL, false, false);

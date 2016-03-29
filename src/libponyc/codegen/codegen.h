@@ -1,11 +1,11 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
+#include "gendebug.h"
 #include "../reach/reach.h"
 #include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ast/printbuf.h"
-#include "../debug/dwarf.h"
 
 #include <platform.h>
 #include <llvm-c/Core.h>
@@ -25,13 +25,6 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 
-// In case we need to change the internal calling convention.
-#ifdef PLATFORM_IS_ARM
-#define GEN_CALLCONV LLVMCCallConv
-#else
-#define GEN_CALLCONV LLVMFastCallConv
-#endif
-
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
 #define GEN_NOTNEEDED (LLVMConstInt(c->i1, 1, false))
@@ -43,14 +36,14 @@ typedef struct compile_frame_t
 {
   LLVMValueRef fun;
   LLVMValueRef ctx;
-  LLVMBasicBlockRef restore_builder;
 
   LLVMBasicBlockRef break_target;
   LLVMBasicBlockRef continue_target;
   LLVMBasicBlockRef invoke_target;
 
   compile_locals_t locals;
-  bool has_source;
+  LLVMMetadataRef di_file;
+  LLVMMetadataRef di_scope;
   bool is_function;
 
   struct compile_frame_t* prev;
@@ -85,6 +78,8 @@ typedef struct compile_t
   const char* str_Maybe;
   const char* str_Array;
   const char* str_Platform;
+  const char* str_Main;
+  const char* str_Env;
 
   const char* str_add;
   const char* str_sub;
@@ -105,13 +100,20 @@ typedef struct compile_t
   const char* str_ge;
   const char* str_gt;
 
-  dwarf_t dwarf;
+  const char* str_this;
+  const char* str_create;
+  const char* str__create;
+  const char* str__init;
+  const char* str__final;
 
+  LLVMCallConv callconv;
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
   LLVMTargetDataRef target_data;
   LLVMModuleRef module;
   LLVMBuilderRef builder;
+  LLVMDIBuilderRef di;
+  LLVMMetadataRef di_unit;
 
   LLVMTypeRef void_type;
   LLVMTypeRef i1;
@@ -152,13 +154,18 @@ bool codegen(ast_t* program, pass_opt_t* opt);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 
-void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source);
+void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
+  LLVMMetadataRef scope);
 
 void codegen_finishfun(compile_t* c);
 
-void codegen_pushscope(compile_t* c);
+void codegen_pushscope(compile_t* c, ast_t* ast);
 
 void codegen_popscope(compile_t* c);
+
+LLVMMetadataRef codegen_difile(compile_t* c);
+
+LLVMMetadataRef codegen_discope(compile_t* c);
 
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   LLVMBasicBlockRef break_target);
@@ -168,6 +175,8 @@ void codegen_poploop(compile_t* c);
 void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target);
 
 void codegen_poptry(compile_t* c);
+
+void codegen_debugloc(compile_t* c, ast_t* ast);
 
 LLVMValueRef codegen_getlocal(compile_t* c, const char* name);
 
@@ -183,8 +192,6 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count);
-
-bool codegen_hassource(compile_t* c);
 
 const char* suffix_filename(const char* dir, const char* prefix,
   const char* file, const char* extension);

@@ -136,10 +136,16 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
+  ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.8
+  else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.7
   else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.6
+  else ifneq (,$(shell which llvm-config38 2> /dev/null))
+    LLVM_CONFIG = llvm-config38
+  else ifneq (,$(shell which llvm-config37 2> /dev/null))
+    LLVM_CONFIG = llvm-config37
   else ifneq (,$(shell which llvm-config36 2> /dev/null))
     LLVM_CONFIG = llvm-config36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
@@ -256,7 +262,8 @@ libponycc.include := -I src/common/ $(llvm.include)/
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
+libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include)/ \
+  -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
@@ -270,6 +277,10 @@ endif
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
+
+libponyc.tests.buildoptions = -D__STDC_CONSTANT_MACROS
+libponyc.tests.buildoptions += -D__STDC_FORMAT_MACROS
+libponyc.tests.buildoptions += -D__STDC_LIMIT_MACROS
 
 ponyc.buildoptions = $(libponyc.buildoptions)
 

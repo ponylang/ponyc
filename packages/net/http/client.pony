@@ -6,14 +6,19 @@ actor Client
   """
   Manages a collection of client connections.
   """
+  let _auth: TCPConnectionAuth
   let _sslctx: SSLContext
   let _pipeline: Bool
   let _clients: Map[_HostService, _ClientConnection] = _clients.create()
 
-  new create(sslctx: (SSLContext | None) = None, pipeline: Bool = true) =>
+  new create(auth: TCPConnectionAuth, sslctx: (SSLContext | None) = None,
+    pipeline: Bool = true)
+  =>
     """
     Create a client for the given host and service.
     """
+    _auth = auth
+
     _sslctx = try
       sslctx as SSLContext
     else
@@ -50,8 +55,10 @@ actor Client
       _clients(hs)
     else
       let client = match url.scheme
-      | "http" => _ClientConnection(hs.host, hs.service, None, _pipeline)
-      | "https" => _ClientConnection(hs.host, hs.service, _sslctx, _pipeline)
+      | "http" =>
+        _ClientConnection(_auth, hs.host, hs.service, None, _pipeline)
+      | "https" =>
+        _ClientConnection(_auth, hs.host, hs.service, _sslctx, _pipeline)
       else
         error
       end

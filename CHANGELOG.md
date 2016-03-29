@@ -18,6 +18,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Interface subtyping takes receiver capabilities into account.
 - Pony-as-library support, particularly pony_register_thread().
 - Bug in `HashMap._search`.
+- Crashing gc bug caused by "force freeing" objects with finalizers.
+- Bug in `String.compare` and `String.compare_sub`.
+- Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
 
 ### Added
 
@@ -39,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Timeouts for PonyTest long tests.
 - contains() method on HashMap
 - Support for empty sections in ini parsing.
+- --verbose,-V option for compiler informational messages.
 
 ### Changed
 
@@ -154,7 +158,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - ANSI terminal handling on all platforms, including Windows.
 - The lexer now allows underscore characters in numeric literals. This allows long numeric literals to be broken up for human readability.
 - "Did you mean?" support when the compiler doesn't recognise a name but something similar is in scope.
-- Garbage collection and cycle detection parameters can now be set from the command line. 
+- Garbage collection and cycle detection parameters can now be set from the command line.
 - Added a FileStream wrapper to the file package.
 
 ### Fixed

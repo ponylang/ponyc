@@ -83,19 +83,20 @@ class _TestPing is UDPNotify
     _h = h
 
     _ip = try
+      let auth = h.env.root as AmbientAuth
       (_, let service) = ip.name()
 
       let list = if ip.ip4() then
         ifdef freebsd then
-          DNS.ip4("", service)
+          DNS.ip4(auth, "", service)
         else
-          DNS.broadcast_ip4(service)
+          DNS.broadcast_ip4(auth, service)
         end
       else
         ifdef freebsd then
-          DNS.ip6("", service)
+          DNS.ip6(auth, "", service)
         else
-          DNS.broadcast_ip6(service)
+          DNS.broadcast_ip6(auth, service)
         end
       end
 
@@ -141,17 +142,24 @@ class _TestPong is UDPNotify
 
 actor _TestBroadcastMgr
   let _h: TestHelper
-  let _pong: UDPSocket
+  var _pong: (UDPSocket | None) = None
   var _ping: (UDPSocket | None) = None
   var _fail: Bool = false
 
   new create(h: TestHelper) =>
     _h = h
-    _pong = UDPSocket(recover _TestPong(this, h) end)
+
+    try
+      _pong = UDPSocket(h.env.root as AmbientAuth,
+        recover _TestPong(this, h) end)
+    else
+      _h.fail("could not create Pong")
+      _h.complete(false)
+    end
 
   be succeed() =>
     if not _fail then
-      _pong.dispose()
+      try (_pong as UDPSocket).dispose() end
       try (_ping as UDPSocket).dispose() end
       _h.complete(true)
     end
@@ -159,7 +167,7 @@ actor _TestBroadcastMgr
   be fail(msg: String) =>
     if not _fail then
       _fail = true
-      _pong.dispose()
+      try (_pong as UDPSocket).dispose() end
       try (_ping as UDPSocket).dispose() end
       _h.fail(msg)
       _h.complete(false)
@@ -169,10 +177,17 @@ actor _TestBroadcastMgr
     if not _fail then
       let h = _h
 
-      if ip.ip4() then
-        _ping = UDPSocket.ip4(recover _TestPing(this, h, ip) end)
+      try
+        if ip.ip4() then
+          _ping = UDPSocket.ip4(h.env.root as AmbientAuth,
+            recover _TestPing(this, h, ip) end)
+        else
+          _ping = UDPSocket.ip6(h.env.root as AmbientAuth,
+            recover _TestPing(this, h, ip) end)
+        end
       else
-        _ping = UDPSocket.ip6(recover _TestPing(this, h, ip) end)
+        _h.fail("could not create Ping")
+        _h.complete(false)
       end
     end
 
@@ -188,7 +203,7 @@ class iso _TestBroadcast is UnitTest
     _mgr = _TestBroadcastMgr(h)
     h.long_test(2_000_000_000) // 2 second timeout
 
-  fun timedout(t: TestHelper) =>
+  fun timed_out(t: TestHelper) =>
     try
       (_mgr as _TestBroadcastMgr).fail("timeout")
     end

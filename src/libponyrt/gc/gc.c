@@ -265,7 +265,8 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   obj->mark = gc->mark;
 
   // Add to heap used size.
-  ponyint_heap_used(ponyint_actor_heap(ctx->current), ponyint_heap_size(chunk));
+  ponyint_heap_used(ponyint_actor_heap(ctx->current),
+    ponyint_heap_size(chunk));
 
   if(immutable && !obj->immutable && (obj->rc > 0))
   {
@@ -364,7 +365,8 @@ void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     send_local_actor(gc);
   } else {
-    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor,
+      gc->mark);
     send_remote_actor(ctx, gc, aref);
   }
 }
@@ -377,7 +379,8 @@ void ponyint_gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     recv_local_actor(gc);
   } else {
-    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+    actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor,
+      gc->mark);
     recv_remote_actor(ctx, gc, aref);
   }
 }
@@ -388,7 +391,7 @@ void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
     return;
 
   gc_t* gc = ponyint_actor_gc(ctx->current);
-  actorref_t* aref = ponyint_actormap_getactor(&gc->foreign, actor);
+  actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   mark_remote_actor(ctx, gc, aref);
 }
 
@@ -483,7 +486,7 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
 
-    if(obj_local->rc == 0)
+    if((obj_local->rc == 0) && (obj_local->final == NULL))
     {
       // The local rc for this object has dropped to zero. We keep track of
       // whether or not the object was reachable. If we go to 0 rc and it

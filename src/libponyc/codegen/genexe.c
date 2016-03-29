@@ -1,8 +1,6 @@
 #include "genexe.h"
 #include "genopt.h"
 #include "genobj.h"
-#include "gentype.h"
-#include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
 #include "genprim.h"
@@ -26,12 +24,7 @@ static bool need_primitive_call(compile_t* c, const char* method)
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    if(ast_id(t->type) == TK_TUPLETYPE)
-      continue;
-
-    ast_t* def = (ast_t*)ast_data(t->type);
-
-    if(ast_id(def) != TK_PRIMITIVE)
+    if(t->underlying != TK_TUPLETYPE)
       continue;
 
     reachable_method_name_t* n = reach_method_name(t, method);
@@ -57,44 +50,29 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    if(ast_id(t->type) == TK_TUPLETYPE)
+    if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    ast_t* def = (ast_t*)ast_data(t->type);
+    reachable_method_t* m = reach_method(t, method, NULL);
 
-    if(ast_id(def) != TK_PRIMITIVE)
+    if(m == NULL)
       continue;
-
-    reachable_method_name_t* n = reach_method_name(t, method);
-
-    if(n == NULL)
-      continue;
-
-    gentype_t g;
-
-    if(!gentype(c, t->type, &g))
-    {
-      assert(0);
-      return;
-    }
-
-    LLVMValueRef fun = genfun_proto(c, &g, method, NULL);
-    assert(fun != NULL);
 
     LLVMValueRef args[2];
-    args[0] = g.instance;
+    args[0] = t->instance;
     args[1] = arg;
 
-    codegen_call(c, fun, args, count);
+    codegen_call(c, m->func, args, count);
   }
 }
 
-static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
+static LLVMValueRef create_main(compile_t* c, reachable_type_t* t,
+  LLVMValueRef ctx)
 {
   // Create the main actor and become it.
   LLVMValueRef args[2];
   args[0] = ctx;
-  args[1] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+  args[1] = LLVMConstBitCast(t->desc, c->descriptor_ptr);
   LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
 
   args[0] = ctx;
@@ -104,7 +82,8 @@ static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
   return actor;
 }
 
-static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
+static void gen_main(compile_t* c, reachable_type_t* t_main,
+  reachable_type_t* t_env)
 {
   LLVMTypeRef params[3];
   params[0] = c->i32;
@@ -114,7 +93,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
-  codegen_startfun(c, func, false);
+  codegen_startfun(c, func, NULL, NULL);
 
   LLVMValueRef args[4];
   args[0] = LLVMGetParam(func, 0);
@@ -132,23 +111,23 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   // Create the main actor and become it.
   LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
   codegen_setctx(c, ctx);
-  LLVMValueRef main_actor = create_main(c, main_g, ctx);
+  LLVMValueRef main_actor = create_main(c, t_main, ctx);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
   const char* env_create = genname_fun(env_name, "_create", NULL);
 
   LLVMValueRef env_args[4];
-  env_args[0] = gencall_alloc(c, env_g);
+  env_args[0] = gencall_alloc(c, t_env);
   env_args[1] = args[0];
-  env_args[2] = args[1];
-  env_args[3] = args[2];
+  env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
+  env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
 
   LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
-  LLVMSetInstructionCallConv(env, GEN_CALLCONV);
+  LLVMSetInstructionCallConv(env, c->callconv);
 
   // Run primitive initialisers using the main actor's heap.
-  primitive_call(c, stringtab("_init"), env);
+  primitive_call(c, c->str__init, env);
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -161,8 +140,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
-
+  uint32_t index = reach_vtable_index(t_main, "create");
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
@@ -199,10 +177,10 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  if(need_primitive_call(c, stringtab("_final")))
+  if(need_primitive_call(c, c->str__final))
   {
-    LLVMValueRef final_actor = create_main(c, main_g, ctx);
-    primitive_call(c, stringtab("_final"), NULL);
+    LLVMValueRef final_actor = create_main(c, t_main, ctx);
+    primitive_call(c, c->str__final, NULL);
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
   }
@@ -229,7 +207,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   }
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "-L", "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
@@ -245,6 +223,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-macosx_version_min 10.8 -o %s %s %s -lponyrt -lSystem",
     (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
+
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
 
   if(system(ld_cmd) != 0)
   {
@@ -273,7 +253,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "-L", "-Wl,--start-group ",
     "-Wl,--end-group ", "-l", "");
@@ -302,6 +282,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     file_exe, file_o, lib_args
     );
 
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
@@ -321,7 +303,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
     ".exe");
-  printf("Linking %s\n", file_exe);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
 
   program_lib_build_args(program, "/LIBPATH:", "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
@@ -330,17 +312,29 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len,
-    "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
-    "/OUT:%s "
-    "%s "
-    "/LIBPATH:\"%s\" "
-    "/LIBPATH:\"%s\" "
-    "%s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
-    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
+  while (true)
+  {
+    int num_written = snprintf(ld_cmd, ld_len,
+      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
+      "/OUT:%s "
+      "%s "
+      "/LIBPATH:\"%s\" "
+      "/LIBPATH:\"%s\" "
+      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib ponyrt.lib \"",
+      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
 
-  if(system(ld_cmd) == -1)
+    if (num_written < ld_len)
+      break;
+
+    ponyint_pool_free_size(ld_len, ld_cmd);
+    ld_len += 256;
+    ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  }
+
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+
+  if (system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
@@ -356,8 +350,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 bool genexe(compile_t* c, ast_t* program)
 {
   // The first package is the main package. It has to have a Main actor.
-  const char* main_actor = stringtab("Main");
-  const char* env_class = stringtab("Env");
+  const char* main_actor = c->str_Main;
+  const char* env_class = c->str_Env;
 
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
@@ -372,29 +366,26 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
-  const char* create = stringtab("create");
-
-  if(lookup(NULL, main_ast, main_ast, create) == NULL)
+  if(lookup(NULL, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
-  genprim_reachable_init(c, program);
-  reach(c->reachable, &c->next_type_id, main_ast, create, NULL);
-  reach(c->reachable, &c->next_type_id, env_ast, stringtab("_create"), NULL);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Reachability\n"));
+  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL);
+  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL);
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Selector painting\n"));
   paint(c->reachable);
 
-  gentype_t main_g;
-  gentype_t env_g;
-
-  bool ok = gentype(c, main_ast, &main_g) && gentype(c, env_ast, &env_g);
-
-  if(ok)
-    gen_main(c, &main_g, &env_g);
-
-  ast_free_unattached(main_ast);
-  ast_free_unattached(env_ast);
-
-  if(!ok)
+  if(!gentypes(c))
     return false;
+
+  reachable_type_t* t_main = reach_type(c->reachable, main_ast);
+  reachable_type_t* t_env = reach_type(c->reachable, env_ast);
+
+  if((t_main == NULL) || (t_env == NULL))
+    return false;
+
+  gen_main(c, t_main, t_env);
 
   if(!genopt(c))
     return false;

@@ -120,11 +120,11 @@
 
     configuration "vs*"
       local version, exitcode = os.outputof("git describe --tags --always")
-      
+
       if exitcode ~= 0 then
         version = os.outputof("type VERSION")
       end
-      
+
       debugdir "."
       defines {
         -- disables warnings for vsnprintf
@@ -246,6 +246,7 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     targetname "testc"
     testsuite()
     includedirs {
+      llvm_config("--includedir"),
       "lib/gtest",
       "src/common",
       "src/libponyc"
@@ -254,10 +255,10 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "test/libponyc/**.h",
       "test/libponyc/**.cc"
     }
-    link_libponyc()
     configuration "vs*"
       defines { "PONY_USE_BIGINT" }
     configuration "*"
+      link_libponyc()
 
   project "testrt"
     targetname "testrt"

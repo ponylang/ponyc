@@ -5,336 +5,269 @@
 #include "gentrace.h"
 #include "genfun.h"
 #include "genopt.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
-#include "../debug/dwarf.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-static void make_box_type(compile_t* c, gentype_t* g)
+static bool make_opaque_struct(compile_t* c, reachable_type_t* t)
 {
-  if(g->primitive == NULL)
-    return;
-
-  if(g->structure == NULL)
+  switch(ast_id(t->ast))
   {
-    const char* box_name = genname_box(g->type_name);
-    g->structure = LLVMGetTypeByName(c->module, box_name);
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      t->underlying = ast_id(def);
 
-    if(g->structure == NULL)
-      g->structure = LLVMStructCreateNamed(c->context, box_name);
+      switch(t->underlying)
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          t->use_type = c->object_ptr;
+          return true;
+
+        default: {}
+      }
+
+      // Find the primitive type, if there is one.
+      AST_GET_CHILDREN(t->ast, pkg, id);
+      const char* package = ast_name(pkg);
+      const char* name = ast_name(id);
+
+      bool ilp32 = target_is_ilp32(c->opt->triple);
+      bool llp64 = target_is_llp64(c->opt->triple);
+      bool lp64 = target_is_lp64(c->opt->triple);
+
+      if(package == c->str_builtin)
+      {
+        if(name == c->str_Bool)
+          t->primitive = c->i1;
+        else if(name == c->str_I8)
+          t->primitive = c->i8;
+        else if(name == c->str_U8)
+          t->primitive = c->i8;
+        else if(name == c->str_I16)
+          t->primitive = c->i16;
+        else if(name == c->str_U16)
+          t->primitive = c->i16;
+        else if(name == c->str_I32)
+          t->primitive = c->i32;
+        else if(name == c->str_U32)
+          t->primitive = c->i32;
+        else if(name == c->str_I64)
+          t->primitive = c->i64;
+        else if(name == c->str_U64)
+          t->primitive = c->i64;
+        else if(name == c->str_I128)
+          t->primitive = c->i128;
+        else if(name == c->str_U128)
+          t->primitive = c->i128;
+        else if(ilp32 && name == c->str_ILong)
+          t->primitive = c->i32;
+        else if(ilp32 && name == c->str_ULong)
+          t->primitive = c->i32;
+        else if(ilp32 && name == c->str_ISize)
+          t->primitive = c->i32;
+        else if(ilp32 && name == c->str_USize)
+          t->primitive = c->i32;
+        else if(lp64 && name == c->str_ILong)
+          t->primitive = c->i64;
+        else if(lp64 && name == c->str_ULong)
+          t->primitive = c->i64;
+        else if(lp64 && name == c->str_ISize)
+          t->primitive = c->i64;
+        else if(lp64 && name == c->str_USize)
+          t->primitive = c->i64;
+        else if(llp64 && name == c->str_ILong)
+          t->primitive = c->i32;
+        else if(llp64 && name == c->str_ULong)
+          t->primitive = c->i32;
+        else if(llp64 && name == c->str_ISize)
+          t->primitive = c->i64;
+        else if(llp64 && name == c->str_USize)
+          t->primitive = c->i64;
+        else if(name == c->str_F32)
+          t->primitive = c->f32;
+        else if(name == c->str_F64)
+          t->primitive = c->f64;
+        else if(name == c->str_Pointer)
+        {
+          t->use_type = c->void_ptr;
+          return true;
+        }
+        else if(name == c->str_Maybe)
+        {
+          t->use_type = c->void_ptr;
+          return true;
+        }
+      }
+
+      t->structure = LLVMStructCreateNamed(c->context, t->name);
+      t->structure_ptr = LLVMPointerType(t->structure, 0);
+
+      if(t->primitive != NULL)
+        t->use_type = t->primitive;
+      else
+        t->use_type = t->structure_ptr;
+
+      return true;
+    }
+
+    case TK_TUPLETYPE:
+      t->underlying = TK_TUPLETYPE;
+      t->primitive = LLVMStructCreateNamed(c->context, t->name);
+      t->use_type = t->primitive;
+      t->field_count = (uint32_t)ast_childcount(t->ast);
+      return true;
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      // Just a raw object pointer.
+      t->underlying = ast_id(t->ast);
+      t->use_type = c->object_ptr;
+      return true;
+
+    default: {}
   }
 
-  if(LLVMIsOpaqueStruct(g->structure))
+  assert(0);
+  return false;
+}
+
+static void make_debug_basic(compile_t* c, reachable_type_t* t)
+{
+  uint64_t size = LLVMABISizeOfType(c->target_data, t->primitive);
+  uint64_t align = LLVMABIAlignmentOfType(c->target_data, t->primitive);
+  unsigned encoding;
+
+  if(is_bool(t->ast))
   {
-    LLVMTypeRef elements[2];
-    elements[0] = LLVMPointerType(g->desc_type, 0);
-    elements[1] = g->primitive;
-    LLVMStructSetBody(g->structure, elements, 2, false);
+    encoding = DW_ATE_boolean;
+  } else if(is_float(t->ast)) {
+    encoding = DW_ATE_float;
+  } else if(is_signed(t->ast)) {
+    encoding = DW_ATE_signed;
+  } else {
+    encoding = DW_ATE_unsigned;
   }
 
-  g->structure_ptr = LLVMPointerType(g->structure, 0);
+  t->di_type = LLVMDIBuilderCreateBasicType(c->di, t->name,
+    8 * size, 8 * align, encoding);
 }
 
-static void make_global_descriptor(compile_t* c, gentype_t* g)
+static void make_debug_prototype(compile_t* c, reachable_type_t* t)
 {
-  // Fetch or create a descriptor type.
-  if(g->underlying == TK_STRUCT)
-    return;
+  t->di_type = LLVMDIBuilderCreateReplaceableStruct(c->di,
+    t->name, c->di_unit, t->di_file, (unsigned)ast_line(t->ast));
 
-  if(g->underlying == TK_TUPLETYPE)
-    g->field_count = (int)ast_childcount(g->ast);
-
-  // Check for an existing descriptor.
-  g->desc_type = gendesc_type(c, g);
-  g->desc = LLVMGetNamedGlobal(c->module, g->desc_name);
-
-  if(g->desc != NULL)
-    return;
-
-  g->desc = LLVMAddGlobal(c->module, g->desc_type, g->desc_name);
-  LLVMSetGlobalConstant(g->desc, true);
-  LLVMSetLinkage(g->desc, LLVMInternalLinkage);
+  if(t->underlying != TK_TUPLETYPE)
+  {
+    t->di_type_embed = t->di_type;
+    t->di_type = LLVMDIBuilderCreatePointerType(c->di, t->di_type_embed, 0, 0);
+  }
 }
 
-static void make_global_instance(compile_t* c, gentype_t* g)
+static void make_debug_info(compile_t* c, reachable_type_t* t)
+{
+  source_t* source = ast_source(t->ast);
+  t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
+
+  switch(t->underlying)
+  {
+    case TK_TUPLETYPE:
+    case TK_STRUCT:
+      make_debug_prototype(c, t);
+      return;
+
+    case TK_PRIMITIVE:
+    {
+      if(t->primitive != NULL)
+        make_debug_basic(c, t);
+      else
+        make_debug_prototype(c, t);
+      return;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      make_debug_prototype(c, t);
+      return;
+
+    default: {}
+  }
+
+  assert(0);
+}
+
+static void make_box_type(compile_t* c, reachable_type_t* t)
+{
+  if(t->primitive == NULL)
+    return;
+
+  const char* box_name = genname_box(t->name);
+  t->structure = LLVMStructCreateNamed(c->context, box_name);
+
+  LLVMTypeRef elements[2];
+  elements[0] = LLVMPointerType(t->desc_type, 0);
+  elements[1] = t->primitive;
+  LLVMStructSetBody(t->structure, elements, 2, false);
+
+  t->structure_ptr = LLVMPointerType(t->structure, 0);
+}
+
+static void make_global_instance(compile_t* c, reachable_type_t* t)
 {
   // Not a primitive type.
-  if(g->underlying != TK_PRIMITIVE)
+  if(t->underlying != TK_PRIMITIVE)
     return;
 
-  // No instance for base types.
-  if(g->primitive != NULL)
-    return;
-
-  // Check for an existing instance.
-  const char* inst_name = genname_instance(g->type_name);
-  g->instance = LLVMGetNamedGlobal(c->module, inst_name);
-
-  if(g->instance != NULL)
+  // No instance for machine word types.
+  if(t->primitive != NULL)
     return;
 
   // Create a unique global instance.
+  const char* inst_name = genname_instance(t->name);
+
   LLVMValueRef args[1];
-  args[0] = g->desc;
-  LLVMValueRef value = LLVMConstNamedStruct(g->structure, args, 1);
+  args[0] = t->desc;
+  LLVMValueRef value = LLVMConstNamedStruct(t->structure, args, 1);
 
-  g->instance = LLVMAddGlobal(c->module, g->structure, inst_name);
-  LLVMSetInitializer(g->instance, value);
-  LLVMSetGlobalConstant(g->instance, true);
-  LLVMSetLinkage(g->instance, LLVMInternalLinkage);
+  t->instance = LLVMAddGlobal(c->module, t->structure, inst_name);
+  LLVMSetInitializer(t->instance, value);
+  LLVMSetGlobalConstant(t->instance, true);
+  LLVMSetLinkage(t->instance, LLVMInternalLinkage);
 }
 
-/**
- * Return true if the type already exists or if we are only being asked to
- * generate a preliminary type, false otherwise.
- */
-static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
-{
-  if(ast_id(ast) == TK_NOMINAL)
-  {
-    ast_t* def = (ast_t*)ast_data(ast);
-    g->underlying = ast_id(def);
-
-    // Find the primitive type, if there is one.
-    AST_GET_CHILDREN(ast, pkg, id);
-    const char* package = ast_name(pkg);
-    const char* name = ast_name(id);
-
-    bool ilp32 = target_is_ilp32(c->opt->triple);
-    bool llp64 = target_is_llp64(c->opt->triple);
-    bool lp64 = target_is_lp64(c->opt->triple);
-
-    if(package == c->str_builtin)
-    {
-      if(name == c->str_Bool)
-        g->primitive = c->i1;
-      else if(name == c->str_I8)
-        g->primitive = c->i8;
-      else if(name == c->str_U8)
-        g->primitive = c->i8;
-      else if(name == c->str_I16)
-        g->primitive = c->i16;
-      else if(name == c->str_U16)
-        g->primitive = c->i16;
-      else if(name == c->str_I32)
-        g->primitive = c->i32;
-      else if(name == c->str_U32)
-        g->primitive = c->i32;
-      else if(name == c->str_I64)
-        g->primitive = c->i64;
-      else if(name == c->str_U64)
-        g->primitive = c->i64;
-      else if(name == c->str_I128)
-        g->primitive = c->i128;
-      else if(name == c->str_U128)
-        g->primitive = c->i128;
-      else if(ilp32 && name == c->str_ILong)
-        g->primitive = c->i32;
-      else if(ilp32 && name == c->str_ULong)
-        g->primitive = c->i32;
-      else if(ilp32 && name == c->str_ISize)
-        g->primitive = c->i32;
-      else if(ilp32 && name == c->str_USize)
-        g->primitive = c->i32;
-      else if(lp64 && name == c->str_ILong)
-        g->primitive = c->i64;
-      else if(lp64 && name == c->str_ULong)
-        g->primitive = c->i64;
-      else if(lp64 && name == c->str_ISize)
-        g->primitive = c->i64;
-      else if(lp64 && name == c->str_USize)
-        g->primitive = c->i64;
-      else if(llp64 && name == c->str_ILong)
-        g->primitive = c->i32;
-      else if(llp64 && name == c->str_ULong)
-        g->primitive = c->i32;
-      else if(llp64 && name == c->str_ISize)
-        g->primitive = c->i64;
-      else if(llp64 && name == c->str_USize)
-        g->primitive = c->i64;
-      else if(name == c->str_F32)
-        g->primitive = c->f32;
-      else if(name == c->str_F64)
-        g->primitive = c->f64;
-      else if(name == c->str_Pointer)
-        return genprim_pointer(c, g, prelim);
-      else if(name == c->str_Maybe)
-        return genprim_maybe(c, g, prelim);
-      else if(name == c->str_Platform)
-        return true;
-    }
-  } else {
-    g->underlying = TK_TUPLETYPE;
-  }
-
-  // Find or create the structure type.
-  g->structure = LLVMGetTypeByName(c->module, g->type_name);
-
-  if(g->structure == NULL)
-    g->structure = LLVMStructCreateNamed(c->context, g->type_name);
-
-  bool opaque = LLVMIsOpaqueStruct(g->structure) != 0;
-
-  if(g->underlying == TK_TUPLETYPE)
-  {
-    // This is actually our primitive type.
-    g->primitive = g->structure;
-    g->structure = NULL;
-  } else {
-    g->structure_ptr = LLVMPointerType(g->structure, 0);
-  }
-
-  // Fill in our global descriptor.
-  make_global_descriptor(c, g);
-
-  if(g->primitive != NULL)
-  {
-    // We're primitive, so use the primitive type.
-    g->use_type = g->primitive;
-  } else {
-    // We're not primitive, so use a pointer to our structure.
-    g->use_type = g->structure_ptr;
-  }
-
-  if(!opaque)
-  {
-    // Fill in our global instance if the type is not opaque.
-    make_global_instance(c, g);
-
-    // Fill in a box type if we need one.
-    make_box_type(c, g);
-
-    return true;
-  }
-
-  return prelim;
-}
-
-static void setup_tuple_fields(gentype_t* g)
-{
-  g->field_count = (int)ast_childcount(g->ast);
-  g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
-  g->field_keys = NULL;
-
-  ast_t* child = ast_child(g->ast);
-  size_t index = 0;
-
-  while(child != NULL)
-  {
-    g->fields[index++] = child;
-    child = ast_sibling(child);
-  }
-}
-
-static void setup_type_fields(gentype_t* g)
-{
-  assert(ast_id(g->ast) == TK_NOMINAL);
-
-  g->field_count = 0;
-  g->fields = NULL;
-  g->field_keys = NULL;
-
-  ast_t* def = (ast_t*)ast_data(g->ast);
-
-  if(ast_id(def) == TK_PRIMITIVE)
-    return;
-
-  ast_t* typeargs = ast_childidx(g->ast, 2);
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        g->field_count++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(g->field_count == 0)
-    return;
-
-  g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
-  g->field_keys = (token_id*)calloc(g->field_count, sizeof(token_id));
-
-  member = ast_child(members);
-  size_t index = 0;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        AST_GET_CHILDREN(member, name, type, init);
-        g->fields[index] = reify(ast_type(member), typeparams, typeargs);
-
-        // TODO: Are we sure the AST source file is correct?
-        ast_setpos(g->fields[index], NULL, ast_line(name), ast_pos(name));
-        g->field_keys[index] = ast_id(member);
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-}
-
-static void free_fields(gentype_t* g)
-{
-  for(int i = 0; i < g->field_count; i++)
-    ast_free_unattached(g->fields[i]);
-
-  free(g->fields);
-  free(g->field_keys);
-
-  g->field_count = 0;
-  g->fields = NULL;
-  g->field_keys = NULL;
-}
-
-static void make_dispatch(compile_t* c, gentype_t* g)
+static void make_dispatch(compile_t* c, reachable_type_t* t)
 {
   // Do nothing if we're not an actor.
-  if(g->underlying != TK_ACTOR)
+  if(t->underlying != TK_ACTOR)
     return;
 
   // Create a dispatch function.
-  const char* dispatch_name = genname_dispatch(g->type_name);
-  g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
-  LLVMSetFunctionCallConv(g->dispatch_fn, LLVMCCallConv);
-  codegen_startfun(c, g->dispatch_fn, false);
+  const char* dispatch_name = genname_dispatch(t->name);
+  t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
+  LLVMSetFunctionCallConv(t->dispatch_fn, LLVMCCallConv);
+  codegen_startfun(c, t->dispatch_fn, NULL, NULL);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
 
   // Read the message ID.
-  LLVMValueRef msg = LLVMGetParam(g->dispatch_fn, 2);
+  LLVMValueRef msg = LLVMGetParam(t->dispatch_fn, 2);
   LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, msg, 1, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we
   // will add cases to this switch statement based on message ID.
-  g->dispatch_switch = LLVMBuildSwitch(c->builder, id, unreachable, 0);
+  t->dispatch_switch = LLVMBuildSwitch(c->builder, id, unreachable, 0);
 
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
@@ -342,24 +275,286 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
-  LLVMValueRef object, int extra)
+static bool make_struct(compile_t* c, reachable_type_t* t)
 {
-  bool need_trace = false;
+  LLVMTypeRef type;
+  int extra = 0;
 
-  for(int i = 0; i < g->field_count; i++)
+  switch(t->underlying)
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      return true;
+
+    case TK_TUPLETYPE:
+      type = t->primitive;
+      break;
+
+    case TK_STRUCT:
+      // Pointer and Maybe will have no structure.
+      if(t->structure == NULL)
+        return true;
+
+      type = t->structure;
+      break;
+
+    case TK_PRIMITIVE:
+      // Machine words will have a primitive.
+      if(t->primitive != NULL)
+        return true;
+
+      extra = 1;
+      type = t->structure;
+      break;
+
+    case TK_CLASS:
+      extra = 1;
+      type = t->structure;
+      break;
+
+    case TK_ACTOR:
+      extra = 2;
+      type = t->structure;
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  size_t buf_size = (t->field_count + extra) * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+
+  // Create the type descriptor as element 0.
+  if(extra > 0)
+    elements[0] = LLVMPointerType(t->desc_type, 0);
+
+  // Create the actor pad as element 1.
+  if(extra > 1)
+    elements[1] = c->actor_pad;
+
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    if(t->fields[i].embed)
+      elements[i + extra] = t->fields[i].type->structure;
+    else
+      elements[i + extra] = t->fields[i].type->use_type;
+
+    if(elements[i + extra] == NULL)
+    {
+      assert(0);
+      return false;
+    }
+  }
+
+  LLVMStructSetBody(type, elements, t->field_count + extra, false);
+  ponyint_pool_free_size(buf_size, elements);
+  return true;
+}
+
+static LLVMMetadataRef make_debug_field(compile_t* c, reachable_type_t* t,
+  uint32_t i)
+{
+  const char* name;
+  char buf[32];
+  unsigned flags = 0;
+  uint64_t offset = 0;
+  ast_t* ast;
+
+  if(t->underlying != TK_TUPLETYPE)
+  {
+    ast_t* def = (ast_t*)ast_data(t->ast);
+    ast_t* members = ast_childidx(def, 4);
+    ast = ast_childidx(members, i);
+    name = ast_name(ast_child(ast));
+
+    if(is_name_private(name))
+      flags |= DW_FLAG_Private;
+
+    uint32_t extra = 0;
+
+    if(t->underlying != TK_STRUCT)
+      extra++;
+
+    if(t->underlying == TK_ACTOR)
+      extra++;
+
+    offset = LLVMOffsetOfElement(c->target_data, t->structure, i + extra);
+  } else {
+    snprintf(buf, 32, "_%d", i + 1);
+    name = buf;
+    ast = t->ast;
+    offset = LLVMOffsetOfElement(c->target_data, t->primitive, i);
+  }
+
+  LLVMTypeRef type;
+  LLVMMetadataRef di_type;
+
+  if(t->fields[i].embed)
+  {
+    type = t->fields[i].type->structure;
+    di_type = t->fields[i].type->di_type_embed;
+  } else {
+    type = t->fields[i].type->use_type;
+    di_type = t->fields[i].type->di_type;
+  }
+
+  uint64_t size = LLVMABISizeOfType(c->target_data, type);
+  uint64_t align = LLVMABIAlignmentOfType(c->target_data, type);
+
+  return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, t->di_file,
+    (unsigned)ast_line(ast), 8 * size, 8 * align, 8 * offset, flags, di_type);
+}
+
+static void make_debug_fields(compile_t* c, reachable_type_t* t)
+{
+  LLVMMetadataRef fields = NULL;
+
+  if(t->field_count > 0)
+  {
+    size_t buf_size = t->field_count * sizeof(LLVMMetadataRef);
+    LLVMMetadataRef* data = (LLVMMetadataRef*)ponyint_pool_alloc_size(
+      buf_size);
+
+    for(uint32_t i = 0; i < t->field_count; i++)
+      data[i] = make_debug_field(c, t, i);
+
+    fields = LLVMDIBuilderGetOrCreateArray(c->di, data, t->field_count);
+    ponyint_pool_free_size(buf_size, data);
+  }
+
+  LLVMTypeRef type;
+
+  if(t->underlying != TK_TUPLETYPE)
+    type = t->structure;
+  else
+    type = t->primitive;
+
+  uint64_t size = 0;
+  uint64_t align = 0;
+
+  if(type != NULL)
+  {
+    size = LLVMABISizeOfType(c->target_data, type);
+    align = LLVMABIAlignmentOfType(c->target_data, type);
+  }
+
+  LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
+    t->name, t->di_file, (unsigned) ast_line(t->ast), 8 * size, 8 * align,
+    fields);
+
+  if(t->underlying != TK_TUPLETYPE)
+  {
+    LLVMMetadataReplaceAllUsesWith(t->di_type_embed, di_type);
+    t->di_type_embed = di_type;
+  } else {
+    LLVMMetadataReplaceAllUsesWith(t->di_type, di_type);
+    t->di_type = di_type;
+  }
+}
+
+static void make_debug_final(compile_t* c, reachable_type_t* t)
+{
+  switch(t->underlying)
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      make_debug_fields(c, t);
+      return;
+
+    case TK_PRIMITIVE:
+    {
+      if(t->primitive == NULL)
+        make_debug_fields(c, t);
+      return;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+}
+
+static void make_pointer_methods(compile_t* c, reachable_type_t* t)
+{
+  if(ast_id(t->ast) != TK_NOMINAL)
+    return;
+
+  // Find the primitive type, if there is one.
+  AST_GET_CHILDREN(t->ast, pkg, id);
+  const char* package = ast_name(pkg);
+  const char* name = ast_name(id);
+
+  if(package == c->str_builtin)
+  {
+    if(name == c->str_Pointer)
+      genprim_pointer_methods(c, t);
+    else if(name == c->str_Maybe)
+      genprim_maybe_methods(c, t);
+    else if(name == c->str_Platform)
+      genprim_platform_methods(c, t);
+  }
+}
+
+static bool make_trace(compile_t* c, reachable_type_t* t)
+{
+  if(t->trace_fn == NULL)
+    return true;
+
+  if(t->underlying == TK_CLASS)
+  {
+    // Special case the array trace function.
+    AST_GET_CHILDREN(t->ast, pkg, id);
+    const char* package = ast_name(pkg);
+    const char* name = ast_name(id);
+
+    if((package == c->str_builtin) && (name == c->str_Array))
+    {
+      genprim_array_trace(c, t);
+      return true;
+    }
+  }
+
+  // Generate the trace functions.
+  codegen_startfun(c, t->trace_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
+
+  LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
+    "object");
+
+  // If we don't ever trace anything, delete this function.
+  int extra = 0;
+
+  // Non-structs have a type descriptor.
+  if(t->underlying != TK_STRUCT)
+    extra++;
+
+  // Actors have a pad.
+  if(t->underlying == TK_ACTOR)
+    extra++;
+
+  for(uint32_t i = 0; i < t->field_count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
-    if(g->field_keys[i] != TK_EMBED)
+    if(!t->fields[i].embed)
     {
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      need_trace |= gentrace(c, ctx, value, g->fields[i]);
+      gentrace(c, ctx, value, t->fields[i].ast);
     } else {
       // Call the trace function directly without marking the field.
-      const char* fun = genname_trace(genname_type(g->fields[i]));
-      LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, fun);
+      LLVMValueRef trace_fn = t->fields[i].type->trace_fn;
 
       if(trace_fn != NULL)
       {
@@ -368,315 +563,79 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
         args[1] = LLVMBuildBitCast(c->builder, field, c->object_ptr, "");
 
         LLVMBuildCall(c->builder, trace_fn, args, 2, "");
-        need_trace = true;
       }
     }
   }
 
-  return need_trace;
-}
-
-static bool make_trace(compile_t* c, gentype_t* g)
-{
-  // Do nothing if we have no fields.
-  if(g->field_count == 0)
-    return true;
-
-  if(g->underlying == TK_CLASS)
-  {
-    // Special case the array trace function.
-    AST_GET_CHILDREN(g->ast, pkg, id);
-    const char* package = ast_name(pkg);
-    const char* name = ast_name(id);
-
-    if((package == c->str_builtin) && (name == c->str_Array))
-    {
-      genprim_array_trace(c, g);
-      return true;
-    }
-  }
-
-  // Create a trace function.
-  const char* trace_name = genname_trace(g->type_name);
-  LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
-
-  codegen_startfun(c, trace_fn, false);
-  LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
-
-  LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
-    "object");
-
-  // If we don't ever trace anything, delete this function.
-  int extra = 0;
-
-  // Non-structs have a type descriptor.
-  if(g->underlying != TK_STRUCT)
-    extra++;
-
-  // Actors have a pad.
-  if(g->underlying == TK_ACTOR)
-    extra++;
-
-  bool need_trace = trace_fields(c, g, ctx, object, extra);
-
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
-
-  if(!need_trace)
-    LLVMDeleteFunction(trace_fn);
-
   return true;
 }
 
-static bool make_struct(compile_t* c, gentype_t* g)
+bool gentypes(compile_t* c)
 {
-  LLVMTypeRef type;
-  int extra = 0;
+  reachable_type_t* t;
+  size_t i;
 
-  if(g->underlying != TK_TUPLETYPE)
+  genprim_builtins(c);
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Data prototypes\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    type = g->structure;
-
-    if(g->underlying != TK_STRUCT)
-      extra++;
-  } else {
-    type = g->primitive;
-  }
-
-  if(g->underlying == TK_ACTOR)
-    extra++;
-
-  size_t buf_size = (g->field_count + extra) * sizeof(LLVMTypeRef);
-  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-
-  // Create the type descriptor as element 0.
-  if(extra > 0)
-    elements[0] = LLVMPointerType(g->desc_type, 0);
-
-  // Create the actor pad as element 1.
-  if(g->underlying == TK_ACTOR)
-    elements[1] = c->actor_pad;
-
-  // Get a preliminary type for each field and set the struct body. This is
-  // needed in case a struct for the type being generated here is required when
-  // generating a field.
-  for(int i = 0; i < g->field_count; i++)
-  {
-    gentype_t field_g;
-    bool ok;
-
-    if((g->field_keys != NULL) && (g->field_keys[i] == TK_EMBED))
-    {
-      ok = gentype(c, g->fields[i], &field_g);
-      elements[i + extra] = field_g.structure;
-    } else {
-      ok = gentype_prelim(c, g->fields[i], &field_g);
-      elements[i + extra] = field_g.use_type;
-    }
-
-    if(!ok)
-    {
-      ponyint_pool_free_size(buf_size, elements);
-      return false;
-    }
-  }
-
-  // An embedded field may have caused the current type to be fully generated
-  // at this point. If so, finish gracefully.
-  if(!LLVMIsOpaqueStruct(type))
-  {
-    g->done = true;
-    return true;
-  }
-
-  LLVMStructSetBody(type, elements, g->field_count + extra, false);
-
-  // Create a box type for tuples.
-  if(g->underlying == TK_TUPLETYPE)
-    make_box_type(c, g);
-
-  ponyint_pool_free_size(buf_size, elements);
-  return true;
-}
-
-static bool make_components(compile_t* c, gentype_t* g)
-{
-  for(int i = 0; i < g->field_count; i++)
-  {
-    gentype_t field_g;
-
-    if(!gentype(c, g->fields[i], &field_g))
+    if(!make_opaque_struct(c, t))
       return false;
 
-    dwarf_field(&c->dwarf, g, &field_g, i);
+    gendesc_type(c, t);
+    make_debug_info(c, t);
+    make_box_type(c, t);
+    make_dispatch(c, t);
+    gentrace_prototype(c, t);
+  }
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Data types\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(!make_struct(c, t))
+      return false;
+
+    make_global_instance(c, t);
+  }
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Function prototypes\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    make_debug_final(c, t);
+    make_pointer_methods(c, t);
+
+    if(!genfun_method_sigs(c, t))
+      return false;
+  }
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Descriptors\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(!make_trace(c, t))
+      return false;
+
+    gendesc_init(c, t);
+  }
+
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Functions\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(!genfun_method_bodies(c, t))
+      return false;
   }
 
   return true;
-}
-
-static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* def = (ast_t*)ast_data(ast);
-  token_id id = ast_id(def);
-
-  // For traits, just return a raw object pointer.
-  switch(id)
-  {
-    case TK_INTERFACE:
-    case TK_TRAIT:
-      g->underlying = id;
-      g->use_type = c->object_ptr;
-      dwarf_trait(&c->dwarf, g);
-      return true;
-
-    default: {}
-  }
-
-  // If we already exist or we're preliminary, we're done.
-  if(setup_name(c, ast, g, prelim))
-    return true;
-
-  if(g->primitive == NULL)
-  {
-    // Not a primitive type. Generate all the fields and a trace function.
-    setup_type_fields(g);
-
-    // Forward declare debug symbols for this nominal, if needed.
-    // At this point, this can only be TK_STRUCT, TK_CLASS, TK_PRIMITIVE, or
-    // TK_ACTOR ast nodes. TK_TYPE has been translated to any of the former
-    // during reification.
-    dwarf_forward(&c->dwarf, g);
-
-    bool ok = make_struct(c, g);
-
-    if(!g->done)
-      ok = ok && make_trace(c, g) && make_components(c, g);
-
-    if(!ok)
-    {
-      free_fields(g);
-      return false;
-    }
-
-    // Finalise symbols for composite type.
-    if(!g->done)
-      dwarf_composite(&c->dwarf, g);
-  } else {
-    // Emit debug symbols for a basic type (U8, U16, U32...)
-    dwarf_basic(&c->dwarf, g);
-
-    // Create a box type.
-    make_box_type(c, g);
-  }
-
-  if(!g->done)
-  {
-    // Generate a dispatch function if necessary.
-    make_dispatch(c, g);
-
-    // Create a unique global instance if we need one.
-    make_global_instance(c, g);
-
-    // Generate all the methods.
-    if(!genfun_methods(c, g))
-    {
-      free_fields(g);
-      return false;
-    }
-
-    if(g->underlying != TK_STRUCT)
-      gendesc_init(c, g);
-
-    // Finish off the dispatch function.
-    if(g->underlying == TK_ACTOR)
-    {
-      codegen_startfun(c, g->dispatch_fn, false);
-      codegen_finishfun(c);
-    }
-
-    // Finish the dwarf frame.
-    dwarf_finish(&c->dwarf);
-  }
-
-  free_fields(g);
-  g->done = true;
-  return true;
-}
-
-static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
-{
-  // An anonymous structure with no functions and no vtable.
-  if(setup_name(c, ast, g, false))
-    return true;
-
-  setup_tuple_fields(g);
-
-  dwarf_forward(&c->dwarf, g);
-
-  bool ok = make_struct(c, g) && make_components(c, g);
-
-  // Finalise debug symbols for tuple type.
-  dwarf_composite(&c->dwarf, g);
-  dwarf_finish(&c->dwarf);
-
-  // Generate a descriptor.
-  gendesc_init(c, g);
-
-  free_fields(g);
-  return ok;
-}
-
-bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g)
-{
-  if(ast_id(ast) == TK_NOMINAL)
-  {
-    memset(g, 0, sizeof(gentype_t));
-
-    g->ast = ast;
-    g->type_name = genname_type(ast);
-    g->desc_name = genname_descriptor(g->type_name);
-
-    return make_nominal(c, ast, g, true);
-  }
-
-  return gentype(c, ast, g);
-}
-
-bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
-{
-  memset(g, 0, sizeof(gentype_t));
-
-  if(ast == NULL)
-    return false;
-
-  if(contains_dontcare(ast))
-    return true;
-
-  g->ast = ast;
-  g->type_name = genname_type(ast);
-  g->desc_name = genname_descriptor(g->type_name);
-
-  switch(ast_id(ast))
-  {
-    case TK_NOMINAL:
-      return make_nominal(c, ast, g, false);
-
-    case TK_TUPLETYPE:
-      return make_tuple(c, ast, g);
-
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-      // Just a raw object pointer.
-      g->underlying = ast_id(ast);
-      g->use_type = c->object_ptr;
-      return true;
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }

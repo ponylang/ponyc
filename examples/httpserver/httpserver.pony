@@ -4,12 +4,18 @@ actor Main
   new create(env: Env) =>
     let service = try env.args(1) else "50000" end
     let limit = try env.args(2).usize() else 100 end
-    Server(Info(env), Handle, CommonLog(env.out) where service = service,
-      limit = limit)
-    // Server(Info(env), Handle, ContentsLog(env.out) where service = service,
-    //   limit = limit)
-    // Server(Info(env), Handle, DiscardLog where service = service,
-    //   limit = limit)
+
+    try
+      let auth = env.root as AmbientAuth
+      Server(auth, Info(env), Handle, CommonLog(env.out)
+        where service = service, limit = limit, reversedns = auth)
+      // Server(auth, Info(env), Handle, ContentsLog(env.out)
+      //   where service = service, limit = limit)
+      // Server(auth, Info(env), Handle, DiscardLog
+      //   where service = service, limit = limit)
+    else
+      env.out.print("unable to use network")
+    end
 
 class Info
   let _env: Env

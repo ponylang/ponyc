@@ -509,6 +509,12 @@ class iso _TestStringCompare is UnitTest
   fun name(): String => "builtin/String.compare"
 
   fun apply(h: TestHelper) =>
+    h.assert_eq[Compare](Equal, "foo".compare("foo"))
+    h.assert_eq[Compare](Greater, "foo".compare("bar"))
+    h.assert_eq[Compare](Less, "bar".compare("foo"))
+    
+    h.assert_eq[Compare](Less, "abc".compare("bc"))
+
     h.assert_eq[Compare](Equal, "foo".compare_sub("foo", 3))
     h.assert_eq[Compare](Greater, "foo".compare_sub("bar", 3))
     h.assert_eq[Compare](Less, "bar".compare_sub("foo", 3))
@@ -546,6 +552,25 @@ class iso _TestStringCompare is UnitTest
       Equal, "AB".compare_sub("AB", 2 where ignore_case = true))
 
     h.assert_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
+
+    h.assert_eq[Compare](
+      Greater, "one".compare("four"), "\"one\" > \"four\"")
+    h.assert_eq[Compare](
+      Less,    "four".compare("one"), "\"four\" < \"one\"")
+    h.assert_eq[Compare](
+      Equal,   "one".compare("one"), "\"one\" == \"one\"")
+    h.assert_eq[Compare](
+      Less,    "abc".compare("abcd"), "\"abc\" < \"abcd\"")
+    h.assert_eq[Compare](
+      Greater, "abcd".compare("abc"), "\"abcd\" > \"abc\"")
+    h.assert_eq[Compare](
+      Equal,   "abcd".compare_sub("abc", 3), "\"abcx\" == \"abc\"")
+    h.assert_eq[Compare](
+      Equal,   "abc".compare_sub("abcd", 3), "\"abc\" == \"abcx\"")
+    h.assert_eq[Compare](
+      Equal,   "abc".compare_sub("abc", 4), "\"abc\" == \"abc\"")
+    h.assert_eq[Compare](
+      Equal,   "abc".compare_sub("babc", 4, 1, 2), "\"xbc\" == \"xxbc\"")
 
 
 class iso _TestArraySlice is UnitTest

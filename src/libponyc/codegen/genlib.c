@@ -49,6 +49,8 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
 static bool reachable_actors(compile_t* c, ast_t* program)
 {
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Library reachability\n"));
+
   // Look for C-API actors in every package.
   bool found = false;
   ast_t* package = ast_child(program);
@@ -92,61 +94,8 @@ static bool reachable_actors(compile_t* c, ast_t* program)
     return false;
   }
 
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Selector painting\n"));
   paint(c->reachable);
-  return true;
-}
-
-static bool generate_actor(compile_t* c, ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-  ast_t* type = type_builtin(c->opt, ast, ast_name(id));
-
-  if(type == NULL)
-    return false;
-
-  gentype_t g;
-  bool ok = gentype(c, type, &g);
-  ast_free_unattached(type);
-
-  return ok;
-}
-
-static bool generate_actors(compile_t* c, ast_t* program)
-{
-  // Look for C-API actors in every package.
-  ast_t* package = ast_child(program);
-
-  while(package != NULL)
-  {
-    ast_t* module = ast_child(package);
-
-    while(module != NULL)
-    {
-      ast_t* entity = ast_child(module);
-
-      while(entity != NULL)
-      {
-        if(ast_id(entity) == TK_ACTOR)
-        {
-          ast_t* c_api = ast_childidx(entity, 5);
-
-          if(ast_id(c_api) == TK_AT)
-          {
-            // We have an actor marked as C-API.
-            if(!generate_actor(c, entity))
-              return false;
-          }
-        }
-
-        entity = ast_sibling(entity);
-      }
-
-      module = ast_sibling(module);
-    }
-
-    package = ast_sibling(package);
-  }
-
   return true;
 }
 
@@ -155,7 +104,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 #if defined(PLATFORM_IS_POSIX_BASED)
   const char* file_lib = suffix_filename(c->opt->output, "lib", c->filename,
     ".a");
-  printf("Archiving %s\n", file_lib);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Archiving %s\n", file_lib));
 
   size_t len = 32 + strlen(file_lib) + strlen(file_o);
   char* cmd = (char*)ponyint_pool_alloc_size(len);
@@ -166,6 +115,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
 #endif
 
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", cmd));
   if(system(cmd) != 0)
   {
     errorf(NULL, "unable to link: %s", cmd);
@@ -177,7 +127,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 #elif defined(PLATFORM_IS_WINDOWS)
   const char* file_lib = suffix_filename(c->opt->output, "", c->filename,
     ".lib");
-  printf("Archiving %s\n", file_lib);
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Archiving %s\n", file_lib));
 
   vcvars_t vcvars;
 
@@ -193,6 +143,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
     file_lib, file_o);
 
+  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", cmd));
   if(system(cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", cmd);
@@ -208,10 +159,8 @@ static bool link_lib(compile_t* c, const char* file_o)
 
 bool genlib(compile_t* c, ast_t* program)
 {
-  genprim_reachable_init(c, program);
-
   if(!reachable_actors(c, program) ||
-    !generate_actors(c, program) ||
+    !gentypes(c) ||
     !genheader(c)
     )
     return false;

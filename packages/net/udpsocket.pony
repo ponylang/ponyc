@@ -1,5 +1,7 @@
 use "collections"
 
+type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
+
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32
@@ -7,12 +9,12 @@ actor UDPSocket
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: USize
-  var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
+  var _read_buf: Array[U8] iso
   var _read_from: IPAddress iso = IPAddress
   embed _ip: IPAddress = IPAddress
 
-  new create(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new create(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for both IPv4 and IPv6 datagrams.
@@ -23,11 +25,12 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
+    _read_buf = recover Array[U8].undefined(size) end
     _notify_listening()
     _start_next_read()
 
-  new ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new ip4(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for IPv4 datagrams.
@@ -38,11 +41,12 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
+    _read_buf = recover Array[U8].undefined(size) end
     _notify_listening()
     _start_next_read()
 
-  new ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
-    size: USize = 1024)
+  new ip6(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
+    service: String = "0", size: USize = 1024)
   =>
     """
     Listens for IPv6 datagrams.
@@ -53,6 +57,7 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
+    _read_buf = recover Array[U8].undefined(size) end
     _notify_listening()
     _start_next_read()
 
@@ -182,11 +187,11 @@ actor UDPSocket
         var sum: USize = 0
 
         while _readable do
-          var len = _packet_size
-          var data = recover Array[U8].undefined(len) end
-          var from = recover IPAddress end
-          len = @pony_os_recvfrom[USize](_event, data.cstring(), data.space(),
-            from) ?
+          let size = _packet_size
+          let data = _read_buf = recover Array[U8].undefined(size) end
+          let from = recover IPAddress end
+          let len = @pony_os_recvfrom[USize](_event, data.cstring(),
+            data.space(), from) ?
 
           if len == 0 then
             _readable = false
@@ -214,16 +219,11 @@ actor UDPSocket
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      var next = _read_buf.space()
-
-      match len.usize()
-      | 0 =>  // Socket has been closed
+      if _read_buf.space() == 0 then
+        // Socket has been closed
         _readable = false
         _close()
         return
-      | _read_buf.space() =>
-        // Whole buffer was used this time, next time make it bigger
-        next = next * 2
       end
 
       if _closed then
@@ -231,7 +231,8 @@ actor UDPSocket
       end
 
       // Hand back read data
-      let data = _read_buf = recover Array[U8].undefined(next) end
+      let size = _packet_size
+      let data = _read_buf = recover Array[U8].undefined(size) end
       let from = _read_from = recover IPAddress end
       data.truncate(len.usize())
       _notify.received(this, consume data, consume from)
@@ -246,8 +247,8 @@ actor UDPSocket
     """
     ifdef windows then
       try
-        @pony_os_recvfrom[USize](_event, _read_buf.cstring(), _read_buf.space(),
-          _read_from) ?
+        @pony_os_recvfrom[USize](_event, _read_buf.cstring(),
+          _read_buf.space(), _read_from) ?
       else
         _readable = false
         _close()
