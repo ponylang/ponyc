@@ -312,19 +312,29 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len,
-    "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
-    "/OUT:%s "
-    "%s "
-    "/LIBPATH:\"%s\" "
-    "/LIBPATH:\"%s\" "
-    "%s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
-    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
+  while (true)
+  {
+    int num_written = snprintf(ld_cmd, ld_len,
+      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
+      "/OUT:%s "
+      "%s "
+      "/LIBPATH:\"%s\" "
+      "/LIBPATH:\"%s\" "
+      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib ponyrt.lib \"",
+      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
+
+    if (num_written < ld_len)
+      break;
+
+    ponyint_pool_free_size(ld_len, ld_cmd);
+    ld_len += 256;
+    ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  }
 
   PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
 
-  if(system(ld_cmd) == -1)
+  if (system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);

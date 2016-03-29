@@ -7,11 +7,9 @@
 #if defined(PLATFORM_IS_WINDOWS)
 
 #define REG_SDK_INSTALL_PATH \
-  TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
+  TEXT("SOFTWARE\\WOW6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
 #define REG_VS_INSTALL_PATH \
-  TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
-#define REG_VC_TOOLS_PATH \
-  TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
+  TEXT("SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\")
 
 #define MAX_VER_LEN 20
 
@@ -102,16 +100,9 @@ static bool find_registry_key(char* path, query_callback_fn query,
 static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
   DWORD size = MAX_PATH;
-
+  
   RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
-    NULL, p->path, &size); 
-}
-
-static void pick_vs_tools(HKEY key, char* name, search_t* p)
-{
-  DWORD size = MAX_PATH;
-
-  RegGetValue(key, NULL, p->version, RRF_RT_REG_SZ, NULL, p->path, &size);
+    NULL, p->path, &size);
 }
 
 static void pick_newest_sdk(HKEY key, char* name, search_t* p)
@@ -205,20 +196,22 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars)
     PLATFORM_TOOLS_VERSION / 10,
     PLATFORM_TOOLS_VERSION % 10);
 
-  if(!find_registry_key(REG_VC_TOOLS_PATH, pick_vc_tools, false, &vs) &&
-    !find_registry_key(REG_VS_INSTALL_PATH, pick_vs_tools, false, &vs))
+  TCHAR reg_vs_install_path[MAX_PATH+1];
+  snprintf(reg_vs_install_path, MAX_PATH, "%s%s", REG_VS_INSTALL_PATH, vs.version);
+
+  if(!find_registry_key(reg_vs_install_path, pick_vc_tools, false, &vs))
   {
-    errorf(NULL, "unable to locate VC tools or Visual Studio %s", vs.version);
+    errorf(NULL, "unable to locate Visual Studio %s", vs.version);
     return false;
   }
 
   strcpy(vcvars->msvcrt, vs.path);
-  strcat(vcvars->msvcrt, "VC\\lib\\amd64");
+  strcat(vcvars->msvcrt, "..\\..\\VC\\lib\\amd64");
 
   // Find the linker and lib archiver relative to vs.path.
   return
-    find_executable(vs.path, "VC\\bin\\link.exe", vcvars->link) &&
-    find_executable(vs.path, "VC\\bin\\lib.exe", vcvars->ar);
+    find_executable(vs.path, "..\\..\\VC\\bin\\link.exe", vcvars->link) &&
+    find_executable(vs.path, "..\\..\\VC\\bin\\lib.exe", vcvars->ar);
 }
 
 bool vcvars_get(vcvars_t* vcvars)
