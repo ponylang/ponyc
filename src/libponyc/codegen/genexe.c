@@ -369,11 +369,11 @@ bool genexe(compile_t* c, ast_t* program)
   if(lookup(NULL, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
-  printf("Reachability\n");
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Reachability\n"));
   reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL);
   reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL);
 
-  printf("Selector painting\n");
+  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Selector painting\n"));
   paint(c->reachable);
 
   if(!gentypes(c))
