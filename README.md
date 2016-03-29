@@ -70,9 +70,14 @@ deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
 deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
 ```
 
+Install the LLVM toolchain public GPG key, update `apt` and install
+packages:
+
 ```bash
-$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev libssl-dev
-llvm-3.8-dev
+$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
+$ sudo apt-get update
+$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+                       libssl-dev llvm-3.8-dev
 ```
 
 Debian Jessie and some other Linux distributions don't include pcre2 in their
