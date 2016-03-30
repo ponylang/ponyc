@@ -185,6 +185,7 @@ typedef struct pass_opt_t
   pass_id program_pass;
   bool release;
   bool library;
+  bool pic;
   bool ieee_math;
   bool print_stats;
   bool verify;
