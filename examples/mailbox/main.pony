@@ -1,3 +1,14 @@
+"""
+This example is a stress test of Pony messaging and mailbox usage.
+All X Mailers send to a single actor, Main, attempting to overload it's
+mailbox. This is a degenerate condition, the more actors you have sending
+to Main (and the more messages they send), the more memory will be used.
+
+Run this and watch the process memory usage grow as actor Main gets swamped.
+
+Also note, it finishes reasonably quickly for how many messages that single
+actor ends up processing.
+"""
 use "collections"
 
 actor Mailer
@@ -33,7 +44,7 @@ actor Main
   fun ref parse_args() ? =>
     _size = _env.args(1).u32()
     _pass = _env.args(2).u32()
-    
+
   fun ref usage() =>
     _env.out.print(
       """
