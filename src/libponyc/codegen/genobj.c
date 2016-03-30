@@ -15,7 +15,7 @@ const char* genobj(compile_t* c)
   {
     const char* file_o = suffix_filename(c->opt->output, "", c->filename,
       ".ll");
-    PONY_LOG(c->opt, VERBOSITY_INFO, ("Writing %s\n", file_o));
+    PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Writing %s\n", file_o));
 
     char* err;
 
@@ -33,7 +33,7 @@ const char* genobj(compile_t* c)
   {
     const char* file_o = suffix_filename(c->opt->output, "", c->filename,
       ".bc");
-    PONY_LOG(c->opt, VERBOSITY_INFO, ("Writing %s\n", file_o));
+    PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Writing %s\n", file_o));
 
     if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
     {
@@ -60,7 +60,7 @@ const char* genobj(compile_t* c)
 #endif
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, ("Writing %s\n", file_o));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Writing %s\n", file_o));
   char* err;
 
   if(LLVMTargetMachineEmitToFile(
