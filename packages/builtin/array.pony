@@ -276,6 +276,14 @@ class Array[A] is Seq[A]
 
     this
 
+  fun add(that: this->Array[A]): Array[this->A!] =>
+    """
+    Return a new Array that is a concatenation of this and that.
+    """
+    let len = _size + that._size
+    var a = recover Array[this->A!](len) end
+    (consume a).append(this).append(that)
+
   fun find(value: A!, offset: USize = 0, nth: USize = 0): USize ? =>
     """
     Find the n-th appearance of value in the array, by identity. Return the
