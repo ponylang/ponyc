@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Crashing gc bug caused by "force freeing" objects with finalizers.
 - Bug in `String.compare` and `String.compare_sub`.
 - Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
+- Add -rpath to the link command for library paths
 
 ### Added
 

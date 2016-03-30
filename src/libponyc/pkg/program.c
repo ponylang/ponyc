@@ -145,7 +145,8 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 }
 
 
-void program_lib_build_args(ast_t* program, const char* path_preamble,
+void program_lib_build_args(ast_t* program,
+  const char* path_preamble, const char* rpath_preamble,
   const char* global_preamble, const char* global_postamble,
   const char* lib_premable, const char* lib_postamble)
 {
@@ -173,6 +174,13 @@ void program_lib_build_args(ast_t* program, const char* path_preamble,
     append_to_args(data, path_preamble);
     append_to_args(data, libpath);
     append_to_args(data, " ");
+
+    if(rpath_preamble != NULL)
+    {
+      append_to_args(data, rpath_preamble);
+      append_to_args(data, libpath);
+      append_to_args(data, " ");
+    }
   }
 
   // Library paths from the command line and environment variable.
@@ -186,6 +194,13 @@ void program_lib_build_args(ast_t* program, const char* path_preamble,
     append_to_args(data, path_preamble);
     append_to_args(data, libpath);
     append_to_args(data, " ");
+
+    if(rpath_preamble != NULL)
+    {
+      append_to_args(data, rpath_preamble);
+      append_to_args(data, libpath);
+      append_to_args(data, " ");
+    }
   }
 
   // Library names.
