@@ -17,8 +17,8 @@ addons:
       - llvm-3.6-dev
       - llvm-3.7
       - llvm-3.7-dev
-      - llvm-3.8
-      - llvm-3.8-dev
+      # - llvm-3.8
+      # - llvm-3.8-dev
 
 matrix:
   include:
@@ -38,10 +38,10 @@ matrix:
       env:
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
-    - os: linux
-      env:
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=release
+    # - os: linux
+    #   env:
+    #     - LLVM_CONFIG="llvm-config-3.8"
+    #     - config=release
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.6"
