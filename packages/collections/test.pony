@@ -82,6 +82,9 @@ class iso _TestMap is UnitTest
     (a("5") = 5) as None
     (a("6") = 6) as None
 
+    h.assert_true(a.contains("0"), "contains did not find expected element in HashMap")
+    h.assert_false(a.contains("7"), "contains found unexpected element in HashMap")
+
     h.assert_eq[U32](1, (a("1") = 11) as U32)
     h.assert_eq[U32](11, (a("1") = 1) as U32)
 
