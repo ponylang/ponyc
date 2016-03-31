@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Crashing gc bug caused by "force freeing" objects with finalizers.
 - Bug in `String.compare` and `String.compare_sub`.
 - Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
+- Add -rpath to the link command for library paths
 
 ### Added
 
@@ -43,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - contains() method on HashMap
 - Support for empty sections in ini parsing.
 - --verbose,-V option for compiler informational messages.
+- Logger package
 
 ### Changed
 

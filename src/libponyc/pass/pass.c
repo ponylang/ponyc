@@ -87,7 +87,7 @@ void pass_opt_init(pass_opt_t* options)
   // Start with an empty typechecker frame.
   memset(options, 0, sizeof(pass_opt_t));
   options->limit = PASS_ALL;
-  options->verbosity = VERBOSITY_DEFAULT;
+  options->verbosity = VERBOSITY_INFO;
   frame_push(&options->check, NULL);
 }
 

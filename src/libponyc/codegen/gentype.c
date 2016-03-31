@@ -579,7 +579,7 @@ bool gentypes(compile_t* c)
 
   genprim_builtins(c);
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Data prototypes\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data prototypes\n"));
   i = HASHMAP_BEGIN;
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
@@ -594,7 +594,7 @@ bool gentypes(compile_t* c)
     gentrace_prototype(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Data types\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data types\n"));
   i = HASHMAP_BEGIN;
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
@@ -605,7 +605,7 @@ bool gentypes(compile_t* c)
     make_global_instance(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Function prototypes\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Function prototypes\n"));
   i = HASHMAP_BEGIN;
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
@@ -617,7 +617,7 @@ bool gentypes(compile_t* c)
       return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Descriptors\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Descriptors\n"));
   i = HASHMAP_BEGIN;
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
@@ -628,7 +628,7 @@ bool gentypes(compile_t* c)
     gendesc_init(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Functions\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
   i = HASHMAP_BEGIN;
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)

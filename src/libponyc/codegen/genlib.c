@@ -49,7 +49,7 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
 static bool reachable_actors(compile_t* c, ast_t* program)
 {
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Library reachability\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Library reachability\n"));
 
   // Look for C-API actors in every package.
   bool found = false;
@@ -94,7 +94,7 @@ static bool reachable_actors(compile_t* c, ast_t* program)
     return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Selector painting\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
   paint(c->reachable);
   return true;
 }
@@ -104,7 +104,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 #if defined(PLATFORM_IS_POSIX_BASED)
   const char* file_lib = suffix_filename(c->opt->output, "lib", c->filename,
     ".a");
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Archiving %s\n", file_lib));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Archiving %s\n", file_lib));
 
   size_t len = 32 + strlen(file_lib) + strlen(file_o);
   char* cmd = (char*)ponyint_pool_alloc_size(len);
@@ -127,7 +127,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 #elif defined(PLATFORM_IS_WINDOWS)
   const char* file_lib = suffix_filename(c->opt->output, "", c->filename,
     ".lib");
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Archiving %s\n", file_lib));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Archiving %s\n", file_lib));
 
   vcvars_t vcvars;
 

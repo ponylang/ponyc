@@ -207,9 +207,9 @@ static bool link_exe(compile_t* c, ast_t* program,
   }
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", "", "", "-l", "");
+  program_lib_build_args(program, "-L", NULL, "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t arch_len = arch - c->opt->triple;
@@ -253,9 +253,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", "-Wl,--start-group ",
+  program_lib_build_args(program, "-L", "-Wl,-rpath,", "-Wl,--start-group ",
     "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
@@ -303,9 +303,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
     ".exe");
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Linking %s\n", file_exe));
+  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "/LIBPATH:", "", "", "", ".lib");
+  program_lib_build_args(program, "/LIBPATH:", NULL, "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
@@ -369,11 +369,11 @@ bool genexe(compile_t* c, ast_t* program)
   if(lookup(NULL, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Reachability\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
   reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL);
   reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL);
 
-  PONY_LOG(c->opt, VERBOSITY_DEFAULT, ("Selector painting\n"));
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
   paint(c->reachable);
 
   if(!gentypes(c))

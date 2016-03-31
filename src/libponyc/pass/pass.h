@@ -148,7 +148,7 @@ nodes as ast_send flags.
 typedef enum verbosity_level
 {
   VERBOSITY_QUIET     = 0,
-  VERBOSITY_DEFAULT   = 1,
+  VERBOSITY_MINIMAL   = 1,
   VERBOSITY_INFO      = 2,
   VERBOSITY_TOOL_INFO = 3,
   VERBOSITY_ALL       = 4
@@ -185,6 +185,7 @@ typedef struct pass_opt_t
   pass_id program_pass;
   bool release;
   bool library;
+  bool pic;
   bool ieee_math;
   bool print_stats;
   bool verify;

@@ -82,7 +82,8 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   LLVMCodeGenOptLevel opt_level =
     opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
 
-  LLVMRelocMode reloc = opt->library ? LLVMRelocPIC : LLVMRelocDefault;
+  LLVMRelocMode reloc =
+    (opt->pic || opt->library) ? LLVMRelocPIC : LLVMRelocDefault;
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, opt->triple,
     opt->cpu, opt->features, opt_level, reloc, LLVMCodeModelDefault);
@@ -524,7 +525,7 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
-  PONY_LOG(opt, VERBOSITY_INFO, ("Generating\n"));
+  PONY_LOG(opt, VERBOSITY_MINIMAL, ("Generating\n"));
 
   pony_mkdir(opt->output);
 
