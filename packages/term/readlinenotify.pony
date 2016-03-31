@@ -6,9 +6,8 @@ interface ReadlineNotify
   """
   fun ref apply(line: String, prompt: Promise[String]) =>
     """
-    Receives finished lines. The returned string is the next prompt. This may
-    be called with an empty line to get the current prompt. If this raises an
-    error, readline will stop handling input.
+    Receives finished lines. The next prompt is set by fulfilling the promise.
+    If the promise is rejected, readline will stop handling input.
     """
     None
 
