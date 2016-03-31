@@ -10,13 +10,20 @@ else
     OSTYPE = linux
     lto := no
 
-    ifneq (,$(shell which gcc-ar 2> /dev/null))
-      AR = gcc-ar
+    ifdef LTO
       lto := yes
     endif
 
-    ifdef LTO
-      lto := yes
+    ifneq (,$(shell which gcc-ar 2> /dev/null))
+      AR = gcc-ar
+      ifndef LTO
+        LTO := $(shell whereis LLVMgold.so | sed s/LLVMgold://)
+        ifeq (,$(LTO))
+          lto := no
+        else
+          lto := yes
+        endif
+      endif
     endif
   endif
 
