@@ -8,6 +8,7 @@
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
+#  pragma warning(disable:4141)
 #endif
 
 #include <llvm/IR/DIBuilder.h>

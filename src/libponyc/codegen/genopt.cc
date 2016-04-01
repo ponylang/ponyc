@@ -5,6 +5,7 @@
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
+#  pragma warning(disable:4141)
 #endif
 
 #include "genopt.h"
@@ -192,7 +193,7 @@ public:
     {
       // Convert a heap index to a size.
       int_size = ConstantInt::get(builder.getInt64Ty(),
-        1 << (alloc_size + HEAP_MINBITS));
+        ((int64_t)1) << (alloc_size + HEAP_MINBITS));
     } else {
       if(alloc_size > 1024)
       {
