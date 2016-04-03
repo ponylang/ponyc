@@ -147,7 +147,7 @@ sudo pkg install libunwind
 This will build ponyc and compile helloworld:
 
 ```bash
-$ make config=release
+$ gmake config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
