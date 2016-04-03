@@ -57,6 +57,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Moved the position of a default capability in a type specification.
 - Replaced '&' with 'addressof' for taking address in FFI calls.
 - @jemc: use half-open ranges for String operations.
+- Improved TCPConnection with a dynamically size of buffers
 
 ## [0.2.1] - 2015-10-06
 
