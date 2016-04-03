@@ -843,12 +843,23 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     doc_entity(docgen, p->ast, ast);
 
   // Add listing of subpackages and links
-  fprintf(docgen->package_file, "\n\n## Public Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->public_types->m);
-  fprintf(docgen->package_file, "\n\n## Private Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->private_types->m);
-  fprintf(docgen->package_file, "\n\n## Test Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->test_types->m);
+  if(docgen->public_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Public Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->public_types->m);
+  }
+
+  if(docgen->private_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Private Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->private_types->m);
+  }
+
+  if(docgen->test_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Test Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->test_types->m);
+  }
 
   fclose(docgen->package_file);
   docgen->package_file = NULL;
