@@ -2,9 +2,56 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
+#include "../type/matchtype.h"
 #include "../type/subtype.h"
 #include "../type/typeparam.h"
 #include <assert.h>
+
+static ast_result_t flatten_union(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  assert(ast_childcount(ast) == 2);
+  AST_EXTRACT_CHILDREN(ast, left, right);
+
+  ast_t* r_ast = type_union(left, right);
+  ast_replace(astp, r_ast);
+  ast_free_unattached(left);
+  ast_free_unattached(right);
+
+  return AST_OK;
+}
+
+static void flatten_isect_element(ast_t* type, ast_t* elem)
+{
+  if(ast_id(elem) != TK_ISECTTYPE)
+  {
+    ast_append(type, elem);
+    return;
+  }
+
+  ast_t* child = ast_child(elem);
+
+  while(child != NULL)
+  {
+    ast_append(type, child);
+    child = ast_sibling(child);
+  }
+
+  ast_free_unattached(elem);
+}
+
+static ast_result_t flatten_isect(ast_t* ast)
+{
+  // Flatten intersections without testing subtyping. This is to preserve any
+  // type guarantees that an element in the intersection might make.
+  assert(ast_childcount(ast) == 2);
+  AST_EXTRACT_CHILDREN(ast, left, right);
+
+  flatten_isect_element(ast, left);
+  flatten_isect_element(ast, right);
+
+  return AST_OK;
+}
 
 ast_result_t flatten_typeparamref(ast_t* ast)
 {
@@ -173,6 +220,12 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_UNIONTYPE:
+      return flatten_union(astp);
+
+    case TK_ISECTTYPE:
+      return flatten_isect(ast);
+
     case TK_NEW:
     {
       switch(ast_id(t->frame->type))
