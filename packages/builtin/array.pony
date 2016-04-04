@@ -276,16 +276,24 @@ class Array[A] is Seq[A]
 
     this
 
-  fun find(value: A!, offset: USize = 0, nth: USize = 0): USize ? =>
+  fun find(value: A!, offset: USize = 0, nth: USize = 0,
+    predicate: {(box->A!,box->A!): Bool} val =
+      lambda (l:box->A!,r:box->A!):Bool => l is r end): USize ?
+  =>
     """
-    Find the n-th appearance of value in the array, by identity. Return the
-    index, or raise an error if value isn't present.
+    Find the `nth` appearance of `value` from the beginning of the array,
+    starting at `offset` and examining higher indices, and using the supplied
+    `predicate` for comparisons. Returns the index of the value, or raise an
+    error if the value isn't present.
+
+    By default, the search starts at the first element of the array, returns the
+    first instance of `value` found, and uses object identity for comparison.
     """
     var i = offset
     var n = USize(0)
 
     while i < _size do
-      if _ptr._apply(i) is value then
+      if predicate(_ptr._apply(i), value) then
         if n == nth then
           return i
         end
@@ -298,16 +306,25 @@ class Array[A] is Seq[A]
 
     error
 
-  fun rfind(value: A!, offset: USize = -1, nth: USize = 0): USize ? =>
+  fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
+    predicate: {(box->A!, box->A!): Bool} val =
+      lambda (l: box->A!, r: box->A!): Bool => l is r end): USize ?
+  =>
     """
-    As find, but search backwards in the array.
+    Find the `nth` appearance of `value` from the end of the array, starting at
+    `offset` and examining lower indices, and using the supplied `predicate` for
+    comparisons. Returns the index of the value, or raise an error if the value
+    isn't present.
+
+    By default, the search starts at the last element of the array, returns the
+    first instance of `value` found, and uses object identity for comparison.
     """
     if _size > 0 then
       var i = if offset >= _size then _size - 1 else offset end
       var n = USize(0)
 
       repeat
-        if _ptr._apply(i) is value then
+        if predicate(_ptr._apply(i), value) then
           if n == nth then
             return i
           end
