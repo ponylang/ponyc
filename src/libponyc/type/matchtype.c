@@ -191,6 +191,12 @@ static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern,
 
         case TK_TYPEPARAMREF:
         {
+          ast_t* o_def = (ast_t*)ast_data(operand);
+          ast_t* p_def = (ast_t*)ast_data(pattern);
+
+          if(o_def == p_def)
+            return MATCHTYPE_ACCEPT;
+
           AST_GET_CHILDREN(operand, o_id, o_cap, o_eph);
           AST_GET_CHILDREN(pattern, p_id, p_cap, p_eph);
 
