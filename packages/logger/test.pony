@@ -125,10 +125,10 @@ actor _TestStream is OutStream
 
 trait _LoggerTest[A] is UnitTest
   fun apply(h: TestHelper) =>
-    var promise = Promise[String]
+    let promise = Promise[String]
     promise.next[String](recover this~_fulfill(h) end)
 
-    var stream = _TestStream(h, promise)
+    let stream = _TestStream(h, promise)
 
     log(logger(level(), stream, _TestFormatter))
 
