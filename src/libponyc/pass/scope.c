@@ -213,6 +213,8 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_TYPEPARAM:
       if(!set_scope(t, ast, ast_child(ast), ast))
         return AST_ERROR;
+
+      ast_setdata(ast, ast);
       break;
 
     case TK_MATCH_CAPTURE:
