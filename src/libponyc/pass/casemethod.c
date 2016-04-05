@@ -31,7 +31,7 @@ Example source code:
 
 class C
   fun foo(0): U64 => 0
-  fun foo(x: U64 where x < 3): U64 => 1
+  fun foo(x: U64): U64 if x < 3 => 1
   fun foo(x: U64): U64 => 2
 
 would be translated to:
@@ -43,7 +43,7 @@ class C
   fun $1($2: U64): U64 => // worker
     match $2
     | 0 => 0
-    | let x: U64 where x < 3 => 1
+    | let x: U64 if x < 3 => 1
     | let x: U64 => 2
     end
 
