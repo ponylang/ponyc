@@ -452,6 +452,10 @@ class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   fun ref next(): B->A ? =>
     _array(_i = _i + 1)
 
+  fun ref rewind(): ArrayValues[A, B] =>
+    _i = 0
+    this
+  
 class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
   let _array: B
   var _i: USize

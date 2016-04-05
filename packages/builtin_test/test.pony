@@ -37,6 +37,7 @@ actor Main is TestList
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
     test(_TestArrayInsert)
+    test(_TestArrayValuesRewind)
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestMaybePointer)
@@ -630,6 +631,29 @@ class iso _TestArrayInsert is UnitTest
 
     h.assert_error(lambda()? => ["one", "three"].insert(3, "invalid") end)
 
+class iso _TestArrayValuesRewind is UnitTest
+  """
+  Test rewinding an ArrayValues object
+  """
+  fun name(): String => "builtin/ArrayValues.rewind"
+
+  fun apply(h: TestHelper) ? =>
+    let av = [as U32: 1, 2, 3, 4].values()
+
+    h.assert_eq[U32](1, av.next())
+    h.assert_eq[U32](2, av.next())
+    h.assert_eq[U32](3, av.next())
+    h.assert_eq[U32](4, av.next())
+    h.assert_eq[Bool](false, av.has_next())
+
+    av.rewind()
+
+    h.assert_eq[Bool](true, av.has_next())
+    h.assert_eq[U32](1, av.next())
+    h.assert_eq[U32](2, av.next())
+    h.assert_eq[U32](3, av.next())
+    h.assert_eq[U32](4, av.next())
+    h.assert_eq[Bool](false, av.has_next())
 
 class iso _TestMath128 is UnitTest
   """
