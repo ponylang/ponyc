@@ -389,12 +389,20 @@ ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass)
 {
   typecheck_t* t = &options->check;
-  bool pop = frame_push(t, NULL);
+  ast_t* module = ast_nearest(*ast, TK_MODULE);
+  ast_t* package = ast_parent(module);
+  assert(module != NULL);
+  assert(package != NULL);
+
+  frame_push(t, NULL);
+  frame_push(t, package);
+  frame_push(t, module);
 
   ast_result_t ret = ast_visit(ast, pre, post, options, pass);
 
-  if(pop)
-    frame_pop(t);
+  frame_pop(t);
+  frame_pop(t);
+  frame_pop(t);
 
   return ret;
 }

@@ -73,6 +73,8 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
                 PASS_EXPR) != AST_OK)
                 return false;
 
+              def_arg = ast_childidx(param, 2);
+
               if(!coerce_literals(&def_arg, type, opt))
                 return false;
             }
