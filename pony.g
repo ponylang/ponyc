@@ -189,6 +189,7 @@ nextatom
   | 'object' cap? ('is' type)? members 'end'
   | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
+  | '__loc'
   ;
 
 atom
@@ -200,6 +201,7 @@ atom
   | 'object' cap? ('is' type)? members 'end'
   | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
+  | '__loc'
   ;
 
 tuple
