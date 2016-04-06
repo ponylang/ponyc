@@ -8,22 +8,9 @@ else
 
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
-    lto := no
-
-    ifdef LTO
-      lto := yes
-    endif
 
     ifneq (,$(shell which gcc-ar 2> /dev/null))
       AR = gcc-ar
-      ifndef LTO
-        LTO := $(shell whereis LLVMgold.so | sed s/LLVMgold://)
-        ifeq (,$(LTO))
-          lto := no
-        else
-          lto := yes
-        endif
-      endif
     endif
   endif
 
@@ -36,8 +23,11 @@ else
   ifeq ($(UNAME_S),FreeBSD)
     OSTYPE = freebsd
     CXX = c++
-    lto := no
   endif
+endif
+
+ifdef LTO_PLUGIN
+  lto := yes
 endif
 
 # Default settings (silent debug build).
@@ -125,11 +115,11 @@ ifeq ($(config),release)
     BUILD_FLAGS += -flto -DPONY_USE_LTO
     LINKER_FLAGS += -flto
 
-    ifdef LTO
-      AR_FLAGS += --plugin $(LTO)
+    ifdef LTO_PLUGIN
+      AR_FLAGS += --plugin $(LTO_PLUGIN)
     endif
 
-    ifeq ($(OSTYPE),linux)
+    ifneq (,$(filter $(OSTYPE),linux freebsd))
       LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
     endif
   endif
