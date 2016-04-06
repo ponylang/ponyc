@@ -46,6 +46,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Support for empty sections in ini parsing.
 - --verbose,-V option for compiler informational messages.
 - Logger package
+- `ArrayValues.rewind()` method.
 
 ### Changed
 
