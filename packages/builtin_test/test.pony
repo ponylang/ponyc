@@ -666,35 +666,37 @@ class iso _TestArrayFind is UnitTest
   Test finding elements in an array.
   """
   fun name(): String => "builtin/Array.find"
+
   fun apply(h: TestHelper) ? =>
-    let a: Array[ISize] = [0,1,2,3,4,1]
+    let a: Array[ISize] = [0, 1, 2, 3, 4, 1]
     h.assert_eq[USize](1, a.find(1))
     h.assert_eq[USize](5, a.find(1 where offset = 3))
     h.assert_eq[USize](5, a.find(1 where nth = 1))
     h.assert_error(lambda()(a)? => a.find(6) end)
     h.assert_eq[USize](2, a.find(1 where
-      predicate = lambda (l:ISize,r:ISize): Bool => l > r end))
+      predicate = lambda(l: ISize, r: ISize): Bool => l > r end))
     h.assert_eq[USize](0, a.find(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end))
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end))
     h.assert_eq[USize](3, a.find(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end,
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
       nth = 1))
     h.assert_error(lambda()(a)? => a.find(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end,
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
       nth = 2) end)
+
     h.assert_eq[USize](5, a.rfind(1))
     h.assert_eq[USize](1, a.rfind(1 where offset = 3))
     h.assert_eq[USize](1, a.rfind(1 where nth = 1))
     h.assert_error(lambda()(a)? => a.rfind(6) end)
     h.assert_eq[USize](4, a.rfind(1 where
-      predicate = lambda (l:ISize,r:ISize): Bool => l > r end))
+      predicate = lambda(l: ISize, r: ISize): Bool => l > r end))
     h.assert_eq[USize](3, a.rfind(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end))
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end))
     h.assert_eq[USize](0, a.rfind(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end,
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
       nth = 1))
     h.assert_error(lambda()(a)? => a.rfind(0 where
-      predicate = lambda (l:ISize,r:ISize): Bool => (l % 3) == r end,
+      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
       nth = 2) end)
 
     var b = Array[_FindTestCls]
@@ -703,7 +705,7 @@ class iso _TestArrayFind is UnitTest
     h.assert_error(lambda()(b)? => b.find(_FindTestCls) end)
     h.assert_eq[USize](0, b.find(c))
     h.assert_eq[USize](0, b.find(_FindTestCls where
-      predicate = lambda (l:_FindTestCls box, r:_FindTestCls box): Bool =>
+      predicate = lambda(l: _FindTestCls box, r: _FindTestCls box): Bool =>
         l == r end))
 
 

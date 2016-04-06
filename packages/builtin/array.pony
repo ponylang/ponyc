@@ -277,8 +277,8 @@ class Array[A] is Seq[A]
     this
 
   fun find(value: A!, offset: USize = 0, nth: USize = 0,
-    predicate: {(box->A!,box->A!): Bool} val =
-      lambda (l:box->A!,r:box->A!):Bool => l is r end): USize ?
+    predicate: {(box->A!, box->A!): Bool} val =
+      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the beginning of the array,
@@ -308,7 +308,7 @@ class Array[A] is Seq[A]
 
   fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      lambda (l: box->A!, r: box->A!): Bool => l is r end): USize ?
+      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the end of the array, starting at
