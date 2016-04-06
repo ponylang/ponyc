@@ -59,6 +59,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - @jemc: use half-open ranges for String operations.
 - Improved TCPConnection with a dynamically size of buffers
 - Drop dynamic LTO detection in the build system.
+- Parameterized Array.find and Array.rfind with a comparator.
 
 ## [0.2.1] - 2015-10-06
 
