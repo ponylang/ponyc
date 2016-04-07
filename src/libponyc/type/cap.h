@@ -15,6 +15,14 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
   token_id supalias);
 
 /**
+ * Check subtyping with the knowledge that the original bound rcap was the
+ * same. This is used when checking if a typeparamref is a subtype of itself,
+ * possibly with an altered rcap due to aliasing or viewpoint adaptation.
+ */
+bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
+  token_id supalias);
+
+/**
  * Some possible instantiation of the operand is a subtype of some possible
  * instantiation of the pattern.
  */

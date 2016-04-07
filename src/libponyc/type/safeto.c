@@ -27,8 +27,8 @@ static bool safe_field_write(token_id cap, ast_t* type)
 
     case TK_ARROW:
     {
-      // Safe to write if the upper bounds is safe to write.
-      ast_t* upper = viewpoint_upper(type);
+      // Safe to write if the lower bounds is safe to write.
+      ast_t* upper = viewpoint_lower(type);
 
       if(upper == NULL)
         return false;

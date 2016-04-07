@@ -91,6 +91,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
         case TK_REF:
         case TK_CAP_READ:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return NULL;
 
@@ -109,6 +110,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
     case TK_TAG:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
+    case TK_CAP_ALIAS:
     case TK_CAP_ANY:
       // Recovers as tag or itself only.
       if(rcap == TK_NONE)
