@@ -2,7 +2,7 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
-#include "../type/matchtype.h"
+#include "../type/compattype.h"
 #include "../type/subtype.h"
 #include "../type/typeparam.h"
 #include <assert.h>
@@ -40,12 +40,25 @@ static void flatten_isect_element(ast_t* type, ast_t* elem)
   ast_free_unattached(elem);
 }
 
-static ast_result_t flatten_isect(ast_t* ast)
+static ast_result_t flatten_isect(typecheck_t* t, ast_t* ast)
 {
   // Flatten intersections without testing subtyping. This is to preserve any
   // type guarantees that an element in the intersection might make.
   assert(ast_childcount(ast) == 2);
   AST_EXTRACT_CHILDREN(ast, left, right);
+
+  if((t->frame->constraint == NULL) &&
+    (t->frame->provides == NULL) &&
+    !is_compat_type(left, right))
+  {
+    ast_add(ast, right);
+    ast_add(ast, left);
+
+    ast_error(ast,
+      "intersection types cannot include reference capabilities that are not "
+      "locally compatible");
+    return AST_ERROR;
+  }
 
   flatten_isect_element(ast, left);
   flatten_isect_element(ast, right);
@@ -224,7 +237,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       return flatten_union(astp);
 
     case TK_ISECTTYPE:
-      return flatten_isect(ast);
+      return flatten_isect(t, ast);
 
     case TK_NEW:
     {

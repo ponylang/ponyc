@@ -27,8 +27,6 @@ static void cap_aliasing(token_id* cap, token_id* eph)
       switch(*cap)
       {
         case TK_ISO:
-        case TK_CAP_SEND:
-        case TK_CAP_ANY:
           // Alias as tag.
           *cap = TK_TAG;
           break;
@@ -36,6 +34,17 @@ static void cap_aliasing(token_id* cap, token_id* eph)
         case TK_TRN:
           // Alias as box.
           *cap = TK_BOX;
+          break;
+
+        case TK_CAP_SEND:
+          // Alias as share.
+          *cap = TK_CAP_SHARE;
+          break;
+
+        case TK_CAP_ANY:
+          // TODO: should not be tag
+          // Alias as tag.
+          *cap = TK_TAG;
           break;
 
         case TK_ISO_BIND:
@@ -48,6 +57,11 @@ static void cap_aliasing(token_id* cap, token_id* eph)
 
         case TK_CAP_SEND_BIND:
           *cap = TK_CAP_SHARE_BIND;
+          break;
+
+        case TK_CAP_ANY_BIND:
+          // TODO: should not be tag
+          *cap = TK_TAG_BIND;
           break;
 
         default: {}

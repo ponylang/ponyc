@@ -495,7 +495,7 @@ static bool is_union_sub_x(ast_t* sub, ast_t* super, errorframe_t* errors)
     {
       if(errors != NULL)
       {
-        ast_error_frame(errors, sub,
+        ast_error_frame(errors, child,
           "not every element of %s is a subtype of %s",
           ast_print_type(sub), ast_print_type(super));
       }
@@ -539,7 +539,6 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, errorframe_t* errors)
       ast_t* super_def = (ast_t*)ast_data(super);
 
       // TODO: can satisfy the interface in aggregate
-      // Must still account for accept_subtype
       // (T1 & T2) <: I k
       if(ast_id(super_def) == TK_INTERFACE)
       {
@@ -551,46 +550,24 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, errorframe_t* errors)
     default: {}
   }
 
-  // T1 <: T3
-  // T2 <: T3 or accept_subtype(T2, T3)
+  // T1 <: T3 or T2 <: T3
   // ---
   // (T1 & T2) <: T3
-
-  bool ok = false;
-  bool accept = true;
-
-  // TODO: if (T1 <: T3) and (T2 <: T3), no need to check accept_subtype
-  // works already except for (T1 & T2) <: (T3 & T4)
-  // because is_isect_sub_isect breaks that down
-
   for(ast_t* child = ast_child(sub);
     child != NULL;
     child = ast_sibling(child))
   {
     if(is_subtype(child, super, NULL))
-    {
-      ok = true;
-    } else if(!accept_subtype(child, super)) {
-      accept_subtype(child, super);
-
-      if(errors != NULL)
-      {
-        ast_error_frame(errors, child,
-          "%s prevents %s from being a subtype of %s",
-          ast_print_type(child), ast_print_type(sub), ast_print_type(super));
-      }
-
-      accept = false;
-    }
+      return true;
   }
 
-  if(!ok && errors != NULL)
+  if(errors != NULL)
   {
     ast_error_frame(errors, sub, "no element of %s is a subtype of %s",
       ast_print_type(sub), ast_print_type(super));
   }
 
-  return ok && accept;
+  return false;
 }
 
 static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super, errorframe_t* errors)
@@ -1199,7 +1176,7 @@ static bool is_arrow_sub_nominal(ast_t* sub, ast_t* super,
 static bool is_arrow_sub_typeparam(ast_t* sub, ast_t* super,
   errorframe_t* errors)
 {
-  // forall k' in k . upperbound(T1->T2 {A k |-> A k'}) <: A k'
+  // forall k' in k . T1->T2 {A k |-> A k'} <: A k'
   // ---
   // T1->T2 <: A k
   ast_t* r_sub = viewpoint_reifytypeparam(sub, super);
@@ -1213,28 +1190,8 @@ static bool is_arrow_sub_typeparam(ast_t* sub, ast_t* super,
     return ok;
   }
 
-  // If there is only a single instantiation, calculate the upper bounds.
-  //
-  // upperbound(T1->T2) <: A k
-  // ---
-  // T1->T2 <: A k
-  ast_t* sub_upper = viewpoint_upper(sub);
-
-  if(sub_upper == NULL)
-  {
-    if(errors != NULL)
-    {
-      ast_error_frame(errors, sub,
-        "%s is not a subtype of %s: the subtype has no upper bounds",
-        ast_print_type(sub), ast_print_type(super));
-    }
-
-    return false;
-  }
-
-  bool ok = is_subtype(sub_upper, super, errors);
-  ast_free_unattached(sub_upper);
-  return ok;
+  // If there is only a single instantiation, treat as a nominal type.
+  return is_arrow_sub_nominal(sub, super, errors);
 }
 
 static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super, errorframe_t* errors)
@@ -1247,62 +1204,15 @@ static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super, errorframe_t* errors)
   // forall K' in S . K->S->T1 {S |-> K'} <: T2 {S |-> K'}
   // ---
   // K->S->T1 <: T2
-  ast_t* sub_test = sub;
+  ast_t* r_sub;
+  ast_t* r_super;
 
-  // Find the first left side that needs reification.
-  while(ast_id(sub_test) == TK_ARROW)
+  if(viewpoint_reifypair(sub, super, &r_sub, &r_super))
   {
-    AST_GET_CHILDREN(sub_test, left, right);
-
-    switch(ast_id(left))
-    {
-      case TK_THISTYPE:
-      {
-        // Reify on both sides and test subtyping again.
-        ast_t* r_sub = viewpoint_reifythis(sub);
-        ast_t* r_super = viewpoint_reifythis(super);
-        bool ok = is_subtype(r_sub, r_super, errors);
-        ast_free_unattached(r_sub);
-        ast_free_unattached(r_super);
-        return ok;
-      }
-
-      case TK_TYPEPARAMREF:
-      {
-        ast_t* r_sub = viewpoint_reifytypeparam(sub, left);
-
-        if(r_sub == NULL)
-          break;
-
-        // Reify on both sides and test subtyping again.
-        ast_t* r_super = viewpoint_reifytypeparam(super, left);
-        bool ok = is_subtype(r_sub, r_super, errors);
-        ast_free_unattached(r_sub);
-        ast_free_unattached(r_super);
-        return ok;
-      }
-
-      default: {}
-    }
-
-    sub_test = right;
-  }
-
-  if(ast_id(sub_test) == TK_TYPEPARAMREF)
-  {
-    // forall k' in k . K->A k' <: T1->T2 {A k |-> A k'}
-    // ---
-    // K->A k <: T1->T2
-    ast_t* r_sub = viewpoint_reifytypeparam(sub, sub_test);
-    ast_t* r_super = viewpoint_reifytypeparam(super, sub_test);
-
-    if(r_sub != NULL)
-    {
-      bool ok = is_subtype(r_sub, r_super, errors);
-      ast_free_unattached(r_sub);
-      ast_free_unattached(r_super);
-      return ok;
-    }
+    bool ok = is_subtype(r_sub, r_super, errors);
+    ast_free_unattached(r_sub);
+    ast_free_unattached(r_super);
+    return ok;
   }
 
   // No elements need reification.
