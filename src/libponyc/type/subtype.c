@@ -1040,7 +1040,31 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super,
   ast_t* super_def = (ast_t*)ast_data(super);
 
   if(sub_def == super_def)
-    return is_sub_cap_and_eph(sub, super, errors);
+  {
+    // We know the bounds on the rcap is the same, so we have different
+    // subtyping rules here.
+    ast_t* sub_cap = cap_fetch(sub);
+    ast_t* sub_eph = ast_sibling(sub_cap);
+    ast_t* super_cap = cap_fetch(super);
+    ast_t* super_eph = ast_sibling(super_cap);
+
+    if(!is_cap_sub_cap_bound(ast_id(sub_cap), ast_id(sub_eph),
+      ast_id(super_cap), ast_id(super_eph)))
+    {
+      if(errors != NULL)
+      {
+        ast_error_frame(errors, sub,
+          "%s is not a subtype of %s: %s%s is not a subtype of %s%s",
+          ast_print_type(sub), ast_print_type(super),
+          ast_print_type(sub_cap), ast_print_type(sub_eph),
+          ast_print_type(super_cap), ast_print_type(super_eph));
+      }
+
+      return false;
+    }
+
+    return true;
+  }
 
   if(errors != NULL)
   {

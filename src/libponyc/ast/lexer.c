@@ -175,6 +175,7 @@ static const lextoken_t keywords[] =
   { "#read", TK_CAP_READ },
   { "#send", TK_CAP_SEND },
   { "#share", TK_CAP_SHARE },
+  { "#alias", TK_CAP_ALIAS },
   { "#any", TK_CAP_ANY },
 
   // $keywords, for testing only.
@@ -228,6 +229,7 @@ static const lextoken_t abstract[] =
   { "#read (bind)", TK_CAP_READ_BIND },
   { "#send (bind)", TK_CAP_SEND_BIND },
   { "#share (bind)", TK_CAP_SHARE_BIND },
+  { "#alias (bind)", TK_CAP_ALIAS_BIND },
   { "#any (bind)", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
