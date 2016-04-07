@@ -15,7 +15,7 @@ typedef struct package_t package_t;
  * directory relative to the executable, plus a collection of directories
  * specified in the PONYPATH environment variable.
  */
-bool package_init(pass_opt_t* opt);
+bool package_init();
 
 /**
  * Gets the list of search paths.
@@ -116,9 +116,9 @@ const char* package_hygienic_id(typecheck_t* t);
 bool package_allow_ffi(typecheck_t* t);
 
 /**
- * Cleans up the list of search directories and shuts down the code generator.
+ * Cleans up the list of search directories.
  */
-void package_done(pass_opt_t* opt, bool handle_errors);
+void package_done();
 
 bool is_path_absolute(const char* path);
 
