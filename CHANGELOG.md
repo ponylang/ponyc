@@ -22,7 +22,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Bug in `String.compare` and `String.compare_sub`.
 - Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
 - Add -rpath to the link command for library paths
-- Do not enable LTO if LLVMgold isn't found on Linux in release builds.
 - Simplify contains() method on HashMap.
 
 ### Added
@@ -47,6 +46,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Support for empty sections in ini parsing.
 - --verbose,-V option for compiler informational messages.
 - Logger package
+- `ArrayValues.rewind()` method.
 
 ### Changed
 
@@ -58,6 +58,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Replaced '&' with 'addressof' for taking address in FFI calls.
 - @jemc: use half-open ranges for String operations.
 - Improved TCPConnection with a dynamically size of buffers
+- Drop dynamic LTO detection in the build system.
+- Parameterized Array.find and Array.rfind with a comparator.
 
 ## [0.2.1] - 2015-10-06
 
