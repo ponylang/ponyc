@@ -323,8 +323,8 @@ TEST_F(MatchTypeTest, Capabilities)
     "    t1refort2val: (T1 ref | T2 val),\n"
     "    t1valort2ref: (T1 val | T2 ref),\n"
     "    t1refandt2ref: (T1 ref & T2 ref),\n"
-    "    t1refandt2val: (T1 ref & T2 val),\n"
-    "    t1valandt2ref: (T1 val & T2 ref))";
+    "    t1refandt2box: (T1 ref & T2 box),\n"
+    "    t1valandt2box: (T1 val & T2 box))";
 
   TEST_COMPILE(src);
 
@@ -381,9 +381,9 @@ TEST_F(MatchTypeTest, Capabilities)
   ASSERT_EQ(MATCHTYPE_ACCEPT,
     is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2ref")));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2ref")));
-  ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2val")));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2box")));
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box")));
 }
 
 

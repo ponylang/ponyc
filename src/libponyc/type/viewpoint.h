@@ -45,6 +45,13 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref);
  */
 ast_t* viewpoint_reifythis(ast_t* type);
 
+/**
+ * Reifies a pair of arrow types into tuples. Returns true if r_a and r_b are
+ * set to new reified tuples. Returns false if no further pairwise reification
+ * is possible. The caller is responsible for freeing *r_a and *r_b.
+ */
+bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b);
+
 PONY_EXTERN_C_END
 
 #endif

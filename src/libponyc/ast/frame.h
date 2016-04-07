@@ -11,6 +11,7 @@ typedef struct typecheck_frame_t
   ast_t* module;
   ast_t* type;
   ast_t* constraint;
+  ast_t* provides;
   ast_t* method;
   ast_t* def_arg;
   ast_t* method_body;

@@ -67,6 +67,11 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       t->frame->type = ast;
       break;
 
+    case TK_PROVIDES:
+      pop = push_frame(t);
+      t->frame->provides = ast;
+      break;
+
     case TK_NEW:
     case TK_BE:
     case TK_FUN:

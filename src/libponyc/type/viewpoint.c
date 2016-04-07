@@ -473,3 +473,59 @@ ast_t* viewpoint_reifythis(ast_t* type)
 
   return tuple;
 }
+
+bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
+{
+  assert(ast_id(a) == TK_ARROW);
+  assert(ast_id(b) == TK_ARROW);
+
+  // Find the first left side that needs reification.
+  ast_t* test = a;
+
+  while(ast_id(test) == TK_ARROW)
+  {
+    AST_GET_CHILDREN(test, left, right);
+
+    switch(ast_id(left))
+    {
+      case TK_THISTYPE:
+      {
+        // Reify on both sides.
+        *r_a = viewpoint_reifythis(a);
+        *r_b = viewpoint_reifythis(b);
+        return true;
+      }
+
+      case TK_TYPEPARAMREF:
+      {
+        // If we can reify a, we can reify b.
+        ast_t* r = viewpoint_reifytypeparam(a, left);
+
+        if(r == NULL)
+          break;
+
+        *r_a = r;
+        *r_b = viewpoint_reifytypeparam(b, left);
+        return true;
+      }
+
+      default: {}
+    }
+
+    test = right;
+  }
+
+  if(ast_id(test) == TK_TYPEPARAMREF)
+  {
+    ast_t* r = viewpoint_reifytypeparam(a, test);
+
+    if(r == NULL)
+      return false;
+
+    *r_a = r;
+    *r_b = viewpoint_reifytypeparam(b, test);
+    return true;
+  }
+
+  return false;
+}
