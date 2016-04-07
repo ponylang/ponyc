@@ -38,12 +38,6 @@ typedef enum
  */
 matchtype_t is_matchtype(ast_t* operand, ast_t* pattern);
 
-/**
- * Returns false if some instantiation of sub would deny a matchtype with
- * super. This is used to prevent intersection types from violating refcaps.
- */
-bool accept_subtype(ast_t* sub, ast_t* super);
-
 PONY_EXTERN_C_END
 
 #endif

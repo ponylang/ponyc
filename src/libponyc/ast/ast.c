@@ -982,13 +982,15 @@ ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
   assert(older_sibling != NULL);
   assert(new_sibling != NULL);
   assert(older_sibling != new_sibling);
-  assert(older_sibling->sibling == NULL);
   assert(hasparent(older_sibling));
 
   if(hasparent(new_sibling))
     new_sibling = ast_dup(new_sibling);
 
+  assert(new_sibling->sibling == NULL);
+
   set_scope_and_parent(new_sibling, older_sibling->parent);
+  new_sibling->sibling = older_sibling->sibling;
   older_sibling->sibling = new_sibling;
   return new_sibling;
 }

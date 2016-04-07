@@ -4,6 +4,7 @@
 * Use the [mailing list](mailto:pony+user@groups.io).
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
 * A tutorial is available [here](http://tutorial.ponylang.org).
+* A [cookbook style book of patterns](http://patterns.ponylang.org) is in progress
 * Standard library docs are available [here](http://ponylang.github.io/ponyc/).
 
 # Editor support
@@ -146,7 +147,7 @@ sudo pkg install libunwind
 This will build ponyc and compile helloworld:
 
 ```bash
-$ make config=release
+$ gmake config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
@@ -240,3 +241,24 @@ Now you can run the pony compiler and tests:
 > build\release\ponyc.exe -d -s packages\stdlib
 > .\stdlib
 ```
+
+## Building with link-time optimisation (LTO)
+
+You can enable LTO when building the compiler in release mode. There are
+slight differences between platforms so you'll need to do a manual setup.
+LTO is enabled by setting `lto` to `yes` in the build command line:
+
+```bash
+$ make config=release lto=yes
+```
+
+If the build fails, you have to specify the LTO plugin for your compiler
+in the `LTO_PLUGIN` variable. For example:
+
+```bash
+$ make config=release LTO_PLUGIN=/usr/lib/LLVMgold.so
+```
+
+Refer to your compiler documentation for the plugin to use in your case.
+
+LTO is enabled by default on OSX.

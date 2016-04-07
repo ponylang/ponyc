@@ -11,9 +11,12 @@ actor TCPListener
   let _limit: USize
   var _count: USize = 0
   var _paused: Bool = false
+  var _init_size: USize
+  var _max_size: USize
 
   new create(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0)
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -22,11 +25,14 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp[AsioEventID](this, host.cstring(),
       service.cstring())
+    _init_size = init_size
+    _max_size = max_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
   new ip4(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0)
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Listens for IPv4 connections.
@@ -35,11 +41,14 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp4[AsioEventID](this, host.cstring(),
       service.cstring())
+    _init_size = init_size
+    _max_size = max_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
   new ip6(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0)
+    host: String = "", service: String = "0", limit: USize = 0, 
+    init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     Listens for IPv6 connections.
@@ -48,6 +57,8 @@ actor TCPListener
     _notify = consume notify
     _event = @pony_os_listen_tcp6[AsioEventID](this, host.cstring(),
       service.cstring())
+    _init_size = init_size
+    _max_size = max_size
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
@@ -154,7 +165,7 @@ actor TCPListener
     Spawn a new connection.
     """
     try
-      TCPConnection._accept(this, _notify.connected(this), ns)
+      TCPConnection._accept(this, _notify.connected(this), ns, _init_size, _max_size)
       _count = _count + 1
     else
       @pony_os_socket_close[None](ns)

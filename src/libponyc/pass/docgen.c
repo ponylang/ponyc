@@ -414,16 +414,20 @@ static bool is_for_testing(const char* name, ast_t* list)
 
   if (strncmp(name, "_Test", 5) == 0) return true;
 
-  if(ast_id(list) == TK_NONE)
-    return false;
+  if(ast_id(list) == TK_NONE) return false;
 
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
-    if (ast_id(p) == TK_NOMINAL)
+    if(ast_id(p) == TK_NOMINAL)
     {
       ast_t* id = ast_childidx(p, 1);
 
-      if (strncmp(ast_name(id), "TestList", 8) == 0) return true;
+      if(strcmp(ast_name(id), "TestList") == 0) return true;
+      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
+
+      ast_t* p_def = (ast_t*)ast_data(p);
+      ast_t* p_list = ast_childidx(p_def, 3);
+      return is_for_testing(ast_name(id), p_list);
     }
   }
 
@@ -648,8 +652,8 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
 
   // Add to appropriate package types buffer
   printbuf_t* buffer = docgen->public_types;
-  if (is_for_testing(name, provides)) buffer = docgen->test_types;
-  else if (name[0] == '_') buffer = docgen->private_types;
+  if(is_for_testing(name, provides)) buffer = docgen->test_types;
+  else if(name[0] == '_') buffer = docgen->private_types;
   printbuf(buffer,
            "* [%s %s](%s.md)\n",
            ast_get_print(ast), name, tqfn);
@@ -843,12 +847,23 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     doc_entity(docgen, p->ast, ast);
 
   // Add listing of subpackages and links
-  fprintf(docgen->package_file, "\n\n## Public Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->public_types->m);
-  fprintf(docgen->package_file, "\n\n## Private Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->private_types->m);
-  fprintf(docgen->package_file, "\n\n## Test Types\n\n");
-  fprintf(docgen->package_file, "%s", docgen->test_types->m);
+  if(docgen->public_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Public Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->public_types->m);
+  }
+
+  if(docgen->private_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Private Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->private_types->m);
+  }
+
+  if(docgen->test_types->offset > 0)
+  {
+    fprintf(docgen->package_file, "\n\n## Test Types\n\n");
+    fprintf(docgen->package_file, "%s", docgen->test_types->m);
+  }
 
   fclose(docgen->package_file);
   docgen->package_file = NULL;

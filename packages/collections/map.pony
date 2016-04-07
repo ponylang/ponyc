@@ -123,12 +123,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Checks whether the map contains the key k
     """
-    try
-      apply(k)
-      true
-    else
-      false
-    end
+    (_, let found) = _search(k)
+    found
 
   fun ref concat(iter: Iterator[(K^, V^)]) =>
     """

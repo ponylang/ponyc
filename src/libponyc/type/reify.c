@@ -10,11 +10,12 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_TYPEPARAMREF);
-  ast_t* ref_name = ast_child(ast);
-  ast_t* param_name = ast_child(typeparam);
 
-  ast_t* ref_def = ast_get(ref_name, ast_name(ref_name), NULL);
-  ast_t* param_def = ast_get(param_name, ast_name(param_name), NULL);
+  ast_t* ref_def = (ast_t*)ast_data(ast);
+  ast_t* param_def = (ast_t*)ast_data(typeparam);
+
+  assert(ref_def != NULL);
+  assert(param_def != NULL);
 
   if(ref_def != param_def)
     return;

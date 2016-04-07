@@ -282,9 +282,13 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
     "  fun z(c1: C1, c2: C2, c3: C3,\n"
     "    t1: T1, t2: T2, t3: T3,\n"
     "    t1and2: (T1 & T2),\n"
+    "    t3iso: T3 iso,\n"
     "    t3trn: T3 trn,\n"
     "    t1val: T1 val,\n"
-    "    t1and2val: (T1 ref & T2 val))";
+    "    t1isoand2iso: (T1 iso & T2 iso),\n"
+    "    t1trnand2trn: (T1 trn & T2 trn),\n"
+    "    t1valand2box: (T1 val & T2 box),\n"
+    "    t1refand2box: (T1 ref & T2 box))";
 
   TEST_COMPILE(src);
 
@@ -296,11 +300,22 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_FALSE(is_subtype(type_of("t1and2"), type_of("c3"), NULL));
   ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1"), NULL));
   ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1val"), NULL));
-  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2val"), NULL));
-  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1and2val"), NULL));
-  ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1and2val"), NULL));
-  ASSERT_FALSE(is_subtype(type_of("t1and2val"), type_of("t1"), NULL));
-  ASSERT_FALSE(is_subtype(type_of("t1and2val"), type_of("t1val"), NULL));
+  ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1refand2box"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t3iso"), type_of("t1refand2box"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t3iso"), type_of("t1valand2box"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1refand2box"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1valand2box"), NULL));
+  ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1valand2box"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t1refand2box"), type_of("t1"), NULL));
+  ASSERT_TRUE(is_subtype(type_of("t1valand2box"), type_of("t1val"), NULL));
+  ASSERT_TRUE(
+    is_subtype(type_of("t1isoand2iso"), type_of("t1refand2box"), NULL));
+  ASSERT_TRUE(
+    is_subtype(type_of("t1trnand2trn"), type_of("t1refand2box"), NULL));
+  ASSERT_TRUE(
+    is_subtype(type_of("t1isoand2iso"), type_of("t1valand2box"), NULL));
+  ASSERT_TRUE(
+    is_subtype(type_of("t1trnand2trn"), type_of("t1valand2box"), NULL));
 }
 
 
@@ -788,7 +803,7 @@ TEST_F(SubTypeTest, IsConcrete)
     "    i8: I8, i16: I16, i32: I32, isize: ISize, i64: I64, i128: I128,\n"
     "    f32: F32, f64: F64,\n"
     "    c1: C1, p1: P1, t1: T1,\n"
-    "    t1ornone: (T1 | None), t1andnone: (T1 & None),\n"
+    "    t1ornone: (T1 | None), t1andnone: (T1 val & None),\n"
     "    c1ort1: (C1 | T1), c1andt1: (C1 & T1))";
 
   TEST_COMPILE(src);

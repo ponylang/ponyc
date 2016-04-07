@@ -1,5 +1,6 @@
 #include "lookup.h"
 #include "assemble.h"
+#include "cap.h"
 #include "reify.h"
 #include "viewpoint.h"
 #include "subtype.h"
@@ -71,6 +72,8 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
               if(ast_visit_scope(&param, NULL, pass_expr, opt,
                 PASS_EXPR) != AST_OK)
                 return false;
+
+              def_arg = ast_childidx(param, 2);
 
               if(!coerce_literals(&def_arg, type, opt))
                 return false;
@@ -183,147 +186,155 @@ static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
   return lookup_base(opt, from, orig, constraint, name, errors);
 }
 
+static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
+  const char* name, bool errors)
+{
+  ast_t* child = ast_child(type);
+  ast_t* result = NULL;
+  bool ok = true;
+
+  while(child != NULL)
+  {
+    ast_t* r = lookup_base(opt, from, child, child, name, errors);
+
+    if(r == NULL)
+    {
+      // All possible types in the union must have this.
+      if(errors)
+      {
+        ast_error(from, "couldn't find %s in %s",
+          name, ast_print_type(child));
+      }
+
+      ok = false;
+    } else {
+      switch(ast_id(r))
+      {
+        case TK_FVAR:
+        case TK_FLET:
+        case TK_EMBED:
+          if(errors)
+          {
+            ast_error(from,
+              "can't lookup field %s in %s in a union type",
+              name, ast_print_type(child));
+          }
+
+          ok = false;
+          break;
+
+        default:
+          if(result == NULL)
+          {
+            // If we don't have a result yet, use this one.
+            result = r;
+          } else if(!is_subtype(r, result, NULL)) {
+            if(is_subtype(result, r, NULL))
+            {
+              // Use the supertype function. Require the most specific
+              // arguments and return the least specific result.
+              // TODO: union the signatures, to handle arg names and
+              // default arguments.
+              ast_free_unattached(result);
+              result = r;
+            } else {
+              if(errors)
+              {
+                ast_error(from,
+                  "a member of the union type has an incompatible method "
+                  "signature");
+                ast_error(result, "first implementation is here");
+                ast_error(r, "second implementation is here");
+              }
+
+              ast_free_unattached(r);
+              ok = false;
+            }
+          }
+          break;
+      }
+    }
+
+    child = ast_sibling(child);
+  }
+
+  if(!ok)
+  {
+    ast_free_unattached(result);
+    result = NULL;
+  }
+
+  return result;
+}
+
+static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
+  const char* name, bool errors)
+{
+  ast_t* child = ast_child(type);
+  ast_t* result = NULL;
+  bool ok = true;
+
+  while(child != NULL)
+  {
+    ast_t* r = lookup_base(opt, from, child, child, name, false);
+
+    if(r != NULL)
+    {
+      switch(ast_id(r))
+      {
+        case TK_FVAR:
+        case TK_FLET:
+        case TK_EMBED:
+          // Ignore fields.
+          break;
+
+        default:
+          if(result == NULL)
+          {
+            // If we don't have a result yet, use this one.
+            result = r;
+          } else if(!is_subtype(result, r, NULL)) {
+            if(is_subtype(r, result, NULL))
+            {
+              // Use the subtype function. Require the least specific
+              // arguments and return the most specific result.
+              ast_free_unattached(result);
+              result = r;
+            }
+
+            // TODO: isect the signatures, to handle arg names and
+            // default arguments. This is done even when the functions have
+            // no subtype relationship.
+          }
+          break;
+      }
+    }
+
+    child = ast_sibling(child);
+  }
+
+  if(errors && (result == NULL))
+    ast_error(from, "couldn't find '%s'", name);
+
+  if(!ok)
+  {
+    ast_free_unattached(result);
+    result = NULL;
+  }
+
+  return result;
+}
+
 static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-    {
-      ast_t* child = ast_child(type);
-      ast_t* result = NULL;
-      bool ok = true;
-
-      while(child != NULL)
-      {
-        ast_t* r = lookup_base(opt, from, child, child, name, errors);
-
-        if(r == NULL)
-        {
-          // All possible types in the union must have this.
-          if(errors)
-          {
-            ast_error(from, "couldn't find %s in %s",
-              name, ast_print_type(child));
-          }
-
-          ok = false;
-        } else {
-          switch(ast_id(r))
-          {
-            case TK_FVAR:
-            case TK_FLET:
-            case TK_EMBED:
-              if(errors)
-              {
-                ast_error(from,
-                  "can't lookup field %s in %s in a union type",
-                  name, ast_print_type(child));
-              }
-
-              ok = false;
-              break;
-
-            default:
-              if(result == NULL)
-              {
-                // If we don't have a result yet, use this one.
-                result = r;
-              } else if(!is_subtype(r, result, NULL)) {
-                if(is_subtype(result, r, NULL))
-                {
-                  // Use the supertype function. Require the most specific
-                  // arguments and return the least specific result.
-                  // TODO: union the signatures, to handle arg names and
-                  // default arguments.
-                  ast_free_unattached(result);
-                  result = r;
-                } else {
-                  if(errors)
-                  {
-                    ast_error(from,
-                      "a member of the union type has an incompatible method "
-                      "signature");
-                    ast_error(result, "first implementation is here");
-                    ast_error(r, "second implementation is here");
-                  }
-
-                  ast_free_unattached(r);
-                  ok = false;
-                }
-              }
-              break;
-          }
-        }
-
-        child = ast_sibling(child);
-      }
-
-      if(!ok)
-      {
-        ast_free_unattached(result);
-        result = NULL;
-      }
-
-      return result;
-    }
+      return lookup_union(opt, from, type, name, errors);
 
     case TK_ISECTTYPE:
-    {
-      ast_t* child = ast_child(type);
-      ast_t* result = NULL;
-      bool ok = true;
-
-      while(child != NULL)
-      {
-        ast_t* r = lookup_base(opt, from, child, child, name, false);
-
-        if(r != NULL)
-        {
-          switch(ast_id(r))
-          {
-            case TK_FVAR:
-            case TK_FLET:
-            case TK_EMBED:
-              // Ignore fields.
-              break;
-
-            default:
-              if(result == NULL)
-              {
-                // If we don't have a result yet, use this one.
-                result = r;
-              } else if(!is_subtype(result, r, NULL)) {
-                if(is_subtype(r, result, NULL))
-                {
-                  // Use the subtype function. Require the least specific
-                  // arguments and return the most specific result.
-                  ast_free_unattached(result);
-                  result = r;
-                }
-
-                // TODO: isect the signatures, to handle arg names and
-                // default arguments. This is done even when the functions have
-                // no subtype relationship.
-              }
-              break;
-          }
-        }
-
-        child = ast_sibling(child);
-      }
-
-      if(errors && (result == NULL))
-        ast_error(from, "couldn't find '%s'", name);
-
-      if(!ok)
-      {
-        ast_free_unattached(result);
-        result = NULL;
-      }
-
-      return result;
-    }
+      return lookup_isect(opt, from, type, name, errors);
 
     case TK_TUPLETYPE:
       if(errors)
