@@ -646,7 +646,7 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   // SYLVAN'S FULL CODE BLOCK HERE
   fprintf(docgen->type_file, "```pony\n");
   fprintf(docgen->type_file, "%s ", ast_get_print(method));
-  if(ast_id(method) == TK_FUN)
+  if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     const char* cap_text = doc_get_cap(cap);
     if(cap_text != NULL) fprintf(docgen->type_file, "%s ", cap_text);
