@@ -1,3 +1,4 @@
+#include "../libponyc/ponyc.h"
 #include "../libponyc/ast/parserapi.h"
 #include "../libponyc/ast/bnfprint.h"
 #include "../libponyc/pkg/package.h"
@@ -333,7 +334,7 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  if(package_init(&opt))
+  if(ponyc_init(&opt))
   {
     if(argc == 1)
     {
@@ -348,9 +349,8 @@ int main(int argc, char* argv[])
   if(!ok && get_error_count() == 0)
     printf("Error: internal failure not reported\n");
 
-  package_done(&opt, true);
+  ponyc_shutdown(&opt);
   pass_opt_done(&opt);
-  stringtab_done();
 
   return ok ? 0 : -1;
 }

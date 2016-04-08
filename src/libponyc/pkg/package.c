@@ -640,11 +640,8 @@ static void add_exec_dir()
 }
 
 
-bool package_init(pass_opt_t* opt)
+bool package_init()
 {
-  if(!codegen_init(opt))
-    return false;
-
   // package_add_paths for command line paths has already been done. Here, we
   // append the paths from an optional environment variable, and then the paths
   // that are relative to the compiler location on disk.
@@ -963,10 +960,8 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
-void package_done(pass_opt_t* opt, bool handle_errors)
+void package_done()
 {
-  codegen_shutdown(opt);
-
   strlist_free(search);
   search = NULL;
 
@@ -974,12 +969,6 @@ void package_done(pass_opt_t* opt, bool handle_errors)
   safe = NULL;
 
   package_clear_magic();
-
-  if(handle_errors)
-  {
-    print_errors();
-    free_errors();
-  }
 }
 
 

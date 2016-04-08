@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <ponyc.h>
 #include <ast/ast.h>
 #include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
+#include <codegen/codegen.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
 
@@ -359,7 +361,8 @@ void PassTest::build_package(const char* pass, const char* src,
 
   pass_opt_t opt;
   pass_opt_init(&opt);
-  package_init(&opt);
+  codegen_init(&opt);
+  package_init();
 
   lexer_allow_test_symbols();
 
@@ -372,7 +375,8 @@ void PassTest::build_package(const char* pass, const char* src,
   limit_passes(&opt, pass);
   *out_package = program_load(stringtab(package_name), &opt);
 
-  package_done(&opt, false);
+  package_done();
+  codegen_shutdown(&opt);
   pass_opt_done(&opt);
 
   if(check_good)
@@ -382,7 +386,6 @@ void PassTest::build_package(const char* pass, const char* src,
 
     ASSERT_NE((void*)NULL, *out_package);
   }
-
 }
 
 
