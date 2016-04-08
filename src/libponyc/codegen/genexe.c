@@ -376,6 +376,9 @@ bool genexe(compile_t* c, ast_t* program)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
   paint(c->reachable);
 
+  if(c->opt->verbosity >= VERBOSITY_ALL)
+    reach_dump(c->reachable);
+
   if(!gentypes(c))
     return false;
 
