@@ -24,7 +24,7 @@ static bool need_primitive_call(compile_t* c, const char* method)
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    if(t->underlying != TK_TUPLETYPE)
+    if(t->underlying != TK_PRIMITIVE)
       continue;
 
     reachable_method_name_t* n = reach_method_name(t, method);
