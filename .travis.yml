@@ -1,5 +1,9 @@
 language: c
 
+branches:
+  only:
+    - master
+
 sudo: required
 
 addons:
