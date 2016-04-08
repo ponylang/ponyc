@@ -81,7 +81,7 @@ class LiteralTest : public PassTest
 
 // First the limitations.
 
-TEST_F(LiteralTest, CantInfer_Is)
+TEST_F(LiteralTest, CantInfer_Op_IsLiterals)
 {
   const char* src =
     "class Foo\n"
@@ -93,7 +93,7 @@ TEST_F(LiteralTest, CantInfer_Is)
 }
 
 
-TEST_F(LiteralTest, CantInfer_Isnt)
+TEST_F(LiteralTest, CantInfer_Op_IsntLiterals)
 {
   const char* src =
     "class Foo\n"
@@ -105,7 +105,7 @@ TEST_F(LiteralTest, CantInfer_Isnt)
 }
 
 
-TEST_F(LiteralTest, CantInfer_Is_Expr)
+TEST_F(LiteralTest, CantInfer_Op_ExprIsLiteral)
 {
   const char* src =
     "class Foo\n"
@@ -137,7 +137,7 @@ TEST_F(LiteralTest, CantInfer_Op_FloatAndInt )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Op_FloatAndInt_Float )
+TEST_F(LiteralTest, CantInfer_Op_FloatAndIntReturningFloat )
 {
   const char* src =
     "class Foo12b\n"
@@ -147,7 +147,7 @@ TEST_F(LiteralTest, CantInfer_Op_FloatAndInt_Float )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Op_IntAndFloat_Float )
+TEST_F(LiteralTest, CantInfer_Op_IntAndFloatReturningFloat )
 {
   const char* src =
     "class Foo13b\n"
@@ -157,7 +157,7 @@ TEST_F(LiteralTest, CantInfer_Op_IntAndFloat_Float )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Op_Equals )
+TEST_F(LiteralTest, CantInfer_Op_EqualsLiterals )
 {
   const char* src =
     "class Foo14b\n"
@@ -301,7 +301,7 @@ TEST_F(LiteralTest, CantInfer_Array_UnambiguousUnion )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Control_LiteralMatch )
+TEST_F(LiteralTest, CantInfer_Match_LiteralMatchValue )
 {
   const char* src =    
     "class Foo10c\n"
@@ -314,7 +314,7 @@ TEST_F(LiteralTest, CantInfer_Control_LiteralMatch )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Control_InvalidMatchElse)
+TEST_F(LiteralTest, CantInfer_Match_InvalidElse)
 {
   const char* src =    
     "class Foo11c\n"
@@ -330,7 +330,7 @@ TEST_F(LiteralTest, CantInfer_Control_InvalidMatchElse)
 }
 
 
-TEST_F(LiteralTest, CantInfer_Control_UnusedLiteral)
+TEST_F(LiteralTest, CantInfer_Literal_Unused)
 {
   const char* src =    
     "class Foo12c\n"
@@ -340,7 +340,7 @@ TEST_F(LiteralTest, CantInfer_Control_UnusedLiteral)
 }
     
 
-TEST_F(LiteralTest, CantInfer_Control_InvalidWhileReturnValue)
+TEST_F(LiteralTest, CantInfer_While_InvalidReturnValue)
 {
   const char* src =
     "class Foo13c\n"
@@ -355,7 +355,7 @@ TEST_F(LiteralTest, CantInfer_Control_InvalidWhileReturnValue)
 }
     
 
-TEST_F(LiteralTest, CantInfer_Control_InvalidWhileElseValue )
+TEST_F(LiteralTest, CantInfer_While_InvalidElseValue )
 {
   const char* src =
     "class Foo14c\n"
@@ -476,7 +476,7 @@ TEST_F(LiteralTest, Let_NestedTuple)
 }
 
 
-TEST_F(LiteralTest, Let_TupleOfGeneric_FirstOnly)
+TEST_F(LiteralTest, Let_TupleOfGeneric)
 {
   const char* src =
     "class Foo[A: U8, B: U32]\n"
@@ -490,7 +490,7 @@ TEST_F(LiteralTest, Let_TupleOfGeneric_FirstOnly)
 }
 
 
-TEST_F(LiteralTest, Let_TupleOfGeneric_FirstAndSecond)
+TEST_F(LiteralTest, Let_TupleOfGenericOfGeneric)
 {
   const char* src =
     "class Foo[A: U8, B: U32]\n"
@@ -517,7 +517,7 @@ TEST_F(LiteralTest, Parameter_Simple)
 }
 
 
-TEST_F(LiteralTest, Parameter_Second)
+TEST_F(LiteralTest, Parameter_SecondParameter)
 {
   const char* src =
     "class Foo1a\n"
@@ -739,7 +739,7 @@ TEST_F(LiteralTest, Array_ParameterOfArrayOfUnion)
 }
 
 
-TEST_F(LiteralTest, Binary_SimpleMul)
+TEST_F(LiteralTest, Op_MulLiterals)
 {
   const char* src =
     "class Foo1b\n"
@@ -752,7 +752,7 @@ TEST_F(LiteralTest, Binary_SimpleMul)
 }
 
 
-TEST_F(LiteralTest, Binary_SimpleXor)
+TEST_F(LiteralTest, Op_XorLiterals)
 {
   const char* src =
     "class Foo2b\n"
@@ -765,7 +765,7 @@ TEST_F(LiteralTest, Binary_SimpleXor)
 }
 
 
-TEST_F(LiteralTest, Binary_VarOr)
+TEST_F(LiteralTest, Op_VarOrLiteral)
 {
   const char* src =
     "class Foo2ba\n"
@@ -777,7 +777,31 @@ TEST_F(LiteralTest, Binary_VarOr)
 }
 
 
-TEST_F(LiteralTest, Binary_ParameterOfTupleOfBinary)
+TEST_F(LiteralTest, Op_VarEqualsLiteral)
+{
+  const char* src =
+    "class Foo4b\n"
+    "  fun test(y: I32): Bool => y == 79\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Op_LiteralEqualsVar)
+{
+  const char* src =
+    "class Foo5b\n"
+    "  fun test(y: I32): Bool => 79 == y\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
+}
+
+
+TEST_F(LiteralTest, Op_ParameterOfTupleOfAnd)
 {
   const char* src =
     "class Foo3b\n"
@@ -791,31 +815,7 @@ TEST_F(LiteralTest, Binary_ParameterOfTupleOfBinary)
 }
 
 
-TEST_F(LiteralTest, Binary_VarLhsEquals)
-{
-  const char* src =
-    "class Foo4b\n"
-    "  fun test(y: I32): Bool => y == 79\n";
-
-  TEST_COMPILE(src);
-
-  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
-}
-
-
-TEST_F(LiteralTest, Binary_VarRhsEquals)
-{
-  const char* src =
-    "class Foo5b\n"
-    "  fun test(y: I32): Bool => 79 == y\n";
-
-  TEST_COMPILE(src);
-
-  DO(check_type("I32", TK_NOMINAL, numeric_literal(79)));
-}
-
-
-TEST_F(LiteralTest, Control_If)
+TEST_F(LiteralTest, If_Simple)
 {
   const char* src =
    "class Foo1c\n"
@@ -829,7 +829,7 @@ TEST_F(LiteralTest, Control_If)
 }
 
 
-TEST_F(LiteralTest, Control_MatchResult)
+TEST_F(LiteralTest, Match_ResultInt)
 {
   const char* src =
     "class Foo2c\n"
@@ -849,7 +849,7 @@ TEST_F(LiteralTest, Control_MatchResult)
 }
 
 
-TEST_F(LiteralTest, Control_MatchResultFloat)
+TEST_F(LiteralTest, Match_ResultFloat)
 {
   const char* src =
     "class Foo3c\n"
@@ -869,7 +869,7 @@ TEST_F(LiteralTest, Control_MatchResultFloat)
 }
 
 
-TEST_F(LiteralTest, Control_MatchPatternTuple)
+TEST_F(LiteralTest, Match_PatternTuple)
 {
   const char* src =
     "class Foo4c\n"
@@ -890,7 +890,7 @@ TEST_F(LiteralTest, Control_MatchPatternTuple)
 }
 
 
-TEST_F(LiteralTest, Control_TryErrorOnlyBody)
+TEST_F(LiteralTest, Try_ErrorBodyElseLiteral)
 {
   const char* src =
     "class Foo5c\n"
@@ -902,7 +902,7 @@ TEST_F(LiteralTest, Control_TryErrorOnlyBody)
 }
 
 
-TEST_F(LiteralTest, Control_TryExpressionBody)
+TEST_F(LiteralTest, Try_ExpressionBody)
 {
   const char* src =
     "class Foo6c\n"
@@ -916,7 +916,7 @@ TEST_F(LiteralTest, Control_TryExpressionBody)
 }
 
 
-TEST_F(LiteralTest, Control_WhileBreakHasValue)
+TEST_F(LiteralTest, While_TupleResultBreakHasValue)
 {
   const char* src =
     "class Foo7c\n"
@@ -941,7 +941,7 @@ TEST_F(LiteralTest, Control_WhileBreakHasValue)
 }
 
 
-TEST_F(LiteralTest, Control_WhileBreakHasNoValue)
+TEST_F(LiteralTest, While_TupleResultBreakHasNoValue)
 {
   const char* src =
     "class Foo8c\n"
@@ -965,7 +965,7 @@ TEST_F(LiteralTest, Control_WhileBreakHasNoValue)
 }
 
 
-TEST_F(LiteralTest, Control_ForSimple)
+TEST_F(LiteralTest, For_Simple)
 {
   const char* src =
     "class Foo9c\n"
