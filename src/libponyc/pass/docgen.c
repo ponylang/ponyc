@@ -259,8 +259,7 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
 // Functions to handle types
 
 static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble);
-
+  const char* separator, const char* postamble, bool generate_links);
 
 // Report the human readable description for the given capability node.
 // The returned string is valid forever and should not be freed.
@@ -290,7 +289,7 @@ static const char* doc_get_cap(ast_t* cap)
 
 
 // Write the given type to the current type file
-static void doc_type(docgen_t* docgen, ast_t* type)
+static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
 {
   assert(docgen != NULL);
   assert(docgen->type_file != NULL);
@@ -302,18 +301,27 @@ static void doc_type(docgen_t* docgen, ast_t* type)
     {
       AST_GET_CHILDREN(type, package, id, tparams, cap, ephemeral);
 
-      // Find type we reference so we can link to it
-      ast_t* target = (ast_t*)ast_data(type);
-      assert(target != NULL);
+      if(generate_links)
+      {
+        // Find type we reference so we can link to it
+        ast_t* target = (ast_t*)ast_data(type);
+        assert(target != NULL);
 
-      size_t link_len;
-      char* tqfn = write_tqfn(target, NULL, &link_len);
+        size_t link_len;
+        char* tqfn = write_tqfn(target, NULL, &link_len);
 
-      // Links are of the form: [text](target)
-      fprintf(docgen->type_file, "[%s](%s)", ast_name(id), tqfn);
-      ponyint_pool_free_size(link_len, tqfn);
+        // Links are of the form: [text](target)
+        fprintf(docgen->type_file, "[%s](%s)", ast_name(id), tqfn);
+        ponyint_pool_free_size(link_len, tqfn);
 
-      doc_type_list(docgen, tparams, "\\[", ", ", "\\]");
+        doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true);
+
+      }
+      else
+      {
+        fprintf(docgen->type_file, "%s", ast_name(id));
+        doc_type_list(docgen, tparams, "[", ", ", "]", false);
+      }
 
       const char* cap_text = doc_get_cap(cap);
       if(cap_text != NULL)
@@ -326,15 +334,15 @@ static void doc_type(docgen_t* docgen, ast_t* type)
     }
 
     case TK_UNIONTYPE:
-      doc_type_list(docgen, type, "(", " | ", ")");
+      doc_type_list(docgen, type, "(", " | ", ")", generate_links);
       break;
 
     case TK_ISECTTYPE:
-      doc_type_list(docgen, type, "(", " & ", ")");
+      doc_type_list(docgen, type, "(", " & ", ")", generate_links);
       break;
 
     case TK_TUPLETYPE:
-      doc_type_list(docgen, type, "(", " , ", ")");
+      doc_type_list(docgen, type, "(", " , ", ")", generate_links);
       break;
 
     case TK_TYPEPARAMREF:
@@ -355,9 +363,9 @@ static void doc_type(docgen_t* docgen, ast_t* type)
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      doc_type(docgen, left);
+      doc_type(docgen, left, generate_links);
       fprintf(docgen->type_file, "->");
-      doc_type(docgen, right);
+      doc_type(docgen, right, generate_links);
       break;
     }
 
@@ -379,12 +387,11 @@ static void doc_type(docgen_t* docgen, ast_t* type)
   }
 }
 
-
 // Write the given list of types to the current type file, with the specified
 // preamble, separator and psotamble text. If the list is empty nothing is
 // written.
 static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble)
+  const char* separator, const char* postamble, bool generate_links)
 {
   assert(docgen != NULL);
   assert(docgen->type_file != NULL);
@@ -400,7 +407,7 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
 
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
-    doc_type(docgen, p);
+    doc_type(docgen, p, generate_links);
 
     if(ast_sibling(p) != NULL)
       fprintf(docgen->type_file, "%s", separator);
@@ -476,7 +483,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
     }
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
-    doc_type(docgen, type);
+    doc_type(docgen, type, true);
     fprintf(docgen->type_file, "\n");
   }
 }
@@ -484,7 +491,8 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
 
 // Write the given list of type parameters to the current type file, with
 // surrounding []. If the given list is empty nothing is written.
-static void doc_type_params(docgen_t* docgen, ast_t* t_params)
+static void doc_type_params(docgen_t* docgen, ast_t* t_params,
+  bool generate_links)
 {
   assert(docgen != NULL);
   assert(docgen->type_file != NULL);
@@ -495,7 +503,10 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params)
 
   assert(ast_id(t_params) == TK_TYPEPARAMS);
 
-  fprintf(docgen->type_file, "\\[");
+  if(generate_links)
+    fprintf(docgen->type_file, "\\[");
+  else
+    fprintf(docgen->type_file, "[");
   ast_t* first = ast_child(t_params);
 
   for(ast_t* t_param = first; t_param != NULL; t_param = ast_sibling(t_param))
@@ -513,18 +524,20 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params)
     fprintf(docgen->type_file, "%s: ", name);
 
     if(ast_id(constraint) != TK_NONE)
-      doc_type(docgen, constraint);
+      doc_type(docgen, constraint, generate_links);
     else
       fprintf(docgen->type_file, "no constraint");
   }
 
-  fprintf(docgen->type_file, "\\]");
+  if(generate_links)
+    fprintf(docgen->type_file, "\\]");
+  else
+    fprintf(docgen->type_file, "]");
 }
-
 
 // Write the given list of parameters to the current type file, with
 // surrounding (). If the given list is empty () is still written.
-static void doc_params(docgen_t* docgen, ast_t* params)
+static void code_block_doc_params(docgen_t* docgen, ast_t* params)
 {
   assert(docgen != NULL);
   assert(docgen->type_file != NULL);
@@ -536,14 +549,16 @@ static void doc_params(docgen_t* docgen, ast_t* params)
   for(ast_t* param = first; param != NULL; param = ast_sibling(param))
   {
     if(param != first)
-      fprintf(docgen->type_file, ", ");
+      fprintf(docgen->type_file, ",\n");
+    else
+      fprintf(docgen->type_file, "\n");
 
     AST_GET_CHILDREN(param, id, type, def_val);
     const char* name = ast_name(id);
     assert(name != NULL);
 
-    fprintf(docgen->type_file, "%s: ", name);
-    doc_type(docgen, type);
+    fprintf(docgen->type_file, "  %s: ", name);
+    doc_type(docgen, type, false);
 
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
@@ -564,6 +579,48 @@ static void doc_params(docgen_t* docgen, ast_t* params)
   fprintf(docgen->type_file, ")");
 }
 
+static void list_doc_params(docgen_t* docgen, ast_t* params)
+{
+  assert(docgen != NULL);
+  assert(docgen->type_file != NULL);
+  assert(params != NULL);
+
+  ast_t* first = ast_child(params);
+
+  for(ast_t* param = first; param != NULL; param = ast_sibling(param))
+  {
+    if(param == first)
+      fprintf(docgen->type_file, "#### Parameters\n\n");
+
+    fprintf(docgen->type_file, "* ");
+
+    AST_GET_CHILDREN(param, id, type, def_val);
+    const char* name = ast_name(id);
+    assert(name != NULL);
+
+    fprintf(docgen->type_file, "  %s: ", name);
+    doc_type(docgen, type, true);
+
+    // if we have a default value, add it to the documentation
+    if(ast_id(def_val) != TK_NONE)
+    {
+      switch(ast_id(def_val))
+      {
+        case TK_STRING:
+          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          break;
+
+        default:
+          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          break;
+      }
+    }
+
+    fprintf(docgen->type_file, "\n");
+  }
+
+  fprintf(docgen->type_file, "\n");
+}
 
 // Write a description of the given method to the current type file
 static void doc_method(docgen_t* docgen, ast_t* method)
@@ -577,37 +634,60 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   const char* name = ast_name(id);
   assert(name != NULL);
 
-  // Sub heading
-  //fprintf(docgen->type_file, "### %s %s()\n", ast_get_print(method), name);
+  // Method
+  fprintf(docgen->type_file, "### %s", name);
+  doc_type_params(docgen, t_params, true);
+  fprintf(docgen->type_file, "\n\n");
 
-  // Reconstruct signature for subheading
-  fprintf(docgen->type_file, "### %s", ast_get_print(method));
+  // The docstring, if any
+  if(ast_id(doc) != TK_NONE)
+    fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
 
+  // SYLVAN'S FULL CODE BLOCK HERE
+  fprintf(docgen->type_file, "```pony\n");
+  fprintf(docgen->type_file, "%s ", ast_get_print(method));
   if(ast_id(method) == TK_FUN)
   {
     const char* cap_text = doc_get_cap(cap);
-    if(cap_text != NULL)
-      fprintf(docgen->type_file, " %s ", cap_text);
+    if(cap_text != NULL) fprintf(docgen->type_file, "%s ", cap_text);
   }
+  fprintf(docgen->type_file, "%s", name);
+  doc_type_params(docgen, t_params, false);
+  // parameters of the code block
+  code_block_doc_params(docgen, params);
 
-  fprintf(docgen->type_file, " __%s__", name);
-  doc_type_params(docgen, t_params);
-  doc_params(docgen, params);
-
+  // return type
   if(ast_id(method) == TK_FUN)
   {
-    fprintf(docgen->type_file, ": ");
-    doc_type(docgen, ret);
+    fprintf(docgen->type_file, "\n: ");
+    doc_type(docgen, ret, false);
+
+    if(ast_id(error) == TK_QUESTION)
+      fprintf(docgen->type_file, " ?");
   }
 
-  if(ast_id(error) == TK_QUESTION)
-    fprintf(docgen->type_file, " ?");
+  // close the block
+  fprintf(docgen->type_file, "\n```\n");
 
-  fprintf(docgen->type_file, "\n\n");
+  // Parameters
+  list_doc_params(docgen, params);
 
-  // Finally the docstring, if any
-  if(ast_id(doc) != TK_NONE)
-    fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+  // Return value
+  if(ast_id(method) == TK_FUN)
+  {
+    fprintf(docgen->type_file, "#### Returns\n\n");
+    fprintf(docgen->type_file, "* ");
+    doc_type(docgen, ret, true);
+
+    if(ast_id(error) == TK_QUESTION)
+      fprintf(docgen->type_file, " ?");
+
+    fprintf(docgen->type_file, "\n\n");
+  }
+
+  // horizontal rule at the end
+  // separate us from the next method visually
+  fprintf(docgen->type_file, "---\n\n");
 }
 
 
@@ -680,8 +760,8 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
     package_qualified_name(package),
     name);
 
-  doc_type_params(docgen, tparams);
-  doc_type_list(docgen, provides, " is ", ", ", "");
+  doc_type_params(docgen, tparams, true);
+  doc_type_list(docgen, provides, " is ", ", ", "", true);
   fprintf(docgen->type_file, "\n\n");
 
   const char* cap_text = doc_get_cap(cap);
