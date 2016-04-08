@@ -657,7 +657,7 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   code_block_doc_params(docgen, params);
 
   // return type
-  if(ast_id(method) == TK_FUN)
+  if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "\n: ");
     doc_type(docgen, ret, false);
@@ -673,7 +673,7 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   list_doc_params(docgen, params);
 
   // Return value
-  if(ast_id(method) == TK_FUN)
+  if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "#### Returns\n\n");
     fprintf(docgen->type_file, "* ");
