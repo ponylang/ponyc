@@ -336,7 +336,7 @@ static bool genfun_fun(compile_t* c, reachable_type_t* t,
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
 
-  if(!strcmp(m->name, "_final"))
+  if(m->name == c->str__final)
   {
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
