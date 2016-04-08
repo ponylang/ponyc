@@ -542,11 +542,23 @@ static void doc_params(docgen_t* docgen, ast_t* params)
     const char* name = ast_name(id);
     assert(name != NULL);
 
-    if(ast_id(def_val) != TK_NONE)
-      fprintf(docgen->type_file, "optional ");
-
     fprintf(docgen->type_file, "%s: ", name);
     doc_type(docgen, type);
+
+    // if we have a default value, add it to the documentation
+    if(ast_id(def_val) != TK_NONE)
+    {
+      switch(ast_id(def_val))
+      {
+        case TK_STRING:
+          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          break;
+
+        default:
+          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          break;
+      }
+    }
   }
 
   fprintf(docgen->type_file, ")");
