@@ -417,7 +417,7 @@ static reachable_type_t* add_tuple(reachable_method_stack_t** s,
 
   while(child != NULL)
   {
-    t->fields[index].ast = child;
+    t->fields[index].ast = ast_dup(child);
     t->fields[index].type = add_type(s, r, next_type_id, child);;
     index++;
 
