@@ -72,7 +72,8 @@ static void doc_list_free(ast_list_t* list)
 
 
 // Add the given AST to the given list, under the specified name
-static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name)
+static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
+  bool sort)
 {
   assert(list != NULL);
   assert(ast != NULL);
@@ -82,6 +83,7 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name)
   n->name = name;
   n->next = NULL;
 
+
   // Find where to add name in sorted list
   ast_list_t* prev = list;
 
@@ -89,7 +91,7 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name)
   {
     assert(p->name != NULL);
 
-    if(strcmp(p->name, name) > 0)
+    if (sort && strcmp(p->name, name) > 0)
     {
       // Add new node before p
       n->next = p;
@@ -130,7 +132,7 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(is_name_private(name))  // Ignore leading underscore for ordering
     name++;
 
-  doc_list_add(list, ast, name);
+  doc_list_add(list, ast, name, false);
 }
 
 
@@ -894,7 +896,7 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
     assert(ast_id(p) == TK_PACKAGE);
 
     const char* name = package_qualified_name(p);
-    doc_list_add(&packages, p, name);
+    doc_list_add(&packages, p, name, true);
   }
 
   // Process packages
