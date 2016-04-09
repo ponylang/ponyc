@@ -20,14 +20,14 @@ be correct and secondly, aim for performance. One of the ways that logging can
 slow your system down is by having to evaluate expressions to be logged
 whether they will be logged or not (based on the level of logging). For example:
 
-logger.log(Warn, name + ": " + reason)
+`logger.log(Warn, name + ": " + reason)`
 
 will construct a new String regardless of whether we will end up logging the
 message or not.
 
 The Logger API uses boolean short circuiting to avoid this.
 
-logger(Warn) and logger.log(name + ": " + reason)
+`logger(Warn) and logger.log(name + ": " + reason)`
 
 will not evaluate the expression to be logged unless the log level Warn is at
 or above the overall log level for our logging. This is as close as we can get
