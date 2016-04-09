@@ -10,7 +10,11 @@
 static ast_result_t flatten_union(ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_childcount(ast) == 2);
+
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
   AST_EXTRACT_CHILDREN(ast, left, right);
 
   ast_t* r_ast = type_union(left, right);
@@ -44,7 +48,10 @@ static ast_result_t flatten_isect(typecheck_t* t, ast_t* ast)
 {
   // Flatten intersections without testing subtyping. This is to preserve any
   // type guarantees that an element in the intersection might make.
-  assert(ast_childcount(ast) == 2);
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
   AST_EXTRACT_CHILDREN(ast, left, right);
 
   if((t->frame->constraint == NULL) &&
