@@ -367,8 +367,11 @@ bool expr_recover(ast_t* ast)
 
   if(r_type == NULL)
   {
-    ast_error(ast, "can't recover to this capability");
-    ast_error(expr, "expression type is %s", ast_print_type(type));
+    errorframe_t frame = NULL;
+    ast_error_frame(&frame, ast, "can't recover to this capability");
+    ast_error_frame(&frame, expr, "expression type is %s",
+      ast_print_type(type));
+    errorframe_report(&frame);
     return false;
   }
 
