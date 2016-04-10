@@ -484,7 +484,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, type, true);
-    fprintf(docgen->type_file, "\n");
+    fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
 
@@ -713,8 +713,7 @@ static void doc_methods(docgen_t* docgen, ast_list_t* methods,
 
 
 // Write a description of the given entity to its own type file.
-// The containing package is handed in to save looking it up again.
-static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
+static void doc_entity(docgen_t* docgen, ast_t* ast)
 {
   assert(docgen != NULL);
   assert(docgen->index_file != NULL);
@@ -724,7 +723,6 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   assert(docgen->private_types != NULL);
   assert(docgen->type_file == NULL);
   assert(ast != NULL);
-  assert(package != NULL);
 
   // First open a file
   size_t tqfn_len;
@@ -755,26 +753,28 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-  fprintf(docgen->type_file, "# %s %s/%s",
-    ast_get_print(ast),
-    package_qualified_name(package),
-    name);
-
+  fprintf(docgen->type_file, "# %s", name);
   doc_type_params(docgen, tparams, true);
-  doc_type_list(docgen, provides, " is ", ", ", "", true);
   fprintf(docgen->type_file, "\n\n");
-
-  const char* cap_text = doc_get_cap(cap);
-  if(cap_text != NULL)
-    fprintf(docgen->type_file, "__Default capability__: _%s_\n\n", cap_text);
-
-  if(ast_id(c_api) == TK_AT)
-    fprintf(docgen->type_file, "May be called from C.\n");
 
   if(ast_id(doc) != TK_NONE)
     fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
-  else
-    fprintf(docgen->type_file, "No doc string provided.\n\n");
+
+  // code block
+  fprintf(docgen->type_file, "```pony\n");
+  fprintf(docgen->type_file, "%s ",ast_get_print(ast));
+
+  const char* cap_text = doc_get_cap(cap);
+  if(cap_text != NULL) fprintf(docgen->type_file, "%s ", cap_text);
+
+  fprintf(docgen->type_file, "%s", name);
+
+  doc_type_params(docgen, tparams, false);
+  doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false);
+  fprintf(docgen->type_file, "\n```\n\n");
+
+  doc_type_list(docgen, provides,
+    "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
 
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
@@ -815,8 +815,8 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   }
 
   // Handle member variety lists
-  doc_fields(docgen, &pub_fields, "Public fields");
   doc_methods(docgen, &news, "Constructors");
+  doc_fields(docgen, &pub_fields, "Public fields");
   doc_methods(docgen, &pub_bes, "Public Behaviours");
   doc_methods(docgen, &pub_funs, "Public Functions");
   doc_methods(docgen, &priv_bes, "Private Behaviours");
@@ -938,7 +938,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
 
   // Process types
   for(ast_list_t* p = types.next; p != NULL; p = p->next)
-    doc_entity(docgen, p->ast, ast);
+    doc_entity(docgen, p->ast);
 
   // Add listing of subpackages and links
   if(docgen->public_types->offset > 0)

@@ -210,8 +210,6 @@ Building Pony requires [Premake 5](https://premake.github.io).
 - Get the [PonyC source](https://github.com/ponylang/ponyc).
 - Run `premake5.exe --with-tests --to=..\vs vs2015` to generate the PonyC
   solution.
-- Change the **Character Set** property of each project in the PonyC solution
-  to **Not Set**.
 - Build ponyc.sln in Release mode.
 
 In order to run the pony compiler, you'll need a few libraries in your 
