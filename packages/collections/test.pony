@@ -66,8 +66,6 @@ class iso _TestListsFrom is UnitTest
     let b = List[U32].from(Array[U32])
     h.assert_eq[USize](b.size(), 0)
 
-    true
-
 class iso _TestMap is UnitTest
   fun name(): String => "collections/Map"
 
@@ -181,8 +179,6 @@ class iso _TestListsMap is UnitTest
     h.assert_eq[U32](c(1), 2)
     h.assert_eq[U32](c(2), 4)
 
-    true
-
 class iso _TestListsFlatMap is UnitTest
   fun name(): String => "collections/Lists/flat_map()"
 
@@ -201,8 +197,6 @@ class iso _TestListsFlatMap is UnitTest
     h.assert_eq[U32](c(4), 2)
     h.assert_eq[U32](c(5), 4)
 
-    true
-
 class iso _TestListsFilter is UnitTest
   fun name(): String => "collections/Lists/filter()"
 
@@ -216,8 +210,6 @@ class iso _TestListsFilter is UnitTest
     h.assert_eq[USize](b.size(), 2)
     h.assert_eq[U32](b(0), 2)
     h.assert_eq[U32](b(1), 3)
-
-    true
 
 class iso _TestListsFold is UnitTest
   fun name(): String => "collections/Lists/fold()"
@@ -239,8 +231,6 @@ class iso _TestListsFold is UnitTest
     h.assert_eq[U32](resList(1), 2)
     h.assert_eq[U32](resList(2), 4)
     h.assert_eq[U32](resList(3), 6)
-
-    true
 
 class iso _TestListsEvery is UnitTest
   fun name(): String => "collections/Lists/every()"
@@ -264,8 +254,6 @@ class iso _TestListsEvery is UnitTest
     let empty = b.every(f)
     h.assert_eq[Bool](empty, true)
 
-    true
-
 class iso _TestListsExists is UnitTest
   fun name(): String => "collections/Lists/exists()"
 
@@ -287,8 +275,6 @@ class iso _TestListsExists is UnitTest
     let b = List[U32]
     let empty = b.exists(f)
     h.assert_eq[Bool](empty, false)
-
-    true
 
 class iso _TestListsPartition is UnitTest
   fun name(): String => "collections/Lists/partition()"
@@ -313,8 +299,6 @@ class iso _TestListsPartition is UnitTest
     h.assert_eq[USize](emptyEvens.size(), 0)
     h.assert_eq[USize](emptyOdds.size(), 0)
 
-    true
-
 class iso _TestListsDrop is UnitTest
   fun name(): String => "collections/Lists/drop()"
 
@@ -338,8 +322,6 @@ class iso _TestListsDrop is UnitTest
     let empty = List[U32]
     let l = empty.drop(3)
     h.assert_eq[USize](l.size(), 0)
-
-    true
 
 class iso _TestListsTake is UnitTest
   fun name(): String => "collections/Lists/take()"
@@ -380,8 +362,6 @@ class iso _TestListsTake is UnitTest
     let l = empty.take(3)
     h.assert_eq[USize](l.size(), 0)
 
-    true
-
 class iso _TestListsTakeWhile is UnitTest
   fun name(): String => "collections/Lists/take_while()"
 
@@ -417,8 +397,6 @@ class iso _TestListsTakeWhile is UnitTest
     let l = empty.take_while(g)
     h.assert_eq[USize](l.size(), 0)
 
-    true
-
 class iso _TestListsContains is UnitTest
   fun name(): String => "collections/Lists/contains()"
 
@@ -430,8 +408,6 @@ class iso _TestListsContains is UnitTest
     h.assert_eq[Bool](a.contains(1), true)
     h.assert_eq[Bool](a.contains(2), true)
     h.assert_eq[Bool](a.contains(3), false)
-
-    true
 
 class iso _TestListsReverse is UnitTest
   fun name(): String => "collections/Lists/reverse()"
@@ -451,8 +427,6 @@ class iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0), 2)
     h.assert_eq[U32](b(1), 1)
     h.assert_eq[U32](b(2), 0)
-
-    true
 
 class iso _TestHashSetContains is UnitTest
   fun name(): String => "collections/HashSet/contains()"
@@ -478,5 +452,3 @@ class iso _TestHashSetContains is UnitTest
     // And resetting an element should cause it to be found again
     a.set(0)
     h.assert_true(a.contains(0), not_found_fail)
-
-    true
