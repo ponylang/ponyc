@@ -1208,23 +1208,10 @@ static bool check_primitive_init(typecheck_t* t, ast_t* ast)
     ok = false;
   }
 
-  if(ast_childcount(params) != 1)
+  if(ast_childcount(params) != 0)
   {
-    ast_error(params, "a primitive _init must take a single Env parameter");
+    ast_error(params, "a primitive _init must take no parameters");
     ok = false;
-  }
-
-  ast_t* param = ast_child(params);
-
-  if(param != NULL)
-  {
-    ast_t* p_type = ast_childidx(param, 1);
-
-    if(!is_env(p_type))
-    {
-      ast_error(p_type, "must be of type Env");
-      ok = false;
-    }
   }
 
   if(!is_none(result))
