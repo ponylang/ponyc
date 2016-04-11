@@ -22,6 +22,7 @@ actor Main is TestList
     test(_TestListsTakeWhile)
     test(_TestListsContains)
     test(_TestListsReverse)
+    test(_TestHashSetContains)
 
 class iso _TestList is UnitTest
   fun name(): String => "collections/List"
@@ -450,5 +451,32 @@ class iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0), 2)
     h.assert_eq[U32](b(1), 1)
     h.assert_eq[U32](b(2), 0)
+
+    true
+
+class iso _TestHashSetContains is UnitTest
+  fun name(): String => "collections/HashSet/contains()"
+
+  fun apply(h: TestHelper) =>
+    let a = Set[U32]
+    a.set(0).set(1)
+
+    let not_found_fail = "contains did not find expected element in HashSet"
+    let found_fail = "contains found unexpected element in HashSet"
+
+    // Elements in set should be found
+    h.assert_true(a.contains(0), not_found_fail)
+    h.assert_true(a.contains(1), not_found_fail)
+
+    // Elements not in set should not be found
+    h.assert_false(a.contains(2), found_fail)
+
+    // Unsetting an element should cause it to not be found
+    a.unset(0)
+    h.assert_false(a.contains(0), found_fail)
+
+    // And resetting an element should cause it to be found again
+    a.set(0)
+    h.assert_true(a.contains(0), not_found_fail)
 
     true
