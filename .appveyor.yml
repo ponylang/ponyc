@@ -7,23 +7,23 @@ clone_depth: 1
 clone_folder: C:\projects\ponyc
 install:
   - ps: |
-    $premakeInstalled = Test-Path C:\\premake5.exe
-    $llvmInstalled = Test-Path C:\\LLVM
+    $premakeInstalled = Test-Path "C:\premake5.exe"
+    $llvmInstalled = Test-Path "C:\LLVM"
     if(-Not $premakeInstalled)
     {
       wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha8/premake-5.0.0-alpha8-windows.zip -OutFile C:\\premake5.zip
-      7z x C:\\premake5.zip
-      del C:\\premake5.zip
+      7z x C:\premake5.zip
+      del C:\premake5.zip
     }
     if(-Not $llvmInstalled)
     {
-      wget http://releases.ponylang.org/llvm/llvm37-final-x86_64-windows-release.zip -OutFile C:\\llvm37.zip
-      7z x C:\\llvm37.zip
+      wget http://releases.ponylang.org/llvm/llvm37-final-x86_64-windows-release.zip -OutFile C:\llvm37.zip
+      7z x C:\llvm37.zip
       del llvm37.zip
     }
-    $env:path += \";C:\\LLVM\\bin\"
-    cd C:\\projects\\ponyc
-    C:\\premake5.exe --with-tests --to=work/vs2013 vs2013
+    $env:path += ";C:\LLVM\bin"
+    cd C:\projects\ponyc
+    C:\premake5.exe --with-tests --to=work/vs2013 vs2013
 cache:
   - C:\LLVM\ -> .appveyor.yml
   - C:\premake5.exe -> .appveyor.yml
