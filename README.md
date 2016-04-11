@@ -60,7 +60,7 @@ You will need to build from source.
 
 First, install LLVM using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some specific distributions follow.
 
-APT packages for LLVM 3.7, 3.8 and 3.9, for Debian and Ubuntu, are provided by the LLVM build server.
+APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the LLVM build server.
 
 Please follow the instructions at http://llvm.org/apt/ for installing the GPG keys and packages for your distribution.
 
