@@ -289,6 +289,18 @@ void PassTest::test_error(const char* src, const char* pass)
 }
 
 
+void PassTest::test_errors_1(const char* src, const char* pass,
+  const char* err1)
+{
+  DO(test_error(src, pass));
+
+  ASSERT_EQ(1, get_error_count());
+  errormsg_t* errors = get_errors();
+  EXPECT_TRUE(strstr(errors->msg, err1) != NULL)
+      << "Actual error: " << errors->msg;
+}
+
+
 void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   const char* expect_src, const char* expect_pass)
 {
