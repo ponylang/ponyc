@@ -18,25 +18,23 @@ class iso _TestWriteBuffer is UnitTest
   fun apply(h: TestHelper) ? =>
     let test_val_i64: I64 = 0xEAD_BEEF_FEED_FACE
     let test_val_u64: U64 = 0xDEADBEEFFEEDFACE
-    let wb: WriteBuffer = WriteBuffer(recover Array[U8] end)
-    wb.i64(test_val_i64)
-    wb.u64(test_val_u64)
+    let wb: WriteBuffer = WriteBuffer()
+    wb.i64_be(test_val_i64).u64_be(test_val_u64)
     h.assert_eq[USize](wb.current_size(), USize(8 * 2))
     wb.new_packet()
-    wb.i64(test_val_i64)
-    wb.u64(test_val_u64)
+    wb.i64_le(test_val_i64).u64_le(test_val_u64)
     h.assert_eq[USize](wb.current_size(), USize(8 * 2))
-    wb.take_buffer()
     let b = Buffer
     for x in wb.take_buffer().values() do
-      match consume x
-      | let x': Array[U8] iso => b.append(consume x')
+      match (consume x)
+      | let x': Array[U8] val => b.append(consume x')
+      | let x': String val => b.append(x'.array())
       end
     end
     h.assert_eq[I64](b.i64_be(), test_val_i64)
     h.assert_eq[U64](b.u64_be(), test_val_u64)
-    h.assert_eq[I64](b.i64_be(), test_val_i64)
-    h.assert_eq[U64](b.u64_be(), test_val_u64)
+    h.assert_eq[I64](b.i64_le(), test_val_i64)
+    h.assert_eq[U64](b.u64_le(), test_val_u64)
 
 class iso _TestBuffer is UnitTest
   """
