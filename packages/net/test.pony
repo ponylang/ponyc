@@ -16,52 +16,27 @@ class iso _TestWriteBuffer is UnitTest
   fun name(): String => "net/WriteBuffer"
 
   fun apply(h: TestHelper) ? =>
-    let bsize: USize = 1024
-    let test_val1: I64 = 0xEAD_BEEF_FEED_FACE
-    let test_val2: U64 = 0xDEADBEEFFEEDFACE
-    // Calling write_number with I64/U64 should test all cases(?!)
-    let x_be = recover val
-      let wb = WriteBuffer(bsize)
-      try
-        h.assert_eq[USize](wb.available(), bsize)
-        wb.write_number(test_val1)
-        // Using 8 here for the lack of a better way to get the size of an I64!
-        h.assert_eq[USize](wb.available(), bsize-8)
-        wb.write_number(test_val2)
-        h.assert_eq[USize](wb.available(), bsize-(8*2))
-      else
-        error
-      end
-
-      let data: Array[U8] iso = recover Array[U8].undefined(0) end
-      wb.get_data(consume data)
-    end
-
-    let x_le = recover val
-      let wb = WriteBuffer(bsize, true)
-      try
-        h.assert_eq[USize](wb.available(), bsize)
-        wb.write_number(test_val1)
-        h.assert_eq[USize](wb.available(), bsize-8)
-        wb.write_number(test_val2)
-        h.assert_eq[USize](wb.available(), bsize-(8*2))
-      else
-        error
-      end
-
-      let data: Array[U8] iso = recover Array[U8].undefined(0) end
-      wb.get_data(consume data)
-    end
-
+    let test_val_i64: I64 = 0xEAD_BEEF_FEED_FACE
+    let test_val_u64: U64 = 0xDEADBEEFFEEDFACE
+    let wb: WriteBuffer = WriteBuffer(recover Array[U8] end)
+    wb.i64(test_val_i64)
+    wb.u64(test_val_u64)
+    h.assert_eq[USize](wb.current_size(), USize(8 * 2))
+    wb.new_packet()
+    wb.i64(test_val_i64)
+    wb.u64(test_val_u64)
+    h.assert_eq[USize](wb.current_size(), USize(8 * 2))
+    wb.take_buffer()
     let b = Buffer
-    b.append(x_be)
-    b.append(x_le)
-
-    h.assert_eq[I64](b.i64_be(), test_val1)
-    h.assert_eq[U64](b.u64_be(), test_val2)
-    b.skip(bsize-(8*2))
-    h.assert_eq[I64](b.i64_le(), test_val1)
-    h.assert_eq[U64](b.u64_le(), test_val2)
+    for x in wb.take_buffer().values() do
+      match consume x
+      | let x': Array[U8] iso => b.append(consume x')
+      end
+    end
+    h.assert_eq[I64](b.i64_be(), test_val_i64)
+    h.assert_eq[U64](b.u64_be(), test_val_u64)
+    h.assert_eq[I64](b.i64_be(), test_val_i64)
+    h.assert_eq[U64](b.u64_be(), test_val_u64)
 
 class iso _TestBuffer is UnitTest
   """
