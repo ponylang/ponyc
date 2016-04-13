@@ -3,12 +3,14 @@ use "collections"
 class WriteBuffer
   """
   * A List[ByteSeq] maintained as WriteBuffer.
-  * _current keeps track of the current packet `Array[U8] iso`
-    into which the user is writing.
+  * _current keeps track of the current packet `Array[U8] iso` into which the
+    user is writing.
   * _current can potentially keep track of `ByteSeq iso` if push is conforming
     between Array[U8] and String.
   * _buffer is returned on take_buffer() as a ByteSeqIter
   * The current packet is pushed into _buffer on a call to new_packet()
+  Example usage:
+
   """
   var _buffer: List[ByteSeq] iso
   var _current: Array[U8] iso
@@ -16,8 +18,7 @@ class WriteBuffer
 
   new create() =>
     """
-    Create the buffer
-    Create _current depending on the seq_type requested by the user
+    Create _buffer, _current and set _current_size to 0
     """
     _buffer = recover List[ByteSeq] end
     _current = recover Array[U8] end
@@ -25,10 +26,10 @@ class WriteBuffer
 
   fun ref new_packet(): WriteBuffer =>
     """
-    * Archives the current packet into _buffer and ensures future
-      writes goto a new packet
-    * Destructive read of _current and push it onto buffer.
-    * This is chainable
+    * Pushes _current into _buffer to ensure future writes go to a new packet
+    * Accomplishes this with a destructive read of _current while pushing
+      it onto _buffer.
+    * Chainable
     * Empty packets disallowed for now
     """
     if (_current_size > 0) then
@@ -39,14 +40,14 @@ class WriteBuffer
 
   fun ref take_buffer(): ByteSeqIter =>
     """
-    Destructive read of existing _buffer and returned as ByteSeqIter
+    Destructive read of existing _buffer which is returned as ByteSeqIter
     """
     if (_current_size > 0) then new_packet() end
     _buffer = recover List[ByteSeq] end
 
   fun current_size(): USize =>
     """
-    Size of current packet
+    Size of _current
     """
     _current_size
 
