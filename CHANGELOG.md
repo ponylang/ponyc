@@ -49,6 +49,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Logger package
 - `ArrayValues.rewind()` method.
 - Nanos primitive in time package.
+- An initial implementation of WriteBuffer inside the net package
 
 ### Changed
 
