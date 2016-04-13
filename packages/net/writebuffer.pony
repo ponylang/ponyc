@@ -4,13 +4,57 @@ class WriteBuffer
   """
   * A List[ByteSeq] maintained as WriteBuffer.
   * _current keeps track of the current packet `Array[U8] iso` into which the
-    user is writing.
+  user is writing.
   * _current can potentially keep track of `ByteSeq iso` if push is conforming
-    between Array[U8] and String.
-  * _buffer is returned on take_buffer() as a ByteSeqIter
-  * The current packet is pushed into _buffer on a call to new_packet()
-  Example usage:
+  between Array[U8] and String.
+    * _buffer is returned on take_buffer() as a ByteSeqIter
+    * The current packet is pushed into _buffer on a call to new_packet()
+    Example usage:
+  ```pony
+  use "random"
+  use "net"
 
+  class WBUDPNotify is UDPNotify
+    let _data : ByteSeqIter
+    let _env: Env
+    let _ip: IPAddress
+    new iso create(data: ByteSeqIter, ip: IPAddress, env:Env) =>
+      _data = consume data
+      _env = env
+      _ip = ip
+
+    fun ref listening(sock: UDPSocket ref) =>
+      _env.out.print("Sending data")
+      sock.writev(_data, _ip)
+      sock.dispose()
+
+  actor Main
+    new create(env: Env) =>
+      let wb: WriteBuffer iso = recover WriteBuffer end
+      let mt = MT()
+      wb.add_byte_seq("Hi there!\n")
+      for x in "PRNs follow:\n".values() do
+        wb.u8(x)
+      end
+      var i = U8(0)
+      while (i < 10)do
+        wb.u64_be(mt.next())
+        i = i + 1
+      end
+      try
+        let auth = env.root as AmbientAuth
+        var ip: IPAddress =
+          try
+            DNS.ip4(auth, "127.0.0.1", "9999")(0)
+          else
+            return
+          end
+        let notify: WBUDPNotify iso = recover
+          WBUDPNotify(wb.take_buffer(), ip, env)
+        end
+        UDPSocket(auth, consume notify)
+      else return end
+  ```
   """
   var _buffer: List[ByteSeq] iso
   var _current: Array[U8] iso
