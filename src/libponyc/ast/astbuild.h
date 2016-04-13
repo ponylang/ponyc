@@ -111,6 +111,9 @@
 /// Add a TK_INT node with the given integer value
 #define INT(value) TREE(ast_from_int(basis_ast, value));
 
+/// Add a TK_FLOAT node with the given integer value
+#define FLOAT(value) TREE(ast_from_float(basis_ast, value));
+
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
 
