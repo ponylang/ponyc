@@ -368,6 +368,18 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
   return new_ast;
 }
 
+ast_t* ast_from_float(ast_t* ast, double value)
+{
+  assert(ast != NULL);
+  token_t* t = token_dup(ast->t);
+  token_set_id(t, TK_FLOAT);
+  token_set_float(t, value);
+
+  ast_t* new_ast = ast_token(t);
+  set_scope_no_parent(new_ast, ast->parent);
+  return new_ast;
+}
+
 ast_t* ast_dup(ast_t* ast)
 {
   return duplicate(NULL, ast);
