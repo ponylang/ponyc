@@ -3,17 +3,18 @@ use "collections"
 class WriteBuffer
   """
   * A List[ByteSeq] maintained as WriteBuffer.
-  * _current keeps track of the current packet `ByteSeq iso`
-    into which the user is writing
+  * _current keeps track of the current packet `Array[U8] iso`
+    into which the user is writing.
+  * _current can potentially keep track of `ByteSeq iso` if push is conforming
+    between Array[U8] and String.
   * _buffer is returned on take_buffer() as a ByteSeqIter
-  * The current packet is written into _buffer on call the new_packet()
+  * The current packet is pushed into _buffer on a call to new_packet()
   """
   var _buffer: List[ByteSeq] iso
   var _current: Array[U8] iso
   var _current_size: USize
-  var _little_endian: Bool
 
-  new create(little_endian: Bool = false) =>
+  new create() =>
     """
     Create the buffer
     Create _current depending on the seq_type requested by the user
@@ -21,7 +22,6 @@ class WriteBuffer
     _buffer = recover List[ByteSeq] end
     _current = recover Array[U8] end
     _current_size = 0
-    _little_endian = little_endian
 
   fun ref new_packet(): WriteBuffer =>
     """
@@ -29,18 +29,19 @@ class WriteBuffer
       writes goto a new packet
     * Destructive read of _current and push it onto buffer.
     * This is chainable
+    * Empty packets disallowed for now
     """
-    _buffer.push(_current = recover Array[U8] end)
-    _current_size = 0
+    if (_current_size > 0) then
+      _buffer.push(_current = recover Array[U8] end)
+      _current_size = 0
+    end
     this
 
   fun ref take_buffer(): ByteSeqIter =>
     """
-    Destructive read of existing _buffer and return as ByteSeqIter
+    Destructive read of existing _buffer and returned as ByteSeqIter
     """
-    if (_current_size > 0) then
-      new_packet()
-    end
+    if (_current_size > 0) then new_packet() end
     _buffer = recover List[ByteSeq] end
 
   fun current_size(): USize =>
@@ -59,11 +60,12 @@ class WriteBuffer
     this
 
   fun ref add_byte_seq(bytes: ByteSeq): WriteBuffer =>
-    if (_current_size > 0) then
-      new_packet()
-    end
+    """
+    Add a ByteSeq. If current is 'dirty' get a new_packet()
+    """
+    if (_current_size > 0) then new_packet() end
     _buffer.push(bytes)
-    new_packet()
+    this
 
   fun ref u8(value: U8): WriteBuffer =>
     _byte(value)

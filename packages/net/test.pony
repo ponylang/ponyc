@@ -18,12 +18,26 @@ class iso _TestWriteBuffer is UnitTest
   fun apply(h: TestHelper) ? =>
     let test_val_i64: I64 = 0xEAD_BEEF_FEED_FACE
     let test_val_u64: U64 = 0xDEADBEEFFEEDFACE
-    let wb: WriteBuffer = WriteBuffer()
+    let wb: WriteBuffer = WriteBuffer
     wb.i64_be(test_val_i64).u64_be(test_val_u64)
     h.assert_eq[USize](wb.current_size(), USize(8 * 2))
     wb.new_packet()
     wb.i64_le(test_val_i64).u64_le(test_val_u64)
     h.assert_eq[USize](wb.current_size(), USize(8 * 2))
+    let test_vector: Array[U8] val = recover val [as U8:
+      0x42,
+      0xDE, 0xAD,
+      0xAD, 0xDE,
+      0xDE, 0xAD, 0xBE, 0xEF,
+      0xEF, 0xBE, 0xAD, 0xDE,
+      0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE,
+      0xCE, 0xFA, 0xED, 0xFE, 0xEF, 0xBE, 0xAD, 0xDE,
+      0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE,
+      0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE,
+      0xCE, 0xFA, 0xED, 0xFE, 0xEF, 0xBE, 0xAD, 0xDE,
+      0xCE, 0xFA, 0xED, 0xFE, 0xEF, 0xBE, 0xAD, 0xDE
+      ] end
+    wb.add_byte_seq(test_vector)
     let b = Buffer
     for x in wb.take_buffer().values() do
       match (consume x)
@@ -35,6 +49,9 @@ class iso _TestWriteBuffer is UnitTest
     h.assert_eq[U64](b.u64_be(), test_val_u64)
     h.assert_eq[I64](b.i64_le(), test_val_i64)
     h.assert_eq[U64](b.u64_le(), test_val_u64)
+    for x in test_vector.values() do
+      h.assert_eq[U8](b.u8(), x)
+    end
 
 class iso _TestBuffer is UnitTest
   """
