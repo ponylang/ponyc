@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include "error.h"
 #include "token.h"
 #include "symtab.h"
@@ -130,6 +131,8 @@ void ast_free_unattached(ast_t* ast);
 
 void ast_print(ast_t* ast);
 void ast_printverbose(ast_t* ast);
+void ast_fprint(FILE* fp, ast_t* ast);
+void ast_fprintverbose(FILE* fp, ast_t* ast);
 const char* ast_print_type(ast_t* type);
 void ast_setwidth(size_t w);
 
