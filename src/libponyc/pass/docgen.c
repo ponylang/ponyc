@@ -772,8 +772,12 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false);
   fprintf(docgen->type_file, "\n```\n\n");
 
-  doc_type_list(docgen, provides,
-    "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
+  if (ast_id(ast) !=  TK_TYPE)
+    doc_type_list(docgen, provides,
+      "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
+  else
+    doc_type_list(docgen, provides,
+      "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true);
 
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
