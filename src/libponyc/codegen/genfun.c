@@ -185,6 +185,13 @@ static void make_prototype(compile_t* c, reachable_type_t* t,
     m->func = codegen_addfun(c, m->full_name, m->func_type);
     make_function_debug(c, t, m, m->func);
   }
+
+  if(m->name == c->str__final)
+  {
+    // Store the finaliser and use the C calling convention.
+    t->final_fn = m->func;
+    LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+  }
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* params, LLVMValueRef to,
@@ -335,12 +342,6 @@ static bool genfun_fun(compile_t* c, reachable_type_t* t,
 
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
-
-  if(m->name == c->str__final)
-  {
-    t->final_fn = m->func;
-    LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-  }
 
   codegen_startfun(c, m->func, m->di_file, m->di_method);
   name_params(c, t, m, params, m->func);

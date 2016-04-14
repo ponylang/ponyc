@@ -53,7 +53,10 @@ static void primitive_call(compile_t* c, const char* method)
     if(m == NULL)
       continue;
 
-    codegen_call(c, m->func, &t->instance, 1);
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
+
+    if(c->str__final == method)
+      LLVMSetInstructionCallConv(value, LLVMCCallConv);
   }
 }
 
@@ -146,10 +149,9 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   args[0] = ctx;
   gencall_runtime(c, "pony_gc_send", args, 1, "");
 
-  const char* env_trace = genname_trace(env_name);
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  args[2] = t_env->trace_fn;
   args[3] = LLVMConstInt(c->i32, 1, false);
   gencall_runtime(c, "pony_traceobject", args, 4, "");
 

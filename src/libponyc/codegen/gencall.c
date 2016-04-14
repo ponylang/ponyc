@@ -657,17 +657,13 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t)
   // Get the size of the structure.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
 
-  // Get the finaliser, if there is one.
-  const char* final = genname_finalise(t->name);
-  LLVMValueRef final_fun = LLVMGetNamedFunction(c->module, final);
-
   // Allocate the object.
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
 
   LLVMValueRef result;
 
-  if(final_fun == NULL)
+  if(t->final_fn == NULL)
   {
     if(size <= HEAP_MAX)
     {
@@ -680,7 +676,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t)
     }
   } else {
     args[1] = LLVMConstInt(c->intptr, size, false);
-    args[2] = LLVMConstBitCast(final_fun, c->final_fn);
+    args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }
 

@@ -152,11 +152,6 @@ const char* genname_type(ast_t* ast)
   return NULL;
 }
 
-const char* genname_typeid(const char* type)
-{
-  return build_name(type, "$id", NULL, NULL, false, false);
-}
-
 const char* genname_traitlist(const char* type)
 {
   return build_name(type, "$traits", NULL, NULL, false, false);
@@ -185,11 +180,6 @@ const char* genname_deserialise(const char* type)
 const char* genname_dispatch(const char* type)
 {
   return build_name(type, "$dispatch", NULL, NULL, false, false);
-}
-
-const char* genname_finalise(const char* type)
-{
-  return build_name(type, "_final", NULL, NULL, false, false);
 }
 
 const char* genname_descriptor(const char* type)
