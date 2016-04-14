@@ -60,23 +60,23 @@ static const char in[] = "  ";
 static const size_t in_len = 2;
 static size_t width = 80;
 
-static void print(ast_t* ast, size_t indent, bool type);
+static void print(FILE* fp, ast_t* ast, size_t indent, bool type);
 
 
-static void print_token(token_t* token)
+static void print_token(FILE* fp, token_t* token)
 {
   switch(token_get_id(token))
   {
     case TK_STRING:
-      printf("\"\"\"%s\"\"\"", token_print(token));
+      fprintf(fp, "\"\"\"%s\"\"\"", token_print(token));
       break;
 
     case TK_ID:
-      printf("(id %s)", token_print(token));
+      fprintf(fp, "(id %s)", token_print(token));
       break;
 
     default:
-      printf("%s", token_print(token));
+      fprintf(fp, "%s", token_print(token));
       break;
   }
 }
@@ -111,135 +111,135 @@ static size_t length(ast_t* ast, size_t indent, bool type)
   return len;
 }
 
-static void print_compact(ast_t* ast, size_t indent, bool type)
+static void print_compact(FILE* fp, ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
-    printf(in);
+    fprintf(fp, in);
 
   ast_t* child = ast->child;
   bool parens = type || (child != NULL) || (ast->type != NULL);
 
   if(parens)
-    printf(type ? "[" : "(");
+    fprintf(fp, type ? "[" : "(");
 
-  print_token(ast->t);
+  print_token(fp, ast->t);
 
   if(ast->symtab != NULL)
-    printf(":scope");
+    fprintf(fp, ":scope");
 
   while(child != NULL)
   {
-    printf(" ");
-    print_compact(child, 0, false);
+    fprintf(fp, " ");
+    print_compact(fp, child, 0, false);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
   {
-    printf(" ");
-    print_compact(ast->type, 0, true);
+    fprintf(fp, " ");
+    print_compact(fp, ast->type, 0, true);
   }
 
   if(parens)
-    printf(type ? "]" : ")");
+    fprintf(fp, type ? "]" : ")");
 }
 
-static void print_extended(ast_t* ast, size_t indent, bool type)
+static void print_extended(FILE* fp, ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
-    printf(in);
+    fprintf(fp, in);
 
   ast_t* child = ast->child;
   bool parens = type || (child != NULL) || (ast->type != NULL);
 
   if(parens)
-    printf(type ? "[" : "(");
+    fprintf(fp, type ? "[" : "(");
 
-  print_token(ast->t);
+  print_token(fp, ast->t);
 
   if(ast->symtab != NULL)
-    printf(":scope");
+    fprintf(fp, ":scope");
 
-  printf("\n");
+  fprintf(fp, "\n");
 
   while(child != NULL)
   {
-    print(child, indent + 1, false);
+    print(fp, child, indent + 1, false);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    print(ast->type, indent + 1, true);
+    print(fp, ast->type, indent + 1, true);
 
   if(parens || type)
   {
     for(size_t i = 0; i < indent; i++)
-      printf(in);
+      fprintf(fp, in);
 
-    printf(type ? "]" : ")");
+    fprintf(fp, type ? "]" : ")");
   }
 }
 
-static void print_verbose(ast_t* ast, size_t indent, bool type)
+static void print_verbose(FILE* fp, ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
-    printf(in);
+    fprintf(fp, in);
 
   ast_t* child = ast->child;
   bool parens = type || (child != NULL) || (ast->type != NULL);
 
   if(parens)
-    printf(type ? "[" : "(");
+    fprintf(fp, type ? "[" : "(");
 
-  print_token(ast->t);
-  printf(":%p,%0x", ast, ast->flags);
+  print_token(fp, ast->t);
+  fprintf(fp, ":%p,%0x", ast, ast->flags);
 
   if(ast->data != NULL)
-    printf(":data=%p", ast->data);
+    fprintf(fp, ":data=%p", ast->data);
 
   if(ast->symtab != NULL)
   {
-    printf(":scope {\n");
+    fprintf(fp, ":scope {\n");
 
     size_t i = HASHMAP_BEGIN;
     symbol_t* sym;
 
     while((sym = symtab_next(ast->symtab, &i)) != NULL)
-      printf("  %s (%d): %p\n", sym->name, sym->status, sym->def);
+      fprintf(fp, "  %s (%d): %p\n", sym->name, sym->status, sym->def);
 
-    printf("}");
+    fprintf(fp, "}");
   }
 
-  printf("\n");
+  fprintf(fp, "\n");
 
   while(child != NULL)
   {
-    print_verbose(child, indent + 1, false);
+    print_verbose(fp, child, indent + 1, false);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    print_verbose(ast->type, indent + 1, true);
+    print_verbose(fp, ast->type, indent + 1, true);
 
   if(parens || type)
   {
     for(size_t i = 0; i < indent; i++)
-      printf(in);
+      fprintf(fp, in);
 
-    printf(type ? "]\n" : ")\n");
+    fprintf(fp, type ? "]\n" : ")\n");
   }
 }
 
-static void print(ast_t* ast, size_t indent, bool type)
+static void print(FILE* fp, ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent, type);
 
   if(len < width)
-    print_compact(ast, indent, type);
+    print_compact(fp, ast, indent, type);
   else
-    print_extended(ast, indent, type);
+    print_extended(fp, ast, indent, type);
 
-  printf("\n");
+  fprintf(fp, "\n");
 }
 
 // Report whether the given node has a valid parent
@@ -362,6 +362,18 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
 
   lexint_t lexint = {value, 0};
   token_set_int(t, &lexint);
+
+  ast_t* new_ast = ast_token(t);
+  set_scope_no_parent(new_ast, ast->parent);
+  return new_ast;
+}
+
+ast_t* ast_from_float(ast_t* ast, double value)
+{
+  assert(ast != NULL);
+  token_t* t = token_dup(ast->t);
+  token_set_id(t, TK_FLOAT);
+  token_set_float(t, value);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -1192,19 +1204,29 @@ void ast_free_unattached(ast_t* ast)
 
 void ast_print(ast_t* ast)
 {
-  if(ast == NULL)
-    return;
-
-  print(ast, 0, false);
-  printf("\n");
+  ast_fprint(stdout, ast);
 }
 
 void ast_printverbose(ast_t* ast)
 {
+  ast_fprintverbose(stdout, ast);
+}
+
+void ast_fprint(FILE* fp, ast_t* ast)
+{
   if(ast == NULL)
     return;
 
-  print_verbose(ast, 0, false);
+  print(fp, ast, 0, false);
+  fprintf(fp, "\n");
+}
+
+void ast_fprintverbose(FILE* fp, ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  print_verbose(fp, ast, 0, false);
 }
 
 static void print_type(printbuf_t* buffer, ast_t* type);

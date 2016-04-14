@@ -126,7 +126,7 @@ actor _TestStream is OutStream
 trait _LoggerTest[A] is UnitTest
   fun apply(h: TestHelper) =>
     let promise = Promise[String]
-    promise.next[String](recover this~_fulfill(h) end)
+    promise.next[None](recover this~_fulfill(h) end)
 
     let stream = _TestStream(h, promise)
 
@@ -135,10 +135,9 @@ trait _LoggerTest[A] is UnitTest
     stream.logged()
     h.long_test(2_000_000_000) // 2 second timeout
 
-  fun tag _fulfill(h: TestHelper, value: String): String =>
+  fun tag _fulfill(h: TestHelper, value: String) =>
     h.assert_eq[String](value, expected())
     h.complete(true)
-    value
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
