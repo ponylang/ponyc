@@ -651,3 +651,19 @@ TEST_F(TraitsTest, ActorInheritBehaviour)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(TraitsTest, LetInFunction)
+{
+  const char* src =
+    "trait T\n"
+    " fun foo() =>\n"
+    "   let x: U32 = 0\n"
+
+    "class Baz is T\n";
+
+  // Tests #684. Issue only kicks in expr pass when
+  // let single assignment is checked, but test seems
+  // to belong here as fix is in traits.c.
+  DO(test_compile(src, "expr"));
+}
