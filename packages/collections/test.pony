@@ -22,6 +22,7 @@ actor Main is TestList
     test(_TestListsTakeWhile)
     test(_TestListsContains)
     test(_TestListsReverse)
+    test(_TestHashSetFrom)
     test(_TestHashSetContains)
 
 class iso _TestList is UnitTest
@@ -427,6 +428,22 @@ class iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0), 2)
     h.assert_eq[U32](b(1), 1)
     h.assert_eq[U32](b(2), 0)
+
+class iso _TestHashSetFrom is UnitTest
+  fun name(): String => "collections/HashSet/from()"
+
+  fun apply(h: TestHelper) =>
+    let a = Set[U32].from([1, 2, 3, 4, 5, 5, 6])
+
+    let not_found_fail = "contains did not find expected element in HashSet"
+
+    h.assert_eq[USize](6, a.size())
+    h.assert_true(a.contains(1), not_found_fail)
+    h.assert_true(a.contains(2), not_found_fail)
+    h.assert_true(a.contains(3), not_found_fail)
+    h.assert_true(a.contains(4), not_found_fail)
+    h.assert_true(a.contains(5), not_found_fail)
+    h.assert_true(a.contains(6), not_found_fail)
 
 class iso _TestHashSetContains is UnitTest
   fun name(): String => "collections/HashSet/contains()"
