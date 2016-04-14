@@ -660,7 +660,8 @@ TEST_F(TraitsTest, LetInFunction)
     " fun foo() =>\n"
     "   let x: U32 = 0\n"
 
-    "class Baz is T\n";
+    "class Baz is T\n"
+    "class Bar is T\n";
 
   // Tests #684. Issue only kicks in expr pass when
   // let single assignment is checked, but test seems
