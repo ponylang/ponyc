@@ -315,7 +315,6 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
         ponyint_pool_free_size(link_len, tqfn);
 
         doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true);
-
       }
       else
       {
