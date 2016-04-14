@@ -224,27 +224,35 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
           break;
 
         default:
+        {
+          errorframe_t frame = NULL;
+          errorframe_t* pframe = errors ? &frame : NULL;
+
           if(result == NULL)
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(r, result, NULL)) {
-            if(is_subtype(result, r, NULL))
+          } else if(!is_subtype(r, result, pframe)) {
+            if(is_subtype(result, r, pframe))
             {
               // Use the supertype function. Require the most specific
               // arguments and return the least specific result.
               // TODO: union the signatures, to handle arg names and
               // default arguments.
+              if(errors)
+                errorframe_discard(pframe);
+
               ast_free_unattached(result);
               result = r;
             } else {
               if(errors)
               {
-                ast_error(from,
+                errorframe_t frame = NULL;
+                ast_error_frame(&frame, from,
                   "a member of the union type has an incompatible method "
                   "signature");
-                ast_error(result, "first implementation is here");
-                ast_error(r, "second implementation is here");
+                errorframe_append(&frame, pframe);
+                errorframe_report(&frame);
               }
 
               ast_free_unattached(r);
@@ -252,6 +260,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
             }
           }
           break;
+        }
       }
     }
 
