@@ -216,6 +216,19 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
     ok = false;
   }
 
+  ast_t* r_type = set_cap_and_ephemeral(pattern_type, ast_id(cap), TK_NONE);
+  ast_t* a_type = alias(pattern_type);
+  errorframe_t info = NULL;
+
+  if(!is_subtype(a_type, r_type, &info))
+  {
+    errorframe_t frame = NULL;
+    ast_error_frame(&frame, pattern, "eq cannot be called on this pattern");
+    errorframe_append(&frame, &info);
+    errorframe_report(&frame);
+    ok = false;
+  }
+
   ast_t* param = ast_child(params);
 
   if(param == NULL || ast_sibling(param) != NULL)
@@ -229,6 +242,8 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
     ast_settype(pattern, param_type);
   }
 
+  ast_free_unattached(r_type);
+  ast_free_unattached(a_type);
   ast_free_unattached(fun);
   return ok;
 }
