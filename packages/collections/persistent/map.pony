@@ -53,7 +53,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun val size(): U64 =>
     """
-    Return the amount of key-value paris in the Map.
+    Return the amount of key-value pairs in the Map.
     """
     _root.size()
 
@@ -68,6 +68,29 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     Try to remove the provided key from the Map.
     """
     _create(_root.remove(k.hash().u32(), k))
+
+  fun val get_or_else(k: K, alt: val->V): val->V =>
+    """
+    Get the value associated with provided key if present. Otherwise,
+    return the provided alternate value.
+    """
+    try
+      apply(k)
+    else
+      alt
+    end
+
+  fun val contains(k: K): Bool =>
+    """
+    Check whether the node contains the provided key.
+    """
+    try
+      apply(k)
+      true
+    else
+      false
+    end
+
 
 type _Entry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   is (_Node[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V] | None)
