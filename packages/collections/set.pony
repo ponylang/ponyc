@@ -15,6 +15,15 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     _map = _map.create(prealloc)
 
+  new from(items: Array[A^]) =>
+    """
+    Create a set from an array of values.
+    """
+    _map = _map.create(items.size())
+    for item in items.values() do
+      set(consume item)
+    end
+
   fun size(): USize =>
     """
     The number of items in the set.
