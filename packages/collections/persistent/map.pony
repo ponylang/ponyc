@@ -53,7 +53,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun val size(): U64 =>
     """
-    Return the size of the Map.
+    Return the amount of key-value paris in the Map.
     """
     _root.size()
 
