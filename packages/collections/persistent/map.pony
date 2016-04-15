@@ -91,7 +91,6 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       false
     end
 
-
 type _Entry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   is (_Node[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V] | None)
 
