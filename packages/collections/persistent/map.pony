@@ -20,6 +20,21 @@ primitive Maps
     m
 
 class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  """
+  A persistent map based on the Compressed Hash Array Mapped Prefix-tree from 'Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM Collections' by Michael J. Steindorfer and Jurgen J. Vinju
+
+  ## Usage
+  ```
+  let empty: Map[String,U32] = Maps.empty[String,U32]() // {}
+  // Update returns a new map with the provided key set
+  // to the provided value. The old map is unchanged.
+  let m2 = m1.update("a", 5) // {a: 5}
+  let m3 = m2.update("b", 10) // {a: 5, b: 10}
+  let m4 = m3.remove("a") // {b: 10}
+  // You can create a new map from key value pairs.
+  let map = Maps.from[String,U32]([("a", 2), ("b", 3)]) // {a: 2, b: 3}
+  ```
+  """
   let _root: _Node[K, V]
 
   new val _empty() =>
@@ -179,7 +194,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       var sn = entries(i) as _Node[K, V]
       sn = sn.remove(hash, key)
       let es = recover entries.clone() end
-      if (_Hash.popCount(nodeMap) == 0) and (_Hash.popCount(dataMap) == 1) then
+      if (nodeMap.popcount() == 0) and (dataMap.popcount() == 1) then
         for ind in mut.Range[U32](0, 32) do
           if _Hash.hasBit(dataMap, ind.usize()) then
             es.update(i, sn.entries(ind.usize()))
@@ -218,13 +233,3 @@ primitive _Hash
   fun clearBit(bitMap: U32, i: USize): U32 => bitMap and (not (1 << i.u32()))
   fun hasBit(bitMap: U32, i: USize): Bool => (bitMap and (1 << i.u32())) != 0
   fun mask(hash: U32, level: U8): USize => ((hash >> (5 * level.u32())) and 0x01f).usize()
-  fun popCount(bitMap: U32): U32 =>
-    // bit population count, see
-    // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
-    var bm = bitMap
-    bm = bm - ((bm >> 1) and 0x55555555)
-    bm = ((bm >> 2) and 0x33333333) + (bm and 0x33333333)
-    bm = bm + (bm >> 4)
-    bm = bm and 0x0f0f0f0f
-    bm = bm * 0x01010101
-    bm >> 24
