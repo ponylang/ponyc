@@ -21,7 +21,9 @@ primitive Maps
 
 class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   """
-  A persistent map based on the Compressed Hash Array Mapped Prefix-tree from 'Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM Collections' by Michael J. Steindorfer and Jurgen J. Vinju
+  A persistent map based on the Compressed Hash Array Mapped Prefix-tree from
+  'Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM
+  Collections' by Michael J. Steindorfer and Jurgen J. Vinju
 
   ## Usage
   ```
@@ -129,12 +131,12 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   fun val update(leaf: _Leaf[K, V]): _Node[K, V] ? =>
     let i = _Hash.mask(leaf.hash, level)
     if entries(i) is None then
-    // insert directly
+      // insert directly
       let es = recover entries.clone() end
       es.update(i, leaf)
       create(consume es, nodeMap, _Hash.setBit(dataMap, i), level)
     elseif _Hash.hasBit(nodeMap, i) then
-    // insert into sub-node
+      // insert into sub-node
       var sn = entries(i) as _Node[K, V]
       sn = sn.update(leaf)
       let es = recover entries.clone() end
@@ -143,12 +145,12 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     elseif _Hash.hasBit(dataMap, i) then
       let old = entries(i) as _Leaf[K, V]
       if old.key == leaf.key then
-      // update leaf
+        // update leaf
         let es = recover entries.clone() end
         es.update(i, leaf)
         create(consume es, nodeMap, dataMap, level)
       elseif level == 6 then
-      // create collision node
+        // create collision node
         let cn = recover iso Array[_Leaf[K, V]](2) end
         cn.push(old)
         cn.push(leaf)
@@ -156,7 +158,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         es.update(i, consume cn)
         create(consume es, nodeMap, _Hash.clearBit(dataMap, i), level)
       else
-      // create new sub-node
+        // create new sub-node
         var sn = empty(level+1)
         sn = sn.update(old)
         sn = sn.update(leaf)
@@ -165,13 +167,13 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         create(consume es, _Hash.setBit(nodeMap, i), _Hash.clearBit(dataMap, i), level)
       end
     else
-    // insert into collision node
+      // insert into collision node
       let es = recover entries.clone() end
       let cs = entries(i) as Array[_Leaf[K, V]] val
       let cs' = recover cs.clone() end
       for (k, v) in cs.pairs() do
         if v.key == leaf.key then
-        // update collision
+          // update collision
           cs'.update(k, leaf)
           es.update(i, consume cs')
           return create(consume es, nodeMap, dataMap, level)
