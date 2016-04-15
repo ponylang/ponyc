@@ -188,19 +188,24 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
+  errors_t* errors = c->opt->check.errors;
+
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(c->opt->triple, '-');
 
   if(arch == NULL)
   {
-    errorf(NULL, "couldn't determine architecture from %s", c->opt->triple);
+    errorf(errors, NULL, "couldn't determine architecture from %s",
+      c->opt->triple);
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", NULL, "", "", "-l", "");
+  program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t arch_len = arch - c->opt->triple;
@@ -219,7 +224,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -237,17 +242,19 @@ static bool link_exe(compile_t* c, ast_t* program,
     snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
     if(system(dsym_cmd) != 0)
-      errorf(NULL, "unable to create dsym");
+      errorf(errors, NULL, "unable to create dsym");
 
     ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", "-Wl,-rpath,", "-Wl,--start-group ",
-    "-Wl,--end-group ", "-l", "");
+  program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
+    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
@@ -277,7 +284,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -286,17 +293,18 @@ static bool link_exe(compile_t* c, ast_t* program,
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
-  if(!vcvars_get(&vcvars))
+  if(!vcvars_get(&vcvars, errors))
   {
-    errorf(NULL, "unable to link: no vcvars");
+    errorf(errors, NULL, "unable to link: no vcvars");
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
+  const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
     ".exe");
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "/LIBPATH:", NULL, "", "", "", ".lib");
+  program_lib_build_args(program, c->opt,
+    "/LIBPATH:", NULL, "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
@@ -327,7 +335,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if (system(ld_cmd) == -1)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -340,6 +348,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 bool genexe(compile_t* c, ast_t* program)
 {
+  errors_t* errors = c->opt->check.errors;
+
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = c->str_Main;
   const char* env_class = c->str_Env;
@@ -349,7 +359,7 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(main_def == NULL)
   {
-    errorf(NULL, "no Main actor found in package '%s'", c->filename);
+    errorf(errors, NULL, "no Main actor found in package '%s'", c->filename);
     return false;
   }
 
@@ -361,8 +371,8 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
-  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL);
-  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL);
+  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL, c->opt);
+  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL, c->opt);
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
   paint(c->reachable);

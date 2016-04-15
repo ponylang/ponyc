@@ -137,8 +137,8 @@ void parse_trace(bool enable);
  * The given source is attached to the resulting AST on success and closed on
  * failure.
  */
-bool parse(ast_t* package, source_t* source, rule_t start,
-  const char* expected);
+bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
+  errors_t* errors);
 
 
 /* The API for parser rules starts here */

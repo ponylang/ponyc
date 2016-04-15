@@ -13,14 +13,14 @@
 #include <stdlib.h>
 #include <assert.h>
 
-static bool is_method_called(ast_t* ast)
+static bool is_method_called(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
 
   switch(ast_id(parent))
   {
     case TK_QUALIFY:
-      return is_method_called(parent);
+      return is_method_called(opt, parent);
 
     case TK_CALL:
     case TK_ADDRESS:
@@ -29,12 +29,13 @@ static bool is_method_called(ast_t* ast)
     default: {}
   }
 
-  ast_error(ast, "can't reference a method without calling it");
+  ast_error(opt->check.errors, ast,
+    "can't reference a method without calling it");
   return false;
 }
 
-static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
-  ast_t** resultp)
+static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
+  ast_t* type, ast_t** resultp)
 {
   switch(ast_id(type))
   {
@@ -55,17 +56,20 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
           break;
 
         case TK_TYPE:
-          ast_error(ast, "can't call a constructor on a type alias: %s",
+          ast_error(opt->check.errors, ast,
+            "can't call a constructor on a type alias: %s",
             ast_print_type(type));
           return false;
 
         case TK_INTERFACE:
-          ast_error(ast, "can't call a constructor on an interface: %s",
+          ast_error(opt->check.errors, ast,
+            "can't call a constructor on an interface: %s",
             ast_print_type(type));
           return false;
 
         case TK_TRAIT:
-          ast_error(ast, "can't call a constructor on a trait: %s",
+          ast_error(opt->check.errors, ast,
+            "can't call a constructor on a trait: %s",
             ast_print_type(type));
           return false;
 
@@ -94,7 +98,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      return constructor_type(ast, cap, right, resultp);
+      return constructor_type(opt, ast, cap, right, resultp);
     }
 
     default: {}
@@ -104,7 +108,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
   return false;
 }
 
-static bool method_access(ast_t* ast, ast_t* method)
+static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
     body);
@@ -119,7 +123,7 @@ static bool method_access(ast_t* ast, ast_t* method)
       if(is_typecheck_error(type))
         return false;
 
-      if(!constructor_type(ast, ast_id(cap), type, &result))
+      if(!constructor_type(opt, ast, ast_id(cap), type, &result))
         return false;
       break;
     }
@@ -142,7 +146,7 @@ static bool method_access(ast_t* ast, ast_t* method)
   if(ast_id(can_error) == TK_QUESTION)
     ast_seterror(ast);
 
-  return is_method_called(ast);
+  return is_method_called(opt, ast);
 }
 
 static bool package_access(pass_opt_t* opt, ast_t** astp)
@@ -162,7 +166,8 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
   if(package == NULL)
   {
-    ast_error(right, "can't access package '%s'", package_name);
+    ast_error(opt->check.errors, right, "can't access package '%s'",
+      package_name);
     return false;
   }
 
@@ -172,7 +177,7 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
   if(type == NULL)
   {
-    ast_error(right, "can't find type '%s' in package '%s'",
+    ast_error(opt->check.errors, right, "can't find type '%s' in package '%s'",
       type_name, package_name);
     return false;
   }
@@ -208,12 +213,13 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   switch(ast_id(find))
   {
     case TK_TYPEPARAM:
-      ast_error(right, "can't look up a typeparam on a type");
+      ast_error(opt->check.errors, right,
+        "can't look up a typeparam on a type");
       ret = false;
       break;
 
     case TK_NEW:
-      ret = method_access(ast, find);
+      ret = method_access(opt, ast, find);
       break;
 
     case TK_FVAR:
@@ -227,7 +233,8 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
 
       if(!strcmp(ast_name(right), "create"))
       {
-        ast_error(right, "create is not a constructor on this type");
+        ast_error(opt->check.errors, right,
+          "create is not a constructor on this type");
         return false;
       }
 
@@ -282,7 +289,7 @@ static bool make_tuple_index(ast_t** astp)
   return true;
 }
 
-static bool tuple_access(ast_t* ast)
+static bool tuple_access(pass_opt_t* opt, ast_t* ast)
 {
   // Left is a postfix expression, right is a lookup name.
   ast_t* left = ast_child(ast);
@@ -295,7 +302,7 @@ static bool tuple_access(ast_t* ast)
   // Change the lookup name to an integer index.
   if(!make_tuple_index(&right))
   {
-    ast_error(right,
+    ast_error(opt->check.errors, right,
       "lookup on a tuple must take the form _X, where X is an integer");
     return false;
   }
@@ -307,14 +314,14 @@ static bool tuple_access(ast_t* ast)
 
   if (right_idx == (size_t)-1)
   {
-    ast_error(right,
+    ast_error(opt->check.errors, right,
       "tuples are one indexed not zero indexed. Did you mean _1?");
     return false;
   }
   else if (right_idx >= tuple_size)
   {
-    ast_error(right, "tuple index " __zu " is out of valid range. "
-      "Valid range is [1, " __zu "]", right_idx, tuple_size);
+    ast_error(opt->check.errors, right, "tuple index " __zu " is out of "
+      "valid range. Valid range is [1, " __zu "]", right_idx, tuple_size);
     return false;
   }
 
@@ -347,7 +354,8 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
   switch(ast_id(find))
   {
     case TK_TYPEPARAM:
-      ast_error(right, "can't look up a typeparam on an expression");
+      ast_error(opt->check.errors, right,
+        "can't look up a typeparam on an expression");
       ret = false;
       break;
 
@@ -369,7 +377,7 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      ret = method_access(ast, find);
+      ret = method_access(opt, ast, find);
       break;
 
     default:
@@ -406,7 +414,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
       // If the type isn't polymorphic or the type is already qualified,
       // sugar .apply().
-      ast_t* def = names_def(type);
+      ast_t* def = names_def(opt, type);
       ast_t* typeparams = ast_childidx(def, 1);
 
       if((ast_id(typeparams) == TK_NONE) ||
@@ -439,13 +447,13 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
-      if(!reify_defaults(typeparams, right, true))
+      if(!reify_defaults(typeparams, right, true, opt))
         return false;
 
-      if(!check_constraints(left, typeparams, right, true))
+      if(!check_constraints(left, typeparams, right, true, opt))
         return false;
 
-      type = reify(type, typeparams, right);
+      type = reify(type, typeparams, right, opt);
       typeparams = ast_childidx(type, 1);
       ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 
@@ -504,7 +512,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   assert(type != NULL);
 
   if(ast_id(type) == TK_TUPLETYPE)
-    return tuple_access(ast);
+    return tuple_access(opt, ast);
 
   return member_access(opt, ast, partial);
 }
@@ -524,7 +532,8 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
   if(ast_id(ast) == TK_TILDE && ast_type(ast) != NULL &&
     ast_id(ast_type(ast)) == TK_OPERATORLITERAL)
   {
-    ast_error(ast, "can't do partial application on a literal number");
+    ast_error(opt->check.errors, ast,
+      "can't do partial application on a literal number");
     return false;
   }
 
@@ -544,13 +553,15 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
       return true;
 
     case TK_TYPEREF:
-      ast_error(ast, "can't do partial application on a package");
+      ast_error(opt->check.errors, ast,
+        "can't do partial application on a package");
       return false;
 
     case TK_FVARREF:
     case TK_FLETREF:
     case TK_EMBEDREF:
-      ast_error(ast, "can't do partial application of a field");
+      ast_error(opt->check.errors, ast,
+        "can't do partial application of a field");
       return false;
 
     default: {}

@@ -32,7 +32,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
     if(is_control_type(c_type))
     {
-      ast_error(ele,
+      ast_error(opt->check.errors, ele,
         "can't use an expression without a value in an array constructor");
       ast_free_unattached(type);
       return false;
@@ -50,7 +50,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       c_type = ast_type(ele); // May have changed due to literals
 
       errorframe_t info = NULL;
-      if(!is_subtype(c_type, type, &info))
+      if(!is_subtype(c_type, type, &info, opt))
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ele,
@@ -60,7 +60,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_error_frame(&frame, c_type, "element type: %s",
           ast_print_type(c_type));
         errorframe_append(&frame, &info);
-        errorframe_report(&frame);
+        errorframe_report(&frame, opt->check.errors);
         return false;
       }
     }
@@ -74,7 +74,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return true;
       }
 
-      type = type_union(type, c_type);
+      type = type_union(opt, type, c_type);
     }
   }
 

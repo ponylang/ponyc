@@ -31,9 +31,8 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
     {
       if(errors)
       {
-        ast_error(from,
-          "can't lookup fields or methods on private types from other packages"
-          );
+        ast_error(opt->check.errors, from, "can't lookup fields or methods "
+          "on private types from other packages");
       }
 
       return NULL;
@@ -93,7 +92,8 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   if(find == NULL)
   {
     if(errors)
-      ast_error(from, "couldn't find '%s' in '%s'", name, type_name);
+      ast_error(opt->check.errors, from, "couldn't find '%s' in '%s'", name,
+        type_name);
 
     return NULL;
   }
@@ -109,7 +109,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
         {
           if(errors)
           {
-            ast_error(from,
+            ast_error(opt->check.errors, from,
               "can't lookup private fields from outside the type");
           }
 
@@ -125,7 +125,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
         {
           if(errors)
           {
-            ast_error(from,
+            ast_error(opt->check.errors, from,
               "can't lookup private methods from outside the package");
           }
 
@@ -147,7 +147,8 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
         case TK_BE:
         case TK_FUN:
           if(errors)
-            ast_error(from, "can't lookup a _final function");
+            ast_error(opt->check.errors, from,
+              "can't lookup a _final function");
 
           return NULL;
 
@@ -158,7 +159,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* r_find = viewpoint_replacethis(find, orig);
-  ast_t* rr_find = reify(r_find, typeparams, typeargs);
+  ast_t* rr_find = reify(r_find, typeparams, typeargs, opt);
   ast_free_unattached(r_find);
   return rr_find;
 }
@@ -176,7 +177,8 @@ static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
     {
       ast_t* type_id = ast_child(def);
       const char* type_name = ast_name(type_id);
-      ast_error(from, "couldn't find '%s' in '%s'", name, type_name);
+      ast_error(opt->check.errors, from, "couldn't find '%s' in '%s'",
+        name, type_name);
     }
 
     return NULL;
@@ -202,7 +204,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
       // All possible types in the union must have this.
       if(errors)
       {
-        ast_error(from, "couldn't find %s in %s",
+        ast_error(opt->check.errors, from, "couldn't find %s in %s",
           name, ast_print_type(child));
       }
 
@@ -215,7 +217,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
         case TK_EMBED:
           if(errors)
           {
-            ast_error(from,
+            ast_error(opt->check.errors, from,
               "can't lookup field %s in %s in a union type",
               name, ast_print_type(child));
           }
@@ -228,8 +230,8 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(r, result, NULL)) {
-            if(is_subtype(result, r, NULL))
+          } else if(!is_subtype(r, result, NULL, opt)) {
+            if(is_subtype(result, r, NULL, opt))
             {
               // Use the supertype function. Require the most specific
               // arguments and return the least specific result.
@@ -240,11 +242,12 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
             } else {
               if(errors)
               {
-                ast_error(from,
-                  "a member of the union type has an incompatible method "
-                  "signature");
-                ast_error(result, "first implementation is here");
-                ast_error(r, "second implementation is here");
+                ast_error(opt->check.errors, from, "a member of the union "
+                  "type has an incompatible method signature");
+                ast_error_continue(opt->check.errors, result,
+                  "first implementation is here");
+                ast_error_continue(opt->check.errors, r,
+                  "second implementation is here");
               }
 
               ast_free_unattached(r);
@@ -293,8 +296,8 @@ static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(result, r, NULL)) {
-            if(is_subtype(r, result, NULL))
+          } else if(!is_subtype(result, r, NULL, opt)) {
+            if(is_subtype(r, result, NULL, opt))
             {
               // Use the subtype function. Require the least specific
               // arguments and return the most specific result.
@@ -314,7 +317,7 @@ static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
   }
 
   if(errors && (result == NULL))
-    ast_error(from, "couldn't find '%s'", name);
+    ast_error(opt->check.errors, from, "couldn't find '%s'", name);
 
   if(!ok)
   {
@@ -338,7 +341,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
     case TK_TUPLETYPE:
       if(errors)
-        ast_error(from, "can't lookup by name on a tuple");
+        ast_error(opt->check.errors, from, "can't lookup by name on a tuple");
 
       return NULL;
 
@@ -353,7 +356,8 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
     case TK_FUNTYPE:
       if(errors)
-        ast_error(from, "can't lookup by name on a function type");
+        ast_error(opt->check.errors, from,
+          "can't lookup by name on a function type");
 
       return NULL;
 

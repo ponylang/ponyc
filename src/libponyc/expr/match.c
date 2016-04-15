@@ -24,7 +24,8 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
 
   if(is_type_literal(expr_type))
   {
-    ast_error(expr, "cannot infer type for literal match expression");
+    ast_error(opt->check.errors, expr,
+      "cannot infer type for literal match expression");
     return false;
   }
 
@@ -39,14 +40,14 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
 
   if(!is_control_type(cases_type))
   {
-    type = control_type_add_branch(type, cases);
+    type = control_type_add_branch(opt, type, cases);
     ast_inheritbranch(ast, cases);
     branch_count++;
   }
 
   if(!is_control_type(else_type))
   {
-    type = control_type_add_branch(type, else_clause);
+    type = control_type_add_branch(opt, type, else_clause);
     ast_inheritbranch(ast, else_clause);
     branch_count++;
   }
@@ -55,7 +56,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   {
     if(ast_sibling(ast) != NULL)
     {
-      ast_error(ast_sibling(ast), "unreachable code");
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
       return false;
     }
 
@@ -72,14 +73,14 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_cases(ast_t* ast)
+bool expr_cases(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASES);
   ast_t* the_case = ast_child(ast);
 
   if(the_case == NULL)
   {
-    ast_error(ast, "match must have at least one case");
+    ast_error(opt->check.errors, ast, "match must have at least one case");
     return false;
   }
 
@@ -93,7 +94,7 @@ bool expr_cases(ast_t* ast)
 
     if(!is_typecheck_error(body_type) && !is_control_type(body_type))
     {
-      type = control_type_add_branch(type, body);
+      type = control_type_add_branch(opt, type, body);
       ast_inheritbranch(ast, the_case);
       branch_count++;
     }
@@ -122,7 +123,7 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   if(is_control_type(pattern_type))
   {
-    ast_error(pattern, "not a matchable pattern");
+    ast_error(opt->check.errors, pattern, "not a matchable pattern");
     return false;
   }
 
@@ -181,7 +182,7 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   if(fun == NULL)
   {
-    ast_error(pattern,
+    ast_error(opt->check.errors, pattern,
       "this pattern element doesn't support structural equality");
 
     return false;
@@ -189,8 +190,10 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   if(ast_id(fun) != TK_FUN)
   {
-    ast_error(pattern, "eq is not a function on this pattern element");
-    ast_error(fun, "definition of eq is here");
+    ast_error(opt->check.errors, pattern,
+      "eq is not a function on this pattern element");
+    ast_error_continue(opt->check.errors, fun,
+      "definition of eq is here");
     ast_free_unattached(fun);
     return false;
   }
@@ -200,19 +203,22 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   if(ast_id(typeparams) != TK_NONE)
   {
-    ast_error(pattern, "polymorphic eq not supported in pattern matching");
+    ast_error(opt->check.errors, pattern,
+      "polymorphic eq not supported in pattern matching");
     ok = false;
   }
 
   if(!is_bool(result))
   {
-    ast_error(pattern, "eq must return Bool when pattern matching");
+    ast_error(opt->check.errors, pattern,
+      "eq must return Bool when pattern matching");
     ok = false;
   }
 
   if(ast_id(partial) != TK_NONE)
   {
-    ast_error(pattern, "eq cannot be partial when pattern matching");
+    ast_error(opt->check.errors, pattern,
+      "eq cannot be partial when pattern matching");
     ok = false;
   }
 
@@ -220,7 +226,7 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
 
   if(param == NULL || ast_sibling(param) != NULL)
   {
-    ast_error(pattern,
+    ast_error(opt->check.errors, pattern,
       "eq must take a single argument when pattern matching");
 
     ok = false;
@@ -242,7 +248,7 @@ static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
 
   if(is_type_literal(match_expr_type))
   {
-    ast_error(match_expr_type,
+    ast_error(opt->check.errors, match_expr_type,
       "cannot infer type for literal match expression");
     return false;
   }
@@ -258,7 +264,8 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   if((ast_id(pattern) == TK_NONE) && (ast_id(guard) == TK_NONE))
   {
-    ast_error(ast, "can't have a case with no conditions, use an else clause");
+    ast_error(opt->check.errors, ast,
+      "can't have a case with no conditions, use an else clause");
     return false;
   }
 
@@ -280,22 +287,26 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_t* pattern_type = ast_type(pattern);
   bool ok = true;
 
-  switch(is_matchtype(operand_type, pattern_type))
+  switch(is_matchtype(operand_type, pattern_type, opt))
   {
     case MATCHTYPE_ACCEPT:
       break;
 
     case MATCHTYPE_REJECT:
-      ast_error(pattern, "this pattern can never match");
-      ast_error(match_type, "match type: %s", ast_print_type(operand_type));
-      ast_error(pattern, "pattern type: %s", ast_print_type(pattern_type));
+      ast_error(opt->check.errors, pattern, "this pattern can never match");
+      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+        ast_print_type(operand_type));
+      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+        ast_print_type(pattern_type));
       ok = false;
       break;
 
     case MATCHTYPE_DENY:
-      ast_error(pattern, "this capture violates capabilities");
-      ast_error(match_type, "match type: %s", ast_print_type(operand_type));
-      ast_error(pattern, "pattern type: %s", ast_print_type(pattern_type));
+      ast_error(opt->check.errors, pattern, "this capture violates capabilities");
+      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+        ast_print_type(operand_type));
+      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+        ast_print_type(pattern_type));
       ok = false;
       break;
   }
@@ -310,7 +321,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     }
     else if(!is_bool(guard_type))
     {
-      ast_error(guard, "guard must be a boolean expression");
+      ast_error(opt->check.errors, guard, "guard must be a boolean expression");
       ok = false;
     }
   }
@@ -320,8 +331,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
-bool expr_match_capture(ast_t* ast)
+bool expr_match_capture(pass_opt_t* opt, ast_t* ast)
 {
+  (void)opt;
   assert(ast != NULL);
 
   ast_t* type = ast_childidx(ast, 1);

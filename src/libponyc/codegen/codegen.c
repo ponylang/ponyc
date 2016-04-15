@@ -41,8 +41,7 @@ DEFINE_HASHMAP(compile_locals, compile_locals_t, compile_local_t,
 
 static void fatal_error(const char* reason)
 {
-  printf("%s\n", reason);
-  print_errors();
+  printf("LLVM fatal error: %s\n", reason);
 }
 
 static compile_frame_t* push_frame(compile_t* c)
@@ -74,7 +73,7 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
   if(LLVMGetTargetFromTriple(opt->triple, &target, &err) != 0)
   {
-    errorf(NULL, "couldn't create target: %s", err);
+    errorf(opt->check.errors, NULL, "couldn't create target: %s", err);
     LLVMDisposeMessage(err);
     return NULL;
   }
@@ -90,7 +89,7 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
   if(machine == NULL)
   {
-    errorf(NULL, "couldn't create target machine");
+    errorf(opt->check.errors, NULL, "couldn't create target machine");
     return NULL;
   }
 
@@ -769,7 +768,7 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return result;
 }
 
-const char* suffix_filename(const char* dir, const char* prefix,
+const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   const char* file, const char* extension)
 {
   // Copy to a string with space for a suffix.
@@ -806,7 +805,7 @@ const char* suffix_filename(const char* dir, const char* prefix,
 
   if(suffix >= 100)
   {
-    errorf(NULL, "couldn't pick an unused file name");
+    errorf(c->opt->check.errors, NULL, "couldn't pick an unused file name");
     ponyint_pool_free_size(len, filename);
     return NULL;
   }

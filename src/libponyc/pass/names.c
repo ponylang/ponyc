@@ -6,7 +6,8 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
-static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
+static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
+  ast_t* ephemeral)
 {
   switch(ast_id(ast))
   {
@@ -20,7 +21,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
         child != NULL;
         child = ast_sibling(child))
       {
-        names_applycap(child, cap, ephemeral);
+        names_applycap(opt, child, cap, ephemeral);
       }
 
       return true;
@@ -32,7 +33,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
       if(ast_id(cap) != TK_NONE)
       {
-        ast_error(cap,
+        ast_error(opt->check.errors, cap,
           "can't specify a capability for an alias to a type parameter");
         return false;
       }
@@ -57,7 +58,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
     }
 
     case TK_ARROW:
-      return names_applycap(ast_childidx(ast, 1), cap, ephemeral);
+      return names_applycap(opt, ast_childidx(ast, 1), cap, ephemeral);
 
     default: {}
   }
@@ -78,7 +79,7 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
       break;
 
     case AST_FLAG_RECURSE_1:
-      ast_error(def, "type aliases can't be recursive");
+      ast_error(opt->check.errors, def, "type aliases can't be recursive");
       ast_clearflag(def, AST_FLAG_RECURSE_1);
       ast_setflag(def, AST_FLAG_ERROR_1);
       return false;
@@ -130,7 +131,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   if(!names_resolvealias(opt, def, &alias))
     return false;
 
-  if(!reify_defaults(typeparams, typeargs, true))
+  if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;
 
   if(!names_typeargs(opt, typeargs))
@@ -138,18 +139,18 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 
   if(expr)
   {
-    if(!check_constraints(typeargs, typeparams, typeargs, true))
+    if(!check_constraints(typeargs, typeparams, typeargs, true, opt))
       return false;
   }
 
   // Reify the alias.
-  ast_t* r_alias = reify(alias, typeparams, typeargs);
+  ast_t* r_alias = reify(alias, typeparams, typeargs, opt);
 
   if(r_alias == NULL)
     return false;
 
   // Apply our cap and ephemeral to the result.
-  if(!names_applycap(r_alias, cap, eph))
+  if(!names_applycap(opt, r_alias, cap, eph))
   {
     ast_free_unattached(r_alias);
     return false;
@@ -164,7 +165,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   return true;
 }
 
-static bool names_typeparam(ast_t** astp, ast_t* def)
+static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
@@ -172,7 +173,8 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
 
   if(ast_id(typeargs) != TK_NONE)
   {
-    ast_error(typeargs, "can't qualify a type parameter with type arguments");
+    ast_error(opt->check.errors, typeargs,
+      "can't qualify a type parameter with type arguments");
     return false;
   }
 
@@ -218,7 +220,7 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
   // Store our definition for later use.
   ast_setdata(ast, def);
 
-  if(!reify_defaults(typeparams, typeargs, true))
+  if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;
 
   if(!names_typeargs(opt, typeargs))
@@ -227,7 +229,7 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
   return true;
 }
 
-static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
+static ast_t* get_package_scope(pass_opt_t* opt, ast_t* scope, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* package_id = ast_child(ast);
@@ -244,7 +246,7 @@ static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
 
     if((scope == NULL) || (ast_id(scope) != TK_PACKAGE))
     {
-      ast_error(package_id, "can't find package '%s'", name);
+      ast_error(opt->check.errors, package_id, "can't find package '%s'", name);
       return NULL;
     }
   }
@@ -252,7 +254,7 @@ static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
   return scope;
 }
 
-ast_t* names_def(ast_t* ast)
+ast_t* names_def(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* def = (ast_t*)ast_data(ast);
 
@@ -260,7 +262,7 @@ ast_t* names_def(ast_t* ast)
     return def;
 
   AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
-  ast_t* scope = get_package_scope(ast, ast);
+  ast_t* scope = get_package_scope(opt, ast, ast);
 
   return ast_get(scope, ast_name(type_id), NULL);
 }
@@ -281,7 +283,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   if(ast_id(cap) == TK_NONE)
     t->stats.default_caps_count++;
 
-  ast_t* r_scope = get_package_scope(scope, ast);
+  ast_t* r_scope = get_package_scope(opt, scope, ast);
 
   if(r_scope == NULL)
     return false;
@@ -296,13 +298,15 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 
   if(def == NULL)
   {
-    ast_error(type_id, "can't find definition of '%s'", name);
+    ast_error(opt->check.errors, type_id,
+      "can't find definition of '%s'", name);
     r = false;
   } else {
     // Check for a private type.
     if(!local_package && is_name_private(name))
     {
-      ast_error(type_id, "can't access a private type from another package");
+      ast_error(opt->check.errors, type_id,
+        "can't access a private type from another package");
       r = false;
     }
 
@@ -313,7 +317,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
         break;
 
       case TK_TYPEPARAM:
-        r = names_typeparam(astp, def);
+        r = names_typeparam(opt, astp, def);
         break;
 
       case TK_INTERFACE:
@@ -326,7 +330,8 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
         break;
 
       default:
-        ast_error(type_id, "definition of '%s' is not a type", name);
+        ast_error(opt->check.errors, type_id,
+          "definition of '%s' is not a type", name);
         r = false;
         break;
     }
@@ -335,7 +340,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   return r;
 }
 
-static bool names_arrow(ast_t** astp)
+static bool names_arrow(pass_opt_t* opt, ast_t** astp)
 {
   AST_GET_CHILDREN(*astp, left, right);
 
@@ -358,7 +363,7 @@ static bool names_arrow(ast_t** astp)
     default: {}
   }
 
-  ast_error(left,
+  ast_error(opt->check.errors, left,
     "only 'this', refcaps, and type parameters can be viewpoints");
   return false;
 }
@@ -375,7 +380,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_ARROW:
-      if(!names_arrow(astp))
+      if(!names_arrow(options, astp))
         return AST_ERROR;
       break;
 

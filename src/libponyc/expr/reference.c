@@ -22,14 +22,16 @@
  * Make sure the definition of something occurs before its use. This is for
  * both fields and local variable.
  */
-static bool def_before_use(ast_t* def, ast_t* use, const char* name)
+static bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
 {
   if((ast_line(def) > ast_line(use)) ||
      ((ast_line(def) == ast_line(use)) &&
       (ast_pos(def) > ast_pos(use))))
   {
-    ast_error(use, "declaration of '%s' appears after use", name);
-    ast_error(def, "declaration of '%s' appears here", name);
+    ast_error(opt->check.errors, use,
+      "declaration of '%s' appears after use", name);
+    ast_error_continue(opt->check.errors, def,
+      "declaration of '%s' appears here", name);
     return false;
   }
 
@@ -111,14 +113,16 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
       if(is_assigned_to(ast, true))
         return true;
 
-      ast_error(ast, "can't use a consumed local in an expression");
+      ast_error(opt->check.errors, ast,
+        "can't use a consumed local in an expression");
       return false;
 
     case SYM_UNDEFINED:
       if(is_assigned_to(ast, true))
         return true;
 
-      ast_error(ast, "can't use an undefined variable in an expression");
+      ast_error(opt->check.errors, ast,
+        "can't use an undefined variable in an expression");
       return false;
 
     default: {}
@@ -150,7 +154,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
     init_type = alias(init_type);
 
     errorframe_t info = NULL;
-    if(!is_subtype(init_type, type, &info))
+    if(!is_subtype(init_type, type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, init,
@@ -160,7 +164,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
       ast_error_frame(&frame, init, "default argument type: %s",
         ast_print_type(init_type));
       errorframe_append(&frame, &info);
-      errorframe_report(&frame);
+      errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(init_type);
       return false;
     }
@@ -191,7 +195,8 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 
     if(upper == NULL)
     {
-      ast_error(ast, "can't read a field through %s", ast_print_type(l_type));
+      ast_error(opt->check.errors, ast, "can't read a field through %s",
+        ast_print_type(l_type));
       return false;
     }
 
@@ -426,10 +431,10 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     const char* alt_name = suggest_alt_name(ast, name);
 
     if(alt_name == NULL)
-      ast_error(ast, "can't find declaration of '%s'", name);
+      ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
     else
-      ast_error(ast, "can't find declaration of '%s', did you mean '%s'?",
-        name, alt_name);
+      ast_error(opt->check.errors, ast,
+        "can't find declaration of '%s', did you mean '%s'?", name, alt_name);
 
     return false;
   }
@@ -441,7 +446,8 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       // Only allowed if in a TK_DOT with a type.
       if(ast_id(ast_parent(ast)) != TK_DOT)
       {
-        ast_error(ast, "a package can only appear as a prefix to a type");
+        ast_error(opt->check.errors, ast,
+          "a package can only appear as a prefix to a type");
         return false;
       }
 
@@ -474,7 +480,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     case TK_EMBED:
     {
       // Transform to "this.f".
-      if(!def_before_use(def, ast, name))
+      if(!def_before_use(opt, def, ast, name))
         return false;
 
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -495,11 +501,12 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     {
       if(t->frame->def_arg != NULL)
       {
-        ast_error(ast, "can't reference a parameter in a default argument");
+        ast_error(opt->check.errors, ast,
+          "can't reference a parameter in a default argument");
         return false;
       }
 
-      if(!def_before_use(def, ast, name))
+      if(!def_before_use(opt, def, ast, name))
         return false;
 
       ast_t* type = ast_type(def);
@@ -512,9 +519,8 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       if(!sendable(type) && (t->frame->recover != NULL))
       {
-        ast_error(ast,
-          "can't access a non-sendable parameter from inside a recover "
-          "expression");
+        ast_error(opt->check.errors, ast, "can't access a non-sendable "
+          "parameter from inside a recover expression");
         return false;
       }
 
@@ -551,14 +557,15 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
     case TK_ID:
     {
-      if(!def_before_use(def, ast, name))
+      if(!def_before_use(opt, def, ast, name))
         return false;
 
       ast_t* type = ast_type(def);
 
       if(type != NULL && ast_id(type) == TK_INFERTYPE)
       {
-        ast_error(ast, "cannot infer type of %s\n", ast_nice_name(def));
+        ast_error(opt->check.errors, ast, "cannot infer type of %s\n",
+          ast_nice_name(def));
         ast_settype(def, ast_from(def, TK_ERRORTYPE));
         ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
         return false;
@@ -596,8 +603,9 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
           if(t->frame->recover != def_recover)
           {
-            ast_error(ast, "can't access a non-sendable local defined outside "
-              "of a recover expression from within that recover expression");
+            ast_error(opt->check.errors, ast, "can't access a non-sendable "
+              "local defined outside of a recover expression from within "
+              "that recover expression");
             return false;
           }
         }
@@ -621,7 +629,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
   return false;
 }
 
-bool expr_local(ast_t* ast)
+bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   assert(ast_type(ast) != NULL);
@@ -634,7 +642,8 @@ bool expr_local(ast_t* ast)
     // No type specified, infer it later
     if(!is_assigned_to(ast, false))
     {
-      ast_error(ast, "locals must specify a type or be assigned a value");
+      ast_error(opt->check.errors, ast,
+        "locals must specify a type or be assigned a value");
       return false;
     }
   }
@@ -643,7 +652,8 @@ bool expr_local(ast_t* ast)
     // Let, check we have a value assigned
     if(!is_assigned_to(ast, false))
     {
-      ast_error(ast, "can't declare a let local without assigning to it");
+      ast_error(opt->check.errors, ast,
+        "can't declare a let local without assigning to it");
       return false;
     }
   }
@@ -672,7 +682,8 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
 
   if(!ok)
   {
-    ast_error(ast, "the & operator can only be used for FFI arguments");
+    ast_error(opt->check.errors, ast,
+      "the & operator can only be used for FFI arguments");
     return false;
   }
 
@@ -687,23 +698,28 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       break;
 
     case TK_FLETREF:
-      ast_error(ast, "can't take the address of a let field");
+      ast_error(opt->check.errors, ast,
+        "can't take the address of a let field");
       return false;
 
     case TK_EMBEDREF:
-      ast_error(ast, "can't take the address of an embed field");
+      ast_error(opt->check.errors, ast,
+        "can't take the address of an embed field");
       return false;
 
     case TK_LETREF:
-      ast_error(ast, "can't take the address of a let local");
+      ast_error(opt->check.errors, ast,
+        "can't take the address of a let local");
       return false;
 
     case TK_PARAMREF:
-      ast_error(ast, "can't take the address of a function parameter");
+      ast_error(opt->check.errors, ast,
+        "can't take the address of a function parameter");
       return false;
 
     default:
-      ast_error(ast, "can only take the address of a local, field or method");
+      ast_error(opt->check.errors, ast,
+        "can only take the address of a local, field or method");
       return false;
   }
 
@@ -745,7 +761,8 @@ bool expr_identityof(pass_opt_t* opt, ast_t* ast)
       break;
 
     default:
-      ast_error(ast, "identity must be for a field, local, parameter or this");
+      ast_error(opt->check.errors, ast,
+        "identity must be for a field, local, parameter or this");
       return false;
   }
 
@@ -755,7 +772,7 @@ bool expr_identityof(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_dontcare(ast_t* ast)
+bool expr_dontcare(pass_opt_t* opt, ast_t* ast)
 {
   // We are a tuple element. That tuple must either be a pattern or the LHS
   // of an assignment. It can be embedded in other tuples, which may appear
@@ -804,8 +821,8 @@ bool expr_dontcare(ast_t* ast)
     }
   }
 
-  ast_error(ast, "the don't care token can only appear in a tuple, either on "
-    "the LHS of an assignment or in a pattern");
+  ast_error(opt->check.errors, ast, "the don't care token can only appear "
+    "in a tuple, either on the LHS of an assignment or in a pattern");
   return false;
 }
 
@@ -815,7 +832,8 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
   if(t->frame->def_arg != NULL)
   {
-    ast_error(ast, "can't reference 'this' in a default argument");
+    ast_error(opt->check.errors, ast,
+      "can't reference 'this' in a default argument");
     return false;
   }
 
@@ -824,7 +842,8 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
   if(status == SYM_CONSUMED)
   {
-    ast_error(ast, "can't use a consumed 'this' in an expression");
+    ast_error(opt->check.errors, ast,
+      "can't use a consumed 'this' in an expression");
     return false;
   }
 
@@ -870,7 +889,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   {
     if(!expr_nominal(opt, &typearg))
     {
-      ast_error(ast, "couldn't create a type for 'this'");
+      ast_error(opt->check.errors, ast, "couldn't create a type for 'this'");
       ast_free(type);
       return false;
     }
@@ -880,7 +899,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
   if(!expr_nominal(opt, &nominal))
   {
-    ast_error(ast, "couldn't create a type for 'this'");
+    ast_error(opt->check.errors, ast, "couldn't create a type for 'this'");
     ast_free(type);
     return false;
   }
@@ -894,7 +913,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_tuple(ast_t* ast)
+bool expr_tuple(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
   ast_t* type;
@@ -914,7 +933,8 @@ bool expr_tuple(ast_t* ast)
 
       if(is_control_type(c_type))
       {
-        ast_error(child, "a tuple can't contain a control flow expression");
+        ast_error(opt->check.errors, child,
+          "a tuple can't contain a control flow expression");
         return false;
       }
 
@@ -947,7 +967,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   switch(ast_id(ast))
   {
     case TK_TYPEPARAMREF:
-      return flatten_typeparamref(ast) == AST_OK;
+      return flatten_typeparamref(opt, ast) == AST_OK;
 
     case TK_NOMINAL:
       break;
@@ -971,7 +991,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 
-  if(!reify_defaults(typeparams, typeargs, true))
+  if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;
 
   if(!strcmp(name, "MaybePointer"))
@@ -1003,7 +1023,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
     if(!ok)
     {
-      ast_error(ast,
+      ast_error(opt->check.errors, ast,
         "%s is not allowed: the type argument to MaybePointer must be a struct",
         ast_print_type(ast));
 
@@ -1011,10 +1031,10 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
     }
   }
 
-  return check_constraints(typeargs, typeparams, typeargs, true);
+  return check_constraints(typeargs, typeparams, typeargs, true, opt);
 }
 
-static bool show_partiality(ast_t* ast)
+static bool show_partiality(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
   bool found = false;
@@ -1022,7 +1042,7 @@ static bool show_partiality(ast_t* ast)
   while(child != NULL)
   {
     if(ast_canerror(child))
-      found |= show_partiality(child);
+      found |= show_partiality(opt, child);
 
     child = ast_sibling(child);
   }
@@ -1032,14 +1052,14 @@ static bool show_partiality(ast_t* ast)
 
   if(ast_canerror(ast))
   {
-    ast_error(ast, "an error can be raised here");
+    ast_error(opt->check.errors, ast, "an error can be raised here");
     return true;
   }
 
   return false;
 }
 
-static bool check_fields_defined(ast_t* ast)
+static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NEW);
 
@@ -1061,7 +1081,8 @@ static bool check_fields_defined(ast_t* ast)
 
         if((def != member) || (status != SYM_DEFINED))
         {
-          ast_error(def, "field left undefined in constructor");
+          ast_error(opt->check.errors, def,
+            "field left undefined in constructor");
           result = false;
         }
 
@@ -1075,12 +1096,13 @@ static bool check_fields_defined(ast_t* ast)
   }
 
   if(!result)
-    ast_error(ast, "constructor with undefined fields is here");
+    ast_error(opt->check.errors, ast,
+      "constructor with undefined fields is here");
 
   return result;
 }
 
-static bool check_return_type(ast_t* ast)
+static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
   ast_t* body_type = ast_type(body);
@@ -1104,8 +1126,8 @@ static bool check_return_type(ast_t* ast)
   bool ok = true;
 
   errorframe_t info = NULL;
-  if(!is_subtype(body_type, type, &info) ||
-    !is_subtype(a_body_type, a_type, &info))
+  if(!is_subtype(body_type, type, &info, opt) ||
+    !is_subtype(a_body_type, a_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_t* last = ast_childlast(body);
@@ -1115,7 +1137,7 @@ static bool check_return_type(ast_t* ast)
     ast_error_frame(&frame, body_type, "function body type: %s",
       ast_print_type(body_type));
     errorframe_append(&frame, &info);
-    errorframe_report(&frame);
+    errorframe_report(&frame, opt->check.errors);
     ok = false;
   }
 
@@ -1124,12 +1146,12 @@ static bool check_return_type(ast_t* ast)
   return ok;
 }
 
-static bool check_main_create(typecheck_t* t, ast_t* ast)
+static bool check_main_create(pass_opt_t* opt, ast_t* ast)
 {
-  if(ast_id(t->frame->type) != TK_ACTOR)
+  if(ast_id(opt->check.frame->type) != TK_ACTOR)
     return true;
 
-  ast_t* type_id = ast_child(t->frame->type);
+  ast_t* type_id = ast_child(opt->check.frame->type);
 
   if(strcmp(ast_name(type_id), "Main"))
     return true;
@@ -1143,14 +1165,14 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
 
   if(ast_id(typeparams) != TK_NONE)
   {
-    ast_error(typeparams,
+    ast_error(opt->check.errors, typeparams,
       "the create constructor of a Main actor must not be polymorphic");
     ok = false;
   }
 
   if(ast_childcount(params) != 1)
   {
-    ast_error(params,
+    ast_error(opt->check.errors, params,
       "the create constructor of a Main actor must take a single Env "
       "parameter");
     ok = false;
@@ -1164,7 +1186,7 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
 
     if(!is_env(p_type))
     {
-      ast_error(p_type, "must be of type Env");
+      ast_error(opt->check.errors, p_type, "must be of type Env");
       ok = false;
     }
   }
@@ -1172,9 +1194,9 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
-static bool check_primitive_init(typecheck_t* t, ast_t* ast)
+static bool check_primitive_init(pass_opt_t* opt, ast_t* ast)
 {
-  if(ast_id(t->frame->type) != TK_PRIMITIVE)
+  if(ast_id(opt->check.frame->type) != TK_PRIMITIVE)
     return true;
 
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
@@ -1184,52 +1206,57 @@ static bool check_primitive_init(typecheck_t* t, ast_t* ast)
 
   bool ok = true;
 
-  if(ast_id(ast_childidx(t->frame->type, 1)) != TK_NONE)
+  if(ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE)
   {
-    ast_error(ast, "a primitive with type parameters cannot have an _init");
+    ast_error(opt->check.errors, ast,
+      "a primitive with type parameters cannot have an _init");
     ok = false;
   }
 
   if(ast_id(ast) != TK_FUN)
   {
-    ast_error(ast, "a primitive _init must be a function");
+    ast_error(opt->check.errors, ast, "a primitive _init must be a function");
     ok = false;
   }
 
   if(ast_id(cap) != TK_BOX)
   {
-    ast_error(cap, "a primitive _init must be box");
+    ast_error(opt->check.errors, cap, "a primitive _init must be box");
     ok = false;
   }
 
   if(ast_id(typeparams) != TK_NONE)
   {
-    ast_error(typeparams, "a primitive _init must not be polymorphic");
+    ast_error(opt->check.errors, typeparams,
+      "a primitive _init must not be polymorphic");
     ok = false;
   }
 
   if(ast_childcount(params) != 0)
   {
-    ast_error(params, "a primitive _init must take no parameters");
+    ast_error(opt->check.errors, params,
+      "a primitive _init must take no parameters");
     ok = false;
   }
 
   if(!is_none(result))
   {
-    ast_error(result, "a primitive _init must return None");
+    ast_error(opt->check.errors, result,
+      "a primitive _init must return None");
     ok = false;
   }
 
   if(ast_id(can_error) != TK_NONE)
   {
-    ast_error(can_error, "a primitive _init cannot raise an error");
+    ast_error(opt->check.errors, can_error,
+      "a primitive _init cannot raise an error");
     ok = false;
   }
 
   return ok;
 }
 
-static bool check_finaliser(typecheck_t* t, ast_t* ast)
+static bool check_finaliser(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
@@ -1238,46 +1265,47 @@ static bool check_finaliser(typecheck_t* t, ast_t* ast)
 
   bool ok = true;
 
-  if((ast_id(t->frame->type) == TK_PRIMITIVE) &&
-    (ast_id(ast_childidx(t->frame->type, 1)) != TK_NONE))
+  if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
+    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE))
   {
-    ast_error(ast, "a primitive with type parameters cannot have a _final");
+    ast_error(opt->check.errors, ast,
+      "a primitive with type parameters cannot have a _final");
     ok = false;
   }
 
   if(ast_id(ast) != TK_FUN)
   {
-    ast_error(ast, "_final must be a function");
+    ast_error(opt->check.errors, ast, "_final must be a function");
     ok = false;
   }
 
   if(ast_id(cap) != TK_BOX)
   {
-    ast_error(cap, "_final must be box");
+    ast_error(opt->check.errors, cap, "_final must be box");
     ok = false;
   }
 
   if(ast_id(typeparams) != TK_NONE)
   {
-    ast_error(typeparams, "_final must not be polymorphic");
+    ast_error(opt->check.errors, typeparams, "_final must not be polymorphic");
     ok = false;
   }
 
   if(ast_childcount(params) != 0)
   {
-    ast_error(params, "_final must not have parameters");
+    ast_error(opt->check.errors, params, "_final must not have parameters");
     ok = false;
   }
 
   if(!is_none(result))
   {
-    ast_error(result, "_final must return None");
+    ast_error(opt->check.errors, result, "_final must return None");
     ok = false;
   }
 
   if(ast_id(can_error) != TK_NONE)
   {
-    ast_error(can_error, "_final cannot raise an error");
+    ast_error(opt->check.errors, can_error, "_final cannot raise an error");
     ok = false;
   }
 
@@ -1312,7 +1340,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     if(body_type == NULL)
     {
       // An error has already occurred.
-      assert(get_error_count() > 0);
+      assert(errors_get_count(t->errors) > 0);
       return false;
     }
 
@@ -1320,20 +1348,22 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
       !ast_canerror(body) &&
       (ast_id(body_type) != TK_COMPILE_INTRINSIC))
     {
-      ast_error(can_error, "function body is not partial but the function is");
+      ast_error(opt->check.errors, can_error,
+        "function body is not partial but the function is");
       return false;
     }
   } else {
     // If not a partial function, check that we can't error.
     if(ast_canerror(body))
     {
-      ast_error(can_error, "function body is partial but the function is not");
-      show_partiality(body);
+      ast_error(opt->check.errors, can_error,
+        "function body is partial but the function is not");
+      show_partiality(opt, body);
       return false;
     }
   }
 
-  if(!check_primitive_init(t, ast) || !check_finaliser(t, ast))
+  if(!check_primitive_init(opt, ast) || !check_finaliser(opt, ast))
     return false;
 
   switch(ast_id(ast))
@@ -1344,21 +1374,21 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
 
       if(is_machine_word(type))
       {
-        if(!check_return_type(ast))
+        if(!check_return_type(opt, ast))
          ok = false;
       }
 
-      if(!check_fields_defined(ast))
+      if(!check_fields_defined(opt, ast))
         ok = false;
 
-      if(!check_main_create(t, ast))
+      if(!check_main_create(opt, ast))
         ok = false;
 
       return ok;
     }
 
     case TK_FUN:
-      return check_return_type(ast);
+      return check_return_type(opt, ast);
 
     default: {}
   }
@@ -1366,8 +1396,9 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_compile_intrinsic(ast_t* ast)
+bool expr_compile_intrinsic(pass_opt_t* opt, ast_t* ast)
 {
+  (void)opt;
   ast_settype(ast, ast_from(ast, TK_COMPILE_INTRINSIC));
   return true;
 }

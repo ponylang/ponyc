@@ -14,7 +14,12 @@ static void test_id(const char* id, bool expect_pass, int spec)
   ast_t* node = ast_blank(TK_ID);
   ast_set_name(node, id);
 
-  bool r = check_id(node, "test", spec);
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  bool r = check_id(&opt, node, "test", spec);
+
+  pass_opt_done(&opt);
 
   ast_free(node);
 

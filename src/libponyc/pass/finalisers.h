@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool pass_finalisers(ast_t* program);
+bool pass_finalisers(ast_t* program, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

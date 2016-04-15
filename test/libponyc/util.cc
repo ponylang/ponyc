@@ -41,9 +41,9 @@ static const char* _builtin =
   "primitive I64 is Real[I64]"
   "  new create() => 0\n"
   "  fun neg():I64 => -this\n"
-  "  fun mul(a: I64): I64 => 0\n"  
+  "  fun mul(a: I64): I64 => 0\n"
   "  fun op_or(a: I64): I64 => 0\n"
-  "  fun op_and(a: I64): I64 => 0\n"  
+  "  fun op_and(a: I64): I64 => 0\n"
   "  fun op_xor(a: I64): I64 => 0\n"
   "primitive U128 is Real[U128]"
   "  new create() => 0\n"
@@ -71,6 +71,7 @@ static const char* _builtin =
   "type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)\n"
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
+  "class val Env\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
@@ -92,7 +93,7 @@ static const char* _builtin =
 
 
 // Check whether the 2 given ASTs are identical
-static bool compare_asts(ast_t* expected, ast_t* actual)
+static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 {
   assert(expected != NULL);
   assert(actual != NULL);
@@ -102,7 +103,8 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   if(expected_id != actual_id)
   {
-    ast_error(expected, "AST ID mismatch, got %d (%s), expected %d (%s)",
+    ast_error(errors, expected,
+      "AST ID mismatch, got %d (%s), expected %d (%s)",
       ast_id(actual), ast_get_print(actual),
       ast_id(expected), ast_get_print(expected));
     return false;
@@ -121,20 +123,20 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
   }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
-    ast_error(expected, "AST text mismatch, got %s, expected %s",
+    ast_error(errors, expected, "AST text mismatch, got %s, expected %s",
       ast_get_print(actual), ast_get_print(expected));
     return false;
   }
 
   if(ast_has_scope(expected) && !ast_has_scope(actual))
   {
-    ast_error(expected, "AST missing scope");
+    ast_error(errors, expected, "AST missing scope");
     return false;
   }
 
   if(!ast_has_scope(expected) && ast_has_scope(actual))
   {
-    ast_error(actual, "Unexpected AST scope");
+    ast_error(errors, actual, "Unexpected AST scope");
     return false;
   }
 
@@ -146,19 +148,19 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
   {
     if(expected_type == NULL)
     {
-      ast_error(actual, "Unexpected type found, %s",
+      ast_error(errors, actual, "Unexpected type found, %s",
         ast_get_print(actual_type));
       return false;
     }
 
     if(actual_type == NULL)
     {
-      ast_error(actual, "Expected type not found, %s",
+      ast_error(errors, actual, "Expected type not found, %s",
         ast_get_print(expected_type));
       return false;
     }
 
-    if(!compare_asts(expected_type, actual_type))
+    if(!compare_asts(expected_type, actual_type, errors))
       return false;
   }
 
@@ -168,7 +170,7 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   while(expected_child != NULL && actual_child != NULL)
   {
-    if(!compare_asts(expected_child, actual_child))
+    if(!compare_asts(expected_child, actual_child, errors))
       return false;
 
     expected_child = ast_sibling(expected_child);
@@ -177,14 +179,14 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   if(expected_child != NULL)
   {
-    ast_error(expected, "Expected child %s not found",
+    ast_error(errors, expected, "Expected child %s not found",
       ast_get_print(expected));
     return false;
   }
 
   if(actual_child != NULL)
   {
-    ast_error(actual, "Unexpected child node found, %s",
+    ast_error(errors, actual, "Unexpected child node found, %s",
       ast_get_print(actual));
     return false;
   }
@@ -204,7 +206,6 @@ void PassTest::SetUp()
   _first_pkg_path = "prog";
   package_clear_magic();
   package_suppress_build_message();
-  free_errors();
 }
 
 
@@ -258,21 +259,25 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
   ASSERT_NE((void*)NULL, expect);
   ASSERT_NE((void*)NULL, actual);
 
-  if(!compare_asts(expect, actual))
+  errors_t *errors = errors_alloc();
+
+  if(!compare_asts(expect, actual, errors))
   {
     printf("Expected:\n");
     ast_print(expect);
     printf("Got:\n");
     ast_print(actual);
-    print_errors();
+    errors_print(errors);
     ASSERT_TRUE(false);
   }
+
+  errors_free(errors);
 }
 
 
 void PassTest::test_compile(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, true, &program));
+  DO(build_package(pass, src, _first_pkg_path, true, NULL, &program));
 
   package = ast_child(program);
   module = ast_child(package);
@@ -281,7 +286,7 @@ void PassTest::test_compile(const char* src, const char* pass)
 
 void PassTest::test_error(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, &program));
+  DO(build_package(pass, src, _first_pkg_path, false, NULL, &program));
 
   package = NULL;
   module = NULL;
@@ -289,15 +294,14 @@ void PassTest::test_error(const char* src, const char* pass)
 }
 
 
-void PassTest::test_errors_1(const char* src, const char* pass,
-  const char* err1)
+void PassTest::test_expected_errors(const char* src, const char* pass,
+  const char** errors)
 {
-  DO(test_error(src, pass));
+  DO(build_package(pass, src, _first_pkg_path, false, errors, &program));
 
-  ASSERT_EQ(1, get_error_count());
-  errormsg_t* errors = get_errors();
-  EXPECT_TRUE(strstr(errors->msg, err1) != NULL)
-      << "Actual error: " << errors->msg;
+  package = NULL;
+  module = NULL;
+  ASSERT_EQ((void*)NULL, program);
 }
 
 
@@ -307,7 +311,7 @@ void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   DO(test_compile(actual_src, actual_pass));
   ast_t* expect_ast;
 
-  DO(build_package(expect_pass, expect_src, "expect", true, &expect_ast));
+  DO(build_package(expect_pass, expect_src, "expect", true, NULL, &expect_ast));
   ast_t* expect_package = ast_child(expect_ast);
 
   DO(check_ast_same(expect_package, package));
@@ -364,7 +368,8 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
-  const char* package_name, bool check_good, ast_t** out_package)
+  const char* package_name, bool check_good, const char** expected_errors,
+  ast_t** out_package)
 {
   ASSERT_NE((void*)NULL, pass);
   ASSERT_NE((void*)NULL, src);
@@ -374,7 +379,7 @@ void PassTest::build_package(const char* pass, const char* src,
   pass_opt_t opt;
   pass_opt_init(&opt);
   codegen_init(&opt);
-  package_init();
+  package_init(&opt);
 
   lexer_allow_test_symbols();
 
@@ -387,17 +392,44 @@ void PassTest::build_package(const char* pass, const char* src,
   limit_passes(&opt, pass);
   *out_package = program_load(stringtab(package_name), &opt);
 
+  if(expected_errors != NULL)
+  {
+    const char* expected_error = *expected_errors;
+    size_t expected_count = 0;
+    while(expected_error != NULL)
+    {
+      expected_count++;
+      expected_error = expected_errors[expected_count];
+    }
+
+    ASSERT_EQ(expected_count, errors_get_count(opt.check.errors));
+
+    errormsg_t* e = errors_get_first(opt.check.errors);
+    for(size_t i = 0; i < expected_count; i++)
+    {
+      expected_error = expected_errors[i];
+
+      if((e == NULL) || (expected_error == NULL))
+        break;
+
+      EXPECT_TRUE(strstr(e->msg, expected_error) != NULL)
+        << "Actual error: " << e->msg;
+      e = e->next;
+    }
+  }
+
   package_done();
   codegen_shutdown(&opt);
-  pass_opt_done(&opt);
 
   if(check_good)
   {
     if(*out_package == NULL)
-      print_errors();
+      errors_print(opt.check.errors);
 
     ASSERT_NE((void*)NULL, *out_package);
   }
+
+  pass_opt_done(&opt);
 }
 
 

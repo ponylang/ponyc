@@ -4,7 +4,6 @@
 #include <platform.h>
 
 #include "lexint.h"
-#include "error.h"
 #include "source.h"
 #include <stdbool.h>
 #include <stddef.h>

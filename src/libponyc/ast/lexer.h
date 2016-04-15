@@ -9,6 +9,7 @@
 PONY_EXTERN_C_BEGIN
 
 typedef struct lexer_t lexer_t;
+typedef struct errors_t errors_t;
 
 /** Allow test symbols to be generated in all lexers.
  * Should only be used for unit tests.
@@ -19,7 +20,7 @@ void lexer_allow_test_symbols();
  * The created lexer must be freed later with lexer_close().
  * Never returns NULL.
  */
-lexer_t* lexer_open(source_t* source);
+lexer_t* lexer_open(source_t* source, errors_t* errors);
 
 /** Free a previously opened lexer.
  * The lexer argument may be NULL.

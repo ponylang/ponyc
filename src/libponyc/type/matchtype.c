@@ -6,9 +6,11 @@
 #include "viewpoint.h"
 #include <assert.h>
 
-static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern);
+static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt);
 
-static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern)
+static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   matchtype_t ok = MATCHTYPE_REJECT;
 
@@ -16,7 +18,7 @@ static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern)
     child != NULL;
     child = ast_sibling(child))
   {
-    switch(is_x_match_x(child, pattern))
+    switch(is_x_match_x(child, pattern, opt))
     {
       case MATCHTYPE_ACCEPT:
         // If any type in the operand union accepts a match, then the entire
@@ -37,7 +39,8 @@ static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern)
   return ok;
 }
 
-static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern)
+static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   matchtype_t ok = MATCHTYPE_ACCEPT;
 
@@ -45,7 +48,7 @@ static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern)
     child != NULL;
     child = ast_sibling(child))
   {
-    switch(is_x_match_x(child, pattern))
+    switch(is_x_match_x(child, pattern, opt))
     {
       case MATCHTYPE_ACCEPT:
         break;
@@ -66,7 +69,8 @@ static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern)
   return ok;
 }
 
-static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   matchtype_t ok = MATCHTYPE_REJECT;
 
@@ -74,7 +78,7 @@ static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern)
     child != NULL;
     child = ast_sibling(child))
   {
-    switch(is_x_match_x(operand, child))
+    switch(is_x_match_x(operand, child, opt))
     {
       case MATCHTYPE_ACCEPT:
         // If any type in the pattern union accepts a match, the entire pattern
@@ -95,7 +99,8 @@ static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern)
   return ok;
 }
 
-static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   matchtype_t ok = MATCHTYPE_ACCEPT;
 
@@ -103,7 +108,7 @@ static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern)
     child != NULL;
     child = ast_sibling(child))
   {
-    switch(is_x_match_x(operand, child))
+    switch(is_x_match_x(operand, child, opt))
     {
       case MATCHTYPE_ACCEPT:
         break;
@@ -124,7 +129,8 @@ static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern)
   return ok;
 }
 
-static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern)
+static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   // Must be a pairwise match.
   if(ast_childcount(operand) != ast_childcount(pattern))
@@ -136,7 +142,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern)
 
   while(operand_child != NULL)
   {
-    switch(is_x_match_x(operand_child, pattern_child))
+    switch(is_x_match_x(operand_child, pattern_child, opt))
     {
       case MATCHTYPE_ACCEPT:
         break;
@@ -156,7 +162,8 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern)
   return ok;
 }
 
-static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern)
+static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   ast_t* operand_upper = typeparam_upper(operand);
 
@@ -165,29 +172,30 @@ static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern)
     return MATCHTYPE_ACCEPT;
 
   // Check if the constraint can match the pattern.
-  matchtype_t ok = is_x_match_x(operand_upper, pattern);
+  matchtype_t ok = is_x_match_x(operand_upper, pattern, opt);
   ast_free_unattached(operand_upper);
   return ok;
 }
 
-static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   switch(ast_id(operand))
   {
     case TK_UNIONTYPE:
-      return is_union_match_x(operand, pattern);
+      return is_union_match_x(operand, pattern, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_match_x(operand, pattern);
+      return is_isect_match_x(operand, pattern, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_match_tuple(operand, pattern);
+      return is_tuple_match_tuple(operand, pattern, opt);
 
     case TK_NOMINAL:
       return MATCHTYPE_REJECT;
 
     case TK_TYPEPARAMREF:
-      return is_typeparam_match_x(operand, pattern);
+      return is_typeparam_match_x(operand, pattern, opt);
 
     case TK_ARROW:
       return MATCHTYPE_REJECT;
@@ -199,7 +207,8 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_DENY;
 }
 
-static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern)
+static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   AST_GET_CHILDREN(operand, o_pkg, o_id, o_typeargs, o_cap, o_eph);
   AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
@@ -209,7 +218,7 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern)
   token_id tcap = ast_id(p_cap);
   token_id teph = ast_id(p_eph);
   ast_t* r_operand = set_cap_and_ephemeral(operand, tcap, teph);
-  bool provides = is_subtype(pattern, r_operand, NULL);
+  bool provides = is_subtype(pattern, r_operand, NULL, opt);
   ast_free_unattached(r_operand);
 
   // If the pattern doesn't provide the operand, reject the match.
@@ -225,7 +234,8 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_ACCEPT;
 }
 
-static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern)
+static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   AST_GET_CHILDREN(operand, o_pkg, o_id, o_typeargs, o_cap, o_eph);
   AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
@@ -233,7 +243,7 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern)
   token_id tcap = ast_id(p_cap);
   token_id teph = ast_id(p_eph);
   ast_t* r_operand = set_cap_and_ephemeral(operand, tcap, teph);
-  bool provides = is_subtype(r_operand, pattern, NULL);
+  bool provides = is_subtype(r_operand, pattern, NULL, opt);
   ast_free_unattached(r_operand);
 
   // If the operand doesn't provide the pattern (trait or interface), reject
@@ -250,8 +260,10 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_ACCEPT;
 }
 
-static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern)
+static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
+  (void)opt;
   AST_GET_CHILDREN(operand, o_pkg, o_id, o_typeargs, o_cap, o_eph);
   AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
 
@@ -264,7 +276,8 @@ static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_ACCEPT;
 }
 
-static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern)
+static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   ast_t* operand_def = (ast_t*)ast_data(operand);
 
@@ -274,11 +287,11 @@ static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      return is_entity_match_trait(operand, pattern);
+      return is_entity_match_trait(operand, pattern, opt);
 
     case TK_TRAIT:
     case TK_INTERFACE:
-      return is_trait_match_trait(operand, pattern);
+      return is_trait_match_trait(operand, pattern, opt);
 
     default: {}
   }
@@ -287,7 +300,8 @@ static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_DENY;
 }
 
-static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern)
+static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   ast_t* pattern_def = (ast_t*)ast_data(pattern);
 
@@ -297,11 +311,11 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      return is_nominal_match_entity(operand, pattern);
+      return is_nominal_match_entity(operand, pattern, opt);
 
     case TK_TRAIT:
     case TK_INTERFACE:
-      return is_nominal_match_trait(operand, pattern);
+      return is_nominal_match_trait(operand, pattern, opt);
 
     default: {}
   }
@@ -310,38 +324,40 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_DENY;
 }
 
-static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern)
+static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   // lowerbound(T1->T2) match T3
   // ---
   // (T1->T2) match T3
   ast_t* operand_lower = viewpoint_lower(operand);
-  matchtype_t ok = is_x_match_x(operand_lower, pattern);
+  matchtype_t ok = is_x_match_x(operand_lower, pattern, opt);
   ast_free_unattached(operand_lower);
   return ok;
 }
 
-static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   switch(ast_id(operand))
   {
     case TK_UNIONTYPE:
-      return is_union_match_x(operand, pattern);
+      return is_union_match_x(operand, pattern, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_match_x(operand, pattern);
+      return is_isect_match_x(operand, pattern, opt);
 
     case TK_TUPLETYPE:
       return MATCHTYPE_REJECT;
 
     case TK_NOMINAL:
-      return is_nominal_match_nominal(operand, pattern);
+      return is_nominal_match_nominal(operand, pattern, opt);
 
     case TK_TYPEPARAMREF:
-      return is_typeparam_match_x(operand, pattern);
+      return is_typeparam_match_x(operand, pattern, opt);
 
     case TK_ARROW:
-      return is_arrow_match_x(operand, pattern);
+      return is_arrow_match_x(operand, pattern, opt);
 
     default: {}
   }
@@ -350,7 +366,8 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_DENY;
 }
 
-static matchtype_t is_x_match_typeparam(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_typeparam(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   ast_t* pattern_upper = typeparam_upper(pattern);
 
@@ -359,12 +376,13 @@ static matchtype_t is_x_match_typeparam(ast_t* operand, ast_t* pattern)
     return MATCHTYPE_ACCEPT;
 
   // Otherwise, match the constraint.
-  matchtype_t ok = is_x_match_x(operand, pattern_upper);
+  matchtype_t ok = is_x_match_x(operand, pattern_upper, opt);
   ast_free_unattached(pattern_upper);
   return ok;
 }
 
-static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   // T1 match upperbound(T2->T3)
   // ---
@@ -374,12 +392,13 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern)
   if(pattern_upper == NULL)
     return MATCHTYPE_REJECT;
 
-  matchtype_t ok = is_x_match_x(operand, pattern_upper);
+  matchtype_t ok = is_x_match_x(operand, pattern_upper, opt);
   ast_free_unattached(pattern_upper);
   return ok;
 }
 
-static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern)
+static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
 {
   if(ast_id(pattern) == TK_DONTCARE)
     return MATCHTYPE_ACCEPT;
@@ -387,22 +406,22 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern)
   switch(ast_id(pattern))
   {
     case TK_UNIONTYPE:
-      return is_x_match_union(operand, pattern);
+      return is_x_match_union(operand, pattern, opt);
 
     case TK_ISECTTYPE:
-      return is_x_match_isect(operand, pattern);
+      return is_x_match_isect(operand, pattern, opt);
 
     case TK_TUPLETYPE:
-      return is_x_match_tuple(operand, pattern);
+      return is_x_match_tuple(operand, pattern, opt);
 
     case TK_NOMINAL:
-      return is_x_match_nominal(operand, pattern);
+      return is_x_match_nominal(operand, pattern, opt);
 
     case TK_TYPEPARAMREF:
-      return is_x_match_typeparam(operand, pattern);
+      return is_x_match_typeparam(operand, pattern, opt);
 
     case TK_ARROW:
-      return is_x_match_arrow(operand, pattern);
+      return is_x_match_arrow(operand, pattern, opt);
 
     case TK_DONTCARE:
       return MATCHTYPE_ACCEPT;
@@ -417,7 +436,7 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern)
   return MATCHTYPE_DENY;
 }
 
-matchtype_t is_matchtype(ast_t* operand, ast_t* pattern)
+matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, pass_opt_t* opt)
 {
-  return is_x_match_x(operand, pattern);
+  return is_x_match_x(operand, pattern, opt);
 }

@@ -2,32 +2,38 @@
 #define ERROR_H
 
 #include "source.h"
-#include <stddef.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
 
 #include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 
-/** Errors may be reported individually or grouped together into frames.
+/** Errors may be reported individually using error and ast_error:
  *
- * An error frame is simply a list of errors that are reported as a unit and
- * are counted as a single error. The first error in a frame is reported as the
- * actual "error" and the remainder (if any) are considered "additional
- * information".
+ *   error(errors, source, line, pos, "That went wrong");
  *
- * Frames may be built up one error at a time and may also be combined with
- * each other.
+ *   ast_error(errors, ast, "This also went wrong");
  *
- * Once a frame is fully built it can be reported. Alternatively a frame may be
- * discarded, which frees any errors within it without reporting them.
+ * Errors may get additional info using error_continue and ast_error_continue:
  *
- * Simple example usage:
+ *   error(errors, source, line, pos, "that went wrong");
+ *   error_continue(errors, source, line, pos, "it should match this here");
+ *
+ *   ast_error(errors, ast, "this also went wrong");
+ *   ast_error_continue(errors, ast2, "and it should match this here");
+ *
+ * These error and info units may also be carried around as explicit frames,
+ * then later reported explicitly.
+ *
  *   errorframe_t frame = NULL;
- *   ast_error_frame(&frame, ast, "That went wrong");
- *   errorframef(&frame, NULL, "Usage information");
- *   errorframe_report(&frame);
+ *   ast_error_frame(&frame, ast, "that went wrong");
+ *   ast_error_frame(&frame, ast2, "it should match here");
+ *   errorframe_report(&frame, errors);
  */
+
+typedef struct errors_t errors_t;
 
 typedef struct errormsg_t
 {
@@ -42,35 +48,58 @@ typedef struct errormsg_t
 
 typedef errormsg_t* errorframe_t;
 
-errormsg_t* get_errors();
 
-size_t get_error_count();
+/// Allocate an empty errors collection.
+errors_t* errors_alloc();
 
-void free_errors();
+/// Free an errors collection allocated with errors_alloc.
+/// Also frees all individual contained error objects.
+void errors_free(errors_t* errors);
 
-void print_errors();
+/// Return the first of the stored errors.
+errormsg_t* errors_get_first(errors_t* errors);
 
-void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
-  va_list ap);
+/// Get the current number of stored errors.
+size_t errors_get_count(errors_t* errors);
 
-void error(source_t* source, size_t line, size_t pos,
-  const char* fmt, ...) __attribute__((format(printf, 4, 5)));
+/// Configure whether errors should be printed immediately as well as deferred.
+void errors_set_immediate(errors_t* errors, bool immediate);
 
+/// Configure the stream to which errors will be printed (stdout by default).
+void errors_set_output_stream(errors_t* errors, FILE* fp);
+
+/// Print the collected errors (unless they were set to print immediately).
+void errors_print(errors_t* errors);
+
+/// Emit a new error with a location and printf-style va_list.
+void errorv(errors_t* errors, source_t* source, size_t line, size_t pos,
+  const char* fmt, va_list ap);
+
+/// Emit a new error with a location and printf-style var args.
+void error(errors_t* errors, source_t* source, size_t line, size_t pos,
+  const char* fmt, ...) __attribute__((format(printf, 5, 6)));
+
+/// Add to the latest error with a new location and printf-style va_list.
+void errorv_continue(errors_t* errors, source_t* source, size_t line,
+  size_t pos, const char* fmt, va_list ap);
+
+/// Add to the latest error with a new location and printf-style var args.
+void error_continue(errors_t* errors, source_t* source, size_t line, size_t pos,
+  const char* fmt, ...) __attribute__((format(printf, 5, 6)));
+
+/// Create or add to the given frame a new location and printf-style va_list.
 void errorframev(errorframe_t* frame, source_t* source, size_t line,
   size_t pos, const char* fmt, va_list ap);
 
+/// Create or add to the given frame a new location and printf-style va_list.
 void errorframe(errorframe_t* frame, source_t* source, size_t line, size_t pos,
   const char* fmt, ...) __attribute__((format(printf, 5, 6)));
 
-void errorfv(const char* file, const char* fmt, va_list ap);
+/// Emit a new error with a filename and printf-style va_list.
+void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap);
 
-void errorf(const char* file, const char* fmt,
-  ...) __attribute__((format(printf, 2, 3)));
-
-void errorframefv(errorframe_t* frame, const char* file, const char* fmt,
-  va_list ap);
-
-void errorframef(errorframe_t* frame, const char* file, const char* fmt,
+/// Emit a new error with a filename and printf-style var args.
+void errorf(errors_t* errors, const char* file, const char* fmt,
   ...) __attribute__((format(printf, 3, 4)));
 
 /// Append the errors in the second frame (if any) to the first frame.
@@ -82,14 +111,11 @@ bool errorframe_has_errors(errorframe_t* frame);
 
 /// Report all errors (if any) in the given frame.
 /// The frame is left empty.
-void errorframe_report(errorframe_t* frame);
+void errorframe_report(errorframe_t* frame, errors_t* errors);
 
 /// Discard any errors in the given frame.
 /// The frame is left empty.
 void errorframe_discard(errorframe_t* frame);
-
-/// Configure whether errors should be printed immediately as well as deferred
-void error_set_immediate(bool immediate);
 
 PONY_EXTERN_C_END
 

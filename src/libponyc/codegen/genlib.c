@@ -33,7 +33,8 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
         // Mark all non-polymorphic methods as reachable.
         if(ast_id(typeparams) == TK_NONE)
-          reach(c->reachable, &c->next_type_id, type, ast_name(m_id), NULL);
+          reach(c->reachable, &c->next_type_id, type, ast_name(m_id), NULL,
+            c->opt);
         break;
       }
 
@@ -49,6 +50,8 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
 static bool reachable_actors(compile_t* c, ast_t* program)
 {
+  errors_t* errors = c->opt->check.errors;
+
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Library reachability\n"));
 
   // Look for C-API actors in every package.
@@ -90,7 +93,7 @@ static bool reachable_actors(compile_t* c, ast_t* program)
 
   if(!found)
   {
-    errorf(NULL, "no C-API actors found in package '%s'", c->filename);
+    errorf(errors, NULL, "no C-API actors found in package '%s'", c->filename);
     return false;
   }
 
@@ -101,8 +104,10 @@ static bool reachable_actors(compile_t* c, ast_t* program)
 
 static bool link_lib(compile_t* c, const char* file_o)
 {
+  errors_t* errors = c->opt->check.errors;
+
 #if defined(PLATFORM_IS_POSIX_BASED)
-  const char* file_lib = suffix_filename(c->opt->output, "lib", c->filename,
+  const char* file_lib = suffix_filename(c, c->opt->output, "lib", c->filename,
     ".a");
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Archiving %s\n", file_lib));
 
@@ -118,22 +123,22 @@ static bool link_lib(compile_t* c, const char* file_o)
   PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", cmd));
   if(system(cmd) != 0)
   {
-    errorf(NULL, "unable to link: %s", cmd);
+    errorf(errors, NULL, "unable to link: %s", cmd);
     ponyint_pool_free_size(len, cmd);
     return false;
   }
 
   ponyint_pool_free_size(len, cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
-  const char* file_lib = suffix_filename(c->opt->output, "", c->filename,
+  const char* file_lib = suffix_filename(c, c->opt->output, "", c->filename,
     ".lib");
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Archiving %s\n", file_lib));
 
   vcvars_t vcvars;
 
-  if(!vcvars_get(&vcvars))
+  if(!vcvars_get(&vcvars, errors))
   {
-    errorf(NULL, "unable to link: no vcvars");
+    errorf(errors, NULL, "unable to link: no vcvars");
     return false;
   }
 
@@ -146,7 +151,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", cmd));
   if(system(cmd) == -1)
   {
-    errorf(NULL, "unable to link: %s", cmd);
+    errorf(errors, NULL, "unable to link: %s", cmd);
     ponyint_pool_free_size(len, cmd);
     return false;
   }
