@@ -129,7 +129,8 @@ static bool is_expr_infix(token_id id)
 
 
 // Check whether the given node is a valid provides type
-static bool check_provides_type(ast_t* type, const char* description)
+static bool check_provides_type(pass_opt_t* opt, ast_t* type,
+  const char* description)
 {
   assert(type != NULL);
   assert(description != NULL);
@@ -142,13 +143,15 @@ static bool check_provides_type(ast_t* type, const char* description)
 
       if(ast_id(cap) != TK_NONE)
       {
-        ast_error(cap, "can't specify a capability in a provides type");
+        ast_error(opt->check.errors, cap,
+          "can't specify a capability in a provides type");
         return false;
       }
 
       if(ast_id(ephemeral) != TK_NONE)
       {
-        ast_error(ephemeral, "can't specify ephemeral in a provides type");
+        ast_error(opt->check.errors, ephemeral,
+          "can't specify ephemeral in a provides type");
         return false;
       }
 
@@ -160,14 +163,14 @@ static bool check_provides_type(ast_t* type, const char* description)
       // Check all our children are also legal
       for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
       {
-        if(!check_provides_type(p, description))
+        if(!check_provides_type(opt, p, description))
           return false;
       }
 
       return true;
 
     default:
-      ast_error(type, "invalid %s type. Can only be "
+      ast_error(opt->check.errors, type, "invalid %s type. Can only be "
         "interfaces, traits and intersects of those.", description);
       return false;
   }
@@ -175,8 +178,8 @@ static bool check_provides_type(ast_t* type, const char* description)
 
 
 // Check permission for one specific element of a method or entity
-static bool check_permission(const permission_def_t* def, int element,
-  ast_t* actual, const char* context, ast_t* report_at)
+static bool check_permission(pass_opt_t* opt, const permission_def_t* def,
+  int element, ast_t* actual, const char* context, ast_t* report_at)
 {
   assert(def != NULL);
   assert(actual != NULL);
@@ -188,13 +191,15 @@ static bool check_permission(const permission_def_t* def, int element,
 
   if(permission == 'N' && ast_id(actual) != TK_NONE)
   {
-    ast_error(actual, "%s cannot specify %s", def->desc, context);
+    ast_error(opt->check.errors, actual, "%s cannot specify %s",
+      def->desc, context);
     return false;
   }
 
   if(permission == 'Y' && ast_id(actual) == TK_NONE)
   {
-    ast_error(report_at, "%s must specify %s", def->desc, context);
+    ast_error(opt->check.errors, report_at, "%s must specify %s",
+      def->desc, context);
     return false;
   }
 
@@ -203,7 +208,7 @@ static bool check_permission(const permission_def_t* def, int element,
 
 
 // Check whether the given method has any illegal parts
-static bool check_method(ast_t* ast, int method_def_index)
+static bool check_method(pass_opt_t* opt, ast_t* ast, int method_def_index)
 {
   assert(ast != NULL);
   assert(method_def_index >= 0 && method_def_index < DEF_METHOD_COUNT);
@@ -213,33 +218,34 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   if(def->permissions == NULL)
   {
-    ast_error(ast, "%ss are not allowed", def->desc);
+    ast_error(opt->check.errors, ast, "%ss are not allowed", def->desc);
     return false;
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, docstring);
 
-  if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
+  if(!check_permission(opt, def, METHOD_CAP, cap, "receiver capability", cap))
     r = false;
 
-  if(!check_id_method(id))
+  if(!check_id_method(opt, id))
     r = false;
 
-  if(!check_permission(def, METHOD_RETURN, return_type, "return type", ast))
+  if(!check_permission(opt, def, METHOD_RETURN, return_type, "return type",
+    ast))
     r = false;
 
-  if(!check_permission(def, METHOD_ERROR, error, "?", ast))
+  if(!check_permission(opt, def, METHOD_ERROR, error, "?", ast))
     r = false;
 
-  if(!check_permission(def, METHOD_BODY, body, "body", ast))
+  if(!check_permission(opt, def, METHOD_BODY, body, "body", ast))
     r = false;
 
   if(ast_id(docstring) == TK_STRING)
   {
     if(ast_id(body) != TK_NONE)
     {
-      ast_error(docstring,
+      ast_error(opt->check.errors, docstring,
         "methods with bodies must put docstrings in the body");
       r = false;
     }
@@ -250,7 +256,7 @@ static bool check_method(ast_t* ast, int method_def_index)
 
 
 // Check whether the given entity members are legal in their entity
-static bool check_members(ast_t* members, int entity_def_index)
+static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
 {
   assert(members != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
@@ -269,35 +275,36 @@ static bool check_members(ast_t* members, int entity_def_index)
       {
         if(def->permissions[ENTITY_FIELD] == 'N')
         {
-          ast_error(member, "Can't have fields in %s", def->desc);
+          ast_error(opt->check.errors, member,
+            "Can't have fields in %s", def->desc);
           r = false;
         }
 
-        if(!check_id_field(ast_child(member)))
+        if(!check_id_field(opt, ast_child(member)))
           r = false;
 
         ast_t* delegate_type = ast_childidx(member, 3);
         if(ast_id(delegate_type) != TK_NONE &&
-          !check_provides_type(delegate_type, "delegate"))
+          !check_provides_type(opt, delegate_type, "delegate"))
           r = false;
         break;
       }
 
       case TK_NEW:
-        if(!check_method(member, entity_def_index + DEF_NEW))
+        if(!check_method(opt, member, entity_def_index + DEF_NEW))
           r = false;
         break;
 
       case TK_BE:
       {
-        if(!check_method(member, entity_def_index + DEF_BE))
+        if(!check_method(opt, member, entity_def_index + DEF_BE))
           r = false;
         break;
       }
 
       case TK_FUN:
       {
-        if(!check_method(member, entity_def_index + DEF_FUN))
+        if(!check_method(opt, member, entity_def_index + DEF_FUN))
           r = false;
         break;
       }
@@ -316,7 +323,8 @@ static bool check_members(ast_t* members, int entity_def_index)
 
 
 // Check whether the given entity has illegal parts
-static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
+static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
+  int entity_def_index)
 {
   assert(ast != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
@@ -328,24 +336,26 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
   // Check if we're called Main
   if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
   {
-    ast_error(ast, "Main must be an actor");
+    ast_error(opt->check.errors, ast, "Main must be an actor");
     r = AST_ERROR;
   }
 
-  if(!check_id_type(id, def->desc))
+  if(!check_id_type(opt, id, def->desc))
     r = AST_ERROR;
 
-  if(!check_permission(def, ENTITY_CAP, defcap, "default capability", defcap))
+  if(!check_permission(opt, def, ENTITY_CAP, defcap, "default capability",
+    defcap))
     r = AST_ERROR;
 
-  if(!check_permission(def, ENTITY_C_API, c_api, "C api", c_api))
+  if(!check_permission(opt, def, ENTITY_C_API, c_api, "C api", c_api))
     r = AST_ERROR;
 
   if(ast_id(c_api) == TK_AT)
   {
     if(ast_id(typeparams) != TK_NONE)
     {
-      ast_error(typeparams, "generic actor cannot specify C api");
+      ast_error(opt->check.errors, typeparams,
+        "generic actor cannot specify C api");
       r = AST_ERROR;
     }
   }
@@ -354,7 +364,7 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
   {
     // Check referenced traits
     if(ast_id(provides) != TK_NONE &&
-      !check_provides_type(provides, "provides"))
+      !check_provides_type(opt, provides, "provides"))
       r = AST_ERROR;
   }
   else
@@ -362,20 +372,21 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
     // Check for a type alias
     if(ast_id(provides) == TK_NONE)
     {
-      ast_error(provides, "a type alias must specify a type");
+      ast_error(opt->check.errors, provides,
+        "a type alias must specify a type");
       r = AST_ERROR;
     }
   }
 
   // Check for illegal members
-  if(!check_members(members, entity_def_index))
+  if(!check_members(opt, members, entity_def_index))
     r = AST_ERROR;
 
   return r;
 }
 
 
-static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
+static ast_result_t syntax_thistype(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   ast_t* parent = ast_parent(ast);
@@ -384,13 +395,15 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 
   if(ast_id(parent) != TK_ARROW)
   {
-    ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
+    ast_error(opt->check.errors, ast,
+      "in a type, 'this' can only be used as a viewpoint");
     r = AST_ERROR;
   }
 
-  if(t->frame->method == NULL)
+  if(opt->check.frame->method == NULL)
   {
-    ast_error(ast, "can only use 'this' for a viewpoint in a method");
+    ast_error(opt->check.errors, ast,
+      "can only use 'this' for a viewpoint in a method");
     r = AST_ERROR;
   } else {
     ast_t* cap = ast_child(t->frame->method);
@@ -412,7 +425,7 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t syntax_arrowtype(ast_t* ast)
+static ast_result_t syntax_arrowtype(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
@@ -420,7 +433,8 @@ static ast_result_t syntax_arrowtype(ast_t* ast)
   switch(ast_id(right))
   {
     case TK_THISTYPE:
-      ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+      ast_error(opt->check.errors, ast,
+        "'this' cannot appear to the right of a viewpoint");
       return AST_ERROR;
 
     case TK_ISO:
@@ -429,7 +443,8 @@ static ast_result_t syntax_arrowtype(ast_t* ast)
     case TK_VAL:
     case TK_BOX:
     case TK_TAG:
-      ast_error(ast, "refcaps cannot appear to the right of a viewpoint");
+      ast_error(opt->check.errors, ast,
+        "refcaps cannot appear to the right of a viewpoint");
       return AST_ERROR;
 
     default: {}
@@ -439,7 +454,7 @@ static ast_result_t syntax_arrowtype(ast_t* ast)
 }
 
 
-static ast_result_t syntax_match(ast_t* ast)
+static ast_result_t syntax_match(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
 
@@ -460,7 +475,8 @@ static ast_result_t syntax_match(ast_t* ast)
 
   if(ast_id(body) == TK_NONE)
   {
-    ast_error(case_ast, "Last case in match must have a body");
+    ast_error(opt->check.errors,
+      case_ast, "Last case in match must have a body");
     return AST_ERROR;
   }
 
@@ -468,7 +484,8 @@ static ast_result_t syntax_match(ast_t* ast)
 }
 
 
-static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
+static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
+  bool return_optional)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
@@ -479,7 +496,8 @@ static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
   if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)
   {
-    ast_error(typeargs, "FFIs must specify a single return type");
+    ast_error(opt->check.errors, typeargs,
+      "FFIs must specify a single return type");
     r = AST_ERROR;
   }
 
@@ -492,7 +510,8 @@ static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
 
       if(ast_id(def_val) != TK_NONE)
       {
-        ast_error(def_val, "FFIs parameters cannot have default values");
+        ast_error(opt->check.errors, def_val,
+          "FFIs parameters cannot have default values");
         r = AST_ERROR;
       }
     }
@@ -500,7 +519,7 @@ static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
 
   if(ast_id(named_args) != TK_NONE)
   {
-    ast_error(typeargs, "FFIs cannot take named arguments");
+    ast_error(opt->check.errors, typeargs, "FFIs cannot take named arguments");
     r = AST_ERROR;
   }
 
@@ -508,7 +527,7 @@ static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
 }
 
 
-static ast_result_t syntax_ellipsis(ast_t* ast)
+static ast_result_t syntax_ellipsis(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   ast_result_t r = AST_OK;
@@ -518,13 +537,14 @@ static ast_result_t syntax_ellipsis(ast_t* ast)
 
   if(ast_id(fn) != TK_FFIDECL)
   {
-    ast_error(ast, "... may only appear in FFI declarations");
+    ast_error(opt->check.errors, ast,
+      "... may only appear in FFI declarations");
     r = AST_ERROR;
   }
 
   if(ast_sibling(ast) != NULL)
   {
-    ast_error(ast, "... must be the last parameter");
+    ast_error(opt->check.errors, ast, "... must be the last parameter");
     r = AST_ERROR;
   }
 
@@ -532,7 +552,7 @@ static ast_result_t syntax_ellipsis(ast_t* ast)
 }
 
 
-static ast_result_t syntax_infix_expr(ast_t* ast)
+static ast_result_t syntax_infix_expr(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
@@ -551,7 +571,7 @@ static ast_result_t syntax_infix_expr(ast_t* ast)
 
   if(left_clash || right_clash)
   {
-    ast_error(ast,
+    ast_error(opt->check.errors, ast,
       "Operator precedence is not supported. Parentheses required.");
     return AST_ERROR;
   }
@@ -560,7 +580,7 @@ static ast_result_t syntax_infix_expr(ast_t* ast)
 }
 
 
-static ast_result_t syntax_consume(ast_t* ast)
+static ast_result_t syntax_consume(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
 
@@ -573,12 +593,13 @@ static ast_result_t syntax_consume(ast_t* ast)
     default: {}
   }
 
-  ast_error(term, "Consume expressions must specify a single identifier");
+  ast_error(opt->check.errors, term,
+    "Consume expressions must specify a single identifier");
   return AST_ERROR;
 }
 
 
-static ast_result_t syntax_return(pass_opt_t* options, ast_t* ast,
+static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
   size_t max_value_count)
 {
   assert(ast != NULL);
@@ -589,30 +610,31 @@ static ast_result_t syntax_return(pass_opt_t* options, ast_t* ast,
 
   if(value_count > max_value_count)
   {
-    ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
+    ast_error(opt->check.errors,
+      ast_childidx(value_seq, max_value_count), "Unreachable code");
     return AST_ERROR;
   }
 
   if(ast_id(ast) == TK_RETURN)
   {
-    if(options->check.frame->method_body == NULL)
+    if(opt->check.frame->method_body == NULL)
     {
-      ast_error(ast, "return must occur in a method body");
+      ast_error(opt->check.errors, ast, "return must occur in a method body");
       return AST_ERROR;
     }
 
     if(value_count > 0)
     {
-      if(ast_id(options->check.frame->method) == TK_NEW)
+      if(ast_id(opt->check.frame->method) == TK_NEW)
       {
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "A return in a constructor must not have an expression");
         return AST_ERROR;
       }
 
-      if(ast_id(options->check.frame->method) == TK_BE)
+      if(ast_id(opt->check.frame->method) == TK_BE)
       {
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "A return in a behaviour must not have an expression");
         return AST_ERROR;
       }
@@ -623,15 +645,15 @@ static ast_result_t syntax_return(pass_opt_t* options, ast_t* ast,
 }
 
 
-static ast_result_t syntax_semi(ast_t* ast)
+static ast_result_t syntax_semi(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_parent(ast) != NULL);
   assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
   if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
-    ast_error(ast, "Unexpected semicolon, only use to separate expressions on"
-      " the same line");
+    ast_error(opt->check.errors, ast, "Unexpected semicolon, only use to "
+      "separate expressions on the same line");
     return AST_ERROR;
   }
 
@@ -639,20 +661,20 @@ static ast_result_t syntax_semi(ast_t* ast)
 }
 
 
-static ast_result_t syntax_local(ast_t* ast)
+static ast_result_t syntax_local(pass_opt_t* opt, ast_t* ast)
 {
-  if(!check_id_local(ast_child(ast)))
+  if(!check_id_local(opt, ast_child(ast)))
     return AST_ERROR;
 
   return AST_OK;
 }
 
 
-static ast_result_t syntax_embed(ast_t* ast)
+static ast_result_t syntax_embed(pass_opt_t* opt, ast_t* ast)
 {
   if(ast_id(ast_parent(ast)) != TK_MEMBERS)
   {
-    ast_error(ast, "Local variables cannot be embedded");
+    ast_error(opt->check.errors, ast, "Local variables cannot be embedded");
     return AST_ERROR;
   }
 
@@ -660,9 +682,10 @@ static ast_result_t syntax_embed(ast_t* ast)
 }
 
 
-static ast_result_t syntax_type_param(ast_t* ast)
+static ast_result_t syntax_type_param(pass_opt_t* opt, ast_t* ast)
 {
-  if(!check_id_type_param(ast_child(ast)))
+
+  if(!check_id_type_param(opt, ast_child(ast)))
     return AST_ERROR;
 
   return AST_OK;
@@ -681,7 +704,7 @@ static const char* _illegal_flags[] =
 // Check the given ast is a valid ifdef condition.
 // The context parameter is for error messages and should be a literal string
 // such as "ifdef condition" or "use guard".
-static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* options)
+static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 {
   assert(ast != NULL);
   assert(context != NULL);
@@ -708,7 +731,7 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
 
       bool r = true;
       bool result;
-      if(os_is_target(lower_case, true, &result, options))
+      if(os_is_target(lower_case, true, &result, opt))
         r = false;
 
       for(int i = 0; _illegal_flags[i] != NULL; i++)
@@ -719,7 +742,8 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
 
       if(!r)
       {
-        ast_error(ast, "\"%s\" is not a valid user build flag\n", name);
+        ast_error(opt->check.errors, ast,
+          "\"%s\" is not a valid user build flag\n", name);
         return false;
       }
 
@@ -731,9 +755,10 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
     {
       const char* name = ast_name(ast_child(ast));
       bool result;
-      if(!os_is_target(name, true, &result, options))
+      if(!os_is_target(name, true, &result, opt))
       {
-        ast_error(ast, "\"%s\" is not a valid platform flag\n", name);
+        ast_error(opt->check.errors, ast,
+          "\"%s\" is not a valid platform flag\n", name);
         return false;
       }
 
@@ -744,20 +769,21 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
     case TK_SEQ:
       if(ast_childcount(ast) != 1)
       {
-        ast_error(ast, "Sequence not allowed in %s", context);
+        ast_error(opt->check.errors, ast,
+          "Sequence not allowed in %s", context);
         return false;
       }
 
       break;
 
     default:
-      ast_error(ast, "Invalid %s", context);
+      ast_error(opt->check.errors, ast, "Invalid %s", context);
       return false;
   }
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
   {
-    if(!syntax_ifdef_cond(p, context, options))
+    if(!syntax_ifdef_cond(opt, p, context))
       return false;
   }
 
@@ -765,40 +791,40 @@ static bool syntax_ifdef_cond(ast_t* ast, const char* context, pass_opt_t* optio
 }
 
 
-static ast_result_t syntax_ifdef(ast_t* ast, pass_opt_t* options)
+static ast_result_t syntax_ifdef(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
 
-  if(!syntax_ifdef_cond(ast_child(ast), "ifdef condition", options))
+  if(!syntax_ifdef_cond(opt, ast_child(ast), "ifdef condition"))
     return AST_ERROR;
 
   return AST_OK;
 }
 
 
-static ast_result_t syntax_use(ast_t* ast, pass_opt_t* options)
+static ast_result_t syntax_use(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, url, guard);
 
-  if(ast_id(id) != TK_NONE && !check_id_package(id))
+  if(ast_id(id) != TK_NONE && !check_id_package(opt, id))
     return AST_ERROR;
 
-  if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(guard, "use guard", options))
+  if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(opt, guard, "use guard"))
     return AST_ERROR;
 
   return AST_OK;
 }
 
 
-static ast_result_t syntax_lambda_capture(ast_t* ast)
+static ast_result_t syntax_lambda_capture(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, type, value);
 
   if(ast_id(type) != TK_NONE && ast_id(value) == TK_NONE)
   {
-    ast_error(ast, "value missing for lambda expression capture (cannot "
-      "specify type without value)");
+    ast_error(opt->check.errors, ast, "value missing for lambda expression "
+      "capture (cannot specify type without value)");
     return AST_ERROR;
   }
 
@@ -806,7 +832,7 @@ static ast_result_t syntax_lambda_capture(ast_t* ast)
 }
 
 
-static ast_result_t syntax_compile_intrinsic(ast_t* ast)
+static ast_result_t syntax_compile_intrinsic(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
   assert(ast_id(parent) == TK_SEQ);
@@ -822,7 +848,8 @@ static ast_result_t syntax_compile_intrinsic(ast_t* ast)
       break;
 
     default:
-      ast_error(ast, "a compile intrinsic must be a method body");
+      ast_error(opt->check.errors, ast,
+        "a compile intrinsic must be a method body");
       return AST_ERROR;
   }
 
@@ -837,7 +864,8 @@ static ast_result_t syntax_compile_intrinsic(ast_t* ast)
 
   if(child != ast || ast_sibling(child) != NULL || ast_id(value) != TK_NONE)
   {
-    ast_error(ast, "a compile intrinsic must be the entire body");
+    ast_error(opt->check.errors, ast,
+      "a compile intrinsic must be the entire body");
     return AST_ERROR;
   }
 
@@ -845,14 +873,14 @@ static ast_result_t syntax_compile_intrinsic(ast_t* ast)
 }
 
 
-static ast_result_t syntax_compile_error(ast_t* ast)
+static ast_result_t syntax_compile_error(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
   assert(ast_id(parent) == TK_SEQ);
 
   if(ast_id(ast_parent(parent)) != TK_IFDEF)
   {
-    ast_error(ast, "a compile error must be in an ifdef");
+    ast_error(opt->check.errors, ast, "a compile error must be in an ifdef");
     return AST_ERROR;
   }
 
@@ -863,7 +891,7 @@ static ast_result_t syntax_compile_error(ast_t* ast)
   if(ast_id(reason_seq) != TK_SEQ ||
     ast_id(ast_child(reason_seq)) != TK_STRING)
   {
-    ast_error(ast,
+    ast_error(opt->check.errors, ast,
       "a compile error must have a string literal reason for the error");
     return AST_ERROR;
   }
@@ -873,7 +901,8 @@ static ast_result_t syntax_compile_error(ast_t* ast)
   if((child != ast) || (ast_sibling(child) != NULL) ||
     (ast_childcount(reason_seq) != 1))
   {
-    ast_error(ast, "a compile error must be the entire ifdef clause");
+    ast_error(opt->check.errors, ast,
+      "a compile error must be the entire ifdef clause");
     return AST_ERROR;
   }
 
@@ -881,7 +910,7 @@ static ast_result_t syntax_compile_error(ast_t* ast)
 }
 
 
-static ast_result_t syntax_cap(ast_t* ast)
+static ast_result_t syntax_cap(pass_opt_t* opt, ast_t* ast)
 {
   switch(ast_id(ast_parent(ast)))
   {
@@ -907,17 +936,18 @@ static ast_result_t syntax_cap(ast_t* ast)
     default: {}
   }
 
-  ast_error(ast, "a type cannot be only a capability");
+  ast_error(opt->check.errors, ast, "a type cannot be only a capability");
   return AST_ERROR;
 }
 
 
-static ast_result_t syntax_cap_set(typecheck_t* t, ast_t* ast)
+static ast_result_t syntax_cap_set(pass_opt_t* opt, ast_t* ast)
 {
   // Cap sets can only appear in type parameter constraints.
-  if(t->frame->constraint == NULL)
+  if(opt->check.frame->constraint == NULL)
   {
-    ast_error(ast, "a capability set can only appear in a type constraint");
+    ast_error(opt->check.errors, ast,
+      "a capability set can only appear in a type constraint");
     return AST_ERROR;
   }
 
@@ -927,8 +957,6 @@ static ast_result_t syntax_cap_set(typecheck_t* t, ast_t* ast)
 
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
-
   assert(astp != NULL);
   ast_t* ast = *astp;
   assert(ast != NULL);
@@ -938,59 +966,61 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 
   switch(id)
   {
-    case TK_SEMI:       r = syntax_semi(ast); break;
-    case TK_TYPE:       r = syntax_entity(ast, DEF_TYPEALIAS); break;
-    case TK_PRIMITIVE:  r = syntax_entity(ast, DEF_PRIMITIVE); break;
-    case TK_STRUCT:     r = syntax_entity(ast, DEF_STRUCT); break;
-    case TK_CLASS:      r = syntax_entity(ast, DEF_CLASS); break;
-    case TK_ACTOR:      r = syntax_entity(ast, DEF_ACTOR); break;
-    case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
-    case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
-    case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
-    case TK_ARROW:      r = syntax_arrowtype(ast); break;
-    case TK_MATCH:      r = syntax_match(ast); break;
-    case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
-    case TK_FFICALL:    r = syntax_ffi(ast, true); break;
-    case TK_ELLIPSIS:   r = syntax_ellipsis(ast); break;
-    case TK_CONSUME:    r = syntax_consume(ast); break;
+    case TK_SEMI:       r = syntax_semi(options, ast); break;
+    case TK_TYPE:       r = syntax_entity(options, ast, DEF_TYPEALIAS); break;
+    case TK_PRIMITIVE:  r = syntax_entity(options, ast, DEF_PRIMITIVE); break;
+    case TK_STRUCT:     r = syntax_entity(options, ast, DEF_STRUCT); break;
+    case TK_CLASS:      r = syntax_entity(options, ast, DEF_CLASS); break;
+    case TK_ACTOR:      r = syntax_entity(options, ast, DEF_ACTOR); break;
+    case TK_TRAIT:      r = syntax_entity(options, ast, DEF_TRAIT); break;
+    case TK_INTERFACE:  r = syntax_entity(options, ast, DEF_INTERFACE); break;
+    case TK_THISTYPE:   r = syntax_thistype(options, ast); break;
+    case TK_ARROW:      r = syntax_arrowtype(options, ast); break;
+    case TK_MATCH:      r = syntax_match(options, ast); break;
+    case TK_FFIDECL:    r = syntax_ffi(options, ast, false); break;
+    case TK_FFICALL:    r = syntax_ffi(options, ast, true); break;
+    case TK_ELLIPSIS:   r = syntax_ellipsis(options, ast); break;
+    case TK_CONSUME:    r = syntax_consume(options, ast); break;
     case TK_RETURN:
     case TK_BREAK:      r = syntax_return(options, ast, 1); break;
     case TK_CONTINUE:
     case TK_ERROR:      r = syntax_return(options, ast, 0); break;
     case TK_LET:
-    case TK_VAR:        r = syntax_local(ast); break;
-    case TK_EMBED:      r = syntax_embed(ast); break;
-    case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
-    case TK_IFDEF:      r = syntax_ifdef(ast, options); break;
-    case TK_USE:        r = syntax_use(ast, options); break;
+    case TK_VAR:        r = syntax_local(options, ast); break;
+    case TK_EMBED:      r = syntax_embed(options, ast); break;
+    case TK_TYPEPARAM:  r = syntax_type_param(options, ast); break;
+    case TK_IFDEF:      r = syntax_ifdef(options, ast); break;
+    case TK_USE:        r = syntax_use(options, ast); break;
     case TK_LAMBDACAPTURE:
-                        r = syntax_lambda_capture(ast); break;
+                        r = syntax_lambda_capture(options, ast); break;
     case TK_COMPILE_INTRINSIC:
-                        r = syntax_compile_intrinsic(ast); break;
+                        r = syntax_compile_intrinsic(options, ast); break;
     case TK_COMPILE_ERROR:
-                        r = syntax_compile_error(ast); break;
+                        r = syntax_compile_error(options, ast); break;
 
     case TK_ISO:
     case TK_TRN:
     case TK_REF:
     case TK_VAL:
     case TK_BOX:
-    case TK_TAG:        r = syntax_cap(ast); break;
+    case TK_TAG:        r = syntax_cap(options, ast); break;
 
     case TK_CAP_READ:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
     case TK_CAP_ALIAS:
-    case TK_CAP_ANY:    r = syntax_cap_set(t, ast); break;
+    case TK_CAP_ANY:    r = syntax_cap_set(options, ast); break;
 
     case TK_VALUEFORMALARG:
     case TK_VALUEFORMALPARAM:
-      ast_error(ast, "Value formal parameters not yet supported");
+      ast_error(options->check.errors, ast,
+        "Value formal parameters not yet supported");
       r = AST_ERROR;
       break;
 
     case TK_CONSTANT:
-      ast_error(ast, "Compile time expressions not yet supported");
+      ast_error(options->check.errors, ast,
+        "Compile time expressions not yet supported");
       r = AST_ERROR;
       break;
 
@@ -998,11 +1028,11 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   }
 
   if(is_expr_infix(id))
-    r = syntax_infix_expr(ast);
+    r = syntax_infix_expr(options, ast);
 
   if(ast_checkflag(ast, AST_FLAG_MISSING_SEMI))
   {
-    ast_error(ast,
+    ast_error(options->check.errors, ast,
       "Use a semi colon to separate expressions on the same line");
     r = AST_ERROR;
   }

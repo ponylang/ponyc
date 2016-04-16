@@ -7,6 +7,7 @@
 PONY_EXTERN_C_BEGIN
 
 typedef struct ast_t ast_t;
+typedef struct errors_t errors_t;
 
 typedef enum
 {
@@ -58,7 +59,7 @@ bool symtab_can_merge_public(symtab_t* dst, symtab_t* src);
 
 bool symtab_merge_public(symtab_t* dst, symtab_t* src);
 
-bool symtab_check_all_defined(symtab_t* symtab);
+bool symtab_check_all_defined(symtab_t* symtab, errors_t* errors);
 
 PONY_EXTERN_C_END
 

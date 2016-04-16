@@ -12,7 +12,8 @@
 /**
  * Insert a name->AST mapping into the specified scope.
  */
-static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
+static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
+  ast_t* name, ast_t* value)
 {
   assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
@@ -65,8 +66,8 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
     ast_t* prev = ast_get(scope, s, NULL);
     ast_t* prev_nocase = ast_get_case(scope, s, NULL);
 
-    ast_error(name, "can't reuse name '%s'", s);
-    ast_error(prev_nocase, "previous use of '%s'%s",
+    ast_error(opt->check.errors, name, "can't reuse name '%s'", s);
+    ast_error_continue(opt->check.errors, prev_nocase, "previous use of '%s'%s",
       s, (prev == NULL) ? " differs only by case" : "");
 
     return false;
@@ -85,12 +86,12 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
 
   if(package == NULL)
   {
-    ast_error(ast, "can't load package '%s'", path);
+    ast_error(options->check.errors, ast, "can't load package '%s'", path);
     return false;
   }
 
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(NULL, ast, name, package);
+    return set_scope(options, NULL, ast, name, package);
 
   // Store the package so we can import it later without having to look it up
   // again
@@ -126,11 +127,11 @@ static void set_fields_undefined(ast_t* ast)
   }
 }
 
-static bool scope_method(typecheck_t* t, ast_t* ast)
+static bool scope_method(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
 {
   ast_t* id = ast_childidx(ast, 1);
 
-  if(!set_scope(t, ast_parent(ast), id, ast))
+  if(!set_scope(opt, t, ast_parent(ast), id, ast))
     return false;
 
   if(ast_id(ast) == TK_NEW)
@@ -139,11 +140,11 @@ static bool scope_method(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
+static ast_result_t scope_entity(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeparams, cap, provides, members);
 
-  if(!set_scope(t, t->frame->package, id, ast))
+  if(!set_scope(opt, t, t->frame->package, id, ast))
     return AST_ERROR;
 
   // Scope fields and methods immediately, so that the contents of method
@@ -157,14 +158,14 @@ static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
       case TK_FVAR:
       case TK_FLET:
       case TK_EMBED:
-        if(!set_scope(t, member, ast_child(member), member))
+        if(!set_scope(opt, t, member, ast_child(member), member))
           return AST_ERROR;
         break;
 
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
-        if(!scope_method(t, member))
+        if(!scope_method(opt, t, member))
           return AST_ERROR;
         break;
 
@@ -179,11 +180,11 @@ static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
   return AST_OK;
 }
 
-static bool scope_local(typecheck_t* t, ast_t* ast)
+static bool scope_local(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
 {
   // Local resolves to itself
   ast_t* id = ast_child(ast);
-  return set_scope(t, ast_parent(ast), id, id);
+  return set_scope(opt, t, ast_parent(ast), id, id);
 }
 
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
@@ -203,15 +204,15 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      return scope_entity(t, ast);
+      return scope_entity(options, t, ast);
 
     case TK_PARAM:
-      if(!set_scope(t, ast, ast_child(ast), ast))
+      if(!set_scope(options, t, ast, ast_child(ast), ast))
         return AST_ERROR;
       break;
 
     case TK_TYPEPARAM:
-      if(!set_scope(t, ast, ast_child(ast), ast))
+      if(!set_scope(options, t, ast, ast_child(ast), ast))
         return AST_ERROR;
 
       ast_setdata(ast, ast);
@@ -220,7 +221,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_MATCH_CAPTURE:
     case TK_LET:
     case TK_VAR:
-      if(!scope_local(t, ast))
+      if(!scope_local(options, t, ast))
         return AST_ERROR;
       break;
 

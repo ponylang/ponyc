@@ -3,6 +3,7 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -36,7 +37,7 @@ typedef enum
  *
  * Return REJECT if no such type can exist.
  */
-matchtype_t is_matchtype(ast_t* operand, ast_t* pattern);
+matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, pass_opt_t* opt);
 
 PONY_EXTERN_C_END
 

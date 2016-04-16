@@ -48,6 +48,8 @@ static __pony_thread_local compile_t* the_compiler;
 
 static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
+  errors_t* errors = c->opt->check.errors;
+
   if((c == NULL) || !c->opt->print_stats)
     return;
 
@@ -84,7 +86,7 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
 #if PONY_LLVM >= 307
     DIScope* scope_at = at->getScope();
 
-    errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
+    errorf(errors, NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
       scope_at->getFilename().str().c_str(), at->getLine(),
@@ -92,7 +94,7 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
 #else
     DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
 
-    errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
+    errorf(errors, NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(),
       scope_at.getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
@@ -100,11 +102,11 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
   else {
 #if PONY_LLVM >= 307
-    errorf(NULL, "[%s] %s:%u:%u: %s",
+    errorf(errors, NULL, "[%s] %s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
 #else
-    errorf(NULL, "[%s] %s:%u:%u: %s",
+    errorf(errors, NULL, "[%s] %s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
 #endif
@@ -581,6 +583,8 @@ static void optimise(compile_t* c)
 
 bool genopt(compile_t* c)
 {
+  errors_t* errors = c->opt->check.errors;
+
   // Finalise the debug info.
   LLVMDIBuilderFinalize(c->di);
   optimise(c);
@@ -593,7 +597,7 @@ bool genopt(compile_t* c)
 
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
     {
-      errorf(NULL, "Module verification failed: %s", msg);
+      errorf(errors, NULL, "Module verification failed: %s", msg);
       LLVMDisposeMessage(msg);
       return false;
     }

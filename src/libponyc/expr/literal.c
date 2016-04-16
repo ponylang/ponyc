@@ -217,7 +217,7 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
-    if(is_subtype(uif, type, NULL))
+    if(is_subtype(uif, type, NULL, opt))
       set |= (1 << i);
 
     ast_free(uif);
@@ -254,8 +254,8 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
   ast_setid(ast_childidx(real, 3), TK_BOX);
 
-  bool is_real = is_subtype(constraint, real, NULL);
-  bool is_number = is_subtype(constraint, number, NULL);
+  bool is_real = is_subtype(constraint, real, NULL, opt);
+  bool is_number = is_subtype(constraint, number, NULL, opt);
   ast_free(number);
   ast_free(real);
 
@@ -272,7 +272,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
     BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
     BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
 
-    if(check_constraints(NULL, params, args, false))
+    if(check_constraints(NULL, params, args, false, opt))
       uif_set |= (1 << i);
 
     ast_free(args);
@@ -285,7 +285,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   // Given formal parameter is legal to coerce to
   if(chain->formal != NULL && chain->formal != type_param)
   {
-    ast_error(type_param_ref,
+    ast_error(opt->check.errors, type_param_ref,
       "Cannot infer a literal type with multiple formal parameters");
     return UIF_ERROR;
   }
@@ -320,7 +320,7 @@ static int uifset_union(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
     if(child_valid && others_valid && (child_formal != others_formal))
     {
       // We're unioning a formal parameter and a UIF type, not allowed
-      ast_error(type, "Could not infer literal type, ambiguous union");
+      ast_error(opt->check.errors, type, "could not infer literal type, ambiguous union");
       return UIF_ERROR;
     }
 
@@ -427,7 +427,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
       return UIF_NO_TYPES;
 
     default:
-      ast_error(type, "Internal error: uif type, node %d", ast_id(type));
+      ast_error(opt->check.errors, type, "Internal error: uif type, node %d", ast_id(type));
       assert(0);
       return UIF_ERROR;
   }
@@ -450,7 +450,8 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
   if(r == UIF_NO_TYPES)
   {
     if(report_errors)
-      ast_error(literal, "Could not infer literal type, no valid types found");
+      ast_error(opt->check.errors, literal,
+        "could not infer literal type, no valid types found");
 
     return false;
   }
@@ -488,7 +489,7 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
     }
   }
 
-  ast_error(literal, "Multiple possible types for literal");
+  ast_error(opt->check.errors, literal, "Multiple possible types for literal");
   return false;
 }
 
@@ -515,7 +516,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
   if(require_float && !chain_head->valid_for_float)
   {
     if(report_errors)
-      ast_error(literal, "Inferred possibly integer type %s for float literal",
+      ast_error(opt->check.errors, literal, "Inferred possibly integer type %s for float literal",
         chain_head->name);
 
     return false;
@@ -559,7 +560,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
       if((test > 0) || (!neg_plus_one && (test == 0)))
       {
         // Illegal value.
-        ast_error(literal, "Literal value is out of range for type (%s)",
+        ast_error(opt->check.errors, literal, "Literal value is out of range for type (%s)",
           chain_head->name);
         return false;
       }
@@ -627,7 +628,7 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
 
 // Coerce a literal control block to be the specified target type
 static bool coerce_control_block(ast_t** astp, ast_t* target_type,
-  lit_chain_t* chain, pass_opt_t* options, bool report_errors)
+  lit_chain_t* chain, pass_opt_t* opt, bool report_errors)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
@@ -644,14 +645,14 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
     ast_t* branch = (ast_t*)ast_data(p);
     assert(branch != NULL);
 
-    if(!coerce_literal_to_type(&branch, target_type, chain, options,
+    if(!coerce_literal_to_type(&branch, target_type, chain, opt,
       report_errors))
     {
       ast_free_unattached(block_type);
       return false;
     }
 
-    block_type = type_union(block_type, ast_type(branch));
+    block_type = type_union(opt, block_type, ast_type(branch));
   }
 
   if(is_typecheck_error(block_type))
@@ -671,7 +672,7 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
 
 // Coerce a literal expression to given tuple or non-tuple types
 static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
-  lit_chain_t* chain, pass_opt_t* options, bool report_errors)
+  lit_chain_t* chain, pass_opt_t* opt, bool report_errors)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
@@ -689,7 +690,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
   if(ast_child(lit_type) != NULL)
   {
     // Control block literal
-    return coerce_control_block(astp, target_type, chain, options,
+    return coerce_control_block(astp, target_type, chain, opt,
       report_errors);
   }
 
@@ -698,7 +699,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     case TK_TUPLE:  // Tuple literal
     {
       size_t cardinality = ast_childcount(literal_expr);
-      if(!coerce_group(astp, target_type, chain, cardinality, options,
+      if(!coerce_group(astp, target_type, chain, cardinality, opt,
         report_errors))
         return false;
 
@@ -706,15 +707,15 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     }
 
     case TK_INT:
-      return uif_type_from_chain(options, literal_expr, target_type, chain,
+      return uif_type_from_chain(opt, literal_expr, target_type, chain,
         false, report_errors);
 
     case TK_FLOAT:
-      return uif_type_from_chain(options, literal_expr, target_type, chain,
+      return uif_type_from_chain(opt, literal_expr, target_type, chain,
         true, report_errors);
 
     case TK_ARRAY:
-      if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, options,
+      if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, opt,
         report_errors))
         return false;
 
@@ -725,7 +726,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       // Only coerce the last expression in the sequence
       ast_t* last = ast_childlast(literal_expr);
 
-      if(!coerce_literal_to_type(&last, target_type, chain, options,
+      if(!coerce_literal_to_type(&last, target_type, chain, opt,
         report_errors))
         return false;
 
@@ -738,12 +739,12 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       AST_GET_CHILDREN(literal_expr, positional, named, receiver);
       ast_t* arg = ast_child(positional);
 
-      if(!coerce_literal_to_type(&receiver, target_type, chain, options,
+      if(!coerce_literal_to_type(&receiver, target_type, chain, opt,
         report_errors))
         return false;
 
       if(arg != NULL &&
-        !coerce_literal_to_type(&arg, target_type, chain, options,
+        !coerce_literal_to_type(&arg, target_type, chain, opt,
         report_errors))
         return false;
 
@@ -754,7 +755,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     case TK_DOT:
     {
       ast_t* receiver = ast_child(literal_expr);
-      if(!coerce_literal_to_type(&receiver, target_type, chain, options,
+      if(!coerce_literal_to_type(&receiver, target_type, chain, opt,
         report_errors))
         return false;
 
@@ -764,7 +765,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     case TK_RECOVER:
     {
       ast_t* expr = ast_childidx(literal_expr, 1);
-      if(!coerce_literal_to_type(&expr, target_type, chain, options,
+      if(!coerce_literal_to_type(&expr, target_type, chain, opt,
         report_errors))
         return false;
 
@@ -772,7 +773,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     }
 
     default:
-      ast_error(literal_expr, "Internal error, coerce_literal_to_type node %s",
+      ast_error(opt->check.errors, literal_expr, "Internal error, coerce_literal_to_type node %s",
         ast_get_print(literal_expr));
       assert(0);
       return false;
@@ -781,11 +782,11 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
   // Need to reprocess node now all the literals have types
   ast_settype(literal_expr, NULL);
-  return (pass_expr(astp, options) == AST_OK);
+  return (pass_expr(astp, opt) == AST_OK);
 }
 
 
-bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
+bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* opt)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
@@ -800,17 +801,17 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
     ast_id(lit_type) != TK_OPERATORLITERAL)
     return true;
 
-  if(target_type == NULL && !unify(literal_expr, options, true))
+  if(target_type == NULL && !unify(literal_expr, opt, true))
     return false;
 
   lit_chain_t chain;
   chain_init_head(&chain);
-  return coerce_literal_to_type(astp, target_type, &chain, options, true);
+  return coerce_literal_to_type(astp, target_type, &chain, opt, true);
 }
 
 
 // Unify all the branches of the given AST to the same type
-static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors)
+static bool unify(ast_t* ast, pass_opt_t* opt, bool report_errors)
 {
   assert(ast != NULL);
   ast_t* type = ast_type(ast);
@@ -829,9 +830,9 @@ static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors)
     // Type has a non-literal element, coerce literals to that
     lit_chain_t chain;
     chain_init_head(&chain);
-    return coerce_literal_to_type(&ast, non_literal, &chain, options,
+    return coerce_literal_to_type(&ast, non_literal, &chain, opt,
       report_errors);
-    //return coerce_literals(&ast, non_literal, options);
+    //return coerce_literals(&ast, non_literal, opt);
   }
 
   // Still a pure literal
@@ -839,14 +840,14 @@ static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors)
 }
 
 
-bool literal_member_access(ast_t* ast, pass_opt_t* options)
+bool literal_member_access(ast_t* ast, pass_opt_t* opt)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE);
 
   AST_GET_CHILDREN(ast, receiver, name_node);
 
-  if(!unify(receiver, options, true))
+  if(!unify(receiver, opt, true))
     return false;
 
   ast_t* recv_type = ast_type(receiver);
@@ -865,7 +866,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options)
 
   if(op == NULL || ast_id(ast_parent(ast)) != TK_CALL)
   {
-    ast_error(ast, "Cannot look up member %s on a literal", name);
+    ast_error(opt->check.errors, ast, "Cannot look up member %s on a literal", name);
     return false;
   }
 
@@ -877,7 +878,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool literal_call(ast_t* ast, pass_opt_t* options)
+bool literal_call(ast_t* ast, pass_opt_t* opt)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_CALL);
@@ -891,7 +892,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   if(ast_id(recv_type) == TK_LITERAL)
   {
-    ast_error(ast, "Cannot call a literal");
+    ast_error(opt->check.errors, ast, "Cannot call a literal");
     return false;
   }
 
@@ -903,7 +904,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   if(ast_childcount(named_args) != 0)
   {
-    ast_error(named_args, "Cannot use named arguments with literal operator");
+    ast_error(opt->check.errors, named_args, "Cannot use named arguments with literal operator");
     return false;
   }
 
@@ -911,7 +912,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   if(arg != NULL)
   {
-    if(!unify(arg, options, true))
+    if(!unify(arg, opt, true))
       return false;
 
     ast_t* arg_type = ast_type(arg);
@@ -920,11 +921,11 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
       return false;
 
     if(ast_id(arg_type) != TK_LITERAL)  // Apply argument type to receiver
-      return coerce_literals(&receiver, arg_type, options);
+      return coerce_literals(&receiver, arg_type, opt);
 
     if(!op->can_propogate_literal)
     {
-      ast_error(ast, "Cannot infer operand type");
+      ast_error(opt->check.errors, ast, "Cannot infer operand type");
       return false;
     }
   }
@@ -933,7 +934,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   if(op->arg_count != arg_count)
   {
-    ast_error(ast, "Invalid number of arguments to literal operator");
+    ast_error(opt->check.errors, ast, "Invalid number of arguments to literal operator");
     return false;
   }
 
@@ -942,7 +943,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool literal_is(ast_t* ast, pass_opt_t* options)
+bool literal_is(ast_t* ast, pass_opt_t* opt)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
@@ -962,24 +963,24 @@ bool literal_is(ast_t* ast, pass_opt_t* options)
   if(is_type_literal(l_type) && !is_type_literal(r_type))
   {
     // Coerce left to type of right.
-    return coerce_literals(&left, r_type, options);
+    return coerce_literals(&left, r_type, opt);
   }
 
   if(!is_type_literal(l_type) && is_type_literal(r_type))
   {
     // Coerce right to type of left.
-    return coerce_literals(&right, l_type, options);
+    return coerce_literals(&right, l_type, opt);
   }
 
   // Both sides are literals, that's a problem.
   assert(is_type_literal(l_type));
   assert(is_type_literal(r_type));
-  ast_error(ast, "Cannot infer type of operands");
+  ast_error(opt->check.errors, ast, "Cannot infer type of operands");
   return false;
 }
 
 
-void literal_unify_control(ast_t* ast, pass_opt_t* options)
+void literal_unify_control(ast_t* ast, pass_opt_t* opt)
 {
-  unify(ast, options, false);
+  unify(ast, opt, false);
 }

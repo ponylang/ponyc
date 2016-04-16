@@ -102,7 +102,7 @@ void reach_free(reachable_types_t* r);
  * typeargs can be NULL if there are none.
  */
 void reach(reachable_types_t* r, uint32_t* next_type_id, ast_t* type,
-  const char* name, ast_t* typeargs);
+  const char* name, ast_t* typeargs, pass_opt_t* opt);
 
 reachable_type_t* reach_type(reachable_types_t* r, ast_t* type);
 

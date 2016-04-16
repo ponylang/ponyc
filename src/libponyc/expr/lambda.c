@@ -32,8 +32,8 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 
     if(def == NULL)
     {
-      ast_error(id_node, "cannot capture \"%s\", variable not defined",
-        name);
+      ast_error(opt->check.errors, id_node,
+        "cannot capture \"%s\", variable not defined", name);
       return NULL;
     }
 
@@ -42,8 +42,8 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
       def_id != TK_PARAM)
     {
-      ast_error(id_node, "cannot capture \"%s\", can only capture fields, "
-        "parameters and local variables", name);
+      ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
+        "capture fields, parameters and local variables", name);
       return NULL;
     }
 

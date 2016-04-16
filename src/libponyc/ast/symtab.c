@@ -270,7 +270,7 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
   return true;
 }
 
-bool symtab_check_all_defined(symtab_t* symtab)
+bool symtab_check_all_defined(symtab_t* symtab, errors_t* errors)
 {
   bool r = true;
   size_t i = HASHMAP_BEGIN;
@@ -282,7 +282,7 @@ bool symtab_check_all_defined(symtab_t* symtab)
     // this scope
     if(sym->def != NULL && sym->status == SYM_UNDEFINED)
     {
-      ast_error(sym->def,
+      ast_error(errors, sym->def,
         "Local variable %s is not assigned a value in all code paths", sym->name);
       r = false;
     }

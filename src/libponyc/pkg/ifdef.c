@@ -108,7 +108,8 @@ static void cond_normalise(ast_t** astp)
 
 // Evaluate the given ifdef condition for the given config, or our target build
 // if no config is given.
-static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release, pass_opt_t* options)
+static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
+  pass_opt_t* opt)
 {
   assert(ast != NULL);
 
@@ -121,19 +122,19 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release, pass_opt
     case TK_IFDEFAND:
     {
       AST_GET_CHILDREN(ast, left, right);
-      return cond_eval(left, config, release, options) &&
-        cond_eval(right, config, release, options);
+      return cond_eval(left, config, release, opt) &&
+        cond_eval(right, config, release, opt);
     }
 
     case TK_IFDEFOR:
     {
       AST_GET_CHILDREN(ast, left, right);
-      return cond_eval(left, config, release, options) ||
-        cond_eval(right, config, release, options);
+      return cond_eval(left, config, release, opt) ||
+        cond_eval(right, config, release, opt);
     }
 
     case TK_IFDEFNOT:
-      return !cond_eval(ast_child(ast), config, release, options);
+      return !cond_eval(ast_child(ast), config, release, opt);
 
     case TK_IFDEFFLAG:
     {
@@ -145,7 +146,7 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release, pass_opt
 
       // No config given, lookup platform flag for current build.
       bool val;
-      if(os_is_target(name, release, &val, options))
+      if(os_is_target(name, release, &val, opt))
       {
         return val;
       }
@@ -255,7 +256,8 @@ typedef struct ffi_decl_t
 // All other cases are errors, which will be reported by this function.
 // Returns: true on success, false on failure.
 static bool find_decl_for_config(ast_t* call, ast_t* package,
-  const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info, pass_opt_t* options)
+  const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info,
+  pass_opt_t* opt)
 {
   assert(call != NULL);
   assert(package != NULL);
@@ -278,7 +280,7 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
         if(ast_id(decl) == TK_FFIDECL && ffi_name == ast_name(ast_child(decl)))
         {
           // We have an FFI declaration for the specified name.
-          if(cond_eval(guard, config, false, options))
+          if(cond_eval(guard, config, false, opt))
           {
             // This declaration is valid for this config.
             had_valid_decl = true;
@@ -288,10 +290,12 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
               // We already have a decalaration, is it the same one?
               if(decl_info->decl != decl)
               {
-                ast_error(call, "Multiple possible declarations for FFI call");
-                ast_error(decl_info->decl,
+                ast_error(opt->check.errors, call,
+                  "Multiple possible declarations for FFI call");
+                ast_error_continue(opt->check.errors, decl_info->decl,
                   "This declaration valid for config: %s", decl_info->config);
-                ast_error(decl, "This declaration valid for config: %s",
+                ast_error_continue(opt->check.errors, decl,
+                  "This declaration valid for config: %s",
                   buildflagset_print(config));
                 return false;
               }
@@ -313,7 +317,8 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
 
   if(!had_valid_decl)
   {
-    ast_error(call, "No FFI declaration found for %s in config: %s", ffi_name,
+    ast_error(opt->check.errors, call,
+      "No FFI declaration found for %s in config: %s", ffi_name,
       buildflagset_print(config));
     return false;
   }
@@ -352,7 +357,7 @@ static void check_config_count(buildflagset_t* config, ast_t* location)
 // build config, within the specified ifdef condition (NULL for none).
 // Returns: true on success, false on failure.
 static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
-  ast_t** out_decl, pass_opt_t* options)
+  ast_t** out_decl, pass_opt_t* opt)
 {
   assert(ast != NULL);
   assert(package != NULL);
@@ -379,11 +384,11 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
 
   while(buildflagset_next(config))
   {
-    if(ifdef_cond == NULL || cond_eval(ifdef_cond, config, false, options))
+    if(ifdef_cond == NULL || cond_eval(ifdef_cond, config, false, opt))
     {
       // ifdef condition true, or not in an ifdef.
       // Look for valid FFI declaration.
-      if(!find_decl_for_config(ast, package, ffi_name, config, &decl_info, options))
+      if(!find_decl_for_config(ast, package, ffi_name, config, &decl_info, opt))
       {
         // Config has failed.
         buildflagset_free(config);
@@ -401,7 +406,7 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
 }
 
 
-bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* options)
+bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
 {
   assert(astp != NULL);
   assert(*astp != NULL);
@@ -419,7 +424,7 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* options)
 
   while(buildflagset_next(config))
   {
-    if(cond_eval(*astp, config, false, options))
+    if(cond_eval(*astp, config, false, opt))
       // Condition is true for this config.
       return true;
   }
@@ -429,18 +434,19 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* options)
 }
 
 
-bool ifdef_cond_eval(ast_t* ast, pass_opt_t* options)
+bool ifdef_cond_eval(ast_t* ast, pass_opt_t* opt)
 {
   assert(ast != NULL);
 
   if(ast_id(ast) == TK_NONE)  // No condition to evaluate
     return true;
 
-  return cond_eval(ast, NULL, options->release, options);
+  return cond_eval(ast, NULL, opt->release, opt);
 }
 
 
-bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl, pass_opt_t* options)
+bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
+  pass_opt_t* opt)
 {
   assert(t != NULL);
   assert(ast != NULL);
@@ -466,7 +472,7 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl, pass_opt_t* opti
   {
     // We've not looked that up yet.
     assert(decl == NULL);
-    if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, options))
+    if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, opt))
     {
       // That went wrong. Record that so we don't try again.
       symtab_add(symtab, ffi_name, NULL, SYM_ERROR);

@@ -3,6 +3,8 @@
 
 const char* genobj(compile_t* c)
 {
+  errors_t* errors = c->opt->check.errors;
+
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
    * amalgamating the program and the runtime.
@@ -13,7 +15,7 @@ const char* genobj(compile_t* c)
    */
   if(c->opt->limit == PASS_LLVM_IR)
   {
-    const char* file_o = suffix_filename(c->opt->output, "", c->filename,
+    const char* file_o = suffix_filename(c, c->opt->output, "", c->filename,
       ".ll");
     PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Writing %s\n", file_o));
 
@@ -21,7 +23,7 @@ const char* genobj(compile_t* c)
 
     if(LLVMPrintModuleToFile(c->module, file_o, &err) != 0)
     {
-      errorf(NULL, "couldn't write IR to %s: %s", file_o, err);
+      errorf(errors, NULL, "couldn't write IR to %s: %s", file_o, err);
       LLVMDisposeMessage(err);
       return NULL;
     }
@@ -31,13 +33,13 @@ const char* genobj(compile_t* c)
 
   if(c->opt->limit == PASS_BITCODE)
   {
-    const char* file_o = suffix_filename(c->opt->output, "", c->filename,
+    const char* file_o = suffix_filename(c, c->opt->output, "", c->filename,
       ".bc");
     PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Writing %s\n", file_o));
 
     if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
     {
-      errorf(NULL, "couldn't write bitcode to %s", file_o);
+      errorf(errors, NULL, "couldn't write bitcode to %s", file_o);
       return NULL;
     }
 
@@ -50,13 +52,13 @@ const char* genobj(compile_t* c)
   if(c->opt->limit == PASS_ASM)
   {
     fmt = LLVMAssemblyFile;
-    file_o = suffix_filename(c->opt->output, "", c->filename, ".s");
+    file_o = suffix_filename(c, c->opt->output, "", c->filename, ".s");
   } else {
     fmt = LLVMObjectFile;
 #ifdef PLATFORM_IS_WINDOWS
-    file_o = suffix_filename(c->opt->output, "", c->filename, ".obj");
+    file_o = suffix_filename(c, c->opt->output, "", c->filename, ".obj");
 #else
-    file_o = suffix_filename(c->opt->output, "", c->filename, ".o");
+    file_o = suffix_filename(c, c->opt->output, "", c->filename, ".o");
 #endif
   }
 
@@ -67,7 +69,7 @@ const char* genobj(compile_t* c)
       c->machine, c->module, (char*)file_o, fmt, &err) != 0
     )
   {
-    errorf(NULL, "couldn't create file: %s", err);
+    errorf(errors, NULL, "couldn't create file: %s", err);
     LLVMDisposeMessage(err);
     return NULL;
   }

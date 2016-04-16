@@ -193,7 +193,7 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count);
 
-const char* suffix_filename(const char* dir, const char* prefix,
+const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   const char* file, const char* extension);
 
 PONY_EXTERN_C_END

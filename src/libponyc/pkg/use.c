@@ -55,7 +55,7 @@ void use_test_handler(use_handler_t handler, bool allow_alias,
 
 
 // Find the index of the handler for the given URI
-static int find_handler(ast_t* uri, const char** out_locator)
+static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
 {
   assert(uri != NULL);
   assert(out_locator != NULL);
@@ -93,61 +93,62 @@ static int find_handler(ast_t* uri, const char** out_locator)
   if(colon == text + 1)
   {
     // Special case error message
-    ast_error(uri, "Use scheme %c: not found. "
+    ast_error(opt->check.errors, uri, "Use scheme %c: not found. "
       "If this is an absolute path use prefix \"package:\"", text[0]);
     return -1;
   }
 #endif
 
-  ast_error(uri, "Use scheme %.*s not found", (int)scheme_len, text);
+  ast_error(opt->check.errors, uri, "Use scheme %.*s not found",
+    (int)scheme_len, text);
   return -1;
 }
 
 
 // Handle a uri command
-static bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias, ast_t* guard,
-  pass_opt_t* options)
+static bool uri_command(pass_opt_t* opt, ast_t* ast, ast_t* uri, ast_t* alias,
+  ast_t* guard)
 {
   assert(uri != NULL);
   assert(alias != NULL);
   assert(guard != NULL);
 
   const char* locator;
-  int index = find_handler(uri, &locator);
+  int index = find_handler(opt, uri, &locator);
 
   if(index < 0) // Scheme not found
     return false;
 
   if(ast_id(alias) != TK_NONE && !handlers[index].allow_name)
   {
-    ast_error(alias, "Use scheme %s may not have an alias",
+    ast_error(opt->check.errors, alias, "Use scheme %s may not have an alias",
       handlers[index].scheme);
     return false;
   }
 
   if(ast_id(guard) != TK_NONE && !handlers[index].allow_guard)
   {
-    ast_error(alias, "Use scheme %s may not have a guard",
+    ast_error(opt->check.errors, alias, "Use scheme %s may not have a guard",
       handlers[index].scheme);
     return false;
   }
 
-  if(!ifdef_cond_eval(guard, options))
+  if(!ifdef_cond_eval(guard, opt))
     return true;
 
   assert(handlers[index].handler != NULL);
-  return handlers[index].handler(ast, locator, alias, options);
+  return handlers[index].handler(ast, locator, alias, opt);
 }
 
 
 // Handle an ffi command
-static bool ffi_command(ast_t* alias)
+static bool ffi_command(pass_opt_t* opt, ast_t* alias)
 {
   assert(alias != NULL);
 
   if(ast_id(alias) != TK_NONE)
   {
-    ast_error(alias, "Use FFI may not have an alias");
+    ast_error(opt->check.errors, alias, "Use FFI may not have an alias");
     return false;
   }
 
@@ -167,13 +168,13 @@ ast_result_t use_command(ast_t* ast, pass_opt_t* options)
   switch(ast_id(spec))
   {
   case TK_STRING:
-    if(!uri_command(ast, spec, alias, guard, options))
+    if(!uri_command(options, ast, spec, alias, guard))
       return AST_ERROR;
 
     break;
 
   case TK_FFIDECL:
-    if(!ffi_command(alias))
+    if(!ffi_command(options, alias))
       return AST_ERROR;
 
     break;

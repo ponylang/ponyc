@@ -909,7 +909,7 @@ bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
   return false;
 }
 
-bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner)
+bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner, errorframe_t* errorf)
 {
   ast_t* from = inner;
   bool ok = true;
@@ -930,9 +930,13 @@ bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner)
           if(!ast_within_scope(outer, inner, sym->name))
           {
             ast_t* def = ast_get(inner, sym->name, NULL);
-            ast_error(from, "identifier '%s' is consumed when the loop exits",
-              sym->name);
-            ast_error(def, "consumed identifier is defined here");
+            if(errorf != NULL)
+            {
+              ast_error_frame(errorf, from,
+                "identifier '%s' is consumed when the loop exits", sym->name);
+              ast_error_frame(errorf, def,
+                "consumed identifier is defined here");
+            }
             ok = false;
           }
         }
@@ -1367,11 +1371,20 @@ void ast_setwidth(size_t w)
   width = w;
 }
 
-void ast_error(ast_t* ast, const char* fmt, ...)
+void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
-  errorv(token_source(ast->t), token_line_number(ast->t),
+  errorv(errors, token_source(ast->t), token_line_number(ast->t),
+    token_line_position(ast->t), fmt, ap);
+  va_end(ap);
+}
+
+void ast_error_continue(errors_t* errors, ast_t* ast, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  errorv_continue(errors, token_source(ast->t), token_line_number(ast->t),
     token_line_position(ast->t), fmt, ap);
   va_end(ap);
 }

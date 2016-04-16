@@ -38,6 +38,7 @@ typedef struct docgen_t
   const char* sub_dir;
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
+  errors_t* errors;
 } docgen_t;
 
 
@@ -249,7 +250,8 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
   FILE* file = fopen(buffer, "w");
 
   if(file == NULL)
-    errorf(NULL, "Could not write documentation to file %s", buffer);
+    errorf(docgen->errors, NULL,
+      "Could not write documentation to file %s", buffer);
 
   ponyint_pool_free_size(buf_len, buffer);
   return file;
@@ -772,8 +774,12 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false);
   fprintf(docgen->type_file, "\n```\n\n");
 
-  doc_type_list(docgen, provides,
-    "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
+  if (ast_id(ast) !=  TK_TYPE)
+    doc_type_list(docgen, provides,
+      "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
+  else
+    doc_type_list(docgen, provides,
+      "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true);
 
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
@@ -1086,6 +1092,8 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     return;
 
   docgen_t docgen;
+  docgen.errors = options->check.errors;
+
   doc_setup_dirs(&docgen, program, options);
 
   // Open the index and home files

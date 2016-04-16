@@ -16,15 +16,21 @@
  */
 
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
+
+#define TEST_ERRORS_2(src, err1, err2) \
+  { const char* errs[] = {err1, err2, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
+
+#define TEST_ERRORS_3(src, err1, err2, err3) \
+  { const char* errs[] = {err1, err2, err3, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
+
+
 class BadPonyTest : public PassTest
-{
-protected:
-  void test(const char* src)
-  {
-    DO(test_error(src, "ir"));
-    ASSERT_NE(0, get_error_count());
-  }
-};
+{};
 
 
 // Cases from reported issues
@@ -36,7 +42,10 @@ TEST_F(BadPonyTest, DontCareInFieldType)
     "class Abc\n"
     "  var _test1: (_)";
 
-  DO(test(src));
+  TEST_ERRORS_3(src,
+    "the don't care token can only appear in",
+    "field left undefined in constructor",
+    "constructor with undefined fields");
 }
 
 
@@ -51,7 +60,7 @@ TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
     "  new create(env: Env) =>\n"
     "    None";
 
-  DO(test(src));
+  TEST_ERRORS_1(src, "can only provide traits and interfaces");
 }
 
 
@@ -71,7 +80,7 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
     "  new create(env: Env) =>\n"
     "    None";
 
-  DO(test(src));
+  TEST_ERRORS_1(src, "not enough type arguments");
 }
 
 
@@ -83,7 +92,9 @@ TEST_F(BadPonyTest, DontCareInIntLiteralType)
     "  new create(env: Env) =>\n"
     "    let crashme: (_, I32) = (4, 4)";
 
-  DO(test(src));
+  TEST_ERRORS_2(src,
+    "the don't care token can only appear in",
+    "could not infer literal type, no valid types found");
 }
 
 TEST_F(BadPonyTest, TupleIndexIsZero)
@@ -94,11 +105,7 @@ TEST_F(BadPonyTest, TupleIndexIsZero)
     "  fun bar(): None =>\n"
     "    (None, None)._0";
 
-  DO(test(src));
-  ASSERT_EQ(1, get_error_count());
-  errormsg_t* errors = get_errors();
-  EXPECT_TRUE(strstr(errors->msg, "Did you mean _1?") != NULL)
-      << "Actual error: " << errors->msg;
+  TEST_ERRORS_1(src, "Did you mean _1?");
 }
 
 TEST_F(BadPonyTest, TupleIndexIsOutOfRange)
@@ -109,9 +116,5 @@ TEST_F(BadPonyTest, TupleIndexIsOutOfRange)
     "  fun bar(): None =>\n"
     "    (None, None)._3";
 
-  DO(test(src));
-  ASSERT_EQ(1, get_error_count());
-  errormsg_t* errors = get_errors();
-  EXPECT_TRUE(strstr(errors->msg, "Valid range is [1, 2]") != NULL)
-      << "Actual error: " << errors->msg;
+  TEST_ERRORS_1(src, "Valid range is [1, 2]");
 }

@@ -15,7 +15,7 @@ typedef struct package_t package_t;
  * directory relative to the executable, plus a collection of directories
  * specified in the PONYPATH environment variable.
  */
-bool package_init();
+bool package_init(pass_opt_t* opt);
 
 /**
  * Gets the list of search paths.
@@ -28,7 +28,7 @@ strlist_t* package_paths();
  * Path list is semicolon (;) separated on Windows and colon (:) separated on
  * Linux and MacOS.
  */
-void package_add_paths(const char* paths);
+void package_add_paths(const char* paths, pass_opt_t* opt);
 
 /**
  * Appends a list of paths to the list of packages allowed to do C FFI.
@@ -36,7 +36,7 @@ void package_add_paths(const char* paths);
  * Linux and MacOS.
  * If this is never called, all packages are allowed to do C FFI.
  */
-bool package_add_safe(const char* paths);
+bool package_add_safe(const char* paths, pass_opt_t* opt);
 
 /**
  * Add a magic package. When the package with the specified path is requested
@@ -60,12 +60,12 @@ void package_suppress_build_message();
 /**
  * Load a program. The path specifies the package that represents the program.
  */
-ast_t* program_load(const char* path, pass_opt_t* options);
+ast_t* program_load(const char* path, pass_opt_t* opt);
 
 /**
  * Load a package. Used by program_load() and when handling 'use' statements.
  */
-ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options);
+ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt);
 
 /**
  * Free the package_t that is set as the ast_data of a package node.

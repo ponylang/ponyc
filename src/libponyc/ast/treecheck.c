@@ -20,7 +20,7 @@ typedef enum
   CHK_ERROR      // Error has occurred
 } check_res_t;
 
-typedef check_res_t (*check_fn_t)(ast_t* ast);
+typedef check_res_t (*check_fn_t)(ast_t* ast, errors_t* errors);
 
 typedef struct check_state_t
 {
@@ -29,10 +29,8 @@ typedef struct check_state_t
   check_fn_t type;
   ast_t* child;
   size_t child_index;
+  errors_t* errors;
 } check_state_t;
-
-
-static bool _enabled = false;
 
 
 // Print an error preamble for the given node.
@@ -61,7 +59,8 @@ static bool is_id_in_list(token_id id, const token_id* list)
 
 // Check the given node if it's covered by the specified rule list.
 // The rules list must be NULL terminated.
-static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules)
+static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
+  errors_t* errors)
 {
   assert(ast != NULL);
   assert(rules != NULL);
@@ -69,7 +68,7 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules)
   // Check rules in given list
   for(const check_fn_t* p = rules; *p != NULL; p++)
   {
-    check_res_t r = (*p)(ast);
+    check_res_t r = (*p)(ast, errors);
 
     if(r != CHK_NOT_FOUND)
       return r;
@@ -83,7 +82,7 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules)
 // Check some number of children, all using the same rules.
 // The given max and min counts are inclusive. Pass -1 for no maximum limit.
 static bool check_children(ast_t* ast, check_state_t* state,
-  const check_fn_t *rules, size_t min_count, size_t max_count)
+  const check_fn_t *rules, size_t min_count, size_t max_count, errors_t* errors)
 {
   assert(ast != NULL);
   assert(state != NULL);
@@ -94,7 +93,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
   while(found_count < max_count && state->child != NULL)
   {
     // See if next child is suitable
-    check_res_t r = check_from_list(state->child, rules);
+    check_res_t r = check_from_list(state->child, rules, errors);
 
     if(r == CHK_ERROR)  // Propogate error
       return false;
@@ -118,7 +117,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     error_preamble(ast);
     printf("found " __zu " child%s, expected more\n", state->child_index,
       (state->child_index == 1) ? "" : "ren");
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -129,7 +128,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     error_preamble(ast);
     printf("child " __zu " has invalid id %d\n", state->child_index,
       ast_id(state->child));
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -144,7 +143,8 @@ static bool check_children(ast_t* ast, check_state_t* state,
 // * legal data pointer
 // * legal scope symbol table
 // * no extra children
-static check_res_t check_extras(ast_t* ast, check_state_t* state)
+static check_res_t check_extras(ast_t* ast, check_state_t* state,
+  errors_t* errors)
 {
   assert(ast != NULL);
   assert(state != NULL);
@@ -158,7 +158,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     {
       error_preamble(ast);
       printf("unexpected type\n");
-      ast_error(ast, "Here");
+      ast_error(state->errors, ast, "Here");
       ast_print(ast);
 #ifdef IMMEDIATE_FAIL
       assert(false);
@@ -166,7 +166,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
       return CHK_ERROR;
     }
 
-    check_res_t r = state->type(type_field);
+    check_res_t r = state->type(type_field, errors);
 
     if(r == CHK_ERROR)  // Propogate error
       return CHK_ERROR;
@@ -175,7 +175,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     {
       error_preamble(ast);
       printf("type field has invalid id %d\n", ast_id(type_field));
-      ast_error(ast, "Here");
+      ast_error(state->errors, ast, "Here");
       ast_print(ast);
 #ifdef IMMEDIATE_FAIL
       assert(false);
@@ -189,7 +189,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
     error_preamble(ast);
     printf("child " __zu " (id %d, %s) unexpected\n", state->child_index,
       ast_id(state->child), ast_get_print(state->child));
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -201,7 +201,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   {
     error_preamble(ast);
     printf("unexpected data %p\n", ast_data(ast));
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -213,7 +213,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   {
     error_preamble(ast);
     printf("unexpected scope\n");
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -225,7 +225,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
   {
     error_preamble(ast);
     printf("expected scope not found\n");
-    ast_error(ast, "Here");
+    ast_error(state->errors, ast, "Here");
     ast_print(ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
@@ -240,8 +240,8 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 // Defines for first pass, forward declare group and rule functions
 #define TREE_CHECK
 #define ROOT(...)
-#define RULE(name, def, ...) static check_res_t name(ast_t* ast)
-#define GROUP(name, ...)     static check_res_t name(ast_t* ast)
+#define RULE(name, def, ...) static check_res_t name(ast_t* ast, errors_t* errs)
+#define GROUP(name, ...)     static check_res_t name(ast_t* ast, errors_t* errs)
 #define LEAF                 
 
 #include "treecheckdef.h"
@@ -254,28 +254,28 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 // Defines for second pass, group and rule functions
 
 #define ROOT(...) \
-  check_res_t check_root(ast_t* ast) \
+  check_res_t check_root(ast_t* ast, errors_t* errors) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    return check_from_list(ast, rules); \
+    return check_from_list(ast, rules, errors); \
   }
 
 #define RULE(name, def, ...) \
-  static check_res_t name(ast_t* ast) \
+  static check_res_t name(ast_t* ast, errors_t* errors) \
   { \
     const token_id ids[] = { __VA_ARGS__, TK_EOF }; \
     if(!is_id_in_list(ast_id(ast), ids)) return CHK_NOT_FOUND; \
-    check_state_t state = {false, false, NULL, NULL, 0}; \
+    check_state_t state = {false, false, NULL, NULL, 0, errors}; \
     state.child = ast_child(ast); \
     def \
-    return check_extras(ast, &state); \
+    return check_extras(ast, &state, errors); \
   }
 
 #define GROUP(name, ...) \
-  static check_res_t name(ast_t* ast) \
+  static check_res_t name(ast_t* ast, errors_t* errors) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    return check_from_list(ast, rules); \
+    return check_from_list(ast, rules, errors); \
   }
 
 #define IS_SCOPE state.is_scope = true;
@@ -285,7 +285,8 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #define CHILDREN(min, max, ...) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    if(!check_children(ast, &state, rules, min, max)) return CHK_ERROR; \
+    if(!check_children(ast, &state, rules, min, max, errors)) \
+      return CHK_ERROR; \
   }
 
 #undef OPTIONAL // Annoyingly defined in various Windows headers
@@ -298,24 +299,16 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state)
 #include "treecheckdef.h"
 
 
-void enable_check_tree(bool enable)
+void check_tree(ast_t* tree, errors_t* errors)
 {
-  _enabled = enable;
-}
-
-
-void check_tree(ast_t* tree)
-{
-  if(!_enabled)
-    return;
-
 #ifdef NDEBUG
   // Keep compiler happy in release builds.
   (void)tree;
+  (void)errors;
 #else
   // Only check tree in debug builds.
   assert(tree != NULL);
-  check_res_t r = check_root(tree);
+  check_res_t r = check_root(tree, errors);
   assert(r != CHK_ERROR);
 
   // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.

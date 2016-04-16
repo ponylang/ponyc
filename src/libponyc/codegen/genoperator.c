@@ -107,7 +107,7 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
     (LLVMConstIntGetSExtValue(r_value) == 0)
     )
   {
-    ast_error(right, "constant divide or mod by zero");
+    ast_error(c->opt->check.errors, right, "constant divide or mod by zero");
     return NULL;
   }
 

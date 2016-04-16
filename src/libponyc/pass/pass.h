@@ -191,6 +191,7 @@ typedef struct pass_opt_t
   bool verify;
   bool strip_debug;
   bool print_filenames;
+  bool check_tree;
   bool docs;
   verbosity_level verbosity;
   const char* output;
