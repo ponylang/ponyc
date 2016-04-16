@@ -6,13 +6,13 @@
 #include <string.h>
 #include <stdio.h>
 
-source_t* source_open(const char* file)
+source_t* source_open(const char* file, const char** error_msgp)
 {
   FILE* fp = fopen(file, "rb");
 
   if(fp == NULL)
   {
-    errorf(file, "can't open file");
+    *error_msgp = "can't open file";
     return NULL;
   }
 
@@ -21,7 +21,7 @@ source_t* source_open(const char* file)
 
   if(size < 0)
   {
-    errorf(file, "can't determine length of file");
+    *error_msgp = "can't determine length of file";
     fclose(fp);
     return NULL;
   }
@@ -37,7 +37,7 @@ source_t* source_open(const char* file)
 
   if(read < size)
   {
-    errorf(file, "failed to read entire file");
+    *error_msgp = "failed to read entire file";
     ponyint_pool_free_size(source->len, source->m);
     POOL_FREE(source_t, source);
     fclose(fp);

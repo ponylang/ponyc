@@ -498,7 +498,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
   LLVMBasicBlockRef is_true = codegen_block(c, "");
   LLVMBasicBlockRef is_false = codegen_block(c, "");
 
-  if(!is_subtype(orig, tuple, NULL))
+  if(!is_subtype(orig, tuple, NULL, c->opt))
   {
     LLVMValueRef dynamic_count = gendesc_fieldcount(c, desc);
     LLVMValueRef static_count = LLVMConstInt(c->i32, cardinality, false);
@@ -613,11 +613,11 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   {
     // We are a tuple element. Our type is in the correct position in the
     // tuple, everything else is TK_DONTCARE.
-    if(is_matchtype(orig, tuple) != MATCHTYPE_ACCEPT)
+    if(is_matchtype(orig, tuple, c->opt) != MATCHTYPE_ACCEPT)
       return;
   } else {
     // We aren't a tuple element.
-    if(is_matchtype(orig, type) != MATCHTYPE_ACCEPT)
+    if(is_matchtype(orig, type, c->opt) != MATCHTYPE_ACCEPT)
       return;
   }
 

@@ -34,8 +34,9 @@ protected:
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void test(const char* src)
   {
+    errors_t* errors = errors_alloc();
     source_t* source = source_open_string(src);
-    lexer_t* lexer = lexer_open(source);
+    lexer_t* lexer = lexer_open(source, errors);
     token_id id = TK_LEX_ERROR;
     string actual;
 
@@ -63,6 +64,7 @@ protected:
 
     lexer_close(lexer);
     source_close(source);
+    errors_free(errors);
 
     ASSERT_STREQ(_expected.c_str(), actual.c_str());
   }

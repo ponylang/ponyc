@@ -193,7 +193,6 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
   bool r = true;
 
@@ -209,15 +208,15 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FUN:        r = expr_fun(options, ast); break;
     case TK_SEQ:        r = expr_seq(options, ast); break;
     case TK_VAR:
-    case TK_LET:        r = expr_local(ast); break;
-    case TK_BREAK:      r = expr_break(t, ast); break;
-    case TK_CONTINUE:   r = expr_continue(t, ast); break;
+    case TK_LET:        r = expr_local(options, ast); break;
+    case TK_BREAK:      r = expr_break(options, ast); break;
+    case TK_CONTINUE:   r = expr_continue(options, ast); break;
     case TK_RETURN:     r = expr_return(options, ast); break;
     case TK_IS:
     case TK_ISNT:       r = expr_identity(options, ast); break;
     case TK_ASSIGN:     r = expr_assign(options, ast); break;
-    case TK_CONSUME:    r = expr_consume(t, ast); break;
-    case TK_RECOVER:    r = expr_recover(ast); break;
+    case TK_CONSUME:    r = expr_consume(options, ast); break;
+    case TK_RECOVER:    r = expr_recover(options, ast); break;
     case TK_DOT:        r = expr_dot(options, astp); break;
     case TK_TILDE:      r = expr_tilde(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
@@ -229,21 +228,21 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TRY_NO_CHECK:
     case TK_TRY:        r = expr_try(options, ast); break;
     case TK_MATCH:      r = expr_match(options, ast); break;
-    case TK_CASES:      r = expr_cases(ast); break;
+    case TK_CASES:      r = expr_cases(options, ast); break;
     case TK_CASE:       r = expr_case(options, ast); break;
     case TK_MATCH_CAPTURE:
-                        r = expr_match_capture(ast); break;
-    case TK_TUPLE:      r = expr_tuple(ast); break;
+                        r = expr_match_capture(options, ast); break;
+    case TK_TUPLE:      r = expr_tuple(options, ast); break;
     case TK_ARRAY:      r = expr_array(options, astp); break;
     case TK_REFERENCE:  r = expr_reference(options, astp); break;
     case TK_THIS:       r = expr_this(options, ast); break;
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
-    case TK_ERROR:      r = expr_error(ast); break;
+    case TK_ERROR:      r = expr_error(options, ast); break;
     case TK_COMPILE_ERROR:
-                        r = expr_compile_error(ast); break;
+                        r = expr_compile_error(options, ast); break;
     case TK_COMPILE_INTRINSIC:
-                        r = expr_compile_intrinsic(ast); break;
+                        r = expr_compile_intrinsic(options, ast); break;
     case TK_LOCATION:   r = expr_location(options, ast); break;
     case TK_POSITIONALARGS:
     case TK_NAMEDARGS:
@@ -251,7 +250,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_UPDATEARG:  ast_inheritflags(ast); break;
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_IDENTITY:   r = expr_identityof(options, ast); break;
-    case TK_DONTCARE:   r = expr_dontcare(ast); break;
+    case TK_DONTCARE:   r = expr_dontcare(options, ast); break;
 
     case TK_LAMBDA:
       if(!expr_lambda(options, astp))
@@ -282,14 +281,14 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
   if(!r)
   {
-    assert(get_error_count() > 0);
+    assert(errors_get_count(options->check.errors) > 0);
     return AST_ERROR;
   }
 
   // Can't use ast here, it might have changed
   symtab_t* symtab = ast_get_symtab(*astp);
 
-  if(symtab != NULL && !symtab_check_all_defined(symtab))
+  if(symtab != NULL && !symtab_check_all_defined(symtab, options->check.errors))
     return AST_ERROR;
 
   return AST_OK;

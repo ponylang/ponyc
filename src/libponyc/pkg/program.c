@@ -75,14 +75,15 @@ uint32_t program_assign_pkg_id(ast_t* ast)
   return data->next_package_id++;
 }
 
-static const char* quoted_locator(ast_t* use, const char* locator)
+static const char* quoted_locator(pass_opt_t* opt, ast_t* use,
+  const char* locator)
 {
   assert(locator != NULL);
 
   if(strpbrk(locator, "\t\r\n\"'`;$|&<>%*?[]{}()") != NULL)
   {
     if(use != NULL)
-      ast_error(use, "use URI contains invalid characters");
+      ast_error(opt->check.errors, use, "use URI contains invalid characters");
 
     return NULL;
   }
@@ -102,9 +103,8 @@ bool use_library(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
   (void)name;
-  (void)options;
 
-  const char* libname = quoted_locator(use, locator);
+  const char* libname = quoted_locator(options, use, locator);
 
   if(libname == NULL)
     return false;
@@ -126,9 +126,8 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
   (void)name;
-  (void)options;
 
-  const char* libpath = quoted_locator(use, locator);
+  const char* libpath = quoted_locator(options, use, locator);
 
   if(libpath == NULL)
     return false;
@@ -145,7 +144,7 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 }
 
 
-void program_lib_build_args(ast_t* program,
+void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   const char* path_preamble, const char* rpath_preamble,
   const char* global_preamble, const char* global_postamble,
   const char* lib_premable, const char* lib_postamble)
@@ -186,7 +185,7 @@ void program_lib_build_args(ast_t* program,
   // Library paths from the command line and environment variable.
   for(strlist_t* p = package_paths(); p != NULL; p = strlist_next(p))
   {
-    const char* libpath = quoted_locator(NULL, strlist_data(p));
+    const char* libpath = quoted_locator(opt, NULL, strlist_data(p));
 
     if(libpath == NULL)
       continue;

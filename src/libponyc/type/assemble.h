@@ -34,17 +34,18 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name);
 /**
 * Add a branch type to a control structure type.
 */
-ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch);
+ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
+  ast_t* branch);
 
 /**
  * Build a type that is the union of these two types.
  */
-ast_t* type_union(ast_t* l_type, ast_t* r_type);
+ast_t* type_union(pass_opt_t* opt, ast_t* l_type, ast_t* r_type);
 
 /**
  * Build a type that is the intersection of these two types.
  */
-ast_t* type_isect(ast_t* l_type, ast_t* r_type);
+ast_t* type_isect(pass_opt_t* opt, ast_t* l_type, ast_t* r_type);
 
 /**
  * Build a type to describe the current class/actor.

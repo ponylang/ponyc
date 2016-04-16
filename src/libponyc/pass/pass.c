@@ -88,12 +88,17 @@ void pass_opt_init(pass_opt_t* options)
   memset(options, 0, sizeof(pass_opt_t));
   options->limit = PASS_ALL;
   options->verbosity = VERBOSITY_INFO;
+  options->check.errors = errors_alloc();
   frame_push(&options->check, NULL);
 }
 
 
 void pass_opt_done(pass_opt_t* options)
 {
+  // Free the error collection.
+  errors_free(options->check.errors);
+  options->check.errors = NULL;
+
   // Pop all the typechecker frames.
   while(options->check.frame != NULL)
     frame_pop(&options->check);
@@ -166,7 +171,7 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source))
+  if(!pass_parse(package, source, options->check.errors))
     return false;
 
   if(options->limit < PASS_SYNTAX)
@@ -177,7 +182,8 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
   if(ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) != AST_OK)
     return false;
 
-  check_tree(module);
+  if(options->check_tree)
+    check_tree(module, options->check.errors);
   return true;
 }
 
@@ -191,7 +197,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
-  check_tree(*astp);
+  if(options->check_tree)
+    check_tree(*astp, options->check.errors);
 
   if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
     return r;
@@ -221,10 +228,11 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!check_limit(astp, options, PASS_FINALISER, last))
     return true;
 
-  if(!pass_finalisers(*astp))
+  if(!pass_finalisers(*astp, options))
     return false;
 
-  check_tree(*astp);
+  if(options->check_tree)
+    check_tree(*astp, options->check.errors);
   return true;
 }
 

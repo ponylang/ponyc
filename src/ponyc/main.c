@@ -257,14 +257,14 @@ int main(int argc, char* argv[])
       case OPT_DEBUG: opt.release = false; break;
       case OPT_BUILDFLAG: define_build_flag(s.arg_val); break;
       case OPT_STRIP: opt.strip_debug = true; break;
-      case OPT_PATHS: package_add_paths(s.arg_val); break;
+      case OPT_PATHS: package_add_paths(s.arg_val, &opt); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_PIC: opt.pic = true; break;
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_DOCS: opt.docs = true; break;
 
       case OPT_SAFE:
-        if(!package_add_safe(s.arg_val))
+        if(!package_add_safe(s.arg_val, &opt))
           ok = false;
         break;
 
@@ -278,10 +278,10 @@ int main(int argc, char* argv[])
       case OPT_ASTPACKAGE: print_package_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
-      case OPT_IMMERR: error_set_immediate(true); break;
+      case OPT_IMMERR: errors_set_immediate(opt.check.errors, true); break;
       case OPT_VERIFY: opt.verify = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
-      case OPT_CHECKTREE: enable_check_tree(true); break;
+      case OPT_CHECKTREE: opt.check_tree = true; break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
@@ -326,7 +326,7 @@ int main(int argc, char* argv[])
 
   if(!ok)
   {
-    print_errors();
+    errors_print(opt.check.errors);
 
     if(print_usage)
       usage();
@@ -346,7 +346,7 @@ int main(int argc, char* argv[])
     }
   }
 
-  if(!ok && get_error_count() == 0)
+  if(!ok && errors_get_count(opt.check.errors) == 0)
     printf("Error: internal failure not reported\n");
 
   ponyc_shutdown(&opt);

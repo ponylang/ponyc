@@ -5,6 +5,7 @@
 
 #include <platform.h>
 #include "ast.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -20,7 +21,7 @@ PONY_EXTERN_C_BEGIN
  * If name is illegal an error will be generated.
  * The spec is supplied as a set of the above #defined flags.
  */
- bool check_id(ast_t* id_node, const char* desc, int spec);
+ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec);
 
 PONY_EXTERN_C_END
 

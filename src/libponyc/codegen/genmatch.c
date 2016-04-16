@@ -545,7 +545,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(c, pattern);
 
-  if(!is_subtype(type, param_type, NULL))
+  if(!is_subtype(type, param_type, NULL, c->opt))
   {
     // Switch to dynamic value checking.
     assert(LLVMTypeOf(value) == c->object_ptr);
@@ -566,7 +566,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(gen_localdecl(c, pattern) == NULL)
     return false;
 
-  if(!is_subtype(type, pattern_type, NULL))
+  if(!is_subtype(type, pattern_type, NULL, c->opt))
   {
     // Switch to dynamic capture.
     assert(LLVMTypeOf(value) == c->object_ptr);
@@ -722,7 +722,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     ast_t* pattern_type = ast_type(pattern);
     bool ok = true;
 
-    if(is_matchtype(match_type, pattern_type) != MATCHTYPE_ACCEPT)
+    if(is_matchtype(match_type, pattern_type, c->opt) != MATCHTYPE_ACCEPT)
     {
       // If there's no possible match, jump directly to the next block.
       LLVMBuildBr(c->builder, next_block);

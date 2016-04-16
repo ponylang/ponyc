@@ -15,14 +15,14 @@ enum
 
 static int check_body_send(ast_t* ast, bool in_final);
 
-static void show_send(ast_t* ast)
+static void show_send(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     if(ast_cansend(child) || ast_mightsend(child))
-      show_send(child);
+      show_send(opt, child);
 
     child = ast_sibling(child);
   }
@@ -30,9 +30,9 @@ static void show_send(ast_t* ast)
   if(ast_id(ast) == TK_CALL)
   {
     if(ast_cansend(ast))
-      ast_error(ast, "a message can be sent here");
+      ast_error(opt->check.errors, ast, "a message can be sent here");
     else if(ast_mightsend(ast))
-      ast_error(ast, "a message might be sent here");
+      ast_error(opt->check.errors, ast, "a message might be sent here");
   }
 }
 
@@ -189,7 +189,7 @@ static int check_body_send(ast_t* ast, bool in_final)
   return r;
 }
 
-static bool entity_finaliser(ast_t* entity, const char* final)
+static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
 {
   ast_t* ast = ast_get(entity, final, NULL);
 
@@ -201,15 +201,15 @@ static bool entity_finaliser(ast_t* entity, const char* final)
 
   if((r & FINAL_CAN_SEND) != 0)
   {
-    ast_error(ast, "_final cannot create actors or send messages");
-    show_send(body);
+    ast_error(opt->check.errors, ast, "_final cannot create actors or send messages");
+    show_send(opt, body);
     return false;
   }
 
   return true;
 }
 
-static bool module_finalisers(ast_t* module, const char* final)
+static bool module_finalisers(pass_opt_t* opt, ast_t* module, const char* final)
 {
   ast_t* entity = ast_child(module);
   bool ok = true;
@@ -222,7 +222,7 @@ static bool module_finalisers(ast_t* module, const char* final)
       case TK_CLASS:
       case TK_STRUCT:
       case TK_PRIMITIVE:
-        if(!entity_finaliser(entity, final))
+        if(!entity_finaliser(opt, entity, final))
           ok = false;
         break;
 
@@ -235,14 +235,15 @@ static bool module_finalisers(ast_t* module, const char* final)
   return ok;
 }
 
-static bool package_finalisers(ast_t* package, const char* final)
+static bool package_finalisers(pass_opt_t* opt, ast_t* package,
+  const char* final)
 {
   ast_t* module = ast_child(package);
   bool ok = true;
 
   while(module != NULL)
   {
-    if(!module_finalisers(module, final))
+    if(!module_finalisers(opt, module, final))
       ok = false;
 
     module = ast_sibling(module);
@@ -251,7 +252,7 @@ static bool package_finalisers(ast_t* package, const char* final)
   return ok;
 }
 
-bool pass_finalisers(ast_t* program)
+bool pass_finalisers(ast_t* program, pass_opt_t* options)
 {
   ast_t* package = ast_child(program);
   const char* final = stringtab("_final");
@@ -259,7 +260,7 @@ bool pass_finalisers(ast_t* program)
 
   while(package != NULL)
   {
-    if(!package_finalisers(package, final))
+    if(!package_finalisers(options, package, final))
       ok = false;
 
     package = ast_sibling(package);

@@ -61,8 +61,10 @@ protected:
   void test_error(const char* src, const char* pass);
 
   // Check that the given source fails when compiled to the specified pass,
-  // exactly N errors are produced, and the errors match expected text.
-  void test_errors_1(const char* src, const char* pass, const char* err1);
+  // that a specific number of errors are produced, and that the errors match
+  // expected text, given as a NULL-terminated array of NULL-terminated strings.
+  void test_expected_errors(const char* src, const char* pass,
+    const char** errors);
 
   // Check that the 2 given sources compile to give the same AST for the first
   // package
@@ -101,7 +103,8 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, ast_t** out_package);
+    const char* package_name, bool check_good, const char** expected_errors,
+    ast_t** out_package);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.

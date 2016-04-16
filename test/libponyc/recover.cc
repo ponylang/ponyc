@@ -5,7 +5,10 @@
 
 
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
-#define TEST_ERRORS_1(src, err1) DO(test_errors_1(src, "expr", err1));
+
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
 
 
 class RecoverTest : public PassTest

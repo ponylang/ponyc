@@ -121,7 +121,8 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
   }
 }
 
-static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
+static ast_t* get_fun(compile_t* c, ast_t* type, const char* name,
+  ast_t* typeargs)
 {
   ast_t* this_type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   ast_t* fun = lookup(NULL, NULL, this_type, name);
@@ -131,7 +132,7 @@ static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
   if(typeargs != NULL)
   {
     ast_t* typeparams = ast_childidx(fun, 2);
-    ast_t* r_fun = reify(fun, typeparams, typeargs);
+    ast_t* r_fun = reify(fun, typeparams, typeargs, c->opt);
     ast_free_unattached(fun);
     fun = r_fun;
     assert(fun != NULL);
@@ -172,7 +173,7 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
     return;
 
   // Get a reified function.
-  ast_t* fun = get_fun(t->ast, name, typeargs);
+  ast_t* fun = get_fun(c, t->ast, name, typeargs);
 
   if(fun == NULL)
     return;
@@ -271,12 +272,13 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
 bool genheader(compile_t* c)
 {
   // Open a header file.
-  const char* file_h = suffix_filename(c->opt->output, "", c->filename, ".h");
+  const char* file_h =
+    suffix_filename(c, c->opt->output, "", c->filename, ".h");
   FILE* fp = fopen(file_h, "wt");
 
   if(fp == NULL)
   {
-    errorf(NULL, "couldn't write to %s", file_h);
+    errorf(c->opt->check.errors, NULL, "couldn't write to %s", file_h);
     return false;
   }
 

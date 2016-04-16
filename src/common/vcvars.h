@@ -1,6 +1,8 @@
 #ifndef PLATFORM_VCVARS_H
 #define PLATFORM_VCVARS_H
 
+typedef struct errors_t errors_t;
+
 typedef struct vcvars_t
 {
   char link[MAX_PATH];
@@ -9,6 +11,6 @@ typedef struct vcvars_t
   char msvcrt[MAX_PATH];
 } vcvars_t;
 
-bool vcvars_get(vcvars_t* vcvars);
+bool vcvars_get(vcvars_t* vcvars, errors_t* errors);
 
 #endif

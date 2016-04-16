@@ -1,5 +1,6 @@
 #include "frame.h"
 #include "ast.h"
+#include "error.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
