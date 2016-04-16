@@ -109,6 +109,17 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       t->frame->recover = ast;
       break;
 
+    case TK_ASSIGN:
+      pop = push_frame(t);
+      t->frame->orig_assign = ast_dup(ast);
+      break;
+
+    case TK_CALL:
+    case TK_FFICALL:
+      pop = push_frame(t);
+      t->frame->orig_call = ast_dup(ast);
+      break;
+
     default:
     {
       ast_t* parent = ast_parent(ast);
@@ -274,6 +285,12 @@ void frame_pop(typecheck_t* t)
 {
   typecheck_frame_t* f = t->frame;
   assert(f != NULL);
+
+  // Free any orig_* ASTs that we duped in this frame.
+  if((f->orig_assign != NULL) && (f->prev->orig_assign != f->orig_assign))
+    ast_free_unattached(f->orig_assign);
+  if((f->orig_call != NULL) && (f->prev->orig_call != f->orig_call))
+    ast_free_unattached(f->orig_call);
 
   t->frame = f->prev;
   POOL_FREE(typecheck_frame_t, f);

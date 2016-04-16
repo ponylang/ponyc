@@ -9,6 +9,7 @@ typedef struct errors_t errors_t;
 
 typedef struct typecheck_frame_t
 {
+  // Saved references to specific parts of the surrounding AST.
   ast_t* package;
   ast_t* module;
   ast_t* type;
@@ -33,6 +34,11 @@ typedef struct typecheck_frame_t
   ast_t* ifdef_cond;
   ast_t* ifdef_clause;
 
+  // Saved copies of specific AST parts (before they are mutated by this pass).
+  ast_t* orig_assign;
+  ast_t* orig_call;
+
+  // The higher-level frame that this frame sits on top of.
   struct typecheck_frame_t* prev;
 } typecheck_frame_t;
 
