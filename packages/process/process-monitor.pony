@@ -37,7 +37,6 @@ type ProcessError is
   | WriteError
   | Unsupported
   )    
-
   
 actor ProcessMonitor
   """
@@ -99,7 +98,6 @@ actor ProcessMonitor
     else
       compile_error "unsupported platform"
     end
-
     
   fun _child(path: String, args: Array[String] val, vars: Array[String] val) =>
     """
@@ -128,7 +126,6 @@ actor ProcessMonitor
         @exit[None](I32(-1))
       end
     end
-
       
   fun ref _parent() =>
     """
@@ -150,7 +147,6 @@ actor ProcessMonitor
       @close[I32](_stderr_write)
     end
 
-
   fun _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
     """
     Convert an array of String parameters into an array of
@@ -162,7 +158,6 @@ actor ProcessMonitor
     end
     argv.push(Pointer[U8]) // nullpointer to terminate list of args
     argv
-
 
   fun _dup2(oldfd: U32, newfd: U32) =>
     """
@@ -177,7 +172,6 @@ actor ProcessMonitor
         @exit[None](I32(-1))
       end
     end
-
     
   fun _make_pipe(): (U32, U32) ? =>
     """
@@ -194,14 +188,12 @@ actor ProcessMonitor
       (U32(0), U32(0))
     end
 
-
   be print(data: ByteSeq) =>
     """
     Print some bytes and insert a newline afterwards.
     """
     write(data)
     write("\n")
-
 
   be write(data: ByteSeq) =>
     """
@@ -214,7 +206,6 @@ actor ProcessMonitor
         _notifier.failed(WriteError)
       end
     end
-    
 
   be printv(data: ByteSeqIter) =>
     """
@@ -223,7 +214,6 @@ actor ProcessMonitor
     for bytes in data.values() do
       print(bytes)
     end
-
     
   be writev(data: ByteSeqIter) =>
     """
@@ -237,8 +227,8 @@ actor ProcessMonitor
     """
     Close all pipes to the forked process and wait for the child to exit.
     """
-    _close()
-
+    @close[I32](_stdin_write)
+    _try_shutdown()
 
   fun _create_asio_event(fd: U32): AsioEventID =>
     """
@@ -250,7 +240,6 @@ actor ProcessMonitor
       AsioEvent.none()
     end
 
-
   fun _set_o_nonblock(fd: U32) ? =>
     """
     Set the O_NONBLOCK flag on a file descriptor to enable async operations.
@@ -260,7 +249,6 @@ actor ProcessMonitor
         error
       end
     end
-
   
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
@@ -285,7 +273,6 @@ actor ProcessMonitor
       end
     end
     _try_shutdown()
-
     
   fun ref _close() =>
     """ 
@@ -323,7 +310,6 @@ actor ProcessMonitor
       return
     end
     _close()
-
     
   fun ref _pending_reads(fd: U32): Bool =>
     """
@@ -369,7 +355,6 @@ actor ProcessMonitor
     else
       true
     end
-
     
   be _read_again(fd: U32) =>
     """
@@ -379,9 +364,3 @@ actor ProcessMonitor
     | _stdout_read => _stdout_open = _pending_reads(fd)
     | _stderr_read => _stderr_open = _pending_reads(fd)
     end
-  
-    
-
-
-
-  

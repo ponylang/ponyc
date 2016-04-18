@@ -28,5 +28,3 @@ interface ProcessNotify
     We return the exit code of the child process.
     """
     None
-
- 

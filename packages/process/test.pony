@@ -61,7 +61,6 @@ class iso _TestStderr is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-    
 class iso _TestWc is UnitTest
   fun name(): String =>
     "capturing STDOUT and STDERR of forked wc process"
@@ -90,36 +89,43 @@ class iso _TestWc is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-
 class ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
   """
   let _e: String
   let _h: TestHelper
-
+  var _complete: Bool = false
+  var _d_stdout: String = ""
+  var _d_stderr: String = ""
   
   new iso create(e: String, h: TestHelper) =>
     _e = e
     _h = h
-
+    
   fun ref stdout(data: Array[U8] iso) =>
     """
     Called when new data is received on STDOUT of the forked process
     """
-    let d = String.from_array(consume data)
-    _h.log("in received_stdout: " + d)
+    _d_stdout = _d_stdout + String.from_array(consume data)
+    _h.log("in received_stdout: " + _d_stdout)
     _h.log("should match:       " + _e)
-    _h.assert_eq[String](_e, d)
-
+    if _d_stdout.size() == _e.size() then
+      _h.assert_eq[String](_e, _d_stdout)
+      _complete = true
+    end
+    
   fun ref stderr(data: Array[U8] iso) =>
     """
     Called when new data is received on STDERR of the forked process
     """
-    let d = String.from_array(consume data)
-    _h.log("in received_stderr: " + d)
-    _h.log("should match:       " + _e)
-    _h.assert_eq[String](_e, d)
+    _d_stderr = _d_stderr + String.from_array(consume data)
+    _h.log("in received_stderr: '" + _d_stderr + "'")
+    _h.log("should match:       '" + _e + "'")
+    if _d_stderr.size() == _e.size() then
+      _h.assert_eq[String](_e, _d_stderr)
+      _complete = true
+    end
     
   fun ref failed(err: ProcessError) =>
     """
@@ -147,6 +153,8 @@ class ProcessClient is ProcessNotify
     We return the exit code of the child process.
     """
     _h.log("Child exit code: " + child_exit_code.string())
-    _h.complete(true)
-
-  
+    if _complete then
+      _h.complete(true)
+    else
+      _h.complete(false)
+    end
