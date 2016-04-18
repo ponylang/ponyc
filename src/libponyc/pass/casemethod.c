@@ -52,7 +52,7 @@ class C
 
 // Make a skeleton wrapper method based on the given case method.
 // Returns: created method, NULL on error.
-static ast_t* make_match_wrapper(ast_t* case_method)
+static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
 {
   assert(case_method != NULL);
 
@@ -64,7 +64,8 @@ static ast_t* make_match_wrapper(ast_t* case_method)
 
   if(ast_child(params) == NULL)
   {
-    ast_error(params, "case method must have at least one parameter");
+    ast_error(opt->check.errors, params,
+      "case method must have at least one parameter");
     return NULL;
   }
 
@@ -134,7 +135,7 @@ static ast_t* make_match_wrapper(ast_t* case_method)
 // and generate the pattern element.
 // Returns: true on success, false on error.
 static bool param_with_type(ast_t* case_param, ast_t* match_param,
-  ast_t* pattern)
+  ast_t* pattern, pass_opt_t* opt)
 {
   assert(case_param != NULL);
   assert(match_param != NULL);
@@ -145,8 +146,9 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
 
   if(ast_id(case_id) != TK_ID)
   {
-    ast_error(case_id, "expected parameter name for case method. If this is "
-      "meant to be a value to match on, do not specify parameter type");
+    ast_error(opt->check.errors, case_id, "expected parameter name for "
+      "case method. If this is meant to be a value to match on, do not "
+      "specify parameter type");
     return false;
   }
 
@@ -166,8 +168,9 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
     // Combine new case param with existing match param.
     if(ast_name(case_id) != ast_name(match_id))
     {
-      ast_error(case_id, "parameter name differs between case methods");
-      ast_error(match_id, "clashing name here");
+      ast_error(opt->check.errors, case_id,
+        "parameter name differs between case methods");
+      ast_error_continue(opt->check.errors, match_id, "clashing name here");
       return false;
     }
 
@@ -176,9 +179,10 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
       // This case provides a default argument.
       if(ast_id(match_def_arg) != TK_NONE)
       {
-        ast_error(case_def_arg,
+        ast_error(opt->check.errors, case_def_arg,
           "multiple defaults provided for case method parameter");
-        ast_error(match_def_arg, "another default defined here");
+        ast_error_continue(opt->check.errors, match_def_arg,
+          "another default defined here");
         return false;
       }
 
@@ -207,7 +211,8 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
 // specified.
 // Check the case parameter and generate the pattern element.
 // Returns: true on success, false on error.
-static bool param_without_type(ast_t* case_param, ast_t* pattern)
+static bool param_without_type(ast_t* case_param, ast_t* pattern,
+  pass_opt_t* opt)
 {
   assert(case_param != NULL);
   assert(pattern != NULL);
@@ -217,7 +222,7 @@ static bool param_without_type(ast_t* case_param, ast_t* pattern)
 
   if(ast_id(def_arg) != TK_NONE)
   {
-    ast_error(type,
+    ast_error(opt->check.errors, type,
       "cannot specify default argument for match value parameter");
     return false;
   }
@@ -245,7 +250,8 @@ static bool param_without_type(ast_t* case_param, ast_t* pattern)
 // Combine and check the case parameters against the existing match parameters
 // and generate the match pattern to go in the worker method.
 // Returns: match pattern, NULL on error.
-static ast_t* process_params(ast_t* match_params, ast_t* case_params)
+static ast_t* process_params(ast_t* match_params, ast_t* case_params,
+  pass_opt_t* opt)
 {
   assert(match_params != NULL);
   assert(case_params != NULL);
@@ -263,13 +269,13 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params)
     if(ast_id(type) != TK_NONE)
     {
       // We have a parameter.
-      if(!param_with_type(case_param, match_param, pattern))
+      if(!param_with_type(case_param, match_param, pattern, opt))
         ok = false;
     }
     else
     {
       // We have a value to match.
-      if(!param_without_type(case_param, pattern))
+      if(!param_without_type(case_param, pattern, opt))
         ok = false;
     }
 
@@ -280,8 +286,10 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params)
 
   if(case_param != NULL || match_param != NULL)
   {
-    ast_error(case_params, "differing number of parameters to case methods");
-    ast_error(match_params, "clashing parameter count here");
+    ast_error(opt->check.errors, case_params,
+      "differing number of parameters to case methods");
+    ast_error_continue(opt->check.errors, match_params,
+      "clashing parameter count here");
     ok = false;
   }
 
@@ -309,12 +317,15 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params)
 // Generate match operand, worker parameters and worker call arguments.
 // Returns: match operand, NULL on failure.
 static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
-  ast_t* call_args, const char* name, typecheck_t* t)
+  ast_t* call_args, const char* name, pass_opt_t* opt)
 {
   assert(match_params != NULL);
   assert(worker_params != NULL);
   assert(call_args != NULL);
   assert(name != NULL);
+  assert(opt != NULL);
+
+  typecheck_t* t = &opt->check;
   assert(t != NULL);
 
   ast_t* match_operand = ast_from(match_params, TK_TUPLE);
@@ -329,7 +340,7 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
     if(ast_id(id) == TK_NONE)
     {
       assert(ast_id(type) == TK_NONE);
-      ast_error(p,
+      ast_error(opt->check.errors, p,
         "name and type not specified for parameter " __zu
         " of case function %s",
         count, name);
@@ -391,7 +402,8 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
 // Combine and check the case type parameter against the existing match type
 // parameter.
 // Returns: true on success, false on error.
-static bool process_t_param(ast_t* case_param, ast_t* match_param)
+static bool process_t_param(ast_t* case_param, ast_t* match_param,
+  pass_opt_t* opt)
 {
   assert(case_param != NULL);
   assert(match_param != NULL);
@@ -415,8 +427,9 @@ static bool process_t_param(ast_t* case_param, ast_t* match_param)
     // Combine new case param with existing match param.
     if(ast_name(case_id) != ast_name(match_id))
     {
-      ast_error(case_id, "type parameter name differs between case methods");
-      ast_error(match_id, "clashing name here");
+      ast_error(opt->check.errors, case_id,
+        "type parameter name differs between case methods");
+      ast_error_continue(opt->check.errors, match_id, "clashing name here");
       return false;
     }
 
@@ -425,9 +438,10 @@ static bool process_t_param(ast_t* case_param, ast_t* match_param)
       // This case provides a default argument.
       if(ast_id(match_def_type) != TK_NONE)
       {
-        ast_error(case_def_type,
+        ast_error(opt->check.errors, case_def_type,
           "multiple defaults provided for case method type parameter");
-        ast_error(match_def_type, "another default defined here");
+        ast_error_continue(opt->check.errors, match_def_type,
+          "another default defined here");
         return false;
       }
 
@@ -461,7 +475,8 @@ static bool process_t_param(ast_t* case_param, ast_t* match_param)
 // Combine and check the case type parameters against the existing match type
 // parameters.
 // Returns: true on success, false on error.
-static bool process_t_params(ast_t* match_params, ast_t* case_params)
+static bool process_t_params(ast_t* match_params, ast_t* case_params,
+  pass_opt_t* opt)
 {
   assert(match_params != NULL);
   assert(case_params != NULL);
@@ -472,7 +487,7 @@ static bool process_t_params(ast_t* match_params, ast_t* case_params)
 
   while(case_param != NULL && match_param != NULL)
   {
-    if(!process_t_param(case_param, match_param))
+    if(!process_t_param(case_param, match_param, opt))
       ok = false;
 
     case_param = ast_sibling(case_param);
@@ -481,9 +496,10 @@ static bool process_t_params(ast_t* match_params, ast_t* case_params)
 
   if(case_param != NULL || match_param != NULL)
   {
-    ast_error(case_params,
+    ast_error(opt->check.errors, case_params,
       "differing number of type parameters to case methods");
-    ast_error(match_params, "clashing type parameter count here");
+    ast_error_continue(opt->check.errors, match_params,
+      "clashing type parameter count here");
     ok = false;
   }
 
@@ -516,7 +532,8 @@ static void build_t_params(ast_t* match_t_params,
 // Add the given case method into the given match method wrapper and check the
 // are compatible.
 // Returns: match case for worker method or NULL on error.
-static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
+static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
+  pass_opt_t* opt)
 {
   assert(match_method != NULL);
   assert(case_method != NULL);
@@ -535,9 +552,9 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
 
   if(ast_id(case_method) != ast_id(match_method))
   {
-    ast_error(case_method,
+    ast_error(opt->check.errors, case_method,
       "cannot mix fun and be cases in a single match method");
-    ast_error(match_method, "clashing method here");
+    ast_error_continue(opt->check.errors, match_method, "clashing method here");
     ok = false;
   }
 
@@ -545,8 +562,10 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
   {
     if(ast_id(case_cap) != ast_id(match_cap))
     {
-      ast_error(case_cap, "differing receiver capabilities on case methods");
-      ast_error(match_cap, "clashing capability here");
+      ast_error(opt->check.errors, case_cap,
+        "differing receiver capabilities on case methods");
+      ast_error_continue(opt->check.errors, match_cap,
+        "clashing capability here");
       ok = false;
     }
 
@@ -569,10 +588,10 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
     // If any case throws the match does too.
     ast_setid(match_question, TK_QUESTION);
 
-  if(!process_t_params(match_t_params, case_t_params))
+  if(!process_t_params(match_t_params, case_t_params, opt))
     ok = false;
 
-  ast_t* pattern = process_params(match_params, case_params);
+  ast_t* pattern = process_params(match_params, case_params, opt);
 
   if(!ok || pattern == NULL)
   {
@@ -601,14 +620,17 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method)
 // Generate wrapper and worker methods and append them to the given list.
 // Returns: true on success, false on failure.
 static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
-  const char* name, typecheck_t* t)
+  const char* name, pass_opt_t* opt)
 {
   assert(first_case_method != NULL);
   assert(members != NULL);
   assert(name != NULL);
+  assert(opt != NULL);
+
+  typecheck_t* t = &opt->check;
   assert(t != NULL);
 
-  ast_t* wrapper = make_match_wrapper(first_case_method);
+  ast_t* wrapper = make_match_wrapper(first_case_method, opt);
 
   if(wrapper == NULL)
     return false;
@@ -627,7 +649,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
     if(p_name == name)
     {
       // This method is in the case set.
-      ast_t* case_ast = add_case_method(wrapper, p);
+      ast_t* case_ast = add_case_method(wrapper, p, opt);
 
       if(case_ast == NULL)
       {
@@ -647,7 +669,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
   ast_t* worker_params = ast_from(match_params, TK_PARAMS);
   ast_t* call_args = ast_from(match_params, TK_POSITIONALARGS);
   ast_t* match_operand = build_params(match_params, worker_params, call_args,
-    name, t);
+    name, opt);
 
   if(match_operand == NULL)
   {
@@ -726,8 +748,9 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
 
 
 // Sugar any case methods in the given entity.
-ast_result_t sugar_case_methods(typecheck_t* t, ast_t* entity)
+ast_result_t sugar_case_methods(pass_opt_t* opt, ast_t* entity)
 {
+  assert(opt != NULL);
   assert(entity != NULL);
 
   ast_result_t result = AST_OK;
@@ -752,7 +775,7 @@ ast_result_t sugar_case_methods(typecheck_t* t, ast_t* entity)
           if(q_name == p_name)
           {
             // p's name is repeated, it's a case method, get a match method.
-            if(!sugar_case_method(p, members, p_name, t))
+            if(!sugar_case_method(p, members, p_name, opt))
               result = AST_ERROR;
 
             cases_found = true;

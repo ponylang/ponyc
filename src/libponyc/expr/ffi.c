@@ -58,7 +58,7 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     errorframe_t info = NULL;
     if((a_type != NULL) &&
       !void_star_param(p_type, a_type) &&
-      !is_subtype(a_type, p_type, &info))
+      !is_subtype(a_type, p_type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
@@ -67,7 +67,7 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       ast_error_frame(&frame, arg, "argument type: %s",
         ast_print_type(a_type));
       errorframe_append(&frame, &info);
-      errorframe_report(&frame);
+      errorframe_report(&frame, opt->check.errors);
       return AST_ERROR;
     }
 
@@ -77,13 +77,13 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   if(arg != NULL && param == NULL)
   {
-    ast_error(arg, "too many arguments");
+    ast_error(opt->check.errors, arg, "too many arguments");
     return AST_ERROR;
   }
 
   if(param != NULL && ast_id(param) != TK_ELLIPSIS)
   {
-    ast_error(named_args, "too few arguments");
+    ast_error(opt->check.errors, named_args, "too few arguments");
     return AST_ERROR;
   }
 
@@ -93,7 +93,8 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     if((a_type != NULL) && is_type_literal(a_type))
     {
-      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
+      ast_error(opt->check.errors, arg,
+        "Cannot pass number literals as unchecked FFI arguments");
       return AST_ERROR;
     }
   }
@@ -104,20 +105,21 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   errorframe_t info = NULL;
   if((call_ret_type != NULL) &&
-    !is_eqtype(call_ret_type, decl_ret_type, &info))
+    !is_eqtype(call_ret_type, decl_ret_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, call_ret_type,
       "call return type does not match declaration");
     errorframe_append(&frame, &info);
-    errorframe_report(&frame);
+    errorframe_report(&frame, opt->check.errors);
     return AST_ERROR;
   }
 
   // Check partiality
   if((ast_id(decl_error) == TK_NONE) && (ast_id(call_error) != TK_NONE))
   {
-    ast_error(call_error, "call is partial but the declaration is not");
+    ast_error(opt->check.errors, call_error,
+      "call is partial but the declaration is not");
     return AST_ERROR;
   }
 
@@ -139,7 +141,7 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
   if(!package_allow_ffi(&opt->check))
   {
-    ast_error(ast, "This package isn't allowed to do C FFI");
+    ast_error(opt->check.errors, ast, "This package isn't allowed to do C FFI");
     return AST_FATAL;
   }
 
@@ -160,7 +162,8 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
 
     if((a_type != NULL) && is_type_literal(a_type))
     {
-      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
+      ast_error(opt->check.errors, arg,
+        "Cannot pass number literals as unchecked FFI arguments");
       return AST_ERROR;
     }
   }
@@ -169,7 +172,8 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
 
   if(return_type == NULL)
   {
-    ast_error(name, "FFIs without declarations must specify return type");
+    ast_error(opt->check.errors, name,
+      "FFIs without declarations must specify return type");
     return AST_ERROR;
   }
 

@@ -121,31 +121,17 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
   }
 }
 
-static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
+static bool emit_fun(ast_t* fun)
 {
-  ast_t* this_type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
-  ast_t* fun = lookup(NULL, NULL, this_type, name);
-  ast_free_unattached(this_type);
-  assert(fun != NULL);
-
-  if(typeargs != NULL)
-  {
-    ast_t* typeparams = ast_childidx(fun, 2);
-    ast_t* r_fun = reify(fun, typeparams, typeargs);
-    ast_free_unattached(fun);
-    fun = r_fun;
-    assert(fun != NULL);
-  }
-
   // No signature for any function with a tuple argument or return value, or
   // any function that might raise an error.
   AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error);
 
   if(ast_id(can_error) == TK_QUESTION)
-    return NULL;
+    return false;
 
   if(ast_id(result) == TK_TUPLETYPE)
-    return NULL;
+    return false;
 
   ast_t* param = ast_child(params);
 
@@ -154,31 +140,22 @@ static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
     AST_GET_CHILDREN(param, p_id, p_type);
 
     if(ast_id(p_type) == TK_TUPLETYPE)
-      return NULL;
+      return false;
 
     param = ast_sibling(param);
   }
 
-  return fun;
+  return true;
 }
 
 static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
-  const char* name, ast_t* typeargs)
+  reachable_method_t* m)
 {
-  const char* funname = genname_fun(t->name, name, typeargs);
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
-
-  if(func == NULL)
+  if(!emit_fun(m->r_fun))
     return;
 
-  // Get a reified function.
-  ast_t* fun = get_fun(t->ast, name, typeargs);
-
-  if(fun == NULL)
-    return;
-
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, rtype, can_error, body,
-    docstring);
+  AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, rtype, can_error,
+    body, docstring);
 
   // Print the docstring if we have one.
   if(ast_id(docstring) == TK_STRING)
@@ -193,9 +170,9 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
 
   // Print the function signature.
   print_type_name(c, buf, rtype);
-  printbuf(buf, " %s", funname);
+  printbuf(buf, " %s", m->full_name);
 
-  switch(ast_id(fun))
+  switch(ast_id(m->r_fun))
   {
     case TK_NEW:
     case TK_BE:
@@ -214,11 +191,8 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
   printbuf(buf, "(");
   print_type_name(c, buf, t->ast);
   printbuf(buf, " self");
-
   print_params(c, buf, params);
-
   printbuf(buf, ");\n\n");
-  ast_free_unattached(fun);
 }
 
 static void print_methods(compile_t* c, reachable_type_t* t, printbuf_t* buf)
@@ -232,7 +206,7 @@ static void print_methods(compile_t* c, reachable_type_t* t, printbuf_t* buf)
     reachable_method_t* m;
 
     while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
-      print_method(c, buf, t, n->name, m->typeargs);
+      print_method(c, buf, t, m);
   }
 }
 
@@ -271,12 +245,13 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
 bool genheader(compile_t* c)
 {
   // Open a header file.
-  const char* file_h = suffix_filename(c->opt->output, "", c->filename, ".h");
+  const char* file_h =
+    suffix_filename(c, c->opt->output, "", c->filename, ".h");
   FILE* fp = fopen(file_h, "wt");
 
   if(fp == NULL)
   {
-    errorf(NULL, "couldn't write to %s", file_h);
+    errorf(c->opt->check.errors, NULL, "couldn't write to %s", file_h);
     return false;
   }
 

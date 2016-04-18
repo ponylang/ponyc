@@ -4,7 +4,6 @@
 #include <platform.h>
 
 #include "lexint.h"
-#include "error.h"
 #include "source.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -116,6 +115,7 @@ typedef enum token_id
   TK_CAP_READ,
   TK_CAP_SEND,
   TK_CAP_SHARE,
+  TK_CAP_ALIAS,
   TK_CAP_ANY,
 
   TK_ISO_BIND,
@@ -128,6 +128,7 @@ typedef enum token_id
   TK_CAP_READ_BIND,
   TK_CAP_SEND_BIND,
   TK_CAP_SHARE_BIND,
+  TK_CAP_ALIAS_BIND,
   TK_CAP_ANY_BIND,
 
   TK_THIS,

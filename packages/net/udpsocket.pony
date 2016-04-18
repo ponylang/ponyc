@@ -85,10 +85,12 @@ actor UDPSocket
     """
     Enable or disable broadcasting from this socket.
     """
-    if _ip.ip4() then
-      @pony_os_broadcast[None](_fd, state)
-    elseif _ip.ip6() then
-      @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
+    if not _closed then
+      if _ip.ip4() then
+        @pony_os_broadcast[None](_fd, state)
+      elseif _ip.ip6() then
+        @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
+      end
     end
 
   be set_multicast_interface(from: String = "") =>
@@ -97,7 +99,9 @@ actor UDPSocket
     for multicast addresses. This can be used to force a specific interface. To
     revert to allowing the OS to choose, call with an empty string.
     """
-    @pony_os_multicast_interface[None](_fd, from.cstring())
+    if not _closed then
+      @pony_os_multicast_interface[None](_fd, from.cstring())
+    end
 
   be set_multicast_loopback(loopback: Bool) =>
     """
@@ -105,20 +109,26 @@ actor UDPSocket
     sending system if it has subscribed to that address. Disabling loopback
     prevents this.
     """
-    @pony_os_multicast_loopback[None](_fd, loopback)
+    if not _closed then
+      @pony_os_multicast_loopback[None](_fd, loopback)
+    end
 
   be set_multicast_ttl(ttl: U8) =>
     """
     Set the TTL for multicast sends. Defaults to 1.
     """
-    @pony_os_multicast_ttl[None](_fd, ttl)
+    if not _closed then
+      @pony_os_multicast_ttl[None](_fd, ttl)
+    end
 
   be multicast_join(group: String, to: String = "") =>
     """
     Add a multicast group. This can be limited to packets arriving on a
     specific interface.
     """
-    @pony_os_multicast_join[None](_fd, group.cstring(), to.cstring())
+    if not _closed then
+      @pony_os_multicast_join[None](_fd, group.cstring(), to.cstring())
+    end
 
   be multicast_leave(group: String, to: String = "") =>
     """
@@ -126,13 +136,17 @@ actor UDPSocket
     specific interface. No attempt is made to check that this socket has
     previously added this group.
     """
-    @pony_os_multicast_leave[None](_fd, group.cstring(), to.cstring())
+    if not _closed then
+      @pony_os_multicast_leave[None](_fd, group.cstring(), to.cstring())
+    end
 
   be dispose() =>
     """
     Stop listening.
     """
-    _close()
+    if not _closed then
+      _close()
+    end
 
   fun local_address(): IPAddress =>
     """

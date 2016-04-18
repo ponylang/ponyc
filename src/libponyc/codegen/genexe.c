@@ -24,7 +24,7 @@ static bool need_primitive_call(compile_t* c, const char* method)
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    if(t->underlying != TK_TUPLETYPE)
+    if(t->underlying != TK_PRIMITIVE)
       continue;
 
     reachable_method_name_t* n = reach_method_name(t, method);
@@ -38,13 +38,8 @@ static bool need_primitive_call(compile_t* c, const char* method)
   return false;
 }
 
-static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
+static void primitive_call(compile_t* c, const char* method)
 {
-  size_t count = 1;
-
-  if(arg != NULL)
-    count++;
-
   size_t i = HASHMAP_BEGIN;
   reachable_type_t* t;
 
@@ -53,16 +48,15 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reachable_method_t* m = reach_method(t, method, NULL);
+    reachable_method_t* m = reach_method(t, TK_NONE, method, NULL);
 
     if(m == NULL)
       continue;
 
-    LLVMValueRef args[2];
-    args[0] = t->instance;
-    args[1] = arg;
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
 
-    codegen_call(c, m->func, args, count);
+    if(c->str__final == method)
+      LLVMSetInstructionCallConv(value, LLVMCCallConv);
   }
 }
 
@@ -114,20 +108,17 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   LLVMValueRef main_actor = create_main(c, t_main, ctx);
 
   // Create an Env on the main actor's heap.
-  const char* env_name = "Env";
-  const char* env_create = genname_fun(env_name, "_create", NULL);
+  reachable_method_t* m = reach_method(t_env, TK_NONE, c->str__create, NULL);
 
   LLVMValueRef env_args[4];
   env_args[0] = gencall_alloc(c, t_env);
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-
-  LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
-  LLVMSetInstructionCallConv(env, c->callconv);
+  LLVMValueRef env = codegen_call(c, m->func, env_args, 4);
 
   // Run primitive initialisers using the main actor's heap.
-  primitive_call(c, c->str__init, env);
+  primitive_call(c, c->str__init);
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -155,10 +146,9 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   args[0] = ctx;
   gencall_runtime(c, "pony_gc_send", args, 1, "");
 
-  const char* env_trace = genname_trace(env_name);
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  args[2] = t_env->trace_fn;
   args[3] = LLVMConstInt(c->i32, 1, false);
   gencall_runtime(c, "pony_traceobject", args, 4, "");
 
@@ -180,7 +170,7 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   if(need_primitive_call(c, c->str__final))
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
-    primitive_call(c, c->str__final, NULL);
+    primitive_call(c, c->str__final);
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
   }
@@ -197,19 +187,24 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
+  errors_t* errors = c->opt->check.errors;
+
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(c->opt->triple, '-');
 
   if(arch == NULL)
   {
-    errorf(NULL, "couldn't determine architecture from %s", c->opt->triple);
+    errorf(errors, NULL, "couldn't determine architecture from %s",
+      c->opt->triple);
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", NULL, "", "", "-l", "");
+  program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t arch_len = arch - c->opt->triple;
@@ -228,7 +223,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -246,17 +241,19 @@ static bool link_exe(compile_t* c, ast_t* program,
     snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
     if(system(dsym_cmd) != 0)
-      errorf(NULL, "unable to create dsym");
+      errorf(errors, NULL, "unable to create dsym");
 
     ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "-L", "-Wl,-rpath,", "-Wl,--start-group ",
-    "-Wl,--end-group ", "-l", "");
+  program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
+    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
@@ -286,7 +283,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -295,17 +292,18 @@ static bool link_exe(compile_t* c, ast_t* program,
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
-  if(!vcvars_get(&vcvars))
+  if(!vcvars_get(&vcvars, errors))
   {
-    errorf(NULL, "unable to link: no vcvars");
+    errorf(errors, NULL, "unable to link: no vcvars");
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
+  const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
     ".exe");
   PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
 
-  program_lib_build_args(program, "/LIBPATH:", NULL, "", "", "", ".lib");
+  program_lib_build_args(program, c->opt,
+    "/LIBPATH:", NULL, "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
@@ -336,7 +334,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if (system(ld_cmd) == -1)
   {
-    errorf(NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }
@@ -349,6 +347,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 bool genexe(compile_t* c, ast_t* program)
 {
+  errors_t* errors = c->opt->check.errors;
+
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = c->str_Main;
   const char* env_class = c->str_Env;
@@ -358,7 +358,7 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(main_def == NULL)
   {
-    errorf(NULL, "no Main actor found in package '%s'", c->filename);
+    errorf(errors, NULL, "no Main actor found in package '%s'", c->filename);
     return false;
   }
 
@@ -370,11 +370,14 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
-  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL);
-  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL);
+  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL, c->opt);
+  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL, c->opt);
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
   paint(c->reachable);
+
+  if(c->opt->verbosity >= VERBOSITY_ALL)
+    reach_dump(c->reachable);
 
   if(!gentypes(c))
     return false;

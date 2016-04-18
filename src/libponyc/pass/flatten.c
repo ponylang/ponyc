@@ -7,13 +7,17 @@
 #include "../type/typeparam.h"
 #include <assert.h>
 
-static ast_result_t flatten_union(ast_t** astp)
+static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_childcount(ast) == 2);
+
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
   AST_EXTRACT_CHILDREN(ast, left, right);
 
-  ast_t* r_ast = type_union(left, right);
+  ast_t* r_ast = type_union(opt, left, right);
   ast_replace(astp, r_ast);
   ast_free_unattached(left);
   ast_free_unattached(right);
@@ -40,21 +44,24 @@ static void flatten_isect_element(ast_t* type, ast_t* elem)
   ast_free_unattached(elem);
 }
 
-static ast_result_t flatten_isect(typecheck_t* t, ast_t* ast)
+static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
 {
   // Flatten intersections without testing subtyping. This is to preserve any
   // type guarantees that an element in the intersection might make.
-  assert(ast_childcount(ast) == 2);
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
   AST_EXTRACT_CHILDREN(ast, left, right);
 
-  if((t->frame->constraint == NULL) &&
-    (t->frame->provides == NULL) &&
+  if((opt->check.frame->constraint == NULL) &&
+    (opt->check.frame->provides == NULL) &&
     !is_compat_type(left, right))
   {
     ast_add(ast, right);
     ast_add(ast, left);
 
-    ast_error(ast,
+    ast_error(opt->check.errors, ast,
       "intersection types cannot include reference capabilities that are not "
       "locally compatible");
     return AST_ERROR;
@@ -66,13 +73,14 @@ static ast_result_t flatten_isect(typecheck_t* t, ast_t* ast)
   return AST_OK;
 }
 
-ast_result_t flatten_typeparamref(ast_t* ast)
+ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, cap, eph);
 
   if(ast_id(cap) != TK_NONE)
   {
-    ast_error(cap, "can't specify a capability on a type parameter");
+    ast_error(opt->check.errors, cap,
+      "can't specify a capability on a type parameter");
     return AST_ERROR;
   }
 
@@ -80,20 +88,22 @@ ast_result_t flatten_typeparamref(ast_t* ast)
   return AST_OK;
 }
 
-static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
+static ast_result_t flatten_noconstraint(pass_opt_t* opt, ast_t* ast)
 {
-  if(t->frame->constraint != NULL)
+  if(opt->check.frame->constraint != NULL)
   {
     switch(ast_id(ast))
     {
       case TK_TUPLETYPE:
-        ast_error(ast, "tuple types can't be used as constraints");
+        ast_error(opt->check.errors, ast,
+          "tuple types can't be used as constraints");
         return AST_ERROR;
 
       case TK_ARROW:
-        if(t->frame->method == NULL)
+        if(opt->check.frame->method == NULL)
         {
-          ast_error(ast, "arrow types can't be used as type constraints");
+          ast_error(opt->check.errors, ast,
+            "arrow types can't be used as type constraints");
           return AST_ERROR;
         }
         break;
@@ -105,7 +115,7 @@ static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
   return AST_OK;
 }
 
-static ast_result_t flatten_sendable_params(ast_t* params)
+static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
 {
   ast_t* param = ast_child(params);
   ast_result_t r = AST_OK;
@@ -116,7 +126,8 @@ static ast_result_t flatten_sendable_params(ast_t* params)
 
     if(!sendable(type))
     {
-      ast_error(type, "this parameter must be sendable (iso, val or tag)");
+      ast_error(opt->check.errors, type,
+        "this parameter must be sendable (iso, val or tag)");
       r = AST_ERROR;
     }
 
@@ -126,7 +137,7 @@ static ast_result_t flatten_sendable_params(ast_t* params)
   return r;
 }
 
-static ast_result_t flatten_constructor(ast_t* ast)
+static ast_result_t flatten_constructor(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
     docstring);
@@ -136,7 +147,7 @@ static ast_result_t flatten_constructor(ast_t* ast)
     case TK_ISO:
     case TK_TRN:
     case TK_VAL:
-      return flatten_sendable_params(params);
+      return flatten_sendable_params(opt, params);
 
     default: {}
   }
@@ -144,17 +155,17 @@ static ast_result_t flatten_constructor(ast_t* ast)
   return AST_OK;
 }
 
-static ast_result_t flatten_async(ast_t* ast)
+static ast_result_t flatten_async(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
     docstring);
 
-  return flatten_sendable_params(params);
+  return flatten_sendable_params(opt, params);
 }
 
 // Process the given provides type
-static bool flatten_provided_type(ast_t* provides_type, ast_t* error_at,
-  ast_t* list_parent, ast_t** list_end)
+static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
+  ast_t* error_at, ast_t* list_parent, ast_t** list_end)
 {
   assert(error_at != NULL);
   assert(provides_type != NULL);
@@ -168,7 +179,7 @@ static bool flatten_provided_type(ast_t* provides_type, ast_t* error_at,
       // Flatten all children
       for(ast_t* p = ast_child(provides_type); p != NULL; p = ast_sibling(p))
       {
-        if(!flatten_provided_type(p, error_at, list_parent, list_end))
+        if(!flatten_provided_type(opt, p, error_at, list_parent, list_end))
           return false;
       }
 
@@ -182,8 +193,10 @@ static bool flatten_provided_type(ast_t* provides_type, ast_t* error_at,
 
       if(ast_id(def) != TK_TRAIT && ast_id(def) != TK_INTERFACE)
       {
-        ast_error(error_at, "can only provide traits and interfaces");
-        ast_error(provides_type, "invalid type here");
+        ast_error(opt->check.errors, error_at,
+          "can only provide traits and interfaces");
+        ast_error_continue(opt->check.errors, provides_type,
+          "invalid type here");
         return false;
       }
 
@@ -195,16 +208,17 @@ static bool flatten_provided_type(ast_t* provides_type, ast_t* error_at,
     }
 
     default:
-      ast_error(error_at,
+      ast_error(opt->check.errors, error_at,
         "provides type may only be an intersect of traits and interfaces");
-      ast_error(provides_type, "invalid type here");
+      ast_error_continue(opt->check.errors, provides_type, "invalid type here");
       return false;
   }
 }
 
 // Flatten a provides type into a list, checking all types are traits or
 // interfaces
-static ast_result_t flatten_provides_list(ast_t* provider, int index)
+static ast_result_t flatten_provides_list(pass_opt_t* opt, ast_t* provider,
+  int index)
 {
   assert(provider != NULL);
 
@@ -216,7 +230,7 @@ static ast_result_t flatten_provides_list(ast_t* provider, int index)
   ast_t* list = ast_from(provides, TK_PROVIDES);
   ast_t* list_end = NULL;
 
-  if(!flatten_provided_type(provides, provider, list, &list_end))
+  if(!flatten_provided_type(opt, provides, provider, list, &list_end))
   {
     ast_free(list);
     return AST_ERROR;
@@ -228,26 +242,25 @@ static ast_result_t flatten_provides_list(ast_t* provider, int index)
 
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return flatten_union(astp);
+      return flatten_union(options, astp);
 
     case TK_ISECTTYPE:
-      return flatten_isect(t, ast);
+      return flatten_isect(options, ast);
 
     case TK_NEW:
     {
-      switch(ast_id(t->frame->type))
+      switch(ast_id(options->check.frame->type))
       {
         case TK_CLASS:
-          return flatten_constructor(ast);
+          return flatten_constructor(options, ast);
 
         case TK_ACTOR:
-          return flatten_async(ast);
+          return flatten_async(options, ast);
 
         default: {}
       }
@@ -255,18 +268,18 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     }
 
     case TK_BE:
-      return flatten_async(ast);
+      return flatten_async(options, ast);
 
     case TK_TUPLETYPE:
     case TK_ARROW:
-      return flatten_noconstraint(t, ast);
+      return flatten_noconstraint(options, ast);
 
     case TK_TYPEPARAMREF:
-      return flatten_typeparamref(ast);
+      return flatten_typeparamref(options, ast);
 
     case TK_FVAR:
     case TK_FLET:
-      return flatten_provides_list(ast, 3);
+      return flatten_provides_list(options, ast, 3);
 
     case TK_EMBED:
     {
@@ -297,17 +310,18 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
       if(!ok)
       {
-        ast_error(type, "embedded fields must be classes or structs");
+        ast_error(options->check.errors, type,
+          "embedded fields must be classes or structs");
         return AST_ERROR;
       }
 
       if(cap_single(type) == TK_TAG)
       {
-        ast_error(type, "embedded fields cannot be tag");
+        ast_error(options->check.errors, type, "embedded fields cannot be tag");
         return AST_ERROR;
       }
 
-      return flatten_provides_list(ast, 3);
+      return flatten_provides_list(options, ast, 3);
     }
 
     case TK_ACTOR:
@@ -316,10 +330,10 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     case TK_PRIMITIVE:
     case TK_TRAIT:
     case TK_INTERFACE:
-      return flatten_provides_list(ast, 3);
+      return flatten_provides_list(options, ast, 3);
 
     case TK_OBJECT:
-      return flatten_provides_list(ast, 0);
+      return flatten_provides_list(options, ast, 0);
 
     default: {}
   }

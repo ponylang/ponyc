@@ -6,7 +6,7 @@
 #include <string.h>
 
 
-static bool import_use(ast_t* ast)
+static bool import_use(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
 
@@ -54,21 +54,23 @@ static bool import_use(ast_t* ast)
       // Symbol clash.
       if(is_builtin)
       {
-        ast_error(existing, "type name clashes with builtin type");
-        ast_error(sym->def, "builtin type here");
+        ast_error(opt->check.errors, existing,
+          "type name clashes with builtin type");
+        ast_error_continue(opt->check.errors, sym->def, "builtin type here");
       }
       else
       {
         if(ok)
         {
           // Only print the "use" as an error once.
-          ast_error(ast, "can't use '%s' without alias, clashing symbols",
-            uri);
+          ast_error(opt->check.errors, ast,
+            "can't use '%s' without alias, clashing symbols", uri);
         }
 
-        ast_error(existing, "existing type name clashes with type from '%s'",
-          uri);
-        ast_error(sym->def, "clash trying to use this type");
+        ast_error(opt->check.errors, existing,
+          "existing type name clashes with type from '%s'", uri);
+        ast_error_continue(opt->check.errors, sym->def,
+          "clash trying to use this type");
       }
 
       ok = false;
@@ -98,7 +100,7 @@ ast_result_t pass_import(ast_t** astp, pass_opt_t* options)
       return AST_OK;
 
     case TK_USE:
-      if(!import_use(ast))
+      if(!import_use(options, ast))
         return AST_FATAL;
       break;
 

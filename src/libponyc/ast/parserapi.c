@@ -14,6 +14,7 @@ struct parser_t
   size_t last_token_line;
   uint32_t next_flags;  // Data flags to set on the next token created
   bool failed;
+  errors_t* errors;
 };
 
 
@@ -73,27 +74,26 @@ static void syntax_error(parser_t* parser, const char* expected,
 
   if(parser->last_matched == NULL)
   {
-    error(parser->source, token_line_number(parser->token),
+    error(parser->errors, parser->source, token_line_number(parser->token),
       token_line_position(parser->token), "syntax error: no code found");
   }
   else
   {
     if(terminating == NULL)
     {
-      error(parser->source, token_line_number(parser->token),
+      error(parser->errors, parser->source, token_line_number(parser->token),
         token_line_position(parser->token),
         "syntax error: expected %s after %s", expected, parser->last_matched);
     }
     else
     {
       assert(ast != NULL);
-      errorframe_t frame = NULL;
-      ast_error_frame(&frame, ast, "syntax error: unterminated %s",
+      ast_error(parser->errors, ast, "syntax error: unterminated %s",
         terminating);
-      errorframe(&frame, parser->source, token_line_number(parser->token),
+      error_continue(parser->errors, parser->source,
+        token_line_number(parser->token),
         token_line_position(parser->token),
         "expected terminating %s before here", expected);
-      errorframe_report(&frame);
     }
   }
 }
@@ -570,7 +570,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
     printf("Rule %s: Restart check error\n", state->fn_name);
 
   assert(parser->token != NULL);
-  error(parser->source, token_line_number(parser->token),
+  error(parser->errors, parser->source, token_line_number(parser->token),
     token_line_position(parser->token),
     "syntax error: unexpected token %s after %s", token_print(parser->token),
     state->desc);
@@ -590,15 +590,15 @@ void parse_trace(bool enable)
 }
 
 
-bool parse(ast_t* package, source_t* source, rule_t start,
-  const char* expected)
+bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
+  errors_t* errors)
 {
   assert(package != NULL);
   assert(source != NULL);
   assert(expected != NULL);
 
   // Open the lexer
-  lexer_t* lexer = lexer_open(source);
+  lexer_t* lexer = lexer_open(source, errors);
 
   if(lexer == NULL)
     return false;
@@ -612,6 +612,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   parser->last_token_line = 0;
   parser->next_flags = 0;
   parser->failed = false;
+  parser->errors = errors;
 
   // Parse given start rule
   builder_fn_t build_fn;

@@ -254,7 +254,7 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
 // Also handles modifying return types from behaviours, etc.
 // Returns the reified type, which must be freed later, or NULL on error.
 static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
-  ast_t* trait_ref, pass_opt_t* options)
+  ast_t* trait_ref, pass_opt_t* opt)
 {
   assert(method != NULL);
   assert(trait_ref != NULL);
@@ -266,10 +266,10 @@ static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
   ast_t* type_args = ast_childidx(trait_ref, 2);
   ast_t* type_params = ast_childidx(trait_def, 1);
 
-  if(!reify_defaults(type_params, type_args, true))
+  if(!reify_defaults(type_params, type_args, true, opt))
     return NULL;
 
-  ast_t* reified = reify(method, type_params, type_args);
+  ast_t* reified = reify(method, type_params, type_args, opt);
 
   if(reified == NULL)
     return NULL;
@@ -280,7 +280,7 @@ static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
   if(ast_id(reified) == TK_BE || ast_id(reified) == TK_NEW)
   {
     // Modify return type to the inheriting type.
-    ast_t* this_type = type_for_this(options, entity, ast_id(cap),
+    ast_t* this_type = type_for_this(opt, entity, ast_id(cap),
       TK_EPHEMERAL, true);
 
     ast_replace(&result, this_type);
@@ -319,7 +319,7 @@ static ast_t* find_method(ast_t* entity, const char* name)
 // or similar.
 // Return the newly added method or NULL on error.
 static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
-  const char* adjective)
+  const char* adjective, pass_opt_t* opt)
 {
   assert(entity != NULL);
   assert(trait_ref != NULL);
@@ -334,16 +334,18 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
     switch(ast_id(entity))
     {
       case TK_PRIMITIVE:
-        ast_error(trait_ref, "cannot add a behaviour (%s) to a primitive",
-          name);
+        ast_error(opt->check.errors, trait_ref,
+          "cannot add a behaviour (%s) to a primitive", name);
         return NULL;
 
       case TK_STRUCT:
-        ast_error(trait_ref, "cannot add a behaviour (%s) to a struct", name);
+        ast_error(opt->check.errors, trait_ref,
+          "cannot add a behaviour (%s) to a struct", name);
         return NULL;
 
       case TK_CLASS:
-        ast_error(trait_ref, "cannot add a behaviour (%s) to a class", name);
+        ast_error(opt->check.errors, trait_ref,
+          "cannot add a behaviour (%s) to a class", name);
         return NULL;
 
       default:
@@ -358,8 +360,10 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   {
     assert(is_field(existing)); // Should already have checked for methods.
 
-    ast_error(trait_ref, "%s method '%s' clashes with field", adjective, name);
-    ast_error(basis_method, "method is defined here");
+    ast_error(opt->check.errors, trait_ref,
+      "%s method '%s' clashes with field", adjective, name);
+    ast_error_continue(opt->check.errors, basis_method,
+      "method is defined here");
     return NULL;
   }
 
@@ -389,9 +393,11 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
         break;
     }
 
-    ast_error(trait_ref, "%s method '%s' differs only in case from '%s'",
+    ast_error(opt->check.errors, trait_ref,
+      "%s method '%s' differs only in case from '%s'",
       adjective, name, clash_name);
-    ast_error(basis_method, "clashing method is defined here");
+    ast_error_continue(opt->check.errors, basis_method,
+      "clashing method is defined here");
     return NULL;
   }
 
@@ -480,7 +486,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 // Returns true on success, false on failure in which case an error will have
 // been reported.
 static bool add_method_from_trait(ast_t* entity, ast_t* method,
-  ast_t* trait_ref, pass_opt_t* options)
+  ast_t* trait_ref, pass_opt_t* opt)
 {
   assert(entity != NULL);
   assert(method != NULL);
@@ -495,13 +501,13 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   if(existing_method == NULL)
   {
     // We don't have a method yet with this name, add the one from this trait.
-    ast_t* m = add_method(entity, trait_ref, method, "provided");
+    ast_t* m = add_method(entity, trait_ref, method, "provided", opt);
 
     if(m == NULL)
       return false;
 
     if(ast_id(ast_childidx(m, 6)) != TK_NONE)
-      ast_visit(&m, rescope, NULL, options, PASS_ALL);
+      ast_visit(&m, rescope, NULL, opt, PASS_ALL);
 
     return true;
   }
@@ -518,35 +524,31 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     // Method is local or provided by delegation. Provided method must be a
     // suitable supertype.
     errorframe_t err = NULL;
-    if(is_subtype(existing_method, method, &err))
+    if(is_subtype(existing_method, method, &err, opt))
       return true;
-
-    errorframe_t frame = NULL;
 
     if(info->local_define)
     {
-      ast_error_frame(&frame, trait_ref,
+      ast_error(opt->check.errors, trait_ref,
         "method '%s' provided here is not compatible with local version",
         method_name);
-      ast_error_frame(&frame, method, "provided method");
-      ast_error_frame(&frame, existing_method, "local method");
+      ast_error_continue(opt->check.errors, method, "provided method");
+      ast_error_continue(opt->check.errors, existing_method, "local method");
     }
     else
     {
       assert(info->delegated_field != NULL);
       assert(info->trait_ref != NULL);
 
-      ast_error_frame(&frame, trait_ref, "provided method '%s' is not "
+      ast_error(opt->check.errors, trait_ref, "provided method '%s' is not "
         "compatible with delegated version, provided type: %s", method_name,
         ast_print_type(method));
-      ast_error_frame(&frame, info->trait_ref,
+      ast_error_continue(opt->check.errors, info->trait_ref,
         "method delegated from field '%s' has type: %s",
         ast_name(ast_child(info->delegated_field)),
         ast_print_type(existing_method));
     }
 
-    errorframe_append(&frame, &err);
-    errorframe_report(&frame);
     info->failed = true;
     return false;
   }
@@ -556,10 +558,11 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   {
     assert(info->trait_ref != NULL);
 
-    ast_error(trait_ref, "clashing definitions for method '%s' provided, "
-      "local disambiguation required", method_name);
-    ast_error(trait_ref, "provided here, type: %s", ast_print_type(method));
-    ast_error(info->trait_ref, "and here, type: %s",
+    ast_error(opt->check.errors, trait_ref, "clashing definitions for "
+      "method '%s' provided, local disambiguation required", method_name);
+    ast_error_continue(opt->check.errors, trait_ref, "provided here, type: %s",
+      ast_print_type(method));
+    ast_error_continue(opt->check.errors, info->trait_ref, "and here, type: %s",
       ast_print_type(existing_method));
 
     info->failed = true;
@@ -596,7 +599,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   // Trait provides default body. Use it and patch up symbol tables.
   assert(ast_id(existing_body) == TK_NONE);
   ast_replace(&existing_body, method_body);
-  ast_visit(&method_body, rescope, NULL, options, PASS_ALL);
+  ast_visit(&method_body, rescope, NULL, opt, PASS_ALL);
 
   info->body_donor = (ast_t*)ast_data(method);
   info->trait_ref = trait_ref;
@@ -745,11 +748,12 @@ static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
 
     assert(info->trait_ref != NULL);
 
-    ast_error(trait_ref,
+    ast_error(opt->check.errors, trait_ref,
       "clashing delegates for method %s, local disambiguation required", name);
-    ast_error(trait_ref, "field %s delegates to %s here",
-      ast_name(ast_child(field)), name);
-    ast_error(info->trait_ref, "field %s delegates to %s here",
+    ast_error_continue(opt->check.errors, trait_ref,
+      "field %s delegates to %s here", ast_name(ast_child(field)), name);
+    ast_error_continue(opt->check.errors, info->trait_ref,
+      "field %s delegates to %s here",
       ast_name(ast_child(info->delegated_field)), name);
     info->failed = true;
     info->delegated_field = NULL;
@@ -762,7 +766,7 @@ static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
   if(reified == NULL) // Reification error, already reported
     return false;
 
-  ast_t* new_method = add_method(entity, trait_ref, reified, "delegate");
+  ast_t* new_method = add_method(entity, trait_ref, reified, "delegate", opt);
 
   if(new_method == NULL)
   {
@@ -803,17 +807,14 @@ static bool delegated_methods(ast_t* entity, pass_opt_t* opt)
           return false;
 
         errorframe_t err = NULL;
-        if(!is_subtype(f_type, trait_ref, &err))
+        if(!is_subtype(f_type, trait_ref, &err, opt))
         {
-          errorframe_t frame = NULL;
-          ast_error_frame(&frame, trait_ref,
+          ast_error(opt->check.errors, trait_ref,
             "field not a subtype of delegate");
-          ast_error_frame(&frame, f_type,
+          ast_error_continue(opt->check.errors, f_type,
             "field type: %s", ast_print_type(f_type));
-          ast_error_frame(&frame, trait_ref,
+          ast_error_continue(opt->check.errors, trait_ref,
             "delegate type: %s", ast_print_type(trait_ref));
-          errorframe_append(&frame, &err);
-          errorframe_report(&frame);
           r = false;
         }
         else
@@ -835,7 +836,7 @@ static bool delegated_methods(ast_t* entity, pass_opt_t* opt)
 
 
 // Check that the given entity, if concrete, has bodies for all methods.
-static bool check_concrete_bodies(ast_t* entity)
+static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 {
   assert(entity != NULL);
 
@@ -862,15 +863,16 @@ static bool check_concrete_bodies(ast_t* entity)
         if(ast_checkflag(p, AST_FLAG_AMBIGUOUS))
         {
           // Concrete types must not have ambiguous bodies.
-          ast_error(entity, "multiple possible bodies for method %s, local "
-            "disambiguation required", name);
+          ast_error(opt->check.errors, entity, "multiple possible bodies for "
+            "method %s, local disambiguation required", name);
           r = false;
         }
         else if(info->body_donor == NULL)
         {
           // Concrete types must have method bodies.
           assert(info->trait_ref != NULL);
-          ast_error(info->trait_ref, "no body found for method %s", name);
+          ast_error(opt->check.errors, info->trait_ref,
+            "no body found for method %s", name);
           r = false;
         }
       }
@@ -882,7 +884,7 @@ static bool check_concrete_bodies(ast_t* entity)
 
 
 // Add provided and delegated methods to the given entity.
-static bool trait_entity(ast_t* entity, pass_opt_t* options)
+static bool trait_entity(ast_t* entity, pass_opt_t* opt)
 {
   assert(entity != NULL);
 
@@ -897,7 +899,8 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
       break;
 
     case AST_FLAG_RECURSE_1:
-      ast_error(entity, "traits and interfaces can't be recursive");
+      ast_error(opt->check.errors, entity,
+        "traits and interfaces can't be recursive");
       ast_clearflag(entity, AST_FLAG_RECURSE_1);
       ast_setflag(entity, AST_FLAG_ERROR_1);
       return false;
@@ -916,9 +919,9 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
   setup_local_methods(entity);
 
   bool r =
-    delegated_methods(entity, options) &&
-    provided_methods(entity, options) &&
-    check_concrete_bodies(entity);
+    delegated_methods(entity, opt) &&
+    provided_methods(entity, opt) &&
+    check_concrete_bodies(entity, opt);
 
   tidy_up(entity);
   ast_clearflag(entity, AST_FLAG_RECURSE_1);
@@ -929,7 +932,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
 
 
 // Check that embed fields are not recursive.
-static bool embed_fields(ast_t* entity, pass_opt_t* options)
+static bool embed_fields(ast_t* entity, pass_opt_t* opt)
 {
   assert(entity != NULL);
 
@@ -944,7 +947,8 @@ static bool embed_fields(ast_t* entity, pass_opt_t* options)
       break;
 
     case AST_FLAG_RECURSE_2:
-      ast_error(entity, "embedded fields can't be recursive");
+      ast_error(opt->check.errors, entity,
+        "embedded fields can't be recursive");
       ast_clearflag(entity, AST_FLAG_RECURSE_2);
       ast_setflag(entity, AST_FLAG_ERROR_2);
       return false;
@@ -971,7 +975,7 @@ static bool embed_fields(ast_t* entity, pass_opt_t* options)
       ast_t* def = (ast_t*)ast_data(f_type);
       assert(def != NULL);
 
-      if(!embed_fields(def, options))
+      if(!embed_fields(def, opt))
         return false;
     }
 

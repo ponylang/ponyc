@@ -8,6 +8,7 @@ The Ini package provides support for parsing
 * Any keys not in a section will be placed in the section ""
 
 # Example code
+```pony
 // Parses the file 'example.ini' in the current working directory
 // Output all the content
 use "ini"
@@ -25,6 +26,7 @@ actor Main
         end
       end
     end
+```
 """
 primitive IniIncompleteSection
 primitive IniNoDelimiter

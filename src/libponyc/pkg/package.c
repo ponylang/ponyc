@@ -95,42 +95,46 @@ static const char* find_magic_package(const char* path)
 // Attempt to parse the specified source file and add it to the given AST
 // @return true on success, false on error
 static bool parse_source_file(ast_t* package, const char* file_path,
-  pass_opt_t* options)
+  pass_opt_t* opt)
 {
   assert(package != NULL);
   assert(file_path != NULL);
-  assert(options != NULL);
+  assert(opt != NULL);
 
-  if(options->print_filenames)
+  if(opt->print_filenames)
     printf("Opening %s\n", file_path);
 
-  source_t* source = source_open(file_path);
+  const char* error_msg = NULL;
+  source_t* source = source_open(file_path, &error_msg);
 
   if(source == NULL)
   {
-    errorf(file_path, "couldn't open file %s", file_path);
+    if(error_msg == NULL)
+      error_msg = "couldn't open file";
+
+    errorf(opt->check.errors, file_path, "%s %s", error_msg, file_path);
     return false;
   }
 
-  return module_passes(package, options, source);
+  return module_passes(package, opt, source);
 }
 
 
 // Attempt to parse the specified source code and add it to the given AST
 // @return true on success, false on error
 static bool parse_source_code(ast_t* package, const char* src,
-  pass_opt_t* options)
+  pass_opt_t* opt)
 {
   assert(src != NULL);
-  assert(options != NULL);
+  assert(opt != NULL);
 
-  if(options->print_filenames)
+  if(opt->print_filenames)
     printf("Opening magic source\n");
 
   source_t* source = source_open_string(src);
   assert(source != NULL);
 
-  return module_passes(package, options, source);
+  return module_passes(package, opt, source);
 }
 
 
@@ -171,19 +175,20 @@ static void path_cat(const char* part1, const char* part2,
 // the given package AST
 // @return true on success, false on error
 static bool parse_files_in_dir(ast_t* package, const char* dir_path,
-  pass_opt_t* options)
+  pass_opt_t* opt)
 {
   PONY_ERRNO err = 0;
   PONY_DIR* dir = pony_opendir(dir_path, &err);
+  errors_t* errors = opt->check.errors;
 
   if(dir == NULL)
   {
     switch(err)
     {
-      case EACCES:  errorf(dir_path, "permission denied"); break;
-      case ENOENT:  errorf(dir_path, "does not exist");    break;
-      case ENOTDIR: errorf(dir_path, "not a directory");   break;
-      default:      errorf(dir_path, "unknown error");     break;
+      case EACCES:  errorf(errors, dir_path, "permission denied"); break;
+      case ENOENT:  errorf(errors, dir_path, "does not exist");    break;
+      case ENOTDIR: errorf(errors, dir_path, "not a directory");   break;
+      default:      errorf(errors, dir_path, "unknown error");     break;
     }
 
     return false;
@@ -207,7 +212,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     {
       char fullpath[FILENAME_MAX];
       path_cat(dir_path, name, fullpath);
-      r &= parse_source_file(package, fullpath, options);
+      r &= parse_source_file(package, fullpath, opt);
     }
   }
 
@@ -360,7 +365,6 @@ static const char* find_path(ast_t* from, const char* path,
     }
   }
 
-  errorf(path, "couldn't locate this path");
   return NULL;
 }
 
@@ -554,10 +558,11 @@ static bool add_safe(const char* path)
 
 // Determine the absolute path of the directory the current executable is in
 // and add it to our search path
-static void add_exec_dir()
+static void add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
   bool success;
+  errors_t* errors = opt->check.errors;
 
 #ifdef PLATFORM_IS_WINDOWS
   // Specified size *includes* nul terminator
@@ -596,7 +601,7 @@ static void add_exec_dir()
 
   if(!success)
   {
-    errorf(NULL, "Error determining executable path");
+    errorf(errors, NULL, "Error determining executable path");
     return;
   }
 
@@ -605,7 +610,7 @@ static void add_exec_dir()
 
   if(p == NULL)
   {
-    errorf(NULL, "Error determining executable path (%s)", path);
+    errorf(errors, NULL, "Error determining executable path (%s)", path);
     return;
   }
 
@@ -642,14 +647,11 @@ static void add_exec_dir()
 
 bool package_init(pass_opt_t* opt)
 {
-  if(!codegen_init(opt))
-    return false;
-
   // package_add_paths for command line paths has already been done. Here, we
   // append the paths from an optional environment variable, and then the paths
   // that are relative to the compiler location on disk.
-  package_add_paths(getenv("PONYPATH"));
-  add_exec_dir();
+  package_add_paths(getenv("PONYPATH"), opt);
+  add_exec_dir(opt);
 
   // Finally we add OS specific paths.
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -688,7 +690,7 @@ strlist_t* package_paths()
 }
 
 
-static bool handle_path_list(const char* paths, path_fn f)
+static bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
 {
   if(paths == NULL)
     return true;
@@ -712,7 +714,7 @@ static bool handle_path_list(const char* paths, path_fn f)
 
     if(len >= FILENAME_MAX)
     {
-      errorf(NULL, "Path too long in %s", paths);
+      errorf(opt->check.errors, NULL, "Path too long in %s", paths);
     } else {
       char path[FILENAME_MAX];
 
@@ -730,16 +732,16 @@ static bool handle_path_list(const char* paths, path_fn f)
   return ok;
 }
 
-void package_add_paths(const char* paths)
+void package_add_paths(const char* paths, pass_opt_t* opt)
 {
-  handle_path_list(paths, add_path);
+  handle_path_list(paths, add_path, opt);
 }
 
 
-bool package_add_safe(const char* paths)
+bool package_add_safe(const char* paths, pass_opt_t* opt)
 {
   add_safe("builtin");
-  return handle_path_list(paths, add_safe);
+  return handle_path_list(paths, add_safe, opt);
 }
 
 
@@ -774,16 +776,16 @@ void package_suppress_build_message()
 }
 
 
-ast_t* program_load(const char* path, pass_opt_t* options)
+ast_t* program_load(const char* path, pass_opt_t* opt)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  options->program_pass = PASS_PARSE;
+  opt->program_pass = PASS_PARSE;
 
   // Always load builtin package first, then the specified one.
-  if(package_load(program, stringtab("builtin"), options) == NULL ||
-    package_load(program, path, options) == NULL)
+  if(package_load(program, stringtab("builtin"), opt) == NULL ||
+    package_load(program, path, opt) == NULL)
   {
     ast_free(program);
     return NULL;
@@ -793,7 +795,7 @@ ast_t* program_load(const char* path, pass_opt_t* options)
   ast_t* builtin = ast_pop(program);
   ast_append(program, builtin);
 
-  if(!ast_passes_program(program, options))
+  if(!ast_passes_program(program, opt))
   {
     ast_free(program);
     return NULL;
@@ -803,7 +805,7 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 }
 
 
-ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
+ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 {
   assert(from != NULL);
 
@@ -819,7 +821,10 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     full_path = find_path(from, path, &is_relative);
 
     if(full_path == NULL)
+    {
+      errorf(opt->check.errors, path, "couldn't locate this path");
       return NULL;
+    }
 
     if((from != program) && is_relative)
     {
@@ -852,27 +857,28 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   package = create_package(program, full_path, qualified_name);
 
   if(report_build) {
-    PONY_LOG(options, VERBOSITY_INFO, ("Building %s -> %s\n", path, full_path));
+    PONY_LOG(opt, VERBOSITY_INFO, ("Building %s -> %s\n", path, full_path));
   }
 
   if(magic != NULL)
   {
-    if(!parse_source_code(package, magic, options))
+    if(!parse_source_code(package, magic, opt))
       return NULL;
   }
   else
   {
-    if(!parse_files_in_dir(package, full_path, options))
+    if(!parse_files_in_dir(package, full_path, opt))
       return NULL;
   }
 
   if(ast_child(package) == NULL)
   {
-    ast_error(package, "no source files in package '%s'", path);
+    ast_error(opt->check.errors, package,
+      "no source files in package '%s'", path);
     return NULL;
   }
 
-  if(!ast_passes_subtree(&package, options, options->program_pass))
+  if(!ast_passes_subtree(&package, opt, opt->program_pass))
   {
     // If these passes failed, don't run future passes.
     ast_setflag(package, AST_FLAG_PRESERVE);
@@ -963,10 +969,8 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
-void package_done(pass_opt_t* opt, bool handle_errors)
+void package_done()
 {
-  codegen_shutdown(opt);
-
   strlist_free(search);
   search = NULL;
 
@@ -974,12 +978,6 @@ void package_done(pass_opt_t* opt, bool handle_errors)
   safe = NULL;
 
   package_clear_magic();
-
-  if(handle_errors)
-  {
-    print_errors();
-    free_errors();
-  }
 }
 
 

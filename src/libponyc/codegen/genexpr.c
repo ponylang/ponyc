@@ -155,19 +155,20 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_COMPILE_INTRINSIC:
-      ast_error(ast, "unimplemented compile intrinsic");
+      ast_error(c->opt->check.errors, ast, "unimplemented compile intrinsic");
       return NULL;
 
     case TK_COMPILE_ERROR:
     {
       ast_t* reason_seq = ast_child(ast);
       ast_t* reason = ast_child(reason_seq);
-      ast_error(ast, "compile error: %s", ast_name(reason));
+      ast_error(c->opt->check.errors, ast, "compile error: %s",
+        ast_name(reason));
       return NULL;
     }
 
     default:
-      ast_error(ast, "not implemented (codegen unknown)");
+      ast_error(c->opt->check.errors, ast, "not implemented (codegen unknown)");
       return NULL;
   }
 

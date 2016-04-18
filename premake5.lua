@@ -178,6 +178,7 @@
       }
       excludes { "src/libponyc/**.cc" }
     configuration "vs*"
+      characterset "MBCS"
       defines {
         "PONY_USE_BIGINT"
       }
@@ -201,6 +202,7 @@
         "-std=gnu11"
       }
     configuration "vs*"
+      characterset "MBCS"
       cppforce { "src/libponyrt/**.c" }
     configuration "*"
 
@@ -218,6 +220,7 @@
     configuration "gmake"
       buildoptions "-std=gnu11"
     configuration "vs*"
+      characterset "MBCS"
       cppforce { "src/ponyc/**.c" }
     configuration "*"
       link_libponyc()
@@ -232,6 +235,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       buildoptions {
         "-std=gnu++11"
       }
+    configuration "vs*"
+      characterset "MBCS"
     configuration "*"
 
     includedirs {
@@ -256,6 +261,7 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "test/libponyc/**.cc"
     }
     configuration "vs*"
+      characterset "MBCS"
       defines { "PONY_USE_BIGINT" }
     configuration "*"
       link_libponyc()
@@ -270,6 +276,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "src/libponyrt"
     }
     files { "test/libponyrt/**.cc" }
+    configuration "vs*"
+      characterset "MBCS"
 end
 
   if _ACTION == "clean" then

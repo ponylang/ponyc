@@ -1,4 +1,5 @@
 #include "viewpoint.h"
+#include "alias.h"
 #include "assemble.h"
 #include "cap.h"
 #include "../ast/astbuild.h"
@@ -93,10 +94,12 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
         case TK_CAP_SEND_BIND:
         case TK_CAP_SHARE_BIND:
         case TK_CAP_READ_BIND:
+        case TK_CAP_ALIAS_BIND:
         case TK_CAP_ANY_BIND:
           // Don't compact through an unknown refcap.
           if(upper == VIEW_UPPER_YES)
@@ -350,7 +353,28 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
         ast_t* left_def = (ast_t*)ast_data(ast);
 
         if(target_def == left_def)
-          ast_replace(astp, ast_dup(with));
+        {
+          AST_GET_CHILDREN(ast, id, cap, eph);
+          ast_t* a_with = with;
+
+          switch(ast_id(eph))
+          {
+            case TK_EPHEMERAL:
+              a_with = consume_type(with, TK_NONE);
+              break;
+
+            case TK_BORROWED:
+              a_with = alias(with);
+              break;
+
+            default: {}
+          }
+
+          if(a_with == with)
+            a_with = ast_dup(with);
+
+          ast_replace(astp, a_with);
+        }
         break;
       }
 
@@ -433,6 +457,16 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
       replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
       replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
       replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
+      return tuple;
+    }
+
+    case TK_CAP_ALIAS:
+    {
+      ast_t* tuple = ast_from(type, TK_TUPLETYPE);
+      replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, TK_TAG, TK_NONE);
       return tuple;
     }
 

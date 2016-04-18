@@ -91,6 +91,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
         case TK_REF:
         case TK_CAP_READ:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return NULL;
 
@@ -109,6 +110,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
     case TK_TAG:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
+    case TK_CAP_ALIAS:
     case TK_CAP_ANY:
       // Recovers as tag or itself only.
       if(rcap == TK_NONE)
@@ -407,15 +409,14 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      // All possible resulting capabilities must be sendable.
-      // This boils down to simply testing the right-hand side.
-      // iso: ref->iso=iso, val->iso=val, box->iso=tag Y
-      // trn: N
-      // ref: N
-      // val: Y
-      // box: N
-      // tag: Y
-      return sendable(ast_childidx(type, 1));
+      ast_t* lower = viewpoint_lower(type);
+
+      if(lower == NULL)
+        return false;
+
+      bool ok = sendable(lower);
+      ast_free_unattached(lower);
+      return ok;
     }
 
     case TK_NOMINAL:

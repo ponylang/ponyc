@@ -9,7 +9,7 @@
 #include "../pass/expr.h"
 #include <assert.h>
 
-static void append_one_to_union(ast_t* ast, ast_t* append)
+static void append_one_to_union(pass_opt_t* opt, ast_t* ast, ast_t* append)
 {
   ast_t* child = ast_child(ast);
 
@@ -17,12 +17,12 @@ static void append_one_to_union(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(append, child, NULL))
+    if(is_subtype(append, child, NULL, opt))
     {
       // If the incoming type is a subtype of a type that is already in the
       // union, then do not bother to append it.
       return;
-    } else if(is_subtype(child, append, NULL)) {
+    } else if(is_subtype(child, append, NULL, opt)) {
       // If a type in the union is a subtype of the incoming type, then remove
       // it from the union.
       ast_remove(child);
@@ -34,7 +34,7 @@ static void append_one_to_union(ast_t* ast, ast_t* append)
   ast_append(ast, append);
 }
 
-static void append_one_to_isect(ast_t* ast, ast_t* append)
+static void append_one_to_isect(pass_opt_t* opt, ast_t* ast, ast_t* append)
 {
   ast_t* child = ast_child(ast);
 
@@ -42,12 +42,12 @@ static void append_one_to_isect(ast_t* ast, ast_t* append)
   {
     ast_t* next = ast_sibling(child);
 
-    if(is_subtype(child, append, NULL))
+    if(is_subtype(child, append, NULL, opt))
     {
       // If the incoming type is a supertype of a type that is already in the
       // intersection, then do not bother to append it.
       return;
-    } else if(is_subtype(append, child, NULL)) {
+    } else if(is_subtype(append, child, NULL, opt)) {
       // If a type in the intersection is a supertype of the incoming type,
       // then remove it from the intersection.
       ast_remove(child);
@@ -59,15 +59,17 @@ static void append_one_to_isect(ast_t* ast, ast_t* append)
   ast_append(ast, append);
 }
 
-static void append_one_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
+static void append_one_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
+  bool is_union)
 {
   if(is_union)
-    append_one_to_union(ast, append);
+    append_one_to_union(opt, ast, append);
   else
-    append_one_to_isect(ast, append);
+    append_one_to_isect(opt, ast, append);
 }
 
-static void append_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
+static void append_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
+  bool is_union)
 {
   if(ast_id(ast) == ast_id(append))
   {
@@ -76,15 +78,16 @@ static void append_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
 
     while(child != NULL)
     {
-      append_one_to_typeexpr(ast, child, is_union);
+      append_one_to_typeexpr(opt, ast, child, is_union);
       child = ast_sibling(child);
     }
   } else {
-    append_one_to_typeexpr(ast, append, is_union);
+    append_one_to_typeexpr(opt, ast, append, is_union);
   }
 }
 
-static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
+static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
+  ast_t* r_type)
 {
   bool is_union = t == TK_UNIONTYPE;
 
@@ -94,7 +97,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   if(r_type == NULL)
     return l_type;
 
-  if(is_subtype(l_type, r_type, NULL))
+  if(is_subtype(l_type, r_type, NULL, opt))
   {
     if(is_union)
       return r_type;
@@ -102,7 +105,7 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
       return l_type;
   }
 
-  if(is_subtype(r_type, l_type, NULL))
+  if(is_subtype(r_type, l_type, NULL, opt))
   {
     if(is_union)
       return l_type;
@@ -111,8 +114,8 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   }
 
   ast_t* type = ast_from(l_type, t);
-  append_to_typeexpr(type, l_type, is_union);
-  append_to_typeexpr(type, r_type, is_union);
+  append_to_typeexpr(opt, type, l_type, is_union);
+  append_to_typeexpr(opt, type, r_type, is_union);
 
   // If there's only one element, remove the type expression node.
   ast_t* child = ast_child(type);
@@ -156,7 +159,7 @@ ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
 
   if(!names_nominal(opt, from, &ast, false))
   {
-    ast_error(from, "unable to validate '%s'", name);
+    ast_error(opt->check.errors, from, "unable to validate '%s'", name);
     ast_free(ast);
     return NULL;
   }
@@ -179,7 +182,8 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
 
   if(!names_nominal(opt, to, &pointer, false))
   {
-    ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
+    ast_error(opt->check.errors, to, "unable to create Pointer[%s]",
+      ast_print_type(to));
     ast_free(pointer);
     return NULL;
   }
@@ -192,7 +196,8 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
   return type_base(from, package, name, NULL);
 }
 
-ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
+ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
+  ast_t* branch)
 {
   assert(branch != NULL);
 
@@ -228,7 +233,8 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     {
       // The branch's literal type has a non-literal component
       ast_t* non_literal_type = ast_type(control_type);
-      ast_settype(control_type, type_union(non_literal_type, branch_non_lit));
+      ast_settype(control_type, type_union(opt, non_literal_type,
+        branch_non_lit));
     }
 
     return control_type;
@@ -239,23 +245,23 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     // New branch is not literal, but the control structure is
     // Add new branch type to the control structure's non-literal aspect
     ast_t* non_literal_type = ast_type(control_type);
-    non_literal_type = type_union(non_literal_type, branch_type);
+    non_literal_type = type_union(opt, non_literal_type, branch_type);
     ast_settype(control_type, non_literal_type);
     return control_type;
   }
 
   // No literals here, just union the types
-  return type_union(control_type, branch_type);
+  return type_union(opt, control_type, branch_type);
 }
 
-ast_t* type_union(ast_t* l_type, ast_t* r_type)
+ast_t* type_union(pass_opt_t* opt, ast_t* l_type, ast_t* r_type)
 {
-  return type_typeexpr(TK_UNIONTYPE, l_type, r_type);
+  return type_typeexpr(opt, TK_UNIONTYPE, l_type, r_type);
 }
 
-ast_t* type_isect(ast_t* l_type, ast_t* r_type)
+ast_t* type_isect(pass_opt_t* opt, ast_t* l_type, ast_t* r_type)
 {
-  return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
+  return type_typeexpr(opt, TK_ISECTTYPE, l_type, r_type);
 }
 
 ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
@@ -290,7 +296,7 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
         names_nominal(opt, ast, &typearg, false);
 
         if(ast_id(typearg) == TK_TYPEPARAMREF)
-          flatten_typeparamref(typearg);
+          flatten_typeparamref(opt, typearg);
       }
 
       typeparam = ast_sibling(typeparam);
@@ -326,7 +332,7 @@ ast_t* type_for_fun(ast_t* ast)
   return fun;
 }
 
-ast_t* type_isect_fun(ast_t* a, ast_t* b)
+ast_t* type_isect_fun(pass_opt_t* opt, ast_t* a, ast_t* b)
 {
   token_id ta = ast_id(a);
   token_id tb = ast_id(b);
@@ -359,7 +365,7 @@ ast_t* type_isect_fun(ast_t* a, ast_t* b)
     tcap = TK_BOX;
 
   // Result is the intersection of the results.
-  ast_t* result = type_isect(a_result, b_result);
+  ast_t* result = type_isect(opt, a_result, b_result);
 
   // Covariant throws.
   token_id throws;

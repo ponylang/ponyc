@@ -12,7 +12,7 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
+static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
 {
   assert(ast_id(ast) == TK_ID);
   const char* name = ast_name(ast);
@@ -25,7 +25,8 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
     case SYM_UNDEFINED:
       if(need_value)
       {
-        ast_error(ast, "the left side is undefined but its value is used");
+        ast_error(opt->check.errors, ast,
+          "the left side is undefined but its value is used");
         return false;
       }
 
@@ -35,7 +36,7 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
     case SYM_DEFINED:
       if(let)
       {
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can't assign to a let or embed definition more than once");
         return false;
       }
@@ -48,20 +49,21 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
 
       if(need_value)
       {
-        ast_error(ast, "the left side is consumed but its value is used");
+        ast_error(opt->check.errors, ast,
+          "the left side is consumed but its value is used");
         ok = false;
       }
 
       if(let)
       {
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can't assign to a let or embed definition more than once");
         ok = false;
       }
 
-      if(t->frame->try_expr != NULL)
+      if(opt->check.frame->try_expr != NULL)
       {
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can't reassign to a consumed identifier in a try expression");
         ok = false;
       }
@@ -79,7 +81,7 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
   return false;
 }
 
-static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
+static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
   {
@@ -89,17 +91,17 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
     case TK_VAR:
     case TK_LET:
-      return assign_id(t, ast_child(ast), ast_id(ast) == TK_LET, need_value);
+      return assign_id(opt, ast_child(ast), ast_id(ast) == TK_LET, need_value);
 
     case TK_VARREF:
     {
       ast_t* id = ast_child(ast);
-      return assign_id(t, id, false, need_value);
+      return assign_id(opt, id, false, need_value);
     }
 
     case TK_LETREF:
     {
-      ast_error(ast, "can't assign to a let local");
+      ast_error(opt->check.errors, ast, "can't assign to a let local");
       return false;
     }
 
@@ -108,7 +110,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
       AST_GET_CHILDREN(ast, left, right);
 
       if(ast_id(left) == TK_THIS)
-        return assign_id(t, right, false, need_value);
+        return assign_id(opt, right, false, need_value);
 
       return true;
     }
@@ -119,17 +121,18 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
       if(ast_id(left) != TK_THIS)
       {
-        ast_error(ast, "can't assign to a let field");
+        ast_error(opt->check.errors, ast, "can't assign to a let field");
         return false;
       }
 
-      if(t->frame->loop_body != NULL)
+      if(opt->check.frame->loop_body != NULL)
       {
-        ast_error(ast, "can't assign to a let field in a loop");
+        ast_error(opt->check.errors, ast,
+          "can't assign to a let field in a loop");
         return false;
       }
 
-      return assign_id(t, right, true, need_value);
+      return assign_id(opt, right, true, need_value);
     }
 
     case TK_EMBEDREF:
@@ -138,17 +141,18 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
       if(ast_id(left) != TK_THIS)
       {
-        ast_error(ast, "can't assign to an embed field");
+        ast_error(opt->check.errors, ast, "can't assign to an embed field");
         return false;
       }
 
-      if(t->frame->loop_body != NULL)
+      if(opt->check.frame->loop_body != NULL)
       {
-        ast_error(ast, "can't assign to an embed field in a loop");
+        ast_error(opt->check.errors, ast,
+          "can't assign to an embed field in a loop");
         return false;
       }
 
-      return assign_id(t, right, true, need_value);
+      return assign_id(opt, right, true, need_value);
     }
 
     case TK_TUPLE:
@@ -158,7 +162,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
       while(child != NULL)
       {
-        if(!is_lvalue(t, child, need_value))
+        if(!is_lvalue(opt, child, need_value))
           return false;
 
         child = ast_sibling(child);
@@ -176,7 +180,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
       if(ast_sibling(child) != NULL)
         return false;
 
-      return is_lvalue(t, child, need_value);
+      return is_lvalue(opt, child, need_value);
     }
 
     default: {}
@@ -206,7 +210,7 @@ typedef enum infer_ret_t
   INFER_ERROR
 } infer_ret_t;
 
-static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
+static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 {
   assert(type != NULL);
 
@@ -219,7 +223,7 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
       if(path->index >= ast_childcount(type)) // Cardinality mismatch
         return NULL;
 
-      return find_infer_type(ast_childidx(type, path->index), path->next);
+      return find_infer_type(opt, ast_childidx(type, path->index), path->next);
 
     case TK_UNIONTYPE:
     {
@@ -228,7 +232,7 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
 
       for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
       {
-        ast_t* t = find_infer_type(p, path);
+        ast_t* t = find_infer_type(opt, p, path);
 
         if(t == NULL)
         {
@@ -237,7 +241,7 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        u_type = type_union(u_type, t);
+        u_type = type_union(opt, u_type, t);
       }
 
       return u_type;
@@ -250,7 +254,7 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
 
       for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
       {
-        ast_t* t = find_infer_type(p, path);
+        ast_t* t = find_infer_type(opt, p, path);
 
         if(t == NULL)
         {
@@ -259,7 +263,7 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        i_type = type_isect(i_type, t);
+        i_type = type_isect(opt, i_type, t);
       }
 
       return i_type;
@@ -274,8 +278,8 @@ static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
   }
 }
 
-static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
-  infer_path_t* path)
+static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
+  ast_t* r_type, infer_path_t* path)
 {
   assert(left != NULL);
   assert(r_type != NULL);
@@ -289,7 +293,7 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
     case TK_SEQ:
     {
       assert(ast_childcount(left) == 1);
-      infer_ret_t r = infer_local_inner(ast_child(left), r_type, path);
+      infer_ret_t r = infer_local_inner(opt, ast_child(left), r_type, path);
 
       if(r == INFER_OK) // Update seq type
         ast_settype(left, ast_type(ast_child(left)));
@@ -305,7 +309,7 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
 
       for(ast_t* p = ast_child(left); p != NULL; p = ast_sibling(p))
       {
-        infer_ret_t r = infer_local_inner(p, r_type, &path_node);
+        infer_ret_t r = infer_local_inner(opt, p, r_type, &path_node);
 
         if(r == INFER_ERROR)
           return INFER_ERROR;
@@ -335,11 +339,11 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
       if(ast_id(var_type) != TK_INFERTYPE)  // No inferring needed
         return INFER_NOP;
 
-      ast_t* infer_type = find_infer_type(r_type, path->root->next);
+      ast_t* infer_type = find_infer_type(opt, r_type, path->root->next);
 
       if(infer_type == NULL)
       {
-        ast_error(left, "could not infer type of local");
+        ast_error(opt->check.errors, left, "could not infer type of local");
         ast_settype(left, ast_from(left, TK_ERRORTYPE));
         return INFER_ERROR;
       }
@@ -365,12 +369,12 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
   }
 }
 
-static bool infer_locals(ast_t* left, ast_t* r_type)
+static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
 {
   infer_path_t path_root = { 0, NULL, NULL };
   path_root.root = &path_root;
 
-  if(infer_local_inner(left, r_type, &path_root) == INFER_ERROR)
+  if(infer_local_inner(opt, left, r_type, &path_root) == INFER_ERROR)
     return false;
 
   assert(path_root.next == NULL);
@@ -387,9 +391,10 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(l_type == NULL || !is_lvalue(&opt->check, left, is_result_needed(ast)))
+  if(l_type == NULL || !is_lvalue(opt, left, is_result_needed(ast)))
   {
-    ast_error(ast, "left side must be something that can be assigned to");
+    ast_error(opt->check.errors, ast,
+      "left side must be something that can be assigned to");
     return false;
   }
 
@@ -403,11 +408,12 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(is_control_type(r_type))
   {
-    ast_error(ast, "the right hand side does not return a value");
+    ast_error(opt->check.errors, ast,
+      "the right hand side does not return a value");
     return false;
   }
 
-  if(!infer_locals(left, r_type))
+  if(!infer_locals(opt, left, r_type))
     return false;
 
   // Inferring locals may have changed the left type.
@@ -417,7 +423,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   ast_t* a_type = alias(r_type);
 
   errorframe_t info = NULL;
-  if(!is_subtype(a_type, l_type, &info))
+  if(!is_subtype(a_type, l_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
@@ -426,7 +432,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     ast_error_frame(&frame, l_type, "left side type: %s",
       ast_print_type(l_type));
     errorframe_append(&frame, &info);
-    errorframe_report(&frame);
+    errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(a_type);
     return false;
   }
@@ -436,13 +442,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     switch(ast_id(a_type))
     {
       case TK_UNIONTYPE:
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can't destructure a union using assignment, use pattern matching "
           "instead");
         break;
 
       case TK_ISECTTYPE:
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can't destructure an intersection using assignment, use pattern "
           "matching instead");
         break;
@@ -452,7 +458,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         break;
     }
 
-    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_error(opt->check.errors, a_type, "right side type: %s",
+      ast_print_type(a_type));
     ast_free_unattached(a_type);
     return false;
   }
@@ -475,7 +482,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
         if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
         {
-          ast_error(ast,
+          ast_error(opt->check.errors, ast,
             "cannot write to a field in a %s function. If you are trying to "
             "change state in a function use fun ref",
             lexer_print(iso_id));
@@ -485,8 +492,10 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
       }
     }
 
-    ast_error(ast, "not safe to write right side to left side");
-    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_error(opt->check.errors, ast,
+      "not safe to write right side to left side");
+    ast_error_continue(opt->check.errors, a_type, "right side type: %s",
+      ast_print_type(a_type));
     ast_free_unattached(a_type);
     return false;
   }
@@ -499,7 +508,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     if((ast_id(right) != TK_CALL) ||
       (ast_id(ast_childidx(right, 2)) != TK_NEWREF))
     {
-      ast_error(ast, "an embedded field must be assigned using a constructor");
+      ast_error(opt->check.errors, ast,
+        "an embedded field must be assigned using a constructor");
       return false;
     }
   }
@@ -509,7 +519,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_consume(typecheck_t* t, ast_t* ast)
+bool expr_consume(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
   ast_t* type = ast_type(term);
@@ -537,15 +547,17 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
     }
 
     default:
-      ast_error(ast, "consume must take 'this', a local, or a parameter");
+      ast_error(opt->check.errors, ast,
+        "consume must take 'this', a local, or a parameter");
       return false;
   }
 
   // Can't consume from an outer scope while in a loop condition.
-  if((t->frame->loop_cond != NULL) &&
-    !ast_within_scope(t->frame->loop_cond, ast, name))
+  if((opt->check.frame->loop_cond != NULL) &&
+    !ast_within_scope(opt->check.frame->loop_cond, ast, name))
   {
-    ast_error(ast, "can't consume from an outer scope in a loop condition");
+    ast_error(opt->check.errors, ast,
+      "can't consume from an outer scope in a loop condition");
     return false;
   }
 
@@ -556,8 +568,9 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
 
   if(c_type == NULL)
   {
-    ast_error(ast, "can't consume to this capability");
-    ast_error(term, "expression type is %s", ast_print_type(type));
+    ast_error(opt->check.errors, ast, "can't consume to this capability");
+    ast_error_continue(opt->check.errors, term, "expression type is %s",
+      ast_print_type(type));
     return false;
   }
 

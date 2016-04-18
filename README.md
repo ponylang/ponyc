@@ -1,4 +1,4 @@
-# Getting help 
+# Getting help
 
 * [Open an issue!](https://github.com/ponylang/ponyc/issues)
 * Use the [mailing list](mailto:pony+user@groups.io).
@@ -23,12 +23,12 @@
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
-The homebrew version is currently woefully out of date. We are transitioning to 
-a new release system that will keep homebrew up to date. For now, please build 
+The homebrew version is currently woefully out of date. We are transitioning to
+a new release system that will keep homebrew up to date. For now, please build
 from source.
 
 ```bash
-$ brew update 
+$ brew update
 $ brew install ponyc
 ```
 
@@ -41,8 +41,8 @@ layman -a stefantalpalaru
 emerge dev-lang/pony
 ```
 
-A live ebuild is also available in the 
-[overlay](https://github.com/stefantalpalaru/gentoo-overlay) 
+A live ebuild is also available in the
+[overlay](https://github.com/stefantalpalaru/gentoo-overlay)
 (dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
 
 ### Other distributions
@@ -55,12 +55,22 @@ You will need to build from source.
 
 # Building ponyc from source
 
-## Building on Linux 
+## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-First, install LLVM 3.6.2, 3.7.1 or 3.8 using your package manager. You may 
-need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some
-specific distributions follow.
+First, install LLVM using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some specific distributions follow.
+
+APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the LLVM build server.
+
+Please follow the instructions at http://llvm.org/apt/ for installing the GPG keys and packages for your distribution.
+
+#### Notes:
+
+On Ubuntu,
+```apt-get install llvm-dev``` installs LLVM-3.6.
+
+When installing the full set of LLVM packages, the ```apt-get install``` instructions include the ```clang-modernize``` package. This should be changed to ```clang-tidy``` due to a recent name change.
+
 
 ### Debian Jessie
 
@@ -101,14 +111,14 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-### Ubuntu 15.10
+### Ubuntu (12.04, 14.04, 15.10, 16.04)
 
 ```bash
-$ sudo apt-get install build-essential git llvm-dev \
+$ sudo apt-get install build-essential git \
                        zlib1g-dev libncurses5-dev libssl-dev
 ```
 
-Ubuntu 15.10 and some other Linux distributions don't include pcre2 in their
+Ubuntu and some other Linux distributions don't include pcre2 in their
 package manager. pcre2 is used by the Pony regex package. To download and
 build pcre2 from source:
 
@@ -128,11 +138,6 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that the LLVM 3.8 apt packages do not include debug symbols. As a 
-result, the `ponyc config=debug` build fails when using those packages. If you 
-need a debug compiler built with LLVM 3.8, you will need to build LLVM from 
-source.
-
 ## Building on FreeBSD
 
 First, install the required dependencies:
@@ -151,11 +156,11 @@ $ gmake config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently 
-produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not 
+Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently
+produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not
 have this problem, and works fine with LLVM 3.7 and 3.8.
 
-## Building on Mac OS X 
+## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 You'll need llvm 3.6.2, 3.7.1, or 3.8 and the pcre2 library to build Pony.
@@ -178,30 +183,30 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-## Building on Windows 
+## Building on Windows
 [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
 
-The LLVM prebuilt binaries for Windows do NOT include the LLVM development 
-tools and libraries. Instead, you will have to build and install LLVM 3.7 or 
-3.8 from source. You will need to make sure that the path to LLVM/bin (location 
+The LLVM prebuilt binaries for Windows do NOT include the LLVM development
+tools and libraries. Instead, you will have to build and install LLVM 3.7 or
+3.8 from source. You will need to make sure that the path to LLVM/bin (location
 of llvm-config) is in your PATH variable.
 
-LLVM recommends using the GnuWin32 unix tools; your mileage may vary using 
+LLVM recommends using the GnuWin32 unix tools; your mileage may vary using
 MSYS or Cygwin.
 
-- Install GnuWin32 using the [GetGnuWin32](http://getgnuwin32.sourceforge.net/) 
+- Install GnuWin32 using the [GetGnuWin32](http://getgnuwin32.sourceforge.net/)
   tool.
-- Install [Python](https://www.python.org/downloads/release/python-351/) (3.5 or 
+- Install [Python](https://www.python.org/downloads/release/python-351/) (3.5 or
   2.7).
 - Install [CMake](https://cmake.org/download/).
-- Get the LLVM source (e.g. 3.7.1 is 
+- Get the LLVM source (e.g. 3.7.1 is
   at [3.7.1](http://llvm.org/releases/3.7.1/llvm-3.7.1.src.tar.xz)).
 - Make sure you have VS2015 with the C++ tools installed.
-- Generate LLVM VS2015 configuration with CMake. You can use the GUI to 
-  configure and generate the VS projects; make sure you use the 64-bit 
-  generator (**Visual Studio 14 2015 Win64**), and set the 
+- Generate LLVM VS2015 configuration with CMake. You can use the GUI to
+  configure and generate the VS projects; make sure you use the 64-bit
+  generator (**Visual Studio 14 2015 Win64**), and set the
   `CMAKE_INSTALL_PREFIX` to where you want LLVM to live.
-- Open the LLVM.sln in Visual Studio 2015 and build the INSTALL project in 
+- Open the LLVM.sln in Visual Studio 2015 and build the INSTALL project in
   the LLVM solution in Release mode.
 
 Building Pony requires [Premake 5](https://premake.github.io).
@@ -210,19 +215,17 @@ Building Pony requires [Premake 5](https://premake.github.io).
 - Get the [PonyC source](https://github.com/ponylang/ponyc).
 - Run `premake5.exe --with-tests --to=..\vs vs2015` to generate the PonyC
   solution.
-- Change the **Character Set** property of each project in the PonyC solution
-  to **Not Set**.
 - Build ponyc.sln in Release mode.
 
-In order to run the pony compiler, you'll need a few libraries in your 
-environment (pcre2, libssl, libcrypto). 
+In order to run the pony compiler, you'll need a few libraries in your
+environment (pcre2, libssl, libcrypto).
 
-There is a third-party utility that will get the libraries and set up your 
+There is a third-party utility that will get the libraries and set up your
 environment:
 
-- Install [7-Zip](http://www.7-zip.org/a/7z1514-x64.exe), make sure it's in 
+- Install [7-Zip](http://www.7-zip.org/a/7z1514-x64.exe), make sure it's in
   your PATH.
-- Open a **VS2015 x64 Native Tools Command Prompt** (things will not work 
+- Open a **VS2015 x64 Native Tools Command Prompt** (things will not work
   correctly otherwise!) and run:
 
 ```
@@ -262,3 +265,11 @@ $ make config=release LTO_PLUGIN=/usr/lib/LLVMgold.so
 Refer to your compiler documentation for the plugin to use in your case.
 
 LTO is enabled by default on OSX.
+
+
+## VirtualBox
+
+Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for
+at least the x86_64 platform and possibly others.
+
+Use VirtualBox 5.x to avoid possible problems.

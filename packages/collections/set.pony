@@ -33,6 +33,12 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     _map(value)
 
+  fun contains(value: box->A!): Bool =>
+    """
+    Checks whether the set contains the value.
+    """
+    _map.contains(value)
+
   fun ref clear(): HashSet[A, H]^ =>
     """
     Remove all elements from the set.

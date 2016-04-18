@@ -28,7 +28,7 @@ strlist_t* package_paths();
  * Path list is semicolon (;) separated on Windows and colon (:) separated on
  * Linux and MacOS.
  */
-void package_add_paths(const char* paths);
+void package_add_paths(const char* paths, pass_opt_t* opt);
 
 /**
  * Appends a list of paths to the list of packages allowed to do C FFI.
@@ -36,7 +36,7 @@ void package_add_paths(const char* paths);
  * Linux and MacOS.
  * If this is never called, all packages are allowed to do C FFI.
  */
-bool package_add_safe(const char* paths);
+bool package_add_safe(const char* paths, pass_opt_t* opt);
 
 /**
  * Add a magic package. When the package with the specified path is requested
@@ -60,12 +60,12 @@ void package_suppress_build_message();
 /**
  * Load a program. The path specifies the package that represents the program.
  */
-ast_t* program_load(const char* path, pass_opt_t* options);
+ast_t* program_load(const char* path, pass_opt_t* opt);
 
 /**
  * Load a package. Used by program_load() and when handling 'use' statements.
  */
-ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options);
+ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt);
 
 /**
  * Free the package_t that is set as the ast_data of a package node.
@@ -116,9 +116,9 @@ const char* package_hygienic_id(typecheck_t* t);
 bool package_allow_ffi(typecheck_t* t);
 
 /**
- * Cleans up the list of search directories and shuts down the code generator.
+ * Cleans up the list of search directories.
  */
-void package_done(pass_opt_t* opt, bool handle_errors);
+void package_done();
 
 bool is_path_absolute(const char* path);
 

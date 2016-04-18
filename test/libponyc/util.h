@@ -60,6 +60,12 @@ protected:
   // Check that the given source fails when compiled to the specified pass
   void test_error(const char* src, const char* pass);
 
+  // Check that the given source fails when compiled to the specified pass,
+  // that a specific number of errors are produced, and that the errors match
+  // expected text, given as a NULL-terminated array of NULL-terminated strings.
+  void test_expected_errors(const char* src, const char* pass,
+    const char** errors);
+
   // Check that the 2 given sources compile to give the same AST for the first
   // package
   void test_equiv(const char* actual_src, const char* actual_pass,
@@ -86,6 +92,10 @@ protected:
   // Returns: the AST of the named definition, NULL if not found.
   ast_t* lookup_member(const char* type_name, const char* member_name);
 
+  // Lookup the first instance of the given integer as a number literal in 
+  // the previously loaded package
+  ast_t* numeric_literal(uint64_t num);
+
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
@@ -93,13 +103,16 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, ast_t** out_package);
+    const char* package_name, bool check_good, const char** expected_errors,
+    ast_t** out_package);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.
   // If there are multiple matches the first found will be returned.
   // Returns: type of specified name, NULL if none found.
   ast_t* type_of_within(ast_t* ast, const char* name);
+
+  ast_t* numeric_literal_within(ast_t* ast, uint64_t num);
 };
 
 

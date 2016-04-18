@@ -617,6 +617,15 @@ bool gentypes(compile_t* c)
       return false;
   }
 
+  PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
+  i = HASHMAP_BEGIN;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(!genfun_method_bodies(c, t))
+      return false;
+  }
+
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Descriptors\n"));
   i = HASHMAP_BEGIN;
 
@@ -626,15 +635,6 @@ bool gentypes(compile_t* c)
       return false;
 
     gendesc_init(c, t);
-  }
-
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
-  i = HASHMAP_BEGIN;
-
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
-  {
-    if(!genfun_method_bodies(c, t))
-      return false;
   }
 
   return true;

@@ -1,3 +1,4 @@
+#include "error.h"
 #include "lexer.h"
 #include "lexint.h"
 #include "token.h"
@@ -13,6 +14,7 @@
 struct lexer_t
 {
   source_t* source;
+  errors_t* errors;
 
   // Information about next unused character in file
   size_t ptr;
@@ -175,6 +177,7 @@ static const lextoken_t keywords[] =
   { "#read", TK_CAP_READ },
   { "#send", TK_CAP_SEND },
   { "#share", TK_CAP_SHARE },
+  { "#alias", TK_CAP_ALIAS },
   { "#any", TK_CAP_ANY },
 
   // $keywords, for testing only.
@@ -228,6 +231,7 @@ static const lextoken_t abstract[] =
   { "#read (bind)", TK_CAP_READ_BIND },
   { "#send (bind)", TK_CAP_SEND_BIND },
   { "#share (bind)", TK_CAP_SHARE_BIND },
+  { "#alias (bind)", TK_CAP_ALIAS_BIND },
   { "#any (bind)", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
@@ -295,7 +299,7 @@ static void lex_error_at(lexer_t* lexer, size_t line, size_t pos,
 {
   va_list ap;
   va_start(ap, fmt);
-  errorv(lexer->source, line, pos, fmt, ap);
+  errorv(lexer->errors, lexer->source, line, pos, fmt, ap);
   va_end(ap);
 }
 
@@ -305,7 +309,8 @@ static void lex_error(lexer_t* lexer, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
-  errorv(lexer->source, lexer->token_line, lexer->token_pos, fmt, ap);
+  errorv(lexer->errors, lexer->source, lexer->token_line, lexer->token_pos,
+    fmt, ap);
   va_end(ap);
 }
 
@@ -1158,7 +1163,7 @@ static token_t* symbol(lexer_t* lexer)
 }
 
 
-lexer_t* lexer_open(source_t* source)
+lexer_t* lexer_open(source_t* source, errors_t* errors)
 {
   assert(source != NULL);
 
@@ -1166,6 +1171,7 @@ lexer_t* lexer_open(source_t* source)
   memset(lexer, 0, sizeof(lexer_t));
 
   lexer->source = source;
+  lexer->errors = errors;
   lexer->len = source->len;
   lexer->line = 1;
   lexer->pos = 1;

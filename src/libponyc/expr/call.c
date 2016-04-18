@@ -74,7 +74,7 @@ bool is_this_incomplete(typecheck_t* t, ast_t* ast)
   return false;
 }
 
-static bool check_type_params(ast_t** astp)
+static bool check_type_params(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* lhs = *astp;
   ast_t* type = ast_type(lhs);
@@ -90,19 +90,19 @@ static bool check_type_params(ast_t** astp)
 
   BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
 
-  if(!reify_defaults(typeparams, typeargs, true))
+  if(!reify_defaults(typeparams, typeargs, true, opt))
   {
     ast_free_unattached(typeargs);
     return false;
   }
 
-  if(!check_constraints(lhs, typeparams, typeargs, true))
+  if(!check_constraints(lhs, typeparams, typeargs, true, opt))
   {
     ast_free_unattached(typeargs);
     return false;
   }
 
-  type = reify(type, typeparams, typeargs);
+  type = reify(type, typeparams, typeargs, opt);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 
@@ -112,7 +112,8 @@ static bool check_type_params(ast_t** astp)
   return true;
 }
 
-static bool extend_positional_args(ast_t* params, ast_t* positional)
+static bool extend_positional_args(pass_opt_t* opt, ast_t* params,
+  ast_t* positional)
 {
   // Fill out the positional args to be as long as the param list.
   size_t param_len = ast_childcount(params);
@@ -120,7 +121,7 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
 
   if(arg_len > param_len)
   {
-    ast_error(positional, "too many arguments");
+    ast_error(opt->check.errors, positional, "too many arguments");
     return false;
   }
 
@@ -134,7 +135,7 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
   return true;
 }
 
-static bool apply_named_args(ast_t* params, ast_t* positional,
+static bool apply_named_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
   ast_t* namedargs)
 {
   ast_t* namedarg = ast_pop(namedargs);
@@ -161,12 +162,12 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
     {
       if(ast_id(namedarg) == TK_UPDATEARG)
       {
-        ast_error(arg_id,
+        ast_error(opt->check.errors, arg_id,
           "cannot use sugar, update() has no parameter named \"value\"");
         return false;
       }
 
-      ast_error(arg_id, "not a parameter name");
+      ast_error(opt->check.errors, arg_id, "not a parameter name");
       return false;
     }
 
@@ -174,8 +175,10 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
 
     if(ast_id(arg_replace) != TK_NONE)
     {
-      ast_error(arg_id, "named argument is already supplied");
-      ast_error(arg_replace, "supplied argument is here");
+      ast_error(opt->check.errors, arg_id,
+        "named argument is already supplied");
+      ast_error_continue(opt->check.errors, arg_replace,
+        "supplied argument is here");
       return false;
     }
 
@@ -198,7 +201,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 
   if(ast_id(def_arg) == TK_NONE)
   {
-    ast_error(arg, "not enough arguments");
+    ast_error(opt->check.errors, arg, "not enough arguments");
     return false;
   }
 
@@ -261,7 +264,8 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(is_control_type(arg_type))
     {
-      ast_error(arg, "can't use a control expression in an argument");
+      ast_error(opt->check.errors, arg,
+        "can't use a control expression in an argument");
       return false;
     }
 
@@ -284,7 +288,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     }
 
     errorframe_t info = NULL;
-    if(!is_subtype(a_type, p_type, &info))
+    if(!is_subtype(a_type, p_type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
@@ -292,7 +296,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
         ast_print_type(p_type));
       ast_error_frame(&frame, arg, "argument type: %s", ast_print_type(a_type));
       errorframe_append(&frame, &info);
-      errorframe_report(&frame);
+      errorframe_report(&frame, opt->check.errors);
 
       ast_free_unattached(a_type);
       return false;
@@ -339,7 +343,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   return true;
 }
 
-static bool check_receiver_cap(ast_t* ast, bool incomplete)
+static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool incomplete)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
@@ -406,7 +410,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   }
 
   errorframe_t info = NULL;
-  bool ok = is_subtype(a_type, t_type, &info);
+  bool ok = is_subtype(a_type, t_type, &info, opt);
 
   if(!ok)
   {
@@ -419,14 +423,14 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
 
-    if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL))
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL, opt))
     {
       ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
     }
 
-    if(incomplete && is_subtype(r_type, t_type, NULL))
+    if(incomplete && is_subtype(r_type, t_type, NULL, opt))
     {
       ast_error_frame(&frame, ast,
         "this would be possible if all the fields of 'this' were assigned to "
@@ -434,7 +438,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     }
 
     errorframe_append(&frame, &info);
-    errorframe_report(&frame);
+    errorframe_report(&frame, opt->check.errors);
   }
 
   if(a_type != r_type)
@@ -449,7 +453,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
-  if(!check_type_params(&lhs))
+  if(!check_type_params(opt, &lhs))
     return false;
 
   ast_t* type = ast_type(lhs);
@@ -459,10 +463,10 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-  if(!extend_positional_args(params, positional))
+  if(!extend_positional_args(opt, params, positional))
     return false;
 
-  if(!apply_named_args(params, positional, namedargs))
+  if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
   bool incomplete = is_this_incomplete(&opt->check, ast);
@@ -474,7 +478,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(!check_receiver_cap(ast, incomplete))
+      if(!check_receiver_cap(opt, ast, incomplete))
         return false;
       break;
 
@@ -518,8 +522,8 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
-  ast_t* positional)
+static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
+  ast_t* receiver, ast_t* positional)
 {
   // Check if the apply method in the generated object literal can accept a box
   // receiver. If not, it must be a ref receiver. It can accept a box receiver
@@ -530,7 +534,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
   ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  bool ok = is_subtype(view_type, need_type, NULL);
+  bool ok = is_subtype(view_type, need_type, NULL, opt);
   ast_free_unattached(view_type);
   ast_free_unattached(need_type);
 
@@ -548,7 +552,7 @@ static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
       view_type = viewpoint_type(ast_from(type, TK_BOX), type);
       need_type = ast_childidx(param, 1);
 
-      ok = is_subtype(view_type, need_type, NULL);
+      ok = is_subtype(view_type, need_type, NULL, opt);
       ast_free_unattached(view_type);
       ast_free_unattached(need_type);
 
@@ -613,7 +617,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(is_typecheck_error(type))
     return false;
 
-  token_id apply_cap = partial_application_cap(type, receiver, positional);
+  token_id apply_cap = partial_application_cap(opt, type, receiver, positional);
   AST_GET_CHILDREN(type, cap, type_params, target_params, result);
 
   token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;

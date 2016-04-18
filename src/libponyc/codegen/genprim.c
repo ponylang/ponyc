@@ -11,9 +11,13 @@
 #include <assert.h>
 
 #define FIND_METHOD(name) \
-  reachable_method_t* m = reach_method(t, stringtab(name), NULL); \
+  const char* strtab_name = stringtab(name); \
+  reachable_method_t* m = reach_method(t, TK_NONE, strtab_name, NULL); \
   if(m == NULL) return; \
   m->intrinsic = true;
+
+#define BOX_FUNCTION() \
+  box_function(t, m, strtab_name);
 
 static void start_function(compile_t* c, reachable_method_t* m,
   LLVMTypeRef result, LLVMTypeRef* params, unsigned count)
@@ -21,6 +25,43 @@ static void start_function(compile_t* c, reachable_method_t* m,
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
   codegen_startfun(c, m->func, NULL, NULL);
+}
+
+static void box_function(reachable_type_t* t, reachable_method_t* m,
+  const char* name)
+{
+  if((m->cap != TK_BOX) && (m->cap != TK_TAG))
+    return;
+
+  reachable_method_t* m_ref = reach_method(t, TK_REF, name, NULL);
+
+  if(m_ref != NULL)
+  {
+    m_ref->func_type = m->func_type;
+    m_ref->func = m->func;
+    m_ref->intrinsic = true;
+  }
+
+  reachable_method_t* m_val = reach_method(t, TK_VAL, name, NULL);
+
+  if(m_val != NULL)
+  {
+    m_val->func_type = m->func_type;
+    m_val->func = m->func;
+    m_val->intrinsic = true;
+  }
+
+  if(m->cap == TK_TAG)
+  {
+    reachable_method_t* m_box = reach_method(t, TK_BOX, name, NULL);
+
+    if(m_box != NULL)
+    {
+      m_box->func_type = m->func_type;
+      m_box->func = m->func;
+      m_box->intrinsic = true;
+    }
+  }
 }
 
 static void pointer_create(compile_t* c, reachable_type_t* t)
@@ -117,6 +158,8 @@ static void pointer_apply(compile_t* c, reachable_type_t* t,
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void pointer_update(compile_t* c, reachable_type_t* t,
@@ -168,6 +211,8 @@ static void pointer_offset(compile_t* c, reachable_type_t* t,
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void pointer_insert(compile_t* c, reachable_type_t* t,
@@ -278,6 +323,8 @@ static void pointer_copy_to(compile_t* c, reachable_type_t* t,
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void pointer_usize(compile_t* c, reachable_type_t* t)
@@ -359,6 +406,8 @@ static void maybe_apply(compile_t* c, reachable_type_t* t,
   gencall_throw(c);
 
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void maybe_is_none(compile_t* c, reachable_type_t* t)
@@ -372,6 +421,8 @@ static void maybe_is_none(compile_t* c, reachable_type_t* t)
 
   LLVMBuildRet(c->builder, test);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 void genprim_maybe_methods(compile_t* c, reachable_type_t* t)
@@ -467,6 +518,8 @@ static void platform_freebsd(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_freebsd(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_linux(compile_t* c, reachable_type_t* t)
@@ -478,6 +531,8 @@ static void platform_linux(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_linux(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_osx(compile_t* c, reachable_type_t* t)
@@ -489,6 +544,8 @@ static void platform_osx(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_macosx(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_windows(compile_t* c, reachable_type_t* t)
@@ -500,6 +557,8 @@ static void platform_windows(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_windows(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_x86(compile_t* c, reachable_type_t* t)
@@ -511,6 +570,8 @@ static void platform_x86(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_x86(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_arm(compile_t* c, reachable_type_t* t)
@@ -522,6 +583,8 @@ static void platform_arm(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_arm(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_lp64(compile_t* c, reachable_type_t* t)
@@ -533,6 +596,8 @@ static void platform_lp64(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_lp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_llp64(compile_t* c, reachable_type_t* t)
@@ -544,6 +609,8 @@ static void platform_llp64(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_llp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_ilp32(compile_t* c, reachable_type_t* t)
@@ -555,6 +622,8 @@ static void platform_ilp32(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_ilp32(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_native128(compile_t* c, reachable_type_t* t)
@@ -566,6 +635,8 @@ static void platform_native128(compile_t* c, reachable_type_t* t)
     LLVMConstInt(c->i1, target_is_native128(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void platform_debug(compile_t* c, reachable_type_t* t)
@@ -576,6 +647,8 @@ static void platform_debug(compile_t* c, reachable_type_t* t)
   LLVMValueRef result = LLVMConstInt(c->i1, !c->opt->release, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 void genprim_platform_methods(compile_t* c, reachable_type_t* t)
@@ -658,6 +731,8 @@ static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void number_conversions(compile_t* c)
@@ -780,6 +855,8 @@ static void f32_bits(compile_t* c, reachable_type_t* t)
     c->i32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void f64_from_bits(compile_t* c, reachable_type_t* t)
@@ -806,6 +883,8 @@ static void f64_bits(compile_t* c, reachable_type_t* t)
     c->i64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  BOX_FUNCTION();
 }
 
 static void fp_as_bits(compile_t* c)
@@ -913,13 +992,15 @@ void genprim_reachable_init(compile_t* c, ast_t* program)
 
             if(finit != NULL)
             {
-              reach(c->reachable, &c->next_type_id, type, c->str__init, NULL);
+              reach(c->reachable, &c->next_type_id, type, c->str__init, NULL,
+                c->opt);
               ast_free_unattached(finit);
             }
 
             if(ffinal != NULL)
             {
-              reach(c->reachable, &c->next_type_id, type, c->str__final, NULL);
+              reach(c->reachable, &c->next_type_id, type, c->str__final, NULL,
+                c->opt);
               ast_free_unattached(ffinal);
             }
 

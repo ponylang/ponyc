@@ -3,12 +3,12 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
-#include "../ast/frame.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
 // Sugar any case methods in the given entity.
-ast_result_t sugar_case_methods(typecheck_t* t, ast_t* entity);
+ast_result_t sugar_case_methods(pass_opt_t* opt, ast_t* entity);
 
 PONY_EXTERN_C_END
 

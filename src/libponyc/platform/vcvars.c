@@ -68,7 +68,7 @@ static bool query_registry(HKEY key, bool query_subkeys, query_callback_fn fn,
       r = false;
       break;
     }
-      
+
     fn(node, name, p);
     RegCloseKey(node);
     size = largest_subkey;
@@ -100,7 +100,7 @@ static bool find_registry_key(char* path, query_callback_fn query,
 static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
   DWORD size = MAX_PATH;
-  
+
   RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
     NULL, p->path, &size);
 }
@@ -137,14 +137,14 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
   }
 }
 
-static bool find_kernel32(vcvars_t* vcvars)
+static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
 {
   search_t sdk;
   memset(&sdk, 0, sizeof(search_t));
 
   if(!find_registry_key(REG_SDK_INSTALL_PATH, pick_newest_sdk, true, &sdk))
   {
-    errorf(NULL, "unable to locate a Windows SDK");
+    errorf(errors, NULL, "unable to locate a Windows SDK");
     return false;
   }
 
@@ -172,7 +172,8 @@ static bool find_kernel32(vcvars_t* vcvars)
   return true;
 }
 
-static bool find_executable(const char* path, const char* name, char* dest)
+static bool find_executable(const char* path, const char* name, char* dest,
+  errors_t* errors)
 {
   TCHAR exe[MAX_PATH + 1];
   strcpy(exe, path);
@@ -180,15 +181,15 @@ static bool find_executable(const char* path, const char* name, char* dest)
 
   if((GetFileAttributes(exe) == INVALID_FILE_ATTRIBUTES))
   {
-    errorf(NULL, "unable to locate %s", name);
+    errorf(errors, NULL, "unable to locate %s", name);
     return false;
   }
-  
+
   strcpy(dest, exe);
   return true;
 }
 
-static bool find_msvcrt_and_linker(vcvars_t* vcvars)
+static bool find_msvcrt_and_linker(vcvars_t* vcvars, errors_t* errors)
 {
   search_t vs;
 
@@ -201,7 +202,7 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars)
 
   if(!find_registry_key(reg_vs_install_path, pick_vc_tools, false, &vs))
   {
-    errorf(NULL, "unable to locate Visual Studio %s", vs.version);
+    errorf(errors, NULL, "unable to locate Visual Studio %s", vs.version);
     return false;
   }
 
@@ -210,16 +211,16 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars)
 
   // Find the linker and lib archiver relative to vs.path.
   return
-    find_executable(vs.path, "..\\..\\VC\\bin\\link.exe", vcvars->link) &&
-    find_executable(vs.path, "..\\..\\VC\\bin\\lib.exe", vcvars->ar);
+    find_executable(vs.path, "..\\..\\VC\\bin\\link.exe", vcvars->link, errors) &&
+    find_executable(vs.path, "..\\..\\VC\\bin\\lib.exe", vcvars->ar, errors);
 }
 
-bool vcvars_get(vcvars_t* vcvars)
+bool vcvars_get(vcvars_t* vcvars, errors_t* errors)
 {
-  if(!find_kernel32(vcvars))
+  if(!find_kernel32(vcvars, errors))
     return false;
 
-  if(!find_msvcrt_and_linker(vcvars))
+  if(!find_msvcrt_and_linker(vcvars, errors))
     return false;
 
   return true;

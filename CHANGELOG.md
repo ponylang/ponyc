@@ -43,10 +43,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - Case functions.
 - Timeouts for PonyTest long tests.
 - contains() method on HashMap
+- contains() method on HashSet
 - Support for empty sections in ini parsing.
 - --verbose,-V option for compiler informational messages.
 - Logger package
 - `ArrayValues.rewind()` method.
+- Nanos primitive in time package.
+- Persistent package, with List and Map
 
 ### Changed
 

@@ -37,14 +37,13 @@ static void cap_aliasing(token_id* cap, token_id* eph)
           break;
 
         case TK_CAP_SEND:
-          // Alias as share.
+          // Alias as #share.
           *cap = TK_CAP_SHARE;
           break;
 
         case TK_CAP_ANY:
-          // TODO: should not be tag
-          // Alias as tag.
-          *cap = TK_TAG;
+          // Alias as #alias.
+          *cap = TK_CAP_ALIAS;
           break;
 
         case TK_ISO_BIND:
@@ -60,8 +59,7 @@ static void cap_aliasing(token_id* cap, token_id* eph)
           break;
 
         case TK_CAP_ANY_BIND:
-          // TODO: should not be tag
-          *cap = TK_TAG_BIND;
+          *cap = TK_CAP_ALIAS_BIND;
           break;
 
         default: {}
@@ -106,6 +104,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
 
         case TK_ISO_BIND:
@@ -124,6 +123,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_BOX:
         case TK_CAP_READ:
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
 
         case TK_TRN_BIND:
           return true;
@@ -139,6 +139,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
 
         case TK_REF_BIND:
         case TK_CAP_READ_BIND:
+        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -155,6 +156,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_CAP_READ_BIND:
         case TK_CAP_SEND_BIND:
         case TK_CAP_SHARE_BIND:
+        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -166,6 +168,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       {
         case TK_BOX_BIND:
         case TK_CAP_READ_BIND:
+        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -178,6 +181,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_TAG_BIND:
         case TK_CAP_SEND_BIND:
         case TK_CAP_SHARE_BIND:
+        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -189,6 +193,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       {
         case TK_BOX:
         case TK_CAP_READ_BIND:
+        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -209,6 +214,117 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       switch(super)
       {
         case TK_CAP_SHARE_BIND:
+        case TK_CAP_ALIAS_BIND:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ALIAS:
+      switch(super)
+      {
+        case TK_CAP_ALIAS_BIND:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  return false;
+}
+
+bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
+  token_id supalias)
+{
+  // Transform the cap based on the aliasing info.
+  cap_aliasing(&sub, &subalias);
+  cap_aliasing(&super, &supalias);
+
+  if(supalias == TK_EPHEMERAL)
+  {
+    // Sub must be ephemeral.
+    if(subalias != TK_EPHEMERAL)
+      return false;
+  }
+
+  if((sub == super) || (super == TK_TAG) || (super == TK_CAP_ANY_BIND))
+    return true;
+
+  // Sub and super share the same initial bounds. Some instantiation of the
+  // sub rcap must be a subtype of every instantiation of the super rcap.
+  switch(sub)
+  {
+    case TK_ISO:
+    case TK_CAP_SEND:
+    case TK_CAP_ANY:
+      switch(super)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(super)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_SHARE:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(super)
+      {
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+    case TK_CAP_SHARE:
+      switch(super)
+      {
+        case TK_BOX:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_READ:
+    case TK_CAP_ALIAS:
+      switch(super)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           return true;
 
         default: {}
@@ -258,6 +374,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -274,6 +391,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -288,6 +406,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -303,6 +422,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -316,6 +436,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_CAP_READ:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -328,6 +449,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
       {
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -336,6 +458,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
       break;
 
     case TK_CAP_READ:
+    case TK_CAP_ALIAS:
       switch(pattern_cap)
       {
         case TK_REF:
@@ -343,6 +466,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_BOX:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           return true;
 
@@ -427,6 +551,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           return true;
 
         default: {}
@@ -437,6 +562,18 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       switch(right_cap)
       {
         case TK_BOX:
+        case TK_CAP_ALIAS:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ALIAS:
+      switch(right_cap)
+      {
+        case TK_BOX:
+        case TK_CAP_READ:
           return true;
 
         default: {}
@@ -452,6 +589,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
           return true;
 
         default: {}
@@ -493,6 +631,63 @@ token_id cap_single(ast_t* type)
   return tcap;
 }
 
+token_id cap_dispatch(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      // Use the least specific capability.
+      ast_t* child = ast_child(type);
+      token_id cap = cap_dispatch(child);
+      child = ast_sibling(child);
+
+      while(child != NULL)
+      {
+        token_id child_cap = cap_dispatch(child);
+
+        if(is_cap_sub_cap(cap, TK_NONE, child_cap, TK_NONE))
+          cap = child_cap;
+        else if(!is_cap_sub_cap(child_cap, TK_NONE, cap, TK_NONE))
+          cap = TK_BOX;
+
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // Use the most specific capability. Because all capabilities will be
+      // locally compatible, there is a subtype relationship.
+      ast_t* child = ast_child(type);
+      token_id cap = cap_dispatch(child);
+      child = ast_sibling(child);
+
+      while(child != NULL)
+      {
+        token_id child_cap = cap_dispatch(child);
+
+        if(is_cap_sub_cap(child_cap, TK_NONE, cap, TK_NONE))
+          cap = child_cap;
+
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_NOMINAL:
+      return cap_single(type);
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
 token_id cap_for_this(typecheck_t* t)
 {
   // If this is a primitive, it's a val.
@@ -524,6 +719,7 @@ token_id cap_bind(token_id cap)
     case TK_CAP_READ: return TK_CAP_READ_BIND;
     case TK_CAP_SEND: return TK_CAP_SEND_BIND;
     case TK_CAP_SHARE: return TK_CAP_SHARE_BIND;
+    case TK_CAP_ALIAS: return TK_CAP_ALIAS_BIND;
     case TK_CAP_ANY: return TK_CAP_ANY_BIND;
 
     default: {}
@@ -546,6 +742,7 @@ token_id cap_unbind(token_id cap)
     case TK_CAP_READ_BIND: return TK_CAP_READ;
     case TK_CAP_SEND_BIND: return TK_CAP_SEND;
     case TK_CAP_SHARE_BIND: return TK_CAP_SHARE;
+    case TK_CAP_ALIAS_BIND: return TK_CAP_ALIAS;
     case TK_CAP_ANY_BIND: return TK_CAP_ANY;
 
     default: {}
@@ -569,6 +766,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
     case TK_TAG:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
+    case TK_CAP_ALIAS:
     case TK_CAP_ANY:
       return false;
 
@@ -617,6 +815,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
         case TK_CAP_SHARE:
           break;
 
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_TAG;
           *right_eph = TK_NONE;
@@ -638,6 +837,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
       {
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_CAP_SHARE;
           break;
@@ -664,6 +864,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
           break;
 
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_TAG;
           break;
@@ -699,6 +900,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
     case TK_TAG:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
+    case TK_CAP_ALIAS:
     case TK_CAP_ANY:
       return false;
 
@@ -726,6 +928,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
           break;
 
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_CAP_SEND;
 
@@ -756,6 +959,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
           break;
 
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           *right_cap = TK_VAL;
           *right_eph = TK_NONE;
           break;
@@ -783,6 +987,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
       {
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_CAP_SHARE;
           break;
@@ -812,6 +1017,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
           break;
 
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           *right_cap = TK_VAL;
           break;

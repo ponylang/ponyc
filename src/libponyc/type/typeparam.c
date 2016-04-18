@@ -124,6 +124,20 @@ static token_id cap_union_constraint(token_id a, token_id b)
       }
       break;
 
+    case TK_CAP_ALIAS:
+      switch(b)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_CAP_READ:
+          return TK_CAP_ALIAS;
+
+        default: {}
+      }
+      break;
+
     default: {}
   }
 
@@ -161,6 +175,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
       switch(b)
       {
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           return TK_REF;
 
         default: {}
@@ -173,6 +188,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
         case TK_CAP_READ:
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
           return TK_VAL;
 
         default: {}
@@ -183,6 +199,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
       switch(b)
       {
         case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           return TK_BOX;
 
         default: {}
@@ -196,6 +213,9 @@ static token_id cap_isect_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_BOX:
           return b;
+
+        case TK_CAP_ALIAS:
+          return TK_CAP_READ;
 
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
@@ -217,6 +237,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
           return TK_VAL;
 
         case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
           return TK_CAP_SHARE;
 
         default: {}
@@ -234,6 +255,26 @@ static token_id cap_isect_constraint(token_id a, token_id b)
           return TK_VAL;
 
         case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+          return TK_CAP_SHARE;
+
+        default: {}
+      }
+
+    case TK_CAP_ALIAS:
+      switch(b)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+          return b;
+
+        case TK_CAP_READ:
+          return TK_CAP_READ;
+
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
           return TK_CAP_SHARE;
 
         default: {}
@@ -339,6 +380,23 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+          break;
+
+        default:
+          return false;
+      }
+      break;
+
+    case TK_CAP_ALIAS:
+      switch(tcap)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
           break;
 
         default:

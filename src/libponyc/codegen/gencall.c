@@ -7,6 +7,7 @@
 #include "genname.h"
 #include "genopt.h"
 #include "../pkg/platformfuns.h"
+#include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
@@ -104,7 +105,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
   if(os_is_target(method_name, c->opt->release, &is_target, c->opt))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
-  ast_error(ast, "unknown Platform setting");
+  ast_error(c->opt->check.errors, ast, "unknown Platform setting");
   return NULL;
 }
 
@@ -166,8 +167,12 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 }
 
 static LLVMValueRef dispatch_function(compile_t* c, reachable_type_t* t,
-  LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
+  ast_t* type, LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
 {
+  token_id cap = cap_dispatch(type);
+  reachable_method_t* m = reach_method(t, cap, method_name, typeargs);
+  assert(m != NULL);
+
   switch(t->underlying)
   {
     case TK_UNIONTYPE:
@@ -176,8 +181,6 @@ static LLVMValueRef dispatch_function(compile_t* c, reachable_type_t* t,
     case TK_TRAIT:
     {
       // Get the function from the vtable.
-      reachable_method_t* m = reach_method(t, method_name, typeargs);
-      assert(m != NULL);
       LLVMValueRef func = gendesc_vtable(c, l_value, m->vtable_index);
 
       return LLVMBuildBitCast(c->builder, func,
@@ -190,8 +193,6 @@ static LLVMValueRef dispatch_function(compile_t* c, reachable_type_t* t,
     case TK_ACTOR:
     {
       // Static, get the actual function.
-      reachable_method_t* m = reach_method(t, method_name, typeargs);
-      assert(m != NULL);
       return m->func;
     }
 
@@ -251,7 +252,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   reachable_type_t* t = reach_type(c->reachable, type);
   assert(t != NULL);
 
-  return dispatch_function(c, t, value, ast_name(method), typeargs);
+  return dispatch_function(c, t, type, value, ast_name(method), typeargs);
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
@@ -345,7 +346,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, args[0], method_name, typeargs);
+  LLVMValueRef func = dispatch_function(c, t, type, args[0], method_name,
+    typeargs);
 
   // Cast the arguments to the parameter types.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -423,7 +425,8 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   assert(t != NULL);
 
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, l_value, c->str_eq, NULL);
+  LLVMValueRef func = dispatch_function(c, t, pattern_type, l_value,
+    c->str_eq, NULL);
 
   if(func == NULL)
     return NULL;
@@ -657,17 +660,13 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t)
   // Get the size of the structure.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
 
-  // Get the finaliser, if there is one.
-  const char* final = genname_finalise(t->name);
-  LLVMValueRef final_fun = LLVMGetNamedFunction(c->module, final);
-
   // Allocate the object.
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
 
   LLVMValueRef result;
 
-  if(final_fun == NULL)
+  if(t->final_fn == NULL)
   {
     if(size <= HEAP_MAX)
     {
@@ -680,7 +679,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t)
     }
   } else {
     args[1] = LLVMConstInt(c->intptr, size, false);
-    args[2] = LLVMConstBitCast(final_fun, c->final_fn);
+    args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }
 

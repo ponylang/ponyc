@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <ponyc.h>
 #include <ast/ast.h>
 #include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
+#include <codegen/codegen.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
 
@@ -17,58 +19,81 @@ using std::string;
 
 
 static const char* _builtin =
-  "primitive U8 is Real[U8]\n"  // for literal inference tests
+  "primitive U8 is Real[U8]\n"
   "  new create() => 0\n"
-  "primitive I8\n"
+  "  fun mul(a: U8): U8 => 0\n"
+  "primitive I8 is Real[I8]"
   "  new create() => 0\n"
   "  fun neg():I8 => -this\n"
-  "primitive U16\n"
+  "primitive U16 is Real[U16]"
   "  new create() => 0\n"
-  "primitive I16\n"
+  "primitive I16 is Real[I16]"
   "  new create() => 0\n"
   "  fun neg():I16 => -this\n"
-  "primitive U32\n"
+  "  fun mul(a: I16): I16 => 0\n"
+  "primitive U32 is Real[U32]"
   "  new create() => 0\n"
-  "primitive I32\n"
+  "primitive I32 is Real[I32]"
   "  new create() => 0\n"
   "  fun neg():I32 => -this\n"
-  "primitive U64\n"
+  "primitive U64 is Real[U64]"
   "  new create() => 0\n"
-  "primitive I64\n"
+  "primitive I64 is Real[I64]"
   "  new create() => 0\n"
   "  fun neg():I64 => -this\n"
-  "primitive U128\n"
+  "  fun mul(a: I64): I64 => 0\n"
+  "  fun op_or(a: I64): I64 => 0\n"
+  "  fun op_and(a: I64): I64 => 0\n"
+  "  fun op_xor(a: I64): I64 => 0\n"
+  "primitive U128 is Real[U128]"
   "  new create() => 0\n"
-  "primitive I128\n"
+  "  fun mul(a: U128): U128 => 0\n"
+  "  fun div(a: U128): U128 => 0\n"
+  "primitive I128 is Real[I128]"
   "  new create() => 0\n"
   "  fun neg():I128 => -this\n"
-  "primitive ULong\n"
+  "primitive ULong is Real[ULong]"
   "  new create() => 0\n"
-  "primitive ILong\n"
+  "primitive ILong is Real[ILong]"
   "  new create() => 0\n"
   "  fun neg():ILong => -this\n"
-  "primitive USize\n"
+  "primitive USize is Real[USize]"
   "  new create() => 0\n"
-  "primitive ISize\n"
+  "primitive ISize is Real[ISize]"
   "  new create() => 0\n"
   "  fun neg():ISize => -this\n"
-  "primitive F32\n"
+  "primitive F32 is Real[F32]"
   "  new create() => 0\n"
-  "primitive F64\n"
+  "primitive F64 is Real[F64]"
   "  new create() => 0\n"
   "type Number is (Signed | Unsigned | Float)\n"
   "type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)\n"
   "type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)\n"
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
+  "class val Env\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
-  "class Pointer[A]\n";
+  "class Pointer[A]\n"
+  "interface Seq[A]\n"
+  // Fake up arrays and iterators enough to allow tests to
+  // - create array literals
+  // - call .values() iterator in a for loop
+  "class Array[A] is Seq[A]\n"
+  "  new create(len: USize, alloc: USize = 0) => true\n"
+  "  fun ref push(value: A): Array[A]^ => this\n"
+  "  fun values(): Iterator[A] => object ref\n"
+  "    fun ref has_next(): Bool => false\n"
+  "    fun ref next(): A ? => error\n"
+  "  end\n"
+  "interface Iterator[A]\n"
+  "  fun ref has_next(): Bool\n"
+  "  fun ref next(): A ?\n";
 
 
 // Check whether the 2 given ASTs are identical
-static bool compare_asts(ast_t* expected, ast_t* actual)
+static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 {
   assert(expected != NULL);
   assert(actual != NULL);
@@ -78,7 +103,8 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   if(expected_id != actual_id)
   {
-    ast_error(expected, "AST ID mismatch, got %d (%s), expected %d (%s)",
+    ast_error(errors, expected,
+      "AST ID mismatch, got %d (%s), expected %d (%s)",
       ast_id(actual), ast_get_print(actual),
       ast_id(expected), ast_get_print(expected));
     return false;
@@ -97,20 +123,20 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
   }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
-    ast_error(expected, "AST text mismatch, got %s, expected %s",
+    ast_error(errors, expected, "AST text mismatch, got %s, expected %s",
       ast_get_print(actual), ast_get_print(expected));
     return false;
   }
 
   if(ast_has_scope(expected) && !ast_has_scope(actual))
   {
-    ast_error(expected, "AST missing scope");
+    ast_error(errors, expected, "AST missing scope");
     return false;
   }
 
   if(!ast_has_scope(expected) && ast_has_scope(actual))
   {
-    ast_error(actual, "Unexpected AST scope");
+    ast_error(errors, actual, "Unexpected AST scope");
     return false;
   }
 
@@ -122,19 +148,19 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
   {
     if(expected_type == NULL)
     {
-      ast_error(actual, "Unexpected type found, %s",
+      ast_error(errors, actual, "Unexpected type found, %s",
         ast_get_print(actual_type));
       return false;
     }
 
     if(actual_type == NULL)
     {
-      ast_error(actual, "Expected type not found, %s",
+      ast_error(errors, actual, "Expected type not found, %s",
         ast_get_print(expected_type));
       return false;
     }
 
-    if(!compare_asts(expected_type, actual_type))
+    if(!compare_asts(expected_type, actual_type, errors))
       return false;
   }
 
@@ -144,7 +170,7 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   while(expected_child != NULL && actual_child != NULL)
   {
-    if(!compare_asts(expected_child, actual_child))
+    if(!compare_asts(expected_child, actual_child, errors))
       return false;
 
     expected_child = ast_sibling(expected_child);
@@ -153,14 +179,14 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
 
   if(expected_child != NULL)
   {
-    ast_error(expected, "Expected child %s not found",
+    ast_error(errors, expected, "Expected child %s not found",
       ast_get_print(expected));
     return false;
   }
 
   if(actual_child != NULL)
   {
-    ast_error(actual, "Unexpected child node found, %s",
+    ast_error(errors, actual, "Unexpected child node found, %s",
       ast_get_print(actual));
     return false;
   }
@@ -180,7 +206,6 @@ void PassTest::SetUp()
   _first_pkg_path = "prog";
   package_clear_magic();
   package_suppress_build_message();
-  free_errors();
 }
 
 
@@ -234,21 +259,25 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
   ASSERT_NE((void*)NULL, expect);
   ASSERT_NE((void*)NULL, actual);
 
-  if(!compare_asts(expect, actual))
+  errors_t *errors = errors_alloc();
+
+  if(!compare_asts(expect, actual, errors))
   {
     printf("Expected:\n");
     ast_print(expect);
     printf("Got:\n");
     ast_print(actual);
-    print_errors();
+    errors_print(errors);
     ASSERT_TRUE(false);
   }
+
+  errors_free(errors);
 }
 
 
 void PassTest::test_compile(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, true, &program));
+  DO(build_package(pass, src, _first_pkg_path, true, NULL, &program));
 
   package = ast_child(program);
   module = ast_child(package);
@@ -257,7 +286,18 @@ void PassTest::test_compile(const char* src, const char* pass)
 
 void PassTest::test_error(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, &program));
+  DO(build_package(pass, src, _first_pkg_path, false, NULL, &program));
+
+  package = NULL;
+  module = NULL;
+  ASSERT_EQ((void*)NULL, program);
+}
+
+
+void PassTest::test_expected_errors(const char* src, const char* pass,
+  const char** errors)
+{
+  DO(build_package(pass, src, _first_pkg_path, false, errors, &program));
 
   package = NULL;
   module = NULL;
@@ -271,7 +311,7 @@ void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   DO(test_compile(actual_src, actual_pass));
   ast_t* expect_ast;
 
-  DO(build_package(expect_pass, expect_src, "expect", true, &expect_ast));
+  DO(build_package(expect_pass, expect_src, "expect", true, NULL, &expect_ast));
   ast_t* expect_package = ast_child(expect_ast);
 
   DO(check_ast_same(expect_package, package));
@@ -284,6 +324,13 @@ ast_t* PassTest::type_of(const char* name)
   assert(name != NULL);
   assert(program != NULL);
   return type_of_within(program, name);
+}
+
+
+ast_t* PassTest::numeric_literal(uint64_t num)
+{
+  assert(program != NULL);
+  return numeric_literal_within(program, num);
 }
 
 
@@ -321,7 +368,8 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
-  const char* package_name, bool check_good, ast_t** out_package)
+  const char* package_name, bool check_good, const char** expected_errors,
+  ast_t** out_package)
 {
   ASSERT_NE((void*)NULL, pass);
   ASSERT_NE((void*)NULL, src);
@@ -330,6 +378,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  codegen_init(&opt);
   package_init(&opt);
 
   lexer_allow_test_symbols();
@@ -343,17 +392,44 @@ void PassTest::build_package(const char* pass, const char* src,
   limit_passes(&opt, pass);
   *out_package = program_load(stringtab(package_name), &opt);
 
-  package_done(&opt, false);
-  pass_opt_done(&opt);
+  if(expected_errors != NULL)
+  {
+    const char* expected_error = *expected_errors;
+    size_t expected_count = 0;
+    while(expected_error != NULL)
+    {
+      expected_count++;
+      expected_error = expected_errors[expected_count];
+    }
+
+    ASSERT_EQ(expected_count, errors_get_count(opt.check.errors));
+
+    errormsg_t* e = errors_get_first(opt.check.errors);
+    for(size_t i = 0; i < expected_count; i++)
+    {
+      expected_error = expected_errors[i];
+
+      if((e == NULL) || (expected_error == NULL))
+        break;
+
+      EXPECT_TRUE(strstr(e->msg, expected_error) != NULL)
+        << "Actual error: " << e->msg;
+      e = e->next;
+    }
+  }
+
+  package_done();
+  codegen_shutdown(&opt);
 
   if(check_good)
   {
     if(*out_package == NULL)
-      print_errors();
+      errors_print(opt.check.errors);
 
     ASSERT_NE((void*)NULL, *out_package);
   }
 
+  pass_opt_done(&opt);
 }
 
 
@@ -386,6 +462,30 @@ ast_t* PassTest::type_of_within(ast_t* ast, const char* name)
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
   {
     ast_t* r = type_of_within(p, name);
+
+    if(r != NULL)
+      return r;
+  }
+
+  // Not found.
+  return NULL;
+}
+
+
+ast_t* PassTest::numeric_literal_within(ast_t* ast, uint64_t num)
+{
+  assert(ast != NULL);
+
+  // Is this node the definition we're looking for?
+  if (ast_id(ast) == TK_INT && lexint_cmp64(ast_int(ast), num) == 0)
+  {
+    return ast;
+  }
+
+  // Check children.
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  {
+    ast_t* r = numeric_literal_within(p, num);
 
     if(r != NULL)
       return r;
