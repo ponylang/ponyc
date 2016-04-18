@@ -30,6 +30,31 @@ class HashMap[K, V, H: HashFunction[K] val]
     let n = len.ponyint_next_pow2().max(8)
     _array = _array.init(_MapEmpty, n)
 
+  new from_tuples(keys_values: Array[(K^, V^)]) ? =>
+    """
+    Create a map from an array of key/value pair tuples.
+    """  
+    let len = (keys_values.size() * 4) / 3
+    let n = len.ponyint_next_pow2().max(8)
+    _array = _array.init(_MapEmpty, n)
+    for (key, value) in keys_values.values() do
+      insert(consume key, consume value)
+    end
+
+  new from_array(keys_values: Array[(K^ | V^)]) ? =>
+    """
+    Create a map from an array of alternating keys and values. If the
+    array has an odd number of elements the last element will be
+    ignored.
+    """
+    let pairs_count = keys_values.size() / 2
+    let n = pairs_count.ponyint_next_pow2().max(8)
+    _array = _array.init(_MapEmpty, n)
+    let kv = keys_values.values()
+    for i in Range[USize](0, pairs_count) do
+      insert(keys_values(i * 2) as K^, keys_values((i * 2) + 1) as V^)
+    end
+
   fun size(): USize =>
     """
     The number of items in the map.

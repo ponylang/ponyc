@@ -7,6 +7,8 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestList)
     test(_TestMap)
+    test(_TestMapFromTuples)
+    test(_TestMapFromArray)
     test(_TestMapRemove)
     test(_TestRing)
     test(_TestListsFrom)
@@ -121,6 +123,28 @@ class iso _TestMap is UnitTest
     b.clear()
     h.assert_eq[USize](0, b.size())
     h.assert_eq[USize](8, b.space())
+
+class iso _TestMapFromTuples is UnitTest
+  fun name(): String => "collections/Map.from_tuples([(K, V)])"
+
+  fun apply(h: TestHelper) ? =>
+    let a = Map[String, U32].from_tuples([("a", 1),
+                                          ("b", 2)])
+
+    h.assert_eq[USize](2, a.size())
+    h.assert_eq[U32](1, a("a"))
+    h.assert_eq[U32](2, a("b"))
+    
+class iso _TestMapFromArray is UnitTest
+  fun name(): String => "collections/Map.from_array([K, V])"
+
+  fun apply(h: TestHelper) ? =>
+    let a = Map[String, U32].from_array(["a", 1,
+                                         "b", 2])
+
+    h.assert_eq[USize](2, a.size())
+    h.assert_eq[U32](1, a("a"))
+    h.assert_eq[U32](2, a("b"))
 
 class iso _TestMapRemove is UnitTest
   fun name(): String => "collections/Map.remove"
