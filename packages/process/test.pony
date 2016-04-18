@@ -54,7 +54,6 @@ class iso _TestStderr is UnitTest
     
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
-    pm.write("one, two, three")
     h.long_test(2_000_000_000)
     pm.dispose()
 
@@ -68,13 +67,12 @@ class iso _TestWc is UnitTest
   fun apply(h: TestHelper) =>
     // we expect wc to give a count of
     // 1 line, 9 words, 44 characters, filename foobar
-    let client = ProcessClient("       1       9      44 foobar\n", h) 
+    let client = ProcessClient("       1       3      14\n", h) 
 
     let path: String = "/usr/bin/wc"
     
-    let args: Array[String] iso = recover Array[String](2) end
+    let args: Array[String] iso = recover Array[String](1) end
     args.push("wc")
-    args.push("foobar")
     
     let vars: Array[String] iso = recover Array[String](2) end
     vars.push("HOME=/")
@@ -83,6 +81,7 @@ class iso _TestWc is UnitTest
     let notifier: ProcessNotify iso = consume client
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
+    pm.write("one two three\n")
     h.long_test(2_000_000_000)
     pm.dispose()
 
