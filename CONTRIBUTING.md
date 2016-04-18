@@ -60,7 +60,7 @@ style. A couple things that might not be immediately obvious.
 
 * Indentation
 
-We indent using spaces not tabs.
+We indent using spaces not tabs. The unit of indentation is two spaces.
 
 * Watch your whitespace!
 
@@ -74,6 +74,31 @@ console much more pleasant.
 We all have different sized monitors. What might look good on yours might look
 like awful on another. Be kind and wrap all lines at 80 columns unless you
 have a good reason not to.
+
+* Style
+
+*Variable and method names* -- Variable and method names should be
+lowercase and should have underscores between the words. Examples:
+`from_array`, `offset_to_index`.
+
+*Class, type, interface, trait, and primitive names* -- Class, type,
+interface, trait, and primitive names should start with an uppercase
+letter and each word should be capitalized. Examples: `StringBytes`,
+`ErrorReason`, `ReadlineNotify`, `FloatingPoint` `UnrecognizedOption`.
+
+*Breaking up parameter lists* -- A method signature may need to be
+split across several lines in order to follow the rule that the line
+length must be 80 characters or fewer. The accepted way to break up a
+parameter list is to indent all lines after the first line by 2
+spaces, and to place the `=>` on a line by itself at the same level of
+indentation as the `fun` or `be` at the beginning of the
+declaration. Example:
+
+```pony
+  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+    len: USize = -1): Array[A]^
+  =>
+```
 
 * Reformatting code to meet standards
 
