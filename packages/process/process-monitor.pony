@@ -60,6 +60,8 @@ actor ProcessMonitor
     
   var _stdout_open: Bool = true
   var _stderr_open: Bool = true
+
+  var _closed: Bool = false
   
   new create(notifier: ProcessNotify iso, path: String, 
     args: Array[String] val, vars: Array[String] val) =>
@@ -290,16 +292,19 @@ actor ProcessMonitor
     Close all pipes, unsubscribe events and wait for the child process to exit.
     """
     ifdef posix then
-      @close[I32](_stdin_read)
-      @close[I32](_stdin_write)
-      @close[I32](_stdout_read)
-      @close[I32](_stdout_write)
-      @close[I32](_stderr_read)
-      @close[I32](_stderr_write)
-      _stdout_open = false
-      _stderr_open = false
-      @pony_asio_event_unsubscribe(_stdout_event)
-      @pony_asio_event_unsubscribe(_stderr_event)
+      if not _closed then
+        _closed = true
+        @close[I32](_stdin_read)
+        @close[I32](_stdin_write)
+        @close[I32](_stdout_read)
+        @close[I32](_stdout_write)
+        @close[I32](_stderr_read)
+        @close[I32](_stderr_write)
+        _stdout_open = false
+        _stderr_open = false
+        @pony_asio_event_unsubscribe(_stdout_event)
+        @pony_asio_event_unsubscribe(_stderr_event)
+      end
       // We want to capture the exit status of the child
       var wstatus: I32 = 0
       let options: I32 = 0
