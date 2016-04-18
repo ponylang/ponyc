@@ -79,7 +79,7 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
   if(prev == '_')
   {
     ast_error(opt->check.errors, id_node,
-      "%s name \"%s\" cannot end with underscores", desc, ast_name(id_node));
+      "%s name \"%s\" cannot have a trailing underscore", desc, ast_name(id_node));
     return false;
   }
 
