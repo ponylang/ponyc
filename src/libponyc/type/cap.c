@@ -631,6 +631,63 @@ token_id cap_single(ast_t* type)
   return tcap;
 }
 
+token_id cap_dispatch(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      // Use the least specific capability.
+      ast_t* child = ast_child(type);
+      token_id cap = cap_dispatch(child);
+      child = ast_sibling(child);
+
+      while(child != NULL)
+      {
+        token_id child_cap = cap_dispatch(child);
+
+        if(is_cap_sub_cap(cap, TK_NONE, child_cap, TK_NONE))
+          cap = child_cap;
+        else if(!is_cap_sub_cap(child_cap, TK_NONE, cap, TK_NONE))
+          cap = TK_BOX;
+
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // Use the most specific capability. Because all capabilities will be
+      // locally compatible, there is a subtype relationship.
+      ast_t* child = ast_child(type);
+      token_id cap = cap_dispatch(child);
+      child = ast_sibling(child);
+
+      while(child != NULL)
+      {
+        token_id child_cap = cap_dispatch(child);
+
+        if(is_cap_sub_cap(child_cap, TK_NONE, cap, TK_NONE))
+          cap = child_cap;
+
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_NOMINAL:
+      return cap_single(type);
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
 token_id cap_for_this(typecheck_t* t)
 {
   // If this is a primitive, it's a val.

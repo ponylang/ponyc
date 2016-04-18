@@ -138,7 +138,9 @@ class _TestPong is UDPNotify
   =>
     let s = String.append(consume data)
     _h.assert_eq[String box](s, "ping!")
-    sock.write("pong!", from)
+    sock.writev(
+      recover val [[U8('p'), U8('o'), U8('n'), U8('g'), U8('!')]] end,
+      from)
 
 actor _TestBroadcastMgr
   let _h: TestHelper

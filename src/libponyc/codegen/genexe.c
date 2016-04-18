@@ -48,12 +48,15 @@ static void primitive_call(compile_t* c, const char* method)
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reachable_method_t* m = reach_method(t, method, NULL);
+    reachable_method_t* m = reach_method(t, TK_NONE, method, NULL);
 
     if(m == NULL)
       continue;
 
-    codegen_call(c, m->func, &t->instance, 1);
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
+
+    if(c->str__final == method)
+      LLVMSetInstructionCallConv(value, LLVMCCallConv);
   }
 }
 
@@ -105,17 +108,14 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   LLVMValueRef main_actor = create_main(c, t_main, ctx);
 
   // Create an Env on the main actor's heap.
-  const char* env_name = "Env";
-  const char* env_create = genname_fun(env_name, "_create", NULL);
+  reachable_method_t* m = reach_method(t_env, TK_NONE, c->str__create, NULL);
 
   LLVMValueRef env_args[4];
   env_args[0] = gencall_alloc(c, t_env);
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-
-  LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
-  LLVMSetInstructionCallConv(env, c->callconv);
+  LLVMValueRef env = codegen_call(c, m->func, env_args, 4);
 
   // Run primitive initialisers using the main actor's heap.
   primitive_call(c, c->str__init);
@@ -146,10 +146,9 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   args[0] = ctx;
   gencall_runtime(c, "pony_gc_send", args, 1, "");
 
-  const char* env_trace = genname_trace(env_name);
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  args[2] = t_env->trace_fn;
   args[3] = LLVMConstInt(c->i32, 1, false);
   gencall_runtime(c, "pony_traceobject", args, 4, "");
 
