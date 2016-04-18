@@ -113,42 +113,53 @@ DEFINE_HASHMAP(reachable_type_cache, reachable_type_cache_t, reachable_type_t,
   reachable_type_hash, reachable_type_cmp, ponyint_pool_alloc_size,
   ponyint_pool_free_size, NULL);
 
-static void add_rmethod(reachable_method_stack_t** s,
-  reachable_type_t* t, reachable_method_name_t* n, ast_t* typeargs,
-  pass_opt_t* opt)
+static reachable_method_t* reach_method_instance(reachable_method_name_t* n,
+  const char* name)
 {
-  reachable_method_t* m = reach_method_instance(n, typeargs);
+  reachable_method_t k;
+  k.name = name;
+  return reachable_methods_get(&n->r_methods, &k);
+}
 
-  if(m == NULL)
+static reachable_method_t* add_rmethod(reachable_method_stack_t** s,
+  reachable_type_t* t, reachable_method_name_t* n,
+  token_id cap, ast_t* typeargs, pass_opt_t* opt)
+{
+  const char* name = genname_fun(cap, n->name, typeargs);
+  reachable_method_t* m = reach_method_instance(n, name);
+
+  if(m != NULL)
+    return m;
+
+  m = POOL_ALLOC(reachable_method_t);
+  memset(m, 0, sizeof(reachable_method_t));
+  m->name = name;
+  m->full_name = genname_funlong(t->name, name);
+  m->cap = cap;
+  m->typeargs = ast_dup(typeargs);
+  m->vtable_index = (uint32_t)-1;
+
+  ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
+  ast_t* fun = lookup(NULL, NULL, r_ast, n->name);
+  ast_free_unattached(r_ast);
+
+  if(typeargs != NULL)
   {
-    m = POOL_ALLOC(reachable_method_t);
-    memset(m, 0, sizeof(reachable_method_t));
-    m->name = genname_fun(NULL, n->name, typeargs);
-    m->full_name = genname_fun(t->name, n->name, typeargs);
-    m->typeargs = ast_dup(typeargs);
-    m->vtable_index = (uint32_t)-1;
+    // Reify the method with its typeargs, if it has any.
+    AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
+      body);
 
-    ast_t* fun = lookup(NULL, NULL, t->ast, n->name);
-
-    if(typeargs != NULL)
-    {
-      // Reify the method with its typeargs, if it has any.
-      AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
-        body);
-
-      ast_t* r_fun = reify(fun, typeparams, typeargs, opt);
-      ast_free_unattached(fun);
-      fun = r_fun;
-    }
-
-    m->r_fun = ast_dup(fun);
+    ast_t* r_fun = reify(fun, typeparams, typeargs, opt);
     ast_free_unattached(fun);
-
-    reachable_methods_put(&n->r_methods, m);
-
-    // Put on a stack of reachable methods to trace.
-    *s = reachable_method_stack_push(*s, m);
+    fun = r_fun;
   }
+
+  m->r_fun = fun;
+  reachable_methods_put(&n->r_methods, m);
+
+  // Put on a stack of reachable methods to trace.
+  *s = reachable_method_stack_push(*s, m);
+  return m;
 }
 
 static void add_method(reachable_method_stack_t** s,
@@ -162,9 +173,50 @@ static void add_method(reachable_method_stack_t** s,
     n->name = name;
     reachable_methods_init(&n->r_methods, 0);
     reachable_method_names_put(&t->methods, n);
+
+    ast_t* fun = lookup(NULL, NULL, t->ast, name);
+    n->cap = ast_id(ast_child(fun));
+    ast_free_unattached(fun);
   }
 
-  add_rmethod(s, t, n, typeargs, opt);
+  reachable_method_t* m = add_rmethod(s, t, n, n->cap, typeargs, opt);
+
+  // TODO: if it doesn't use this-> in a constructor, we could reuse the
+  // function, which means always reuse in a fun tag
+  if((n->cap == TK_BOX) || (n->cap == TK_TAG))
+  {
+    bool subordinate = n->cap == TK_TAG;
+    reachable_method_t* m2;
+
+    if(t->underlying != TK_PRIMITIVE)
+    {
+      m2 = add_rmethod(s, t, n, TK_REF, typeargs, opt);
+
+      if(subordinate)
+      {
+        m2->intrinsic = true;
+        m->subordinate = m2;
+        m = m2;
+      }
+    }
+
+    m2 = add_rmethod(s, t, n, TK_VAL, typeargs, opt);
+
+    if(subordinate)
+    {
+      m2->intrinsic = true;
+      m->subordinate = m2;
+      m = m2;
+    }
+
+    if(n->cap == TK_TAG)
+    {
+      m2 = add_rmethod(s, t, n, TK_BOX, typeargs, opt);
+      m2->intrinsic = true;
+      m->subordinate = m2;
+      m = m2;
+    }
+  }
 
   // Add to subtypes if we're an interface or trait.
   if(ast_id(t->ast) != TK_NOMINAL)
@@ -761,7 +813,10 @@ static void reachable_method(reachable_method_stack_t** s,
         ast_t* find = lookup_try(NULL, NULL, child, name);
 
         if(find != NULL)
+        {
           reachable_method(s, r, next_type_id, child, name, typeargs, opt);
+          ast_free_unattached(find);
+        }
 
         child = ast_sibling(child);
       }
@@ -843,15 +898,32 @@ reachable_type_t* reach_type_name(reachable_types_t* r, const char* name)
   return reachable_types_get(r, &k);
 }
 
-reachable_method_t* reach_method(reachable_type_t* t, const char* name,
-  ast_t* typeargs)
+reachable_method_t* reach_method(reachable_type_t* t, token_id cap,
+  const char* name, ast_t* typeargs)
 {
   reachable_method_name_t* n = reach_method_name(t, name);
 
   if(n == NULL)
     return NULL;
 
-  return reach_method_instance(n, typeargs);
+  if((n->cap == TK_BOX) || (n->cap == TK_TAG))
+  {
+    switch(cap)
+    {
+      case TK_REF:
+      case TK_VAL:
+      case TK_BOX:
+        break;
+
+      default:
+        cap = n->cap;
+    }
+  } else {
+    cap = n->cap;
+  }
+
+  name = genname_fun(cap, n->name, typeargs);
+  return reach_method_instance(n, name);
 }
 
 reachable_method_name_t* reach_method_name(reachable_type_t* t,
@@ -862,22 +934,9 @@ reachable_method_name_t* reach_method_name(reachable_type_t* t,
   return reachable_method_names_get(&t->methods, &k);
 }
 
-reachable_method_t* reach_method_instance(reachable_method_name_t* n,
-  ast_t* typeargs)
-{
-  const char* name = n->name;
-
-  if(typeargs != NULL)
-    name = genname_fun(NULL, n->name, typeargs);
-
-  reachable_method_t k;
-  k.name = name;
-  return reachable_methods_get(&n->r_methods, &k);
-}
-
 uint32_t reach_vtable_index(reachable_type_t* t, const char* name)
 {
-  reachable_method_t* m = reach_method(t, stringtab(name), NULL);
+  reachable_method_t* m = reach_method(t, TK_NONE, stringtab(name), NULL);
 
   if(m == NULL)
     return (uint32_t)-1;

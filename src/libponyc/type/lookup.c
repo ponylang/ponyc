@@ -234,8 +234,8 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(r, result, pframe)) {
-            if(is_subtype(result, r, pframe))
+          } else if(!is_subtype(r, result, pframe, opt)) {
+            if(is_subtype(result, r, pframe, opt))
             {
               // Use the supertype function. Require the most specific
               // arguments and return the least specific result.
@@ -254,7 +254,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
                   "a member of the union type has an incompatible method "
                   "signature");
                 errorframe_append(&frame, pframe);
-                errorframe_report(&frame);
+                errorframe_report(&frame, opt->check.errors);
               }
 
               ast_free_unattached(r);

@@ -406,7 +406,7 @@ static ast_result_t syntax_thistype(pass_opt_t* opt, ast_t* ast)
       "can only use 'this' for a viewpoint in a method");
     r = AST_ERROR;
   } else {
-    ast_t* cap = ast_child(t->frame->method);
+    ast_t* cap = ast_child(opt->check.frame->method);
 
     switch(ast_id(cap))
     {
@@ -415,7 +415,7 @@ static ast_result_t syntax_thistype(pass_opt_t* opt, ast_t* ast)
         break;
 
       default:
-        ast_error(ast,
+        ast_error(opt->check.errors, ast,
           "can only use 'this' for a viewpoint in a box function");
         r = AST_ERROR;
     }

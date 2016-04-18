@@ -27,6 +27,7 @@ struct reachable_method_t
 {
   const char* name;
   const char* full_name;
+  token_id cap;
   ast_t* typeargs;
   ast_t* r_fun;
   uint32_t vtable_index;
@@ -37,6 +38,7 @@ struct reachable_method_t
   LLVMMetadataRef di_method;
   LLVMMetadataRef di_file;
   bool intrinsic;
+  reachable_method_t* subordinate;
 
   size_t param_count;
   reachable_type_t** params;
@@ -45,6 +47,7 @@ struct reachable_method_t
 
 struct reachable_method_name_t
 {
+  token_id cap;
   const char* name;
   reachable_methods_t r_methods;
 };
@@ -108,14 +111,11 @@ reachable_type_t* reach_type(reachable_types_t* r, ast_t* type);
 
 reachable_type_t* reach_type_name(reachable_types_t* r, const char* name);
 
-reachable_method_t* reach_method(reachable_type_t* t, const char* name,
-  ast_t* typeargs);
+reachable_method_t* reach_method(reachable_type_t* t, token_id cap,
+  const char* name, ast_t* typeargs);
 
 reachable_method_name_t* reach_method_name(reachable_type_t* t,
   const char* name);
-
-reachable_method_t* reach_method_instance(reachable_method_name_t* n,
-  ast_t* typeargs);
 
 uint32_t reach_vtable_index(reachable_type_t* t, const char* name);
 

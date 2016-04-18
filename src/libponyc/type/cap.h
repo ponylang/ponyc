@@ -48,6 +48,11 @@ ast_t* cap_fetch(ast_t* type);
 token_id cap_single(ast_t* type);
 
 /**
+ * Get the capability that should be used for dispatch.
+ */
+token_id cap_dispatch(ast_t* type);
+
+/**
  * The receiver capability is ref for constructors and behaviours. For
  * functions, it is defined by the function signature. A field initialiser is
  * considered part of a constructor.

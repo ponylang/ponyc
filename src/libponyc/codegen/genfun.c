@@ -126,7 +126,7 @@ static void make_function_debug(compile_t* c, reachable_type_t* t,
 }
 
 static void make_prototype(compile_t* c, reachable_type_t* t,
-  reachable_method_t* m)
+  reachable_method_name_t* n, reachable_method_t* m)
 {
   if(m->intrinsic)
     return;
@@ -186,7 +186,7 @@ static void make_prototype(compile_t* c, reachable_type_t* t,
     make_function_debug(c, t, m, m->func);
   }
 
-  if(m->name == c->str__final)
+  if(n->name == c->str__final)
   {
     // Store the finaliser and use the C calling convention.
     t->final_fn = m->func;
@@ -490,6 +490,18 @@ static bool genfun_newbe(compile_t* c, reachable_type_t* t,
   return true;
 }
 
+static void copy_subordinate(reachable_method_t* m)
+{
+  reachable_method_t* m2 = m->subordinate;
+
+  while(m2 != NULL)
+  {
+    m2->func_type = m->func_type;
+    m2->func = m->func;
+    m2 = m2->subordinate;
+  }
+}
+
 static bool genfun_allocator(compile_t* c, reachable_type_t* t)
 {
   switch(t->underlying)
@@ -508,7 +520,7 @@ static bool genfun_allocator(compile_t* c, reachable_type_t* t)
   if((t->primitive != NULL) || is_pointer(t->ast) || is_maybe(t->ast))
     return true;
 
-  const char* funname = genname_fun(t->name, "Alloc", NULL);
+  const char* funname = genname_alloc(t->name);
   LLVMTypeRef ftype = LLVMFunctionType(t->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, funname, ftype);
   codegen_startfun(c, fun, NULL, NULL);
@@ -550,7 +562,10 @@ bool genfun_method_sigs(compile_t* c, reachable_type_t* t)
     reachable_method_t* m;
 
     while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
-      make_prototype(c, t, m);
+    {
+      make_prototype(c, t, n, m);
+      copy_subordinate(m);
+    }
   }
 
   if(!genfun_allocator(c, t))

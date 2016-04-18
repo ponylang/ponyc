@@ -8,6 +8,8 @@ PONY_EXTERN_C_BEGIN
 
 const char* genname_type(ast_t* ast);
 
+const char* genname_alloc(const char* type);
+
 const char* genname_traitlist(const char* type);
 
 const char* genname_fieldlist(const char* type);
@@ -24,7 +26,9 @@ const char* genname_descriptor(const char* type);
 
 const char* genname_instance(const char* type);
 
-const char* genname_fun(const char* type, const char* name, ast_t* typeargs);
+const char* genname_fun(token_id cap, const char* name, ast_t* typeargs);
+
+const char* genname_funlong(const char* type, const char* name);
 
 const char* genname_be(const char* name);
 

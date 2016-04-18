@@ -1,6 +1,7 @@
 #include "genname.h"
 #include "../pkg/package.h"
 #include "../ast/stringtab.h"
+#include "../ast/lexer.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
@@ -152,49 +153,59 @@ const char* genname_type(ast_t* ast)
   return NULL;
 }
 
+const char* genname_alloc(const char* type)
+{
+  return build_name(type, "Alloc", NULL, NULL, false, false);
+}
+
 const char* genname_traitlist(const char* type)
 {
-  return build_name(type, "$traits", NULL, NULL, false, false);
+  return build_name(type, "Traits", NULL, NULL, false, false);
 }
 
 const char* genname_fieldlist(const char* type)
 {
-  return build_name(type, "$fields", NULL, NULL, false, false);
+  return build_name(type, "Fields", NULL, NULL, false, false);
 }
 
 const char* genname_trace(const char* type)
 {
-  return build_name(type, "$trace", NULL, NULL, false, false);
+  return build_name(type, "Trace", NULL, NULL, false, false);
 }
 
 const char* genname_serialise(const char* type)
 {
-  return build_name(type, "$serialise", NULL, NULL, false, false);
+  return build_name(type, "Serialise", NULL, NULL, false, false);
 }
 
 const char* genname_deserialise(const char* type)
 {
-  return build_name(type, "$deserialise", NULL, NULL, false, false);
+  return build_name(type, "Deserialise", NULL, NULL, false, false);
 }
 
 const char* genname_dispatch(const char* type)
 {
-  return build_name(type, "$dispatch", NULL, NULL, false, false);
+  return build_name(type, "Dispatch", NULL, NULL, false, false);
 }
 
 const char* genname_descriptor(const char* type)
 {
-  return build_name(type, "$desc", NULL, NULL, false, false);
+  return build_name(type, "Desc", NULL, NULL, false, false);
 }
 
 const char* genname_instance(const char* type)
 {
-  return build_name(type, "$inst", NULL, NULL, false, false);
+  return build_name(type, "Inst", NULL, NULL, false, false);
 }
 
-const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
+const char* genname_fun(token_id cap, const char* name, ast_t* typeargs)
 {
-  return build_name(type, name, typeargs, NULL, false, true);
+  return build_name(lexer_print(cap), name, typeargs, NULL, false, true);
+}
+
+const char* genname_funlong(const char* type, const char* name)
+{
+  return build_name(type, name, NULL, NULL, false, false);
 }
 
 const char* genname_be(const char* name)
@@ -204,10 +215,10 @@ const char* genname_be(const char* name)
 
 const char* genname_box(const char* name)
 {
-  return build_name(name, "$box", NULL, NULL, false, false);
+  return build_name(name, "Box", NULL, NULL, false, false);
 }
 
 const char* genname_unbox(const char* name)
 {
-  return build_name(name, "$unbox", NULL, NULL, false, false);
+  return build_name(name, "Unbox", NULL, NULL, false, false);
 }

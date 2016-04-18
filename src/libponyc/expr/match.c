@@ -226,12 +226,12 @@ static bool is_valid_pattern(pass_opt_t* opt, ast_t* pattern)
   ast_t* a_type = alias(pattern_type);
   errorframe_t info = NULL;
 
-  if(!is_subtype(a_type, r_type, &info))
+  if(!is_subtype(a_type, r_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, pattern, "eq cannot be called on this pattern");
     errorframe_append(&frame, &info);
-    errorframe_report(&frame);
+    errorframe_report(&frame, opt->check.errors);
     ok = false;
   }
 
