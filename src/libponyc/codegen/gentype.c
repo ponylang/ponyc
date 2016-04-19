@@ -582,7 +582,7 @@ bool gentypes(compile_t* c)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Data prototypes\n"));
   i = HASHMAP_BEGIN;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(!make_opaque_struct(c, t))
       return false;
@@ -597,7 +597,7 @@ bool gentypes(compile_t* c)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Data types\n"));
   i = HASHMAP_BEGIN;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(!make_struct(c, t))
       return false;
@@ -608,7 +608,7 @@ bool gentypes(compile_t* c)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Function prototypes\n"));
   i = HASHMAP_BEGIN;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     make_debug_final(c, t);
     make_pointer_methods(c, t);
@@ -620,7 +620,7 @@ bool gentypes(compile_t* c)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
   i = HASHMAP_BEGIN;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(!genfun_method_bodies(c, t))
       return false;
@@ -629,7 +629,7 @@ bool gentypes(compile_t* c)
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Descriptors\n"));
   i = HASHMAP_BEGIN;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(!make_trace(c, t))
       return false;

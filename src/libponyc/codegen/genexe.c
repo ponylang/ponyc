@@ -22,7 +22,7 @@ static bool need_primitive_call(compile_t* c, const char* method)
   size_t i = HASHMAP_BEGIN;
   reachable_type_t* t;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(t->underlying != TK_PRIMITIVE)
       continue;
@@ -43,7 +43,7 @@ static void primitive_call(compile_t* c, const char* method)
   size_t i = HASHMAP_BEGIN;
   reachable_type_t* t;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     if(t->underlying != TK_PRIMITIVE)
       continue;
@@ -370,11 +370,11 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
-  reach(c->reachable, &c->next_type_id, main_ast, c->str_create, NULL, c->opt);
-  reach(c->reachable, &c->next_type_id, env_ast, c->str__create, NULL, c->opt);
+  reach(c->reachable, main_ast, c->str_create, NULL, c->opt);
+  reach(c->reachable, env_ast, c->str__create, NULL, c->opt);
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
-  paint(c->reachable);
+  paint(&c->reachable->types);
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
     reach_dump(c->reachable);

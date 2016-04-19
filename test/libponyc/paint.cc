@@ -10,7 +10,7 @@
 class PaintTest: public testing::Test
 {
 protected:
-  reachable_types_t* _set;
+  reach_t* _set;
   reachable_type_t* _current_type;
 
   virtual void SetUp()
@@ -34,7 +34,7 @@ protected:
     reachable_type_cache_init(&_current_type->subtypes, 0);
     _current_type->vtable_size = 0;
 
-    reachable_types_put(_set, _current_type);
+    reachable_types_put(&_set->types, _current_type);
   }
 
   void add_method(const char* name)
@@ -58,7 +58,7 @@ protected:
 
   void do_paint()
   {
-    paint(_set);
+    paint(&_set->types);
   }
 
   void check_vtable_size(const char* name, uint32_t min_expected,
@@ -66,7 +66,7 @@ protected:
   {
     reachable_type_t t;
     t.name = stringtab(name);
-    reachable_type_t* type = reachable_types_get(_set, &t);
+    reachable_type_t* type = reachable_types_get(&_set->types, &t);
     ASSERT_NE((void*)NULL, type);
 
     ASSERT_LE(min_expected, type->vtable_size);
@@ -103,7 +103,7 @@ protected:
     reachable_type_t* type;
     uint32_t colour = (uint32_t)-1;
 
-    while((type = reachable_types_next(_set, &i)) != NULL)
+    while((type = reachable_types_next(&_set->types, &i)) != NULL)
     {
       reachable_method_name_t m1;
       m1.name = stringtab(name);

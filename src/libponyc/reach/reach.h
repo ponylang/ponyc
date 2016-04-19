@@ -5,6 +5,7 @@
 #include "../pass/pass.h"
 #include "../codegen/gendebug.h"
 #include "../../libponyrt/ds/hash.h"
+#include "../../libponyrt/ds/stack.h"
 
 #include <llvm-c/Core.h>
 
@@ -15,6 +16,8 @@ typedef struct reachable_method_name_t reachable_method_name_t;
 typedef struct reachable_field_t reachable_field_t;
 typedef struct reachable_type_t reachable_type_t;
 
+DECLARE_STACK(reachable_method_stack, reachable_method_stack_t,
+  reachable_method_t);
 DECLARE_HASHMAP(reachable_methods, reachable_methods_t,
   reachable_method_t);
 DECLARE_HASHMAP(reachable_method_names, reachable_method_names_t,
@@ -93,23 +96,30 @@ struct reachable_type_t
   reachable_field_t* fields;
 };
 
+typedef struct
+{
+  reachable_types_t types;
+  reachable_method_stack_t* stack;
+  uint32_t next_type_id;
+} reach_t;
+
 /// Allocate a new set of reachable types.
-reachable_types_t* reach_new();
+reach_t* reach_new();
 
 /// Free a set of reachable types.
-void reach_free(reachable_types_t* r);
+void reach_free(reach_t* r);
 
 /** Determine code reachability for a method in a type.
  *
  * The type should be a nominal, including any typeargs. The supplied method
  * typeargs can be NULL if there are none.
  */
-void reach(reachable_types_t* r, uint32_t* next_type_id, ast_t* type,
-  const char* name, ast_t* typeargs, pass_opt_t* opt);
+void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
+  pass_opt_t* opt);
 
-reachable_type_t* reach_type(reachable_types_t* r, ast_t* type);
+reachable_type_t* reach_type(reach_t* r, ast_t* type);
 
-reachable_type_t* reach_type_name(reachable_types_t* r, const char* name);
+reachable_type_t* reach_type_name(reach_t* r, const char* name);
 
 reachable_method_t* reach_method(reachable_type_t* t, token_id cap,
   const char* name, ast_t* typeargs);
@@ -119,7 +129,7 @@ reachable_method_name_t* reach_method_name(reachable_type_t* t,
 
 uint32_t reach_vtable_index(reachable_type_t* t, const char* name);
 
-void reach_dump(reachable_types_t* r);
+void reach_dump(reach_t* r);
 
 PONY_EXTERN_C_END
 
