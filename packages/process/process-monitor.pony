@@ -291,15 +291,15 @@ actor ProcessMonitor
         _stderr_open = false
         @pony_asio_event_unsubscribe(_stdout_event)
         @pony_asio_event_unsubscribe(_stderr_event)
+        // We want to capture the exit status of the child
+        var wstatus: I32 = 0
+        let options: I32 = 0
+        if @waitpid[USize](_child_pid, addressof wstatus, options) < 0 then
+          _notifier.failed(WaitpidError)
+        end
+        // process child exit code
+        _notifier.dispose((wstatus >> 8) and 0xff)
       end
-      // We want to capture the exit status of the child
-      var wstatus: I32 = 0
-      let options: I32 = 0
-      if @waitpid[USize](_child_pid, addressof wstatus, options) < 0 then
-        _notifier.failed(WaitpidError)
-      end
-      // process child exit code
-      _notifier.dispose((wstatus >> 8) and 0xff)
     end
     
   fun ref _try_shutdown() =>
