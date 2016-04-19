@@ -29,7 +29,7 @@ class iso _TestStdinStdout is UnitTest
       consume args, consume vars)
     pm.write("one, two, three")
     pm.dispose()
-    h.long_test(10_000_000_000)
+    h.long_test(60_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
@@ -55,7 +55,7 @@ class iso _TestStderr is UnitTest
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
     pm.dispose()
-    h.long_test(10_000_000_000)
+    h.long_test(60_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
@@ -115,7 +115,7 @@ class _ProcessClient is ProcessNotify
     | CloseError    => _h.fail("ProcessError: CloseError")
     | ReadError     => _h.fail("ProcessError: ReadError")
     | WriteError    => _h.fail("ProcessError: WriteError")
-    | Unsupported  => _h.fail("ProcessError: Unsupported") 
+    | Unsupported   => _h.fail("ProcessError: Unsupported") 
     else
       _h.fail("Unknown ProcessError!")
     end
