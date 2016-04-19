@@ -215,7 +215,7 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
   size_t i = HASHMAP_BEGIN;
   reachable_type_t* t;
 
-  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
   {
     // Print the docstring if we have one.
     ast_t* def = (ast_t*)ast_data(t->ast);

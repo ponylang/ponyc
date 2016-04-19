@@ -52,9 +52,8 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-  reachable_types_t* reachable;
+  reach_t* reachable;
   const char* filename;
-  uint32_t next_type_id;
 
   const char* str_builtin;
   const char* str_Bool;
