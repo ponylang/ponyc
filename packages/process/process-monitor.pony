@@ -1,4 +1,97 @@
-use "files"
+"""
+# Process package
+
+The Process package provides support for handling Unix style processes.
+For each external process that you want to handle, you need to create a 
+`ProcessMonitor` and a corresponding `ProcessNotify` object. Each ProcessMonitor
+runs as it own actor and upon receiving data will call its corresponding 
+`ProcessNotify`'s method.
+
+## Example program
+
+The following program will spawn an external program and write to it's
+STDIN. Output received on STDOUT of the child process is forwarded to the
+ProcessNotify client and printed.
+
+```pony
+use "process"
+
+actor Main
+  let _env: Env
+  
+  new create(env: Env) =>
+    _env = env
+    // create a notifier
+    let client = ProcessClient(_env)
+    let notifier: ProcessNotify iso = consume client
+    // define the binary to run
+    let path: String = "/bin/cat"
+    // define the arguments
+    let args: Array[String] iso = recover Array[String](1) end
+    args.push("cat")
+    // define the environment variable for the execution
+    let vars: Array[String] iso = recover Array[String](2) end
+    vars.push("HOME=/")
+    vars.push("PATH=/bin")
+    // create a ProcessMonitor and spawn the child process
+    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      consume args, consume vars)
+    // write to STDIN of the child process
+    pm.write("one, two, three")
+    // dispose of the ProcessMonitor
+    pm.dispose()
+
+
+// define a client that implements the ProcessNotify interface
+class ProcessClient is ProcessNotify
+  let _env: Env
+  
+  new iso create(env: Env) =>
+    _env = env
+    
+  fun ref stdout(data: Array[U8] iso) =>
+    let out = String.from_array(consume data)
+    _env.out.print("STDOUT: " + out)
+
+  fun ref stderr(data: Array[U8] iso) =>
+    let err = String.from_array(consume data)
+    _env.out.print("STDERR: " + err)
+    
+  fun ref failed(err: ProcessError) =>
+    match err
+    | ExecveError   => _env.out.print("ProcessError: ExecveError")
+    | PipeError     => _env.out.print("ProcessError: PipeError")
+    | Dup2Error     => _env.out.print("ProcessError: Dup2Error")
+    | ForkError     => _env.out.print("ProcessError: ForkError")
+    | FcntlError    => _env.out.print("ProcessError: FcntlError")
+    | WaitpidError  => _env.out.print("ProcessError: WaitpidError")
+    | CloseError    => _env.out.print("ProcessError: CloseError")
+    | ReadError     => _env.out.print("ProcessError: ReadError")
+    | WriteError    => _env.out.print("ProcessError: WriteError")
+    | Unsupported   => _env.out.print("ProcessError: Unsupported") 
+    else
+      _env.out.print("Unknown ProcessError!")
+    end
+    
+  fun ref dispose(child_exit_code: I32) =>
+    let code: I32 = consume child_exit_code
+    _env.out.print("Child exit code: " + code.string())
+```
+
+## Signal portability
+
+The ProcessMonitor supports spawning processes on Linux, FreeBSD and OSX. 
+Processes are not supported on Windows and attempting to use them will cause 
+a runtime error.
+
+## Shutting down handlers
+
+Unlike a `TCPConnection` and other forms of input receiving, creating a
+`SignalHandler` will not keep your program running. As such, you are not
+required to call `dispose` on your signal handlers in order to shutdown your
+program.
+
+"""
 
 use @pony_os_errno[I32]()
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32, 
@@ -63,7 +156,8 @@ actor ProcessMonitor
   var _closed: Bool = false
   
   new create(notifier: ProcessNotify iso, path: String, 
-    args: Array[String] val, vars: Array[String] val) =>
+    args: Array[String] val, vars: Array[String] val)
+  =>
     """
     Create infrastructure to communicate with a forked child process
     and register the asio events. Fork child process and notify our
@@ -326,16 +420,18 @@ actor ProcessMonitor
         let errno = @pony_os_errno()
         let next = _read_buf.space()
         match len
-        | -1 => match errno
-                | _EAGAIN() =>  return true // resource temporarily unavailable, retry
-                else
-                  return false
-                end
-        | 0  => match errno
-                | _EAGAIN() =>  return true // resource temporarily unavailable, retry
-                else
-                  return false
-                end
+        | -1 =>
+          match errno
+          | _EAGAIN() =>  return true // resource temporarily unavailable, retry
+          else
+            return false
+          end
+        | 0  =>
+          match errno
+          | _EAGAIN() =>  return true // resource temporarily unavailable, retry
+          else
+            return false
+          end
         else
           let data = _read_buf = recover Array[U8].undefined(next) end
           data.truncate(len.usize())

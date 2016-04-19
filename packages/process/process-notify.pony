@@ -20,11 +20,9 @@ interface ProcessNotify
     ProcessMonitor calls this if we run into errors communicating with the
     forked process.
     """
-    None
 
   fun ref dispose(child_exit_code: I32) =>
     """
     Call when ProcessMonitor terminates to cleanup ProcessNotify.
     We return the exit code of the child process.
     """
-    None

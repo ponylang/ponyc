@@ -63,7 +63,12 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
-    process.Main.make().tests(test)
+
+    ifdef not windows then
+      // The process package currently doesn't support Windows, so ignore it.
+      process.Main.make().tests(test)
+    end
+    
     regex.Main.make().tests(test)
 
     ifdef not windows then
