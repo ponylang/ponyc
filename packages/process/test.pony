@@ -11,10 +11,10 @@ actor Main is TestList
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
-    "writing to STDIN of a forked cat process capturing STDOUT"
+    "process/writing to STDIN of a forked cat process capturing STDOUT"
 
   fun apply(h: TestHelper) =>
-    let client = _ProcessClient("one, two, three", "", h)
+    let client = _ProcessClient("one, two, three", "", 0, h)
     let notifier: ProcessNotify iso = consume client
     let path: String = "/bin/cat"
     
@@ -29,18 +29,18 @@ class iso _TestStdinStdout is UnitTest
       consume args, consume vars)
     pm.write("one, two, three")
     pm.dispose()
-    h.long_test(2_000_000_000)
+    h.long_test(10_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
 class iso _TestStderr is UnitTest
   fun name(): String =>
-    "writing to STDERR of via a forked cat process"
+    "process/writing to STDERR of via a forked cat process"
 
   fun apply(h: TestHelper) =>
     let client = _ProcessClient("",
-      "cat: file_does_not_exist: No such file or directory\n", h)
+      "cat: file_does_not_exist: No such file or directory\n", 1, h)
     let notifier: ProcessNotify iso = consume client
     let path: String = "/bin/cat"
     
@@ -55,7 +55,7 @@ class iso _TestStderr is UnitTest
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
     pm.dispose()
-    h.long_test(2_000_000_000)
+    h.long_test(10_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
@@ -66,13 +66,16 @@ class _ProcessClient is ProcessNotify
   """
   let _out: String
   let _err: String
+  let _exit_code: I32
   let _h: TestHelper
   var _d_stdout: String = ""
   var _d_stderr: String = ""
   
-  new iso create(out: String, err: String, h: TestHelper) =>
-    _out= out
-    _err= err
+  new iso create(out: String, err: String, exit_code: I32,
+    h: TestHelper) =>
+    _out = out
+    _err = err
+    _exit_code = exit_code
     _h = h
     
   fun ref stdout(data: Array[U8] iso) =>
@@ -84,7 +87,6 @@ class _ProcessClient is ProcessNotify
     _h.log("should match:       " + _out)
     if _d_stdout.size() == _out.size() then
       _h.assert_eq[String](_out, _d_stdout)
-      _h.complete(true)
     end
     
   fun ref stderr(data: Array[U8] iso) =>
@@ -96,7 +98,6 @@ class _ProcessClient is ProcessNotify
     _h.log("should match:       '" + _err + "'")
     if _d_stderr.size() == _err.size() then
       _h.assert_eq[String](_err, _d_stderr)
-      _h.complete(true)
     end
     
   fun ref failed(err: ProcessError) =>
@@ -124,4 +125,7 @@ class _ProcessClient is ProcessNotify
     Called when ProcessMonitor terminates to cleanup ProcessNotify
     We return the exit code of the child process.
     """
-    _h.log("Child exit code: " + child_exit_code.string())
+    let code: I32 = consume child_exit_code
+    _h.log("Child exit code: " + code.string())
+    _h.assert_eq[I32](_exit_code, code)
+    _h.complete(true)
