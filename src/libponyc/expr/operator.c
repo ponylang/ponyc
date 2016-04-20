@@ -3,10 +3,12 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "../ast/astbuild.h"
 #include "../ast/lexer.h"
 #include "../pass/expr.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 #include "../type/matchtype.h"
 #include "../type/safeto.h"
 #include "../type/subtype.h"
@@ -382,6 +384,40 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
   return true;
 }
 
+bool auto_recover_rhs(pass_opt_t* opt, ast_t** astp, ast_t* clean_ast,
+  ast_t* target_type)
+{
+  ast_t* ast = *astp;
+
+  // Wrap the clean AST in a recover block.
+  BUILD(recover_ast, clean_ast,
+    NODE(TK_RECOVER,
+      TREE(cap_fetch(target_type))
+      NODE(TK_SEQ, AST_SCOPE
+        TREE(clean_ast))));
+
+  // Put the recover expression in place of the original one.
+  ast_swap(ast, recover_ast);
+
+  // Check/resolve the recover expression by running the expr pass on it.
+  // This works only because it hasn't already been through the expr pass.
+  ast_result_t res =
+    ast_visit_soft(&recover_ast, pass_pre_expr, pass_expr, opt, PASS_EXPR);
+
+  // If our recover was unsafe, we've failed - put back the original.
+  if(res != AST_OK)
+  {
+    ast_swap(recover_ast, ast);
+    ast_free_unattached(recover_ast);
+    return false;
+  }
+
+  // Otherwise, we've succeeded - we can replace and free the old ast.
+  ast_free_unattached(ast);
+  *astp = recover_ast;
+  return true;
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -419,19 +455,41 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // Inferring locals may have changed the left type.
   l_type = ast_type(left);
 
+  // Try auto-recovering the right hand side, if appropriate.
+  bool auto_recover_attempted = false;
+  if(expr_should_try_auto_recover(opt, right, l_type))
+  {
+    // Get the clean copy of the original AST, before mutation by this pass.
+    // Dup the clean copy to avoid dirtying it for other potential uses.
+    ast_t* clean_right = ast_dup(ast_child(opt->check.frame->orig_assign));
+    auto_recover_attempted = true;
+
+    if(auto_recover_rhs(opt, &right, clean_right, l_type))
+    {
+      r_type = ast_type(right);
+    }
+  }
+
   // Assignment is based on the alias of the right hand side.
   ast_t* a_type = alias(r_type);
 
+  // Check the type of the right side, possibly trying auto-recovery.
   errorframe_t info = NULL;
   if(!is_subtype(a_type, l_type, &info, opt))
   {
     errorframe_t frame = NULL;
-    ast_error_frame(&frame, ast, "right side must be a subtype of left side");
+    ast_error_frame(&frame, ast, "right side not a subtype of left side");
     ast_error_frame(&frame, a_type, "right side type: %s",
       ast_print_type(a_type));
     ast_error_frame(&frame, l_type, "left side type: %s",
       ast_print_type(l_type));
     errorframe_append(&frame, &info);
+
+    if(auto_recover_attempted)
+      ast_error_frame(&frame, right, "This would be possible if the right "
+        "side were a recoverable expression. Try using an explicit recover "
+        "block around it and dealing with the resulting errors.");
+
     errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(a_type);
     return false;

@@ -8,6 +8,7 @@
 #include "../pass/expr.h"
 #include "../pkg/ifdef.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include <assert.h>
@@ -389,6 +390,40 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), expr);
+  return true;
+}
+
+bool expr_should_try_auto_recover(pass_opt_t* opt, ast_t* ast,
+  ast_t* target_type)
+{
+  // If it's already a recover expression, there's no point in auto-recovering.
+  if(ast_id(ast) == TK_RECOVER)
+    return false;
+
+  // If it's already a subtype of the target, there's no need to auto-recover.
+  // Note that everywhere auto-recover is used, we're aliasing the type,
+  // so we use the alias of the type here to determine if the subtype matches.
+  ast_t* type = alias(ast_type(ast));
+  bool success = is_subtype(type, target_type, NULL, opt);
+  ast_free_unattached(type);
+  if(success)
+    return false;
+
+  // Determine what the auto-recover type of the expression would be.
+  token_id target_cap = ast_id(cap_fetch(target_type));
+  ast_t* recov_type = recover_type(ast_type(ast), target_cap);
+
+  // Fail if the auto-recover type cannot meet the target cap.
+  if(recov_type == NULL)
+    return false;
+
+  // Fail if the auto-recovered expression can't be a subtype of the target.
+  success = is_subtype(recov_type, target_type, NULL, opt);
+  ast_free_unattached(recov_type);
+  if(!success)
+    return false;
+
+  // Okay, it seems like recover would help here (if it ends up being safe).
   return true;
 }
 

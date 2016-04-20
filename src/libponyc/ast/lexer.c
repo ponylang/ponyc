@@ -919,7 +919,7 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
   {
     c = lookn(lexer, 2);
 
-    if(c < '0' || c > '9')
+    if(c < '0' || c > '9' || c == '_')
     {
       // Treat this as an integer token followed by a dot token
       token_t* t = make_token(lexer, TK_INT);

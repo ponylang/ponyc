@@ -9,6 +9,7 @@
 #include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/safeto.h"
 #include "../type/sanitise.h"
@@ -27,10 +28,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
   ast_swap(lhs, dot);
   ast_add(dot, lhs);
 
-  if(!expr_dot(opt, &dot))
-    return false;
-
-  return expr_call(opt, astp);
+  return ast_visit(astp, pass_pre_expr, pass_expr, opt, PASS_EXPR) == AST_OK;
 }
 
 bool is_this_incomplete(typecheck_t* t, ast_t* ast)
@@ -191,6 +189,92 @@ static bool apply_named_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
   }
 
   ast_setid(namedargs, TK_NONE);
+  return true;
+}
+
+static bool normalize_positional_args(pass_opt_t* opt, ast_t* ast,
+  ast_t* params)
+{
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  if(!extend_positional_args(opt, params, positional))
+    return false;
+
+  if(!apply_named_args(opt, params, positional, namedargs))
+    return false;
+
+  return true;
+}
+
+static bool maybe_auto_recover_args(pass_opt_t* opt, ast_t* params,
+  ast_t* positional)
+{
+  // Don't bother doing anything if there are no positional arguments.
+  if(ast_id(positional) == TK_NONE)
+    return true;
+
+  // Get the clean AST (not mutated by the expr pass) for the current TK_CALL.
+  // If not found, then it means the current TK_CALL was fabricated within
+  // this pass, so there are no explicit args to try to auto recover.
+  ast_t* clean_call = opt->check.frame->orig_call;
+  if(clean_call == NULL)
+    return true;
+
+  // Proceed with a copy of the clean AST to keep the original clean.
+  clean_call = ast_dup(clean_call);
+
+  // Normalize the clean positional arguments to match the positions of the
+  // dirty/mutated ones that are currently in our call AST.
+  if(!normalize_positional_args(opt, clean_call, params))
+    return false;
+  ast_t* clean_positional = ast_child(clean_call);
+  assert(clean_positional != NULL);
+
+  // Iterate over the args, clean args, and params all together.
+  ast_t* arg = ast_child(positional);
+  ast_t* clean_arg = ast_child(clean_positional);
+  ast_t* param = ast_child(params);
+  while((arg != NULL) && (clean_arg != NULL) && (param != NULL))
+  {
+    ast_t* param_type = ast_childidx(param, 1);
+    assert(param_type != NULL);
+
+    if((ast_id(arg) != TK_NONE) &&
+      expr_should_try_auto_recover(opt, arg, param_type))
+    {
+      // Wrap the clean arg AST in a recover block.
+      BUILD(recover_ast, clean_arg,
+        NODE(TK_RECOVER,
+          TREE(cap_fetch(param_type))
+          NODE(TK_SEQ, AST_SCOPE
+            TREE(clean_arg))));
+
+      // Put the recover expression in place of the original one.
+      ast_swap(arg, recover_ast);
+
+      // Check/resolve the recover expression by running the expr pass on it.
+      // This works only because it hasn't already been through the expr pass.
+      ast_result_t res =
+        ast_visit_soft(&recover_ast, pass_pre_expr, pass_expr, opt, PASS_EXPR);
+
+      if(res != AST_OK)
+      {
+        // If our recover was unsafe, we've failed - put back the original.
+        ast_swap(recover_ast, arg);
+        ast_free_unattached(recover_ast);
+      } else {
+        // Otherwise, we've succeeded - we can replace and free the old ast.
+        ast_free_unattached(arg);
+        arg = recover_ast;
+      }
+    }
+
+    arg = ast_sibling(arg);
+    clean_arg = ast_sibling(clean_arg);
+    param = ast_sibling(param);
+  }
+
+  ast_free_unattached(clean_call);
   return true;
 }
 
@@ -463,10 +547,10 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-  if(!extend_positional_args(opt, params, positional))
+  if(!normalize_positional_args(opt, ast, params))
     return false;
 
-  if(!apply_named_args(opt, params, positional, namedargs))
+  if(!maybe_auto_recover_args(opt, params, positional))
     return false;
 
   bool incomplete = is_this_incomplete(&opt->check, ast);

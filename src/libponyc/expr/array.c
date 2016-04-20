@@ -102,13 +102,6 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       NONE
       TREE(dot)));
 
-  if(!expr_reference(opt, &ref) ||
-    !expr_qualify(opt, &qualify) ||
-    !expr_dot(opt, &dot) ||
-    !expr_call(opt, &call)
-    )
-    return false;
-
   ast_swap(ast, call);
   *astp = call;
 
@@ -123,13 +116,8 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         TREE(append_dot)));
 
     ast_replace(astp, append);
-
-    if(!expr_dot(opt, &append_dot) ||
-      !expr_call(opt, &append)
-      )
-      return false;
   }
 
   ast_free_unattached(ast);
-  return true;
+  return ast_visit(astp, pass_pre_expr, pass_expr, opt, PASS_EXPR) == AST_OK;
 }

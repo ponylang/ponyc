@@ -285,7 +285,16 @@ typedef ast_result_t(*ast_visit_t)(ast_t** astp, pass_opt_t* options);
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass);
 
+/** Perform the specified pass on the given AST's nearest scope AST.
+ * See description of ast_visit.
+ */
 ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass);
+
+/** Perform the specified pass on the given AST, suppressing error collecting.
+ * See description of ast_visit.
+ */
+ast_result_t ast_visit_soft(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass);
 
 

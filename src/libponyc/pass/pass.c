@@ -367,7 +367,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if(!ignore && post != NULL)
+  if(!ignore && (post != NULL) && (ret != AST_ERROR))
   {
     switch(post(ast, options))
     {
@@ -413,4 +413,27 @@ ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   frame_pop(t);
 
   return ret;
+}
+
+
+ast_result_t ast_visit_soft(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options, pass_id pass)
+{
+  // Temporarily replace the errors collection with a new one that we can
+  // throw away later. If checking the safety of the auto-recover expression
+  // emits errors, we don't want to report those errors to the user,
+  // we just want to return failure to auto-recover here and allow the
+  // caller of this function to print a more relevant error.
+  errors_t* real_errors = options->check.errors;
+  options->check.errors = errors_alloc();
+
+  // Check/resolve the recover expression by running the expr pass on it.
+  // This is only possible because it hasn't already been through the expr pass.
+  ast_result_t res = ast_visit(ast, pre, post, options, pass);
+
+  // Discard any errors collected and restore the real error collection.
+  errors_free(options->check.errors);
+  options->check.errors = real_errors;
+
+  return res;
 }

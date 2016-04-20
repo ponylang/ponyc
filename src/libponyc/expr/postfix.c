@@ -249,13 +249,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 
-      if(!expr_dot(opt, &dot))
-        return false;
-
-      if(!expr_call(opt, &call))
-        return false;
-
-      return expr_dot(opt, astp);
+      return ast_visit(astp, pass_pre_expr, pass_expr, opt, PASS_EXPR) == AST_OK;
     }
 
     default:

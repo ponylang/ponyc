@@ -13,6 +13,8 @@ bool expr_while(pass_opt_t* opt, ast_t* ast);
 bool expr_repeat(pass_opt_t* opt, ast_t* ast);
 bool expr_try(pass_opt_t* opt, ast_t* ast);
 bool expr_recover(pass_opt_t* opt, ast_t* ast);
+bool expr_should_try_auto_recover(pass_opt_t* opt, ast_t* ast,
+  ast_t* target_type);
 bool expr_break(pass_opt_t* opt, ast_t* ast);
 bool expr_continue(pass_opt_t* opt, ast_t* ast);
 bool expr_return(pass_opt_t* opt, ast_t* ast);

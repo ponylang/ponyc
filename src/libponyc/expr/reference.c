@@ -1,7 +1,8 @@
-#include "reference.h"
+#include "call.h"
+#include "control.h"
 #include "literal.h"
 #include "postfix.h"
-#include "call.h"
+#include "reference.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
 #include "../pass/flatten.h"
@@ -298,20 +299,13 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_swap(ast, call);
           ast_append(call, ast);
 
-          if(!expr_call(opt, &call))
-          {
-            ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-            ast_free_unattached(type);
-            return false;
-          }
-
           // Add a dot node.
           ast_t* apply = ast_from(call, TK_DOT);
           ast_add(apply, ast_from_string(call, "apply"));
           ast_swap(call, apply);
           ast_add(apply, call);
 
-          if(!expr_dot(opt, &apply))
+          if(ast_visit(astp, pass_pre_expr, pass_expr, opt, PASS_EXPR) != AST_OK)
           {
             ast_settype(ast, ast_from(type, TK_ERRORTYPE));
             ast_free_unattached(type);
@@ -1131,12 +1125,20 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   {
     errorframe_t frame = NULL;
     ast_t* last = ast_childlast(body);
-    ast_error_frame(&frame, last, "function body isn't the result type");
+    ast_error_frame(&frame, last,
+      "function body result not a subtype of declared return type");
     ast_error_frame(&frame, type, "function return type: %s",
       ast_print_type(type));
     ast_error_frame(&frame, body_type, "function body type: %s",
       ast_print_type(body_type));
     errorframe_append(&frame, &info);
+
+    if(expr_should_try_auto_recover(opt, last, a_type))
+      ast_error_frame(&frame, last, "This would be possible if the last "
+        "expression were a recoverable expression in an explicit recover "
+        "block. Auto-recover is not supported for method bodies because "
+        "the extent of the recovered expression is ambiguous.");
+
     errorframe_report(&frame, opt->check.errors);
     ok = false;
   }
