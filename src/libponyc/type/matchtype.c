@@ -327,12 +327,25 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
 static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
   pass_opt_t* opt)
 {
+  // upperbound(this->T1) match T2
+  // ---
+  // (this->T1) match T2
+
   // lowerbound(T1->T2) match T3
   // ---
   // (T1->T2) match T3
-  ast_t* operand_lower = viewpoint_lower(operand);
-  matchtype_t ok = is_x_match_x(operand_lower, pattern, opt);
-  ast_free_unattached(operand_lower);
+
+  ast_t* operand_view;
+
+  AST_GET_CHILDREN(operand, left, right);
+
+  if(ast_id(left) == TK_THISTYPE)
+    operand_view = viewpoint_upper(operand);
+  else
+    operand_view = viewpoint_lower(operand);
+
+  matchtype_t ok = is_x_match_x(operand_view, pattern, opt);
+  ast_free_unattached(operand_view);
   return ok;
 }
 
