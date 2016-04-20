@@ -838,7 +838,6 @@ static void handle_stack(reach_t* r, pass_opt_t* opt)
   {
     reachable_method_t* m;
     r->stack = reachable_method_stack_pop(r->stack, &m);
-    add_method_types(r, m, opt);
 
     ast_t* body = ast_childidx(m->r_fun, 6);
     reachable_expr(r, body, opt);
