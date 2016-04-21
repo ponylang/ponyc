@@ -78,18 +78,15 @@ class ProcessClient is ProcessNotify
     _env.out.print("Child exit code: " + code.string())
 ```
 
-## Signal portability
+## Process portability
 
 The ProcessMonitor supports spawning processes on Linux, FreeBSD and OSX. 
 Processes are not supported on Windows and attempting to use them will cause 
 a runtime error.
 
-## Shutting down handlers
+## Shutting down ProcessMonitor and external process
 
-Unlike a `TCPConnection` and other forms of input receiving, creating a
-`SignalHandler` will not keep your program running. As such, you are not
-required to call `dispose` on your signal handlers in order to shutdown your
-program.
+Document waitpid behaviour (stops world)
 
 """
 
@@ -100,12 +97,15 @@ use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
       
 primitive _EINTR        fun apply(): I32 => 4
+primitive _EBADF        fun apply(): I32 => 9
 primitive _EAGAIN       fun apply(): I32 => 35
 primitive _STDINFILENO  fun apply(): U32 => 0
 primitive _STDOUTFILENO fun apply(): U32 => 1
 primitive _STDERRFILENO fun apply(): U32 => 2
 primitive _FSETFL       fun apply(): I32 => 4
 primitive _ONONBLOCK    fun apply(): I32 => 4
+primitive _FSETFD       fun apply(): I32 => 2
+primitive _FDCLOEXEC    fun apply(): I32 => 1
 
 primitive ExecveError
 primitive PipeError
@@ -179,6 +179,26 @@ actor ProcessMonitor
         @close[I32](_stderr_write)
         _notifier.failed(PipeError)
       end
+      // set O_CLOEXEC flag on file descriptors
+      try
+        _set_o_fdcloexec(_stdin_read)
+        _set_o_fdcloexec(_stdin_write)
+        _set_o_fdcloexec(_stdout_read)
+        _set_o_fdcloexec(_stdout_write)
+        _set_o_fdcloexec(_stderr_read)
+        _set_o_fdcloexec(_stderr_write)
+      else
+        _notifier.failed(FcntlError)
+        _close()
+      end
+      // set nonblock flag on file descriptors
+      try
+        _set_o_nonblock(_stdout_read)
+        _set_o_nonblock(_stderr_read)
+      else
+        _notifier.failed(FcntlError)
+        _close()
+      end
       // fork child process
       _child_pid = @fork[I32]()
       match _child_pid
@@ -195,23 +215,17 @@ actor ProcessMonitor
     
   fun _child(path: String, args: Array[String] val, vars: Array[String] val) =>
     """
-    We're now in the child process. We redirect STDIN, STDOUT and STDERR
+    We are now in the child process. We redirect STDIN, STDOUT and STDERR
     to their pipes and execute the command. The command is executed via
     execve which does not return on success, and the text, data, bss, and
     stack of the calling process are overwritten by that of the program
-    loaded.
+    loaded. We've set the FD_CLOEXEC flag on all file descriptors to ensure
+    that they are all closed automatically once @execve gets called.
     """
     ifdef posix then
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      // close our ends of all three pipes
-      @close[I32](_stdin_read)
-      @close[I32](_stdin_write)
-      @close[I32](_stdout_read)
-      @close[I32](_stdout_write)
-      @close[I32](_stderr_read)
-      @close[I32](_stderr_write)
       // prep and execute
       let argp = _make_argv(args)
       let envp = _make_argv(vars)
@@ -229,13 +243,6 @@ actor ProcessMonitor
     ifdef posix then
       _stdout_event = _create_asio_event(_stdout_read)
       _stderr_event = _create_asio_event(_stderr_read)
-      try
-        _set_o_nonblock(_stdout_read)
-        _set_o_nonblock(_stderr_read)
-      else
-        _notifier.failed(FcntlError)
-        _close()
-      end
       @close[I32](_stdin_read)
       @close[I32](_stdout_write)
       @close[I32](_stderr_write)
@@ -258,12 +265,15 @@ actor ProcessMonitor
     Creates a copy of the file descriptor oldfd using the file
     descriptor number specified in newfd. If the file descriptor newfd
     was previously open, it is silently closed before being reused.
-    TODO:
-    - If dup2() fails because of EINTR we should retry.
+    If dup2() fails because of EINTR we retry.
     """
     ifdef posix then
-      if @dup2[I32](oldfd, newfd) < 0 then
-        @exit[None](I32(-1))
+      while (@dup2[I32](oldfd, newfd) < 0) do
+        if @pony_os_errno() == _EINTR() then
+          continue
+        else
+          @exit[None](I32(-1))
+        end
       end
     end
     
@@ -292,11 +302,18 @@ actor ProcessMonitor
   be write(data: ByteSeq) =>
     """
     Write to STDIN of the child process.
+    TODO: Signal back success/failure
     """
     ifdef posix then
       let d = data
-      //write to the STDIN pipe of our child
-      if @write[USize](_stdin_write, d.cstring(), d.size()) < 0 then
+      if _stdin_write > 0 then
+        let res = @write[ISize](_stdin_write, d.cstring(), d.size())
+        @printf[I32]("written: %ld\n".cstring(), res)
+        if res < 0 then
+          _notifier.failed(WriteError)
+        end
+        
+      else
         _notifier.failed(WriteError)
       end
     end
@@ -319,17 +336,17 @@ actor ProcessMonitor
     
   be dispose() =>
     """
-    Close all pipes to the forked process and wait for the child to exit.
+    Close _stdin_write file descriptor.
     """
     @close[I32](_stdin_write)
-    _try_shutdown()
-
+    _stdin_write = -1
+    
   fun _create_asio_event(fd: U32): AsioEventID =>
     """
-    Takes a file descriptor (one end of a pipe) and returns and AsioEvent.
+    Takes a file descriptor (one end of a pipe) and returns an AsioEvent.
     """
     ifdef posix then
-      @pony_asio_event_create(this, fd, AsioEvent.read(), 0, true)
+      @pony_asio_event_create(this, fd, AsioEvent.write(), 0, true)
     else
       AsioEvent.none()
     end
@@ -343,14 +360,37 @@ actor ProcessMonitor
         error
       end
     end
-  
+
+  fun _set_o_fdcloexec(fd: U32) ? =>
+    """
+    Set the FD_CLOEXEC flag on a file descriptor to make sure it's automatically
+    closed once we call an exec function (@execve in our case).
+    """
+    ifdef posix then
+      if @fcntl[I32](fd, _FSETFD(), _FDCLOEXEC()) < 0 then
+        error
+      end
+    end
+
+  fun _event_flags(flags: U32): String box=>
+    """
+    Return all flags of an event as a string.
+    """
+    let all: String ref = String
+    if AsioEvent.readable(flags) then all.append("readable|") end
+    if AsioEvent.disposable(flags) then all.append("disposable|") end
+    if AsioEvent.writeable(flags) then all.append("writeable|") end
+    all
+    
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     Handle the incoming event.
     """
     match event
     | _stdout_event =>
-      if AsioEvent.readable(flags) then
+      @printf[I32]("Received stdout_event with flags: %s\tactor: %p\n".cstring(),
+        _event_flags(flags).cstring(), this)
+    if AsioEvent.readable(flags) then
         _stdout_open = _pending_reads(_stdout_read)
       elseif
         AsioEvent.disposable(flags) then
@@ -358,13 +398,18 @@ actor ProcessMonitor
         _stdout_event = AsioEvent.none()
       end
     | _stderr_event =>
-      if AsioEvent.readable(flags) then
+      @printf[I32]("Received stderr_event with flags: %s\tactor: %p\n".cstring(),
+        _event_flags(flags).cstring(), this)
+        if AsioEvent.readable(flags) then
         _stderr_open = _pending_reads(_stderr_read)
       elseif
         AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
         _stderr_event = AsioEvent.none()
       end
+    else
+      @printf[I32]("Received unknown event with flags: %s\tactor: %p\n".cstring(),
+        _event_flags(flags).cstring(), this)
     end
     _try_shutdown()
     
@@ -374,6 +419,7 @@ actor ProcessMonitor
     """
     ifdef posix then
       if not _closed then
+        @printf[I32]("closing\n".cstring())
         _closed = true
         @close[I32](_stdin_read)
         @close[I32](_stdin_write)
@@ -388,7 +434,10 @@ actor ProcessMonitor
         // We want to capture the exit status of the child
         var wstatus: I32 = 0
         let options: I32 = 0
-        if @waitpid[USize](_child_pid, addressof wstatus, options) < 0 then
+        let res = @waitpid[I32](_child_pid, addressof wstatus, options)
+        @printf[I32]("\nchild exit code: %d\tactor: %p\n".cstring(),
+          (wstatus >> 8) and 0xff, this)
+        if res < 0 then
           _notifier.failed(WaitpidError)
         end
         // process child exit code
@@ -414,24 +463,34 @@ actor ProcessMonitor
     causal messaging. Events get processed one _after_ another.
     """
     ifdef posix then
+      if fd == -1 then return false end
       var sum: USize = 0
       while true do
         let len = @read[ISize](fd, _read_buf.cstring(), _read_buf.space())
         let errno = @pony_os_errno()
         let next = _read_buf.space()
+        @printf[I32]("fd: %d\tlen: %ld\terrno: %d\tactor: %p\n".cstring(), fd, len,
+          errno, this)
         match len
         | -1 =>
-          match errno
-          | _EAGAIN() =>  return true // resource temporarily unavailable, retry
-          else
-            return false
+          if errno == _EAGAIN()  then
+            return true // resource temporarily unavailable, retry
           end
+          match fd
+          | _stdout_read => _stdout_read = -1
+          | _stderr_read => _stderr_read = -1
+          end
+          @close[I32](fd)
+          @printf[I32]("Closed fd: %d\tactor: %p\n".cstring(), fd, this)
+          return false          
         | 0  =>
-          match errno
-          | _EAGAIN() =>  return true // resource temporarily unavailable, retry
-          else
-            return false
+          match fd
+          | _stdout_read => _stdout_read = -1
+          | _stderr_read => _stderr_read = -1
           end
+          @close[I32](fd)
+          @printf[I32]("Closed fd: %d\tactor: %p\n".cstring(), fd, this)
+          return false
         else
           let data = _read_buf = recover Array[U8].undefined(next) end
           data.truncate(len.usize())

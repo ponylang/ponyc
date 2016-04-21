@@ -6,16 +6,19 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestStdinStdout)
-    test(_TestStderr)
+    // test(_TestStderr)
+    test(_TestStdinStdout1)
+    test(_TestStdinStdout2)
+    test(_TestStdinStdout3)
+    // test(_TestStdinStdout4)
 
-class iso _TestStdinStdout is UnitTest
+class iso _TestStdinStdout1 is UnitTest
   fun name(): String =>
-    "process/writing to STDIN of a forked cat process capturing STDOUT"
+    "process/STDIN-STDOUT1"
 
   fun apply(h: TestHelper) =>
-    let client = _ProcessClient("one, two, three", "", 0, h)
-    let notifier: ProcessNotify iso = consume client
+    let notifier: ProcessNotify iso = _ProcessClient("one, two, three",
+      "", 0, h)
     let path: String = "/bin/cat"
     
     let args: Array[String] iso = recover Array[String](1) end
@@ -28,20 +31,95 @@ class iso _TestStdinStdout is UnitTest
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
     pm.write("one, two, three")
+    h.long_test(5_000_000_000)
     pm.dispose()
-    h.long_test(60_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestStderr is UnitTest
+class iso _TestStdinStdout2 is UnitTest
   fun name(): String =>
-    "process/writing to STDERR of via a forked cat process"
+    "process/STDIN-STDOUT2"
 
   fun apply(h: TestHelper) =>
-    let client = _ProcessClient("",
+    let notifier: ProcessNotify iso = _ProcessClient("one, two, three",
+      "", 0, h)
+    let path: String = "/bin/cat"
+    
+    let args: Array[String] iso = recover Array[String](1) end
+    args.push("cat")
+    
+    let vars: Array[String] iso = recover Array[String](2) end
+    vars.push("HOME=/")
+    vars.push("PATH=/bin")
+    
+    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      consume args, consume vars)
+    pm.write("one, two, three")
+    h.long_test(5_000_000_000)
+    pm.dispose()
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestStdinStdout3 is UnitTest
+  fun name(): String =>
+    "process/STDIN-STDOUT3"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("one, two, three",
+      "", 0, h)
+    let path: String = "/bin/cat"
+    
+    let args: Array[String] iso = recover Array[String](1) end
+    args.push("cat")
+    
+    let vars: Array[String] iso = recover Array[String](2) end
+    vars.push("HOME=/")
+    vars.push("PATH=/bin")
+    
+    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      consume args, consume vars)
+    pm.write("one, two, three")
+    h.long_test(5_000_000_000)
+    pm.dispose()
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestStdinStdout4 is UnitTest
+  fun name(): String =>
+    "process/STDIN-STDOUT4"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("one, two, three",
+      "", 0, h)
+    let path: String = "/bin/cat"
+    
+    let args: Array[String] iso = recover Array[String](1) end
+    args.push("cat")
+    
+    let vars: Array[String] iso = recover Array[String](2) end
+    vars.push("HOME=/")
+    vars.push("PATH=/bin")
+    
+    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      consume args, consume vars)
+    pm.write("one, two, three")
+    h.long_test(5_000_000_000)
+    pm.dispose()
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+    
+    
+class iso _TestStderr is UnitTest
+  fun name(): String =>
+    "process/STDERR"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("",
       "cat: file_does_not_exist: No such file or directory\n", 1, h)
-    let notifier: ProcessNotify iso = consume client
     let path: String = "/bin/cat"
     
     let args: Array[String] iso = recover Array[String](2) end
@@ -54,8 +132,8 @@ class iso _TestStderr is UnitTest
     
     let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
+    h.long_test(5_000_000_000)
     pm.dispose()
-    h.long_test(60_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
@@ -68,8 +146,8 @@ class _ProcessClient is ProcessNotify
   let _err: String
   let _exit_code: I32
   let _h: TestHelper
-  var _d_stdout: String = ""
-  var _d_stderr: String = ""
+  let _d_stdout: String ref = String
+  let _d_stderr: String ref = String
   
   new iso create(out: String, err: String, exit_code: I32,
     h: TestHelper) =>
@@ -78,27 +156,15 @@ class _ProcessClient is ProcessNotify
     _exit_code = exit_code
     _h = h
     
-  fun ref stdout(data: Array[U8] iso) =>
+  fun ref stdout(data: Array[U8] iso) => _d_stdout.append(consume data)
     """
     Called when new data is received on STDOUT of the forked process
     """
-    _d_stdout = _d_stdout + String.from_array(consume data)
-    _h.log("in received_stdout: " + _d_stdout)
-    _h.log("should match:       " + _out)
-    if _d_stdout.size() == _out.size() then
-      _h.assert_eq[String](_out, _d_stdout)
-    end
     
-  fun ref stderr(data: Array[U8] iso) =>
+  fun ref stderr(data: Array[U8] iso) => _d_stderr.append(consume data)
     """
     Called when new data is received on STDERR of the forked process
     """
-    _d_stderr = _d_stderr + String.from_array(consume data)
-    _h.log("in received_stderr: '" + _d_stderr + "'")
-    _h.log("should match:       '" + _err + "'")
-    if _d_stderr.size() == _err.size() then
-      _h.assert_eq[String](_err, _d_stderr)
-    end
     
   fun ref failed(err: ProcessError) =>
     """
@@ -123,9 +189,12 @@ class _ProcessClient is ProcessNotify
   fun ref dispose(child_exit_code: I32) =>
     """
     Called when ProcessMonitor terminates to cleanup ProcessNotify
-    We return the exit code of the child process.
+    We receive the exit code of the child process from ProcessMonitor.
     """
-    let code: I32 = consume child_exit_code
-    _h.log("Child exit code: " + code.string())
-    _h.assert_eq[I32](_exit_code, code)
+    _h.log("dispose: child exit code: " + child_exit_code.string())
+    _h.log("dispose: stdout: " + _d_stdout)
+    _h.log("dispose: stderr: " + _d_stderr)
+    _h.assert_eq[String box](_out, _d_stdout)
+    _h.assert_eq[String box](_err, _d_stderr)
+    _h.assert_eq[I32](_exit_code, child_exit_code)
     _h.complete(true)
