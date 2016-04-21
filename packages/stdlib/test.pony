@@ -64,7 +64,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
 
-    ifdef not windows then
+    ifdef posix then
       // The process package currently doesn't support Windows, so ignore it.
       process.Main.make().tests(test)
     end
