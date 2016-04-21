@@ -199,11 +199,15 @@ actor ProcessMonitor
         _notifier.failed(FcntlError)
         _close()
       end
+      // prepare argp and envp ahead of fork() as it's not safe
+      // to allocate in the child after fork() was called.
+      let argp = _make_argv(args)
+      let envp = _make_argv(vars)
       // fork child process
       _child_pid = @fork[I32]()
       match _child_pid
       | -1  => _notifier.failed(ForkError)
-      | 0   => _child(path, args, vars)
+      | 0   => _child(path, argp, envp)
       else
         _parent()
       end
@@ -213,7 +217,9 @@ actor ProcessMonitor
       compile_error "unsupported platform"
     end
     
-  fun _child(path: String, args: Array[String] val, vars: Array[String] val) =>
+  fun _child(path: String, argp: Array[Pointer[U8] tag],
+    envp: Array[Pointer[U8] tag])
+    =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
     to their pipes and execute the command. The command is executed via
@@ -226,11 +232,7 @@ actor ProcessMonitor
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      // prep and execute
-      let argp = _make_argv(args)
-      let envp = _make_argv(vars)
-      let pathp = path.cstring()
-      if @execve[I32](pathp, argp.cstring(), envp.cstring()) < 0 then
+      if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
         @exit[None](I32(-1))
       end
     end
@@ -308,7 +310,7 @@ actor ProcessMonitor
       let d = data
       if _stdin_write > 0 then
         let res = @write[ISize](_stdin_write, d.cstring(), d.size())
-        @printf[I32]("written: %ld\n".cstring(), res)
+        @printf[I32]("written: %ld bytes\n".cstring(), res)
         if res < 0 then
           _notifier.failed(WriteError)
         end
@@ -449,10 +451,9 @@ actor ProcessMonitor
     """
     If neither stdout nor stderr are open we close down and exit.
       """
-    if _stdout_open or _stderr_open then
-      return
+    if (_stdout_read == -1) and (_stderr_read == -1) then
+      _close()
     end
-    _close()
     
   fun ref _pending_reads(fd: U32): Bool =>
     """

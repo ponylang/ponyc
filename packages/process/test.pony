@@ -6,11 +6,11 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    // test(_TestStderr)
+    test(_TestStderr)
     test(_TestStdinStdout1)
     test(_TestStdinStdout2)
     test(_TestStdinStdout3)
-    // test(_TestStdinStdout4)
+    test(_TestStdinStdout4)
 
 class iso _TestStdinStdout1 is UnitTest
   fun name(): String =>
