@@ -344,6 +344,9 @@ static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
   else
     operand_view = viewpoint_lower(operand);
 
+  if(operand_view == NULL)
+    return MATCHTYPE_DENY;
+
   matchtype_t ok = is_x_match_x(operand_view, pattern, opt);
   ast_free_unattached(operand_view);
   return ok;
