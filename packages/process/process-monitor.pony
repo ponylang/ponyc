@@ -106,6 +106,7 @@ primitive _FSETFL       fun apply(): I32 => 4
 primitive _ONONBLOCK    fun apply(): I32 => 4
 primitive _FSETFD       fun apply(): I32 => 2
 primitive _FDCLOEXEC    fun apply(): I32 => 1
+primitive _OCLOEXEC     fun apply(): I32 => 0x1000000
 
 primitive ExecveError
 primitive PipeError
@@ -178,26 +179,6 @@ actor ProcessMonitor
         @close[I32](_stderr_read)
         @close[I32](_stderr_write)
         _notifier.failed(PipeError)
-      end
-      // set O_CLOEXEC flag on file descriptors
-      try
-        _set_o_fdcloexec(_stdin_read)
-        _set_o_fdcloexec(_stdin_write)
-        _set_o_fdcloexec(_stdout_read)
-        _set_o_fdcloexec(_stdout_write)
-        _set_o_fdcloexec(_stderr_read)
-        _set_o_fdcloexec(_stderr_write)
-      else
-        _notifier.failed(FcntlError)
-        _close()
-      end
-      // set nonblock flag on file descriptors
-      try
-        _set_o_nonblock(_stdout_read)
-        _set_o_nonblock(_stderr_read)
-      else
-        _notifier.failed(FcntlError)
-        _close()
       end
       // prepare argp and envp ahead of fork() as it's not safe
       // to allocate in the child after fork() was called.
@@ -282,11 +263,14 @@ actor ProcessMonitor
   fun _make_pipe(): (U32, U32) ? =>
     """
     Creates a pipe, an unidirectional data channel that can be used
-    for interprocess communication.
+    for interprocess communication. We need to set the flags O_NONBLOCK
+    and O_CLOEXEC on the two file descriptors here to prevent capturing
+    by another thread.
     """
     ifdef posix then  
       var pipe = (U32(0), U32(0))
-      if @pipe[I32](addressof pipe) < 0 then
+      let flags = _ONONBLOCK() or _OCLOEXEC()
+      if @pipe[I32](addressof pipe, flags) < 0 then
         error
       end
       pipe
@@ -351,27 +335,6 @@ actor ProcessMonitor
       @pony_asio_event_create(this, fd, AsioEvent.write(), 0, true)
     else
       AsioEvent.none()
-    end
-
-  fun _set_o_nonblock(fd: U32) ? =>
-    """
-    Set the O_NONBLOCK flag on a file descriptor to enable async operations.
-    """
-    ifdef posix then
-      if @fcntl[I32](fd, _FSETFL(), _ONONBLOCK()) < 0 then
-        error
-      end
-    end
-
-  fun _set_o_fdcloexec(fd: U32) ? =>
-    """
-    Set the FD_CLOEXEC flag on a file descriptor to make sure it's automatically
-    closed once we call an exec function (@execve in our case).
-    """
-    ifdef posix then
-      if @fcntl[I32](fd, _FSETFD(), _FDCLOEXEC()) < 0 then
-        error
-      end
     end
 
   fun _event_flags(flags: U32): String box=>
