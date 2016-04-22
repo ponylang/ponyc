@@ -50,6 +50,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `ArrayValues.rewind()` method.
 - Nanos primitive in time package.
 - Persistent package, with List and Map
+- Custom chunk size for Stdin.
 
 ### Changed
 

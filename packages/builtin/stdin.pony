@@ -31,6 +31,7 @@ actor Stdin
   access is provided only via an environment.
   """
   var _notify: (StdinNotify | None) = None
+  var _chunk_size: USize = 32
   var _event: AsioEventID = AsioEvent.none()
   let _use_event: Bool
 
@@ -40,11 +41,13 @@ actor Stdin
     """
     _use_event = use_event
 
-  be apply(notify: (StdinNotify iso | None)) =>
+  be apply(notify: (StdinNotify iso | None), chunk_size: USize = 32) =>
     """
-    Set the notifier.
+    Set the notifier. Optionally, also sets the chunk size, dictating the
+    maximum number of bytes of each chunk that will be passed to the notifier.
     """
     _set_notify(consume notify)
+    _chunk_size = chunk_size
 
   be dispose() =>
     """
@@ -101,19 +104,19 @@ actor Stdin
 
   fun ref _read(): Bool =>
     """
-    Read a chunk of data from stdin. If we read 4 kb of data, send ourself a
-    resume message and stop reading, to avoid starving other actors.
+    Read a chunk of data from stdin. Read a maximum of _chunk_size bytes, send
+    ourself a resume message and stop reading to avoid starving other actors.
     """
     try
       let notify = _notify as StdinNotify
       var sum: USize = 0
 
       while true do
-        var len = USize(32)
-        var data = recover Array[U8].undefined(len) end
+        let chunk_size = _chunk_size
+        var data = recover Array[U8].undefined(chunk_size) end
         var again: Bool = false
 
-        len = @pony_os_stdin_read[USize](data.cstring(), data.space(),
+        let len = @pony_os_stdin_read[USize](data.cstring(), data.space(),
           addressof again)
 
         match len
