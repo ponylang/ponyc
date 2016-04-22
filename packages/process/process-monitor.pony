@@ -102,11 +102,12 @@ primitive _EAGAIN       fun apply(): I32 => 35
 primitive _STDINFILENO  fun apply(): U32 => 0
 primitive _STDOUTFILENO fun apply(): U32 => 1
 primitive _STDERRFILENO fun apply(): U32 => 2
-primitive _FSETFL       fun apply(): I32 => 4
 primitive _ONONBLOCK    fun apply(): I32 => 4
+primitive _FSETFL       fun apply(): I32 => 4
+primitive _FGETFL       fun apply(): I32 => 3
 primitive _FSETFD       fun apply(): I32 => 2
+primitive _FGETFD       fun apply(): I32 => 1
 primitive _FDCLOEXEC    fun apply(): I32 => 1
-primitive _OCLOEXEC     fun apply(): I32 => 0x1000000
 
 primitive ExecveError
 primitive PipeError
@@ -168,9 +169,9 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe()
-        (_stdout_read, _stdout_write) = _make_pipe()
-        (_stderr_read, _stderr_write) = _make_pipe()
+        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
+        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
+        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
       else
         @close[I32](_stdin_read)
         @close[I32](_stdin_write)
@@ -260,24 +261,59 @@ actor ProcessMonitor
       end
     end
     
-  fun _make_pipe(): (U32, U32) ? =>
+  fun _make_pipe(fd_flags: I32, fl_flags: I32): (U32, U32) ? =>
     """
     Creates a pipe, an unidirectional data channel that can be used
     for interprocess communication. We need to set the flags O_NONBLOCK
     and O_CLOEXEC on the two file descriptors here to prevent capturing
     by another thread.
     """
-    ifdef posix then  
+    ifdef posix then
+      // @printf[I32]("fd_flags: %d\tfl_flags: %d\n".cstring(), fd_flags, fl_flags)
       var pipe = (U32(0), U32(0))
-      let flags = _ONONBLOCK() or _OCLOEXEC()
-      if @pipe[I32](addressof pipe, flags) < 0 then
+      if @pipe[I32](addressof pipe) < 0 then
         error
       end
+      _set_fd(pipe._1, fd_flags)
+      _set_fl(pipe._1, fl_flags)
+      _set_fd(pipe._2, fd_flags)
+      _set_fl(pipe._2, fl_flags)
+      // @printf[I32]("read_end flags: %s\n".cstring(), _getflags(pipe._1).cstring())
+      // @printf[I32]("write_end flags: %s\n".cstring(), _getflags(pipe._2).cstring())
       pipe
     else
       (U32(0), U32(0))
     end
 
+  fun _getflags(fd: U32): String box ? =>
+    """
+    Get the flags set for a file descriptor
+    """
+    let result: String ref = String
+    ifdef posix then
+      let fd_flags: I32 = @fcntl[I32](fd, _FGETFD(), I32(0))
+      if fd_flags < 0 then error end
+      if (fd_flags and _FDCLOEXEC()) > 0 then
+        result.append(" _FDCLOEXEC ")
+      end
+      let fl_flags: I32 = @fcntl[I32](fd, _FGETFL(), I32(0))
+      if fl_flags < 0 then error end
+        if (fl_flags and _ONONBLOCK()) > 0 then
+          result.append(" O_NONBLOCK ")
+        end
+      result
+    else
+      result
+    end
+
+  fun _set_fd(fd: U32, flags: I32) ? =>
+    let result = @fcntl[I32](fd, _FSETFD(), flags)
+    if result < 0 then error end
+
+  fun _set_fl(fd: U32, flags: I32) ? =>
+    let result = @fcntl[I32](fd, _FSETFL(), flags)
+    if result < 0 then error end
+    
   be print(data: ByteSeq) =>
     """
     Print some bytes and insert a newline afterwards.
