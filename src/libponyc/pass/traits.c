@@ -516,7 +516,8 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   method_t* info = (method_t*)ast_data(existing_method);
   assert(info != NULL);
 
-  if(info->failed)  // Method has already caused an error, do nothing.
+  // Method has already caused an error, do nothing.
+  if(info->failed)
     return false;
 
   if(info->local_define || info->delegated_field != NULL)
@@ -524,30 +525,36 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     // Method is local or provided by delegation. Provided method must be a
     // suitable supertype.
     errorframe_t err = NULL;
+
     if(is_subtype(existing_method, method, &err, opt))
       return true;
 
+    errorframe_t err2 = NULL;
+
     if(info->local_define)
     {
-      ast_error(opt->check.errors, trait_ref,
+      ast_error_frame(&err2, trait_ref,
         "method '%s' provided here is not compatible with local version",
         method_name);
-      ast_error_continue(opt->check.errors, method, "provided method");
-      ast_error_continue(opt->check.errors, existing_method, "local method");
+      ast_error_frame(&err2, method, "provided method");
+      ast_error_frame(&err2, existing_method, "local method");
     }
     else
     {
       assert(info->delegated_field != NULL);
       assert(info->trait_ref != NULL);
 
-      ast_error(opt->check.errors, trait_ref, "provided method '%s' is not "
+      ast_error_frame(&err2, trait_ref, "provided method '%s' is not "
         "compatible with delegated version, provided type: %s", method_name,
         ast_print_type(method));
-      ast_error_continue(opt->check.errors, info->trait_ref,
+      ast_error_frame(&err2, info->trait_ref,
         "method delegated from field '%s' has type: %s",
         ast_name(ast_child(info->delegated_field)),
         ast_print_type(existing_method));
     }
+
+    errorframe_append(&err2, &err);
+    errorframe_report(&err2, opt->check.errors);
 
     info->failed = true;
     return false;

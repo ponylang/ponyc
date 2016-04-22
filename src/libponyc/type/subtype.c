@@ -7,8 +7,8 @@
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
-#include "../ast/stringtab.h"
 #include "../expr/literal.h"
+#include <string.h>
 #include <assert.h>
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
@@ -142,6 +142,9 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
 
 static bool check_machine_words(ast_t* sub, ast_t* super, errorframe_t* errorf)
 {
+  // TODO: working on this
+  return true;
+
   // If either result type is a machine word, the other must be as well.
   if(is_machine_word(sub) && !is_machine_word(super))
   {
@@ -1393,7 +1396,7 @@ bool is_literal(ast_t* type, const char* name)
     return false;
 
   // Don't have to check the package, since literals are all builtins.
-  return ast_name(ast_childidx(type, 1)) == stringtab(name);
+  return !strcmp(ast_name(ast_childidx(type, 1)), name);
 }
 
 bool is_pointer(ast_t* type)

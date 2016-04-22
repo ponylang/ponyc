@@ -434,6 +434,7 @@ static reachable_type_t* add_reachable_type(reach_t* r, ast_t* type)
   memset(t, 0, sizeof(reachable_type_t));
 
   t->name = genname_type(type);
+  t->mangle = "o";
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   reachable_method_names_init(&t->methods, 0);
   reachable_type_cache_init(&t->subtypes, 0);
@@ -480,6 +481,7 @@ static reachable_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reachable_field_t*)calloc(t->field_count,
     sizeof(reachable_field_t));
+  printbuf_t* mangle = printbuf_new();
   size_t index = 0;
 
   ast_t* child = ast_child(type);
@@ -487,12 +489,15 @@ static reachable_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   while(child != NULL)
   {
     t->fields[index].ast = ast_dup(child);
-    t->fields[index].type = add_type(r, child, opt);;
+    t->fields[index].type = add_type(r, child, opt);
+    printbuf(mangle, "%s", t->fields[index].type->mangle);
     index++;
 
     child = ast_sibling(child);
   }
 
+  t->mangle = stringtab(mangle->m);
+  printbuf_free(mangle);
   return t;
 }
 
@@ -548,6 +553,54 @@ static reachable_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   if(t->type_id == 0)
     t->type_id = ++r->next_type_id;
+
+  if(ast_id(def) != TK_PRIMITIVE)
+    return t;
+
+  if(strcmp(ast_name(pkg), "$0"))
+    return t;
+
+  const char* name = ast_name(id);
+
+  if(name[0] == 'I')
+  {
+    if(!strcmp(name, "I8"))
+      t->mangle = "c";
+    else if(!strcmp(name, "I16"))
+      t->mangle = "s";
+    else if(!strcmp(name, "I32"))
+      t->mangle = "i";
+    else if(!strcmp(name, "I64"))
+      t->mangle = "w";
+    else if(!strcmp(name, "I128"))
+      t->mangle = "q";
+    else if(!strcmp(name, "ILong"))
+      t->mangle = "l";
+    else if(!strcmp(name, "ISize"))
+      t->mangle = "z";
+  } else if(name[0] == 'U') {
+    if(!strcmp(name, "U8"))
+      t->mangle = "C";
+    else if(!strcmp(name, "U16"))
+      t->mangle = "S";
+    else if(!strcmp(name, "U32"))
+      t->mangle = "I";
+    else if(!strcmp(name, "U64"))
+      t->mangle = "W";
+    else if(!strcmp(name, "U128"))
+      t->mangle = "Q";
+    else if(!strcmp(name, "ULong"))
+      t->mangle = "L";
+    else if(!strcmp(name, "USize"))
+      t->mangle = "Z";
+  } else if(name[0] == 'F') {
+    if(!strcmp(name, "F32"))
+      t->mangle = "f";
+    else if(!strcmp(name, "F64"))
+      t->mangle = "d";
+  } else if(!strcmp(name, "Bool")) {
+    t->mangle = "b";
+  }
 
   return t;
 }
@@ -938,7 +991,7 @@ void reach_dump(reach_t* r)
 
   while((t = reachable_types_next(&r->types, &i)) != NULL)
   {
-    printf("  %s: %d\n", t->name, t->vtable_size);
+    printf("  %s: %s, %d\n", t->name, t->mangle, t->vtable_size);
     size_t j = HASHMAP_BEGIN;
     reachable_method_name_t* m;
 

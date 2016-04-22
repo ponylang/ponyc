@@ -65,6 +65,7 @@ struct reachable_field_t
 struct reachable_type_t
 {
   const char* name;
+  const char* mangle;
   ast_t* ast;
   token_id underlying;
 
