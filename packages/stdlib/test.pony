@@ -30,6 +30,7 @@ use logger = "logger"
 use math = "math"
 use net = "net"
 use options = "options"
+use process = "process"
 use promises = "promises"
 use random = "random"
 use regex = "regex"
@@ -62,6 +63,12 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
+
+    ifdef posix then
+      // The process package currently doesn't support Windows, so ignore it.
+      process.Main.make().tests(test)
+    end
+    
     regex.Main.make().tests(test)
 
     ifdef not windows then
