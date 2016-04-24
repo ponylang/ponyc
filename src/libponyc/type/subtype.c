@@ -763,7 +763,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
       if(errorf != NULL)
       {
         ast_error_frame(errorf, sub,
-          "%s is not a subtype of %s: it has no method %s",
+          "%s is not a subtype of %s: it has no method '%s'",
           ast_print_type(sub), ast_print_type(super),
           ast_name(super_member_id));
       }

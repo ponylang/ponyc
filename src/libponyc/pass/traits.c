@@ -813,26 +813,12 @@ static bool delegated_methods(ast_t* entity, pass_opt_t* opt)
         if(!trait_entity(trait, opt))
           return false;
 
-        errorframe_t err = NULL;
-        if(!is_subtype(f_type, trait_ref, &err, opt))
+        // Run through the methods of each delegated type.
+        for(ast_t* method = ast_child(ast_childidx(trait, 4));
+          method != NULL; method = ast_sibling(method))
         {
-          ast_error(opt->check.errors, trait_ref,
-            "field not a subtype of delegate");
-          ast_error_continue(opt->check.errors, f_type,
-            "field type: %s", ast_print_type(f_type));
-          ast_error_continue(opt->check.errors, trait_ref,
-            "delegate type: %s", ast_print_type(trait_ref));
-          r = false;
-        }
-        else
-        {
-          // Run through the methods of each delegated type.
-          for(ast_t* method = ast_child(ast_childidx(trait, 4));
-            method != NULL; method = ast_sibling(method))
-          {
-            if(!delegated_method(entity, method, field, trait_ref, opt))
-              r = false;
-          }
+          if(!delegated_method(entity, method, field, trait_ref, opt))
+            r = false;
         }
       }
     }
