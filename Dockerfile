@@ -1,25 +1,10 @@
-FROM debian:jessie
-
-RUN echo 'deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main' \
-  | tee -a /etc/apt/sources.list \
- && echo 'deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main' \
-  | tee -a /etc/apt/sources.list
+FROM ubuntu:16.04
 
 RUN apt-get update \
- && apt-get install -y wget bzip2 make g++ git \
-                       zlib1g-dev libncurses5-dev libssl-dev
-
-RUN wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add - \
- && apt-get update \
- && apt-get install -y llvm-3.8-dev
-
-RUN cd /tmp \
- && wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \
- && tar xvf pcre2-10.21.tar.bz2 \
- && cd pcre2-10.21 \
- && ./configure --prefix=/usr \
- && make && make install \
- && rm -rf /tmp/*
+ && apt-get install -y make g++ git \
+                       zlib1g-dev libncurses5-dev libssl-dev \
+                       llvm-dev libpcre2-dev \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/
