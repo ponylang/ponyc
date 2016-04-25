@@ -483,10 +483,12 @@ static reachable_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reachable_field_t*)calloc(t->field_count,
     sizeof(reachable_field_t));
+
   printbuf_t* mangle = printbuf_new();
-  size_t index = 0;
+  printbuf(mangle, "%d", t->field_count);
 
   ast_t* child = ast_child(type);
+  size_t index = 0;
 
   while(child != NULL)
   {
