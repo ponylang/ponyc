@@ -77,8 +77,8 @@ ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 BITS := $(bits)
 
 ifeq ($(BITS),64)
-	BUILD_FLAGS += -mcx16
-	LINKER_FLAGS += -mcx16
+  BUILD_FLAGS += -mcx16
+  LINKER_FLAGS += -mcx16
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
@@ -146,7 +146,7 @@ ifndef LLVM_CONFIG
   else ifneq (,$(shell which llvm-config36 2> /dev/null))
     LLVM_CONFIG = llvm-config36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
-		LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
   else ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
   endif
@@ -161,7 +161,7 @@ $(shell mkdir -p $(PONY_BUILD_DIR))
 lib   := $(PONY_BUILD_DIR)
 bin   := $(PONY_BUILD_DIR)
 tests := $(PONY_BUILD_DIR)
-obj  := $(PONY_BUILD_DIR)/obj
+obj   := $(PONY_BUILD_DIR)/obj
 
 # Libraries. Defined as
 # (1) a name and output directory

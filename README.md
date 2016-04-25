@@ -21,6 +21,28 @@
 
 # Installation
 
+## Using Docker
+
+Want to use the latest revision of Pony source, but don't want to build from source yourself? You can run the `ponylang/ponyc` Docker container, which is created from an automated build at each commit to master.
+
+You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull the latest `ponylang/ponyc` image using this command:
+
+```bash
+docker pull ponylang/ponyc:latest
+```
+
+Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
+
+```bash
+docker run -v /path/to/my-code:/src/main ponylang/ponyc
+```
+
+Note that if your host doesn't match the docker container, you'll probably have to run the resulting program inside the docker container as well, using a command like this:
+
+```bash
+docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
+```
+
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 The homebrew version is currently woefully out of date. We are transitioning to
