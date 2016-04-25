@@ -90,7 +90,7 @@ a runtime error.
 Document waitpid behaviour (stops world)
 
 """
-
+use "files"
 use @pony_os_errno[I32]()
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32, 
       flags: U32, nsec: U64, noisy: Bool)
@@ -121,19 +121,21 @@ primitive ReadError
 primitive WriteError
 primitive KillError
 primitive Unsupported // we throw this on non POSIX systems
+primitive CapError
 
 type ProcessError is
   ( ExecveError
-  | PipeError    
-  | Dup2Error    
-  | ForkError
-  | FcntlError
-  | WaitpidError
   | CloseError
-  | ReadError
-  | WriteError
+  | Dup2Error    
+  | FcntlError
+  | ForkError
   | KillError
+  | PipeError    
+  | ReadError
   | Unsupported
+  | WaitpidError
+  | WriteError
+  | CapError
   )    
   
 actor ProcessMonitor
@@ -160,7 +162,7 @@ actor ProcessMonitor
 
   var _closed: Bool = false
   
-  new create(notifier: ProcessNotify iso, path: String, 
+  new create(notifier: ProcessNotify iso, filepath: FilePath, 
     args: Array[String] val, vars: Array[String] val)
   =>
     """
@@ -169,6 +171,10 @@ actor ProcessMonitor
     user about incoming data via the notifier. 
     """
     _notifier = consume notifier
+    if not filepath.caps(FileExec) then
+      _notifier.failed(CapError)
+      return
+    end
 
     ifdef posix then
       try
@@ -193,7 +199,7 @@ actor ProcessMonitor
       _child_pid = @fork[I32]()
       match _child_pid
       | -1  => _notifier.failed(ForkError)
-      | 0   => _child(path, argp, envp)
+      | 0   => _child(filepath.path, argp, envp)
       else
         _parent()
       end

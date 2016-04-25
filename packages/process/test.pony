@@ -1,5 +1,7 @@
 use "ponytest"
 use "files"
+use "capsicum"
+use "collections"
 
 actor Main is TestList  
   new create(env: Env) => PonyTest(env, this)
@@ -8,6 +10,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestStdinStdout)
     test(_TestStderr)
+    test(_TestFileExec)
 
 
 class iso _TestStdinStdout is UnitTest
@@ -17,20 +20,22 @@ class iso _TestStdinStdout is UnitTest
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient("one, two, three",
       "", 0, h)
-    let path: String = "/bin/cat"
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("cat")
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
     
-    let args: Array[String] iso = recover Array[String](1) end
-    args.push("cat")
-    
-    let vars: Array[String] iso = recover Array[String](2) end
-    vars.push("HOME=/")
-    vars.push("PATH=/bin")
-    
-    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
-      consume args, consume vars)
-    pm.write("one, two, three")
-    pm.done_writing()  // closing stdin allows "cat" to terminate
-    h.long_test(5_000_000_000)
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+        pm.write("one, two, three")
+        pm.done_writing()  // closing stdin allows "cat" to terminate
+        h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
@@ -42,23 +47,52 @@ class iso _TestStderr is UnitTest
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient("",
       "cat: file_does_not_exist: No such file or directory\n", 1, h)
-    let path: String = "/bin/cat"
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let args: Array[String] iso = recover Array[String](2) end
+      args.push("cat")
+      args.push("file_does_not_exist")
+   
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
     
-    let args: Array[String] iso = recover Array[String](2) end
-    args.push("cat")
-    args.push("file_does_not_exist")
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+        h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
     
-    let vars: Array[String] iso = recover Array[String](2) end
-    vars.push("HOME=/")
-    vars.push("PATH=/bin")
-    
-    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
-      consume args, consume vars)
-    h.long_test(5_000_000_000)
-
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
+class iso _TestFileExec is UnitTest
+  fun name(): String =>
+    "process/FileExec"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("",
+      "cat: file_does_not_exist: No such file or directory\n", 1, h)
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/date",
+        recover val FileCaps.all().unset(FileExec) end)
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("date")    
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+    
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+      h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+    
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -104,6 +138,7 @@ class _ProcessClient is ProcessNotify
     | WriteError    => _h.fail("ProcessError: WriteError")
     | KillError     => _h.fail("ProcessError: KillError")
     | Unsupported   => _h.fail("ProcessError: Unsupported") 
+    | CapError      => _h.complete(true) // used in _TestFileExec
     else
       _h.fail("Unknown ProcessError!")
     end
