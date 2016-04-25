@@ -198,6 +198,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_TRAIT:
+    case TK_INTERFACE:  r = expr_provides(options, ast); break;
     case TK_NOMINAL:    r = expr_nominal(options, astp); break;
     case TK_FVAR:
     case TK_FLET:

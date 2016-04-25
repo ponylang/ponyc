@@ -809,13 +809,24 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
   return NULL;
 }
 
-bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
+bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
+  bool allow_shadowing)
 {
   while(ast->symtab == NULL)
     ast = ast->parent;
 
-  return (ast_get_case(ast, name, NULL) == NULL)
-    && symtab_add(ast->symtab, name, value, status);
+  if(allow_shadowing)
+  {
+    // Only check the local scope.
+    if(symtab_find_case(ast->symtab, name, NULL) != NULL)
+      return false;
+  } else {
+    // Check the local scope and all parent scopes.
+    if(ast_get_case(ast, name, NULL) != NULL)
+      return false;
+  }
+
+  return symtab_add(ast->symtab, name, value, status);
 }
 
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)

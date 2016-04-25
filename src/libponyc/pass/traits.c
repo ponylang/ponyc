@@ -253,8 +253,8 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
 // and type arguments from trait reference.
 // Also handles modifying return types from behaviours, etc.
 // Returns the reified type, which must be freed later, or NULL on error.
-static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
-  ast_t* trait_ref, pass_opt_t* opt)
+static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
+  pass_opt_t* opt)
 {
   assert(method != NULL);
   assert(trait_ref != NULL);
@@ -276,15 +276,6 @@ static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
 
   AST_GET_CHILDREN(reified, cap, id, typeparams, params, result,
     can_error, body, doc);
-
-  if(ast_id(reified) == TK_BE || ast_id(reified) == TK_NEW)
-  {
-    // Modify return type to the inheriting type.
-    ast_t* this_type = type_for_this(opt, entity, ast_id(cap),
-      TK_EPHEMERAL, true);
-
-    ast_replace(&result, this_type);
-  }
 
   return reified;
 }
@@ -412,7 +403,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   }
 
   ast_t* local = ast_append(ast_childidx(entity, 4), basis_method);
-  ast_set(entity, name, local, SYM_DEFINED);
+  ast_set(entity, name, local, SYM_DEFINED, false);
   ast_t* body_donor = (ast_t*)ast_data(basis_method);
   method_t* info = attach_method_t(local);
   info->trait_ref = trait_ref;
@@ -442,7 +433,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_TYPEPARAM:
     {
       assert(ast_child(ast) != NULL);
-      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED);
+      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED, true);
       break;
     }
 
@@ -451,7 +442,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     {
       ast_t* scope = ast_parent(ast);
       ast_t* id = ast_child(ast);
-      ast_set(scope, ast_name(id), id, SYM_UNDEFINED);
+      ast_set(scope, ast_name(id), id, SYM_UNDEFINED, true);
       break;
     }
 
@@ -459,7 +450,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     {
       ast_t* scope = ast_parent(ast);
       ast_t* id = ast_child(ast);
-      ast_set(scope, ast_name(id), id, SYM_DEFINED);
+      ast_set(scope, ast_name(id), id, SYM_DEFINED, true);
       break;
     }
 
@@ -521,55 +512,22 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     return false;
 
   if(info->local_define || info->delegated_field != NULL)
-  {
-    // Method is local or provided by delegation. Provided method must be a
-    // suitable supertype.
-    errorframe_t err = NULL;
-
-    if(is_subtype(existing_method, method, &err, opt))
-      return true;
-
-    errorframe_t err2 = NULL;
-
-    if(info->local_define)
-    {
-      ast_error_frame(&err2, trait_ref,
-        "method '%s' provided here is not compatible with local version",
-        method_name);
-      ast_error_frame(&err2, method, "provided method");
-      ast_error_frame(&err2, existing_method, "local method");
-    }
-    else
-    {
-      assert(info->delegated_field != NULL);
-      assert(info->trait_ref != NULL);
-
-      ast_error_frame(&err2, trait_ref, "provided method '%s' is not "
-        "compatible with delegated version, provided type: %s", method_name,
-        ast_print_type(method));
-      ast_error_frame(&err2, info->trait_ref,
-        "method delegated from field '%s' has type: %s",
-        ast_name(ast_child(info->delegated_field)),
-        ast_print_type(existing_method));
-    }
-
-    errorframe_append(&err2, &err);
-    errorframe_report(&err2, opt->check.errors);
-
-    info->failed = true;
-    return false;
-  }
+    return true;
 
   // Existing method is also provided, signatures must match exactly.
   if(!compare_signatures(existing_method, method))
   {
     assert(info->trait_ref != NULL);
 
-    ast_error(opt->check.errors, trait_ref, "clashing definitions for "
-      "method '%s' provided, local disambiguation required", method_name);
-    ast_error_continue(opt->check.errors, trait_ref, "provided here, type: %s",
+    ast_error(opt->check.errors, trait_ref,
+      "clashing definitions for method '%s' provided, local disambiguation "
+      "required",
+      method_name);
+    ast_error_continue(opt->check.errors, trait_ref,
+      "provided here, type: %s",
       ast_print_type(method));
-    ast_error_continue(opt->check.errors, info->trait_ref, "and here, type: %s",
+    ast_error_continue(opt->check.errors, info->trait_ref,
+      "and here, type: %s",
       ast_print_type(existing_method));
 
     info->failed = true;
@@ -598,9 +556,9 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     return true;
   }
 
-  if(ast_id(method_body) == TK_NONE ||
-    info->body_donor == (ast_t*)ast_data(method))
-    // No new body to resolve.
+  // No new body to resolve.
+  if((ast_id(method_body) == TK_NONE) ||
+    (info->body_donor == (ast_t*)ast_data(method)))
     return true;
 
   // Trait provides default body. Use it and patch up symbol tables.
@@ -641,7 +599,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
     {
       assert(is_method(method));
 
-      ast_t* reified = reify_provides_type(entity, method, trait_ref, opt);
+      ast_t* reified = reify_provides_type(method, trait_ref, opt);
 
       if(reified == NULL)
       {
@@ -749,8 +707,8 @@ static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
     method_t* info = (method_t*)ast_data(existing);
     assert(info != NULL);
 
+    // Nothing new to add.
     if(info->local_define || info->delegated_field == field)
-      // Nothing new to add.
       return true;
 
     assert(info->trait_ref != NULL);
@@ -768,9 +726,10 @@ static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
   }
 
   // This is a new method, reify and add it.
-  ast_t* reified = reify_provides_type(entity, method, trait_ref, opt);
+  ast_t* reified = reify_provides_type(method, trait_ref, opt);
 
-  if(reified == NULL) // Reification error, already reported
+  // Reification error, already reported
+  if(reified == NULL)
     return false;
 
   ast_t* new_method = add_method(entity, trait_ref, reified, "delegate", opt);
@@ -1046,7 +1005,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
     // processed that type.
     ast_setdata(eq, ast);
     ast_append(members, eq);
-    ast_set(ast, stringtab("eq"), eq, SYM_DEFINED);
+    ast_set(ast, stringtab("eq"), eq, SYM_DEFINED, false);
 
     if(!ast_passes_subtree(&eq, options, PASS_TRAITS))
       r = false;
@@ -1078,7 +1037,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
     // processed that type.
     ast_setdata(ne, ast);
     ast_append(members, ne);
-    ast_set(ast, stringtab("ne"), ne, SYM_DEFINED);
+    ast_set(ast, stringtab("ne"), ne, SYM_DEFINED, false);
 
     if(!ast_passes_subtree(&ne, options, PASS_TRAITS))
       r = false;

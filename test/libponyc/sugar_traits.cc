@@ -6,8 +6,8 @@
 
 // Tests for sugar that is applied during the traits pass
 
-#define TEST_COMPILE(src) DO(test_compile(src, "traits"))
-#define TEST_ERROR(src) DO(test_error(src, "traits"))
+#define TEST_COMPILE(src) DO(test_compile(src, "expr"))
+#define TEST_ERROR(src) DO(test_error(src, "expr"))
 #define TEST_EQUIV(src, expect) DO(test_equiv(src, "traits", expect, "traits"))
 
 
@@ -58,7 +58,8 @@ TEST_F(SugarTraitTest, FieldDelegateTypeCanBeUnimplementedInterface)
     "  fun f()\n"
 
     "class Foo\n"
-    "  var bar: T delegate T";
+    "  var bar: T delegate T\n"
+    "  new create(bar': T) => bar = bar'";
 
   TEST_COMPILE(short_form);
 }
@@ -71,7 +72,8 @@ TEST_F(SugarTraitTest, FieldDelegateTypeCanBeUnimplementedTrait)
     "  fun f()\n"
 
     "class Foo\n"
-    "  var bar: T delegate T";
+    "  var bar: T delegate T\n"
+    "  new create(bar': T) => bar = bar'";
 
   TEST_COMPILE(short_form);
 }

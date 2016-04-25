@@ -132,6 +132,61 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
   return false;
 }
 
+static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
+  errorframe_t* errorf)
+{
+  bool ok = true;
+
+  switch(ast_id(provides))
+  {
+    case TK_NONE:
+      return true;
+
+    case TK_PROVIDES:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* child = ast_child(provides);
+        child != NULL;
+        child = ast_sibling(child))
+      {
+        ok = check_provides(opt, type, child, errorf) && ok;
+      }
+
+      return ok;
+    }
+
+    case TK_NOMINAL:
+      return is_sub_provides(type, provides, errorf, opt);
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool expr_provides(pass_opt_t* opt, ast_t* ast)
+{
+  // Check that the type actually provides everything it declares.
+  // Since the traits pass has completed, all method imports have already
+  // happened. At this point, we need to check that the type is a structural
+  // subtype of all traits and interfaces it declares as provided.
+  AST_GET_CHILDREN(ast, id, typeparams, cap, provides);
+  ast_t* type = type_for_this(opt, ast, TK_REF, TK_NONE, true);
+  errorframe_t err = NULL;
+
+  if(!check_provides(opt, type, provides, &err))
+  {
+    errorframe_t err2 = NULL;
+    ast_error_frame(&err2, ast, "type does not implement its provides list");
+    errorframe_append(&err2, &err);
+    errorframe_report(&err2, opt->check.errors);
+    return false;
+  }
+
+  return true;
+}
+
 bool expr_param(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
