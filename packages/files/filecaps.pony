@@ -45,6 +45,9 @@ primitive FileTruncate
 primitive FileWrite
   fun value(): U32 => 1 << 14
 
+primitive FileExec
+  fun value(): U32 => 1 << 15    
+
 type FileCaps is Flags[
   ( FileCreate
   | FileChmod
@@ -61,4 +64,5 @@ type FileCaps is Flags[
   | FileTime
   | FileTruncate
   | FileWrite
+  | FileExec
   ), U32]
