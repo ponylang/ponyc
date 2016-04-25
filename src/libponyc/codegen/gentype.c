@@ -20,9 +20,6 @@ static bool make_opaque_struct(compile_t* c, reachable_type_t* t)
   {
     case TK_NOMINAL:
     {
-      ast_t* def = (ast_t*)ast_data(t->ast);
-      t->underlying = ast_id(def);
-
       switch(t->underlying)
       {
         case TK_INTERFACE:
@@ -118,7 +115,6 @@ static bool make_opaque_struct(compile_t* c, reachable_type_t* t)
     }
 
     case TK_TUPLETYPE:
-      t->underlying = TK_TUPLETYPE;
       t->primitive = LLVMStructCreateNamed(c->context, t->name);
       t->use_type = t->primitive;
       t->field_count = (uint32_t)ast_childcount(t->ast);
@@ -127,7 +123,6 @@ static bool make_opaque_struct(compile_t* c, reachable_type_t* t)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
       // Just a raw object pointer.
-      t->underlying = ast_id(t->ast);
       t->use_type = c->object_ptr;
       return true;
 

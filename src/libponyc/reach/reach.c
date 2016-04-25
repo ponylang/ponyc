@@ -452,6 +452,7 @@ static reachable_type_t* add_isect_or_union(reach_t* r, ast_t* type,
     return t;
 
   t = add_reachable_type(r, type);
+  t->underlying = ast_id(t->ast);
   t->type_id = ++r->next_type_id;
 
   ast_t* child = ast_child(type);
@@ -476,6 +477,7 @@ static reachable_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
     return t;
 
   t = add_reachable_type(r, type);
+  t->underlying = TK_TUPLETYPE;
   t->type_id = ++r->next_type_id;
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
@@ -509,6 +511,8 @@ static reachable_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     return t;
 
   t = add_reachable_type(r, type);
+  ast_t* def = (ast_t*)ast_data(type);
+  t->underlying = ast_id(def);
 
   AST_GET_CHILDREN(type, pkg, id, typeparams);
   ast_t* typeparam = ast_child(typeparams);
@@ -518,8 +522,6 @@ static reachable_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     add_type(r, typeparam, opt);
     typeparam = ast_sibling(typeparam);
   }
-
-  ast_t* def = (ast_t*)ast_data(type);
 
   switch(ast_id(def))
   {
