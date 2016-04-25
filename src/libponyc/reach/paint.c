@@ -261,7 +261,7 @@ static void assign_name_to_colour(colour_record_t* colour, name_record_t* name)
 
 
 // Step 1
-static void find_names_types_use(painter_t* painter, reachable_types_t* types)
+static void find_names_types_use(painter_t* painter, reach_types_t* types)
 {
   assert(painter != NULL);
   assert(types != NULL);
@@ -269,20 +269,20 @@ static void find_names_types_use(painter_t* painter, reachable_types_t* types)
   size_t i = HASHMAP_BEGIN;
   size_t typemap_index = 0;
   uint64_t typemap_mask = 1;
-  reachable_type_t* type;
+  reach_type_t* type;
 
-  while((type = reachable_types_next(types, &i)) != NULL)
+  while((type = reach_types_next(types, &i)) != NULL)
   {
     assert(typemap_index < painter->typemap_size);
     size_t j = HASHMAP_BEGIN;
-    reachable_method_name_t* mn;
+    reach_method_name_t* mn;
 
-    while((mn = reachable_method_names_next(&type->methods, &j)) != NULL)
+    while((mn = reach_method_names_next(&type->methods, &j)) != NULL)
     {
       size_t k = HASHMAP_BEGIN;
-      reachable_method_t* method;
+      reach_method_t* method;
 
-      while((method = reachable_methods_next(&mn->r_methods, &k)) != NULL)
+      while((method = reach_methods_next(&mn->r_methods, &k)) != NULL)
       {
         const char* name = method->name;
 
@@ -341,31 +341,31 @@ static void assign_colours_to_names(painter_t* painter)
 
 
 // Step 5
-static void distribute_info(painter_t* painter, reachable_types_t* types)
+static void distribute_info(painter_t* painter, reach_types_t* types)
 {
   assert(painter != NULL);
   assert(types != NULL);
 
   size_t i = HASHMAP_BEGIN;
-  reachable_type_t* type;
+  reach_type_t* type;
 
   // Iterate over all types
-  while((type = reachable_types_next(types, &i)) != NULL)
+  while((type = reach_types_next(types, &i)) != NULL)
   {
-    if(reachable_method_names_size(&type->methods) == 0)
+    if(reach_method_names_size(&type->methods) == 0)
       continue;
 
     size_t j = HASHMAP_BEGIN;
-    reachable_method_name_t* mn;
+    reach_method_name_t* mn;
     uint32_t max_colour = 0;
 
     // Iterate over all method names in type
-    while((mn = reachable_method_names_next(&type->methods, &j)) != NULL)
+    while((mn = reach_method_names_next(&type->methods, &j)) != NULL)
     {
       size_t k = HASHMAP_BEGIN;
-      reachable_method_t* method;
+      reach_method_t* method;
 
-      while((method = reachable_methods_next(&mn->r_methods, &k)) != NULL)
+      while((method = reach_methods_next(&mn->r_methods, &k)) != NULL)
       {
         // Store colour assigned to name in reachable types set
         const char* name = method->name;
@@ -408,11 +408,11 @@ static void painter_tidy(painter_t* painter)
 }
 
 
-void paint(reachable_types_t* types)
+void paint(reach_types_t* types)
 {
   assert(types != NULL);
 
-  size_t type_count = reachable_types_size(types);
+  size_t type_count = reach_types_size(types);
 
   if(type_count == 0) // Nothing to paint
     return;

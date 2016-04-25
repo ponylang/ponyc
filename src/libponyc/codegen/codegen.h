@@ -52,7 +52,7 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-  reach_t* reachable;
+  reach_t* reach;
   const char* filename;
 
   const char* str_builtin;

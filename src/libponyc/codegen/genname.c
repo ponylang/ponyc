@@ -159,12 +159,6 @@ const char* genname_fun(token_id cap, const char* name, ast_t* typeargs)
   return stringtab_buf(buf);
 }
 
-const char* genname_funlong(const char* type, const char* name)
-{
-  // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]
-  return stringtab_two(type, name);
-}
-
 const char* genname_be(const char* name)
 {
   return stringtab_two(name, "_send");

@@ -145,37 +145,6 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
   return ret;
 }
 
-static bool check_machine_words(ast_t* sub, ast_t* super, errorframe_t* errorf)
-{
-  // TODO: working on this
-  return true;
-
-  // If either result type is a machine word, the other must be as well.
-  if(is_machine_word(sub) && !is_machine_word(super))
-  {
-    if(errorf != NULL)
-    {
-      ast_error_frame(errorf, sub, "%s is a machine word and %s is not",
-        ast_print_type(sub), ast_print_type(super));
-    }
-
-    return false;
-  }
-
-  if(is_machine_word(super) && !is_machine_word(sub))
-  {
-    if(errorf != NULL)
-    {
-      ast_error_frame(errorf, sub, "%s is a machine word and %s is not",
-        ast_print_type(super), ast_print_type(sub));
-    }
-
-    return false;
-  }
-
-  return true;
-}
-
 static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   errorframe_t* errorf, pass_opt_t* opt)
 {
@@ -214,10 +183,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
         return false;
       }
-
-      if(!check_machine_words(sub_result, super_result, errorf))
-        return false;
-
       break;
     }
 
@@ -249,10 +214,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
         return false;
       }
-
-      if(!check_machine_words(sub_result, super_result, errorf))
-        return false;
-
       break;
     }
 
@@ -304,9 +265,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
       return false;
     }
-
-    if(!check_machine_words(sub_type, super_type, errorf))
-      return false;
 
     sub_param = ast_sibling(sub_param);
     super_param = ast_sibling(super_param);

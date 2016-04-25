@@ -409,7 +409,7 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type, bool immutable)
 {
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   // If this type has no trace function, don't try to recurse in the runtime.
   if(t->trace_fn != NULL)
@@ -716,7 +716,7 @@ bool gentrace_needed(ast_t* type)
   return true;
 }
 
-void gentrace_prototype(compile_t* c, reachable_type_t* t)
+void gentrace_prototype(compile_t* c, reach_type_t* t)
 {
   switch(t->underlying)
   {

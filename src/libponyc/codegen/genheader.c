@@ -148,8 +148,8 @@ static bool emit_fun(ast_t* fun)
   return true;
 }
 
-static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
-  reachable_method_t* m)
+static void print_method(compile_t* c, printbuf_t* buf, reach_type_t* t,
+  reach_method_t* m)
 {
   if(!emit_fun(m->r_fun))
     return;
@@ -195,17 +195,17 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
   printbuf(buf, ");\n\n");
 }
 
-static void print_methods(compile_t* c, reachable_type_t* t, printbuf_t* buf)
+static void print_methods(compile_t* c, reach_type_t* t, printbuf_t* buf)
 {
   size_t i = HASHMAP_BEGIN;
-  reachable_method_name_t* n;
+  reach_method_name_t* n;
 
-  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
+  while((n = reach_method_names_next(&t->methods, &i)) != NULL)
   {
     size_t j = HASHMAP_BEGIN;
-    reachable_method_t* m;
+    reach_method_t* m;
 
-    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
       print_method(c, buf, t, m);
   }
 }
@@ -213,9 +213,9 @@ static void print_methods(compile_t* c, reachable_type_t* t, printbuf_t* buf)
 static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
 {
   size_t i = HASHMAP_BEGIN;
-  reachable_type_t* t;
+  reach_type_t* t;
 
-  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
     // Print the docstring if we have one.
     ast_t* def = (ast_t*)ast_data(t->ast);

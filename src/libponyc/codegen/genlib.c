@@ -33,7 +33,7 @@ static bool reachable_methods(compile_t* c, ast_t* ast)
 
         // Mark all non-polymorphic methods as reachable.
         if(ast_id(typeparams) == TK_NONE)
-          reach(c->reachable, type, ast_name(m_id), NULL, c->opt);
+          reach(c->reach, type, ast_name(m_id), NULL, c->opt);
         break;
       }
 
@@ -97,7 +97,7 @@ static bool reachable_actors(compile_t* c, ast_t* program)
   }
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
-  paint(&c->reachable->types);
+  paint(&c->reach->types);
   return true;
 }
 

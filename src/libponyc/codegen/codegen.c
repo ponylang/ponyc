@@ -409,7 +409,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   if(builtin == NULL)
     builtin = package;
 
-  c->reachable = reach_new();
+  c->reach = reach_new();
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
@@ -458,7 +458,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
-  reach_free(c->reachable);
+  reach_free(c->reach);
 }
 
 bool codegen_init(pass_opt_t* opt)
