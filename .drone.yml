@@ -23,6 +23,15 @@ build:
       - make config=$$PONYC_CONFIG test
       - rm build/$$PONYC_CONFIG/libponyc.tests
       - rm build/$$PONYC_CONFIG/libponyrt.tests
+  pony-stable:
+    image: sendence/ponyc-builder:0.0.2
+    commands:
+      - export PATH=$PATH:$PWD/build/$$PONYC_CONFIG
+      - mkdir -p build/pony-stable
+      - cd build/pony-stable
+      - git clone https://github.com/jemc/pony-stable.git .
+      - git checkout a841221
+      - make
 
 publish:
   docker:
