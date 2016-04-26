@@ -96,8 +96,8 @@ type _Entry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
 class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let entries: Array[_Entry[K, V]] val
-  let nodeMap: U32
-  let dataMap: U32
+  let nodemap: U32
+  let datamap: U32
   let level: U8
 
   new val empty(l: U8) =>
@@ -108,19 +108,19 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         Array[_Entry[K, V]].init(None, 32)
       end
     end
-    nodeMap = 0
-    dataMap = 0
+    nodemap = 0
+    datamap = 0
     level = l
 
   new val create(es: Array[_Entry[K, V]] iso, nm: U32, dm: U32, l: U8) =>
     entries = consume es
-    nodeMap = nm
-    dataMap = dm
+    nodemap = nm
+    datamap = dm
     level = l
 
   fun val apply(hash: U32, key: K): val->V ? =>
     let idx = _Hash.mask(hash, level)
-    let i = _Hash.arrayIndex(nodeMap, dataMap, idx)
+    let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then error end
     match entries(i.usize())
     | let l: _Leaf[K, V] => l.value
@@ -146,14 +146,14 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun val update(leaf: _Leaf[K, V]): _Node[K, V] ? =>
     let idx = _Hash.mask(leaf.hash, level)
-    let i = _Hash.arrayIndex(nodeMap, dataMap, idx)
+    let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then
       let es = recover entries.clone() end
-      let dm = _Hash.setBit(dataMap, idx)
-      let i' = _Hash.arrayIndex(nodeMap, dm, idx)
+      let dm = _Hash.set_bit(datamap, idx)
+      let i' = _Hash.array_index(nodemap, dm, idx)
       es.insert(i'.usize(), leaf)
-      create(consume es, nodeMap, dm, level)
-    elseif _Hash.hasBit(nodeMap, idx) then
+      create(consume es, nodemap, dm, level)
+    elseif _Hash.has_bit(nodemap, idx) then
       if level == 6 then
         // insert into collision node
         let es = recover entries.clone() end
@@ -164,19 +164,19 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
           // update collision
             cs'.update(k, leaf)
             es.update(i.usize(), consume cs')
-            return create(consume es, nodeMap, dataMap, level)
+            return create(consume es, nodemap, datamap, level)
           end
         end
         cs'.push(leaf)
         es.update(i.usize(), consume cs')
-        create(consume es, nodeMap, dataMap, level)
+        create(consume es, nodemap, datamap, level)
       else
         // insert into sub-node
         let sn = entries(i.usize()) as _Node[K, V]
         let es = recover entries.clone() end
         let sn' = sn.update(leaf)
         es.update(i.usize(), sn')
-        create(consume es, nodeMap, dataMap, level)
+        create(consume es, nodemap, datamap, level)
       end
     else
       let old = entries(i.usize()) as _Leaf[K, V]
@@ -184,16 +184,16 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         // update leaf
         let es = recover entries.clone() end
         es.update(i.usize(), leaf)
-        create(consume es, nodeMap, dataMap, level)
+        create(consume es, nodemap, datamap, level)
       elseif level == 6 then
         // create collision node
         let cn = recover Array[_Leaf[K, V]](2) end
         cn.push(old)
         cn.push(leaf)
         let es = recover entries.clone() end
-        let dm = _Hash.clearBit(dataMap, idx)
-        let nm = _Hash.setBit(nodeMap, idx)
-        let i' = _Hash.arrayIndex(nm, dm, idx)
+        let dm = _Hash.clear_bit(datamap, idx)
+        let nm = _Hash.set_bit(nodemap, idx)
+        let i' = _Hash.array_index(nm, dm, idx)
         es.delete(i.usize())
         es.insert(i'.usize(), consume cn)
         create(consume es, nm, dm, level)
@@ -203,9 +203,9 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         sn = sn.update(old)
         sn = sn.update(leaf)
         let es = recover entries.clone() end
-        let nm = _Hash.setBit(nodeMap, idx)
-        let dm = _Hash.clearBit(dataMap, idx)
-        let i' = _Hash.arrayIndex(nm, dm, idx)
+        let nm = _Hash.set_bit(nodemap, idx)
+        let dm = _Hash.clear_bit(datamap, idx)
+        let i' = _Hash.array_index(nm, dm, idx)
         es.delete(i.usize())
         es.insert(i'.usize(), sn)
         create(consume es, nm, dm, level)
@@ -214,12 +214,12 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun val remove(hash: U32, key: K): _Node[K, V] ? =>
     let idx = _Hash.mask(hash, level)
-    let i = _Hash.arrayIndex(nodeMap, dataMap, idx)
+    let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then error end
-    if _Hash.hasBit(dataMap, idx) then
+    if _Hash.has_bit(datamap, idx) then
       var es = recover entries.clone() end
       es.delete(i.usize())
-      create(consume es, nodeMap, _Hash.clearBit(dataMap, idx), level)
+      create(consume es, nodemap, _Hash.clear_bit(datamap, idx), level)
     else
       if level == 6 then
         let es = recover entries.clone() end
@@ -229,7 +229,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
           if v.key == key then
             cs'.delete(k)
             es.update(i.usize(), consume cs')
-            return create(consume es, nodeMap, dataMap, level)
+            return create(consume es, nodemap, datamap, level)
           end
         end
         error
@@ -237,16 +237,16 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         var sn = entries(i.usize()) as _Node[K, V]
         sn = sn.remove(hash, key)
         let es = recover entries.clone() end
-        if (nodeMap.popcount() == 0) and (dataMap.popcount() == 1) then
+        if (nodemap.popcount() == 0) and (datamap.popcount() == 1) then
           for si in mut.Range[U32](0, 32) do
-            if _Hash.hasBit(dataMap, si) then
+            if _Hash.has_bit(datamap, si) then
               es.update(i.usize(), sn.entries(si.usize()))
-              return create(consume es, _Hash.clearBit(nodeMap, idx), _Hash.setBit(dataMap, idx), level)
+              return create(consume es, _Hash.clear_bit(nodemap, idx), _Hash.set_bit(datamap, idx), level)
             end
           end
         end
         es.update(i.usize(), sn)
-        create(consume es, nodeMap, dataMap, level)
+        create(consume es, nodemap, datamap, level)
       end
     end
 
@@ -261,20 +261,20 @@ class val _Leaf[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     value = v
 
 primitive _Hash
-  fun setBit(bitMap: U32, i: U32): U32 => bitMap or (1 << i)
+  fun set_bit(bitMap: U32, i: U32): U32 => bitMap or (1 << i)
 
-  fun clearBit(bitMap: U32, i: U32): U32 => bitMap and (not (1 << i))
+  fun clear_bit(bitMap: U32, i: U32): U32 => bitMap and (not (1 << i))
 
-  fun hasBit(bitMap: U32, i: U32): Bool => (bitMap and (1 << i)) != 0
+  fun has_bit(bitMap: U32, i: U32): Bool => (bitMap and (1 << i)) != 0
 
   fun mask(hash: U32, level: U8): U32 => (hash >> (5 * level.u32())) and 0x01f
 
-  fun arrayIndex(nodeMap: U32, dataMap: U32, idx: U32): U32 =>
+  fun array_index(nodemap: U32, datamap: U32, idx: U32): U32 =>
     let msk = not(0xffff_ffff << idx)
-    let np = msk and nodeMap
-    let dp = msk and dataMap
+    let np = msk and nodemap
+    let dp = msk and datamap
     let i = (np + dp).popcount()
-    if hasBit(nodeMap, idx) or hasBit(dataMap, idx) then
+    if has_bit(nodemap, idx) or has_bit(datamap, idx) then
       i
     else
       -1
