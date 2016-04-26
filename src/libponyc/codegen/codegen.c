@@ -168,7 +168,7 @@ static void init_runtime(compile_t* c)
   c->void_ptr = LLVMPointerType(c->i8, 0);
 
   // forward declare object
-  c->object_type = LLVMStructCreateNamed(c->context, "$object");
+  c->object_type = LLVMStructCreateNamed(c->context, "__object");
   c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
@@ -177,7 +177,7 @@ static void init_runtime(compile_t* c)
   // message
   params[0] = c->i32; // size
   params[1] = c->i32; // id
-  c->msg_type = LLVMStructCreateNamed(c->context, "$message");
+  c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
