@@ -15,6 +15,9 @@ DEFINE_STACK(reach_method_stack, reach_method_stack_t,
 
 static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt);
 
+static void add_method(reach_t* r, reach_type_t* t, const char* name,
+  ast_t* typeargs, pass_opt_t* opt);
+
 static void reachable_method(reach_t* r, ast_t* type, const char* name,
   ast_t* typeargs, pass_opt_t* opt);
 
@@ -30,7 +33,21 @@ static bool reach_method_cmp(reach_method_t* a, reach_method_t* b)
   return a->name == b->name;
 }
 
-static void reach_method_free(reach_method_t* m)
+DEFINE_HASHMAP(reach_methods, reach_methods_t, reach_method_t,
+  reach_method_hash, reach_method_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, NULL);
+
+static size_t reach_mangled_hash(reach_method_t* m)
+{
+  return ponyint_hash_ptr(m->mangled_name);
+}
+
+static bool reach_mangled_cmp(reach_method_t* a, reach_method_t* b)
+{
+  return a->mangled_name == b->mangled_name;
+}
+
+static void reach_mangled_free(reach_method_t* m)
 {
   ast_free(m->typeargs);
   ast_free(m->r_fun);
@@ -41,13 +58,13 @@ static void reach_method_free(reach_method_t* m)
   POOL_FREE(reach_method_t, m);
 }
 
-DEFINE_HASHMAP(reach_methods, reach_methods_t, reach_method_t,
-  reach_method_hash, reach_method_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, reach_method_free);
+DEFINE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t,
+  reach_mangled_hash, reach_mangled_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, reach_mangled_free);
 
-static size_t reach_method_name_hash(reach_method_name_t* m)
+static size_t reach_method_name_hash(reach_method_name_t* n)
 {
-  return ponyint_hash_ptr(m->name);
+  return ponyint_hash_ptr(n->name);
 }
 
 static bool reach_method_name_cmp(reach_method_name_t* a,
@@ -56,10 +73,11 @@ static bool reach_method_name_cmp(reach_method_name_t* a,
   return a->name == b->name;
 }
 
-static void reach_method_name_free(reach_method_name_t* m)
+static void reach_method_name_free(reach_method_name_t* n)
 {
-  reach_methods_destroy(&m->r_methods);
-  POOL_FREE(reach_method_name_t, m);
+  reach_methods_destroy(&n->r_methods);
+  reach_mangled_destroy(&n->r_mangled);
+  POOL_FREE(reach_method_name_t, n);
 }
 
 DEFINE_HASHMAP(reach_method_names, reach_method_names_t,
@@ -104,10 +122,8 @@ DEFINE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t,
   reach_type_hash, reach_type_cmp, ponyint_pool_alloc_size,
   ponyint_pool_free_size, NULL);
 
-static reach_method_t* reach_method_instance(reach_method_name_t* n,
-  const char* name)
+static reach_method_t* reach_rmethod(reach_method_name_t* n, const char* name)
 {
-  // TODO: change this?
   reach_method_t k;
   k.name = name;
   return reach_methods_get(&n->r_methods, &k);
@@ -122,6 +138,7 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
     n = POOL_ALLOC(reach_method_name_t);
     n->name = name;
     reach_methods_init(&n->r_methods, 0);
+    reach_mangled_init(&n->r_mangled, 0);
     reach_method_names_put(&t->methods, n);
 
     ast_t* fun = lookup(NULL, NULL, t->ast, name);
@@ -132,7 +149,7 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
   return n;
 }
 
-static void add_method_types(reach_t* r, reach_method_t* m,
+static void set_method_types(reach_t* r, reach_method_t* m,
   pass_opt_t* opt)
 {
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
@@ -155,12 +172,33 @@ static void add_method_types(reach_t* r, reach_method_t* m,
   m->result = add_type(r, result, opt);
 }
 
+static void set_mangled_names(reach_type_t* t, reach_method_t* m)
+{
+  // Generate the mangled name.
+  // cap_name[_Arg1_Arg2]_args_result
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "%s_", m->name);
+
+  for(size_t i = 0; i < m->param_count; i++)
+    printbuf(buf, "%s", m->params[i]->mangle);
+
+  printbuf(buf, "%s", m->result->mangle);
+  m->mangled_name = stringtab(buf->m);
+  printbuf_free(buf);
+
+  // Generate the full mangled name.
+  // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]_args_result
+  buf = printbuf_new();
+  printbuf(buf, "%s_%s", t->name, m->mangled_name);
+  m->full_name = stringtab(buf->m);
+  printbuf_free(buf);
+}
+
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt)
 {
-  // TODO: how do we look it up?
   const char* name = genname_fun(cap, n->name, typeargs);
-  reach_method_t* m = reach_method_instance(n, name);
+  reach_method_t* m = reach_rmethod(n, name);
 
   if(m != NULL)
     return m;
@@ -188,29 +226,25 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   }
 
   m->r_fun = fun;
-  add_method_types(r, m, opt);
+  set_method_types(r, m, opt);
+  set_mangled_names(t, m);
 
-  // Generate the mangled name.
-  // cap_name[_Arg1_Arg2]_args_result
-
-  // Generate a full mangled name.
-  // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]_args_result
-  printbuf_t* buf = printbuf_new();
-  printbuf(buf, "%s_%s_", t->name, m->name);
-
-  for(size_t i = 0; i < m->param_count; i++)
-    printbuf(buf, "%s", m->params[i]->mangle);
-
-  printbuf(buf, "%s", m->result->mangle);
-  m->full_name = stringtab(buf->m);
-  printbuf_free(buf);
-
-  // Add to the reachable methods table.
+  // Add to both tables.
   reach_methods_put(&n->r_methods, m);
+  reach_mangled_put(&n->r_mangled, m);
 
   // Put on a stack of reachable methods to trace.
   r->stack = reach_method_stack_push(r->stack, m);
   return m;
+}
+
+static void add_method_to_subtype(reach_t* r, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
+{
+  // Generate the original method on the target type.
+  add_method(r, t, n->name, m->typeargs, opt);
+
+  // TODO: mangled version
 }
 
 static void add_method(reach_t* r, reach_type_t* t, const char* name,
@@ -270,9 +304,8 @@ static void add_method(reach_t* r, reach_type_t* t, const char* name,
       size_t i = HASHMAP_BEGIN;
       reach_type_t* t2;
 
-      // TODO: add method to subtypes
       while((t2 = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-        add_method(r, t2, name, typeargs, opt);
+        add_method_to_subtype(r, t2, n, m, opt);
 
       break;
     }
@@ -292,9 +325,8 @@ static void add_methods_to_type(reach_t* r, reach_type_t* from,
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    // TODO: add method to subtypes
     while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
-      add_method(r, to, n->name, m->typeargs, opt);
+      add_method_to_subtype(r, to, n, m, opt);
   }
 }
 
@@ -965,7 +997,6 @@ reach_type_t* reach_type_name(reach_t* r, const char* name)
 reach_method_t* reach_method(reach_type_t* t, token_id cap,
   const char* name, ast_t* typeargs)
 {
-  // TODO: get the "native" reach_method_t
   reach_method_name_t* n = reach_method_name(t, name);
 
   if(n == NULL)
@@ -975,6 +1006,11 @@ reach_method_t* reach_method(reach_type_t* t, token_id cap,
   {
     switch(cap)
     {
+      case TK_ISO:
+      case TK_TRN:
+        cap = TK_REF;
+        break;
+
       case TK_REF:
       case TK_VAL:
       case TK_BOX:
@@ -988,7 +1024,7 @@ reach_method_t* reach_method(reach_type_t* t, token_id cap,
   }
 
   name = genname_fun(cap, n->name, typeargs);
-  return reach_method_instance(n, name);
+  return reach_rmethod(n, name);
 }
 
 reach_method_name_t* reach_method_name(reach_type_t* t, const char* name)
@@ -1000,7 +1036,7 @@ reach_method_name_t* reach_method_name(reach_type_t* t, const char* name)
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name)
 {
-  reach_method_t* m = reach_method(t, TK_NONE, stringtab(name), NULL);
+  reach_method_t* m = reach_method(t, TK_NONE, name, NULL);
 
   if(m == NULL)
     return (uint32_t)-1;
@@ -1019,15 +1055,15 @@ void reach_dump(reach_t* r)
   {
     printf("  %s: %s, %d\n", t->name, t->mangle, t->vtable_size);
     size_t j = HASHMAP_BEGIN;
-    reach_method_name_t* m;
+    reach_method_name_t* n;
 
-    while((m = reach_method_names_next(&t->methods, &j)) != NULL)
+    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
     {
       size_t k = HASHMAP_BEGIN;
-      reach_method_t* p;
+      reach_method_t* m;
 
-      while((p = reach_methods_next(&m->r_methods, &k)) != NULL)
-        printf("    %s: %d\n", p->name, p->vtable_index);
+      while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
+        printf("    %s: %d\n", m->full_name, m->vtable_index);
     }
   }
 }

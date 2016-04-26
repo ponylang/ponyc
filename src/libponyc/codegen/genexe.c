@@ -131,7 +131,7 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = reach_vtable_index(t_main, "create");
+  uint32_t index = reach_vtable_index(t_main, c->str_create);
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);

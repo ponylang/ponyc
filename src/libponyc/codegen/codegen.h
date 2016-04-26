@@ -104,6 +104,7 @@ typedef struct compile_t
   const char* str__create;
   const char* str__init;
   const char* str__final;
+  const char* str__event_notify;
 
   LLVMCallConv callconv;
   LLVMContextRef context;

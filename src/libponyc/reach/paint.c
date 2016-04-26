@@ -269,23 +269,22 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
   size_t i = HASHMAP_BEGIN;
   size_t typemap_index = 0;
   uint64_t typemap_mask = 1;
-  reach_type_t* type;
+  reach_type_t* t;
 
-  while((type = reach_types_next(types, &i)) != NULL)
+  while((t = reach_types_next(types, &i)) != NULL)
   {
     assert(typemap_index < painter->typemap_size);
     size_t j = HASHMAP_BEGIN;
-    reach_method_name_t* mn;
+    reach_method_name_t* n;
 
-    while((mn = reach_method_names_next(&type->methods, &j)) != NULL)
+    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
     {
       size_t k = HASHMAP_BEGIN;
-      reach_method_t* method;
+      reach_method_t* m;
 
-      while((method = reach_methods_next(&mn->r_methods, &k)) != NULL)
+      while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
-        const char* name = method->name;
-
+        const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
 
         if(name_rec == NULL)  // This is the first use of this name
@@ -347,34 +346,33 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
   assert(types != NULL);
 
   size_t i = HASHMAP_BEGIN;
-  reach_type_t* type;
+  reach_type_t* t;
 
   // Iterate over all types
-  while((type = reach_types_next(types, &i)) != NULL)
+  while((t = reach_types_next(types, &i)) != NULL)
   {
-    if(reach_method_names_size(&type->methods) == 0)
+    if(reach_method_names_size(&t->methods) == 0)
       continue;
 
     size_t j = HASHMAP_BEGIN;
-    reach_method_name_t* mn;
+    reach_method_name_t* n;
     uint32_t max_colour = 0;
 
     // Iterate over all method names in type
-    while((mn = reach_method_names_next(&type->methods, &j)) != NULL)
+    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
     {
       size_t k = HASHMAP_BEGIN;
-      reach_method_t* method;
+      reach_method_t* m;
 
-      while((method = reach_methods_next(&mn->r_methods, &k)) != NULL)
+      while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
         // Store colour assigned to name in reachable types set
-        const char* name = method->name;
-
+        const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
         assert(name_rec != NULL);
 
         uint32_t colour = name_rec->colour;
-        method->vtable_index = colour;
+        m->vtable_index = colour;
 
         if(colour > max_colour)
           max_colour = colour;
@@ -382,7 +380,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
     }
 
     // Store vtable size for type
-    type->vtable_size = max_colour + 1;
+    t->vtable_size = max_colour + 1;
   }
 }
 

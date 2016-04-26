@@ -39,21 +39,24 @@ protected:
 
   void add_method(const char* name)
   {
-    reach_method_name_t* mn = POOL_ALLOC(reach_method_name_t);
-    memset(mn, 0, sizeof(reach_method_name_t));
-    mn->name = stringtab(name);
-    reach_methods_init(&mn->r_methods, 0);
+    reach_method_name_t* n = POOL_ALLOC(reach_method_name_t);
+    memset(n, 0, sizeof(reach_method_name_t));
+    n->name = stringtab(name);
+    reach_methods_init(&n->r_methods, 0);
+    reach_mangled_init(&n->r_mangled, 0);
 
-    reach_method_names_put(&_current_type->methods, mn);
+    reach_method_names_put(&_current_type->methods, n);
 
     reach_method_t* method = POOL_ALLOC(reach_method_t);
     memset(method, 0, sizeof(reach_method_t));
     method->name = stringtab(name);
+    method->mangled_name = method->name;
     method->typeargs = NULL;
     method->r_fun = NULL;
     method->vtable_index = (uint32_t)-1;
 
-    reach_methods_put(&mn->r_methods, method);
+    reach_methods_put(&n->r_methods, method);
+    reach_mangled_put(&n->r_mangled, method);
   }
 
   void do_paint()
@@ -77,15 +80,15 @@ protected:
 
     // Find max colour
     size_t i = HASHMAP_BEGIN;
-    reach_method_name_t* mn;
+    reach_method_name_t* n;
     uint32_t max_colour = 0;
 
-    while((mn = reach_method_names_next(&type->methods, &i)) != NULL)
+    while((n = reach_method_names_next(&type->methods, &i)) != NULL)
     {
       reach_method_t m2;
       memset(&m2, 0, sizeof(reach_method_t));
-      m2.name = mn->name;
-      reach_method_t* method = reach_methods_get(&mn->r_methods, &m2);
+      m2.name = n->name;
+      reach_method_t* method = reach_methods_get(&n->r_methods, &m2);
 
       assert(method != NULL);
 
@@ -107,16 +110,14 @@ protected:
     {
       reach_method_name_t m1;
       m1.name = stringtab(name);
-      reach_method_name_t* mn =
-        reach_method_names_get(&type->methods, &m1);
+      reach_method_name_t* n = reach_method_names_get(&type->methods, &m1);
 
-      if(mn != NULL)
+      if(n != NULL)
       {
         reach_method_t m2;
         memset(&m2, 0, sizeof(reach_method_t));
         m2.name = stringtab(name);
-        reach_method_t* method =
-          reach_methods_get(&mn->r_methods, &m2);
+        reach_method_t* method = reach_methods_get(&n->r_methods, &m2);
 
         ASSERT_NE((void*)NULL, method);
 

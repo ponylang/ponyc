@@ -16,20 +16,19 @@ typedef struct reach_method_name_t reach_method_name_t;
 typedef struct reach_field_t reach_field_t;
 typedef struct reach_type_t reach_type_t;
 
-DECLARE_STACK(reach_method_stack, reach_method_stack_t,
-  reach_method_t);
-DECLARE_HASHMAP(reach_methods, reach_methods_t,
-  reach_method_t);
-DECLARE_HASHMAP(reach_method_names, reach_method_names_t,
-  reach_method_name_t);
+DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
+DECLARE_HASHMAP(reach_methods, reach_methods_t, reach_method_t);
+DECLARE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t);
+DECLARE_HASHMAP(reach_method_names, reach_method_names_t, reach_method_name_t);
 DECLARE_HASHMAP(reach_types, reach_types_t, reach_type_t);
-DECLARE_HASHMAP(reach_type_cache, reach_type_cache_t,
-  reach_type_t);
+DECLARE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t);
 
 struct reach_method_t
 {
   const char* name;
+  const char* mangled_name;
   const char* full_name;
+
   token_id cap;
   ast_t* typeargs;
   ast_t* r_fun;
@@ -40,7 +39,11 @@ struct reach_method_t
   LLVMValueRef func_handler;
   LLVMMetadataRef di_method;
   LLVMMetadataRef di_file;
+
+  // Mark as true if the compiler supplies an implementation.
   bool intrinsic;
+
+  // Linked list of instantiations that use the same func.
   reach_method_t* subordinate;
 
   size_t param_count;
@@ -53,6 +56,7 @@ struct reach_method_name_t
   token_id cap;
   const char* name;
   reach_methods_t r_methods;
+  reach_mangled_t r_mangled;
 };
 
 struct reach_field_t

@@ -147,6 +147,7 @@ static void init_runtime(compile_t* c)
   c->str__create = stringtab("_create");
   c->str__init = stringtab("_init");
   c->str__final = stringtab("_final");
+  c->str__event_notify = stringtab("_event_notify");
 
   LLVMTypeRef type;
   LLVMTypeRef params[4];
