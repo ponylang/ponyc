@@ -13,7 +13,8 @@ COPY lib      /src/ponyc/lib
 COPY test     /src/ponyc/test
 COPY packages /src/ponyc/packages
 
-RUN make config=release clean && make config=release && make install
+RUN make config=release install \
+ && rm -rf /src/ponyc/build
 
 RUN mkdir /src/main
 WORKDIR   /src/main
