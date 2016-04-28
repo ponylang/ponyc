@@ -12,23 +12,24 @@ actor Main is TestList
     run_tests(test)
 
   fun tag run_tests(test: PonyTest) =>
-    test(_TestPrepend)
-    test(_TestFrom)
-    test(_TestConcat)
+    test(_TestListPrepend)
+    test(_TestListFrom)
+    test(_TestListConcat)
+    test(_TestListMap)
+    test(_TestListFlatMap)
+    test(_TestListFilter)
+    test(_TestListFold)
+    test(_TestListEveryExists)
+    test(_TestListPartition)
+    test(_TestListDrop)
+    test(_TestListDropWhile)
+    test(_TestListTake)
+    test(_TestListTakeWhile)
     test(_TestMap)
-    test(_TestFlatMap)
-    test(_TestFilter)
-    test(_TestFold)
-    test(_TestEveryExists)
-    test(_TestPartition)
-    test(_TestDrop)
-    test(_TestDropWhile)
-    test(_TestTake)
-    test(_TestTakeWhile)
-    test(_TestCHAMPMap)
+    test(_TestMapIterators)
     test(_TestMapVsMap)
 
-class iso _TestPrepend is UnitTest
+class iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List/prepend()"
 
   fun apply(h: TestHelper) ? =>
@@ -55,7 +56,7 @@ class iso _TestPrepend is UnitTest
 
     true
 
-class iso _TestFrom is UnitTest
+class iso _TestListFrom is UnitTest
   fun name(): String => "collections/persistent/Lists/from()"
 
   fun apply(h: TestHelper) ? =>
@@ -65,7 +66,7 @@ class iso _TestFrom is UnitTest
 
     true
 
-class iso _TestConcat is UnitTest
+class iso _TestListConcat is UnitTest
   fun name(): String => "collections/persistent/List/concat()"
 
   fun apply(h: TestHelper) ? =>
@@ -89,7 +90,7 @@ class iso _TestConcat is UnitTest
 
     true
 
-class iso _TestMap is UnitTest
+class iso _TestListMap is UnitTest
   fun name(): String => "collections/persistent/Lists/map()"
 
   fun apply(h: TestHelper) ? =>
@@ -98,7 +99,7 @@ class iso _TestMap is UnitTest
 
     true
 
-class iso _TestFlatMap is UnitTest
+class iso _TestListFlatMap is UnitTest
   fun name(): String => "collections/persistent/Lists/flat_map()"
 
   fun apply(h: TestHelper) ? =>
@@ -108,7 +109,7 @@ class iso _TestFlatMap is UnitTest
 
     true
 
-class iso _TestFilter is UnitTest
+class iso _TestListFilter is UnitTest
   fun name(): String => "collections/persistent/Lists/filter()"
 
   fun apply(h: TestHelper) ? =>
@@ -118,7 +119,7 @@ class iso _TestFilter is UnitTest
 
     true
 
-class iso _TestFold is UnitTest
+class iso _TestListFold is UnitTest
   fun name(): String => "collections/persistent/Lists/fold()"
 
   fun apply(h: TestHelper) ? =>
@@ -134,7 +135,7 @@ class iso _TestFold is UnitTest
 
     true
 
-class iso _TestEveryExists is UnitTest
+class iso _TestListEveryExists is UnitTest
   fun name(): String => "collections/persistent/Lists/every()exists()"
 
   fun apply(h: TestHelper) =>
@@ -157,7 +158,7 @@ class iso _TestEveryExists is UnitTest
 
     true
 
-class iso _TestPartition is UnitTest
+class iso _TestListPartition is UnitTest
   fun name(): String => "collections/persistent/Lists/partition()"
 
   fun apply(h: TestHelper) ? =>
@@ -169,7 +170,7 @@ class iso _TestPartition is UnitTest
 
     true
 
-class iso _TestDrop is UnitTest
+class iso _TestListDrop is UnitTest
   fun name(): String => "collections/persistent/List/drop()"
 
   fun apply(h: TestHelper) ? =>
@@ -181,7 +182,7 @@ class iso _TestDrop is UnitTest
     h.assert_true(Lists[String].eq(empty.drop(3), Lists[String].empty()))
     true
 
-class iso _TestDropWhile is UnitTest
+class iso _TestListDropWhile is UnitTest
   fun name(): String => "collections/persistent/List/drop_while()"
 
   fun apply(h: TestHelper) ? =>
@@ -192,7 +193,7 @@ class iso _TestDropWhile is UnitTest
     h.assert_true(Lists[U32].eq(empty.drop_while(is_even), Lists[U32].empty()))
     true
 
-class iso _TestTake is UnitTest
+class iso _TestListTake is UnitTest
   fun name(): String => "collections/persistent/List/take()"
 
   fun apply(h: TestHelper) ? =>
@@ -204,7 +205,7 @@ class iso _TestTake is UnitTest
     h.assert_true(Lists[String].eq(empty.take(3), Lists[String].empty()))
     true
 
-class iso _TestTakeWhile is UnitTest
+class iso _TestListTakeWhile is UnitTest
   fun name(): String => "collections/persistent/List/take_while()"
 
   fun apply(h: TestHelper) ? =>
@@ -216,14 +217,14 @@ class iso _TestTakeWhile is UnitTest
 
     true
 
-class iso _TestCHAMPMap is UnitTest
+class iso _TestMap is UnitTest
   fun name(): String => "collections/persistent/Map"
 
   fun apply(h: TestHelper) =>
     let m1: Map[String,U32] = Maps.empty[String,U32]()
     h.assert_error(lambda()(m1)? => m1("a") end)
     let s1 = m1.size()
-    h.assert_eq[U64](s1, 0)
+    h.assert_eq[USize](s1, 0)
 
     try
       let m2 = m1.update("a", 5)
@@ -265,6 +266,39 @@ class iso _TestCHAMPMap is UnitTest
     end
 
     true
+
+class iso _TestMapIterators is UnitTest
+  fun name(): String => "collections/persistent/Map/pairs()keys()values()"
+
+  fun apply(h: TestHelper) ? =>
+    var m = Maps.from[I64, String]([(1, "1"), (2, "2"), (3, "3"), (4, "4")])
+    let r = mut.Map[I64, String]
+
+    for i in mut.Range[I64](1, 5) do r.update(i, i.string()) end
+    var c: USize = 0
+    for (k, v) in m.pairs() do
+      r.remove(k)
+      c = c + 1
+    end
+    h.assert_eq[USize](r.size(), 0)
+    h.assert_eq[USize](c, 4)
+
+    for i in mut.Range[I64](1, 5) do r.update(i, i.string()) end
+    c = 0
+    for k in m.keys() do
+      r.remove(k)
+      c = c + 1
+    end
+    h.assert_eq[USize](r.size(), 0)
+    h.assert_eq[USize](c, 4)
+
+    for i in mut.Range[I64](1, 5) do r.update(i, i.string()) end
+    c = 0
+    for v in m.values() do
+      h.assert_true(r.contains(v.i64()))
+      c = c + 1
+    end
+    h.assert_eq[USize](c, 4)
 
 class iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map vs. collections Map"
