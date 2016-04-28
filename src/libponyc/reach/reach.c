@@ -13,10 +13,10 @@
 DEFINE_STACK(reach_method_stack, reach_method_stack_t,
   reach_method_t);
 
-static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt);
+static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
+  reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt);
 
-static void add_method(reach_t* r, reach_type_t* t, const char* name,
-  ast_t* typeargs, pass_opt_t* opt);
+static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt);
 
 static void reachable_method(reach_t* r, ast_t* type, const char* name,
   ast_t* typeargs, pass_opt_t* opt);
@@ -142,6 +142,7 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
     reach_method_names_put(&t->methods, n);
 
     ast_t* fun = lookup(NULL, NULL, t->ast, name);
+    n->id = ast_id(fun);
     n->cap = ast_id(ast_child(fun));
     ast_free_unattached(fun);
   }
@@ -194,6 +195,79 @@ static void set_mangled_names(reach_type_t* t, reach_method_t* m)
   printbuf_free(buf);
 }
 
+static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
+{
+  // Add the method to the type if it isn't already there.
+  reach_method_name_t* n2 = add_method_name(t, n->name);
+  reach_method_t* m2 = add_rmethod(r, t, n2, m->cap, m->typeargs, opt);
+
+  // Add this mangling to the type if it isn't already there.
+  reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m);
+
+  if(mangled != NULL)
+    return;
+
+  // TODO:
+  (void)m2;
+}
+
+static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
+{
+  switch(ast_id(t->ast))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(t->ast);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+        {
+          // Add to subtypes if we're an interface or trait.
+          size_t i = HASHMAP_BEGIN;
+          reach_type_t* t2;
+
+          while((t2 = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+            add_rmethod_to_subtype(r, t2, n, m, opt);
+
+          break;
+        }
+
+        default: {}
+      }
+      return;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(t->ast);
+
+      while(child != NULL)
+      {
+        ast_t* find = lookup_try(NULL, NULL, child, n->name);
+
+        if(find != NULL)
+        {
+          reach_type_t* t2 = add_type(r, child, opt);
+          add_rmethod_to_subtype(r, t2, n, m, opt);
+          ast_free_unattached(find);
+        }
+
+        child = ast_sibling(child);
+      }
+      return;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+}
+
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt)
 {
@@ -235,83 +309,11 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
   // Put on a stack of reachable methods to trace.
   r->stack = reach_method_stack_push(r->stack, m);
+
+  // Add the method to any subtypes.
+  add_rmethod_to_subtypes(r, t, n, m, opt);
+
   return m;
-}
-
-static void add_method_to_subtype(reach_t* r, reach_type_t* t,
-  reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
-{
-  // Generate the original method on the target type.
-  add_method(r, t, n->name, m->typeargs, opt);
-
-  // TODO: mangled version
-}
-
-static void add_method(reach_t* r, reach_type_t* t, const char* name,
-  ast_t* typeargs, pass_opt_t* opt)
-{
-  reach_method_name_t* n = add_method_name(t, name);
-  reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt);
-
-  // TODO: if it doesn't use this-> in a constructor, we could reuse the
-  // function, which means always reuse in a fun tag
-  if((n->cap == TK_BOX) || (n->cap == TK_TAG))
-  {
-    bool subordinate = n->cap == TK_TAG;
-    reach_method_t* m2;
-
-    if(t->underlying != TK_PRIMITIVE)
-    {
-      m2 = add_rmethod(r, t, n, TK_REF, typeargs, opt);
-
-      if(subordinate)
-      {
-        m2->intrinsic = true;
-        m->subordinate = m2;
-        m = m2;
-      }
-    }
-
-    m2 = add_rmethod(r, t, n, TK_VAL, typeargs, opt);
-
-    if(subordinate)
-    {
-      m2->intrinsic = true;
-      m->subordinate = m2;
-      m = m2;
-    }
-
-    if(n->cap == TK_TAG)
-    {
-      m2 = add_rmethod(r, t, n, TK_BOX, typeargs, opt);
-      m2->intrinsic = true;
-      m->subordinate = m2;
-      m = m2;
-    }
-  }
-
-  // Add to subtypes if we're an interface or trait.
-  if(ast_id(t->ast) != TK_NOMINAL)
-    return;
-
-  ast_t* def = (ast_t*)ast_data(t->ast);
-
-  switch(ast_id(def))
-  {
-    case TK_INTERFACE:
-    case TK_TRAIT:
-    {
-      size_t i = HASHMAP_BEGIN;
-      reach_type_t* t2;
-
-      while((t2 = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-        add_method_to_subtype(r, t2, n, m, opt);
-
-      break;
-    }
-
-    default: {}
-  }
 }
 
 static void add_methods_to_type(reach_t* r, reach_type_t* from,
@@ -325,8 +327,8 @@ static void add_methods_to_type(reach_t* r, reach_type_t* from,
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
-      add_method_to_subtype(r, to, n, m, opt);
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
+      add_rmethod_to_subtype(r, to, n, m, opt);
   }
 }
 
@@ -477,7 +479,8 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
 
   if(find != NULL)
   {
-    add_method(r, t, special, NULL, opt);
+    // TODO: already have t, don't want to look it up again
+    reachable_method(r, t->ast, special, NULL, opt);
     ast_free_unattached(find);
   }
 }
@@ -816,8 +819,7 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
       ast_t* type = ast_type(ast);
 
       if(type != NULL)
-        reachable_method(r, type, stringtab("create"), NULL,
-          opt);
+        reachable_method(r, type, stringtab("create"), NULL, opt);
       break;
     }
 
@@ -905,42 +907,46 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
 static void reachable_method(reach_t* r, ast_t* type, const char* name,
   ast_t* typeargs, pass_opt_t* opt)
 {
-  switch(ast_id(type))
+  reach_type_t* t = add_type(r, type, opt);
+  reach_method_name_t* n = add_method_name(t, name);
+  reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt);
+
+  if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
-    case TK_NOMINAL:
-    {
-      reach_type_t* t = add_type(r, type, opt);
-      add_method(r, t, name, typeargs, opt);
-      return;
-    }
+    // TODO: if it doesn't use this-> in a constructor, we could reuse the
+    // function, which means always reuse in a fun tag
+    bool subordinate = (n->cap == TK_TAG);
+    reach_method_t* m2;
 
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
+    if(t->underlying != TK_PRIMITIVE)
     {
-      reach_type_t* t = add_type(r, type, opt);
-      add_method(r, t, name, typeargs, opt);
-      ast_t* child = ast_child(type);
+      m2 = add_rmethod(r, t, n, TK_REF, typeargs, opt);
 
-      while(child != NULL)
+      if(subordinate)
       {
-        ast_t* find = lookup_try(NULL, NULL, child, name);
-
-        if(find != NULL)
-        {
-          reachable_method(r, child, name, typeargs, opt);
-          ast_free_unattached(find);
-        }
-
-        child = ast_sibling(child);
+        m2->intrinsic = true;
+        m->subordinate = m2;
+        m = m2;
       }
-
-      return;
     }
 
-    default: {}
-  }
+    m2 = add_rmethod(r, t, n, TK_VAL, typeargs, opt);
 
-  assert(0);
+    if(subordinate)
+    {
+      m2->intrinsic = true;
+      m->subordinate = m2;
+      m = m2;
+    }
+
+    if(n->cap == TK_TAG)
+    {
+      m2 = add_rmethod(r, t, n, TK_BOX, typeargs, opt);
+      m2->intrinsic = true;
+      m->subordinate = m2;
+      m = m2;
+    }
+  }
 }
 
 static void handle_stack(reach_t* r, pass_opt_t* opt)
@@ -1002,7 +1008,7 @@ reach_method_t* reach_method(reach_type_t* t, token_id cap,
   if(n == NULL)
     return NULL;
 
-  if((n->cap == TK_BOX) || (n->cap == TK_TAG))
+  if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
     switch(cap)
     {
@@ -1063,7 +1069,15 @@ void reach_dump(reach_t* r)
       reach_method_t* m;
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
-        printf("    %s: %d\n", m->full_name, m->vtable_index);
+        printf("    %s: %d\n", m->mangled_name, m->vtable_index);
+    }
+
+    j = HASHMAP_BEGIN;
+    reach_type_t* t2;
+
+    while((t2 = reach_type_cache_next(&t->subtypes, &j)) != NULL)
+    {
+      printf("    %s\n", t2->name);
     }
   }
 }

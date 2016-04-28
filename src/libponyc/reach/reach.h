@@ -53,6 +53,7 @@ struct reach_method_t
 
 struct reach_method_name_t
 {
+  token_id id;
   token_id cap;
   const char* name;
   reach_methods_t r_methods;
