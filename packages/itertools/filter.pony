@@ -2,7 +2,6 @@ primitive _None
 
 class Filter[A] is Iterator[A]
   """
-
   Take an iterator and a predicate function and return an iterator
   that only returns items that match the predicate.
 
@@ -15,8 +14,8 @@ class Filter[A] is Iterator[A]
 
   actor Main
     new create(env: Env) =>
-      for x in Filter[String](env.args.slice(1).values(),
-                              lambda (s: String): Bool => x.size() > 3) do
+      let fn = lambda (s: String): Bool => x.size() > 3 end
+      for x in Filter[String](env.args.slice(1).values(), fn) do
         env.out.print(x)
       end
   ```
@@ -45,7 +44,6 @@ class Filter[A] is Iterator[A]
     end
 
   fun ref has_next(): Bool =>
-    // _iter.has_next()
     match _next
     | _None =>
       if _iter.has_next() then

@@ -187,9 +187,8 @@ class iso _TestMapFn is UnitTest
     let expected = ["ab", "bb", "cb"]
     let actual = Array[String]
 
-    for x in MapFn[String, String](input.values(),
-                                   lambda (x: String): String =>
-                                   x + "b" end) do
+    let fn = lambda (x: String): String => x + "b" end
+    for x in MapFn[String, String](input.values(), fn) do
       actual.push(x)
     end
 
@@ -205,27 +204,24 @@ class iso _TestFilter is UnitTest
     let expected = ["c", "f", "g"]
     let actual = Array[String]
 
-    for x in Filter[String](input1.values(),
-                            lambda (x: String): Bool =>
-                            x.size() == 1 end) do
+    let fn1 = lambda (x: String): Bool => x.size() == 1 end
+    for x in Filter[String](input1.values(), fn1) do
       actual.push(x)
     end
 
     h.assert_array_eq[String](actual, expected)
     actual.clear()
 
-    for x in Filter[String](input2.values(),
-                            lambda (x: String): Bool =>
-                            x.size() == 1 end) do
+    let fn2 = lambda (x: String): Bool => x.size() == 1 end
+    for x in Filter[String](input2.values(), fn2) do
       actual.push(x)
     end
 
     h.assert_array_eq[String](actual, expected)
     actual.clear()
 
-    for x in Filter[String](input3.values(),
-                            lambda (x: String): Bool =>
-                            x.size() == 1 end) do
+    let fn3 = lambda (x: String): Bool => x.size() == 1 end
+    for x in Filter[String](input3.values(), fn3) do
       actual.push(x)
     end
 
