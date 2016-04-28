@@ -223,7 +223,7 @@ class iso _TestCHAMPMap is UnitTest
     let m1: Map[String,U32] = Maps.empty[String,U32]()
     h.assert_error(lambda()(m1)? => m1("a") end)
     let s1 = m1.size()
-    h.assert_eq[U64](s1, 0)
+    h.assert_eq[USize](s1, 0)
 
     try
       let m2 = m1.update("a", 5)
