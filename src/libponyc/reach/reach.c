@@ -173,7 +173,7 @@ static void set_method_types(reach_t* r, reach_method_t* m,
   m->result = add_type(r, result, opt);
 }
 
-static void set_mangled_names(reach_type_t* t, reach_method_t* m)
+static const char* make_mangled_name(reach_method_t* m)
 {
   // Generate the mangled name.
   // cap_name[_Arg1_Arg2]_args_result
@@ -184,15 +184,20 @@ static void set_mangled_names(reach_type_t* t, reach_method_t* m)
     printbuf(buf, "%s", m->params[i]->mangle);
 
   printbuf(buf, "%s", m->result->mangle);
-  m->mangled_name = stringtab(buf->m);
+  const char* name = stringtab(buf->m);
   printbuf_free(buf);
+  return name;
+}
 
+static const char* make_full_name(reach_type_t* t, reach_method_t* m)
+{
   // Generate the full mangled name.
   // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]_args_result
-  buf = printbuf_new();
+  printbuf_t* buf = printbuf_new();
   printbuf(buf, "%s_%s", t->name, m->mangled_name);
-  m->full_name = stringtab(buf->m);
+  const char* name = stringtab(buf->m);
   printbuf_free(buf);
+  return name;
 }
 
 static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
@@ -200,7 +205,7 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
 {
   // Add the method to the type if it isn't already there.
   reach_method_name_t* n2 = add_method_name(t, n->name);
-  reach_method_t* m2 = add_rmethod(r, t, n2, m->cap, m->typeargs, opt);
+  add_rmethod(r, t, n2, m->cap, m->typeargs, opt);
 
   // Add this mangling to the type if it isn't already there.
   reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m);
@@ -208,8 +213,26 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   if(mangled != NULL)
     return;
 
-  // TODO:
-  (void)m2;
+  mangled = POOL_ALLOC(reach_method_t);
+  memset(mangled, 0, sizeof(reach_method_t));
+
+  mangled->name = m->name;
+  mangled->mangled_name = m->mangled_name;
+  mangled->full_name = make_full_name(t, mangled);
+
+  mangled->cap = m->cap;
+  mangled->r_fun = ast_dup(m->r_fun);
+  mangled->typeargs = ast_dup(m->typeargs);
+  mangled->forwarding = true;
+
+  mangled->param_count = m->param_count;
+  mangled->params = (reach_type_t**)ponyint_pool_alloc_size(
+    mangled->param_count * sizeof(reach_type_t*));
+  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_type_t*));
+  mangled->result = m->result;
+
+  // Add to the mangled table only.
+  reach_mangled_put(&n2->r_mangled, mangled);
 }
 
 static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
@@ -301,7 +324,8 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
   m->r_fun = fun;
   set_method_types(r, m, opt);
-  set_mangled_names(t, m);
+  m->mangled_name = make_mangled_name(m);
+  m->full_name = make_full_name(t, m);
 
   // Add to both tables.
   reach_methods_put(&n->r_methods, m);
@@ -479,7 +503,6 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
 
   if(find != NULL)
   {
-    // TODO: already have t, don't want to look it up again
     reachable_method(r, t->ast, special, NULL, opt);
     ast_free_unattached(find);
   }

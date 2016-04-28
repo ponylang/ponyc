@@ -43,6 +43,9 @@ struct reach_method_t
   // Mark as true if the compiler supplies an implementation.
   bool intrinsic;
 
+  // Mark as true if the method is a forwarding method.
+  bool forwarding;
+
   // Linked list of instantiations that use the same func.
   reach_method_t* subordinate;
 

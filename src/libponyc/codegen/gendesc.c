@@ -294,7 +294,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       uint32_t index = m->vtable_index;
       assert(index != (uint32_t)-1);

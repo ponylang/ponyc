@@ -205,7 +205,7 @@ static void print_methods(compile_t* c, reach_type_t* t, printbuf_t* buf)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
       print_method(c, buf, t, m);
   }
 }

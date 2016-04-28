@@ -64,9 +64,6 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
 
 static void make_signature(reach_type_t* t, reach_method_t* m)
 {
-  AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
-    body);
-
   // Count the parameters, including the receiver.
   size_t count = m->param_count + 1;
   size_t tparam_size = count * sizeof(LLVMTypeRef);
@@ -137,7 +134,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   switch(ast_id(m->r_fun))
   {
     case TK_NEW:
-      handler = t->underlying == TK_ACTOR;
+      handler = (t->underlying == TK_ACTOR) && !m->forwarding;
       break;
 
     case TK_BE:
@@ -547,6 +544,37 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   return true;
 }
 
+static bool genfun_forward(compile_t* c, reach_type_t* t,
+  reach_method_name_t* n,  reach_method_t* m)
+{
+  assert(m->func != NULL);
+
+  reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs);
+  assert(m2 != NULL);
+  assert(m2 != m);
+
+  codegen_startfun(c, m->func, m->di_file, m->di_method);
+
+  int count = LLVMCountParams(m->func);
+  size_t buf_size = count * sizeof(LLVMValueRef);
+
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  args[0] = LLVMGetParam(m->func, 0);
+
+  for(int i = 1; i < count; i++)
+  {
+    LLVMValueRef value = LLVMGetParam(m->func, i);
+    args[i] = gen_assign_cast(c, m2->params[i - 1]->use_type, value,
+      m->params[i - 1]->ast);
+  }
+
+  LLVMValueRef ret = codegen_call(c, m2->func, args, count);
+  ret = gen_assign_cast(c, m->result->use_type, ret, m2->result->ast);
+  LLVMBuildRet(c->builder, ret);
+  codegen_finishfun(c);
+  return true;
+}
+
 bool genfun_method_sigs(compile_t* c, reach_type_t* t)
 {
   size_t i = HASHMAP_BEGIN;
@@ -557,7 +585,7 @@ bool genfun_method_sigs(compile_t* c, reach_type_t* t)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       make_prototype(c, t, n, m);
       copy_subordinate(m);
@@ -592,37 +620,43 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       if(m->intrinsic)
         continue;
 
-      switch(ast_id(m->r_fun))
+      if(m->forwarding)
       {
-        case TK_NEW:
-          if(t->underlying == TK_ACTOR)
-          {
-            if(!genfun_newbe(c, t, m))
-              return false;
-          } else {
-            if(!genfun_new(c, t, m))
-              return false;
-          }
-          break;
-
-        case TK_BE:
-          if(!genfun_be(c, t, m))
-            return false;
-          break;
-
-        case TK_FUN:
-          if(!genfun_fun(c, t, m))
-            return false;
-          break;
-
-        default:
-          assert(0);
+        if(!genfun_forward(c, t, n, m))
           return false;
+      } else {
+        switch(ast_id(m->r_fun))
+        {
+          case TK_NEW:
+            if(t->underlying == TK_ACTOR)
+            {
+              if(!genfun_newbe(c, t, m))
+                return false;
+            } else {
+              if(!genfun_new(c, t, m))
+                return false;
+            }
+            break;
+
+          case TK_BE:
+            if(!genfun_be(c, t, m))
+              return false;
+            break;
+
+          case TK_FUN:
+            if(!genfun_fun(c, t, m))
+              return false;
+            break;
+
+          default:
+            assert(0);
+            return false;
+        }
       }
     }
   }
