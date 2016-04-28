@@ -147,6 +147,7 @@ static void init_runtime(compile_t* c)
   c->str__create = stringtab("_create");
   c->str__init = stringtab("_init");
   c->str__final = stringtab("_final");
+  c->str__event_notify = stringtab("_event_notify");
 
   LLVMTypeRef type;
   LLVMTypeRef params[4];
@@ -167,7 +168,7 @@ static void init_runtime(compile_t* c)
   c->void_ptr = LLVMPointerType(c->i8, 0);
 
   // forward declare object
-  c->object_type = LLVMStructCreateNamed(c->context, "$object");
+  c->object_type = LLVMStructCreateNamed(c->context, "__object");
   c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
@@ -176,7 +177,7 @@ static void init_runtime(compile_t* c)
   // message
   params[0] = c->i32; // size
   params[1] = c->i32; // id
-  c->msg_type = LLVMStructCreateNamed(c->context, "$message");
+  c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
@@ -409,7 +410,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   if(builtin == NULL)
     builtin = package;
 
-  c->reachable = reach_new();
+  c->reach = reach_new();
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
@@ -458,7 +459,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
-  reach_free(c->reachable);
+  reach_free(c->reach);
 }
 
 bool codegen_init(pass_opt_t* opt)

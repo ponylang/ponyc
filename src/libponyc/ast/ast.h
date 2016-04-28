@@ -105,7 +105,8 @@ size_t ast_index(ast_t* ast);
 
 ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status);
 ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status);
-bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status);
+bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
+  bool allow_shadowing);
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
 void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);

@@ -10,7 +10,7 @@ PONY_EXTERN_C_BEGIN
  * reachable types. The resulting vtable indices and sizes are written back
  * into the given set.
  */
-void paint(reachable_types_t* types);
+void paint(reach_types_t* types);
 
 
 PONY_EXTERN_C_END

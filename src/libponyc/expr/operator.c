@@ -427,10 +427,6 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
-    ast_error_frame(&frame, a_type, "right side type: %s",
-      ast_print_type(a_type));
-    ast_error_frame(&frame, l_type, "left side type: %s",
-      ast_print_type(l_type));
     errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(a_type);
@@ -458,8 +454,6 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         break;
     }
 
-    ast_error(opt->check.errors, a_type, "right side type: %s",
-      ast_print_type(a_type));
     ast_free_unattached(a_type);
     return false;
   }

@@ -512,7 +512,7 @@ class iso _TestStringCompare is UnitTest
     h.assert_eq[Compare](Equal, "foo".compare("foo"))
     h.assert_eq[Compare](Greater, "foo".compare("bar"))
     h.assert_eq[Compare](Less, "bar".compare("foo"))
-    
+
     h.assert_eq[Compare](Less, "abc".compare("bc"))
 
     h.assert_eq[Compare](Equal, "foo".compare_sub("foo", 3))
@@ -820,6 +820,7 @@ class iso _TestDivMod is UnitTest
 
 struct _TestStruct
   var i: U32 = 0
+  new create() => None
 
 class iso _TestMaybePointer is UnitTest
   """

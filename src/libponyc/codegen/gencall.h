@@ -18,11 +18,11 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast);
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret);
 
-LLVMValueRef gencall_create(compile_t* c, reachable_type_t* t);
+LLVMValueRef gencall_create(compile_t* c, reach_type_t* t);
 
-LLVMValueRef gencall_alloc(compile_t* c, reachable_type_t* t);
+LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t);
 
-LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t);
+LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t);
 
 void gencall_throw(compile_t* c);
 

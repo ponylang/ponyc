@@ -52,7 +52,7 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-  reach_t* reachable;
+  reach_t* reach;
   const char* filename;
 
   const char* str_builtin;
@@ -104,6 +104,7 @@ typedef struct compile_t
   const char* str__create;
   const char* str__init;
   const char* str__final;
+  const char* str__event_notify;
 
   LLVMCallConv callconv;
   LLVMContextRef context;

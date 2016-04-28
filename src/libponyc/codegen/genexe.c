@@ -20,14 +20,14 @@
 static bool need_primitive_call(compile_t* c, const char* method)
 {
   size_t i = HASHMAP_BEGIN;
-  reachable_type_t* t;
+  reach_type_t* t;
 
-  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reachable_method_name_t* n = reach_method_name(t, method);
+    reach_method_name_t* n = reach_method_name(t, method);
 
     if(n == NULL)
       continue;
@@ -41,14 +41,14 @@ static bool need_primitive_call(compile_t* c, const char* method)
 static void primitive_call(compile_t* c, const char* method)
 {
   size_t i = HASHMAP_BEGIN;
-  reachable_type_t* t;
+  reach_type_t* t;
 
-  while((t = reachable_types_next(&c->reachable->types, &i)) != NULL)
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reachable_method_t* m = reach_method(t, TK_NONE, method, NULL);
+    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
 
     if(m == NULL)
       continue;
@@ -60,7 +60,7 @@ static void primitive_call(compile_t* c, const char* method)
   }
 }
 
-static LLVMValueRef create_main(compile_t* c, reachable_type_t* t,
+static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
   // Create the main actor and become it.
@@ -76,8 +76,8 @@ static LLVMValueRef create_main(compile_t* c, reachable_type_t* t,
   return actor;
 }
 
-static void gen_main(compile_t* c, reachable_type_t* t_main,
-  reachable_type_t* t_env)
+static void gen_main(compile_t* c, reach_type_t* t_main,
+  reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
   params[0] = c->i32;
@@ -108,7 +108,7 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   LLVMValueRef main_actor = create_main(c, t_main, ctx);
 
   // Create an Env on the main actor's heap.
-  reachable_method_t* m = reach_method(t_env, TK_NONE, c->str__create, NULL);
+  reach_method_t* m = reach_method(t_env, TK_NONE, c->str__create, NULL);
 
   LLVMValueRef env_args[4];
   env_args[0] = gencall_alloc(c, t_env);
@@ -131,7 +131,7 @@ static void gen_main(compile_t* c, reachable_type_t* t_main,
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = reach_vtable_index(t_main, "create");
+  uint32_t index = reach_vtable_index(t_main, c->str_create);
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
@@ -370,20 +370,20 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
-  reach(c->reachable, main_ast, c->str_create, NULL, c->opt);
-  reach(c->reachable, env_ast, c->str__create, NULL, c->opt);
+  reach(c->reach, main_ast, c->str_create, NULL, c->opt);
+  reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
-  paint(&c->reachable->types);
+  paint(&c->reach->types);
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
-    reach_dump(c->reachable);
+    reach_dump(c->reach);
 
   if(!gentypes(c))
     return false;
 
-  reachable_type_t* t_main = reach_type(c->reachable, main_ast);
-  reachable_type_t* t_env = reach_type(c->reachable, env_ast);
+  reach_type_t* t_main = reach_type(c->reach, main_ast);
+  reach_type_t* t_env = reach_type(c->reach, env_ast);
 
   if((t_main == NULL) || (t_env == NULL))
     return false;

@@ -22,7 +22,17 @@ static ast_t* make_create(ast_t* ast)
   assert(ast != NULL);
 
   // Default constructors on classes can be iso, on actors they must be tag
-  token_id cap = (ast_id(ast) == TK_CLASS) ? TK_ISO : TK_NONE;
+  token_id cap = TK_NONE;
+
+  switch(ast_id(ast))
+  {
+    case TK_STRUCT:
+    case TK_CLASS:
+      cap = TK_ISO;
+      break;
+
+    default: {}
+  }
 
   BUILD(create, ast,
     NODE(TK_NEW, AST_SCOPE

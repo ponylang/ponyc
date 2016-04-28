@@ -500,8 +500,8 @@ static ast_t* create_package(ast_t* program, const char* name,
 
   ast_scope(package);
   ast_append(program, package);
-  ast_set(program, pkg->path, package, SYM_NONE);
-  ast_set(program, pkg->id, package, SYM_NONE);
+  ast_set(program, pkg->path, package, SYM_NONE, false);
+  ast_set(program, pkg->id, package, SYM_NONE, false);
 
   if((safe != NULL) && (strlist_find(safe, pkg->path) == NULL))
     pkg->allow_ffi = false;

@@ -61,13 +61,14 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
       return false;
   }
 
-  if(!ast_set(scope, s, value, status))
+  if(!ast_set(scope, s, value, status, false))
   {
     ast_t* prev = ast_get(scope, s, NULL);
     ast_t* prev_nocase = ast_get_case(scope, s, NULL);
 
     ast_error(opt->check.errors, name, "can't reuse name '%s'", s);
-    ast_error_continue(opt->check.errors, prev_nocase, "previous use of '%s'%s",
+    ast_error_continue(opt->check.errors, prev_nocase,
+      "previous use of '%s'%s",
       s, (prev == NULL) ? " differs only by case" : "");
 
     return false;

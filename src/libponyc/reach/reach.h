@@ -11,25 +11,24 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct reachable_method_t reachable_method_t;
-typedef struct reachable_method_name_t reachable_method_name_t;
-typedef struct reachable_field_t reachable_field_t;
-typedef struct reachable_type_t reachable_type_t;
+typedef struct reach_method_t reach_method_t;
+typedef struct reach_method_name_t reach_method_name_t;
+typedef struct reach_field_t reach_field_t;
+typedef struct reach_type_t reach_type_t;
 
-DECLARE_STACK(reachable_method_stack, reachable_method_stack_t,
-  reachable_method_t);
-DECLARE_HASHMAP(reachable_methods, reachable_methods_t,
-  reachable_method_t);
-DECLARE_HASHMAP(reachable_method_names, reachable_method_names_t,
-  reachable_method_name_t);
-DECLARE_HASHMAP(reachable_types, reachable_types_t, reachable_type_t);
-DECLARE_HASHMAP(reachable_type_cache, reachable_type_cache_t,
-  reachable_type_t);
+DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
+DECLARE_HASHMAP(reach_methods, reach_methods_t, reach_method_t);
+DECLARE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t);
+DECLARE_HASHMAP(reach_method_names, reach_method_names_t, reach_method_name_t);
+DECLARE_HASHMAP(reach_types, reach_types_t, reach_type_t);
+DECLARE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t);
 
-struct reachable_method_t
+struct reach_method_t
 {
   const char* name;
+  const char* mangled_name;
   const char* full_name;
+
   token_id cap;
   ast_t* typeargs;
   ast_t* r_fun;
@@ -40,36 +39,46 @@ struct reachable_method_t
   LLVMValueRef func_handler;
   LLVMMetadataRef di_method;
   LLVMMetadataRef di_file;
+
+  // Mark as true if the compiler supplies an implementation.
   bool intrinsic;
-  reachable_method_t* subordinate;
+
+  // Mark as true if the method is a forwarding method.
+  bool forwarding;
+
+  // Linked list of instantiations that use the same func.
+  reach_method_t* subordinate;
 
   size_t param_count;
-  reachable_type_t** params;
-  reachable_type_t* result;
+  reach_type_t** params;
+  reach_type_t* result;
 };
 
-struct reachable_method_name_t
+struct reach_method_name_t
 {
+  token_id id;
   token_id cap;
   const char* name;
-  reachable_methods_t r_methods;
+  reach_methods_t r_methods;
+  reach_mangled_t r_mangled;
 };
 
-struct reachable_field_t
+struct reach_field_t
 {
   ast_t* ast;
-  reachable_type_t* type;
+  reach_type_t* type;
   bool embed;
 };
 
-struct reachable_type_t
+struct reach_type_t
 {
   const char* name;
+  const char* mangle;
   ast_t* ast;
   token_id underlying;
 
-  reachable_method_names_t methods;
-  reachable_type_cache_t subtypes;
+  reach_method_names_t methods;
+  reach_type_cache_t subtypes;
   uint32_t type_id;
   uint32_t vtable_size;
 
@@ -93,13 +102,13 @@ struct reachable_type_t
   LLVMMetadataRef di_type_embed;
 
   uint32_t field_count;
-  reachable_field_t* fields;
+  reach_field_t* fields;
 };
 
 typedef struct
 {
-  reachable_types_t types;
-  reachable_method_stack_t* stack;
+  reach_types_t types;
+  reach_method_stack_t* stack;
   uint32_t next_type_id;
 } reach_t;
 
@@ -117,17 +126,17 @@ void reach_free(reach_t* r);
 void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
   pass_opt_t* opt);
 
-reachable_type_t* reach_type(reach_t* r, ast_t* type);
+reach_type_t* reach_type(reach_t* r, ast_t* type);
 
-reachable_type_t* reach_type_name(reach_t* r, const char* name);
+reach_type_t* reach_type_name(reach_t* r, const char* name);
 
-reachable_method_t* reach_method(reachable_type_t* t, token_id cap,
+reach_method_t* reach_method(reach_type_t* t, token_id cap,
   const char* name, ast_t* typeargs);
 
-reachable_method_name_t* reach_method_name(reachable_type_t* t,
+reach_method_name_t* reach_method_name(reach_type_t* t,
   const char* name);
 
-uint32_t reach_vtable_index(reachable_type_t* t, const char* name);
+uint32_t reach_vtable_index(reach_type_t* t, const char* name);
 
 void reach_dump(reach_t* r);
 
