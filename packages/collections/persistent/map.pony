@@ -37,12 +37,12 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let map = Maps.from[String,U32]([("a", 2), ("b", 3)]) // {a: 2, b: 3}
   ```
   """
-  let _root: _Node[K, V]
+  let _root: _MapNode[K, V]
 
   new val _empty() =>
-    _root = _Node[K, V].empty(0)
+    _root = _MapNode[K, V].empty(0)
 
-  new val _create(r: _Node[K, V]) =>
+  new val _create(r: _MapNode[K, V]) =>
     _root = r
 
   fun val apply(k: K): val->V ? =>
@@ -91,11 +91,11 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       false
     end
 
-type _Entry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
-  is (_Node[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V] | None)
+type _MapEntry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  is (_MapNode[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V] | None)
 
-class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
-  let entries: Array[_Entry[K, V]] val
+class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  let entries: Array[_MapEntry[K, V]] val
   let nodemap: U32
   let datamap: U32
   let level: U8
@@ -103,16 +103,16 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   new val empty(l: U8) =>
     entries = recover val
       match l
-      | 6 => Array[_Entry[K, V]].init(None, 4)
+      | 6 => Array[_MapEntry[K, V]].init(None, 4)
       else
-        Array[_Entry[K, V]].init(None, 32)
+        Array[_MapEntry[K, V]].init(None, 32)
       end
     end
     nodemap = 0
     datamap = 0
     level = l
 
-  new val create(es: Array[_Entry[K, V]] iso, nm: U32, dm: U32, l: U8) =>
+  new val create(es: Array[_MapEntry[K, V]] iso, nm: U32, dm: U32, l: U8) =>
     entries = consume es
     nodemap = nm
     datamap = dm
@@ -124,7 +124,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     if i == -1 then error end
     match entries(i.usize())
     | let l: _Leaf[K, V] => l.value
-    | let sn: _Node[K, V] =>
+    | let sn: _MapNode[K, V] =>
       sn(hash, key)
     else
       let cn = entries(i.usize()) as Array[_Leaf[K, V]] val
@@ -138,13 +138,13 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     var tot: U64 = 0
     for e in entries.values() do
       match e
-      | let sn: _Node[K, V] => tot = tot + sn.size()
+      | let sn: _MapNode[K, V] => tot = tot + sn.size()
       | let l: _Leaf[K, V] => tot = tot + 1
       end
     end
     tot
 
-  fun val update(leaf: _Leaf[K, V]): _Node[K, V] ? =>
+  fun val update(leaf: _Leaf[K, V]): _MapNode[K, V] ? =>
     let idx = _Hash.mask(leaf.hash, level)
     let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then
@@ -172,7 +172,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         create(consume es, nodemap, datamap, level)
       else
         // insert into sub-node
-        let sn = entries(i.usize()) as _Node[K, V]
+        let sn = entries(i.usize()) as _MapNode[K, V]
         let es = recover entries.clone() end
         let sn' = sn.update(leaf)
         es.update(i.usize(), sn')
@@ -212,7 +212,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       end
     end
 
-  fun val remove(hash: U32, key: K): _Node[K, V] ? =>
+  fun val remove(hash: U32, key: K): _MapNode[K, V] ? =>
     let idx = _Hash.mask(hash, level)
     let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then error end
@@ -234,7 +234,7 @@ class val _Node[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         end
         error
       else
-        var sn = entries(i.usize()) as _Node[K, V]
+        var sn = entries(i.usize()) as _MapNode[K, V]
         sn = sn.remove(hash, key)
         let es = recover entries.clone() end
         if (nodemap.popcount() == 0) and (datamap.popcount() == 1) then
