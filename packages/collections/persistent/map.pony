@@ -51,7 +51,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     """
     _root(k.hash().u32(), k)
 
-  fun val size(): U64 =>
+  fun val size(): USize =>
     """
     Return the amount of key-value pairs in the Map.
     """
@@ -134,8 +134,8 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       error
     end
 
-  fun val size(): U64 =>
-    var tot: U64 = 0
+  fun val size(): USize =>
+    var tot: USize = 0
     for e in entries.values() do
       match e
       | let sn: _MapNode[K, V] => tot = tot + sn.size()
