@@ -30,7 +30,7 @@ build:
       - mkdir -p build/pony-stable
       - cd build/pony-stable
       - git clone https://github.com/jemc/pony-stable.git .
-      - git checkout d513cbf
+      - git checkout 452ea2b
       - make
 
 publish:
