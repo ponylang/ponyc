@@ -166,7 +166,7 @@ static const lextoken_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
-  { "identityof", TK_IDENTITY },
+  { "digestof", TK_DIGESTOF },
   { "addressof", TK_ADDRESS },
   { "__loc", TK_LOCATION },
 
