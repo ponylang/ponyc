@@ -39,6 +39,7 @@ use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
+use itertools = "itertools"
 
 
 actor Main is TestList
@@ -79,3 +80,4 @@ actor Main is TestList
 
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
+    itertools.Main.make().tests(test)
