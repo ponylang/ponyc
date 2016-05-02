@@ -2,7 +2,7 @@
 
 * [Open an issue!](https://github.com/ponylang/ponyc/issues)
 * Use the [mailing list](mailto:pony+user@groups.io).
-* Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
+* Join [the `#ponylang` IRC channel on freenode](https://webchat.freenode.net/?channels=%23ponylang).
 * A tutorial is available [here](http://tutorial.ponylang.org).
 * A [cookbook style book of patterns](http://patterns.ponylang.org) is in progress
 * Standard library docs are available [here](http://ponylang.github.io/ponyc/).
