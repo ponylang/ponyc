@@ -17,7 +17,7 @@ use "files"
 actor Main
   new create(env:Env) =>
     try
-      let ini_file = File(FilePath(env.root, "example.ini"))
+      let ini_file = File(FilePath(env.root as AmbientAuth, "example.ini"))
       let sections = IniParse(ini_file.lines())
       for section in sections.keys() do
         env.out.print("Section name is: " + section)
