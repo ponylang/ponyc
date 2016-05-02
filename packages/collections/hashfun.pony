@@ -44,7 +44,7 @@ primitive HashIs[A] is HashFunction[A]
     """
     Hash the identity rather than the contents.
     """
-    (identityof x).hash()
+    (digestof x).hash()
 
   fun eq(x: box->A!, y: box->A!): Bool =>
     """

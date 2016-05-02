@@ -220,7 +220,7 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
+static LLVMValueRef gen_digestof_value(compile_t* c, LLVMValueRef value)
 {
   LLVMTypeRef type = LLVMTypeOf(value);
 
@@ -259,7 +259,7 @@ static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
       for(uint32_t i = 0; i < count; i++)
       {
         LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
-        elem = gen_identity_from_value(c, elem);
+        elem = gen_digestof_value(c, elem);
         result = LLVMBuildXor(c->builder, result, elem, "");
       }
 
@@ -276,11 +276,11 @@ static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
   return NULL;
 }
 
-LLVMValueRef gen_identity(compile_t* c, ast_t* ast)
+LLVMValueRef gen_digestof(compile_t* c, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
-  return gen_identity_from_value(c, value);
+  return gen_digestof_value(c, value);
 }
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)

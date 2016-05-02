@@ -66,6 +66,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Drop dynamic LTO detection in the build system.
 - Parameterized Array.find and Array.rfind with a comparator.
 - `this->` adapted types check match on the upper bounds.
+- Renamed `identityof` to `digestof`.
 
 ## [0.2.1] - 2015-10-06
 

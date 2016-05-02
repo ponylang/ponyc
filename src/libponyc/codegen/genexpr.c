@@ -146,8 +146,8 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_addressof(c, ast);
       break;
 
-    case TK_IDENTITY:
-      ret = gen_identity(c, ast);
+    case TK_DIGESTOF:
+      ret = gen_digestof(c, ast);
       break;
 
     case TK_DONTCARE:

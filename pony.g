@@ -151,12 +151,12 @@ pattern
   ;
 
 nextparampattern
-  : ('not' | 'addressof' | MINUS_NEW | 'identityof') parampattern
+  : ('not' | 'addressof' | MINUS_NEW | 'digestof') parampattern
   | nextpostfix
   ;
 
 parampattern
-  : ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') parampattern
+  : ('not' | 'addressof' | '-' | MINUS_NEW | 'digestof') parampattern
   | postfix
   ;
 
@@ -268,6 +268,7 @@ gencap
   : '#read'
   | '#send'
   | '#share'
+  | '#alias'
   | '#any'
   ;
 

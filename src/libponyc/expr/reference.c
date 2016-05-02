@@ -819,7 +819,7 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_identityof(pass_opt_t* opt, ast_t* ast)
+bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
 

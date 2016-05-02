@@ -496,19 +496,19 @@ DEF(local);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
 
-// (NOT | AMP | MINUS | MINUS_NEW | IDENTITY) pattern
+// (NOT | AMP | MINUS | MINUS_NEW | DIGESTOF) pattern
 DEF(prefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_DIGESTOF);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", parampattern);
   DONE();
 
-// (NOT | AMP | MINUS_NEW | IDENTITY) pattern
+// (NOT | AMP | MINUS_NEW | DIGESTOF) pattern
 DEF(nextprefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_IDENTITY);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_DIGESTOF);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", parampattern);
   DONE();
