@@ -7,8 +7,8 @@
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
-#include "../ast/stringtab.h"
 #include "../expr/literal.h"
+#include <string.h>
 #include <assert.h>
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
@@ -26,14 +26,10 @@ static bool exact_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
   ast_t* a_def = (ast_t*)ast_data(a);
   ast_t* b_def = (ast_t*)ast_data(b);
 
-  return
-    (a_def == b_def) &&
-    (ast_id(a_cap) == ast_id(b_cap)) &&
-    (ast_id(a_eph) == ast_id(b_eph)) &&
-    is_eq_typeargs(a, b, false, opt);
+  return (a_def == b_def) && is_eq_typeargs(a, b, false, opt);
 }
 
-static bool push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
+static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
 {
   // Returns true if we have already assumed sub is a subtype of super.
   if(subtype_assume != NULL)
@@ -50,9 +46,18 @@ static bool push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
 
       assumption = ast_sibling(assumption);
     }
-  } else {
-    subtype_assume = ast_from(sub, TK_NONE);
   }
+
+  return false;
+}
+
+static bool push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
+{
+  if(check_assume(sub, super, opt))
+    return true;
+
+  if(subtype_assume == NULL)
+    subtype_assume = ast_from(sub, TK_NONE);
 
   BUILD(assume, sub, NODE(TK_NONE, TREE(ast_dup(sub)) TREE(ast_dup(super))));
   ast_add(subtype_assume, assume);
@@ -140,34 +145,6 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
   return ret;
 }
 
-static bool check_machine_words(ast_t* sub, ast_t* super, errorframe_t* errorf)
-{
-  // If either result type is a machine word, the other must be as well.
-  if(is_machine_word(sub) && !is_machine_word(super))
-  {
-    if(errorf != NULL)
-    {
-      ast_error_frame(errorf, sub, "%s is a machine word and %s is not",
-        ast_print_type(sub), ast_print_type(super));
-    }
-
-    return false;
-  }
-
-  if(is_machine_word(super) && !is_machine_word(sub))
-  {
-    if(errorf != NULL)
-    {
-      ast_error_frame(errorf, sub, "%s is a machine word and %s is not",
-        ast_print_type(super), ast_print_type(sub));
-    }
-
-    return false;
-  }
-
-  return true;
-}
-
 static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   errorframe_t* errorf, pass_opt_t* opt)
 {
@@ -206,10 +183,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
         return false;
       }
-
-      if(!check_machine_words(sub_result, super_result, errorf))
-        return false;
-
       break;
     }
 
@@ -241,10 +214,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
         return false;
       }
-
-      if(!check_machine_words(sub_result, super_result, errorf))
-        return false;
-
       break;
     }
 
@@ -296,9 +265,6 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
       return false;
     }
-
-    if(!check_machine_words(sub_type, super_type, errorf))
-      return false;
 
     sub_param = ast_sibling(sub_param);
     super_param = ast_sibling(super_param);
@@ -707,7 +673,7 @@ static bool is_nominal_sub_entity(ast_t* sub, ast_t* super,
   return ret;
 }
 
-static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
+static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   errorframe_t* errorf, pass_opt_t* opt)
 {
   // implements(N, I)
@@ -722,23 +688,6 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
     return true;
 
   bool ret = true;
-
-  // A struct has no descriptor, so can't be a subtype of an interface.
-  if(ast_id(sub_def) == TK_STRUCT)
-  {
-    ret = false;
-
-    if(errorf != NULL)
-    {
-      ast_error_frame(errorf, sub,
-        "%s is not a subtype of %s: a struct can't be a subtype of an "
-        "interface",
-        ast_print_type(sub), ast_print_type(super));
-    }
-  }
-
-  if(!is_sub_cap_and_eph(sub, super, errorf, opt))
-    ret = false;
 
   ast_t* sub_typeargs = ast_childidx(sub, 2);
   ast_t* sub_typeparams = ast_childidx(sub_def, 1);
@@ -760,7 +709,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
       if(errorf != NULL)
       {
         ast_error_frame(errorf, sub,
-          "%s is not a subtype of %s: it has no method %s",
+          "%s is not a subtype of %s: it has no method '%s'",
           ast_print_type(sub), ast_print_type(super),
           ast_name(super_member_id));
       }
@@ -791,7 +740,8 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
       if(errorf != NULL)
       {
         ast_error_frame(errorf, sub_member,
-          "%s is not a subtype of %s: method %s has an incompatible signature",
+          "%s is not a subtype of %s: "
+          "method '%s' has an incompatible signature",
           ast_print_type(sub), ast_print_type(super),
           ast_name(super_member_id));
       }
@@ -801,6 +751,36 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
   }
 
   pop_assume();
+  return ret;
+}
+
+static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
+  errorframe_t* errorf, pass_opt_t* opt)
+{
+  bool ret = true;
+
+  // A struct has no descriptor, so can't be a subtype of an interface.
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+
+  if(ast_id(sub_def) == TK_STRUCT)
+  {
+    ret = false;
+
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, sub,
+        "%s is not a subtype of %s: a struct can't be a subtype of an "
+        "interface",
+        ast_print_type(sub), ast_print_type(super));
+    }
+  }
+
+  if(!is_sub_cap_and_eph(sub, super, errorf, opt))
+    ret = false;
+
+  if(!is_nominal_sub_structural(sub, super, errorf, opt))
+    ret = false;
+
   return ret;
 }
 
@@ -860,8 +840,12 @@ static bool is_entity_sub_trait(ast_t* sub, ast_t* super, errorframe_t* errorf,
     is_sub_cap_and_eph(sub, super, errorf, opt);
 }
 
-static bool is_struct_sub_trait(ast_t* sub, ast_t* super, errorframe_t* errorf)
+static bool is_struct_sub_trait(ast_t* sub, ast_t* super, errorframe_t* errorf,
+  pass_opt_t* opt)
 {
+  if(check_assume(sub, super, opt))
+    return true;
+
   if(errorf != NULL)
   {
     ast_error_frame(errorf, sub,
@@ -927,7 +911,7 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
       return is_entity_sub_trait(sub, super, errorf, opt);
 
     case TK_STRUCT:
-      return is_struct_sub_trait(sub, super, errorf);
+      return is_struct_sub_trait(sub, super, errorf, opt);
 
     case TK_TRAIT:
       return is_trait_sub_trait(sub, super, errorf, opt);
@@ -1384,6 +1368,13 @@ bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errorf, pass_opt_t* opt)
   return is_subtype(a, b, errorf, opt) && is_subtype(b, a, errorf, opt);
 }
 
+bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
+  pass_opt_t* opt)
+{
+  assert(ast_id(type) == TK_NOMINAL);
+  return is_nominal_sub_structural(type, provides, errorf, opt);
+}
+
 bool is_literal(ast_t* type, const char* name)
 {
   if(type == NULL)
@@ -1393,7 +1384,7 @@ bool is_literal(ast_t* type, const char* name)
     return false;
 
   // Don't have to check the package, since literals are all builtins.
-  return ast_name(ast_childidx(type, 1)) == stringtab(name);
+  return !strcmp(ast_name(ast_childidx(type, 1)), name);
 }
 
 bool is_pointer(ast_t* type)

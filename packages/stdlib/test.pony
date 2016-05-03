@@ -31,6 +31,7 @@ use math = "math"
 use net = "net"
 use options = "options"
 use promises = "promises"
+use process = "process"
 use random = "random"
 use regex = "regex"
 use signals = "signals"
@@ -38,6 +39,7 @@ use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
+use itertools = "itertools"
 
 
 actor Main is TestList
@@ -62,6 +64,12 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
+
+    ifdef posix then
+      // The process package currently only supports posix
+      process.Main.make().tests(test)
+    end
+    
     regex.Main.make().tests(test)
 
     ifdef not windows then
@@ -72,3 +80,4 @@ actor Main is TestList
 
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
+    itertools.Main.make().tests(test)

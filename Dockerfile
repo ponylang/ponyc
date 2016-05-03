@@ -15,4 +15,3 @@ WORKDIR /build/build/pony-stable
 RUN make install
 
 ENTRYPOINT ["ponyc"]
-

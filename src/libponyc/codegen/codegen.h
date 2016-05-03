@@ -52,9 +52,8 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-  reachable_types_t* reachable;
+  reach_t* reach;
   const char* filename;
-  uint32_t next_type_id;
 
   const char* str_builtin;
   const char* str_Bool;
@@ -105,6 +104,7 @@ typedef struct compile_t
   const char* str__create;
   const char* str__init;
   const char* str__final;
+  const char* str__event_notify;
 
   LLVMCallConv callconv;
   LLVMContextRef context;

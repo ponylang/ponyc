@@ -25,7 +25,16 @@ class val SSLContext
     // set SSL_OP_NO_SSLv3
     @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[None])
 
-    try set_ciphers("ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH") end
+    // set SSL_OP_NO_TLSv1
+    @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[None])
+
+    // set SSL_OP_NO_TLSv1_1
+    @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
+
+    try
+      set_ciphers(
+        "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256")
+    end
 
   fun client(hostname: String = ""): SSL iso^ ? =>
     """
@@ -125,7 +134,7 @@ class val SSLContext
 
   fun ref allow_tls_v1(state: Bool): SSLContext ref^ =>
     """
-    Allow TLS v1. Defaults to true.
+    Allow TLS v1. Defaults to false.
     """
     if not _ctx.is_null() then
       if state then
@@ -140,7 +149,7 @@ class val SSLContext
 
   fun ref allow_tls_v1_1(state: Bool): SSLContext ref^ =>
     """
-    Allow TLS v1.1. Defaults to true.
+    Allow TLS v1.1. Defaults to false.
     """
     if not _ctx.is_null() then
       if state then

@@ -29,15 +29,6 @@ class Array[A] is Seq[A]
       i = i + 1
     end
 
-  new undefined[B: (A & Real[B] val & Number) = A](len: USize) =>
-    """
-    Create an array of len elements, populating them with random memory. This
-    is only allowed for an array of numbers.
-    """
-    _size = len
-    _alloc = len
-    _ptr = Pointer[A]._alloc(len)
-
   new from_cstring(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
@@ -86,6 +77,20 @@ class Array[A] is Seq[A]
       _alloc = len.max(8).ponyint_next_pow2()
       _ptr = _ptr._realloc(_alloc)
     end
+    this
+
+  fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize): Array[A]^
+  =>
+    """
+    Resize to len elements, populating previously empty elements with random
+    memory. This is only allowed for an array of numbers.
+    """
+    if _alloc < len then
+      _ptr = _ptr._realloc(len)
+    end
+
+    _alloc = len
+    _size = len
     this
 
   fun apply(i: USize): this->A ? =>
@@ -472,7 +477,7 @@ class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   fun ref rewind(): ArrayValues[A, B] =>
     _i = 0
     this
-  
+
 class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
   let _array: B
   var _i: USize

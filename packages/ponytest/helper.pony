@@ -96,9 +96,25 @@ class val TestHelper
     """
     Assert that the 2 given expressions resolve to the same instance
     """
-    let expect' = identityof expect
-    let actual' = identityof actual
-    _check_eq[U64]("is", expect', actual', msg, loc)
+    _check_is[A]("is", consume expect, consume actual, msg, loc)
+
+  fun _check_is[A](check: String, expect: A, actual: A, msg: String,
+    loc: SourceLoc): Bool
+  =>
+    """
+    Check that the 2 given expressions resolve to the same instance
+    """
+    if expect isnt actual then
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")")
+      return false
+    end
+
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
+      " Got (" + (digestof expect).string() + ") is (" +
+      (digestof actual).string() + ")", true)
+    true
 
   fun assert_eq[A: (Equatable[A] #read & Stringable #read)]
     (expect: A, actual: A, msg: String = "", loc: SourceLoc = __loc): Bool
@@ -131,9 +147,25 @@ class val TestHelper
     """
     Assert that the 2 given expressions resolve to different instances.
     """
-    let not_expect' = identityof not_expect
-    let actual' = identityof actual
-    _check_ne[U64]("isn't", not_expect', actual', msg, loc)
+    _check_isnt[A]("isn't", consume not_expect, consume actual, msg, loc)
+
+  fun _check_isnt[A](check: String, not_expect: A, actual: A, msg: String,
+    loc: SourceLoc): Bool
+  =>
+    """
+    Check that the 2 given expressions resolve to different instances.
+    """
+    if not_expect is actual then
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")")
+      return false
+    end
+
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
+      " Got (" + (digestof not_expect).string() + ") isnt (" +
+      (digestof actual).string() + ")", true)
+    true
 
   fun assert_ne[A: (Equatable[A] #read & Stringable #read)]
     (not_expect: A, actual: A, msg: String = "", loc: SourceLoc = __loc): Bool

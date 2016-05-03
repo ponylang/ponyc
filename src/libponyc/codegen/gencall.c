@@ -166,11 +166,11 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   return false;
 }
 
-static LLVMValueRef dispatch_function(compile_t* c, reachable_type_t* t,
+static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
   ast_t* type, LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
 {
   token_id cap = cap_dispatch(type);
-  reachable_method_t* m = reach_method(t, cap, method_name, typeargs);
+  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
   assert(m != NULL);
 
   switch(t->underlying)
@@ -203,7 +203,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reachable_type_t* t,
   return NULL;
 }
 
-static bool call_needs_receiver(ast_t* postfix, reachable_type_t* t)
+static bool call_needs_receiver(ast_t* postfix, reach_type_t* t)
 {
   switch(ast_id(postfix))
   {
@@ -249,7 +249,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
 
   // Get the receiver type.
   ast_t* type = ast_type(receiver);
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
   assert(t != NULL);
 
   return dispatch_function(c, t, type, value, ast_name(method), typeargs);
@@ -284,7 +284,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Get the receiver type.
   const char* method_name = ast_name(method);
   ast_t* type = ast_type(receiver);
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
   assert(t != NULL);
 
   // Generate the arguments.
@@ -421,7 +421,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 
   // Generate the receiver.
   LLVMValueRef l_value = gen_expr(c, pattern);
-  reachable_type_t* t = reach_type(c->reachable, pattern_type);
+  reach_type_t* t = reach_type(c->reach, pattern_type);
   assert(t != NULL);
 
   // Static or virtual dispatch.
@@ -444,7 +444,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 }
 
 static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
-  reachable_type_t* t, bool err)
+  reach_type_t* t, bool err)
 {
   LLVMTypeRef f_type = LLVMFunctionType(t->use_type, NULL, 0, true);
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
@@ -456,7 +456,7 @@ static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
 }
 
 static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
-  reachable_type_t* t, ast_t* args, bool err)
+  reach_type_t* t, ast_t* args, bool err)
 {
   ast_t* last_arg = ast_childlast(args);
 
@@ -477,7 +477,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
     if(p_type == NULL)
       p_type = ast_childidx(arg, 1);
 
-    reachable_type_t* pt = reach_type(c->reachable, p_type);
+    reach_type_t* pt = reach_type(c->reach, p_type);
     assert(pt != NULL);
 
     f_params[count++] = pt->use_type;
@@ -526,7 +526,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   // Get the return type.
   ast_t* type = ast_type(ast);
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
   assert(t != NULL);
 
   // Get the function.
@@ -624,7 +624,7 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   return LLVMBuildCall(c->builder, func, args, count, ret);
 }
 
-LLVMValueRef gencall_create(compile_t* c, reachable_type_t* t)
+LLVMValueRef gencall_create(compile_t* c, reach_type_t* t)
 {
   LLVMValueRef args[2];
   args[0] = codegen_ctx(c);
@@ -634,7 +634,7 @@ LLVMValueRef gencall_create(compile_t* c, reachable_type_t* t)
   return LLVMBuildBitCast(c->builder, result, t->use_type, "");
 }
 
-LLVMValueRef gencall_alloc(compile_t* c, reachable_type_t* t)
+LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
 {
   // Do nothing for primitives.
   if(t->primitive != NULL)
@@ -654,7 +654,7 @@ LLVMValueRef gencall_alloc(compile_t* c, reachable_type_t* t)
   return gencall_allocstruct(c, t);
 }
 
-LLVMValueRef gencall_allocstruct(compile_t* c, reachable_type_t* t)
+LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 {
   // We explicitly want a boxed version.
   // Get the size of the structure.

@@ -8,9 +8,9 @@ PONY_EXTERN_C_BEGIN
 
 void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type);
 
-void gendesc_type(compile_t* c, reachable_type_t* t);
+void gendesc_type(compile_t* c, reach_type_t* t);
 
-void gendesc_init(compile_t* c, reachable_type_t* t);
+void gendesc_init(compile_t* c, reach_type_t* t);
 
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object);
 

@@ -23,8 +23,8 @@
 
 #define DESC_LENGTH 14
 
-static LLVMValueRef make_unbox_function(compile_t* c, reachable_type_t* t,
-  reachable_method_t* m)
+static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
 {
   // Create a new unboxing function that forwards to the real function.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(m->func));
@@ -122,7 +122,7 @@ static size_t unique_uint32(uint32_t* list, size_t len)
   return (++r) - list;
 }
 
-static uint32_t trait_count(reachable_type_t* t, uint32_t** list,
+static uint32_t trait_count(reach_type_t* t, uint32_t** list,
   size_t* list_size)
 {
   switch(t->underlying)
@@ -131,7 +131,7 @@ static uint32_t trait_count(reachable_type_t* t, uint32_t** list,
     case TK_CLASS:
     case TK_ACTOR:
     {
-      uint32_t count = (uint32_t)reachable_type_cache_size(&t->subtypes);
+      uint32_t count = (uint32_t)reach_type_cache_size(&t->subtypes);
 
       if(count == 0)
         return 0;
@@ -142,9 +142,9 @@ static uint32_t trait_count(reachable_type_t* t, uint32_t** list,
 
       size_t i = HASHMAP_BEGIN;
       size_t index = 0;
-      reachable_type_t* provide;
+      reach_type_t* provide;
 
-      while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
+      while((provide = reach_type_cache_next(&t->subtypes, &i)) != NULL)
         tid[index++] = provide->type_id;
 
       qsort(tid, index, sizeof(uint32_t), cmp_uint32);
@@ -167,7 +167,7 @@ static uint32_t trait_count(reachable_type_t* t, uint32_t** list,
   return 0;
 }
 
-static LLVMValueRef make_trait_list(compile_t* c, reachable_type_t* t,
+static LLVMValueRef make_trait_list(compile_t* c, reach_type_t* t,
   uint32_t* final_count)
 {
   // The list is an array of integers.
@@ -203,7 +203,7 @@ static LLVMValueRef make_trait_list(compile_t* c, reachable_type_t* t,
   return global;
 }
 
-static LLVMValueRef make_field_count(compile_t* c, reachable_type_t* t)
+static LLVMValueRef make_field_count(compile_t* c, reach_type_t* t)
 {
   if(t->underlying != TK_TUPLETYPE)
     return LLVMConstInt(c->i32, 0, false);
@@ -211,7 +211,7 @@ static LLVMValueRef make_field_count(compile_t* c, reachable_type_t* t)
   return LLVMConstInt(c->i32, t->field_count, false);
 }
 
-static LLVMValueRef make_field_offset(compile_t* c, reachable_type_t* t)
+static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
 {
   if(t->field_count == 0)
     return LLVMConstInt(c->i32, 0, false);
@@ -225,7 +225,7 @@ static LLVMValueRef make_field_offset(compile_t* c, reachable_type_t* t)
     LLVMOffsetOfElement(c->target_data, t->structure, index), false);
 }
 
-static LLVMValueRef make_field_list(compile_t* c, reachable_type_t* t)
+static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 {
   // The list is an array of field descriptors.
   uint32_t count;
@@ -277,7 +277,7 @@ static LLVMValueRef make_field_list(compile_t* c, reachable_type_t* t)
   return global;
 }
 
-static LLVMValueRef make_vtable(compile_t* c, reachable_type_t* t)
+static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
 {
   if(t->vtable_size == 0)
     return LLVMConstArray(c->void_ptr, NULL, 0);
@@ -287,14 +287,14 @@ static LLVMValueRef make_vtable(compile_t* c, reachable_type_t* t)
   memset(vtable, 0, buf_size);
 
   size_t i = HASHMAP_BEGIN;
-  reachable_method_name_t* n;
+  reach_method_name_t* n;
 
-  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
+  while((n = reach_method_names_next(&t->methods, &i)) != NULL)
   {
     size_t j = HASHMAP_BEGIN;
-    reachable_method_t* m;
+    reach_method_t* m;
 
-    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       uint32_t index = m->vtable_index;
       assert(index != (uint32_t)-1);
@@ -341,7 +341,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   LLVMStructSetBody(desc_type, params, DESC_LENGTH, false);
 }
 
-void gendesc_type(compile_t* c, reachable_type_t* t)
+void gendesc_type(compile_t* c, reach_type_t* t)
 {
   switch(t->underlying)
   {
@@ -391,13 +391,13 @@ void gendesc_type(compile_t* c, reachable_type_t* t)
   LLVMSetLinkage(t->desc, LLVMInternalLinkage);
 }
 
-void gendesc_init(compile_t* c, reachable_type_t* t)
+void gendesc_init(compile_t* c, reach_type_t* t)
 {
   if(t->desc_type == NULL)
     return;
 
   // Initialise the global descriptor.
-  uint32_t event_notify_index = reach_vtable_index(t, "_event_notify");
+  uint32_t event_notify_index = reach_vtable_index(t, c->str__event_notify);
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, t->structure);
   uint32_t trait_count = 0;
   LLVMValueRef trait_list = make_trait_list(c, t, &trait_count);
@@ -537,7 +537,7 @@ LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
   // Get the trait identifier.
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
   assert(t != NULL);
   LLVMValueRef trait_id = LLVMConstInt(c->i32, t->type_id, false);
 
@@ -590,7 +590,7 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 
 LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   if(t == NULL)
     return GEN_NOVALUE;

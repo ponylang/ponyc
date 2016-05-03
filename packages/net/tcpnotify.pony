@@ -34,7 +34,7 @@ interface TCPConnectionNotify
     """
     A raw TCPConnection has no authentication mechanism. However, when
     protocols are wrapped in other protocols, this can be used to report an
-    authentication failure in a lower level protocol (eg. SSL).
+    authentication failure in a lower level protocol (e.g. SSL).
     """
     None
 
@@ -51,6 +51,14 @@ interface TCPConnectionNotify
     Called when new data is received on the connection.
     """
     None
+
+  fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
+    """
+    Called when the connection has been told to expect a certain quantity of
+    bytes. This allows nested notifiers to change the expected quantity, which
+    allows a lower level protocol to handle any framing (e.g. SSL).
+    """
+    qty
 
   fun ref closed(conn: TCPConnection ref) =>
     """

@@ -132,16 +132,68 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
   return false;
 }
 
-bool expr_field(pass_opt_t* opt, ast_t* ast)
+static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
+  errorframe_t* errorf)
+{
+  bool ok = true;
+
+  switch(ast_id(provides))
+  {
+    case TK_NONE:
+      return true;
+
+    case TK_PROVIDES:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* child = ast_child(provides);
+        child != NULL;
+        child = ast_sibling(child))
+      {
+        ok = check_provides(opt, type, child, errorf) && ok;
+      }
+
+      return ok;
+    }
+
+    case TK_NOMINAL:
+      return is_sub_provides(type, provides, errorf, opt);
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool expr_provides(pass_opt_t* opt, ast_t* ast)
+{
+  // Check that the type actually provides everything it declares.
+  // Since the traits pass has completed, all method imports have already
+  // happened. At this point, we need to check that the type is a structural
+  // subtype of all traits and interfaces it declares as provided.
+  AST_GET_CHILDREN(ast, id, typeparams, cap, provides);
+  ast_t* type = type_for_this(opt, ast, TK_REF, TK_NONE, true);
+  errorframe_t err = NULL;
+
+  if(!check_provides(opt, type, provides, &err))
+  {
+    errorframe_t err2 = NULL;
+    ast_error_frame(&err2, ast, "type does not implement its provides list");
+    errorframe_append(&err2, &err);
+    errorframe_report(&err2, opt->check.errors);
+    return false;
+  }
+
+  return true;
+}
+
+bool expr_param(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
+  bool ok = true;
 
   if(ast_id(init) != TK_NONE)
   {
-    // Only parameters have initialisers. Field initialisers are moved into
-    // constructors in the sugar pass.
-    assert(ast_id(ast) == TK_PARAM);
-
     // Initialiser type must match declared type.
     if(!coerce_literals(&init, type, opt))
       return false;
@@ -152,28 +204,50 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
       return false;
 
     init_type = alias(init_type);
+    errorframe_t err = NULL;
 
-    errorframe_t info = NULL;
-    if(!is_subtype(init_type, type, &info, opt))
+    if(!is_subtype(init_type, type, &err, opt))
     {
-      errorframe_t frame = NULL;
-      ast_error_frame(&frame, init,
+      errorframe_t err2 = NULL;
+      ast_error_frame(&err2, init,
         "default argument is not a subtype of the parameter type");
-      ast_error_frame(&frame, type, "parameter type: %s",
-        ast_print_type(type));
-      ast_error_frame(&frame, init, "default argument type: %s",
-        ast_print_type(init_type));
-      errorframe_append(&frame, &info);
-      errorframe_report(&frame, opt->check.errors);
-      ast_free_unattached(init_type);
-      return false;
+      errorframe_append(&err2, &err);
+      errorframe_report(&err2, opt->check.errors);
+      ok = false;
     }
 
     ast_free_unattached(init_type);
   }
 
-  ast_settype(ast, type);
-  return true;
+  if(ok)
+    ast_settype(ast, type);
+
+  return ok;
+}
+
+bool expr_field(pass_opt_t* opt, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, type, init, delegates);
+  bool ok = true;
+
+  for(ast_t* del = ast_child(delegates); del != NULL; del = ast_sibling(del))
+  {
+    errorframe_t err = NULL;
+
+    if(!is_subtype(type, del, &err, opt))
+    {
+      errorframe_t err2 = NULL;
+      ast_error_frame(&err2, ast, "field not a subtype of delegate");
+      errorframe_append(&err2, &err);
+      errorframe_report(&err2, opt->check.errors);
+      ok = false;
+    }
+  }
+
+  if(ok)
+    ast_settype(ast, type);
+
+  return ok;
 }
 
 bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
@@ -745,7 +819,7 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_identityof(pass_opt_t* opt, ast_t* ast)
+bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
 

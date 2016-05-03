@@ -104,7 +104,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   if(contains_dontcare(type))
     return GEN_NOTNEEDED;
 
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
   LLVMValueRef tuple = LLVMGetUndef(t->primitive);
   int i = 0;
 
@@ -142,7 +142,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   if(value != NULL)
     return GEN_NOVALUE;
 
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   // All alloca should happen in the entry block of a function.
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -220,7 +220,7 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
+static LLVMValueRef gen_digestof_value(compile_t* c, LLVMValueRef value)
 {
   LLVMTypeRef type = LLVMTypeOf(value);
 
@@ -259,7 +259,7 @@ static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
       for(uint32_t i = 0; i < count; i++)
       {
         LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
-        elem = gen_identity_from_value(c, elem);
+        elem = gen_digestof_value(c, elem);
         result = LLVMBuildXor(c->builder, result, elem, "");
       }
 
@@ -276,17 +276,17 @@ static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
   return NULL;
 }
 
-LLVMValueRef gen_identity(compile_t* c, ast_t* ast)
+LLVMValueRef gen_digestof(compile_t* c, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
-  return gen_identity_from_value(c, value);
+  return gen_digestof_value(c, value);
 }
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   lexint_t* value = ast_int(ast);
   LLVMValueRef vlow = LLVMConstInt(c->i128, value->low, false);
@@ -307,7 +307,7 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   return LLVMConstReal(t->primitive, ast_float(ast));
 }
@@ -324,13 +324,13 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 
   LLVMValueRef str = LLVMConstStringInContext(c->context, name, (int)len,
     false);
-  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
+  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "");
   LLVMSetLinkage(g_str, LLVMInternalLinkage);
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
   LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
 
-  reachable_type_t* t = reach_type(c->reachable, type);
+  reach_type_t* t = reach_type(c->reach, type);
 
   args[0] = t->desc;
   args[1] = LLVMConstInt(c->intptr, len, false);
@@ -338,7 +338,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   args[3] = str_ptr;
 
   LLVMValueRef inst = LLVMConstNamedStruct(t->structure, args, 4);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, t->structure, "$string");
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, t->structure, "");
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
   LLVMSetLinkage(g_inst, LLVMInternalLinkage);

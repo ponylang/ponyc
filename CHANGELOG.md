@@ -50,6 +50,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - `ArrayValues.rewind()` method.
 - Nanos primitive in time package.
 - Persistent package, with List and Map
+- Custom chunk size for Stdin.
+- Itertools package
+- TCPConnection.expect
 
 ### Changed
 
@@ -63,6 +66,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improved TCPConnection with a dynamically size of buffers
 - Drop dynamic LTO detection in the build system.
 - Parameterized Array.find and Array.rfind with a comparator.
+- `this->` adapted types check match on the upper bounds.
+- Renamed `identityof` to `digestof`.
 
 ## [0.2.1] - 2015-10-06
 

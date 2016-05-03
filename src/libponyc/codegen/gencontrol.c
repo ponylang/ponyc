@@ -37,10 +37,10 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* right_type = ast_type(right);
 
   // We will have no type if both branches have return statements.
-  reachable_type_t* phi_type = NULL;
+  reach_type_t* phi_type = NULL;
 
   if(!is_control_type(type))
-    phi_type = reach_type(c->reachable, type);
+    phi_type = reach_type(c->reach, type);
 
   LLVMValueRef c_value = gen_expr(c, cond);
 
@@ -156,10 +156,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reachable_type_t* phi_type = NULL;
+  reach_type_t* phi_type = NULL;
 
   if(needed && !is_control_type(type))
-    phi_type = reach_type(c->reachable, type);
+    phi_type = reach_type(c->reach, type);
 
   LLVMBasicBlockRef init_block = codegen_block(c, "while_init");
   LLVMBasicBlockRef body_block = codegen_block(c, "while_body");
@@ -272,10 +272,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reachable_type_t* phi_type = NULL;
+  reach_type_t* phi_type = NULL;
 
   if(needed && !is_control_type(type))
-    phi_type = reach_type(c->reachable, type);
+    phi_type = reach_type(c->reach, type);
 
   LLVMBasicBlockRef body_block = codegen_block(c, "repeat_body");
   LLVMBasicBlockRef cond_block = codegen_block(c, "repeat_cond");
@@ -465,11 +465,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reachable_type_t* phi_type = NULL;
+  reach_type_t* phi_type = NULL;
 
   // We will have no type if both branches have return statements.
   if(!is_control_type(type))
-    phi_type = reach_type(c->reachable, type);
+    phi_type = reach_type(c->reach, type);
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef else_block = codegen_block(c, "try_else");

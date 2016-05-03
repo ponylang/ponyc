@@ -12,14 +12,14 @@
 
 #define FIND_METHOD(name) \
   const char* strtab_name = stringtab(name); \
-  reachable_method_t* m = reach_method(t, TK_NONE, strtab_name, NULL); \
+  reach_method_t* m = reach_method(t, TK_NONE, strtab_name, NULL); \
   if(m == NULL) return; \
   m->intrinsic = true;
 
 #define BOX_FUNCTION() \
   box_function(t, m, strtab_name);
 
-static void start_function(compile_t* c, reachable_method_t* m,
+static void start_function(compile_t* c, reach_method_t* m,
   LLVMTypeRef result, LLVMTypeRef* params, unsigned count)
 {
   m->func_type = LLVMFunctionType(result, params, count, false);
@@ -27,13 +27,12 @@ static void start_function(compile_t* c, reachable_method_t* m,
   codegen_startfun(c, m->func, NULL, NULL);
 }
 
-static void box_function(reachable_type_t* t, reachable_method_t* m,
-  const char* name)
+static void box_function(reach_type_t* t, reach_method_t* m, const char* name)
 {
   if((m->cap != TK_BOX) && (m->cap != TK_TAG))
     return;
 
-  reachable_method_t* m_ref = reach_method(t, TK_REF, name, NULL);
+  reach_method_t* m_ref = reach_method(t, TK_REF, name, NULL);
 
   if(m_ref != NULL)
   {
@@ -42,7 +41,7 @@ static void box_function(reachable_type_t* t, reachable_method_t* m,
     m_ref->intrinsic = true;
   }
 
-  reachable_method_t* m_val = reach_method(t, TK_VAL, name, NULL);
+  reach_method_t* m_val = reach_method(t, TK_VAL, name, NULL);
 
   if(m_val != NULL)
   {
@@ -53,7 +52,7 @@ static void box_function(reachable_type_t* t, reachable_method_t* m,
 
   if(m->cap == TK_TAG)
   {
-    reachable_method_t* m_box = reach_method(t, TK_BOX, name, NULL);
+    reach_method_t* m_box = reach_method(t, TK_BOX, name, NULL);
 
     if(m_box != NULL)
     {
@@ -64,7 +63,7 @@ static void box_function(reachable_type_t* t, reachable_method_t* m,
   }
 }
 
-static void pointer_create(compile_t* c, reachable_type_t* t)
+static void pointer_create(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("create");
   start_function(c, m, t->use_type, &t->use_type, 1);
@@ -75,8 +74,8 @@ static void pointer_create(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void pointer_alloc(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_alloc(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
 {
   FIND_METHOD("_alloc");
 
@@ -101,8 +100,8 @@ static void pointer_alloc(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void pointer_realloc(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_realloc(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
 {
   FIND_METHOD("_realloc");
 
@@ -129,7 +128,7 @@ static void pointer_realloc(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void pointer_unsafe(compile_t* c, reachable_type_t* t)
+static void pointer_unsafe(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("_unsafe");
   start_function(c, m, t->use_type, &t->use_type, 1);
@@ -138,8 +137,7 @@ static void pointer_unsafe(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void pointer_apply(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_apply");
 
@@ -162,8 +160,7 @@ static void pointer_apply(compile_t* c, reachable_type_t* t,
   BOX_FUNCTION();
 }
 
-static void pointer_update(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_update");
 
@@ -186,8 +183,7 @@ static void pointer_update(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void pointer_offset(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_offset(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_offset");
 
@@ -215,8 +211,7 @@ static void pointer_offset(compile_t* c, reachable_type_t* t,
   BOX_FUNCTION();
 }
 
-static void pointer_insert(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_insert");
 
@@ -252,8 +247,7 @@ static void pointer_insert(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void pointer_delete(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_delete");
 
@@ -293,8 +287,8 @@ static void pointer_delete(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void pointer_copy_to(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void pointer_copy_to(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
 {
   FIND_METHOD("_copy_to");
 
@@ -327,7 +321,7 @@ static void pointer_copy_to(compile_t* c, reachable_type_t* t,
   BOX_FUNCTION();
 }
 
-static void pointer_usize(compile_t* c, reachable_type_t* t)
+static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize");
   start_function(c, m, c->intptr, &t->use_type, 1);
@@ -339,11 +333,11 @@ static void pointer_usize(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-void genprim_pointer_methods(compile_t* c, reachable_type_t* t)
+void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 {
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  reachable_type_t* t_elem = reach_type(c->reachable, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
 
   pointer_create(c, t);
   pointer_alloc(c, t, t_elem);
@@ -359,8 +353,7 @@ void genprim_pointer_methods(compile_t* c, reachable_type_t* t)
   pointer_usize(c, t);
 }
 
-static void maybe_create(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("create");
 
@@ -375,7 +368,7 @@ static void maybe_create(compile_t* c, reachable_type_t* t,
   codegen_finishfun(c);
 }
 
-static void maybe_none(compile_t* c, reachable_type_t* t)
+static void maybe_none(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("none");
   start_function(c, m, t->use_type, &t->use_type, 1);
@@ -384,8 +377,7 @@ static void maybe_none(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void maybe_apply(compile_t* c, reachable_type_t* t,
-  reachable_type_t* t_elem)
+static void maybe_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   // Returns the receiver if it isn't null.
   FIND_METHOD("apply");
@@ -410,7 +402,7 @@ static void maybe_apply(compile_t* c, reachable_type_t* t,
   BOX_FUNCTION();
 }
 
-static void maybe_is_none(compile_t* c, reachable_type_t* t)
+static void maybe_is_none(compile_t* c, reach_type_t* t)
 {
   // Returns true if the receiver is null.
   FIND_METHOD("is_none");
@@ -425,11 +417,11 @@ static void maybe_is_none(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-void genprim_maybe_methods(compile_t* c, reachable_type_t* t)
+void genprim_maybe_methods(compile_t* c, reach_type_t* t)
 {
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  reachable_type_t* t_elem = reach_type(c->reachable, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
 
   maybe_create(c, t, t_elem);
   maybe_none(c, t);
@@ -437,7 +429,7 @@ void genprim_maybe_methods(compile_t* c, reachable_type_t* t)
   maybe_is_none(c, t);
 }
 
-void genprim_array_trace(compile_t* c, reachable_type_t* t)
+void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
   // Get the type argument for the array. This will be used to generate the
   // per-element trace call.
@@ -468,7 +460,7 @@ void genprim_array_trace(compile_t* c, reachable_type_t* t)
     return;
   }
 
-  reachable_type_t* t_elem = reach_type(c->reachable, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
   pointer = LLVMBuildBitCast(c->builder, pointer,
     LLVMPointerType(t_elem->use_type, 0), "");
 
@@ -509,7 +501,7 @@ void genprim_array_trace(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void platform_freebsd(compile_t* c, reachable_type_t* t)
+static void platform_freebsd(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("freebsd");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -522,7 +514,7 @@ static void platform_freebsd(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_linux(compile_t* c, reachable_type_t* t)
+static void platform_linux(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("linux");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -535,7 +527,7 @@ static void platform_linux(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_osx(compile_t* c, reachable_type_t* t)
+static void platform_osx(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("osx");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -548,7 +540,7 @@ static void platform_osx(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_windows(compile_t* c, reachable_type_t* t)
+static void platform_windows(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("windows");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -561,7 +553,7 @@ static void platform_windows(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_x86(compile_t* c, reachable_type_t* t)
+static void platform_x86(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("x86");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -574,7 +566,7 @@ static void platform_x86(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_arm(compile_t* c, reachable_type_t* t)
+static void platform_arm(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("arm");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -587,7 +579,7 @@ static void platform_arm(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_lp64(compile_t* c, reachable_type_t* t)
+static void platform_lp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("lp64");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -600,7 +592,7 @@ static void platform_lp64(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_llp64(compile_t* c, reachable_type_t* t)
+static void platform_llp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("llp64");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -613,7 +605,7 @@ static void platform_llp64(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_ilp32(compile_t* c, reachable_type_t* t)
+static void platform_ilp32(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("ilp32");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -626,7 +618,7 @@ static void platform_ilp32(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_native128(compile_t* c, reachable_type_t* t)
+static void platform_native128(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("native128");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -639,7 +631,7 @@ static void platform_native128(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void platform_debug(compile_t* c, reachable_type_t* t)
+static void platform_debug(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("debug");
   start_function(c, m, c->i1, &t->use_type, 1);
@@ -651,7 +643,7 @@ static void platform_debug(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-void genprim_platform_methods(compile_t* c, reachable_type_t* t)
+void genprim_platform_methods(compile_t* c, reach_type_t* t)
 {
   platform_freebsd(c, t);
   platform_linux(c, t);
@@ -687,7 +679,7 @@ static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
     return;
   }
 
-  reachable_type_t* t = reach_type_name(c->reachable, from->type_name);
+  reach_type_t* t = reach_type_name(c->reach, from->type_name);
 
   if(t == NULL)
     return;
@@ -831,7 +823,7 @@ static void number_conversions(compile_t* c)
   }
 }
 
-static void f32_from_bits(compile_t* c, reachable_type_t* t)
+static void f32_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits");
 
@@ -846,7 +838,7 @@ static void f32_from_bits(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void f32_bits(compile_t* c, reachable_type_t* t)
+static void f32_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("bits");
   start_function(c, m, c->i32, &c->f32, 1);
@@ -859,7 +851,7 @@ static void f32_bits(compile_t* c, reachable_type_t* t)
   BOX_FUNCTION();
 }
 
-static void f64_from_bits(compile_t* c, reachable_type_t* t)
+static void f64_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits");
 
@@ -874,7 +866,7 @@ static void f64_from_bits(compile_t* c, reachable_type_t* t)
   codegen_finishfun(c);
 }
 
-static void f64_bits(compile_t* c, reachable_type_t* t)
+static void f64_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("bits");
   start_function(c, m, c->i64, &c->f64, 1);
@@ -889,15 +881,15 @@ static void f64_bits(compile_t* c, reachable_type_t* t)
 
 static void fp_as_bits(compile_t* c)
 {
-  reachable_type_t* t;
+  reach_type_t* t;
 
-  if((t = reach_type_name(c->reachable, "F32")) != NULL)
+  if((t = reach_type_name(c->reach, "F32")) != NULL)
   {
     f32_from_bits(c, t);
     f32_bits(c, t);
   }
 
-  if((t = reach_type_name(c->reachable, "F64")) != NULL)
+  if((t = reach_type_name(c->reach, "F64")) != NULL)
   {
     f64_from_bits(c, t);
     f64_bits(c, t);
@@ -992,15 +984,13 @@ void genprim_reachable_init(compile_t* c, ast_t* program)
 
             if(finit != NULL)
             {
-              reach(c->reachable, &c->next_type_id, type, c->str__init, NULL,
-                c->opt);
+              reach(c->reach, type, c->str__init, NULL, c->opt);
               ast_free_unattached(finit);
             }
 
             if(ffinal != NULL)
             {
-              reach(c->reachable, &c->next_type_id, type, c->str__final, NULL,
-                c->opt);
+              reach(c->reach, type, c->str__final, NULL, c->opt);
               ast_free_unattached(ffinal);
             }
 

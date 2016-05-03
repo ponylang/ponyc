@@ -8,6 +8,7 @@ class SSLConnection is TCPConnectionNotify
   let _notify: TCPConnectionNotify
   let _ssl: SSL
   var _connected: Bool = false
+  var _expect: USize = 0
   var _closed: Bool = false
   let _pending: List[ByteSeq] = _pending.create()
 
@@ -64,6 +65,14 @@ class SSLConnection is TCPConnectionNotify
     _ssl.receive(consume data)
     _poll(conn)
 
+  fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
+    """
+    Keep track of the expect count for the wrapped protocol. Always tell the
+    TCPConnection to read all available data.
+    """
+    _expect = _notify.expect(conn, qty)
+    0
+
   fun ref closed(conn: TCPConnection ref) =>
     """
     Forward to the wrapped protocol.
@@ -112,12 +121,18 @@ class SSLConnection is TCPConnectionNotify
 
     try
       while true do
-        _notify.received(conn, _ssl.read())
+        let r = _ssl.read(_expect)
+
+        if r isnt None then
+          _notify.received(conn, (consume r) as Array[U8] iso^)
+        else
+          break
+        end
       end
     end
 
     try
-      while true do
+      while _ssl.can_send() do
         conn.write_final(_ssl.send())
       end
     end

@@ -47,6 +47,7 @@ class CapRights0
     if caps(FileTime) then set(Cap.futimes()) end
     if caps(FileTruncate) then set(Cap.ftruncate()) end
     if caps(FileWrite) then set(Cap.write()) end
+    if caps(FileExec) then set(Cap.fexecve()) end
 
   new descriptor(fd: I32) =>
     """
