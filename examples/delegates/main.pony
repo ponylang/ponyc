@@ -24,21 +24,16 @@ class DroneWombat is ( Drone & Wombat)
     "Beep boop Huzzah!"
 
 actor Main is Wombat
- let d : Wombat delegate Wombat = DroneWombat
- let k : Wombat delegate Wombat = KungFuWombat
+  let wombatness : Wombat delegate Wombat
 
   new create(env : Env) =>
-    let x = Time.nanos() % 4
+    let x = Time.nanos() % 3
 
-    let chosen_wombat = match x
+    wombatness = match x
     | 0 => SimpleWombat
-    | 1 => k
-    | 2 => d
-    else
-      this
+    | 1 => DroneWombat
+    | 2 => KungFuWombat
     end
     env.out.print("Welcome to Wombat Combat!")
-    env.out.print("Battle cry: " + chosen_wombat.battle_call())
+    env.out.print("Battle cry: " + this.battle_call())
 
-  fun box battle_call() : String val =>
-    "Bonzai! Beep boop! Huzzah!"
