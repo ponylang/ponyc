@@ -23,12 +23,18 @@ actor TCPConnection
   var _closed: Bool = false
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
+  var _in_sent: Bool = false
   let _pending: List[(ByteSeq, USize)] = _pending.create()
   var _read_buf: Array[U8] iso
-  var _max_size: USize
+
+  var _next_size: USize
+  let _max_size: USize
+
+  var _read_len: USize = 0
+  var _expect: USize = 0
 
   new create(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64, 
+    host: String, service: String, from: String = "", init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
@@ -36,6 +42,7 @@ actor TCPConnection
     will be made from the specified interface.
     """
     _read_buf = recover Array[U8].undefined(init_size) end
+    _next_size = init_size
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp[U32](this, host.cstring(),
@@ -43,13 +50,14 @@ actor TCPConnection
     _notify_connecting()
 
   new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64, 
+    host: String, service: String, from: String = "", init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
     Connect via IPv4.
     """
     _read_buf = recover Array[U8].undefined(init_size) end
+    _next_size = init_size
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp4[U32](this, host.cstring(),
@@ -57,13 +65,14 @@ actor TCPConnection
     _notify_connecting()
 
   new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64, 
+    host: String, service: String, from: String = "", init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
     Connect via IPv6.
     """
     _read_buf = recover Array[U8].undefined(init_size) end
+    _next_size = init_size
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp6[U32](this, host.cstring(),
@@ -71,7 +80,7 @@ actor TCPConnection
     _notify_connecting()
 
   new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,
-    init_size: USize = 64, max_size: USize = 16384) 
+    init_size: USize = 64, max_size: USize = 16384)
   =>
     """
     A new connection accepted on a server.
@@ -82,20 +91,22 @@ actor TCPConnection
     _fd = fd
     _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
     _connected = true
+    _writeable = true
     _read_buf = recover Array[U8].undefined(init_size) end
+    _next_size = init_size
     _max_size = max_size
 
-    _queue_read()
     _notify.accepted(this)
+    _queue_read()
 
   be write(data: ByteSeq) =>
     """
     Write a single sequence of bytes.
     """
     if not _closed then
-      try
-        write_final(_notify.sent(this, data))
-      end
+      _in_sent = true
+      try write_final(_notify.sent(this, data)) end
+      _in_sent = false
     end
 
   be writev(data: ByteSeqIter) =>
@@ -103,11 +114,11 @@ actor TCPConnection
     Write a sequence of sequences of bytes.
     """
     if not _closed then
+      _in_sent = true
       for bytes in data.values() do
-        try
-          write_final(_notify.sent(this, bytes))
-        end
+        try write_final(_notify.sent(this, bytes)) end
       end
+      _in_sent = false
     end
 
   be set_notify(notify: TCPConnectionNotify iso) =>
@@ -137,6 +148,17 @@ actor TCPConnection
     let ip = recover IPAddress end
     @pony_os_peername[Bool](_fd, ip)
     ip
+
+  fun ref expect(qty: USize = 0) =>
+    """
+    A `received` call on the notifier must contain exactly `qty` bytes. If
+    `qty` is zero, the call can contain any amount of data. This has no effect
+    if called in the `sent` notifier callback.
+    """
+    if not _in_sent then
+      _expect = qty
+      _read_buf_size()
+    end
 
   fun ref set_nodelay(state: Bool) =>
     """
@@ -176,8 +198,8 @@ actor TCPConnection
             _connected = true
             _writeable = true
 
-            _queue_read()
             _notify.connected(this)
+            _queue_read()
 
             // Don't call _complete_writes, as Windows will see this as a
             // closed connection.
@@ -332,8 +354,6 @@ actor TCPConnection
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      var next = _read_buf.space()
-
       match len.usize()
       | 0 =>
         // The socket has been closed from the other side, or a hard close has
@@ -342,24 +362,44 @@ actor TCPConnection
         _shutdown_peer = true
         close()
         return
-      | _read_buf.space() =>
-        next = _max_size.min(next * 2)
+      | _next_size =>
+        _next_size = _max_size.min(_next_size * 2)
       end
 
-      let data = _read_buf = recover Array[U8].undefined(next) end
-      data.truncate(len.usize())
+      _read_len = _read_len + len.usize()
+
+      if _read_len >= _expect then
+        let data = _read_buf = recover Array[U8] end
+        data.truncate(_read_len)
+        _read_len = 0
+
+        _notify.received(this, consume data)
+        _read_buf_size()
+      end
 
       _queue_read()
-      _notify.received(this, consume data)
+    end
+
+  fun ref _read_buf_size() =>
+    """
+    Resize the read buffer.
+    """
+    if _expect != 0 then
+      _read_buf.undefined(_expect)
+    else
+      _read_buf.undefined(_next_size)
     end
 
   fun ref _queue_read() =>
     """
-    Queue an IOCP read on Windows.
+    Begin an IOCP read on Windows.
     """
     ifdef windows then
       try
-        @pony_os_recv[USize](_event, _read_buf.cstring(), _read_buf.space()) ?
+        @pony_os_recv[USize](
+          _event,
+          _read_buf.cstring().usize() + _read_len,
+          _read_buf.space() - _read_len) ?
       else
         _hard_close()
       end
@@ -377,29 +417,36 @@ actor TCPConnection
 
         while _readable and not _shutdown_peer do
           // Read as much data as possible.
-          let len = @pony_os_recv[USize](_event, _read_buf.cstring(),
-            _read_buf.space()) ?
-
-          var next = _read_buf.space()
+          let len = @pony_os_recv[USize](
+            _event,
+            _read_buf.cstring().usize() + _read_len,
+            _read_buf.space() - _read_len) ?
 
           match len
           | 0 =>
             // Would block, try again later.
             _readable = false
             return
-          | _read_buf.space() =>
+          | _next_size =>
             // Increase the read buffer size.
-            next = _max_size.min(next * 2)
+            _next_size = _max_size.min(_next_size * 2)
           end
 
-          let data = _read_buf = recover Array[U8].undefined(next) end
-          data.truncate(len)
-          _notify.received(this, consume data)
+          _read_len = _read_len + len
+
+          if _read_len >= _expect then
+            let data = _read_buf = recover Array[U8] end
+            data.truncate(_read_len)
+            _read_len = 0
+
+            _notify.received(this, consume data)
+            _read_buf_size()
+          end
 
           sum = sum + len
 
-          if sum > (1 << 12) then
-            // If we've read 4 kb, yield and read again later.
+          if sum >= _max_size then
+            // If we've read _max_size, yield and read again later.
             _read_again()
             return
           end

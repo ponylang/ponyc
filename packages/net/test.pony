@@ -7,6 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestBuffer)
     test(_TestBroadcast)
+    test(_TestTCPExpect)
 
 class iso _TestBuffer is UnitTest
   """
@@ -208,4 +209,148 @@ class iso _TestBroadcast is UnitTest
   fun timed_out(t: TestHelper) =>
     try
       (_mgr as _TestBroadcastMgr).fail("timeout")
+    end
+
+class _TestTCPExpectNotify is TCPConnectionNotify
+  let _mgr: _TestTCPExpectMgr
+  let _h: TestHelper
+  let _server: Bool
+  var _expect: USize = 4
+  var _frame: Bool = true
+
+  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper, server: Bool) =>
+    _server = server
+    _mgr = mgr
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    conn.set_nodelay(true)
+    conn.expect(_expect)
+    _send(conn, "hi there")
+
+  fun ref connected(conn: TCPConnection ref) =>
+    conn.set_nodelay(true)
+    conn.expect(_expect)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _mgr.fail("couldn't connect")
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+    if _frame then
+      _frame = false
+      _expect = 0
+
+      for i in data.values() do
+        _expect = (_expect << 8) + i.usize()
+      end
+    else
+      _h.assert_eq[USize](_expect, data.size())
+
+      if _server then
+        _h.assert_eq[String](String.from_array(data), "goodbye")
+        _mgr.succeed()
+      else
+        _h.assert_eq[String](String.from_array(data), "hi there")
+        _send(conn, "goodbye")
+      end
+
+      _frame = true
+      _expect = 4
+    end
+
+    conn.expect(_expect)
+
+  fun ref _send(conn: TCPConnection ref, data: String) =>
+    let len = data.size()
+
+    var buf = recover Array[U8] end
+    buf.push((len >> 24).u8())
+    buf.push((len >> 16).u8())
+    conn.write(consume buf)
+
+    buf = recover Array[U8] end
+    buf.push((len >> 8).u8())
+    buf.push((len >> 0).u8())
+    buf.append(data)
+    conn.write(consume buf)
+
+class _TestTCPExpectListen is TCPListenNotify
+  let _mgr: _TestTCPExpectMgr
+  let _h: TestHelper
+
+  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper) =>
+    _mgr = mgr
+    _h = h
+
+  fun ref listening(listen: TCPListener ref) =>
+    _mgr.listening(listen.local_address())
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    _mgr.fail("not listening")
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    _TestTCPExpectNotify(_mgr, _h, true)
+
+actor _TestTCPExpectMgr
+  let _h: TestHelper
+  var _listen: (TCPListener | None) = None
+  var _connect: (TCPConnection | None) = None
+  var _fail: Bool = false
+
+  new create(h: TestHelper) =>
+    _h = h
+
+    try
+      _listen = TCPListener(h.env.root as AmbientAuth,
+        _TestTCPExpectListen(this, h))
+    else
+      _h.fail("could not create TCP.expect listener")
+      _h.complete(false)
+    end
+
+  be succeed() =>
+    if not _fail then
+      try (_listen as TCPListener).dispose() end
+      try (_connect as TCPConnection).dispose() end
+      _h.complete(true)
+    end
+
+  be fail(msg: String) =>
+    if not _fail then
+      _fail = true
+      try (_listen as TCPListener).dispose() end
+      try (_connect as TCPConnection).dispose() end
+      _h.fail(msg)
+      _h.complete(false)
+    end
+
+  be listening(ip: IPAddress) =>
+    if not _fail then
+      let h = _h
+
+      try
+        (let host, let service) = ip.name()
+        _connect = TCPConnection.ip4(h.env.root as AmbientAuth,
+          _TestTCPExpectNotify(this, h, false), host, service)
+      else
+        _h.fail("could not create TCP.expect connection")
+        _h.complete(false)
+      end
+    end
+
+class iso _TestTCPExpect is UnitTest
+  """
+  Test expecting framed data with TCP.
+  """
+  var _mgr: (_TestTCPExpectMgr | None) = None
+
+  fun name(): String => "net/TCP.expect"
+
+  fun ref apply(h: TestHelper) =>
+    _mgr = _TestTCPExpectMgr(h)
+    h.long_test(2_000_000_000)
+
+  fun timed_out(t: TestHelper) =>
+    try
+      (_mgr as _TestTCPExpectMgr).fail("timeout")
     end
