@@ -52,6 +52,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Persistent package, with List and Map
 - Custom chunk size for Stdin.
 - Itertools package
+- TCPConnection.expect
 
 ### Changed
 

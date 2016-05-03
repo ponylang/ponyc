@@ -23,7 +23,7 @@ class SSL
   var _input: Pointer[_BIO] tag
   var _output: Pointer[_BIO] tag
   var _state: SSLState = SSLHandshake
-  var _last_read: USize = 64
+  var _read_buf: Array[U8] iso = recover Array[U8] end
 
   new _create(ctx: Pointer[_SSLContext] tag, server: Bool, verify: Bool,
     hostname: String = "") ?
@@ -69,35 +69,62 @@ class SSL
     """
     _state
 
-  fun ref read(): Array[U8] iso^ ? =>
+  fun ref read(expect: USize = 0): (Array[U8] iso^ | None) =>
     """
-    Returns unencrypted bytes to be passed to the application. Raises an error
-    if no data is available.
+    Returns unencrypted bytes to be passed to the application. If `expect` is
+    non-zero, the number of bytes returned will be exactly `expect`. If no data
+    (or less than `expect` bytes) is available, this returns None.
     """
-    let pending = @SSL_pending[I32](_ssl)
+    let offset = _read_buf.size()
+
+    var len = if expect > 0 then
+      if offset >= expect then
+        return _read_buf = recover Array[U8] end
+      end
+
+      expect - offset
+    else
+      1024
+    end
+
+    let max = if expect > 0 then expect - offset else USize.max_value() end
+    let pending = @SSL_pending[I32](_ssl).usize()
 
     if pending > 0 then
-      let buf = recover Array[U8].undefined(pending.usize()) end
-      @SSL_read[I32](_ssl, buf.cstring(), pending)
-      buf
+      if expect > 0 then
+        len = len.min(pending)
+      else
+        len = pending
+      end
+
+      _read_buf.undefined(offset + len)
+      @SSL_read[I32](_ssl, _read_buf.cstring().usize() + offset, len.i32())
     else
-      let len = _last_read
-      let buf = recover Array[U8].undefined(len) end
-      let r = @SSL_read[I32](_ssl, buf.cstring(), len.i32())
+      _read_buf.undefined(offset + len)
+      let r = @SSL_read[I32](_ssl, _read_buf.cstring().usize() + offset,
+        len.i32())
 
       if r <= 0 then
         match @SSL_get_error[I32](_ssl, r)
         | 1 | 5 | 6 => _state = SSLError
         end
-        error
-      end
 
-      if r.usize() == _last_read then
-        _last_read = _last_read * 2
+        _read_buf.truncate(offset)
+      else
+        _read_buf.truncate(offset + r.usize())
       end
+    end
 
-      buf.truncate(r.usize())
-      buf
+    let ready = if expect == 0 then
+      _read_buf.size() > 0
+    else
+      _read_buf.size() == expect
+    end
+
+    if ready then
+      _read_buf = recover Array[U8] end
+    else
+      None
     end
 
   fun ref write(data: ByteSeq) ? =>
@@ -130,16 +157,22 @@ class SSL
       end
     end
 
-  fun ref send(): Array[U8] val ? =>
+  fun ref can_send(): Bool =>
+    """
+    Returns true if there are encrypted bytes to be passed to the destination.
+    """
+    @BIO_ctrl_pending[USize](_output) > 0
+
+  fun ref send(): Array[U8] iso^ ? =>
     """
     Returns encrypted bytes to be passed to the destination. Raises an error
     if no data is available.
     """
-    let len = @BIO_ctrl_pending[I32](_output)
+    let len = @BIO_ctrl_pending[USize](_output)
     if len == 0 then error end
 
-    let buf = recover Array[U8].undefined(len.usize()) end
-    @BIO_read[I32](_output, buf.cstring(), len)
+    let buf = recover Array[U8].undefined(len) end
+    @BIO_read[I32](_output, buf.cstring(), buf.size().u32())
     buf
 
   fun ref dispose() =>
