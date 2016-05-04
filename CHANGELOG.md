@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
 - Add -rpath to the link command for library paths
 - Simplify contains() method on HashMap.
+- Lambda captures use the alias of the expression type.
 
 ### Added
 
