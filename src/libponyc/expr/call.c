@@ -292,12 +292,8 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
-      ast_error_frame(&frame, param, "parameter type: %s",
-        ast_print_type(p_type));
-      ast_error_frame(&frame, arg, "argument type: %s", ast_print_type(a_type));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
-
       ast_free_unattached(a_type);
       return false;
     }
@@ -617,7 +613,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(is_typecheck_error(type))
     return false;
 
-  token_id apply_cap = partial_application_cap(opt, type, receiver, positional);
+  token_id apply_cap = partial_application_cap(opt, type, receiver,
+    positional);
   AST_GET_CHILDREN(type, cap, type_params, target_params, result);
 
   token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
