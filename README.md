@@ -23,21 +23,28 @@
 
 ## Using Docker
 
-Want to use the latest revision of Pony source, but don't want to build from source yourself? You can run the `ponylang/ponyc` Docker container, which is created from an automated build at each commit to master.
+Want to use the latest revision of Pony source, but don't want to build from 
+source yourself? You can run the `ponylang/ponyc` Docker container, which is 
+created from an automated build at each commit to master.
 
-You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull the latest `ponylang/ponyc` image using this command:
+You'll need to install Docker using 
+[the instructions here](https://docs.docker.com/engine/installation/). Then you 
+can pull the latest `ponylang/ponyc` image using this command:
 
 ```bash
 docker pull ponylang/ponyc:latest
 ```
 
-Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
+Then you'll be able to run `ponyc` to compile a Pony program in a given 
+directory, running a command like this:
 
 ```bash
 docker run -v /path/to/my-code:/src/main ponylang/ponyc
 ```
 
-Note that if your host doesn't match the docker container, you'll probably have to run the resulting program inside the docker container as well, using a command like this:
+Note that if your host doesn't match the docker container, you'll probably have 
+to run the resulting program inside the docker container as well, using a 
+command like this:
 
 ```bash
 docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
@@ -69,7 +76,8 @@ A live ebuild is also available in the
 
 ### Other distributions
 
-We're transitioning to a new binary release system. For now, please build from source.
+We're transitioning to a new binary release system. For now, please build from 
+source.
 
 ## Windows
 
@@ -80,18 +88,24 @@ You will need to build from source.
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-First, install LLVM using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some specific distributions follow.
+First, install LLVM using your package manager. You may need to install zlib, 
+ncurses, pcre2, and ssl as well. Instructions for some specific distributions 
+follow.
 
-APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the LLVM build server.
+APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the 
+LLVM build server.
 
-Please follow the instructions at http://llvm.org/apt/ for installing the GPG keys and packages for your distribution.
+Please follow the instructions at http://llvm.org/apt/ for installing the GPG 
+keys and packages for your distribution.
 
 #### Notes:
 
 On Ubuntu,
 ```apt-get install llvm-dev``` installs LLVM-3.6.
 
-When installing the full set of LLVM packages, the ```apt-get install``` instructions include the ```clang-modernize``` package. This should be changed to ```clang-tidy``` due to a recent name change.
+When installing the full set of LLVM packages, the ```apt-get install``` 
+instructions include the ```clang-modernize``` package. This should be changed 
+to ```clang-tidy``` due to a recent name change.
 
 
 ### Debian Jessie
