@@ -8,6 +8,7 @@ actor Main is TestList
     test(_TestBuffer)
     test(_TestBroadcast)
     test(_TestTCPExpect)
+    test(_TestTCPWritev)
 
 class iso _TestBuffer is UnitTest
   """
@@ -212,13 +213,13 @@ class iso _TestBroadcast is UnitTest
     end
 
 class _TestTCPExpectNotify is TCPConnectionNotify
-  let _mgr: _TestTCPExpectMgr
+  let _mgr: _TestMgrTCPExpect
   let _h: TestHelper
   let _server: Bool
   var _expect: USize = 4
   var _frame: Bool = true
 
-  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper, server: Bool) =>
+  new iso create(mgr: _TestMgrTCPExpect, h: TestHelper, server: Bool) =>
     _server = server
     _mgr = mgr
     _h = h
@@ -275,10 +276,10 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     conn.write(consume buf)
 
 class _TestTCPExpectListen is TCPListenNotify
-  let _mgr: _TestTCPExpectMgr
+  let _mgr: _TestMgrTCPExpect
   let _h: TestHelper
 
-  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper) =>
+  new iso create(mgr: _TestMgrTCPExpect, h: TestHelper) =>
     _mgr = mgr
     _h = h
 
@@ -291,7 +292,15 @@ class _TestTCPExpectListen is TCPListenNotify
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     _TestTCPExpectNotify(_mgr, _h, true)
 
-actor _TestTCPExpectMgr
+interface tag _TestMgr
+  be succeed()
+  be fail(msg: String)
+
+actor _TestMgrNone is _TestMgr
+  be succeed() => None
+  be fail(msg: String) => None
+
+actor _TestMgrTCPExpect
   let _h: TestHelper
   var _listen: (TCPListener | None) = None
   var _connect: (TCPConnection | None) = None
@@ -342,15 +351,136 @@ class iso _TestTCPExpect is UnitTest
   """
   Test expecting framed data with TCP.
   """
-  var _mgr: (_TestTCPExpectMgr | None) = None
+  var _mgr: _TestMgr = _TestMgrNone
 
   fun name(): String => "net/TCP.expect"
 
   fun ref apply(h: TestHelper) =>
-    _mgr = _TestTCPExpectMgr(h)
+    _mgr = _TestMgrTCPExpect(h)
     h.long_test(2_000_000_000)
 
   fun timed_out(t: TestHelper) =>
-    try
-      (_mgr as _TestTCPExpectMgr).fail("timeout")
+    _mgr.fail("timeout")
+
+actor _TestMgrTCPWritev
+  let _h: TestHelper
+  let _auth: TCPAuth
+  let _disposables: Array[DisposableActor] = _disposables.create()
+  var _disposed: Bool = false
+
+  new create(h: TestHelper, auth: TCPAuth) =>
+    _h = h
+    _auth = auth
+    dispose_later(TCPListener(auth, _listen_notify()))
+
+  be dispose_later(d: DisposableActor) =>
+    if _disposed then
+      d.dispose()
+    else
+      _disposables.push(d)
     end
+
+  be dispose() =>
+    for d in _disposables.values() do d.dispose() end
+    _disposed = true
+
+  be succeed() =>
+    _h.complete(true)
+    dispose()
+
+  be fail(msg: String) =>
+    _h.fail(msg)
+    _h.complete(false)
+    dispose()
+
+  be listening(ip: IPAddress) =>
+    try
+      (let host, let service) = ip.name()
+      let conn = TCPConnection.ip4(_auth, _conn_notify(false), host, service)
+      dispose_later(conn)
+    end
+
+  be assert_streq(expect: String, actual: String) =>
+    _h.assert_eq[String](expect, actual)
+
+  fun tag _listen_notify(): TCPListenNotify iso^ =>
+    object iso is TCPListenNotify
+      let _mgr: _TestMgrTCPWritev = this
+
+      fun ref not_listening(listen: TCPListener ref) =>
+        _mgr.fail("not listening")
+
+      fun ref listening(listen: TCPListener ref) =>
+        _mgr.listening(listen.local_address())
+
+      fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+        _mgr._conn_notify(true)
+    end
+
+  fun tag _conn_notify(server: Bool): TCPConnectionNotify iso^ =>
+    object iso is TCPConnectionNotify
+      let _mgr: _TestMgrTCPWritev = this
+      let _server: Bool = server
+      var _buffer: String iso = recover iso String end
+
+      fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
+        if not _server then
+          _mgr.fail("TCPConnectionNotify.sent invoked on the client side, " +
+                    "when the sentv success should have prevented it.")
+        end
+
+        let data_str = recover trn String.append(data) end
+        if data_str == "ignore me" then error end
+
+        if data_str == "replace me" then return ", hello" end
+
+        _mgr.assert_streq("hello", consume data_str)
+        data
+
+      fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ?=>
+        if _server then error end
+        recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
+
+      fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+        _buffer.append(consume data)
+
+        let expected =
+          if _server
+          then "hello, hello (from client)"
+          else "hello, hello"
+          end
+
+        if _buffer.size() >= expected.size() then
+          let buffer: String = _buffer = recover iso String end
+          _mgr.assert_streq(expected, consume buffer)
+
+          if _server
+          then conn.writev(recover ["hello", "ignore me", "replace me"] end)
+          else _mgr.succeed()
+          end
+        end
+
+      fun ref connected(conn: TCPConnection ref) =>
+        if not _server then
+          conn.writev(recover ["hello", ", hello"] end)
+        end
+
+      fun ref connect_failed(conn: TCPConnection ref) =>
+        _mgr.fail("connect failed")
+    end
+
+class iso _TestTCPWritev is UnitTest
+  """
+  Test writev (and sent/sentv notification).
+  """
+  var _mgr: _TestMgr = _TestMgrNone
+
+  fun name(): String => "net/TCP.writev"
+
+  fun ref apply(h: TestHelper) ? =>
+    let auth = TCPAuth(h.env.root as AmbientAuth)
+    _mgr = _TestMgrTCPWritev(h, auth)
+    h.long_test(2_000_000_000)
+
+  fun timed_out(t: TestHelper) =>
+    _mgr.fail("timeout")

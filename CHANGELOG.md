@@ -54,6 +54,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Custom chunk size for Stdin.
 - Itertools package
 - TCPConnection.expect
+- TCPConnectionNotify.sentv
 
 ### Changed
 
