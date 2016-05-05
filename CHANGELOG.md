@@ -45,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Timeouts for PonyTest long tests.
 - contains() method on HashMap
 - contains() method on HashSet
+- keys(), values(), and pairs() methods on persistent/Map
 - Support for empty sections in ini parsing.
 - --verbose,-V option for compiler informational messages.
 - Logger package
