@@ -14,6 +14,8 @@ actor Main is TestList
   fun tag run_tests(test: PonyTest) =>
     test(_TestListPrepend)
     test(_TestListFrom)
+    test(_TestListApply)
+    test(_TestListValues)
     test(_TestListConcat)
     test(_TestListMap)
     test(_TestListFlatMap)
@@ -38,20 +40,20 @@ class iso _TestListPrepend is UnitTest
     let d = c.prepend(3)
     let e = a.prepend(10)
 
-    h.assert_eq[U64](a.size(), 0)
-    h.assert_eq[U64](b.size(), 1)
-    h.assert_eq[U64](c.size(), 2)
-    h.assert_eq[U64](d.size(), 3)
-    h.assert_eq[U64](e.size(), 1)
+    h.assert_eq[USize](a.size(), 0)
+    h.assert_eq[USize](b.size(), 1)
+    h.assert_eq[USize](c.size(), 2)
+    h.assert_eq[USize](d.size(), 3)
+    h.assert_eq[USize](e.size(), 1)
 
     h.assert_eq[U32](b.head(), 1)
-    h.assert_eq[U64](b.tail().size(), 0)
+    h.assert_eq[USize](b.tail().size(), 0)
     h.assert_eq[U32](c.head(), 2)
-    h.assert_eq[U64](c.tail().size(), 1)
+    h.assert_eq[USize](c.tail().size(), 1)
     h.assert_eq[U32](d.head(), 3)
-    h.assert_eq[U64](d.tail().size(), 2)
+    h.assert_eq[USize](d.tail().size(), 2)
     h.assert_eq[U32](e.head(), 10)
-    h.assert_eq[U64](e.tail().size(), 0)
+    h.assert_eq[USize](e.tail().size(), 0)
 
     true
 
@@ -60,10 +62,40 @@ class iso _TestListFrom is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let l1 = Lists[U32]([1, 2, 3])
-    h.assert_eq[U64](l1.size(), 3)
+    h.assert_eq[USize](l1.size(), 3)
     h.assert_eq[U32](l1.head(), 1)
 
     true
+
+class iso _TestListApply is UnitTest
+  fun name(): String => "collections/persistent/List/apply()"
+
+  fun apply(h: TestHelper) ? =>
+    let l1 = Lists[U32]([1, 2, 3])
+    h.assert_eq[U32](l1(0), 1)
+    h.assert_eq[U32](l1(1), 2)
+    h.assert_eq[U32](l1(2), 3)
+    h.assert_error(lambda()(l1)? => l1(3) end)
+    h.assert_error(lambda()(l1)? => l1(4) end)
+
+    let l2 = Lists[U32].empty()
+    h.assert_error(lambda()(l2)? => l2(0) end)
+
+class iso _TestListValues is UnitTest
+  fun name(): String => "collections/persistent/List/values()"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Lists[U32]([1, 2, 3]).values()
+    h.assert_true(iter.has_next())
+    h.assert_eq[U32](iter.next(), 1)
+    h.assert_true(iter.has_next())
+    h.assert_eq[U32](iter.next(), 2)
+    h.assert_true(iter.has_next())
+    h.assert_eq[U32](iter.next(), 3)
+    h.assert_false(iter.has_next())
+    h.assert_false(try iter.next(); true else false end)
+    h.assert_false(iter.has_next())
+    h.assert_false(try iter.next(); true else false end)
 
 class iso _TestListConcat is UnitTest
   fun name(): String => "collections/persistent/List/concat()"
@@ -73,14 +105,14 @@ class iso _TestListConcat is UnitTest
     let l2 = Lists[U32]([4, 5, 6])
     let l3 = l1.concat(l2)
     let l4 = l3.reverse()
-    h.assert_eq[U64](l3.size(), 6)
+    h.assert_eq[USize](l3.size(), 6)
     h.assert_true(Lists[U32].eq(l3, Lists[U32]([1,2,3,4,5,6])))
     h.assert_true(Lists[U32].eq(l4, Lists[U32]([6,5,4,3,2,1])))
 
     let l5 = Lists[U32].empty()
     let l6 = l5.reverse()
     let l7 = l6.concat(l1)
-    h.assert_eq[U64](l6.size(), 0)
+    h.assert_eq[USize](l6.size(), 0)
     h.assert_true(Lists[U32].eq(l7, Lists[U32]([1,2,3])))
 
     let l8 = Lists[U32]([1])
