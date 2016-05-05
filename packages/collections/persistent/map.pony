@@ -92,7 +92,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     end
 
 type _MapEntry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
-  is (_MapNode[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V] | None)
+  is (_MapNode[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V])
 
 class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let entries: Array[_MapEntry[K, V]] val
@@ -103,9 +103,9 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   new val empty(l: U8) =>
     entries = recover val
       match l
-      | 6 => Array[_MapEntry[K, V]].init(None, 4)
+      | 6 => Array[_MapEntry[K, V]](4)
       else
-        Array[_MapEntry[K, V]].init(None, 32)
+        Array[_MapEntry[K, V]](32)
       end
     end
     nodemap = 0
