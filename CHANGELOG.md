@@ -24,6 +24,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add -rpath to the link command for library paths
 - Simplify contains() method on HashMap.
 - Lambda captures use the alias of the expression type.
+- Trace boxed primitives in union types.
 
 ### Added
 
