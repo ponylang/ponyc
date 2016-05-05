@@ -83,16 +83,32 @@ primitive Lists[A]
       eq[T](l1.tail(), l2.tail())
     end
 
-primitive Nil[A]
+primitive Nil[A] is ReadSeq[val->A]
   """
   The empty list of As.
   """
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     Returns the size of the list.
     """
     0
+
+  fun apply(i: USize): val->A ? =>
+    """
+    Returns the i-th element of the sequence. For the empty list this call will
+    always error because any index will be out of bounds.
+    """
+    error
+
+  fun values(): Iterator[val->A]^ =>
+    """
+    Returns an empty iterator over the elements of the empty list.
+    """
+    object ref is Iterator[val->A]
+      fun has_next(): Bool => false
+      fun ref next(): val->A! ? => error
+    end
 
   fun is_empty(): Bool =>
     """
@@ -187,7 +203,7 @@ primitive Nil[A]
     """
     (this, this)
 
-  fun drop(n: U64): Nil[A] =>
+  fun drop(n: USize): Nil[A] =>
     """
     There are no elements to drop from the empty list.
     """
@@ -199,7 +215,7 @@ primitive Nil[A]
     """
     this
 
-  fun take(n: U64): Nil[A] =>
+  fun take(n: USize): Nil[A] =>
     """
     There are no elements to take from the empty list.
     """
@@ -214,12 +230,12 @@ primitive Nil[A]
   fun val contains[T: (A & HasEq[A!] #read) = A](a: val->T): Bool =>
     false
 
-class val Cons[A]
+class val Cons[A] is ReadSeq[val->A]
   """
   A list with a head and a tail, where the tail can be empty.
   """
 
-  let _size: U64
+  let _size: USize
   let _head: val->A
   let _tail: List[A] val
 
@@ -228,11 +244,30 @@ class val Cons[A]
     _tail = consume t
     _size = 1 + _tail.size()
 
-  fun size(): U64 =>
+  fun size(): USize =>
     """
     Returns the size of the list.
     """
     _size
+
+  fun apply(i: USize): val->A ? =>
+    """
+    Returns the i-th element of the list. Errors if the index is out of bounds.
+    """
+    match i
+    | 0 => _head
+    else   _tail(i - 1)
+    end
+
+  fun values(): Iterator[val->A]^ =>
+    """
+    Returns an iterator over the elements of the list.
+    """
+    object is Iterator[val->A]
+      var _list: List[A] box = this
+      fun has_next(): Bool => _list isnt Nil[A]
+      fun ref next(): val->A! ? => (_list = _list.tail()).head()
+    end
 
   fun is_empty(): Bool =>
     """
@@ -471,7 +506,7 @@ class val Cons[A]
     end
     (hits.reverse(), misses.reverse())
 
-  fun val drop(n: U64): List[A] =>
+  fun val drop(n: USize): List[A] =>
     """
     Builds a list by dropping the first n elements.
     """
@@ -503,7 +538,7 @@ class val Cons[A]
     end
     cur
 
-  fun val take(n: U64): List[A] =>
+  fun val take(n: USize): List[A] =>
     """
     Builds a list of the first n elements.
     """
