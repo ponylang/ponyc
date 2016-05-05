@@ -5,6 +5,7 @@
 #include <platform.h>
 #include "actor/messageq.h"
 #include "gc/gc.h"
+#include "gc/serialise.h"
 #include "mpmcq.h"
 
 PONY_EXTERN_C_BEGIN
@@ -25,6 +26,9 @@ typedef struct pony_ctx_t
   gcstack_t* stack;
   actormap_t acquire;
   bool finalising;
+
+  size_t serialise_size;
+  ponyint_serialise_t serialise;
 
 #ifdef USE_TELEMETRY
   size_t tsc;

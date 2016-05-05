@@ -92,6 +92,19 @@ void pony_release_done(pony_ctx_t* ctx)
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
 
+void ponyint_serialise_size_begin(pony_ctx_t* ctx)
+{
+  assert(ctx->stack == NULL);
+  ctx->trace_object = ponyint_serialise_object_size;
+  ctx->trace_actor = ponyint_serialise_actor_size;
+}
+
+void ponyint_serialise_size_done(pony_ctx_t* ctx)
+{
+  ponyint_gc_handlestack(ctx);
+  ponyint_gc_done(ponyint_actor_gc(ctx->current));
+}
+
 void pony_trace(pony_ctx_t* ctx, void* p)
 {
   ctx->trace_object(ctx, p, NULL, false);
