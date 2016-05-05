@@ -472,6 +472,9 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
   {
     trace_dynamic(c, ctx, object, child, orig, tuple, next_block);
   }
+
+  // No type matched. This may be a boxed primitive: trace it here.
+  trace_tag(c, ctx, object);
 }
 
 static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
