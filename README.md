@@ -85,6 +85,10 @@ You will need to build from source.
 
 # Building ponyc from source
 
+Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not 
+work**. If you are using LLVM 3.7.x, you need to use 3.7.1. If you are 
+using LLVM 3.6.x, make sure to use 3.6.2.
+
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
