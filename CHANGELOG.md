@@ -57,6 +57,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - TCPConnection.expect
 - TCPConnectionNotify.sentv
 - HashMap.get_or_else
+- ponytest TestHelper.expect_action, complete_action, and fail_action
+- ponytest TestHelper.dispose_when_done
 
 ### Changed
 
