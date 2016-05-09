@@ -56,6 +56,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Itertools package
 - TCPConnection.expect
 - TCPConnectionNotify.sentv
+- HashMap.get_or_else
 
 ### Changed
 

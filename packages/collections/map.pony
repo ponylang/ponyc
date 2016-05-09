@@ -119,6 +119,17 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
+  fun get_or_else(key: box->K!, alt: this->V): this->V =>
+    """
+    Get the value associated with provided key if present. Otherwise,
+    return the provided alternate value.
+    """
+    try
+      apply(key)
+    else
+      consume alt
+    end
+
   fun contains(k: box->K!): Bool =>
     """
     Checks whether the map contains the key k
