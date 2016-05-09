@@ -14,6 +14,8 @@ actor _TestRunner
   let _timers: Timers
   let _helper: TestHelper
   var _test_log: Array[String] iso = recover Array[String] end
+  var _expect_actions: Array[String] = Array[String]
+  var _disposables: Array[DisposableActor] = Array[DisposableActor]
   var _pass: Bool = false
   var _fun_finished: Bool = false
   var _is_long_test: Bool = false
@@ -102,9 +104,69 @@ actor _TestRunner
       _timers.cancel(timer)
       _timer = None
     end
-    
+
     _completed = true
     _tear_down()
+
+  be expect_action(name: String) =>
+    """
+    Can be called in a long test to set up expectations for one or more actions
+    that, when all completed, will complete the test.
+
+    This pattern is useful for cases where you have multiple things that need
+    to happen to complete your test, but don't want to have to collect them
+    all yourself into a single actor that calls the complete method.
+    """
+    _log("Action expected: " + name, true)
+    _expect_actions.push(name)
+
+  be complete_action(name: String, success: Bool) =>
+    """
+    MUST be called for each action expectation that was set up in a long test
+    to fulfill the expectations. Any expectations that are still outstanding
+    when the long test timeout runs out will be printed by name when it fails.
+
+    Completing all outstanding actions is enough to finish the test. There's no
+    need to also call the complete method when the actions are finished.
+
+    Calling the complete method will finish the test immediately, without
+    waiting for any outstanding actions to be completed.
+
+    Completing an action with success = false will cause the entire test to
+    fail immediately, without waiting the rest of the outstanding actions.
+    The name of the failed action will be included in the failure output.
+    """
+    if success then
+      _log("Action completed: " + name, true)
+    else
+      _log("Action failed: " + name, false)
+      complete(false)
+      return
+    end
+
+    for (i, action) in _expect_actions.pairs() do
+      if action == name then
+        try _expect_actions.delete(i) end
+        break
+      end
+    end
+
+    if _expect_actions.size() == 0 then
+      complete(true)
+    end
+
+  be dispose_when_done(disposable: DisposableActor) =>
+    """
+    Pass a disposable actor to be disposed of when the test is complete.
+    The actor will be disposed no matter whether the test succeeds or fails.
+
+    If the test is already tearing down, the actor will be disposed immediately.
+    """
+    if _tearing_down then
+      disposable.dispose()
+    else
+      _disposables.push(disposable)
+    end
 
   be _finished() =>
     """
@@ -125,7 +187,7 @@ actor _TestRunner
     """
     _is_long_test = true
     _log("Long test, timeout " + timeout.string(), true)
-    
+
     if _completed then
       // We've already completed, don't start the timer
       return
@@ -139,7 +201,7 @@ actor _TestRunner
       end, timeout)
     _timer = timer
     _timers(consume timer)
-    
+
   be _timeout() =>
     """
     Called when the long test timeout expires.
@@ -150,11 +212,14 @@ actor _TestRunner
     end
 
     _log("Test timed out without completing", false)
+    for action in _expect_actions.values() do
+      _log("Action never completed: " + action, false)
+    end
     _pass = false
     _completed = true
     _test.timed_out(_helper)
     _tear_down()
-    
+
   fun ref _log(msg: String, verbose: Bool) =>
     """
     Write the given message direct to our log.
@@ -172,7 +237,12 @@ actor _TestRunner
       _log("Tearing down test", true)
       _tearing_down = true
       _test.tear_down(_helper)
-      
+
+      // Dispose all collected disposable actors.
+      for disposable in _disposables.values() do
+        disposable.dispose()
+      end
+
       // Send ourselves a message to allow helper messages to reach us first.
       _close()
     end
