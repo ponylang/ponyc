@@ -74,7 +74,7 @@ class Array[A] is Seq[A]
     the array.
     """
     if _alloc < len then
-      _alloc = len.max(8).ponyint_next_pow2()
+      _alloc = len
       _ptr = _ptr._realloc(_alloc)
     end
     this
@@ -85,11 +85,7 @@ class Array[A] is Seq[A]
     Resize to len elements, populating previously empty elements with random
     memory. This is only allowed for an array of numbers.
     """
-    if _alloc < len then
-      _ptr = _ptr._realloc(len)
-    end
-
-    _alloc = len
+    reserve(len)
     _size = len
     this
 
