@@ -5,7 +5,7 @@ primitive U8 is _UnsignedInteger[U8]
   fun tag min_value(): U8 => 0
   fun tag max_value(): U8 => 0xFF
 
-  fun ponyint_next_pow2(): U8 =>
+  fun next_pow2(): U8 =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -35,7 +35,7 @@ primitive U16 is _UnsignedInteger[U16]
   fun tag min_value(): U16 => 0
   fun tag max_value(): U16 => 0xFFFF
 
-  fun ponyint_next_pow2(): U16 =>
+  fun next_pow2(): U16 =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -66,7 +66,7 @@ primitive U32 is _UnsignedInteger[U32]
   fun tag min_value(): U32 => 0
   fun tag max_value(): U32 => 0xFFFF_FFFF
 
-  fun ponyint_next_pow2(): U32 =>
+  fun next_pow2(): U32 =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -98,7 +98,7 @@ primitive U64 is _UnsignedInteger[U64]
   fun tag min_value(): U64 => 0
   fun tag max_value(): U64 => 0xFFFF_FFFF_FFFF_FFFF
 
-  fun ponyint_next_pow2(): U64 =>
+  fun next_pow2(): U64 =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -137,7 +137,7 @@ primitive ULong is _UnsignedInteger[ULong]
       0xFFFF_FFFF_FFFF_FFFF
     end
 
-  fun ponyint_next_pow2(): ULong =>
+  fun next_pow2(): ULong =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -219,7 +219,7 @@ primitive USize is _UnsignedInteger[USize]
       0xFFFF_FFFF_FFFF_FFFF
     end
 
-  fun ponyint_next_pow2(): USize =>
+  fun next_pow2(): USize =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -295,7 +295,7 @@ primitive U128 is _UnsignedInteger[U128]
   fun tag min_value(): U128 => 0
   fun tag max_value(): U128 => 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
-  fun ponyint_next_pow2(): U128 =>
+  fun next_pow2(): U128 =>
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
@@ -315,7 +315,7 @@ primitive U128 is _UnsignedInteger[U128]
   fun min(y: U128): U128 => if this < y then this else y end
   fun max(y: U128): U128 => if this > y then this else y end
   fun hash(): U64 => ((this >> 64).u64() xor this.u64()).hash()
-    
+
   fun string(
     fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
     : String iso^
