@@ -405,7 +405,7 @@ actor TCPConnection
         @pony_os_recv[USize](
           _event,
           _read_buf.cstring().usize() + _read_len,
-          _read_buf.space() - _read_len) ?
+          _read_buf.size() - _read_len) ?
       else
         _hard_close()
       end
@@ -426,7 +426,7 @@ actor TCPConnection
           let len = @pony_os_recv[USize](
             _event,
             _read_buf.cstring().usize() + _read_len,
-            _read_buf.space() - _read_len) ?
+            _read_buf.size() - _read_len) ?
 
           match len
           | 0 =>
