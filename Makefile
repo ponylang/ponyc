@@ -231,7 +231,7 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
-llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
+llvm.include := -I $(shell $(LLVM_CONFIG) --includedir)
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 ifeq ($(OSTYPE), freebsd)
