@@ -271,3 +271,15 @@ LTO is enabled by default on OSX.
 Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for at least the x86_64 platform and possibly others.
 
 Use VirtualBox 5.x to avoid possible problems.
+
+## Building Pony on Non-x86 platforms
+
+On ARM and MIPS platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
+```bash
+$ make arch=armv7
+```
+To get a complete list of acceptable architecture names, use the gcc command:
+```bash
+gcc -march=none
+```
+This will result in an error message plus a listing off all architecture types acceptable on your platform.
