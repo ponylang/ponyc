@@ -59,7 +59,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - HashMap.get_or_else
 - ponytest TestHelper.expect_action, complete_action, and fail_action
 - ponytest TestHelper.dispose_when_done
-- copysign for floating point numbers
+- copysign and infinite for floating point numbers
 
 ### Changed
 

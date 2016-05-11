@@ -86,6 +86,14 @@ primitive F32 is FloatingPoint[F32]
     // True if exponent is not all 1s
     (bits() and 0x7F800000) != 0x7F800000
 
+  fun infinite(): Bool =>
+    """
+    Check whether this number is +/-infinity
+    """
+    // True if exponent is all 1s and mantissa is 0
+    ((bits() and 0x7F800000) == 0x7F800000) and  // exp
+    ((bits() and 0x007FFFFF) == 0)  // mantissa
+
   fun nan(): Bool =>
     """
     Check whether this number is NaN.
@@ -231,6 +239,14 @@ primitive F64 is FloatingPoint[F64]
     """
     // True if exponent is not all 1s
     (bits() and 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
+
+  fun infinite(): Bool =>
+    """
+    Check whether this number is +/-infinity
+    """
+    // True if exponent is all 1s and mantissa is 0
+    ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
+    ((bits() and 0x000F_FFFF_FFFF_FFFF) == 0)  // mantissa
 
   fun nan(): Bool =>
     """
