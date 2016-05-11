@@ -311,6 +311,18 @@ class Array[A] is Seq[A]
 
     error
 
+  fun contains(value: A!, predicate: {(box->A!, box->A!): Bool} val =
+    lambda(l: box->A!, r: box->A!): Bool => l is r end): Bool =>
+    """
+    Returns true if the array contains `value`, false otherwise.
+    """
+    try
+      find(value, 0, 0, predicate)
+      true
+    else
+      false
+    end
+
   fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
       lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?

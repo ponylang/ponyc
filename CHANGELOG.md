@@ -60,6 +60,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - ponytest TestHelper.expect_action, complete_action, and fail_action
 - ponytest TestHelper.dispose_when_done
 - copysign and infinite for floating point numbers
+- contains() method on Array
 
 ### Changed
 
