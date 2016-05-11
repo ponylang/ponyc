@@ -23,6 +23,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Crashing gc bug from using `get` instead of `getorput` in `gc_markactor`.
 - Add -rpath to the link command for library paths
 - Simplify contains() method on HashMap.
+- Lambda captures use the alias of the expression type.
+- Trace boxed primitives in union types.
 
 ### Added
 
@@ -53,6 +55,12 @@ All notable changes to the Pony compiler and standard library will be documented
 - Custom chunk size for Stdin.
 - Itertools package
 - TCPConnection.expect
+- TCPConnectionNotify.sentv
+- HashMap.get_or_else
+- ponytest TestHelper.expect_action, complete_action, and fail_action
+- ponytest TestHelper.dispose_when_done
+- copysign and infinite for floating point numbers
+- contains() method on Array
 
 ### Changed
 

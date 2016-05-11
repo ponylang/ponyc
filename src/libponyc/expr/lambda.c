@@ -4,6 +4,7 @@
 #include "../ast/printbuf.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../type/alias.h"
 #include "../type/sanitise.h"
 #include <assert.h>
 
@@ -49,23 +50,15 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
 
-    type = ast_type(def);
+    type = alias(ast_type(def));
     value = capture_rhs;
-  }
-  else
-  {
-    // Expression capture
-    if(ast_id(type) == TK_NONE)
-    {
-      // No type specified, use type of the captured expression
-      type = ast_type(value);
-    }
-    else
-    {
-      // Type given, infer literals
-      if(!coerce_literals(&value, type, opt))
-        return NULL;
-    }
+  } else if(ast_id(type) == TK_NONE) {
+    // No type specified, use type of the captured expression
+    type = alias(ast_type(value));
+  } else {
+    // Type given, infer literals
+    if(!coerce_literals(&value, type, opt))
+      return NULL;
   }
 
   if(is_typecheck_error(type))

@@ -312,3 +312,52 @@ class val TestHelper
     Once this is called tear_down() may be called at any time.
     """
     _runner.complete(success)
+
+  fun expect_action(name: String) =>
+    """
+    Can be called in a long test to set up expectations for one or more actions
+    that, when all completed, will complete the test.
+
+    This pattern is useful for cases where you have multiple things that need
+    to happen to complete your test, but don't want to have to collect them
+    all yourself into a single actor that calls the complete method.
+
+    The order of calls to expect_action don't matter - the actions may be
+    completed in any other order to complete the test.
+    """
+    _runner.expect_action(name)
+
+  fun complete_action(name: String) =>
+    """
+    MUST be called for each action expectation that was set up in a long test
+    to fulfill the expectations. Any expectations that are still outstanding
+    when the long test timeout runs out will be printed by name when it fails.
+
+    Completing all outstanding actions is enough to finish the test. There's no
+    need to also call the complete method when the actions are finished.
+
+    Calling the complete method will finish the test immediately, without
+    waiting for any outstanding actions to be completed.
+    """
+    _runner.complete_action(name, true)
+
+  fun fail_action(name: String) =>
+    """
+    Call to fail an action, which will also cause the entire test to fail
+    immediately, without waiting the rest of the outstanding actions.
+
+    The name of the failed action will be included in the failure output.
+
+    Usually the action name should be an expected action set up by a call to
+    expect_action, but failing unexpected actions will also fail the test.
+    """
+    _runner.complete_action(name, false)
+
+  fun dispose_when_done(disposable: DisposableActor) =>
+    """
+    Pass a disposable actor to be disposed of when the test is complete.
+    The actor will be disposed no matter whether the test succeeds or fails.
+
+    If the test is already tearing down, the actor will be disposed immediately.
+    """
+    _runner.dispose_when_done(disposable)

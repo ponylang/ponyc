@@ -8,6 +8,7 @@ actor Main is TestList
     test(_TestBuffer)
     test(_TestBroadcast)
     test(_TestTCPExpect)
+    test(_TestTCPWritev)
 
 class iso _TestBuffer is UnitTest
   """
@@ -75,12 +76,10 @@ class iso _TestBuffer is UnitTest
     h.assert_eq[String](b.line(), "hi!")
 
 class _TestPing is UDPNotify
-  let _mgr: _TestBroadcastMgr
   let _h: TestHelper
   let _ip: IPAddress
 
-  new create(mgr: _TestBroadcastMgr, h: TestHelper, ip: IPAddress) =>
-    _mgr = mgr
+  new create(h: TestHelper, ip: IPAddress) =>
     _h = h
 
     _ip = try
@@ -107,120 +106,92 @@ class _TestPing is UDPNotify
       ip
     end
 
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("ping listen")
+
   fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("ping listen")
+
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
 
-  fun ref not_listening(sock: UDPSocket ref) =>
-    _mgr.fail("Ping: not listening")
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress) =>
+    _h.complete_action("ping receive")
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
-  =>
     let s = String.append(consume data)
     _h.assert_eq[String box](s, "pong!")
-    _mgr.succeed()
+    _h.complete(true)
 
 class _TestPong is UDPNotify
-  let _mgr: _TestBroadcastMgr
   let _h: TestHelper
 
-  new create(mgr: _TestBroadcastMgr, h: TestHelper) =>
-    _mgr = mgr
+  new create(h: TestHelper) =>
     _h = h
 
-  fun ref listening(sock: UDPSocket ref) =>
-    sock.set_broadcast(true)
-    _mgr.pong_listening(sock.local_address())
-
   fun ref not_listening(sock: UDPSocket ref) =>
-    _mgr.fail("Pong: not listening")
+    _h.fail_action("pong listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("pong listen")
+
+    sock.set_broadcast(true)
+    let ip = sock.local_address()
+
+    try
+      let auth = _h.env.root as AmbientAuth
+      let h = _h
+      if ip.ip4() then
+        _h.dispose_when_done(
+          UDPSocket.ip4(auth, recover _TestPing(h, ip) end))
+      else
+        _h.dispose_when_done(
+          UDPSocket.ip6(auth, recover _TestPing(h, ip) end))
+      end
+    else
+      _h.fail_action("ping create")
+    end
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
+    _h.complete_action("pong receive")
+
     let s = String.append(consume data)
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
       recover val [[U8('p'), U8('o'), U8('n'), U8('g'), U8('!')]] end,
       from)
 
-actor _TestBroadcastMgr
-  let _h: TestHelper
-  var _pong: (UDPSocket | None) = None
-  var _ping: (UDPSocket | None) = None
-  var _fail: Bool = false
-
-  new create(h: TestHelper) =>
-    _h = h
-
-    try
-      _pong = UDPSocket(h.env.root as AmbientAuth,
-        recover _TestPong(this, h) end)
-    else
-      _h.fail("could not create Pong")
-      _h.complete(false)
-    end
-
-  be succeed() =>
-    if not _fail then
-      try (_pong as UDPSocket).dispose() end
-      try (_ping as UDPSocket).dispose() end
-      _h.complete(true)
-    end
-
-  be fail(msg: String) =>
-    if not _fail then
-      _fail = true
-      try (_pong as UDPSocket).dispose() end
-      try (_ping as UDPSocket).dispose() end
-      _h.fail(msg)
-      _h.complete(false)
-    end
-
-  be pong_listening(ip: IPAddress) =>
-    if not _fail then
-      let h = _h
-
-      try
-        if ip.ip4() then
-          _ping = UDPSocket.ip4(h.env.root as AmbientAuth,
-            recover _TestPing(this, h, ip) end)
-        else
-          _ping = UDPSocket.ip6(h.env.root as AmbientAuth,
-            recover _TestPing(this, h, ip) end)
-        end
-      else
-        _h.fail("could not create Ping")
-        _h.complete(false)
-      end
-    end
-
 class iso _TestBroadcast is UnitTest
   """
   Test broadcasting with UDP.
   """
-  var _mgr: (_TestBroadcastMgr | None) = None
-
   fun name(): String => "net/Broadcast"
 
   fun ref apply(h: TestHelper) =>
-    _mgr = _TestBroadcastMgr(h)
-    h.long_test(2_000_000_000) // 2 second timeout
+    h.expect_action("pong create")
+    h.expect_action("pong listen")
+    h.expect_action("ping create")
+    h.expect_action("ping listen")
+    h.expect_action("pong receive")
+    h.expect_action("ping receive")
 
-  fun timed_out(t: TestHelper) =>
     try
-      (_mgr as _TestBroadcastMgr).fail("timeout")
+      let auth = h.env.root as AmbientAuth
+      h.dispose_when_done(UDPSocket(auth, recover _TestPong(h) end))
+    else
+      h.fail_action("pong create")
     end
 
+    h.long_test(2_000_000_000) // 2 second timeout
+
 class _TestTCPExpectNotify is TCPConnectionNotify
-  let _mgr: _TestTCPExpectMgr
   let _h: TestHelper
   let _server: Bool
   var _expect: USize = 4
   var _frame: Bool = true
 
-  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper, server: Bool) =>
+  new iso create(h: TestHelper, server: Bool) =>
     _server = server
-    _mgr = mgr
     _h = h
 
   fun ref accepted(conn: TCPConnection ref) =>
@@ -228,12 +199,13 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     conn.expect(_expect)
     _send(conn, "hi there")
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect")
+
   fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("client connect")
     conn.set_nodelay(true)
     conn.expect(_expect)
-
-  fun ref connect_failed(conn: TCPConnection ref) =>
-    _mgr.fail("couldn't connect")
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
     if _frame then
@@ -247,9 +219,10 @@ class _TestTCPExpectNotify is TCPConnectionNotify
       _h.assert_eq[USize](_expect, data.size())
 
       if _server then
+        _h.complete_action("server receive")
         _h.assert_eq[String](String.from_array(data), "goodbye")
-        _mgr.succeed()
       else
+        _h.complete_action("client receive")
         _h.assert_eq[String](String.from_array(data), "hi there")
         _send(conn, "goodbye")
       end
@@ -275,82 +248,163 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     conn.write(consume buf)
 
 class _TestTCPExpectListen is TCPListenNotify
-  let _mgr: _TestTCPExpectMgr
   let _h: TestHelper
 
-  new iso create(mgr: _TestTCPExpectMgr, h: TestHelper) =>
-    _mgr = mgr
+  new iso create(h: TestHelper) =>
     _h = h
-
-  fun ref listening(listen: TCPListener ref) =>
-    _mgr.listening(listen.local_address())
 
   fun ref not_listening(listen: TCPListener ref) =>
-    _mgr.fail("not listening")
+    _h.fail_action("server listen")
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    _TestTCPExpectNotify(_mgr, _h, true)
+  fun ref listening(listen: TCPListener ref) =>
+    _h.complete_action("server listen")
 
-actor _TestTCPExpectMgr
-  let _h: TestHelper
-  var _listen: (TCPListener | None) = None
-  var _connect: (TCPConnection | None) = None
-  var _fail: Bool = false
-
-  new create(h: TestHelper) =>
-    _h = h
+    let h = _h
+    let ip = listen.local_address()
 
     try
-      _listen = TCPListener(h.env.root as AmbientAuth,
-        _TestTCPExpectListen(this, h))
+      let auth = h.env.root as AmbientAuth
+      (let host, let service) = ip.name()
+      _h.dispose_when_done(TCPConnection.ip4(auth,
+        _TestTCPExpectNotify(h, false), host, service))
+      _h.complete_action("client create")
     else
-      _h.fail("could not create TCP.expect listener")
-      _h.complete(false)
+      _h.fail_action("client create")
     end
 
-  be succeed() =>
-    if not _fail then
-      try (_listen as TCPListener).dispose() end
-      try (_connect as TCPConnection).dispose() end
-      _h.complete(true)
-    end
-
-  be fail(msg: String) =>
-    if not _fail then
-      _fail = true
-      try (_listen as TCPListener).dispose() end
-      try (_connect as TCPConnection).dispose() end
-      _h.fail(msg)
-      _h.complete(false)
-    end
-
-  be listening(ip: IPAddress) =>
-    if not _fail then
-      let h = _h
-
-      try
-        (let host, let service) = ip.name()
-        _connect = TCPConnection.ip4(h.env.root as AmbientAuth,
-          _TestTCPExpectNotify(this, h, false), host, service)
-      else
-        _h.fail("could not create TCP.expect connection")
-        _h.complete(false)
-      end
-    end
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    _h.complete_action("server accept")
+    _TestTCPExpectNotify(_h, true)
 
 class iso _TestTCPExpect is UnitTest
   """
   Test expecting framed data with TCP.
   """
-  var _mgr: (_TestTCPExpectMgr | None) = None
-
   fun name(): String => "net/TCP.expect"
 
   fun ref apply(h: TestHelper) =>
-    _mgr = _TestTCPExpectMgr(h)
+    h.expect_action("server create")
+    h.expect_action("server listen")
+    h.expect_action("client create")
+    h.expect_action("client connect")
+    h.expect_action("server accept")
+    h.expect_action("client receive")
+    h.expect_action("server receive")
+
+    try
+      let auth = h.env.root as AmbientAuth
+      h.dispose_when_done(TCPListener(auth, _TestTCPExpectListen(h)))
+      h.complete_action("server create")
+    else
+      h.fail_action("server create")
+    end
+
     h.long_test(2_000_000_000)
 
-  fun timed_out(t: TestHelper) =>
+class _TestTCPWritevListenNotify is TCPListenNotify
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    _h.fail_action("server listen")
+
+  fun ref listening(listen: TCPListener ref) =>
+    _h.complete_action("server listen")
+
+    let ip = listen.local_address()
+
     try
-      (_mgr as _TestTCPExpectMgr).fail("timeout")
+      let auth = _h.env.root as AmbientAuth
+      (let host, let service) = ip.name()
+      _h.dispose_when_done(
+        TCPConnection.ip4(auth, _TestTCPWritevNotify(_h, false), host, service))
+      _h.complete_action("client create")
+    else
+      _h.fail_action("client create")
     end
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    _h.complete_action("server accept")
+    _TestTCPWritevNotify(_h, true)
+
+class _TestTCPWritevNotify is TCPConnectionNotify
+  let _h: TestHelper
+  let _server: Bool
+  var _buffer: String iso = recover iso String end
+
+  new iso create(h: TestHelper, server: Bool) =>
+    _h = h
+    _server = server
+
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
+    if not _server then
+      _h.fail("TCPConnectionNotify.sent invoked on the client side, " +
+              "when the sentv success should have prevented it.")
+    end
+
+    let data_str = recover trn String.append(data) end
+    if data_str == "ignore me" then error end
+
+    if data_str == "replace me" then return ", hello" end
+
+    _h.assert_eq[String]("hello", consume data_str)
+    data
+
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ?=>
+    if _server then error end
+    recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    _buffer.append(consume data)
+
+    let expected =
+      if _server
+      then "hello, hello (from client)"
+      else "hello, hello"
+      end
+
+    if _buffer.size() >= expected.size() then
+      let buffer: String = _buffer = recover iso String end
+      _h.assert_eq[String](expected, consume buffer)
+
+      if _server then
+        _h.complete_action("server receive")
+        conn.writev(recover ["hello", "ignore me", "replace me"] end)
+      else
+        _h.complete_action("client receive")
+      end
+    end
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect")
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("client connect")
+    conn.writev(recover ["hello", ", hello"] end)
+
+class iso _TestTCPWritev is UnitTest
+  """
+  Test writev (and sent/sentv notification).
+  """
+  fun name(): String => "net/TCP.writev"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("server create")
+    h.expect_action("server listen")
+    h.expect_action("client create")
+    h.expect_action("client connect")
+    h.expect_action("server accept")
+    h.expect_action("client receive")
+    h.expect_action("server receive")
+
+    try
+      let auth = h.env.root as AmbientAuth
+      h.dispose_when_done(TCPListener(auth, _TestTCPWritevListenNotify(h)))
+      h.complete_action("server create")
+    else
+      h.fail_action("server create")
+    end
+
+    h.long_test(2_000_000_000)

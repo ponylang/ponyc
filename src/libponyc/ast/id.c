@@ -37,16 +37,28 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
 
   if((spec & START_LOWER) != 0 && (*name < 'a' || *name > 'z'))
   {
-    ast_error(opt->check.errors, id_node,
-      "%s name \"%s\" must start a-z or _(a-z)", desc, ast_name(id_node));
-    return false;
+    if ((spec & ALLOW_LEADING_UNDERSCORE) == 0) {
+      ast_error(opt->check.errors, id_node,
+        "%s name \"%s\" must start a-z", desc, ast_name(id_node));
+      return false;
+    } else {
+      ast_error(opt->check.errors, id_node,
+        "%s name \"%s\" must start a-z or _(a-z)", desc, ast_name(id_node));
+      return false;
+    }
   }
 
   if((spec & START_UPPER) != 0 && (*name < 'A' || *name > 'Z'))
   {
-    ast_error(opt->check.errors, id_node,
-      "%s name \"%s\" must start A-Z or _(A-Z)", desc, ast_name(id_node));
-    return false;
+    if ((spec & ALLOW_LEADING_UNDERSCORE) == 0) {
+      ast_error(opt->check.errors, id_node,
+        "%s name \"%s\" must start A-Z", desc, ast_name(id_node));
+      return false;
+    } else {
+      ast_error(opt->check.errors, id_node,
+        "%s name \"%s\" must start A-Z or _(A-Z)", desc, ast_name(id_node));
+      return false;
+    }
   }
 
   // Check each character looking for ticks and underscores

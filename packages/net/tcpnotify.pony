@@ -46,6 +46,15 @@ interface TCPConnectionNotify
     """
     data
 
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ? =>
+    """
+    Called when multiple chunks of data are sent to the connection in a single
+    call. This gives the notifier an opportunity to modify the sent data chunks
+    before they are written. The notifier can raise an error to defer to using
+    multiple calls of the sent method instead of one call to this one.
+    """
+    error
+
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
     Called when new data is received on the connection.

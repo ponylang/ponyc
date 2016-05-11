@@ -86,6 +86,14 @@ primitive F32 is FloatingPoint[F32]
     // True if exponent is not all 1s
     (bits() and 0x7F800000) != 0x7F800000
 
+  fun infinite(): Bool =>
+    """
+    Check whether this number is +/-infinity
+    """
+    // True if exponent is all 1s and mantissa is 0
+    ((bits() and 0x7F800000) == 0x7F800000) and  // exp
+    ((bits() and 0x007FFFFF) == 0)  // mantissa
+
   fun nan(): Bool =>
     """
     Check whether this number is NaN.
@@ -136,6 +144,8 @@ primitive F32 is FloatingPoint[F32]
   fun acosh(): F32 => @acoshf[F32](this)
   fun asinh(): F32 => @asinhf[F32](this)
   fun atanh(): F32 => @atanhf[F32](this)
+
+  fun copysign(sign: F32): F32 => @"llvm.copysign.f32"[F32](this, sign)
 
   fun hash(): U64 => bits().hash()
 
@@ -230,6 +240,14 @@ primitive F64 is FloatingPoint[F64]
     // True if exponent is not all 1s
     (bits() and 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
 
+  fun infinite(): Bool =>
+    """
+    Check whether this number is +/-infinity
+    """
+    // True if exponent is all 1s and mantissa is 0
+    ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
+    ((bits() and 0x000F_FFFF_FFFF_FFFF) == 0)  // mantissa
+
   fun nan(): Bool =>
     """
     Check whether this number is NaN.
@@ -280,6 +298,8 @@ primitive F64 is FloatingPoint[F64]
   fun acosh(): F64 => @acosh[F64](this)
   fun asinh(): F64 => @asinh[F64](this)
   fun atanh(): F64 => @atanh[F64](this)
+
+  fun copysign(sign: F64): F64 => @"llvm.copysign.f64"[F64](this, sign)
 
   fun hash(): U64 => bits().hash()
 

@@ -115,8 +115,14 @@ actor TCPConnection
     """
     if not _closed then
       _in_sent = true
-      for bytes in data.values() do
-        try write_final(_notify.sent(this, bytes)) end
+      try
+        for bytes in _notify.sentv(this, data).values() do
+          write_final(bytes)
+        end
+      else
+        for bytes in data.values() do
+          try write_final(_notify.sent(this, bytes)) end
+        end
       end
       _in_sent = false
     end

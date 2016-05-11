@@ -105,6 +105,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun trunc(): A
 
   fun finite(): Bool
+  fun infinite(): Bool
   fun nan(): Bool
 
   fun ldexp(x: A, exponent: I32): A
@@ -138,6 +139,8 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun acosh(): A
   fun asinh(): A
   fun atanh(): A
+
+  fun copysign(sign: A): A
 
   fun string(
     fmt: FormatSettings[FormatFloat, PrefixNumber] = FormatDefaultNumber)
