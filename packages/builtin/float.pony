@@ -137,6 +137,8 @@ primitive F32 is FloatingPoint[F32]
   fun asinh(): F32 => @asinhf[F32](this)
   fun atanh(): F32 => @atanhf[F32](this)
 
+  fun copysign(sign: F32): F32 => @"llvm.copysign.f32"[F32](this, sign)
+
   fun hash(): U64 => bits().hash()
 
   fun i128(): I128 => f64().i128()
@@ -280,6 +282,8 @@ primitive F64 is FloatingPoint[F64]
   fun acosh(): F64 => @acosh[F64](this)
   fun asinh(): F64 => @asinh[F64](this)
   fun atanh(): F64 => @atanh[F64](this)
+
+  fun copysign(sign: F64): F64 => @"llvm.copysign.f64"[F64](this, sign)
 
   fun hash(): U64 => bits().hash()
 

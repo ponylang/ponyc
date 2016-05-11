@@ -139,6 +139,8 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun asinh(): A
   fun atanh(): A
 
+  fun copysign(sign: A): A
+
   fun string(
     fmt: FormatSettings[FormatFloat, PrefixNumber] = FormatDefaultNumber)
     : String iso^
