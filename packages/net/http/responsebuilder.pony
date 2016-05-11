@@ -5,7 +5,7 @@ class _ResponseBuilder is TCPConnectionNotify
   This builds a response payload using received chunks of data.
   """
   let _client: _ClientConnection
-  let _buffer: Buffer = Buffer
+  let _buffer: ReadBuffer = ReadBuffer
   let _builder: _PayloadBuilder = _PayloadBuilder.response()
 
   new iso create(client: _ClientConnection) =>
