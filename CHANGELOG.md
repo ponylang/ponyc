@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Simplify contains() method on HashMap.
 - Lambda captures use the alias of the expression type.
 - Trace boxed primitives in union types.
+- Use -isystem for LLVM include directory only if it is not in search path.
 
 ### Added
 
