@@ -55,6 +55,17 @@ static void recv_local_actor(gc_t* gc)
   }
 }
 
+static void acquire_local_actor(gc_t* gc)
+{
+  gc->rc++;
+}
+
+static void release_local_actor(gc_t* gc)
+{
+  assert(gc->rc > 0);
+  gc->rc--;
+}
+
 static void send_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
 {
   if(aref->mark == gc->mark)
@@ -103,6 +114,12 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   }
 
   ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+}
+
+static void acq_or_rel_remote_actor(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
+  aref->rc += 1;
 }
 
 static void send_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
@@ -168,6 +185,51 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     // later marked with a recurse function, it will recurse.
     ponyint_heap_mark_shallow(chunk, p);
   }
+}
+
+static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
+{
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
+
+  if(obj->mark == gc->mark)
+    return;
+
+  // Implicitly acquire the owner.
+  acquire_local_actor(gc);
+
+  obj->rc++;
+  obj->mark = gc->mark;
+  
+  if(immutable)
+    obj->immutable = true;
+
+  if(!obj->immutable)
+    recurse(ctx, p, f);
+}
+
+static void release_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
+{
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  object_t* obj = ponyint_objectmap_getobject(&gc->local, p);
+  assert(obj != NULL);
+
+  if(obj->mark == gc->mark)
+    return;
+
+  // Implicitly release the owner.
+  release_local_actor(gc);
+
+  obj->rc--;
+  obj->mark = gc->mark;
+  
+  if(immutable)
+    obj->immutable = true;
+
+  if(!obj->immutable)
+    recurse(ctx, p, f);
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -297,6 +359,28 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     recurse(ctx, p, f);
 }
 
+static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
+  void* p, pony_trace_fn f, bool immutable)
+{
+  gc_t* gc = ponyint_actor_gc(ctx->current);
+  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
+  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
+
+  if(obj->mark == gc->mark)
+    return;
+
+  // Implicitly acquire/release the owner.
+  acq_or_rel_remote_actor(ctx, actor);
+
+  obj->rc++;
+  obj->mark = gc->mark;
+
+  if(immutable)
+    obj->immutable = true;
+  if(!obj->immutable)
+    recurse(ctx, p, f);
+}
+
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   bool immutable)
 {
@@ -357,6 +441,47 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
     mark_remote_object(ctx, actor, p, f, immutable, chunk);
 }
 
+void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
+{
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+
+  // Don't gc memory that wasn't pony_allocated, but do recurse.
+  if(chunk == NULL)
+  {
+    recurse(ctx, p, f);
+    return;
+  }
+
+  pony_actor_t* actor = ponyint_heap_owner(chunk);
+
+  if(actor == ctx->current)
+    acquire_local_object(ctx, p, f, immutable);
+  else
+    acq_or_rel_remote_object(ctx, actor, p, f, immutable);
+}
+
+void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+  bool immutable)
+{
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+
+  // Don't gc memory that wasn't pony_allocated, but do recurse.
+  if(chunk == NULL)
+  {
+    recurse(ctx, p, f);
+    return;
+  }
+
+  pony_actor_t* actor = ponyint_heap_owner(chunk);
+
+  if(actor == ctx->current)
+    release_local_object(ctx, p, f, immutable);
+  else
+    acq_or_rel_remote_object(ctx, actor, p, f, immutable);
+
+}
+
 void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
@@ -393,6 +518,22 @@ void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   mark_remote_actor(ctx, gc, aref);
+}
+
+void ponyint_gc_acquireactor(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(actor == ctx->current)
+    acquire_local_actor(ponyint_actor_gc(ctx->current));
+  else
+    acq_or_rel_remote_actor(ctx, actor);
+}
+
+void ponyint_gc_releaseactor(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(actor == ctx->current)
+    release_local_actor(ponyint_actor_gc(ctx->current));
+  else
+    acq_or_rel_remote_actor(ctx, actor);
 }
 
 void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
@@ -534,6 +675,21 @@ void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
 {
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
+}
+
+void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
+{
+  size_t i = HASHMAP_BEGIN;
+  actorref_t* aref;
+
+  while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
+  {
+    ponyint_actormap_removeindex(&ctx->acquire, i);
+    pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
+  }
+
+  ponyint_actormap_destroy(&ctx->acquire);
+  memset(&ctx->acquire, 0, sizeof(actormap_t));
 }
 
 void ponyint_gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
