@@ -140,6 +140,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       match e
       | let sn: _MapNode[K, V] => tot = tot + sn.size()
       | let l: _Leaf[K, V] => tot = tot + 1
+      | let cn: Array[_Leaf[K, V]] val => tot = tot + cn.size()
       end
     end
     tot
