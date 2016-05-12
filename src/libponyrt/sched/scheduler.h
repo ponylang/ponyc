@@ -10,7 +10,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_trace_fn f,
+typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
   bool immutable);
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);

@@ -398,14 +398,13 @@ void gendesc_init(compile_t* c, reach_type_t* t)
 
   // Initialise the global descriptor.
   uint32_t event_notify_index = reach_vtable_index(t, c->str__event_notify);
-  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, t->structure);
   uint32_t trait_count = 0;
   LLVMValueRef trait_list = make_trait_list(c, t, &trait_count);
 
   LLVMValueRef args[DESC_LENGTH];
 
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
-  args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
+  args[DESC_SIZE] = LLVMConstInt(c->i32, t->abi_size, false);
   args[DESC_TRAIT_COUNT] = LLVMConstInt(c->i32, trait_count, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);

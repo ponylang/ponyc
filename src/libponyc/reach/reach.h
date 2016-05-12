@@ -80,6 +80,7 @@ struct reach_type_t
   reach_method_names_t methods;
   reach_type_cache_t subtypes;
   uint32_t type_id;
+  size_t abi_size;
   uint32_t vtable_size;
 
   LLVMTypeRef structure;
@@ -91,6 +92,7 @@ struct reach_type_t
   LLVMValueRef desc;
   LLVMValueRef instance;
   LLVMValueRef trace_fn;
+  LLVMValueRef serialise_size_fn;
   LLVMValueRef serialise_fn;
   LLVMValueRef deserialise_fn;
   LLVMValueRef final_fn;

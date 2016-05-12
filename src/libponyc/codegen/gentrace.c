@@ -411,24 +411,14 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 {
   reach_type_t* t = reach_type(c->reach, type);
 
-  // If this type has no trace function, don't try to recurse in the runtime.
-  if(t->trace_fn != NULL)
-  {
-    // Cast the object to an object pointer.
-    LLVMValueRef args[4];
-    args[0] = ctx;
-    args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
-    args[2] = t->trace_fn;
-    args[3] = LLVMConstInt(c->i32, immutable, false);
+  // Cast the object to an object pointer.
+  LLVMValueRef args[4];
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
+  args[2] = t->desc;
+  args[3] = LLVMConstInt(c->i32, immutable, false);
 
-    gencall_runtime(c, "pony_traceobject", args, 4, "");
-  } else {
-    // Cast the object to a void pointer.
-    LLVMValueRef args[2];
-    args[0] = ctx;
-    args[1] = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
-    gencall_runtime(c, "pony_trace", args, 2, "");
-  }
+  gencall_runtime(c, "pony_traceobject", args, 4, "");
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
@@ -745,8 +735,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
   if(!need_trace)
     return;
 
-  const char* trace_name = genname_trace(t->name);
-  t->trace_fn = codegen_addfun(c, trace_name, c->trace_type);
+  t->trace_fn = codegen_addfun(c, genname_trace(t->name), c->trace_type);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)

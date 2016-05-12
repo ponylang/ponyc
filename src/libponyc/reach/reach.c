@@ -1082,9 +1082,12 @@ void reach_dump(reach_t* r)
 
   while((t = reach_types_next(&r->types, &i)) != NULL)
   {
-    printf("  %s: %s, %d\n", t->name, t->mangle, t->vtable_size);
+    printf("  %d: %s, %s\n", t->type_id, t->name, t->mangle);
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
+
+    printf("    size: " __zu "\n", t->abi_size);
+    printf("    vtable: %d\n", t->vtable_size);
 
     while((n = reach_method_names_next(&t->methods, &j)) != NULL)
     {
@@ -1092,7 +1095,7 @@ void reach_dump(reach_t* r)
       reach_method_t* m;
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
-        printf("    %s: %d\n", m->mangled_name, m->vtable_index);
+        printf("      %d: %s\n", m->vtable_index, m->mangled_name);
     }
 
     j = HASHMAP_BEGIN;

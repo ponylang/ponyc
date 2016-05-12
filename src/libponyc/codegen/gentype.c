@@ -5,6 +5,7 @@
 #include "gentrace.h"
 #include "genfun.h"
 #include "genopt.h"
+#include "genserialise.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
@@ -298,7 +299,11 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
       if(t->primitive != NULL)
+      {
+        // The ABI size for machine words and tuples is the boxed size.
+        t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
         return true;
+      }
 
       extra = 1;
       type = t->structure;
@@ -346,6 +351,10 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
   LLVMStructSetBody(type, elements, t->field_count + extra, false);
   ponyint_pool_free_size(buf_size, elements);
+
+  // The ABI size for machine words and tuples is the boxed size.
+  t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
+
   return true;
 }
 
@@ -518,7 +527,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     }
   }
 
-  // Generate the trace functions.
+  // Generate the trace function.
   codegen_startfun(c, t->trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
 
@@ -527,7 +536,6 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "object");
 
-  // If we don't ever trace anything, delete this function.
   int extra = 0;
 
   // Non-structs have a type descriptor.
@@ -628,6 +636,10 @@ bool gentypes(compile_t* c)
   {
     if(!make_trace(c, t))
       return false;
+
+    // TODO:
+    // if(!genserialise(c, t))
+    //   return false;
 
     gendesc_init(c, t);
   }

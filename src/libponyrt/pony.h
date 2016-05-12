@@ -276,7 +276,7 @@ void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p);
  * @param p The pointer being traced.
  * @param f The trace function for the object pointed to.
  */
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, int immutable);
+void pony_traceobject(pony_ctx_t* ctx, void* p, pony_type_t* t, int immutable);
 
 /** Trace unknown.
  *
