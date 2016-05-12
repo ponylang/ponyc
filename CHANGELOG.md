@@ -62,6 +62,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - copysign and infinite for floating point numbers
 - contains() method on Array
 - GC tracing with acquire/release semantics.
+- pony_alloc_msg_size runtime function
 
 ### Changed
 

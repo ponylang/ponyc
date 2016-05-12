@@ -24,7 +24,7 @@ static size_t messageq_size_debug(messageq_t* q)
 void ponyint_messageq_init(messageq_t* q)
 {
   pony_msg_t* stub = POOL_ALLOC(pony_msg_t);
-  stub->size = POOL_INDEX(sizeof(pony_msg_t));
+  stub->index = POOL_INDEX(sizeof(pony_msg_t));
   stub->next = NULL;
 
   q->head = (pony_msg_t*)((uintptr_t)stub | 1);
@@ -40,7 +40,7 @@ void ponyint_messageq_destroy(messageq_t* q)
   pony_msg_t* tail = q->tail;
   assert(((uintptr_t)q->head & ~(uintptr_t)1) == (uintptr_t)tail);
 
-  ponyint_pool_free(tail->size, tail);
+  ponyint_pool_free(tail->index, tail);
   q->head = NULL;
   q->tail = NULL;
 }
@@ -67,7 +67,7 @@ pony_msg_t* ponyint_messageq_pop(messageq_t* q)
   if(next != NULL)
   {
     q->tail = next;
-    ponyint_pool_free(tail->size, tail);
+    ponyint_pool_free(tail->index, tail);
   }
 
   return next;
