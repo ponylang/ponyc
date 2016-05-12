@@ -307,8 +307,8 @@ class iso _TestMapVsMap is UnitTest
     let kvs = Array[(String,U64)]()
     let dice = Dice(MT)
     var count: USize = 0
-    let iterations: USize = 100000
-    let keys: U64 = 10000
+    let iterations: USize = 200000
+    let keys: U64 = 200000
 
     while(count < iterations) do
       let k0 = dice(1,keys).string()
@@ -333,6 +333,8 @@ class iso _TestMapVsMap is UnitTest
       h.assert_eq[Bool](_H.equal_map_u64_values(pmv, mmv), true)
       count = count + 1
     end
+
+    h.assert_eq[USize](m_map.size(), p_map.size())
 
     true
 
