@@ -63,7 +63,7 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
 /** Serialise function.
  *
- * Each type may supply a trace function. It is invoked with the currently
+ * Each type may supply a serialise function. It is invoked with the currently
  * executing context, the object being serialised, and an address to serialise
  * to.
  */
@@ -93,6 +93,7 @@ typedef const struct _pony_type_t
   uint32_t field_count;
   uint32_t field_offset;
   pony_trace_fn trace;
+  pony_trace_fn serialise_trace;
   pony_serialise_fn serialise;
   pony_trace_fn deserialise;
   pony_dispatch_fn dispatch;

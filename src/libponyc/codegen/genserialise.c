@@ -1,5 +1,7 @@
-#include "codegen.h"
+#include "genserialise.h"
+#include "genprim.h"
 #include "genname.h"
+#include "gencall.h"
 
 static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   LLVMValueRef object, LLVMValueRef offset)
@@ -13,11 +15,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_CLASS:
     case TK_ACTOR:
     {
-      // Write the type id instead of the descriptor.
-      LLVMValueRef type_id = LLVMConstInt(c->intptr, t->type_id, false);
-      LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
-        LLVMPointerType(c->intptr, 0), "");
-      LLVMBuildStore(c->builder, type_id, loc);
+      genserialise_typeid(c, t, offset);
       extra++;
       break;
     }
@@ -60,16 +58,27 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
         LLVMPointerType(t_field->primitive, 0), "");
       LLVMBuildStore(c->builder, value, loc);
     } else {
-      // TODO: pointer
-      // lookup the pointer and get the offset, write that
+      // Lookup the pointer and get the offset, write that.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      (void)value;
+
+      LLVMValueRef args[3];
+      args[0] = ctx;
+      args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
+      LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
+        args, 2, "");
+
+      LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, f_offset,
+        LLVMPointerType(c->intptr, 0), "");
+      LLVMBuildStore(c->builder, object_offset, loc);
     }
   }
 }
 
 static void make_serialise(compile_t* c, reach_type_t* t)
 {
+  // Use the trace function as the serialise_trace function.
+  t->serialise_trace_fn = t->trace_fn;
+
   // Generate the serialise function.
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type);
@@ -89,6 +98,15 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
+}
+
+void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
+{
+  // Write the type id instead of the descriptor.
+  LLVMValueRef value = LLVMConstInt(c->intptr, t->type_id, false);
+  LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
+    LLVMPointerType(c->intptr, 0), "");
+  LLVMBuildStore(c->builder, value, loc);
 }
 
 bool genserialise(compile_t* c, reach_type_t* t)
@@ -113,7 +131,6 @@ bool genserialise(compile_t* c, reach_type_t* t)
       if(package == c->str_builtin)
       {
         // Don't serialise MaybePointer[A]
-        // TODO: could do this by checking for null
         if(name == c->str_Maybe)
           return true;
 
@@ -135,15 +152,15 @@ bool genserialise(compile_t* c, reach_type_t* t)
       {
         if(name == c->str_Array)
         {
-          // TODO:
-          // genprim_array_serialise(c, t);
+          genprim_array_serialise_trace(c, t);
+          genprim_array_serialise(c, t);
           return true;
         }
 
         if(name == c->str_String)
         {
-          // TODO:
-          // genprim_string_serialise(c, t);
+          genprim_string_serialise_trace(c, t);
+          genprim_string_serialise(c, t);
           return true;
         }
       }

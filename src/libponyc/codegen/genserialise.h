@@ -6,6 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
+
 bool genserialise(compile_t* c, reach_type_t* t);
 
 PONY_EXTERN_C_END

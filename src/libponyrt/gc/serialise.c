@@ -1,6 +1,7 @@
 #include "serialise.h"
 #include "../sched/scheduler.h"
 #include "../actor/actor.h"
+#include "../lang/lang.h"
 #include <assert.h>
 
 typedef struct
@@ -8,7 +9,7 @@ typedef struct
   pony_type_t* t;
   size_t size;
   size_t alloc;
-  void* ptr;
+  char* ptr;
 } ponyint_array_t;
 
 struct serialise_t
@@ -51,7 +52,9 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
 {
   if(t->serialise == NULL)
   {
-    // TODO: actor, MaybePointer[A] or Pointer[A], raise an error?
+    // A type without a serialisation function raises an error.
+    // This applies to Pointer[A] and MaybePointer[A].
+    pony_throw();
     return;
   }
 
@@ -71,26 +74,38 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   ctx->serialise_size += t->size;
 
   if(mutability != PONY_TRACE_OPAQUE)
-    recurse(ctx, p, t->trace);
+  {
+    if(t->serialise_trace == t->trace)
+    {
+      recurse(ctx, p, t->serialise_trace);
+    } else {
+      // This is a String or an Array[A]. The serialise_trace function must be
+      // called immediately so that the extra size it requests in the buffer
+      // is associated with this object.
+      t->serialise_trace(ctx, p);
+    }
+  }
 }
 
 void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  // TODO: raise an error?
-  // when writing to the buffer, write the global id
-  //   global id might not fit
-  //   write an invalid position that maps to a global id
-  // if it's not a pony internal thing for distribution, record an error?
-  // can't serialise the actor: can't look at its state
   (void)ctx;
   (void)actor;
+  pony_throw();
+}
+
+void pony_serialise_size(pony_ctx_t* ctx, size_t size)
+{
+  ctx->serialise_size += size;
 }
 
 void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 {
+  // This can raise an error.
   assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_serialise_object;
   ctx->trace_actor = ponyint_serialise_actor;
+  ctx->serialise_size = 0;
 
   pony_traceunknown(ctx, p, PONY_TRACE_MUTABLE);
 
@@ -100,14 +115,28 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   ponyint_array_t* r = (ponyint_array_t*)out;
   r->size = ctx->serialise_size;
   r->alloc = r->size;
-  r->ptr = ponyint_pool_alloc_size(r->size);
+  r->ptr = (char*)ponyint_pool_alloc_size(r->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
+
+  // TODO: opaque String or Array[A] shouldn't serialise contents
 
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
     s->t->serialise(ctx, s->p, r->ptr + s->offset);
 
   ctx->serialise_size = 0;
   ponyint_serialise_destroy(&ctx->serialise);
+}
+
+size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
+{
+  serialise_t k;
+  k.p = p;
+  serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
+
+  if(s == NULL)
+    pony_throw();
+
+  return s->offset;
 }

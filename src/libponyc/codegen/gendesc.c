@@ -12,16 +12,17 @@
 #define DESC_FIELD_COUNT 3
 #define DESC_FIELD_OFFSET 4
 #define DESC_TRACE 5
-#define DESC_SERIALISE 6
-#define DESC_DESERIALISE 7
-#define DESC_DISPATCH 8
-#define DESC_FINALISE 9
-#define DESC_EVENT_NOTIFY 10
-#define DESC_TRAITS 11
-#define DESC_FIELDS 12
-#define DESC_VTABLE 13
+#define DESC_SERIALISE_TRACE 6
+#define DESC_SERIALISE 7
+#define DESC_DESERIALISE 8
+#define DESC_DISPATCH 9
+#define DESC_FINALISE 10
+#define DESC_EVENT_NOTIFY 11
+#define DESC_TRAITS 12
+#define DESC_FIELDS 13
+#define DESC_VTABLE 14
 
-#define DESC_LENGTH 14
+#define DESC_LENGTH 15
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -331,6 +332,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_TRACE] = c->trace_fn;
+  params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
   params[DESC_DESERIALISE] = c->trace_fn;
   params[DESC_DISPATCH] = c->dispatch_fn;
@@ -378,6 +380,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_TRACE] = c->trace_fn;
+  params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
   params[DESC_DESERIALISE] = c->trace_fn;
   params[DESC_DISPATCH] = c->dispatch_fn;
@@ -413,6 +416,8 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
   args[DESC_TRACE] = make_function_ptr(t->trace_fn, c->trace_fn);
+  args[DESC_SERIALISE_TRACE] = make_function_ptr(t->serialise_trace_fn,
+    c->trace_fn);
   args[DESC_SERIALISE] = make_function_ptr(t->serialise_fn, c->serialise_fn);
   args[DESC_DESERIALISE] = make_function_ptr(t->deserialise_fn, c->trace_fn);
   args[DESC_DISPATCH] = make_function_ptr(t->dispatch_fn, c->dispatch_fn);

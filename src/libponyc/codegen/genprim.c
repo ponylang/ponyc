@@ -4,6 +4,7 @@
 #include "gencall.h"
 #include "gentrace.h"
 #include "genopt.h"
+#include "genserialise.h"
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
@@ -429,36 +430,16 @@ void genprim_maybe_methods(compile_t* c, reach_type_t* t)
   maybe_is_none(c, t);
 }
 
-void genprim_array_trace(compile_t* c, reach_type_t* t)
+static void trace_array_elements(compile_t* c, reach_type_t* t,
+  LLVMValueRef ctx, LLVMValueRef object, LLVMValueRef pointer)
 {
   // Get the type argument for the array. This will be used to generate the
   // per-element trace call.
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
 
-  codegen_startfun(c, t->trace_fn, NULL, NULL);
-  LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
-  LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
-
-  // Read the base pointer.
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type,
-    "array");
-  LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
-  LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
-
-  // Trace the base pointer.
-  LLVMValueRef args[2];
-  args[0] = ctx;
-  args[1] = pointer;
-  gencall_runtime(c, "pony_trace", args, 2, "");
-
   if(!gentrace_needed(typearg))
-  {
-    LLVMBuildRetVoid(c->builder);
-    codegen_finishfun(c);
     return;
-  }
 
   reach_type_t* t_elem = reach_type(c->reach, typearg);
   pointer = LLVMBuildBitCast(c->builder, pointer,
@@ -497,6 +478,209 @@ void genprim_array_trace(compile_t* c, reach_type_t* t)
   LLVMBuildBr(c->builder, cond_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
+}
+
+void genprim_array_trace(compile_t* c, reach_type_t* t)
+{
+  codegen_startfun(c, t->trace_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
+  LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
+
+  // Read the base pointer.
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
+  LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
+  LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "");
+
+  // Trace the base pointer.
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = pointer;
+  gencall_runtime(c, "pony_trace", args, 2, "");
+
+  trace_array_elements(c, t, ctx, object, pointer);
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+}
+
+static LLVMValueRef field_loc(compile_t* c, LLVMValueRef offset,
+  LLVMTypeRef structure, LLVMTypeRef ftype, int index)
+{
+  LLVMValueRef f_offset = LLVMBuildAdd(c->builder, offset,
+    LLVMConstInt(c->intptr,
+      LLVMOffsetOfElement(c->target_data, structure, index), false), "");
+
+  return LLVMBuildIntToPtr(c->builder, f_offset,
+    LLVMPointerType(ftype, 0), "");
+}
+
+static LLVMValueRef field_value(compile_t* c, LLVMValueRef object, int index)
+{
+  LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, index, "");
+  return LLVMBuildLoad(c->builder, field, "");
+}
+
+void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
+{
+  // Generate the serialise_trace function.
+  t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
+    c->serialise_type);
+
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+
+  LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
+
+  // Read the size.
+  LLVMValueRef size = field_value(c, object, 1);
+
+  // Calculate the size of the element type.
+  ast_t* typeargs = ast_childidx(t->ast, 2);
+  ast_t* typearg = ast_child(typeargs);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
+
+  size_t abisize = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, abisize, false);
+
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = LLVMBuildMul(c->builder, size, l_size, "");
+  gencall_runtime(c, "pony_serialise_size", args, 2, "");
+
+  // Trace the array elements.
+  LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
+  LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "");
+  trace_array_elements(c, t, ctx, object, pointer);
+
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+}
+
+void genprim_array_serialise(compile_t* c, reach_type_t* t)
+{
+  // Generate the serialise function.
+  t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
+    c->serialise_type);
+
+  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+
+  LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
+  LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
+
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
+    "");
+  LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
+
+  genserialise_typeid(c, t, offset);
+
+  // Write the size twice, effectively rewriting alloc to be the same as size.
+  LLVMValueRef size = field_value(c, object, 1);
+
+  LLVMValueRef size_loc = field_loc(c, offset, t->structure, c->intptr, 1);
+  LLVMBuildStore(c->builder, size, size_loc);
+
+  LLVMValueRef alloc_loc = field_loc(c, offset, t->structure, c->intptr, 2);
+  LLVMBuildStore(c->builder, size, alloc_loc);
+
+  // Write the pointer to point immediately after the object.
+  LLVMValueRef args[3];
+  args[0] = ctx;
+  args[1] = arg;
+  LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
+    args, 2, "");
+
+  LLVMValueRef ptr = LLVMBuildAdd(c->builder, object_offset,
+    LLVMConstInt(c->intptr, t->abi_size, false), "");
+  LLVMValueRef ptr_loc = field_loc(c, offset, t->structure, c->intptr, 3);
+  LLVMBuildStore(c->builder, ptr, ptr_loc);
+
+  // TODO: serialise elements
+
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+}
+
+void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
+{
+  // Generate the serialise_trace function.
+  t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
+    c->serialise_type);
+
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+
+  LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
+
+  // Read the size.
+  LLVMValueRef size = field_value(c, object, 1);
+  LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
+    LLVMConstInt(c->intptr, 1, false), "");
+
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = alloc;
+  gencall_runtime(c, "pony_serialise_size", args, 2, "");
+
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+}
+
+void genprim_string_serialise(compile_t* c, reach_type_t* t)
+{
+  // Generate the serialise function.
+  t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
+    c->serialise_type);
+
+  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+
+  LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
+  LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
+
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
+    "");
+  LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
+
+  genserialise_typeid(c, t, offset);
+
+  // Write the size, and rewrite alloc to be size + 1.
+  LLVMValueRef size = field_value(c, object, 1);
+  LLVMValueRef size_loc = field_loc(c, offset, t->structure, c->intptr, 1);
+  LLVMBuildStore(c->builder, size, size_loc);
+
+  LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
+    LLVMConstInt(c->intptr, 1, false), "");
+  LLVMValueRef alloc_loc = field_loc(c, offset, t->structure, c->intptr, 2);
+  LLVMBuildStore(c->builder, alloc, alloc_loc);
+
+  // Write the pointer to point immediately after the object.
+  LLVMValueRef args[3];
+  args[0] = ctx;
+  args[1] = arg;
+  LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
+    args, 2, "");
+
+  LLVMValueRef ptr = LLVMBuildAdd(c->builder, object_offset,
+    LLVMConstInt(c->intptr, t->abi_size, false), "");
+  LLVMValueRef ptr_loc = field_loc(c, offset, t->structure, c->intptr, 3);
+  LLVMBuildStore(c->builder, ptr, ptr_loc);
+
+  // Serialise the string contents.
+  LLVMValueRef contents = LLVMBuildAdd(c->builder, offset,
+    LLVMConstInt(c->intptr, t->abi_size, false), "");
+  args[0] = LLVMBuildIntToPtr(c->builder, contents, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
+    c->void_ptr, "");
+  args[2] = alloc;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
