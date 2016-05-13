@@ -3,6 +3,14 @@
 #include "../actor/actor.h"
 #include <assert.h>
 
+typedef struct
+{
+  pony_type_t* t;
+  size_t size;
+  size_t alloc;
+  void* ptr;
+} ponyint_array_t;
+
 struct serialise_t
 {
   void* p;
@@ -78,7 +86,7 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   (void)actor;
 }
 
-void* pony_serialise(pony_ctx_t* ctx, void* p)
+void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 {
   assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_serialise_object;
@@ -89,18 +97,17 @@ void* pony_serialise(pony_ctx_t* ctx, void* p)
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
-  void* out = ponyint_pool_alloc_size(ctx->serialise_size);
+  ponyint_array_t* r = (ponyint_array_t*)out;
+  r->size = ctx->serialise_size;
+  r->alloc = r->size;
+  r->ptr = ponyint_pool_alloc_size(r->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
 
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
-  {
-    // TODO:
-    s->t->serialise(ctx, s->p, out + s->offset);
-  }
+    s->t->serialise(ctx, s->p, r->ptr + s->offset);
 
   ctx->serialise_size = 0;
   ponyint_serialise_destroy(&ctx->serialise);
-  return out;
 }
