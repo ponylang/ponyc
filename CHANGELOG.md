@@ -64,6 +64,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - contains() method on Array
 - GC tracing with acquire/release semantics.
 - pony_alloc_msg_size runtime function
+- `net/WriteBuffer`
 
 ### Changed
 
@@ -79,6 +80,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Parameterized Array.find and Array.rfind with a comparator.
 - `this->` adapted types check match on the upper bounds.
 - Renamed `identityof` to `digestof`.
+- Renamed `net/Buffer` to `net/ReadBuffer`
 
 ## [0.2.1] - 2015-10-06
 

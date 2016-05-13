@@ -8,7 +8,7 @@ class _RequestBuilder is TCPConnectionNotify
   let _logger: Logger
   let _reversedns: (DNSLookupAuth | None)
   var _server: (_ServerConnection | None) = None
-  let _buffer: Buffer = Buffer
+  let _buffer: ReadBuffer = ReadBuffer
   let _builder: _PayloadBuilder = _PayloadBuilder.request()
 
   new iso create(handler: RequestHandler, logger: Logger,
