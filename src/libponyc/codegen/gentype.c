@@ -637,9 +637,8 @@ bool gentypes(compile_t* c)
     if(!make_trace(c, t))
       return false;
 
-    // TODO:
-    // if(!genserialise(c, t))
-    //   return false;
+    if(!genserialise(c, t))
+      return false;
 
     gendesc_init(c, t);
   }

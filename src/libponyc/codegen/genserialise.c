@@ -60,9 +60,8 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 static void make_serialise(compile_t* c, reach_type_t* t)
 {
   // Generate the serialise function.
-  // TODO: different function signature
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->trace_type);
+    c->serialise_type);
 
   codegen_startfun(c, t->serialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
@@ -85,9 +84,12 @@ bool genserialise(compile_t* c, reach_type_t* t)
 {
   switch(t->underlying)
   {
+    case TK_ACTOR:
+      // Don't serialise actors.
+      return true;
+
     case TK_TUPLETYPE:
     case TK_PRIMITIVE:
-    case TK_ACTOR:
       break;
 
     case TK_STRUCT:
@@ -99,22 +101,18 @@ bool genserialise(compile_t* c, reach_type_t* t)
 
       if(package == c->str_builtin)
       {
+        // Don't serialise MaybePointer[A]
+        // TODO: could do this by checking for null
         if(name == c->str_Maybe)
-        {
-          // TODO:
-          // genprim_maybe_serialise(c, t);
           return true;
-        }
 
+        // Don't serialise Pointer[A]
         if(name == c->str_Pointer)
-        {
-          // TODO:
-          // genprim_pointer_serialise(c, t);
           return true;
-        }
       }
       break;
     }
+
     case TK_CLASS:
     {
       // Special case some serialise functions.

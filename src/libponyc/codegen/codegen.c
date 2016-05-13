@@ -189,6 +189,14 @@ static void init_runtime(compile_t* c)
   c->trace_type = LLVMFunctionType(c->void_type, params, 2, false);
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
+  // serialise
+  // void (*)(i8*, __object*, i8*)
+  params[0] = c->void_ptr;
+  params[1] = c->object_ptr;
+  params[2] = c->void_ptr;
+  c->serialise_type = LLVMFunctionType(c->void_type, params, 3, false);
+  c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
+
   // dispatch
   // void (*)(i8*, __object*, $message*)
   params[0] = c->void_ptr;

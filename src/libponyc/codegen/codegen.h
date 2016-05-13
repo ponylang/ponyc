@@ -138,6 +138,8 @@ typedef struct compile_t
   LLVMTypeRef actor_pad;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
+  LLVMTypeRef serialise_type;
+  LLVMTypeRef serialise_fn;
   LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;

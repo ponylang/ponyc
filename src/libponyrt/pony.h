@@ -61,6 +61,14 @@ typedef struct pony_msgp_t
  */
 typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
+/** Serialise function.
+ *
+ * Each type may supply a trace function. It is invoked with the currently
+ * executing context, the object being serialised, and an address to serialise
+ * to.
+ */
+typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr);
+
 /** Dispatch function.
  *
  * Each actor has a dispatch function that is invoked when the actor handles
@@ -85,7 +93,7 @@ typedef const struct _pony_type_t
   uint32_t field_count;
   uint32_t field_offset;
   pony_trace_fn trace;
-  pony_trace_fn serialise;
+  pony_serialise_fn serialise;
   pony_trace_fn deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
