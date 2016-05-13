@@ -107,39 +107,27 @@ void ponyint_serialise_size_done(pony_ctx_t* ctx)
 
 void pony_trace(pony_ctx_t* ctx, void* p)
 {
-  ctx->trace_object(ctx, p, NULL, false);
+  ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
-void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
+void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 {
-  ctx->trace_actor(ctx, p);
-}
-
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_type_t* t, int immutable)
-{
-  ctx->trace_object(ctx, p, t, immutable != 0);
-}
-
-void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable)
-{
-  pony_type_t* type = *(pony_type_t**)p;
-
-  if(type->dispatch != NULL)
+  if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, type, immutable != 0);
+    ctx->trace_object(ctx, p, t, m);
   }
 }
 
-void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p)
+void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 {
-  pony_type_t* type = *(pony_type_t**)p;
+  pony_type_t* t = *(pony_type_t**)p;
 
-  if(type->dispatch != NULL)
+  if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, NULL, false);
+    ctx->trace_object(ctx, p, t, m);
   }
 }

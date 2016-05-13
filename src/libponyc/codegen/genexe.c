@@ -148,9 +148,9 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
 
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = t_env->desc;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  gencall_runtime(c, "pony_traceobject", args, 4, "");
+  args[2] = LLVMBuildBitCast(c->builder, t_env->desc, c->descriptor_ptr, "");
+  args[3] = LLVMConstInt(c->i32, PONY_TRACE_IMMUTABLE, false);
+  gencall_runtime(c, "pony_traceknown", args, 4, "");
 
   args[0] = ctx;
   gencall_runtime(c, "pony_send_done", args, 1, "");

@@ -305,20 +305,13 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_trace", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // void pony_traceactor(i8*, __object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_traceactor", type);
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-
   // i8* pony_traceobject(i8*, __object*, __Desc*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->descriptor_ptr;
   params[3] = c->i32;
   type = LLVMFunctionType(c->void_ptr, params, 4, false);
-  value = LLVMAddFunction(c->module, "pony_traceobject", type);
+  value = LLVMAddFunction(c->module, "pony_traceknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
   // i8* pony_traceunknown(i8*, __object*, i32)
@@ -327,13 +320,6 @@ static void init_runtime(compile_t* c)
   params[2] = c->i32;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-
-  // void pony_trace_tag_or_actor(i8*, __object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_trace_tag_or_actor", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
   // void pony_gc_send(i8*)

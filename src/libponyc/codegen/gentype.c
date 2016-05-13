@@ -351,10 +351,6 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
   LLVMStructSetBody(type, elements, t->field_count + extra, false);
   ponyint_pool_free_size(buf_size, elements);
-
-  // The ABI size for machine words and tuples is the boxed size.
-  t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
-
   return true;
 }
 
@@ -613,6 +609,10 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    // The ABI size for machine words and tuples is the boxed size.
+    if(t->structure != NULL)
+      t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
+
     make_debug_final(c, t);
     make_pointer_methods(c, t);
 

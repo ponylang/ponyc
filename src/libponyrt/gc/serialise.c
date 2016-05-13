@@ -35,10 +35,10 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
   }
 }
 
-void ponyint_serialise_object_size(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_serialise_object_size(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
-  (void)immutable;
+  (void)mutability;
 
   serialise_t k;
   k.p = p;
@@ -52,9 +52,8 @@ void ponyint_serialise_object_size(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   s->offset = ctx->serialise_size;
   ponyint_serialise_put(&ctx->serialise, s);
 
-  pony_type_t* type = *(pony_type_t**)p;
-  ctx->serialise_size += type->size;
-  recurse(ctx, p, f);
+  ctx->serialise_size += t->size;
+  recurse(ctx, p, t->trace);
 
   // do embedded objects need to show up?
 

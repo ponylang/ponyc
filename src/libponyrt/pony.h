@@ -209,7 +209,7 @@ void pony_gc_send(pony_ctx_t* ctx);
 void pony_gc_recv(pony_ctx_t* ctx);
 
 /** Start gc tracing for acquiring.
- * 
+ *
  * Call this when acquiring objects. Then trace the objects you want to
  * acquire, then call pony_acquire_done. Acquired objects will not be GCed
  * until released even if they are not reachable from Pony code anymore.
@@ -223,7 +223,7 @@ void pony_gc_recv(pony_ctx_t* ctx);
 void pony_gc_acquire(pony_ctx_t* ctx);
 
 /** Start gc tracing for releasing.
- * 
+ *
  * Call this when releasing acquired objects. Then trace the objects you want
  * to release, then call pony_release_done. If an object was acquired multiple
  * times, it must be released as many times before being GCed.
@@ -243,29 +243,34 @@ void pony_send_done(pony_ctx_t* ctx);
 void pony_recv_done(pony_ctx_t* ctx);
 
 /** Finish gc tracing for acquiring.
- * 
+ *
  * Call this after tracing objects you want to acquire.
  */
 void pony_acquire_done(pony_ctx_t* ctx);
 
 /** Finish gc tracing for releasing.
- * 
+ *
  * Call this after tracing objects you want to release.
  */
 void pony_release_done(pony_ctx_t* ctx);
 
+/** Identifiers for reference capabilities when tracing.
+ *
+ * At runtime, we need to identify if the object is logically mutable,
+ * immutable, or opaque.
+ */
+enum
+{
+  PONY_TRACE_MUTABLE = 0,
+  PONY_TRACE_IMMUTABLE = 1,
+  PONY_TRACE_OPAQUE = 2
+};
+
 /** Trace memory
  *
- * Call this on allocated memory that contains no pointers to other allocated
- * memory. Also use this to mark tag aliases.
+ * Call this on allocated blocks of memory that do not have object headers.
  */
 void pony_trace(pony_ctx_t* ctx, void* p);
-
-/** Trace an actor
- *
- * This should be called for fields in an object that point to an actor.
- */
-void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p);
 
 /** Trace an object.
  *
@@ -274,23 +279,20 @@ void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p);
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
- * @param f The trace function for the object pointed to.
+ * @param t The pony_type_t for the object pointed to.
+ * @param m Logical mutability of the object pointed to.
  */
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_type_t* t, int immutable);
+void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 
 /** Trace unknown.
  *
- * This should be called for fields in an object with an unknown type, but
- * which are not tags.
- */
-void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable);
-
-/** Trace a tag or an actor
+ * This should be called for fields in an object with an unknown type.
  *
- * This should be called for fields in an object that might be an actor or
- * might be a tag.
+ * @param ctx The current context.
+ * @param p The pointer being traced.
+ * @param m Logical mutability of the object pointed to.
  */
-void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p);
+void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
 
 /** Initialize the runtime.
  *

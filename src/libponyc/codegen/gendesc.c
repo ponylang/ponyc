@@ -216,7 +216,10 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
   if(t->field_count == 0)
     return LLVMConstInt(c->i32, 0, false);
 
-  int index = 1;
+  int index = 0;
+
+  if(t->underlying != TK_STRUCT)
+    index++;
 
   if(t->underlying == TK_ACTOR)
     index++;
@@ -347,6 +350,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   {
     case TK_TUPLETYPE:
     case TK_PRIMITIVE:
+    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       break;

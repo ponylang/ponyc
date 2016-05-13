@@ -57,27 +57,6 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   }
 }
 
-static void make_serialise_size(compile_t* c, reach_type_t* t)
-{
-  // Generate the serialise_size function.
-  t->serialise_size_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->trace_type);
-
-  codegen_startfun(c, t->serialise_size_fn, NULL, NULL);
-  LLVMSetFunctionCallConv(t->serialise_size_fn, LLVMCCallConv);
-
-  LLVMValueRef ctx = LLVMGetParam(t->serialise_size_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(t->serialise_size_fn, 1);
-
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
-    "");
-
-  serialise_size(c, t, ctx, object);
-
-  LLVMBuildRetVoid(c->builder);
-  codegen_finishfun(c);
-}
-
 static void make_serialise(compile_t* c, reach_type_t* t)
 {
   // Generate the serialise function.
@@ -166,7 +145,6 @@ bool genserialise(compile_t* c, reach_type_t* t)
       return true;
   }
 
-  make_serialise_size(c, t);
   make_serialise(c, t);
   return true;
 }
