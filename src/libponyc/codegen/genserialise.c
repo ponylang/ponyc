@@ -4,20 +4,31 @@
 static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   LLVMValueRef object, LLVMValueRef offset)
 {
+  LLVMTypeRef structure = t->structure;
   int extra = 0;
 
-  // Write the type id instead of the descriptor.
   switch(t->underlying)
   {
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
     {
+      // Write the type id instead of the descriptor.
       LLVMValueRef type_id = LLVMConstInt(c->intptr, t->type_id, false);
       LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
         LLVMPointerType(c->intptr, 0), "");
       LLVMBuildStore(c->builder, type_id, loc);
       extra++;
+      break;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      // Get the tuple primitive type.
+      if(LLVMTypeOf(object) == t->structure_ptr)
+        object = LLVMBuildStructGEP(c->builder, object, 1, "");
+
+      structure = t->primitive;
       break;
     }
 
@@ -34,7 +45,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     reach_type_t* t_field = t->fields[i].type;
     LLVMValueRef f_offset = LLVMBuildAdd(c->builder, offset,
       LLVMConstInt(c->intptr,
-        LLVMOffsetOfElement(c->target_data, t->structure, i + extra), false),
+        LLVMOffsetOfElement(c->target_data, structure, i + extra), false),
       "");
 
     if(t->fields[i].embed || (t_field->underlying == TK_TUPLETYPE))
