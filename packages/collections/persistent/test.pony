@@ -28,6 +28,7 @@ actor Main is TestList
     test(_TestListTake)
     test(_TestListTakeWhile)
     test(_TestMap)
+    test(_TestMapIterators)
     test(_TestMapVsMap)
 
 class iso _TestListPrepend is UnitTest
@@ -297,6 +298,39 @@ class iso _TestMap is UnitTest
     end
 
     true
+
+class iso _TestMapIterators is UnitTest
+  fun name(): String => "collections/persistent/Map Iterators"
+
+  fun apply(h: TestHelper) ? =>
+    var m1 = Maps.empty[String, I64]()
+    let m2 = mut.Map[String, I64]()
+    let n: I64 = 10000
+    for i in mut.Range[I64](0, n) do
+      m1 = m1.update(i.string(), i)
+      m2.update(i.string(), i)
+    end
+    var count: I64 = 0
+    for (k, v) in m1.pairs() do
+      h.assert_true(m2.contains(k))
+      h.assert_eq[I64](m2(k), v)
+      count = count + 1
+    end
+    h.assert_eq[I64](n, count)
+
+    count = 0
+    for k in m1.keys() do
+      h.assert_true(m2.contains(k))
+      count = count + 1
+    end
+    h.assert_eq[I64](n, count)
+
+    count = 0
+    for v in m1.values() do
+      h.assert_eq[I64](m2(v.string()), v)
+      count = count + 1
+    end
+    h.assert_eq[I64](n, count)
 
 class iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map vs. collections Map"

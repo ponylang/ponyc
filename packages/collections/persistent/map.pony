@@ -45,6 +45,8 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   new val _create(r: _MapNode[K, V]) =>
     _root = r
 
+  fun val _get_root(): _MapNode[K, V] => _root
+
   fun val apply(k: K): val->V ? =>
     """
     Attempt to get the value corresponding to k.
@@ -61,7 +63,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     """
     Update the value associated with the provided key.
     """
-    _create(_root.update(_Leaf[K, V](k.hash().u32(), k, v)))
+    _create(_root.update(_MapLeaf[K, V](k.hash().u32(), k, v)))
 
   fun val remove(k: K): Map[K, V] ? =>
     """
@@ -91,8 +93,14 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       false
     end
 
+  fun val keys(): MapKeys[K, V] ? => MapKeys[K, V](this)
+
+  fun val values(): MapValues[K, V] ? => MapValues[K, V](this)
+
+  fun val pairs(): MapPairs[K, V] ? => MapPairs[K, V](this)
+
 type _MapEntry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
-  is (_MapNode[K, V] | Array[_Leaf[K, V]] val | _Leaf[K, V])
+  is (_MapNode[K, V] | Array[_MapLeaf[K, V]] val | _MapLeaf[K, V])
 
 class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let entries: Array[_MapEntry[K, V]] val
@@ -123,29 +131,42 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then error end
     match entries(i.usize())
-    | let l: _Leaf[K, V] => l.value
+    | let l: _MapLeaf[K, V] => l.value
     | let sn: _MapNode[K, V] =>
       sn(hash, key)
     else
-      let cn = entries(i.usize()) as Array[_Leaf[K, V]] val
+      let cn = entries(i.usize()) as Array[_MapLeaf[K, V]] val
       for l in cn.values() do
         if l.key == key then return l.value end
       end
       error
     end
 
+  fun val get_positions(positions: Array[(U32, K)]): Array[(U32, K)] ? =>
+    for e in entries.values() do
+      match e
+      | let sn: _MapNode[K, V] => sn.get_positions(positions)
+      | let l: _MapLeaf[K, V] => positions.push((l.hash, l.key))
+      | let cn: Array[_MapLeaf[K, V]] val =>
+        for l in cn.values() do
+          positions.push((l.hash, l.key))
+        end
+      end
+    end
+    positions
+
   fun val size(): USize =>
     var tot: USize = 0
     for e in entries.values() do
       match e
       | let sn: _MapNode[K, V] => tot = tot + sn.size()
-      | let l: _Leaf[K, V] => tot = tot + 1
-      | let cn: Array[_Leaf[K, V]] val => tot = tot + cn.size()
+      | let l: _MapLeaf[K, V] => tot = tot + 1
+      | let cn: Array[_MapLeaf[K, V]] val => tot = tot + cn.size()
       end
     end
     tot
 
-  fun val update(leaf: _Leaf[K, V]): _MapNode[K, V] ? =>
+  fun val update(leaf: _MapLeaf[K, V]): _MapNode[K, V] ? =>
     let idx = _Hash.mask(leaf.hash, level)
     let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then
@@ -158,7 +179,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       if level == 6 then
         // insert into collision node
         let es = recover entries.clone() end
-        let cs = entries(i.usize()) as Array[_Leaf[K, V]] val
+        let cs = entries(i.usize()) as Array[_MapLeaf[K, V]] val
         let cs' = recover cs.clone() end
         for (k, v) in cs.pairs() do
           if v.key == leaf.key then
@@ -180,7 +201,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         create(consume es, nodemap, datamap, level)
       end
     else
-      let old = entries(i.usize()) as _Leaf[K, V]
+      let old = entries(i.usize()) as _MapLeaf[K, V]
       if old.key == leaf.key then
         // update leaf
         let es = recover entries.clone() end
@@ -188,7 +209,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         create(consume es, nodemap, datamap, level)
       elseif level == 6 then
         // create collision node
-        let cn = recover Array[_Leaf[K, V]](2) end
+        let cn = recover Array[_MapLeaf[K, V]](2) end
         cn.push(old)
         cn.push(leaf)
         let es = recover entries.clone() end
@@ -224,7 +245,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     else
       if level == 6 then
         let es = recover entries.clone() end
-        let cs = entries(i.usize()) as Array[_Leaf[K, V]] val
+        let cs = entries(i.usize()) as Array[_MapLeaf[K, V]] val
         let cs' = recover cs.clone() end
         for (k, v) in cs.pairs() do
           if v.key == key then
@@ -251,7 +272,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       end
     end
 
-class val _Leaf[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class val _MapLeaf[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let hash: U32
   let key: K
   let value: V
@@ -280,3 +301,64 @@ primitive _Hash
     else
       -1
     end
+
+class MapPairs[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+is Iterator[(K, V)]
+  let _root: _MapNode[K, V]
+  var _size: USize
+  var _count: USize
+  var _positions: Array[(U32, K)]
+
+  new create(map: Map[K, V]) ? =>
+    _root = map._get_root()
+    _size = map.size()
+    _count = 0
+    _positions = _root.get_positions(Array[(U32, K)](_size))
+
+  fun has_next(): Bool => _count < _size
+
+  fun ref next(): (K, V) ? =>
+    _count = _count + 1
+    (let h, let k) = _positions.pop()
+    (k, _root(h, k))
+
+
+class MapKeys[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+is Iterator[K]
+  let _root: _MapNode[K, V]
+  var _size: USize
+  var _count: USize
+  var _positions: Array[(U32, K)]
+
+  new create(map: Map[K, V]) ? =>
+    _root = map._get_root()
+    _size = map.size()
+    _count = 0
+    _positions = _root.get_positions(Array[(U32, K)](_size))
+
+  fun has_next(): Bool => _count < _size
+
+  fun ref next(): K ? =>
+    _count = _count + 1
+    (_, let k) = _positions.pop()
+    k
+
+class MapValues[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+is Iterator[V]
+  let _root: _MapNode[K, V]
+  var _size: USize
+  var _count: USize
+  var _positions: Array[(U32, K)]
+
+  new create(map: Map[K, V]) ? =>
+    _root = map._get_root()
+    _size = map.size()
+    _count = 0
+    _positions = _root.get_positions(Array[(U32, K)](_size))
+
+  fun has_next(): Bool => _count < _size
+
+  fun ref next(): V ? =>
+    _count = _count + 1
+    (let h, let k) = _positions.pop()
+    _root(h, k)
