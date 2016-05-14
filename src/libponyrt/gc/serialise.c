@@ -144,8 +144,12 @@ size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   k.p = p;
   serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
 
-  if(s == NULL)
-    pony_throw();
+  // If we are in the map, return the offset.
+  if(s != NULL)
+    return s->offset;
 
-  return s->offset;
+  // If we are not in the map, we are an untraced primitive. Return the type id
+  // with the high bit set.
+  pony_type_t* t = *(pony_type_t**)p;
+  return (size_t)t->id | ((size_t)1 << ((sizeof(size_t) * 8) - 1));
 }
