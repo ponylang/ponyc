@@ -61,8 +61,6 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     default: {}
   }
 
-  // TODO: don't write fields if we are opaque
-
   for(uint32_t i = 0; i < t->field_count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
@@ -90,10 +88,6 @@ static void make_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
   LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
-
-  // TODO: pass mutability in or not?
-  LLVMValueRef mutability = LLVMGetParam(t->serialise_fn, 3);
-  (void)mutability;
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");

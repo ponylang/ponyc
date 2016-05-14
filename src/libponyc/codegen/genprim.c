@@ -567,12 +567,22 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
   LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
+  LLVMValueRef mut = LLVMGetParam(t->serialise_fn, 3);
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
   LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
 
   genserialise_typeid(c, t, offset);
+
+  // Don't serialise our contents if we are opaque.
+  LLVMBasicBlockRef body_block = codegen_block(c, "body");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntNE, mut,
+    LLVMConstInt(c->i32, PONY_TRACE_OPAQUE, false), "");
+  LLVMBuildCondBr(c->builder, test, body_block, post_block);
+  LLVMPositionBuilderAtEnd(c->builder, body_block);
 
   // Write the size twice, effectively rewriting alloc to be the same as size.
   LLVMValueRef size = field_value(c, object, 1);
@@ -660,6 +670,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
   }
 
+  LLVMBuildBr(c->builder, post_block);
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
@@ -703,12 +715,22 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
   LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
+  LLVMValueRef mut = LLVMGetParam(t->serialise_fn, 3);
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
   LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
 
   genserialise_typeid(c, t, offset);
+
+  // Don't serialise our contents if we are opaque.
+  LLVMBasicBlockRef body_block = codegen_block(c, "body");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntNE, mut,
+    LLVMConstInt(c->i32, PONY_TRACE_OPAQUE, false), "");
+  LLVMBuildCondBr(c->builder, test, body_block, post_block);
+  LLVMPositionBuilderAtEnd(c->builder, body_block);
 
   // Write the size, and rewrite alloc to be size + 1.
   LLVMValueRef size = field_value(c, object, 1);
@@ -741,6 +763,8 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   args[2] = alloc;
   gencall_runtime(c, "memcpy", args, 3, "");
 
+  LLVMBuildBr(c->builder, post_block);
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
