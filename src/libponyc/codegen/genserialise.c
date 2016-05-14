@@ -12,11 +12,33 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   switch(t->underlying)
   {
     case TK_PRIMITIVE:
+    {
+      genserialise_typeid(c, t, offset);
+
+      if(t->primitive != NULL)
+      {
+        LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, 1, "");
+        LLVMValueRef f_offset = LLVMBuildAdd(c->builder, offset,
+          LLVMConstInt(c->intptr,
+            LLVMOffsetOfElement(c->target_data, structure, 1), false), "");
+
+        genserialise_element(c, t, false, ctx, field, f_offset);
+      }
+      return;
+    }
+
     case TK_CLASS:
-    case TK_ACTOR:
     {
       genserialise_typeid(c, t, offset);
       extra++;
+      break;
+    }
+
+    case TK_ACTOR:
+    {
+      // Skip the actor pad.
+      genserialise_typeid(c, t, offset);
+      extra += 2;
       break;
     }
 
@@ -24,7 +46,13 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     {
       // Get the tuple primitive type.
       if(LLVMTypeOf(object) == t->structure_ptr)
+      {
+        genserialise_typeid(c, t, offset);
         object = LLVMBuildStructGEP(c->builder, object, 1, "");
+        offset = LLVMBuildAdd(c->builder, offset,
+          LLVMConstInt(c->intptr,
+            LLVMOffsetOfElement(c->target_data, structure, 1), false), "");
+      }
 
       structure = t->primitive;
       break;
@@ -33,44 +61,17 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     default: {}
   }
 
-  // Actors have a pad. Leave the memory untouched.
-  if(t->underlying == TK_ACTOR)
-    extra++;
+  // TODO: don't write fields if we are opaque
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
-    reach_type_t* t_field = t->fields[i].type;
     LLVMValueRef f_offset = LLVMBuildAdd(c->builder, offset,
       LLVMConstInt(c->intptr,
-        LLVMOffsetOfElement(c->target_data, structure, i + extra), false),
-      "");
+        LLVMOffsetOfElement(c->target_data, structure, i + extra), false), "");
 
-    if(t->fields[i].embed || (t_field->underlying == TK_TUPLETYPE))
-    {
-      // Embedded field or tuple, serialise in place. Don't load from the
-      // StructGEP, as the StructGEP is already a pointer to the object.
-      serialise(c, t_field, ctx, field, f_offset);
-    } else if(t_field->primitive != NULL) {
-      // Machine word, write the bits to the buffer.
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, f_offset,
-        LLVMPointerType(t_field->primitive, 0), "");
-      LLVMBuildStore(c->builder, value, loc);
-    } else {
-      // Lookup the pointer and get the offset, write that.
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-
-      LLVMValueRef args[3];
-      args[0] = ctx;
-      args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
-      LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
-        args, 2, "");
-
-      LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, f_offset,
-        LLVMPointerType(c->intptr, 0), "");
-      LLVMBuildStore(c->builder, object_offset, loc);
-    }
+    genserialise_element(c, t->fields[i].type, t->fields[i].embed,
+      ctx, field, f_offset);
   }
 }
 
@@ -90,6 +91,10 @@ static void make_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
   LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
 
+  // TODO: pass mutability in or not?
+  LLVMValueRef mutability = LLVMGetParam(t->serialise_fn, 3);
+  (void)mutability;
+
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
   LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
@@ -107,6 +112,36 @@ void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
   LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
     LLVMPointerType(c->intptr, 0), "");
   LLVMBuildStore(c->builder, value, loc);
+}
+
+void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
+  LLVMValueRef ctx, LLVMValueRef ptr, LLVMValueRef offset)
+{
+  if(embed || (t->underlying == TK_TUPLETYPE))
+  {
+    // Embedded field or tuple, serialise in place. Don't load from ptr, as
+    // it is already a pointer to the object.
+    serialise(c, t, ctx, ptr, offset);
+  } else if(t->primitive != NULL) {
+    // Machine word, write the bits to the buffer.
+    LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+    LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
+      LLVMPointerType(t->primitive, 0), "");
+    LLVMBuildStore(c->builder, value, loc);
+  } else {
+    // Lookup the pointer and get the offset, write that.
+    LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+
+    LLVMValueRef args[3];
+    args[0] = ctx;
+    args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
+    LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
+      args, 2, "");
+
+    LLVMValueRef loc = LLVMBuildIntToPtr(c->builder, offset,
+      LLVMPointerType(c->intptr, 0), "");
+    LLVMBuildStore(c->builder, object_offset, loc);
+  }
 }
 
 bool genserialise(compile_t* c, reach_type_t* t)

@@ -17,6 +17,7 @@ struct serialise_t
   void* p;
   pony_type_t* t;
   size_t offset;
+  int mutability;
 };
 
 static size_t serialise_hash(serialise_t* p)
@@ -63,18 +64,28 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
 
   if(s != NULL)
-    return;
+  {
+    // If it was traced as opaque, and now is not opaque, change it and trace.
+    if((s->mutability != PONY_TRACE_OPAQUE) ||
+      (mutability == PONY_TRACE_OPAQUE))
+      return;
+  } else {
+    // Put an entry in the map and reserve space.
+    s = POOL_ALLOC(serialise_t);
+    s->p = p;
+    s->t = t;
+    s->offset = ctx->serialise_size;
 
-  s = POOL_ALLOC(serialise_t);
-  s->p = p;
-  s->t = t;
-  s->offset = ctx->serialise_size;
-  ponyint_serialise_put(&ctx->serialise, s);
+    ponyint_serialise_put(&ctx->serialise, s);
+    ctx->serialise_size += t->size;
+  }
 
-  ctx->serialise_size += t->size;
+  // Set (or update) mutability.
+  s->mutability = mutability;
 
   if(mutability != PONY_TRACE_OPAQUE)
   {
+    // These will only be called once per object.
     if(t->serialise_trace == t->trace)
     {
       recurse(ctx, p, t->serialise_trace);
@@ -120,10 +131,8 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
 
-  // TODO: opaque String or Array[A] shouldn't serialise contents
-
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
-    s->t->serialise(ctx, s->p, r->ptr + s->offset);
+    s->t->serialise(ctx, s->p, r->ptr + s->offset, s->mutability);
 
   ctx->serialise_size = 0;
   ponyint_serialise_destroy(&ctx->serialise);

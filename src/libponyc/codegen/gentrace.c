@@ -25,6 +25,7 @@ typedef enum
 {
   TRACE_NONE,
   TRACE_MAYBE,
+  TRACE_MACHINE_WORD,
   TRACE_PRIMITIVE,
   TRACE_VAL_KNOWN,
   TRACE_VAL_UNKNOWN,
@@ -41,6 +42,35 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
 static trace_t trace_type(ast_t* type);
 
+static trace_t trace_union_machine_word(trace_t a)
+{
+  switch(a)
+  {
+    case TRACE_MACHINE_WORD:
+    case TRACE_PRIMITIVE:
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+      return TRACE_VAL_UNKNOWN;
+
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+      return TRACE_MUT_UNKNOWN;
+
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return TRACE_TAG_UNKNOWN;
+
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+      return TRACE_DYNAMIC;
+
+    default: {}
+  }
+
+  assert(0);
+  return TRACE_NONE;
+}
+
 static trace_t trace_union_primitive(trace_t a)
 {
   switch(a)
@@ -48,13 +78,14 @@ static trace_t trace_union_primitive(trace_t a)
     case TRACE_PRIMITIVE:
       return TRACE_PRIMITIVE;
 
-    case TRACE_MUT_KNOWN:
-    case TRACE_MUT_UNKNOWN:
-      return TRACE_MUT_UNKNOWN;
-
+    case TRACE_MACHINE_WORD:
     case TRACE_VAL_KNOWN:
     case TRACE_VAL_UNKNOWN:
       return TRACE_VAL_UNKNOWN;
+
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+      return TRACE_MUT_UNKNOWN;
 
     case TRACE_TAG_KNOWN:
     case TRACE_TAG_UNKNOWN:
@@ -75,6 +106,7 @@ static trace_t trace_union_val(trace_t a)
 {
   switch(a)
   {
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
     case TRACE_VAL_KNOWN:
     case TRACE_VAL_UNKNOWN:
@@ -99,6 +131,7 @@ static trace_t trace_union_mut(trace_t a)
 {
   switch(a)
   {
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
     case TRACE_MUT_KNOWN:
     case TRACE_MUT_UNKNOWN:
@@ -123,6 +156,7 @@ static trace_t trace_union_tag(trace_t a)
 {
   switch(a)
   {
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
     case TRACE_TAG_KNOWN:
     case TRACE_TAG_UNKNOWN:
@@ -163,6 +197,10 @@ static trace_t trace_type_union(ast_t* type)
         // Can't be in a union.
         assert(0);
         return TRACE_NONE;
+
+      case TRACE_MACHINE_WORD:
+        trace = trace_union_machine_word(t);
+        break;
 
       case TRACE_PRIMITIVE:
         trace = trace_union_primitive(t);
@@ -213,6 +251,7 @@ static trace_t trace_type_isect(ast_t* type)
       case TRACE_PRIMITIVE:
         return TRACE_PRIMITIVE;
 
+      case TRACE_MACHINE_WORD:
       case TRACE_VAL_KNOWN:
       case TRACE_VAL_UNKNOWN:
         trace = TRACE_VAL_UNKNOWN;
@@ -259,7 +298,12 @@ static trace_t trace_type_nominal(ast_t* type)
       return TRACE_MUT_UNKNOWN;
 
     case TK_PRIMITIVE:
+    {
+      if(is_machine_word(type))
+        return TRACE_MACHINE_WORD;
+
       return TRACE_PRIMITIVE;
+    }
 
     case TK_STRUCT:
     case TK_CLASS:
@@ -437,6 +481,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
   {
     switch(trace_type(child))
     {
+      case TRACE_MACHINE_WORD:
       case TRACE_PRIMITIVE:
         // Skip this element.
         break;
@@ -606,6 +651,7 @@ bool gentrace_needed(ast_t* type)
       assert(0);
       return false;
 
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
       return false;
 
@@ -666,6 +712,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
       assert(0);
       return;
 
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
       return;
 

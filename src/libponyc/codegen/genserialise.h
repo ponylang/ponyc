@@ -6,6 +6,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
+  LLVMValueRef ctx, LLVMValueRef ptr, LLVMValueRef offset);
+
 void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
 
 bool genserialise(compile_t* c, reach_type_t* t);
