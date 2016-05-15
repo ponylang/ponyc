@@ -66,3 +66,51 @@ actor Client
       _clients(hs) = client
       client
     end
+
+fun tag get(url: URL): Agent^ =>
+  """
+  Create an Agent for a GET request.
+  """
+  Agent("GET", url, this)
+
+fun tag post(url: URL): Agent^ =>
+  """
+  Create an Agent for a POST request.
+  """
+  Agent("POST", url, this)
+
+fun tag put(url: URL): Agent^ =>
+  """
+  Create an Agent for a PUT request.
+  """
+  Agent("PUT", url, this)
+
+fun tag head(url: URL): Agent^ =>
+  """
+  Create an Agent for a HEAD request.
+  """
+  Agent("HEAD", url, this)
+
+fun tag delete(url: URL): Agent^ =>
+  """
+  Create an Agent for a DELETE request.
+  """
+  Agent("DELETE", url, this)
+
+fun tag patch(url: URL): Agent^ =>
+  """
+  Create an Agent for a PATCH request.
+  """
+  Agent("PATCH", url, this)
+
+fun tag options(url: URL): Agent^ =>
+  """
+  Create an Agent for an OPTIONS request.
+  """
+  Agent("OPTIONS", url, this)
+
+fun tag custom_method(method: String, url: URL): Agent^ =>
+  """
+  Create an Agent for a request using a custom HTTP method.
+  """
+  Agent(method, url, this)

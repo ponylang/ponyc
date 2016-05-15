@@ -25,6 +25,8 @@ actor Main is TestList
     test(_Valid)
     test(_ToStringFun)
 
+    test(_Client)
+
 
 class iso _Encode is UnitTest
   fun name(): String => "net/http/URLEncode.encode"
@@ -333,6 +335,30 @@ class iso _ToStringFun is UnitTest
     // Default ports should be omitted.
     h.assert_eq[String]("http://host.name/path",
       URL.build("http://host.name:80/path").string())
+
+class iso _Client is UnitTest
+  fun name(): String => "net/http/Client"
+
+  fun apply(h: TestHelper) ? =>
+    h.long_test(10_000_000_000)
+    let client = Client(h.env.root as AmbientAuth)
+    let url = URL.build("https://httpbin.org/get")
+    let handler = object val
+      let h: TestHelper = h
+      fun apply(req: Payload val, res: Payload val) =>
+        if res.status == 0 then h.fail() else None end
+        try
+          h.assert_eq[String]("things", req("stuff"))
+          h.assert_eq[String]("text/html", req("Content-Type"))
+        else
+          h.fail()
+        end
+        h.complete(true)
+    end
+    client.get(url)
+      .set("stuff", "things")
+      .content_type(Content.html())
+      .send(handler)
 
 primitive _Test
   fun apply(h: TestHelper, url: URL, scheme: String, user: String,

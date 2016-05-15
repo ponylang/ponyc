@@ -243,3 +243,10 @@ class iso Payload
     end
 
     list
+
+primitive Content
+  fun html(): String => "text/html"
+  fun json(): String => "application/json"
+  fun xml(): String => "application/xml"
+  fun text(): String => "text/plain"
+  fun urlencoded(): String => "application/x-www-form-urlencoded"
