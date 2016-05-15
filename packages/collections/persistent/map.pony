@@ -93,11 +93,23 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       false
     end
 
-  fun val keys(): MapKeys[K, V] ? => MapKeys[K, V](this)
+  fun val keys(): MapKeys[K, V] ? =>
+    """
+    Return iterator over the keys in the map.
+    """
+    MapKeys[K, V](this)
 
-  fun val values(): MapValues[K, V] ? => MapValues[K, V](this)
+  fun val values(): MapValues[K, V] ? =>
+    """
+    Return iterator over the values in the map.
+    """
+    MapValues[K, V](this)
 
-  fun val pairs(): MapPairs[K, V] ? => MapPairs[K, V](this)
+  fun val pairs(): MapPairs[K, V] ? =>
+    """
+    Return iterator over the key-value pairs in the map.
+    """
+    MapPairs[K, V](this)
 
 type _MapEntry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   is (_MapNode[K, V] | Array[_MapLeaf[K, V]] val | _MapLeaf[K, V])
