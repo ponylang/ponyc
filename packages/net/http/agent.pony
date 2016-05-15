@@ -1,4 +1,5 @@
 use "collections"
+use "encode/base64"
 
 class iso Agent
   """
@@ -42,6 +43,15 @@ class iso Agent
     as a comma separated list, as per RFC 2616 section 4.2.
     """
     _request.update(key, value)
+    consume this
+
+  fun iso basic_auth(username: String, password: String): Agent^ =>
+    """
+    Set basic authentication header with username and password, as described in
+    RFC 2617 section 2.
+    """
+    let auth = Base64.encode_mime(username + ":" + password)
+    _request.update("Authentication", "Basic "+ consume auth)
     consume this
 
   fun iso content_type(content_type': String): Agent^ =>

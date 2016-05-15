@@ -348,8 +348,16 @@ class iso _Client is UnitTest
       fun apply(req: Payload val, res: Payload val) =>
         if res.status == 0 then h.fail() else None end
         try
+          for byte in res.body().values() do
+            match byte
+            | let s: String val => h.log(s)
+            | let bs: Array[U8 val] val => h.log(String.from_array(bs))
+            end
+          end
           h.assert_eq[String]("things", req("stuff"))
           h.assert_eq[String]("text/html", req("Content-Type"))
+          h.assert_eq[String]("Basic YXdlc29tZV91c2VyOjEyMzQ1Ng==\r\n",
+            req("Authentication"))
         else
           h.fail()
         end
@@ -358,6 +366,7 @@ class iso _Client is UnitTest
     client.get(url)
       .set("stuff", "things")
       .content_type(Content.html())
+      .basic_auth("awesome_user", "123456")
       .send(handler)
 
 primitive _Test
