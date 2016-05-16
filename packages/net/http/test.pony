@@ -342,7 +342,7 @@ class iso _Client is UnitTest
   fun apply(h: TestHelper) ? =>
     h.long_test(10_000_000_000)
     let client = Client(h.env.root as AmbientAuth)
-    let url = URL.build("https://httpbin.org/get")
+    let url = URL.build("https://example.com")
     let handler = object val
       let h: TestHelper = h
       fun apply(req: Payload val, res: Payload val) =>
