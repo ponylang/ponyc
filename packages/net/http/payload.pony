@@ -243,6 +243,22 @@ class iso Payload
 
     list
 
+  fun string(): String =>
+    var str = proto + status.string() + method + "\n"
+    for (k, v) in headers().pairs() do
+      str = str + k + ": " + v + "\n"
+    end
+    str = str + "\n"
+    for chunk in body().values() do
+      str = str + match chunk
+      | let s: String val => s
+      | let bs: Array[U8 val] val => String.from_array(bs)
+      else
+        ""
+      end
+    end
+    str = str + "\n"
+
 primitive Content
   fun html(): String => "text/html"
   fun json(): String => "application/json"

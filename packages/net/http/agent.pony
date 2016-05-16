@@ -51,7 +51,7 @@ class iso Agent
     RFC 2617 section 2.
     """
     let auth = Base64.encode_mime(username + ":" + password)
-    _request.update("Authentication", "Basic "+ consume auth)
+    _request.update("Authentication", "Basic " + consume auth)
     consume this
 
   fun iso content_type(content_type': String): Agent^ =>
