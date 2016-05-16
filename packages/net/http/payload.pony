@@ -259,7 +259,7 @@ class iso Payload
     end
     str = str + "\n"
 
-primitive Content
+primitive MediaType
   fun html(): String => "text/html"
   fun json(): String => "application/json"
   fun xml(): String => "application/xml"

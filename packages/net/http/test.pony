@@ -360,7 +360,7 @@ class iso _Client is UnitTest
     end
     client.get(url)
       .set("stuff", "things")
-      .content_type(Content.html())
+      .content_type(MediaType.html())
       .basic_auth("awesome_user", "123456")
       .send(handler)
 
