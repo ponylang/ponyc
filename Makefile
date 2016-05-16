@@ -264,16 +264,16 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
-libponycc.include := -I src/common/ $(llvm.include)/
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
+libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include)/ \
+libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include) \
   -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
+ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 
 ifneq (,$(filter $(OSTYPE), osx freebsd))

@@ -56,7 +56,7 @@ class _PayloadBuilder
     """
     _state
 
-  fun ref parse(buffer: Buffer) =>
+  fun ref parse(buffer: ReadBuffer) =>
     """
     Parse available data based on our state. _ResponseBody is not listed here.
     In that state, we wait for the connection to close and treat all pending
@@ -93,7 +93,7 @@ class _PayloadBuilder
 
     payload
 
-  fun ref closed(buffer: Buffer) =>
+  fun ref closed(buffer: ReadBuffer) =>
     """
     The connection has closed, which may signal that all remaining data is the
     payload body.
@@ -108,7 +108,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_request(buffer: Buffer) =>
+  fun ref _parse_request(buffer: ReadBuffer) =>
     """
     Look for: "<Method> <URL> <Proto>".
     """
@@ -130,7 +130,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_response(buffer: Buffer) =>
+  fun ref _parse_response(buffer: ReadBuffer) =>
     """
     Look for: "<Proto> <Code> <Description>".
     """
@@ -152,7 +152,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_headers(buffer: Buffer) =>
+  fun ref _parse_headers(buffer: ReadBuffer) =>
     """
     Look for: "<Key>:<Value>" or an empty line.
     """
@@ -212,7 +212,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_content_length(buffer: Buffer) =>
+  fun ref _parse_content_length(buffer: ReadBuffer) =>
     """
     Look for _content_length available bytes.
     """
@@ -222,7 +222,7 @@ class _PayloadBuilder
       _state = _PayloadReady
     end
 
-  fun ref _parse_chunk_start(buffer: Buffer) =>
+  fun ref _parse_chunk_start(buffer: ReadBuffer) =>
     """
     Look for the beginning of a chunk.
     """
@@ -245,7 +245,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_chunk(buffer: Buffer) =>
+  fun ref _parse_chunk(buffer: ReadBuffer) =>
     """
     Look for a chunk.
     """
@@ -256,7 +256,7 @@ class _PayloadBuilder
       parse(buffer)
     end
 
-  fun ref _parse_chunk_end(buffer: Buffer) =>
+  fun ref _parse_chunk_end(buffer: ReadBuffer) =>
     """
     Look for a blank line.
     """
