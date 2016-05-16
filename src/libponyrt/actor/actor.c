@@ -131,7 +131,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     msg = actor->continuation;
     actor->continuation = msg->next;
     bool ret = handle_message(ctx, actor, msg);
-    ponyint_pool_free(msg->size, msg);
+    ponyint_pool_free(msg->index, msg);
 
     if(ret)
     {
@@ -295,13 +295,18 @@ void ponyint_destroy(pony_actor_t* actor)
   ponyint_actor_destroy(actor);
 }
 
-pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
+pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
 {
-  pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(size);
-  msg->size = size;
+  pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
+  msg->index = index;
   msg->id = id;
 
   return msg;
+}
+
+pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
+{
+  return pony_alloc_msg((uint32_t)ponyint_pool_index(size), id);
 }
 
 void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)

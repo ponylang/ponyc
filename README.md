@@ -1,11 +1,23 @@
 # Getting help
 
-* [Open an issue!](https://github.com/ponylang/ponyc/issues)
-* Use the [mailing list](mailto:pony+user@groups.io).
-* Join [the `#ponylang` IRC channel on freenode](https://webchat.freenode.net/?channels=%23ponylang).
-* A tutorial is available [here](http://tutorial.ponylang.org).
-* A [cookbook style book of patterns](http://patterns.ponylang.org) is in progress
-* Standard library docs are available [here](http://ponylang.github.io/ponyc/).
+Need help? Not to worry, we have you covered.
+
+We have a couple resources designed to help you learn, we suggest starting with
+the tutorial and from there, moving on to the Pony Patterns book. Additionally,
+standard library documentation is available online.
+
+* [Tutorial](http://tutorial.ponylang.org).
+* [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
+* [Standard library docs](http://ponylang.github.io/ponyc/).
+
+If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
+
+* [Mailing list](mailto:pony+user@groups.io).
+* [IRC](https://webchat.freenode.net/?channels=%23ponylang).
+
+Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
+
+* [Open an issue](https://github.com/ponylang/ponyc/issues)
 
 # Editor support
 
@@ -271,3 +283,15 @@ LTO is enabled by default on OSX.
 Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for at least the x86_64 platform and possibly others.
 
 Use VirtualBox 5.x to avoid possible problems.
+
+## Building Pony on Non-x86 platforms
+
+On ARM and MIPS platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
+```bash
+$ make arch=armv7
+```
+To get a complete list of acceptable architecture names, use the gcc command:
+```bash
+gcc -march=none
+```
+This will result in an error message plus a listing off all architecture types acceptable on your platform.

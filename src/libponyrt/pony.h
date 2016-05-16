@@ -35,7 +35,7 @@ typedef struct pony_ctx_t pony_ctx_t;
  */
 typedef struct pony_msg_t
 {
-  uint32_t size;
+  uint32_t index;
   uint32_t id;
   struct pony_msg_t* volatile next;
 } pony_msg_t;
@@ -126,8 +126,11 @@ pony_ctx_t* pony_ctx();
 ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_ctx_t* ctx,
   pony_type_t* type));
 
-/// Allocates a message and sets up the header. The size is a POOL_INDEX.
-pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
+/// Allocates a message and sets up the header. The index is a POOL_INDEX.
+pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
+
+/// Allocates a message and sets up the header. The size is in bytes.
+pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
 
 /// Sends a message to an actor.
 void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
@@ -205,6 +208,28 @@ void pony_gc_send(pony_ctx_t* ctx);
  */
 void pony_gc_recv(pony_ctx_t* ctx);
 
+/** Start gc tracing for acquiring.
+ * 
+ * Call this when acquiring objects. Then trace the objects you want to
+ * acquire, then call pony_acquire_done. Acquired objects will not be GCed
+ * until released even if they are not reachable from Pony code anymore.
+ * Acquiring an object will also acquire all objects reachable from it as well
+ * as their respective owners. When adding or removing objects from an acquired
+ * object graph, you must acquire anything added and release anything removed.
+ * A given object (excluding actors) cannot be acquired more than once in a
+ * single pony_gc_acquire/pony_acquire_done round. The same restriction applies
+ * to release functions.
+ */
+void pony_gc_acquire(pony_ctx_t* ctx);
+
+/** Start gc tracing for releasing.
+ * 
+ * Call this when releasing acquired objects. Then trace the objects you want
+ * to release, then call pony_release_done. If an object was acquired multiple
+ * times, it must be released as many times before being GCed.
+ */
+void pony_gc_release(pony_ctx_t* ctx);
+
 /** Finish gc tracing for sending.
  *
  * Call this after tracing the GCable contents.
@@ -216,6 +241,18 @@ void pony_send_done(pony_ctx_t* ctx);
  * Call this after tracing the GCable contents.
  */
 void pony_recv_done(pony_ctx_t* ctx);
+
+/** Finish gc tracing for acquiring.
+ * 
+ * Call this after tracing objects you want to acquire.
+ */
+void pony_acquire_done(pony_ctx_t* ctx);
+
+/** Finish gc tracing for releasing.
+ * 
+ * Call this after tracing objects you want to release.
+ */
+void pony_release_done(pony_ctx_t* ctx);
 
 /** Trace memory
  *

@@ -231,7 +231,17 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
-llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
+llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir)
+include.paths := $(shell echo | cc -v -E - 2>&1)
+ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
+# LLVM include directory is not in the existing paths;
+# put it at the top of the system list
+llvm.include := -isystem $(llvm.include.dir)
+else
+# LLVM include directory is already on the existing paths;
+# do nothing
+llvm.include :=
+endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 ifeq ($(OSTYPE), freebsd)
@@ -254,16 +264,16 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
-libponycc.include := -I src/common/ $(llvm.include)/
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
+libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include)/ \
+libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include) \
   -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
+ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 
 ifneq (,$(filter $(OSTYPE), osx freebsd))
