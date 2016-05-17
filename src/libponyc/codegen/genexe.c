@@ -202,7 +202,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
-  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
 
   program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
@@ -219,7 +220,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
 
-  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
   {
@@ -250,7 +252,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
-  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
 
   program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
     "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
@@ -279,7 +282,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     file_exe, file_o, lib_args
     );
 
-  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
   {
@@ -300,7 +304,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
     ".exe");
-  PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Linking %s\n", file_exe));
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
 
   program_lib_build_args(program, c->opt,
     "/LIBPATH:", NULL, "", "", "", ".lib");
@@ -330,7 +335,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_TOOL_INFO, ("%s\n", ld_cmd));
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "%s\n", ld_cmd);
 
   if (system(ld_cmd) == -1)
   {
@@ -369,11 +375,13 @@ bool genexe(compile_t* c, ast_t* program)
   if(lookup(NULL, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Reachability\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Reachability\n");
   reach(c->reach, main_ast, c->str_create, NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Selector painting\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
