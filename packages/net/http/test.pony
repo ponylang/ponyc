@@ -357,11 +357,12 @@ class iso _Client is UnitTest
         end
         h.complete(true)
     end
-    Agent.get(url)
-      .set("stuff", "things")
-      .content_type(MediaType.html())
+    let req = recover Payload.request(Method.get(), url, handler)
+      .update("stuff", "things")
+      .media_type(MediaType.html())
       .basic_auth("awesome_user", "123456")
-      .send(client, handler)
+    end
+    client(consume req)
 
 primitive _Test
   fun apply(h: TestHelper, url: URL, scheme: String, user: String,

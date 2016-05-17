@@ -26,7 +26,10 @@ actor Main
           let url = URL.build(env.args(i))
           Fact(url.host.size() > 0)
 
-          Agent.get(url).send(client, recover this~apply() end)
+          let req = recover
+            Payload.request(Method.get(), url, recover this~apply() end)
+          end
+          client(consume req)
         else
           try env.out.print("Malformed URL: " + env.args(i)) end
         end

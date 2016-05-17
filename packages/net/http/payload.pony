@@ -1,4 +1,5 @@
 use "collections"
+use "encode/base64"
 use "net"
 
 class iso Payload
@@ -96,6 +97,22 @@ class iso Payload
     Add a chunk to the body.
     """
     _body.push(data)
+    this
+
+  fun ref media_type(content_type': String): Payload ref^ =>
+    """
+    Specify the media type to send.
+    """
+    _headers.update("Content-Type", content_type')
+    this
+
+  fun ref basic_auth(username: String, password: String): Payload ref^ =>
+    """
+    Set basic authentication header with username and password, as described in
+    RFC 2617 section 2.
+    """
+    let auth = Base64.encode_mime(username + ":" + password)
+    _headers.update("Authentication", "Basic " + consume auth)
     this
 
   fun iso respond(response': Payload) =>
@@ -276,6 +293,15 @@ class iso Payload
     end
     if body().size() > 0 then str.append("\n") end
     str
+
+primitive Method
+  fun get(): String => "GET"
+  fun post(): String => "POST"
+  fun put(): String => "PUT"
+  fun head(): String => "HEAD"
+  fun delete(): String => "DELETE"
+  fun patch(): String => "PATCH"
+  fun options(): String => "OPTIONS"
 
 primitive MediaType
   fun html(): String => "text/html"
