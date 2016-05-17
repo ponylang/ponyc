@@ -136,7 +136,7 @@ static bool link_lib(compile_t* c, const char* file_o)
   const char* file_lib = suffix_filename(c, c->opt->output, "", c->filename,
     ".lib");
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Archiving %s\n", file_lib));
+    fprintf(stderr, "Archiving %s\n", file_lib);
 
   vcvars_t vcvars;
 
@@ -153,7 +153,7 @@ static bool link_lib(compile_t* c, const char* file_o)
     file_lib, file_o);
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", cmd));
+    fprintf(stderr, "%s\n", cmd);
   if(system(cmd) == -1)
   {
     errorf(errors, NULL, "unable to link: %s", cmd);
