@@ -525,7 +525,8 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
-  PONY_LOG(opt, VERBOSITY_MINIMAL, ("Generating\n"));
+  if(opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Generating\n");
 
   pony_mkdir(opt->output);
 
