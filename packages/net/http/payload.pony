@@ -243,21 +243,39 @@ class iso Payload
 
     list
 
-  fun string(): String =>
-    var str = proto + status.string() + method + "\n"
-    for (k, v) in headers().pairs() do
-      str = str + k + ": " + v + "\n"
+  fun val string(): String =>
+    let str = recover String end
+    match _response
+    | true =>
+      str.append(proto)
+      str.append(" ")
+      str.append(status.string())
+      str.append("\n")
+    else // request
+      str.append(method)
+      str.append(" ")
+      str.append(proto)
+      str.append("\n")
     end
-    str = str + "\n"
+
+    for (k, v) in headers().pairs() do
+      str.append(k)
+      str.append(": ")
+      str.append(v)
+      str.append("\n")
+    end
+    if headers().size() > 0 then str.append("\n") end
+
     for chunk in body().values() do
-      str = str + match chunk
+      str.append(match chunk
       | let s: String val => s
       | let bs: Array[U8 val] val => String.from_array(bs)
       else
         ""
-      end
+      end)
     end
-    str = str + "\n"
+    if body().size() > 0 then str.append("\n") end
+    str
 
 primitive MediaType
   fun html(): String => "text/html"

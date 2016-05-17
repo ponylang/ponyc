@@ -348,7 +348,6 @@ class iso _Client is UnitTest
       fun apply(req: Payload val, res: Payload val) =>
         if res.status == 0 then h.fail() else None end
         try
-          h.log(res.string())
           h.assert_eq[String]("things", req("stuff"))
           h.assert_eq[String]("text/html", req("Content-Type"))
           h.assert_eq[String]("Basic YXdlc29tZV91c2VyOjEyMzQ1Ng==\r\n",
