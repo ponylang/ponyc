@@ -5,18 +5,65 @@ class Agent
   """
   Manages a client request payload.
   """
-  let _client: Client
   let _method: String
   let _url: URL
 
   let _headers: Map[String, String] = _headers.create()
   let _body: Array[ByteSeq] = _body.create()
 
-  new create(method: String, url: URL, client: Client) =>
+  new get(url: URL) =>
     """
-    Create an agent for the given HTTP method, URL, and client.
+    Create an Agent for a GET request.
     """
-    _client = client
+    _method = "GET"
+    _url = url
+
+  new post(url: URL) =>
+    """
+    Create an Agent for a POST request.
+    """
+    _method = "POST"
+    _url = url
+
+  new put(url: URL) =>
+    """
+    Create an Agent for a PUT request.
+    """
+    _method = "PUT"
+    _url = url
+
+  new head(url: URL) =>
+    """
+    Create an Agent for a HEAD request.
+    """
+    _method = "HEAD"
+    _url = url
+
+  new delete(url: URL) =>
+    """
+    Create an Agent for a DELETE request.
+    """
+    _method = "DELETE"
+    _url = url
+
+  new patch(url: URL) =>
+    """
+    Create an Agent for a PATCH request.
+    """
+    _method = "PATCH"
+    _url = url
+
+  new options(url: URL) =>
+    """
+    Create an Agent for an OPTIONS request.
+    """
+    _method = "OPTIONS"
+    _url = url
+
+  new custom_method(method: String, url: URL) =>
+    """
+    Create an Agent for a request using a custom HTTP method.
+    """
     _method = method
     _url = url
 
@@ -76,7 +123,7 @@ class Agent
     _body.push(data)
     this
 
-  fun ref send(handler: (ResponseHandler | None)) =>
+  fun ref send(client: Client, handler: (ResponseHandler | None)) =>
     """
     Send request payload through the client.
     """
@@ -87,4 +134,4 @@ class Agent
     for bs in _body.values() do
       req.add_chunk(bs)
     end
-    _client(consume req)
+    client(consume req)

@@ -358,11 +358,11 @@ class iso _Client is UnitTest
         end
         h.complete(true)
     end
-    client.get(url)
+    Agent.get(url)
       .set("stuff", "things")
       .content_type(MediaType.html())
       .basic_auth("awesome_user", "123456")
-      .send(handler)
+      .send(client, handler)
 
 primitive _Test
   fun apply(h: TestHelper, url: URL, scheme: String, user: String,
