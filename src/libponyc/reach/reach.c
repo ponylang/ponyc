@@ -516,6 +516,8 @@ static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
   t->name = genname_type(type);
   t->mangle = "o";
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
+  t->type_id = (uint32_t)-1;
+
   reach_method_names_init(&t->methods, 0);
   reach_type_cache_init(&t->subtypes, 0);
   reach_types_put(&r->types, t);
@@ -533,7 +535,7 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
 
   t = add_reach_type(r, type);
   t->underlying = ast_id(t->ast);
-  t->type_id = ++r->next_type_id;
+  t->type_id = r->next_type_id++;
 
   ast_t* child = ast_child(type);
 
@@ -558,7 +560,7 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   t = add_reach_type(r, type);
   t->underlying = TK_TUPLETYPE;
-  t->type_id = ++r->next_type_id;
+  t->type_id = r->next_type_id++;
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reach_field_t*)calloc(t->field_count,
@@ -635,8 +637,8 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     default: {}
   }
 
-  if(t->type_id == 0)
-    t->type_id = ++r->next_type_id;
+  if(t->type_id == (uint32_t)-1)
+    t->type_id = r->next_type_id++;
 
   if(ast_id(def) != TK_PRIMITIVE)
     return t;

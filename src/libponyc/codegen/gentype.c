@@ -593,6 +593,8 @@ bool gentypes(compile_t* c)
     gentrace_prototype(c, t);
   }
 
+  gendesc_table(c);
+
   PONY_LOG(c->opt, VERBOSITY_INFO, (" Data types\n"));
   i = HASHMAP_BEGIN;
 

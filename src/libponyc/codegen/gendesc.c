@@ -11,18 +11,19 @@
 #define DESC_TRAIT_COUNT 2
 #define DESC_FIELD_COUNT 3
 #define DESC_FIELD_OFFSET 4
-#define DESC_TRACE 5
-#define DESC_SERIALISE_TRACE 6
-#define DESC_SERIALISE 7
-#define DESC_DESERIALISE 8
-#define DESC_DISPATCH 9
-#define DESC_FINALISE 10
-#define DESC_EVENT_NOTIFY 11
-#define DESC_TRAITS 12
-#define DESC_FIELDS 13
-#define DESC_VTABLE 14
+#define DESC_INSTANCE 5
+#define DESC_TRACE 6
+#define DESC_SERIALISE_TRACE 7
+#define DESC_SERIALISE 8
+#define DESC_DESERIALISE 9
+#define DESC_DISPATCH 10
+#define DESC_FINALISE 11
+#define DESC_EVENT_NOTIFY 12
+#define DESC_TRAITS 13
+#define DESC_FIELDS 14
+#define DESC_VTABLE 15
 
-#define DESC_LENGTH 15
+#define DESC_LENGTH 16
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -86,7 +87,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   return LLVMConstBitCast(unbox_fun, c->void_ptr);
 }
 
-static LLVMValueRef make_function_ptr(LLVMValueRef func, LLVMTypeRef type)
+static LLVMValueRef make_desc_ptr(LLVMValueRef func, LLVMTypeRef type)
 {
   if(func == NULL)
     return LLVMConstNull(type);
@@ -307,7 +308,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       if(t->primitive != NULL)
         vtable[index] = make_unbox_function(c, t, m);
       else
-        vtable[index] = make_function_ptr(m->func, c->void_ptr);
+        vtable[index] = make_desc_ptr(m->func, c->void_ptr);
     }
   }
 
@@ -331,6 +332,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_TRAIT_COUNT] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
+  params[DESC_INSTANCE] = c->object_ptr;
   params[DESC_TRACE] = c->trace_fn;
   params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
@@ -379,6 +381,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_TRAIT_COUNT] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
+  params[DESC_INSTANCE] = c->object_ptr;
   params[DESC_TRACE] = c->trace_fn;
   params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
@@ -415,13 +418,14 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_TRAIT_COUNT] = LLVMConstInt(c->i32, trait_count, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  args[DESC_TRACE] = make_function_ptr(t->trace_fn, c->trace_fn);
-  args[DESC_SERIALISE_TRACE] = make_function_ptr(t->serialise_trace_fn,
+  args[DESC_INSTANCE] = make_desc_ptr(t->instance, c->object_ptr);
+  args[DESC_TRACE] = make_desc_ptr(t->trace_fn, c->trace_fn);
+  args[DESC_SERIALISE_TRACE] = make_desc_ptr(t->serialise_trace_fn,
     c->trace_fn);
-  args[DESC_SERIALISE] = make_function_ptr(t->serialise_fn, c->serialise_fn);
-  args[DESC_DESERIALISE] = make_function_ptr(t->deserialise_fn, c->trace_fn);
-  args[DESC_DISPATCH] = make_function_ptr(t->dispatch_fn, c->dispatch_fn);
-  args[DESC_FINALISE] = make_function_ptr(t->final_fn, c->final_fn);
+  args[DESC_SERIALISE] = make_desc_ptr(t->serialise_fn, c->serialise_fn);
+  args[DESC_DESERIALISE] = make_desc_ptr(t->deserialise_fn, c->trace_fn);
+  args[DESC_DISPATCH] = make_desc_ptr(t->dispatch_fn, c->dispatch_fn);
+  args[DESC_FINALISE] = make_desc_ptr(t->final_fn, c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
   args[DESC_TRAITS] = trait_list;
   args[DESC_FIELDS] = make_field_list(c, t);
@@ -430,6 +434,41 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   LLVMValueRef desc = LLVMConstNamedStruct(t->desc_type, args, DESC_LENGTH);
   LLVMSetInitializer(t->desc, desc);
   LLVMSetGlobalConstant(t->desc, true);
+}
+
+void gendesc_table(compile_t* c)
+{
+  uint32_t len = c->reach->next_type_id;
+  size_t size = len * sizeof(LLVMValueRef);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
+
+  reach_type_t* t;
+  size_t i = HASHMAP_BEGIN;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    LLVMValueRef desc;
+
+    if(t->desc != NULL)
+      desc = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr, "");
+    else
+      desc = LLVMConstNull(c->descriptor_ptr);
+
+    args[t->type_id] = desc;
+  }
+
+  LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, len);
+  LLVMValueRef table = LLVMAddGlobal(c->module, type, "__DescTable");
+  LLVMValueRef value = LLVMConstArray(c->descriptor_ptr, args, len);
+  LLVMSetInitializer(table, value);
+  LLVMSetGlobalConstant(table, true);
+
+  LLVMValueRef table_size = LLVMAddGlobal(c->module, c->intptr,
+    "__DescTableSize");
+  LLVMSetInitializer(table_size, LLVMConstInt(c->intptr, len, false));
+  LLVMSetGlobalConstant(table_size, true);
+
+  ponyint_pool_free_size(size, args);
 }
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)

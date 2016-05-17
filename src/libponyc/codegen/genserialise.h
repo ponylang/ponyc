@@ -11,6 +11,11 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
 
 void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
 
+void gendeserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
+
+void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
+  LLVMValueRef ctx, LLVMValueRef ptr);
+
 bool genserialise(compile_t* c, reach_type_t* t);
 
 PONY_EXTERN_C_END

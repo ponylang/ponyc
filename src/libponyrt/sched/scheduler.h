@@ -27,6 +27,7 @@ typedef struct pony_ctx_t
   actormap_t acquire;
   bool finalising;
 
+  void* serialise_buffer;
   size_t serialise_size;
   ponyint_serialise_t serialise;
 

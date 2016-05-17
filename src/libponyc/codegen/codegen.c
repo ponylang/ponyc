@@ -369,6 +369,13 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
+  // i8* pony_deserialise_offset(i8*, __desc*, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->descriptor_ptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
+
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
   params[1] = LLVMPointerType(c->void_ptr, 0);
