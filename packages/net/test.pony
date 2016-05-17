@@ -253,6 +253,76 @@ class iso _TestBroadcast is UnitTest
 
     h.long_test(2_000_000_000) // 2 second timeout
 
+class _TestTCP is TCPListenNotify
+  """
+  Run a typical TCP test consisting of a single TCPListener that accepts a
+  single TCPConnection as a client, using a dynamic available listen port.
+  """
+  let _h: TestHelper
+  var _client_conn_notify: (TCPConnectionNotify iso | None) = None
+  var _server_conn_notify: (TCPConnectionNotify iso | None) = None
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun iso apply(c: TCPConnectionNotify iso, s: TCPConnectionNotify iso) =>
+    _client_conn_notify = consume c
+    _server_conn_notify = consume s
+
+    let h = _h
+    h.expect_action("server create")
+    h.expect_action("server listen")
+    h.expect_action("client create")
+    h.expect_action("server accept")
+
+    try
+      let auth = h.env.root as AmbientAuth
+      h.dispose_when_done(TCPListener(auth, consume this))
+      h.complete_action("server create")
+    else
+      h.fail_action("server create")
+    end
+
+    h.long_test(2_000_000_000)
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    _h.fail_action("server listen")
+
+  fun ref listening(listen: TCPListener ref) =>
+    _h.complete_action("server listen")
+
+    try
+      let auth = _h.env.root as AmbientAuth
+      let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
+      (let host, let port) = listen.local_address().name()
+      _h.dispose_when_done(TCPConnection.ip4(auth, consume notify, host, port))
+      _h.complete_action("client create")
+    else
+      _h.fail_action("client create")
+    end
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
+    try
+      let notify = (_server_conn_notify = None) as TCPConnectionNotify iso^
+      _h.complete_action("server accept")
+      consume notify
+    else
+      _h.fail_action("server accept")
+      error
+    end
+
+class iso _TestTCPExpect is UnitTest
+  """
+  Test expecting framed data with TCP.
+  """
+  fun name(): String => "net/TCP.expect"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client receive")
+    h.expect_action("server receive")
+
+    _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true))
+
 class _TestTCPExpectNotify is TCPConnectionNotify
   let _h: TestHelper
   let _server: Bool
@@ -316,87 +386,17 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf.append(data)
     conn.write(consume buf)
 
-class _TestTCPExpectListen is TCPListenNotify
-  let _h: TestHelper
-
-  new iso create(h: TestHelper) =>
-    _h = h
-
-  fun ref not_listening(listen: TCPListener ref) =>
-    _h.fail_action("server listen")
-
-  fun ref listening(listen: TCPListener ref) =>
-    _h.complete_action("server listen")
-
-    let h = _h
-    let ip = listen.local_address()
-
-    try
-      let auth = h.env.root as AmbientAuth
-      (let host, let service) = ip.name()
-      _h.dispose_when_done(TCPConnection.ip4(auth,
-        _TestTCPExpectNotify(h, false), host, service))
-      _h.complete_action("client create")
-    else
-      _h.fail_action("client create")
-    end
-
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    _h.complete_action("server accept")
-    _TestTCPExpectNotify(_h, true)
-
-class iso _TestTCPExpect is UnitTest
+class iso _TestTCPWritev is UnitTest
   """
-  Test expecting framed data with TCP.
+  Test writev (and sent/sentv notification).
   """
-  fun name(): String => "net/TCP.expect"
+  fun name(): String => "net/TCP.writev"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("server create")
-    h.expect_action("server listen")
-    h.expect_action("client create")
-    h.expect_action("client connect")
-    h.expect_action("server accept")
     h.expect_action("client receive")
     h.expect_action("server receive")
 
-    try
-      let auth = h.env.root as AmbientAuth
-      h.dispose_when_done(TCPListener(auth, _TestTCPExpectListen(h)))
-      h.complete_action("server create")
-    else
-      h.fail_action("server create")
-    end
-
-    h.long_test(2_000_000_000)
-
-class _TestTCPWritevListenNotify is TCPListenNotify
-  let _h: TestHelper
-
-  new iso create(h: TestHelper) =>
-    _h = h
-
-  fun ref not_listening(listen: TCPListener ref) =>
-    _h.fail_action("server listen")
-
-  fun ref listening(listen: TCPListener ref) =>
-    _h.complete_action("server listen")
-
-    let ip = listen.local_address()
-
-    try
-      let auth = _h.env.root as AmbientAuth
-      (let host, let service) = ip.name()
-      _h.dispose_when_done(
-        TCPConnection.ip4(auth, _TestTCPWritevNotify(_h, false), host, service))
-      _h.complete_action("client create")
-    else
-      _h.fail_action("client create")
-    end
-
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    _h.complete_action("server accept")
-    _TestTCPWritevNotify(_h, true)
+    _TestTCP(h)(_TestTCPWritevNotify(h, false), _TestTCPWritevNotify(h, true))
 
 class _TestTCPWritevNotify is TCPConnectionNotify
   let _h: TestHelper
@@ -452,28 +452,3 @@ class _TestTCPWritevNotify is TCPConnectionNotify
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.writev(recover ["hello", ", hello"] end)
-
-class iso _TestTCPWritev is UnitTest
-  """
-  Test writev (and sent/sentv notification).
-  """
-  fun name(): String => "net/TCP.writev"
-
-  fun ref apply(h: TestHelper) =>
-    h.expect_action("server create")
-    h.expect_action("server listen")
-    h.expect_action("client create")
-    h.expect_action("client connect")
-    h.expect_action("server accept")
-    h.expect_action("client receive")
-    h.expect_action("server receive")
-
-    try
-      let auth = h.env.root as AmbientAuth
-      h.dispose_when_done(TCPListener(auth, _TestTCPWritevListenNotify(h)))
-      h.complete_action("server create")
-    else
-      h.fail_action("server create")
-    end
-
-    h.long_test(2_000_000_000)
