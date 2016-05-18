@@ -144,7 +144,6 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   LLVMValueRef object)
 {
   // The contents have already been copied.
-  LLVMTypeRef structure = t->structure;
   int extra = 0;
 
   switch(t->underlying)
@@ -172,8 +171,6 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
         gendeserialise_typeid(c, t, object);
         object = LLVMBuildStructGEP(c->builder, object, 1, "");
       }
-
-      structure = t->primitive;
       break;
     }
 
