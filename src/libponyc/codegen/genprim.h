@@ -17,9 +17,13 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t);
 
 void genprim_array_serialise(compile_t* c, reach_type_t* t);
 
+void genprim_array_deserialise(compile_t* c, reach_type_t* t);
+
 void genprim_string_serialise_trace(compile_t* c, reach_type_t* t);
 
 void genprim_string_serialise(compile_t* c, reach_type_t* t);
+
+void genprim_string_deserialise(compile_t* c, reach_type_t* t);
 
 void genprim_platform_methods(compile_t* c, reach_type_t* t);
 

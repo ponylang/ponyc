@@ -89,18 +89,7 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   s->mutability = mutability;
 
   if(mutability != PONY_TRACE_OPAQUE)
-  {
-    // These will only be called once per object.
-    if(t->serialise_trace == t->trace)
-    {
-      recurse(ctx, p, t->serialise_trace);
-    } else {
-      // This is a String or an Array[A]. The serialise_trace function must be
-      // called immediately so that the extra size it requests in the buffer
-      // is associated with this object.
-      t->serialise_trace(ctx, p);
-    }
-  }
+    recurse(ctx, p, t->serialise_trace);
 }
 
 void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -110,9 +99,45 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_throw();
 }
 
-void pony_serialise_size(pony_ctx_t* ctx, size_t size)
+void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
 {
+  // Reserve a block of memory to serialise into. This is only needed for
+  // String and Array[A].
+  if(size == 0)
+    return;
+
+  serialise_t k;
+  k.key = (uintptr_t)p;
+  serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
+
+  if(s != NULL)
+    return;
+
+  // Put an entry in the map and reserve space.
+  s = POOL_ALLOC(serialise_t);
+  s->key = (uintptr_t)p;
+  s->value = ctx->serialise_size;
+  s->t = NULL;
+  s->mutability = PONY_TRACE_OPAQUE;
+
+  ponyint_serialise_put(&ctx->serialise, s);
   ctx->serialise_size += size;
+}
+
+size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
+{
+  serialise_t k;
+  k.key = (uintptr_t)p;
+  serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
+
+  // If we are in the map, return the offset.
+  if(s != NULL)
+    return s->value;
+
+  // If we are not in the map, we are an untraced primitive. Return the type id
+  // with the high bit set.
+  pony_type_t* t = *(pony_type_t**)p;
+  return (size_t)t->id | HIGH_BIT;
 }
 
 void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
@@ -135,26 +160,13 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   serialise_t* s;
 
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
-    s->t->serialise(ctx, (void*)s->key, r->ptr + s->value, s->mutability);
+  {
+    if(s->t != NULL)
+      s->t->serialise(ctx, (void*)s->key, r->ptr, s->value, s->mutability);
+  }
 
   ctx->serialise_size = 0;
   ponyint_serialise_destroy(&ctx->serialise);
-}
-
-size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
-{
-  serialise_t k;
-  k.key = (uintptr_t)p;
-  serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
-
-  // If we are in the map, return the offset.
-  if(s != NULL)
-    return s->value;
-
-  // If we are not in the map, we are an untraced primitive. Return the type id
-  // with the high bit set.
-  pony_type_t* t = *(pony_type_t**)p;
-  return (size_t)t->id | HIGH_BIT;
 }
 
 void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
@@ -170,7 +182,7 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
       return NULL;
 
     // Return the global instance, if there is one. It's ok to return null if
-    // there is no global instance, as this will then be an unserisalised
+    // there is no global instance, as this will then be an unserialised
     // field in an opaque object.
     t = (&__DescTable)[offset];
     return t->instance;
@@ -216,6 +228,17 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
 
   recurse(ctx, object, t->deserialise);
   return object;
+}
+
+void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
+{
+  // Allocate the block, memcpy to it.
+  if((offset + size) > ctx->serialise_size)
+    pony_throw();
+
+  void* block = pony_alloc(ctx, size);
+  memcpy(block, (void*)((uintptr_t)ctx->serialise_buffer + offset), size);
+  return block;
 }
 
 void* pony_deserialise(pony_ctx_t* ctx, void* in)

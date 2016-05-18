@@ -151,7 +151,7 @@ static void init_runtime(compile_t* c)
   c->str__event_notify = stringtab("_event_notify");
 
   LLVMTypeRef type;
-  LLVMTypeRef params[4];
+  LLVMTypeRef params[5];
   LLVMValueRef value;
 
   c->void_type = LLVMVoidTypeInContext(c->context);
@@ -190,12 +190,13 @@ static void init_runtime(compile_t* c)
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // serialise
-  // void (*)(i8*, __object*, i8*, i32)
+  // void (*)(i8*, __object*, i8*, intptr, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->void_ptr;
-  params[3] = c->i32;
-  c->serialise_type = LLVMFunctionType(c->void_type, params, 4, false);
+  params[3] = c->intptr;
+  params[4] = c->i32;
+  c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
   c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
 
   // dispatch
@@ -355,16 +356,17 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // void pony_serialise_size(i8*, intptr)
+  // void pony_serialise_reserve(i8*, i8*, intptr)
   params[0] = c->void_ptr;
-  params[1] = c->intptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_serialise_size", type);
+  params[1] = c->void_ptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_type, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // intptr pony_serialise_offset(i8*, __object*)
+  // intptr pony_serialise_offset(i8*, i8*)
   params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
+  params[1] = c->void_ptr;
   type = LLVMFunctionType(c->intptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
@@ -375,6 +377,13 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
+
+  // i8* pony_deserialise_block(i8*, intptr, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->intptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;

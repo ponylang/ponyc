@@ -102,7 +102,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
 
     LLVMValueRef args[2];
     args[0] = ctx;
-    args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
+    args[1] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
     LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
       args, 2, "");
 
@@ -127,12 +127,14 @@ static void make_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
   LLVMValueRef addr = LLVMGetParam(t->serialise_fn, 2);
+  LLVMValueRef offset = LLVMGetParam(t->serialise_fn, 3);
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
-  LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, addr, c->intptr, "");
+  LLVMValueRef offset_addr = LLVMBuildAdd(c->builder,
+    LLVMBuildPtrToInt(c->builder, addr, c->intptr, ""), offset, "");
 
-  serialise(c, t, ctx, object, offset);
+  serialise(c, t, ctx, object, offset_addr);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
@@ -286,17 +288,17 @@ bool genserialise(compile_t* c, reach_type_t* t)
       {
         if(name == c->str_Array)
         {
-          // TODO: deserialise Array
           genprim_array_serialise_trace(c, t);
           genprim_array_serialise(c, t);
+          genprim_array_deserialise(c, t);
           return true;
         }
 
         if(name == c->str_String)
         {
-          // TODO: deserialise String
           genprim_string_serialise_trace(c, t);
           genprim_string_serialise(c, t);
+          genprim_string_deserialise(c, t);
           return true;
         }
       }

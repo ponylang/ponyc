@@ -67,7 +67,8 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
  * executing context, the object being serialised, and an address to serialise
  * to.
  */
-typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr, int m);
+typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
+  size_t offset, int m);
 
 /** Dispatch function.
  *
