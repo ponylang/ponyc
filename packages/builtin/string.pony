@@ -38,6 +38,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
       data._cstring()._copy_to(_ptr, _alloc)
+      _set(_size, 0)
     end
 
   new from_cstring(str: Pointer[U8], len: USize = 0) =>

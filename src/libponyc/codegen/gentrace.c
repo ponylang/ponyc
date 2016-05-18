@@ -24,15 +24,15 @@
 typedef enum
 {
   TRACE_NONE,
-  TRACE_PRIMITIVE,
   TRACE_MAYBE,
-  TRACE_ACTOR,
-  TRACE_KNOWN_VAL,
-  TRACE_UNKNOWN_VAL,
-  TRACE_KNOWN,
-  TRACE_UNKNOWN,
-  TRACE_TAG,
-  TRACE_TAG_OR_ACTOR,
+  TRACE_MACHINE_WORD,
+  TRACE_PRIMITIVE,
+  TRACE_VAL_KNOWN,
+  TRACE_VAL_UNKNOWN,
+  TRACE_MUT_KNOWN,
+  TRACE_MUT_UNKNOWN,
+  TRACE_TAG_KNOWN,
+  TRACE_TAG_UNKNOWN,
   TRACE_DYNAMIC,
   TRACE_TUPLE
 } trace_t;
@@ -42,31 +42,54 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
 static trace_t trace_type(ast_t* type);
 
+static trace_t trace_union_machine_word(trace_t a)
+{
+  switch(a)
+  {
+    case TRACE_MACHINE_WORD:
+    case TRACE_PRIMITIVE:
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+      return TRACE_VAL_UNKNOWN;
+
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+      return TRACE_MUT_UNKNOWN;
+
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return TRACE_TAG_UNKNOWN;
+
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+      return TRACE_DYNAMIC;
+
+    default: {}
+  }
+
+  assert(0);
+  return TRACE_NONE;
+}
+
 static trace_t trace_union_primitive(trace_t a)
 {
-  assert(a >= TRACE_PRIMITIVE);
-
   switch(a)
   {
     case TRACE_PRIMITIVE:
       return TRACE_PRIMITIVE;
 
-    case TRACE_ACTOR:
-      return TRACE_TAG_OR_ACTOR;
+    case TRACE_MACHINE_WORD:
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+      return TRACE_VAL_UNKNOWN;
 
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-      return TRACE_UNKNOWN;
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+      return TRACE_MUT_UNKNOWN;
 
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-      return TRACE_UNKNOWN_VAL;
-
-    case TRACE_TAG:
-      return TRACE_TAG;
-
-    case TRACE_TAG_OR_ACTOR:
-      return TRACE_TAG_OR_ACTOR;
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return TRACE_TAG_UNKNOWN;
 
     case TRACE_DYNAMIC:
     case TRACE_TUPLE:
@@ -79,145 +102,70 @@ static trace_t trace_union_primitive(trace_t a)
   return TRACE_NONE;
 }
 
-static trace_t trace_union_actor(trace_t a)
+static trace_t trace_union_val(trace_t a)
 {
-  assert(a >= TRACE_ACTOR);
-
   switch(a)
   {
-    case TRACE_ACTOR:
-      return TRACE_ACTOR;
-
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-      return TRACE_UNKNOWN;
-
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-      return TRACE_UNKNOWN_VAL;
-
-    case TRACE_TAG:
-    case TRACE_TAG_OR_ACTOR:
-      return TRACE_TAG_OR_ACTOR;
-
-    case TRACE_DYNAMIC:
-    case TRACE_TUPLE:
-      return TRACE_DYNAMIC;
-
-    default: {}
-  }
-
-  assert(0);
-  return TRACE_NONE;
-}
-
-static trace_t trace_union_known_or_unknown(trace_t a)
-{
-  assert(a >= TRACE_KNOWN);
-
-  switch(a)
-  {
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-      return TRACE_UNKNOWN;
-
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-    case TRACE_TAG:
-    case TRACE_TAG_OR_ACTOR:
-    case TRACE_DYNAMIC:
-    case TRACE_TUPLE:
-      return TRACE_DYNAMIC;
-
-    default: {}
-  }
-
-  assert(0);
-  return TRACE_NONE;
-}
-
-static trace_t trace_union_known_or_unknown_val(trace_t a)
-{
-  assert(a >= TRACE_KNOWN_VAL);
-
-  switch(a)
-  {
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-      return TRACE_UNKNOWN_VAL;
-
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-    case TRACE_TAG:
-    case TRACE_TAG_OR_ACTOR:
-    case TRACE_DYNAMIC:
-    case TRACE_TUPLE:
-      return TRACE_DYNAMIC;
-
-    default: {}
-  }
-
-  assert(0);
-  return TRACE_NONE;
-}
-
-static trace_t trace_union_tag_or_actor(trace_t a)
-{
-  assert(a >= TRACE_TAG);
-
-  switch(a)
-  {
-    case TRACE_TAG:
-      return TRACE_TAG;
-
-    case TRACE_TAG_OR_ACTOR:
-      return TRACE_TAG_OR_ACTOR;
-
-    case TRACE_DYNAMIC:
-    case TRACE_TUPLE:
-      return TRACE_DYNAMIC;
-
-    default: {}
-  }
-
-  assert(0);
-  return TRACE_NONE;
-}
-
-static trace_t trace_type_combine(trace_t a, trace_t b)
-{
-  if(a > b)
-  {
-    trace_t tmp = a;
-    a = b;
-    b = tmp;
-  }
-
-  assert(a <= b);
-
-  switch(a)
-  {
-    case TRACE_NONE:
-      return b;
-
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
-      return trace_union_primitive(b);
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+      return TRACE_VAL_UNKNOWN;
 
-    case TRACE_ACTOR:
-      return trace_union_actor(b);
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+      return TRACE_DYNAMIC;
 
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-      return trace_union_known_or_unknown(b);
+    default: {}
+  }
 
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-      return trace_union_known_or_unknown_val(b);
+  assert(0);
+  return TRACE_NONE;
+}
 
-    case TRACE_TAG:
-    case TRACE_TAG_OR_ACTOR:
-      return trace_union_tag_or_actor(b);
+static trace_t trace_union_mut(trace_t a)
+{
+  switch(a)
+  {
+    case TRACE_MACHINE_WORD:
+    case TRACE_PRIMITIVE:
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+      return TRACE_MUT_UNKNOWN;
 
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+      return TRACE_DYNAMIC;
+
+    default: {}
+  }
+
+  assert(0);
+  return TRACE_NONE;
+}
+
+static trace_t trace_union_tag(trace_t a)
+{
+  switch(a)
+  {
+    case TRACE_MACHINE_WORD:
+    case TRACE_PRIMITIVE:
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return TRACE_TAG_UNKNOWN;
+
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
     case TRACE_DYNAMIC:
     case TRACE_TUPLE:
       return TRACE_DYNAMIC;
@@ -237,7 +185,46 @@ static trace_t trace_type_union(ast_t* type)
     child != NULL;
     child = ast_sibling(child))
   {
-    trace = trace_type_combine(trace, trace_type(child));
+    trace_t t = trace_type(child);
+
+    switch(trace)
+    {
+      case TRACE_NONE:
+        trace = t;
+        break;
+
+      case TRACE_MAYBE:
+        // Can't be in a union.
+        assert(0);
+        return TRACE_NONE;
+
+      case TRACE_MACHINE_WORD:
+        trace = trace_union_machine_word(t);
+        break;
+
+      case TRACE_PRIMITIVE:
+        trace = trace_union_primitive(t);
+        break;
+
+      case TRACE_MUT_KNOWN:
+      case TRACE_MUT_UNKNOWN:
+        trace = trace_union_mut(t);
+        break;
+
+      case TRACE_VAL_KNOWN:
+      case TRACE_VAL_UNKNOWN:
+        trace = trace_union_val(t);
+        break;
+
+      case TRACE_TAG_KNOWN:
+      case TRACE_TAG_UNKNOWN:
+        trace = trace_union_tag(t);
+        break;
+
+      case TRACE_DYNAMIC:
+      case TRACE_TUPLE:
+        return TRACE_DYNAMIC;
+    }
   }
 
   return trace;
@@ -256,23 +243,30 @@ static trace_t trace_type_isect(ast_t* type)
     switch(t)
     {
       case TRACE_NONE:
-      case TRACE_MAYBE: // Maybe, any refcap.
+      case TRACE_MAYBE:
         // Can't be in an isect.
         assert(0);
         return TRACE_NONE;
 
-      case TRACE_PRIMITIVE: // Primitive, any refcap.
-      case TRACE_ACTOR: // Actor, tag.
-      case TRACE_KNOWN_VAL:
-      case TRACE_KNOWN: // Class or struct, not tag.
-        return t;
+      case TRACE_PRIMITIVE:
+        return TRACE_PRIMITIVE;
 
-      case TRACE_UNKNOWN_VAL:
-      case TRACE_UNKNOWN: // Trait or interface, not tag.
-      case TRACE_TAG: // Class or struct, tag.
-      case TRACE_TAG_OR_ACTOR: // Trait or interface, tag.
-        if(trace > t)
-          trace = t;
+      case TRACE_MACHINE_WORD:
+      case TRACE_VAL_KNOWN:
+      case TRACE_VAL_UNKNOWN:
+        trace = TRACE_VAL_UNKNOWN;
+        break;
+
+      case TRACE_MUT_KNOWN:
+      case TRACE_MUT_UNKNOWN:
+        if(trace != TRACE_VAL_UNKNOWN)
+          trace = TRACE_MUT_UNKNOWN;
+        break;
+
+      case TRACE_TAG_KNOWN:
+      case TRACE_TAG_UNKNOWN:
+        if((trace != TRACE_MUT_UNKNOWN) && (trace != TRACE_VAL_UNKNOWN))
+          trace = TRACE_TAG_UNKNOWN;
         break;
 
       case TRACE_DYNAMIC:
@@ -293,18 +287,23 @@ static trace_t trace_type_nominal(ast_t* type)
       switch(cap_single(type))
       {
         case TK_VAL:
-          return TRACE_UNKNOWN_VAL;
+          return TRACE_VAL_UNKNOWN;
 
         case TK_TAG:
-          return TRACE_TAG_OR_ACTOR;
+          return TRACE_TAG_UNKNOWN;
 
         default: {}
       }
 
-      return TRACE_UNKNOWN;
+      return TRACE_MUT_UNKNOWN;
 
     case TK_PRIMITIVE:
+    {
+      if(is_machine_word(type))
+        return TRACE_MACHINE_WORD;
+
       return TRACE_PRIMITIVE;
+    }
 
     case TK_STRUCT:
     case TK_CLASS:
@@ -314,18 +313,18 @@ static trace_t trace_type_nominal(ast_t* type)
       switch(cap_single(type))
       {
         case TK_VAL:
-          return TRACE_KNOWN_VAL;
+          return TRACE_VAL_KNOWN;
 
         case TK_TAG:
-          return TRACE_TAG;
+          return TRACE_TAG_KNOWN;
 
         default: {}
       }
 
-      return TRACE_KNOWN;
+      return TRACE_MUT_KNOWN;
 
     case TK_ACTOR:
-      return TRACE_ACTOR;
+      return TRACE_TAG_KNOWN;
 
     default: {}
   }
@@ -357,36 +356,6 @@ static trace_t trace_type(ast_t* type)
   return TRACE_DYNAMIC;
 }
 
-static void trace_tag(compile_t* c, LLVMValueRef ctx, LLVMValueRef object)
-{
-  // Cast the object to a void pointer.
-  LLVMValueRef args[2];
-  args[0] = ctx;
-  args[1] = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
-
-  gencall_runtime(c, "pony_trace", args, 2, "");
-}
-
-static void trace_tag_or_actor(compile_t* c, LLVMValueRef ctx,
-  LLVMValueRef object)
-{
-  // We're an object.
-  LLVMValueRef args[2];
-  args[0] = ctx;
-  args[1] = object;
-  gencall_runtime(c, "pony_trace_tag_or_actor", args, 2, "");
-}
-
-static void trace_actor(compile_t* c, LLVMValueRef ctx, LLVMValueRef object)
-{
-  // Cast the object to an object pointer.
-  LLVMValueRef args[2];
-  args[0] = ctx;
-  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
-
-  gencall_runtime(c, "pony_traceactor", args, 2, "");
-}
-
 static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type)
 {
@@ -407,38 +376,26 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 }
 
 static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  ast_t* type, bool immutable)
+  ast_t* type, int mutability)
 {
   reach_type_t* t = reach_type(c->reach, type);
 
-  // If this type has no trace function, don't try to recurse in the runtime.
-  if(t->trace_fn != NULL)
-  {
-    // Cast the object to an object pointer.
-    LLVMValueRef args[4];
-    args[0] = ctx;
-    args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
-    args[2] = t->trace_fn;
-    args[3] = LLVMConstInt(c->i32, immutable, false);
+  LLVMValueRef args[4];
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
+  args[2] = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr, "");
+  args[3] = LLVMConstInt(c->i32, mutability, false);
 
-    gencall_runtime(c, "pony_traceobject", args, 4, "");
-  } else {
-    // Cast the object to a void pointer.
-    LLVMValueRef args[2];
-    args[0] = ctx;
-    args[1] = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
-    gencall_runtime(c, "pony_trace", args, 2, "");
-  }
+  gencall_runtime(c, "pony_traceknown", args, 4, "");
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  bool immutable)
+  int mutability)
 {
-  // We're an object.
   LLVMValueRef args[3];
   args[0] = ctx;
-  args[1] = object;
-  args[2] = LLVMConstInt(c->i32, immutable, false);
+  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
+  args[2] = LLVMConstInt(c->i32, mutability, false);
 
   gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
@@ -474,7 +431,7 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
   }
 
   // No type matched. This may be a boxed primitive: trace it here.
-  trace_tag(c, ctx, object);
+  trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
 }
 
 static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
@@ -524,17 +481,17 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
   {
     switch(trace_type(child))
     {
+      case TRACE_MACHINE_WORD:
       case TRACE_PRIMITIVE:
         // Skip this element.
         break;
 
-      case TRACE_ACTOR:
-      case TRACE_KNOWN:
-      case TRACE_UNKNOWN:
-      case TRACE_KNOWN_VAL:
-      case TRACE_UNKNOWN_VAL:
-      case TRACE_TAG:
-      case TRACE_TAG_OR_ACTOR:
+      case TRACE_MUT_KNOWN:
+      case TRACE_MUT_UNKNOWN:
+      case TRACE_VAL_KNOWN:
+      case TRACE_VAL_UNKNOWN:
+      case TRACE_TAG_KNOWN:
+      case TRACE_TAG_UNKNOWN:
       case TRACE_DYNAMIC:
       {
         // If we are (A, B), turn (_, _) into (A, _).
@@ -636,16 +593,14 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   LLVMPositionBuilderAtEnd(c->builder, is_true);
   gentrace(c, ctx, object, type);
 
-  // If we have traced as known, unknown or actor, we're done with this
-  // element. Otherwise, continue tracing this as if the match had been
-  // unsuccessful.
+  // If we have traced as mut or val, we're done with this element. Otherwise,
+  // continue tracing this as if the match had been unsuccessful.
   switch(trace_type(type))
   {
-    case TRACE_KNOWN:
-    case TRACE_UNKNOWN:
-    case TRACE_KNOWN_VAL:
-    case TRACE_UNKNOWN_VAL:
-    case TRACE_ACTOR:
+    case TRACE_MUT_KNOWN:
+    case TRACE_MUT_UNKNOWN:
+    case TRACE_VAL_KNOWN:
+    case TRACE_VAL_UNKNOWN:
       LLVMBuildBr(c->builder, next_block);
       break;
 
@@ -672,7 +627,7 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
     case TK_TUPLETYPE:
     {
       // This is a boxed tuple. Trace the box, then handle the elements.
-      trace_tag(c, ctx, object);
+      trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
 
       LLVMValueRef desc = gendesc_fetch(c, object);
       LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
@@ -696,6 +651,7 @@ bool gentrace_needed(ast_t* type)
       assert(0);
       return false;
 
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
       return false;
 
@@ -745,8 +701,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
   if(!need_trace)
     return;
 
-  const char* trace_name = genname_trace(t->name);
-  t->trace_fn = codegen_addfun(c, trace_name, c->trace_type);
+  t->trace_fn = codegen_addfun(c, genname_trace(t->name), c->trace_type);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
@@ -757,6 +712,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
       assert(0);
       return;
 
+    case TRACE_MACHINE_WORD:
     case TRACE_PRIMITIVE:
       return;
 
@@ -764,32 +720,28 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value, ast_t* type)
       trace_maybe(c, ctx, value, type);
       return;
 
-    case TRACE_ACTOR:
-      trace_actor(c, ctx, value);
+    case TRACE_VAL_KNOWN:
+      trace_known(c, ctx, value, type, PONY_TRACE_IMMUTABLE);
       return;
 
-    case TRACE_KNOWN_VAL:
-      trace_known(c, ctx, value, type, true);
+    case TRACE_VAL_UNKNOWN:
+      trace_unknown(c, ctx, value, PONY_TRACE_IMMUTABLE);
       return;
 
-    case TRACE_UNKNOWN_VAL:
-      trace_unknown(c, ctx, value, true);
+    case TRACE_MUT_KNOWN:
+      trace_known(c, ctx, value, type, PONY_TRACE_MUTABLE);
       return;
 
-    case TRACE_KNOWN:
-      trace_known(c, ctx, value, type, false);
+    case TRACE_MUT_UNKNOWN:
+      trace_unknown(c, ctx, value, PONY_TRACE_MUTABLE);
       return;
 
-    case TRACE_UNKNOWN:
-      trace_unknown(c, ctx, value, false);
+    case TRACE_TAG_KNOWN:
+      trace_known(c, ctx, value, type, PONY_TRACE_OPAQUE);
       return;
 
-    case TRACE_TAG:
-      trace_tag(c, ctx, value);
-      return;
-
-    case TRACE_TAG_OR_ACTOR:
-      trace_tag_or_actor(c, ctx, value);
+    case TRACE_TAG_UNKNOWN:
+      trace_unknown(c, ctx, value, PONY_TRACE_OPAQUE);
       return;
 
     case TRACE_DYNAMIC:

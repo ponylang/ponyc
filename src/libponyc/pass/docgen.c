@@ -1072,7 +1072,8 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   docgen->sub_dir = doc_cat(docgen->base_dir, "docs/", "", "", "",
     &docgen->sub_dir_buf_len);
 
-  PONY_LOG(opt, VERBOSITY_INFO, ("Writing docs to %s\n", docgen->base_dir));
+  if(opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, "Writing docs to %s\n", docgen->base_dir);
 
   // Create and clear out base directory
   pony_mkdir(docgen->base_dir);

@@ -30,7 +30,7 @@ asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_send(ctx);
-  pony_traceactor(ctx, owner);
+  pony_traceknown(ctx, owner, type, PONY_TRACE_OPAQUE);
   pony_send_done(ctx);
 
   pony_asio_event_subscribe(ev);
@@ -51,7 +51,7 @@ void pony_asio_event_destroy(asio_event_t* ev)
   // the asio thread.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_recv(ctx);
-  pony_traceactor(ctx, ev->owner);
+  pony_traceunknown(ctx, ev->owner, PONY_TRACE_OPAQUE);
   pony_recv_done(ctx);
 
   POOL_FREE(asio_event_t, ev);

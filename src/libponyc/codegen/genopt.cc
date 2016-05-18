@@ -519,7 +519,8 @@ static void optimise(compile_t* c)
 
   if(c->opt->release)
   {
-    PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Optimising\n"));
+    if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+      fprintf(stderr, "Optimising\n");
 
     pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
@@ -591,7 +592,8 @@ bool genopt(compile_t* c)
 
   if(c->opt->verify)
   {
-    PONY_LOG(c->opt, VERBOSITY_MINIMAL, ("Verifying\n"));
+    if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+      fprintf(stderr, "Verifying\n");
     
     char* msg = NULL;
 

@@ -5,12 +5,13 @@
 #include <platform.h>
 #include "actor/messageq.h"
 #include "gc/gc.h"
+#include "gc/serialise.h"
 #include "mpmcq.h"
 
 PONY_EXTERN_C_BEGIN
 
-typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);
 
@@ -25,6 +26,10 @@ typedef struct pony_ctx_t
   gcstack_t* stack;
   actormap_t acquire;
   bool finalising;
+
+  void* serialise_buffer;
+  size_t serialise_size;
+  ponyint_serialise_t serialise;
 
 #ifdef USE_TELEMETRY
   size_t tsc;

@@ -65,6 +65,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - GC tracing with acquire/release semantics.
 - pony_alloc_msg_size runtime function
 - `net/WriteBuffer`
+- `serialise` package.
 
 ### Changed
 
@@ -81,6 +82,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `this->` adapted types check match on the upper bounds.
 - Renamed `identityof` to `digestof`.
 - Renamed `net/Buffer` to `net/ReadBuffer`
+- Print compiler error and info messages to stderr instead of stdout.
 
 ## [0.2.1] - 2015-10-06
 
