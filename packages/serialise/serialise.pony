@@ -3,6 +3,23 @@
 
 This package provides support for serialising and deserialising arbitrary data
 structures.
+
+The API is designed to require capability tokens, as otherwise serialising
+would leak the bit patterns of all private information in a type (since the
+resulting Array[U8] could be examined.
+
+Deserialisation is fundamentally unsafe currently: there isn't yet a
+verification pass to check that the resulting object graph maintains a
+well-formed heap or that individual objects maintain any expected local
+invariants. However, if only "trusted" data (i.e. data produced by Pony
+serialisation from the same binary) is deserialised, it will always maintain a
+well-formed heap and all object invariants.
+
+Note that serialised data is not usable between different Pony binaries,
+possibly including recompilation of the same code. This is due to the use of
+type identifiers rather than a heavy-weight self-describing serialisation
+schema. This also means it isn't safe to deserialise something serialised by
+the same program compiled for a different platform.
 """
 
 primitive SerialiseAuth
