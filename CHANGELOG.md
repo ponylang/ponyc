@@ -65,6 +65,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - GC tracing with acquire/release semantics.
 - pony_alloc_msg_size runtime function
 - `net/WriteBuffer`
+- `serialise` package.
 
 ### Changed
 
