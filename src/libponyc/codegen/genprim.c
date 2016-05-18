@@ -718,7 +718,44 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr_loc = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMBuildStore(c->builder, ptr, ptr_loc);
 
-  // TODO: deserialise the array contents
+  if((t_elem->underlying == TK_PRIMITIVE) && (t_elem->primitive != NULL))
+  {
+    // Do nothing. A memcpy is sufficient.
+  } else {
+    LLVMValueRef size = field_value(c, object, 1);
+    ptr = LLVMBuildBitCast(c->builder, ptr,
+      LLVMPointerType(t_elem->use_type, 0), "");
+
+    LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
+    LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
+    LLVMBasicBlockRef body_block = codegen_block(c, "body");
+    LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+    LLVMBuildBr(c->builder, cond_block);
+
+    // While the index is less than the size, deserialise an element. The
+    // initial index when coming from the entry block is zero.
+    LLVMPositionBuilderAtEnd(c->builder, cond_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
+    LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
+    LLVMAddIncoming(phi, &zero, &entry_block, 1);
+    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, size, "");
+    LLVMBuildCondBr(c->builder, test, body_block, post_block);
+
+    // The phi node is the index. Get the element and deserialise it.
+    LLVMPositionBuilderAtEnd(c->builder, body_block);
+    LLVMValueRef elem_ptr = LLVMBuildGEP(c->builder, ptr, &phi, 1, "");
+    gendeserialise_element(c, t_elem, false, ctx, elem_ptr);
+
+    // Add one to the phi node and branch back to the cond block.
+    LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
+    LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
+    body_block = LLVMGetInsertBlock(c->builder);
+    LLVMAddIncoming(phi, &inc, &body_block, 1);
+    LLVMBuildBr(c->builder, cond_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+  }
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);

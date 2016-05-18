@@ -7,9 +7,6 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     /*
     TODO:
-    arrays of classes
-    arrays of structs
-    arrays of tuples
     arrays of union types
     arrays of tags
     no pointers
@@ -17,6 +14,7 @@ actor Main is TestList
     */
     test(_TestSimple)
     test(_TestArrays)
+    test(_TestFailures)
 
 class _MachineWords
   var bool1: Bool = true
@@ -159,9 +157,55 @@ class iso _TestArrays is UnitTest
     h.assert_true(x4 isnt y4)
 
     var i = USize(0)
-
     while i < x4.size() do
       h.assert_eq[U16](x4(i)._1, y4(i)._1)
       h.assert_eq[Bool](x4(i)._2, y4(i)._2)
       i = i + 1
     end
+
+    let x5: Array[String] = ["hi", "there", "folks"]
+    sx = Serialised(serialise, x5)
+    let y5 = sx(deserialise) as Array[String]
+    h.assert_true(x5 isnt y5)
+    h.assert_array_eq[String](x5, y5)
+
+    let x6: Array[_StructWords] =
+      [as _StructWords: _StructWords, _StructWords, _StructWords]
+    sx = Serialised(serialise, x6)
+    let y6 = sx(deserialise) as Array[_StructWords]
+    h.assert_true(x6 isnt y6)
+
+    i = 0
+    while i < x6.size() do
+      h.assert_true(x6(i) isnt y6(i))
+      h.assert_true(x6(i) == y6(i))
+      i = i + 1
+    end
+
+actor _EmptyActor
+
+class _HasPointer
+  var x: Pointer[U8] = Pointer[U8]
+
+class _HasActor
+  var x: _EmptyActor = _EmptyActor
+
+class iso _TestFailures is UnitTest
+  """
+  Test serialisation failures.
+  """
+  fun name(): String => "serialise/Failures"
+
+  fun apply(h: TestHelper) ? =>
+    let ambient = h.env.root as AmbientAuth
+    let serialise = SerialiseAuth(ambient)
+
+    h.assert_error(
+      lambda()(serialise)? =>
+        Serialised(serialise, _HasPointer)
+      end)
+
+    h.assert_error(
+      lambda()(serialise)? =>
+        Serialised(serialise, _HasActor)
+      end)
