@@ -76,6 +76,7 @@ typedef struct compile_t
   const char* str_Pointer;
   const char* str_Maybe;
   const char* str_Array;
+  const char* str_String;
   const char* str_Platform;
   const char* str_Main;
   const char* str_Env;
@@ -137,6 +138,8 @@ typedef struct compile_t
   LLVMTypeRef actor_pad;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
+  LLVMTypeRef serialise_type;
+  LLVMTypeRef serialise_fn;
   LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;

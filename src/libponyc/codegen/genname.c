@@ -125,6 +125,11 @@ const char* genname_trace(const char* type)
   return stringtab_two(type, "Trace");
 }
 
+const char* genname_serialise_trace(const char* type)
+{
+  return stringtab_two(type, "SerialiseTrace");
+}
+
 const char* genname_serialise(const char* type)
 {
   return stringtab_two(type, "Serialise");

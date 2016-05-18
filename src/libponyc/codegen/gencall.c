@@ -657,9 +657,6 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
 LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 {
   // We explicitly want a boxed version.
-  // Get the size of the structure.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
-
   // Allocate the object.
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
@@ -668,17 +665,17 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 
   if(t->final_fn == NULL)
   {
-    if(size <= HEAP_MAX)
+    if(t->abi_size <= HEAP_MAX)
     {
-      uint32_t index = ponyint_heap_index(size);
+      uint32_t index = ponyint_heap_index(t->abi_size);
       args[1] = LLVMConstInt(c->i32, index, false);
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     } else {
-      args[1] = LLVMConstInt(c->intptr, size, false);
+      args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     }
   } else {
-    args[1] = LLVMConstInt(c->intptr, size, false);
+    args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
     args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }

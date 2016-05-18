@@ -16,6 +16,8 @@ const char* genname_fieldlist(const char* type);
 
 const char* genname_trace(const char* type);
 
+const char* genname_serialise_trace(const char* type);
+
 const char* genname_serialise(const char* type);
 
 const char* genname_deserialise(const char* type);
