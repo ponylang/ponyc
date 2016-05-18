@@ -578,7 +578,9 @@ bool gentypes(compile_t* c)
 
   genprim_builtins(c);
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data prototypes\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Data prototypes\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -595,7 +597,9 @@ bool gentypes(compile_t* c)
 
   gendesc_table(c);
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data types\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Data types\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -606,7 +610,9 @@ bool gentypes(compile_t* c)
     make_global_instance(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Function prototypes\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Function prototypes\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -622,7 +628,9 @@ bool gentypes(compile_t* c)
       return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Functions\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -631,7 +639,9 @@ bool gentypes(compile_t* c)
       return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Descriptors\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Descriptors\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)

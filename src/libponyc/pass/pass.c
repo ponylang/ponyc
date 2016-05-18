@@ -105,7 +105,7 @@ void pass_opt_done(pass_opt_t* options)
 
   if(options->print_stats)
   {
-    printf(
+    fprintf(stderr,
       "\nStats:"
       "\n  Names: " __zu
       "\n  Default caps: " __zu
@@ -156,8 +156,8 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
     return false;
   }
 
-  //printf("Pass %s (last %s) on %s\n", pass_name(pass), pass_name(last_pass),
-  //  ast_get_print(*astp));
+  //fprintf(stderr, "Pass %s (last %s) on %s\n", pass_name(pass),
+  //  pass_name(last_pass), ast_get_print(*astp));
 
   if(ast_visit(astp, pre_fn, post_fn, options, pass) != AST_OK)
   {

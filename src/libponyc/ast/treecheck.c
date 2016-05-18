@@ -38,7 +38,7 @@ static void error_preamble(ast_t* ast)
 {
   assert(ast != NULL);
 
-  printf("Internal error: AST node %d (%s), ", ast_id(ast),
+  fprintf(stderr, "Internal error: AST node %d (%s), ", ast_id(ast),
     ast_get_print(ast));
 }
 
@@ -115,10 +115,10 @@ static bool check_children(ast_t* ast, check_state_t* state,
   if(state->child == NULL)
   {
     error_preamble(ast);
-    printf("found " __zu " child%s, expected more\n", state->child_index,
+    fprintf(stderr, "found " __zu " child%s, expected more\n", state->child_index,
       (state->child_index == 1) ? "" : "ren");
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
@@ -126,10 +126,10 @@ static bool check_children(ast_t* ast, check_state_t* state,
   else
   {
     error_preamble(ast);
-    printf("child " __zu " has invalid id %d\n", state->child_index,
+    fprintf(stderr, "child " __zu " has invalid id %d\n", state->child_index,
       ast_id(state->child));
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
@@ -157,9 +157,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     if(state->type == NULL)
     {
       error_preamble(ast);
-      printf("unexpected type\n");
+      fprintf(stderr, "unexpected type\n");
       ast_error(state->errors, ast, "Here");
-      ast_print(ast);
+      ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
       assert(false);
 #endif
@@ -174,9 +174,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     if(r == CHK_NOT_FOUND)
     {
       error_preamble(ast);
-      printf("type field has invalid id %d\n", ast_id(type_field));
+      fprintf(stderr, "type field has invalid id %d\n", ast_id(type_field));
       ast_error(state->errors, ast, "Here");
-      ast_print(ast);
+      ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
       assert(false);
 #endif
@@ -187,10 +187,10 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   if(state->child != NULL)
   {
     error_preamble(ast);
-    printf("child " __zu " (id %d, %s) unexpected\n", state->child_index,
+    fprintf(stderr, "child " __zu " (id %d, %s) unexpected\n", state->child_index,
       ast_id(state->child), ast_get_print(state->child));
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
@@ -200,9 +200,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   if(ast_data(ast) != NULL && !state->has_data)
   {
     error_preamble(ast);
-    printf("unexpected data %p\n", ast_data(ast));
+    fprintf(stderr, "unexpected data %p\n", ast_data(ast));
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
@@ -212,9 +212,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   if(ast_has_scope(ast) && !state->is_scope)
   {
     error_preamble(ast);
-    printf("unexpected scope\n");
+    fprintf(stderr, "unexpected scope\n");
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
@@ -224,9 +224,9 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   if(!ast_has_scope(ast) && state->is_scope)
   {
     error_preamble(ast);
-    printf("expected scope not found\n");
+    fprintf(stderr, "expected scope not found\n");
     ast_error(state->errors, ast, "Here");
-    ast_print(ast);
+    ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
     assert(false);
 #endif
