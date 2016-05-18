@@ -20,6 +20,7 @@ use builtin_test = "builtin_test"
 use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
 use collections = "collections"
+use collections_persistent = "collections/persistent"
 use debug = "debug"
 use files = "files"
 use glob = "glob"
@@ -30,7 +31,6 @@ use logger = "logger"
 use math = "math"
 use net = "net"
 use options = "options"
-use persistent = "collections/persistent"
 use promises = "promises"
 use process = "process"
 use random = "random"
@@ -52,6 +52,7 @@ actor Main is TestList
     builtin_test.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     collections.Main.make().tests(test)
+    collections_persistent.Main.make().tests(test)
     files.Main.make().tests(test)
 
     ifdef not windows then
@@ -65,7 +66,6 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
-    persistent.Main.make().tests(test)
 
     ifdef posix then
       // The process package currently only supports posix
