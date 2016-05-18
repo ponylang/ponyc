@@ -40,6 +40,7 @@ use strings = "strings"
 use term = "term"
 use time = "time"
 use itertools = "itertools"
+use serialise = "serialise"
 
 
 actor Main is TestList
@@ -69,7 +70,7 @@ actor Main is TestList
       // The process package currently only supports posix
       process.Main.make().tests(test)
     end
-    
+
     regex.Main.make().tests(test)
 
     ifdef not windows then
@@ -81,3 +82,4 @@ actor Main is TestList
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
     itertools.Main.make().tests(test)
+    serialise.Main.make().tests(test)
