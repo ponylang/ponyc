@@ -208,7 +208,7 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
   {
     const char* lib = strlist_data(p);
-    bool amble = !is_path_absolute(lib);
+    bool amble = !is_path_absolute(&lib[1]);
 
     if(amble)
       append_to_args(data, lib_premable);

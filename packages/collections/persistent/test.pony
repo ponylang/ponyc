@@ -258,10 +258,10 @@ class iso _TestMap is UnitTest
     h.assert_eq[USize](s1, 0)
 
     try
-      let m2 = m1.update("a", 5)
-      let m3 = m2.update("b", 10)
-      let m4 = m3.update("a", 4)
-      let m5 = m4.update("c", 0)
+      let m2 = m1("a") = 5
+      let m3 = m2("b") = 10
+      let m4 = m3("a") = 4
+      let m5 = m4("c") = 0
       h.assert_eq[U32](m2("a"), 5)
       h.assert_eq[U32](m3("b"), 10)
       h.assert_eq[U32](m4("a"), 4)
@@ -272,7 +272,7 @@ class iso _TestMap is UnitTest
 
     try
       let m6 = Maps.from[String,U32]([("a", 2), ("b", 3), ("d", 4), ("e", 5)])
-      let m7 = m6.update("a", 10)
+      let m7 = m6("a") = 10
       h.assert_eq[U32](m6("a"), 2)
       h.assert_eq[U32](m6("b"), 3)
       h.assert_eq[U32](m6("d"), 4)
@@ -299,55 +299,28 @@ class iso _TestMap is UnitTest
     true
 
 class iso _TestMapVsMap is UnitTest
-  fun name(): String => "collections/persistent/Map vs. collections Map"
+  fun name(): String => "collections/persistent/mapvsmap"
 
   fun apply(h: TestHelper) ? =>
-    var p_map: Map[String,U64] = Maps.empty[String,U64]()
-    let m_map: mut.Map[String,U64] = mut.Map[String,U64]()
-    let kvs = Array[(String,U64)]()
-    let dice = Dice(MT)
+    let keys: USize = 300
+    var p_map: Map[String, U64] = Maps.empty[String, U64]()
+    let m_map: mut.Map[String, U64] = mut.Map[String, U64](keys)
+    let r = MT
+
     var count: USize = 0
-    let iterations: USize = 200000
-    let keys: U64 = 200000
-
-    while(count < iterations) do
-      let k0 = dice(1,keys).string()
-      let k: String val = consume k0
-      let v = dice(1,100000)
-      kvs.push((k, v))
+    while count < keys do
+      let k: String = count.string()
+      let v = r.next()
+      p_map = p_map(k) = v
+      m_map(k) = v
       count = count + 1
     end
 
-    count = 0
-    while(count < iterations) do
-      let k = kvs(count)._1
-      let v = kvs(count)._2
-      p_map = p_map.update(k, v)
-      m_map.update(k, v)
-      count = count + 1
-    end
-    count = 0
-    while(count < iterations) do
-      let pmv = p_map(kvs(count)._1)
-      let mmv = m_map(kvs(count)._1)
-      h.assert_eq[Bool](_H.equal_map_u64_values(pmv, mmv), true)
-      count = count + 1
-    end
+    h.assert_eq[USize](m_map.size(), keys)
+    h.assert_eq[USize](p_map.size(), keys)
 
-    h.assert_eq[USize](m_map.size(), p_map.size())
+    for (k, v) in m_map.pairs() do
+      h.assert_eq[U64](p_map(k), v)
+    end
 
     true
-
-primitive _H
-  fun equal_map_u64_values(a: (U64 | None), b: (U64 | None)): Bool =>
-    match (a,b)
-    | (None,None) => true
-    | (None,_) =>
-      false
-    | (_,None) =>
-      false
-    | (let x: U64, let y: U64) =>
-      x == y
-    else
-      false
-    end
