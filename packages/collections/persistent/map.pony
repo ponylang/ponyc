@@ -15,7 +15,7 @@ primitive Maps
     """
     var m = Map[K, V]._empty()
     for pair in pairs.values() do
-      m = m.update(pair._1, pair._2)
+      m = m(pair._1) = pair._2
     end
     m
 
@@ -30,8 +30,8 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let empty: Map[String,U32] = Maps.empty[String,U32]() // {}
   // Update returns a new map with the provided key set
   // to the provided value. The old map is unchanged.
-  let m2 = m1.update("a", 5) // {a: 5}
-  let m3 = m2.update("b", 10) // {a: 5, b: 10}
+  let m2 = m1("a") = 5 // {a: 5}
+  let m3 = m2("b") = 10 // {a: 5, b: 10}
   let m4 = m3.remove("a") // {b: 10}
   // You can create a new map from key value pairs.
   let map = Maps.from[String,U32]([("a", 2), ("b", 3)]) // {a: 2, b: 3}
@@ -57,11 +57,11 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     """
     _root.size()
 
-  fun val update(k: K, v: V): Map[K, V] ? =>
+  fun val update(key: K, value: V): Map[K, V] ? =>
     """
     Update the value associated with the provided key.
     """
-    _create(_root.update(_Leaf[K, V](k.hash().u32(), k, v)))
+    _create(_root() =_Leaf[K, V](key.hash().u32(), key, value))
 
   fun val remove(k: K): Map[K, V] ? =>
     """
@@ -145,14 +145,14 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     end
     tot
 
-  fun val update(leaf: _Leaf[K, V]): _MapNode[K, V] ? =>
-    let idx = _Hash.mask(leaf.hash, level)
+  fun val update(value: _Leaf[K, V]): _MapNode[K, V] ? =>
+    let idx = _Hash.mask(value.hash, level)
     let i = _Hash.array_index(nodemap, datamap, idx)
     if i == -1 then
       let es = recover entries.clone() end
       let dm = _Hash.set_bit(datamap, idx)
       let i' = _Hash.array_index(nodemap, dm, idx)
-      es.insert(i'.usize(), leaf)
+      es.insert(i'.usize(), value)
       create(consume es, nodemap, dm, level)
     elseif _Hash.has_bit(nodemap, idx) then
       if level == 6 then
@@ -161,36 +161,36 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         let cs = entries(i.usize()) as Array[_Leaf[K, V]] val
         let cs' = recover cs.clone() end
         for (k, v) in cs.pairs() do
-          if v.key == leaf.key then
+          if v.key == value.key then
           // update collision
-            cs'.update(k, leaf)
-            es.update(i.usize(), consume cs')
+            cs'(k) = value
+            es(i.usize()) = consume cs'
             return create(consume es, nodemap, datamap, level)
           end
         end
-        cs'.push(leaf)
-        es.update(i.usize(), consume cs')
+        cs'.push(value)
+        es(i.usize()) = consume cs'
         create(consume es, nodemap, datamap, level)
       else
         // insert into sub-node
         let sn = entries(i.usize()) as _MapNode[K, V]
         let es = recover entries.clone() end
-        let sn' = sn.update(leaf)
-        es.update(i.usize(), sn')
+        let sn' = sn() = value
+        es(i.usize()) = sn'
         create(consume es, nodemap, datamap, level)
       end
     else
       let old = entries(i.usize()) as _Leaf[K, V]
-      if old.key == leaf.key then
+      if old.key == value.key then
         // update leaf
         let es = recover entries.clone() end
-        es.update(i.usize(), leaf)
+        es(i.usize()) = value
         create(consume es, nodemap, datamap, level)
       elseif level == 6 then
         // create collision node
         let cn = recover Array[_Leaf[K, V]](2) end
         cn.push(old)
-        cn.push(leaf)
+        cn.push(value)
         let es = recover entries.clone() end
         let dm = _Hash.clear_bit(datamap, idx)
         let nm = _Hash.set_bit(nodemap, idx)
@@ -201,8 +201,8 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       else
         // create new sub-node
         var sn = empty(level+1)
-        sn = sn.update(old)
-        sn = sn.update(leaf)
+        sn = sn() = old
+        sn = sn() = value
         let es = recover entries.clone() end
         let nm = _Hash.set_bit(nodemap, idx)
         let dm = _Hash.clear_bit(datamap, idx)
@@ -229,7 +229,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         for (k, v) in cs.pairs() do
           if v.key == key then
             cs'.delete(k)
-            es.update(i.usize(), consume cs')
+            es(i.usize()) = consume cs'
             return create(consume es, nodemap, datamap, level)
           end
         end
@@ -241,12 +241,12 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         if (nodemap.popcount() == 0) and (datamap.popcount() == 1) then
           for si in mut.Range[U32](0, 32) do
             if _Hash.has_bit(datamap, si) then
-              es.update(i.usize(), sn.entries(si.usize()))
+              es(i.usize()) = sn.entries(si.usize())
               return create(consume es, _Hash.clear_bit(nodemap, idx), _Hash.set_bit(datamap, idx), level)
             end
           end
         end
-        es.update(i.usize(), sn)
+        es(i.usize()) = sn
         create(consume es, nodemap, datamap, level)
       end
     end
