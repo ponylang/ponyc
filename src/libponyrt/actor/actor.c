@@ -17,6 +17,8 @@ enum
   FLAG_PENDINGDESTROY = 1 << 4,
 };
 
+static bool actor_noblock = false;
+
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
   return (actor->flags & flag) != 0;
@@ -257,6 +259,11 @@ void ponyint_actor_setsystem(pony_actor_t* actor)
   set_flag(actor, FLAG_SYSTEM);
 }
 
+void ponyint_actor_setnoblock(bool state)
+{
+  actor_noblock = state;
+}
+
 pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
   assert(type != NULL);
@@ -273,6 +280,9 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
   ponyint_messageq_init(&actor->q);
   ponyint_heap_init(&actor->heap);
   ponyint_gc_done(&actor->gc);
+
+  if(actor_noblock)
+    ponyint_actor_setsystem(actor);
 
   if(ctx->current != NULL)
   {

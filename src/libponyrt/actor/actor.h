@@ -48,6 +48,8 @@ void ponyint_actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_actor_setsystem(pony_actor_t* actor);
 
+void ponyint_actor_setnoblock(bool state);
+
 void ponyint_destroy(pony_actor_t* actor);
 
 PONY_EXTERN_C_END
