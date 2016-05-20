@@ -301,7 +301,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       if(t->primitive != NULL)
       {
         // The ABI size for machine words and tuples is the boxed size.
-        t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
+        t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
         return true;
       }
 
@@ -619,7 +619,7 @@ bool gentypes(compile_t* c)
   {
     // The ABI size for machine words and tuples is the boxed size.
     if(t->structure != NULL)
-      t->abi_size = LLVMABISizeOfType(c->target_data, t->structure);
+      t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
 
     make_debug_final(c, t);
     make_pointer_methods(c, t);
