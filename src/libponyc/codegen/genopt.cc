@@ -532,12 +532,7 @@ static void optimise(compile_t* c)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
-
-#if !defined(PLATFORM_IS_MACOSX)
-  // The LoadCombine optimisation can result in IR errors inside LLVM on OSX.
-  // These errors don't occur on Linux or Windows.
   pmb.LoadCombine = true;
-#endif
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -594,7 +589,7 @@ bool genopt(compile_t* c)
   {
     if(c->opt->verbosity >= VERBOSITY_MINIMAL)
       fprintf(stderr, "Verifying\n");
-    
+
     char* msg = NULL;
 
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)

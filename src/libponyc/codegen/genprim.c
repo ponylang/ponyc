@@ -424,12 +424,13 @@ static void maybe_is_none(compile_t* c, reach_type_t* t)
 {
   // Returns true if the receiver is null.
   FIND_METHOD("is_none");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef receiver = LLVMGetParam(m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, receiver, "");
+  LLVMValueRef value = LLVMBuildZExt(c->builder, test, c->ibool, "");
 
-  LLVMBuildRet(c->builder, test);
+  LLVMBuildRet(c->builder, value);
   codegen_finishfun(c);
 
   BOX_FUNCTION();
@@ -901,10 +902,10 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 static void platform_freebsd(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("freebsd");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_freebsd(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_freebsd(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -914,10 +915,10 @@ static void platform_freebsd(compile_t* c, reach_type_t* t)
 static void platform_linux(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("linux");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_linux(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_linux(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -927,10 +928,10 @@ static void platform_linux(compile_t* c, reach_type_t* t)
 static void platform_osx(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("osx");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_macosx(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_macosx(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -940,10 +941,10 @@ static void platform_osx(compile_t* c, reach_type_t* t)
 static void platform_windows(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("windows");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_windows(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_windows(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -953,10 +954,10 @@ static void platform_windows(compile_t* c, reach_type_t* t)
 static void platform_x86(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("x86");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_x86(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_x86(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -966,10 +967,10 @@ static void platform_x86(compile_t* c, reach_type_t* t)
 static void platform_arm(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("arm");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_arm(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_arm(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -979,10 +980,10 @@ static void platform_arm(compile_t* c, reach_type_t* t)
 static void platform_lp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("lp64");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_lp64(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_lp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -992,10 +993,10 @@ static void platform_lp64(compile_t* c, reach_type_t* t)
 static void platform_llp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("llp64");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_llp64(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_llp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -1005,10 +1006,10 @@ static void platform_llp64(compile_t* c, reach_type_t* t)
 static void platform_ilp32(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("ilp32");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_ilp32(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_ilp32(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -1018,10 +1019,10 @@ static void platform_ilp32(compile_t* c, reach_type_t* t)
 static void platform_native128(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("native128");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_native128(c->opt->triple), false);
+    LLVMConstInt(c->ibool, target_is_native128(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -1031,9 +1032,9 @@ static void platform_native128(compile_t* c, reach_type_t* t)
 static void platform_debug(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("debug");
-  start_function(c, m, c->i1, &t->use_type, 1);
+  start_function(c, m, c->ibool, &t->use_type, 1);
 
-  LLVMValueRef result = LLVMConstInt(c->i1, !c->opt->release, false);
+  LLVMValueRef result = LLVMConstInt(c->ibool, !c->opt->release, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 

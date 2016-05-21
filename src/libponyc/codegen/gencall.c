@@ -103,7 +103,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
   bool is_target;
 
   if(os_is_target(method_name, c->opt->release, &is_target, c->opt))
-    return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
+    return LLVMConstInt(c->ibool, is_target ? 1 : 0, false);
 
   ast_error(c->opt->check.errors, ast, "unknown Platform setting");
   return NULL;
