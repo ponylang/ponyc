@@ -27,6 +27,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Trace boxed primitives in union types.
 - Use -isystem for LLVM include directory only if it is not in search path.
 - Union tuples as return type with machine words (issue #849)
+- Incorrect \" handling in character literals
+- Incorrect \' handling in string literals
 
 ### Added
 
