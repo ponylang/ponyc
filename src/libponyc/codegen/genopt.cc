@@ -528,11 +528,11 @@ static void optimise(compile_t* c)
     pmb.OptLevel = 0;
   }
 
-  pmb.BBVectorize = true;
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
   pmb.LoadCombine = true;
+  pmb.MergeFunctions = true;
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -561,6 +561,13 @@ static void optimise(compile_t* c)
   }
 
   pmb.populateLTOPassManager(lpm);
+
+  // There is a problem with optimised debug info in certain cases. This is
+  // due to unknown bugs in the way ponyc is generating debug info. When they
+  // are found and fixed, an optimised build should not always strip debug
+  // info.
+  if(c->opt->release)
+    c->opt->strip_debug = true;
 
   if(c->opt->strip_debug)
     lpm.add(createStripSymbolsPass());
