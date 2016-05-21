@@ -552,6 +552,23 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
+  ast_t* type = ast_type(ast);
+
+  if(is_bool(type))
+  {
+    if(LLVMIsAConstantInt(value))
+    {
+      if(is_always_true(value))
+        return LLVMConstInt(c->ibool, 0, false);
+
+      return LLVMConstInt(c->ibool, 1, false);
+    }
+
+    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+      LLVMConstInt(c->ibool, 0, false), "");
+    return LLVMBuildZExt(c->builder, test, c->ibool, "");
+  }
+
   if(LLVMIsAConstantInt(value))
     return LLVMConstNot(value);
 
