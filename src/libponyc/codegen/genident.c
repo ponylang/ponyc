@@ -3,6 +3,9 @@
 #include "genexpr.h"
 #include <assert.h>
 
+static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
+  ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value);
+
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
@@ -58,8 +61,8 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   return phi;
 }
 
-LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type, ast_t* right_type,
-  LLVMValueRef l_value, LLVMValueRef r_value)
+static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
+  ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value)
 {
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
@@ -131,8 +134,9 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   codegen_debugloc(c, ast);
   LLVMValueRef result = gen_is_value(c, left_type, right_type,
     l_value, r_value);
+  LLVMValueRef value = LLVMBuildZExt(c->builder, result, c->ibool, "");
   codegen_debugloc(c, NULL);
-  return result;
+  return value;
 }
 
 LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)

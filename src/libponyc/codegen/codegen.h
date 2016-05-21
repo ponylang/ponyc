@@ -27,7 +27,7 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
-#define GEN_NOTNEEDED (LLVMConstInt(c->i1, 1, false))
+#define GEN_NOTNEEDED (LLVMConstInt(c->ibool, 0, false))
 
 typedef struct compile_local_t compile_local_t;
 DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
@@ -117,6 +117,7 @@ typedef struct compile_t
   LLVMMetadataRef di_unit;
 
   LLVMTypeRef void_type;
+  LLVMTypeRef ibool;
   LLVMTypeRef i1;
   LLVMTypeRef i8;
   LLVMTypeRef i16;
