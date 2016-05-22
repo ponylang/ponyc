@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Incorrect \" handling in character literals
 - Incorrect \' handling in string literals
 - Compiler crash on type alias of a lambda type.
+- Late detection of errors silently emitted in lexer/parser.
 
 ### Added
 
