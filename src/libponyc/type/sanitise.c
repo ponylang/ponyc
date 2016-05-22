@@ -54,15 +54,15 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   ast_t* params = out_params ? ast_from(ast, TK_NONE) : NULL;
   ast_t* args = out_args ? ast_from(ast, TK_NONE) : NULL;
 
-  // Find enclosing entity
+  // Find enclosing entity, or NULL if not within an entity
   ast_t* entity = ast;
 
-  while(ast_id(entity) != TK_INTERFACE && ast_id(entity) != TK_TRAIT &&
-    ast_id(entity) != TK_PRIMITIVE && ast_id(entity) != TK_STRUCT &&
-    ast_id(entity) != TK_CLASS && ast_id(entity) != TK_ACTOR)
+  while(entity != NULL && ast_id(entity) != TK_INTERFACE &&
+    ast_id(entity) != TK_TRAIT && ast_id(entity) != TK_PRIMITIVE &&
+    ast_id(entity) != TK_STRUCT && ast_id(entity) != TK_CLASS &&
+    ast_id(entity) != TK_ACTOR)
   {
     entity = ast_parent(entity);
-    assert(entity != NULL);
   }
 
   // Find enclosing method, or NULL if not within a method
@@ -74,11 +74,14 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
     method = ast_parent(method);
   }
 
-  // Collect type parameters defined on the entity
-  ast_t* entity_t_params = ast_childidx(entity, 1);
+  // Collect type parameters defined on the entity (if within an entity)
+  if(entity != NULL)
+  {
+    ast_t* entity_t_params = ast_childidx(entity, 1);
 
-  for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
-    collect_type_param(p, params, args);
+    for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
+      collect_type_param(p, params, args);
+  }
 
   // Collect type parameters defined on the method (if within a method)
   if(method != NULL)
