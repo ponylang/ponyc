@@ -94,20 +94,6 @@ Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work*
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-First, install LLVM using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some specific distributions follow.
-
-APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the LLVM build server.
-
-Please follow the instructions at http://llvm.org/apt/ for installing the GPG keys and packages for your distribution.
-
-#### Notes:
-
-On Ubuntu,
-`apt-get install llvm-dev` installs LLVM-3.6.
-
-When installing the full set of LLVM packages, the ```apt-get install``` instructions include the ```clang-modernize``` package. This should be changed to ```clang-tidy``` due to a recent name change.
-
-
 ### Debian Jessie
 
 Add the following to `/etc/apt/sources`:
@@ -146,9 +132,34 @@ $ ./build/release/ponyc examples/helloworld
 
 ### Ubuntu (12.04, 14.04, 15.10, 16.04)
 
+You should install LLVM as supplied by the LLVM build server. If you visit [their website](http://llvm.org/apt/) you will find a number of entries such as:
+
+```
+Precise (12.04) - Last update : Sun, 22 May 2016 19:26:23 UTC / Revision: 270357
+deb http://llvm.org/apt/precise/ llvm-toolchain-precise main
+deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise main
+# 3.7 
+deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
+deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
+# 3.8 
+deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.8 main
+deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.8 main
+```
+
+You want to find the correct version for your version of Ubuntu (the above is for Ubuntu Precise) and the version of LLVM that you want to install. The default is 3.6. 3.7 and 3.8 are also available. The first two deb entries above are for LLVM 3.6 with LLVM 3.7 and 3.8 following thereafter. Assuming you wanted to use LLVM 3.7 on Ubuntu Precise, you would add the following to `/etc/apt/sources`:
+
+```
+deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
+deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
+```
+
+Make sure the lines you added to `/etc/apt/sources` contains the name of your version of Ubuntu in it. If it doesn't, you copied the wrong lines. Now, install the LLVM toolchain public GPG key, update `apt` and install packages:
+
 ```bash
-$ sudo apt-get install build-essential git \
-                       zlib1g-dev libncurses5-dev libssl-dev
+$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
+$ sudo apt-get update
+$ sudo apt-get install build-essential git zlib1g-dev libncurses5-dev \
+                       libssl-dev llvm-3.8-dev
 ```
 
 Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
@@ -163,6 +174,34 @@ $ sudo make install
 ```
 
 To build ponyc and compile helloworld:
+
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
+
+### Other Linux distributions
+
+You need to have the development versions of the following installed:
+
+* LLVM 3.6.x, 3.7.1, 3.8.x. _LLVM 3.7.0* isn't supported_
+* zlib
+* ncurses
+* pcre2
+* libssl
+
+If your distribution doesn't have a package for prce2, you will need to download and build it from source:
+
+```bash
+$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+$ tar xvf pcre2-10.21.tar.bz2
+$ cd pcre2-10.21
+$ ./configure --prefix=/usr
+$ make
+$ sudo make install
+```
+
+Finally to build ponyc and compile the hello world app:
 
 ```bash
 $ make config=release
