@@ -1774,6 +1774,22 @@ TEST_F(SugarTest, LambdaTypeScopeTypeParamsInFlet)
 }
 
 
+TEST_F(SugarTest, LambdaTypeSimpleAliased)
+{
+  const char* short_form =
+    "type Foo is {()}";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "type Foo is $T\n"
+
+    "interface ref $T\n"
+    "  fun box apply(): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =
