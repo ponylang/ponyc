@@ -633,6 +633,12 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     ast = NULL;
   }
 
+  if(errors_get_count(errors) > 0)
+  {
+    ast_free(ast);
+    ast = NULL;
+  }
+
   lexer_close(lexer);
   token_free(parser->token);
   POOL_FREE(parser_t, parser);
