@@ -162,11 +162,9 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   // Implicitly receive the owner.
   recv_local_actor(gc);
 
-  // Dec, mark and recurse. Mark as reachable from the actor, since a
-  // release message for this object could arrive before a gc pass.
+  // Dec, mark and recurse.
   obj->rc--;
   obj->mark = gc->mark;
-  obj->reachable = true;
 
   if(mutability == PONY_TRACE_OPAQUE)
     return;
@@ -270,8 +268,6 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += (GC_INC_MORE - 1);
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
-
-    mutability = PONY_TRACE_MUTABLE;
   } else if(obj->rc <= 1) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received. Invent some references to this
@@ -357,8 +353,6 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += GC_INC_MORE;
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
-
-    mutability = PONY_TRACE_MUTABLE;
   } else if(obj->rc == 0) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received. Invent some references to this
@@ -652,19 +646,6 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
 
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
-
-    if((obj_local->rc == 0) && (obj_local->final == NULL))
-    {
-      // The local rc for this object has dropped to zero. We keep track of
-      // whether or not the object was reachable. If we go to 0 rc and it
-      // wasn't reachable, we free it. If we receive the object in a message,
-      // mark it as reachable again.
-      if(!obj_local->reachable)
-      {
-        chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
-        ponyint_heap_free(chunk, p);
-      }
-    }
   }
 
   ponyint_actorref_free(aref);

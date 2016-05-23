@@ -12,7 +12,6 @@ typedef struct object_t
   pony_final_fn final;
   size_t rc;
   uint32_t mark;
-  bool reachable;
   bool immutable;
 } object_t;
 
