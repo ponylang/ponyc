@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Incorrect \' handling in string literals
 - Compiler crash on type alias of a lambda type.
 - Late detection of errors silently emitted in lexer/parser.
+- Memory leak fixed when something sent as iso is then sent as val.
 
 ### Added
 
