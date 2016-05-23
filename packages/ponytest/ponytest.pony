@@ -155,6 +155,26 @@ The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
 
+## Labels
+
+Test can have label. Labels are used to filter which tests are run, by setting
+command line argument `--label=[some custom label]`. It can be used to separate
+unit tests from integration tests.
+
+By default label is empty. You can set it up by overriding `label() : String`
+method in unit test.
+
+```pony
+use "ponytest"
+
+class iso _I8AddTest is UnitTest
+  fun name() : String => "_I8AddTest"
+  fun label() : String => "simple"
+  fun apply(h : TestHelper) =>
+    h.assert_eq[I8](1,1)
+
+```
+
 ## Tear down
 
 Each unit test object may define a tear_down() function. This is called after
@@ -196,6 +216,7 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
+  var _label : String = ""
 
   new create(env: Env, list: TestList tag) =>
     """
@@ -220,6 +241,11 @@ actor PonyTest
 
     // Ignore any tests that don't satisfy our filter
     if not name.at(_filter, 0) then
+      return
+    end
+
+    // Ignore tests when label arg is set and test label doesn't match
+    if (_label!="") and (_label!=test.label()) then
       return
     end
 
@@ -352,6 +378,8 @@ actor PonyTest
         _list_only = true
       elseif arg.compare_sub("--filter=", 9) is Equal then
         _filter = arg.substring(9)
+      elseif arg.compare_sub("--label=",8) is Equal then
+        _label = arg.substring(8)
       else
         _env.out.print("Unrecognised argument \"" + arg + "\"")
         _env.out.print("")
@@ -365,6 +393,7 @@ actor PonyTest
         _env.out.print("  --sequential      - Run tests sequentially.")
         _env.out.print("  --noprog          - Do not print progress messages.")
         _env.out.print("  --list            - List but do not run tests.")
+        _env.out.print("  --label=label     - Only run tests with given label")
         _do_nothing = true
         return
       end
