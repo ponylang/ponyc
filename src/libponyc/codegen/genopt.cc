@@ -528,16 +528,11 @@ static void optimise(compile_t* c)
     pmb.OptLevel = 0;
   }
 
-  pmb.BBVectorize = true;
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
-
-#if !defined(PLATFORM_IS_MACOSX)
-  // The LoadCombine optimisation can result in IR errors inside LLVM on OSX.
-  // These errors don't occur on Linux or Windows.
   pmb.LoadCombine = true;
-#endif
+  pmb.MergeFunctions = true;
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -567,6 +562,13 @@ static void optimise(compile_t* c)
 
   pmb.populateLTOPassManager(lpm);
 
+  // There is a problem with optimised debug info in certain cases. This is
+  // due to unknown bugs in the way ponyc is generating debug info. When they
+  // are found and fixed, an optimised build should not always strip debug
+  // info.
+  if(c->opt->release)
+    c->opt->strip_debug = true;
+
   if(c->opt->strip_debug)
     lpm.add(createStripSymbolsPass());
 
@@ -594,7 +596,7 @@ bool genopt(compile_t* c)
   {
     if(c->opt->verbosity >= VERBOSITY_MINIMAL)
       fprintf(stderr, "Verifying\n");
-    
+
     char* msg = NULL;
 
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)

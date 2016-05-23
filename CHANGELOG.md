@@ -27,6 +27,12 @@ All notable changes to the Pony compiler and standard library will be documented
 - Trace boxed primitives in union types.
 - Use -isystem for LLVM include directory only if it is not in search path.
 - Union tuples as return type with machine words (issue #849)
+- Incorrect \" handling in character literals
+- Incorrect \' handling in string literals
+- Compiler crash on type alias of a lambda type.
+- Late detection of errors silently emitted in lexer/parser.
+- Compiler crash when handling invalid lambda return types
+- Memory leak fixed when something sent as iso is then sent as val.
 
 ### Added
 

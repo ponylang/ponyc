@@ -653,7 +653,7 @@ static int read_hex_escape(lexer_t* lexer, int length)
 // been seen but not consumed.
 // Errors are reported at the start of the sequence (ie the \ ).
 // Returns the escape value or <0 on error.
-static int escape(lexer_t* lexer, bool unicode_allowed)
+static int escape(lexer_t* lexer, bool unicode_allowed, bool is_string)
 {
   // Record the start position of the escape sequence for error reporting
   const char* start = &lexer->source->m[lexer->ptr];
@@ -675,11 +675,19 @@ static int escape(lexer_t* lexer, bool unicode_allowed)
     case 'r':  value = 0x0D; break;
     case 't':  value = 0x09; break;
     case 'v':  value = 0x0B; break;
-    case '\"': value = 0x22; break;
-    case '\'': value = 0x27; break;
     case '\\': value = 0x5C; break;
     case '0':  value = 0x00; break;
     case 'x': hex_digits = 2; break;
+
+    case '\"':
+      if(is_string)
+        value = 0x22;
+      break;
+
+    case '\'':
+      if(!is_string)
+        value = 0x27;
+      break;
 
     case 'u':
       if(unicode_allowed)
@@ -778,7 +786,7 @@ static token_t* string(lexer_t* lexer)
 
     if(c == '\\')
     {
-      int value = escape(lexer, true);
+      int value = escape(lexer, true, true);
 
       // Just ignore bad escapes here and carry on. They've already been
       // reported and this allows catching later errors.
@@ -819,7 +827,7 @@ static token_t* character(lexer_t* lexer)
     }
 
     if(c == '\\')
-      c = escape(lexer, false);
+      c = escape(lexer, false, false);
     else
       consume_chars(lexer, 1);
 

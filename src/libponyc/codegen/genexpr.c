@@ -115,11 +115,11 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_TRUE:
-      ret = LLVMConstInt(c->i1, 1, false);
+      ret = LLVMConstInt(c->ibool, 1, false);
       break;
 
     case TK_FALSE:
-      ret = LLVMConstInt(c->i1, 0, false);
+      ret = LLVMConstInt(c->ibool, 0, false);
       break;
 
     case TK_INT:

@@ -155,6 +155,7 @@ static void init_runtime(compile_t* c)
   LLVMValueRef value;
 
   c->void_type = LLVMVoidTypeInContext(c->context);
+  c->ibool = LLVMInt8TypeInContext(c->context);
   c->i1 = LLVMInt1TypeInContext(c->context);
   c->i8 = LLVMInt8TypeInContext(c->context);
   c->i16 = LLVMInt16TypeInContext(c->context);
