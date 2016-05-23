@@ -118,3 +118,25 @@ TEST_F(BadPonyTest, TupleIndexIsOutOfRange)
 
   TEST_ERRORS_1(src, "Valid range is [1, 2]");
 }
+
+TEST_F(BadPonyTest, InvalidLambdaReturnType)
+{
+  // From issue #828
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    lambda (): tag => this end\n";
+
+  TEST_ERRORS_1(src, "lambda return type: tag");
+}
+
+TEST_F(BadPonyTest, InvalidMethodReturnType)
+{
+  // From issue #828
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(): iso =>\n"
+    "    U32(1)\n";
+
+  TEST_ERRORS_1(src, "function return type: iso");
+}

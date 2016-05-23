@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "../mem/heap.h"
+#include "../actor/actor.h"
 #include "../gc/cycle.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
@@ -16,6 +17,7 @@ typedef struct options_t
   size_t gc_initial;
   double gc_factor;
   bool noyield;
+  bool noblock;
 } options_t;
 
 // global data
@@ -29,7 +31,8 @@ enum
   OPT_CDCONF,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
-  OPT_NOYIELD
+  OPT_NOYIELD,
+  OPT_NOBLOCK
 };
 
 static opt_arg_t args[] =
@@ -41,6 +44,7 @@ static opt_arg_t args[] =
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
+  {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
 
   OPT_ARGS_FINISH
 };
@@ -62,6 +66,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
+      case OPT_NOBLOCK: opt->noblock = true; break;
 
       default: exit(-1);
     }
@@ -91,6 +96,7 @@ int pony_init(int argc, char** argv)
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);
+  ponyint_actor_setnoblock(opt.noblock);
 
   pony_exitcode(0);
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield);
