@@ -24,7 +24,9 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 * Atom: [language-pony](https://atom.io/packages/language-pony)
 * Visual Studio: [VS-pony](https://github.com/ponylang/VS-pony)
-* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
+* Vim:
+    - [vim-pony](https://github.com/jakwings/vim-pony)
+    - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
