@@ -137,13 +137,14 @@ class HashMap[K, V, H: HashFunction[K] val]
     (_, let found) = _search(k)
     found
 
-  fun ref concat(iter: Iterator[(K^, V^)]) =>
+  fun ref concat(iter: Iterator[(K^, V^)]): HashMap[K, V, H]^ =>
     """
     Add K, V pairs from the iterator to the map.
     """
     for (k, v) in iter do
       this(consume k) = consume v
     end
+    this
 
   fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
     HashMap[this->K!, this->V!, H2]^
