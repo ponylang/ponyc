@@ -1,4 +1,5 @@
 use "collections"
+use "encode/base64"
 use "net"
 
 class iso Payload
@@ -98,6 +99,22 @@ class iso Payload
     _body.push(data)
     this
 
+  fun ref media_type(content_type': String): Payload ref^ =>
+    """
+    Specify the media type to send.
+    """
+    _headers.update("Content-Type", content_type')
+    this
+
+  fun ref basic_auth(username: String, password: String): Payload ref^ =>
+    """
+    Set basic authentication header with username and password, as described in
+    RFC 2617 section 2.
+    """
+    let auth = Base64.encode_mime(username + ":" + password)
+    _headers.update("Authentication", "Basic " + consume auth)
+    this
+
   fun iso respond(response': Payload) =>
     """
     Trigger the response handler.
@@ -178,7 +195,6 @@ class iso Payload
     list.push(url.host)
     list.push(":")
     list.push(url.port.string())
-    // TODO: basic authorization header
 
     list = _add_headers(consume list)
     list = _add_body(consume list)
@@ -243,3 +259,108 @@ class iso Payload
     end
 
     list
+
+  fun val string(): String =>
+    let str = recover String end
+    match _response
+    | true =>
+      str.append(proto)
+      str.append(" ")
+      str.append(status.string())
+      str.append(" ")
+      str.append(StatusMessage(status))
+      str.append("\n")
+    else // request
+      str.append(method)
+      str.append(" ")
+      str.append(proto)
+      str.append("\n")
+    end
+
+    for (k, v) in headers().pairs() do
+      str.append(k)
+      str.append(": ")
+      str.append(v)
+      str.append("\n")
+    end
+    if headers().size() > 0 then str.append("\n") end
+
+    for chunk in body().values() do
+      str.append(match chunk
+      | let s: String val => s
+      | let bs: Array[U8 val] val => String.from_array(bs)
+      else
+        ""
+      end)
+    end
+    if body().size() > 0 then str.append("\n") end
+    str
+
+primitive Method
+  fun get(): String => "GET"
+  fun post(): String => "POST"
+  fun put(): String => "PUT"
+  fun head(): String => "HEAD"
+  fun delete(): String => "DELETE"
+  fun patch(): String => "PATCH"
+  fun options(): String => "OPTIONS"
+
+primitive MediaType
+  fun html(): String => "text/html"
+  fun json(): String => "application/json"
+  fun xml(): String => "application/xml"
+  fun text(): String => "text/plain"
+  fun urlencoded(): String => "application/x-www-form-urlencoded"
+
+primitive StatusMessage
+  fun apply(status: U16): String =>
+    match status
+    | 100 => "Continue"
+    | 101 => "Switching Protocols"
+    | 200 => "OK"
+    | 201 => "Created"
+    | 202 => "Accepted"
+    | 203 => "Non-Authoritative Information"
+    | 204 => "No Content"
+    | 205 => "Reset Content"
+    | 206 => "Partial Content"
+    | 300 => "Multiple Choices"
+    | 301 => "Moved Permanently"
+    | 302 => "Found"
+    | 303 => "See Other"
+    | 304 => "Not Modified"
+    | 305 => "Use Proxy"
+    | 306 => "Temporary Redirect"
+    | 400 => "Bad Request"
+    | 401 => "Unauthorized"
+    | 402 => "Payment Required"
+    | 403 => "Forbidden"
+    | 404 => "Not Found"
+    | 405 => "Method Not Allowed"
+    | 406 => "Not Acceptable"
+    | 407 => "Proxy Authentication Required"
+    | 408 => "Request Timeout"
+    | 409 => "Conflict"
+    | 410 => "Gone"
+    | 411 => "Length Required"
+    | 412 => "Precondition Failed"
+    | 413 => "Request Entity Too Large"
+    | 414 => "Request URI Too Long"
+    | 415 => "Unsupported Media Type"
+    | 416 => "Requested Range Not Satisfiable"
+    | 417 => "Expectation Failed"
+    | 418 => "I'm a teapot"
+    | 428 => "Precondition Required"
+    | 429 => "Too Many Requests"
+    | 431 => "Request Header Fields Too Large"
+    | 451 => "Unavailable For Legal Reasons"
+    | 500 => "Internal Server Error"
+    | 501 => "Not Implemented"
+    | 502 => "Bad Gateway"
+    | 503 => "Service Unavailable"
+    | 504 => "Gateway Timeout"
+    | 505 => "HTTP Version Not Supported"
+    | 511 => "Network Authentication Required"
+    else
+      ""
+    end

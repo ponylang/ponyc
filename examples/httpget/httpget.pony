@@ -26,7 +26,7 @@ actor Main
           let url = URL.build(env.args(i))
           Fact(url.host.size() > 0)
 
-          let req = Payload.request("GET", url, recover this~apply() end)
+          let req = Payload.request(Method.get(), url, recover this~apply() end)
           client(consume req)
         else
           try env.out.print("Malformed URL: " + env.args(i)) end
@@ -38,23 +38,7 @@ actor Main
 
   be apply(request: Payload val, response: Payload val) =>
     if response.status != 0 then
-      // TODO: aggregate as a single print
-      _env.out.print(
-        response.proto + " " +
-        response.status.string() + " " +
-        response.method)
-
-      for (k, v) in response.headers().pairs() do
-        _env.out.print(k + ": " + v)
-      end
-
-      _env.out.print("")
-
-      for chunk in response.body().values() do
-        _env.out.write(chunk)
-      end
-
-      _env.out.print("")
+      _env.out.print(response.string())
     else
       _env.out.print("Failed: " + request.method + " " + request.url.string())
     end
