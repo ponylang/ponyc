@@ -37,7 +37,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     else
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      data._cstring()._copy_to(_ptr, _alloc)
+      data._cstring()._copy_to(_ptr, _size)
       _set(_size, 0)
     end
 
