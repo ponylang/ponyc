@@ -90,6 +90,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Renamed `identityof` to `digestof`.
 - Renamed `net/Buffer` to `net/ReadBuffer`
 - Print compiler error and info messages to stderr instead of stdout.
+- `Hashmap.concat` now returns `this` rather than `None`
 
 ## [0.2.1] - 2015-10-06
 
