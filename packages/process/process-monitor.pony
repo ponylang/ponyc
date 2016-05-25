@@ -15,40 +15,43 @@ ProcessNotify client and printed.
 
 ```pony
 use "process"
+use "files"
 
 actor Main
   let _env: Env
-  
+
   new create(env: Env) =>
     _env = env
     // create a notifier
     let client = ProcessClient(_env)
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
-    let path: String = "/bin/cat"
-    // define the arguments
-    let args: Array[String] iso = recover Array[String](1) end
-    args.push("cat")
-    // define the environment variable for the execution
-    let vars: Array[String] iso = recover Array[String](2) end
-    vars.push("HOME=/")
-    vars.push("PATH=/bin")
-    // create a ProcessMonitor and spawn the child process
-    let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+    try
+      let path = FilePath(env.root as AmbientAuth, "/bin/cat")
+      // define the arguments; first arg is always the binary name
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("cat")
+      // define the environment variable for the execution
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+      // create a ProcessMonitor and spawn the child process
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
       consume args, consume vars)
-    // write to STDIN of the child process
-    pm.write("one, two, three")
-    pm.done_writing() // closing stdin allows cat to terminate
-    // dispose of the ProcessMonitor
-
+      // write to STDIN of the child process
+      pm.write("one, two, three")
+      pm.done_writing() // closing stdin allows cat to terminate
+    else
+      env.out.print("Could not create FilePath!")
+    end
 
 // define a client that implements the ProcessNotify interface
 class ProcessClient is ProcessNotify
   let _env: Env
-  
+
   new iso create(env: Env) =>
     _env = env
-    
+
   fun ref stdout(data: Array[U8] iso) =>
     let out = String.from_array(consume data)
     _env.out.print("STDOUT: " + out)
@@ -56,7 +59,7 @@ class ProcessClient is ProcessNotify
   fun ref stderr(data: Array[U8] iso) =>
     let err = String.from_array(consume data)
     _env.out.print("STDERR: " + err)
-    
+
   fun ref failed(err: ProcessError) =>
     match err
     | ExecveError   => _env.out.print("ProcessError: ExecveError")
@@ -73,7 +76,7 @@ class ProcessClient is ProcessNotify
     else
       _env.out.print("Unknown ProcessError!")
     end
-    
+
   fun ref dispose(child_exit_code: I32) =>
     let code: I32 = consume child_exit_code
     _env.out.print("Child exit code: " + code.string())
