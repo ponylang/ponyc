@@ -228,7 +228,7 @@ actor ProcessMonitor
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
       if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
-        @exit[None](I32(-1))
+        @_exit[None](I32(-1))
       end
     end
       
@@ -269,7 +269,7 @@ actor ProcessMonitor
         if @pony_os_errno() == _EINTR() then
           continue
         else
-          @exit[None](I32(-1))
+          @_exit[None](I32(-1))
         end
       end
     end

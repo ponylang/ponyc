@@ -33,6 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Late detection of errors silently emitted in lexer/parser.
 - Compiler crash when handling invalid lambda return types
 - Memory leak fixed when something sent as iso is then sent as val.
+- Compiler crash when handling object literal with uninitialized fields.
 
 ### Added
 
