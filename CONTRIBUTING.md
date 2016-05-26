@@ -16,7 +16,7 @@ Additional notes regarding formatting:
 
 Feature request
 ---------------
-To request a change to the way that Pony works, please open an issue in the [RFCs repository](https://github.com/ponylang/rfcs) rather than this one. New features and other significant language changes must go through the RFC process.
+For any feature requests or enhancements to the Pony distribution, it is quite likely that you have to go through our [RFC process](https://github.com/ponylang/rfcs). Before opening or submitting any feature requests, please make sure you are familiar with the RFC process and follow the process as required.
 
 If you submit a pull request to implement a new feature without going through the RFC process, it may be closed with a polite request to submit an RFC first.
 
