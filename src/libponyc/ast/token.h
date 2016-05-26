@@ -298,13 +298,18 @@ double token_float(token_t* token);
 lexint_t* token_int(token_t* token);
 
 /** Return a string for printing the given token.
- * The returned string must not be deleted and is only valid until the next
- * call to token_print() for that token, or until the token is deleted.
+ * The returned string must not be deleted and is valid for the lifetime of the
+ * token.
  */
 const char* token_print(token_t* token);
 
+/** Return a string for printing the given token (escaping ", \, and NULL).
+ * The returned string should be deleted when the caller is done with it.
+ */
+char* token_print_escaped(token_t* token);
+
 /** Return a string to describe the given token id.
-* The returned string must not be deleted and is only valid indefinitely.
+* The returned string must not be deleted and is valid indefinitely.
 */
 const char* token_id_desc(token_id id);
 
