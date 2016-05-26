@@ -3,13 +3,27 @@ Contributing
 
 It's good to hear that you want to contribute to Pony!
 
-First of all please [search existing issues][complete-issue-list]. Apart from bug reports you will find feature requests and work currently in progress too. If you cannot find a suitable issue — [create a new one][new-issue]. Potential pull requests are no exception. Before you start working, let's have a discussion and agree on the solution and scope.
+There are a number of ways to contribute to Pony. As this document is a little long, feel free to jump to the section that applies to you currently:
 
-Each of [bug report](#bug-report), [feature request](#feature-request) or [pull request](#pull-request)
-has to cover different aspects described below.
+* [Feature request](#feature-request)
+* [Bug report](#bug-report)
+* [Pull request](#pull-request)
+
+Additional notes regarding formatting:
+
+* [Documentation formatting](#documentation-formatting)
+* [Code formatting](#code-formatting)
+
+Feature request
+---------------
+For any feature requests or enhancements to the Pony distribution, it is quite likely that you have to go through our [RFC process](https://github.com/ponylang/rfcs). Before opening or submitting any feature requests, please make sure you are familiar with the RFC process and follow the process as required.
+
+If you submit a pull request to implement a new feature without going through the RFC process, it may be closed with a polite request to submit an RFC first.
 
 Bug report
 ----------
+First of all please [search existing issues][complete-issue-list] to make sure your issue hasn't already been reported. If you cannot find a suitable issue — [create a new one][new-issue].
+
 Provide the following details:
 
   - short summary of what you was trying to achieve,
@@ -20,14 +34,8 @@ Provide the following details:
 
 If possible, try to isolate the problem and provide just enough code to demonstrate it. Add any related information which might help to fix the issue.
 
-Feature request
----------------
-Define a context and a problem the feature solves. List potential use cases and give some code examples.
-
 Pull request
 ------------
-Provide the same information as you would for a [feature request](#feature-request).
-
 Before issuing a pull request we ask that you squash all your commits into a single logical commit. While your PR is in review, we may ask for additional changes, please do not squash those commits while the review is underway. Once everything is good, we'll then ask you to further squash those commits before merging. We ask that you not squash while a review is underway as it can make it hard to follow what is going on. Additionally, we ask that you:
 
 * [Write a good commit message](http://chris.beams.io/posts/git-commit/)
