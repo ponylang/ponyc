@@ -280,6 +280,14 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
           r = false;
         }
 
+        if((ast_id(ast_parent(members)) == TK_OBJECT) && \
+          (ast_id(ast_childidx(member, 2)) == TK_NONE))
+        {
+          ast_error(opt->check.errors, member,
+            "object literal fields must be initialized");
+          r = false;
+        }
+
         if(!check_id_field(opt, ast_child(member)))
           r = false;
 
@@ -937,6 +945,20 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_OBJECT);
+  AST_GET_CHILDREN(ast, cap, provides, members);
+
+  // Check for illegal members - even though object literals can be non-actors,
+  // we use DEF_ACTOR because the permissions are close enough for our purposes.
+  if(!check_members(opt, members, DEF_ACTOR))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_fun(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
@@ -1059,6 +1081,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TAG:        r = syntax_cap(options, ast); break;
 
     case TK_LAMBDA:     r = syntax_lambda(options, ast); break;
+    case TK_OBJECT:     r = syntax_object(options, ast); break;
     case TK_FUN:        r = syntax_fun(options, ast); break;
 
     case TK_CAP_READ:
