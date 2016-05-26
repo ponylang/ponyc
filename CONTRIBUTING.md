@@ -18,9 +18,7 @@ Feature request
 ---------------
 To request a change to the way that Pony works, please open an issue in the [RFCs repository](https://github.com/ponylang/rfcs) rather than this one. New features and other significant language changes must go through the RFC process.
 
-If you submit a pull request to implement a new feature without going
-through the RFC process, it may be closed with a polite request to
-submit an RFC first.
+If you submit a pull request to implement a new feature without going through the RFC process, it may be closed with a polite request to submit an RFC first.
 
 Bug report
 ----------
