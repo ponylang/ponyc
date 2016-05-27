@@ -236,6 +236,7 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMAddFunctionAttr(value, LLVMReadNoneAttribute);
 
   // __object* pony_create(i8*, __Desc*)
   params[0] = c->void_ptr;
