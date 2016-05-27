@@ -303,7 +303,9 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     {
       AST_GET_CHILDREN(type, package, id, tparams, cap, ephemeral);
 
-      if(generate_links)
+      // Generate links only if directed to and if the type is not anonymous (as
+      // indicated by a name created by package_hygienic_id).
+      if(generate_links && *ast_name(id) != '$')
       {
         // Find type we reference so we can link to it
         ast_t* target = (ast_t*)ast_data(type);
@@ -313,14 +315,14 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
         char* tqfn = write_tqfn(target, NULL, &link_len);
 
         // Links are of the form: [text](target)
-        fprintf(docgen->type_file, "[%s](%s)", ast_name(id), tqfn);
+        fprintf(docgen->type_file, "[%s](%s)", ast_nice_name(id), tqfn);
         ponyint_pool_free_size(link_len, tqfn);
 
         doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true);
       }
       else
       {
-        fprintf(docgen->type_file, "%s", ast_name(id));
+        fprintf(docgen->type_file, "%s", ast_nice_name(id));
         doc_type_list(docgen, tparams, "[", ", ", "]", false);
       }
 
@@ -349,7 +351,7 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, ephemeral);
-      fprintf(docgen->type_file, "%s", ast_name(id));
+      fprintf(docgen->type_file, "%s", ast_nice_name(id));
 
       const char* cap_text = doc_get_cap(cap);
       if(cap_text != NULL)
