@@ -168,10 +168,10 @@ method in unit test.
 use "ponytest"
 
 class iso _I8AddTest is UnitTest
-  fun name() : String => "_I8AddTest"
-  fun label() : String => "simple"
+  fun name(): String => "_I8AddTest"
+  fun label(): String => "simple"
   fun apply(h : TestHelper) =>
-    h.assert_eq[I8](1,1)
+    h.assert_eq[I8](1, 1)
 
 ```
 
@@ -216,7 +216,7 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
-  var _label : String = ""
+  var _label : String
 
   new create(env: Env, list: TestList tag) =>
     """
@@ -245,7 +245,7 @@ actor PonyTest
     end
 
     // Ignore tests when label arg is set and test label doesn't match
-    if (_label!="") and (_label!=test.label()) then
+    if (_label != "") and (_label != test.label()) then
       return
     end
 
@@ -378,7 +378,7 @@ actor PonyTest
         _list_only = true
       elseif arg.compare_sub("--filter=", 9) is Equal then
         _filter = arg.substring(9)
-      elseif arg.compare_sub("--label=",8) is Equal then
+      elseif arg.compare_sub("--label=", 8) is Equal then
         _label = arg.substring(8)
       else
         _env.out.print("Unrecognised argument \"" + arg + "\"")

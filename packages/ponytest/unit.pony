@@ -42,7 +42,7 @@ trait UnitTest
     """
     None
 
-  fun label() : String =>
+  fun label(): String =>
     """
     Report the test label, returning an empty string for none.
     It can be later use to filter tests which we want to run, by labels.
