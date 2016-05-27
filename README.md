@@ -42,19 +42,19 @@ Want to use the latest revision of Pony source, but don't want to build from sou
 You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull the latest `ponylang/ponyc` image using this command:
 
 ```bash
-docker pull ponylang/ponyc:latest
+$ docker pull ponylang/ponyc:latest
 ```
 
 Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
 
 ```bash
-docker run -v /path/to/my-code:/src/main ponylang/ponyc
+$ docker run -v /path/to/my-code:/src/main ponylang/ponyc
 ```
 
 Note that if your host doesn't match the docker container, you'll probably have to run the resulting program inside the docker container as well, using a command like this:
 
 ```bash
-docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
+$ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
 
 ## Mac OS X using [Homebrew](http://brew.sh)
@@ -73,8 +73,8 @@ $ brew install ponyc
 ### Gentoo
 
 ```bash
-layman -a stefantalpalaru
-emerge dev-lang/pony
+$ layman -a stefantalpalaru
+$ emerge dev-lang/pony
 ```
 
 A live ebuild is also available in the
@@ -215,10 +215,10 @@ $ ./build/release/ponyc examples/helloworld
 First, install the required dependencies:
 
 ```bash
-sudo pkg install gmake
-sudo pkg install llvm38
-sudo pkg install pcre2
-sudo pkg install libunwind
+$ sudo pkg install gmake
+$ sudo pkg install llvm38
+$ sudo pkg install pcre2
+$ sudo pkg install libunwind
 ```
 
 This will build ponyc and compile helloworld:
@@ -287,20 +287,20 @@ There is a third-party utility that will get the libraries and set up your envir
 - Open a **VS2015 x64 Native Tools Command Prompt** (things will not work correctly otherwise!) and run:
 
 ```bash
-> git clone git@github.com:kulibali/ponyc-windows-libs.git
-> cd ponyc-windows-libs
-> .\getlibs.bat
-> .\setenv.bat
+$ git clone git@github.com:kulibali/ponyc-windows-libs.git
+$ cd ponyc-windows-libs
+$ .\getlibs.bat
+$ .\setenv.bat
 ```
 
 Now you can run the pony compiler and tests:
 
 ```bash
-> cd path_to_pony_source
-> build\release\testc.exe
-> build\release\testrt.exe
-> build\release\ponyc.exe -d -s packages\stdlib
-> .\stdlib
+$ cd path_to_pony_source
+$ build\release\testc.exe
+$ build\release\testrt.exe
+$ build\release\ponyc.exe -d -s packages\stdlib
+$ .\stdlib
 ```
 
 ## Building with link-time optimisation (LTO)
@@ -320,7 +320,6 @@ $ make config=release LTO_PLUGIN=/usr/lib/LLVMgold.so
 Refer to your compiler documentation for the plugin to use in your case.
 
 LTO is enabled by default on OSX.
-
 
 ## VirtualBox
 
