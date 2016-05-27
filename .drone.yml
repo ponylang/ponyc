@@ -30,7 +30,7 @@ build:
       - mkdir -p build/pony-stable
       - cd build/pony-stable
       - git clone https://github.com/jemc/pony-stable.git .
-      - git checkout 452ea2b
+      - git checkout b1fb6e3
       - make
 
 publish:
@@ -70,7 +70,9 @@ notify:
     template: >
       build `#{{ build.number }}` for {{repo.clone_url}} for commit `{{build.commit}}` 
       in branch `{{build.branch}}` by `@{{build.author}}` with a message ```{{build.message}}``` 
-      finished with a `{{ build.status }}` status.
+      finished with a `{{ build.status }}` status in
+      {{ duration build.started_at build.finished_at }}
+      Build logs at: https://drone.sendence.com/{{repo.full_name}}/{{ build.number }}
 
 matrix:
   PONYC_CONFIG:

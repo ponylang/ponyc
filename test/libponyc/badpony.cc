@@ -140,3 +140,16 @@ TEST_F(BadPonyTest, InvalidMethodReturnType)
 
   TEST_ERRORS_1(src, "function return type: iso");
 }
+
+TEST_F(BadPonyTest, ObjectLiteralUninitializedField)
+{
+  // From issue #879
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    object\n"
+    "      let x: I32\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "object literal fields must be initialized");
+}

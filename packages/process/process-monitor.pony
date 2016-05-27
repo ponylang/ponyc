@@ -100,18 +100,26 @@ use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
       
-primitive _EINTR        fun apply(): I32 => 4
-primitive _EAGAIN       fun apply(): I32 => 35
-primitive _STDINFILENO  fun apply(): U32 => 0
-primitive _STDOUTFILENO fun apply(): U32 => 1
-primitive _STDERRFILENO fun apply(): U32 => 2
-primitive _ONONBLOCK    fun apply(): I32 => 4
-primitive _FSETFL       fun apply(): I32 => 4
-primitive _FGETFL       fun apply(): I32 => 3
-primitive _FSETFD       fun apply(): I32 => 2
-primitive _FGETFD       fun apply(): I32 => 1
-primitive _FDCLOEXEC    fun apply(): I32 => 1
-primitive _SIGTERM      fun apply(): I32 => 15
+primitive _EINTR          fun apply(): I32 => 4
+primitive _STDINFILENO    fun apply(): U32 => 0
+primitive _STDOUTFILENO   fun apply(): U32 => 1
+primitive _STDERRFILENO   fun apply(): U32 => 2
+primitive _FSETFL         fun apply(): I32 => 4
+primitive _FGETFL         fun apply(): I32 => 3
+primitive _FSETFD         fun apply(): I32 => 2
+primitive _FGETFD         fun apply(): I32 => 1
+primitive _FDCLOEXEC      fun apply(): I32 => 1
+primitive _SIGTERM        fun apply(): I32 => 15
+
+primitive _EAGAIN      fun apply(): I32 =>
+  ifdef freebsd or osx then 35
+  elseif linux then 11
+  else compile_error "no EAGAIN" end
+      
+primitive _ONONBLOCK   fun apply(): I32 =>
+  ifdef freebsd or osx then 4
+  elseif linux then 2048
+  else compile_error "no O_NONBLOCK" end
 
 primitive ExecveError
 primitive PipeError
@@ -228,7 +236,7 @@ actor ProcessMonitor
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
       if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
-        @exit[None](I32(-1))
+        @_exit[None](I32(-1))
       end
     end
       
@@ -269,7 +277,7 @@ actor ProcessMonitor
         if @pony_os_errno() == _EINTR() then
           continue
         else
-          @exit[None](I32(-1))
+          @_exit[None](I32(-1))
         end
       end
     end
