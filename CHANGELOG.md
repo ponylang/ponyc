@@ -34,6 +34,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compiler crash when handling invalid lambda return types
 - Memory leak fixed when something sent as iso is then sent as val.
 - Compiler crash when handling object literal with uninitialized fields.
+- Associate a nice name with function types based on the type of the function.
+- Use the nice name for types when generating documentation.
 
 ### Added
 
