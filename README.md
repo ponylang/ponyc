@@ -236,19 +236,22 @@ Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently produ
 You'll need llvm 3.6.2, 3.7.1, or 3.8 and the pcre2 library to build Pony.
 
 Either install them via [homebrew](http://brew.sh):
-```
+
+```bash
 $ brew update
 $ brew install homebrew/versions/llvm38 pcre2 libressl
 ```
 
 Or install them via macport:
-```
+
+```bash
 $ sudo port install llvm-3.8 pcre2 libressl
 $ sudo port select --set llvm mp-llvm-3.8
 ```
 
 Then launch the build with Make:
-```
+
+```bash
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
@@ -283,7 +286,7 @@ There is a third-party utility that will get the libraries and set up your envir
 - Install [7-Zip](http://www.7-zip.org/a/7z1514-x64.exe), make sure it's in your PATH.
 - Open a **VS2015 x64 Native Tools Command Prompt** (things will not work correctly otherwise!) and run:
 
-```
+```bash
 > git clone git@github.com:kulibali/ponyc-windows-libs.git
 > cd ponyc-windows-libs
 > .\getlibs.bat
@@ -292,7 +295,7 @@ There is a third-party utility that will get the libraries and set up your envir
 
 Now you can run the pony compiler and tests:
 
-```
+```bash
 > cd path_to_pony_source
 > build\release\testc.exe
 > build\release\testrt.exe
@@ -328,11 +331,15 @@ Use VirtualBox 5.x to avoid possible problems.
 ## Building Pony on Non-x86 platforms
 
 On ARM and MIPS platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
+
 ```bash
 $ make arch=armv7
 ```
+
 To get a complete list of acceptable architecture names, use the gcc command:
+
 ```bash
 gcc -march=none
 ```
+
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
