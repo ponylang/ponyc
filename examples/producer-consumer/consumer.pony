@@ -3,12 +3,12 @@ use "collections"
 actor Consumer
   var _quantity_to_consume: U32
   let _buffer: Buffer
-  let _env: Env
+  let _out: StdStream
 
-  new create(quantity_to_consume: U32, buffer: Buffer, env: Env) =>
+  new create(quantity_to_consume: U32, buffer: Buffer, out: StdStream) =>
     _quantity_to_consume = quantity_to_consume
     _buffer = buffer
-    _env = env
+    _out = out
 	
   be start_consuming() =>
     for i in Range[U32](0, _quantity_to_consume) do
@@ -16,7 +16,7 @@ actor Consumer
     end
 
   be consuming(product: Product) =>
-    _env.out.print("**Consumer** Consuming product " + product.id.string())
+    _out.print("**Consumer** Consuming product " + product.id.string())
     _quantity_to_consume = _quantity_to_consume -1
 		
 
