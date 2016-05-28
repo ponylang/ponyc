@@ -172,14 +172,14 @@ primitive ISize is _SignedInteger[ISize, USize]
   fun tag from[A: (Number & Real[A] val)](a: A): ISize => a.isize()
 
   fun tag min_value(): ISize =>
-    ifdef ilp32 or llp64 then
+    ifdef ilp32 then
       -0x8000_0000
     else
       -0x8000_0000_0000_0000
     end
 
   fun tag max_value(): ISize =>
-    ifdef ilp32 or llp64 then
+    ifdef ilp32 then
       0x7FFF_FFFF
     else
       0x7FFF_FFFF_FFFF_FFFF
