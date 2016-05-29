@@ -36,6 +36,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compiler crash when handling object literal with uninitialized fields.
 - Associate a nice name with function types based on the type of the function.
 - Use the nice name for types when generating documentation.
+- Compiler crash when generating C library for the exported actors containing functions with variadic return type contatining None
 
 ### Added
 
