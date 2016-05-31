@@ -469,13 +469,93 @@ public:
 char HeapToStack::ID = 0;
 
 static RegisterPass<HeapToStack>
-  X("heap2stack", "Move heap allocations to the stack");
+  H2S("heap2stack", "Move heap allocations to the stack");
 
 static void addHeapToStackPass(const PassManagerBuilder& pmb,
   PassManagerBase& pm)
 {
   if(pmb.OptLevel >= 2)
     pm.add(new HeapToStack());
+}
+
+class DispatchPonyCtx : public FunctionPass
+{
+public:
+  static char ID;
+  compile_t* c;
+  Module* module;
+
+  DispatchPonyCtx() : FunctionPass(ID)
+  {
+    c = the_compiler;
+    module = NULL;
+  }
+
+  bool doInitialization(Module& m)
+  {
+    module = &m;
+    return false;
+  }
+
+  bool runOnFunction(Function& f)
+  {
+    // Check if we're in a Dispatch function.
+    StringRef name = f.getName();
+    if(name.size() < 10 || name.rfind("_Dispatch") != name.size() - 9)
+      return false;
+
+    assert(f.arg_size() > 0);
+
+    Value* ctx = &(*f.arg_begin());
+
+    bool changed = false;
+
+    for(auto block = f.begin(), end = f.end(); block != end; ++block)
+    {
+      for(auto iter = block->begin(), end = block->end(); iter != end; ++iter)
+      {
+        Instruction* inst = &(*iter);
+
+        if(runOnInstruction(inst, ctx))
+          changed = true;
+      }
+    }
+
+    return changed;
+  }
+
+  bool runOnInstruction(Instruction* inst, Value* ctx)
+  {
+    CallSite call(inst);
+
+    if(!call.getInstruction())
+      return false;
+
+    Function* fun = call.getCalledFunction();
+
+    if (fun == NULL)
+      return false;
+
+    if(fun->getName().compare("pony_ctx") != 0)
+      return false;
+
+    inst->replaceAllUsesWith(ctx);
+
+    return true;
+  }
+};
+
+char DispatchPonyCtx::ID = 1;
+
+static RegisterPass<DispatchPonyCtx>
+  DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
+                          context passed to the function");
+
+static void addDispatchPonyCtxPass(const PassManagerBuilder& pmb,
+  PassManagerBase& pm)
+{
+  if(pmb.OptLevel >= 2)
+    pm.add(new DispatchPonyCtx());
 }
 
 static void optimise(compile_t* c)
@@ -536,6 +616,8 @@ static void optimise(compile_t* c)
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
+  pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+    addDispatchPonyCtxPass);
 
   pmb.populateFunctionPassManager(fpm);
 
