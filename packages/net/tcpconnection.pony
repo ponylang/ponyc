@@ -162,7 +162,7 @@ actor TCPConnection
     if called in the `sent` notifier callback.
     """
     if not _in_sent then
-      _expect = qty
+      _expect = _notify.expect(this, qty)
       _read_buf_size()
     end
 
