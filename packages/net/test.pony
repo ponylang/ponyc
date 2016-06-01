@@ -320,6 +320,7 @@ class iso _TestTCPExpect is UnitTest
   fun ref apply(h: TestHelper) =>
     h.expect_action("client receive")
     h.expect_action("server receive")
+    h.expect_action("expect received")
 
     _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true))
 
@@ -345,6 +346,10 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _h.complete_action("client connect")
     conn.set_nodelay(true)
     conn.expect(_expect)
+
+  fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
+    _h.complete_action("expect received")
+    qty
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
     if _frame then
