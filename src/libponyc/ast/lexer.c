@@ -844,6 +844,7 @@ static token_t* character(lexer_t* lexer)
 /** Process an integral literal or integral part of a real.
  * No digits have yet been consumed.
  * There must be at least one digit present.
+ * Single underscores internal to the literal are ignored.
  * Return true on success, false on failure.
  * The end_on_e flag indicates that we treat e (or E) as a valid terminator
  * character, rather than part of the integer being processed.
@@ -855,6 +856,7 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
   const char* context)
 {
   uint32_t digit_count = 0;
+  bool previous_underscore = false;
 
   while(!is_eof(lexer))
   {
@@ -863,7 +865,13 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 
     if(c == '_')
     {
-      // Ignore underscores in numbers
+      // Ignore single underscores in numbers
+      if(previous_underscore)
+      {
+        lex_error(lexer, "Invalid duplicate underscore in %s", context);
+        return false;
+      }
+      previous_underscore = true;
       consume_chars(lexer, 1);
       continue;
     }
@@ -892,6 +900,7 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
       return false;
     }
 
+    previous_underscore = false;
     consume_chars(lexer, 1);
     digit_count++;
   }
@@ -899,6 +908,12 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
   if(digit_count == 0)
   {
     lex_error(lexer, "No digits in %s", context);
+    return false;
+  }
+
+  if(previous_underscore)
+  {
+    lex_error(lexer, "Numeric literal cannot end with underscore in %s", context);
     return false;
   }
 

@@ -696,7 +696,7 @@ TEST_F(LexerTest, IntDecimalWithTrailingSeparator)
 {
   const char* src = "12_3_45_";
 
-  expect(1, 1, TK_INT, "12345");
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
   expect(1, 9, TK_EOF, "EOF");
   DO(test(src));
 }

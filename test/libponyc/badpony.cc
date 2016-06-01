@@ -15,6 +15,7 @@
  * suitable location for tests which don't obviously belong anywhere else.
  */
 
+#define TEST_COMPILE(src) DO(test_compile(src, "all"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
@@ -152,4 +153,20 @@ TEST_F(BadPonyTest, ObjectLiteralUninitializedField)
     "    end";
 
   TEST_ERRORS_1(src, "object literal fields must be initialized");
+}
+
+// TODO: This test is not correct because it does not fail without the fix.
+// I do not know how to generate a test that calls genheader().
+// Comments are welcomed.
+TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
+{
+  // From issue #891
+  const char* src =
+    "primitive T\n"
+    "\n"
+    "actor @A\n"
+    "  fun f(a: T): (T | None) =>\n"
+    "    a\n";
+
+  TEST_COMPILE(src);
 }

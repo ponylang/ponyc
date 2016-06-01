@@ -34,6 +34,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compiler crash when handling invalid lambda return types
 - Memory leak fixed when something sent as iso is then sent as val.
 - Compiler crash when handling object literal with uninitialized fields.
+- Associate a nice name with function types based on the type of the function.
+- Use the nice name for types when generating documentation.
+- Compiler crash when generating C library for the exported actors containing functions with variadic return type contatining None
+- AST Printing of string literals with quote characters.
 
 ### Added
 
@@ -92,6 +96,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Renamed `net/Buffer` to `net/ReadBuffer`
 - Print compiler error and info messages to stderr instead of stdout.
 - `Hashmap.concat` now returns `this` rather than `None`
+- Only allow single, internal underscores in numeric literals.
 
 ## [0.2.1] - 2015-10-06
 
