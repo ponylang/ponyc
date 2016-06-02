@@ -1,4 +1,5 @@
-use "net"
+use "net/tcp"
+use "net/utils"
 
 class _ResponseBuilder is TCPConnectionNotify
   """

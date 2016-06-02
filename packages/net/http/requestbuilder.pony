@@ -1,4 +1,6 @@
-use "net"
+use "net/dns"
+use "net/tcp"
+use "net/utils"
 
 class _RequestBuilder is TCPConnectionNotify
   """

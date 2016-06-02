@@ -1,3 +1,6 @@
+use "net"
+use "net/ip"
+
 type DNSLookupAuth is (AmbientAuth | NetAuth | DNSAuth)
 
 primitive DNS

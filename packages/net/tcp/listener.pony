@@ -1,3 +1,7 @@
+use "net"
+use "net/ip"
+use "collections"
+
 type TCPListenerAuth is (AmbientAuth | NetAuth | TCPAuth | TCPListenAuth)
 
 actor TCPListener

@@ -1,4 +1,10 @@
 use "collections"
+use "net"
+use "net/ip"
+
+use @pony_asio_event_fd[U32](event: AsioEventID)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 
 type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
 

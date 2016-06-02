@@ -24,19 +24,20 @@ use collections_persistent = "collections/persistent"
 use debug = "debug"
 use files = "files"
 use glob = "glob"
-use http = "net/http"
 use ini = "ini"
 use json = "json"
 use logger = "logger"
 use math = "math"
-use net = "net"
+use net_http = "net/http"
+use net_tcp = "net/tcp"
+use net_udp = "net/udp"
+use net_utils = "net/utils"
 use options = "options"
 use promises = "promises"
 use process = "process"
 use random = "random"
 use regex = "regex"
 use signals = "signals"
-use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
@@ -61,11 +62,13 @@ actor Main is TestList
       glob.Main.make().tests(test)
     end
 
-    http.Main.make().tests(test)
+    net_http.Main.make().tests(test)
+    net_tcp.Main.make().tests(test)
+    net_udp.Main.make().tests(test)
+    net_utils.Main.make().tests(test)
     ini.Main.make().tests(test)
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
-    net.Main.make().tests(test)
     options.Main.make().tests(test)
 
     ifdef posix then

@@ -1,3 +1,5 @@
+use "net"
+use "net/ip"
 use "collections"
 
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
