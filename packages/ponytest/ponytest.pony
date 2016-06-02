@@ -216,7 +216,7 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
-  var _label : String
+  var _label : String = ""
 
   new create(env: Env, list: TestList tag) =>
     """
