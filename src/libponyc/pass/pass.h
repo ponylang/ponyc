@@ -131,6 +131,11 @@ otherwise does nothing.
 Does not alter the AST at all.
 
 
+* Reference resolution pass (AST)
+
+TODO
+
+
 * Expression type check pass (AST)
 
 TODO
@@ -165,6 +170,7 @@ typedef enum pass_id
   PASS_FLATTEN,
   PASS_TRAITS,
   PASS_DOCS,
+  PASS_REFERENCE,
   PASS_EXPR,
   PASS_FINALISER,
   PASS_LLVM_IR,

@@ -139,6 +139,7 @@ static void usage()
     "    =flatten\n"
     "    =traits\n"
     "    =docs\n"
+    "    =reference\n"
     "    =expr\n"
     "    =final\n"
     "    =ir           Output LLVM IR.\n"
