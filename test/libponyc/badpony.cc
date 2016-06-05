@@ -182,3 +182,14 @@ TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
 
   TEST_ERRORS_1(src, "type aliases can't be recursive");
 }
+
+TEST_F(BadPonyTest, MainActorFunCreate)
+{
+  // From issue #906
+  const char* src =
+    "actor Main\n"
+    "  fun create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "the create method of a Main actor must be a constructor");
+}
