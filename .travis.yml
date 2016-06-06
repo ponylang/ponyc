@@ -4,25 +4,24 @@ branches:
   only:
     - master
 
+dist: trusty
 sudo: required
 
 addons:
   apt:
     sources:
-      - llvm-toolchain-precise
-      - llvm-toolchain-precise-3.6
-      - llvm-toolchain-precise-3.7
-      - llvm-toolchain-precise-3.8
+      # - llvm-toolchain-trusty-3.7
+      # - llvm-toolchain-trusty-3.8
       - ubuntu-toolchain-r-test
     packages:
       - gcc-4.9
       - g++-4.9
       - llvm-3.6
       - llvm-3.6-dev
-      - llvm-3.7
-      - llvm-3.7-dev
-      - llvm-3.8
-      - llvm-3.8-dev
+      # - llvm-3.7
+      # - llvm-3.7-dev
+      # - llvm-3.8
+      # - llvm-3.8-dev
 
 matrix:
   include:
@@ -34,18 +33,22 @@ matrix:
       env:
         - LLVM_CONFIG="llvm-config-3.6"
         - config=release
-    - os: linux
-      env:
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=debug
-    - os: linux
-      env:
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=release
-    - os: linux
-      env:
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=release
+    # - os: linux
+    #   env:
+    #     - LLVM_CONFIG="llvm-config-3.7"
+    #     - config=debug
+    # - os: linux
+    #   env:
+    #     - LLVM_CONFIG="llvm-config-3.7"
+    #     - config=release
+    # - os: linux
+    #   env:
+    #     - LLVM_CONFIG="llvm-config-3.8"
+    #     - config=release
+    # - os: linux
+    #   env:
+    #     - LLVM_CONFIG="llvm-config-3.8"
+    #     - config=release
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.6"
