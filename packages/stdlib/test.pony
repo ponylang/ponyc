@@ -20,6 +20,7 @@ use builtin_test = "builtin_test"
 use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
 use collections = "collections"
+use crypto = "crypto"
 use debug = "debug"
 use files = "files"
 use glob = "glob"
@@ -51,6 +52,7 @@ actor Main is TestList
     builtin_test.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     collections.Main.make().tests(test)
+    crypto.Main.make().tests(test)
     files.Main.make().tests(test)
 
     ifdef not windows then
@@ -69,7 +71,7 @@ actor Main is TestList
       // The process package currently only supports posix
       process.Main.make().tests(test)
     end
-    
+
     regex.Main.make().tests(test)
 
     ifdef not windows then
