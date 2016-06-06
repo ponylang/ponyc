@@ -16,7 +16,7 @@ actor Main is TestList
     test(_TestSHA512)
 
 class iso _TestConstantTimeCompare is UnitTest
-  fun name(): String => "ConstantTimeCompare"
+  fun name(): String => "crypto/ConstantTimeCompare"
 
   fun apply(h: TestHelper) =>
     let s1 = "12345"
@@ -36,7 +36,7 @@ class iso _TestConstantTimeCompare is UnitTest
     h.assert_false(ConstantTimeCompare(s1, s7))
 
 class iso _TestMD4 is UnitTest
-  fun name(): String => "MD4"
+  fun name(): String => "crypto/MD4"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -44,7 +44,7 @@ class iso _TestMD4 is UnitTest
       ToHexString(MD4("test")))
 
 class iso _TestMD5 is UnitTest
-  fun name(): String => "MD5"
+  fun name(): String => "crypto/MD5"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -52,7 +52,7 @@ class iso _TestMD5 is UnitTest
       ToHexString(MD5("test")))
 
 class iso _TestRIPEMD160 is UnitTest
-  fun name(): String => "RIPEMD160"
+  fun name(): String => "crypto/RIPEMD160"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -60,7 +60,7 @@ class iso _TestRIPEMD160 is UnitTest
       ToHexString(RIPEMD160("test")))
 
 class iso _TestSHA1 is UnitTest
-  fun name(): String => "SHA1"
+  fun name(): String => "crypto/SHA1"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -68,7 +68,7 @@ class iso _TestSHA1 is UnitTest
       ToHexString(SHA1("test")))
 
 class iso _TestSHA224 is UnitTest
-  fun name(): String => "SHA224"
+  fun name(): String => "crypto/SHA224"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -76,7 +76,7 @@ class iso _TestSHA224 is UnitTest
       ToHexString(SHA224("test")))
 
 class iso _TestSHA256 is UnitTest
-  fun name(): String => "SHA256"
+  fun name(): String => "crypto/SHA256"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -84,7 +84,7 @@ class iso _TestSHA256 is UnitTest
       ToHexString(SHA256("test")))
 
 class iso _TestSHA384 is UnitTest
-  fun name(): String => "SHA384"
+  fun name(): String => "crypto/SHA384"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
@@ -92,7 +92,7 @@ class iso _TestSHA384 is UnitTest
       ToHexString(SHA384("test")))
 
 class iso _TestSHA512 is UnitTest
-  fun name(): String => "SHA512"
+  fun name(): String => "crypto/SHA512"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
