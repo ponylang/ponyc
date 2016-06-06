@@ -38,6 +38,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Use the nice name for types when generating documentation.
 - Compiler crash when generating C library for the exported actors containing functions with variadic return type contatining None
 - AST Printing of string literals with quote characters.
+- HTTP/1.1 connections are now persistent by default.
 
 ### Added
 
