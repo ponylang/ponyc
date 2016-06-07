@@ -118,18 +118,10 @@ class HeapToStack : public FunctionPass
 public:
   static char ID;
   compile_t* c;
-  Module* module;
 
   HeapToStack() : FunctionPass(ID)
   {
     c = the_compiler;
-    module = NULL;
-  }
-
-  bool doInitialization(Module& m)
-  {
-    module = &m;
-    return false;
   }
 
   bool runOnFunction(Function& f)
@@ -167,7 +159,6 @@ public:
     if(fun == NULL)
       return false;
 
-    Value* size;
     bool small = false;
 
     if(fun->getName().compare("pony_alloc") == 0)
@@ -179,7 +170,7 @@ public:
       return false;
     }
 
-    size = call.getArgument(1);
+    Value* size = call.getArgument(1);
     c->opt->check.stats.heap_alloc++;
     ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
 
@@ -483,20 +474,9 @@ class DispatchPonyCtx : public FunctionPass
 {
 public:
   static char ID;
-  compile_t* c;
-  Module* module;
 
   DispatchPonyCtx() : FunctionPass(ID)
-  {
-    c = the_compiler;
-    module = NULL;
-  }
-
-  bool doInitialization(Module& m)
-  {
-    module = &m;
-    return false;
-  }
+  {}
 
   bool runOnFunction(Function& f)
   {
@@ -534,7 +514,7 @@ public:
 
     Function* fun = call.getCalledFunction();
 
-    if (fun == NULL)
+    if(fun == NULL)
       return false;
 
     if(fun->getName().compare("pony_ctx") != 0)
@@ -546,7 +526,7 @@ public:
   }
 };
 
-char DispatchPonyCtx::ID = 1;
+char DispatchPonyCtx::ID = 0;
 
 static RegisterPass<DispatchPonyCtx>
   DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
@@ -557,6 +537,203 @@ static void addDispatchPonyCtxPass(const PassManagerBuilder& pmb,
 {
   if(pmb.OptLevel >= 2)
     pm.add(new DispatchPonyCtx());
+}
+
+class MergeRealloc : public FunctionPass
+{
+public:
+  static char ID;
+  Module* module;
+
+  MergeRealloc() : FunctionPass(ID)
+  {
+    module = NULL;
+  }
+
+  bool doInitialization(Module& m)
+  {
+    module = &m;
+    return false;
+  }
+
+  bool runOnFunction(Function& f)
+  {
+    BasicBlock& entry = f.getEntryBlock();
+    IRBuilder<> builder(&entry, entry.begin());
+
+    bool changed = false;
+    SmallVector<Instruction*, 16> new_allocs;
+    SmallVector<Instruction*, 16> removed;
+
+    for(auto block = f.begin(), end = f.end(); block != end; ++block)
+    {
+      for(auto iter = block->begin(), end = block->end(); iter != end; ++iter)
+      {
+        Instruction* inst = &(*iter);
+
+        if(runOnInstruction(builder, inst, new_allocs, removed))
+          changed = true;
+      }
+    }
+
+    while(!new_allocs.empty())
+    {
+      // If we get here, changed is already true
+      Instruction* inst = new_allocs.pop_back_val();
+      runOnInstruction(builder, inst, new_allocs, removed);
+    }
+
+    for(auto elt : removed)
+      elt->eraseFromParent();
+
+    return changed;
+  }
+
+  bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
+    SmallVector<Instruction*, 16>& new_allocs,
+    SmallVector<Instruction*, 16>& removed)
+  {
+    if(std::find(removed.begin(), removed.end(), inst) != removed.end())
+      return false;
+
+    CallSite call(inst);
+
+    if(!call.getInstruction())
+      return false;
+
+    Function* fun = call.getCalledFunction();
+
+    if(fun == NULL)
+      return false;
+
+    bool small = false;
+
+    if(fun->getName().compare("pony_alloc") == 0 ||
+       fun->getName().compare("pony_alloc_large") == 0)
+    {
+      // Nothing.
+    } else if(fun->getName().compare("pony_alloc_small") == 0) {
+      small = true;
+    } else {
+      return false;
+    }
+
+    CallInst* realloc = findRealloc(inst);
+
+    if(realloc == NULL)
+      return false;
+
+    Value* old_size = call.getArgument(1);
+    Value* new_size = realloc->getArgOperand(2);
+
+    ConstantInt* old_int_size = dyn_cast_or_null<ConstantInt>(old_size);
+
+    if(old_int_size == NULL)
+      return false;
+
+    uint64_t old_alloc_size = old_int_size->getZExtValue();
+
+    if(small)
+    {
+      old_int_size = ConstantInt::get(builder.getInt64Ty(),
+        ((int64_t)1) << (old_alloc_size + HEAP_MINBITS));
+      old_alloc_size = old_int_size->getZExtValue();
+    }
+
+    ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
+
+    CallInst* replace;
+    builder.SetInsertPoint(inst);
+
+    if(new_int_size == NULL)
+    {
+      if(old_alloc_size != 0)
+        return false;
+
+      replace = mergePreviouslyEmpty(builder, call.getArgument(0), new_size);
+    } else {
+      uint64_t new_alloc_size = new_int_size->getZExtValue();
+      new_alloc_size = std::max(old_alloc_size, new_alloc_size);
+
+      replace = mergeConstant(builder, call.getArgument(0), new_alloc_size);
+    }
+    replace->setTailCall();
+
+    inst->replaceAllUsesWith(replace);
+    realloc->replaceAllUsesWith(replace);
+    realloc->eraseFromParent();
+    new_allocs.push_back(replace);
+    removed.push_back(inst);
+
+    return true;
+  }
+
+  CallInst* findRealloc(Instruction* alloc)
+  {
+    for(auto iter = alloc->use_begin(), end = alloc->use_end();
+      iter != end; ++iter)
+    {
+      Use* use = &(*iter);
+      CallInst* call = dyn_cast_or_null<CallInst>(use->getUser());
+
+      if(call == NULL)
+        continue;
+
+      Function* fun = call->getCalledFunction();
+
+      if(fun == NULL)
+        continue;
+
+      if(fun->getName().compare("pony_realloc") == 0)
+        return call;
+    }
+    
+    return NULL;
+  }
+
+  CallInst* mergePreviouslyEmpty(IRBuilder<>& builder, Value* ctx, Value* size)
+  {
+    Function* alloc_fn = module->getFunction("pony_alloc");
+    Value* args[2];
+    args[0] = ctx;
+    args[1] = size;
+
+    return builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+  }
+
+  CallInst* mergeConstant(IRBuilder<>& builder, Value* ctx, uint64_t size)
+  {
+    Function* alloc_fn;
+    ConstantInt* int_size;
+
+    if(size <= HEAP_MAX)
+    {
+      alloc_fn = module->getFunction("pony_alloc_small");
+      size = ponyint_heap_index(size);
+      int_size = ConstantInt::get(builder.getInt32Ty(), size);
+    } else {
+      alloc_fn = module->getFunction("pony_alloc_large");
+      int_size = ConstantInt::get(builder.getInt64Ty(), size);
+    }
+
+    Value* args[2];
+    args[0] = ctx;
+    args[1] = int_size;
+
+    return builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+  }
+};
+
+char MergeRealloc::ID = 0;
+
+static RegisterPass<MergeRealloc>
+  MR("mergerealloc", "Merge successive reallocations of the same variable");
+
+static void addMergeReallocPass(const PassManagerBuilder& pmb,
+  PassManagerBase& pm)
+{
+  if(pmb.OptLevel >= 2)
+    pm.add(new MergeRealloc());
 }
 
 static void optimise(compile_t* c)
@@ -615,6 +792,8 @@ static void optimise(compile_t* c)
   pmb.LoadCombine = true;
   pmb.MergeFunctions = true;
 
+  pmb.addExtension(PassManagerBuilder::EP_Peephole,
+    addMergeReallocPass);
   pmb.addExtension(PassManagerBuilder::EP_Peephole,
     addHeapToStackPass);
   pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
