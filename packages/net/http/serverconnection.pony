@@ -119,7 +119,7 @@ actor _ServerConnection
       let keepalive = try
         request("Connection") != "close"
       else
-        false
+        request.proto != "HTTP/1.0"
       end
 
       _dispatched.shift()
