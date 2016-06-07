@@ -142,9 +142,9 @@ public:
 
     for(auto block = f.begin(), end = f.end(); block != end; ++block)
     {
-      for(auto iter = block->begin(), end = block->end(); iter != end; ++iter)
+      for(auto iter = block->begin(), end = block->end(); iter != end; )
       {
-        Instruction* inst = &(*iter);
+        Instruction* inst = &(*(iter++));
 
         if(runOnInstruction(builder, inst, dt))
           changed = true;
@@ -220,6 +220,7 @@ public:
 
     replace->setDebugLoc(call->getDebugLoc());
     inst->replaceAllUsesWith(replace);
+    inst->eraseFromParent();
 
     print_transform(c, replace, "stack allocation");
     c->opt->check.stats.heap_alloc--;
@@ -614,7 +615,7 @@ static void optimise(compile_t* c)
   pmb.LoadCombine = true;
   pmb.MergeFunctions = true;
 
-  pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
+  pmb.addExtension(PassManagerBuilder::EP_Peephole,
     addHeapToStackPass);
   pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
     addDispatchPonyCtxPass);
