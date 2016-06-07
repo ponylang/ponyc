@@ -101,6 +101,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `Hashmap.concat` now returns `this` rather than `None`
 - Only allow single, internal underscores in numeric literals.
 - `ponyc --version` now includes the build type (debug/release) in its output.
+- Strings now grow and shrink geometrically.
 
 ## [0.2.1] - 2015-10-06
 
