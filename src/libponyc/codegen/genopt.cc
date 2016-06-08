@@ -606,63 +606,95 @@ public:
     if(fun == NULL)
       return false;
 
-    bool small = false;
+    int alloc_type;
 
-    if(fun->getName().compare("pony_alloc") == 0 ||
-       fun->getName().compare("pony_alloc_large") == 0)
+    if(fun->getName().compare("pony_alloc") == 0)
     {
-      // Nothing.
+      alloc_type = 0;
     } else if(fun->getName().compare("pony_alloc_small") == 0) {
-      small = true;
-    } else {
-      return false;
-    }
-
-    CallInst* realloc = findRealloc(inst);
-
-    if(realloc == NULL)
-      return false;
-
-    Value* old_size = call.getArgument(1);
-    Value* new_size = realloc->getArgOperand(2);
-
-    ConstantInt* old_int_size = dyn_cast_or_null<ConstantInt>(old_size);
-
-    if(old_int_size == NULL)
-      return false;
-
-    uint64_t old_alloc_size = old_int_size->getZExtValue();
-
-    if(small)
-    {
-      old_int_size = ConstantInt::get(builder.getInt64Ty(),
-        ((int64_t)1) << (old_alloc_size + HEAP_MINBITS));
-      old_alloc_size = old_int_size->getZExtValue();
-    }
-
-    ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
-
-    CallInst* replace;
-    builder.SetInsertPoint(inst);
-
-    if(new_int_size == NULL)
-    {
-      if(old_alloc_size != 0)
+      alloc_type = 1;
+    } else if(fun->getName().compare("pony_alloc_large") == 0) {
+      alloc_type = -1;
+    } else if(fun->getName().compare("pony_realloc") == 0) {
+      Value* old_ptr = call.getArgument(1);
+      if(dyn_cast_or_null<ConstantPointerNull>(old_ptr) == NULL)
         return false;
 
-      replace = mergePreviouslyEmpty(builder, call.getArgument(0), new_size);
-    } else {
-      uint64_t new_alloc_size = new_int_size->getZExtValue();
-      new_alloc_size = std::max(old_alloc_size, new_alloc_size);
+      Value* new_size = call.getArgument(2);
 
-      replace = mergeConstant(builder, call.getArgument(0), new_alloc_size);
+      builder.SetInsertPoint(inst);
+      Value* replace = mergeNoOp(builder, call.getArgument(0), new_size);
+      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+      inst->replaceAllUsesWith(replace);
+      removed.push_back(inst);
+
+      return true;
+    } else {
+      return false;
     }
-    replace->setTailCall();
+
+    Value* old_size = call.getArgument(1);
+    ConstantInt* old_int_size = dyn_cast_or_null<ConstantInt>(old_size);
+
+    CallInst* realloc = findRealloc(inst);
+    Value* replace;
+
+    if(old_int_size == NULL)
+    {
+      if(realloc == NULL || !isZeroRealloc(realloc))
+        return false;
+
+      builder.SetInsertPoint(inst);
+      replace = mergeNoOp(builder, call.getArgument(0), old_size);
+      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+      realloc->replaceAllUsesWith(replace);
+      realloc->eraseFromParent();
+    } else {
+      uint64_t old_alloc_size = old_int_size->getZExtValue();
+
+      if(realloc == NULL)
+      {
+        if(alloc_type != 0)
+          return false;
+
+        // Not realloc'd, but we can still turn a generic allocation into a
+        // small/large one.
+        builder.SetInsertPoint(inst);
+        replace = mergeConstant(builder, call.getArgument(0), old_alloc_size);
+      } else {
+        Value* new_size = realloc->getArgOperand(2);
+
+        if(alloc_type > 0) // Small allocation.
+        {
+          old_int_size = ConstantInt::get(builder.getInt64Ty(),
+            ((int64_t)1) << (old_alloc_size + HEAP_MINBITS));
+          old_alloc_size = old_int_size->getZExtValue();
+        }
+
+        ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
+
+        if(new_int_size == NULL)
+        {
+          if(old_alloc_size != 0)
+            return false;
+
+          builder.SetInsertPoint(realloc);
+          replace = mergeNoOp(builder, call.getArgument(0), new_size);
+            new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+        } else {
+          uint64_t new_alloc_size = new_int_size->getZExtValue();
+          new_alloc_size = std::max(old_alloc_size, new_alloc_size);
+
+          replace = mergeReallocChain(builder, call, &realloc, new_alloc_size,
+            new_allocs);
+        }
+
+        realloc->replaceAllUsesWith(replace);
+        realloc->eraseFromParent();
+      }
+    }
 
     inst->replaceAllUsesWith(replace);
-    realloc->replaceAllUsesWith(replace);
-    realloc->eraseFromParent();
-    new_allocs.push_back(replace);
     removed.push_back(inst);
 
     return true;
@@ -670,6 +702,7 @@ public:
 
   CallInst* findRealloc(Instruction* alloc)
   {
+    CallInst* realloc = NULL;
     for(auto iter = alloc->use_begin(), end = alloc->use_end();
       iter != end; ++iter)
     {
@@ -685,42 +718,114 @@ public:
         continue;
 
       if(fun->getName().compare("pony_realloc") == 0)
-        return call;
+      {
+        if(realloc != NULL)
+        {
+          // TODO: Handle more than one realloc path (caused by conditionals).
+          return NULL;
+        }
+        realloc = call;
+      }
     }
-    
-    return NULL;
+
+    return realloc;
   }
 
-  CallInst* mergePreviouslyEmpty(IRBuilder<>& builder, Value* ctx, Value* size)
+  Value* mergeReallocChain(IRBuilder<>& builder, CallSite alloc,
+    CallInst** last_realloc, uint64_t alloc_size,
+    SmallVector<Instruction*, 16>& new_allocs)
+  {
+    builder.SetInsertPoint(alloc.getInstruction());
+    Value* replace = mergeConstant(builder, alloc.getArgument(0), alloc_size);
+
+    while(alloc_size == 0)
+    {
+      // replace is a LLVM null pointer here. We have to handle any realloc
+      // chain before losing call use informations.
+
+      CallInst* next_realloc = findRealloc(*last_realloc);
+      if(next_realloc == NULL)
+        break;
+
+      Value* new_size = next_realloc->getArgOperand(2);
+      ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
+
+      if(new_int_size == NULL)
+      {
+        builder.SetInsertPoint(next_realloc);
+        replace = mergeNoOp(builder, alloc.getArgument(0), new_size);
+          new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+        alloc_size = 1;
+      } else {
+        alloc_size = new_int_size->getZExtValue();
+
+        builder.SetInsertPoint(*last_realloc);
+        replace = mergeConstant(builder, alloc.getArgument(0), alloc_size);
+        if(alloc_size > 0)
+           new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+      }
+
+      (*last_realloc)->replaceAllUsesWith(replace);
+      (*last_realloc)->eraseFromParent();
+      *last_realloc = next_realloc;
+    }
+
+    return replace;
+  }
+
+  Value* mergeNoOp(IRBuilder<>& builder, Value* ctx, Value* size)
   {
     Function* alloc_fn = module->getFunction("pony_alloc");
     Value* args[2];
     args[0] = ctx;
     args[1] = size;
 
-    return builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    inst->setTailCall();
+    return inst;
   }
 
-  CallInst* mergeConstant(IRBuilder<>& builder, Value* ctx, uint64_t size)
+  Value* mergeConstant(IRBuilder<>& builder, Value* ctx, uint64_t size)
   {
     Function* alloc_fn;
     ConstantInt* int_size;
 
-    if(size <= HEAP_MAX)
+    if(size == 0)
     {
+      return ConstantPointerNull::get(builder.getInt8PtrTy());
+    } else if(size <= HEAP_MAX) {
       alloc_fn = module->getFunction("pony_alloc_small");
       size = ponyint_heap_index(size);
       int_size = ConstantInt::get(builder.getInt32Ty(), size);
     } else {
       alloc_fn = module->getFunction("pony_alloc_large");
+#ifdef PLATFORM_IS_ILP32
+      int_size = ConstantInt::get(builder.getInt32Ty(), size);
+#else
       int_size = ConstantInt::get(builder.getInt64Ty(), size);
+#endif
     }
 
     Value* args[2];
     args[0] = ctx;
     args[1] = int_size;
 
-    return builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    inst->setTailCall();
+    return inst;
+  }
+
+  bool isZeroRealloc(CallInst* realloc)
+  {
+    Value* new_size = realloc->getArgOperand(2);
+    ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
+    if(new_int_size == NULL)
+      return false;
+
+    uint64_t new_alloc_size = new_int_size->getZExtValue();
+    if(new_alloc_size != 0)
+      return false;
+    return true;
   }
 };
 
