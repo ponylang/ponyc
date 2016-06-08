@@ -1,5 +1,5 @@
-use "net"
 use "collections"
+use "net/tcp"
 
 actor _ServerConnection
   """

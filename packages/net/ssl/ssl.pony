@@ -1,4 +1,5 @@
 use "net"
+use "net/dns"
 
 use @SSL_ctrl[ILong](ssl: Pointer[_SSL], op: I32, arg: ILong,
   parg: Pointer[None])

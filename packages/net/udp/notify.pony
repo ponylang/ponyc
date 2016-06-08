@@ -1,3 +1,5 @@
+use "net/ip"
+
 interface UDPNotify
   fun ref listening(sock: UDPSocket ref) =>
     """

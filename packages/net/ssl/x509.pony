@@ -1,4 +1,4 @@
-use "net"
+use "net/dns"
 use "collections"
 
 primitive _X509Name

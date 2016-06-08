@@ -1,3 +1,5 @@
+use "net/dns"
+
 class val IPAddress
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address

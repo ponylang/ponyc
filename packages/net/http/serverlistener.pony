@@ -1,5 +1,6 @@
-use "net"
+use "net/dns"
 use "net/ssl"
+use "net/tcp"
 
 class _ServerListener is TCPListenNotify
   """

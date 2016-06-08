@@ -1,6 +1,8 @@
 use "collections"
-use "net"
+use "net/ip"
+use "net/dns"
 use "net/ssl"
+use "net/tcp"
 
 actor Server
   """
