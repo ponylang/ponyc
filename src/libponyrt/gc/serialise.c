@@ -6,8 +6,8 @@
 
 #define HIGH_BIT ((size_t)1 << ((sizeof(size_t) * 8) - 1))
 
-extern size_t __DescTableSize;
-extern pony_type_t* __DescTable;
+extern "C" size_t __DescTableSize;
+extern "C" pony_type_t* __DescTable;
 
 typedef struct
 {
