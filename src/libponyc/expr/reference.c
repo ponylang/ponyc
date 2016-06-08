@@ -757,7 +757,7 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
   if(!ok)
   {
     ast_error(opt->check.errors, ast,
-      "the & operator can only be used for FFI arguments");
+      "the addressof operator can only be used for FFI arguments");
     return false;
   }
 
@@ -836,7 +836,7 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 
     default:
       ast_error(opt->check.errors, ast,
-        "identity must be for a field, local, parameter or this");
+        "can only get the digest of a field, local, parameter or this");
       return false;
   }
 
