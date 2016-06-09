@@ -42,12 +42,10 @@ actor Buffer
     let debug_string = "**Buffer** Store_product"
     _out.print(debug_string)
     _future_products = _future_products - 1
-    if _consumers_waiting.size() > 0 then
-      try
-       _out.print(debug_string + ": Calling consumer to consume")
-        _consumers_waiting.delete(0).consuming(product)
-      else
-        _out.print(debug_string + ": Storing product")
-        _products.push(product)
-      end
+    try
+      _out.print(debug_string + ": Calling consumer to consume")
+      _consumers_waiting.delete(0).consuming(product)
+    else
+      _out.print(debug_string + ": Storing product")
+      _products.push(product)
     end
