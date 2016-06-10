@@ -70,6 +70,12 @@ $ brew install ponyc
 
 ## Linux
 
+### Arch
+
+```bash
+pacman -S ponyc
+```
+
 ### Gentoo
 
 ```bash
@@ -95,6 +101,19 @@ Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work*
 
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
+
+### Arch
+
+```
+pacman -S llvm make ncurses openssl pcre2 zlib
+```
+
+To build ponyc and compile helloworld:
+
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
 
 ### Debian Jessie
 
