@@ -208,8 +208,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     if _alloc <= len then
       let max = len.max_value() - 1
-      let min_alloc = len + 1
-      if min_alloc < (max / 2) then
+      let min_alloc = len.min(max) + 1
+      if min_alloc <= (max / 2) then
         _alloc = min_alloc.next_pow2()
       else
         _alloc = min_alloc.min(max)
