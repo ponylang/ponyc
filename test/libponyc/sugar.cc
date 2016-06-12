@@ -2702,3 +2702,15 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParamClash)
 
   TEST_ERROR(short_form);
 }
+
+
+TEST_F(SugarTest, AsOperatorWithLambdaType)
+{
+  const char* short_form =
+    "class Foo\n"
+      "new create() =>\n"
+        "let x = lambda():U32 => 0 end\n"
+        "try x as {():U32} val end";
+
+  TEST_COMPILE(short_form);
+}
