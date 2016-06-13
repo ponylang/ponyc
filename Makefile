@@ -71,7 +71,7 @@ LINKER_FLAGS = -march=$(arch)
 AR_FLAGS = -rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
-	-DPONY_BUILD_CONFIG=\"$(config)\"
+  -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
