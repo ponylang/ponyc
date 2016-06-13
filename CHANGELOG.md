@@ -40,6 +40,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - AST Printing of string literals with quote characters.
 - HTTP/1.1 connections are now persistent by default.
 - Runtime crash when Main.create is a function instead of a constructor.
+- Compiler bug where `as` operator with a lambda literal caused seg fault.
 
 ### Added
 
