@@ -89,15 +89,18 @@
       targetdir "build/debug"
       objdir "build/debug/obj"
       defines "DEBUG"
+      defines "PONY_BUILD_CONFIG=\"debug\""
       flags { "Symbols" }
 
     configuration "Release"
       targetdir "build/release"
       objdir "build/release/obj"
+      defines "PONY_BUILD_CONFIG=\"release\""
 
     configuration "Profile"
       targetdir "build/profile"
       objdir "build/profile/obj"
+      defines "PONY_BUILD_CONFIG=\"profile\""
 
     configuration "Release or Profile"
       defines "NDEBUG"
