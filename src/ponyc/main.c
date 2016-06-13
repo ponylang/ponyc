@@ -252,7 +252,7 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%s\n", PONY_VERSION);
+        printf("%s [%s]\n", PONY_VERSION, PONY_BUILD_CONFIG);
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;
