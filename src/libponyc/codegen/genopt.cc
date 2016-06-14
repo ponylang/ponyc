@@ -644,11 +644,14 @@ public:
       if(realloc == NULL || !isZeroRealloc(realloc))
         return false;
 
-      builder.SetInsertPoint(inst);
-      replace = mergeNoOp(builder, call.getArgument(0), old_size);
-      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
-      realloc->replaceAllUsesWith(replace);
-      realloc->eraseFromParent();
+      do
+      {
+        realloc->replaceAllUsesWith(inst);
+        realloc->eraseFromParent();
+        realloc = findRealloc(inst);
+      } while(realloc != NULL && isZeroRealloc(realloc));
+
+      return true;
     } else {
       uint64_t old_alloc_size = old_int_size->getZExtValue();
 
@@ -665,11 +668,7 @@ public:
         Value* new_size = realloc->getArgOperand(2);
 
         if(alloc_type > 0) // Small allocation.
-        {
-          old_int_size = ConstantInt::get(builder.getInt64Ty(),
-            ((int64_t)1) << (old_alloc_size + HEAP_MINBITS));
-          old_alloc_size = old_int_size->getZExtValue();
-        }
+          old_alloc_size = ((int64_t)1) << (old_alloc_size + HEAP_MINBITS);
 
         ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
 
@@ -680,7 +679,7 @@ public:
 
           builder.SetInsertPoint(realloc);
           replace = mergeNoOp(builder, call.getArgument(0), new_size);
-            new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
+          new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
         } else {
           uint64_t new_alloc_size = new_int_size->getZExtValue();
           new_alloc_size = std::max(old_alloc_size, new_alloc_size);
@@ -754,17 +753,15 @@ public:
       {
         builder.SetInsertPoint(next_realloc);
         replace = mergeNoOp(builder, alloc.getArgument(0), new_size);
-          new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
         alloc_size = 1;
       } else {
         alloc_size = new_int_size->getZExtValue();
 
         builder.SetInsertPoint(*last_realloc);
         replace = mergeConstant(builder, alloc.getArgument(0), alloc_size);
-        if(alloc_size > 0)
-           new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
       }
 
+      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
       (*last_realloc)->replaceAllUsesWith(replace);
       (*last_realloc)->eraseFromParent();
       *last_realloc = next_realloc;
