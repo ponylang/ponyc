@@ -111,7 +111,7 @@ static void usage()
     "  --library, -l   Generate a C-API compatible static library.\n"
     "  --pic           Compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
-    "  --install -i    Writes output to PONYBIN, which must be defined.\n"
+    "  --install, -i    Writes output to PONYBIN, which must be defined.\n"
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
