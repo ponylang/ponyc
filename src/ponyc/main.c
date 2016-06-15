@@ -219,10 +219,10 @@ static bool compile_package(const char* path, pass_opt_t* opt,
     return false;
 
   if(print_program_ast)
-    ast_fprint(stderr, program);
+    ast_fprint(program);
 
   if(print_package_ast)
-    ast_fprint(stderr, ast_child(program));
+    ast_fprint(ast_child(program));
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
