@@ -667,11 +667,8 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
 
   if(frame->prev->di_scope != NULL)
   {
-    source_t* source = ast_source(ast);
-    LLVMMetadataRef file = LLVMDIBuilderCreateFile(c->di, source->file);
-
     frame->di_scope = LLVMDIBuilderCreateLexicalBlock(c->di,
-      frame->prev->di_scope, file,
+      frame->prev->di_scope, frame->di_file,
       (unsigned)ast_line(ast), (unsigned)ast_pos(ast));
   }
 }
