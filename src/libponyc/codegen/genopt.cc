@@ -543,10 +543,12 @@ class MergeRealloc : public FunctionPass
 {
 public:
   static char ID;
+  compile_t* c;
   Module* module;
 
   MergeRealloc() : FunctionPass(ID)
   {
+    c = the_compiler;
     module = NULL;
   }
 
@@ -796,11 +798,12 @@ public:
       int_size = ConstantInt::get(builder.getInt32Ty(), size);
     } else {
       alloc_fn = module->getFunction("pony_alloc_large");
-#ifdef PLATFORM_IS_ILP32
-      int_size = ConstantInt::get(builder.getInt32Ty(), size);
-#else
-      int_size = ConstantInt::get(builder.getInt64Ty(), size);
-#endif
+      if(target_is_ilp32(c->opt->triple))
+      {
+        int_size = ConstantInt::get(builder.getInt32Ty(), size);
+      } else {
+        int_size = ConstantInt::get(builder.getInt64Ty(), size);
+      }
     }
 
     Value* args[2];

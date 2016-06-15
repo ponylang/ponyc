@@ -252,13 +252,20 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef dst = LLVMBuildAdd(c->builder, src, offset, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[5];
   args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
   args[1] = LLVMBuildIntToPtr(c->builder, src, c->void_ptr, "");
   args[2] = elen;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
 
-  // memmove(ptr + (n * sizeof(elem)), ptr, len * sizeof(elem))
-  gencall_runtime(c, "memmove", args, 3, "");
+  // llvm.memmove.*(ptr + (n * sizeof(elem)), ptr, len * sizeof(elem))
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
+  }
 
   // Return ptr.
   LLVMBuildRet(c->builder, ptr);
@@ -292,13 +299,20 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef src = LLVMBuildAdd(c->builder, dst, offset, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[5];
   args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
   args[1] = LLVMBuildIntToPtr(c->builder, src, c->void_ptr, "");
   args[2] = elen;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
 
-  // memmove(ptr, ptr + (n * sizeof(elem)), len * sizeof(elem))
-  gencall_runtime(c, "memmove", args, 3, "");
+  // llvm.memmove.*(ptr, ptr + (n * sizeof(elem)), len * sizeof(elem))
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
+  }
 
   // Return ptr[0].
   LLVMBuildRet(c->builder, result);
@@ -325,13 +339,20 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   LLVMValueRef n = LLVMGetParam(m->func, 2);
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[5];
   args[0] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
   args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
   args[2] = elen;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
 
-  // memcpy(ptr2, ptr, n * sizeof(elem))
-  gencall_runtime(c, "memcpy", args, 3, "");
+  // llvm.memcpy.*(ptr2, ptr, n * sizeof(elem), 1, 0)
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
+  }
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
@@ -607,7 +628,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   // The resulting offset will only be invalid (i.e. have the high bit set) if
   // the size is zero. For an opaque array, we don't serialise the contents,
   // so we don't get here, so we don't end up with an invalid offset.
-  LLVMValueRef args[3];
+  LLVMValueRef args[5];
   args[0] = ctx;
   args[1] = ptr;
   LLVMValueRef ptr_offset = gencall_runtime(c, "pony_serialise_offset",
@@ -633,7 +654,14 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
     args[0] = LLVMBuildIntToPtr(c->builder, ptr_offset_addr, c->void_ptr, "");
     args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
     args[2] = LLVMBuildMul(c->builder, size, l_size, "");
-    gencall_runtime(c, "memcpy", args, 3, "");
+    args[3] = LLVMConstInt(c->i32, 1, false);
+    args[4] = LLVMConstInt(c->i1, 0, false);
+    if(target_is_ilp32(c->opt->triple))
+    {
+      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
+    } else {
+      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
+    }
   } else {
     ptr = LLVMBuildBitCast(c->builder, ptr,
       LLVMPointerType(t_elem->use_type, 0), "");
@@ -839,7 +867,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   // Write the pointer.
   LLVMValueRef ptr = field_value(c, object, 3);
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[5];
   args[0] = ctx;
   args[1] = ptr;
   LLVMValueRef ptr_offset = gencall_runtime(c, "pony_serialise_offset",
@@ -856,7 +884,15 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   args[1] = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
     c->void_ptr, "");
   args[2] = alloc;
-  gencall_runtime(c, "memcpy", args, 3, "");
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
+
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
+  }
 
   LLVMBuildBr(c->builder, post_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
