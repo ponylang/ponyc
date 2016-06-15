@@ -175,7 +175,6 @@ static void usage()
     "                  usage N times its current value. This is a floating\n"
     "                  point value. Defaults to 2.0.\n"
     "  --ponynoyield   Do not yield the CPU when no work is available.\n"
-    "  --ponynoblock   Do not send block messages to the cycle detector.\n"
     );
 }
 
