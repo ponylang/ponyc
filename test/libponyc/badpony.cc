@@ -193,3 +193,22 @@ TEST_F(BadPonyTest, MainActorFunCreate)
 
   TEST_ERRORS_1(src, "the create method of a Main actor must be a constructor");
 }
+
+
+TEST_F(BadPonyTest, AddcIntrinsic)
+{
+  // From issue #943
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "let a: I8 = 127\n"
+    "let b: I8 = 127\n"
+
+    "var d: I8\n"
+    "var o: Bool\n"
+    "(d, o) = a.addc(b)\n";
+
+  TEST_ERRORS_1(src, "addc intrinsic");
+}
+
+
