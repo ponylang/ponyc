@@ -655,7 +655,8 @@ public:
 
       return true;
     } else {
-      uint64_t old_alloc_size = old_int_size->getZExtValue();
+      // Alloc sizes always fit in size_t. We can safely cast.
+      size_t old_alloc_size = (size_t)old_int_size->getZExtValue();
 
       if(realloc == NULL)
       {
@@ -670,7 +671,7 @@ public:
         Value* new_size = realloc->getArgOperand(2);
 
         if(alloc_type > 0) // Small allocation.
-          old_alloc_size = ((int64_t)1) << (old_alloc_size + HEAP_MINBITS);
+          old_alloc_size = ((size_t)1) << (old_alloc_size + HEAP_MINBITS);
 
         ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
 
@@ -683,7 +684,7 @@ public:
           replace = mergeNoOp(builder, call.getArgument(0), new_size);
           new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
         } else {
-          uint64_t new_alloc_size = new_int_size->getZExtValue();
+          size_t new_alloc_size = (size_t)new_int_size->getZExtValue();
           new_alloc_size = std::max(old_alloc_size, new_alloc_size);
 
           replace = mergeReallocChain(builder, call, &realloc, new_alloc_size,
@@ -733,7 +734,7 @@ public:
   }
 
   Value* mergeReallocChain(IRBuilder<>& builder, CallSite alloc,
-    CallInst** last_realloc, uint64_t alloc_size,
+    CallInst** last_realloc, size_t alloc_size,
     SmallVector<Instruction*, 16>& new_allocs)
   {
     builder.SetInsertPoint(alloc.getInstruction());
@@ -757,7 +758,7 @@ public:
         replace = mergeNoOp(builder, alloc.getArgument(0), new_size);
         alloc_size = 1;
       } else {
-        alloc_size = new_int_size->getZExtValue();
+        alloc_size = (size_t)new_int_size->getZExtValue();
 
         builder.SetInsertPoint(*last_realloc);
         replace = mergeConstant(builder, alloc.getArgument(0), alloc_size);
@@ -784,7 +785,7 @@ public:
     return inst;
   }
 
-  Value* mergeConstant(IRBuilder<>& builder, Value* ctx, uint64_t size)
+  Value* mergeConstant(IRBuilder<>& builder, Value* ctx, size_t size)
   {
     Function* alloc_fn;
     ConstantInt* int_size;
