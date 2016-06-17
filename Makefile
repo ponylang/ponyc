@@ -496,10 +496,10 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln -srf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln -srf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln -srf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln -srf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 
