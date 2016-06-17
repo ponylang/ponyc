@@ -70,6 +70,12 @@ $ brew install ponyc
 
 ## Linux
 
+### Arch
+
+```bash
+pacman -S ponyc
+```
+
 ### Gentoo
 
 ```bash
@@ -95,6 +101,19 @@ Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work*
 
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
+
+### Arch
+
+```
+pacman -S llvm make ncurses openssl pcre2 zlib
+```
+
+To build ponyc and compile helloworld:
+
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
 
 ### Debian Jessie
 
@@ -132,36 +151,17 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-### Ubuntu (12.04, 14.04, 15.10, 16.04)
+### Ubuntu (14.04, 15.10, 16.04)
 
-You should install LLVM as supplied by the LLVM build server. If you visit [their website](http://llvm.org/apt/) you will find a number of entries such as:
-
-```
-Precise (12.04) - Last update : Sun, 22 May 2016 19:26:23 UTC / Revision: 270357
-deb http://llvm.org/apt/precise/ llvm-toolchain-precise main
-deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise main
-# 3.7 
-deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
-deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
-# 3.8 
-deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.8 main
-deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.8 main
-```
-
-You want to find the correct version for your version of Ubuntu (the above is for Ubuntu Precise) and the version of LLVM that you want to install. The default is 3.6. 3.7 and 3.8 are also available. The first two deb entries above are for LLVM 3.6 with LLVM 3.7 and 3.8 following thereafter. Assuming you wanted to use LLVM 3.7 on Ubuntu Precise, you would add the following to `/etc/apt/sources`:
-
-```
-deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
-deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.7 main
-```
-
-Make sure the lines you added to `/etc/apt/sources` contains the name of your version of Ubuntu in it. If it doesn't, you copied the wrong lines. Now, install the LLVM toolchain public GPG key, update `apt` and install packages:
+You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.org/releases/download.html#3.8.0) under Pre-Built Binaries:
 
 ```bash
-$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
 $ sudo apt-get update
-$ sudo apt-get install build-essential git zlib1g-dev libncurses5-dev \
-                       libssl-dev llvm-3.8-dev
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev
+$ wget <clang-binaries-tarball-url>
+$ tar xvf clang*
+$ cd clang*
+$ sudo cp -r * /usr/local/ && cd ..
 ```
 
 Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:

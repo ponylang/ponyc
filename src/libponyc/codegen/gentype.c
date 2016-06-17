@@ -169,7 +169,14 @@ static void make_debug_prototype(compile_t* c, reach_type_t* t)
 
 static void make_debug_info(compile_t* c, reach_type_t* t)
 {
-  source_t* source = ast_source(t->ast);
+  ast_t* def = (ast_t*)ast_data(t->ast);
+  source_t* source;
+
+  if(def != NULL)
+    source = ast_source(def);
+  else
+    source = ast_source(t->ast);
+
   t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
 
   switch(t->underlying)

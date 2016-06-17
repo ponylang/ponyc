@@ -415,14 +415,38 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
-  // i8* memcpy(...)
-  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
-  value = LLVMAddFunction(c->module, "memcpy", type);
+  // void llvm.memcpy.*(i8*, i8*, i32/64, i32, i1)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[3] = c->i32;
+  params[4] = c->i1;
+  if(target_is_ilp32(c->opt->triple))
+  {
+    params[2] = c->i32;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
+  } else {
+    params[2] = c->i64;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
+  }
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* memmove(...)
-  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
-  value = LLVMAddFunction(c->module, "memmove", type);
+  // void llvm.memmove.*(i8*, i8*, i32/64, i32, i1)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[3] = c->i32;
+  params[4] = c->i1;
+  if(target_is_ilp32(c->opt->triple))
+  {
+    params[2] = c->i32;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
+  } else {
+    params[2] = c->i64;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
+  }
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 }
 
@@ -643,11 +667,8 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
 
   if(frame->prev->di_scope != NULL)
   {
-    source_t* source = ast_source(ast);
-    LLVMMetadataRef file = LLVMDIBuilderCreateFile(c->di, source->file);
-
     frame->di_scope = LLVMDIBuilderCreateLexicalBlock(c->di,
-      frame->prev->di_scope, file,
+      frame->prev->di_scope, frame->di_file,
       (unsigned)ast_line(ast), (unsigned)ast_pos(ast));
   }
 }

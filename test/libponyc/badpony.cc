@@ -170,3 +170,26 @@ TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
+{
+  // From issue #901
+  const char* src =
+    "type Foo is (Map[Foo, Foo], None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "type aliases can't be recursive");
+}
+
+TEST_F(BadPonyTest, MainActorFunCreate)
+{
+  // From issue #906
+  const char* src =
+    "actor Main\n"
+    "  fun create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "the create method of a Main actor must be a constructor");
+}

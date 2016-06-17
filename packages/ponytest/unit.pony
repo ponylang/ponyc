@@ -41,3 +41,10 @@ trait UnitTest
     The default is to do nothing.
     """
     None
+
+  fun label(): String =>
+    """
+    Report the test label, returning an empty string for none.
+    It can be later use to filter tests which we want to run, by labels.
+    """
+    ""

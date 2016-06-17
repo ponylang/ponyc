@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #define GC_ACTOR_HEAP_EQUIV 1024
+#define GC_IMMUT_HEAP_EQUIV 1024
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
@@ -90,10 +91,15 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   if(aref->mark == gc->mark)
     return;
 
+  if(aref->rc == 0)
+  {
+    // Increase apparent used memory to provoke GC.
+    ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+  }
+
   aref->mark = gc->mark;
   aref->rc++;
   gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
-  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
@@ -112,8 +118,6 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     acquire_actor(ctx, aref->actor);
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
-
-  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void acq_or_rel_remote_actor(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -302,11 +306,16 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Implicitly receive the owner.
   recv_remote_actor(ctx, gc, aref);
 
-  // If this is our first reference, add to our heap used size.
   if(obj->rc == 0)
   {
+    // Increase apparent used memory to provoke GC.
     ponyint_heap_used(ponyint_actor_heap(ctx->current),
       ponyint_heap_size(chunk));
+
+    // Increase apparent used memory further if the object is immutable, to
+    // account for memory that is reachable but not traced by this actor.
+    if(mutability == PONY_TRACE_IMMUTABLE)
+      ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
   }
 
   // Inc, mark and recurse.
@@ -324,7 +333,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 }
 
 static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_type_t* t, int mutability, chunk_t* chunk)
+  void* p, pony_type_t* t, int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
@@ -338,10 +347,6 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
   // Mark the object.
   obj->mark = gc->mark;
-
-  // Add to heap used size.
-  ponyint_heap_used(ponyint_actor_heap(ctx->current),
-    ponyint_heap_size(chunk));
 
   if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
@@ -456,7 +461,7 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(actor == ctx->current)
     mark_local_object(ctx, chunk, p, t, mutability);
   else
-    mark_remote_object(ctx, actor, p, t, mutability, chunk);
+    mark_remote_object(ctx, actor, p, t, mutability);
 }
 
 void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -562,6 +567,8 @@ void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   aref->rc = GC_INC_MORE;
   gc->delta = ponyint_deltamap_update(gc->delta, actor, aref->rc);
+
+  // Increase apparent used memory to provoke GC.
   ponyint_heap_used(ponyint_actor_heap(current), GC_ACTOR_HEAP_EQUIV);
 }
 

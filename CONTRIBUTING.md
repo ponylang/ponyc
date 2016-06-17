@@ -43,7 +43,7 @@ Before issuing a pull request we ask that you squash all your commits into a sin
 
 If you aren't sure how to squash multiple commits into one, Steve Klabnik wrote [a handy guide](http://blog.steveklabnik.com/posts/2012-11-08-how-to-squash-commits-in-a-github-pull-request) that you can refer to.
 
-We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural effects in ponyc. If your PR includes such changes (rather than say a documentation update), please make sure that as part of PR, you have also updated the CHANGELOG.
+We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural effects in ponyc. If your PR includes such changes (rather than say a documentation update), please make sure that as part of PR, you have also updated the CHANGELOG. The entries in the CHANGELOG are in time-ascending order, so please add your change description to the bottom of the appropriate section ("Fixed", "Added", or "Changed") of the "unreleased" log.
 
 Documentation Formatting
 ---------------
