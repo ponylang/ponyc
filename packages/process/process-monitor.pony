@@ -2,9 +2,9 @@
 # Process package
 
 The Process package provides support for handling Unix style processes.
-For each external process that you want to handle, you need to create a 
+For each external process that you want to handle, you need to create a
 `ProcessMonitor` and a corresponding `ProcessNotify` object. Each ProcessMonitor
-runs as it own actor and upon receiving data will call its corresponding 
+runs as it own actor and upon receiving data will call its corresponding
 `ProcessNotify`'s method.
 
 ## Example program
@@ -72,7 +72,7 @@ class ProcessClient is ProcessNotify
     | ReadError     => _env.out.print("ProcessError: ReadError")
     | WriteError    => _env.out.print("ProcessError: WriteError")
     | KillError     => _env.out.print("ProcessError: KillError")
-    | Unsupported   => _env.out.print("ProcessError: Unsupported") 
+    | Unsupported   => _env.out.print("ProcessError: Unsupported")
     else
       _env.out.print("Unknown ProcessError!")
     end
@@ -84,8 +84,8 @@ class ProcessClient is ProcessNotify
 
 ## Process portability
 
-The ProcessMonitor supports spawning processes on Linux, FreeBSD and OSX. 
-Processes are not supported on Windows and attempting to use them will cause 
+The ProcessMonitor supports spawning processes on Linux, FreeBSD and OSX.
+Processes are not supported on Windows and attempting to use them will cause
 a runtime error.
 
 ## Shutting down ProcessMonitor and external process
@@ -95,31 +95,52 @@ Document waitpid behaviour (stops world)
 """
 use "files"
 use @pony_os_errno[I32]()
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32, 
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
       flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
-      
-primitive _EINTR          fun apply(): I32 => 4
-primitive _STDINFILENO    fun apply(): U32 => 0
-primitive _STDOUTFILENO   fun apply(): U32 => 1
-primitive _STDERRFILENO   fun apply(): U32 => 2
-primitive _FSETFL         fun apply(): I32 => 4
-primitive _FGETFL         fun apply(): I32 => 3
-primitive _FSETFD         fun apply(): I32 => 2
-primitive _FGETFD         fun apply(): I32 => 1
-primitive _FDCLOEXEC      fun apply(): I32 => 1
-primitive _SIGTERM        fun apply(): I32 => 15
 
-primitive _EAGAIN      fun apply(): I32 =>
-  ifdef freebsd or osx then 35
-  elseif linux then 11
-  else compile_error "no EAGAIN" end
-      
-primitive _ONONBLOCK   fun apply(): I32 =>
-  ifdef freebsd or osx then 4
-  elseif linux then 2048
-  else compile_error "no O_NONBLOCK" end
+primitive _EINTR
+  fun apply(): I32 => 4
+
+primitive _STDINFILENO
+  fun apply(): U32 => 0
+
+primitive _STDOUTFILENO
+  fun apply(): U32 => 1
+
+primitive _STDERRFILENO
+  fun apply(): U32 => 2
+
+primitive _FSETFL
+  fun apply(): I32 => 4
+
+primitive _FGETFL
+  fun apply(): I32 => 3
+
+primitive _FSETFD
+  fun apply(): I32 => 2
+
+primitive _FGETFD
+  fun apply(): I32 => 1
+
+primitive _FDCLOEXEC
+  fun apply(): I32 => 1
+
+primitive _SIGTERM
+  fun apply(): I32 => 15
+
+primitive _EAGAIN
+  fun apply(): I32 =>
+    ifdef freebsd or osx then 35
+    elseif linux then 11
+    else compile_error "no EAGAIN" end
+
+primitive _ONONBLOCK
+  fun apply(): I32 =>
+    ifdef freebsd or osx then 4
+    elseif linux then 2048
+    else compile_error "no O_NONBLOCK" end
 
 primitive ExecveError
 primitive PipeError
@@ -137,25 +158,25 @@ primitive CapError
 type ProcessError is
   ( ExecveError
   | CloseError
-  | Dup2Error    
+  | Dup2Error
   | FcntlError
   | ForkError
   | KillError
-  | PipeError    
+  | PipeError
   | ReadError
   | Unsupported
   | WaitpidError
   | WriteError
   | CapError
-  )    
-  
+  )
+
 actor ProcessMonitor
   """
   Forks and monitors a process. Notifies a client about STDOUT / STDERR events.
-  """        
+  """
   let _notifier: ProcessNotify
   var _child_pid: I32 = -1
-  
+
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
@@ -167,19 +188,19 @@ actor ProcessMonitor
   var _stdout_write: U32 = -1
   var _stderr_read:  U32 = -1
   var _stderr_write: U32 = -1
-    
+
   var _stdout_open: Bool = true
   var _stderr_open: Bool = true
 
   var _closed: Bool = false
-  
-  new create(notifier: ProcessNotify iso, filepath: FilePath, 
+
+  new create(notifier: ProcessNotify iso, filepath: FilePath,
     args: Array[String] val, vars: Array[String] val)
   =>
     """
     Create infrastructure to communicate with a forked child process
     and register the asio events. Fork child process and notify our
-    user about incoming data via the notifier. 
+    user about incoming data via the notifier.
     """
     _notifier = consume notifier
     if not filepath.caps(FileExec) then
@@ -219,7 +240,7 @@ actor ProcessMonitor
     else
       compile_error "unsupported platform"
     end
-    
+
   fun _child(path: String, argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag])
     =>
@@ -239,7 +260,7 @@ actor ProcessMonitor
         @_exit[None](I32(-1))
       end
     end
-      
+
   fun ref _parent() =>
     """
     We're now in the parent process. We setup asio events for STDOUT and STDERR
@@ -281,7 +302,7 @@ actor ProcessMonitor
         end
       end
     end
-    
+
   fun _make_pipe(fd_flags: I32, fl_flags: I32): (U32, U32) ? =>
     """
     Creates a pipe, an unidirectional data channel that can be used
@@ -331,7 +352,7 @@ actor ProcessMonitor
   fun _set_fl(fd: U32, flags: I32) ? =>
     let result = @fcntl[I32](fd, _FSETFL(), flags)
     if result < 0 then error end
-    
+
   be print(data: ByteSeq) =>
     """
     Print some bytes and insert a newline afterwards.
@@ -363,7 +384,7 @@ actor ProcessMonitor
     for bytes in data.values() do
       print(bytes)
     end
-    
+
   be writev(data: ByteSeqIter) =>
     """
     Write an iterable collection of ByteSeqs.
@@ -371,7 +392,7 @@ actor ProcessMonitor
     for bytes in data.values() do
       write(bytes)
     end
-    
+
   be done_writing() =>
     """
     Close _stdin_write file descriptor.
@@ -395,7 +416,7 @@ actor ProcessMonitor
     Terminate the child process.
     """
     if @kill[I32](_child_pid, _SIGTERM()) < 0 then error end
-    
+
   fun _create_asio_event(fd: U32): AsioEventID =>
     """
     Takes a file descriptor (one end of a pipe) and returns an AsioEvent.
@@ -415,7 +436,7 @@ actor ProcessMonitor
     if AsioEvent.disposable(flags) then all.append("disposable|") end
     if AsioEvent.writeable(flags) then all.append("writeable|") end
     all
-    
+
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
     Handle the incoming event.
@@ -451,9 +472,9 @@ actor ProcessMonitor
     | _stderr_read  => _stderr_read  = -1
     | _stderr_write => _stderr_write = -1
     end
-    
+
   fun ref _close() =>
-    """ 
+    """
     Close all pipes, unsubscribe events and wait for the child process to exit.
     """
     ifdef posix then
@@ -479,7 +500,7 @@ actor ProcessMonitor
         _notifier.dispose((wstatus >> 8) and 0xff)
       end
     end
-    
+
   fun ref _try_shutdown() =>
     """
     If neither stdout nor stderr are open we close down and exit.
@@ -487,11 +508,11 @@ actor ProcessMonitor
     if (_stdout_read == -1) and (_stderr_read == -1) then
       _close()
     end
-    
+
   fun ref _pending_reads(fd: U32): Bool =>
     """
-    Read from stdout while data is available. If we read 4 kb of data, 
-    send ourself a resume message and stop reading, to avoid starving 
+    Read from stdout while data is available. If we read 4 kb of data,
+    send ourself a resume message and stop reading, to avoid starving
     other actors.
     It's safe to use the same buffer for stdout and stderr because of
     causal messaging. Events get processed one _after_ another.
@@ -509,7 +530,7 @@ actor ProcessMonitor
             return true // resource temporarily unavailable, retry
           end
           _close_fd(fd)
-          return false          
+          return false
         | 0  =>
           _close_fd(fd)
           return false
@@ -532,7 +553,7 @@ actor ProcessMonitor
     else
       true
     end
-    
+
   be _read_again(fd: U32) =>
     """
     Resume reading on file descriptor.

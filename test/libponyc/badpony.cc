@@ -15,6 +15,7 @@
  * suitable location for tests which don't obviously belong anywhere else.
  */
 
+#define TEST_COMPILE(src) DO(test_compile(src, "all"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
@@ -152,4 +153,43 @@ TEST_F(BadPonyTest, ObjectLiteralUninitializedField)
     "    end";
 
   TEST_ERRORS_1(src, "object literal fields must be initialized");
+}
+
+// TODO: This test is not correct because it does not fail without the fix.
+// I do not know how to generate a test that calls genheader().
+// Comments are welcomed.
+TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
+{
+  // From issue #891
+  const char* src =
+    "primitive T\n"
+    "\n"
+    "actor @A\n"
+    "  fun f(a: T): (T | None) =>\n"
+    "    a\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
+{
+  // From issue #901
+  const char* src =
+    "type Foo is (Map[Foo, Foo], None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "type aliases can't be recursive");
+}
+
+TEST_F(BadPonyTest, MainActorFunCreate)
+{
+  // From issue #906
+  const char* src =
+    "actor Main\n"
+    "  fun create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "the create method of a Main actor must be a constructor");
 }

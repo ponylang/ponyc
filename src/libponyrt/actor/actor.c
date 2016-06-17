@@ -146,6 +146,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     }
   }
 
+  // If we have been scheduled, the head will not be marked as empty.
+  pony_msg_t* head = _atomic_load(&actor->q.head);
+
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
     if(handle_message(ctx, actor, msg))
@@ -157,6 +160,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       if(app == batch)
         return !has_flag(actor, FLAG_UNSCHEDULED);
     }
+
+    // Stop handling a batch if we reach the head we found when we were
+    // scheduled.
+    if(msg == head)
+      break;
   }
 
   // We didn't hit our app message batch limit. We now believe our queue to be
