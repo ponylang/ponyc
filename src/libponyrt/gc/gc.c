@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #define GC_ACTOR_HEAP_EQUIV 1024
+#define GC_IMMUT_HEAP_EQUIV 1024
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
@@ -90,10 +91,15 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   if(aref->mark == gc->mark)
     return;
 
+  if(aref->rc == 0)
+  {
+    // Increase apparent used memory to provoke GC.
+    ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+  }
+
   aref->mark = gc->mark;
   aref->rc++;
   gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
-  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
@@ -112,8 +118,6 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     acquire_actor(ctx, aref->actor);
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
-
-  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 static void acq_or_rel_remote_actor(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -122,8 +126,8 @@ static void acq_or_rel_remote_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   aref->rc += 1;
 }
 
-static void send_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+static void send_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
@@ -138,15 +142,18 @@ static void send_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   obj->rc++;
   obj->mark = gc->mark;
 
-  if(immutable)
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
-static void recv_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   // get the object
   gc_t* gc = ponyint_actor_gc(ctx->current);
@@ -159,36 +166,37 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
   // Implicitly receive the owner.
   recv_local_actor(gc);
 
-  // Dec, mark and recurse. Mark as reachable from the actor, since a
-  // release message for this object could arrive before a gc pass.
+  // Dec, mark and recurse.
   obj->rc--;
   obj->mark = gc->mark;
-  obj->reachable = true;
 
-  if(immutable)
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
 static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
-  pony_trace_fn f)
+  pony_type_t* t, int mutability)
 {
-  if(f != NULL)
+  if(mutability != PONY_TRACE_OPAQUE)
   {
     // Mark in our heap and recurse if it wasn't already marked.
     if(!ponyint_heap_mark(chunk, p))
-      recurse(ctx, p, f);
+      recurse(ctx, p, t->trace);
   } else {
-    // No recurse function, so do a shallow mark. If the same address is
-    // later marked with a recurse function, it will recurse.
+    // Do a shallow mark. If the same address is later marked as something that
+    // is not opaque, it will recurse.
     ponyint_heap_mark_shallow(chunk, p);
   }
 }
 
-static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
@@ -201,16 +209,19 @@ static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
 
   obj->rc++;
   obj->mark = gc->mark;
-  
-  if(immutable)
+
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
-static void release_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getobject(&gc->local, p);
@@ -224,16 +235,19 @@ static void release_local_object(pony_ctx_t* ctx, void* p, pony_trace_fn f,
 
   obj->rc--;
   obj->mark = gc->mark;
-  
-  if(immutable)
+
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_trace_fn f, bool immutable)
+  void* p, pony_type_t* t, int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
@@ -248,7 +262,7 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Mark the object.
   obj->mark = gc->mark;
 
-  if(immutable && !obj->immutable && (obj->rc > 0))
+  if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
     // If we received the object as not immutable (it's not marked as immutable
     // and it has an RC > 0), but we are now sending it as immutable, we need
@@ -258,16 +272,14 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += (GC_INC_MORE - 1);
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
-
-    immutable = false;
   } else if(obj->rc <= 1) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received. Invent some references to this
     // object and acquire it. This object should either be immutable or a tag.
-    assert((obj->rc > 0) || immutable || (f == NULL));
+    assert((obj->rc > 0) || (mutability != PONY_TRACE_MUTABLE));
 
     // Add to the acquire message and decrement.
-    if(immutable)
+    if(mutability == PONY_TRACE_IMMUTABLE)
       obj->immutable = true;
 
     obj->rc += (GC_INC_MORE - 1);
@@ -277,12 +289,12 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc--;
   }
 
-  if(!immutable)
-    recurse(ctx, p, f);
+  if(mutability == PONY_TRACE_MUTABLE)
+    recurse(ctx, p, t->trace);
 }
 
 static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_trace_fn f, bool immutable, chunk_t* chunk)
+  void* p, pony_type_t* t, int mutability, chunk_t* chunk)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
@@ -294,24 +306,34 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Implicitly receive the owner.
   recv_remote_actor(ctx, gc, aref);
 
-  // If this is our first reference, add to our heap used size.
   if(obj->rc == 0)
+  {
+    // Increase apparent used memory to provoke GC.
     ponyint_heap_used(ponyint_actor_heap(ctx->current),
       ponyint_heap_size(chunk));
+
+    // Increase apparent used memory further if the object is immutable, to
+    // account for memory that is reachable but not traced by this actor.
+    if(mutability == PONY_TRACE_IMMUTABLE)
+      ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
+  }
 
   // Inc, mark and recurse.
   obj->rc++;
   obj->mark = gc->mark;
 
-  if(immutable)
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
 static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_trace_fn f, bool immutable, chunk_t* chunk)
+  void* p, pony_type_t* t, int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
@@ -326,11 +348,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Mark the object.
   obj->mark = gc->mark;
 
-  // Add to heap used size.
-  ponyint_heap_used(ponyint_actor_heap(ctx->current),
-    ponyint_heap_size(chunk));
-
-  if(immutable && !obj->immutable && (obj->rc > 0))
+  if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
     // If we received the object as not immutable (it's not marked as immutable
     // and it has an RC > 0), but we are now marking it as immutable, we need
@@ -340,27 +358,25 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += GC_INC_MORE;
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
-
-    immutable = false;
   } else if(obj->rc == 0) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received. Invent some references to this
     // object and acquire it. This object should either be immutable or a tag.
-    assert(immutable || (f == NULL));
+    assert(mutability != PONY_TRACE_MUTABLE);
 
-    if(immutable)
+    if(mutability == PONY_TRACE_IMMUTABLE)
       obj->immutable = true;
 
     obj->rc += GC_INC_MORE;
     acquire_object(ctx, actor, p, obj->immutable);
   }
 
-  if(!immutable)
-    recurse(ctx, p, f);
+  if(mutability == PONY_TRACE_MUTABLE)
+    recurse(ctx, p, t->trace);
 }
 
 static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_trace_fn f, bool immutable)
+  void* p, pony_type_t* t, int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
@@ -375,110 +391,119 @@ static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   obj->rc++;
   obj->mark = gc->mark;
 
-  if(immutable)
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
+  if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
+
   if(!obj->immutable)
-    recurse(ctx, p, f);
+    recurse(ctx, p, t->trace);
 }
 
-void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
   {
-    recurse(ctx, p, f);
+    if(mutability != PONY_TRACE_OPAQUE)
+      recurse(ctx, p, t->trace);
     return;
   }
 
   pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
-    send_local_object(ctx, p, f, immutable);
+    send_local_object(ctx, p, t, mutability);
   else
-    send_remote_object(ctx, actor, p, f, immutable);
+    send_remote_object(ctx, actor, p, t, mutability);
 }
 
-void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
   {
-    recurse(ctx, p, f);
+    if(mutability != PONY_TRACE_OPAQUE)
+      recurse(ctx, p, t->trace);
     return;
   }
 
   pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
-    recv_local_object(ctx, p, f, immutable);
+    recv_local_object(ctx, p, t, mutability);
   else
-    recv_remote_object(ctx, actor, p, f, immutable, chunk);
+    recv_remote_object(ctx, actor, p, t, mutability, chunk);
 }
 
-void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
   {
-    recurse(ctx, p, f);
+    if(mutability != PONY_TRACE_OPAQUE)
+      recurse(ctx, p, t->trace);
     return;
   }
 
   pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
-    mark_local_object(ctx, chunk, p, f);
+    mark_local_object(ctx, chunk, p, t, mutability);
   else
-    mark_remote_object(ctx, actor, p, f, immutable, chunk);
+    mark_remote_object(ctx, actor, p, t, mutability);
 }
 
-void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
   {
-    recurse(ctx, p, f);
+    if(mutability != PONY_TRACE_OPAQUE)
+      recurse(ctx, p, t->trace);
     return;
   }
 
   pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
-    acquire_local_object(ctx, p, f, immutable);
+    acquire_local_object(ctx, p, t, mutability);
   else
-    acq_or_rel_remote_object(ctx, actor, p, f, immutable);
+    acq_or_rel_remote_object(ctx, actor, p, t, mutability);
 }
 
-void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable)
+void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability)
 {
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
   {
-    recurse(ctx, p, f);
+    if(mutability != PONY_TRACE_OPAQUE)
+      recurse(ctx, p, t->trace);
     return;
   }
 
   pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
-    release_local_object(ctx, p, f, immutable);
+    release_local_object(ctx, p, t, mutability);
   else
-    acq_or_rel_remote_object(ctx, actor, p, f, immutable);
+    acq_or_rel_remote_object(ctx, actor, p, t, mutability);
 
 }
 
@@ -542,6 +567,8 @@ void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   aref->rc = GC_INC_MORE;
   gc->delta = ponyint_deltamap_update(gc->delta, actor, aref->rc);
+
+  // Increase apparent used memory to provoke GC.
   ponyint_heap_used(ponyint_actor_heap(current), GC_ACTOR_HEAP_EQUIV);
 }
 
@@ -559,7 +586,7 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
       void* p = obj->address;
       chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
       pony_type_t* type = *(pony_type_t**)p;
-      mark_local_object(ctx, chunk, p, type->trace);
+      mark_local_object(ctx, chunk, p, type, PONY_TRACE_IMMUTABLE);
     }
   }
 }
@@ -626,19 +653,6 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
 
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
-
-    if((obj_local->rc == 0) && (obj_local->final == NULL))
-    {
-      // The local rc for this object has dropped to zero. We keep track of
-      // whether or not the object was reachable. If we go to 0 rc and it
-      // wasn't reachable, we free it. If we receive the object in a message,
-      // mark it as reachable again.
-      if(!obj_local->reachable)
-      {
-        chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
-        ponyint_heap_free(chunk, p);
-      }
-    }
   }
 
   ponyint_actorref_free(aref);

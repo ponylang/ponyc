@@ -68,8 +68,12 @@ static void print_token(FILE* fp, token_t* token)
   switch(token_get_id(token))
   {
     case TK_STRING:
-      fprintf(fp, "\"\"\"%s\"\"\"", token_print(token));
+    {
+      char* escaped = token_print_escaped(token);
+      fprintf(fp, "\"%s\"", escaped);
+      ponyint_pool_free_size(strlen(escaped), escaped);
       break;
+    }
 
     case TK_ID:
       fprintf(fp, "(id %s)", token_print(token));

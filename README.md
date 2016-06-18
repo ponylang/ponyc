@@ -1,18 +1,32 @@
 # Getting help
 
-* [Open an issue!](https://github.com/ponylang/ponyc/issues)
-* Use the [mailing list](mailto:pony+user@groups.io).
-* Join [the `#ponylang` IRC channel on freenode](https://webchat.freenode.net/?channels=%23ponylang).
-* A tutorial is available [here](http://tutorial.ponylang.org).
-* A [cookbook style book of patterns](http://patterns.ponylang.org) is in progress
-* Standard library docs are available [here](http://ponylang.github.io/ponyc/).
+Need help? Not to worry, we have you covered.
+
+We have a couple resources designed to help you learn, we suggest starting with
+the tutorial and from there, moving on to the Pony Patterns book. Additionally,
+standard library documentation is available online.
+
+* [Tutorial](http://tutorial.ponylang.org).
+* [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
+* [Standard library docs](http://ponylang.github.io/ponyc/).
+
+If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
+
+* [Mailing list](mailto:pony+user@groups.io).
+* [IRC](https://webchat.freenode.net/?channels=%23ponylang).
+
+Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
+
+* [Open an issue](https://github.com/ponylang/ponyc/issues)
 
 # Editor support
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 * Atom: [language-pony](https://atom.io/packages/language-pony)
 * Visual Studio: [VS-pony](https://github.com/ponylang/VS-pony)
-* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
+* Vim:
+    - [vim-pony](https://github.com/jakwings/vim-pony)
+    - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
@@ -56,6 +70,12 @@ $ brew install ponyc
 
 ## Linux
 
+### Arch
+
+```bash
+pacman -S ponyc
+```
+
 ### Gentoo
 
 ```bash
@@ -82,19 +102,18 @@ Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work*
 ## Building on Linux
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-First, install LLVM using your package manager. You may need to install zlib, ncurses, pcre2, and ssl as well. Instructions for some specific distributions follow.
+### Arch
 
-APT packages for LLVM 3.7 and 3.8, for Debian and Ubuntu, are provided by the LLVM build server.
+```
+pacman -S llvm make ncurses openssl pcre2 zlib
+```
 
-Please follow the instructions at http://llvm.org/apt/ for installing the GPG keys and packages for your distribution.
+To build ponyc and compile helloworld:
 
-#### Notes:
-
-On Ubuntu,
-`apt-get install llvm-dev` installs LLVM-3.6.
-
-When installing the full set of LLVM packages, the ```apt-get install``` instructions include the ```clang-modernize``` package. This should be changed to ```clang-tidy``` due to a recent name change.
-
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
 
 ### Debian Jessie
 
@@ -132,11 +151,17 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-### Ubuntu (12.04, 14.04, 15.10, 16.04)
+### Ubuntu (14.04, 15.10, 16.04)
+
+You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.org/releases/download.html#3.8.0) under Pre-Built Binaries:
 
 ```bash
-$ sudo apt-get install build-essential git \
-                       zlib1g-dev libncurses5-dev libssl-dev
+$ sudo apt-get update
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev
+$ wget <clang-binaries-tarball-url>
+$ tar xvf clang*
+$ cd clang*
+$ sudo cp -r * /usr/local/ && cd ..
 ```
 
 Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
@@ -151,6 +176,34 @@ $ sudo make install
 ```
 
 To build ponyc and compile helloworld:
+
+```bash
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
+
+### Other Linux distributions
+
+You need to have the development versions of the following installed:
+
+* LLVM 3.6.x, 3.7.1, 3.8.x. _LLVM 3.7.0* isn't supported_
+* zlib
+* ncurses
+* pcre2
+* libssl
+
+If your distribution doesn't have a package for prce2, you will need to download and build it from source:
+
+```bash
+$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+$ tar xvf pcre2-10.21.tar.bz2
+$ cd pcre2-10.21
+$ ./configure --prefix=/usr
+$ make
+$ sudo make install
+```
+
+Finally to build ponyc and compile the hello world app:
 
 ```bash
 $ make config=release

@@ -47,7 +47,6 @@ static bool viewref_cmp(viewref_t* a, viewref_t* b)
 
 static void viewref_free(viewref_t* vref)
 {
-  // TODO: view_free(vref->view) ?
   POOL_FREE(viewref_t, vref);
 }
 
@@ -826,6 +825,8 @@ static pony_type_t cycle_type =
   0,
   0,
   0,
+  NULL,
+  NULL,
   NULL,
   NULL,
   NULL,

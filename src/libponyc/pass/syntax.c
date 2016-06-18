@@ -280,6 +280,14 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
           r = false;
         }
 
+        if((ast_id(ast_parent(members)) == TK_OBJECT) && \
+          (ast_id(ast_childidx(member, 2)) == TK_NONE))
+        {
+          ast_error(opt->check.errors, member,
+            "object literal fields must be initialized");
+          r = false;
+        }
+
         if(!check_id_field(opt, ast_child(member)))
           r = false;
 
@@ -910,6 +918,73 @@ static ast_result_t syntax_compile_error(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_LAMBDA);
+  AST_GET_CHILDREN(ast, cap, name, typeparams, params, captures, type,
+    can_error, body);
+  switch(ast_id(type))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    {
+      ast_error(opt->check.errors, type, "lambda return type: %s",
+        ast_print_type(type));
+      ast_error_continue(opt->check.errors, type, "lambda return type "
+        "cannot be capability");
+      return AST_ERROR;
+    }
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_OBJECT);
+  AST_GET_CHILDREN(ast, cap, provides, members);
+
+  // Check for illegal members - even though object literals can be non-actors,
+  // we use DEF_ACTOR because the permissions are close enough for our purposes.
+  if(!check_members(opt, members, DEF_ACTOR))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_fun(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_FUN);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+  switch(ast_id(type))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    {
+      ast_error(opt->check.errors, type, "function return type: %s",
+        ast_print_type(type));
+      ast_error_continue(opt->check.errors, type, "function return type "
+        "cannot be capability");
+      return AST_ERROR;
+    }
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_cap(pass_opt_t* opt, ast_t* ast)
 {
   switch(ast_id(ast_parent(ast)))
@@ -1004,6 +1079,10 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_VAL:
     case TK_BOX:
     case TK_TAG:        r = syntax_cap(options, ast); break;
+
+    case TK_LAMBDA:     r = syntax_lambda(options, ast); break;
+    case TK_OBJECT:     r = syntax_object(options, ast); break;
+    case TK_FUN:        r = syntax_fun(options, ast); break;
 
     case TK_CAP_READ:
     case TK_CAP_SEND:

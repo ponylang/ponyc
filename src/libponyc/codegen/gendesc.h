@@ -12,6 +12,8 @@ void gendesc_type(compile_t* c, reach_type_t* t);
 
 void gendesc_init(compile_t* c, reach_type_t* t);
 
+void gendesc_table(compile_t* c);
+
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object);
 
 LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef object);

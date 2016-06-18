@@ -154,9 +154,6 @@ typedef enum verbosity_level
   VERBOSITY_ALL       = 4
 } verbosity_level;
 
-#define PONY_LOG(opt, level, args) \
-        { if((opt)->verbosity >= (level)) { printf args ;} }
-
 typedef enum pass_id
 {
   PASS_PARSE,

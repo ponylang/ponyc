@@ -1774,6 +1774,22 @@ TEST_F(SugarTest, LambdaTypeScopeTypeParamsInFlet)
 }
 
 
+TEST_F(SugarTest, LambdaTypeSimpleAliased)
+{
+  const char* short_form =
+    "type Foo is {()}";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "type Foo is $T\n"
+
+    "interface ref $T\n"
+    "  fun box apply(): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =
@@ -2685,4 +2701,16 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParamClash)
     "  fun fib[A = C](a: U64): U64 => 1";
 
   TEST_ERROR(short_form);
+}
+
+
+TEST_F(SugarTest, AsOperatorWithLambdaType)
+{
+  const char* short_form =
+    "class Foo\n"
+      "new create() =>\n"
+        "let x = lambda():U32 => 0 end\n"
+        "try x as {():U32} val end";
+
+  TEST_COMPILE(short_form);
 }

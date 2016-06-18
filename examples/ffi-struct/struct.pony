@@ -24,7 +24,7 @@ struct Outer
 
 actor Main
   new create(env: Env) =>
-    let s = Outer
+    let s: Outer = Outer
 
     // When passing a Pony struct in a FFI call, you get a pointer to a
     // C struct on the other side.

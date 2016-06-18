@@ -69,7 +69,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(!is_control_type(type))
     post_block = codegen_block(c, "if_post");
 
-  LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
+  LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
+  LLVMBuildCondBr(c->builder, test, then_block, else_block);
 
   // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -192,7 +193,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(i_value == NULL)
     return NULL;
 
-  LLVMBuildCondBr(c->builder, i_value, body_block, else_block);
+  LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
+  LLVMBuildCondBr(c->builder, test, body_block, else_block);
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
@@ -218,7 +220,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
       return NULL;
 
     body_from = LLVMGetInsertBlock(c->builder);
-    LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
+    LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
+    LLVMBuildCondBr(c->builder, test, body_block, post_block);
   }
 
   // Don't need loop status for the else block.
@@ -323,7 +326,8 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
       return NULL;
 
     body_from = LLVMGetInsertBlock(c->builder);
-    LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
+    LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
+    LLVMBuildCondBr(c->builder, test, post_block, body_block);
   }
 
   // cond block
@@ -331,7 +335,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   // or to the else block.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef i_value = gen_expr(c, cond);
-  LLVMBuildCondBr(c->builder, i_value, else_block, body_block);
+
+  LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
+  LLVMBuildCondBr(c->builder, test, else_block, body_block);
 
   // Don't need loop status for the else block.
   codegen_poploop(c);

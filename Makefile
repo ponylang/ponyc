@@ -70,7 +70,8 @@ BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
 LINKER_FLAGS = -march=$(arch)
 AR_FLAGS = -rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
-  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
+  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
@@ -495,10 +496,10 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln -srf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln -srf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln -srf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln -srf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 

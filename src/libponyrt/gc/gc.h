@@ -26,20 +26,20 @@ typedef struct gc_t
 
 DECLARE_STACK(ponyint_gcstack, gcstack_t, void);
 
-void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
-void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
-void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
-void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
-void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_trace_fn f,
-  bool immutable);
+void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  int mutability);
 
 void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor);
 

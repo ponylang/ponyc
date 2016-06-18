@@ -17,6 +17,8 @@ enum
   FLAG_PENDINGDESTROY = 1 << 4,
 };
 
+static bool actor_noblock = false;
+
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
   return (actor->flags & flag) != 0;
@@ -144,6 +146,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     }
   }
 
+  // If we have been scheduled, the head will not be marked as empty.
+  pony_msg_t* head = _atomic_load(&actor->q.head);
+
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
     if(handle_message(ctx, actor, msg))
@@ -155,6 +160,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       if(app == batch)
         return !has_flag(actor, FLAG_UNSCHEDULED);
     }
+
+    // Stop handling a batch if we reach the head we found when we were
+    // scheduled.
+    if(msg == head)
+      break;
   }
 
   // We didn't hit our app message batch limit. We now believe our queue to be
@@ -257,6 +267,11 @@ void ponyint_actor_setsystem(pony_actor_t* actor)
   set_flag(actor, FLAG_SYSTEM);
 }
 
+void ponyint_actor_setnoblock(bool state)
+{
+  actor_noblock = state;
+}
+
 pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
   assert(type != NULL);
@@ -273,6 +288,9 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
   ponyint_messageq_init(&actor->q);
   ponyint_heap_init(&actor->heap);
   ponyint_gc_done(&actor->gc);
+
+  if(actor_noblock)
+    ponyint_actor_setsystem(actor);
 
   if(ctx->current != NULL)
   {

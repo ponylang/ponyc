@@ -22,7 +22,6 @@ static object_t* object_alloc(void* address, uint32_t mark)
   obj->address = address;
   obj->final = NULL;
   obj->rc = 0;
-  obj->reachable = true;
   obj->immutable = false;
 
   // a new object is unmarked
@@ -91,12 +90,8 @@ size_t ponyint_objectmap_sweep(objectmap_t* map)
 
     if(obj->rc > 0)
     {
-      // Keep track of whether or not the object was reachable.
       chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
-      obj->reachable = ponyint_heap_ismarked(chunk, p);
-
-      if(!obj->reachable)
-        ponyint_heap_mark_shallow(chunk, p);
+      ponyint_heap_mark_shallow(chunk, p);
     } else {
       if(obj->final != NULL)
       {

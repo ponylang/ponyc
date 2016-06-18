@@ -211,6 +211,7 @@ ast_t* alias(ast_t* type)
       return r_type;
     }
 
+    case TK_LAMBDATYPE:
     case TK_FUNTYPE:
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
