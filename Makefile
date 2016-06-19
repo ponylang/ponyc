@@ -525,6 +525,11 @@ test: all
 	@./stdlib
 	@rm stdlib
 
+test-examples: all
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
+
 ifeq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION
