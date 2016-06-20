@@ -28,7 +28,7 @@ install:
       }
       if(-Not $llvmInstalled)
       {
-        wget "https://github.com/dipinhora/ponyc-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
+        wget "https://github.com/ponylang/ponyc-windows-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
         7z x C:\LLVM.7z
         del C:\LLVM.7z
       }
