@@ -53,16 +53,16 @@ class StopWatch
   fun ref start() : StopWatch =>
     _s = Time.nanos()
     this
-  
+
   fun delta() : U64 =>
     Time.nanos() - _s
-     
+
 actor LonelyPony
   """
   A simple manifestation of the lonely pony problem
   """
   var _env : Env
-  let _sw : StopWatch = StopWatch 
+  let _sw : StopWatch = StopWatch
   var _alive : Bool = true
   var _debug : Bool = false
   var _m : U64
@@ -86,7 +86,7 @@ actor LonelyPony
     """
     while _alive do
       if _debug then
-        _env.out.print("Beep boop!") 
+        _env.out.print("Beep boop!")
       end
     end
 
@@ -100,7 +100,7 @@ actor LonelyPony
     end
     let d = _sw.delta()
     _env.out.print("N: " + _m.string() + ", Lonely: " + d.string())
-  
+
 actor InterruptiblePony
   """
   An interruptible version that avoids the lonely pony problem
@@ -124,7 +124,7 @@ actor InterruptiblePony
 
   be forever() =>
     match _alive
-    | true => 
+    | true =>
       Debug.err("Beep boop!")
       this.forever()
     | false =>
@@ -134,7 +134,7 @@ actor InterruptiblePony
 
   be _bare_perf() =>
     match _n
-    | 0 => 
+    | 0 =>
       Debug.err("Ugah!")
       let d = _sw.delta()
       _env.out.print("N=" + _n.string() + ", Interruptible: " + d.string())
@@ -150,7 +150,7 @@ actor InterruptiblePony
     _sw.start()
     _bare_perf()
     this
-  
+
 actor PunkDemo
   var _env : Env
   var _alive : Bool = false
@@ -185,14 +185,14 @@ actor PunkDemo
 
 actor Main
   var _env : Env
-  be create(env : Env) =>
+  new create(env : Env) =>
     _env = env
 
     var punk : Bool = false
     var lonely : Bool = false
     var perf : U64 = 0
     var debug : Bool = false
-    var err : Bool = false 
+    var err : Bool = false
 
     let options = Options(env) +
       ("punk", "p", None) +
@@ -214,7 +214,7 @@ actor Main
 
     match err
     | true =>
-      usage() 
+      usage()
       return
     else
       match punk
@@ -228,8 +228,8 @@ actor Main
       else
         match perf > 0
         | true =>
-          InterruptiblePony(env,debug,perf).perf() 
-          LonelyPony(env,debug,perf).perf() 
+          InterruptiblePony(env,debug,perf).perf()
+          LonelyPony(env,debug,perf).perf()
         else
           match lonely
           | false => InterruptiblePony(env,debug).forever().kill()
@@ -250,7 +250,7 @@ actor Main
       OPTIONS
         --debug, -d     Run in debug mode with verbose output
         --help, -h      This help
-  
+
       DESCRIPTION
 
       Demonstrate use of the yield behaviour when writing tail recursive
@@ -258,4 +258,4 @@ actor Main
 
       By Default, the actor will run quiet and interruptibly.
     """)
-      
+
