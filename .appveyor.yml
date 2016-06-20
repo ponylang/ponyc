@@ -1,10 +1,20 @@
 version: 1.0.{build}
-image: Visual Studio 2013
+
+image: Visual Studio 2015
+
+environment:
+  matrix:
+  - llvm: 3.8.0
+  - llvm: 3.7.1
+
 configuration:
   - Debug
   - Release
-clone_depth: 1
+
+clone_depth: 100
+
 clone_folder: C:\projects\ponyc
+
 install:
   - ps: |
       cd C:\
@@ -12,22 +22,53 @@ install:
       $llvmInstalled = Test-Path C:\LLVM
       if(-Not $premakeInstalled)
       {
-        wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha8/premake-5.0.0-alpha8-windows.zip -OutFile C:\premake5.zip
+        wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
         7z x C:\premake5.zip
         del C:\premake5.zip
       }
       if(-Not $llvmInstalled)
       {
-        wget http://releases.ponylang.org/llvm/llvm37-final-x86_64-windows-release.zip -OutFile C:\llvm37.zip
-        7z x C:\llvm37.zip
-        del C:\llvm37.zip
+        wget "https://github.com/dipinhora/ponyc-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
+        7z x C:\LLVM.7z
+        del C:\LLVM.7z
       }
-      $env:path += ";C:\LLVM\bin"
+      $env:path += ";C:\LLVM-${env:llvm}\bin"
+  - ps: |
+      cd C:\
+      $libsInstalled = Test-Path C:\ponyc-windows-libs
+      if(-Not $libsInstalled)
+      {
+        git clone https://github.com/kulibali/ponyc-windows-libs.git C:\ponyc-windows-libs
+        cd C:\ponyc-windows-libs
+        sed -i'.bak2' 's/echo off/echo on/g' getlibs.bat
+        sed -i'.bak3' 's/%PCRE2_SRC% wget/%PCRE2_SRC% curl -fsSL -o %PCRE2_SRC% /g' getlibs.bat
+        sed -i'.bak4' 's/wget/curl -fsSL -O /g' getlibs.bat
+        sed -i'.bak5' 's/pcre2-10.20/pcre2-10.21/g' getlibs.bat
+        sed -i'.bak6' 's/.tar.gz/.zip/g' getlibs.bat
+        sed -i'.bak7' 's@devenv .*@msbuild PCRE2.sln /t:pcre2-8 /p:Configuration=Release@g' getlibs.bat
+        sed -i'.bak8' 's/gunzip .*/unzip -o %PCRE2_SRC%/' getlibs.bat
+        sed -i'.bak9' 's@ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/%PCRE2_SRC%@https://sourceforge.net/projects/pcre/files/pcre2/10.21/%PCRE2_SRC%/download@g' getlibs.bat
+        C:\ponyc-windows-libs\getlibs.bat
+      }
+      $env:LIB = "C:\ponyc-windows-libs\lib;" + $env:LIB
+      $env:path += ";C:\ponyc-windows-libs\lib"
       cd C:\projects\ponyc
-      C:\premake5.exe --with-tests --to=work/vs2013 vs2013
+      C:\premake5.exe --with-tests --to=work/vs2015 vs2015
+
 cache:
-  - C:\LLVM\ -> .appveyor.yml
+  - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
   - C:\premake5.exe -> .appveyor.yml
+  - C:\ponyc-windows-libs\ -> .appveyor.yml
+
 build:
-  project: work\vs2013\ponyc.sln
+  project: work\vs2015\ponyc.sln
   verbosity: minimal
+
+test_script:
+  - C:\projects\ponyc\build\%CONFIGURATION%\testc.exe
+  - C:\projects\ponyc\build\%CONFIGURATION%\testrt.exe
+  - CALL "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\vcvars64.bat"
+  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s packages/stdlib
+  - stdlib.exe
+  - del stdlib.exe
+
