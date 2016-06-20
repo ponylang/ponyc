@@ -101,7 +101,7 @@ static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
   DWORD size = MAX_PATH;
 
-  RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
+  RegGetValue(key, NULL, "ProductDir", RRF_RT_REG_SZ,
     NULL, p->path, &size);
 }
 
@@ -203,7 +203,7 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars, errors_t* errors)
     PLATFORM_TOOLS_VERSION % 10);
 
   TCHAR reg_vs_install_path[MAX_PATH+1];
-  snprintf(reg_vs_install_path, MAX_PATH, "%s%s", REG_VS_INSTALL_PATH, vs.version);
+  snprintf(reg_vs_install_path, MAX_PATH, "%s%s\\Setup\\VC", REG_VS_INSTALL_PATH, vs.version);
 
   if(!find_registry_key(reg_vs_install_path, pick_vc_tools, false, &vs))
   {
@@ -212,12 +212,12 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars, errors_t* errors)
   }
 
   strcpy(vcvars->msvcrt, vs.path);
-  strcat(vcvars->msvcrt, "..\\..\\VC\\lib\\amd64");
+  strcat(vcvars->msvcrt, "lib\\amd64");
 
   // Find the linker and lib archiver relative to vs.path.
   return
-    find_executable(vs.path, "..\\..\\VC\\bin\\link.exe", vcvars->link, errors) &&
-    find_executable(vs.path, "..\\..\\VC\\bin\\lib.exe", vcvars->ar, errors);
+    find_executable(vs.path, "bin\\link.exe", vcvars->link, errors) &&
+    find_executable(vs.path, "bin\\lib.exe", vcvars->ar, errors);
 }
 
 bool vcvars_get(vcvars_t* vcvars, errors_t* errors)
