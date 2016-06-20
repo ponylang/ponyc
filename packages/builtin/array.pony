@@ -11,22 +11,34 @@ class Array[A] is Seq[A]
     Create an array with zero elements, but space for len elements.
     """
     _size = 0
-    _alloc = len
-    _ptr = Pointer[A]._alloc(len)
+
+    if len > 0 then
+      _alloc = len.next_pow2().max(len).max(8)
+      _ptr = Pointer[A]._alloc(_alloc)
+    else
+      _alloc = 0
+      _ptr = Pointer[A]
+    end
 
   new init(from: A^, len: USize) =>
     """
     Create an array of len elements, all initialised to the given value.
     """
     _size = len
-    _alloc = len
-    _ptr = Pointer[A]._alloc(len)
 
-    var i: USize = 0
+    if len > 0 then
+      _alloc = len.next_pow2().max(len).max(8)
+      _ptr = Pointer[A]._alloc(_alloc)
 
-    while i < len do
-      _ptr._update(i, from)
-      i = i + 1
+      var i: USize = 0
+
+      while i < len do
+        _ptr._update(i, from)
+        i = i + 1
+      end
+    else
+      _alloc = 0
+      _ptr = Pointer[A]
     end
 
   new from_cstring(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
@@ -71,10 +83,10 @@ class Array[A] is Seq[A]
   fun ref reserve(len: USize): Array[A]^ =>
     """
     Reserve space for len elements, including whatever elements are already in
-    the array.
+    the array. Array space grows geometrically.
     """
     if _alloc < len then
-      _alloc = len
+      _alloc = len.next_pow2().max(len).max(8)
       _ptr = _ptr._realloc(_alloc)
     end
     this

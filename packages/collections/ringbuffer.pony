@@ -40,7 +40,7 @@ class RingBuffer[A]
     """
     The available space in the ring.
     """
-    _array.space()
+    _mod + 1
 
   fun apply(i: USize): this->A ? =>
     """
