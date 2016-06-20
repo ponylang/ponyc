@@ -242,8 +242,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
 
-    Note that in Pony, memory is reclaimed only when an actor dies and so an
-    attempt to shrink the allocation here would be futile.
+    Note that memory is not freed by this operation.
     """
     _size = len.min(_alloc - 1)
     _set(_size, 0)
