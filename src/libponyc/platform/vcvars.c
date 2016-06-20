@@ -150,7 +150,12 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
 
   strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\");
-  if(strcmp("v8.0", sdk.name) == 0)
+  if(strcmp("v7.1", sdk.name) == 0)
+  {
+    strcat(vcvars->kernel32 , "\\x64");
+    return true;
+  }
+  else if(strcmp("v8.0", sdk.name) == 0)
   {
     strcat(vcvars->kernel32 , "win8");
   }
