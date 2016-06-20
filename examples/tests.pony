@@ -8,13 +8,13 @@ use them to type check.
 use "ponytest"
 
 // Include all example packages here, even if they don't have tests, so
-// that the package loads and them and perform syntax and type checks
+// that we load them to perform syntax and type checks.
 
 // Commented packages are broken at the moment. We have to fix them and
 // then keep the tests green.
 use ex_circle = "examples/circle"
 use ex_counter = "examples/counter"
-// use ex_delegates = "examples/delegates"
+use ex_delegates = "examples/delegates"
 use ex_echo = "examples/echo"
 // use ex_ffi_struct = "examples/ffi-struct"
 use ex_files = "examples/files"
@@ -36,7 +36,7 @@ use ex_readline = "examples/readline"
 use ex_ring = "examples/ring"
 use ex_spreader = "examples/spreader"
 use ex_timers = "examples/timers"
-// use ex_yield = "examples/yield"
+use ex_yield = "examples/yield"
 
 
 actor Main
