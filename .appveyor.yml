@@ -38,17 +38,20 @@ install:
       $libsInstalled = Test-Path C:\ponyc-windows-libs
       if(-Not $libsInstalled)
       {
-        git clone https://github.com/kulibali/ponyc-windows-libs.git C:\ponyc-windows-libs
+        md C:\ponyc-windows-libs
         cd C:\ponyc-windows-libs
-        sed -i'.bak2' 's/echo off/echo on/g' getlibs.bat
-        sed -i'.bak3' 's/%PCRE2_SRC% wget/%PCRE2_SRC% curl -fsSL -o %PCRE2_SRC% /g' getlibs.bat
-        sed -i'.bak4' 's/wget/curl -fsSL -O /g' getlibs.bat
-        sed -i'.bak5' 's/pcre2-10.20/pcre2-10.21/g' getlibs.bat
-        sed -i'.bak6' 's/.tar.gz/.zip/g' getlibs.bat
-        sed -i'.bak7' 's@devenv .*@msbuild PCRE2.sln /t:pcre2-8 /p:Configuration=Release@g' getlibs.bat
-        sed -i'.bak8' 's/gunzip .*/unzip -o %PCRE2_SRC%/' getlibs.bat
-        sed -i'.bak9' 's@ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/%PCRE2_SRC%@https://sourceforge.net/projects/pcre/files/pcre2/10.21/%PCRE2_SRC%/download@g' getlibs.bat
-        C:\ponyc-windows-libs\getlibs.bat
+        md lib
+        svn co svn://vcs.exim.org/pcre2/code/tags/pcre2-10.21 pcre2
+        md pcre2.build
+        cd pcre2.build
+        cmake ..\pcre2 -G "Visual Studio 14 2015 Win64"
+        msbuild PCRE2.sln /t:pcre2-8 /p:Configuration=Release
+        copy Release\pcre2-8.lib ..\lib
+        cd ..
+        wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-2.1.4-windows.zip -OutFile libressl-2.1.4-windows.zip
+        unzip -o libressl-2.1.4-windows.zip
+        copy libressl-2.1.4-windows\x64\libssl-32.* lib
+        copy libressl-2.1.4-windows\x64\libcrypto-32.* lib
       }
       $env:LIB = "C:\ponyc-windows-libs\lib;" + $env:LIB
       $env:path += ";C:\ponyc-windows-libs\lib"
