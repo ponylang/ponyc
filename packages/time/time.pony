@@ -1,3 +1,10 @@
+"""
+# Time Package
+
+The Time Package provides classes and methods for timing operations,
+dealing with dates and times, and scheduling tasks.
+"""
+
 use "lib:rt" if linux
 
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
