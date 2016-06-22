@@ -207,7 +207,13 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     null terminator.
     """
     if _alloc <= len then
-      _alloc = len.min(len.max_value() - 1) + 1
+      let max = len.max_value() - 1
+      let min_alloc = len.min(max) + 1
+      if min_alloc <= (max / 2) then
+        _alloc = min_alloc.next_pow2()
+      else
+        _alloc = min_alloc.min(max)
+      end
       _ptr = _ptr._realloc(_alloc)
     end
     this
@@ -235,6 +241,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
+
+    Note that memory is not freed by this operation.
     """
     _size = len.min(_alloc - 1)
     _set(_size, 0)
