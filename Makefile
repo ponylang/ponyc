@@ -61,6 +61,12 @@ ifdef destdir
   endif
 endif
 
+ifeq ($(OSTYPE),osx)
+  symlink.flags = -sf
+else
+  symlink.flags = -srf
+endif
+
 prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
@@ -496,10 +502,10 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 
