@@ -33,7 +33,7 @@ class WriteBuffer
 
   ```
   use "net"
-  
+
   actor Main
     new create(env: Env) =>
       let wb = WriteBuffer
@@ -57,6 +57,13 @@ class WriteBuffer
   var _current: Array[U8] iso = recover Array[U8] end
   var _offset: USize = 0
   var _size: USize = 0
+
+  fun ref reserve_chunks(size': USize): WriteBuffer^ =>
+    """
+    Reserve space for size' chunks.
+    """
+    _chunks.reserve(size')
+    this
 
   fun ref reserve(size': USize): WriteBuffer^ =>
     """
