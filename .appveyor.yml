@@ -19,7 +19,7 @@ install:
   - ps: |
       cd C:\
       $premakeInstalled = Test-Path C:\premake5.exe
-      $llvmInstalled = Test-Path C:\LLVM
+      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}
       if(-Not $premakeInstalled)
       {
         wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
