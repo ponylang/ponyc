@@ -161,6 +161,65 @@ const char* token_print(token_t* token)
 }
 
 
+char* token_print_escaped(token_t* token)
+{
+  assert(token != NULL);
+  const char* str = NULL;
+  size_t str_len = 0;
+
+  if(token->id == TK_STRING)
+  {
+    str = token->string;
+    str_len = token->str_length;
+  } else {
+    str = token_print(token);
+    str_len = strlen(str);
+  }
+
+  // Count the number of escapes so we know the size of the new string.
+  size_t escapes = 0;
+  for(size_t idx = 0; idx < str_len; idx++)
+  {
+    char c = str[idx];
+    if((c == '"') || (c == '\\') || (c == 0))
+      escapes++;
+  }
+
+  // Return a simple copy of the current string if there are no escapes.
+  if(escapes == 0)
+  {
+    char* copy = (char*)ponyint_pool_alloc_size(str_len + 1);
+    memcpy(copy, str, str_len);
+    copy[str_len] = 0;
+    return copy;
+  }
+
+  // Allocate a new buffer for the escaped string.
+  size_t escaped_len = str_len + escapes;
+  char* escaped = (char*)ponyint_pool_alloc_size(escaped_len + 1);
+
+  // Fill the buffer of the escaped string, one unescaped character at a time.
+  size_t escaped_idx = 0;
+  for(size_t idx = 0; idx < str_len; idx++)
+  {
+    char c = str[idx];
+    if((c == '"') || (c == '\\'))
+    {
+      escaped[escaped_idx++] = '\\';
+      escaped[escaped_idx++] = c;
+    } else if(c == 0) {
+      escaped[escaped_idx++] = '\\';
+      escaped[escaped_idx++] = '0';
+    } else {
+      escaped[escaped_idx++] = c;
+    }
+  }
+  escaped[escaped_idx++] = 0;
+
+  return escaped;
+}
+
+
 const char* token_id_desc(token_id id)
 {
   switch(id)

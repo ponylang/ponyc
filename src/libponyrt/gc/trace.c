@@ -34,6 +34,20 @@ void ponyint_gc_mark(pony_ctx_t* ctx)
   ctx->trace_actor = ponyint_gc_markactor;
 }
 
+void pony_gc_acquire(pony_ctx_t* ctx)
+{
+  assert(ctx->stack == NULL);
+  ctx->trace_object = ponyint_gc_acquireobject;
+  ctx->trace_actor = ponyint_gc_acquireactor;
+}
+
+void pony_gc_release(pony_ctx_t* ctx)
+{
+  assert(ctx->stack == NULL);
+  ctx->trace_object = ponyint_gc_releaseobject;
+  ctx->trace_actor = ponyint_gc_releaseactor;
+}
+
 void pony_send_done(pony_ctx_t* ctx)
 {
   ponyint_gc_handlestack(ctx);
@@ -64,41 +78,43 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
 
+void pony_acquire_done(pony_ctx_t* ctx)
+{
+  ponyint_gc_handlestack(ctx);
+  ponyint_gc_sendacquire(ctx);
+  ponyint_gc_done(ponyint_actor_gc(ctx->current));
+}
+
+void pony_release_done(pony_ctx_t* ctx)
+{
+  ponyint_gc_handlestack(ctx);
+  ponyint_gc_sendrelease_manual(ctx);
+  ponyint_gc_done(ponyint_actor_gc(ctx->current));
+}
+
 void pony_trace(pony_ctx_t* ctx, void* p)
 {
-  ctx->trace_object(ctx, p, NULL, false);
+  ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
-void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p)
+void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 {
-  ctx->trace_actor(ctx, p);
-}
-
-void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f, int immutable)
-{
-  ctx->trace_object(ctx, p, f, immutable != 0);
-}
-
-void pony_traceunknown(pony_ctx_t* ctx, void* p, int immutable)
-{
-  pony_type_t* type = *(pony_type_t**)p;
-
-  if(type->dispatch != NULL)
+  if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, type->trace, immutable != 0);
+    ctx->trace_object(ctx, p, t, m);
   }
 }
 
-void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p)
+void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 {
-  pony_type_t* type = *(pony_type_t**)p;
+  pony_type_t* t = *(pony_type_t**)p;
 
-  if(type->dispatch != NULL)
+  if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else {
-    ctx->trace_object(ctx, p, NULL, false);
+    ctx->trace_object(ctx, p, t, m);
   }
 }

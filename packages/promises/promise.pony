@@ -97,7 +97,7 @@ actor Promise[A: Any #share]
   A promise to eventually produce a result of type A. This promise can either
   be fulfilled or rejected.
 
-  Any number of promises can be
+  Any number of promises can be chained after this one.
   """
   var _value: (_Pending | _Reject | A) = _Pending
   let _list: List[_IThen[A]] = _list.create()

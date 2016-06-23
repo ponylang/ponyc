@@ -757,7 +757,7 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
   if(!ok)
   {
     ast_error(opt->check.errors, ast,
-      "the & operator can only be used for FFI arguments");
+      "the addressof operator can only be used for FFI arguments");
     return false;
   }
 
@@ -836,7 +836,7 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 
     default:
       ast_error(opt->check.errors, ast,
-        "identity must be for a field, local, parameter or this");
+        "can only get the digest of a field, local, parameter or this");
       return false;
   }
 
@@ -1237,6 +1237,13 @@ static bool check_main_create(pass_opt_t* opt, ast_t* ast)
 
   bool ok = true;
 
+  if(ast_id(ast) != TK_NEW)
+  {
+    ast_error(opt->check.errors, ast,
+      "the create method of a Main actor must be a constructor");
+    ok = false;
+  }
+
   if(ast_id(typeparams) != TK_NONE)
   {
     ast_error(opt->check.errors, typeparams,
@@ -1440,6 +1447,9 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   if(!check_primitive_init(opt, ast) || !check_finaliser(opt, ast))
     return false;
 
+  if(!check_main_create(opt, ast))
+    return false;
+
   switch(ast_id(ast))
   {
     case TK_NEW:
@@ -1453,9 +1463,6 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
       }
 
       if(!check_fields_defined(opt, ast))
-        ok = false;
-
-      if(!check_main_create(opt, ast))
         ok = false;
 
       return ok;

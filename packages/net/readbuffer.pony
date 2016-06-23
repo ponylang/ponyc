@@ -1,6 +1,6 @@
 use "collections"
 
-class Buffer
+class ReadBuffer
   """
   Store network data and provide a parsing interface.
   """
@@ -15,7 +15,7 @@ class Buffer
     """
     _available
 
-  fun ref clear(): Buffer^ =>
+  fun ref clear(): ReadBuffer^ =>
     """
     Discard all pending data.
     """
@@ -23,7 +23,7 @@ class Buffer
     _available = 0
     this
 
-  fun ref append(data: Array[U8] val): Buffer^ =>
+  fun ref append(data: Array[U8] val): ReadBuffer^ =>
     """
     Add a chunk of data.
     """
@@ -31,7 +31,7 @@ class Buffer
     _chunks.push((data, 0))
     this
 
-  fun ref skip(n: USize): Buffer^ ? =>
+  fun ref skip(n: USize): ReadBuffer^ ? =>
     """
     Skip n bytes.
     """

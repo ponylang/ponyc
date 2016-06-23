@@ -219,10 +219,14 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
   {
     // Print the docstring if we have one.
     ast_t* def = (ast_t*)ast_data(t->ast);
-    ast_t* docstring = ast_childidx(def, 6);
 
-    if(ast_id(docstring) == TK_STRING)
-      fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
+    if (def != NULL)
+    {
+      ast_t* docstring = ast_childidx(def, 6);
+
+      if(ast_id(docstring) == TK_STRING)
+        fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
+    }
 
     if(!is_pointer(t->ast) && !is_maybe(t->ast) && !is_machine_word(t->ast))
     {

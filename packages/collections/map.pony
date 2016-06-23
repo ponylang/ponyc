@@ -27,7 +27,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     resize. Defaults to 6.
     """
     let len = (prealloc * 4) / 3
-    let n = len.ponyint_next_pow2().max(8)
+    let n = len.max(8).next_pow2()
     _array = _array.init(_MapEmpty, n)
 
   fun size(): USize =>
@@ -137,13 +137,14 @@ class HashMap[K, V, H: HashFunction[K] val]
     (_, let found) = _search(k)
     found
 
-  fun ref concat(iter: Iterator[(K^, V^)]) =>
+  fun ref concat(iter: Iterator[(K^, V^)]): HashMap[K, V, H]^ =>
     """
     Add K, V pairs from the iterator to the map.
     """
     for (k, v) in iter do
       this(consume k) = consume v
     end
+    this
 
   fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
     HashMap[this->K!, this->V!, H2]^
@@ -188,7 +189,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Minimise the memory used for the map.
     """
-    _resize(((_size * 4) / 3).ponyint_next_pow2().max(8))
+    _resize(((_size * 4) / 3).next_pow2().max(8))
     this
 
   fun clone[H2: HashFunction[this->K!] val = H]():

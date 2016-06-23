@@ -205,23 +205,19 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
 static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   LLVMValueRef value, LLVMBasicBlockRef next_block)
 {
-  LLVMValueRef l_value = gen_expr(c, pattern);
-
-  if(l_value == NULL)
-    return false;
-
   reach_type_t* t = reach_type(c->reach, param_type);
   LLVMValueRef r_value = gen_assign_cast(c, t->use_type, value, param_type);
 
   if(r_value == NULL)
     return false;
 
-  LLVMValueRef test = gen_pattern_eq(c, pattern, r_value);
+  LLVMValueRef result = gen_pattern_eq(c, pattern, r_value);
 
-  if(test == NULL)
+  if(result == NULL)
     return false;
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  LLVMValueRef test = LLVMBuildTrunc(c->builder, result, c->i1, "");
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
@@ -627,12 +623,13 @@ static bool guard_match(compile_t* c, ast_t* guard,
   if(ast_id(guard) == TK_NONE)
     return true;
 
-  LLVMValueRef test = gen_expr(c, guard);
+  LLVMValueRef value = gen_expr(c, guard);
 
-  if(test == NULL)
+  if(value == NULL)
     return false;
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  LLVMValueRef test = LLVMBuildTrunc(c->builder, value, c->i1, "");
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;

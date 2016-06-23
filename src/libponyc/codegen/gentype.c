@@ -5,6 +5,7 @@
 #include "gentrace.h"
 #include "genfun.h"
 #include "genopt.h"
+#include "genserialise.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
@@ -42,7 +43,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       if(package == c->str_builtin)
       {
         if(name == c->str_Bool)
-          t->primitive = c->i1;
+          t->primitive = c->ibool;
         else if(name == c->str_I8)
           t->primitive = c->i8;
         else if(name == c->str_U8)
@@ -168,7 +169,14 @@ static void make_debug_prototype(compile_t* c, reach_type_t* t)
 
 static void make_debug_info(compile_t* c, reach_type_t* t)
 {
-  source_t* source = ast_source(t->ast);
+  ast_t* def = (ast_t*)ast_data(t->ast);
+  source_t* source;
+
+  if(def != NULL)
+    source = ast_source(def);
+  else
+    source = ast_source(t->ast);
+
   t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
 
   switch(t->underlying)
@@ -298,7 +306,11 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
       if(t->primitive != NULL)
+      {
+        // The ABI size for machine words and tuples is the boxed size.
+        t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
         return true;
+      }
 
       extra = 1;
       type = t->structure;
@@ -518,7 +530,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     }
   }
 
-  // Generate the trace functions.
+  // Generate the trace function.
   codegen_startfun(c, t->trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
 
@@ -527,7 +539,6 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "object");
 
-  // If we don't ever trace anything, delete this function.
   int extra = 0;
 
   // Non-structs have a type descriptor.
@@ -574,7 +585,9 @@ bool gentypes(compile_t* c)
 
   genprim_builtins(c);
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data prototypes\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Data prototypes\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -589,7 +602,11 @@ bool gentypes(compile_t* c)
     gentrace_prototype(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Data types\n"));
+  gendesc_table(c);
+
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Data types\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -600,11 +617,17 @@ bool gentypes(compile_t* c)
     make_global_instance(c, t);
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Function prototypes\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Function prototypes\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    // The ABI size for machine words and tuples is the boxed size.
+    if(t->structure != NULL)
+      t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
+
     make_debug_final(c, t);
     make_pointer_methods(c, t);
 
@@ -612,7 +635,9 @@ bool gentypes(compile_t* c)
       return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Functions\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Functions\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
@@ -621,12 +646,17 @@ bool gentypes(compile_t* c)
       return false;
   }
 
-  PONY_LOG(c->opt, VERBOSITY_INFO, (" Descriptors\n"));
+  if(c->opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, " Descriptors\n");
+
   i = HASHMAP_BEGIN;
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
     if(!make_trace(c, t))
+      return false;
+
+    if(!genserialise(c, t))
       return false;
 
     gendesc_init(c, t);

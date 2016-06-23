@@ -119,6 +119,7 @@ static void init_runtime(compile_t* c)
   c->str_Pointer = stringtab("Pointer");
   c->str_Maybe = stringtab("MaybePointer");
   c->str_Array = stringtab("Array");
+  c->str_String = stringtab("String");
   c->str_Platform = stringtab("Platform");
   c->str_Main = stringtab("Main");
   c->str_Env = stringtab("Env");
@@ -150,10 +151,11 @@ static void init_runtime(compile_t* c)
   c->str__event_notify = stringtab("_event_notify");
 
   LLVMTypeRef type;
-  LLVMTypeRef params[4];
+  LLVMTypeRef params[5];
   LLVMValueRef value;
 
   c->void_type = LLVMVoidTypeInContext(c->context);
+  c->ibool = LLVMInt8TypeInContext(c->context);
   c->i1 = LLVMInt1TypeInContext(c->context);
   c->i8 = LLVMInt8TypeInContext(c->context);
   c->i16 = LLVMInt16TypeInContext(c->context);
@@ -182,21 +184,31 @@ static void init_runtime(compile_t* c)
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
   // trace
-  // void (*)(i8*, $object*)
+  // void (*)(i8*, __object*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   c->trace_type = LLVMFunctionType(c->void_type, params, 2, false);
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
+  // serialise
+  // void (*)(i8*, __object*, i8*, intptr, i32)
+  params[0] = c->void_ptr;
+  params[1] = c->object_ptr;
+  params[2] = c->void_ptr;
+  params[3] = c->intptr;
+  params[4] = c->i32;
+  c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
+  c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
+
   // dispatch
-  // void (*)(i8*, $object*, $message*)
+  // void (*)(i8*, __object*, $message*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
   c->dispatch_type = LLVMFunctionType(c->void_type, params, 3, false);
   c->dispatch_fn = LLVMPointerType(c->dispatch_type, 0);
 
-  // void (*)($object*)
+  // void (*)(__object*)
   params[0] = c->object_ptr;
   c->final_fn = LLVMPointerType(
     LLVMFunctionType(c->void_type, params, 1, false), 0);
@@ -224,8 +236,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMAddFunctionAttr(value, LLVMReadNoneAttribute);
 
-  // $object* pony_create(i8*, $desc*)
+  // __object* pony_create(i8*, __Desc*)
   params[0] = c->void_ptr;
   params[1] = c->descriptor_ptr;
   type = LLVMFunctionType(c->object_ptr, params, 2, false);
@@ -233,13 +246,13 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // void ponyint_destroy($object*)
+  // void ponyint_destroy(__object*)
   params[0] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // void pony_sendv(i8*, $object*, $message*);
+  // void pony_sendv(i8*, __object*, $message*);
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
@@ -304,35 +317,21 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_trace", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // void pony_traceactor(i8*, $object*)
+  // i8* pony_traceobject(i8*, __object*, __Desc*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_traceactor", type);
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-
-  // i8* pony_traceobject(i8*, $object*, trace_fn, i32)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->trace_fn;
+  params[2] = c->descriptor_ptr;
   params[3] = c->i32;
   type = LLVMFunctionType(c->void_ptr, params, 4, false);
-  value = LLVMAddFunction(c->module, "pony_traceobject", type);
+  value = LLVMAddFunction(c->module, "pony_traceknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_traceunknown(i8*, $object*, i32)
+  // i8* pony_traceunknown(i8*, __object*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->i32;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-
-  // void pony_trace_tag_or_actor(i8*, $object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_trace_tag_or_actor", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
   // void pony_gc_send(i8*)
@@ -359,6 +358,35 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
+  // void pony_serialise_reserve(i8*, i8*, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_type, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+
+  // intptr pony_serialise_offset(i8*, i8*)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  type = LLVMFunctionType(c->intptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+
+  // i8* pony_deserialise_offset(i8*, __desc*, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->descriptor_ptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
+
+  // i8* pony_deserialise_block(i8*, intptr, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->intptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
+
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
   params[1] = LLVMPointerType(c->void_ptr, 0);
@@ -366,7 +394,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_init", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // void pony_become(i8*, $object*)
+  // void pony_become(i8*, __object*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
@@ -387,14 +415,38 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
-  // i8* memcpy(...)
-  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
-  value = LLVMAddFunction(c->module, "memcpy", type);
+  // void llvm.memcpy.*(i8*, i8*, i32/64, i32, i1)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[3] = c->i32;
+  params[4] = c->i1;
+  if(target_is_ilp32(c->opt->triple))
+  {
+    params[2] = c->i32;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
+  } else {
+    params[2] = c->i64;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
+  }
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* memmove(...)
-  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
-  value = LLVMAddFunction(c->module, "memmove", type);
+  // void llvm.memmove.*(i8*, i8*, i32/64, i32, i1)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[3] = c->i32;
+  params[4] = c->i1;
+  if(target_is_ilp32(c->opt->triple))
+  {
+    params[2] = c->i32;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
+  } else {
+    params[2] = c->i64;
+    type = LLVMFunctionType(c->void_type, params, 5, false);
+    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
+  }
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 }
 
@@ -525,7 +577,8 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
-  PONY_LOG(opt, VERBOSITY_MINIMAL, ("Generating\n"));
+  if(opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Generating\n");
 
   pony_mkdir(opt->output);
 
@@ -614,11 +667,8 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
 
   if(frame->prev->di_scope != NULL)
   {
-    source_t* source = ast_source(ast);
-    LLVMMetadataRef file = LLVMDIBuilderCreateFile(c->di, source->file);
-
     frame->di_scope = LLVMDIBuilderCreateLexicalBlock(c->di,
-      frame->prev->di_scope, file,
+      frame->prev->di_scope, frame->di_file,
       (unsigned)ast_line(ast), (unsigned)ast_pos(ast));
   }
 }

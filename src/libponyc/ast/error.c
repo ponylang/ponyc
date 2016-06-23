@@ -40,7 +40,7 @@ errors_t* errors_alloc()
 {
   errors_t* errors = POOL_ALLOC(errors_t);
   memset(errors, 0, sizeof(errors_t));
-  errors->output_stream = stdout;
+  errors->output_stream = stderr;
   return errors;
 }
 

@@ -25,6 +25,23 @@ All notable changes to the Pony compiler and standard library will be documented
 - Simplify contains() method on HashMap.
 - Lambda captures use the alias of the expression type.
 - Trace boxed primitives in union types.
+- Use -isystem for LLVM include directory only if it is not in search path.
+- Union tuples as return type with machine words (issue #849)
+- Incorrect \" handling in character literals
+- Incorrect \' handling in string literals
+- Compiler crash on type alias of a lambda type.
+- Late detection of errors silently emitted in lexer/parser.
+- Compiler crash when handling invalid lambda return types
+- Memory leak fixed when something sent as iso is then sent as val.
+- Compiler crash when handling object literal with uninitialized fields.
+- Associate a nice name with function types based on the type of the function.
+- Use the nice name for types when generating documentation.
+- Compiler crash when generating C library for the exported actors containing functions with variadic return type contatining None
+- AST Printing of string literals with quote characters.
+- HTTP/1.1 connections are now persistent by default.
+- Runtime crash when Main.create is a function instead of a constructor.
+- Compiler bug where `as` operator with a lambda literal caused seg fault.
+- String.read_int failure on lowest number in the range of signed integers.
 
 ### Added
 
@@ -61,6 +78,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - ponytest TestHelper.dispose_when_done
 - copysign and infinite for floating point numbers
 - contains() method on Array
+- GC tracing with acquire/release semantics.
+- pony_alloc_msg_size runtime function
+- `net/WriteBuffer`
+- `serialise` package.
 
 ### Changed
 
@@ -76,6 +97,12 @@ All notable changes to the Pony compiler and standard library will be documented
 - Parameterized Array.find and Array.rfind with a comparator.
 - `this->` adapted types check match on the upper bounds.
 - Renamed `identityof` to `digestof`.
+- Renamed `net/Buffer` to `net/ReadBuffer`
+- Print compiler error and info messages to stderr instead of stdout.
+- `Hashmap.concat` now returns `this` rather than `None`
+- Only allow single, internal underscores in numeric literals.
+- `ponyc --version` now includes the build type (debug/release) in its output.
+- Strings now grow and shrink geometrically.
 
 ## [0.2.1] - 2015-10-06
 

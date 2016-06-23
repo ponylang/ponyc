@@ -1,33 +1,77 @@
 version: 1.0.{build}
-image: Visual Studio 2013
+
+image: Visual Studio 2015
+
+environment:
+  matrix:
+  - llvm: 3.8.0
+  - llvm: 3.7.1
+
 configuration:
   - Debug
   - Release
-clone_depth: 1
+
+clone_depth: 100
+
 clone_folder: C:\projects\ponyc
+
 install:
   - ps: |
       cd C:\
       $premakeInstalled = Test-Path C:\premake5.exe
-      $llvmInstalled = Test-Path C:\LLVM
+      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}
       if(-Not $premakeInstalled)
       {
-        wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha8/premake-5.0.0-alpha8-windows.zip -OutFile C:\premake5.zip
+        wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
         7z x C:\premake5.zip
         del C:\premake5.zip
       }
       if(-Not $llvmInstalled)
       {
-        wget http://releases.ponylang.org/llvm/llvm37-final-x86_64-windows-release.zip -OutFile C:\llvm37.zip
-        7z x C:\llvm37.zip
-        del C:\llvm37.zip
+        wget "https://github.com/ponylang/ponyc-windows-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
+        7z x C:\LLVM.7z
+        del C:\LLVM.7z
       }
-      $env:path += ";C:\LLVM\bin"
+      $env:path += ";C:\LLVM-${env:llvm}\bin"
+  - ps: |
+      cd C:\
+      $libsInstalled = Test-Path C:\ponyc-windows-libs
+      if(-Not $libsInstalled)
+      {
+        md C:\ponyc-windows-libs
+        cd C:\ponyc-windows-libs
+        md lib
+        svn co svn://vcs.exim.org/pcre2/code/tags/pcre2-10.21 pcre2
+        md pcre2.build
+        cd pcre2.build
+        cmake ..\pcre2 -G "Visual Studio 14 2015 Win64"
+        msbuild PCRE2.sln /t:pcre2-8 /p:Configuration=Release
+        copy Release\pcre2-8.lib ..\lib
+        cd ..
+        wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-2.1.4-windows.zip -OutFile libressl-2.1.4-windows.zip
+        unzip -o libressl-2.1.4-windows.zip
+        copy libressl-2.1.4-windows\x64\libssl-32.* lib
+        copy libressl-2.1.4-windows\x64\libcrypto-32.* lib
+      }
+      $env:LIB = "C:\ponyc-windows-libs\lib;" + $env:LIB
+      $env:path += ";C:\ponyc-windows-libs\lib"
       cd C:\projects\ponyc
-      C:\premake5.exe --with-tests --to=work/vs2013 vs2013
+      C:\premake5.exe --with-tests --to=work/vs2015 vs2015
+
 cache:
-  - C:\LLVM\ -> .appveyor.yml
+  - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
   - C:\premake5.exe -> .appveyor.yml
+  - C:\ponyc-windows-libs\ -> .appveyor.yml
+
 build:
-  project: work\vs2013\ponyc.sln
+  project: work\vs2015\ponyc.sln
   verbosity: minimal
+
+test_script:
+  - C:\projects\ponyc\build\%CONFIGURATION%\testc.exe
+  - C:\projects\ponyc\build\%CONFIGURATION%\testrt.exe
+  - CALL "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\vcvars64.bat"
+  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s packages/stdlib
+  - stdlib.exe
+  - del stdlib.exe
+

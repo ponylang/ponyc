@@ -1233,7 +1233,12 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   collect_type_params(ast, &interface_t_params, NULL);
 
   printbuf_t* buf = printbuf_new();
-  printbuf(buf, "{(");
+
+  // Include the receiver capability if one is present.
+  if (ast_id(apply_cap) != TK_NONE)
+    printbuf(buf, "{%s(", ast_print_type(apply_cap));
+  else
+    printbuf(buf, "{(");
 
   // Convert parameter type list to a normal parameter list.
   int p_no = 1;
@@ -1270,6 +1275,9 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
   if(ast_id(apply_name) == TK_ID)
     fn_name = ast_name(apply_name);
+
+  // Attach the nice name to the original lambda.
+  ast_setdata(ast_childidx(ast, 1), (void*)stringtab(buf->m));
 
   // Create a new anonymous type.
   BUILD(def, ast,

@@ -37,7 +37,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     else
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      data._cstring()._copy_to(_ptr, _alloc)
+      data._cstring()._copy_to(_ptr, _size)
+      _set(_size, 0)
     end
 
   new from_cstring(str: Pointer[U8], len: USize = 0) =>
@@ -206,7 +207,13 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     null terminator.
     """
     if _alloc <= len then
-      _alloc = len.min(len.max_value() - 1) + 1
+      let max = len.max_value() - 1
+      let min_alloc = len.min(max) + 1
+      if min_alloc <= (max / 2) then
+        _alloc = min_alloc.next_pow2()
+      else
+        _alloc = min_alloc.min(max)
+      end
       _ptr = _ptr._realloc(_alloc)
     end
     this
@@ -234,6 +241,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
+
+    Note that memory is not freed by this operation.
     """
     _size = len.min(_alloc - 1)
     _set(_size, 0)
@@ -1124,11 +1133,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     // Check for leading minus
     let minus = (index < _size) and (_ptr._apply(index) == '-')
     if minus then
-      // Named variables need until issue #220 is fixed
-      // if A(-1) > A(0) then
-      let neg: A = -1
-      let zero: A = 0
-      if neg > zero then
+      if A(-1) > A(0) then
         // We're reading an unsigned type, negative not allowed, int not found
         return (0, 0)
       end
@@ -1162,7 +1167,11 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         break
       end
 
-      let new_value: A = (value * base') + digit
+      let new_value: A = if minus then
+        (value * base') - digit
+      else
+        (value * base') + digit
+      end
 
       if (new_value / base') != value then
         // Overflow
@@ -1173,8 +1182,6 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       had_digit = true
       index = index + 1
     end
-
-    if minus then value = -value end
 
     // Check result
     if not had_digit then

@@ -61,6 +61,12 @@ ifdef destdir
   endif
 endif
 
+ifeq ($(OSTYPE),osx)
+  symlink.flags = -sf
+else
+  symlink.flags = -srf
+endif
+
 prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
@@ -70,7 +76,8 @@ BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
 LINKER_FLAGS = -march=$(arch)
 AR_FLAGS = -rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
-  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
+  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
@@ -231,7 +238,17 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
-llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
+llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir)
+include.paths := $(shell echo | cc -v -E - 2>&1)
+ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
+# LLVM include directory is not in the existing paths;
+# put it at the top of the system list
+llvm.include := -isystem $(llvm.include.dir)
+else
+# LLVM include directory is already on the existing paths;
+# do nothing
+llvm.include :=
+endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 ifeq ($(OSTYPE), freebsd)
@@ -254,16 +271,16 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
-libponycc.include := -I src/common/ $(llvm.include)/
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
+libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include)/ \
+libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include) \
   -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
+ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 
 ifneq (,$(filter $(OSTYPE), osx freebsd))
@@ -485,10 +502,10 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
-	$(SILENT)ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
-	$(SILENT)ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
+	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
 
@@ -507,6 +524,11 @@ test: all
 	@$(PONY_BUILD_DIR)/ponyc -d -s packages/stdlib
 	@./stdlib
 	@rm stdlib
+
+test-examples: all
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
 
 ifeq ($(git),yes)
 setversion:
