@@ -42,6 +42,7 @@ actor Main is TestList
     test(_TestArrayFind)
     test(_TestMath128)
     test(_TestDivMod)
+    test(_TestAddc)
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
@@ -875,6 +876,63 @@ class iso _TestDivMod is UnitTest
     h.assert_eq[I64](-5, -13 % 8)
     h.assert_eq[I64](5, 13 % -8)
     h.assert_eq[I64](-5, -13 % -8)
+
+
+class iso _TestAddc is UnitTest
+  """
+  Test addc on various bit widths.
+  """
+  fun name(): String => "builtin/Addc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0xff, false), U8(0xfe).addc(1))
+    test[U8](h, (0, true), U8(0xff).addc(1))
+    test[U8](h, (0xfe, true), U8(0xff).addc(0xff))
+
+    test[U16](h, (0xffff, false), U16(0xfffe).addc(1))
+    test[U16](h, (0, true), U16(0xffff).addc(1))
+    test[U16](h, (0xfffe, true), U16(0xffff).addc(0xffff))
+
+    test[U32](h, (0xffff_ffff, false), U32(0xffff_fffe).addc(1))
+    test[U32](h, (0, true), U32(0xffff_ffff).addc(1))
+    test[U32](h, (0xffff_fffe, true), U32(0xffff_ffff).addc(0xffff_ffff))
+
+    test[U64](h, (0xffff_ffff_ffff_ffff, false), 
+                    U64(0xffff_ffff_ffff_fffe).addc(1))
+    test[U64](h, (0, true),
+                    U64(0xffff_ffff_ffff_ffff).addc(1))
+    test[U64](h, (0xffff_ffff_ffff_fffe, true),
+                    U64(0xffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff))
+
+    test[I8](h, ( 0x7f, false), I8( 0x7e).addc( 1))
+    test[I8](h, (-0x80, false), I8(-0x7f).addc(-1))
+    test[I8](h, (-0x80, true),  I8( 0x7f).addc( 1))
+    test[I8](h, ( 0x7f, true),  I8(-0x80).addc(-1))
+
+    test[I16](h, ( 0x7fff, false), I16( 0x7ffe).addc( 1))
+    test[I16](h, (-0x8000, false), I16(-0x7fff).addc(-1))
+    test[I16](h, (-0x8000, true),  I16( 0x7fff).addc( 1))
+    test[I16](h, ( 0x7fff, true),  I16(-0x8000).addc(-1))
+
+    test[I32](h, ( 0x7fff_ffff, false), I32( 0x7fff_fffe).addc( 1))
+    test[I32](h, (-0x8000_0000, false), I32(-0x7fff_ffff).addc(-1))
+    test[I32](h, (-0x8000_0000, true),  I32( 0x7fff_ffff).addc( 1))
+    test[I32](h, ( 0x7fff_ffff, true),  I32(-0x8000_0000).addc(-1))
+
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, false), 
+                    I64( 0x7fff_ffff_ffff_fffe).addc( 1))
+    test[I64](h, (-0x8000_0000_0000_0000, false), 
+                    I64(-0x7fff_ffff_ffff_ffff).addc(-1))
+    test[I64](h, (-0x8000_0000_0000_0000, true),  
+                    I64( 0x7fff_ffff_ffff_ffff).addc( 1))
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, true),  
+                    I64(-0x8000_0000_0000_0000).addc(-1))
+
+
+  fun test[A: (Equatable[A] #read & Stringable #read)]
+    (h: TestHelper, expected: (A, Bool), actual: (A, Bool)) =>
+    h.assert_eq[A](expected._1, actual._1)
+    h.assert_eq[Bool](expected._2, actual._2)
 
 
 struct _TestStruct
