@@ -33,6 +33,7 @@ actor Main is TestList
     test(_TestStringJoin)
     test(_TestStringCount)
     test(_TestStringCompare)
+    test(_TestStringReadInt)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
@@ -581,6 +582,54 @@ class iso _TestStringCompare is UnitTest
       Equal,   "abc".compare_sub("abc", 4), "\"abc\" == \"abc\"")
     h.assert_eq[Compare](
       Equal,   "abc".compare_sub("babc", 4, 1, 2), "\"xbc\" == \"xxbc\"")
+
+
+class iso _TestStringReadInt is UnitTest
+  """
+  Test converting string at given index to integer.
+  """
+  fun name(): String => "builtin/String.read_int"
+
+  fun apply(h: TestHelper) ? =>
+    // 8-bit
+    let u8_lo = "...0...".read_int[U8](3, 10)
+    let u8_hi = "...255...".read_int[U8](3, 10)
+    let i8_lo = "...-128...".read_int[I8](3, 10)
+    let i8_hi = "...127...".read_int[I8](3, 10)
+
+    h.assert_true((u8_lo._1 == 0) and (u8_lo._2 == 1))
+    h.assert_true((u8_hi._1 == 255) and (u8_hi._2 == 3))
+    h.assert_true((i8_lo._1 == -128) and (i8_lo._2 == 4))
+    h.assert_true((i8_hi._1 == 127) and (i8_hi._2 == 3))
+
+    // 32-bit
+    let u32_lo = "...0...".read_int[U32](3, 10)
+    let u32_hi = "...4_294_967_295...".read_int[U32](3, 10)
+    let i32_lo = "...-2147483648...".read_int[I32](3, 10)
+    let i32_hi = "...2147483647...".read_int[I32](3, 10)
+
+    h.assert_true((u32_lo._1 == 0) and (u32_lo._2 == 1))
+    h.assert_true((u32_hi._1 == 4_294_967_295) and (u32_hi._2 == 13))
+    h.assert_true((i32_lo._1 == -2147483648) and (i32_lo._2 == 11))
+    h.assert_true((i32_hi._1 == 2147483647) and (i32_hi._2 == 10))
+
+    // hexadecimal
+    let hexa = "...DEADBEEF...".read_int[U32](3, 16)
+    h.assert_true((hexa._1 == 0xDEADBEEF) and (hexa._2 == 8))
+
+    // octal
+    let oct = "...777...".read_int[U16](3, 8)
+    h.assert_true((oct._1 == 511) and (oct._2 == 3))
+
+    // misc
+    var u8_misc = "...000...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 3))
+
+    u8_misc = "...-123...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
+
+    u8_misc = "...-0...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
 
 
 class iso _TestArraySlice is UnitTest

@@ -1133,11 +1133,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     // Check for leading minus
     let minus = (index < _size) and (_ptr._apply(index) == '-')
     if minus then
-      // Named variables need until issue #220 is fixed
-      // if A(-1) > A(0) then
-      let neg: A = -1
-      let zero: A = 0
-      if neg > zero then
+      if A(-1) > A(0) then
         // We're reading an unsigned type, negative not allowed, int not found
         return (0, 0)
       end
@@ -1171,7 +1167,11 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         break
       end
 
-      let new_value: A = (value * base') + digit
+      let new_value: A = if minus then
+        (value * base') - digit
+      else
+        (value * base') + digit
+      end
 
       if (new_value / base') != value then
         // Overflow
@@ -1182,8 +1182,6 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       had_digit = true
       index = index + 1
     end
-
-    if minus then value = -value end
 
     // Check result
     if not had_digit then
