@@ -2,7 +2,34 @@ use "collections"
 
 class Timer
   """
-  A timer.
+  The `Timer` class represents a timer that fires after an expiration
+  time, and then fires at an interval. When a `Timer` fires, it calls
+  the `apply` method of the `TimerNotify` object that was passed to it
+  when it was created.
+
+  The following example waits 5 seconds and then fires every 2
+  seconds, and when it fires the `TimerNotify` object prints how many
+  times it has been called:
+
+  ```
+  use "time"
+
+  actor Main
+    new create(env: Env) =>
+      let timers = Timers
+      let timer = Timer(Notify(env), 5_000_000_000, 2_000_000_000)
+      timers(consume timer)
+
+  class Notify is TimerNotify
+    let _env: Env
+    var _counter: U32 = 0
+    new iso create(env: Env) =>
+      _env = env
+    fun ref apply(timer: Timer, count: U64): Bool =>
+      _env.out.print(_counter.string())
+      _counter = _counter + 1
+      true
+  ```
   """
   var _expiration: U64
   var _interval: U64
