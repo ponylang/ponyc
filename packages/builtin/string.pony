@@ -432,6 +432,35 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     error
 
+  fun contains(s: String box, offset: ISize = 0, nth: USize = 0): Bool =>
+    """
+    Return the index of the n-th instance of s in the string starting from the
+    beginning. Raise an error if there is no n-th occurence of s or s is empty.
+    """
+    var i = offset_to_index(offset)
+    var steps = nth + 1
+
+    while i < _size do
+      var j: USize = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same and ((steps = steps - 1) == 1) then
+        return true
+      end
+
+      i = i + 1
+    end
+    false
+
   fun count(s: String box, offset: ISize = 0): USize =>
     """
     Counts the non-overlapping occurrences of s in the string.
@@ -840,9 +869,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         while i < _size do
           (let c, let len) = utf32(i.isize())
 
-          try
+          if chars.contains(c) then
             // If we find a delimeter, add the current string to the array.
-            chars.find(c)
             occur = occur + 1
 
             if (n > 0) and (occur >= n) then
@@ -898,7 +926,10 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         try
           match utf32(i.isize())
           | (0xFFFD, 1) => None
-          | (let c: U32, _) => chars.find(c)
+          | (let c: U32, _) =>
+            if not chars.contains(c) then
+              break
+            end
           end
         else
           break
@@ -926,7 +957,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       while i < _size do
         try
           (let c, let len) = utf32(i.isize())
-          chars.find(c)
+          if not chars.contains(c) then
+            break
+          end
           i = i + len.usize()
         else
           break
