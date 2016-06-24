@@ -22,7 +22,7 @@ class JsonArray
     """
     data = data'
 
-  fun string(pretty_print: Bool = true, indent: String = ""): String =>
+  fun string(indent: String = "", pretty_print: Bool = true): String =>
     """
     Generate string representation of this array.
     """
@@ -69,7 +69,7 @@ class JsonObject
     """
     data = data'
 
-  fun string(pretty_print: Bool = true, indent: String = ""): String =>
+  fun string(indent: String = "", pretty_print: Bool = true): String =>
     """
     Generate string representation of this object.
     """
