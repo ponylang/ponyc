@@ -22,6 +22,9 @@ actor Main is TestList
     test(_TestPrintArray)
     test(_TestPrintObject)
 
+    test(_TestNoPrettyPrintArray)
+    test(_TestNoPrettyPrintObject)
+
     test(_TestParsePrint)
 
 
@@ -505,6 +508,43 @@ class iso _TestPrintArray is UnitTest
       doc.string())
 
 
+class iso _TestNoPrettyPrintArray is UnitTest
+  """
+  Test Json none-pretty printing of arrays.
+  """
+  fun name(): String => "JSON/nopprint.array"
+
+  fun apply(h: TestHelper) =>
+    let doc: JsonDoc = JsonDoc
+    let array: JsonArray = JsonArray
+
+    doc.data = array
+    h.assert_eq[String]("[]", doc.string(false))
+
+    array.data.clear()
+    array.data.push(true)
+    h.assert_eq[String]("[true]", doc.string(false))
+
+    array.data.clear()
+    array.data.push(true)
+    array.data.push(false)
+    h.assert_eq[String]("[true, false]", doc.string(false))
+
+    array.data.clear()
+    array.data.push(true)
+    array.data.push(I64(13))
+    array.data.push(None)
+    h.assert_eq[String]("[true, 13, null]", doc.string(false))
+
+    array.data.clear()
+    array.data.push(true)
+    var nested: JsonArray = JsonArray
+    nested.data.push(I64(52))
+    nested.data.push(None)
+    array.data.push(nested)
+    h.assert_eq[String]("[true, [52, null]]",
+      doc.string(false))
+
 class iso _TestPrintObject is UnitTest
   """
   Test Json printing of objects.
@@ -532,6 +572,32 @@ class iso _TestPrintObject is UnitTest
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in
 
+class iso _TestNoPrettyPrintObject is UnitTest
+  """
+  Test Json none-pretty printing of objects.
+  """
+  fun name(): String => "JSON/nopprint.object"
+
+  fun apply(h: TestHelper) =>
+    let doc: JsonDoc = JsonDoc
+    let obj: JsonObject = JsonObject
+
+    doc.data = obj
+    h.assert_eq[String]("{}", doc.string(false))
+
+    obj.data.clear()
+    obj.data("foo") = true
+    h.assert_eq[String]("{\"foo\": true}", doc.string(false))
+
+    obj.data.clear()
+    obj.data("a") = true
+    obj.data("b") = I64(3)
+    let s = doc.string(false)
+    h.assert_true((s == "{\"a\": true, \"b\": 3}") or
+      (s == "{\"b\": false, \"a\": true}"))
+
+    // We don't test with more fields in the object because we don't know what
+    // order they will be printed in
 
 class iso _TestParsePrint is UnitTest
   """
