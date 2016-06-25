@@ -82,6 +82,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `net/WriteBuffer`
 - `serialise` package.
 - contains() method on String
+- `.string()` of json objects, arrays, and doc now takes `pretty_print: Bool`. Default is true.
 
 ### Changed
 
