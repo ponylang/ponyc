@@ -76,6 +76,24 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     None
 
+  fun ref modify(key: K, value: V, f: {(V, V): V^} box): HashMap[K, V, H]^ =>
+    (let i, let found) = _search(key)
+
+    try
+      if found then
+        let prev = (_array(i) = _MapEmpty) as (_, V^)
+        _array(i) = (consume key, f(consume prev, consume value))
+      else
+        _array(i) = (consume key, consume value)
+        _size = _size + 1
+
+        if (_size * 4) > (_array.size() * 3) then
+          _resize(_array.size() * 2)
+        end
+      end
+    end
+    this
+
   fun ref insert(key: K, value: V): V ? =>
     """
     Set a value in the map. Returns the new value, allowing reuse.
