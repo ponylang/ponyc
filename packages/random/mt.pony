@@ -66,7 +66,7 @@ class MT is Random
         i = i + 1
       end
 
-      _upper(_n1(), _state(_n1()))
+      _wrap()
     end
 
   fun tag _n(): USize => 312
@@ -90,4 +90,10 @@ class MT is Random
   fun ref _upper(i: USize, x: U64): U64 ? =>
     let y = _state(i + 1)
     _state(i) = _state(i - _m()) xor _mix(x, y)
+    y
+
+  fun ref _wrap(): U64 ? =>
+    let x = _state(_n1())
+    let y = _state(0)
+    _state(_n1()) = _state(_m() - 1) xor _mix(x, y) 
     y
