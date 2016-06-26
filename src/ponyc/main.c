@@ -28,6 +28,7 @@ enum
   OPT_OUTPUT,
   OPT_LIBRARY,
   OPT_DOCS,
+  OPT_INSTALL,
 
   OPT_SAFE,
   OPT_IEEEMATH,
@@ -63,6 +64,7 @@ static opt_arg_t args[] =
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
+  {"install", 'i',OPT_ARG_OPTIONAL, OPT_INSTALL},
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
@@ -109,6 +111,7 @@ static void usage()
     "  --library, -l   Generate a C-API compatible static library.\n"
     "  --pic           Compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
+    "  --install, -i    Writes output to PONYBIN, which must be defined.\n"
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
@@ -226,6 +229,16 @@ static bool compile_package(const char* path, pass_opt_t* opt,
   return ok;
 }
 
+void installbinary(pass_opt_t* opt)
+{
+  char* binPath = getenv("PONYBIN");
+  if (binPath == NULL){
+    printf("With install option you must define PONYBIN environment variable.\nCurrent path %s\n", opt->output);
+    exit(-1);
+  }
+  opt->output = binPath;
+}
+
 int main(int argc, char* argv[])
 {
   stringtab_init();
@@ -260,6 +273,7 @@ int main(int argc, char* argv[])
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val, &opt); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
+      case OPT_INSTALL: installbinary(&opt); break;
       case OPT_PIC: opt.pic = true; break;
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_DOCS: opt.docs = true; break;
