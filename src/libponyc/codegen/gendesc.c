@@ -565,6 +565,11 @@ LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
 
   switch(ast_id(def))
   {
+    case TK_STRUCT:
+      // The type system has ensured that at this stage the operand must be
+      // the pattern type.
+      return LLVMConstInt(c->i1, 1, false);
+
     case TK_INTERFACE:
     case TK_TRAIT:
       return gendesc_istrait(c, desc, type);
