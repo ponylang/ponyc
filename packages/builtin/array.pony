@@ -324,12 +324,16 @@ class Array[A] is Seq[A]
     """
     Returns true if the array contains `value`, false otherwise.
     """
-    try
-      find(value, 0, 0, predicate)
-      true
-    else
-      false
+    var i = USize(0)
+
+    while i < _size do
+      if predicate(_ptr._apply(i), value) then
+        return true
+      end
+
+      i = i + 1
     end
+    false
 
   fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =

@@ -840,9 +840,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         while i < _size do
           (let c, let len) = utf32(i.isize())
 
-          try
+          if chars.contains(c) then
             // If we find a delimeter, add the current string to the array.
-            chars.find(c)
             occur = occur + 1
 
             if (n > 0) and (occur >= n) then
@@ -898,7 +897,10 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         try
           match utf32(i.isize())
           | (0xFFFD, 1) => None
-          | (let c: U32, _) => chars.find(c)
+          | (let c: U32, _) =>
+            if not chars.contains(c) then
+              break
+            end
           end
         else
           break
@@ -926,7 +928,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       while i < _size do
         try
           (let c, let len) = utf32(i.isize())
-          chars.find(c)
+          if not chars.contains(c) then
+            break
+          end
           i = i + len.usize()
         else
           break
