@@ -14,8 +14,8 @@ actor _TestRunner
   let _timers: Timers
   let _helper: TestHelper
   var _test_log: Array[String] iso = recover Array[String] end
-  var _expect_actions: Array[String] = Array[String]
-  var _disposables: Array[DisposableActor] = Array[DisposableActor]
+  embed _expect_actions: Array[String] = Array[String]
+  embed _disposables: Array[DisposableActor] = Array[DisposableActor]
   var _pass: Bool = false
   var _fun_finished: Bool = false
   var _is_long_test: Bool = false

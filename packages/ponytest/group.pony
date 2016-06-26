@@ -20,7 +20,7 @@ actor _ExclusiveGroup is _Group
   Test group in which we only ever have one test running at a time.
   """
 
-  let _tests: Array[_TestRunner] = Array[_TestRunner]
+  embed _tests: Array[_TestRunner] = Array[_TestRunner]
   var _next: USize = 0
   var _in_test:Bool = false
 

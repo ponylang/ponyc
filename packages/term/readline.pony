@@ -10,8 +10,8 @@ class Readline is ANSINotify
   let _notify: ReadlineNotify
   let _out: OutStream
   let _path: (FilePath | None)
-  let _history: Array[String]
-  let _queue: Array[String] = Array[String]
+  embed _history: Array[String]
+  embed _queue: Array[String] = Array[String]
   let _maxlen: USize
 
   var _edit: String iso = recover String end

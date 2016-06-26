@@ -8,7 +8,7 @@ class _TimingWheel
   let _shift: U64
   let _adjust: U64
   var _pending: U64 = 0
-  let _list: Array[List[Timer]]
+  embed _list: Array[List[Timer]]
 
   new create(index: USize) =>
     """

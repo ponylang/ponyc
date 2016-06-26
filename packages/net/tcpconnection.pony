@@ -24,7 +24,7 @@ actor TCPConnection
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
-  let _pending: List[(ByteSeq, USize)] = _pending.create()
+  embed _pending: List[(ByteSeq, USize)] = _pending.create()
   var _read_buf: Array[U8] iso
 
   var _next_size: USize

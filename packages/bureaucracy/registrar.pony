@@ -7,7 +7,7 @@ actor Registrar
   to keep a directory of long-lived service-providing actors that can be
   looked up name.
   """
-  let _registry: Map[String, Any tag] = _registry.create()
+  embed _registry: Map[String, Any tag] = _registry.create()
 
   be update(key: String, value: Any tag) =>
     """

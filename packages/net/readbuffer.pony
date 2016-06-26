@@ -4,7 +4,7 @@ class ReadBuffer
   """
   Store network data and provide a parsing interface.
   """
-  let _chunks: List[(Array[U8] val, USize)] = _chunks.create()
+  embed _chunks: List[(Array[U8] val, USize)] = _chunks.create()
   var _available: USize = 0
   var _line_node: (ListNode[(Array[U8] val, USize)] | None) = None
   var _line_len: USize = 0

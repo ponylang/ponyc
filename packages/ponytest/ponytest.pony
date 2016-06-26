@@ -202,8 +202,8 @@ actor PonyTest
   prints results.
   """
 
-  let _groups: Array[(String, _Group)] = Array[(String, _Group)]
-  let _records: Array[_TestRecord] = Array[_TestRecord]
+  embed _groups: Array[(String, _Group)] = Array[(String, _Group)]
+  embed _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
   let _timers: Timers = Timers
   var _do_nothing: Bool = false
