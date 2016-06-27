@@ -380,9 +380,15 @@ bool genexe(compile_t* c, ast_t* program)
   reach(c->reach, main_ast, c->str_create, NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
+  if(c->opt->limit == PASS_REACH)
+    return true;
+
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
+
+  if(c->opt->limit == PASS_PAINT)
+    return true;
 
   if(!gentypes(c))
     return false;

@@ -54,6 +54,8 @@ const char* pass_name(pass_id pass)
     case PASS_DOCS: return "docs";
     case PASS_EXPR: return "expr";
     case PASS_FINALISER: return "final";
+    case PASS_REACH: return "reach";
+    case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
     case PASS_BITCODE: return "bitcode";
     case PASS_ASM: return "asm";
@@ -278,7 +280,7 @@ bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 
 bool generate_passes(ast_t* program, pass_opt_t* options)
 {
-  if(options->limit < PASS_LLVM_IR)
+  if(options->limit < PASS_REACH)
     return true;
 
   return codegen(program, options);
