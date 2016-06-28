@@ -8,8 +8,10 @@ actor Main is TestList
     test(_TestReadBuffer)
     test(_TestWriteBuffer)
     test(_TestBroadcast)
-    test(_TestTCPExpect)
-    test(_TestTCPWritev)
+    ifdef not windows then
+      test(_TestTCPExpect)
+      test(_TestTCPWritev)
+    end
 
 class iso _TestReadBuffer is UnitTest
   """

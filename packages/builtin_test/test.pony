@@ -34,6 +34,7 @@ actor Main is TestList
     test(_TestStringCount)
     test(_TestStringCompare)
     test(_TestStringContains)
+    test(_TestStringReadInt)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
@@ -42,6 +43,7 @@ actor Main is TestList
     test(_TestArrayFind)
     test(_TestMath128)
     test(_TestDivMod)
+    test(_TestAddc)
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
@@ -617,6 +619,54 @@ class iso _TestStringContains is UnitTest
     h.assert_eq[Bool](s.contains(" hello"), false)
     h.assert_eq[Bool](s.contains("?!"), false)
 
+class iso _TestStringReadInt is UnitTest
+  """
+  Test converting string at given index to integer.
+  """
+  fun name(): String => "builtin/String.read_int"
+
+  fun apply(h: TestHelper) ? =>
+    // 8-bit
+    let u8_lo = "...0...".read_int[U8](3, 10)
+    let u8_hi = "...255...".read_int[U8](3, 10)
+    let i8_lo = "...-128...".read_int[I8](3, 10)
+    let i8_hi = "...127...".read_int[I8](3, 10)
+
+    h.assert_true((u8_lo._1 == 0) and (u8_lo._2 == 1))
+    h.assert_true((u8_hi._1 == 255) and (u8_hi._2 == 3))
+    h.assert_true((i8_lo._1 == -128) and (i8_lo._2 == 4))
+    h.assert_true((i8_hi._1 == 127) and (i8_hi._2 == 3))
+
+    // 32-bit
+    let u32_lo = "...0...".read_int[U32](3, 10)
+    let u32_hi = "...4_294_967_295...".read_int[U32](3, 10)
+    let i32_lo = "...-2147483648...".read_int[I32](3, 10)
+    let i32_hi = "...2147483647...".read_int[I32](3, 10)
+
+    h.assert_true((u32_lo._1 == 0) and (u32_lo._2 == 1))
+    h.assert_true((u32_hi._1 == 4_294_967_295) and (u32_hi._2 == 13))
+    h.assert_true((i32_lo._1 == -2147483648) and (i32_lo._2 == 11))
+    h.assert_true((i32_hi._1 == 2147483647) and (i32_hi._2 == 10))
+
+    // hexadecimal
+    let hexa = "...DEADBEEF...".read_int[U32](3, 16)
+    h.assert_true((hexa._1 == 0xDEADBEEF) and (hexa._2 == 8))
+
+    // octal
+    let oct = "...777...".read_int[U16](3, 8)
+    h.assert_true((oct._1 == 511) and (oct._2 == 3))
+
+    // misc
+    var u8_misc = "...000...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 3))
+
+    u8_misc = "...-123...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
+
+    u8_misc = "...-0...".read_int[U8](3, 10)
+    h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
+
+
 class iso _TestArraySlice is UnitTest
   """
   Test slicing arrays.
@@ -860,6 +910,63 @@ class iso _TestDivMod is UnitTest
     h.assert_eq[I64](-5, -13 % 8)
     h.assert_eq[I64](5, 13 % -8)
     h.assert_eq[I64](-5, -13 % -8)
+
+
+class iso _TestAddc is UnitTest
+  """
+  Test addc on various bit widths.
+  """
+  fun name(): String => "builtin/Addc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0xff, false), U8(0xfe).addc(1))
+    test[U8](h, (0, true), U8(0xff).addc(1))
+    test[U8](h, (0xfe, true), U8(0xff).addc(0xff))
+
+    test[U16](h, (0xffff, false), U16(0xfffe).addc(1))
+    test[U16](h, (0, true), U16(0xffff).addc(1))
+    test[U16](h, (0xfffe, true), U16(0xffff).addc(0xffff))
+
+    test[U32](h, (0xffff_ffff, false), U32(0xffff_fffe).addc(1))
+    test[U32](h, (0, true), U32(0xffff_ffff).addc(1))
+    test[U32](h, (0xffff_fffe, true), U32(0xffff_ffff).addc(0xffff_ffff))
+
+    test[U64](h, (0xffff_ffff_ffff_ffff, false), 
+                    U64(0xffff_ffff_ffff_fffe).addc(1))
+    test[U64](h, (0, true),
+                    U64(0xffff_ffff_ffff_ffff).addc(1))
+    test[U64](h, (0xffff_ffff_ffff_fffe, true),
+                    U64(0xffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff))
+
+    test[I8](h, ( 0x7f, false), I8( 0x7e).addc( 1))
+    test[I8](h, (-0x80, false), I8(-0x7f).addc(-1))
+    test[I8](h, (-0x80, true),  I8( 0x7f).addc( 1))
+    test[I8](h, ( 0x7f, true),  I8(-0x80).addc(-1))
+
+    test[I16](h, ( 0x7fff, false), I16( 0x7ffe).addc( 1))
+    test[I16](h, (-0x8000, false), I16(-0x7fff).addc(-1))
+    test[I16](h, (-0x8000, true),  I16( 0x7fff).addc( 1))
+    test[I16](h, ( 0x7fff, true),  I16(-0x8000).addc(-1))
+
+    test[I32](h, ( 0x7fff_ffff, false), I32( 0x7fff_fffe).addc( 1))
+    test[I32](h, (-0x8000_0000, false), I32(-0x7fff_ffff).addc(-1))
+    test[I32](h, (-0x8000_0000, true),  I32( 0x7fff_ffff).addc( 1))
+    test[I32](h, ( 0x7fff_ffff, true),  I32(-0x8000_0000).addc(-1))
+
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, false), 
+                    I64( 0x7fff_ffff_ffff_fffe).addc( 1))
+    test[I64](h, (-0x8000_0000_0000_0000, false), 
+                    I64(-0x7fff_ffff_ffff_ffff).addc(-1))
+    test[I64](h, (-0x8000_0000_0000_0000, true),  
+                    I64( 0x7fff_ffff_ffff_ffff).addc( 1))
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, true),  
+                    I64(-0x8000_0000_0000_0000).addc(-1))
+
+
+  fun test[A: (Equatable[A] #read & Stringable #read)]
+    (h: TestHelper, expected: (A, Bool), actual: (A, Bool)) =>
+    h.assert_eq[A](expected._1, actual._1)
+    h.assert_eq[Bool](expected._2, actual._2)
 
 
 struct _TestStruct

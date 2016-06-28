@@ -141,6 +141,8 @@ static void usage()
     "    =docs\n"
     "    =expr\n"
     "    =final\n"
+    "    =reach\n"
+    "    =paint\n"
     "    =ir           Output LLVM IR.\n"
     "    =bitcode      Output LLVM bitcode.\n"
     "    =asm          Output assembly.\n"

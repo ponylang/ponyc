@@ -521,9 +521,14 @@ uninstall:
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
 	@./stdlib
 	@rm stdlib
+
+test-examples: all
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
 
 ifeq ($(git),yes)
 setversion:

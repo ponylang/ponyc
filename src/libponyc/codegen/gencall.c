@@ -226,6 +226,15 @@ static bool call_needs_receiver(ast_t* postfix, reach_type_t* t)
   return true;
 }
 
+static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
+{
+  if(t->underlying == TK_STRUCT)
+    return;
+
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
+  LLVMBuildStore(c->builder, t->desc, desc_ptr);
+}
+
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
 {
   assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
@@ -325,9 +334,12 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         // If we're constructing an embed field, pass a pointer to the field
         // as the receiver. Otherwise, allocate an object.
         if((ast_id(parent) == TK_ASSIGN) && (ast_id(sibling) == TK_EMBEDREF))
+        {
           args[0] = gen_fieldptr(c, sibling);
-        else
+          set_descriptor(c, t, args[0]);
+        } else {
           args[0] = gencall_alloc(c, t);
+        }
         break;
       }
 
@@ -733,13 +745,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   }
 
   result = LLVMBuildBitCast(c->builder, result, t->structure_ptr, "");
-
-  // Set the descriptor.
-  if(t->underlying != TK_STRUCT)
-  {
-    LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, result, 0, "");
-    LLVMBuildStore(c->builder, t->desc, desc_ptr);
-  }
+  set_descriptor(c, t, result);
 
   return result;
 }
