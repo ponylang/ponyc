@@ -144,7 +144,7 @@ class iso _TestListFilter is UnitTest
   fun name(): String => "collections/persistent/Lists/filter()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => x % 2 == 0 end
+    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
     let l7 = Lists[U32]([1,2,3,4,5,6,7,8]).filter(is_even)
     h.assert_true(Lists[U32].eq(l7, Lists[U32]([2,4,6,8])))
 
@@ -170,7 +170,7 @@ class iso _TestListEveryExists is UnitTest
   fun name(): String => "collections/persistent/Lists/every()exists()"
 
   fun apply(h: TestHelper) =>
-    let is_even = lambda(x: U32): Bool => x % 2 == 0 end
+    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
     let l9 = Lists[U32]([4,2,10])
     let l10 = Lists[U32]([1,1,3])
     let l11 = Lists[U32]([1,1,2])
@@ -193,7 +193,7 @@ class iso _TestListPartition is UnitTest
   fun name(): String => "collections/persistent/Lists/partition()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => x % 2 == 0 end
+    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
     let l = Lists[U32]([1,2,3,4,5,6])
     (let hits, let misses) = l.partition(is_even)
     h.assert_true(Lists[U32].eq(hits, Lists[U32]([2,4,6])))
@@ -217,7 +217,7 @@ class iso _TestListDropWhile is UnitTest
   fun name(): String => "collections/persistent/List/drop_while()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => x % 2 == 0 end
+    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
     let l = Lists[U32]([4,2,6,1,3,4,6])
     let empty = Lists[U32].empty()
     h.assert_true(Lists[U32].eq(l.drop_while(is_even), Lists[U32]([1,3,4,6])))
@@ -240,7 +240,7 @@ class iso _TestListTakeWhile is UnitTest
   fun name(): String => "collections/persistent/List/take_while()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => x % 2 == 0 end
+    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
     let l = Lists[U32]([4,2,6,1,3,4,6])
     let empty = Lists[U32].empty()
     h.assert_true(Lists[U32].eq(l.take_while(is_even), Lists[U32]([4,2,6])))
