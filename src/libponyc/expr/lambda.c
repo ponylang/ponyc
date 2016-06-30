@@ -4,6 +4,7 @@
 #include "../ast/printbuf.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../pass/syntax.h"
 #include "../type/alias.h"
 #include "../type/sanitise.h"
 #include <assert.h>
@@ -167,5 +168,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   printbuf_free(buf);
 
   // Catch up passes
+  if(ast_visit(astp, pass_syntax, NULL, opt, PASS_SYNTAX) != AST_OK)
+    return false;
+
   return ast_passes_subtree(astp, opt, PASS_EXPR);
 }

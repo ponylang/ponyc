@@ -283,7 +283,7 @@ class iso _TestListsPartition is UnitTest
     let a = List[U32]
     a.push(0).push(1).push(2).push(3)
 
-    let isEven = lambda(x: U32): Bool => x % 2 == 0 end
+    let isEven = lambda(x: U32): Bool => (x % 2) == 0 end
     (let evens, let odds) = a.partition(isEven)
 
     h.assert_eq[USize](evens.size(), 2)
