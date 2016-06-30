@@ -716,7 +716,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
     codegen_pushscope(c, the_case);
 
-    ast_t* pattern_type = ast_type(pattern);
+    ast_t* pattern_type = ast_type(the_case);
     bool ok = true;
 
     if(is_matchtype(match_type, pattern_type, c->opt) != MATCHTYPE_ACCEPT)

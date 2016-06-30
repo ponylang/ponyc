@@ -174,7 +174,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(!is_control_type(type))
   {
     // Start the post block so that a break can modify the phi node.
-    post_block = codegen_block(c, "match_post");
+    post_block = codegen_block(c, "while_post");
     LLVMPositionBuilderAtEnd(c->builder, post_block);
 
     if(needed)
@@ -292,7 +292,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(!is_control_type(type))
   {
     // Start the post block so that a break can modify the phi node.
-    post_block = codegen_block(c, "match_post");
+    post_block = codegen_block(c, "repeat_post");
     LLVMPositionBuilderAtEnd(c->builder, post_block);
 
     if(needed)
