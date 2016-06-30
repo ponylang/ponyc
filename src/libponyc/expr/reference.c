@@ -976,6 +976,37 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  // Unless this is a field lookup, treat an incomplete `this` as a tag.
+  ast_t* parent = ast_parent(ast);
+  bool incomplete_ok = false;
+
+  if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
+  {
+    ast_t* right = ast_sibling(ast);
+    assert(ast_id(right) == TK_ID);
+    ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
+
+    if(find != NULL)
+    {
+      switch(ast_id(find))
+      {
+        case TK_FVAR:
+        case TK_FLET:
+        case TK_EMBED:
+          incomplete_ok = true;
+          break;
+
+        default: {}
+      }
+    }
+  }
+
+  if(!incomplete_ok && is_this_incomplete(t, ast))
+  {
+    ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+    ast_replace(&nominal, tag_type);
+  }
+
   if(arrow)
     type = ast_parent(nominal);
   else
