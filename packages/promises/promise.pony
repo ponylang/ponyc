@@ -90,8 +90,6 @@ actor Main
 ```
 """
 
-use "collections"
-
 actor Promise[A: Any #share]
   """
   A promise to eventually produce a result of type A. This promise can either
@@ -100,7 +98,7 @@ actor Promise[A: Any #share]
   Any number of promises can be chained after this one.
   """
   var _value: (_Pending | _Reject | A) = _Pending
-  let _list: List[_IThen[A]] = _list.create()
+  embed _list: Array[_IThen[A]] = _list.create()
 
   be apply(value: A) =>
     """

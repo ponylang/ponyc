@@ -2,7 +2,7 @@ class RingBuffer[A]
   """
   A ring buffer.
   """
-  let _array: Array[A]
+  embed _array: Array[A]
   let _mod: USize
   var _write: USize = 0
 

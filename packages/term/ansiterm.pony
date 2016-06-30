@@ -25,7 +25,7 @@ actor ANSITerm
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
-  let _esc_buf: Array[U8] = Array[U8]
+  embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
   new create(notify: ANSINotify iso, source: DisposableActor,

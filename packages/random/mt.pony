@@ -2,7 +2,7 @@ class MT is Random
   """
   A Mersenne Twister. This is a non-cryptographic random number generator.
   """
-  var _state: Array[U64]
+  embed _state: Array[U64]
   var _index: USize
 
   new create(seed: U64 = 5489) =>
@@ -95,5 +95,5 @@ class MT is Random
   fun ref _wrap(): U64 ? =>
     let x = _state(_n1())
     let y = _state(0)
-    _state(_n1()) = _state(_m() - 1) xor _mix(x, y) 
+    _state(_n1()) = _state(_m() - 1) xor _mix(x, y)
     y

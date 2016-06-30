@@ -34,7 +34,7 @@ class Timer
   var _expiration: U64
   var _interval: U64
   let _notify: TimerNotify
-  let _node: ListNode[Timer]
+  embed _node: ListNode[Timer]
 
   new iso create(notify: TimerNotify iso, expiration: U64, interval: U64 = 0)
   =>

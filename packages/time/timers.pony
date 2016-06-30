@@ -12,9 +12,9 @@ actor Timers
   """
   var _current: U64 = 0
   let _slop: USize
-  let _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
-  let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
-  let _pending: List[Timer] = List[Timer]
+  embed _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
+  embed _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
+  embed _pending: List[Timer] = List[Timer]
   var _event: AsioEventID = AsioEvent.none()
 
   new create(slop: USize = 20) =>
