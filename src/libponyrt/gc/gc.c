@@ -111,9 +111,7 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
 
   if(aref->rc == 0)
   {
-    // If we haven't seen this actor, it's the owner of an immutable object
-    // that is reached from another immutable object we received. Invent
-    // some references to this actor and acquire it.
+    // Invent some references to this actor and acquire it.
     aref->rc += GC_INC_MORE;
     acquire_actor(ctx, aref->actor);
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
@@ -274,14 +272,13 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     acquire_object(ctx, actor, p, true);
   } else if(obj->rc <= 1) {
     // If we haven't seen this object, it's an object that is reached from
-    // another immutable object we received. Invent some references to this
-    // object and acquire it. This object should either be immutable or a tag.
-    assert((obj->rc > 0) || (mutability != PONY_TRACE_MUTABLE));
-
-    // Add to the acquire message and decrement.
+    // another immutable object we received, or it's a pointer to an embedded
+    // field received in an iso. Invent some references to this object and
+    // acquire it.
     if(mutability == PONY_TRACE_IMMUTABLE)
       obj->immutable = true;
 
+    // Add to the acquire message and decrement.
     obj->rc += (GC_INC_MORE - 1);
     acquire_object(ctx, actor, p, obj->immutable);
   } else {
@@ -360,10 +357,9 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     acquire_object(ctx, actor, p, true);
   } else if(obj->rc == 0) {
     // If we haven't seen this object, it's an object that is reached from
-    // another immutable object we received. Invent some references to this
-    // object and acquire it. This object should either be immutable or a tag.
-    assert(mutability != PONY_TRACE_MUTABLE);
-
+    // another immutable object we received, or it's a pointer to an embedded
+    // field received in an iso. Invent some references to this object and
+    // acquire it.
     if(mutability == PONY_TRACE_IMMUTABLE)
       obj->immutable = true;
 
