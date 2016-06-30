@@ -503,8 +503,19 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
 
   if(find != NULL)
   {
-    reachable_method(r, t->ast, special, NULL, opt);
-    ast_free_unattached(find);
+    switch(ast_id(find))
+    {
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+      {
+        reachable_method(r, t->ast, special, NULL, opt);
+        ast_free_unattached(find);
+        break;
+      }
+
+      default: {}
+    }
   }
 }
 

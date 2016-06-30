@@ -196,12 +196,16 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
   if(ast == NULL)
     return true;
 
+  if(ast_id(ast) != TK_FUN)
+    return true;
+
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
   int r = check_body_send(body, true);
 
   if((r & FINAL_CAN_SEND) != 0)
   {
-    ast_error(opt->check.errors, ast, "_final cannot create actors or send messages");
+    ast_error(opt->check.errors, ast,
+      "_final cannot create actors or send messages");
     show_send(opt, body);
     return false;
   }
@@ -209,7 +213,8 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
   return true;
 }
 
-static bool module_finalisers(pass_opt_t* opt, ast_t* module, const char* final)
+static bool module_finalisers(pass_opt_t* opt, ast_t* module,
+  const char* final)
 {
   ast_t* entity = ast_child(module);
   bool ok = true;
