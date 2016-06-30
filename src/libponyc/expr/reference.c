@@ -190,6 +190,7 @@ bool expr_provides(pass_opt_t* opt, ast_t* ast)
 bool expr_param(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
+  ast_settype(ast, type);
   bool ok = true;
 
   if(ast_id(init) != TK_NONE)
@@ -218,9 +219,6 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
 
     ast_free_unattached(init_type);
   }
-
-  if(ok)
-    ast_settype(ast, type);
 
   return ok;
 }
