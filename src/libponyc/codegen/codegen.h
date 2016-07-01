@@ -24,6 +24,7 @@ char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
+LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
