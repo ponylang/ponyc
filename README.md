@@ -57,6 +57,8 @@ Note that if your host doesn't match the docker container, you'll probably have 
 docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
 
+If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
+
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 The homebrew version is currently woefully out of date. We are transitioning to
