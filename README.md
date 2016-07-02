@@ -95,7 +95,9 @@ We're transitioning to a new binary release system. For now, please build from s
 
 ## Windows
 
-You will need to build from source.
+To run as native Windows binary, you will need to [build from source](#building-ponyc-from-source).
+
+If you are running Windows 10 Anniversary Update, you can install Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about). This was tested on build 14372.0.
 
 # Building ponyc from source
 
