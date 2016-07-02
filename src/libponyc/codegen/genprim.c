@@ -1257,6 +1257,16 @@ static void number_conversions(compile_t* c)
   }
 }
 
+static void f32__nan(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_nan");
+  start_function(c, m, c->f32, &c->f32, 1);
+
+  LLVMValueRef result = LLVMConstNaN(c->f32);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void f32_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits");
@@ -1283,6 +1293,16 @@ static void f32_bits(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 
   BOX_FUNCTION();
+}
+
+static void f64__nan(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_nan");
+  start_function(c, m, c->f64, &c->f64, 1);
+
+  LLVMValueRef result = LLVMConstNaN(c->f64);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
 }
 
 static void f64_from_bits(compile_t* c, reach_type_t* t)
@@ -1313,18 +1333,20 @@ static void f64_bits(compile_t* c, reach_type_t* t)
   BOX_FUNCTION();
 }
 
-static void fp_as_bits(compile_t* c)
+static void fp_intrinsics(compile_t* c)
 {
   reach_type_t* t;
 
   if((t = reach_type_name(c->reach, "F32")) != NULL)
   {
+    f32__nan(c, t);
     f32_from_bits(c, t);
     f32_bits(c, t);
   }
 
   if((t = reach_type_name(c->reach, "F64")) != NULL)
   {
+    f64__nan(c, t);
     f64_from_bits(c, t);
     f64_bits(c, t);
   }
@@ -1385,7 +1407,7 @@ static void make_rdtscp(compile_t* c)
 void genprim_builtins(compile_t* c)
 {
   number_conversions(c);
-  fp_as_bits(c);
+  fp_intrinsics(c);
   make_cpuid(c);
   make_rdtscp(c);
 }
