@@ -82,6 +82,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - pony_alloc_msg_size runtime function
 - `net/WriteBuffer`
 - `serialise` package.
+- contains() method on String
 
 ### Changed
 

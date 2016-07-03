@@ -432,6 +432,35 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     error
 
+  fun contains(s: String box, offset: ISize = 0, nth: USize = 0): Bool =>
+    """
+    Return the index of the n-th instance of s in the string starting from the
+    beginning. Raise an error if there is no n-th occurence of s or s is empty.
+    """
+    var i = offset_to_index(offset)
+    var steps = nth + 1
+
+    while i < _size do
+      var j: USize = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same and ((steps = steps - 1) == 1) then
+        return true
+      end
+
+      i = i + 1
+    end
+    false
+
   fun count(s: String box, offset: ISize = 0): USize =>
     """
     Counts the non-overlapping occurrences of s in the string.
