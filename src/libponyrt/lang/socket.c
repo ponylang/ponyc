@@ -31,8 +31,8 @@
 typedef int SOCKET;
 #endif
 
-#if !defined(PLATFORM_IS_LINUX) && !defined(PLATFORM_IS_FREEBSD)
-#define MSG_NOSIGNAL 0
+#ifdef PLATFORM_IS_POSIX_BASED
+#include <signal.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
@@ -447,8 +447,6 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
   }
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
-  int nosigpipe = 1;
-  r |= setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, sizeof(int));
   r |= set_nonblocking(fd);
 #endif
 
@@ -884,7 +882,7 @@ size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 
   return 0;
 #else
-  ssize_t sent = send(ev->fd, buf, len, MSG_NOSIGNAL);
+  ssize_t sent = send(ev->fd, buf, len, 0);
 
   if(sent < 0)
   {
@@ -935,8 +933,8 @@ size_t pony_os_sendto(int fd, const char* buf, size_t len, ipaddress_t* ipaddr)
   if(addrlen == (socklen_t)-1)
     pony_throw();
 
-  ssize_t sent = sendto(fd, buf, len, MSG_NOSIGNAL,
-    (struct sockaddr*)&ipaddr->addr, addrlen);
+  ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
+    addrlen);
 
   if(sent < 0)
   {
@@ -1085,6 +1083,19 @@ bool ponyint_os_sockets_init()
   }
 
   closesocket(s);
+#endif
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  // Ignore SIGPIPE to prevent writing to closed sockets, pipes, etc, from
+  // raising a signal. If a program needs SIGPIPE, it can be accessed via the
+  // signals package.
+  struct sigaction sa;
+  sa.sa_handler = SIG_IGN;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+
+  if(sigaction(SIGPIPE, &sa, 0) == -1)
+    return false;
 #endif
 
   return true;
