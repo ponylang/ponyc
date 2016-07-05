@@ -210,9 +210,14 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
-        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
-        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
+        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC())
+        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
+        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
+        // Set O_NONBLOCK only for parent-side file descriptors, as many
+        // programs (like cat) cannot handle a non-blocking stdin/stdout/stderr
+        _set_fl(_stdin_write, _ONONBLOCK())
+        _set_fl(_stdout_read, _ONONBLOCK())
+        _set_fl(_stderr_read, _ONONBLOCK())
       else
         _close_fd(_stdin_read)
         _close_fd(_stdin_write)
@@ -303,7 +308,7 @@ actor ProcessMonitor
       end
     end
 
-  fun _make_pipe(fd_flags: I32, fl_flags: I32): (U32, U32) ? =>
+  fun _make_pipe(fd_flags: I32): (U32, U32) ? =>
     """
     Creates a pipe, an unidirectional data channel that can be used
     for interprocess communication. We need to set the flags O_NONBLOCK
@@ -316,9 +321,7 @@ actor ProcessMonitor
         error
       end
       _set_fd(pipe._1, fd_flags)
-      _set_fl(pipe._1, fl_flags)
       _set_fd(pipe._2, fd_flags)
-      _set_fl(pipe._2, fl_flags)
       pipe
     else
       (U32(0), U32(0))
