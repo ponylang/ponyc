@@ -1046,6 +1046,7 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
         // At least one tuple member is literal, so whole tuple is
         ast_free(type);
         make_literal_type(ast);
+        ast_inheritflags(ast);
         return true;
       }
 
