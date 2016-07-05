@@ -170,6 +170,7 @@ type ProcessError is
   | CapError
   )
 
+    
 actor ProcessMonitor
   """
   Forks and monitors a process. Notifies a client about STDOUT / STDERR events.
@@ -177,6 +178,7 @@ actor ProcessMonitor
   let _notifier: ProcessNotify
   var _child_pid: I32 = -1
 
+  var _stdin_event:  AsioEventID = AsioEvent.none()
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
@@ -201,6 +203,9 @@ actor ProcessMonitor
     Create infrastructure to communicate with a forked child process
     and register the asio events. Fork child process and notify our
     user about incoming data via the notifier.
+    TODO: Only set the FD on the parent side to ONONBLOCK!
+          `_stdin_read`, `_stdout_write` and `_stderr_write` should not 
+          be non blocking
     """
     _notifier = consume notifier
     if not filepath.caps(FileExec) then
@@ -210,9 +215,12 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
-        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
-        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC(), _ONONBLOCK())
+        (_stdin_read, _stdin_write) =
+          _make_pipe(_FDCLOEXEC(), None, _FDCLOEXEC(), _ONONBLOCK())
+        (_stdout_read, _stdout_write) =
+          _make_pipe(_FDCLOEXEC(), _ONONBLOCK(), _FDCLOEXEC(), None)
+        (_stderr_read, _stderr_write) =
+          _make_pipe(_FDCLOEXEC(), _ONONBLOCK(), _FDCLOEXEC(), None)
       else
         _close_fd(_stdin_read)
         _close_fd(_stdin_write)
@@ -263,10 +271,11 @@ actor ProcessMonitor
 
   fun ref _parent() =>
     """
-    We're now in the parent process. We setup asio events for STDOUT and STDERR
-    and close the file descriptors we don't need.
+    We're now in the parent process. We setup asio events for STDIN, STDOUT and
+    STDERR and close the file descriptors we don't need.
     """
     ifdef posix then
+      // _stdin_event  = _create_asio_event(_stdin_write)
       _stdout_event = _create_asio_event(_stdout_read)
       _stderr_event = _create_asio_event(_stderr_read)
       _close_fd(_stdin_read)
@@ -303,7 +312,11 @@ actor ProcessMonitor
       end
     end
 
-  fun _make_pipe(fd_flags: I32, fl_flags: I32): (U32, U32) ? =>
+  fun _make_pipe(read_fd_flags:  (I32 | None),
+                 read_fl_flags:  (I32 | None),
+                 write_fd_flags: (I32 | None),
+                 write_fl_flags: (I32 | None)): (U32, U32) ?
+    =>
     """
     Creates a pipe, an unidirectional data channel that can be used
     for interprocess communication. We need to set the flags O_NONBLOCK
@@ -315,10 +328,18 @@ actor ProcessMonitor
       if @pipe[I32](addressof pipe) < 0 then
         error
       end
-      _set_fd(pipe._1, fd_flags)
-      _set_fl(pipe._1, fl_flags)
-      _set_fd(pipe._2, fd_flags)
-      _set_fl(pipe._2, fl_flags)
+      if read_fd_flags isnt None then
+        _set_fd(pipe._1, read_fd_flags as I32)
+      end
+      if read_fl_flags isnt None then
+        _set_fl(pipe._1, read_fl_flags as I32)
+      end
+      if write_fd_flags isnt None then
+        _set_fd(pipe._2, write_fd_flags as I32)
+      end
+      if write_fl_flags isnt None then
+        _set_fl(pipe._2, write_fl_flags as I32)
+      end
       pipe
     else
       (U32(0), U32(0))
@@ -367,13 +388,29 @@ actor ProcessMonitor
     """
     ifdef posix then
       let d = data
-      if _stdin_write > 0 then
+      if _stdin_write > 0 then // check fd is still valid
         let res = @write[ISize](_stdin_write, d.cstring(), d.size())
-        if res < 0 then
+        let errno = @pony_os_errno()
+        match res
+        | -1 =>
+          if errno == _EAGAIN()  then
+            // resource temporarily unavailable, retry
+            @printf[I32]("Error writing to STDIN: EAGAIN\n".cstring()) 
+          else
+            @printf[I32]("Error writing to STDIN: unknown error %d\n".cstring(), errno) 
+          end
           _notifier.failed(WriteError)
+        | 0  =>
+          // nothing was written
+          @printf[I32]("Zero size write to STDIN\n".cstring()) 
+          true 
+        else
+          // we wrote some data, if we had a partial write, deal with it
+          // @printf[I32]("Wrote %d bytes to STDIN\n".cstring(), res)
+          true
         end
       else
-        _notifier.failed(WriteError)
+        _notifier.failed(WriteError) // we don't have a valid fd, bail out
       end
     end
 
