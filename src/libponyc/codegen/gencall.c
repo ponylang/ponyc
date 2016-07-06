@@ -226,6 +226,15 @@ static bool call_needs_receiver(ast_t* postfix, reach_type_t* t)
   return true;
 }
 
+static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
+{
+  if(t->underlying == TK_STRUCT)
+    return;
+
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
+  LLVMBuildStore(c->builder, t->desc, desc_ptr);
+}
+
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
 {
   assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
@@ -325,9 +334,12 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         // If we're constructing an embed field, pass a pointer to the field
         // as the receiver. Otherwise, allocate an object.
         if((ast_id(parent) == TK_ASSIGN) && (ast_id(sibling) == TK_EMBEDREF))
+        {
           args[0] = gen_fieldptr(c, sibling);
-        else
+          set_descriptor(c, t, args[0]);
+        } else {
           args[0] = gencall_alloc(c, t);
+        }
         break;
       }
 
@@ -389,33 +401,37 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 {
   // This is used for structural equality in pattern matching.
   ast_t* pattern_type = ast_type(pattern);
-  AST_GET_CHILDREN(pattern_type, package, id);
 
-  // Special case equality on primitive types.
-  if(ast_name(package) == c->str_builtin)
+  if(ast_id(pattern_type) == TK_NOMINAL)
   {
-    const char* name = ast_name(id);
+    AST_GET_CHILDREN(pattern_type, package, id);
 
-    if((name == c->str_Bool) ||
-      (name == c->str_I8) ||
-      (name == c->str_I16) ||
-      (name == c->str_I32) ||
-      (name == c->str_I64) ||
-      (name == c->str_I128) ||
-      (name == c->str_ILong) ||
-      (name == c->str_ISize) ||
-      (name == c->str_U8) ||
-      (name == c->str_U16) ||
-      (name == c->str_U32) ||
-      (name == c->str_U64) ||
-      (name == c->str_U128) ||
-      (name == c->str_ULong) ||
-      (name == c->str_USize) ||
-      (name == c->str_F32) ||
-      (name == c->str_F64)
-      )
+    // Special case equality on primitive types.
+    if(ast_name(package) == c->str_builtin)
     {
-      return gen_eq_rvalue(c, pattern, r_value);
+      const char* name = ast_name(id);
+
+      if((name == c->str_Bool) ||
+        (name == c->str_I8) ||
+        (name == c->str_I16) ||
+        (name == c->str_I32) ||
+        (name == c->str_I64) ||
+        (name == c->str_I128) ||
+        (name == c->str_ILong) ||
+        (name == c->str_ISize) ||
+        (name == c->str_U8) ||
+        (name == c->str_U16) ||
+        (name == c->str_U32) ||
+        (name == c->str_U64) ||
+        (name == c->str_U128) ||
+        (name == c->str_ULong) ||
+        (name == c->str_USize) ||
+        (name == c->str_F32) ||
+        (name == c->str_F64)
+        )
+      {
+        return gen_eq_rvalue(c, pattern, r_value);
+      }
     }
   }
 
@@ -733,13 +749,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   }
 
   result = LLVMBuildBitCast(c->builder, result, t->structure_ptr, "");
-
-  // Set the descriptor.
-  if(t->underlying != TK_STRUCT)
-  {
-    LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, result, 0, "");
-    LLVMBuildStore(c->builder, t->desc, desc_ptr);
-  }
+  set_descriptor(c, t, result);
 
   return result;
 }

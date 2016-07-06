@@ -234,6 +234,23 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
   return MATCHTYPE_ACCEPT;
 }
 
+static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
+{
+  // A struct pattern can only be used if the operand is the same struct.
+  // Otherwise, since there is no type descriptor, there is no way to
+  // determine a match at runtime.
+  ast_t* operand_def = (ast_t*)ast_data(operand);
+  ast_t* pattern_def = (ast_t*)ast_data(pattern);
+
+  // This must be a deny to prevent a union or intersection type that includes
+  // the same struct as the pattern from matching.
+  if(operand_def != pattern_def)
+    return MATCHTYPE_DENY;
+
+  return is_nominal_match_entity(operand, pattern, opt);
+}
+
 static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   pass_opt_t* opt)
 {
@@ -308,10 +325,12 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
   switch(ast_id(pattern_def))
   {
     case TK_PRIMITIVE:
-    case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
       return is_nominal_match_entity(operand, pattern, opt);
+
+    case TK_STRUCT:
+      return is_nominal_match_struct(operand, pattern, opt);
 
     case TK_TRAIT:
     case TK_INTERFACE:

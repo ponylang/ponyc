@@ -57,6 +57,8 @@ Note that if your host doesn't match the docker container, you'll probably have 
 docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
 
+If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
+
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 The homebrew version is currently woefully out of date. We are transitioning to
@@ -93,7 +95,9 @@ We're transitioning to a new binary release system. For now, please build from s
 
 ## Windows
 
-You will need to build from source.
+To run as native Windows binary, you will need to [build from source](#building-ponyc-from-source).
+
+If you are running Windows 10 Anniversary Update, you can install Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about). This was tested on build 14372.0.
 
 # Building ponyc from source
 

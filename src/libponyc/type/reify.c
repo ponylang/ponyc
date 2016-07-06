@@ -188,16 +188,39 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
   while(typeparam != NULL)
   {
-    if(ast_id(typearg) == TK_TYPEPARAMREF)
+    switch(ast_id(typearg))
     {
-      ast_t* def = (ast_t*)ast_data(typearg);
-
-      if(def == typeparam)
+      case TK_NOMINAL:
       {
-        typeparam = ast_sibling(typeparam);
-        typearg = ast_sibling(typearg);
-        continue;
+        ast_t* def = (ast_t*)ast_data(typearg);
+
+        if(ast_id(def) == TK_STRUCT)
+        {
+          if(report_errors)
+          {
+            ast_error(opt->check.errors, typearg,
+              "a struct cannot be used as a type argument");
+          }
+
+          return false;
+        }
+        break;
       }
+
+      case TK_TYPEPARAMREF:
+      {
+        ast_t* def = (ast_t*)ast_data(typearg);
+
+        if(def == typeparam)
+        {
+          typeparam = ast_sibling(typeparam);
+          typearg = ast_sibling(typearg);
+          continue;
+        }
+        break;
+      }
+
+      default: {}
     }
 
     // Reify the constraint.

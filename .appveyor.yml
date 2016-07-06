@@ -19,7 +19,7 @@ install:
   - ps: |
       cd C:\
       $premakeInstalled = Test-Path C:\premake5.exe
-      $llvmInstalled = Test-Path C:\LLVM
+      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}
       if(-Not $premakeInstalled)
       {
         wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
@@ -71,7 +71,7 @@ test_script:
   - C:\projects\ponyc\build\%CONFIGURATION%\testc.exe
   - C:\projects\ponyc\build\%CONFIGURATION%\testrt.exe
   - CALL "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\vcvars64.bat"
-  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s packages/stdlib
+  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify packages/stdlib
   - stdlib.exe
   - del stdlib.exe
 

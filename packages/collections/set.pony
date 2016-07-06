@@ -7,7 +7,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
   A set, built on top of a HashMap. This is implemented as map of an alias of
   a type to itself
   """
-  let _map: HashMap[A!, A, H]
+  embed _map: HashMap[A!, A, H]
 
   new create(prealloc: USize = 8) =>
     """

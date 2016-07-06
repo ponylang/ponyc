@@ -54,7 +54,7 @@ actor Custodian
       true
   ```
   """
-  let _workers: SetIs[DisposableActor] = _workers.create()
+  embed _workers: SetIs[DisposableActor] = _workers.create()
 
   be apply(worker: DisposableActor) =>
     """
