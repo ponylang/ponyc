@@ -473,6 +473,11 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   else
     c->callconv = LLVMFastCallConv;
 
+  if(!c->opt->release || c->opt->library || c->opt->extfun)
+    c->linkage = LLVMExternalLinkage;
+  else
+    c->linkage = LLVMPrivateLinkage;
+
   c->context = LLVMContextCreate();
   c->machine = make_machine(opt);
   c->target_data = LLVMGetTargetMachineData(c->machine);
@@ -602,9 +607,10 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
 {
-  // Add the function and set the calling convention.
+  // Add the function and set the calling convention and the linkage type.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
   LLVMSetFunctionCallConv(fun, c->callconv);
+  LLVMSetLinkage(fun, c->linkage);
 
   LLVMValueRef arg = LLVMGetFirstParam(fun);
   uint32_t i = 1;

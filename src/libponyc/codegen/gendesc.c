@@ -195,7 +195,7 @@ static LLVMValueRef make_trait_list(compile_t* c, reach_type_t* t,
   LLVMTypeRef list_type = LLVMArrayType(c->i32, count);
   LLVMValueRef global = LLVMAddGlobal(c->module, list_type, name);
   LLVMSetGlobalConstant(global, true);
-  LLVMSetLinkage(global, LLVMInternalLinkage);
+  LLVMSetLinkage(global, LLVMPrivateLinkage);
   LLVMSetInitializer(global, trait_array);
 
   ponyint_pool_free_size(tid_size, tid);
@@ -275,7 +275,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   const char* name = genname_fieldlist(t->name);
   LLVMValueRef global = LLVMAddGlobal(c->module, field_type, name);
   LLVMSetGlobalConstant(global, true);
-  LLVMSetLinkage(global, LLVMInternalLinkage);
+  LLVMSetLinkage(global, LLVMPrivateLinkage);
   LLVMSetInitializer(global, field_array);
 
   ponyint_pool_free_size(buf_size, list);
@@ -398,7 +398,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
 
   t->desc = LLVMAddGlobal(c->module, t->desc_type, desc_name);
   LLVMSetGlobalConstant(t->desc, true);
-  LLVMSetLinkage(t->desc, LLVMInternalLinkage);
+  LLVMSetLinkage(t->desc, LLVMPrivateLinkage);
 }
 
 void gendesc_init(compile_t* c, reach_type_t* t)
