@@ -185,9 +185,11 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
   if(n->name == c->str__final)
   {
-    // Store the finaliser and use the C calling convention.
+    // Store the finaliser and use the C calling convention and an external
+    // linkage.
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+    LLVMSetLinkage(m->func, LLVMExternalLinkage);
   }
 }
 

@@ -109,6 +109,7 @@ typedef struct compile_t
   const char* str__event_notify;
 
   LLVMCallConv callconv;
+  LLVMLinkage linkage;
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
   LLVMTargetDataRef target_data;

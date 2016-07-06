@@ -246,7 +246,7 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   t->instance = LLVMAddGlobal(c->module, t->structure, inst_name);
   LLVMSetInitializer(t->instance, value);
   LLVMSetGlobalConstant(t->instance, true);
-  LLVMSetLinkage(t->instance, LLVMInternalLinkage);
+  LLVMSetLinkage(t->instance, LLVMPrivateLinkage);
 }
 
 static void make_dispatch(compile_t* c, reach_type_t* t)
@@ -259,6 +259,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   const char* dispatch_name = genname_dispatch(t->name);
   t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   LLVMSetFunctionCallConv(t->dispatch_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->dispatch_fn, LLVMExternalLinkage);
   codegen_startfun(c, t->dispatch_fn, NULL, NULL);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
@@ -533,6 +534,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   // Generate the trace function.
   codegen_startfun(c, t->trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);

@@ -325,7 +325,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   LLVMValueRef str = LLVMConstStringInContext(c->context, name, (int)len,
     false);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "");
-  LLVMSetLinkage(g_str, LLVMInternalLinkage);
+  LLVMSetLinkage(g_str, LLVMPrivateLinkage);
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
   LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
@@ -341,7 +341,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   LLVMValueRef g_inst = LLVMAddGlobal(c->module, t->structure, "");
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
-  LLVMSetLinkage(g_inst, LLVMInternalLinkage);
+  LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
 
   return g_inst;
 }
