@@ -46,7 +46,7 @@ class iso _TestStdinWriteBuf is UnitTest
     "process/STDIN-WriteBuf"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(100000,
+    let notifier: ProcessNotify iso = _ProcessClient(65537,
       "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
@@ -60,10 +60,12 @@ class iso _TestStdinWriteBuf is UnitTest
         consume args, consume vars)
       // write to STDIN of the child process
       var i:I64 = 0
-      while i < 100000 do
-        pm.write(".")
+      var message: String = ""
+      while i < 65537 do
+        message = message + (".") // create a large message
         i = i + 1
       end
+      pm.write(message)
       pm.done_writing() // closing stdin allows "cat" to terminate
       h.long_test(5_000_000_000)
     else

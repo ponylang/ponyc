@@ -179,21 +179,21 @@ actor ProcessMonitor
   let _notifier: ProcessNotify
   var _child_pid: I32 = -1
 
-  var _stdin_event:  AsioEventID = AsioEvent.none()
+  var _stdin_event: AsioEventID = AsioEvent.none()
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(4096) end
   embed _pending: List[(ByteSeq, USize)] = _pending.create()
 
-  var _stdin_read:   U32 = -1
-  var _stdin_write:  U32 = -1
-  var _stdout_read:  U32 = -1
+  var _stdin_read: U32 = -1
+  var _stdin_write: U32 = -1
+  var _stdout_read: U32 = -1
   var _stdout_write: U32 = -1
-  var _stderr_read:  U32 = -1
+  var _stderr_read: U32 = -1
   var _stderr_write: U32 = -1
 
-  var _stdin_writeable:  Bool = true
+  var _stdin_writeable: Bool = true
   var _stdout_readable: Bool = true
   var _stderr_readable: Bool = true
 
@@ -215,7 +215,7 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC())
+        (_stdin_read, _stdin_write) = _make_pipe(_FDCLOEXEC())
         (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
         (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
         // Set O_NONBLOCK only for parent-side file descriptors, as many
@@ -241,7 +241,7 @@ actor ProcessMonitor
       _child_pid = @fork[I32]()
       match _child_pid
       | -1  => _notifier.failed(ForkError)
-      | 0   => _child(filepath.path, argp, envp)
+      |  0  => _child(filepath.path, argp, envp)
       else
         _parent()
       end
@@ -368,9 +368,11 @@ actor ProcessMonitor
     """
     Print some bytes and append a newline.
     """
-    _stdin_writeable = write_final(data)
-    _stdin_writeable = write_final("\n")
-
+    ifdef posix then
+      _stdin_writeable = write_final(data)
+      _stdin_writeable = write_final("\n")
+    end
+      
   be write(data: ByteSeq) =>
     """
     Write to STDIN of the child process.
@@ -436,6 +438,7 @@ actor ProcessMonitor
     match event
     | _stdin_event =>
       if AsioEvent.writeable(flags) then
+        @printf[I32]("Received AsioEvent.writeable\n".cstring())
         _stdin_writeable = _pending_writes()
       elseif AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
@@ -485,7 +488,7 @@ actor ProcessMonitor
         _close_fd(_stdout_write)
         _close_fd(_stderr_read)
         _close_fd(_stderr_write)
-        _stdin_writeable  = false
+        _stdin_writeable = false
         _stdout_readable = false
         _stderr_readable = false
         @pony_asio_event_unsubscribe(_stdin_event)
@@ -572,8 +575,8 @@ actor ProcessMonitor
     if (not _closed) and (_stdin_write > 0) and _stdin_writeable then
       // Send as much data as possible.
       let len = @write[ISize](_stdin_write, data.cstring(), data.size())
-      let errno = @pony_os_errno()
       if len == -1 then // write error
+        let errno = @pony_os_errno()
         if errno == _EAGAIN() then
           // Resource temporarily unavailable, send data later.
           _pending.push((data, 0))
@@ -586,7 +589,10 @@ actor ProcessMonitor
         end
       elseif len.usize() < data.size() then
         // Send any remaining data later.
+        @printf[I32]("Buffering len.usize(): %d\n".cstring(), len.usize())
+        @printf[I32]("Buffering data.size(): %d\n".cstring(), data.size())        
         _pending.push((data, len.usize()))
+        @printf[I32]("Buffering _pending.size(): %d\n".cstring(), _pending.size())
         return false
       end
       return true
@@ -599,8 +605,10 @@ actor ProcessMonitor
   fun ref _pending_writes(): Bool =>
     """
     Send pending data. If any data can't be sent, keep it and mark fd as not
-    writeable.
+    writeable. Once set to false the _stdin_writeable flag can only be cleared
+    here by processing the pending writes.
     """
+    @printf[I32]("Trying to process pending writes: %d Bytes\n".cstring(), _pending.size())
     while (not _closed) and (_stdin_write > 0) and
       (_pending.size() > 0) and _stdin_writeable do
       try
@@ -610,9 +618,9 @@ actor ProcessMonitor
         // Write as much data as possible.
         let len = @write[ISize](_stdin_write,
           data.cstring().usize() + offset, data.size() - offset)
-        let errno = @pony_os_errno()
           
-        if len == -1 then // write error
+        if len == -1 then // OS signals write error
+          let errno = @pony_os_errno()    
           if errno == _EAGAIN() then
             // Resource temporarily unavailable, send data later.
             return false
@@ -630,7 +638,7 @@ actor ProcessMonitor
         end
       else
         // handle error
-        @printf[I32]("Error writing to STDIN of child process.\n".cstring())
+        _notifier.failed(WriteError)
         return false
       end
     end
