@@ -522,6 +522,7 @@ void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
   codegen_startfun(c, t->trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
   LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
 
@@ -548,6 +549,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
@@ -588,6 +590,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
@@ -718,6 +721,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->deserialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->deserialise_fn, 1);
@@ -798,6 +802,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
@@ -829,6 +834,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
@@ -908,6 +914,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->deserialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->deserialise_fn, 1);

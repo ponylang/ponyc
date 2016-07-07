@@ -50,7 +50,8 @@ enum
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW,
-  OPT_PIC
+  OPT_PIC,
+  OPT_EXTFUN
 };
 
 static opt_arg_t args[] =
@@ -86,6 +87,7 @@ static opt_arg_t args[] =
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
+  {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   OPT_ARGS_FINISH
 };
 
@@ -155,6 +157,7 @@ static void usage()
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
     "  --verify        Verify LLVM IR.\n"
+    "  --extfun        Set function default linkage to external.\n"
     "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
@@ -283,6 +286,7 @@ int main(int argc, char* argv[])
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: errors_set_immediate(opt.check.errors, true); break;
       case OPT_VERIFY: opt.verify = true; break;
+      case OPT_EXTFUN: opt.extfun = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
       case OPT_CHECKTREE: opt.check_tree = true; break;
 

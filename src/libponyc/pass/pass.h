@@ -188,6 +188,7 @@ typedef struct pass_opt_t
   bool ieee_math;
   bool print_stats;
   bool verify;
+  bool extfun;
   bool strip_debug;
   bool print_filenames;
   bool check_tree;
