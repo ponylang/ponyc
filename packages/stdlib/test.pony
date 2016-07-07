@@ -21,6 +21,7 @@ use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
 use collections = "collections"
 use collections_persistent = "collections/persistent"
+use crypto = "crypto"
 use debug = "debug"
 use files = "files"
 use glob = "glob"
@@ -54,6 +55,7 @@ actor Main is TestList
     bureaucracy.Main.make().tests(test)
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
+    crypto.Main.make().tests(test)
     files.Main.make().tests(test)
 
     ifdef not windows then
