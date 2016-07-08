@@ -446,7 +446,6 @@ actor ProcessMonitor
     match event
     | _stdin_event =>
       if AsioEvent.writeable(flags) then
-        @printf[I32]("EN: stdin writeable event\n".cstring())
         _stdin_writeable = _pending_writes()
       elseif AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
@@ -585,8 +584,6 @@ actor ProcessMonitor
     if (not _closed) and (_stdin_write > 0) and _stdin_writeable then
       // Send as much data as possible.
       let len = @write[ISize](_stdin_write, data.cstring(), data.size())
-      @printf[I32]("\tWF: Tried to write data.size(): %d\n".cstring(), data.size())        
-      @printf[I32]("\tWF: Wrote len.usize(): %d bytes\n".cstring(), len.usize())
       
       if len == -1 then // write error
         let errno = @pony_os_errno()
@@ -603,14 +600,12 @@ actor ProcessMonitor
       elseif len.usize() < data.size() then
         // Send any remaining data later.
         _pending.push((data, len.usize()))
-        @printf[I32]("\tWF: Buffered. New pending.size(): %d\n".cstring(), _pending.size())
         return false
       end
       return true
     else
       // Send later, when the fd is available for writing.
       _pending.push((data, 0))
-      @printf[I32]("\tWF: Buffered. New pending.size(): %d\n".cstring(), _pending.size())      
       return false
     end
 
@@ -622,33 +617,25 @@ actor ProcessMonitor
     """
     while (not _closed) and (_stdin_write > 0) and
       (_pending.size() > 0) do
-      @printf[I32]("\tPR: pending writes: %d\n".cstring(), _pending.size())
       try
         let node = _pending.head()
         (let data, let offset) = node()
 
         // Write as much data as possible.
-        @printf[I32]("\tPR: Trying to write %d Bytes\n".cstring(), data.size() - offset)
         let len = @write[ISize](_stdin_write,
           data.cstring().usize() + offset, data.size() - offset)
 
-        @printf[I32]("\tPR: wrote %d Bytes\n".cstring(), len)
-          
         if len == -1 then // OS signals write error
           let errno = @pony_os_errno()
-          @printf[I32]("\tPR: errno: %d\n".cstring(), errno)
           if errno == _EAGAIN() then
             // Resource temporarily unavailable, send data later.
-            @printf[I32]("\tPR: EAGAIN\n".cstring())
             return false
           else                        // Close fd and bail out.
-            @printf[I32]("\tPR: error writing\n".cstring())
             return false
           end
         elseif (len.usize() + offset) < data.size() then
           // Send remaining data later.
           node() = (data, offset + len.usize())
-          @printf[I32]("\tPR: updated offset %d Bytes\n".cstring(), offset + len.usize())
           return false
         else
           // This chunk has been fully sent.

@@ -8,11 +8,10 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    // test(_TestStdinStdout)
+    test(_TestStdinStdout)
+    test(_TestStderr)
+    test(_TestFileExec)
     test(_TestStdinWriteBuf)
-    // test(_TestStderr)
-    // test(_TestFileExec)
-
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
@@ -97,7 +96,9 @@ class iso _TestStderr is UnitTest
     
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-        h.long_test(5_000_000_000)
+      pm.done_writing() // closing stdin
+
+      h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -106,12 +107,16 @@ class iso _TestStderr is UnitTest
     h.complete(false)
 
 class iso _TestFileExec is UnitTest
+  """
+  This test is expected to generate a CapError which when received
+  by the notifier will terminate the test with success.
+  """
   fun name(): String =>
     "process/FileExec"
 
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient(0,
-      "cat: file_does_not_exist: No such file or directory\n", 1, h)
+      "", 1, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/date",
         recover val FileCaps.all().unset(FileExec) end)
@@ -123,6 +128,7 @@ class iso _TestFileExec is UnitTest
     
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
+      
       h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
