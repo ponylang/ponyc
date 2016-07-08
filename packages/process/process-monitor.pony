@@ -399,9 +399,17 @@ actor ProcessMonitor
 
   be done_writing() =>
     """
-    Close _stdin_write file descriptor.
+    Close _stdin_write file descriptor. We check for any pending_writes
+    before closing the stdin file descriptor. If the fd is busy we
+    reschedule ourself to try again. This works because _pending_writes()
+    only returns true for an empty backlog.
     """
-    _close_fd(_stdin_write)
+    _stdin_writeable = _pending_writes()
+    if _stdin_writeable then
+      _close_fd(_stdin_write)
+    else
+      done_writing() // reschedule until we've written the backlog
+    end
 
   be dispose() =>
     """
@@ -438,7 +446,7 @@ actor ProcessMonitor
     match event
     | _stdin_event =>
       if AsioEvent.writeable(flags) then
-        @printf[I32]("Received AsioEvent.writeable\n".cstring())
+        @printf[I32]("EN: stdin writeable event\n".cstring())
         _stdin_writeable = _pending_writes()
       elseif AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
@@ -509,7 +517,9 @@ actor ProcessMonitor
     """
     If neither stdout nor stderr are open we close down and exit.
     """
-    if (_stdout_read == -1) and (_stderr_read == -1) then
+    if (_stdin_write == -1) and
+      (_stdout_read == -1) and
+      (_stderr_read == -1) then
       _close()
     end
 
@@ -575,6 +585,9 @@ actor ProcessMonitor
     if (not _closed) and (_stdin_write > 0) and _stdin_writeable then
       // Send as much data as possible.
       let len = @write[ISize](_stdin_write, data.cstring(), data.size())
+      @printf[I32]("\tWF: Tried to write data.size(): %d\n".cstring(), data.size())        
+      @printf[I32]("\tWF: Wrote len.usize(): %d bytes\n".cstring(), len.usize())
+      
       if len == -1 then // write error
         let errno = @pony_os_errno()
         if errno == _EAGAIN() then
@@ -589,16 +602,15 @@ actor ProcessMonitor
         end
       elseif len.usize() < data.size() then
         // Send any remaining data later.
-        @printf[I32]("Buffering len.usize(): %d\n".cstring(), len.usize())
-        @printf[I32]("Buffering data.size(): %d\n".cstring(), data.size())        
         _pending.push((data, len.usize()))
-        @printf[I32]("Buffering _pending.size(): %d\n".cstring(), _pending.size())
+        @printf[I32]("\tWF: Buffered. New pending.size(): %d\n".cstring(), _pending.size())
         return false
       end
       return true
     else
       // Send later, when the fd is available for writing.
       _pending.push((data, 0))
+      @printf[I32]("\tWF: Buffered. New pending.size(): %d\n".cstring(), _pending.size())      
       return false
     end
 
@@ -608,29 +620,35 @@ actor ProcessMonitor
     writeable. Once set to false the _stdin_writeable flag can only be cleared
     here by processing the pending writes.
     """
-    @printf[I32]("Trying to process pending writes: %d Bytes\n".cstring(), _pending.size())
     while (not _closed) and (_stdin_write > 0) and
-      (_pending.size() > 0) and _stdin_writeable do
+      (_pending.size() > 0) do
+      @printf[I32]("\tPR: pending writes: %d\n".cstring(), _pending.size())
       try
         let node = _pending.head()
         (let data, let offset) = node()
 
         // Write as much data as possible.
+        @printf[I32]("\tPR: Trying to write %d Bytes\n".cstring(), data.size() - offset)
         let len = @write[ISize](_stdin_write,
           data.cstring().usize() + offset, data.size() - offset)
+
+        @printf[I32]("\tPR: wrote %d Bytes\n".cstring(), len)
           
         if len == -1 then // OS signals write error
-          let errno = @pony_os_errno()    
+          let errno = @pony_os_errno()
+          @printf[I32]("\tPR: errno: %d\n".cstring(), errno)
           if errno == _EAGAIN() then
             // Resource temporarily unavailable, send data later.
+            @printf[I32]("\tPR: EAGAIN\n".cstring())
             return false
           else                        // Close fd and bail out.
-            _close_fd(_stdin_write)
+            @printf[I32]("\tPR: error writing\n".cstring())
             return false
           end
         elseif (len.usize() + offset) < data.size() then
           // Send remaining data later.
           node() = (data, offset + len.usize())
+          @printf[I32]("\tPR: updated offset %d Bytes\n".cstring(), offset + len.usize())
           return false
         else
           // This chunk has been fully sent.

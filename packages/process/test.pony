@@ -8,10 +8,10 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestStdinStdout)
+    // test(_TestStdinStdout)
     test(_TestStdinWriteBuf)
-    test(_TestStderr)
-    test(_TestFileExec)
+    // test(_TestStderr)
+    // test(_TestFileExec)
 
 
 class iso _TestStdinStdout is UnitTest
@@ -46,7 +46,7 @@ class iso _TestStdinWriteBuf is UnitTest
     "process/STDIN-WriteBuf"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(65537,
+    let notifier: ProcessNotify iso = _ProcessClient(65537 * 3,
       "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
@@ -61,10 +61,12 @@ class iso _TestStdinWriteBuf is UnitTest
       // write to STDIN of the child process
       var i:I64 = 0
       var message: String = ""
-      while i < 65537 do
-        message = message + (".") // create a large message
+      while i < 65537 do // OSX's pipe capacity of 65536 bytes + 1 byte
+        message = message + "."
         i = i + 1
       end
+      pm.write(message)
+      pm.write(message)
       pm.write(message)
       pm.done_writing() // closing stdin allows "cat" to terminate
       h.long_test(5_000_000_000)
