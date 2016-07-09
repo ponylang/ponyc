@@ -22,7 +22,7 @@ class JsonArray
     """
     data = data'
 
-  fun string(indent: String = ""): String =>
+  fun string(indent: String = "", pretty_print: Bool = true): String =>
     """
     Generate string representation of this array.
     """
@@ -38,9 +38,19 @@ class JsonArray
         text = text + ","
       end
 
-      text = text + "\n" + elem_indent + _JsonPrint._string(i, elem_indent)
+      if pretty_print then
+        text = text + "\n" + elem_indent + _JsonPrint._string(i, elem_indent)
+      else
+        text = text + if text.size() > 0 then " " else "" end
+          + _JsonPrint._string(i, elem_indent, false)
+      end
     end
-    "[" + text + "\n" + indent + "]"
+    if pretty_print then
+      "[" + text + "\n" + indent + "]"
+    else
+      "[" + text + "]"
+    end
+
 
 
 class JsonObject
@@ -59,7 +69,7 @@ class JsonObject
     """
     data = data'
 
-  fun string(indent: String = ""): String =>
+  fun string(indent: String = "", pretty_print: Bool = true): String =>
     """
     Generate string representation of this object.
     """
@@ -75,7 +85,17 @@ class JsonObject
         text = text + ","
       end
 
-      text = text + "\n" + elem_indent + "\"" + i._1 + "\": " +
-        _JsonPrint._string(i._2, elem_indent)
+      if pretty_print then
+        text = text + "\n" + elem_indent + "\"" + i._1 + "\": " +
+          _JsonPrint._string(i._2, elem_indent)
+      else
+        text = text + if text.size() > 0 then " " else "" end
+          + "\"" + i._1 + "\": " +
+          _JsonPrint._string(i._2, elem_indent, false)
+      end
     end
-    "{" + text + "\n" + indent + "}"
+    if pretty_print then
+      "{" + text + "\n" + indent + "}"
+    else
+      "{" + text + "}"
+    end
