@@ -594,7 +594,7 @@ class iso _TestNoPrettyPrintObject is UnitTest
     obj.data("b") = I64(3)
     let s = doc.string(false)
     h.assert_true((s == "{\"a\": true, \"b\": 3}") or
-      (s == "{\"b\": false, \"a\": true}"))
+      (s == "{\"b\": 3, \"a\": true}"))
 
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in

@@ -1,6 +1,6 @@
 primitive _JsonPrint
   fun _string(d: box->JsonType, indent: String,
-    pretty_print: Bool = true): String
+    pretty_print: Bool = false): String
   =>
     """
     Generate string representation of the given data.
