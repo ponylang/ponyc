@@ -30,26 +30,31 @@ class JsonArray
       return "[]"
     end
 
-    var text = ""
+    var text = recover String end
     let elem_indent = indent + "  "
 
+    text.append("[")
+
     for i in data.values() do
-      if text.size() > 0 then
-        text = text + ","
+      if text.size() > 1 then
+        text.append(",")
       end
 
       if pretty_print then
-        text = text + "\n" + elem_indent + _JsonPrint._string(i, elem_indent, true)
-      else
-        text = text + _JsonPrint._string(i, elem_indent, false)
+        text.append("\n")
+        text.append(elem_indent)
       end
-    end
-    if pretty_print then
-      "[" + text + "\n" + indent + "]"
-    else
-      "[" + text + "]"
+
+      text.append(_JsonPrint._string(i, elem_indent, pretty_print))
     end
 
+    if pretty_print then
+      text.append("\n")
+      text.append(indent)
+    end
+
+    text.append("]")
+    text
 
 
 class JsonObject
@@ -76,24 +81,36 @@ class JsonObject
       return "{}"
     end
 
-    var text = ""
+    var text = recover String end
     let elem_indent = indent + "  "
 
+    text.append("{")
+
     for i in data.pairs() do
-      if text.size() > 0 then
-        text = text + ","
+      if text.size() > 1 then
+        text.append(",")
       end
 
       if pretty_print then
-        text = text + "\n" + elem_indent + "\"" + i._1 + "\": " +
-          _JsonPrint._string(i._2, elem_indent, true)
-      else
-        text = text + "\"" + i._1 + "\":" +
-          _JsonPrint._string(i._2, elem_indent, false)
+        text.append("\n")
+        text.append(elem_indent)
       end
+
+      text.append("\"")
+      text.append(i._1)
+      text.append("\":")
+
+      if pretty_print then
+        text.append(" ")
+      end
+
+      text.append(_JsonPrint._string(i._2, elem_indent, pretty_print))
     end
+
     if pretty_print then
-      "{" + text + "\n" + indent + "}"
-    else
-      "{" + text + "}"
+      text.append("\n")
+      text.append(indent)
     end
+
+    text.append("}")
+    text

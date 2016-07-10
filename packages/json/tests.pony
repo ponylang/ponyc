@@ -593,7 +593,6 @@ class iso _TestNoPrettyPrintObject is UnitTest
     obj.data("a") = true
     obj.data("b") = I64(3)
     let s = doc.string(false)
-    @printf[None]("%s\n".cstring(), s.cstring())
     h.assert_true((s == "{\"a\":true,\"b\":3}") or
       (s == "{\"b\":3,\"a\":true}"))
 
