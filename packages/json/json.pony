@@ -41,8 +41,7 @@ class JsonArray
       if pretty_print then
         text = text + "\n" + elem_indent + _JsonPrint._string(i, elem_indent, true)
       else
-        text = text + if text.size() > 0 then " " else "" end
-          + _JsonPrint._string(i, elem_indent, false)
+        text = text + _JsonPrint._string(i, elem_indent, false)
       end
     end
     if pretty_print then
@@ -89,8 +88,7 @@ class JsonObject
         text = text + "\n" + elem_indent + "\"" + i._1 + "\": " +
           _JsonPrint._string(i._2, elem_indent, true)
       else
-        text = text + if text.size() > 0 then " " else "" end
-          + "\"" + i._1 + "\": " +
+        text = text + "\"" + i._1 + "\":" +
           _JsonPrint._string(i._2, elem_indent, false)
       end
     end

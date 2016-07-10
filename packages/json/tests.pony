@@ -528,13 +528,13 @@ class iso _TestNoPrettyPrintArray is UnitTest
     array.data.clear()
     array.data.push(true)
     array.data.push(false)
-    h.assert_eq[String]("[true, false]", doc.string(false))
+    h.assert_eq[String]("[true,false]", doc.string(false))
 
     array.data.clear()
     array.data.push(true)
     array.data.push(I64(13))
     array.data.push(None)
-    h.assert_eq[String]("[true, 13, null]", doc.string(false))
+    h.assert_eq[String]("[true,13,null]", doc.string(false))
 
     array.data.clear()
     array.data.push(true)
@@ -542,7 +542,7 @@ class iso _TestNoPrettyPrintArray is UnitTest
     nested.data.push(I64(52))
     nested.data.push(None)
     array.data.push(nested)
-    h.assert_eq[String]("[true, [52, null]]",
+    h.assert_eq[String]("[true,[52,null]]",
       doc.string(false))
 
 class iso _TestPrintObject is UnitTest
@@ -587,14 +587,15 @@ class iso _TestNoPrettyPrintObject is UnitTest
 
     obj.data.clear()
     obj.data("foo") = true
-    h.assert_eq[String]("{\"foo\": true}", doc.string(false))
+    h.assert_eq[String]("{\"foo\":true}", doc.string(false))
 
     obj.data.clear()
     obj.data("a") = true
     obj.data("b") = I64(3)
     let s = doc.string(false)
-    h.assert_true((s == "{\"a\": true, \"b\": 3}") or
-      (s == "{\"b\": 3, \"a\": true}"))
+    @printf[None]("%s\n".cstring(), s.cstring())
+    h.assert_true((s == "{\"a\":true,\"b\":3}") or
+      (s == "{\"b\":3,\"a\":true}"))
 
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in
