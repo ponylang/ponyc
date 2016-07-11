@@ -30,7 +30,7 @@ class JsonArray
       return "[]"
     end
 
-    var text = recover String end
+    var text = recover String(256) end
     let elem_indent = indent + "  "
 
     text.append("[")
@@ -81,7 +81,7 @@ class JsonObject
       return "{}"
     end
 
-    var text = recover String end
+    var text = recover String(256) end
     let elem_indent = indent + "  "
 
     text.append("{")
