@@ -20,6 +20,7 @@ build:
   main_ponyc:
     image: sendence/ponyc-builder:0.0.2
     commands:
+      - make config=$$PONYC_CONFIG clean
       - make config=$$PONYC_CONFIG test
       - rm build/$$PONYC_CONFIG/libponyc.tests
       - rm build/$$PONYC_CONFIG/libponyrt.tests
@@ -30,7 +31,7 @@ build:
       - mkdir -p build/pony-stable
       - cd build/pony-stable
       - git clone https://github.com/jemc/pony-stable.git .
-      - git checkout b1fb6e3
+      - git checkout f1f7977
       - make
 
 publish:
