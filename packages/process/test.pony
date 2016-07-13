@@ -15,10 +15,12 @@ actor Main is TestList
     test(_TestStdinWriteBuf)
 
 class iso _TestStdinStdout is UnitTest
+  var _pm: (ProcessMonitor | None) = None
+  
   fun name(): String =>
     "process/STDIN-STDOUT"
 
-  fun apply(h: TestHelper) =>
+  fun ref apply(h: TestHelper) =>
     let size: USize = 15 // length of "one, two, three" string
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
@@ -29,16 +31,27 @@ class iso _TestStdinStdout is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
     
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      _pm = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-      pm.write("one, two, three")
-      pm.done_writing()  // closing stdin allows "cat" to terminate
+
+      if _pm isnt None then // write to STDIN of the child process
+        let pm = _pm as ProcessMonitor
+        pm.write("one, two, three")
+        pm.done_writing()  // closing stdin allows "cat" to terminate
+      end
       h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
 
   fun timed_out(h: TestHelper) =>
+    try
+      if _pm isnt None then // kill the child process and cleanup fd
+        (_pm as ProcessMonitor).dispose()
+      end
+    else
+      h.fail("Error disposing of forked process in STDIN-WriteBuf test")
+    end
     h.complete(false)
 
 class iso _TestStdinWriteBuf is UnitTest
@@ -89,10 +102,12 @@ class iso _TestStdinWriteBuf is UnitTest
 
     
 class iso _TestStderr is UnitTest
+  var _pm: (ProcessMonitor | None) = None
+  
   fun name(): String =>
     "process/STDERR"
 
-  fun apply(h: TestHelper) =>
+  fun ref apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient(0,
       "cat: file_does_not_exist: No such file or directory\n", 1, h)
     try
@@ -105,22 +120,32 @@ class iso _TestStderr is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
     
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      _pm = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-      pm.done_writing() // closing stdin
 
+      if _pm isnt None then // write to STDIN of the child process
+        let pm = _pm as ProcessMonitor
+        pm.done_writing() // closing stdin
+      end
       h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
     
   fun timed_out(h: TestHelper) =>
+    try
+      if _pm isnt None then // kill the child process and cleanup fd
+        (_pm as ProcessMonitor).dispose()
+      end
+    else
+      h.fail("Error disposing of forked process in STDIN-WriteBuf test")
+    end
     h.complete(false)
 
 class iso _TestFileExec is UnitTest
   """
   This test is expected to generate a CapError which when received
-  by the notifier will terminate the test with success.
+  by the notifier will terminate the test with success. 
   """
   fun name(): String =>
     "process/FileExec"
@@ -147,7 +172,8 @@ class iso _TestFileExec is UnitTest
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
-    
+
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
