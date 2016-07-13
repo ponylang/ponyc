@@ -68,7 +68,7 @@ class iso _TestStdinWriteBuf is UnitTest
       pm.write(message)
       pm.write(message)
       pm.done_writing() // closing stdin allows "cat" to terminate
-      h.long_test(5_000_000_000)
+      h.long_test(20_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
