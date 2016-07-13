@@ -1,5 +1,7 @@
 primitive _JsonPrint
-  fun _string(d: box->JsonType, indent: String): String =>
+  fun _string(d: box->JsonType, indent: String,
+    pretty_print: Bool = false): String
+  =>
     """
     Generate string representation of the given data.
     """
@@ -8,8 +10,8 @@ primitive _JsonPrint
     | let x: Bool => x.string()
     | let x: None => "null"
     | let x: String => _escaped_string(x)
-    | let x: JsonArray box => x.string(indent)
-    | let x: JsonObject box => x.string(indent)
+    | let x: JsonArray box => x.string(indent, pretty_print)
+    | let x: JsonObject box => x.string(indent, pretty_print)
     | let x: F64 =>
       // Make sure our printed floats can be distinguished from integers
       let basic = x.string()
