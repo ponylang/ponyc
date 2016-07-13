@@ -8,7 +8,7 @@ actor Main is TestList
     test(_TestList)
     test(_TestMap)
     test(_TestMapRemove)
-    test(_TestMapModify)
+    test(_TestMapUpsert)
     test(_TestRing)
     test(_TestListsFrom)
     test(_TestListsMap)
@@ -141,34 +141,34 @@ class iso _TestMapRemove is UnitTest
     x(11) = "here"
     h.assert_eq[String](x(11), "here")
 
-class iso _TestMapModify is UnitTest
-  fun name(): String => "collections/Map.modify"
+class iso _TestMapUpsert is UnitTest
+  fun name(): String => "collections/Map.upsert"
 
   fun apply(h: TestHelper) ? =>
     let x: Map[U32, U64] = Map[U32,U64]
     let f = lambda(x: U64, y: U64): U64 => x + y end
-    x.modify(1, 5, f)
+    x.upsert(1, 5, f)
     h.assert_eq[U64](5, x(1))
-    x.modify(1, 3, f)
+    x.upsert(1, 3, f)
     h.assert_eq[U64](8, x(1))
-    x.modify(1, 4, f)
+    x.upsert(1, 4, f)
     h.assert_eq[U64](12, x(1))
-    x.modify(1, 2, f)
+    x.upsert(1, 2, f)
     h.assert_eq[U64](14, x(1))
-    x.modify(1, 1, f)
+    x.upsert(1, 1, f)
     h.assert_eq[U64](15, x(1))
 
     let x2: Map[U32, String] = Map[U32,String]
     let g = lambda(x: String, y: String): String => x + ", " + y end
-    x2.modify(1, "1", g)
+    x2.upsert(1, "1", g)
     h.assert_eq[String]("1", x2(1))
-    x2.modify(1, "2", g)
+    x2.upsert(1, "2", g)
     h.assert_eq[String]("1, 2", x2(1))
-    x2.modify(1, "3", g)
+    x2.upsert(1, "3", g)
     h.assert_eq[String]("1, 2, 3", x2(1))
-    x2.modify(1, "abc", g)
+    x2.upsert(1, "abc", g)
     h.assert_eq[String]("1, 2, 3, abc", x2(1))
-    x2.modify(1, "def", g)
+    x2.upsert(1, "def", g)
     h.assert_eq[String]("1, 2, 3, abc, def", x2(1))
 
 class iso _TestRing is UnitTest
