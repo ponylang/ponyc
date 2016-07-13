@@ -56,6 +56,7 @@ class iso _TestStdinStdout is UnitTest
 
 class iso _TestStdinWriteBuf is UnitTest
   var _pm: (ProcessMonitor | None) = None
+  let _test_start: U64 = Time.nanos()
   
   fun name(): String =>
     "process/STDIN-WriteBuf"
@@ -91,8 +92,11 @@ class iso _TestStdinWriteBuf is UnitTest
     end
 
   fun timed_out(h: TestHelper) =>
+    h.log("_TestStdinWriteBuf.timed_out: ran for " +
+     (Time.nanos() - _test_start).string() + " ns")
     try
       if _pm isnt None then // kill the child process and cleanup fd
+        h.log("_TestStdinWriteBuf.timed_out: calling pm.dispose()")
         (_pm as ProcessMonitor).dispose()
       end
     else
@@ -184,8 +188,8 @@ class _ProcessClient is ProcessNotify
   let _h: TestHelper
   var _d_stdout_chars: USize = 0
   let _d_stderr: String ref = String
-  let _created: I64
-  var _first_data: I64 = 0
+  let _created: U64
+  var _first_data: U64 = 0
   
   new iso create(out: USize, err: String, exit_code: I32,
     h: TestHelper) =>
@@ -193,14 +197,14 @@ class _ProcessClient is ProcessNotify
     _err = err
     _exit_code = exit_code
     _h = h
-    _created = Time.now()._2
+    _created = Time.nanos()
     
   fun ref stdout(data: Array[U8] iso) => 
     """
     Called when new data is received on STDOUT of the forked process
     """
     if (_first_data == 0) then
-      _first_data = Time.now()._2
+      _first_data = Time.nanos()
     end
     _d_stdout_chars = _d_stdout_chars + (consume data).size()
 
@@ -236,7 +240,7 @@ class _ProcessClient is ProcessNotify
     Called when ProcessMonitor terminates to cleanup ProcessNotify
     We receive the exit code of the child process from ProcessMonitor.
     """
-    let last_data: I64 = Time.now()._2
+    let last_data: U64 = Time.nanos()
     _h.log("dispose: child exit code: " + child_exit_code.string())
     _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
     _h.log("dispose: stderr: " + _d_stderr)

@@ -197,6 +197,8 @@ actor ProcessMonitor
   var _stdout_readable: Bool = true
   var _stderr_readable: Bool = true
 
+  var _done_writing: Bool = false
+  
   var _closed: Bool = false
 
   new create(notifier: ProcessNotify iso, filepath: FilePath,
@@ -369,8 +371,10 @@ actor ProcessMonitor
     Print some bytes and append a newline.
     """
     ifdef posix then
-      _stdin_writeable = write_final(data)
-      _stdin_writeable = write_final("\n")
+      if not _done_writing then
+        _stdin_writeable = write_final(data)
+        _stdin_writeable = write_final("\n")
+      end
     end
       
   be write(data: ByteSeq) =>
@@ -378,7 +382,9 @@ actor ProcessMonitor
     Write to STDIN of the child process.
     """
     ifdef posix then
-      _stdin_writeable = write_final(data)
+      if not _done_writing then
+        _stdin_writeable = write_final(data)
+      end
     end
 
   be printv(data: ByteSeqIter) =>
@@ -399,16 +405,12 @@ actor ProcessMonitor
 
   be done_writing() =>
     """
-    Close _stdin_write file descriptor. We check for any pending_writes
-    before closing the stdin file descriptor. If the fd is busy we
-    reschedule ourself to try again. This works because _pending_writes()
-    only returns true for an empty backlog.
+    Set the _done_writing flag to true. If the _pending is empty we can
+    close the _stdin_write file descriptor.
     """
-    _stdin_writeable = _pending_writes()
-    if _stdin_writeable then
+    _done_writing = true
+    if _pending.size() == 0 then
       _close_fd(_stdin_write)
-    else
-      done_writing() // reschedule until we've written the backlog
     end
 
   be dispose() =>
@@ -613,9 +615,10 @@ actor ProcessMonitor
     """
     Send pending data. If any data can't be sent, keep it and mark fd as not
     writeable. Once set to false the _stdin_writeable flag can only be cleared
-    here by processing the pending writes.
+    here by processing the pending writes. If the _done_writing flag is set we
+    close the _stdin_write fd once we've processed pending writes.
     """
-    while (not _closed) and (_stdin_write > 0) and
+    while (not _closed) and (_stdin_write != -1) and
       (_pending.size() > 0) do
       try
         let node = _pending.head()
@@ -640,6 +643,10 @@ actor ProcessMonitor
         else
           // This chunk has been fully sent.
           _pending.shift()
+          // check if the client has signaled it is done
+          if (_pending.size() == 0) and _done_writing then
+            _close_fd(_stdin_write)
+          end
         end
       else
         // handle error
