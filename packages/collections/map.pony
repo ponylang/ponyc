@@ -76,6 +76,44 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     None
 
+  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): HashMap[K, V, H]^ =>
+    """
+    Combines a provided value with the current value for the provided key
+    using the provided function. If the provided key has not been added to
+    the map yet, it sets its value to the provided value.
+
+    As a simple example, say we had a map with U64 values and we wanted to
+    add 4 to the current value for key "test", which let's say is currently 2.
+    We call
+
+    m.upsert("test", 4, lambda(x: U64, y: U64): U64 => x + y end)
+
+    This changes the value associated with "test" to 6.
+
+    If we have not yet added the key "new-key" to the map and we call
+
+    m.upsert("new-key", 4, lambda(x: U64, y: U64): U64 => x + y end)
+
+    then "new-key" is added to the map with a value of 4.
+    """
+
+    (let i, let found) = _search(key)
+
+    try
+      if found then
+        let prev = (_array(i) = _MapEmpty) as (_, V^)
+        _array(i) = (consume key, f(consume prev, consume value))
+      else
+        _array(i) = (consume key, consume value)
+        _size = _size + 1
+
+        if (_size * 4) > (_array.size() * 3) then
+          _resize(_array.size() * 2)
+        end
+      end
+    end
+    this
+
   fun ref insert(key: K, value: V): V ? =>
     """
     Set a value in the map. Returns the new value, allowing reuse.
