@@ -2,6 +2,7 @@ use "ponytest"
 use "files"
 use "capsicum"
 use "collections"
+use "time"
 
 actor Main is TestList  
   new create(env: Env) => PonyTest(env, this)
@@ -41,11 +42,14 @@ class iso _TestStdinStdout is UnitTest
     h.complete(false)
 
 class iso _TestStdinWriteBuf is UnitTest
+  var _pm: (ProcessMonitor | None) = None
+  
   fun name(): String =>
     "process/STDIN-WriteBuf"
 
-  fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(65537 * 3,
+  fun ref apply(h: TestHelper) =>
+    let pipe_cap: USize = 65536
+    let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 3,
       "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
@@ -54,26 +58,33 @@ class iso _TestStdinWriteBuf is UnitTest
       let vars: Array[String] iso = recover Array[String](2) end
       vars.push("HOME=/")
       vars.push("PATH=/bin")
-    
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
-        consume args, consume vars)
-      // write to STDIN of the child process
-      var i:I64 = 0
-      var message: String = ""
-      while i < 65537 do // OSX's pipe capacity of 65536 bytes + 1 byte
-        message = message + "."
-        i = i + 1
+
+      // fork the child process and attach a ProcessMonitor
+      _pm = ProcessMonitor(consume notifier, path, consume args, consume vars)
+
+      // create a message larger than pipe_cap bytes 
+      let message: Array[U8] val = recover Array[U8].undefined(pipe_cap + 1) end
+
+      if _pm isnt None then // write to STDIN of the child process
+        let pm = _pm as ProcessMonitor
+        pm.write(message)
+        pm.write(message)
+        pm.write(message)
+        pm.done_writing() // closing stdin allows "cat" to terminate
       end
-      pm.write(message)
-      pm.write(message)
-      pm.write(message)
-      pm.done_writing() // closing stdin allows "cat" to terminate
-      h.long_test(20_000_000_000)
+      h.long_test(2_000_000_000)
     else
-      h.fail("Could not create FilePath!")
+      h.fail("Error running STDIN-WriteBuf test")
     end
 
   fun timed_out(h: TestHelper) =>
+    try
+      if _pm isnt None then // kill the child process and cleanup fd
+        (_pm as ProcessMonitor).dispose()
+      end
+    else
+      h.fail("Error disposing of forked process in STDIN-WriteBuf test")
+    end
     h.complete(false)
 
     
@@ -147,6 +158,8 @@ class _ProcessClient is ProcessNotify
   let _h: TestHelper
   var _d_stdout_chars: USize = 0
   let _d_stderr: String ref = String
+  let _created: I64
+  var _first_data: I64 = 0
   
   new iso create(out: USize, err: String, exit_code: I32,
     h: TestHelper) =>
@@ -154,13 +167,17 @@ class _ProcessClient is ProcessNotify
     _err = err
     _exit_code = exit_code
     _h = h
+    _created = Time.now()._2
     
   fun ref stdout(data: Array[U8] iso) => 
     """
     Called when new data is received on STDOUT of the forked process
     """
+    if (_first_data == 0) then
+      _first_data = Time.now()._2
+    end
     _d_stdout_chars = _d_stdout_chars + (consume data).size()
-    
+
   fun ref stderr(data: Array[U8] iso) => _d_stderr.append(consume data)
     """
     Called when new data is received on STDERR of the forked process
@@ -193,9 +210,19 @@ class _ProcessClient is ProcessNotify
     Called when ProcessMonitor terminates to cleanup ProcessNotify
     We receive the exit code of the child process from ProcessMonitor.
     """
+    let last_data: I64 = Time.now()._2
     _h.log("dispose: child exit code: " + child_exit_code.string())
-    _h.log("dispose: stdout: " + _d_stdout_chars.string())
+    _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
     _h.log("dispose: stderr: " + _d_stderr)
+    if (_first_data > 0) then
+      _h.log("dispose: received first data after: \t" + (_first_data - _created).string()
+        + " ns")
+    end
+    _h.log("dispose: total data process_time: \t" + (last_data - _first_data).string()
+      + " ns")
+    _h.log("dispose: ProcessNotify lifetime: \t" + (last_data - _created).string()
+      + " ns")
+    
     _h.assert_eq[USize](_out, _d_stdout_chars)
     _h.assert_eq[String box](_err, _d_stderr)
     _h.assert_eq[I32](_exit_code, child_exit_code)
