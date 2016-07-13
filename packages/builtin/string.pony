@@ -434,8 +434,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
   fun contains(s: String box, offset: ISize = 0, nth: USize = 0): Bool =>
     """
-    Return the index of the n-th instance of s in the string starting from the
-    beginning. Raise an error if there is no n-th occurence of s or s is empty.
+    Returns true if contains s as a substring, false otherwise.
     """
     var i = offset_to_index(offset)
     var steps = nth + 1
