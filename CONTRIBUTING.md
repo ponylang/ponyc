@@ -13,6 +13,7 @@ Additional notes regarding formatting:
 
 * [Documentation formatting](#documentation-formatting)
 * [Code formatting](#code-formatting)
+* [Standard Library File Naming](#standard-library-file-naming)
 
 Feature request
 ---------------
