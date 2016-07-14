@@ -33,6 +33,7 @@ actor Main is TestList
     test(_TestStringJoin)
     test(_TestStringCount)
     test(_TestStringCompare)
+    test(_TestStringContains)
     test(_TestStringReadInt)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
@@ -584,6 +585,39 @@ class iso _TestStringCompare is UnitTest
     h.assert_eq[Compare](
       Equal,   "abc".compare_sub("babc", 4, 1, 2), "\"xbc\" == \"xxbc\"")
 
+class iso _TestStringContains is UnitTest
+  fun name(): String => "builtin/String.contains"
+
+  fun apply(h: TestHelper) =>
+    let s = "hello there"
+
+    h.assert_eq[Bool](s.contains("h"), true)
+    h.assert_eq[Bool](s.contains("e"), true)
+    h.assert_eq[Bool](s.contains("l"), true)
+    h.assert_eq[Bool](s.contains("l"), true)
+    h.assert_eq[Bool](s.contains("o"), true)
+    h.assert_eq[Bool](s.contains(" "), true)
+    h.assert_eq[Bool](s.contains("t"), true)
+    h.assert_eq[Bool](s.contains("h"), true)
+    h.assert_eq[Bool](s.contains("e"), true)
+    h.assert_eq[Bool](s.contains("r"), true)
+    h.assert_eq[Bool](s.contains("e"), true)
+
+    h.assert_eq[Bool](s.contains("hel"), true)
+    h.assert_eq[Bool](s.contains("o th"), true)
+    h.assert_eq[Bool](s.contains("er"), true)
+
+    h.assert_eq[Bool](s.contains("a"), false)
+    h.assert_eq[Bool](s.contains("b"), false)
+    h.assert_eq[Bool](s.contains("c"), false)
+    h.assert_eq[Bool](s.contains("d"), false)
+    h.assert_eq[Bool](s.contains("!"), false)
+    h.assert_eq[Bool](s.contains("?"), false)
+
+    h.assert_eq[Bool](s.contains("h th"), false)
+    h.assert_eq[Bool](s.contains("ere "), false)
+    h.assert_eq[Bool](s.contains(" hello"), false)
+    h.assert_eq[Bool](s.contains("?!"), false)
 
 class iso _TestStringReadInt is UnitTest
   """
