@@ -8,24 +8,26 @@ clone:
   tags: true
 
 build:
-  arm_ponyc:
-    image: sendence/ponyc-builder:0.0.2
+  # build ponyrt for armhf
+  arm_ponyrt:
+    image: sendence/ponyc-builder:0.0.3
     commands:
       - CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ make arch=armv7-a bits=32 config=$$PONYC_CONFIG libponyrt
       - mv build/$$PONYC_CONFIG/libponyrt.a build/arm-libponyrt.a
       - rm -r build/$$PONYC_CONFIG
-    when:
-      matrix:
-        PONYC_VERSION: armhf
+
+  # build ponyc and run tests
   main_ponyc:
-    image: sendence/ponyc-builder:0.0.2
+    image: sendence/ponyc-builder:0.0.3
     commands:
       - make config=$$PONYC_CONFIG clean
       - make config=$$PONYC_CONFIG test
       - rm build/$$PONYC_CONFIG/libponyc.tests
       - rm build/$$PONYC_CONFIG/libponyrt.tests
+
+  # build pony stable
   pony-stable:
-    image: sendence/ponyc-builder:0.0.2
+    image: sendence/ponyc-builder:0.0.3
     commands:
       - export PATH=$PATH:$PWD/build/$$PONYC_CONFIG
       - mkdir -p build/pony-stable
@@ -33,6 +35,12 @@ build:
       - git clone https://github.com/jemc/pony-stable.git .
       - git checkout f1f7977
       - make
+
+  # get ponyc external dependencies
+  ponyc_ext_deps:
+    image: garland/aws-cli-docker
+    commands:
+      - aws s3 cp --recursive --exclude '*' --include '*.tar.gz' s3://sendence-dev/ponyc_external_dependencies/ .
 
 publish:
   docker:
@@ -45,7 +53,7 @@ publish:
     build_args:
       - PONYC_CONFIG=$$PONYC_CONFIG
     tag:
-      - $$BRANCH-$$COMMIT-$$PONYC_CONFIG-$$PONYC_VERSION
+      - $$BRANCH-$$COMMIT-$$PONYC_CONFIG
     when:
       event: push
 
@@ -59,7 +67,7 @@ publish:
     build_args:
       - PONYC_CONFIG=$$PONYC_CONFIG
     tag:
-      - $$TAG-$$PONYC_CONFIG-$$PONYC_VERSION
+      - $$TAG-$$PONYC_CONFIG
     when:
       event: tag
 
@@ -79,7 +87,4 @@ matrix:
   PONYC_CONFIG:
     - debug
     - release
-  PONYC_VERSION:
-    - armhf
-    - amd64
 
