@@ -3,6 +3,63 @@ use "collections"
 class ReadBuffer
   """
   Store network data and provide a parsing interface.
+
+  `ReadBuffer` provides a way to extract typed data from a sequence of
+  bytes. The `ReadBuffer` manages the underlying data structures to
+  provide a read cursor over a contiguous sequence of bytes. It is
+  useful for decoding data that is received over a network or stored
+  in a file. Chunk of bytes are added to the `ReadBuffer` using the
+  `append` method, and typed data is extracted using the getter
+  methods.
+
+  For example, suppose we have a UDP-based network data protocol where
+  messages consist of the following:
+
+  * `list_size` - the number of items in the following list of items
+    as a big-endian 32-bit integer
+  * zero or more items of the following data:
+    * a big-endian 64-bit floating point number
+    * a string that starts with a big-endian 32-bit integer that
+      specifies the length of the string, followed by a number of
+      bytes that represent the string
+
+  A message would be something like this:
+
+  ```
+  [message_length][list_size][float1][string1][float2][string2]...
+  ```
+
+  The following program uses a `ReadBuffer` to decode a message of
+  this type and print them:
+
+  ```
+  use "net"
+  use "collections"
+
+  class Notify is StdinNotify
+    let _env: Env
+    new create(env: Env) =>
+      _env = env
+    fun ref apply(data: Array[U8] iso) =>
+      let rb = ReadBuffer
+      rb.append(consume data)
+      try
+        while true do
+          let len = rb.i32_be()
+          let items = rb.i32_be().usize()
+          for range in Range(0, items) do
+            let f = rb.f32_be()
+            let str_len = rb.i32_be().usize()
+            let str = String.from_array(rb.block(str_len))
+            _env.out.print("[(" + f.string() + "), (" + str + ")]")
+          end
+        end
+      end
+
+  actor Main
+    new create(env: Env) =>
+      env.input(recover Notify(env) end, 1024)
+  ```
   """
   embed _chunks: List[(Array[U8] val, USize)] = _chunks.create()
   var _available: USize = 0

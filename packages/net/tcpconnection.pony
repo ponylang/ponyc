@@ -11,6 +11,31 @@ type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
 actor TCPConnection
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
+
+  The following code creates a client that connects to port 8989 of
+  the local host, writes "hello world", and listens for a response,
+  which it then prints.
+
+  ```
+  use "net"
+
+  class MyTCPConnectionNotify is TCPConnectionNotify
+    let _out: OutStream
+    new create(out: OutStream) =>
+      _out = out
+    fun ref connected(conn: TCPConnection ref) =>
+      conn.write("hello world")
+    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+      _out.print("GOT:" + String.from_array(consume data))
+      conn.close()
+
+  actor Main
+    new create(env: Env) =>
+      try
+        TCPConnection(env.root as AmbientAuth,
+          recover MyTCPConnectionNotify(env.out) end, "", "8989")
+      end
+  ```
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify

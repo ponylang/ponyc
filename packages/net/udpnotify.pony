@@ -1,4 +1,10 @@
 interface UDPNotify
+  """
+  Notifications for UDP connections.
+
+  For an example of using this class please see the documentatoin for the
+  `UDPSocket` actor.
+  """
   fun ref listening(sock: UDPSocket ref) =>
     """
     Called when the socket has been bound to an address.

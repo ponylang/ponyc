@@ -3,6 +3,28 @@ type TCPListenerAuth is (AmbientAuth | NetAuth | TCPAuth | TCPListenAuth)
 actor TCPListener
   """
   Listens for new network connections.
+
+  The following program creates an echo server that listens for
+  connections on port 8989 and echoes back any data it receives.
+
+  ```
+  use "net"
+
+  class MyTCPConnectionNotify is TCPConnectionNotify
+    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+      conn.write(String.from_array(consume data))
+
+  class MyTCPListenNotify is TCPListenNotify
+    fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+      MyTCPConnectionNotify
+
+  actor Main
+    new create(env: Env) =>
+      try
+        TCPListener(env.root as AmbientAuth,
+          recover MyTCPListenNotify end, "", "8989")
+      end
+  ```
   """
   var _notify: TCPListenNotify
   var _fd: U32
