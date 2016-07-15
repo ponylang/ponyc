@@ -3,6 +3,60 @@ use "collections"
 type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
 
 actor UDPSocket
+  """
+  Creates a UDP socket that can be used for sending and receiving UDP messages.
+
+  The following examples create:
+  * an echo server that listens for connections and returns whatever message it
+    receives
+  * a client that connects to the server, sends a message, and prints the
+    message it receives in response
+
+  The server is implemented like this:
+
+  ```
+  use "net"
+
+  class MyUDPNotify is UDPNotify
+    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+    =>
+      sock.write(consume data, from)
+
+  actor Main
+    new create(env: Env) =>
+      try
+        UDPSocket(env.root as AmbientAuth,
+          MyUDPNotify, "", "8989")
+      end
+  ```
+
+  The client is implemented like this:
+
+  ```
+  use "net"
+
+  class MyUDPNotify is UDPNotify
+    let _out: OutStream
+    let _destination: IPAddress
+    new create(out: OutStream, destination: IPAddress) =>
+      _out = out
+      _destination = destination
+    fun ref listening(sock: UDPSocket ref) =>
+      sock.write("hello world", _destination)
+    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+    =>
+      _out.print("GOT:" + String.from_array(consume data))
+      sock.dispose()
+
+  actor Main
+    new create(env: Env) =>
+      try
+        let destination = DNS.ip4(env.root as AmbientAuth, "localhost", "8989")(0)
+        UDPSocket(env.root as AmbientAuth,
+          recover MyUDPNotify(env.out, consume destination) end)
+      end
+  ```
+  """
   var _notify: UDPNotify
   var _fd: U32
   var _event: AsioEventID

@@ -1,6 +1,9 @@
 interface TCPConnectionNotify
   """
   Notifications for TCP connections.
+
+  For an example of using this class please see the documentation for the
+  `TCPConnection` and `TCPListener` actors.
   """
   fun ref accepted(conn: TCPConnection ref) =>
     """
@@ -78,6 +81,9 @@ interface TCPConnectionNotify
 interface TCPListenNotify
   """
   Notifications for TCP listeners.
+
+  For an example of using this class, please see the documentation for the
+  `TCPListener` actor.
   """
   fun ref listening(listen: TCPListener ref) =>
     """
