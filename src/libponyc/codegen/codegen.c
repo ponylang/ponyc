@@ -118,6 +118,7 @@ static void init_runtime(compile_t* c)
   c->str_F64 = stringtab("F64");
   c->str_Pointer = stringtab("Pointer");
   c->str_Maybe = stringtab("MaybePointer");
+  c->str_DoNotOptimise = stringtab("DoNotOptimise");
   c->str_Array = stringtab("Array");
   c->str_String = stringtab("String");
   c->str_Platform = stringtab("Platform");

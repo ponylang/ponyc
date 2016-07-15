@@ -10,6 +10,7 @@
 #include "../type/assemble.h"
 
 #include <assert.h>
+#include <string.h>
 
 #define FIND_METHOD(name) \
   const char* strtab_name = stringtab(name); \
@@ -467,6 +468,70 @@ void genprim_maybe_methods(compile_t* c, reach_type_t* t)
   maybe_none(c, t);
   maybe_apply(c, t, t_elem);
   maybe_is_none(c, t);
+}
+
+static void donotoptimise_apply(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  const char* strtab_name = m->name;
+  m->intrinsic = true;
+
+  ast_t* typearg = ast_child(m->typeargs);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  LLVMTypeRef params[2];
+  params[0] = t->use_type;
+  params[1] = t_elem->use_type;
+
+  start_function(c, m, m->result->use_type, params, 2);
+
+  LLVMValueRef obj = LLVMGetParam(m->func, 1);
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, &t_elem->use_type, 1,
+    false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "imr,~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+
+  LLVMBuildRet(c->builder, m->result->instance);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
+static void donotoptimise_observe(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("observe");
+
+  start_function(c, m, m->result->use_type, &t->use_type, 1);
+
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+
+  LLVMBuildRet(c->builder, m->result->instance);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
+void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_method_name_t* mn;
+
+  const char* str_apply = stringtab("apply");
+  while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
+  {
+    if(mn->name == str_apply)
+    {
+      size_t j = HASHMAP_BEGIN;
+      reach_method_t* m;
+      while((m = reach_methods_next(&mn->r_methods, &j)) != NULL)
+        donotoptimise_apply(c, t, m);
+      break;
+    }
+  }
+  donotoptimise_observe(c, t);
 }
 
 static void trace_array_elements(compile_t* c, reach_type_t* t,
