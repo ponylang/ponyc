@@ -11,6 +11,8 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t);
 
 void genprim_maybe_methods(compile_t* c, reach_type_t* t);
 
+void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t);
+
 void genprim_array_trace(compile_t* c, reach_type_t* t);
 
 void genprim_array_serialise_trace(compile_t* c, reach_type_t* t);

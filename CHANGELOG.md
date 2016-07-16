@@ -83,6 +83,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `net/WriteBuffer`
 - `serialise` package.
 - optional parameter in json objects, arrays, and doc to turn on pretty printing
+- `DoNotOptimise` primitive
 
 ### Changed
 
