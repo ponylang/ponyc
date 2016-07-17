@@ -93,56 +93,39 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Create a UTF-8 string from a single UTF-32 code point.
     """
-    if value < 0x80 then
-      _size = 1
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, value.u8())
-    elseif value < 0x800 then
-      _size = 2
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, ((value >> 6) or 0xC0).u8())
-      _set(1, ((value and 0x3F) or 0x80).u8())
-    elseif value < 0xD800 then
-      _size = 3
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, ((value >> 12) or 0xE0).u8())
-      _set(1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _set(2, ((value and 0x3F) or 0x80).u8())
-    elseif value < 0xE000 then
-      // UTF-16 surrogate pairs are not allowed.
-      _size = 3
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, 0xEF)
-      _set(1, 0xBF)
-      _set(2, 0xBD)
-      _size = _size + 3
-    elseif value < 0x10000 then
-      _size = 3
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, ((value >> 12) or 0xE0).u8())
-      _set(1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _set(2, ((value and 0x3F) or 0x80).u8())
-    elseif value < 0x110000 then
-      _size = 4
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, ((value >> 18) or 0xF0).u8())
-      _set(1, (((value >> 12) and 0x3F) or 0x80).u8())
-      _set(2, (((value >> 6) and 0x3F) or 0x80).u8())
-      _set(3, ((value and 0x3F) or 0x80).u8())
-    else
-      // Code points beyond 0x10FFFF are not allowed.
-      _size = 3
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, 0xEF)
-      _set(1, 0xBF)
-      _set(2, 0xBD)
+    let encoded = _UTF32Encoder.encode(value)
+    _size = encoded._1
+    _alloc = _size + 1
+    _ptr = Pointer[U8]._alloc(_alloc)
+    _set(0, encoded._2)
+    if encoded._1 > 1 then
+      _set(1, encoded._3)
+      if encoded._1 > 2 then
+        _set(2, encoded._4)
+        if encoded._1 > 3 then
+          _set(3, encoded._5)
+        end
+      end
+    end
+    _set(_size, 0)
+
+  fun ref push_utf32(value: U32) =>
+    """
+    Push a UTF-32 code point.
+    """
+    let encoded = _UTF32Encoder.encode(value)
+    let i = _size
+    _size = _size + encoded._1
+    reserve(_size)
+    _set(i, encoded._2)
+    if encoded._1 > 1 then
+      _set(i + 1, encoded._3)
+      if encoded._1 > 2 then
+        _set(i + 2, encoded._4)
+        if encoded._1 > 3 then
+          _set(i + 3, encoded._5)
+        end
+      end
     end
     _set(_size, 0)
 
@@ -1370,3 +1353,50 @@ class StringRunes is Iterator[U32]
     (let rune, let len) = _string.utf32(_i.isize())
     _i = _i + len.usize()
     rune
+
+primitive _UTF32Encoder
+  fun encode(value: U32): (USize, U8, U8, U8, U8) =>
+    """
+    Encode the code point into UTF-8. It returns a tuple with the size of the encoded data and then the data
+    """
+    if value < 0x80 then
+      (1, value.u8(), 0, 0, 0)
+    elseif value < 0x800 then
+      (
+        2,
+        ((value >> 6) or 0xC0).u8(),
+        ((value and 0x3F) or 0x80).u8(),
+        0,
+        0
+      )
+    elseif value < 0xD800 then
+      (
+        3,
+        ((value >> 12) or 0xE0).u8(),
+        (((value >> 6) and 0x3F) or 0x80).u8(),
+        ((value and 0x3F) or 0x80).u8(),
+        0
+      )
+    elseif value < 0xE000 then
+      // UTF-16 surrogate pairs are not allowed.
+      (3, 0xEF, 0xBF, 0xBD, 0)
+    elseif value < 0x10000 then
+      (
+        3,
+        ((value >> 12) or 0xE0).u8(),
+        (((value >> 6) and 0x3F) or 0x80).u8(),
+        ((value and 0x3F) or 0x80).u8(),
+        0
+      )
+    elseif value < 0x110000 then
+      (
+        4,
+        ((value >> 18) or 0xF0).u8(),
+        (((value >> 12) and 0x3F) or 0x80).u8(),
+        (((value >> 6) and 0x3F) or 0x80).u8(),
+        ((value and 0x3F) or 0x80).u8()
+      )
+    else
+      // Code points beyond 0x10FFFF are not allowed.
+      (3, 0xEF, 0xBF, 0xBD, 0)
+    end
