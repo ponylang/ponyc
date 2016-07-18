@@ -359,3 +359,5 @@ primitive F64 is FloatingPoint[F64]
     end
 
     r.u128()
+
+type Float is (F32 | F64)

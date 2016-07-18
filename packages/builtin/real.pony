@@ -148,10 +148,6 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   =>
     _ToString._f64(f64(), fmt)
 
-type Number is (Signed | Unsigned | Float)
+type Number is (Int | Float)
 
-type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
-
-type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)
-
-type Float is (F32 | F64)
+type Int is (Signed | Unsigned)

@@ -2,6 +2,12 @@ use "path:/usr/local/opt/libressl/lib" if osx
 use "lib:crypto" if not windows
 use "lib:libcrypto-32" if windows
 
+interface HashFn
+  """
+  Produces a fixed-length byte array based on the input sequence.
+  """
+  fun tag apply(input: ByteSeq): Array[U8] val
+
 primitive MD4 is HashFn
   fun tag apply(input: ByteSeq): Array[U8] val =>
     """
@@ -126,3 +132,17 @@ primitive SHA512 is HashFn
       @SHA512[Pointer[U8]](input.cstring(), input.size(), digest)
       Array[U8].from_cstring(digest, size)
     end
+
+primitive ToHexString
+  fun tag apply(bs: Array[U8] val): String =>
+    """
+    Return the lower-case hexadecimal string representation of the given Array
+    of U8.
+    """
+    let fmt = FormatSettingsInt.set_format(FormatHexSmallBare).set_width(2)
+    fmt.fill' = '0'
+    let out = recover String(bs.size() * 2) end
+    for c in bs.values() do
+      out.append(c.string(fmt))
+    end
+    consume out

@@ -1,11 +1,9 @@
 use "collections"
 
-
 type JsonType is (F64 | I64 | Bool | None | String | JsonArray | JsonObject)
   """
   All JSON data types.
   """
-
 
 class JsonArray
   var data: Array[JsonType]

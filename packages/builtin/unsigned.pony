@@ -433,3 +433,5 @@ primitive U128 is _UnsignedInteger[U128]
     end
 
     F64.from_bits(((e + 1023) << 52) or (a.u64() and 0xF_FFFF_FFFF_FFFF))
+
+type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)
