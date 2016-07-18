@@ -129,7 +129,7 @@ class Regex
         addressof len)
 
       if rc == -48 then
-        len = len * 2
+        len = out.space() * 2
         out.reserve(len)
         len = out.space()
       end
