@@ -28,15 +28,15 @@ class iso Payload
     url = url'
     _response = false
 
-  new iso response(status': U16 = 200, description: String = "OK",
+  new iso response(status': Status = StatusOK,
     handler': (ResponseHandler | None) = None)
   =>
     """
     Create an HTTP response.
     """
     handler = handler'
-    status = status'
-    method = description
+    status = status'()
+    method = status'.string()
     url = URL
     _response = true
 
@@ -113,7 +113,7 @@ class iso Payload
     """
     try
       let h = (handler = None) as ResponseHandler
-      h(consume this, Payload.response(0))
+      h(consume this, Payload.response(StatusInternalServerError))
     end
 
   fun val _client_respond(response': Payload) =>
@@ -133,7 +133,7 @@ class iso Payload
     """
     try
       let h = handler as ResponseHandler
-      h(consume this, Payload.response(0))
+      h(consume this, Payload.response(StatusInternalServerError))
     end
 
   fun _write(conn: TCPConnection, keepalive: Bool = true) =>
