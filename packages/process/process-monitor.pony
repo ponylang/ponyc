@@ -94,6 +94,7 @@ Document waitpid behaviour (stops world)
 
 """
 use "files"
+use "collections"
 use @pony_os_errno[I32]()
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
       flags: U32, nsec: U64, noisy: Bool)
@@ -170,6 +171,7 @@ type ProcessError is
   | CapError
   )
 
+    
 actor ProcessMonitor
   """
   Forks and monitors a process. Notifies a client about STDOUT / STDERR events.
@@ -177,21 +179,26 @@ actor ProcessMonitor
   let _notifier: ProcessNotify
   var _child_pid: I32 = -1
 
+  var _stdin_event: AsioEventID = AsioEvent.none()
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(4096) end
+  embed _pending: List[(ByteSeq, USize)] = _pending.create()
 
-  var _stdin_read:   U32 = -1
-  var _stdin_write:  U32 = -1
-  var _stdout_read:  U32 = -1
+  var _stdin_read: U32 = -1
+  var _stdin_write: U32 = -1
+  var _stdout_read: U32 = -1
   var _stdout_write: U32 = -1
-  var _stderr_read:  U32 = -1
+  var _stderr_read: U32 = -1
   var _stderr_write: U32 = -1
 
-  var _stdout_open: Bool = true
-  var _stderr_open: Bool = true
+  var _stdin_writeable: Bool = true
+  var _stdout_readable: Bool = true
+  var _stderr_readable: Bool = true
 
+  var _done_writing: Bool = false
+  
   var _closed: Bool = false
 
   new create(notifier: ProcessNotify iso, filepath: FilePath,
@@ -210,7 +217,7 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC())
+        (_stdin_read, _stdin_write) = _make_pipe(_FDCLOEXEC())
         (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
         (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
         // Set O_NONBLOCK only for parent-side file descriptors, as many
@@ -236,7 +243,7 @@ actor ProcessMonitor
       _child_pid = @fork[I32]()
       match _child_pid
       | -1  => _notifier.failed(ForkError)
-      | 0   => _child(filepath.path, argp, envp)
+      |  0  => _child(filepath.path, argp, envp)
       else
         _parent()
       end
@@ -272,8 +279,12 @@ actor ProcessMonitor
     and close the file descriptors we don't need.
     """
     ifdef posix then
-      _stdout_event = _create_asio_event(_stdout_read)
-      _stderr_event = _create_asio_event(_stderr_read)
+      _stdin_event  =
+        @pony_asio_event_create(this, _stdin_write, AsioEvent.write(), 0, true)
+      _stdout_event =
+        @pony_asio_event_create(this, _stdout_read, AsioEvent.read(), 0, true)
+      _stderr_event =
+        @pony_asio_event_create(this, _stderr_read, AsioEvent.read(), 0, true)
       _close_fd(_stdin_read)
       _close_fd(_stdout_write)
       _close_fd(_stderr_write)
@@ -311,9 +322,8 @@ actor ProcessMonitor
   fun _make_pipe(fd_flags: I32): (U32, U32) ? =>
     """
     Creates a pipe, an unidirectional data channel that can be used
-    for interprocess communication. We need to set the flags O_NONBLOCK
-    and O_CLOEXEC on the two file descriptors here to prevent capturing
-    by another thread.
+    for interprocess communication. We need to set the flag on the 
+    two file descriptors here to prevent capturing by another thread.
     """
     ifdef posix then
       var pipe = (U32(0), U32(0))
@@ -358,25 +368,22 @@ actor ProcessMonitor
 
   be print(data: ByteSeq) =>
     """
-    Print some bytes and insert a newline afterwards.
+    Print some bytes and append a newline.
     """
-    write(data)
-    write("\n")
-
+    ifdef posix then
+      if not _done_writing then
+        _stdin_writeable = write_final(data)
+        _stdin_writeable = write_final("\n")
+      end
+    end
+      
   be write(data: ByteSeq) =>
     """
     Write to STDIN of the child process.
-    TODO: Signal back success/failure
     """
     ifdef posix then
-      let d = data
-      if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cstring(), d.size())
-        if res < 0 then
-          _notifier.failed(WriteError)
-        end
-      else
-        _notifier.failed(WriteError)
+      if not _done_writing then
+        _stdin_writeable = write_final(data)
       end
     end
 
@@ -398,9 +405,13 @@ actor ProcessMonitor
 
   be done_writing() =>
     """
-    Close _stdin_write file descriptor.
+    Set the _done_writing flag to true. If the _pending is empty we can
+    close the _stdin_write file descriptor.
     """
-    _close_fd(_stdin_write)
+    _done_writing = true
+    if _pending.size() == 0 then
+      _close_fd(_stdin_write)
+    end
 
   be dispose() =>
     """
@@ -420,16 +431,6 @@ actor ProcessMonitor
     """
     if @kill[I32](_child_pid, _SIGTERM()) < 0 then error end
 
-  fun _create_asio_event(fd: U32): AsioEventID =>
-    """
-    Takes a file descriptor (one end of a pipe) and returns an AsioEvent.
-    """
-    ifdef posix then
-      @pony_asio_event_create(this, fd, AsioEvent.read(), 0, true)
-    else
-      AsioEvent.none()
-    end
-
   fun _event_flags(flags: U32): String box=>
     """
     Return all flags of an event as a string.
@@ -445,16 +446,23 @@ actor ProcessMonitor
     Handle the incoming event.
     """
     match event
+    | _stdin_event =>
+      if AsioEvent.writeable(flags) then
+        _stdin_writeable = _pending_writes()
+      elseif AsioEvent.disposable(flags) then
+        @pony_asio_event_destroy(event)
+        _stdin_event = AsioEvent.none()
+      end
     | _stdout_event =>
       if AsioEvent.readable(flags) then
-        _stdout_open = _pending_reads(_stdout_read)
+        _stdout_readable = _pending_reads(_stdout_read)
       elseif AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
         _stdout_event = AsioEvent.none()
       end
     | _stderr_event =>
       if AsioEvent.readable(flags) then
-        _stderr_open = _pending_reads(_stderr_read)
+        _stderr_readable = _pending_reads(_stderr_read)
       elseif AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
         _stderr_event = AsioEvent.none()
@@ -489,8 +497,10 @@ actor ProcessMonitor
         _close_fd(_stdout_write)
         _close_fd(_stderr_read)
         _close_fd(_stderr_write)
-        _stdout_open = false
-        _stderr_open = false
+        _stdin_writeable = false
+        _stdout_readable = false
+        _stderr_readable = false
+        @pony_asio_event_unsubscribe(_stdin_event)
         @pony_asio_event_unsubscribe(_stdout_event)
         @pony_asio_event_unsubscribe(_stderr_event)
         // We want to capture the exit status of the child
@@ -508,7 +518,9 @@ actor ProcessMonitor
     """
     If neither stdout nor stderr are open we close down and exit.
     """
-    if (_stdout_read == -1) and (_stderr_read == -1) then
+    if (_stdin_write == -1) and
+      (_stdout_read == -1) and
+      (_stderr_read == -1) then
       _close()
     end
 
@@ -562,6 +574,84 @@ actor ProcessMonitor
     Resume reading on file descriptor.
     """
     match fd
-    | _stdout_read => _stdout_open = _pending_reads(fd)
-    | _stderr_read => _stderr_open = _pending_reads(fd)
+    | _stdout_read => _stdout_readable = _pending_reads(fd)
+    | _stderr_read => _stderr_readable = _pending_reads(fd)
     end
+
+  fun ref write_final(data: ByteSeq): Bool =>
+    """
+    Write as much as possible to the fd. Return false if not
+    everything was written.
+    """
+    if (not _closed) and (_stdin_write > 0) and _stdin_writeable then
+      // Send as much data as possible.
+      let len = @write[ISize](_stdin_write, data.cstring(), data.size())
+      
+      if len == -1 then // write error
+        let errno = @pony_os_errno()
+        if errno == _EAGAIN() then
+          // Resource temporarily unavailable, send data later.
+          _pending.push((data, 0))
+          return false
+        else
+          // notify caller, close fd and bail out
+          _notifier.failed(WriteError)
+          _close_fd(_stdin_write)
+          return false
+        end
+      elseif len.usize() < data.size() then
+        // Send any remaining data later.
+        _pending.push((data, len.usize()))
+        return false
+      end
+      return true
+    else
+      // Send later, when the fd is available for writing.
+      _pending.push((data, 0))
+      return false
+    end
+
+  fun ref _pending_writes(): Bool =>
+    """
+    Send pending data. If any data can't be sent, keep it and mark fd as not
+    writeable. Once set to false the _stdin_writeable flag can only be cleared
+    here by processing the pending writes. If the _done_writing flag is set we
+    close the _stdin_write fd once we've processed pending writes.
+    """
+    while (not _closed) and (_stdin_write != -1) and
+      (_pending.size() > 0) do
+      try
+        let node = _pending.head()
+        (let data, let offset) = node()
+
+        // Write as much data as possible.
+        let len = @write[ISize](_stdin_write,
+          data.cstring().usize() + offset, data.size() - offset)
+
+        if len == -1 then // OS signals write error
+          let errno = @pony_os_errno()
+          if errno == _EAGAIN() then
+            // Resource temporarily unavailable, send data later.
+            return false
+          else                        // Close fd and bail out.
+            return false
+          end
+        elseif (len.usize() + offset) < data.size() then
+          // Send remaining data later.
+          node() = (data, offset + len.usize())
+          return false
+        else
+          // This chunk has been fully sent.
+          _pending.shift()
+          // check if the client has signaled it is done
+          if (_pending.size() == 0) and _done_writing then
+            _close_fd(_stdin_write)
+          end
+        end
+      else
+        // handle error
+        _notifier.failed(WriteError)
+        return false
+      end
+    end
+    true
