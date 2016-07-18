@@ -103,7 +103,7 @@ actor TCPConnection
     """
     Write a single sequence of bytes.
     """
-    if not _closed then
+    if _connected and not _closed then
       _in_sent = true
       try write_final(_notify.sent(this, data)) end
       _in_sent = false
@@ -113,7 +113,7 @@ actor TCPConnection
     """
     Write a sequence of sequences of bytes.
     """
-    if not _closed then
+    if _connected and not _closed then
       _in_sent = true
       try
         for bytes in _notify.sentv(this, data).values() do
