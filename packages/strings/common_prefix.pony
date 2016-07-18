@@ -1,4 +1,3 @@
-
 primitive CommonPrefix
   """
   Creates a string that is the common prefix of the supplied strings, possibly empty.
@@ -8,7 +7,7 @@ primitive CommonPrefix
     var res = "".clone()
     try
       let iter = data.values()
-      if iter.has_next() then 
+      if iter.has_next() then
         res = iter.next().string()
         for d in iter do
           var idx: USize = 0

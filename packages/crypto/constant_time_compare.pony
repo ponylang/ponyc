@@ -1,4 +1,3 @@
-
 primitive ConstantTimeCompare
   fun apply(xs: ByteSeq, ys: ByteSeq): Bool =>
   """

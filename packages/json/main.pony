@@ -1,7 +1,6 @@
 use "ponytest"
 use "collections"
 
-
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
@@ -27,7 +26,6 @@ actor Main is TestList
 
     test(_TestParsePrint)
 
-
 class iso _TestParseBasic is UnitTest
   """
   Test Json basic parsing, eg allowing whitespace.
@@ -46,7 +44,6 @@ class iso _TestParseBasic is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse("") end)
     h.assert_error(lambda()? => JsonDoc.parse("   ") end)
     h.assert_error(lambda()? => JsonDoc.parse("true true") end)
-
 
 class iso _TestParseKeyword is UnitTest
   """
@@ -70,7 +67,6 @@ class iso _TestParseKeyword is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse("truw") end)
     h.assert_error(lambda()? => JsonDoc.parse("truez") end)
     h.assert_error(lambda()? => JsonDoc.parse("TRUE") end)
-
 
 class iso _TestParseNumber is UnitTest
   """
@@ -114,7 +110,6 @@ class iso _TestParseNumber is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse("1.-3") end)
     h.assert_error(lambda()? => JsonDoc.parse("1e") end)
 
-
 class iso _TestParseString is UnitTest
   """
   Test Json parsing of strings.
@@ -155,7 +150,6 @@ class iso _TestParseString is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse(""" "\u037g" """) end)
     h.assert_error(lambda()? => JsonDoc.parse(""" "\uD834" """) end)
     h.assert_error(lambda()? => JsonDoc.parse(""" "\uDD1E" """) end)
-
 
 class iso _TestParseArray is UnitTest
   """
@@ -208,7 +202,6 @@ class iso _TestParseArray is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse("[") end)
     h.assert_error(lambda()? => JsonDoc.parse("[true") end)
     h.assert_error(lambda()? => JsonDoc.parse("[true,") end)
-
 
 class iso _TestParseObject is UnitTest
   """
@@ -266,7 +259,6 @@ class iso _TestParseObject is UnitTest
     h.assert_error(lambda()? => JsonDoc.parse("""{"a" true}""") end)
     h.assert_error(lambda()? => JsonDoc.parse("""{:true}""") end)
 
-
 class iso _TestParseRFC1 is UnitTest
   """
   Test Json parsing of first example from RFC7159.
@@ -322,7 +314,6 @@ class iso _TestParseRFC1 is UnitTest
     h.assert_eq[I64](943, array.data(1) as I64)
     h.assert_eq[I64](234, array.data(2) as I64)
     h.assert_eq[I64](38793, array.data(3) as I64)
-
 
 class iso _TestParseRFC2 is UnitTest
   """
@@ -388,7 +379,6 @@ class iso _TestParseRFC2 is UnitTest
     h.assert_eq[String]("94085", obj2.data("Zip") as String)
     h.assert_eq[String]("US", obj2.data("Country") as String)
 
-
 class iso _TestPrintKeyword is UnitTest
   """
   Test Json printing of keywords.
@@ -406,7 +396,6 @@ class iso _TestPrintKeyword is UnitTest
 
     doc.data = None
     h.assert_eq[String]("null", doc.string())
-
 
 class iso _TestPrintNumber is UnitTest
   """
@@ -438,7 +427,6 @@ class iso _TestPrintNumber is UnitTest
     // We don't test exponent formatted output because it can be slightly
     // different on different platforms
 
-
 class iso _TestPrintString is UnitTest
   """
   Test Json printing of strings.
@@ -468,7 +456,6 @@ class iso _TestPrintString is UnitTest
 
     doc.data = "Foo\U01D11Ebar"
     h.assert_eq[String](""""Foo\uD834\uDD1Ebar"""", doc.string())
-
 
 class iso _TestPrintArray is UnitTest
   """
@@ -506,7 +493,6 @@ class iso _TestPrintArray is UnitTest
     array.data.push(nested)
     h.assert_eq[String]("[\n  true,\n  [\n    52,\n    null\n  ]\n]",
       doc.string(true))
-
 
 class iso _TestNoPrettyPrintArray is UnitTest
   """

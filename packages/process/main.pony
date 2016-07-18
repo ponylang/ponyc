@@ -3,7 +3,7 @@ use "files"
 use "capsicum"
 use "collections"
 
-actor Main is TestList  
+actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -11,7 +11,6 @@ actor Main is TestList
     test(_TestStdinStdout)
     test(_TestStderr)
     test(_TestFileExec)
-
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
@@ -27,7 +26,7 @@ class iso _TestStdinStdout is UnitTest
       let vars: Array[String] iso = recover Array[String](2) end
       vars.push("HOME=/")
       vars.push("PATH=/bin")
-    
+
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
         pm.write("one, two, three")
@@ -52,18 +51,18 @@ class iso _TestStderr is UnitTest
       let args: Array[String] iso = recover Array[String](2) end
       args.push("cat")
       args.push("file_does_not_exist")
-   
+
       let vars: Array[String] iso = recover Array[String](2) end
       vars.push("HOME=/")
       vars.push("PATH=/bin")
-    
+
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
         h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
-    
+
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
@@ -78,11 +77,11 @@ class iso _TestFileExec is UnitTest
       let path = FilePath(h.env.root as AmbientAuth, "/bin/date",
         recover val FileCaps.all().unset(FileExec) end)
       let args: Array[String] iso = recover Array[String](1) end
-      args.push("date")    
+      args.push("date")
       let vars: Array[String] iso = recover Array[String](2) end
       vars.push("HOME=/")
       vars.push("PATH=/bin")
-    
+
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
       h.long_test(5_000_000_000)
@@ -92,7 +91,7 @@ class iso _TestFileExec is UnitTest
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
-    
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -103,24 +102,24 @@ class _ProcessClient is ProcessNotify
   let _h: TestHelper
   let _d_stdout: String ref = String
   let _d_stderr: String ref = String
-  
+
   new iso create(out: String, err: String, exit_code: I32,
     h: TestHelper) =>
     _out = out
     _err = err
     _exit_code = exit_code
     _h = h
-    
+
   fun ref stdout(data: Array[U8] iso) => _d_stdout.append(consume data)
     """
     Called when new data is received on STDOUT of the forked process
     """
-    
+
   fun ref stderr(data: Array[U8] iso) => _d_stderr.append(consume data)
     """
     Called when new data is received on STDERR of the forked process
     """
-    
+
   fun ref failed(err: ProcessError) =>
     """
     ProcessMonitor calls this if we run into errors with the
@@ -137,12 +136,12 @@ class _ProcessClient is ProcessNotify
     | ReadError     => _h.fail("ProcessError: ReadError")
     | WriteError    => _h.fail("ProcessError: WriteError")
     | KillError     => _h.fail("ProcessError: KillError")
-    | Unsupported   => _h.fail("ProcessError: Unsupported") 
+    | Unsupported   => _h.fail("ProcessError: Unsupported")
     | CapError      => _h.complete(true) // used in _TestFileExec
     else
       _h.fail("Unknown ProcessError!")
     end
-    
+
   fun ref dispose(child_exit_code: I32) =>
     """
     Called when ProcessMonitor terminates to cleanup ProcessNotify

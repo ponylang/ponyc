@@ -1,7 +1,6 @@
 use "ponytest"
 use "collections"
 
-
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
@@ -11,7 +10,6 @@ actor Main is TestList
     test(_TestBase64Decode)
     test(_TestBase64EncodeDecode)
     test(_TestBase64Quote)
-
 
 class iso _TestBase64Encode is UnitTest
   """
