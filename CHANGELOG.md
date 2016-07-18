@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Runtime crash when Main.create is a function instead of a constructor.
 - Compiler bug where `as` operator with a lambda literal caused seg fault.
 - String.read_int failure on lowest number in the range of signed integers.
+- Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 
 ### Added
 
