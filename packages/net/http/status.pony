@@ -1,147 +1,147 @@
 
 trait val Status
   fun apply(): U16
-  fun text(): String
+  fun string(): String
 
 primitive StatusContinue is Status
   fun apply(): U16 => 100
-  fun text(): String => "Continue"
+  fun string(): String => "100 Continue"
 primitive StatusSwitchingProtocols is Status
   fun apply(): U16 => 101
-  fun text(): String => "Switching Protocols"
+  fun string(): String => "101 Switching Protocols"
 
 primitive StatusOK is Status
   fun apply(): U16 => 200
-  fun text(): String => "OK"
+  fun string(): String => "200 OK"
 primitive StatusCreated is Status
   fun apply(): U16 => 201
-  fun text(): String => "Created"
+  fun string(): String => "201 Created"
 primitive StatusAccepted is Status
   fun apply(): U16 => 202
-  fun text(): String => "Accepted"
+  fun string(): String => "202 Accepted"
 primitive StatusNonAuthoritativeInfo is Status
   fun apply(): U16 => 203
-  fun text(): String => "Non-Authoritative Information"
+  fun string(): String => "203 Non-Authoritative Information"
 primitive StatusNoContent is Status
   fun apply(): U16 => 204
-  fun text(): String => "No Content"
+  fun string(): String => "204 No Content"
 primitive StatusResetContent is Status
   fun apply(): U16 => 205
-  fun text(): String => "Reset Content"
+  fun string(): String => "205 Reset Content"
 primitive StatusPartialContent is Status
   fun apply(): U16 => 206
-  fun text(): String => "Partial Content"
+  fun string(): String => "206 Partial Content"
 
 primitive StatusMultipleChoices is Status
   fun apply(): U16 => 300
-  fun text(): String => "Multiple Choices"
+  fun string(): String => "300 Multiple Choices"
 primitive StatusMovedPermanently is Status
   fun apply(): U16 => 301
-  fun text(): String => "Moved Permanently"
+  fun string(): String => "301 Moved Permanently"
 primitive StatusFound is Status
   fun apply(): U16 => 302
-  fun text(): String => "Found"
+  fun string(): String => "302 Found"
 primitive StatusSeeOther is Status
   fun apply(): U16 => 303
-  fun text(): String => "See Other"
+  fun string(): String => "303 See Other"
 primitive StatusNotModified is Status
   fun apply(): U16 => 304
-  fun text(): String => "Not Modified"
+  fun string(): String => "304 Not Modified"
 primitive StatusUseProxy is Status
   fun apply(): U16 => 305
-  fun text(): String => "Use Proxy"
+  fun string(): String => "305 Use Proxy"
 primitive StatusTemporaryRedirect is Status
   fun apply(): U16 => 307
-  fun text(): String => "Temporary Redirect"
+  fun string(): String => "307 Temporary Redirect"
 
 primitive StatusBadRequest is Status
   fun apply(): U16 => 400
-  fun text(): String => "Bad Request"
+  fun string(): String => "400 Bad Request"
 primitive StatusUnauthorized is Status
   fun apply(): U16 => 401
-  fun text(): String => "Unauthorized"
+  fun string(): String => "401 Unauthorized"
 primitive StatusPaymentRequired is Status
   fun apply(): U16 => 402
-  fun text(): String => "Payment Required"
+  fun string(): String => "402 Payment Required"
 primitive StatusForbidden is Status
   fun apply(): U16 => 403
-  fun text(): String => "Forbidden"
+  fun string(): String => "403 Forbidden"
 primitive StatusNotFound is Status
   fun apply(): U16 => 404
-  fun text(): String => "Not Found"
+  fun string(): String => "404 Not Found"
 primitive StatusMethodNotAllowed is Status
   fun apply(): U16 => 405
-  fun text(): String => "Method Not Allowed"
+  fun string(): String => "405 Method Not Allowed"
 primitive StatusNotAcceptable is Status
   fun apply(): U16 => 406
-  fun text(): String => "Not Acceptable"
+  fun string(): String => "406 Not Acceptable"
 primitive StatusProxyAuthRequired is Status
   fun apply(): U16 => 407
-  fun text(): String => "Proxy Authentication Required"
+  fun string(): String => "407 Proxy Authentication Required"
 primitive StatusRequestTimeout is Status
   fun apply(): U16 => 408
-  fun text(): String => "Request Timeout"
+  fun string(): String => "408 Request Timeout"
 primitive StatusConflict is Status
   fun apply(): U16 => 409
-  fun text(): String => "Conflict"
+  fun string(): String => "409 Conflict"
 primitive StatusGone is Status
   fun apply(): U16 => 410
-  fun text(): String => "Gone"
+  fun string(): String => "410 Gone"
 primitive StatusLengthRequired is Status
   fun apply(): U16 => 411
-  fun text(): String => "Length Required"
+  fun string(): String => "411 Length Required"
 primitive StatusPreconditionFailed is Status
   fun apply(): U16 => 412
-  fun text(): String => "Precondition Failed"
+  fun string(): String => "412 Precondition Failed"
 primitive StatusRequestEntityTooLarge is Status
   fun apply(): U16 => 413
-  fun text(): String => "Request Entity Too Large"
+  fun string(): String => "413 Request Entity Too Large"
 primitive StatusRequestURITooLong is Status
   fun apply(): U16 => 414
-  fun text(): String => "Request URI Too Long"
+  fun string(): String => "414 Request URI Too Long"
 primitive StatusUnsupportedMediaType is Status
   fun apply(): U16 => 415
-  fun text(): String => "Unsupported Media Type"
+  fun string(): String => "415 Unsupported Media Type"
 primitive StatusRequestedRangeNotSatisfiable is Status
   fun apply(): U16 => 416
-  fun text(): String => "Requested Range Not Satisfiable"
+  fun string(): String => "416 Requested Range Not Satisfiable"
 primitive StatusExpectationFailed is Status
   fun apply(): U16 => 417
-  fun text(): String => "Expectation Failed"
+  fun string(): String => "417 Expectation Failed"
 primitive StatusTeapot is Status
   fun apply(): U16 => 418
-  fun text(): String => "I'm a teapot"
+  fun string(): String => "418 I'm a teapot"
 primitive StatusPreconditionRequired is Status
   fun apply(): U16 => 428
-  fun text(): String => "Precondition Required"
+  fun string(): String => "428 Precondition Required"
 primitive StatusTooManyRequests is Status
   fun apply(): U16 => 429
-  fun text(): String => "Too Many Requests"
+  fun string(): String => "429 Too Many Requests"
 primitive StatusRequestHeaderFieldsTooLarge is Status
   fun apply(): U16 => 431
-  fun text(): String => "Request Header Fields Too Large"
+  fun string(): String => "431 Request Header Fields Too Large"
 primitive StatusUnavailableForLegalReasons is Status
   fun apply(): U16 => 451
-  fun text(): String => "Unavailable For Legal Reasons"
+  fun string(): String => "451 Unavailable For Legal Reasons"
 
 primitive StatusInternalServerError is Status
   fun apply(): U16 => 500
-  fun text(): String => "Internal Server Error"
+  fun string(): String => "500 Internal Server Error"
 primitive StatusNotImplemented is Status
   fun apply(): U16 => 501
-  fun text(): String => "Not Implemented"
+  fun string(): String => "501 Not Implemented"
 primitive StatusBadGateway is Status
   fun apply(): U16 => 502
-  fun text(): String => "Bad Gateway"
+  fun string(): String => "502 Bad Gateway"
 primitive StatusServiceUnavailable is Status
   fun apply(): U16 => 503
-  fun text(): String => "Service Unavailable"
+  fun string(): String => "503 Service Unavailable"
 primitive StatusGatewayTimeout is Status
   fun apply(): U16 => 504
-  fun text(): String => "Gateway Timeout"
+  fun string(): String => "504 Gateway Timeout"
 primitive StatusHTTPVersionNotSupported is Status
   fun apply(): U16 => 505
-  fun text(): String => "HTTP Version Not Supported"
+  fun string(): String => "505 HTTP Version Not Supported"
 primitive StatusNetworkAuthenticationRequired is Status
   fun apply(): U16 => 511
-  fun text(): String => "Network Authentication Required"
+  fun string(): String => "511 Network Authentication Required"
