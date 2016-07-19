@@ -38,22 +38,22 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): Bool =>
     """
     Called when data is sent on the connection. This gives the notifier an
     opportunity to modify sent data before it is written. The notifier can
     raise an error if the data is swallowed entirely.
     """
-    data
+    true
 
-  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ? =>
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): Bool =>
     """
     Called when multiple chunks of data are sent to the connection in a single
     call. This gives the notifier an opportunity to modify the sent data chunks
-    before they are written. The notifier can raise an error to defer to using
-    multiple calls of the sent method instead of one call to this one.
+    before they are written. The notifier can raise an error if the data is
+    swallowed entirely.
     """
-    error
+    true
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """

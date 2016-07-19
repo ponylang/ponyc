@@ -43,7 +43,7 @@ class SSLConnection is TCPConnectionNotify
     """
     _notify.connect_failed(conn)
 
-  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): Bool =>
     """
     Pass the data to the SSL session and check for both new application data
     and new destination data.
@@ -55,7 +55,7 @@ class SSLConnection is TCPConnectionNotify
     end
 
     _poll(conn)
-    error
+    false
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
