@@ -22,7 +22,7 @@
  * Make sure the definition of something occurs before its use. This is for
  * both fields and local variable.
  */
-static bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
+bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
 {
   if((ast_line(def) > ast_line(use)) ||
      ((ast_line(def) == ast_line(use)) &&

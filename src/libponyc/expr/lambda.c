@@ -1,5 +1,6 @@
 #include "lambda.h"
 #include "literal.h"
+#include "reference.h"
 #include "../ast/astbuild.h"
 #include "../ast/printbuf.h"
 #include "../pass/pass.h"
@@ -38,6 +39,11 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
         "cannot capture \"%s\", variable not defined", name);
       return NULL;
     }
+
+    // lambda captures used before their declaration with their type
+    // not defined are not legal
+    if(!def_before_use(opt, def, capture, name))
+      return NULL;
 
     token_id def_id = ast_id(def);
 
