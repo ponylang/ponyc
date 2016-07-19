@@ -49,7 +49,9 @@ class SSLConnection is TCPConnectionNotify
     and new destination data.
     """
     if _connected then
-      _ssl.write(data)
+      try
+        _ssl.write(data)
+      end
     else
       _pending.push(data)
     end
