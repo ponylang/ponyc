@@ -10,7 +10,7 @@ actor Main is TestList
     test(_TestBroadcast)
     ifdef not windows then
       test(_TestTCPExpect)
-      test(_TestTCPWritev)
+     // test(_TestTCPWritev)
     end
 
 class iso _TestReadBuffer is UnitTest
@@ -393,6 +393,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf.append(data)
     conn.write(consume buf)
 
+/*
 class iso _TestTCPWritev is UnitTest
   """
   Test writev (and sent/sentv notification).
@@ -460,3 +461,4 @@ class _TestTCPWritevNotify is TCPConnectionNotify
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.writev(recover ["hello", ", hello"] end)
+*/
