@@ -10,7 +10,7 @@ actor Main is TestList
     test(_TestBroadcast)
     ifdef not windows then
       test(_TestTCPExpect)
-      //test(_TestTCPWritev)
+      test(_TestTCPWritev)
     end
 
 class iso _TestReadBuffer is UnitTest
@@ -393,7 +393,6 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf.append(data)
     conn.write(consume buf)
 
-/*
 class iso _TestTCPWritev is UnitTest
   """
   Test writev (and sent/sentv notification).
@@ -416,7 +415,7 @@ class _TestTCPWritevNotify is TCPConnectionNotify
     _h = h
     _server = server
 
-  fun ref sent(conn: TCPConnection ref, data: ByteSeq): Bool =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
     if not _server then
       _h.fail("TCPConnectionNotify.sent invoked on the client side, " +
               "when the sentv success should have prevented it.")
@@ -428,14 +427,11 @@ class _TestTCPWritevNotify is TCPConnectionNotify
     if data_str == "replace me" then return ", hello" end
 
     _h.assert_eq[String]("hello", consume data_str)
-    conn.write_final(data)
-    false
+    data
 
-  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): Bool =>
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ? =>
     if _server then error end
-    let data_out  = recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
-    conn.write_final(data_out)
-    false
+    recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     _buffer.append(consume data)
@@ -464,4 +460,3 @@ class _TestTCPWritevNotify is TCPConnectionNotify
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.writev(recover ["hello", ", hello"] end)
-*/
