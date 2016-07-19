@@ -4,6 +4,7 @@
 #include "gencall.h"
 #include "genname.h"
 #include "genprim.h"
+#include "genopt.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -74,6 +75,42 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   gencall_runtime(c, "pony_become", args, 2, "");
 
   return actor;
+}
+
+const char* gcc_from_llvm_triple(char* triple)
+{
+  //split triple into components
+  const char sep[2] = "-";
+  char *arch;
+  char *vendor;
+  char *system;
+  char *abi;
+
+  arch = strtok(triple, sep);
+  assert(arch != NULL);
+
+  vendor = strtok(NULL, sep);
+  assert(vendor != NULL);
+
+  system = strtok(NULL, sep);
+  assert(system != NULL);
+
+  abi = strtok(NULL, sep);
+
+  // if abi is null we have an empty vendor string
+  if(abi == NULL)
+  {
+    abi = system;
+    system = vendor;
+  }
+
+  // Copy to a string with space for full gcc command for triple.
+  size_t len = strlen(arch) + strlen(system) + strlen(abi) + 7;
+  char* gcc = (char*)ponyint_pool_alloc_size(len);
+
+  snprintf(gcc, len, "%s-%s-%s-gcc", arch, system, abi);
+
+  return stringtab_consume(gcc, len);
 }
 
 static void gen_main(compile_t* c, reach_type_t* t_main,
@@ -259,13 +296,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
+  const char* linker = gcc_from_llvm_triple(c->opt->triple);
+  const char* arch = c->opt->cpu;
+  const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
+
+  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
+                  + strlen(linker) + strlen(arch) + strlen(mcx16_arg);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len, PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " "
-#ifndef PLATFORM_IS_ILP32
-    "-mcx16 "
-#endif
+  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
+    "%s "
 
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
@@ -279,7 +319,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-ldl "
 #endif
     "-lm",
-    file_exe, file_o, lib_args
+    linker, file_exe, arch, mcx16_arg, file_o, lib_args
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
