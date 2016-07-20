@@ -502,7 +502,7 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, colour, false);
 
-  LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, gep, 2, "");
+  LLVMValueRef func_ptr = LLVMBuildInBoundsGEP(c->builder, vtable, gep, 2, "");
   return LLVMBuildLoad(c->builder, func_ptr, "");
 }
 
@@ -513,11 +513,8 @@ LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
   LLVMValueRef offset = desc_field(c, desc, DESC_FIELD_OFFSET);
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
 
-  LLVMValueRef base = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
-  LLVMValueRef result = LLVMBuildAdd(c->builder, base, offset, "");
-
-  // Return as a c->intptr.
-  return result;
+  LLVMValueRef base = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
+  return LLVMBuildInBoundsGEP(c->builder, base, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc)
@@ -533,7 +530,8 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, index, false);
 
-  LLVMValueRef field_desc = LLVMBuildGEP(c->builder, fields, gep, 2, "");
+  LLVMValueRef field_desc = LLVMBuildInBoundsGEP(c->builder, fields, gep, 2,
+    "");
   return LLVMBuildLoad(c->builder, field_desc, "");
 }
 
@@ -542,14 +540,14 @@ LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
 {
   LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_info, 0, "");
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
-  return LLVMBuildAdd(c->builder, ptr, offset, "");
+  return LLVMBuildInBoundsGEP(c->builder, ptr, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef field_info)
 {
   LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
-  LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr,
+  LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
     LLVMPointerType(c->object_ptr, 0), "");
   return LLVMBuildLoad(c->builder, object_ptr, "");
 }
@@ -619,7 +617,7 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = phi;
 
-  LLVMValueRef id_ptr = LLVMBuildGEP(c->builder, list, gep, 2, "");
+  LLVMValueRef id_ptr = LLVMBuildInBoundsGEP(c->builder, list, gep, 2, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "");
   LLVMValueRef test_id = LLVMBuildICmp(c->builder, LLVMIntEQ, id, trait_id,
     "");
@@ -647,7 +645,7 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
   if(t == NULL)
     return GEN_NOVALUE;
 
-  LLVMValueRef left = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
-  LLVMValueRef right = LLVMConstPtrToInt(t->desc, c->intptr);
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, left, right, "");
+  LLVMValueRef dptr = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr,
+    "");
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, dptr, "");
 }

@@ -89,7 +89,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     // Load the object, load its descriptor, and continue from there.
     LLVMPositionBuilderAtEnd(c->builder, null_block);
     LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-    LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr,
+    LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
       ptr_type, "");
     LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
@@ -252,7 +252,7 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   // Load the object, load its descriptor, and continue from there.
   LLVMPositionBuilderAtEnd(c->builder, null_block);
   LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-  LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr, ptr_type,
+  LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr, ptr_type,
     "");
   LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
   LLVMValueRef object_desc = gendesc_fetch(c, object);
@@ -329,7 +329,7 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   // load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, param_type);
   LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
-  ptr = LLVMBuildIntToPtr(c->builder, ptr, ptr_type, "");
+  ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
   return check_value(c, pattern, param_type, value, next_block);
@@ -353,7 +353,7 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // We can load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, pattern_type);
   LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
-  ptr = LLVMBuildIntToPtr(c->builder, ptr, ptr_type, "");
+  ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
   return gen_assign_value(c, pattern, value, pattern_type) != NULL;
