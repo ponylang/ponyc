@@ -107,6 +107,11 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
+  LLVMSetReturnNoAlias(m->func);
+#if PONY_LLVM >= 307
+  LLVMSetDereferenceableOrNull(m->func, 0, size);
+#endif
+
   LLVMValueRef len = LLVMGetParam(m->func, 1);
   LLVMValueRef args[2];
   args[0] = codegen_ctx(c);
@@ -132,6 +137,11 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMSetReturnNoAlias(m->func);
+#if PONY_LLVM >= 307
+  LLVMSetDereferenceableOrNull(m->func, 0, size);
+#endif
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);

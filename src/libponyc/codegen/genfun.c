@@ -518,6 +518,13 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   const char* funname = genname_alloc(t->name);
   LLVMTypeRef ftype = LLVMFunctionType(t->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, funname, ftype);
+  if(t->underlying != TK_PRIMITIVE)
+  {
+    LLVMSetReturnNoAlias(fun);
+    LLVMTypeRef elem = LLVMGetElementType(t->use_type);
+    size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
+    LLVMSetDereferenceable(fun, 0, size);
+  }
   codegen_startfun(c, fun, NULL, NULL);
 
   LLVMValueRef result;
