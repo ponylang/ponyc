@@ -35,6 +35,7 @@ actor Main is TestList
     test(_TestStringCompare)
     test(_TestStringContains)
     test(_TestStringReadInt)
+    test(_TestStringUTF32)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
@@ -666,6 +667,47 @@ class iso _TestStringReadInt is UnitTest
     u8_misc = "...-0...".read_int[U8](3, 10)
     h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
 
+class iso _TestStringUTF32 is UnitTest
+  """
+  Test the UTF32 encoding and decoding
+  """
+  fun name(): String => "builtin/String.utf32"
+
+  fun apply(h: TestHelper) ? =>
+    var s = String.from_utf32(' ')
+    h.assert_eq[USize](1, s.size())
+    h.assert_eq[U8](' ', s(0))
+    h.assert_eq[U32](' ', s.utf32(0)._1)
+
+    s.push_utf32('\n')
+    h.assert_eq[USize](2, s.size())
+    h.assert_eq[U8]('\n', s(1))
+    h.assert_eq[U32]('\n', s.utf32(1)._1)
+
+    s = String.create()
+    s.push_utf32(0xA9) // (c)
+    h.assert_eq[USize](2, s.size())
+    h.assert_eq[U8](0xC2, s(0))
+    h.assert_eq[U8](0xA9, s(1))
+    h.assert_eq[U32](0xA9, s.utf32(0)._1)
+
+    s = String.create()
+    s.push_utf32(0x4E0C) // a CJK Unified Ideographs which looks like Pi
+    h.assert_eq[USize](3, s.size())
+    h.assert_eq[U8](0xE4, s(0))
+    h.assert_eq[U8](0xB8, s(1))
+    h.assert_eq[U8](0x8C, s(2))
+    h.assert_eq[U32](0x4E0C, s.utf32(0)._1)
+
+    s = String.create()
+    s.push_utf32(0x2070E) // first character found there: http://www.i18nguy.com/unicode/supplementary-test.html
+    h.assert_eq[USize](4, s.size())
+    h.assert_eq[U8](0xF0, s(0))
+    h.assert_eq[U8](0xA0, s(1))
+    h.assert_eq[U8](0x9C, s(2))
+    h.assert_eq[U8](0x8E, s(3))
+    h.assert_eq[U32](0x2070E, s.utf32(0)._1)
+
 
 class iso _TestArraySlice is UnitTest
   """
@@ -931,7 +973,7 @@ class iso _TestAddc is UnitTest
     test[U32](h, (0, true), U32(0xffff_ffff).addc(1))
     test[U32](h, (0xffff_fffe, true), U32(0xffff_ffff).addc(0xffff_ffff))
 
-    test[U64](h, (0xffff_ffff_ffff_ffff, false), 
+    test[U64](h, (0xffff_ffff_ffff_ffff, false),
                     U64(0xffff_ffff_ffff_fffe).addc(1))
     test[U64](h, (0, true),
                     U64(0xffff_ffff_ffff_ffff).addc(1))
@@ -953,13 +995,13 @@ class iso _TestAddc is UnitTest
     test[I32](h, (-0x8000_0000, true),  I32( 0x7fff_ffff).addc( 1))
     test[I32](h, ( 0x7fff_ffff, true),  I32(-0x8000_0000).addc(-1))
 
-    test[I64](h, ( 0x7fff_ffff_ffff_ffff, false), 
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, false),
                     I64( 0x7fff_ffff_ffff_fffe).addc( 1))
-    test[I64](h, (-0x8000_0000_0000_0000, false), 
+    test[I64](h, (-0x8000_0000_0000_0000, false),
                     I64(-0x7fff_ffff_ffff_ffff).addc(-1))
-    test[I64](h, (-0x8000_0000_0000_0000, true),  
+    test[I64](h, (-0x8000_0000_0000_0000, true),
                     I64( 0x7fff_ffff_ffff_ffff).addc( 1))
-    test[I64](h, ( 0x7fff_ffff_ffff_ffff, true),  
+    test[I64](h, ( 0x7fff_ffff_ffff_ffff, true),
                     I64(-0x8000_0000_0000_0000).addc(-1))
 
 
