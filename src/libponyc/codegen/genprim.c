@@ -230,6 +230,21 @@ static void pointer_offset(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   BOX_FUNCTION();
 }
 
+static void pointer_element_size(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
+{
+  FIND_METHOD("_element_size");
+  start_function(c, m, c->intptr, &t->use_type, 1);
+
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMBuildRet(c->builder, l_size);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
 static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   FIND_METHOD("_insert");
@@ -361,6 +376,47 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   BOX_FUNCTION();
 }
 
+static void pointer_consume_from(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
+{
+  FIND_METHOD("_consume_from");
+
+  LLVMTypeRef params[3];
+  params[0] = t->use_type;
+  params[1] = t->use_type;
+  params[2] = c->intptr;
+  start_function(c, m, t->use_type, params, 3);
+
+  // Set up a constant integer for the allocation size.
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMValueRef ptr = LLVMGetParam(m->func, 0);
+  LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
+  LLVMValueRef n = LLVMGetParam(m->func, 2);
+  LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
+
+  LLVMValueRef args[5];
+  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
+  args[2] = elen;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
+
+  // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
+  }
+
+  LLVMBuildRet(c->builder, ptr);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
 static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize");
@@ -387,9 +443,11 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_apply(c, t, t_elem);
   pointer_update(c, t, t_elem);
   pointer_offset(c, t, t_elem);
+  pointer_element_size(c, t, t_elem);
   pointer_insert(c, t, t_elem);
   pointer_delete(c, t, t_elem);
   pointer_copy_to(c, t, t_elem);
+  pointer_consume_from(c, t, t_elem);
   pointer_usize(c, t);
 }
 

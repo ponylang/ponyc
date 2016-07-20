@@ -218,6 +218,24 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
     this
 
+  fun ref compact(): String ref^ =>
+    """
+    Try to remove unused space, making it available for garbage collection. The
+    request may be ignored. The string is returned to allow call chaining.
+    """
+    if _size <= 512 then
+      if _size.next_pow2() != _alloc.next_pow2() then
+        _alloc = _size.next_pow2()
+        let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
+        _ptr._consume_from(consume old_ptr, _size)
+      end
+    elseif _size < _alloc then
+      _alloc = _size
+      let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
+      _ptr._consume_from(consume old_ptr, _size)
+    end
+    this
+
   fun ref recalc(): String ref^ =>
     """
     Recalculates the string length. This is only needed if the string is

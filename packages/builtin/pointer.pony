@@ -46,6 +46,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun tag _element_size(): USize =>
+    """
+    Return the size of a single element in an array of type A.
+    """
+    compile_intrinsic
+
   fun ref _insert(n: USize, len: USize): Pointer[A] =>
     """
     Creates space for n new elements at the head, moving following elements.
@@ -65,6 +71,12 @@ struct Pointer[A]
   fun _copy_to(that: Pointer[this->A!], n: USize): this->Pointer[A] =>
     """
     Copy n elements from this to that.
+    """
+    compile_intrinsic
+
+  fun ref _consume_from(that: Pointer[A]^, n: USize): Pointer[A]^ =>
+    """
+    Copy n elements from that to this.
     """
     compile_intrinsic
 

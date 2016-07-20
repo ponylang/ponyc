@@ -91,6 +91,24 @@ class Array[A] is Seq[A]
     end
     this
 
+  fun ref compact(): Array[A]^ =>
+    """
+    Try to remove unused space, making it available for garbage collection. The
+    request may be ignored. The array is returned to allow call chaining.
+    """
+    if _size <= (512 / _ptr._element_size()) then
+      if _size.next_pow2() != _alloc.next_pow2() then
+        _alloc = _size.next_pow2()
+        let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
+        _ptr._consume_from(consume old_ptr, _size)
+      end
+    elseif _size < _alloc then
+      _alloc = _size
+      let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
+      _ptr._consume_from(consume old_ptr, _size)
+    end
+    this
+
   fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize): Array[A]^
   =>
     """
