@@ -242,7 +242,7 @@ static void pointer_element_size(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
   FIND_METHOD("_element_size");
-  start_function(c, m, c->intptr, &t->use_type, 1);
+  start_function(c, t, m, c->intptr, &t->use_type, 1);
 
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
@@ -391,7 +391,7 @@ static void pointer_consume_from(compile_t* c, reach_type_t* t,
   params[0] = t->use_type;
   params[1] = t->use_type;
   params[2] = c->intptr;
-  start_function(c, m, t->use_type, params, 3);
+  start_function(c, t, m, t->use_type, params, 3);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
@@ -438,7 +438,7 @@ static void pointer_usize(compile_t* c, reach_type_t* t)
 static void pointer_is_null(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("is_null");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, ptr, "");
@@ -454,7 +454,7 @@ static void pointer_eq(compile_t* c, reach_type_t* t)
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = t->use_type;
-  start_function(c, m, c->ibool, params, 2);
+  start_function(c, t, m, c->ibool, params, 2);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
@@ -471,7 +471,7 @@ static void pointer_lt(compile_t* c, reach_type_t* t)
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = t->use_type;
-  start_function(c, m, c->ibool, params, 2);
+  start_function(c, t, m, c->ibool, params, 2);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
