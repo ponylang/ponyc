@@ -14,6 +14,7 @@ PONY_EXTERN_C_BEGIN
 typedef struct reach_method_t reach_method_t;
 typedef struct reach_method_name_t reach_method_name_t;
 typedef struct reach_field_t reach_field_t;
+typedef struct reach_param_t reach_param_t;
 typedef struct reach_type_t reach_type_t;
 
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
@@ -50,7 +51,7 @@ struct reach_method_t
   reach_method_t* subordinate;
 
   size_t param_count;
-  reach_type_t** params;
+  reach_param_t* params;
   reach_type_t* result;
 };
 
@@ -68,6 +69,12 @@ struct reach_field_t
   ast_t* ast;
   reach_type_t* type;
   bool embed;
+};
+
+struct reach_param_t
+{
+  reach_type_t* type;
+  token_id cap;
 };
 
 struct reach_type_t

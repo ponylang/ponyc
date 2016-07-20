@@ -2,6 +2,7 @@
 #include "../codegen/genname.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 #include "../type/lookup.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -53,7 +54,7 @@ static void reach_mangled_free(reach_method_t* m)
   ast_free(m->r_fun);
 
   if(m->param_count > 0)
-    ponyint_pool_free_size(m->param_count * sizeof(reach_type_t*), m->params);
+    ponyint_pool_free_size(m->param_count * sizeof(reach_param_t), m->params);
 
   POOL_FREE(reach_method_t, m);
 }
@@ -157,8 +158,8 @@ static void set_method_types(reach_t* r, reach_method_t* m,
     body);
 
   m->param_count = ast_childcount(params);
-  m->params = (reach_type_t**)ponyint_pool_alloc_size(
-    m->param_count * sizeof(reach_type_t*));
+  m->params = (reach_param_t*)ponyint_pool_alloc_size(
+    m->param_count * sizeof(reach_param_t));
 
   ast_t* param = ast_child(params);
   size_t i = 0;
@@ -166,7 +167,12 @@ static void set_method_types(reach_t* r, reach_method_t* m,
   while(param != NULL)
   {
     AST_GET_CHILDREN(param, p_id, p_type);
-    m->params[i++] = add_type(r, p_type, opt);
+    m->params[i].type = add_type(r, p_type, opt);
+    if(ast_id(p_type) != TK_NOMINAL && ast_id(p_type) != TK_TYPEPARAMREF)
+      m->params[i].cap = TK_REF;
+    else
+      m->params[i].cap = ast_id(cap_fetch(p_type));
+    ++i;
     param = ast_sibling(param);
   }
 
@@ -181,7 +187,7 @@ static const char* make_mangled_name(reach_method_t* m)
   printbuf(buf, "%s_", m->name);
 
   for(size_t i = 0; i < m->param_count; i++)
-    printbuf(buf, "%s", m->params[i]->mangle);
+    printbuf(buf, "%s", m->params[i].type->mangle);
 
   printbuf(buf, "%s", m->result->mangle);
   const char* name = stringtab(buf->m);
@@ -226,9 +232,9 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   mangled->forwarding = true;
 
   mangled->param_count = m->param_count;
-  mangled->params = (reach_type_t**)ponyint_pool_alloc_size(
-    mangled->param_count * sizeof(reach_type_t*));
-  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_type_t*));
+  mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
+    mangled->param_count * sizeof(reach_param_t));
+  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
   mangled->result = m->result;
 
   // Add to the mangled table only.

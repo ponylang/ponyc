@@ -56,7 +56,7 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
 
   for(size_t i = 0; i < m->param_count; i++)
   {
-    name_param(c, m->params[i], m, func, ast_name(ast_child(param)),
+    name_param(c, m->params[i].type, m, func, ast_name(ast_child(param)),
       (unsigned)i + 1, ast_line(param), ast_pos(param));
     param = ast_sibling(param);
   }
@@ -74,7 +74,7 @@ static void make_signature(reach_type_t* t, reach_method_t* m)
 
   // Get a type for each parameter.
   for(size_t i = 0; i < m->param_count; i++)
-    tparams[i + 1] = m->params[i]->use_type;
+    tparams[i + 1] = m->params[i].type->use_type;
 
   // Generate the function type.
   m->func_type = LLVMFunctionType(m->result->use_type, tparams, (int)count,
@@ -98,7 +98,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   md[1] = t->di_type;
 
   for(size_t i = 0; i < m->param_count; i++)
-    md[i + 2] = m->params[i]->di_type;
+    md[i + 2] = m->params[i].type->di_type;
 
   m->di_file = t->di_file;
 
@@ -163,6 +163,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     // Generate the sender prototype.
     const char* sender_name = genname_be(m->full_name);
     m->func = codegen_addfun(c, sender_name, m->func_type);
+    genfun_param_attrs(t, m, m->func);
 
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(m->func_type);
@@ -176,10 +177,12 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
     // Generate the handler prototype.
     m->func_handler = codegen_addfun(c, m->full_name, handler_type);
+    genfun_param_attrs(t, m, m->func_handler);
     make_function_debug(c, t, m, m->func_handler);
   } else {
     // Generate the function prototype.
     m->func = codegen_addfun(c, m->full_name, m->func_type);
+    genfun_param_attrs(t, m, m->func);
     make_function_debug(c, t, m, m->func);
   }
 
@@ -566,8 +569,8 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   for(int i = 1; i < count; i++)
   {
     LLVMValueRef value = LLVMGetParam(m->func, i);
-    args[i] = gen_assign_cast(c, m2->params[i - 1]->use_type, value,
-      m->params[i - 1]->ast);
+    args[i] = gen_assign_cast(c, m2->params[i - 1].type->use_type, value,
+      m->params[i - 1].type->ast);
   }
 
   LLVMValueRef ret = codegen_call(c, m2->func, args, count);
@@ -575,6 +578,56 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   LLVMBuildRet(c->builder, ret);
   codegen_finishfun(c);
   return true;
+}
+
+void genfun_param_attrs(reach_type_t* t, reach_method_t* m, LLVMValueRef fun)
+{
+  LLVMValueRef param = LLVMGetFirstParam(fun);
+  reach_type_t* type = t;
+  token_id cap = m->cap;
+  int i = -1;
+
+  while(param != NULL)
+  {
+    LLVMTypeRef m_type = LLVMTypeOf(param);
+    if(LLVMGetTypeKind(m_type) == LLVMPointerTypeKind)
+    {
+      if(i > -1)
+      {
+        type = m->params[i].type;
+        cap = m->params[i].cap;
+      }
+      else if(ast_id(m->r_fun) == TK_NEW)
+      {
+        param = LLVMGetNextParam(param);
+        ++i;
+        continue;
+      }
+      if(type->underlying != TK_ACTOR)
+      {
+        switch(cap)
+        {
+          case TK_ISO:
+            LLVMAddAttribute(param, LLVMNoAliasAttribute);
+            break;
+          case TK_TRN:
+          case TK_REF:
+            break;
+          case TK_VAL:
+          case TK_BOX:
+            LLVMAddAttribute(param, LLVMReadOnlyAttribute);
+            break;
+          case TK_TAG:
+            LLVMAddAttribute(param, LLVMReadNoneAttribute);
+            break;
+          default:
+            assert(0);
+        }
+      }
+    }
+    param = LLVMGetNextParam(param);
+    ++i;
+  }
 }
 
 bool genfun_method_sigs(compile_t* c, reach_type_t* t)
