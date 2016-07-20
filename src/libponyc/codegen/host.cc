@@ -49,6 +49,18 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size)
   f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
 }
 
+#if PONY_LLVM >= 307
+void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
+{
+  Function* f = unwrap<Function>(fun);
+
+  AttrBuilder attr;
+  attr.addDereferenceableOrNullAttr(size);
+
+  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
+}
+#endif
+
 #if PONY_LLVM < 307
 static fltSemantics const* float_semantics(Type* t)
 {

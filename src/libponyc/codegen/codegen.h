@@ -24,6 +24,9 @@ char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
+#if PONY_LLVM >= 307
+void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
+#endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
