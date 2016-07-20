@@ -59,13 +59,14 @@ class SSLConnection is TCPConnectionNotify
     _poll(conn)
     ""
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     """
     Pass the data to the SSL session and check for both new application data
     and new destination data.
     """
     _ssl.receive(consume data)
     _poll(conn)
+    true
 
   fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
     """

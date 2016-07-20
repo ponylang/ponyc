@@ -32,7 +32,7 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     _client._auth_failed(conn)
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     """
     Assemble chunks of data into a response. When we have a whole response,
     give it to the client and start a new one.
@@ -40,6 +40,7 @@ class _ResponseBuilder is TCPConnectionNotify
     // TODO: inactivity timer
     _buffer.append(consume data)
     _dispatch(conn)
+    true
 
   fun ref closed(conn: TCPConnection ref) =>
     """

@@ -33,7 +33,7 @@ class _RequestBuilder is TCPConnectionNotify
 
     _server = _ServerConnection(_handler, _logger, conn, host)
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     """
     Assemble chunks of data into a request. When we have a whole request,
     dispatch it.
@@ -55,3 +55,4 @@ class _RequestBuilder is TCPConnectionNotify
         break
       end
     end
+    true

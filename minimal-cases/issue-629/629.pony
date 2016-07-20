@@ -52,7 +52,7 @@ class ResponseBuilder is TCPConnectionNotify
     //_env.out.print("auth_failed")
     None
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     _buffer.append(consume data)
     try
       while true do
@@ -63,6 +63,7 @@ class ResponseBuilder is TCPConnectionNotify
          end
       end
     end
+    true
 
   fun ref connecting(conn: TCPConnection ref, count: U32) =>
     //_env.out.print("connecting")

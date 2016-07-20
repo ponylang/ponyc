@@ -185,7 +185,8 @@ class _TestPing is UDPNotify
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress) =>
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  =>
     _h.complete_action("ping receive")
 
     let s = String.append(consume data)
@@ -352,7 +353,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _h.complete_action("expect received")
     qty
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     if _frame then
       _frame = false
       _expect = 0
@@ -377,6 +378,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     end
 
     conn.expect(_expect)
+    true
 
   fun ref _send(conn: TCPConnection ref, data: String) =>
     let len = data.size()
