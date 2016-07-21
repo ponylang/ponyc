@@ -107,8 +107,8 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
         return LLVMConstInt(c->i1, 0, false);
 
       // Pointers must be to the same address.
-      l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
-      r_value = LLVMBuildPtrToInt(c->builder, r_value, c->intptr, "");
+      l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "");
+      r_value = LLVMBuildBitCast(c->builder, r_value, c->object_ptr, "");
       return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
     }
 

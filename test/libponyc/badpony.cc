@@ -155,6 +155,18 @@ TEST_F(BadPonyTest, ObjectLiteralUninitializedField)
   TEST_ERRORS_1(src, "object literal fields must be initialized");
 }
 
+TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpressionFail)
+{
+  // From issue #1018
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    lambda()(x) => None end\n"
+    "    let x = 0";
+
+   TEST_ERRORS_1(src, "declaration of 'x' appears after use");
+}
+
 // TODO: This test is not correct because it does not fail without the fix.
 // I do not know how to generate a test that calls genheader().
 // Comments are welcomed.

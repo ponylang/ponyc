@@ -46,6 +46,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun tag _element_size(): USize =>
+    """
+    Return the size of a single element in an array of type A.
+    """
+    compile_intrinsic
+
   fun ref _insert(n: USize, len: USize): Pointer[A] =>
     """
     Creates space for n new elements at the head, moving following elements.
@@ -68,6 +74,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun ref _consume_from(that: Pointer[A]^, n: USize): Pointer[A]^ =>
+    """
+    Copy n elements from that to this.
+    """
+    compile_intrinsic
+
   fun tag usize(): USize =>
     """
     Convert the pointer into an integer.
@@ -78,19 +90,19 @@ struct Pointer[A]
     """
     Return true for a null pointer, false for anything else.
     """
-    usize() == 0
+    compile_intrinsic
 
   fun tag eq(that: Pointer[A] tag): Bool =>
     """
     Return true if this address is that address.
     """
-    usize() == that.usize()
+    compile_intrinsic
 
   fun tag lt(that: Pointer[A] tag): Bool =>
     """
     Return true if this address is less than that address.
     """
-    usize() < that.usize()
+    compile_intrinsic
 
   fun tag ne(that: Pointer[A] tag): Bool => not eq(that)
   fun tag le(that: Pointer[A] tag): Bool => lt(that) or eq(that)

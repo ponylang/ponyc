@@ -3,6 +3,8 @@ primitive F32 is FloatingPoint[F32]
   new pi() => 3.14159265358979323846
   new e() => 2.71828182845904523536
 
+  new _nan() => compile_intrinsic
+
   new from_bits(i: U32) => compile_intrinsic
   fun bits(): U32 => compile_intrinsic
   fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
@@ -123,7 +125,13 @@ primitive F32 is FloatingPoint[F32]
       @"llvm.powi.f32"[F32](this, y)
     end
 
-  fun sqrt(): F32 => @"llvm.sqrt.f32"[F32](this)
+  fun sqrt(): F32 =>
+    if this < 0.0 then
+      _nan()
+    else
+      @"llvm.sqrt.f32"[F32](this)
+    end
+
   fun cbrt(): F32 => @cbrtf[F32](this)
   fun exp(): F32 => @"llvm.exp.f32"[F32](this)
   fun exp2(): F32 => @"llvm.exp2.f32"[F32](this)
@@ -156,6 +164,8 @@ primitive F64 is FloatingPoint[F64]
   new create(value: F64 = 0) => value
   new pi() => 3.14159265358979323846
   new e() => 2.71828182845904523536
+
+  new _nan() => compile_intrinsic
 
   new from_bits(i: U64) => compile_intrinsic
   fun bits(): U64 => compile_intrinsic
@@ -277,7 +287,13 @@ primitive F64 is FloatingPoint[F64]
       @"llvm.powi.f64"[F64](this, y)
     end
 
-  fun sqrt(): F64 => @"llvm.sqrt.f64"[F64](this)
+  fun sqrt(): F64 =>
+    if this < 0.0 then
+      _nan()
+    else
+      @"llvm.sqrt.f64"[F64](this)
+    end
+
   fun cbrt(): F64 => @cbrt[F64](this)
   fun exp(): F64 => @"llvm.exp.f64"[F64](this)
   fun exp2(): F64 => @"llvm.exp2.f64"[F64](this)
@@ -343,3 +359,5 @@ primitive F64 is FloatingPoint[F64]
     end
 
     r.u128()
+
+type Float is (F32 | F64)

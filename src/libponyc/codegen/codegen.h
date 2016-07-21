@@ -24,6 +24,10 @@ char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
+#if PONY_LLVM >= 307
+void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
+#endif
+LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -75,6 +79,7 @@ typedef struct compile_t
   const char* str_F64;
   const char* str_Pointer;
   const char* str_Maybe;
+  const char* str_DoNotOptimise;
   const char* str_Array;
   const char* str_String;
   const char* str_Platform;
@@ -108,6 +113,7 @@ typedef struct compile_t
   const char* str__event_notify;
 
   LLVMCallConv callconv;
+  LLVMLinkage linkage;
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
   LLVMTargetDataRef target_data;

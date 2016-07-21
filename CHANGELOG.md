@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Runtime crash when Main.create is a function instead of a constructor.
 - Compiler bug where `as` operator with a lambda literal caused seg fault.
 - String.read_int failure on lowest number in the range of signed integers.
+- Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 
 ### Added
 
@@ -84,6 +85,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - `serialise` package.
 - contains() method on String
 - `.string()` of json objects, arrays, and doc now takes `pretty_print: Bool`. Default is true.
+- optional parameter in json objects, arrays, and doc to turn on pretty printing
+- `DoNotOptimise` primitive
+- `compact` method for `Array` and `String`
+- `String.push_utf32()` method.
 
 ### Changed
 

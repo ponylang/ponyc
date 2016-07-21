@@ -16,8 +16,9 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
   // Ignore leading $, handled by lexer
   if(*name == '$')
   {
-    name++;
-    prev = '$';
+    // We assume this variable has been placed by someone or something who
+    // knows what they are doing
+    return true;
   }
 
   // Ignore leading _

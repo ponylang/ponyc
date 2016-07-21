@@ -10,6 +10,7 @@
 #include "../type/assemble.h"
 
 #include <assert.h>
+#include <string.h>
 
 #define FIND_METHOD(name) \
   const char* strtab_name = stringtab(name); \
@@ -20,11 +21,12 @@
 #define BOX_FUNCTION() \
   box_function(t, m, strtab_name);
 
-static void start_function(compile_t* c, reach_method_t* m,
+static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   LLVMTypeRef result, LLVMTypeRef* params, unsigned count)
 {
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
+  genfun_param_attrs(t, m, m->func);
   codegen_startfun(c, m->func, NULL, NULL);
 }
 
@@ -67,11 +69,12 @@ static void box_function(reach_type_t* t, reach_method_t* m, const char* name)
 static LLVMValueRef field_loc(compile_t* c, LLVMValueRef offset,
   LLVMTypeRef structure, LLVMTypeRef ftype, int index)
 {
-  LLVMValueRef f_offset = LLVMBuildAdd(c->builder, offset,
-    LLVMConstInt(c->intptr,
-      LLVMOffsetOfElement(c->target_data, structure, index), false), "");
+  LLVMValueRef size = LLVMConstInt(c->intptr,
+    LLVMOffsetOfElement(c->target_data, structure, index), false);
+  LLVMValueRef f_offset = LLVMBuildInBoundsGEP(c->builder, offset, &size, 1,
+    "");
 
-  return LLVMBuildIntToPtr(c->builder, f_offset,
+  return LLVMBuildBitCast(c->builder, f_offset,
     LLVMPointerType(ftype, 0), "");
 }
 
@@ -84,7 +87,7 @@ static LLVMValueRef field_value(compile_t* c, LLVMValueRef object, int index)
 static void pointer_create(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("create");
-  start_function(c, m, t->use_type, &t->use_type, 1);
+  start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMValueRef result = LLVMConstNull(t->use_type);
 
@@ -100,11 +103,16 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = c->intptr;
-  start_function(c, m, t->use_type, params, 2);
+  start_function(c, t, m, t->use_type, params, 2);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMSetReturnNoAlias(m->func);
+#if PONY_LLVM >= 307
+  LLVMSetDereferenceableOrNull(m->func, 0, size);
+#endif
 
   LLVMValueRef len = LLVMGetParam(m->func, 1);
   LLVMValueRef args[2];
@@ -126,11 +134,16 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = c->intptr;
-  start_function(c, m, t->use_type, params, 2);
+  start_function(c, t, m, t->use_type, params, 2);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMSetReturnNoAlias(m->func);
+#if PONY_LLVM >= 307
+  LLVMSetDereferenceableOrNull(m->func, 0, size);
+#endif
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
@@ -149,7 +162,7 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
 static void pointer_unsafe(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("_unsafe");
-  start_function(c, m, t->use_type, &t->use_type, 1);
+  start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMGetParam(m->func, 0));
   codegen_finishfun(c);
@@ -162,14 +175,14 @@ static void pointer_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = c->intptr;
-  start_function(c, m, t_elem->use_type, params, 2);
+  start_function(c, t, m, t_elem->use_type, params, 2);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef index = LLVMGetParam(m->func, 1);
 
   LLVMValueRef elem_ptr = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
-  LLVMValueRef loc = LLVMBuildGEP(c->builder, elem_ptr, &index, 1, "");
+  LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
   LLVMBuildRet(c->builder, result);
@@ -186,14 +199,14 @@ static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   params[0] = t->use_type;
   params[1] = c->intptr;
   params[2] = t_elem->use_type;
-  start_function(c, m, t_elem->use_type, params, 3);
+  start_function(c, t, m, t_elem->use_type, params, 3);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef index = LLVMGetParam(m->func, 1);
 
   LLVMValueRef elem_ptr = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
-  LLVMValueRef loc = LLVMBuildGEP(c->builder, elem_ptr, &index, 1, "");
+  LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
   LLVMBuildStore(c->builder, LLVMGetParam(m->func, 2), loc);
 
@@ -208,22 +221,33 @@ static void pointer_offset(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMTypeRef params[3];
   params[0] = t->use_type;
   params[1] = c->intptr;
-  start_function(c, m, t->use_type, params, 2);
-
-  // Set up a constant integer for the allocation size.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+  start_function(c, t, m, t->use_type, params, 2);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef n = LLVMGetParam(m->func, 1);
 
   // Return ptr + (n * sizeof(len)).
-  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
-  LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
-  LLVMValueRef result = LLVMBuildAdd(c->builder, src, offset, "");
-  result = LLVMBuildIntToPtr(c->builder, result, t->use_type, "");
+  LLVMValueRef elem_ptr = LLVMBuildBitCast(c->builder, ptr,
+    LLVMPointerType(t_elem->use_type, 0), "");
+  LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
+  LLVMValueRef result = LLVMBuildBitCast(c->builder, loc, t->use_type, "");
 
   LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
+static void pointer_element_size(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
+{
+  FIND_METHOD("_element_size");
+  start_function(c, t, m, c->intptr, &t->use_type, 1);
+
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMBuildRet(c->builder, l_size);
   codegen_finishfun(c);
 
   BOX_FUNCTION();
@@ -237,7 +261,7 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   params[0] = t->use_type;
   params[1] = c->intptr;
   params[2] = c->intptr;
-  start_function(c, m, t->use_type, params, 3);
+  start_function(c, t, m, t->use_type, params, 3);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
@@ -247,14 +271,14 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef n = LLVMGetParam(m->func, 1);
   LLVMValueRef len = LLVMGetParam(m->func, 2);
 
-  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
-  LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
-  LLVMValueRef dst = LLVMBuildAdd(c->builder, src, offset, "");
+  LLVMValueRef src = LLVMBuildBitCast(c->builder, ptr,
+    LLVMPointerType(t_elem->use_type, 0), "");
+  LLVMValueRef dst = LLVMBuildInBoundsGEP(c->builder, src, &n, 1, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
   LLVMValueRef args[5];
-  args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
-  args[1] = LLVMBuildIntToPtr(c->builder, src, c->void_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, dst, t->use_type, "");
+  args[1] = ptr;
   args[2] = elen;
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
@@ -280,7 +304,7 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   params[0] = t->use_type;
   params[1] = c->intptr;
   params[2] = c->intptr;
-  start_function(c, m, t_elem->use_type, params, 3);
+  start_function(c, t, m, t_elem->use_type, params, 3);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
@@ -294,14 +318,12 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
 
-  LLVMValueRef dst = LLVMBuildPtrToInt(c->builder, elem_ptr, c->intptr, "");
-  LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
-  LLVMValueRef src = LLVMBuildAdd(c->builder, dst, offset, "");
+  LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
   LLVMValueRef args[5];
-  args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
-  args[1] = LLVMBuildIntToPtr(c->builder, src, c->void_ptr, "");
+  args[0] = ptr;
+  args[1] = LLVMBuildBitCast(c->builder, src, t->use_type, "");
   args[2] = elen;
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
@@ -328,7 +350,7 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   params[0] = t->use_type;
   params[1] = t->use_type;
   params[2] = c->intptr;
-  start_function(c, m, t->use_type, params, 3);
+  start_function(c, t, m, t->use_type, params, 3);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
@@ -340,8 +362,8 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
   LLVMValueRef args[5];
-  args[0] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
-  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[0] = ptr2;
+  args[1] = ptr;
   args[2] = elen;
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
@@ -360,13 +382,101 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   BOX_FUNCTION();
 }
 
+static void pointer_consume_from(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
+{
+  FIND_METHOD("_consume_from");
+
+  LLVMTypeRef params[3];
+  params[0] = t->use_type;
+  params[1] = t->use_type;
+  params[2] = c->intptr;
+  start_function(c, t, m, t->use_type, params, 3);
+
+  // Set up a constant integer for the allocation size.
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
+
+  LLVMValueRef ptr = LLVMGetParam(m->func, 0);
+  LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
+  LLVMValueRef n = LLVMGetParam(m->func, 2);
+  LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
+
+  LLVMValueRef args[5];
+  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
+  args[2] = elen;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
+
+  // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
+  if(target_is_ilp32(c->opt->triple))
+  {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
+  } else {
+    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
+  }
+
+  LLVMBuildRet(c->builder, ptr);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
 static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize");
-  start_function(c, m, c->intptr, &t->use_type, 1);
+  start_function(c, t, m, c->intptr, &t->use_type, 1);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
   LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_is_null(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("is_null");
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
+
+  LLVMValueRef ptr = LLVMGetParam(m->func, 0);
+  LLVMValueRef test = LLVMBuildIsNull(c->builder, ptr, "");
+  LLVMValueRef result = LLVMBuildZExt(c->builder, test, c->ibool, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_eq(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("eq");
+  LLVMTypeRef params[2];
+  params[0] = t->use_type;
+  params[1] = t->use_type;
+  start_function(c, t, m, c->ibool, params, 2);
+
+  LLVMValueRef ptr = LLVMGetParam(m->func, 0);
+  LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
+  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, ptr, ptr2, "");
+  LLVMValueRef result = LLVMBuildZExt(c->builder, test, c->ibool, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_lt(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("lt");
+  LLVMTypeRef params[2];
+  params[0] = t->use_type;
+  params[1] = t->use_type;
+  start_function(c, t, m, c->ibool, params, 2);
+
+  LLVMValueRef ptr = LLVMGetParam(m->func, 0);
+  LLVMValueRef ptr2 = LLVMGetParam(m->func, 1);
+  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, ptr, ptr2, "");
+  LLVMValueRef result = LLVMBuildZExt(c->builder, test, c->ibool, "");
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -386,10 +496,15 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_apply(c, t, t_elem);
   pointer_update(c, t, t_elem);
   pointer_offset(c, t, t_elem);
+  pointer_element_size(c, t, t_elem);
   pointer_insert(c, t, t_elem);
   pointer_delete(c, t, t_elem);
   pointer_copy_to(c, t, t_elem);
+  pointer_consume_from(c, t, t_elem);
   pointer_usize(c, t);
+  pointer_is_null(c, t);
+  pointer_eq(c, t);
+  pointer_lt(c, t);
 }
 
 static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
@@ -399,7 +514,7 @@ static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = t_elem->use_type;
-  start_function(c, m, t->use_type, params, 2);
+  start_function(c, t, m, t->use_type, params, 2);
 
   LLVMValueRef param = LLVMGetParam(m->func, 1);
   LLVMValueRef result = LLVMBuildBitCast(c->builder, param, t->use_type, "");
@@ -410,7 +525,7 @@ static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 static void maybe_none(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("none");
-  start_function(c, m, t->use_type, &t->use_type, 1);
+  start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMConstNull(t->use_type));
   codegen_finishfun(c);
@@ -420,7 +535,7 @@ static void maybe_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
   // Returns the receiver if it isn't null.
   FIND_METHOD("apply");
-  start_function(c, m, t_elem->use_type, &t->use_type, 1);
+  start_function(c, t, m, t_elem->use_type, &t->use_type, 1);
 
   LLVMValueRef result = LLVMGetParam(m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, result, "");
@@ -445,7 +560,7 @@ static void maybe_is_none(compile_t* c, reach_type_t* t)
 {
   // Returns true if the receiver is null.
   FIND_METHOD("is_none");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef receiver = LLVMGetParam(m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, receiver, "");
@@ -467,6 +582,70 @@ void genprim_maybe_methods(compile_t* c, reach_type_t* t)
   maybe_none(c, t);
   maybe_apply(c, t, t_elem);
   maybe_is_none(c, t);
+}
+
+static void donotoptimise_apply(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  const char* strtab_name = m->name;
+  m->intrinsic = true;
+
+  ast_t* typearg = ast_child(m->typeargs);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  LLVMTypeRef params[2];
+  params[0] = t->use_type;
+  params[1] = t_elem->use_type;
+
+  start_function(c, t, m, m->result->use_type, params, 2);
+
+  LLVMValueRef obj = LLVMGetParam(m->func, 1);
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, &t_elem->use_type, 1,
+    false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "imr,~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+
+  LLVMBuildRet(c->builder, m->result->instance);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
+static void donotoptimise_observe(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("observe");
+
+  start_function(c, t, m, m->result->use_type, &t->use_type, 1);
+
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+
+  LLVMBuildRet(c->builder, m->result->instance);
+  codegen_finishfun(c);
+
+  BOX_FUNCTION();
+}
+
+void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_method_name_t* mn;
+
+  const char* str_apply = stringtab("apply");
+  while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
+  {
+    if(mn->name == str_apply)
+    {
+      size_t j = HASHMAP_BEGIN;
+      reach_method_t* m;
+      while((m = reach_methods_next(&mn->r_methods, &j)) != NULL)
+        donotoptimise_apply(c, t, m);
+      break;
+    }
+  }
+  donotoptimise_observe(c, t);
 }
 
 static void trace_array_elements(compile_t* c, reach_type_t* t,
@@ -504,7 +683,8 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
 
   // The phi node is the index. Get the element and trace it.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
-  LLVMValueRef elem_ptr = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
+  LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, pointer, &phi, 1,
+    "");
   LLVMValueRef elem = LLVMBuildLoad(c->builder, elem_ptr, "");
   gentrace(c, ctx, elem, typearg);
 
@@ -522,6 +702,7 @@ void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
   codegen_startfun(c, t->trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
   LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
 
@@ -548,6 +729,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
@@ -588,6 +770,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
@@ -597,8 +780,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
-  LLVMValueRef offset_addr = LLVMBuildAdd(c->builder,
-    LLVMBuildPtrToInt(c->builder, addr, c->intptr, ""), offset, "");
+  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP(c->builder, addr, &offset, 1,
+    "");
 
   genserialise_typeid(c, t, offset_addr);
 
@@ -637,8 +820,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr_loc = field_loc(c, offset_addr, t->structure, c->intptr, 3);
   LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
 
-  LLVMValueRef ptr_offset_addr = LLVMBuildAdd(c->builder, ptr_offset,
-    LLVMBuildPtrToInt(c->builder, addr, c->intptr, ""), "");
+  LLVMValueRef ptr_offset_addr = LLVMBuildInBoundsGEP(c->builder, addr,
+    &ptr_offset, 1, "");
 
   // Serialise elements.
   ast_t* typeargs = ast_childidx(t->ast, 2);
@@ -651,8 +834,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   if((t_elem->underlying == TK_PRIMITIVE) && (t_elem->primitive != NULL))
   {
     // memcpy machine words
-    args[0] = LLVMBuildIntToPtr(c->builder, ptr_offset_addr, c->void_ptr, "");
-    args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+    args[0] = ptr_offset_addr;
+    args[1] = ptr;
     args[2] = LLVMBuildMul(c->builder, size, l_size, "");
     args[3] = LLVMConstInt(c->i32, 1, false);
     args[4] = LLVMConstInt(c->i1, 0, false);
@@ -671,7 +854,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
     LLVMBasicBlockRef body_block = codegen_block(c, "body");
     LLVMBasicBlockRef post_block = codegen_block(c, "post");
 
-    LLVMValueRef offset_var = LLVMBuildAlloca(c->builder, c->intptr, "");
+    LLVMValueRef offset_var = LLVMBuildAlloca(c->builder, c->void_ptr, "");
     LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
 
     LLVMBuildBr(c->builder, cond_block);
@@ -687,11 +870,12 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 
     // The phi node is the index. Get the element and serialise it.
     LLVMPositionBuilderAtEnd(c->builder, body_block);
-    LLVMValueRef elem_ptr = LLVMBuildGEP(c->builder, ptr, &phi, 1, "");
+    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, ptr, &phi, 1, "");
 
     ptr_offset_addr = LLVMBuildLoad(c->builder, offset_var, "");
     genserialise_element(c, t_elem, false, ctx, elem_ptr, ptr_offset_addr);
-    ptr_offset_addr = LLVMBuildAdd(c->builder, ptr_offset_addr, l_size, "");
+    ptr_offset_addr = LLVMBuildInBoundsGEP(c->builder, ptr_offset_addr, &l_size,
+      1, "");
     LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
 
     // Add one to the phi node and branch back to the cond block.
@@ -718,6 +902,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->deserialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->deserialise_fn, 1);
@@ -773,7 +958,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 
     // The phi node is the index. Get the element and deserialise it.
     LLVMPositionBuilderAtEnd(c->builder, body_block);
-    LLVMValueRef elem_ptr = LLVMBuildGEP(c->builder, ptr, &phi, 1, "");
+    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, ptr, &phi, 1, "");
     gendeserialise_element(c, t_elem, false, ctx, elem_ptr);
 
     // Add one to the phi node and branch back to the cond block.
@@ -798,6 +983,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_trace_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
@@ -829,6 +1015,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->serialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->serialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->serialise_fn, 1);
@@ -838,8 +1025,8 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
     "");
-  LLVMValueRef offset_addr = LLVMBuildAdd(c->builder,
-    LLVMBuildPtrToInt(c->builder, addr, c->intptr, ""), offset, "");
+  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP(c->builder, addr, &offset, 1,
+    "");
 
   genserialise_typeid(c, t, offset_addr);
 
@@ -877,10 +1064,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
 
   // Serialise the string contents.
-  LLVMValueRef ptr_offset_addr = LLVMBuildAdd(c->builder,
-    LLVMBuildPtrToInt(c->builder, addr, c->intptr, ""), ptr_offset, "");
-
-  args[0] = LLVMBuildIntToPtr(c->builder, ptr_offset_addr, c->void_ptr, "");
+  args[0] = LLVMBuildInBoundsGEP(c->builder, addr, &ptr_offset, 1, "");
   args[1] = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
     c->void_ptr, "");
   args[2] = alloc;
@@ -908,6 +1092,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
+  LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(t->deserialise_fn, 0);
   LLVMValueRef arg = LLVMGetParam(t->deserialise_fn, 1);
@@ -938,7 +1123,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 static void platform_freebsd(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("freebsd");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_freebsd(c->opt->triple), false);
@@ -951,7 +1136,7 @@ static void platform_freebsd(compile_t* c, reach_type_t* t)
 static void platform_linux(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("linux");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_linux(c->opt->triple), false);
@@ -964,7 +1149,7 @@ static void platform_linux(compile_t* c, reach_type_t* t)
 static void platform_osx(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("osx");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_macosx(c->opt->triple), false);
@@ -977,7 +1162,7 @@ static void platform_osx(compile_t* c, reach_type_t* t)
 static void platform_windows(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("windows");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_windows(c->opt->triple), false);
@@ -990,7 +1175,7 @@ static void platform_windows(compile_t* c, reach_type_t* t)
 static void platform_x86(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("x86");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_x86(c->opt->triple), false);
@@ -1003,7 +1188,7 @@ static void platform_x86(compile_t* c, reach_type_t* t)
 static void platform_arm(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("arm");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_arm(c->opt->triple), false);
@@ -1016,7 +1201,7 @@ static void platform_arm(compile_t* c, reach_type_t* t)
 static void platform_lp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("lp64");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_lp64(c->opt->triple), false);
@@ -1029,7 +1214,7 @@ static void platform_lp64(compile_t* c, reach_type_t* t)
 static void platform_llp64(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("llp64");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_llp64(c->opt->triple), false);
@@ -1042,7 +1227,7 @@ static void platform_llp64(compile_t* c, reach_type_t* t)
 static void platform_ilp32(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("ilp32");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_ilp32(c->opt->triple), false);
@@ -1055,7 +1240,7 @@ static void platform_ilp32(compile_t* c, reach_type_t* t)
 static void platform_native128(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("native128");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_native128(c->opt->triple), false);
@@ -1068,7 +1253,7 @@ static void platform_native128(compile_t* c, reach_type_t* t)
 static void platform_debug(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("debug");
-  start_function(c, m, c->ibool, &t->use_type, 1);
+  start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result = LLVMConstInt(c->ibool, !c->opt->release, false);
   LLVMBuildRet(c->builder, result);
@@ -1119,7 +1304,7 @@ static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
     return;
 
   FIND_METHOD(to->fun_name);
-  start_function(c, m, to->type, &from->type, 1);
+  start_function(c, t, m, to->type, &from->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(m->func, 0);
   LLVMValueRef result;
@@ -1257,6 +1442,16 @@ static void number_conversions(compile_t* c)
   }
 }
 
+static void f32__nan(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_nan");
+  start_function(c, t, m, c->f32, &c->f32, 1);
+
+  LLVMValueRef result = LLVMConstNaN(c->f32);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void f32_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits");
@@ -1264,7 +1459,7 @@ static void f32_from_bits(compile_t* c, reach_type_t* t)
   LLVMTypeRef params[2];
   params[0] = c->f32;
   params[1] = c->i32;
-  start_function(c, m, c->f32, params, 2);
+  start_function(c, t, m, c->f32, params, 2);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 1),
     c->f32, "");
@@ -1275,7 +1470,7 @@ static void f32_from_bits(compile_t* c, reach_type_t* t)
 static void f32_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("bits");
-  start_function(c, m, c->i32, &c->f32, 1);
+  start_function(c, t, m, c->i32, &c->f32, 1);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 0),
     c->i32, "");
@@ -1285,6 +1480,16 @@ static void f32_bits(compile_t* c, reach_type_t* t)
   BOX_FUNCTION();
 }
 
+static void f64__nan(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_nan");
+  start_function(c, t, m, c->f64, &c->f64, 1);
+
+  LLVMValueRef result = LLVMConstNaN(c->f64);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void f64_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits");
@@ -1292,7 +1497,7 @@ static void f64_from_bits(compile_t* c, reach_type_t* t)
   LLVMTypeRef params[2];
   params[0] = c->f64;
   params[1] = c->i64;
-  start_function(c, m, c->f64, params, 2);
+  start_function(c, t, m, c->f64, params, 2);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 1),
     c->f64, "");
@@ -1303,7 +1508,7 @@ static void f64_from_bits(compile_t* c, reach_type_t* t)
 static void f64_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("bits");
-  start_function(c, m, c->i64, &c->f64, 1);
+  start_function(c, t, m, c->i64, &c->f64, 1);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 0),
     c->i64, "");
@@ -1313,18 +1518,20 @@ static void f64_bits(compile_t* c, reach_type_t* t)
   BOX_FUNCTION();
 }
 
-static void fp_as_bits(compile_t* c)
+static void fp_intrinsics(compile_t* c)
 {
   reach_type_t* t;
 
   if((t = reach_type_name(c->reach, "F32")) != NULL)
   {
+    f32__nan(c, t);
     f32_from_bits(c, t);
     f32_bits(c, t);
   }
 
   if((t = reach_type_name(c->reach, "F64")) != NULL)
   {
+    f64__nan(c, t);
     f64_from_bits(c, t);
     f64_bits(c, t);
   }
@@ -1385,7 +1592,7 @@ static void make_rdtscp(compile_t* c)
 void genprim_builtins(compile_t* c)
 {
   number_conversions(c);
-  fp_as_bits(c);
+  fp_intrinsics(c);
   make_cpuid(c);
   make_rdtscp(c);
 }

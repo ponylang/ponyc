@@ -51,11 +51,15 @@ Then you'll be able to run `ponyc` to compile a Pony program in a given director
 $ docker run -v /path/to/my-code:/src/main ponylang/ponyc
 ```
 
+If you're unfamiliar with Docker, remember to ensure that whatever path you provide for `/path/to/my-code` is a full path name and not a relative path, and also note the lack of a closing slash, `/`, at the *end* of the path name.
+
 Note that if your host doesn't match the docker container, you'll probably have to run the resulting program inside the docker container as well, using a command like this:
 
 ```bash
 $ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
+
+If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
@@ -93,7 +97,9 @@ We're transitioning to a new binary release system. For now, please build from s
 
 ## Windows
 
-You will need to build from source.
+To run as native Windows binary, you will need to [build from source](#building-ponyc-from-source).
+
+If you are running Windows 10 Anniversary Update, you can install Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about). This was tested on build 14372.0.
 
 # Building ponyc from source
 

@@ -57,6 +57,8 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc);
 
 void ponyint_gc_handlestack(pony_ctx_t* ctx);
 
+void ponyint_gc_discardstack(pony_ctx_t* ctx);
+
 void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc);
 
 void ponyint_gc_sendacquire(pony_ctx_t* ctx);

@@ -87,9 +87,9 @@ interface ParseError
   fun report(out: OutStream)
 
 class Options is Iterator[(ParsedOption | ParseError | None)]
-  let _arguments: Array[String ref]
+  embed _arguments: Array[String ref]
   let _fatal: Bool
-  var _configuration: Array[_Option] = _configuration.create()
+  embed _configuration: Array[_Option] = _configuration.create()
   var _index: USize = 0
   var _error: Bool = false
 

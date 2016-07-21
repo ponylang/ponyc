@@ -35,7 +35,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 
 bool is_this_incomplete(typecheck_t* t, ast_t* ast)
 {
-  // If we're in a default argument, we're incomplete by definition.
+  // If we're in a default field initialiser, we're incomplete by definition.
   if(t->frame->method == NULL)
     return true;
 
@@ -229,7 +229,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 }
 
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool incomplete, bool partial)
+  bool partial)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -270,24 +270,8 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     }
 
     ast_t* a_type = alias(arg_type);
-
-    if(incomplete)
-    {
-      ast_t* expr = arg;
-
-      if(ast_id(arg) == TK_SEQ)
-        expr = ast_child(arg);
-
-      // If 'this' is incomplete and the arg is 'this', change the type to tag.
-      if((ast_id(expr) == TK_THIS) && (ast_sibling(expr) == NULL))
-      {
-        ast_t* tag_type = set_cap_and_ephemeral(a_type, TK_TAG, TK_NONE);
-        ast_free_unattached(a_type);
-        a_type = tag_type;
-      }
-    }
-
     errorframe_t info = NULL;
+
     if(!is_subtype(a_type, p_type, &info, opt))
     {
       errorframe_t frame = NULL;
@@ -339,7 +323,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   return true;
 }
 
-static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool incomplete)
+static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
@@ -392,19 +376,6 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool incomplete)
   else
     a_type = alias(r_type);
 
-  if(incomplete && (ast_id(receiver) == TK_THIS))
-  {
-    // If 'this' is incomplete and the arg is 'this', change the type to tag.
-    ast_t* tag_type = set_cap_and_ephemeral(a_type, TK_TAG, TK_NONE);
-
-    if(a_type != r_type)
-      ast_free_unattached(a_type);
-
-    a_type = tag_type;
-  } else {
-    incomplete = false;
-  }
-
   errorframe_t info = NULL;
   bool ok = is_subtype(a_type, t_type, &info, opt);
 
@@ -424,13 +395,6 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool incomplete)
       ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
-    }
-
-    if(incomplete && is_subtype(r_type, t_type, NULL, opt))
-    {
-      ast_error_frame(&frame, ast,
-        "this would be possible if all the fields of 'this' were assigned to "
-        "at this point");
     }
 
     errorframe_append(&frame, &info);
@@ -465,16 +429,14 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  bool incomplete = is_this_incomplete(&opt->check, ast);
-
-  if(!check_arg_types(opt, params, positional, incomplete, partial))
+  if(!check_arg_types(opt, params, positional, partial))
     return false;
 
   switch(ast_id(lhs))
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(!check_receiver_cap(opt, ast, incomplete))
+      if(!check_receiver_cap(opt, ast))
         return false;
       break;
 

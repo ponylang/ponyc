@@ -23,6 +23,7 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast);
 bool expr_nominal(pass_opt_t* opt, ast_t** astp);
 bool expr_fun(pass_opt_t* opt, ast_t* ast);
 bool expr_compile_intrinsic(pass_opt_t* opt, ast_t* ast);
+bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name);
 
 PONY_EXTERN_C_END
 

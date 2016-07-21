@@ -401,33 +401,37 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 {
   // This is used for structural equality in pattern matching.
   ast_t* pattern_type = ast_type(pattern);
-  AST_GET_CHILDREN(pattern_type, package, id);
 
-  // Special case equality on primitive types.
-  if(ast_name(package) == c->str_builtin)
+  if(ast_id(pattern_type) == TK_NOMINAL)
   {
-    const char* name = ast_name(id);
+    AST_GET_CHILDREN(pattern_type, package, id);
 
-    if((name == c->str_Bool) ||
-      (name == c->str_I8) ||
-      (name == c->str_I16) ||
-      (name == c->str_I32) ||
-      (name == c->str_I64) ||
-      (name == c->str_I128) ||
-      (name == c->str_ILong) ||
-      (name == c->str_ISize) ||
-      (name == c->str_U8) ||
-      (name == c->str_U16) ||
-      (name == c->str_U32) ||
-      (name == c->str_U64) ||
-      (name == c->str_U128) ||
-      (name == c->str_ULong) ||
-      (name == c->str_USize) ||
-      (name == c->str_F32) ||
-      (name == c->str_F64)
-      )
+    // Special case equality on primitive types.
+    if(ast_name(package) == c->str_builtin)
     {
-      return gen_eq_rvalue(c, pattern, r_value);
+      const char* name = ast_name(id);
+
+      if((name == c->str_Bool) ||
+        (name == c->str_I8) ||
+        (name == c->str_I16) ||
+        (name == c->str_I32) ||
+        (name == c->str_I64) ||
+        (name == c->str_I128) ||
+        (name == c->str_ILong) ||
+        (name == c->str_ISize) ||
+        (name == c->str_U8) ||
+        (name == c->str_U16) ||
+        (name == c->str_U32) ||
+        (name == c->str_U64) ||
+        (name == c->str_U128) ||
+        (name == c->str_ULong) ||
+        (name == c->str_USize) ||
+        (name == c->str_F32) ||
+        (name == c->str_F64)
+        )
+      {
+        return gen_eq_rvalue(c, pattern, r_value);
+      }
     }
   }
 
