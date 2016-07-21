@@ -151,6 +151,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
   switch(t->underlying)
   {
+    case TK_PRIMITIVE:
     case TK_CLASS:
     {
       gendeserialise_typeid(c, t, object);
@@ -312,7 +313,7 @@ bool genserialise(compile_t* c, reach_type_t* t)
 
   make_serialise(c, t);
 
-  if(t->underlying != TK_PRIMITIVE)
+  if((t->underlying != TK_PRIMITIVE) || (t->primitive != NULL))
     make_deserialise(c, t);
 
   return true;

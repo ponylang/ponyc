@@ -600,6 +600,18 @@ void ponyint_gc_handlestack(pony_ctx_t* ctx)
   }
 }
 
+void ponyint_gc_discardstack(pony_ctx_t* ctx)
+{
+  pony_trace_fn f;
+  void *p;
+
+  while(ctx->stack != NULL)
+  {
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, (void**)&f);
+    ctx->stack = ponyint_gcstack_pop(ctx->stack, &p);
+  }
+}
+
 void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
   gc->finalisers -= ponyint_objectmap_sweep(&gc->local);
