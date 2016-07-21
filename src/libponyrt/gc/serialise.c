@@ -57,6 +57,13 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
   }
 }
 
+static void serialise_cleanup(pony_ctx_t* ctx)
+{
+  ponyint_gc_discardstack(ctx);
+  ctx->serialise_size = 0;
+  ponyint_serialise_destroy(&ctx->serialise);
+}
+
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
@@ -64,6 +71,7 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   {
     // A type without a serialisation function raises an error.
     // This applies to Pointer[A] and MaybePointer[A].
+    serialise_cleanup(ctx);
     pony_throw();
     return;
   }
@@ -100,6 +108,7 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   (void)ctx;
   (void)actor;
+  serialise_cleanup(ctx);
   pony_throw();
 }
 
@@ -169,8 +178,7 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
       s->t->serialise(ctx, (void*)s->key, r->ptr, s->value, s->mutability);
   }
 
-  ctx->serialise_size = 0;
-  ponyint_serialise_destroy(&ctx->serialise);
+  serialise_cleanup(ctx);
 }
 
 void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
@@ -205,7 +213,10 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   {
     // Make sure we have space to read a type id.
     if((offset + sizeof(uintptr_t)) > ctx->serialise_size)
+    {
+      serialise_cleanup(ctx);
       pony_throw();
+    }
 
     // Turn the type id into a descriptor pointer.
     uintptr_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
@@ -218,7 +229,10 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
 
   // Make sure we have space to read the object.
   if((offset + t->size) > ctx->serialise_size)
+  {
+    serialise_cleanup(ctx);
     pony_throw();
+  }
 
   // Allocate the object, memcpy to it.
   void* object = pony_alloc(ctx, t->size);
@@ -238,7 +252,10 @@ void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
 {
   // Allocate the block, memcpy to it.
   if((offset + size) > ctx->serialise_size)
+  {
+    serialise_cleanup(ctx);
     pony_throw();
+  }
 
   void* block = pony_alloc(ctx, size);
   memcpy(block, (void*)((uintptr_t)ctx->serialise_buffer + offset), size);
@@ -255,7 +272,6 @@ void* pony_deserialise(pony_ctx_t* ctx, void* in)
   void* object = pony_deserialise_offset(ctx, NULL, 0);
   ponyint_gc_handlestack(ctx);
 
-  ctx->serialise_size = 0;
-  ponyint_serialise_destroy(&ctx->serialise);
+  serialise_cleanup(ctx);
   return object;
 }

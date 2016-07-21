@@ -15,6 +15,7 @@ actor Main is TestList
     test(_TestSimple)
     test(_TestArrays)
     test(_TestFailures)
+    test(_TestBoxedMachineWord)
 
 class _MachineWords
   var bool1: Bool = true
@@ -209,3 +210,24 @@ class iso _TestFailures is UnitTest
       lambda()(serialise)? =>
         Serialised(serialise, _HasActor)
       end)
+
+class _BoxedWord
+  var f: Any val = U32(3)
+
+class iso _TestBoxedMachineWord is UnitTest
+  """
+  Test serialising boxed machine words.
+  """
+  fun name(): String => "serialise/BoxedMachineWord"
+
+  fun apply(h: TestHelper) ? =>
+    let ambient = h.env.root as AmbientAuth
+    let serialise = SerialiseAuth(ambient)
+    let deserialise = DeserialiseAuth(ambient)
+
+    let x: _BoxedWord = _BoxedWord
+    x.f = U64(7)
+    let sx = Serialised(serialise, x)
+    let y = sx(deserialise) as _BoxedWord
+    h.assert_true(x isnt y)
+    h.assert_true((y.f as U64) == 7)
