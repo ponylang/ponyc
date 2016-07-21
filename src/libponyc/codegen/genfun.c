@@ -621,11 +621,12 @@ void genfun_param_attrs(reach_type_t* t, reach_method_t* m, LLVMValueRef fun)
           case TK_REF:
             break;
           case TK_VAL:
-          case TK_BOX:
+          case TK_TAG:
+            LLVMAddAttribute(param, LLVMNoAliasAttribute);
             LLVMAddAttribute(param, LLVMReadOnlyAttribute);
             break;
-          case TK_TAG:
-            LLVMAddAttribute(param, LLVMReadNoneAttribute);
+          case TK_BOX:
+            LLVMAddAttribute(param, LLVMReadOnlyAttribute);
             break;
           default:
             assert(0);
