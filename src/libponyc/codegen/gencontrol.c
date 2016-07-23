@@ -413,6 +413,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   }
 
   // Jump to the break target.
+  codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
   LLVMBuildBr(c->builder, target);
   codegen_debugloc(c, NULL);
@@ -425,6 +426,7 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
   (void)ast;
 
   // Jump to the continue target.
+  codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
   LLVMBuildBr(c->builder, c->frame->continue_target);
   codegen_debugloc(c, NULL);
@@ -453,8 +455,10 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
   {
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(expr));
+    codegen_scope_lifetime_end(c);
     LLVMBuildRet(c->builder, ret);
   } else {
+    codegen_scope_lifetime_end(c);
     LLVMBuildRetVoid(c->builder);
   }
 
@@ -586,6 +590,7 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   if((try_expr != NULL) && (clause == 1))
     gen_expr(c, ast_childidx(try_expr, 2));
 
+  codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
   gencall_throw(c);
   codegen_debugloc(c, NULL);
