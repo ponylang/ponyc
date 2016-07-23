@@ -888,6 +888,7 @@ static void optimise(compile_t* c)
 
     pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
+    pmb.MergeFunctions = true;
   } else {
     pmb.OptLevel = 0;
   }
@@ -896,7 +897,6 @@ static void optimise(compile_t* c)
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
   pmb.LoadCombine = true;
-  pmb.MergeFunctions = true;
 
   pmb.addExtension(PassManagerBuilder::EP_Peephole,
     addMergeReallocPass);
