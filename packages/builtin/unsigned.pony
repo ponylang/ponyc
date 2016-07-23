@@ -1,9 +1,9 @@
 primitive U8 is _UnsignedInteger[U8]
   new create(value: U8 = 0) => value
-  fun tag from[B: (Number & Real[B] val)](a: B): U8 => a.u8()
+  new from[B: (Number & Real[B] val)](a: B) => a.u8()
 
-  fun tag min_value(): U8 => 0
-  fun tag max_value(): U8 => 0xFF
+  new min_value() => 0
+  new max_value() => 0xFF
 
   fun next_pow2(): U8 =>
     var x = this - 1
@@ -30,10 +30,10 @@ primitive U8 is _UnsignedInteger[U8]
 
 primitive U16 is _UnsignedInteger[U16]
   new create(value: U16 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): U16 => a.u16()
+  new from[A: (Number & Real[A] val)](a: A) => a.u16()
 
-  fun tag min_value(): U16 => 0
-  fun tag max_value(): U16 => 0xFFFF
+  new min_value() => 0
+  new max_value() => 0xFFFF
 
   fun next_pow2(): U16 =>
     var x = this - 1
@@ -61,10 +61,10 @@ primitive U16 is _UnsignedInteger[U16]
 
 primitive U32 is _UnsignedInteger[U32]
   new create(value: U32 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): U32 => a.u32()
+  new from[A: (Number & Real[A] val)](a: A) => a.u32()
 
-  fun tag min_value(): U32 => 0
-  fun tag max_value(): U32 => 0xFFFF_FFFF
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF
 
   fun next_pow2(): U32 =>
     var x = this - 1
@@ -93,10 +93,10 @@ primitive U32 is _UnsignedInteger[U32]
 
 primitive U64 is _UnsignedInteger[U64]
   new create(value: U64 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): U64 => a.u64()
+  new from[A: (Number & Real[A] val)](a: A) => a.u64()
 
-  fun tag min_value(): U64 => 0
-  fun tag max_value(): U64 => 0xFFFF_FFFF_FFFF_FFFF
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U64 =>
     var x = this - 1
@@ -126,11 +126,11 @@ primitive U64 is _UnsignedInteger[U64]
 
 primitive ULong is _UnsignedInteger[ULong]
   new create(value: ULong = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): ULong => a.ulong()
+  new from[A: (Number & Real[A] val)](a: A) => a.ulong()
 
-  fun tag min_value(): ULong => 0
+  new min_value() => 0
 
-  fun tag max_value(): ULong =>
+  new max_value() =>
     ifdef ilp32 or llp64 then
       0xFFFF_FFFF
     else
@@ -208,11 +208,11 @@ primitive ULong is _UnsignedInteger[ULong]
 
 primitive USize is _UnsignedInteger[USize]
   new create(value: USize = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): USize => a.usize()
+  new from[A: (Number & Real[A] val)](a: A) => a.usize()
 
-  fun tag min_value(): USize => 0
+  new min_value() => 0
 
-  fun tag max_value(): USize =>
+  new max_value() =>
     ifdef ilp32 then
       0xFFFF_FFFF
     else
@@ -290,10 +290,10 @@ primitive USize is _UnsignedInteger[USize]
 
 primitive U128 is _UnsignedInteger[U128]
   new create(value: U128 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): U128 => a.u128()
+  new from[A: (Number & Real[A] val)](a: A) => a.u128()
 
-  fun tag min_value(): U128 => 0
-  fun tag max_value(): U128 => 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U128 =>
     var x = this - 1
