@@ -6,6 +6,7 @@
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
+#include "../type/alias.h"
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
@@ -108,6 +109,37 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
   return false;
 }
 
+static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+     case TK_THIS:
+     case TK_FLETREF:
+     case TK_FVARREF:
+     case TK_EMBEDREF:
+     case TK_PARAMREF:
+     {
+       ast_t* type = ast_type(ast);
+       return sendable(type);
+     };
+     case TK_LETREF:
+     case TK_VARREF:
+     {
+       const char* name = ast_name(ast_child(ast));
+       sym_status_t status;
+       ast_t* def = ast_get(ast, name, &status);
+       ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+       if(t->frame->recover == def_recover)
+         return true;
+       ast_t* type = ast_type(ast);
+       return sendable(type);
+     }
+     default:
+       // Unsafe receivers inside expressions are catched before we get there.
+       return true;
+  }
+}
+
 static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
@@ -133,6 +165,35 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
       break;
 
     case TK_FUN:
+      if(opt->check.frame->recover != NULL)
+      {
+        AST_GET_CHILDREN(ast, left, right);
+        bool safe = is_receiver_safe(&opt->check, left);
+        if(!safe)
+        {
+          ast_t* param = ast_child(params);
+          bool params_sendable = true;
+          while(param != NULL)
+          {
+            if(!sendable(ast_childidx(param, 1)))
+            {
+              params_sendable = false;
+              break;
+            }
+            param = ast_sibling(param);
+          }
+          if(!params_sendable || !sendable(result))
+          {
+            errorframe_t frame = NULL;
+            ast_error_frame(&frame, ast, "can't call method on non-sendable "
+              "object inside of a recover expression");
+            ast_error_frame(&frame, method, "this would be possible if the "
+              "parameters and return value were all sendable");
+            errorframe_report(&frame, opt->check.errors);
+            return false;
+          }
+        }
+      }
       ast_setid(ast, TK_FUNREF);
       break;
 
