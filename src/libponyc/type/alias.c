@@ -52,6 +52,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
 {
   ast_t* cap = cap_fetch(type);
   token_id tcap = ast_id(cap);
+  bool rec_eph = false;
 
   switch(tcap)
   {
@@ -72,9 +73,11 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
 
     case TK_TRN:
     case TK_REF:
-      // These recover as iso, so any rcap is acceptable.
+      // These recover as iso, so any rcap is acceptable. We also set the rcap
+      // as ephemeral to allow direct recovery to iso or trn.
       if(rcap == TK_NONE)
         rcap = TK_ISO;
+      rec_eph = true;
       break;
 
     case TK_VAL:
@@ -128,6 +131,8 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
   type = ast_dup(type);
   cap = cap_fetch(type);
   ast_setid(cap, rcap);
+  if(rec_eph)
+    ast_setid(ast_sibling(cap), TK_EPHEMERAL);
   return type;
 }
 
