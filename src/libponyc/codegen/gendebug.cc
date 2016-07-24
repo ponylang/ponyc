@@ -52,10 +52,11 @@ LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m)
 {
 #if PONY_LLVM >= 307
   Module* pm = unwrap(m);
-  unsigned version = DEBUG_METADATA_VERSION;
+  unsigned dwarf = dwarf::DWARF_VERSION;
+  unsigned debug_info = DEBUG_METADATA_VERSION;
 
-  pm->addModuleFlag(Module::Warning, "Dwarf Version", version);
-  pm->addModuleFlag(Module::Error, "Debug Info Version", version);
+  pm->addModuleFlag(Module::Warning, "Dwarf Version", dwarf);
+  pm->addModuleFlag(Module::Warning, "Debug Info Version", debug_info);
 
   return wrap(new DIBuilder(*pm));
 #else

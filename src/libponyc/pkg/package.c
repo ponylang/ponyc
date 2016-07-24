@@ -138,10 +138,7 @@ static bool parse_source_code(ast_t* package, const char* src,
 }
 
 
-// Cat together the 2 given path fragments into the given buffer.
-// The first path fragment may be absolute, relative or NULL
-static void path_cat(const char* part1, const char* part2,
-  char result[FILENAME_MAX])
+void path_cat(const char* part1, const char* part2, char result[FILENAME_MAX])
 {
   size_t len1 = 0;
   size_t lensep = 0;

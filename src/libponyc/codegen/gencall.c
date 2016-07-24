@@ -235,6 +235,42 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMBuildStore(c->builder, t->desc, desc_ptr);
 }
 
+static void set_method_external_nominal(reach_type_t* t, const char* name)
+{
+  reach_method_name_t* n = reach_method_name(t, name);
+  if(n != NULL)
+  {
+    size_t i = HASHMAP_BEGIN;
+    reach_method_t* m;
+    while((m = reach_methods_next(&n->r_methods, &i)) != NULL)
+    {
+      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+      LLVMSetLinkage(m->func, LLVMExternalLinkage);
+    }
+  }
+}
+
+static void set_method_external_interface(reach_type_t* t, const char* name)
+{
+  set_method_external_nominal(t, name);
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub;
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    reach_method_name_t* n = reach_method_name(sub, name);
+    if(n == NULL)
+      continue;
+    size_t j = HASHMAP_BEGIN;
+    reach_method_t* m;
+    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+    {
+      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+      LLVMSetLinkage(m->func, LLVMExternalLinkage);
+    }
+  }
+}
+
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
 {
   assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
@@ -261,7 +297,34 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   reach_type_t* t = reach_type(c->reach, type);
   assert(t != NULL);
 
-  return dispatch_function(c, t, type, value, ast_name(method), typeargs);
+  const char* name = ast_name(method);
+  LLVMValueRef funptr = dispatch_function(c, t, type, value, name, typeargs);
+
+  if(c->linkage != LLVMExternalLinkage)
+  {
+    // We must reset the function linkage and calling convention since we're
+    // passing a function pointer to a FFI call.
+    switch(t->underlying)
+    {
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+      case TK_CLASS:
+      case TK_ACTOR:
+        set_method_external_nominal(t, name);
+        break;
+      case TK_UNIONTYPE:
+      case TK_ISECTTYPE:
+      case TK_INTERFACE:
+      case TK_TRAIT:
+        set_method_external_interface(t, name);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+
+  return funptr;
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)

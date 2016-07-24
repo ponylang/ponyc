@@ -12,6 +12,7 @@
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
+#include <llvm-c/Linker.h>
 #include <string.h>
 #include <assert.h>
 
@@ -518,6 +519,49 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // Empty frame stack.
   c->frame = NULL;
+}
+
+bool codegen_merge_runtime_bitcode(compile_t* c)
+{
+  strlist_t* search = package_paths();
+  char path[FILENAME_MAX];
+  LLVMModuleRef runtime = NULL;
+
+  for(strlist_t* p = search; p != NULL && runtime == NULL; p = strlist_next(p))
+  {
+    path_cat(strlist_data(p), "libponyrt.bc", path);
+    runtime = LLVMParseIRFileInContext(c->context, path);
+  }
+
+  errors_t* errors = c->opt->check.errors;
+
+  if(runtime == NULL)
+  {
+    errorf(errors, NULL, "couldn't find libponyrt.bc");
+    return false;
+  }
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Merging runtime\n");
+
+#if PONY_LLVM >= 308
+  // runtime is freed by the function.
+  if(LLVMLinkModules2(c->module, runtime))
+  {
+    errorf(errors, NULL, "libponyrt.bc contains errors");
+    return false;
+  }
+#else
+  if(LLVMLinkModules(c->module, runtime, LLVMLinkerDestroySource /* unused */,
+    NULL))
+  {
+    errorf(errors, NULL, "libponyrt.bc contains errors");
+    LLVMDisposeModule(runtime);
+    return false;
+  }
+#endif
+
+  return true;
 }
 
 static void codegen_cleanup(compile_t* c)

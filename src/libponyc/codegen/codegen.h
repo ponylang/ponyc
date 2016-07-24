@@ -28,6 +28,7 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
+LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -155,6 +156,8 @@ typedef struct compile_t
 
   compile_frame_t* frame;
 } compile_t;
+
+bool codegen_merge_runtime_bitcode(compile_t* c);
 
 bool codegen_init(pass_opt_t* opt);
 
