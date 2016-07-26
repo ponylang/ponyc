@@ -58,6 +58,14 @@ install:
       cd C:\projects\ponyc
       C:\premake5.exe --with-tests --to=work/vs2015 vs2015
 
+after_build:
+  - ps: |
+      cd C:\projects\ponyc
+      7z a -tzip "ponyc-win64-${env:appveyor_build_version}-${env:configuration}--llvm-${env:llvm}.zip" "packages\" "build\$env:configuration\ponyc.*" "build\$env:configuration\ponyrt.*"
+
+artifacts:
+  - path: 'ponyc-*.zip'
+
 cache:
   - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
   - C:\premake5.exe -> .appveyor.yml
