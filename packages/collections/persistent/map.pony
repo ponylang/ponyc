@@ -38,12 +38,15 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   ```
   """
   let _root: _MapNode[K, V]
+  let _size: USize
 
   new val _empty() =>
     _root = _MapNode[K, V].empty(0)
+    _size = 0
 
-  new val _create(r: _MapNode[K, V]) =>
+  new val _create(r: _MapNode[K, V], s: USize) =>
     _root = r
+    _size = s
 
   fun val apply(k: K): val->V ? =>
     """
@@ -55,19 +58,22 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     """
     Return the amount of key-value pairs in the Map.
     """
-    _root.size()
+    _size
 
   fun val update(key: K, value: V): Map[K, V] ? =>
     """
     Update the value associated with the provided key.
     """
-    _create(_root.update(_MapLeaf[K, V](key.hash().u32(), key, value)))
+    (let r, let insertion) =
+      _root.update(_MapLeaf[K, V](key.hash().u32(), key, value))
+    let s = if insertion then _size+1 else _size end
+    _create(r, s)
 
   fun val remove(k: K): Map[K, V] ? =>
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(k.hash().u32(), k))
+    _create(_root.remove(k.hash().u32(), k), _size-1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """

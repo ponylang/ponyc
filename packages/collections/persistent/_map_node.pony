@@ -46,18 +46,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       error
     end
 
-  fun val size(): USize =>
-    var tot: USize = 0
-    for e in _entries.values() do
-      match e
-      | let sn: _MapNode[K, V] => tot = tot + sn.size()
-      | let l: _MapLeaf[K, V] => tot = tot + 1
-      | let cn: _MapCollisions[K, V] => tot = tot + cn.size()
-      end
-    end
-    tot
-
-  fun val update(value: _MapLeaf[K, V]): _MapNode[K, V] ? =>
+  fun val update(value: _MapLeaf[K, V]): (_MapNode[K, V], Bool) ? =>
     let idx = _mask(value.hash, _level)
     let i = _array_index(_nodemap, _datamap, idx)
     if i == -1 then
@@ -65,7 +54,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
       let dm = _set_bit(_datamap, idx)
       let i' = _array_index(_nodemap, dm, idx)
       es.insert(i'.usize(), value)
-      create(consume es, _nodemap, dm, _level)
+      (create(consume es, _nodemap, dm, _level), true)
     elseif _has_bit(_nodemap, idx) then
       if _level == 6 then
         // insert into collision node
@@ -77,19 +66,19 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
           // update collision
             cs'(k) = value
             es(i.usize()) = consume cs'
-            return create(consume es, _nodemap, _datamap, _level)
+            return (create(consume es, _nodemap, _datamap, _level), false)
           end
         end
         cs'.push(value)
         es(i.usize()) = consume cs'
-        create(consume es, _nodemap, _datamap, _level)
+        (create(consume es, _nodemap, _datamap, _level), true)
       else
         // insert into sub-node
         let sn = _entries(i.usize()) as _MapNode[K, V]
         let es = recover _entries.clone() end
-        let sn' = sn() = value
+        (let sn', _) = sn.update(value) as (_MapNode[K, V], Bool)
         es(i.usize()) = sn'
-        create(consume es, _nodemap, _datamap, _level)
+        (create(consume es, _nodemap, _datamap, _level), true)
       end
     else
       let old = _entries(i.usize()) as _MapLeaf[K, V]
@@ -97,7 +86,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         // update leaf
         let es = recover _entries.clone() end
         es(i.usize()) = value
-        create(consume es, _nodemap, _datamap, _level)
+        (create(consume es, _nodemap, _datamap, _level), false)
       elseif _level == 6 then
         // create collision node
         let cn = recover Array[_MapLeaf[K, V]](2) end
@@ -109,19 +98,19 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
         let i' = _array_index(nm, dm, idx)
         es.delete(i.usize())
         es.insert(i'.usize(), consume cn)
-        create(consume es, nm, dm, _level)
+        (create(consume es, nm, dm, _level), true)
       else
         // create new sub-node
         var sn = empty(_level+1)
-        sn = sn() = old
-        sn = sn() = value
+        (sn, _) = sn.update(old) as (_MapNode[K, V], Bool)
+        (sn, _) = sn.update(value) as (_MapNode[K, V], Bool)
         let es = recover _entries.clone() end
         let nm = _set_bit(_nodemap, idx)
         let dm = _clear_bit(_datamap, idx)
         let i' = _array_index(nm, dm, idx)
         es.delete(i.usize())
         es.insert(i'.usize(), sn)
-        create(consume es, nm, dm, _level)
+        (create(consume es, nm, dm, _level), true)
       end
     end
 
