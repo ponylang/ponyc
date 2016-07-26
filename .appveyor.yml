@@ -1,4 +1,4 @@
-version: 1.0.{build}
+version: "{build}"
 
 image: Visual Studio 2015
 
@@ -57,6 +57,17 @@ install:
       $env:path += ";C:\ponyc-windows-libs\lib"
       cd C:\projects\ponyc
       C:\premake5.exe --with-tests --to=work/vs2015 vs2015
+  - ps: |
+      $file_version = (Get-Content "C:\projects\ponyc\VERSION")
+      Update-AppveyorBuild -Version "$file_version.${env:appveyor_build_number}"
+
+after_build:
+  - ps: |
+      cd C:\projects\ponyc
+      7z a -tzip "ponyc-win64-${env:appveyor_build_version}-${env:configuration}-llvm-${env:llvm}.zip" "packages\" "build\$env:configuration\ponyc.*" "build\$env:configuration\ponyrt.*"
+
+artifacts:
+  - path: 'ponyc-*.zip'
 
 cache:
   - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
