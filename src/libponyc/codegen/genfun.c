@@ -369,6 +369,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
     if(ret == NULL)
       return false;
 
+    codegen_scope_lifetime_end(c);
     codegen_debugloc(c, ast_childlast(body));
     LLVMBuildRet(c->builder, ret);
     codegen_debugloc(c, NULL);
@@ -395,6 +396,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   if(value == NULL)
     return false;
 
+  codegen_scope_lifetime_end(c);
   if(value != GEN_NOVALUE)
     LLVMBuildRetVoid(c->builder);
 
@@ -438,6 +440,7 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   if(t->primitive == NULL)
     value = LLVMGetParam(m->func, 0);
 
+  codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast_childlast(body));
   LLVMBuildRet(c->builder, value);
   codegen_debugloc(c, NULL);
@@ -463,6 +466,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   if(value == NULL)
     return false;
 
+  codegen_scope_lifetime_end(c);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 

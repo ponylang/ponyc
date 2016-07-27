@@ -765,3 +765,27 @@ void gencall_throw(compile_t* c)
 
   LLVMBuildUnreachable(c->builder);
 }
+
+void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
+{
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, "llvm.lifetime.start");
+  LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
+
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(c->i64, size, false);
+  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  LLVMBuildCall(c->builder, func, args, 2, "");
+}
+
+void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
+{
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, "llvm.lifetime.end");
+  LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
+
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(c->i64, size, false);
+  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  LLVMBuildCall(c->builder, func, args, 2, "");
+}

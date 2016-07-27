@@ -656,6 +656,7 @@ static bool case_body(compile_t* c, ast_t* body,
     LLVMAddIncoming(phi, &body_value, &block, 1);
   }
 
+  codegen_scope_lifetime_end(c);
   LLVMBuildBr(c->builder, post_block);
   return true;
 }
@@ -752,6 +753,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   codegen_pushscope(c, else_expr);
   bool ok = case_body(c, else_expr, post_block, phi, phi_type);
+  codegen_scope_lifetime_end(c);
   codegen_popscope(c);
 
   if(!ok)

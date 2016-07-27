@@ -49,6 +49,7 @@ typedef struct compile_frame_t
   LLVMMetadataRef di_file;
   LLVMMetadataRef di_scope;
   bool is_function;
+  bool early_termination;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -172,6 +173,12 @@ void codegen_finishfun(compile_t* c);
 void codegen_pushscope(compile_t* c, ast_t* ast);
 
 void codegen_popscope(compile_t* c);
+
+void codegen_local_lifetime_start(compile_t* c, const char* name);
+
+void codegen_local_lifetime_end(compile_t* c, const char* name);
+
+void codegen_scope_lifetime_end(compile_t* c);
 
 LLVMMetadataRef codegen_difile(compile_t* c);
 
