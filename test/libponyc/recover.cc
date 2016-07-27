@@ -10,6 +10,10 @@
   { const char* errs[] = {err1, NULL}; \
     DO(test_expected_errors(src, "ir", errs)); }
 
+#define TEST_ERRORS_2(src, err1, err2) \
+  { const char* errs[] = {err1, err2, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
+
 
 class RecoverTest : public PassTest
 {};
@@ -199,7 +203,7 @@ TEST_F(RecoverTest, CanAccess_ParamConsumedIso)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_LetFieldVal)
+TEST_F(RecoverTest, CanAccess_LetFieldVal)
 {
   const char* src =
     "class Inner\n"
@@ -211,10 +215,10 @@ TEST_F(RecoverTest, CantAccess_LetFieldVal)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't read a field through Class tag");
+  TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_VarFieldVal)
+TEST_F(RecoverTest, CanAccess_VarFieldVal)
 {
   const char* src =
     "class Inner\n"
@@ -226,10 +230,10 @@ TEST_F(RecoverTest, CantAccess_VarFieldVal)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't read a field through Class tag");
+  TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_EmbedFieldVal)
+TEST_F(RecoverTest, CanAccess_EmbedFieldVal)
 {
   const char* src =
     "class Inner\n"
@@ -241,10 +245,10 @@ TEST_F(RecoverTest, CantAccess_EmbedFieldVal)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't read a field through Class tag");
+  TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_FunReturnVal)
+TEST_F(RecoverTest, CanAccess_FunReturnVal)
 {
   const char* src =
     "class Inner\n"
@@ -255,6 +259,119 @@ TEST_F(RecoverTest, CantAccess_FunReturnVal)
     "  fun inner(): Inner val => Inner\n"
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner()) end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CanAccess_FieldExplicitThis)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover Wrap(this.inner) end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantAccess_NonSendableField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover Wrap(inner) end";
+
+  TEST_ERRORS_1(src, "can't access field of non-sendable object");
+}
+
+TEST_F(RecoverTest, CantAccess_AssignedField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  var inner: Inner iso = recover Inner end\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover Wrap(inner = recover Inner end) end";
+
+  TEST_ERRORS_2(src, "can't access field of non-sendable object",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(RecoverTest, CanAccess_MutableMethod)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  fun ref inner(): Inner val => Inner\n"
+    "  fun ref apply(): Wrap iso =>\n"
+    "    recover Wrap(inner()) end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantAccess_MethodParamNonSendable)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  fun inner(c: Class): Inner val => Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover Wrap(inner(Class)) end";
+
+  TEST_ERRORS_1(src, "can't call method on non-sendable object");
+}
+
+TEST_F(RecoverTest, CantAccess_MethodReturnNonSendable)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  fun inner(): Inner => Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover Wrap(inner()) end";
+
+  TEST_ERRORS_1(src, "can't call method on non-sendable object");
+}
+
+TEST_F(RecoverTest, CanDoPartialApplication_TagWithLowerToTag)
+{
+  const char* src =
+    "class Class\n"
+    "  fun tag func() => None"
+    "  fun apply() =>\n"
+    "    recover this~func() end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantDoPartialApplication_RefWithLowerToTag)
+{
+  const char* src =
+    "class Class\n"
+    "  fun ref func() => None"
+    "  fun apply() =>\n"
+    "    recover this~func() end";
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
