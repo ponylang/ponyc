@@ -342,4 +342,3 @@ To get a complete list of acceptable architecture names, use the gcc command:
 gcc -march=none
 ```
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
-
