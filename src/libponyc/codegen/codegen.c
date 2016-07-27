@@ -247,7 +247,8 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_create", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
-  LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE);
+  LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE +
+    (target_is_ilp32(c->opt->triple) ? 4 : 8));
 
   // void ponyint_destroy(__object*)
   params[0] = c->object_ptr;
