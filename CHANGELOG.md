@@ -88,6 +88,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `compact` method for `Array` and `String`
 - `String.push_utf32()` method.
 - Allow the use of a LLVM bitcode file for the runtime instead of a static library.
+- add iterators to persistent/Map (`keys()`, `values()`, and `pairs()`)
 
 ### Changed
 
