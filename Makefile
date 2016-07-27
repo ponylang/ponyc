@@ -163,6 +163,12 @@ ifndef LLVM_CONFIG
   $(error No LLVM installation found!)
 endif
 
+ifeq ($(runtime-bitcode),yes)
+  ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
+    $(error Compiling the runtime as a bitcode file requires clang)
+  endif
+endif
+
 $(shell mkdir -p $(PONY_BUILD_DIR))
 
 lib   := $(PONY_BUILD_DIR)
@@ -226,10 +232,12 @@ libgtest := $(lib)
 libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
 
+# We don't add libponyrt here. It's a special case because it can be compiled
+# to LLVM bitcode.
 ifeq ($(OSTYPE), linux)
-  libraries := libponyc libponyrt libponyrt-pic libgtest
+  libraries := libponyc libponyrt-pic libgtest
 else
-  libraries := libponyc libponyrt libgtest
+  libraries := libponyc libgtest
 endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
@@ -320,7 +328,7 @@ endif
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 
 # make targets
-targets := $(libraries) $(binaries) $(tests)
+targets := $(libraries) libponyrt $(binaries) $(tests)
 
 .PHONY: all $(targets) install uninstall clean stats deploy prerelease
 all: $(targets)
@@ -390,6 +398,11 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
+  
+  ifeq ($(suffix $(1)),.bc)
+    compiler := $(CC)
+    flags := $(ALL_CFLAGS) $(CFLAGS)
+  endif
 endef
 
 define CONFIGURE_LIBS
@@ -422,6 +435,7 @@ define PREPARE
   $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
     $(sourcefiles))))
+  $(eval bitcodefiles := $(subst .o,.bc,$(objectfiles)))
   $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,\
     $(objectfiles)))))
 endef
@@ -430,20 +444,51 @@ define EXPAND_OBJCMD
 $(eval file := $(subst .o,,$(1)))
 $(eval $(call CONFIGURE_COMPILER,$(file)))
 
+ifeq ($(3),libponyrtyes)
+  ifneq ($(suffix $(file)),.bc)
+$(subst .c,,$(subst .cc,,$(1))): $(subst .c,.bc,$(subst .cc,.bc,$(file)))
+	@echo '$$(notdir $$<)'
+	@mkdir -p $$(dir $$@)
+	$(SILENT)$(compiler) $(flags) -c -o $$@ $$<
+  else
+$(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .bc,,$(file)))
+	@echo '$$(notdir $$<)'
+	@mkdir -p $$(dir $$@)
+	$(SILENT)$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) \
+    $(flags) $($(2).buildoptions) -emit-llvm -c -o $$@ $$<  $($(2).include)
+  endif
+else
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
 	$(SILENT)$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) \
     $(flags) $($(2).buildoptions) -c -o $$@ $$<  $($(2).include)
+endif
 endef
 
 define EXPAND_COMMAND
 $(eval $(call PREPARE,$(1)))
 $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
+$(eval bcfiles := $(subst .c,,$(subst .cc,,$(bitcodefiles))))
 $(eval depends := )
 $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 
-ifneq ($(filter $(1),$(libraries)),)
+ifeq ($(1),libponyrt)
+$($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
+	@echo 'Linking libponyrt'
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+  ifeq ($(runtime-bitcode),yes)
+$($(1))/libponyrt.bc: $(depends) $(bcfiles)
+	@echo 'Generating bitcode for libponyrt'
+	$(SILENT)llvm-link -o $$@ $(bcfiles)
+    ifeq ($(config),release)
+	$(SILENT)opt -O3 -o $$@ $$@
+    endif
+libponyrt: $($(1))/libponyrt.bc $($(1))/libponyrt.$(LIB_EXT)
+  else
+libponyrt: $($(1))/libponyrt.$(LIB_EXT)
+  endif
+else ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
@@ -455,7 +500,8 @@ $($(1))/$(1): $(depends) $(ofiles)
 $(1): $($(1))/$(1)
 endif
 
-$(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))
+$(foreach bcfile,$(bitcodefiles),$(eval $(call EXPAND_OBJCMD,$(bcfile),$(1),$(addsuffix $(runtime-bitcode),$(1)))))
+$(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1),$(addsuffix $(runtime-bitcode),$(1)))))
 -include $(dependencies)
 endef
 
@@ -494,6 +540,9 @@ install: libponyc libponyrt ponyc
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
+endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
@@ -504,6 +553,9 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/include
 	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
+endif
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
@@ -511,12 +563,19 @@ endef
 
 $(eval $(call EXPAND_INSTALL))
 
+define EXPAND_UNINSTALL
 uninstall:
 	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
+	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
+endif
 	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
+endef
+
+$(eval $(call EXPAND_UNINSTALL))
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
@@ -550,6 +609,7 @@ release: prerelease setversion
 endif
 
 # Note: linux only
+define EXPAND_DEPLOY
 deploy: test
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
@@ -560,9 +620,15 @@ deploy: test
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+ifneq ($(wildcard build/release/libponyrt.bc),)
+	$(SILENT)cp build/release/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
+endif
 	$(SILENT)cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
+endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
@@ -575,6 +641,9 @@ deploy: test
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
 	$(SILENT)rm -rf $(package) build/bin/$(archive) stdlib-docs
+endef
+
+$(eval $(call EXPAND_DEPLOY))
 
 stats:
 	@echo

@@ -175,8 +175,20 @@ bool genlib(compile_t* c, ast_t* program)
     )
     return false;
 
-  if(!genopt(c))
+  if(!genopt(c, true))
     return false;
+
+  if(c->opt->runtimebc)
+  {
+    if(!codegen_merge_runtime_bitcode(c))
+      return false;
+
+    // Rerun the optimiser without the Pony-specific optimisation passes.
+    // Inlining runtime functions can screw up these passes so we can't
+    // run the optimiser only once after merging.
+    if(!genopt(c, false))
+      return false;
+  }
 
   const char* file_o = genobj(c);
 

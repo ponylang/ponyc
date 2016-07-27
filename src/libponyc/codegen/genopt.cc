@@ -842,7 +842,7 @@ static void addMergeReallocPass(const PassManagerBuilder& pmb,
     pm.add(new MergeRealloc());
 }
 
-static void optimise(compile_t* c)
+static void optimise(compile_t* c, bool pony_specific)
 {
   the_compiler = c;
 
@@ -898,12 +898,15 @@ static void optimise(compile_t* c)
   pmb.RerollLoops = true;
   pmb.LoadCombine = true;
 
-  pmb.addExtension(PassManagerBuilder::EP_Peephole,
-    addMergeReallocPass);
-  pmb.addExtension(PassManagerBuilder::EP_Peephole,
-    addHeapToStackPass);
-  pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-    addDispatchPonyCtxPass);
+  if(pony_specific)
+  {
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addMergeReallocPass);
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addHeapToStackPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addDispatchPonyCtxPass);
+  }
 
   pmb.populateFunctionPassManager(fpm);
 
@@ -952,13 +955,13 @@ static void optimise(compile_t* c)
     lpm.run(*m);
 }
 
-bool genopt(compile_t* c)
+bool genopt(compile_t* c, bool pony_specific)
 {
   errors_t* errors = c->opt->check.errors;
 
   // Finalise the debug info.
   LLVMDIBuilderFinalize(c->di);
-  optimise(c);
+  optimise(c, pony_specific);
 
   if(c->opt->verify)
   {
