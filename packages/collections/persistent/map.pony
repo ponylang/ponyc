@@ -96,3 +96,91 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     else
       false
     end
+
+  fun val keys(): MapKeys[K, V] => MapKeys[K, V](this)
+
+  fun val values(): MapValues[K, V] => MapValues[K, V](this)
+
+  fun val pairs(): MapPairs[K, V] =>
+    MapPairs[K, V](this)
+
+  fun _root_node(): _MapNode[K, V] => _root
+
+class MapKeys[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  embed _pairs: MapPairs[K, V]
+
+  new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
+
+  fun has_next(): Bool => _pairs.has_next()
+
+  fun ref next(): K ? => _pairs.next()._1
+
+class MapValues[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  embed _pairs: MapPairs[K, V]
+
+  new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
+
+  fun has_next(): Bool => _pairs.has_next()
+
+  fun ref next(): V ? => _pairs.next()._2
+
+class MapPairs[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  embed _path: Array[_MapNode[K, V]]
+  embed _idxs: Array[USize]
+  var _i: USize = 0
+  let _size: USize
+  var _ci: USize = 0
+
+  new create(m: Map[K, V]) =>
+    _size = m.size()
+    _path = Array[_MapNode[K, V]]
+    _path.push(m._root_node())
+    _idxs = Array[USize]
+    _idxs.push(0)
+
+  fun has_next(): Bool => _i < _size
+
+  fun ref next(): (K, V) ? =>
+    (let n, let i) = _cur()
+    if i >= n.entries().size() then
+      _backup()
+      return next()
+    end
+    match n.entries()(i)
+    | let l: _MapLeaf[K, V] =>
+      _inc_i()
+      _i = _i + 1
+      (l.key, l.value)
+    | let sn: _MapNode[K, V] =>
+      _push(sn)
+      next()
+    | let cs: _MapCollisions[K, V] =>
+      if _ci < cs.size() then
+        let l = cs(_ci)
+        _ci = _ci + 1
+        _i = _i + 1
+        (l.key, l.value)
+      else
+        _ci = 0
+        _inc_i()
+        next()
+      end
+    else error
+    end
+
+  fun ref _push(n: _MapNode[K, V]) =>
+    _path.push(n)
+    _idxs.push(0)
+
+  fun ref _backup() ? =>
+    _path.pop()
+    _idxs.pop()
+    _inc_i()
+
+  fun ref _inc_i() ? =>
+    let i = _idxs.size() - 1
+    _idxs(i) = _idxs(i) + 1
+
+  fun _cur(): (_MapNode[K, V], USize) ? =>
+    let i = _idxs.size() - 1
+    (_path(i), _idxs(i))
