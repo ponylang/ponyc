@@ -108,6 +108,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Only allow single, internal underscores in numeric literals.
 - `ponyc --version` now includes the build type (debug/release) in its output.
 - Strings now grow and shrink geometrically.
+- Embedded fields can now be constructed from complex expressions containing constructors
 
 ## [0.2.1] - 2015-10-06
 
