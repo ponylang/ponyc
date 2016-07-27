@@ -464,7 +464,17 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   // return is always the last expression in a sequence
   assert(ast_sibling(ast) == NULL);
 
-  if(ast_parent(ast) == t->frame->method_body)
+  ast_t* parent = ast_parent(ast);
+  ast_t* current = ast;
+
+  while(ast_id(parent) == TK_SEQ)
+  {
+    assert(ast_childlast(parent) == current);
+    current = parent;
+    parent = ast_parent(parent);
+  }
+
+  if(current == t->frame->method_body)
   {
     ast_error(opt->check.errors, ast,
       "use return only to exit early from a method, not at the end");
