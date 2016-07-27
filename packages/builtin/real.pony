@@ -22,9 +22,9 @@ trait val Real[A: Real[A] val] is
   (Stringable & _ArithmeticConvertible & Comparable[A])
   new val create(value: A)
 
-  fun tag from[B: (Number & Real[B] val)](a: B): A
-  fun tag min_value(): A
-  fun tag max_value(): A
+  new val from[B: (Number & Real[B] val)](a: B)
+  new val min_value()
+  new val max_value()
 
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
@@ -89,7 +89,7 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
     _ToString._u64(u64(), false, fmt)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
-  fun tag epsilon(): A
+  new val epsilon()
   fun tag radix(): U8
   fun tag precision2(): U8
   fun tag precision10(): U8
