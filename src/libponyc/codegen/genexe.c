@@ -318,6 +318,12 @@ static bool link_exe(compile_t* c, ast_t* program,
     "/LIBPATH:", NULL, "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
+  char ucrt_lib[MAX_PATH + 12];
+  if (strlen(vcvars.ucrt) > 0)
+    snprintf(ucrt_lib, MAX_PATH + 12, "/LIBPATH:\"%s\"", vcvars.ucrt);
+  else
+    ucrt_lib[0] = '\0';
+
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
@@ -327,11 +333,12 @@ static bool link_exe(compile_t* c, ast_t* program,
     int num_written = snprintf(ld_cmd, ld_len,
       "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
       "/OUT:%s "
-      "%s "
+      "%s %s "
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
-      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib %s \"",
-      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args, ponyrt
+      "%s %s %s \"",
+      vcvars.link, file_exe, file_o, ucrt_lib, vcvars.kernel32, 
+      vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 
     if (num_written < ld_len)
