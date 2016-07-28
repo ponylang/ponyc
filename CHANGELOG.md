@@ -43,6 +43,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compiler bug where `as` operator with a lambda literal caused seg fault.
 - String.read_int failure on lowest number in the range of signed integers.
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
+- No longer silently ignores lib paths containing parens on Windows.
 
 ### Added
 
