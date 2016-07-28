@@ -167,6 +167,8 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     let i = (np + dp).popcount()
     if _has_bit(nm, idx) or _has_bit(dm, idx) then i else -1 end
 
+  fun entries(): Array[_MapEntry[K, V]] val => _entries
+
 class val _MapLeaf[K: (mut.Hashable val & Equatable[K] val), V: Any val]
   let hash: U32
   let key: K
