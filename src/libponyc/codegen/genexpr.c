@@ -193,7 +193,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
   if(has_scope)
   {
-    codegen_scope_lifetime_end(c);
+    LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
+    LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
+    if(terminator == NULL)
+      codegen_scope_lifetime_end(c);
     codegen_popscope(c);
   }
 
