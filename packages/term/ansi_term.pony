@@ -24,8 +24,10 @@ type _EscapeState is
 
 class _TermResizeNotify is SignalNotify
   let _term: ANSITerm tag
+
   new create(term: ANSITerm tag) =>
     _term = term
+
   fun apply(times: U32): Bool =>
     _term.size()
     true
