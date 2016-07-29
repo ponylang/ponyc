@@ -10,6 +10,10 @@
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IRReader/IRReader.h>
+#include <llvm/Linker/Linker.h>
+#include <llvm/Support/SourceMgr.h>
 
 #if PONY_LLVM < 307
 #include <llvm/Support/Host.h>
@@ -93,4 +97,18 @@ LLVMValueRef LLVMConstNaN(LLVMTypeRef type)
 #endif
 
   return wrap(nan);
+}
+
+#if PONY_LLVM < 308
+static LLVMContext* unwrap(LLVMContextRef ctx)
+{
+  return reinterpret_cast<LLVMContext*>(ctx);
+}
+#endif
+
+LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
+{
+  SMDiagnostic diag;
+
+  return wrap(parseIRFile(file, diag, *unwrap(ctx)).release());
 }

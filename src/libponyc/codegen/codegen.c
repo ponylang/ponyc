@@ -12,6 +12,7 @@
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
+#include <llvm-c/Linker.h>
 #include <string.h>
 #include <assert.h>
 
@@ -19,6 +20,7 @@ struct compile_local_t
 {
   const char* name;
   LLVMValueRef alloca;
+  bool alive;
 };
 
 static size_t compile_local_hash(compile_local_t* p)
@@ -247,7 +249,8 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_create", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
-  LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE);
+  LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE +
+    (target_is_ilp32(c->opt->triple) ? 4 : 8));
 
   // void ponyint_destroy(__object*)
   params[0] = c->object_ptr;
@@ -430,22 +433,6 @@ static void init_runtime(compile_t* c)
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
   // void llvm.memcpy.*(i8*, i8*, i32/64, i32, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
-  params[3] = c->i32;
-  params[4] = c->i1;
-  if(target_is_ilp32(c->opt->triple))
-  {
-    params[2] = c->i32;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
-  } else {
-    params[2] = c->i64;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    value = LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
-  }
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-
   // void llvm.memmove.*(i8*, i8*, i32/64, i32, i1)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
@@ -455,13 +442,22 @@ static void init_runtime(compile_t* c)
   {
     params[2] = c->i32;
     type = LLVMFunctionType(c->void_type, params, 5, false);
-    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
+    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
+    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
   } else {
     params[2] = c->i64;
     type = LLVMFunctionType(c->void_type, params, 5, false);
-    value = LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
+    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
+    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
   }
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+
+  // void llvm.lifetime.start(i64, i8*)
+  // void llvm.lifetime.end(i64, i8*)
+  params[0] = c->i64;
+  params[1] = c->void_ptr;
+  type = LLVMFunctionType(c->void_type, params, 2, false);
+  LLVMAddFunction(c->module, "llvm.lifetime.start", type);
+  LLVMAddFunction(c->module, "llvm.lifetime.end", type);
 }
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
@@ -518,6 +514,49 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // Empty frame stack.
   c->frame = NULL;
+}
+
+bool codegen_merge_runtime_bitcode(compile_t* c)
+{
+  strlist_t* search = package_paths();
+  char path[FILENAME_MAX];
+  LLVMModuleRef runtime = NULL;
+
+  for(strlist_t* p = search; p != NULL && runtime == NULL; p = strlist_next(p))
+  {
+    path_cat(strlist_data(p), "libponyrt.bc", path);
+    runtime = LLVMParseIRFileInContext(c->context, path);
+  }
+
+  errors_t* errors = c->opt->check.errors;
+
+  if(runtime == NULL)
+  {
+    errorf(errors, NULL, "couldn't find libponyrt.bc");
+    return false;
+  }
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Merging runtime\n");
+
+#if PONY_LLVM >= 308
+  // runtime is freed by the function.
+  if(LLVMLinkModules2(c->module, runtime))
+  {
+    errorf(errors, NULL, "libponyrt.bc contains errors");
+    return false;
+  }
+#else
+  if(LLVMLinkModules(c->module, runtime, LLVMLinkerDestroySource /* unused */,
+    NULL))
+  {
+    errorf(errors, NULL, "libponyrt.bc contains errors");
+    LLVMDisposeModule(runtime);
+    return false;
+  }
+#endif
+
+  return true;
 }
 
 static void codegen_cleanup(compile_t* c)
@@ -698,6 +737,73 @@ void codegen_popscope(compile_t* c)
   pop_frame(c);
 }
 
+void codegen_local_lifetime_start(compile_t* c, const char* name)
+{
+  compile_frame_t* frame = c->frame;
+
+  compile_local_t k;
+  k.name = name;
+
+  while(frame != NULL)
+  {
+    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+
+    if(p != NULL && !p->alive)
+    {
+      gencall_lifetime_start(c, p->alloca);
+      p->alive = true;
+      return;
+    }
+
+    if(frame->is_function)
+      return;
+
+    frame = frame->prev;
+  }
+}
+
+void codegen_local_lifetime_end(compile_t* c, const char* name)
+{
+  compile_frame_t* frame = c->frame;
+
+  compile_local_t k;
+  k.name = name;
+
+  while(frame != NULL)
+  {
+    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+
+    if(p != NULL && p->alive)
+    {
+      gencall_lifetime_end(c, p->alloca);
+      p->alive = false;
+      return;
+    }
+
+    if(frame->is_function)
+      return;
+
+    frame = frame->prev;
+  }
+}
+
+void codegen_scope_lifetime_end(compile_t* c)
+{
+  if(!c->frame->early_termination)
+  {
+    compile_frame_t* frame = c->frame;
+    size_t i = HASHMAP_BEGIN;
+    compile_local_t* p;
+
+    while ((p = compile_locals_next(&frame->locals, &i)) != NULL)
+    {
+      if(p->alive)
+        gencall_lifetime_end(c, p->alloca);
+    }
+    c->frame->early_termination = true;
+  }
+}
+
 LLVMMetadataRef codegen_difile(compile_t* c)
 {
   return c->frame->di_file;
@@ -782,6 +888,7 @@ void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca)
   compile_local_t* p = POOL_ALLOC(compile_local_t);
   p->name = name;
   p->alloca = alloca;
+  p->alive = false;
 
   compile_locals_put(&c->frame->locals, p);
 }

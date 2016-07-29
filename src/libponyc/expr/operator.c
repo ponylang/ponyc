@@ -382,6 +382,50 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
   return true;
 }
 
+static bool is_expr_constructor(ast_t* ast)
+{
+  assert(ast != NULL);
+  switch(ast_id(ast))
+  {
+    case TK_CALL:
+      return ast_id(ast_childidx(ast, 2)) == TK_NEWREF;
+    case TK_SEQ:
+      return is_expr_constructor(ast_childlast(ast));
+    case TK_IF:
+    case TK_WHILE:
+    case TK_REPEAT:
+    {
+      ast_t* body = ast_childidx(ast, 1);
+      ast_t* else_expr = ast_childidx(ast, 2);
+      return is_expr_constructor(body) && is_expr_constructor(else_expr);
+    }
+    case TK_TRY:
+    {
+      ast_t* body = ast_childidx(ast, 0);
+      ast_t* else_expr = ast_childidx(ast, 1);
+      return is_expr_constructor(body) && is_expr_constructor(else_expr);
+    }
+    case TK_MATCH:
+    {
+      ast_t* cases = ast_childidx(ast, 1);
+      ast_t* else_expr = ast_childidx(ast, 2);
+      ast_t* the_case = ast_child(cases);
+
+      while(the_case != NULL)
+      {
+        if(!is_expr_constructor(ast_childidx(the_case, 2)))
+          return false;
+        the_case = ast_sibling(the_case);
+      }
+      return is_expr_constructor(else_expr);
+    }
+    case TK_RECOVER:
+      return is_expr_constructor(ast_childidx(ast, 1));
+    default:
+      return false;
+  }
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -499,8 +543,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // If it's an embedded field, check for a constructor result.
   if(ast_id(left) == TK_EMBEDREF)
   {
-    if((ast_id(right) != TK_CALL) ||
-      (ast_id(ast_childidx(right, 2)) != TK_NEWREF))
+    if(!is_expr_constructor(right))
     {
       ast_error(opt->check.errors, ast,
         "an embedded field must be assigned using a constructor");

@@ -4,7 +4,6 @@
 #include "gencall.h"
 #include "genname.h"
 #include "genprim.h"
-#include "genopt.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -75,42 +74,6 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   gencall_runtime(c, "pony_become", args, 2, "");
 
   return actor;
-}
-
-const char* gcc_from_llvm_triple(char* triple)
-{
-  //split triple into components
-  const char sep[2] = "-";
-  char *arch;
-  char *vendor;
-  char *system;
-  char *abi;
-
-  arch = strtok(triple, sep);
-  assert(arch != NULL);
-
-  vendor = strtok(NULL, sep);
-  assert(vendor != NULL);
-
-  system = strtok(NULL, sep);
-  assert(system != NULL);
-
-  abi = strtok(NULL, sep);
-
-  // if abi is null we have an empty vendor string
-  if(abi == NULL)
-  {
-    abi = system;
-    system = vendor;
-  }
-
-  // Copy to a string with space for full gcc command for triple.
-  size_t len = strlen(arch) + strlen(system) + strlen(abi) + 7;
-  char* gcc = (char*)ponyint_pool_alloc_size(len);
-
-  snprintf(gcc, len, "%s-%s-%s-gcc", arch, system, abi);
-
-  return stringtab_consume(gcc, len);
 }
 
 static void gen_main(compile_t* c, reach_type_t* t_main,
@@ -226,6 +189,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 {
   errors_t* errors = c->opt->check.errors;
 
+  const char* ponyrt = c->opt->runtimebc ? "" :
+#if defined(PLATFORM_IS_WINDOWS)
+    "ponyrt.lib";
+#else
+    "-lponyrt";
+#endif
+
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(c->opt->triple, '-');
 
@@ -253,8 +223,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   // Avoid incorrect ld, eg from macports.
   snprintf(ld_cmd, ld_len,
     "/usr/bin/ld -execute -no_pie -dead_strip -arch %.*s "
-    "-macosx_version_min 10.8 -o %s %s %s -lponyrt -lSystem",
-    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
+    "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
+    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args, ponyrt
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -296,17 +266,13 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
-  const char* linker = gcc_from_llvm_triple(c->opt->triple);
-  const char* arch = c->opt->cpu;
-  const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
-
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
-                  + strlen(linker) + strlen(arch) + strlen(mcx16_arg);
-
+  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
-    "%s "
+  snprintf(ld_cmd, ld_len, PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " "
+#ifndef PLATFORM_IS_ILP32
+    "-mcx16 "
+#endif
 
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
@@ -315,12 +281,12 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PLATFORM_IS_LINUX
     "-fuse-ld=gold "
 #endif
-    "%s %s -lponyrt -lpthread "
+    "%s %s %s -lpthread "
 #ifdef PLATFORM_IS_LINUX
     "-ldl "
 #endif
     "-lm",
-    linker, file_exe, arch, mcx16_arg, file_o, lib_args
+    file_exe, file_o, lib_args, ponyrt
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -364,8 +330,8 @@ static bool link_exe(compile_t* c, ast_t* program,
       "%s "
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
-      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib ponyrt.lib \"",
-      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
+      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib %s \"",
+      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args, ponyrt
     );
 
     if (num_written < ld_len)
@@ -445,8 +411,20 @@ bool genexe(compile_t* c, ast_t* program)
 
   gen_main(c, t_main, t_env);
 
-  if(!genopt(c))
+  if(!genopt(c, true))
     return false;
+
+  if(c->opt->runtimebc)
+  {
+    if(!codegen_merge_runtime_bitcode(c))
+      return false;
+
+    // Rerun the optimiser without the Pony-specific optimisation passes.
+    // Inlining runtime functions can screw up these passes so we can't
+    // run the optimiser only once after merging.
+    if(!genopt(c, false))
+      return false;
+  }
 
   const char* file_o = genobj(c);
 

@@ -11,6 +11,12 @@ PONY_EXTERN_C_BEGIN
 typedef struct package_t package_t;
 
 /**
+ * Cat together the 2 given path fragments into the given buffer.
+ * The first path fragment may be absolute, relative or NULL
+ */
+void path_cat(const char* part1, const char* part2, char result[FILENAME_MAX]);
+
+/**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
  * specified in the PONYPATH environment variable.

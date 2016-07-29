@@ -314,6 +314,7 @@ class iso _TestMapVsMap is UnitTest
       p_map = p_map(k) = v
       m_map(k) = v
       count = count + 1
+      h.assert_eq[USize](m_map.size(), p_map.size())
     end
 
     h.assert_eq[USize](m_map.size(), keys)
@@ -322,5 +323,13 @@ class iso _TestMapVsMap is UnitTest
     for (k, v) in m_map.pairs() do
       h.assert_eq[U64](p_map(k), v)
     end
+
+    var c: USize = 0
+    for (k, v) in p_map.pairs() do
+      c = c + 1
+      m_map.remove(k)
+    end
+    h.assert_eq[USize](p_map.size(), c)
+    h.assert_eq[USize](m_map.size(), 0)
 
     true

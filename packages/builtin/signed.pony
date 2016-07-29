@@ -1,9 +1,9 @@
 primitive I8 is _SignedInteger[I8, U8]
   new create(value: I8 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): I8 => a.i8()
+  new from[A: (Number & Real[A] val)](a: A) => a.i8()
 
-  fun tag min_value(): I8 => -0x80
-  fun tag max_value(): I8 => 0x7F
+  new min_value() => -0x80
+  new max_value() => 0x7F
 
   fun abs(): U8 => if this < 0 then (-this).u8() else this.u8() end
   fun bswap(): I8 => this
@@ -24,10 +24,10 @@ primitive I8 is _SignedInteger[I8, U8]
 
 primitive I16 is _SignedInteger[I16, U16]
   new create(value: I16 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): I16 => a.i16()
+  new from[A: (Number & Real[A] val)](a: A) => a.i16()
 
-  fun tag min_value(): I16 => -0x8000
-  fun tag max_value(): I16 => 0x7FFF
+  new min_value() => -0x8000
+  new max_value() => 0x7FFF
 
   fun abs(): U16 => if this < 0 then (-this).u16() else this.u16() end
   fun bswap(): I16 => @"llvm.bswap.i16"[I16](this)
@@ -48,10 +48,10 @@ primitive I16 is _SignedInteger[I16, U16]
 
 primitive I32 is _SignedInteger[I32, U32]
   new create(value: I32 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): I32 => a.i32()
+  new from[A: (Number & Real[A] val)](a: A) => a.i32()
 
-  fun tag min_value(): I32 => -0x8000_0000
-  fun tag max_value(): I32 => 0x7FFF_FFFF
+  new min_value() => -0x8000_0000
+  new max_value() => 0x7FFF_FFFF
 
   fun abs(): U32 => if this < 0 then (-this).u32() else this.u32() end
   fun bswap(): I32 => @"llvm.bswap.i32"[I32](this)
@@ -72,10 +72,10 @@ primitive I32 is _SignedInteger[I32, U32]
 
 primitive I64 is _SignedInteger[I64, U64]
   new create(value: I64 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): I64 => a.i64()
+  new from[A: (Number & Real[A] val)](a: A) => a.i64()
 
-  fun tag min_value(): I64 => -0x8000_0000_0000_0000
-  fun tag max_value(): I64 => 0x7FFF_FFFF_FFFF_FFFF
+  new min_value() => -0x8000_0000_0000_0000
+  new max_value() => 0x7FFF_FFFF_FFFF_FFFF
 
   fun abs(): U64 => if this < 0 then (-this).u64() else this.u64() end
   fun bswap(): I64 => @"llvm.bswap.i64"[I64](this)
@@ -96,16 +96,16 @@ primitive I64 is _SignedInteger[I64, U64]
 
 primitive ILong is _SignedInteger[ILong, ULong]
   new create(value: ILong = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): ILong => a.ilong()
+  new from[A: (Number & Real[A] val)](a: A) => a.ilong()
 
-  fun tag min_value(): ILong =>
+  new min_value() =>
     ifdef ilp32 or llp64 then
       -0x8000_0000
     else
       -0x8000_0000_0000_0000
     end
 
-  fun tag max_value(): ILong =>
+  new max_value() =>
     ifdef ilp32 or llp64 then
       0x7FFF_FFFF
     else
@@ -169,16 +169,16 @@ primitive ILong is _SignedInteger[ILong, ULong]
 
 primitive ISize is _SignedInteger[ISize, USize]
   new create(value: ISize = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): ISize => a.isize()
+  new from[A: (Number & Real[A] val)](a: A) => a.isize()
 
-  fun tag min_value(): ISize =>
+  new min_value() =>
     ifdef ilp32 then
       -0x8000_0000
     else
       -0x8000_0000_0000_0000
     end
 
-  fun tag max_value(): ISize =>
+  new max_value() =>
     ifdef ilp32 then
       0x7FFF_FFFF
     else
@@ -242,10 +242,10 @@ primitive ISize is _SignedInteger[ISize, USize]
 
 primitive I128 is _SignedInteger[I128, U128]
   new create(value: I128 = 0) => value
-  fun tag from[A: (Number & Real[A] val)](a: A): I128 => a.i128()
+  new from[A: (Number & Real[A] val)](a: A) => a.i128()
 
-  fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000
-  fun tag max_value(): I128 => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
+  new min_value() => -0x8000_0000_0000_0000_0000_0000_0000_0000
+  new max_value() => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun abs(): U128 => if this < 0 then (-this).u128() else this.u128() end
   fun bswap(): I128 => @"llvm.bswap.i128"[I128](this)

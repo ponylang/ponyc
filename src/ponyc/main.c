@@ -27,6 +27,8 @@ enum
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_LIBRARY,
+  OPT_RUNTIMEBC,
+  OPT_PIC,
   OPT_DOCS,
 
   OPT_SAFE,
@@ -50,7 +52,6 @@ enum
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW,
-  OPT_PIC,
   OPT_EXTFUN
 };
 
@@ -63,19 +64,21 @@ static opt_arg_t args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
+  {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
+  {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
 
-  {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
-  {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
-  {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
-  {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
-  {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
-  {"stats", 0, OPT_ARG_NONE, OPT_STATS},
+  {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
+  {"ieee-math", '\0', OPT_ARG_NONE, OPT_IEEEMATH},
+  {"cpu", '\0', OPT_ARG_REQUIRED, OPT_CPU},
+  {"features", '\0', OPT_ARG_REQUIRED, OPT_FEATURES},
+  {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
+  {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
-  {"astpackage", 0, OPT_ARG_NONE, OPT_ASTPACKAGE},
+  {"astpackage", '\0', OPT_ARG_NONE, OPT_ASTPACKAGE},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
@@ -86,7 +89,6 @@ static opt_arg_t args[] =
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
-  {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   OPT_ARGS_FINISH
 };
@@ -109,6 +111,7 @@ static void usage()
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
+    "  --runtimebc     Compile with the LLVM bitcode file for the runtime.\n"
     "  --pic           Compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
     "\n"
@@ -265,8 +268,9 @@ int main(int argc, char* argv[])
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val, &opt); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
-      case OPT_PIC: opt.pic = true; break;
       case OPT_LIBRARY: opt.library = true; break;
+      case OPT_RUNTIMEBC: opt.runtimebc = true; break;
+      case OPT_PIC: opt.pic = true; break;
       case OPT_DOCS: opt.docs = true; break;
 
       case OPT_SAFE:

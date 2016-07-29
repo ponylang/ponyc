@@ -623,6 +623,20 @@ static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
     return AST_ERROR;
   }
 
+  ast_t* parent = ast_parent(ast);
+  ast_t* current = ast;
+  while(ast_id(parent) == TK_SEQ)
+  {
+    if(ast_sibling(current) != NULL)
+    {
+      ast_error(opt->check.errors,
+        ast_sibling(current), "Unreachable code");
+      return AST_ERROR;
+    }
+    current = parent;
+    parent = ast_parent(parent);
+  }
+
   if(ast_id(ast) == TK_RETURN)
   {
     if(opt->check.frame->method_body == NULL)

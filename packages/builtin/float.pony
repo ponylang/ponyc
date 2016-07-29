@@ -7,22 +7,22 @@ primitive F32 is FloatingPoint[F32]
 
   new from_bits(i: U32) => compile_intrinsic
   fun bits(): U32 => compile_intrinsic
-  fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
+  new from[B: (Number & Real[B] val)](a: B) => a.f32()
 
-  fun tag min_value(): F32 =>
+  new min_value() =>
     """
     Minimum positive value representable at full precision (ie a normalised
     number).
     """
     from_bits(0x00800000)
 
-  fun tag max_value(): F32 =>
+  new max_value() =>
     """
     Maximum positive value representable.
     """
     from_bits(0x7F7FFFFF)
 
-  fun tag epsilon(): F32 =>
+  new epsilon() =>
     """
     Minimum positive value such that (1 + epsilon) != 1.
     """
@@ -169,22 +169,22 @@ primitive F64 is FloatingPoint[F64]
 
   new from_bits(i: U64) => compile_intrinsic
   fun bits(): U64 => compile_intrinsic
-  fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
+  new from[B: (Number & Real[B] val)](a: B) => a.f64()
 
-  fun tag min_value(): F64 =>
+  new min_value() =>
     """
     Minimum positive value representable at full precision (ie a normalised
     number).
     """
     from_bits(0x0010_0000_0000_0000)
 
-  fun tag max_value(): F64 =>
+  new max_value() =>
     """
     Maximum positive value representable.
     """
     from_bits(0x7FEF_FFFF_FFFF_FFFF)
 
-  fun tag epsilon(): F64 =>
+  new epsilon() =>
     """
     Minimum positive value such that (1 + epsilon) != 1.
     """

@@ -11,6 +11,28 @@
 #include "../expr/lambda.h"
 #include <assert.h>
 
+static bool is_numeric_primitive(const char* name)
+{
+  if(name == stringtab("U8") ||
+     name == stringtab("I8") ||
+     name == stringtab("U16") ||
+     name == stringtab("I16") ||
+     name == stringtab("U32") ||
+     name == stringtab("I32") ||
+     name == stringtab("U64") ||
+     name == stringtab("I64") ||
+     name == stringtab("U128") ||
+     name == stringtab("I128") ||
+     name == stringtab("ULong") ||
+     name == stringtab("ILong") ||
+     name == stringtab("USize") ||
+     name == stringtab("ISize") ||
+     name == stringtab("F32") ||
+     name == stringtab("F64"))
+    return true;
+  return false;
+}
+
 bool is_result_needed(ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
@@ -56,8 +78,19 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_NEW:
+    {
+      // Only if it is a numeric primitive constructor.
+      ast_t* type = ast_childidx(parent, 4);
+      assert(ast_id(type) == TK_NOMINAL);
+      const char* pkg_name = ast_name(ast_child(type));
+      const char* type_name = ast_name(ast_childidx(type, 1));
+      if(pkg_name == stringtab("$0")) // Builtin package.
+        return is_numeric_primitive(type_name);
+      return false;
+    }
+
     case TK_BE:
-      // Result of a constructor or behaviour isn't needed.
+      // Result of a behaviour isn't needed.
       return false;
 
     default: {}

@@ -24,6 +24,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 * Atom: [language-pony](https://atom.io/packages/language-pony)
 * Visual Studio: [VS-pony](https://github.com/ponylang/VS-pony)
+* Visual Studio Code: [vscode-pony](https://marketplace.visualstudio.com/items?itemName=npruehs.pony)
 * Vim:
     - [vim-pony](https://github.com/jakwings/vim-pony)
     - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)

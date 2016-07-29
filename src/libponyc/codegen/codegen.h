@@ -28,6 +28,7 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
+LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -49,6 +50,7 @@ typedef struct compile_frame_t
   LLVMMetadataRef di_file;
   LLVMMetadataRef di_scope;
   bool is_function;
+  bool early_termination;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -156,6 +158,8 @@ typedef struct compile_t
   compile_frame_t* frame;
 } compile_t;
 
+bool codegen_merge_runtime_bitcode(compile_t* c);
+
 bool codegen_init(pass_opt_t* opt);
 
 void codegen_shutdown(pass_opt_t* opt);
@@ -172,6 +176,12 @@ void codegen_finishfun(compile_t* c);
 void codegen_pushscope(compile_t* c, ast_t* ast);
 
 void codegen_popscope(compile_t* c);
+
+void codegen_local_lifetime_start(compile_t* c, const char* name);
+
+void codegen_local_lifetime_end(compile_t* c, const char* name);
+
+void codegen_scope_lifetime_end(compile_t* c);
 
 LLVMMetadataRef codegen_difile(compile_t* c);
 

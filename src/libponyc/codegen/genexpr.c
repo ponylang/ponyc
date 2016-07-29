@@ -75,8 +75,27 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_CONSUME:
-      ret = gen_expr(c, ast_childidx(ast, 1));
+    {
+      ast_t* ref = ast_childidx(ast, 1);
+      ret = gen_expr(c, ref);
+      switch(ast_id(ref))
+      {
+        case TK_LETREF:
+        case TK_VARREF:
+        {
+          const char* name = ast_name(ast_child(ref));
+          codegen_local_lifetime_end(c, name);
+          break;
+        }
+        case TK_THIS:
+        case TK_PARAMREF:
+          break;
+        default:
+          assert(0);
+          break;
+      }
       break;
+    }
 
     case TK_RECOVER:
       ret = gen_expr(c, ast_childidx(ast, 1));
@@ -173,7 +192,13 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   }
 
   if(has_scope)
+  {
+    LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
+    LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
+    if(terminator == NULL)
+      codegen_scope_lifetime_end(c);
     codegen_popscope(c);
+  }
 
   return ret;
 }

@@ -75,12 +75,18 @@ uint32_t program_assign_pkg_id(ast_t* ast)
   return data->next_package_id++;
 }
 
+#if defined(PLATFORM_IS_WINDOWS)
+#define INVALID_LOCATOR_CHARS "\t\r\n\"'`;$|&<>%*?[]{}"
+#else
+#define INVALID_LOCATOR_CHARS "\t\r\n\"'`;$|&<>%*?[]{}()"
+#endif
+
 static const char* quoted_locator(pass_opt_t* opt, ast_t* use,
   const char* locator)
 {
   assert(locator != NULL);
 
-  if(strpbrk(locator, "\t\r\n\"'`;$|&<>%*?[]{}()") != NULL)
+  if(strpbrk(locator, INVALID_LOCATOR_CHARS) != NULL)
   {
     if(use != NULL)
       ast_error(opt->check.errors, use, "use URI contains invalid characters");
