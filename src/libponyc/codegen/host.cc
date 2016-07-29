@@ -10,6 +10,7 @@
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
@@ -111,4 +112,49 @@ LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
   SMDiagnostic diag;
 
   return wrap(parseIRFile(file, diag, *unwrap(ctx)).release());
+}
+
+LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
+{
+  Module* m = unwrap(module);
+
+  Type* params[3];
+  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[1] = params[0];
+  params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memcpy, {params, 3}));
+}
+
+LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
+{
+  Module* m = unwrap(module);
+
+  Type* params[3];
+  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[1] = params[0];
+  params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memmove, {params, 3}));
+}
+
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module)
+{
+  Module* m = unwrap(module);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, {}));
+}
+
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module)
+{
+  Module* m = unwrap(module);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
+}
+
+LLVMValueRef LLVMInvariantStart(LLVMModuleRef module)
+{
+  Module* m = unwrap(module);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::invariant_start, {}));
 }

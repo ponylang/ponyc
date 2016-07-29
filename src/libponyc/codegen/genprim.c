@@ -8,6 +8,7 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 
 #include <assert.h>
 #include <string.h>
@@ -185,6 +186,22 @@ static void pointer_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
+  assert(ast_id(t->ast) == TK_NOMINAL);
+  if(cap_single(t->ast) == TK_VAL)
+  {
+      LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
+      const char id[] = "invariant.load";
+      LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  }
+
+  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
+  if(cap_single(t->ast) == TK_VAL || ((ast_id(typearg) == TK_NOMINAL) &&
+    (cap_single(typearg) == TK_VAL)))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, result);
+  }
+
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -208,7 +225,16 @@ static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
+
+  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
+  if((ast_id(typearg) == TK_NOMINAL) && (cap_single(typearg) == TK_VAL))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, result);
+  }
+
   LLVMBuildStore(c->builder, LLVMGetParam(m->func, 2), loc);
+
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -274,22 +300,11 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef src = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef dst = LLVMBuildInBoundsGEP(c->builder, src, &n, 1, "");
+  dst = LLVMBuildBitCast(c->builder, dst, t->use_type, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = LLVMBuildBitCast(c->builder, dst, t->use_type, "");
-  args[1] = ptr;
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memmove.*(ptr + (n * sizeof(elem)), ptr, len * sizeof(elem))
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memmove(c, dst, ptr, elen);
 
   // Return ptr.
   LLVMBuildRet(c->builder, ptr);
@@ -318,23 +333,19 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
 
+  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
+  if((ast_id(typearg) == TK_NOMINAL) && (cap_single(typearg) == TK_VAL))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, result);
+  }
+
   LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
+  src = LLVMBuildBitCast(c->builder, src, t->use_type, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = ptr;
-  args[1] = LLVMBuildBitCast(c->builder, src, t->use_type, "");
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memmove.*(ptr, ptr + (n * sizeof(elem)), len * sizeof(elem))
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memmove(c, ptr, src, elen);
 
   // Return ptr[0].
   LLVMBuildRet(c->builder, result);
@@ -361,20 +372,8 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   LLVMValueRef n = LLVMGetParam(m->func, 2);
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = ptr2;
-  args[1] = ptr;
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memcpy.*(ptr2, ptr, n * sizeof(elem), 1, 0)
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, ptr2, ptr, elen);
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
@@ -402,25 +401,11 @@ static void pointer_consume_from(compile_t* c, reach_type_t* t,
   LLVMValueRef n = LLVMGetParam(m->func, 2);
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  args[1] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, ptr, ptr2, elen);
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_usize(compile_t* c, reach_type_t* t)
@@ -546,6 +531,12 @@ static void maybe_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 
   LLVMPositionBuilderAtEnd(c->builder, is_false);
   result = LLVMBuildBitCast(c->builder, result, t_elem->use_type, "");
+
+  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
+  if(cap_single(t->ast) == TK_VAL || ((ast_id(typearg) == TK_NOMINAL) &&
+    (cap_single(typearg) == TK_VAL)))
+    gencall_invariant_start(c, result);
+
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
@@ -834,17 +825,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   if((t_elem->underlying == TK_PRIMITIVE) && (t_elem->primitive != NULL))
   {
     // memcpy machine words
-    args[0] = ptr_offset_addr;
-    args[1] = ptr;
-    args[2] = LLVMBuildMul(c->builder, size, l_size, "");
-    args[3] = LLVMConstInt(c->i32, 1, false);
-    args[4] = LLVMConstInt(c->i1, 0, false);
-    if(target_is_ilp32(c->opt->triple))
-    {
-      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-    } else {
-      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-    }
+    size = LLVMBuildMul(c->builder, size, l_size, "");
+    gencall_memcpy(c, ptr_offset_addr, ptr, size);
   } else {
     ptr = LLVMBuildBitCast(c->builder, ptr,
       LLVMPointerType(t_elem->use_type, 0), "");
@@ -1064,19 +1046,11 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
 
   // Serialise the string contents.
-  args[0] = LLVMBuildInBoundsGEP(c->builder, addr, &ptr_offset, 1, "");
-  args[1] = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
+  LLVMValueRef dst =  LLVMBuildInBoundsGEP(c->builder, addr, &ptr_offset, 1,
+    "");
+  LLVMValueRef src = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
     c->void_ptr, "");
-  args[2] = alloc;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, dst, src, alloc);
 
   LLVMBuildBr(c->builder, post_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);

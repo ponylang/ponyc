@@ -3,7 +3,9 @@
 #include "genname.h"
 #include "gencall.h"
 #include "../expr/literal.h"
+#include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/viewpoint.h"
 #include <string.h>
 #include <assert.h>
 
@@ -84,9 +86,45 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(field == NULL)
     return NULL;
 
+  assert((ast_id(l_type) == TK_NOMINAL) || (ast_id(l_type) == TK_TUPLETYPE));
+
   // Don't load if we're reading from a tuple.
   if(ast_id(l_type) != TK_TUPLETYPE)
+  {
     field = LLVMBuildLoad(c->builder, field, "");
+    if((ast_id(ast) == TK_FLETREF) || (cap_single(l_type) == TK_VAL))
+    {
+      LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
+      const char id[] = "invariant.load";
+      LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+    }
+  }
+
+  ast_t* f_type = ast_type(ast);
+
+  if((ast_id(f_type) == TK_NOMINAL) && (cap_single(f_type) == TK_VAL))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(field)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, field);
+  }
+
+  return field;
+}
+
+LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef field = gen_fieldptr(c, ast);
+
+  if(field == NULL)
+    return NULL;
+
+  ast_t* f_type = ast_type(ast);
+
+  if((ast_id(f_type) == TK_NOMINAL) && (cap_single(f_type) == TK_VAL))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(field)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, field);
+  }
 
   return field;
 }
@@ -194,7 +232,24 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   if(local_ptr == NULL)
     return NULL;
 
-  return LLVMBuildLoad(c->builder, local_ptr, "");
+  LLVMValueRef local = LLVMBuildLoad(c->builder, local_ptr, "");
+
+  if(ast_id(ast) == TK_LETREF)
+  {
+    LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
+    const char id[] = "invariant.load";
+    LLVMSetMetadata(local, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  }
+
+  ast_t* l_type = ast_type(ast);
+
+  if((ast_id(l_type) == TK_NOMINAL) && (cap_single(l_type) == TK_VAL))
+  {
+    if(LLVMGetTypeKind(LLVMTypeOf(local)) == LLVMPointerTypeKind)
+      gencall_invariant_start(c, local);
+  }
+
+  return local;
 }
 
 LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)

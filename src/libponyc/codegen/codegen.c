@@ -431,33 +431,6 @@ static void init_runtime(compile_t* c)
   // i32 pony_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
-
-  // void llvm.memcpy.*(i8*, i8*, i32/64, i32, i1)
-  // void llvm.memmove.*(i8*, i8*, i32/64, i32, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
-  params[3] = c->i32;
-  params[4] = c->i1;
-  if(target_is_ilp32(c->opt->triple))
-  {
-    params[2] = c->i32;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
-    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
-  } else {
-    params[2] = c->i64;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
-    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
-  }
-
-  // void llvm.lifetime.start(i64, i8*)
-  // void llvm.lifetime.end(i64, i8*)
-  params[0] = c->i64;
-  params[1] = c->void_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  LLVMAddFunction(c->module, "llvm.lifetime.start", type);
-  LLVMAddFunction(c->module, "llvm.lifetime.end", type);
 }
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)

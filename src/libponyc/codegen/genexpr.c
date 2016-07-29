@@ -31,7 +31,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_EMBEDREF:
-      ret = gen_fieldptr(c, ast);
+      ret = gen_fieldembed(c, ast);
       break;
 
     case TK_PARAMREF:
