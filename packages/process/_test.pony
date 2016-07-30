@@ -110,17 +110,19 @@ class _ProcessClient is ProcessNotify
     _exit_code = exit_code
     _h = h
 
-  fun ref stdout(data: Array[U8] iso) => _d_stdout.append(consume data)
+  fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
     """
     Called when new data is received on STDOUT of the forked process
     """
+    _d_stdout.append(consume data)
 
-  fun ref stderr(data: Array[U8] iso) => _d_stderr.append(consume data)
+  fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
     """
     Called when new data is received on STDERR of the forked process
     """
+    _d_stderr.append(consume data)
 
-  fun ref failed(err: ProcessError) =>
+  fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     """
     ProcessMonitor calls this if we run into errors with the
     forked process.
@@ -142,7 +144,7 @@ class _ProcessClient is ProcessNotify
       _h.fail("Unknown ProcessError!")
     end
 
-  fun ref dispose(child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
     """
     Called when ProcessMonitor terminates to cleanup ProcessNotify
     We receive the exit code of the child process from ProcessMonitor.
