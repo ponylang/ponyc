@@ -979,7 +979,7 @@ DEF(field);
   MAP_ID(TK_VAR, TK_FVAR);
   MAP_ID(TK_LET, TK_FLET);
   TOKEN("field name", TK_ID);
-  SKIP(NULL, TK_COLON);
+  SKIP("mandatory type declaration on field", TK_COLON);
   RULE("field type", type);
   IF(TK_DELEGATE, RULE("delegated type", provides));
   IF(TK_ASSIGN, RULE("field value", infix));
