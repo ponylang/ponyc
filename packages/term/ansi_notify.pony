@@ -41,5 +41,8 @@ interface ANSINotify
   fun ref prompt(term: ANSITerm ref, value: String) =>
     None
 
+  fun ref size(rows: U16, cols: U16) =>
+    None
+
   fun ref closed() =>
     None
