@@ -193,7 +193,6 @@ actor ANSITerm
     """
     Pass the window size to the notifier.
     """
-
     let ws: _TermSize = _TermSize
     ifdef posix then
       @ioctl[I32](0, _TIOCGWINSZ(), ws) // do error handling
