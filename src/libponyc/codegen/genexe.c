@@ -379,7 +379,7 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
-  if(lookup(NULL, main_ast, main_ast, c->str_create) == NULL)
+  if(lookup(c->opt, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
