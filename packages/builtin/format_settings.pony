@@ -306,8 +306,8 @@ primitive _ToString
         end
       end
 
-      s.append(typestring)
       _extend_digits(s, prec')
+      s.append(typestring)
       s.append(prestring)
       _pad(s, width', align', fill')
       s
@@ -344,8 +344,8 @@ primitive _ToString
         end
       end
 
-      s.append(typestring)
       _extend_digits(s, prec')
+      s.append(typestring)
       s.append(prestring)
       _pad(s, width', align', fill')
       s
