@@ -231,3 +231,20 @@ TEST_F(BadPonyTest, ParenthesisedReturn2)
 
   TEST_ERRORS_1(src, "Unreachable code");
 }
+
+TEST_F(BadPonyTest, MatchUncalledMethod)
+{
+  // From issue #903
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    match foo\n"
+    "    | None => None\n"
+    "    end\n"
+
+    "  fun foo() =>\n"
+    "    None";
+
+  TEST_ERRORS_2(src, "can't reference a method without calling it",
+                     "this pattern can never match");
+}
