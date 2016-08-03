@@ -394,6 +394,9 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, opt);
 
+    case TK_FUNTYPE:
+      return MATCHTYPE_REJECT;
+
     default: {}
   }
 
