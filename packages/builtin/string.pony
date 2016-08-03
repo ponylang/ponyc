@@ -206,16 +206,18 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Try to remove unused space, making it available for garbage collection. The
     request may be ignored. The string is returned to allow call chaining.
     """
-    if _size <= 512 then
-      if _size.next_pow2() != _alloc.next_pow2() then
-        _alloc = _size.next_pow2()
+    if (_size + 1) <= 512 then
+      if (_size + 1).next_pow2() != _alloc.next_pow2() then
+        _alloc = (_size + 1).next_pow2()
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
         _ptr._consume_from(consume old_ptr, _size)
+        _set(_size, 0)
       end
-    elseif _size < _alloc then
-      _alloc = _size
+    elseif (_size + 1) < _alloc then
+      _alloc = (_size + 1)
       let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._consume_from(consume old_ptr, _size)
+      _set(_size, 0)
     end
     this
 
