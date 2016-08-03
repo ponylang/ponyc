@@ -30,6 +30,13 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 
+// Intrinsics.
+LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
+LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module);
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
+LLVMValueRef LLVMInvariantStart(LLVMModuleRef module);
+
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
 #define GEN_NOTNEEDED (LLVMConstInt(c->ibool, 0, false))
