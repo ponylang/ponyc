@@ -37,6 +37,8 @@ enum
   OPT_FEATURES,
   OPT_TRIPLE,
   OPT_STATS,
+  OPT_LINK_ARCH,
+  OPT_LINKER,
 
   OPT_VERBOSE,
   OPT_PASSES,
@@ -74,6 +76,8 @@ static opt_arg_t args[] =
   {"features", '\0', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
+  {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
+  {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
@@ -126,6 +130,10 @@ static void usage()
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
     "  --stats         Print some compiler stats.\n"
+    "  --link-arch     Set the linking architecture.\n"
+    "    =name         Default is the host architecture.\n"
+    "  --linker        Set the linker command to use.\n"
+    "    =name         Default is the compiler used to compile ponyc.\n"
     "\n"
     "Debugging options:\n"
     "  --verbose, -V   Verbosity level.\n"
@@ -283,6 +291,8 @@ int main(int argc, char* argv[])
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
       case OPT_STATS: opt.print_stats = true; break;
+      case OPT_LINK_ARCH: opt.link_arch = s.arg_val; break;
+      case OPT_LINKER: opt.linker = s.arg_val; break;
 
       case OPT_AST: print_program_ast = true; break;
       case OPT_ASTPACKAGE: print_package_ast = true; break;
