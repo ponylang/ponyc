@@ -45,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 - No longer silently ignores lib paths containing parens on Windows.
 - Make linking more dynamic and allow for overriding linker and linker arch.
+- Fix issue with creating hex and octal strings if precision was specified.
 
 ### Added
 
