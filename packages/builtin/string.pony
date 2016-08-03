@@ -38,6 +38,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         (_size > 0) and
         try (data((_size + offset) - 1) == 0) else false end
       then
+        _size = _size - 1
         _alloc = data.space() - offset
         _ptr = data._cstring()._unsafe()._offset(offset)
       else
