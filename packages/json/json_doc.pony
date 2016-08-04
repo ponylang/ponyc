@@ -21,7 +21,7 @@ class JsonDoc
     """
     data = None
 
-  fun string(pretty_print: Bool = false, indent: String = "  "): String =>
+  fun string(indent: String = "", pretty_print: Bool = false): String =>
     """
     Generate string representation of this document.
     """
