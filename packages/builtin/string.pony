@@ -21,24 +21,31 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
-  new val from_array(data: Array[U8] val) =>
+  new val from_array(data: Array[U8] val, offset: USize = 0) =>
     """
     Create a string from an array, reusing the underlying data pointer if the
     array is null terminated, or copying the data if it is not.
     """
-    _size = data.size()
-
-    if
-      (_size > 0) and
-      try (data(_size - 1) == 0) else false end
-    then
-      _alloc = data.space()
-      _ptr = data._cstring()._unsafe()
-    else
-      _alloc = _size + 1
+    if offset >= data.size() then
+      _size = 0
+      _alloc = 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      data._cstring()._copy_to(_ptr, _size)
-      _set(_size, 0)
+      _set(0, 0)
+    else
+      _size = data.size() - offset
+
+      if
+        (_size > 0) and
+        try (data((_size + offset) - 1) == 0) else false end
+      then
+        _alloc = data.space() - offset
+        _ptr = data._cstring()._unsafe()._offset(offset)
+      else
+        _alloc = _size + 1
+        _ptr = Pointer[U8]._alloc(_alloc)
+        data._cstring()._offset(offset)._copy_to(_ptr, _size)
+        _set(_size, 0)
+      end
     end
 
   new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
