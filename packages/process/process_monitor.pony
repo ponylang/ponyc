@@ -261,7 +261,9 @@ actor ProcessMonitor
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
+      if 0 > @execve[I32](path.null_terminated().cstring(), argp.cstring(),
+        envp.cstring())
+      then
         @_exit[None](I32(-1))
       end
     end
@@ -286,7 +288,7 @@ actor ProcessMonitor
     """
     let argv = Array[Pointer[U8] tag](args.size() + 1)
     for s in args.values() do
-      argv.push(s.cstring())
+      argv.push(s.null_terminated().cstring())
     end
     argv.push(Pointer[U8]) // nullpointer to terminate list of args
     argv

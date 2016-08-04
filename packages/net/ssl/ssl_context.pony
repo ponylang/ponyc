@@ -62,11 +62,11 @@ class val SSLContext
       _ctx.is_null() or
       (cert.path.size() == 0) or
       (key.path.size() == 0) or
-      (@SSL_CTX_use_certificate_chain_file[I32](
-        _ctx, cert.path.cstring()) == 0) or
-      (@SSL_CTX_use_PrivateKey_file[I32](
-        _ctx, key.path.cstring(), I32(1)) == 0) or
-      (@SSL_CTX_check_private_key[I32](_ctx) == 0)
+      (0 == @SSL_CTX_use_certificate_chain_file[I32](
+        _ctx, cert.path.null_terminated().cstring())) or
+      (0 == @SSL_CTX_use_PrivateKey_file[I32](
+        _ctx, key.path.null_terminated().cstring(), I32(1))) or
+      (0 == @SSL_CTX_check_private_key[I32](_ctx))
     then
       error
     end
@@ -90,7 +90,7 @@ class val SSLContext
     if
       _ctx.is_null() or
       (f.is_null() and p.is_null()) or
-      (@SSL_CTX_load_verify_locations[I32](_ctx, f, p) == 0)
+      (0 == @SSL_CTX_load_verify_locations[I32](_ctx, f, p))
     then
       error
     end
@@ -103,7 +103,8 @@ class val SSLContext
     """
     if
       _ctx.is_null() or
-      (@SSL_CTX_set_cipher_list[I32](_ctx, ciphers.cstring()) == 0)
+      (0 == @SSL_CTX_set_cipher_list[I32](_ctx,
+        ciphers.null_terminated().cstring()))
     then
       error
     end

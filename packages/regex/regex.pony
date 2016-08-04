@@ -173,7 +173,8 @@ class Regex
     Returns the index of a named capture. Raises an error if the named capture
     does not exist.
     """
-    let rc = @pcre2_substring_number_from_name[I32](_pattern, name.cstring())
+    let rc = @pcre2_substring_number_from_name[I32](_pattern,
+      name.null_terminated().cstring())
 
     if rc < 0 then
       error

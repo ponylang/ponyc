@@ -92,6 +92,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Allow the use of a LLVM bitcode file for the runtime instead of a static library.
 - add iterators to persistent/Map (`keys()`, `values()`, and `pairs()`)
 - add notification of terminal resize
+- `trim` and `trim_in_place` methods for `Array` and `String`.
+- `is_null_terminated` and `null_terminated` methods for `String`.
 
 ### Changed
 

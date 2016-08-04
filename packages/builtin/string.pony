@@ -41,10 +41,10 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       _set(_size, 0)
     end
 
-  new from_cstring(str: Pointer[U8], len: USize = 0) =>
+  new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
-    return null-terminated pony_alloc'd character arrays.
+    return pony_alloc'd character arrays. If len is not given, the
     """
     if str.is_null() then
       _size = 0
@@ -60,7 +60,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         end
       end
 
-      _alloc = _size + 1
+      _alloc = alloc.max(_size + 1)
       _ptr = str
     end
 
@@ -249,7 +249,63 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _size = len.min(_alloc - 1)
     _set(_size, 0)
+
     this
+
+  fun ref trim_in_place(from: USize = 0, to: USize = -1): String ref^ =>
+    """
+    Trim the string to a portion of itself, covering `from` until `to`.
+    Unlike slice, the operation does not allocate a new string nor copy elements.
+    The same string is returned to allow call chaining.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    _size = last - offset
+    _alloc = _alloc - offset
+    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+
+    this
+
+  fun val trim(from: USize = 0, to: USize = -1): String val =>
+    """
+    Return a shared portion of this string, covering `from` until `to`.
+    Both the original and the new string are immutable, as they share memory.
+    The operation does not allocate a new string pointer nor copy elements.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    recover
+      let size' = last - offset
+      let alloc = _alloc - offset
+
+      if size' > 0 then
+        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+  fun is_null_terminated(): Bool =>
+    """
+    Return true if the string is null-terminated and safe to pass to an FFI
+    function that doesn't accept a size argument, expecting a null-terminator.
+    This method checks that there is a null byte just after the final position
+    of populated bytes in the string, but does not check for other null bytes
+    which may be present earlier in the content of the string.
+    If you need a null-terminated copy of this string, use the clone method.
+    """
+    (_alloc > 0) and (_ptr._apply(_size) == 0)
+
+  fun null_terminated(): this->String ref =>
+    """
+    Returns a null-terminated version of the string, safe to pass to an FFI
+    function that doesn't accept a size argument, expecting a null-terminator.
+    If the underlying string is already null terminated, this is returned;
+    otherwise the string is cloned and the null-terminated clone is returned.
+    """
+    if is_null_terminated() then this else clone() end
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
@@ -375,6 +431,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     let str = recover String(len) end
     _ptr._copy_to(str._ptr._unsafe(), len + 1)
     str._size = len
+    str._set(len, 0)
     str
 
   fun find(s: String box, offset: ISize = 0, nth: USize = 0): ISize ? =>
