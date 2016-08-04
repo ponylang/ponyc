@@ -24,47 +24,47 @@ class JsonArray
     """
     Generate string representation of this array.
     """
-    let text = _show(recover String(256) end, indent, 0, pretty_print)
-    text.compact()
-    text
+    let buf = _show(recover String(256) end, indent, 0, pretty_print)
+    buf.compact()
+    buf
 
-  fun _show(text': String iso, indent: String = "", level: USize = 0,
+  fun _show(buf': String iso, indent: String = "", level: USize = 0,
     pretty: Bool = false): String iso^
   =>
     """
     Append the string representation of this array to the provided String.
     """
-    var text = consume text'
+    var buf = consume buf'
 
     if data.size() == 0 then
-      text.append("[]")
-      return text
+      buf.append("[]")
+      return buf
     end
 
-    text.push('[')
+    buf.push('[')
 
     var print_comma = false
 
     for v in data.values() do
       if print_comma then
-        text.push(',')
+        buf.push(',')
       else
         print_comma = true
       end
 
       if pretty then
-        text = _JsonPrint._indent(consume text, indent, level + 1)
+        buf = _JsonPrint._indent(consume buf, indent, level + 1)
       end
 
-      text = _JsonPrint._string(v, consume text, indent, level + 1, pretty)
+      buf = _JsonPrint._string(v, consume buf, indent, level + 1, pretty)
     end
 
     if pretty then
-      text = _JsonPrint._indent(consume text, indent, level)
+      buf = _JsonPrint._indent(consume buf, indent, level)
     end
 
-    text.push(']')
-    text
+    buf.push(']')
+    buf
 
 
 class JsonObject
@@ -87,53 +87,53 @@ class JsonObject
     """
     Generate string representation of this object.
     """
-    let text = _show(recover String(256) end, indent, 0, pretty_print)
-    text.compact()
-    text
+    let buf = _show(recover String(256) end, indent, 0, pretty_print)
+    buf.compact()
+    buf
 
-  fun _show(text': String iso, indent: String = "", level: USize = 0,
+  fun _show(buf': String iso, indent: String = "", level: USize = 0,
     pretty: Bool = false): String iso^
   =>
     """
     Append the string representation of this object to the provided String.
     """
-    var text = consume text'
+    var buf = consume buf'
 
     if data.size() == 0 then
-      text.append("{}")
-      return text
+      buf.append("{}")
+      return buf
     end
 
-    text.push('{')
+    buf.push('{')
 
     var print_comma = false
 
     for (k, v) in data.pairs() do
       if print_comma then
-        text.push(',')
+        buf.push(',')
       else
         print_comma = true
       end
 
       if pretty then
-        text = _JsonPrint._indent(consume text, indent, level + 1)
+        buf = _JsonPrint._indent(consume buf, indent, level + 1)
       end
 
-      text.push('"')
-      text.append(k)
+      buf.push('"')
+      buf.append(k)
 
       if pretty then
-        text.append("\": ")
+        buf.append("\": ")
       else
-        text.append("\":")
+        buf.append("\":")
       end
 
-      text = _JsonPrint._string(v, consume text, indent, level + 1, pretty)
+      buf = _JsonPrint._string(v, consume buf, indent, level + 1, pretty)
     end
 
     if pretty then
-      text = _JsonPrint._indent(consume text, indent, level)
+      buf = _JsonPrint._indent(consume buf, indent, level)
     end
 
-    text.push('}')
-    text
+    buf.push('}')
+    buf
