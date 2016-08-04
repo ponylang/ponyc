@@ -28,8 +28,8 @@ class JsonArray
     buf.compact()
     buf
 
-  fun _show(buf': String iso, indent: String = "", level: USize = 0,
-    pretty: Bool = false): String iso^
+  fun _show(buf': String iso, indent: String = "", level: USize,
+    pretty: Bool): String iso^
   =>
     """
     Append the string representation of this array to the provided String.
@@ -91,8 +91,8 @@ class JsonObject
     buf.compact()
     buf
 
-  fun _show(buf': String iso, indent: String = "", level: USize = 0,
-    pretty: Bool = false): String iso^
+  fun _show(buf': String iso, indent: String = "", level: USize,
+    pretty: Bool): String iso^
   =>
     """
     Append the string representation of this object to the provided String.

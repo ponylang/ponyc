@@ -14,7 +14,7 @@ primitive _JsonPrint
       level = level - 1
     end
 
-    consume buf
+    buf
 
   fun _string(d: box->JsonType, buf': String iso, indent: String, level: USize,
     pretty: Bool): String iso^
