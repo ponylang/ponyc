@@ -204,7 +204,7 @@ actor ProcessMonitor
     """
     _notifier = consume notifier
     if not filepath.caps(FileExec) then
-      _notifier.failed(CapError)
+      _notifier.failed(this, CapError)
       return
     end
 
@@ -225,7 +225,7 @@ actor ProcessMonitor
         _close_fd(_stdout_write)
         _close_fd(_stderr_read)
         _close_fd(_stderr_write)
-        _notifier.failed(PipeError)
+        _notifier.failed(this, PipeError)
         return
       end
       // prepare argp and envp ahead of fork() as it's not safe
@@ -235,13 +235,13 @@ actor ProcessMonitor
       // fork child process
       _child_pid = @fork[I32]()
       match _child_pid
-      | -1  => _notifier.failed(ForkError)
+      | -1  => _notifier.failed(this, ForkError)
       | 0   => _child(filepath.path, argp, envp)
       else
         _parent()
       end
     elseif windows then
-      _notifier.failed(Unsupported)
+      _notifier.failed(this, Unsupported)
     else
       compile_error "unsupported platform"
     end
@@ -261,7 +261,9 @@ actor ProcessMonitor
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
+      if 0 > @execve[I32](path.null_terminated().cstring(), argp.cstring(),
+        envp.cstring())
+      then
         @_exit[None](I32(-1))
       end
     end
@@ -286,7 +288,7 @@ actor ProcessMonitor
     """
     let argv = Array[Pointer[U8] tag](args.size() + 1)
     for s in args.values() do
-      argv.push(s.cstring())
+      argv.push(s.null_terminated().cstring())
     end
     argv.push(Pointer[U8]) // nullpointer to terminate list of args
     argv
@@ -373,10 +375,10 @@ actor ProcessMonitor
       if _stdin_write > 0 then
         let res = @write[ISize](_stdin_write, d.cstring(), d.size())
         if res < 0 then
-          _notifier.failed(WriteError)
+          _notifier.failed(this, WriteError)
         end
       else
-        _notifier.failed(WriteError)
+        _notifier.failed(this, WriteError)
       end
     end
 
@@ -409,7 +411,7 @@ actor ProcessMonitor
     try
       _kill_child()
     else
-      _notifier.failed(KillError)
+      _notifier.failed(this, KillError)
       return
     end
     _close()
@@ -497,10 +499,10 @@ actor ProcessMonitor
         var wstatus: I32 = 0
         let options: I32 = 0
         if @waitpid[I32](_child_pid, addressof wstatus, options) < 0 then
-          _notifier.failed(WaitpidError)
+          _notifier.failed(this, WaitpidError)
         end
         // process child exit code
-        _notifier.dispose((wstatus >> 8) and 0xff)
+        _notifier.dispose(this, (wstatus >> 8) and 0xff)
       end
     end
 
@@ -541,8 +543,8 @@ actor ProcessMonitor
           let data = _read_buf = recover Array[U8].undefined(next) end
           data.truncate(len.usize())
           match fd
-          | _stdout_read => _notifier.stdout(consume data)
-          | _stderr_read => _notifier.stderr(consume data)
+          | _stdout_read => _notifier.stdout(this, consume data)
+          | _stderr_read => _notifier.stderr(this, consume data)
           end
           sum = sum + len.usize()
           if sum > (1 << 12) then

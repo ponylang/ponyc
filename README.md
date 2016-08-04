@@ -164,11 +164,7 @@ You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.
 
 ```bash
 $ sudo apt-get update
-$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev
-$ wget <clang-binaries-tarball-url>
-$ tar xvf clang*
-$ cd clang*
-$ sudo cp -r * /usr/local/ && cd ..
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-dev
 ```
 
 Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:

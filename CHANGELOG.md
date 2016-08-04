@@ -44,6 +44,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - String.read_int failure on lowest number in the range of signed integers.
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 - No longer silently ignores lib paths containing parens on Windows.
+- Fix issue with creating hex and octal strings if precision was specified.
+- Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
 
 ### Added
 
@@ -92,6 +94,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - `String.push_utf32()` method.
 - Allow the use of a LLVM bitcode file for the runtime instead of a static library.
 - add iterators to persistent/Map (`keys()`, `values()`, and `pairs()`)
+- add notification of terminal resize
+- `trim` and `trim_in_place` methods for `Array` and `String`.
+- `is_null_terminated` and `null_terminated` methods for `String`.
 
 ### Changed
 
@@ -115,6 +120,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Strings now grow and shrink geometrically.
 - Embedded fields can now be constructed from complex expressions containing constructors
 - Sendable members of non-sendable objects can be used in recover expressions in certain cases.
+- ProcessNotify functions are passed a reference to ProcessMonitor.
 
 ## [0.2.1] - 2015-10-06
 

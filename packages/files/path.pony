@@ -480,7 +480,8 @@ primitive Path
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    var cstring = @pony_os_realpath[Pointer[U8] iso^](path.cstring())
+    var cstring = @pony_os_realpath[Pointer[U8] iso^](
+      path.null_terminated().cstring())
 
     if cstring.is_null() then
       error
