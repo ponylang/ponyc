@@ -21,11 +21,15 @@ class JsonDoc
     """
     data = None
 
-  fun string(pretty_print: Bool = false): String =>
+  fun string(pretty_print: Bool = false, indent: String = "  "): String =>
     """
     Generate string representation of this document.
     """
-    _JsonPrint._string(data, "", pretty_print)
+    let text = _JsonPrint._string(
+      data, recover String(256) end, indent, 0, pretty_print
+    )
+    text.compact()
+    text
 
   fun ref parse(source: String) ? =>
     """
