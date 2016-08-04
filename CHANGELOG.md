@@ -45,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 - No longer silently ignores lib paths containing parens on Windows.
 - Fix issue with creating hex and octal strings if precision was specified.
+- Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
 
 ### Added
 
