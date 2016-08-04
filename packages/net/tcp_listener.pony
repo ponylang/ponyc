@@ -45,8 +45,8 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @pony_os_listen_tcp[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_tcp[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _init_size = init_size
     _max_size = max_size
     _fd = @pony_asio_event_fd(_event)
@@ -61,8 +61,8 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @pony_os_listen_tcp4[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_tcp4[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _init_size = init_size
     _max_size = max_size
     _fd = @pony_asio_event_fd(_event)
@@ -77,8 +77,8 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @pony_os_listen_tcp6[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_tcp6[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _init_size = init_size
     _max_size = max_size
     _fd = @pony_asio_event_fd(_event)

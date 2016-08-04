@@ -179,6 +179,41 @@ class Array[A] is Seq[A]
     _size = _size.min(len)
     this
 
+  fun ref trim_in_place(from: USize = 0, to: USize = -1): Array[A]^ =>
+    """
+    Trim the array to a portion of itself, covering `from` until `to`.
+    Unlike slice, the operation does not allocate a new array nor copy elements.
+    The same array is returned to allow call chaining.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    _size = last - offset
+    _alloc = _alloc - offset
+    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+
+    this
+
+  fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
+    """
+    Return a shared portion of this array, covering `from` until `to`.
+    Both the original and the new array are immutable, as they share memory.
+    The operation does not allocate a new array pointer nor copy elements.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    recover
+      let size' = last - offset
+      let alloc = _alloc - offset
+
+      if size' > 0 then
+        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
   fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
     len: USize): this->Array[A]^
   =>

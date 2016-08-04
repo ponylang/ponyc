@@ -38,7 +38,7 @@ class val FileInfo
 
     filepath = from
 
-    if not @pony_os_stat[Bool](filepath.path.cstring(), this) then
+    if not @pony_os_stat[Bool](from.path.null_terminated().cstring(), this) then
       error
     end
 
@@ -53,9 +53,9 @@ class val FileInfo
 
     filepath = path
 
-    if not @pony_os_fstat[Bool](fd, path.path.cstring(), this) then
-      error
-    end
+    let fstat =
+      @pony_os_fstat[Bool](fd, path.path.null_terminated().cstring(), this)
+    if not fstat then error end
 
   new val _relative(fd: I32, path: FilePath, from: String) ? =>
     if not path.caps(FileStat) or (fd == -1) then
@@ -64,6 +64,6 @@ class val FileInfo
 
     filepath = path
 
-    if not @pony_os_fstatat[Bool](fd, from.cstring(), this) then
-      error
-    end
+    let fstatat =
+      @pony_os_fstatat[Bool](fd, from.null_terminated().cstring(), this)
+    if not fstatat then error end

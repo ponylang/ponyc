@@ -70,8 +70,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -85,8 +86,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp4[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp4[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -100,8 +102,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp6[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp6[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,

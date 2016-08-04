@@ -28,6 +28,9 @@ actor Main is TestList
     test(_TestStringRemove)
     test(_TestStringSubstring)
     test(_TestStringCut)
+    test(_TestStringTrim)
+    test(_TestStringTrimInPlace)
+    test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
@@ -39,6 +42,8 @@ actor Main is TestList
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArraySlice)
+    test(_TestArrayTrim)
+    test(_TestArrayTrimInPlace)
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
@@ -381,6 +386,56 @@ class iso _TestStringCut is UnitTest
     h.assert_eq[String]("01236", "0123456".cut(4, 6))
     h.assert_eq[String]("0123", "0123456".cut(4, 7))
     h.assert_eq[String]("0123", "0123456".cut(4))
+
+
+class iso _TestStringTrim is UnitTest
+  """
+  Test trimming part of a string.
+  """
+  fun name(): String => "builtin/String.trim"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String]("45", "0123456".trim(4, 6))
+    h.assert_eq[String]("456", "0123456".trim(4, 7))
+    h.assert_eq[String]("456", "0123456".trim(4))
+    h.assert_eq[String]("", "0123456".trim(4, 4))
+    h.assert_eq[String]("", "0123456".trim(4, 1))
+
+
+class iso _TestStringTrimInPlace is UnitTest
+  """
+  Test trimming part of a string in place.
+  """
+  fun name(): String => "builtin/String.trim_in_place"
+
+  fun apply(h: TestHelper) =>
+    case(h, "45", "0123456", 4, 6)
+    case(h, "456", "0123456", 4, 7)
+    case(h, "456", "0123456", 4)
+    case(h, "", "0123456", 4, 4)
+    case(h, "", "0123456", 4, 1)
+
+  fun case(h: TestHelper, expected: String, orig: String, from: USize,
+    to: USize = -1)
+  =>
+    let copy: String ref = orig.clone()
+    copy.trim_in_place(from, to)
+    h.assert_eq[String box](expected, copy)
+
+
+class iso _TestStringIsNullTerminated is UnitTest
+  """
+  Test checking if a string is null terminated.
+  """
+  fun name(): String => "builtin/String.is_null_terminated"
+
+  fun apply(h: TestHelper) =>
+    h.assert_true("".is_null_terminated())
+    h.assert_true("0123456".is_null_terminated())
+    h.assert_true("0123456".trim(4, 7).is_null_terminated())
+    h.assert_false("0123456".trim(2, 4).is_null_terminated())
+    h.assert_true("0123456".trim(2, 4).clone().is_null_terminated())
+    h.assert_true("0123456".trim(2, 4).null_terminated().is_null_terminated())
 
 
 class iso _TestSpecialValuesF32 is UnitTest
@@ -745,6 +800,41 @@ class iso _TestArraySlice is UnitTest
     h.assert_eq[String]("three", e(1))
     h.assert_eq[String]("one", e(2))
 
+
+class iso _TestArrayTrim is UnitTest
+  """
+  Test trimming part of a string.
+  """
+  fun name(): String => "builtin/Array.trim"
+
+  fun apply(h: TestHelper) =>
+    let orig: Array[U8] val = recover [0, 1, 2, 3, 4, 5, 6] end
+    h.assert_array_eq[U8]([as U8: 4, 5], orig.trim(4, 6))
+    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4, 7))
+    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4))
+    h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
+    h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
+
+
+class iso _TestArrayTrimInPlace is UnitTest
+  """
+  Test trimming part of a string in place.
+  """
+  fun name(): String => "builtin/Array.trim_in_place"
+
+  fun apply(h: TestHelper) =>
+    case(h, [4, 5], [0, 1, 2, 3, 4, 5, 6], 4, 6)
+    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4, 7)
+    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4)
+    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 4)
+    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 1)
+
+  fun case(h: TestHelper, expected: Array[U8], orig: Array[U8], from: USize,
+    to: USize = -1)
+  =>
+    let copy: Array[U8] ref = orig.clone()
+    copy.trim_in_place(from, to)
+    h.assert_array_eq[U8](expected, copy)
 
 class iso _TestArrayInsert is UnitTest
   """
