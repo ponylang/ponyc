@@ -33,6 +33,7 @@ actor Main is TestList
     test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
+    test(_TestStringSplitInPlace)
     test(_TestStringJoin)
     test(_TestStringCount)
     test(_TestStringCompare)
@@ -538,6 +539,40 @@ class iso _TestStringSplit is UnitTest
     h.assert_eq[String](r(0), "1")
     h.assert_eq[String](r(1), "2")
     h.assert_eq[String](r(2), "3  4")
+
+class iso _TestStringSplitInPlace is UnitTest
+  """
+  Test String.split_in_place
+  """
+  fun name(): String => "builtin/String.split_in_place"
+
+  fun apply(h: TestHelper) ? =>
+    if false then
+      error
+    end
+    var r = "1 2 3  4".split_in_place()
+    h.assert_eq[USize](r.size(), 5)
+    h.assert_eq[String](r(0), "1")
+    h.assert_eq[String](r(1), "2")
+    h.assert_eq[String](r(2), "3")
+    h.assert_eq[String](r(3), "")
+    h.assert_eq[String](r(4), "4")
+
+    r = "1 2 3  4".split_in_place(where n = 3)
+    h.assert_eq[USize](r.size(), 3)
+    h.assert_eq[String](r(0), "1")
+    h.assert_eq[String](r(1), "2")
+    h.assert_eq[String](r(2), "3  4")
+
+    r = "Hello there".split_in_place()
+    h.assert_eq[USize](r.size(), 2)
+    h.assert_eq[String](r(0), "Hello")
+    h.assert_eq[String](r(1), "there")
+
+    r = "Hello\tthere".split_in_place()
+    h.assert_eq[USize](r.size(), 2)
+    h.assert_eq[String](r(0), "Hello")
+    h.assert_eq[String](r(1), "there")
 
 
 class iso _TestStringJoin is UnitTest
