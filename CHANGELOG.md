@@ -46,6 +46,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - No longer silently ignores lib paths containing parens on Windows.
 - Fix issue with creating hex and octal strings if precision was specified.
 - Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
+- Performance of Array.append and Array.concat (no unnecessary calls to push).
 
 ### Added
 

@@ -41,6 +41,8 @@ actor Main is TestList
     test(_TestStringUTF32)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
+    test(_TestArrayAppend)
+    test(_TestArrayConcat)
     test(_TestArraySlice)
     test(_TestArrayTrim)
     test(_TestArrayTrimInPlace)
@@ -763,6 +765,76 @@ class iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x9C, s(2))
     h.assert_eq[U8](0x8E, s(3))
     h.assert_eq[U32](0x2070E, s.utf32(0)._1)
+
+
+class iso _TestArrayAppend is UnitTest
+  fun name(): String => "builtin/Array.append"
+
+  fun apply(h: TestHelper) ? =>
+    var a = ["one", "two", "three"]
+    var b = ["four", "five", "six"]
+    a.append(b)
+    h.assert_eq[USize](a.size(), 6)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("four", a(3))
+    h.assert_eq[String]("five", a(4))
+    h.assert_eq[String]("six", a(5))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.append(b, 1)
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+    h.assert_eq[String]("six", a(4))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.append(b, 1, 1)
+    h.assert_eq[USize](a.size(), 4)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+
+
+class iso _TestArrayConcat is UnitTest
+  fun name(): String => "builtin/Array.concat"
+
+  fun apply(h: TestHelper) ? =>
+    var a = ["one", "two", "three"]
+    var b = ["four", "five", "six"]
+    a.concat(b.values())
+    h.assert_eq[USize](a.size(), 6)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("four", a(3))
+    h.assert_eq[String]("five", a(4))
+    h.assert_eq[String]("six", a(5))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.concat(b.values(), 1)
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+    h.assert_eq[String]("six", a(4))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.concat(b.values(), 1, 1)
+    h.assert_eq[USize](a.size(), 4)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
 
 
 class iso _TestArraySlice is UnitTest
