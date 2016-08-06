@@ -41,6 +41,14 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       _set(_size, 0)
     end
 
+  new iso from_iso_array(data: Array[U8] iso) =>
+    """
+    Create a string from an array, reusing the underlying data pointer
+    """
+    _size = data.size()
+    _alloc = data.space()
+    _ptr = (consume data)._cstring()._unsafe()._offset(0)
+
   new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
