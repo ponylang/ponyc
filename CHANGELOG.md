@@ -107,7 +107,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Parameterized Array.find and Array.rfind with a comparator.
 - `this->` adapted types check match on the upper bounds.
 - Renamed `identityof` to `digestof`.
-- Renamed `net/Buffer` to `net/ReadBuffer`
+- Moved and renamed `net/Buffer` to `buffered/Reader` and `buffered/Writer`.
 - Print compiler error and info messages to stderr instead of stdout.
 - `Hashmap.concat` now returns `this` rather than `None`
 - Only allow single, internal underscores in numeric literals.
