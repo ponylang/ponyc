@@ -205,8 +205,8 @@ actor TCPConnection
 
   fun ref set_keepalive(secs: U32) =>
     """
-    Sets the TCP keepalive timeout to approximately secs seconds. Exact timing
-    is OS dependent. If secs is zero, TCP keepalive is disabled. TCP keepalive
+    Sets the TCP keepalive timeout to approximately `secs` seconds. Exact timing
+    is OS dependent. If `secs` is zero, TCP keepalive is disabled. TCP keepalive
     is disabled by default. This can only be set on a connected socket.
     """
     if _connected then
@@ -286,7 +286,7 @@ actor TCPConnection
 
   fun ref write_final(data: ByteSeq) =>
     """
-    Write as much as possible to the socket. Set _writeable to false if not
+    Write as much as possible to the socket. Set `_writeable` to `false` if not
     everything was written. On an error, close the connection. This is for
     data that has already been transformed by the notifier.
     """
@@ -322,7 +322,7 @@ actor TCPConnection
 
   fun ref _complete_writes(len: U32) =>
     """
-    The OS has informed as that len bytes of pending writes have completed.
+    The OS has informed us that `len` bytes of pending writes have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
@@ -384,7 +384,7 @@ actor TCPConnection
 
   fun ref _complete_reads(len: U32) =>
     """
-    The OS has informed as that len bytes of pending reads have completed.
+    The OS has informed us that `len` bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
