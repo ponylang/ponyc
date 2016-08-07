@@ -1,7 +1,5 @@
 primitive _JsonPrint
-  fun _indent(
-    buf: String iso, indent: String, level': USize): String iso^
-  =>
+  fun _indent(buf: String iso, indent: String, level': USize): String iso^ =>
     """
     Add indentation to the buf to the appropriate indent_level
     """
