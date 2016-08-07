@@ -75,7 +75,7 @@ class Writer
     _current.undefined(_current.size() + size')
     this
 
-  fun ref reserve_chunks(size': USize): WriteBuffer^ =>
+  fun ref reserve_chunks(size': USize): Writer^ =>
     """
     Reserve space for size' chunks.
 
