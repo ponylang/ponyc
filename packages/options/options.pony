@@ -25,7 +25,7 @@ actor Main
     _env.out.print("The Float is " + _a_float.string())
 
   fun ref arguments() ? =>
-    var options = Options(_env)
+    var options = Options(_env.args)
 
     options
       .add("string", "t", StringArgument)
@@ -93,11 +93,11 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
   var _index: USize = 0
   var _error: Bool = false
 
-  new create(env: Env, fatal: Bool = true) =>
-    _arguments = _arguments.create(env.args.size())
+  new create(args: Array[String] box, fatal: Bool = true) =>
+    _arguments = _arguments.create(args.size())
     _fatal = fatal
 
-    for arg in env.args.values() do
+    for arg in args.values() do
       _arguments.push(arg.clone())
     end
 
