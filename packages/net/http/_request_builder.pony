@@ -1,3 +1,4 @@
+use "buffered"
 use "net"
 
 class _RequestBuilder is TCPConnectionNotify
@@ -8,7 +9,7 @@ class _RequestBuilder is TCPConnectionNotify
   let _logger: Logger
   let _reversedns: (DNSLookupAuth | None)
   var _server: (_ServerConnection | None) = None
-  let _buffer: ReadBuffer = ReadBuffer
+  let _buffer: Reader = Reader
   let _builder: _PayloadBuilder = _PayloadBuilder.request()
 
   new iso create(handler: RequestHandler, logger: Logger,

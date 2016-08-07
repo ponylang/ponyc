@@ -60,7 +60,10 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
-    return pony_alloc'd character arrays. If len is not given, the
+    return pony_alloc'd character arrays. If len is not given, the pointer is
+    scanned for the first null byte, which will be interpreted as the null
+    terminator. Therefore, strings without null terminators must specify
+    a length to retain memory safety.
     """
     if str.is_null() then
       _size = 0

@@ -1,14 +1,14 @@
 use "collections"
 
-class ReadBuffer
+class Reader
   """
   Store network data and provide a parsing interface.
 
-  `ReadBuffer` provides a way to extract typed data from a sequence of
-  bytes. The `ReadBuffer` manages the underlying data structures to
+  `Reader` provides a way to extract typed data from a sequence of
+  bytes. The `Reader` manages the underlying data structures to
   provide a read cursor over a contiguous sequence of bytes. It is
   useful for decoding data that is received over a network or stored
-  in a file. Chunk of bytes are added to the `ReadBuffer` using the
+  in a file. Chunk of bytes are added to the `Reader` using the
   `append` method, and typed data is extracted using the getter
   methods.
 
@@ -29,7 +29,7 @@ class ReadBuffer
   [message_length][list_size][float1][string1][float2][string2]...
   ```
 
-  The following program uses a `ReadBuffer` to decode a message of
+  The following program uses a `Reader` to decode a message of
   this type and print them:
 
   ```
@@ -41,7 +41,7 @@ class ReadBuffer
     new create(env: Env) =>
       _env = env
     fun ref apply(data: Array[U8] iso) =>
-      let rb = ReadBuffer
+      let rb = Reader
       rb.append(consume data)
       try
         while true do
@@ -72,7 +72,7 @@ class ReadBuffer
     """
     _available
 
-  fun ref clear(): ReadBuffer^ =>
+  fun ref clear(): Reader^ =>
     """
     Discard all pending data.
     """
@@ -80,7 +80,7 @@ class ReadBuffer
     _available = 0
     this
 
-  fun ref append(data: Array[U8] val): ReadBuffer^ =>
+  fun ref append(data: Array[U8] val): Reader^ =>
     """
     Add a chunk of data.
     """
@@ -88,7 +88,7 @@ class ReadBuffer
     _chunks.push((data, 0))
     this
 
-  fun ref skip(n: USize): ReadBuffer^ ? =>
+  fun ref skip(n: USize): Reader^ ? =>
     """
     Skip n bytes.
     """

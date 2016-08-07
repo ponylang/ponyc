@@ -297,15 +297,17 @@ class Array[A] is Seq[A]
     let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
-    let cap = copy_len + offset
-    var i = offset
+    var n = USize(0)
 
     try
-      while i < cap do
-        push(seq(i))
-        i = i + 1
+      while n < copy_len do
+        _ptr._update(_size + n, seq(offset + n))
+
+        n = n + 1
       end
     end
+
+    _size = _size + n
 
     this
 
@@ -316,9 +318,10 @@ class Array[A] is Seq[A]
     Add len iterated elements to the end of the array, starting from the given
     offset. The array is returned to allow call chaining.
     """
-    try
-      var n = USize(0)
 
+    var n = USize(0)
+
+    try
       while n < offset do
         if iter.has_next() then
           iter.next()
@@ -328,14 +331,40 @@ class Array[A] is Seq[A]
 
         n = n + 1
       end
+    end
 
-      n = 0
+    n = 0
 
-      while n < len do
-        if iter.has_next() then
-          push(iter.next())
-        else
-          return this
+    // If a concrete len is specified, we take the caller at their word
+    // and reserve that much space, even though we can't verify that the
+    // iterator actually has that many elements available. Reserving ahead
+    // of time lets us take a fast path of direct pointer access.
+    if len != -1 then
+      reserve(_size + len)
+
+      try
+        while n < len do
+          if iter.has_next() then
+            _ptr._update(_size + n, iter.next())
+          else
+            break
+          end
+
+          n = n + 1
+        end
+      end
+
+      _size = _size + n
+    else
+      try
+        while n < len do
+          if iter.has_next() then
+            push(iter.next())
+          else
+            break
+          end
+
+          n = n + 1
         end
       end
     end
