@@ -11,6 +11,7 @@ actor Main is TestList
     test(_TestStdinStdout)
     test(_TestStderr)
     test(_TestFileExec)
+    test(_TestExpect)
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
@@ -85,6 +86,58 @@ class iso _TestFileExec is UnitTest
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
       h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestExpect is UnitTest
+  fun name(): String =>
+    "process/Expect"
+
+  fun apply(h: TestHelper) =>
+    let notifier = object iso is ProcessNotify
+      let _h: TestHelper = h
+      var _expected_4: Bool = false
+      var _expected_0: Bool = false
+      var _out: String = ""
+
+      fun ref expect(process: ProcessMonitor ref, qty: USize): USize =>
+        match qty
+        | 4 =>
+          _h.assert_eq[String](_out, "")
+          _expected_4 = true
+        | 0 => _expected_0 = true
+        end
+        qty
+
+      fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+        _out = _out + String.from_array(consume data)
+
+      fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+        _h.assert_eq[I32](child_exit_code, 0)
+        _h.assert_eq[String](_out, "one")
+        _h.assert_true(_expected_4)
+        _h.assert_true(_expected_0)
+        _h.complete(true)
+    end
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("cat")
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+        pm.expect(4)
+        pm.write("one")
+        pm.expect(0)
+        pm.done_writing()  // closing stdin allows "cat" to terminate
+        h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end

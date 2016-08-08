@@ -181,6 +181,8 @@ actor ProcessMonitor
   var _stderr_event: AsioEventID = AsioEvent.none()
 
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(4096) end
+  var _read_len: USize = 0
+  var _expect: USize = 0
 
   var _stdin_read:   U32 = -1
   var _stdin_write:  U32 = -1
@@ -414,6 +416,13 @@ actor ProcessMonitor
     end
     _close()
 
+  be expect(qty: USize = 0) =>
+    """
+    A `stdout` call on the notifier must contain exactly `qty` bytes. If
+    `qty` is zero, the call can contain any amount of data.
+    """
+    _expect = _notifier.expect(this, qty)
+
   fun _kill_child() ? =>
     """
     Terminate the child process.
@@ -524,7 +533,8 @@ actor ProcessMonitor
       if fd == -1 then return false end
       var sum: USize = 0
       while true do
-        let len = @read[ISize](fd, _read_buf.cstring(), _read_buf.space())
+        let len = @read[ISize](fd, _read_buf.cstring().usize() + _read_len,
+          _read_buf.space() - _read_len)
         let errno = @pony_os_errno()
         let next = _read_buf.space()
         match len
@@ -537,19 +547,29 @@ actor ProcessMonitor
         | 0  =>
           _close_fd(fd)
           return false
-        else
+        end
+
+        _read_len = _read_len + len.usize()
+
+        match fd
+        | _stdout_read =>
+          if _read_len >= _expect then
+            let data = _read_buf = recover Array[U8].undefined(next) end
+            data.truncate(_read_len)
+            _notifier.stdout(this, consume data)
+            _read_len = 0
+          end
+        | _stderr_read =>
           let data = _read_buf = recover Array[U8].undefined(next) end
           data.truncate(len.usize())
-          match fd
-          | _stdout_read => _notifier.stdout(this, consume data)
-          | _stderr_read => _notifier.stderr(this, consume data)
-          end
-          sum = sum + len.usize()
-          if sum > (1 << 12) then
-            // If we've read 4 kb, yield and read again later.
-            _read_again(fd)
-            return true
-          end
+          _notifier.stderr(this, consume data)
+        end
+
+        sum = sum + len.usize()
+        if sum > (1 << 12) then
+          // If we've read 4 kb, yield and read again later.
+          _read_again(fd)
+          return true
         end
       end
       true
