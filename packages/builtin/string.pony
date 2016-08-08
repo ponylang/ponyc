@@ -961,6 +961,65 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     consume result
 
+  fun val split_in_place(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String val] iso^ =>
+    """
+    Same as split, but no new strings are allocated.
+    """
+    let result = recover Array[String] end
+
+    if _size > 0 then
+      let chars = Array[U32](delim.size())
+
+      for rune in delim.runes() do
+        chars.push(rune)
+      end
+
+      var offset = USize(0)
+      var last = USize(0)
+      var occur = USize(0)
+
+      try 
+        while offset < _size do
+          (let char, let len) = utf32(offset.isize())
+          if chars.contains(char) then
+            occur = occur + 1
+            if (n > 0) and (occur >= n) then
+              break
+            end
+
+            let size': USize = offset - last
+            let alloc': USize = size' + 1
+            let s: String val = recover
+              if size' > 0 then
+                from_cstring(_ptr._offset(last)._unsafe(), size', alloc')
+              else
+                create()
+              end
+            end
+            result.push(s)
+            last = offset + len.usize()
+          end
+
+          offset = offset + len.usize()
+        end
+
+        if last < _size then
+          let size': USize = _size - last
+          let alloc': USize = size' + 1
+          let s: String val = recover
+            if size' > 0 then
+              from_cstring(_ptr._offset(last)._unsafe(), size', alloc')
+            else
+              create()
+            end
+          end
+          result.push(s)
+        end
+      end
+
+    end
+    consume result
+
   fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
     Remove all leading and trailing characters from the string that are in s.
