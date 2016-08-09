@@ -117,18 +117,17 @@ class iso _TestExpect is UnitTest
         _h.complete(true)
     end end
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")
       let args: Array[String] iso = recover Array[String](1) end
-      args.push("cat")
+      args.push("echo")
+      args.push("hello there!")
       let vars: Array[String] iso = recover Array[String](2) end
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-        pm.write("hello there!")
         pm.expect(2)
-        pm.done_writing()  // closing stdin allows "cat" to terminate
         h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
