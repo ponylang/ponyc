@@ -553,18 +553,17 @@ actor ProcessMonitor
 
         _read_len = _read_len + len.usize()
 
+        let data = _read_buf = recover Array[U8].undefined(next) end
+        data.truncate(_read_len)
+
         match fd
         | _stdout_read =>
           if _read_len >= _expect then
-            let data = _read_buf = recover Array[U8].undefined(next) end
-            data.truncate(_read_len)
             _notifier.stdout(this, consume data)
             _read_len = 0
             _read_buf_size()
           end
         | _stderr_read =>
-          let data = _read_buf = recover Array[U8].undefined(next) end
-          data.truncate(len.usize())
           _notifier.stderr(this, consume data)
         end
 
