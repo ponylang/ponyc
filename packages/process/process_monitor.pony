@@ -180,7 +180,8 @@ actor ProcessMonitor
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
-  var _read_buf: Array[U8] iso = recover Array[U8].undefined(4096) end
+  let _max_size: USize = 4096
+  var _read_buf: Array[U8] iso = recover Array[U8].undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
 
@@ -422,6 +423,7 @@ actor ProcessMonitor
     `qty` is zero, the call can contain any amount of data.
     """
     _expect = _notifier.expect(this, qty)
+    _read_buf_size()
 
   fun _kill_child() ? =>
     """
@@ -534,7 +536,7 @@ actor ProcessMonitor
       var sum: USize = 0
       while true do
         let len = @read[ISize](fd, _read_buf.cstring().usize() + _read_len,
-          _read_buf.space() - _read_len)
+          _read_buf.size() - _read_len)
         let errno = @pony_os_errno()
         let next = _read_buf.space()
         match len
@@ -558,6 +560,7 @@ actor ProcessMonitor
             data.truncate(_read_len)
             _notifier.stdout(this, consume data)
             _read_len = 0
+            _read_buf_size()
           end
         | _stderr_read =>
           let data = _read_buf = recover Array[U8].undefined(next) end
@@ -575,6 +578,13 @@ actor ProcessMonitor
       true
     else
       true
+    end
+
+  fun ref _read_buf_size() =>
+    if _expect > 0 then
+      _read_buf.undefined(_expect)
+    else
+      _read_buf.undefined(_max_size)
     end
 
   be _read_again(fd: U32) =>
