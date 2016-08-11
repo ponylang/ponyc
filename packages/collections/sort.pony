@@ -1,15 +1,15 @@
-primitive Sort[A: Comparable[A] val]
+primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   """
   Implementation of dual-pivot quicksort.
   """
-  fun apply(a: Seq[A]): Seq[A]^ ? =>
+  fun apply(a: A): A^ =>
     """
     Sort the given seq.
     """
-    _sort(a, 0, a.size().isize()-1)
+    try _sort(a, 0, a.size().isize()-1) end
     a
 
-  fun _sort(a: Seq[A], lo: ISize, hi: ISize) ? =>
+  fun _sort(a: A, lo: ISize, hi: ISize) ? =>
     if hi <= lo then return end
     // choose outermost elements as pivots
     if a(lo.usize()) > a(hi.usize()) then _swap(a, lo, hi) end
@@ -41,7 +41,5 @@ primitive Sort[A: Comparable[A] val]
     _sort(a, l+1, g-1)
     _sort(a, g+1, hi)
 
-  fun _swap(a: Seq[A], i: ISize, j: ISize) ? =>
-    let tmp = a(i.usize())
-    a(i.usize()) = a(j.usize())
-    a(j.usize()) = tmp
+  fun _swap(a: A, i: ISize, j: ISize) ? =>
+    a(j.usize()) = a(i.usize()) = a(j.usize())

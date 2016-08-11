@@ -488,7 +488,7 @@ class iso _TestHashSetContains is UnitTest
 class iso _TestSort is UnitTest
   fun name(): String => "collections/Sort"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     test_sort[USize](h,
       [23, 26, 31, 41, 53, 58, 59, 84, 93, 97],
       [31, 41, 59, 26, 53, 58, 97, 93, 23, 84])
@@ -506,5 +506,5 @@ class iso _TestSort is UnitTest
     h: TestHelper,
     sorted: Array[A],
     unsorted: Array[A]
-  ) ? =>
-    h.assert_array_eq[A](sorted, Sort[A](unsorted))
+  ) =>
+    h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))
