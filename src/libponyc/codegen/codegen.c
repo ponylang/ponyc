@@ -236,7 +236,7 @@ static void init_runtime(compile_t* c)
   params[0] = c->descriptor_ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
-  // $i8* pony_ctx()
+  // i8* pony_ctx()
   type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
@@ -334,20 +334,20 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_trace", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_traceobject(i8*, __object*, __Desc*, i32)
+  // void pony_traceknown(i8*, __object*, __Desc*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->descriptor_ptr;
   params[3] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 4, false);
+  type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_traceunknown(i8*, __object*, i32)
+  // void pony_traceunknown(i8*, __object*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
