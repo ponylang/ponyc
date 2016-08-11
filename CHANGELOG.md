@@ -96,6 +96,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - add notification of terminal resize
 - `trim` and `trim_in_place` methods for `Array` and `String`.
 - `is_null_terminated` and `null_terminated` methods for `String`.
+- `Sort` primitive
 
 ### Changed
 
