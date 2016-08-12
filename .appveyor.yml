@@ -89,7 +89,7 @@ deploy:
   - provider: BinTray
     username: pony-buildbot-2
     api_key:
-        secure: GPMFfEx/y9lomGHzZPD+0NtI3z5g9v8nAZJ9q3O0G49aORcBBZ/VUAXwqU82d5C9
+        secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
     subject: ponylang
     repo: ponyc-win
     package: ponyc-master
@@ -103,7 +103,7 @@ deploy:
   - provider: BinTray
     username: pony-buildbot-2
     api_key:
-        secure: GPMFfEx/y9lomGHzZPD+0NtI3z5g9v8nAZJ9q3O0G49aORcBBZ/VUAXwqU82d5C9
+        secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
     subject: ponylang
     repo: ponyc-win
     package: ponyc-release
