@@ -90,7 +90,7 @@ deploy:
     username: pony-buildbot-2
     api_key:
         secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
-    subject: ponylang
+    subject: pony-language
     repo: ponyc-win
     package: ponyc-master
     version: $(appveyor_build_version)
@@ -104,7 +104,7 @@ deploy:
     username: pony-buildbot-2
     api_key:
         secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
-    subject: ponylang
+    subject: pony-language
     repo: ponyc-win
     package: ponyc-release
     version: $(appveyor_build_version)
