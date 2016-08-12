@@ -49,9 +49,14 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
-package_version := $(tag)
-archive = ponyc-$(package_version).tar
-package = build/ponyc-$(package_version)
+# package_name, _version, and _iteration can be overriden by Travis or AppVeyor
+package_base_version ?= $(tag)
+package_iteration ?= "1"
+package_name ?= "ponyc-unknown"
+package_conflicts ?= "ponyc-release"
+package_version = $(package_base_version)-$(package_iteration)
+archive = $(package_name)-$(package_version).tar
+package = build/$(package_name)-$(package_version)
 
 symlink := yes
 
@@ -625,8 +630,12 @@ release: prerelease setversion
 endif
 
 # Note: linux only
+# FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
 deploy: test
+	$(SILENT)sh .bintray.sh debian "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh rpm    "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
@@ -650,9 +659,9 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)git archive release > build/bin/$(archive)
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
