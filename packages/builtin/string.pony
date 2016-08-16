@@ -11,29 +11,37 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
   Strings don't specify an encoding.
 
   Example usage of some common String methods:
-      // construct a new string
-      let str = "Hello"
 
-      // make an uppercased version
-      let str_upper    = str.upper()
-      // make a reversed version
-      let str_reversed = str.reverse()
+  actor Main
+    new create(env: Env) =>
+      try
+        // construct a new string
+        let str = "Hello"
 
-      // add " world" to the end of our original string
-      let str_new      = str.add(" world")
+        // make an uppercased version
+        let str_upper = str.upper()
+        // make a reversed version
+        let str_reversed = str.reverse()
 
-      // count occurrences of letter "l"
-      let count        = str_new.count("l")
+        // add " world" to the end of our original string
+        let str_new = str.add(" world")
 
-      // find first occurrence of letter "w"
-      let first_w      = str_new.find("w")
-      // find first occurrence of letter "d"
-      let first_d      = str_new.find("d")
+        // count occurrences of letter "l"
+        let count = str_new.count("l")
 
-      // get substring capturing "world"
-      let substr       = str_new.substring(first_w, first_d+1)
-      // clone substring
-      let substr_clone = substr.clone()
+        // find first occurrence of letter "w"
+        let first_w = str_new.find("w")
+        // find first occurrence of letter "d"
+        let first_d = str_new.find("d")
+
+        // get substring capturing "world"
+        let substr = str_new.substring(first_w, first_d+1)
+        // clone substring
+        let substr_clone = substr.clone()
+
+        // print our substr
+        env.out.print(consume substr)
+    end
   """
   var _size: USize
   var _alloc: USize
