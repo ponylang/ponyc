@@ -105,6 +105,14 @@ const char* genname_type(ast_t* ast)
   return stringtab_buf(buf);
 }
 
+const char* genname_type_and_cap(ast_t* ast)
+{
+  // package_Type[_Arg1_Arg2]_cap
+  printbuf_t* buf = printbuf_new();
+  type_append(buf, ast, false);
+  return stringtab_buf(buf);
+}
+
 const char* genname_alloc(const char* type)
 {
   return stringtab_two(type, "Alloc");

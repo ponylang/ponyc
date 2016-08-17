@@ -6,6 +6,7 @@
 #include "gendesc.h"
 #include "gencall.h"
 #include "genopt.h"
+#include "gentype.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
@@ -447,6 +448,8 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   c->reach = reach_new();
 
+  c->tbaa_mds = tbaa_metadatas_new();
+
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
 
@@ -542,6 +545,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
+  tbaa_metadatas_free(c->tbaa_mds);
   reach_free(c->reach);
 }
 

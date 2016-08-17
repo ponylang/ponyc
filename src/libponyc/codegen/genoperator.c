@@ -3,6 +3,7 @@
 #include "genexpr.h"
 #include "genreference.h"
 #include "genname.h"
+#include "gentype.h"
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include <assert.h>
@@ -264,20 +265,44 @@ LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   return phi;
 }
 
-static LLVMValueRef assign_one(compile_t* c, LLVMValueRef l_value,
+static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* r_type)
 {
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
 
   // Cast the rvalue appropriately.
-  LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value, r_type);
+  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
+  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
+
+  if(cast_value == NULL)
+    return NULL;
+
+  // Store to the local.
+  LLVMBuildStore(c->builder, cast_value, l_value);
+
+  return result;
+}
+
+static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
+  LLVMValueRef r_value, ast_t* p_type, ast_t* r_type)
+{
+  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+
+  // Cast the rvalue appropriately.
+  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
+  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
 
   if(cast_value == NULL)
     return NULL;
 
   // Store to the field.
-  LLVMBuildStore(c->builder, cast_value, l_value);
+  LLVMValueRef store = LLVMBuildStore(c->builder, cast_value, l_value);
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, p_type);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
   return result;
 }
 
@@ -363,7 +388,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     {
       // The result is the previous value of the field.
       LLVMValueRef l_value = gen_fieldptr(c, left);
-      return assign_one(c, l_value, r_value, r_type);
+      ast_t* p_type = ast_type(ast_child(left));
+      return assign_field(c, l_value, r_value, p_type, r_type);
     }
 
     case TK_EMBEDREF:
@@ -378,7 +404,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(ast_child(left));
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_one(c, l_value, r_value, r_type);
+      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
       return ret;
     }
 
@@ -403,7 +429,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(left);
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_one(c, l_value, r_value, r_type);
+      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
       return ret;
     }
 
