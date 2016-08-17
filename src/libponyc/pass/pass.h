@@ -196,6 +196,8 @@ typedef struct pass_opt_t
   bool docs;
   verbosity_level verbosity;
   const char* output;
+  char* link_arch;
+  char* linker;
 
   char* triple;
   char* cpu;
