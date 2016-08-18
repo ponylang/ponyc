@@ -66,6 +66,13 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 }
 #endif
 
+#if PONY_LLVM >= 308
+void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
+{
+  unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
+}
+#endif
+
 #if PONY_LLVM < 307
 static fltSemantics const* float_semantics(Type* t)
 {

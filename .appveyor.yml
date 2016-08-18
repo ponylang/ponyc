@@ -2,20 +2,30 @@ version: "{build}"
 
 image: Visual Studio 2015
 
+branches:
+  only:
+    - master
+    - release
+
 environment:
   matrix:
   - llvm: 3.8.0
   - llvm: 3.7.1
 
 configuration:
-  - Debug
   - Release
+  - Debug
 
 clone_depth: 100
 
 clone_folder: C:\projects\ponyc
 
 install:
+  - ps: |
+      $package_commit = git rev-parse --short --verify "HEAD^{commit}"
+      $package_version = (Get-Content "VERSION")
+      $package_iteration = "$package_iteration${env:appveyor_build_number}.$package_commit"
+      Update-AppveyorBuild -Version "ponyc-${env:appveyor_repo_branch}-$package_version-$package_iteration"
   - ps: |
       cd C:\
       $premakeInstalled = Test-Path C:\premake5.exe
@@ -57,17 +67,52 @@ install:
       $env:path += ";C:\ponyc-windows-libs\lib"
       cd C:\projects\ponyc
       C:\premake5.exe --with-tests --to=work/vs2015 vs2015
-  - ps: |
-      $file_version = (Get-Content "C:\projects\ponyc\VERSION")
-      Update-AppveyorBuild -Version "$file_version.${env:appveyor_build_number}"
 
 after_build:
   - ps: |
-      cd C:\projects\ponyc
-      7z a -tzip "ponyc-win64-${env:appveyor_build_version}-${env:configuration}-llvm-${env:llvm}.zip" "packages\" "build\$env:configuration\ponyc.*" "build\$env:configuration\ponyrt.*"
+      $ponydir = "${env:appveyor_build_version}-win64"
+      md "$ponydir"
+      md "${ponydir}\ponyc"
+      md "${ponydir}\ponyc\bin"
+      copy build\$env:configuration\ponyc.*  "${ponydir}\ponyc\bin"
+      copy build\$env:configuration\ponyrt.* "${ponydir}\ponyc\bin"
+      copy -recurse packages "${ponydir}\packages"
+
+      7z a -tzip "C:\projects\ponyc\${ponydir}.zip" "${ponydir}"
 
 artifacts:
   - path: 'ponyc-*.zip'
+
+deploy:
+  # On branches `master` and `release`, deploy (and publish) artifacts
+  # to the ponyc-win projects on Bintray.
+  - provider: BinTray
+    username: pony-buildbot-2
+    api_key:
+        secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
+    subject: pony-language
+    repo: ponyc-win
+    package: ponyc-master
+    version: $(appveyor_build_version)
+    on:
+        branch: master
+        llvm: 3.8.0
+        configuration: Release
+    publish: true
+
+  - provider: BinTray
+    username: pony-buildbot-2
+    api_key:
+        secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
+    subject: pony-language
+    repo: ponyc-win
+    package: ponyc-release
+    version: $(appveyor_build_version)
+    on:
+        branch: release
+        llvm: 3.8.0
+        configuration: Release
+    publish: true
 
 cache:
   - 'C:\LLVM-%llvm%\ -> .appveyor.yml'

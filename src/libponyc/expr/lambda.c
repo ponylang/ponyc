@@ -61,6 +61,8 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     value = capture_rhs;
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
+    if(ast_type(value) == NULL)
+      return NULL;
     type = alias(ast_type(value));
   } else {
     // Type given, infer literals

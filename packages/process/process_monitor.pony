@@ -52,15 +52,15 @@ class ProcessClient is ProcessNotify
   new iso create(env: Env) =>
     _env = env
 
-  fun ref stdout(data: Array[U8] iso) =>
+  fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
     let out = String.from_array(consume data)
     _env.out.print("STDOUT: " + out)
 
-  fun ref stderr(data: Array[U8] iso) =>
+  fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
     let err = String.from_array(consume data)
     _env.out.print("STDERR: " + err)
 
-  fun ref failed(err: ProcessError) =>
+  fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     match err
     | ExecveError   => _env.out.print("ProcessError: ExecveError")
     | PipeError     => _env.out.print("ProcessError: PipeError")
@@ -77,7 +77,7 @@ class ProcessClient is ProcessNotify
       _env.out.print("Unknown ProcessError!")
     end
 
-  fun ref dispose(child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
     let code: I32 = consume child_exit_code
     _env.out.print("Child exit code: " + code.string())
 ```

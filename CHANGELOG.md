@@ -44,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - String.read_int failure on lowest number in the range of signed integers.
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 - No longer silently ignores lib paths containing parens on Windows.
+- Make linking more dynamic and allow for overriding linker and linker arch.
 - Fix issue with creating hex and octal strings if precision was specified.
 - Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
 - Performance of Array.append and Array.concat (no unnecessary calls to push).
@@ -97,6 +98,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `trim` and `trim_in_place` methods for `Array` and `String`.
 - `is_null_terminated` and `null_terminated` methods for `String`.
 -  `from_iso_array` constructor on `String`.
+- `Sort` primitive
 
 ### Changed
 

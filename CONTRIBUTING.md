@@ -52,6 +52,7 @@ When contributing to documentation, try to keep the following style guidelines i
 
 * Wherever possible, try to match the style of surrounding documentation.
 * Avoid hard-wrapping lines within paragraphs (using line breaks in the middle of or between sentences to make lines shorter than a certain length). Instead, turn on soft-wrapping in your editor and expect the documentation renderer to let the text flow to the width of the container.
+* Apply code highlighting to identifier names, such as types, fields, variables and parameters via the customary markdown syntax of wrapping the name in backticks.  
 
 Code Formatting
 ---------------

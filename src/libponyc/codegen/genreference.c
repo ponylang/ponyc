@@ -2,6 +2,7 @@
 #include "genexpr.h"
 #include "genname.h"
 #include "gencall.h"
+#include "gentype.h"
 #include "../expr/literal.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
@@ -98,6 +99,9 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
       const char id[] = "invariant.load";
       LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
     }
+    LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
+    const char id[] = "tbaa";
+    LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
   }
 
   ast_t* f_type = ast_type(ast);

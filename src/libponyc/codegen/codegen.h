@@ -27,6 +27,9 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 #if PONY_LLVM >= 307
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
 #endif
+#if PONY_LLVM >= 308
+void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
+#endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 
@@ -43,6 +46,8 @@ LLVMValueRef LLVMInvariantStart(LLVMModuleRef module);
 
 typedef struct compile_local_t compile_local_t;
 DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
+
+typedef struct tbaa_metadatas_t tbaa_metadatas_t;
 
 typedef struct compile_frame_t
 {
@@ -66,6 +71,7 @@ typedef struct compile_t
 {
   pass_opt_t* opt;
   reach_t* reach;
+  tbaa_metadatas_t* tbaa_mds;
   const char* filename;
 
   const char* str_builtin;
@@ -130,6 +136,7 @@ typedef struct compile_t
   LLVMBuilderRef builder;
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
+  LLVMValueRef tbaa_root;
 
   LLVMTypeRef void_type;
   LLVMTypeRef ibool;
