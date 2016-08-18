@@ -105,15 +105,16 @@ class iso _TestExpect is UnitTest
 
       fun ref expect(process: ProcessMonitor ref, qty: USize): USize =>
         _expect = qty
-        qty
+        _expect
 
       fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
         _h.assert_eq[USize](_expect, data.size())
+        process.expect(if _expect == 2 then 4 else 2 end)
         _out.push(String.from_array(consume data))
 
       fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
         _h.assert_eq[I32](child_exit_code, 0)
-        _h.assert_array_eq[String](_out, ["he", "ll", "o ", "th", "er", "e!"])
+        _h.assert_array_eq[String](_out, ["he", "llo ", "th", "ere!"])
         _h.complete(true)
     end end
     try
@@ -127,7 +128,7 @@ class iso _TestExpect is UnitTest
 
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-        pm.expect(2)
+        pm.set_expect(2)
         h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")

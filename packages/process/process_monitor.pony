@@ -417,7 +417,13 @@ actor ProcessMonitor
     end
     _close()
 
-  be expect(qty: USize = 0) =>
+  be set_expect(qty: USize = 0) =>
+    """
+    This is a convenience method for calling `expect` on a tag reference.
+    """
+    expect(qty)
+
+  fun ref expect(qty: USize = 0) =>
     """
     A `stdout` call on the notifier must contain exactly `qty` bytes. If
     `qty` is zero, the call can contain any amount of data.
