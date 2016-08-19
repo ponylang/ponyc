@@ -3,6 +3,11 @@ interface ProcessNotify
   Notifications for Process connections.
   """
 
+  fun ref created(process: ProcessMonitor ref) =>
+    """
+    ProcessMonitor calls this when it is created.
+    """
+
   fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
     """
     ProcessMonitor calls this when new data is received on STDOUT of the

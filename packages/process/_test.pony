@@ -103,6 +103,9 @@ class iso _TestExpect is UnitTest
       var _expect: USize = 0
       let _out: Array[String] = Array[String]
 
+      fun ref created(process: ProcessMonitor ref) =>
+        process.expect(2)
+
       fun ref expect(process: ProcessMonitor ref, qty: USize): USize =>
         _expect = qty
         _expect
@@ -128,7 +131,6 @@ class iso _TestExpect is UnitTest
 
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
-        pm.set_expect(2)
         h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")

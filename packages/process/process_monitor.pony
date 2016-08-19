@@ -248,6 +248,7 @@ actor ProcessMonitor
     else
       compile_error "unsupported platform"
     end
+    _notifier.created(this)
 
   fun _child(path: String, argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag])
@@ -416,12 +417,6 @@ actor ProcessMonitor
       return
     end
     _close()
-
-  be set_expect(qty: USize = 0) =>
-    """
-    This is a convenience method for calling `expect` on a tag reference.
-    """
-    expect(qty)
 
   fun ref expect(qty: USize = 0) =>
     """
