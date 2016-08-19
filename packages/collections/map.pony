@@ -111,11 +111,13 @@ class HashMap[K, V, H: HashFunction[K] val]
         (let pkey, let pvalue) = (_array(i) = _MapEmpty) as (K^, V^)
         _array(i) = (consume pkey, f(consume pvalue, consume value))
       else
+        let key' = key
         _array(i) = (consume key, consume value)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
+          return this(key')
         end
       end
 
