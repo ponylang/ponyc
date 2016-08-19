@@ -60,7 +60,7 @@ interface TCPConnectionNotify
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     """
-    Called when new data is received on the connection. Return true if you 
+    Called when new data is received on the connection. Return true if you
     want to continue receiving messages without yielding until you read
     max_size on the TCPConnection.  Return false to cause the TCPConnection
     to yield now.
@@ -78,5 +78,11 @@ interface TCPConnectionNotify
   fun ref closed(conn: TCPConnection ref) =>
     """
     Called when the connection is closed.
+    """
+    None
+
+  fun ref throttled(conn: TCPConnection ref, status: Bool) =>
+    """
+    Called when there is a change in backpressure status of the connection
     """
     None

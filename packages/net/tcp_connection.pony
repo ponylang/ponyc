@@ -201,8 +201,8 @@ actor TCPConnection
 
   fun ref set_keepalive(secs: U32) =>
     """
-    Sets the TCP keepalive timeout to approximately `secs` seconds. Exact timing
-    is OS dependent. If `secs` is zero, TCP keepalive is disabled. TCP keepalive
+    Sets the TCP keepalive timeout to approximately secs seconds. Exact timing
+    is OS dependent. If secs is zero, TCP keepalive is disabled. TCP keepalive
     is disabled by default. This can only be set on a connected socket.
     """
     if _connected then
@@ -282,7 +282,7 @@ actor TCPConnection
 
   fun ref write_final(data: ByteSeq) =>
     """
-    Write as much as possible to the socket. Set `_writeable` to `false` if not
+    Write as much as possible to the socket. Set _writeable to false if not
     everything was written. On an error, close the connection. This is for
     data that has already been transformed by the notifier.
     """
@@ -292,6 +292,12 @@ actor TCPConnection
           // Add an IOCP write.
           @pony_os_send[USize](_event, data.cstring(), data.size()) ?
           _pending.push((data, 0))
+
+          if _pending.size() > 128 then
+            // If more than 128 asynchronous writes are scheduled, apply
+            // back pressure.
+            _apply_backpressure()
+          end
         end
       else
         if _writeable then
@@ -301,9 +307,9 @@ actor TCPConnection
               @pony_os_send[USize](_event, data.cstring(), data.size()) ?
 
             if len < data.size() then
-              // Send any remaining data later.
+              // Send any remaining data later. Apply back pressure.
               _pending.push((data, len))
-              _writeable = false
+              _apply_backpressure()
             end
           else
             // Non-graceful shutdown on error.
@@ -318,7 +324,7 @@ actor TCPConnection
 
   fun ref _complete_writes(len: U32) =>
     """
-    The OS has informed us that `len` bytes of pending writes have completed.
+    The OS has informed as that len bytes of pending writes have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
@@ -346,6 +352,12 @@ actor TCPConnection
           end
         end
       end
+
+      if _pending.size() < 64 then
+        // If fewer than 64 asynchronous writes are scheduled, remove back
+        // pressure.
+        _release_backpressure()
+      end
     end
 
   fun ref _pending_writes() =>
@@ -370,6 +382,11 @@ actor TCPConnection
           else
             // This chunk has been fully sent.
             _pending.shift()
+
+            if _pending.size() == 0 then
+              // Remove back pressure.
+              _release_backpressure()
+            end
           end
         else
           // Non-graceful shutdown on error.
@@ -380,7 +397,7 @@ actor TCPConnection
 
   fun ref _complete_reads(len: U32) =>
     """
-    The OS has informed us that `len` bytes of pending reads have completed.
+    The OS has informed as that len bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
@@ -575,3 +592,13 @@ actor TCPConnection
     _notify.closed(this)
 
     try (_listen as TCPListener)._conn_closed() end
+
+  fun ref _apply_backpressure() =>
+    ifdef not windows then
+      _writeable = false
+    end
+
+    _notify.throttled(this, true)
+
+  fun ref _release_backpressure() =>
+    _notify.throttled(this, false)
