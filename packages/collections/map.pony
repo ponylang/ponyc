@@ -63,7 +63,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     try
       (let i, _) = _search(key)
 
-      match _array(i) = (consume key, consume value)
+      let pkey = (_array(i) = _MapEmpty) as (K^, _)
+      match _array(i) = (consume pkey, consume value)
       | (_, let v: V) =>
         return consume v
       else
