@@ -48,6 +48,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix issue with creating hex and octal strings if precision was specified.
 - Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
 - Performance of Array.append and Array.concat (no unnecessary calls to push).
+- Performance of Map.upsert and Map.update (don't replace existing keys)
 
 ### Added
 
