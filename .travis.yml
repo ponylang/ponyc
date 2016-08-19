@@ -3,6 +3,7 @@ language: c
 branches:
   only:
     - master
+    - release
 
 dist: trusty
 sudo: required
@@ -64,7 +65,30 @@ matrix:
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
 
+rvm:
+  - 2.2.3
+
 install:
+  # For a master or release release build with the latest stable LLVM,
+  # prepare to deploy artifacts.
+  - if [[
+        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
+        "$LLVM_VERSION" == "3.8.0" &&
+        "$config" == "release" &&
+        "$TRAVIS_OS_NAME" == "linux" &&
+        "$TRAVIS_PULL_REQUEST" == "false"
+    ]];
+    then
+        if [[ "$TRAVIS_BRANCH" == "master" || "$TRAVIS_BRANCH" == "release" ]];
+        then
+            export CREATE_PACKAGES=yes;
+
+            sudo apt-get install -y rpm;
+            rvm use 2.2.3 --default;
+            gem install fpm;
+        fi;
+    fi;
+
   - if [ "${TRAVIS_OS_NAME}" = "linux" ];
     then
       wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz";
@@ -93,42 +117,39 @@ notifications:
     recipients:
     - buildbot@lists.ponylang.org
 
-deploy:
-  - provider: bintray
-    user: pony-buildbot
-    file: bintray_debian.yml
-    on:
-      branch: release
-      condition: $UPLOAD = yes
-    key:
-      secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
-  - provider: bintray
-    user: pony-buildbot
-    file: bintray_rpm.yml
-    on:
-      branch: release
-      condition: $UPLOAD = yes
-    key:
-      secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
-  - provider: bintray
-    user: pony-buildbot
-    file: bintray_source.yml
-    on:
-      branch: release
-      condition: $UPLOAD = yes
-    key:
-      secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
-
 after_success:
-  - if [[ $TRAVIS_OSNAME == "linux" && $CC == "gcc" && $TRAVIS_BRANCH == "release" ]];
+  # If successful, set $UPLOAD to "yes".
+  #
+  # The PACKAGE_ITERATION will be fed to the DEB and RPM systems by FPM
+  # as a suffix to the base version (DEB:debian_revision or RPM:release,
+  # used to disambiguate packages with the same version).
+  #
+  # PACKAGE_NAME and PACKAGE_CONFLICTS are used (by FPM) to create mutually exclusive packages
+  # like "ponyc-master" and "ponyc-release".
+  - if [[ "$CREATE_PACKAGES" == "yes" ]];
     then
-      cat VERSION | xargs sh .bintray.sh debian $1;
-      cat VERSION | xargs sh .bintray.sh rpm $1;
-      cat VERSION | xargs sh .bintray.sh source $1;
-      make config=release deploy;
-      export UPLOAD=yes;
+      if [[ "$TRAVIS_BRANCH" == "release" ]];
+      then
+          PACKAGE_NAME="ponyc-release";
+          PACKAGE_CONFLICTS="ponyc-master";
+      else
+          PACKAGE_NAME="ponyc-$TRAVIS_BRANCH";
+          PACKAGE_CONFLICTS="ponyc-release";
+      fi;
+      PACKAGE_ITERATION="${PACKAGE_ITERATION}${TRAVIS_BUILD_NUMBER}.`git rev-parse --short --verify HEAD^{commit}`";
+      make verbose=1 config=release package_name="$PACKAGE_NAME" package_conflicts="$PACKAGE_CONFLICTS" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
     fi;
-  - if [[ $TRAVIS_BRANCH == 'master' && $TRAVIS_PULL_REQUEST == 'false' ]]; then
+
+  # For a master release build with the latest stable LLVM, upload docs.
+  - if [[
+        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
+        "$LLVM_VERSION" == "3.8.0" &&
+        "$config" == "release" &&
+        "$TRAVIS_OS_NAME" == "linux" &&
+        "$TRAVIS_PULL_REQUEST" == "false" &&
+        "$TRAVIS_BRANCH" == "master"
+    ]];
+    then
       git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}";
       git fetch gh-token && git fetch gh-token gh-pages:gh-pages;
       build/release/ponyc packages/stdlib --docs;
@@ -137,3 +158,59 @@ after_success:
       sed -i '' 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml;
       mkdocs gh-deploy -v --clean --remote-name gh-token;
     fi;
+
+deploy:
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
+    on:
+      branch: master
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
+    on:
+      branch: master
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_source.yml
+    on:
+      branch: master
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
+    on:
+      branch: release
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
+    on:
+      branch: release
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+
+  - provider: bintray
+    user: pony-buildbot-2
+    file: /home/travis/build/ponylang/ponyc/bintray_source.yml
+    on:
+      branch: release
+      condition: "$UPLOAD = yes"
+    key:
+      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+

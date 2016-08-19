@@ -4,6 +4,7 @@
 #include "gencall.h"
 #include "genname.h"
 #include "genprim.h"
+#include "genopt.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -266,27 +267,26 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
+  const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+  const char* linker = c->opt->linker != NULL ? c->opt->linker : PONY_COMPILER;
+  const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
+  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold " : "";
+  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl  " : "";
+
+  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
+                  + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
+                  + strlen(ldl);
+
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len, PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " "
-#ifndef PLATFORM_IS_ILP32
-    "-mcx16 "
-#endif
-
+  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
+    "%s "
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-
-#ifdef PLATFORM_IS_LINUX
-    "-fuse-ld=gold "
-#endif
-    "%s %s %s -lpthread "
-#ifdef PLATFORM_IS_LINUX
-    "-ldl "
-#endif
+    "%s %s %s %s -lpthread %s "
     "-lm",
-    file_exe, file_o, lib_args, ponyrt
+    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

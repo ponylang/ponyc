@@ -24,35 +24,47 @@ class JsonArray
     """
     Generate string representation of this array.
     """
+    let buf = _show(recover String(256) end, indent, 0, pretty_print)
+    buf.compact()
+    buf
+
+  fun _show(buf': String iso, indent: String = "", level: USize,
+    pretty: Bool): String iso^
+  =>
+    """
+    Append the string representation of this array to the provided String.
+    """
+    var buf = consume buf'
+
     if data.size() == 0 then
-      return "[]"
+      buf.append("[]")
+      return buf
     end
 
-    var text = recover String(256) end
-    let elem_indent = indent + "  "
+    buf.push('[')
 
-    text.append("[")
+    var print_comma = false
 
-    for i in data.values() do
-      if text.size() > 1 then
-        text.append(",")
+    for v in data.values() do
+      if print_comma then
+        buf.push(',')
+      else
+        print_comma = true
       end
 
-      if pretty_print then
-        text.append("\n")
-        text.append(elem_indent)
+      if pretty then
+        buf = _JsonPrint._indent(consume buf, indent, level + 1)
       end
 
-      text.append(_JsonPrint._string(i, elem_indent, pretty_print))
+      buf = _JsonPrint._string(v, consume buf, indent, level + 1, pretty)
     end
 
-    if pretty_print then
-      text.append("\n")
-      text.append(indent)
+    if pretty then
+      buf = _JsonPrint._indent(consume buf, indent, level)
     end
 
-    text.append("]")
-    text
+    buf.push(']')
+    buf
 
 class JsonObject
   var data: Map[String, JsonType]
@@ -74,40 +86,53 @@ class JsonObject
     """
     Generate string representation of this object.
     """
+    let buf = _show(recover String(256) end, indent, 0, pretty_print)
+    buf.compact()
+    buf
+
+  fun _show(buf': String iso, indent: String = "", level: USize,
+    pretty: Bool): String iso^
+  =>
+    """
+    Append the string representation of this object to the provided String.
+    """
+    var buf = consume buf'
+
     if data.size() == 0 then
-      return "{}"
+      buf.append("{}")
+      return buf
     end
 
-    var text = recover String(256) end
-    let elem_indent = indent + "  "
+    buf.push('{')
 
-    text.append("{")
+    var print_comma = false
 
-    for i in data.pairs() do
-      if text.size() > 1 then
-        text.append(",")
+    for (k, v) in data.pairs() do
+      if print_comma then
+        buf.push(',')
+      else
+        print_comma = true
       end
 
-      if pretty_print then
-        text.append("\n")
-        text.append(elem_indent)
+      if pretty then
+        buf = _JsonPrint._indent(consume buf, indent, level + 1)
       end
 
-      text.append("\"")
-      text.append(i._1)
-      text.append("\":")
+      buf.push('"')
+      buf.append(k)
 
-      if pretty_print then
-        text.append(" ")
+      if pretty then
+        buf.append("\": ")
+      else
+        buf.append("\":")
       end
 
-      text.append(_JsonPrint._string(i._2, elem_indent, pretty_print))
+      buf = _JsonPrint._string(v, consume buf, indent, level + 1, pretty)
     end
 
-    if pretty_print then
-      text.append("\n")
-      text.append(indent)
+    if pretty then
+      buf = _JsonPrint._indent(consume buf, indent, level)
     end
 
-    text.append("}")
-    text
+    buf.push('}')
+    buf

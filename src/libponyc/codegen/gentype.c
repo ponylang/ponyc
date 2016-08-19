@@ -8,12 +8,86 @@
 #include "genserialise.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
+#include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
+{
+  return ponyint_hash_ptr(a->name);
+}
+
+static bool tbaa_metadata_cmp(tbaa_metadata_t* a, tbaa_metadata_t* b)
+{
+  return a->name == b->name;
+}
+
+DEFINE_HASHMAP(tbaa_metadatas, tbaa_metadatas_t, tbaa_metadata_t,
+  tbaa_metadata_hash, tbaa_metadata_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, NULL);
+
+tbaa_metadatas_t* tbaa_metadatas_new()
+{
+  tbaa_metadatas_t* tbaa_mds = POOL_ALLOC(tbaa_metadatas_t);
+  tbaa_metadatas_init(tbaa_mds, 64);
+  return tbaa_mds;
+}
+
+void tbaa_metadatas_free(tbaa_metadatas_t* tbaa_mds)
+{
+  tbaa_metadatas_destroy(tbaa_mds);
+  POOL_FREE(tbaa_metadatas_t, tbaa_mds);
+}
+
+LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
+{
+  assert(ast_id(type) == TK_NOMINAL);
+
+  const char* name = genname_type_and_cap(type);
+  tbaa_metadata_t k;
+  k.name = name;
+  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k);
+  if(md != NULL)
+    return md->metadata;
+
+  md = POOL_ALLOC(tbaa_metadata_t);
+  md->name = name;
+  tbaa_metadatas_put(c->tbaa_mds, md);
+
+  LLVMValueRef params[3];
+  params[0] = LLVMMDStringInContext(c->context, name, (unsigned)strlen(name));
+
+  token_id cap = cap_single(type);
+  switch(cap)
+  {
+    case TK_TRN:
+    case TK_REF:
+    {
+      ast_t* tcap = ast_childidx(type, 3);
+      ast_setid(tcap, TK_BOX);
+      params[1] = tbaa_metadata_for_type(c, type);
+      ast_setid(tcap, cap);
+      break;
+    }
+    default:
+      params[1] = c->tbaa_root;
+      break;
+  }
+
+  md->metadata = LLVMMDNodeInContext(c->context, params, 2);
+  return md->metadata;
+}
+
+static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
+{
+  const char str[] = "Pony TBAA";
+  LLVMValueRef mdstr = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+  return LLVMMDNodeInContext(ctx, &mdstr, 1);
+}
 
 static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 {
@@ -586,6 +660,8 @@ bool gentypes(compile_t* c)
 {
   reach_type_t* t;
   size_t i;
+
+  c->tbaa_root = make_tbaa_root(c->context);
 
   genprim_builtins(c);
 
