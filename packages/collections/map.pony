@@ -61,10 +61,14 @@ class HashMap[K, V, H: HashFunction[K] val]
     returns None. If there was no previous value, this may trigger a resize.
     """
     try
-      (let i, _) = _search(key)
+      (let i, let found) = _search(key)
 
-      let pkey = (_array(i) = _MapEmpty) as (K^, _)
-      match _array(i) = (consume pkey, consume value)
+      let k = if found then
+        _array(i) as (K^, _)
+      else
+        consume key
+      end
+      match _array(i) = (consume k, consume value)
       | (_, let v: V) =>
         return consume v
       else
