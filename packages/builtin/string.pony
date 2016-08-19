@@ -47,7 +47,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _size = data.size()
     _alloc = data.space()
-    _ptr = (consume data)._cstring()._unsafe()._offset(0)
+    _ptr = (consume data)._cstring()._unsafe()
 
   new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
     """
