@@ -101,8 +101,8 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       if found then
-        let prev = (_array(i) = _MapEmpty) as (_, V^)
-        _array(i) = (consume key, f(consume prev, consume value))
+        (let pkey, let pvalue) = (_array(i) = _MapEmpty) as (K^, V^)
+        _array(i) = (consume pkey, f(consume pvalue, consume value))
       else
         _array(i) = (consume key, consume value)
         _size = _size + 1
