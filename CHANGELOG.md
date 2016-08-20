@@ -145,6 +145,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Buffer peek functions (@jemc)
 - collections/Ring
 - Promises package
+- PonyBench package
 
 ### Changed
 
