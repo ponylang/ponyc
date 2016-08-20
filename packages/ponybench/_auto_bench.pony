@@ -50,17 +50,11 @@ class _AutoOps
       else
         _bench_time / nspo
       end
-      ops' = _max(_min(ops' + (ops' / 5), ops * 100), ops + 1)
+      ops' = (ops' + (ops' / 5)).min(ops * 100).max(ops + 1)
       _round_up(ops')
     else
       None
     end
-
-  fun _min(x: U64, y: U64): U64 =>
-    if x > y then y else x end
-
-  fun _max(x: U64, y: U64): U64 =>
-    if x > y then x else y end
 
   fun _round_down_10(x: U64): U64 =>
     """
