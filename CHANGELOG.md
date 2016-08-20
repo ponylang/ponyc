@@ -99,6 +99,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `trim` and `trim_in_place` methods for `Array` and `String`.
 - `is_null_terminated` and `null_terminated` methods for `String`.
 - `Sort` primitive
+- PonyBench package
 
 ### Changed
 
@@ -145,7 +146,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Buffer peek functions (@jemc)
 - collections/Ring
 - Promises package
-- PonyBench package
 
 ### Changed
 
