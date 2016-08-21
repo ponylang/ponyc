@@ -849,9 +849,15 @@ static void optimise(compile_t* c, bool pony_specific)
   Module* m = unwrap(c->module);
   TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
 
+#if PONY_LLVM >= 309
+  llvm::legacy::PassManager lpm;
+  llvm::legacy::PassManager mpm;
+  llvm::legacy::FunctionPassManager fpm(m);
+#else
   PassManager lpm;
   PassManager mpm;
   FunctionPassManager fpm(m);
+#endif
 
 #if PONY_LLVM >= 307
   TargetLibraryInfoImpl *tl = new TargetLibraryInfoImpl(
