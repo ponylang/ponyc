@@ -227,18 +227,18 @@ static bool param_without_type(ast_t* case_param, ast_t* pattern,
     return false;
   }
 
-  // Add value to match pattern. Pop it first to avoid pointless copy.
-  ast_t* popped_value = ast_pop(case_param);
+  // Add value to match pattern.
+  ast_t* value_to_add = ast_dup(value);
 
-  if(ast_id(popped_value) == TK_DONTCARE)
+  if(ast_id(value_to_add) == TK_DONTCARE)
   {
     // Value is just `don't care`.
-    ast_append(pattern, popped_value);
+    ast_append(pattern, value_to_add);
   }
   else
   {
     // Value in an expression, need a containing sequence.
-    BUILD(value_ast, value, NODE(TK_SEQ, TREE(popped_value)));
+    BUILD(value_ast, value, NODE(TK_SEQ, TREE(value_to_add)));
     ast_append(pattern, value_ast);
   }
 
