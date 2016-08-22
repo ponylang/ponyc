@@ -797,19 +797,23 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 
   LLVMValueRef result;
 
+  size_t size = t->abi_size;
+  if(size == 0)
+    size = 1;
+
   if(t->final_fn == NULL)
   {
-    if(t->abi_size <= HEAP_MAX)
+    if(size <= HEAP_MAX)
     {
-      uint32_t index = ponyint_heap_index(t->abi_size);
+      uint32_t index = ponyint_heap_index(size);
       args[1] = LLVMConstInt(c->i32, index, false);
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     } else {
-      args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
+      args[1] = LLVMConstInt(c->intptr, size, false);
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     }
   } else {
-    args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
+    args[1] = LLVMConstInt(c->intptr, size, false);
     args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }
