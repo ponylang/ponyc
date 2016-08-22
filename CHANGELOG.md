@@ -49,6 +49,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
 - Performance of Array.append and Array.concat (no unnecessary calls to push).
 - Performance of Map.upsert and Map.update (don't replace existing keys)
+- Segmentation fault from allocating zero-sized struct.
 
 ### Added
 
