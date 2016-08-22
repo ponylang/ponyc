@@ -382,6 +382,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     i++;
   }
 
+  bool is_new_call = false;
+
   // Generate the receiver. Must be done after the arguments because the args
   // could change things in the receiver expression that must be accounted for.
   if(call_needs_receiver(postfix, t))
@@ -406,6 +408,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         } else {
           args[0] = gencall_alloc(c, t);
         }
+        is_new_call = true;
         break;
       }
 
@@ -453,10 +456,22 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
       r = invoke_fun(c, func, args, i, "", true);
     else
+    {
       r = codegen_call(c, func, args, i);
+      if(is_new_call)
+      {
+        LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+        LLVMSetMetadataStr(r, "pony.newcall", md);
+      }
+    }
 
     codegen_debugloc(c, NULL);
   }
+
+  // Class constructors return void, expression result is the receiver.
+  if(((ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF)) &&
+     (t->underlying == TK_CLASS))
+    r = args[0];
 
   ponyint_pool_free_size(buf_size, args);
   ponyint_pool_free_size(buf_size, params);
