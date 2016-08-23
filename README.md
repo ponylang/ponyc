@@ -157,7 +157,7 @@ To build ponyc and compile helloworld:
 
 ```bash
 $ make config=release
-$ ./build/release/ponyc examples/helloworld
+$ ./build/release/ponyc --pic examples/helloworld
 ```
 
 If you get errors like
