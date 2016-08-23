@@ -108,8 +108,7 @@ Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERS
 .\ponyc-VERSION\ponyc\bin\ponyc.exe --version
 ```
 
-The Windows 10 SDK is required in order to build programs with ponyc on windows. It can be downloaded here:
-https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk
+Windows 10 users will need to install the Windows 10 SDK in order to build programs with ponyc. It can be downloaded [from Microsoft](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
