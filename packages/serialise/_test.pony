@@ -183,6 +183,12 @@ class iso _TestArrays is UnitTest
       i = i + 1
     end
 
+    let x7: Array[U64] = recover Array[U64] end
+    sx = Serialised(serialise, x7)
+    let y7 = sx(deserialise) as Array[U64]
+    h.assert_true(x7 isnt y7)
+    h.assert_array_eq[U64](x7, y7)
+
 actor _EmptyActor
 
 class _HasPointer

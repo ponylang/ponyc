@@ -116,9 +116,6 @@ void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
 {
   // Reserve a block of memory to serialise into. This is only needed for
   // String and Array[A].
-  if(size == 0)
-    return;
-
   serialise_t k;
   k.key = (uintptr_t)p;
   serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k);
