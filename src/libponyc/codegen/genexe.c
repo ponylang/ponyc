@@ -220,12 +220,14 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  const char* linker = c->opt->linker != NULL ? c->opt->linker
+                                              : "ld";
 
-  // Avoid incorrect ld, eg from macports.
   snprintf(ld_cmd, ld_len,
-    "/usr/bin/ld -execute -no_pie -dead_strip -arch %.*s "
+    "%s -execute -no_pie -dead_strip -arch %.*s "
     "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
-    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args, ponyrt
+           linker, (int)arch_len, c->opt->triple, file_exe, file_o,
+           lib_args, ponyrt
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
