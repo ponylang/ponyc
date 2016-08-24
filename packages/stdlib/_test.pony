@@ -32,6 +32,7 @@ use logger = "logger"
 use math = "math"
 use net = "net"
 use options = "options"
+use ponybench = "ponybench"
 use promises = "promises"
 use process = "process"
 use random = "random"
@@ -69,6 +70,7 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
+    ponybench.Main.make().tests(test)
 
     ifdef posix then
       // The process package currently only supports posix

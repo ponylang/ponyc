@@ -102,6 +102,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `is_null_terminated` and `null_terminated` methods for `String`.
 - `from_iso_array` constructor on `String`.
 - `Sort` primitive
+- PonyBench package
 
 ### Changed
 
