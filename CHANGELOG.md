@@ -126,6 +126,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Embedded fields can now be constructed from complex expressions containing constructors
 - Sendable members of non-sendable objects can be used in recover expressions in certain cases.
 - ProcessNotify functions are passed a reference to ProcessMonitor.
+- The constructor of `Options` doesn't require an `Env` anymore but just a simple `String` array.
 
 ## [0.2.1] - 2015-10-06
 
