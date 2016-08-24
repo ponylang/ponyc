@@ -186,6 +186,14 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     make_function_debug(c, t, m, m->func);
   }
 
+  // If not partial, add nounwind.
+  if(ast_id(ast_childidx(m->r_fun, 5)) != TK_QUESTION)
+  {
+    LLVMAddFunctionAttr(m->func, LLVMNoUnwindAttribute);
+    if(handler)
+      LLVMAddFunctionAttr(m->func_handler, LLVMNoUnwindAttribute);
+  }
+
   if(n->name == c->str__final)
   {
     // Store the finaliser and use the C calling convention and an external
@@ -532,6 +540,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
     size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
     LLVMSetDereferenceable(fun, 0, size);
   }
+  LLVMAddFunctionAttr(fun, LLVMNoUnwindAttribute);
   codegen_startfun(c, fun, NULL, NULL);
 
   LLVMValueRef result;
