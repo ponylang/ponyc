@@ -63,7 +63,7 @@ class iso _TestStdinWriteBuf is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let pipe_cap: USize = 65536
-    let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 3,
+    let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 4,
       "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
@@ -81,6 +81,7 @@ class iso _TestStdinWriteBuf is UnitTest
 
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
+        pm.write(message)
         pm.write(message)
         pm.write(message)
         pm.write(message)
@@ -203,10 +204,14 @@ class _ProcessClient is ProcessNotify
     """
     Called when new data is received on STDOUT of the forked process
     """
+    _h.log("\tReceived from stdout: " + data.size().string() + " bytes")
     if (_first_data == 0) then
       _first_data = Time.nanos()
     end
     _d_stdout_chars = _d_stdout_chars + (consume data).size()
+    _h.log("\tReceived so far: " +_d_stdout_chars.string() + " bytes")
+    _h.log("\tExpecting: " +_out.string() + " bytes")
+
 
   fun ref stderr(data: Array[U8] iso) => _d_stderr.append(consume data)
     """
