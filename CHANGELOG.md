@@ -10,6 +10,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Path.base now provides option to omit the file extension from the result.
+
 ## [0.3.0] - 2016-08-26
 
 ### Fixed

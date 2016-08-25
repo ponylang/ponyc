@@ -321,15 +321,29 @@ primitive Path
       ("", path)
     end
 
-  fun base(path: String): String =>
+  fun base(path: String, with_ext: Bool = true): String =>
     """
     Return the path after the last separator, or the whole path if there is no
     separator.
+    If `with_ext` is `false`, the extension as defined by the `ext()` method
+    will be omitted from the result.
     """
-    try
+    let b = try
       path.trim(path.rfind(sep()).usize() + 1)
     else
       path
+    end
+
+    if with_ext then
+      b
+    else
+      let e_size = ext(b)
+
+      if e_size > 0 then
+        b.trim(0, b.size() - e_size - 1)
+      else
+        b
+      end
     end
 
   fun dir(path: String): String =>
