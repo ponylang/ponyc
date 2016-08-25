@@ -824,7 +824,7 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
           // Concrete types must have method bodies.
           assert(info->trait_ref != NULL);
           ast_error(opt->check.errors, info->trait_ref,
-            "no body found for method %s", name);
+            "no body found for method '%s'", name);
           r = false;
         }
       }
