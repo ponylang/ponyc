@@ -39,6 +39,7 @@ actor Main is TestList
     test(_TestStringContains)
     test(_TestStringReadInt)
     test(_TestStringUTF32)
+    test(_TestStringRFind)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -765,6 +766,16 @@ class iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x9C, s(2))
     h.assert_eq[U8](0x8E, s(3))
     h.assert_eq[U32](0x2070E, s.utf32(0)._1)
+
+
+class iso _TestStringRFind is UnitTest
+  fun name(): String => "builtin/String.rfind"
+
+  fun apply(h: TestHelper) ? =>
+    let s = "-foo-bar-baz-"
+    h.assert_eq[ISize](s.rfind("-"), 12)
+    h.assert_eq[ISize](s.rfind("-", -2), 8)
+    h.assert_eq[ISize](s.rfind("-bar", 7), 4)
 
 
 class iso _TestArrayAppend is UnitTest

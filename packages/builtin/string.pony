@@ -513,10 +513,17 @@ actor Main
 
   fun rfind(s: String box, offset: ISize = -1, nth: USize = 0): ISize ? =>
     """
-    Return the index of n-th instance of s in the string starting from the end.
-    Raise an error if there is no n-th occurence of s or s is empty.
+    Return the index of n-th instance of `s` in the string starting from the
+    end. The `offset` represents the highest index to included in the search.
+    Raise an error if there is no n-th occurence of `s` or `s` is empty.
     """
-    var i = offset_to_index(offset) - s._size
+    // Avoid pointless looping
+    if s._size == 0 then
+      error
+    end
+
+    var i = (offset_to_index(offset) + 1) - s._size
+
     var steps = nth + 1
 
     while i < _size do
