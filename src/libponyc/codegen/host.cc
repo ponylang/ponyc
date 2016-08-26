@@ -121,6 +121,28 @@ LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
   return wrap(parseIRFile(file, diag, *unwrap(ctx)).release());
 }
 
+// From LLVM internals.
+static MDNode* extractMDNode(MetadataAsValue* mdv)
+{
+  Metadata* md = mdv->getMetadata();
+  assert(isa<MDNode>(md) || isa<ConstantAsMetadata>(md));
+
+  MDNode* n = dyn_cast<MDNode>(md);
+  if(n != NULL)
+    return n;
+
+  return MDNode::get(mdv->getContext(), md);
+}
+
+void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
+{
+  assert(node != NULL);
+
+  MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
+
+  unwrap<Instruction>(inst)->setMetadata(str, n);
+}
+
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
 {
   Module* m = unwrap(module);

@@ -32,6 +32,7 @@ void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
+void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);

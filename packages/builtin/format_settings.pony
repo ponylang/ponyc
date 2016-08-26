@@ -27,6 +27,59 @@ interface box FormatSettings[F: FormatSpec val = FormatDefault,
   * align. Whether fill characters should be added at the beginning or end of
   the generated string, or both.
   * fill: The character to pad a string with if it is shorter than width.
+
+  The following code prints out every 100th number from -1000 to 1000
+  (inclusive) and applies different formatting options to them.
+
+  ```pony
+  use "collections"
+
+  actor Main
+    let width: USize = 20
+    let header_fmt: FormatSettingsHolder val = recover
+      FormatSettingsHolder.set_width(width).set_align(AlignRight)
+    end
+    let original_fmt: FormatSettingsInt val = recover
+      FormatSettingsInt.set_width(width)
+    end
+    let hex_fmt: FormatSettingsInt val = recover
+      FormatSettingsInt.set_format(FormatHex).set_width(width)
+    end
+    let hex_bare_fmt: FormatSettingsInt val = recover
+      FormatSettingsInt.set_format(FormatHexBare).set_width(width)
+    end
+    let hex_small_fmt: FormatSettingsInt val = recover
+      FormatSettingsInt.set_format(FormatHexSmall).set_width(width)
+    end
+    let hex_small_bare_fmt: FormatSettingsInt val = recover
+      FormatSettingsInt.set_format(FormatHexSmallBare).set_width(width)
+    end
+    let hex_prec_fmt:FormatSettingsInt val = recover
+      FormatSettingsInt.set_format(FormatHex).set_width(width).set_precision(8)
+    end
+
+    new create(env: Env) =>
+      let header = recover
+        String.append("Original".string(header_fmt))
+          .append("FormatHex".string(header_fmt))
+          .append("FormatHexBare".string(header_fmt))
+          .append("FormatHexSmall".string(header_fmt))
+          .append("FormatHexSmallBare".string(header_fmt))
+          .append("FormatHex prec".string(header_fmt))
+      end
+      env.out.print(consume header)
+      for x in Range[I64](-1000, 1001, 100) do
+        let line = recover
+          String.append(x.string(original_fmt))
+            .append(x.string(hex_fmt))
+            .append(x.string(hex_bare_fmt))
+            .append(x.string(hex_small_fmt))
+            .append(x.string(hex_small_bare_fmt))
+            .append(x.string(hex_prec_fmt))
+        end
+        env.out.print(consume line)
+      end
+  ```
   """
   fun format(): (F | FormatDefault)
   fun prefix(): (P | PrefixDefault)

@@ -116,7 +116,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-  LLVMValueRef env = codegen_call(c, m->func, env_args, 4);
+  codegen_call(c, m->func, env_args, 4);
+  LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
   primitive_call(c, c->str__init);

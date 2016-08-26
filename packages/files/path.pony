@@ -55,7 +55,7 @@ primitive Path
       clean(next_path)
     else
       try
-        if is_sep(path(-1)) then
+        if is_sep(path(path.size()-1)) then
           if is_sep(next_path(0)) then
             return clean(path + next_path.substring(1))
           else
@@ -174,8 +174,8 @@ primitive Path
     end
 
     try
-      if is_sep(s(-1)) then
-        s.delete(-1, 1)
+      if is_sep(s(s.size()-1)) then
+        s.delete(-1, sep().size())
       end
     end
 
