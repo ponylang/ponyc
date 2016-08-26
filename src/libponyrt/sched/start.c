@@ -18,6 +18,7 @@ typedef struct options_t
   double gc_factor;
   bool noyield;
   bool noblock;
+  bool pinasio;
 } options_t;
 
 // global data
@@ -32,7 +33,8 @@ enum
   OPT_GCINITIAL,
   OPT_GCFACTOR,
   OPT_NOYIELD,
-  OPT_NOBLOCK
+  OPT_NOBLOCK,
+  OPT_PINASIO
 };
 
 static opt_arg_t args[] =
@@ -45,6 +47,7 @@ static opt_arg_t args[] =
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
+  {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
 
   OPT_ARGS_FINISH
 };
@@ -67,6 +70,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
+      case OPT_PINASIO: opt->pinasio = true; break;
 
       default: exit(-1);
     }
@@ -99,7 +103,7 @@ int pony_init(int argc, char** argv)
   ponyint_actor_setnoblock(opt.noblock);
 
   pony_exitcode(0);
-  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield);
+  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pinasio);
   ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
 

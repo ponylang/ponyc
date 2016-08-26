@@ -104,6 +104,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `from_iso_array` constructor on `String`.
 - `Sort` primitive
 - PonyBench package
+- `--ponypinasio` runtime option for pinning asio thread to a cpu core.
 
 ### Changed
 
