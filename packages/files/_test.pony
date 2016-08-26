@@ -8,6 +8,7 @@ actor Main is TestList
     test(_TestMkdtemp)
     test(_TestWalk)
     test(_TestDirectoryOpen)
+    test(_TestPathClean)
     test(_TestPathJoin)
     test(_TestPathRel)
     test(_TestPathSplit)
@@ -88,6 +89,27 @@ class iso _TestDirectoryOpen is UnitTest
     end
 
 
+class iso _TestPathClean is UnitTest
+  fun name(): String => "files/Path.clean"
+  fun apply(h: TestHelper) =>
+    let res1 = Path.clean("//foo/bar///")
+    let res2 = Path.clean("foo/./bar")
+    let res3 = Path.clean("foo/../foo")
+    let res4 = Path.clean("///foo///bar///base.ext")
+
+    ifdef windows then
+      h.assert_eq[String](res1, "\\foo\\bar")
+      h.assert_eq[String](res2, "foo\\bar")
+      h.assert_eq[String](res3, "foo")
+      h.assert_eq[String](res4, "\\foo\\bar\\base.ext")
+    else
+      h.assert_eq[String](res1, "/foo/bar")
+      h.assert_eq[String](res2, "foo/bar")
+      h.assert_eq[String](res3, "foo")
+      h.assert_eq[String](res4, "/foo/bar/base.ext")
+    end
+
+
 class iso _TestPathJoin is UnitTest
   fun name(): String => "files/Path.join"
   fun apply(h: TestHelper) =>
@@ -96,9 +118,9 @@ class iso _TestPathJoin is UnitTest
     let path3 = "foo/../foo"
     let path4 = "///foo///dir///base.ext"
 
-    var res1 = Path.join(path1, path2)
-    var res2 = Path.join(res1, path3)
-    var res3 = Path.join(res2, path4)
+    let res1 = Path.join(path1, path2)
+    let res2 = Path.join(res1, path3)
+    let res3 = Path.join(res2, path4)
 
     ifdef windows then
       h.assert_eq[String](res1, "\\foo\\bar\\foo\\bar")
