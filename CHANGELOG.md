@@ -52,6 +52,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Segmentation fault from allocating zero-sized struct.
 - Segmentation fault from serialising zero-sized array.
 - Assertion failure from type-checking in invalid programs.
+- Make the offset parameter of String.rfind inclusive of the given index.
 
 ### Added
 
