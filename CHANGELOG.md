@@ -51,6 +51,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Performance of Map.upsert and Map.update (don't replace existing keys)
 - Segmentation fault from allocating zero-sized struct.
 - Segmentation fault from serialising zero-sized array.
+- Assertion failure from type-checking in invalid programs.
 
 ### Added
 
