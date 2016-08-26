@@ -261,3 +261,14 @@ TEST_F(BadPonyTest, TupleFieldReassign)
   TEST_ERRORS_2(src, "can't assign to an element of a tuple",
                      "left side must be something that can be assigned to");
 }
+
+TEST_F(BadPonyTest, WithBlockTypeInference)
+{
+  // From issue #1135
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    with x = 1 do None end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
