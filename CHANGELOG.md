@@ -52,6 +52,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Segmentation fault from allocating zero-sized struct.
 - Segmentation fault from serialising zero-sized array.
 - Make sure all scheduler threads are pinned to CPU cores; on Linux/FreeBSD this wasn't the case for the main thread.
+- Assertion failure from type-checking in invalid programs.
 
 ### Added
 
