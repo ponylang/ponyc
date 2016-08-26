@@ -143,10 +143,9 @@ class iso _TestPathRel is UnitTest
 class iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
   fun apply(h: TestHelper) =>
-    var path = "/foo/bar/dir"
-  //  var path = "/foo/bar/dir/" // waiting for String.rfind fix
+    var path = "/foo/bar/dir/"
     let expect = [
-  //    ("/foo/bar/dir", ""), // waiting for String.rfind fix
+      ("/foo/bar/dir", ""),
       ("/foo/bar", "dir"),
       ("/foo", "bar"),
       (".", "foo"),
@@ -165,14 +164,14 @@ class iso _TestPathDir is UnitTest
   fun name(): String => "files/Path.dir"
   fun apply(h: TestHelper) =>
     let res1 = Path.dir("/foo/bar/dir/base.ext")
-//    let res2 = Path.dir("/foo/bar/dir/") // waiting for String.rfind fix
+    let res2 = Path.dir("/foo/bar/dir/")
 
     ifdef windows then
       h.assert_eq[String](res1, "\\foo\\bar\\dir")
-//      h.assert_eq[String](res2, "\\foo\\bar\\dir") // waiting for String.rfind
+      h.assert_eq[String](res2, "\\foo\\bar\\dir")
     else
       h.assert_eq[String](res1, "/foo/bar/dir")
-//      h.assert_eq[String](res2, "/foo/bar/dir") // waiting for String.rfind
+      h.assert_eq[String](res2, "/foo/bar/dir")
     end
 
 
@@ -180,10 +179,10 @@ class iso _TestPathExt is UnitTest
   fun name(): String => "files/Path.ext"
   fun apply(h: TestHelper) =>
     let res1 = Path.ext("/foo/bar/dir/base.ext")
-//    let res2 = Path.ext("/foo/bar/dir/base.ext/") // waiting for String.rfind
+    let res2 = Path.ext("/foo/bar/dir/base.ext/")
 
     h.assert_eq[String](res1, "ext")
-//    h.assert_eq[String](res2, "") // waiting for String.rfind fix
+    h.assert_eq[String](res2, "")
 
 
 class iso _TestPathVolume is UnitTest
