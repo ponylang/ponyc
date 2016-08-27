@@ -500,7 +500,7 @@ actor Main
         j = j + 1
         true
       else
-        error
+        false
       end
 
       if same and ((steps = steps - 1) == 1) then
@@ -531,7 +531,7 @@ actor Main
         j = j + 1
         true
       else
-        error
+        false
       end
 
       if same and ((steps = steps - 1) == 1) then
@@ -559,7 +559,7 @@ actor Main
         j = j + 1
         true
       else
-        return false
+        false
       end
 
       if same and ((steps = steps - 1) == 1) then
