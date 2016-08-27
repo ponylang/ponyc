@@ -487,11 +487,6 @@ actor Main
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
     """
-    // Avoid pointless looping
-    if s._size == 0 then
-      error
-    end
-
     var i = offset_to_index(offset)
     var steps = nth + 1
 
@@ -505,7 +500,7 @@ actor Main
         j = j + 1
         true
       else
-        false
+        error
       end
 
       if same and ((steps = steps - 1) == 1) then
@@ -522,11 +517,6 @@ actor Main
     end. The `offset` represents the highest index to included in the search.
     Raise an error if there is no n-th occurence of `s` or `s` is empty.
     """
-    // Avoid pointless looping
-    if s._size == 0 then
-      error
-    end
-
     var i = (offset_to_index(offset) + 1) - s._size
 
     var steps = nth + 1
@@ -541,7 +531,7 @@ actor Main
         j = j + 1
         true
       else
-        false
+        error
       end
 
       if same and ((steps = steps - 1) == 1) then
@@ -556,11 +546,6 @@ actor Main
     """
     Returns true if contains s as a substring, false otherwise.
     """
-    // Avoid pointless looping
-    if s._size == 0 then
-      return false
-    end
-
     var i = offset_to_index(offset)
     var steps = nth + 1
 
@@ -574,7 +559,7 @@ actor Main
         j = j + 1
         true
       else
-        false
+        return false
       end
 
       if same and ((steps = steps - 1) == 1) then
