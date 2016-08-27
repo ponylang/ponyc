@@ -213,7 +213,7 @@ actor Main
     end
 
     var i = offset_to_index(from)
-    var j = offset_to_index(to).min(_size)
+    let j = offset_to_index(to).min(_size)
     var n = USize(0)
 
     while i < j do
@@ -367,7 +367,7 @@ actor Main
     let err: (U32, U8) = (0xFFFD, 1)
 
     if i >= _size then error end
-    var c = _ptr._apply(i)
+    let c = _ptr._apply(i)
 
     if c < 0x80 then
       // 1-byte
@@ -381,7 +381,7 @@ actor Main
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
+        let c2 = _ptr._apply(i + 1)
         if (c2 and 0xC0) != 0x80 then
           // Not a continuation byte.
           err
@@ -395,8 +395,8 @@ actor Main
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
-        var c3 = _ptr._apply(i + 2)
+        let c2 = _ptr._apply(i + 1)
+        let c3 = _ptr._apply(i + 2)
         if
           // Not continuation bytes.
           ((c2 and 0xC0) != 0x80) or
@@ -415,9 +415,9 @@ actor Main
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
-        var c3 = _ptr._apply(i + 2)
-        var c4 = _ptr._apply(i + 3)
+        let c2 = _ptr._apply(i + 1)
+        let c3 = _ptr._apply(i + 2)
+        let c4 = _ptr._apply(i + 3)
         if
           // Not continuation bytes.
           ((c2 and 0xC0) != 0x80) or
@@ -487,13 +487,18 @@ actor Main
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
     """
+    // Avoid pointless looping
+    if s._size == 0 then
+      error
+    end
+
     var i = offset_to_index(offset)
     var steps = nth + 1
 
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -529,7 +534,7 @@ actor Main
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -551,13 +556,18 @@ actor Main
     """
     Returns true if contains s as a substring, false otherwise.
     """
+    // Avoid pointless looping
+    if s._size == 0 then
+      return false
+    end
+
     var i = offset_to_index(offset)
     var steps = nth + 1
 
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -602,7 +612,7 @@ actor Main
     """
     Returns true if the substring s is present at the given offset.
     """
-    var i = offset_to_index(offset)
+    let i = offset_to_index(offset)
 
     if (i + s.size()) <= _size then
       @memcmp(_ptr._offset(i), s._ptr, s._size) == 0
@@ -614,7 +624,7 @@ actor Main
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
-    var i = offset_to_index(offset)
+    let i = offset_to_index(offset)
 
     if i < _size then
       let n = len.min(_size - i)
@@ -634,7 +644,7 @@ actor Main
 
     if (start < _size) and (start < finish) then
       let len = finish - start
-      var str = recover String(len) end
+      let str = recover String(len) end
       _ptr._offset(start)._copy_to(str._ptr._unsafe(), len)
       str._size = len
       str._set(len, 0)
@@ -647,7 +657,7 @@ actor Main
     """
     Returns a lower case version of the string.
     """
-    var s = clone()
+    let s = clone()
     s.lower_in_place()
     s
 
@@ -658,7 +668,7 @@ actor Main
     var i: USize = 0
 
     while i < _size do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
 
       if (c >= 0x41) and (c <= 0x5A) then
         _set(i, c + 0x20)
@@ -673,7 +683,7 @@ actor Main
     Returns an upper case version of the string. Currently only knows ASCII
     case.
     """
-    var s = clone()
+    let s = clone()
     s.upper_in_place()
     s
 
@@ -684,7 +694,7 @@ actor Main
     var i: USize = 0
 
     while i < _size do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
 
       if (c >= 0x61) and (c <= 0x7A) then
         _set(i, c - 0x20)
@@ -698,7 +708,7 @@ actor Main
     """
     Returns a reversed version of the string.
     """
-    var s = clone()
+    let s = clone()
     s.reverse_in_place()
     s
 
@@ -849,7 +859,7 @@ actor Main
     Returns a version of the string with the given string inserted at the given
     offset.
     """
-    var s = clone()
+    let s = clone()
     s.insert_in_place(offset, that)
     s
 
@@ -859,7 +869,7 @@ actor Main
     offset is out of bounds.
     """
     reserve(_size + that._size)
-    var index = offset_to_index(offset).min(_size)
+    let index = offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + that._size,
       _ptr.usize() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
@@ -872,7 +882,7 @@ actor Main
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
     reserve(_size + 1)
-    var index = offset_to_index(offset).min(_size)
+    let index = offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + 1, _ptr.usize() + index,
       _size - index)
     _set(index, value)
@@ -885,7 +895,7 @@ actor Main
     Returns a version of the string with the given range deleted.
     Index range [`from` .. `to`) is half-open.
     """
-    var s = clone()
+    let s = clone()
     s.cut_in_place(from, to)
     s
 
@@ -1098,7 +1108,7 @@ actor Main
     Return a string that is a concatenation of this and that.
     """
     let len = _size + that._size
-    var s = recover String(len) end
+    let s = recover String(len) end
     (consume s)._append(this)._append(that)
 
   fun join(data: ReadSeq[Stringable]): String iso^ =>
@@ -1109,10 +1119,11 @@ actor Main
     var buf = recover String end
     var first = true
     for v in data.values() do
-      if not first then
+      if first then
+        first = false
+      else
         buf = (consume buf)._append(this)
       end
-      first = false
       buf.append(v.string())
     end
     buf
@@ -1375,7 +1386,7 @@ actor Main
     (10, 0)
 
   fun f32(offset: ISize = 0): F32 =>
-    var index = offset_to_index(offset)
+    let index = offset_to_index(offset)
 
     if index < _size then
       @strtof(_ptr._offset(index), 0)
@@ -1384,7 +1395,7 @@ actor Main
     end
 
   fun f64(offset: ISize = 0): F64 =>
-    var index = offset_to_index(offset)
+    let index = offset_to_index(offset)
 
     if index < _size then
       @strtod(_ptr._offset(index), 0)
