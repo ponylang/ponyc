@@ -337,7 +337,7 @@ primitive Path
     if with_ext then
       b
     else
-      let e_size = ext(b)
+      let e_size = ext(b).size()
 
       if e_size > 0 then
         b.trim(0, b.size() - e_size - 1)
