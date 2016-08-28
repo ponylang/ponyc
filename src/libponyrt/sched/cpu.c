@@ -124,8 +124,10 @@ uint32_t ponyint_cpu_count()
 #endif
 }
 
-void ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler)
+uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler, bool pinasio)
 {
+  uint32_t asio_cpu = -1;
+
 #if defined(PLATFORM_IS_LINUX)
   uint32_t cpu_count = ponyint_numa_cores();
 
@@ -141,12 +143,23 @@ void ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler)
       scheduler[i].node = ponyint_numa_node_of_cpu(cpu);
     }
 
+    // If pinning asio thread to a core is requested override the default
+    // asio_cpu of -1
+    if(pinasio)
+      asio_cpu = list[count % cpu_count];
+
     ponyint_pool_free_size(cpu_count * sizeof(uint32_t), list);
-    return;
+
+    return asio_cpu;
   }
 
   // Physical cores come first, so assign in sequence.
   cpu_count = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+
+  // If pinning asio thread to a core is requested override the default
+  // asio_cpu of -1
+  if(pinasio)
+    asio_cpu = count % cpu_count;
 
   for(uint32_t i = 0; i < count; i++)
   {
@@ -156,6 +169,11 @@ void ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler)
 #elif defined(PLATFORM_IS_FREEBSD)
   // Spread across available cores.
   uint32_t cpu_count = property("hw.ncpu");
+
+  // If pinning asio thread to a core is requested override the default
+  // asio_cpu of -1
+  if(pinasio)
+    asio_cpu = count % cpu_count;
 
   for(uint32_t i = 0; i < count; i++)
   {
@@ -169,7 +187,14 @@ void ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler)
     scheduler[i].cpu = i;
     scheduler[i].node = 0;
   }
+
+  // If pinning asio thread to a core is requested override the default
+  // asio_cpu of -1
+  if(pinasio)
+    asio_cpu = count;
 #endif
+
+  return asio_cpu;
 }
 
 void ponyint_cpu_affinity(uint32_t cpu)

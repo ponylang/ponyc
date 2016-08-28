@@ -51,6 +51,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Performance of Map.upsert and Map.update (don't replace existing keys)
 - Segmentation fault from allocating zero-sized struct.
 - Segmentation fault from serialising zero-sized array.
+- Make sure all scheduler threads are pinned to CPU cores; on Linux/FreeBSD this wasn't the case for the main thread.
 - Assertion failure from type-checking in invalid programs.
 - Make the offset parameter of String.rfind inclusive of the given index.
 
@@ -105,6 +106,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `from_iso_array` constructor on `String`.
 - `Sort` primitive
 - PonyBench package
+- `--ponypinasio` runtime option for pinning asio thread to a cpu core.
 
 ### Changed
 
