@@ -9,7 +9,7 @@ class Config
   var logactors: USize = 2
 
   fun ref apply(env: Env): Bool =>
-    var options = Options(env)
+    var options = Options(env.args)
 
     options
       .add("table", "t", I64Argument)

@@ -52,15 +52,15 @@ class ProcessClient is ProcessNotify
   new iso create(env: Env) =>
     _env = env
 
-  fun ref stdout(data: Array[U8] iso) =>
+  fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
     let out = String.from_array(consume data)
     _env.out.print("STDOUT: " + out)
 
-  fun ref stderr(data: Array[U8] iso) =>
+  fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
     let err = String.from_array(consume data)
     _env.out.print("STDERR: " + err)
 
-  fun ref failed(err: ProcessError) =>
+  fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     match err
     | ExecveError   => _env.out.print("ProcessError: ExecveError")
     | PipeError     => _env.out.print("ProcessError: PipeError")
@@ -77,7 +77,7 @@ class ProcessClient is ProcessNotify
       _env.out.print("Unknown ProcessError!")
     end
 
-  fun ref dispose(child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
     let code: I32 = consume child_exit_code
     _env.out.print("Child exit code: " + code.string())
 ```
@@ -265,7 +265,9 @@ actor ProcessMonitor
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      if @execve[I32](path.cstring(), argp.cstring(), envp.cstring()) < 0 then
+      if 0 > @execve[I32](path.null_terminated().cstring(), argp.cstring(),
+        envp.cstring())
+      then
         @_exit[None](I32(-1))
       end
     end
@@ -290,7 +292,7 @@ actor ProcessMonitor
     """
     let argv = Array[Pointer[U8] tag](args.size() + 1)
     for s in args.values() do
-      argv.push(s.cstring())
+      argv.push(s.null_terminated().cstring())
     end
     argv.push(Pointer[U8]) // nullpointer to terminate list of args
     argv

@@ -75,8 +75,8 @@ class File
       end
 
       if mode != "x" then
-        _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
-          mode.cstring())
+        _handle = @fopen[Pointer[_FileHandle]](
+          path.path.null_terminated().cstring(), mode.cstring())
 
         if _handle.is_null() then
           _errno = FileError
@@ -113,8 +113,8 @@ class File
     then
       _errno = FileError
     else
-      _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
-        "rb".cstring())
+      _handle = @fopen[Pointer[_FileHandle]](
+        from.path.null_terminated().cstring(), "rb".cstring())
 
       if _handle.is_null() then
         _errno = FileError

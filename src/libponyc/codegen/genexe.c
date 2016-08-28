@@ -4,6 +4,7 @@
 #include "gencall.h"
 #include "genname.h"
 #include "genprim.h"
+#include "genopt.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -115,7 +116,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-  LLVMValueRef env = codegen_call(c, m->func, env_args, 4);
+  codegen_call(c, m->func, env_args, 4);
+  LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
   primitive_call(c, c->str__init);
@@ -219,12 +221,14 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  const char* linker = c->opt->linker != NULL ? c->opt->linker
+                                              : "ld";
 
-  // Avoid incorrect ld, eg from macports.
   snprintf(ld_cmd, ld_len,
-    "/usr/bin/ld -execute -no_pie -dead_strip -arch %.*s "
+    "%s -execute -no_pie -dead_strip -arch %.*s "
     "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
-    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args, ponyrt
+           linker, (int)arch_len, c->opt->triple, file_exe, file_o,
+           lib_args, ponyrt
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -266,27 +270,26 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args);
+  const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+  const char* linker = c->opt->linker != NULL ? c->opt->linker : PONY_COMPILER;
+  const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
+  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold " : "";
+  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl  " : "";
+
+  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
+                  + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
+                  + strlen(ldl);
+
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
-  snprintf(ld_cmd, ld_len, PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " "
-#ifndef PLATFORM_IS_ILP32
-    "-mcx16 "
-#endif
-
+  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
+    "%s "
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-
-#ifdef PLATFORM_IS_LINUX
-    "-fuse-ld=gold "
-#endif
-    "%s %s %s -lpthread "
-#ifdef PLATFORM_IS_LINUX
-    "-ldl "
-#endif
+    "%s %s %s %s -lpthread %s "
     "-lm",
-    file_exe, file_o, lib_args, ponyrt
+    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -318,6 +321,12 @@ static bool link_exe(compile_t* c, ast_t* program,
     "/LIBPATH:", NULL, "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
+  char ucrt_lib[MAX_PATH + 12];
+  if (strlen(vcvars.ucrt) > 0)
+    snprintf(ucrt_lib, MAX_PATH + 12, "/LIBPATH:\"%s\"", vcvars.ucrt);
+  else
+    ucrt_lib[0] = '\0';
+
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
@@ -327,11 +336,12 @@ static bool link_exe(compile_t* c, ast_t* program,
     int num_written = snprintf(ld_cmd, ld_len,
       "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
       "/OUT:%s "
-      "%s "
+      "%s %s "
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
-      "%s kernel32.lib msvcrt.lib Ws2_32.lib vcruntime.lib legacy_stdio_definitions.lib %s \"",
-      vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args, ponyrt
+      "%s %s %s \"",
+      vcvars.link, file_exe, file_o, ucrt_lib, vcvars.kernel32, 
+      vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 
     if (num_written < ld_len)

@@ -1,3 +1,4 @@
+use "buffered"
 use "net"
 
 primitive _PayloadRequest
@@ -56,7 +57,7 @@ class _PayloadBuilder
     """
     _state
 
-  fun ref parse(buffer: ReadBuffer) =>
+  fun ref parse(buffer: Reader) =>
     """
     Parse available data based on our state. _ResponseBody is not listed here.
     In that state, we wait for the connection to close and treat all pending
@@ -93,7 +94,7 @@ class _PayloadBuilder
 
     payload
 
-  fun ref closed(buffer: ReadBuffer) =>
+  fun ref closed(buffer: Reader) =>
     """
     The connection has closed, which may signal that all remaining data is the
     payload body.
@@ -108,7 +109,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_request(buffer: ReadBuffer) =>
+  fun ref _parse_request(buffer: Reader) =>
     """
     Look for: "<Method> <URL> <Proto>".
     """
@@ -130,7 +131,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_response(buffer: ReadBuffer) =>
+  fun ref _parse_response(buffer: Reader) =>
     """
     Look for: "<Proto> <Code> <Description>".
     """
@@ -152,7 +153,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_headers(buffer: ReadBuffer) =>
+  fun ref _parse_headers(buffer: Reader) =>
     """
     Look for: "<Key>:<Value>" or an empty line.
     """
@@ -212,7 +213,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_content_length(buffer: ReadBuffer) =>
+  fun ref _parse_content_length(buffer: Reader) =>
     """
     Look for _content_length available bytes.
     """
@@ -222,7 +223,7 @@ class _PayloadBuilder
       _state = _PayloadReady
     end
 
-  fun ref _parse_chunk_start(buffer: ReadBuffer) =>
+  fun ref _parse_chunk_start(buffer: Reader) =>
     """
     Look for the beginning of a chunk.
     """
@@ -245,7 +246,7 @@ class _PayloadBuilder
       end
     end
 
-  fun ref _parse_chunk(buffer: ReadBuffer) =>
+  fun ref _parse_chunk(buffer: Reader) =>
     """
     Look for a chunk.
     """
@@ -256,7 +257,7 @@ class _PayloadBuilder
       parse(buffer)
     end
 
-  fun ref _parse_chunk_end(buffer: ReadBuffer) =>
+  fun ref _parse_chunk_end(buffer: Reader) =>
     """
     Look for a blank line.
     """

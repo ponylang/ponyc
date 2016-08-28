@@ -18,7 +18,7 @@ typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 
 struct search_t
 {
-  long latest_ver;
+  uint64_t latest_ver;
   char name[MAX_VER_LEN + 1];
   char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
@@ -115,17 +115,39 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
   DWORD version_len = MAX_VER_LEN;
   char new_path[MAX_PATH];
   char new_version[MAX_VER_LEN];
+  char version_tokens[MAX_VER_LEN];
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ, NULL,
       new_path, &path_len) == ERROR_SUCCESS &&
     RegGetValue(key, NULL, "ProductVersion", RRF_RT_REG_SZ, NULL, new_version,
       &version_len) == ERROR_SUCCESS)
   {
-    char* last_dot = strrchr(new_version, '.');
-    if(last_dot == NULL)
-      return;
+    strcpy(version_tokens, new_version);
+    uint64_t new_ver = 0;
 
-    long new_ver = atol(last_dot + 1);
+    char *token = version_tokens;
+    while (*token != NULL && !isdigit(*token))
+      token++;
+    if (*token != NULL)
+    {
+      char *dot;
+      int place = 3;
+      while (place >= 0)
+      {
+        if ((dot = strchr(token, '.')) != NULL)
+          *dot = '\0';
+        uint64_t num = atol(token);
+        if (num > 0xffff) num = 0xffff;
+        new_ver += (num << (place * 16));
+        
+        place--;
+
+        if (dot != NULL)
+          token = dot + 1;
+        else
+          break;
+      }
+    }
 
     if((strlen(p->version) == 0) || (new_ver > p->latest_ver))
     {
@@ -148,6 +170,11 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
     return false;
   }
 
+  vcvars->ucrt[0] = '\0';
+  strcpy(vcvars->default_libs, 
+    "kernel32.lib msvcrt.lib Ws2_32.lib "
+    "vcruntime.lib legacy_stdio_definitions.lib");
+
   strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\");
   if(strcmp("v7.1", sdk.name) == 0)
@@ -166,7 +193,20 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   else if(strcmp("v10.0", sdk.name) == 0)
   {
     strcat(vcvars->kernel32, sdk.version);
-    strcat(vcvars->kernel32, ".0");
+
+    // recent Windows 10 kits have the correct 4-place version
+    // only append ".0" if it doesn't already have it
+    size_t len = strlen(vcvars->kernel32);
+    if (len > 2 &&
+      !(vcvars->kernel32[len - 2] == '.' 
+        && vcvars->kernel32[len - 1] == '0'))
+    {
+      strcat(vcvars->kernel32, ".0");
+    }
+
+    strcpy(vcvars->ucrt, vcvars->kernel32);
+    strcat(vcvars->ucrt, "\\ucrt\\x64");
+    strcat(vcvars->default_libs, " ucrt.lib");
   }
   else
   {

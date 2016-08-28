@@ -646,6 +646,11 @@ static bool is_tuple_sub_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
     case TK_ARROW:
       return is_tuple_sub_single(sub, super, errorf, opt);
 
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return false;
+
     default: {}
   }
 
@@ -1045,6 +1050,11 @@ static bool is_nominal_sub_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
     case TK_ARROW:
       return is_nominal_sub_arrow(sub, super, errorf, opt);
 
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return false;
+
     default: {}
   }
 
@@ -1160,6 +1170,11 @@ static bool is_typeparam_base_sub_x(ast_t* sub, ast_t* super,
 
     case TK_ARROW:
       return is_typeparam_sub_arrow(sub, super, errorf, opt);
+
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return false;
 
     default: {}
   }
@@ -1327,6 +1342,11 @@ static bool is_arrow_sub_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
 
     case TK_ARROW:
       return is_arrow_sub_arrow(sub, super, errorf, opt);
+
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return false;
 
     default: {}
   }

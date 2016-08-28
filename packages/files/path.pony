@@ -55,9 +55,9 @@ primitive Path
       clean(next_path)
     else
       try
-        if is_sep(path(-1)) then
+        if is_sep(path(path.size()-1)) then
           if is_sep(next_path(0)) then
-            return clean(path + next_path.substring(1))
+            return clean(path + next_path.trim(1))
           else
             return clean(path + next_path)
           end
@@ -75,8 +75,8 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    var s = recover String(path.size()) end
-    var vol = volume(path)
+    let s = recover String(path.size()) end
+    let vol = volume(path)
     s.append(vol)
 
     var state: _PathState = _PathOther
@@ -174,8 +174,8 @@ primitive Path
     end
 
     try
-      if is_sep(s(-1)) then
-        s.delete(-1, 1)
+      if is_sep(s(s.size()-1)) then
+        s.delete(-1, sep().size())
       end
     end
 
@@ -232,8 +232,8 @@ primitive Path
       to_clean = abs(to_clean)
       target_clean = abs(target_clean)
 
-      var to_vol = volume(to_clean)
-      var target_vol = volume(target_clean)
+      let to_vol = volume(to_clean)
+      let target_vol = volume(target_clean)
 
       if to_vol != target_vol then
         error
@@ -286,7 +286,7 @@ primitive Path
     end
 
     if to_0.usize() != to_clean.size() then
-      var result = recover String end
+      let result = recover String end
 
       try
         while true do
@@ -298,10 +298,10 @@ primitive Path
 
       result.append("..")
       result.append(sep())
-      result.append(target_clean.substring(target_0))
+      result.append(target_clean.trim(target_0.usize()))
       result
     else
-      target_clean.substring(target_0)
+      target_clean.trim(target_0.usize())
     end
 
   fun split(path: String, separator: String = Path.sep()): (String, String) =>
@@ -315,8 +315,8 @@ primitive Path
     (but the strings may differ). Also see the functions dir() and base().
     """
     try
-      var i = path.rfind(separator)
-      (clean(path.substring(0, i)), path.substring(i+separator.size().isize()))
+      let i = path.rfind(separator).usize()
+      (clean(path.trim(0, i)), path.trim(i+separator.size()))
     else
       ("", path)
     end
@@ -327,8 +327,7 @@ primitive Path
     separator.
     """
     try
-      var i = path.rfind(sep())
-      path.substring(i + 1)
+      path.trim(path.rfind(sep()).usize() + 1)
     else
       path
     end
@@ -339,8 +338,7 @@ primitive Path
     is no separator.
     """
     try
-      var i = path.rfind(sep())
-      clean(path.substring(0, i))
+      clean(path.trim(0, path.rfind(sep()).usize()))
     else
       path
     end
@@ -351,16 +349,16 @@ primitive Path
     dot is after all separators. Return an empty string for no extension.
     """
     try
-      var i = path.rfind(".")
+      let i = path.rfind(".")
 
-      var j = try
+      let j = try
         path.rfind(sep())
       else
         i
       end
 
       if i >= j then
-        return path.substring(i + 1)
+        return path.trim(i.usize() + 1)
       end
     end
     ""
@@ -382,7 +380,7 @@ primitive Path
       end
 
       if _drive_letter(path, offset) then
-        return path.substring(0, offset + 2)
+        return path.trim(0, offset.usize() + 2)
       end
 
       try
@@ -401,7 +399,7 @@ primitive Path
     Look for a drive letter followed by a ':', returning true if we find it.
     """
     try
-      var c = path.at_offset(offset)
+      let c = path.at_offset(offset)
 
       (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))) and
         (path.at_offset(offset + 1) == ':')
@@ -415,11 +413,10 @@ primitive Path
     we found one, otherwise an empty String.
     """
     try
-      var next = path.find("\\", offset) + 1
+      let next = path.find("\\", offset) + 1
 
       try
-        next = path.find("\\", next) - 1
-        path.substring(0, next + 1)
+        path.trim(0, path.find("\\", next).usize())
       else
         path
       end
@@ -432,8 +429,8 @@ primitive Path
     Changes each / in the path to the OS specific separator.
     """
     ifdef windows then
-      var s = path.clone()
-      var len = s.size()
+      let s = path.clone()
+      let len = s.size()
       var i = USize(0)
 
       try
@@ -456,8 +453,8 @@ primitive Path
     Changes each OS specific separator in the path to /.
     """
     ifdef windows then
-      var s = path.clone()
-      var len = s.size()
+      let s = path.clone()
+      let len = s.size()
       var i = USize(0)
 
       try
@@ -480,7 +477,8 @@ primitive Path
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    var cstring = @pony_os_realpath[Pointer[U8] iso^](path.cstring())
+    let cstring = @pony_os_realpath[Pointer[U8] iso^](
+      path.null_terminated().cstring())
 
     if cstring.is_null() then
       error
@@ -504,17 +502,17 @@ primitive Path
     """
     Separate a list of paths into an array of cleaned paths.
     """
-    var array = recover Array[String] end
+    let array = recover Array[String] end
     var offset: ISize = 0
 
     try
       while true do
-        var next = path.find(list_sep(), offset)
-        array.push(clean(path.substring(offset, next)))
+        let next = path.find(list_sep(), offset)
+        array.push(clean(path.trim(offset.usize(), next.usize())))
         offset = next + 1
       end
     else
-      array.push(clean(path.substring(offset)))
+      array.push(clean(path.trim(offset.usize())))
     end
 
     array

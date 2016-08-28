@@ -312,10 +312,7 @@ static void ponyint_sched_shutdown()
 {
   uint32_t start;
 
-  if(scheduler[0].tid == pony_thread_self())
-    start = 1;
-  else
-    start = 0;
+  start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
@@ -384,7 +381,7 @@ static void ponyint_sched_shutdown()
   ponyint_mpmcq_destroy(&inject);
 }
 
-pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield)
+pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pinasio)
 {
   use_yield = !noyield;
 
@@ -397,7 +394,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield)
     scheduler_count * sizeof(scheduler_t));
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
-  ponyint_cpu_assign(scheduler_count, scheduler);
+  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pinasio);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
@@ -409,7 +406,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield)
 
   this_scheduler = &scheduler[0];
   ponyint_mpmcq_init(&inject);
-  ponyint_asio_init();
+  ponyint_asio_init(asio_cpu);
 
   return &scheduler[0].ctx;
 }
@@ -423,15 +420,11 @@ bool ponyint_sched_start(bool library)
 
   detect_quiescence = !library;
 
-  uint32_t start;
+  uint32_t start = 0;
 
   if(library)
   {
-    start = 0;
     pony_register_thread();
-  } else {
-    start = 1;
-    scheduler[0].tid = pony_thread_self();
   }
 
   for(uint32_t i = start; i < scheduler_count; i++)
@@ -443,7 +436,6 @@ bool ponyint_sched_start(bool library)
 
   if(!library)
   {
-    run_thread(&scheduler[0]);
     ponyint_sched_shutdown();
   }
 

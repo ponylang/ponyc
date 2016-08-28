@@ -70,8 +70,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -85,8 +86,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp4[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp4[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -100,8 +102,9 @@ actor TCPConnection
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp6[U32](this, host.cstring(),
-      service.cstring(), from.cstring())
+    _connect_count = @pony_os_connect_tcp6[U32](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring(),
+      from.null_terminated().cstring())
     _notify_connecting()
 
   new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,
@@ -202,8 +205,8 @@ actor TCPConnection
 
   fun ref set_keepalive(secs: U32) =>
     """
-    Sets the TCP keepalive timeout to approximately secs seconds. Exact timing
-    is OS dependent. If secs is zero, TCP keepalive is disabled. TCP keepalive
+    Sets the TCP keepalive timeout to approximately `secs` seconds. Exact timing
+    is OS dependent. If `secs` is zero, TCP keepalive is disabled. TCP keepalive
     is disabled by default. This can only be set on a connected socket.
     """
     if _connected then
@@ -283,7 +286,7 @@ actor TCPConnection
 
   fun ref write_final(data: ByteSeq) =>
     """
-    Write as much as possible to the socket. Set _writeable to false if not
+    Write as much as possible to the socket. Set `_writeable` to `false` if not
     everything was written. On an error, close the connection. This is for
     data that has already been transformed by the notifier.
     """
@@ -319,7 +322,7 @@ actor TCPConnection
 
   fun ref _complete_writes(len: U32) =>
     """
-    The OS has informed as that len bytes of pending writes have completed.
+    The OS has informed us that `len` bytes of pending writes have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
@@ -381,7 +384,7 @@ actor TCPConnection
 
   fun ref _complete_reads(len: U32) =>
     """
-    The OS has informed as that len bytes of pending reads have completed.
+    The OS has informed us that `len` bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then

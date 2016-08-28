@@ -60,7 +60,8 @@ primitive Debug
   fun _print(msg: String, stream: DebugStream) =>
     ifdef debug then
       try
-        @fprintf[I32](_stream(stream), "%s\n".cstring(), msg.cstring())
+        @fprintf[I32](_stream(stream), "%s\n".cstring(),
+          msg.null_terminated().cstring())
       end
     end
 

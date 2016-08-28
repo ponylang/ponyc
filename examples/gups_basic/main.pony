@@ -58,7 +58,7 @@ actor Main
     end
 
   fun ref arguments() ? =>
-    var options = Options(_env)
+    var options = Options(_env.args)
 
     options
       .add("table", "t", I64Argument)

@@ -88,7 +88,12 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
   unsigned lang, const char* file, const char* dir, const char* producer,
   int optimized)
 {
-#if PONY_LLVM >= 307
+#if PONY_LLVM >= 309
+  DIBuilder* pd = unwrap(d);
+
+  return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized,
+    StringRef(), 0, StringRef())); // use the defaults
+#elif PONY_LLVM >= 307
   DIBuilder* pd = unwrap(d);
 
   return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized,
@@ -149,7 +154,13 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
 
   DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
-    false, true, 0, 0, nullptr, 0, optimized);
+    false, true, 0, 0,
+#if PONY_LLVM >= 309
+    0,
+#else
+    nullptr,
+#endif
+    0, optimized);
 
   f->setSubprogram(di_method);
   return wrap(di_method);

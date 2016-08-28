@@ -66,6 +66,13 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 }
 #endif
 
+#if PONY_LLVM >= 308
+void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
+{
+  unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
+}
+#endif
+
 #if PONY_LLVM < 307
 static fltSemantics const* float_semantics(Type* t)
 {
@@ -112,6 +119,28 @@ LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
   SMDiagnostic diag;
 
   return wrap(parseIRFile(file, diag, *unwrap(ctx)).release());
+}
+
+// From LLVM internals.
+static MDNode* extractMDNode(MetadataAsValue* mdv)
+{
+  Metadata* md = mdv->getMetadata();
+  assert(isa<MDNode>(md) || isa<ConstantAsMetadata>(md));
+
+  MDNode* n = dyn_cast<MDNode>(md);
+  if(n != NULL)
+    return n;
+
+  return MDNode::get(mdv->getContext(), md);
+}
+
+void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
+{
+  assert(node != NULL);
+
+  MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
+
+  unwrap<Instruction>(inst)->setMetadata(str, n);
 }
 
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)

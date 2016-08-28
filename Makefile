@@ -17,7 +17,18 @@ else
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
     lto := yes
-    AR := /usr/bin/ar
+    ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
+      AR := llvm-ar-mp-3.8
+      AR_FLAGS := rcs
+    else
+      ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
+        AR := llvm-ar-3.8
+        AR_FLAGS := rcs
+      else
+        AR := /usr/bin/ar
+	AR_FLAGS := -rcs
+      endif
+    endif
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
@@ -49,9 +60,14 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
-package_version := $(tag)
-archive = ponyc-$(package_version).tar
-package = build/ponyc-$(package_version)
+# package_name, _version, and _iteration can be overriden by Travis or AppVeyor
+package_base_version ?= $(tag)
+package_iteration ?= "1"
+package_name ?= "ponyc-unknown"
+package_conflicts ?= "ponyc-release"
+package_version = $(package_base_version)-$(package_iteration)
+archive = $(package_name)-$(package_version).tar
+package = build/$(package_name)-$(package_version)
 
 symlink := yes
 
@@ -74,7 +90,7 @@ LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS = -march=$(arch)
-AR_FLAGS = -rcs
+AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
@@ -140,22 +156,46 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
+  ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.9
+    LLVM_LINK = llvm-link-3.9
+    LLVM_OPT = opt-3.9
+  else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.8
+    LLVM_LINK = llvm-link-3.8
+    LLVM_OPT = opt-3.8
+  else ifneq (,$(shell which llvm-config-mp-3.8 2> /dev/null))
+    LLVM_CONFIG = llvm-config-mp-3.8
+    LLVM_LINK = llvm-link-mp-3.8
+    LLVM_OPT = opt-mp-3.8
   else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.7
+    LLVM_LINK = llvm-link-3.7
+    LLVM_OPT = opt-3.7
   else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.6
+    LLVM_LINK = llvm-link-3.6
+    LLVM_OPT = opt-3.6
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
+    LLVM_LINK = llvm-link38
+    LLVM_OPT = opt38
   else ifneq (,$(shell which llvm-config37 2> /dev/null))
     LLVM_CONFIG = llvm-config37
+    LLVM_LINK = llvm-link37
+    LLVM_OPT = opt37
   else ifneq (,$(shell which llvm-config36 2> /dev/null))
     LLVM_CONFIG = llvm-config36
+    LLVM_LINK = llvm-link36
+    LLVM_OPT = opt36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
+    LLVM_LINK = llvm-link
+    LLVM_OPT = opt
   endif
 endif
 
@@ -480,9 +520,9 @@ $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
   ifeq ($(runtime-bitcode),yes)
 $($(1))/libponyrt.bc: $(depends) $(bcfiles)
 	@echo 'Generating bitcode for libponyrt'
-	$(SILENT)llvm-link -o $$@ $(bcfiles)
+	$(SILENT)$(LLVM_LINK) -o $$@ $(bcfiles)
     ifeq ($(config),release)
-	$(SILENT)opt -O3 -o $$@ $$@
+	$(SILENT)$(LLVM_OPT) -O3 -o $$@ $$@
     endif
 libponyrt: $($(1))/libponyrt.bc $($(1))/libponyrt.$(LIB_EXT)
   else
@@ -609,8 +649,12 @@ release: prerelease setversion
 endif
 
 # Note: linux only
+# FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
 deploy: test
+	$(SILENT)sh .bintray.sh debian "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh rpm    "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
@@ -634,9 +678,9 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)git archive release > build/bin/$(archive)
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)

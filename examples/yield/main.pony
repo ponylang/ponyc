@@ -194,7 +194,7 @@ actor Main
     var debug : Bool = false
     var err : Bool = false
 
-    let options = Options(env) +
+    let options = Options(env.args) +
       ("punk", "p", None) +
       ("lonely", "l", None) +
       ("bench", "b", I64Argument) +
@@ -258,4 +258,3 @@ actor Main
 
       By Default, the actor will run quiet and interruptibly.
     """)
-

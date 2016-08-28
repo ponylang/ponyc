@@ -74,8 +74,8 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_udp[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -90,8 +90,8 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp4[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_udp4[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -106,8 +106,8 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp6[AsioEventID](this, host.cstring(),
-      service.cstring())
+    _event = @pony_os_listen_udp6[AsioEventID](this,
+      host.null_terminated().cstring(), service.null_terminated().cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -154,7 +154,7 @@ actor UDPSocket
     revert to allowing the OS to choose, call with an empty string.
     """
     if not _closed then
-      @pony_os_multicast_interface[None](_fd, from.cstring())
+      @pony_os_multicast_interface[None](_fd, from.null_terminated().cstring())
     end
 
   be set_multicast_loopback(loopback: Bool) =>
@@ -181,7 +181,8 @@ actor UDPSocket
     specific interface.
     """
     if not _closed then
-      @pony_os_multicast_join[None](_fd, group.cstring(), to.cstring())
+      @pony_os_multicast_join[None](_fd, group.null_terminated().cstring(),
+        to.null_terminated().cstring())
     end
 
   be multicast_leave(group: String, to: String = "") =>
@@ -191,7 +192,8 @@ actor UDPSocket
     previously added this group.
     """
     if not _closed then
-      @pony_os_multicast_leave[None](_fd, group.cstring(), to.cstring())
+      @pony_os_multicast_leave[None](_fd, group.null_terminated().cstring(),
+        to.null_terminated().cstring())
     end
 
   be dispose() =>

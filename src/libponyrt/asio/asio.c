@@ -14,6 +14,7 @@ struct asio_base_t
 };
 
 static asio_base_t running_base;
+static uint32_t asio_cpu;
 
 /** Start an asynchronous I/O event mechanism.
  *
@@ -30,15 +31,16 @@ asio_backend_t* ponyint_asio_get_backend()
   return running_base.backend;
 }
 
-void ponyint_asio_init()
+void ponyint_asio_init(uint32_t cpu)
 {
+  asio_cpu = cpu;
   running_base.backend = ponyint_asio_backend_init();
 }
 
 bool ponyint_asio_start()
 {
-  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch, -1,
-    running_base.backend))
+  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
+    asio_cpu, running_base.backend))
     return false;
 
   return true;
