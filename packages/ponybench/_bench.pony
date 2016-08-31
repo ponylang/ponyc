@@ -1,13 +1,13 @@
 use "collections"
 use "time"
 
-actor _Bench[A: Any #share]
+actor _Bench[A: Any #send]
   let _notify: _BenchNotify
 
   new create(notify: _BenchNotify) =>
     _notify = notify
 
-  be apply(name: String, f: {(): A ?} val, ops: U64) =>
+  be apply(name: String, f: {(): A^ ?} val, ops: U64) =>
     try
       @pony_triggergc[None](this)
       let start = Time.nanos()

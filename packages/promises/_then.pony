@@ -1,4 +1,4 @@
-class _Then[A: Any #share, B: Any #share]
+class _Then[A: Any #send, B: Any #send]
   """
   A step in a promise pipeline.
   """
@@ -30,7 +30,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise(_fulfill(value))
+        _promise(_fulfill(consume value))
       else
         _promise.reject()
       end
@@ -50,7 +50,7 @@ class _Then[A: Any #share, B: Any #share]
       end
     end
 
-interface _IThen[A: Any #share]
+interface _IThen[A: Any #send]
   """
   An interface representing an abstract Then. This allows for any Then that
   accepts an input of type A, regardless of the output type.

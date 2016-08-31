@@ -2,7 +2,7 @@ use "collections"
 use "promises"
 use "time"
 
-actor _BenchAsync[A: Any #share]
+actor _BenchAsync[A: Any #send]
   let _notify: _BenchNotify
 
   new create(notify: _BenchNotify) =>
@@ -15,9 +15,9 @@ actor _BenchAsync[A: Any #share]
       for i in Range[U64](0, ops) do
         let p = f()
         p.next[A](recover
-          lambda(a: A)(pn): A =>
+          lambda(a: A)(pn): A^ =>
             pn()
-            a
+            consume a
           end
         end)
       end
