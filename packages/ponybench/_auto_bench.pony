@@ -1,7 +1,7 @@
 use "collections"
 use "promises"
 
-actor _AutoBench[A: Any #share]
+actor _AutoBench[A: Any #send]
   let _notify: _BenchNotify
   let _run: {(U64)} val
   let _auto_ops: _AutoOps
@@ -9,7 +9,7 @@ actor _AutoBench[A: Any #share]
   new create(
     notify: _BenchNotify,
     name: String,
-    f: ({(): A ?} val | {(): Promise[A] ?} val),
+    f: ({(): A^ ?} val | {(): Promise[A] ?} val),
     bench_time: U64 = 1_000_000_000,
     max_ops: U64 = 100_000_000
   ) =>
@@ -17,7 +17,7 @@ actor _AutoBench[A: Any #share]
     _run = recover
       lambda(ops: U64)(notify = this, name, f) =>
         match f
-        | let fn: {(): A ?} val =>
+        | let fn: {(): A^ ?} val =>
           _Bench[A](notify)(name, fn, ops)
         | let fn: {(): Promise[A] ?} val =>
           _BenchAsync[A](notify)(name, fn, ops)

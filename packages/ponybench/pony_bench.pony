@@ -75,7 +75,7 @@ actor PonyBench
   new create(env: Env) =>
     (_bs, _env) = (Array[(String, {()} val, String)], env)
 
-  be apply[A: Any #share](name: String, f: {(): A ?} val, ops: U64 = 0) =>
+  be apply[A: Any #send](name: String, f: {(): A^ ?} val, ops: U64 = 0) =>
     """
     Benchmark the function `f` by calling it repeatedly and output a simple
     average of the total run time over the amount of times `f` is called. This
@@ -97,7 +97,7 @@ actor PonyBench
     _bs.push((name, bf, ""))
     if _bs.size() < 2 then bf() end
 
-  be async[A: Any #share](
+  be async[A: Any #send](
     name: String,
     f: {(): Promise[A] ?} val,
     timeout: U64 = 0,
@@ -127,7 +127,7 @@ actor PonyBench
       try
         let p = f()
         p.next[A](recover
-          lambda(a: A)(ts, tt): A =>
+          lambda(a: A)(ts, tt): A^ =>
             ts.cancel(tt)
             a
           end
