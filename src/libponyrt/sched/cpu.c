@@ -118,7 +118,7 @@ void ponyint_cpu_init()
 
   if(ponyint_numa_init())
   {
-    uint32_t numa_count = ponyint_numa_cores()
+    uint32_t numa_count = ponyint_numa_cores();
 
     if(avail_cpu_count > numa_count)
       avail_cpu_count = numa_count;
