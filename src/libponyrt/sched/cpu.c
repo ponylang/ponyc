@@ -155,7 +155,7 @@ void ponyint_cpu_init()
       ptr = info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(len);
       continue;
     } else {
-      return 0;
+      return;
     }
   }
 
