@@ -132,7 +132,7 @@ uint32_t ponyint_numa_core_list(cpu_set_t* hw_cpus, cpu_set_t* ht_cpus,
   uint32_t* list)
 {
   if(!use_numa)
-    return;
+    return 0;
 
   // Create an ordered list of cpus. Physical CPUs grouped by NUMA node come
   // first, followed by hyperthreaded CPUs grouped by NUMA node.
