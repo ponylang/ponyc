@@ -541,6 +541,19 @@ static bool add_path(const char* path)
   return true;
 }
 
+// Safely concatenate paths and add it to package search paths
+static bool add_relative_path(const char* path, const char* relpath)
+{
+  char buf[FILENAME_MAX];
+
+  if(strlen(path) + strlen(relpath) >= FILENAME_MAX)
+    return false;
+
+  strcpy(buf, path);
+  strcat(buf, relpath);
+  return add_path(buf);
+}
+
 
 static bool add_safe(const char* path)
 {
@@ -555,7 +568,7 @@ static bool add_safe(const char* path)
 
 // Determine the absolute path of the directory the current executable is in
 // and add it to our search path
-static void add_exec_dir(pass_opt_t* opt)
+static bool add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
   bool success;
@@ -599,7 +612,7 @@ static void add_exec_dir(pass_opt_t* opt)
   if(!success)
   {
     errorf(errors, NULL, "Error determining executable path");
-    return;
+    return false;
   }
 
   // We only need the directory
@@ -608,7 +621,7 @@ static void add_exec_dir(pass_opt_t* opt)
   if(p == NULL)
   {
     errorf(errors, NULL, "Error determining executable path (%s)", path);
-    return;
+    return false;
   }
 
   p++;
@@ -617,28 +630,36 @@ static void add_exec_dir(pass_opt_t* opt)
 
   // Allow ponyc to find the lib directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
-  strcpy(p, "..\\lib");
+  success = add_relative_path(path, "..\\lib");
 #else
-  strcpy(p, "../lib");
+  success = add_relative_path(path, "../lib");
 #endif
-  add_path(path);
+
+  if(!success)
+    return false;
 
   // Allow ponyc to find the packages directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
-  strcpy(p, "..\\packages");
+  success = add_relative_path(path, "..\\packages");
 #else
-  strcpy(p, "../packages");
+  success = add_relative_path(path, "../packages");
 #endif
-  add_path(path);
+
+  if(!success)
+    return false;
 
   // Check two levels up. This allows ponyc to find the packages directory
   // when it is built from source.
 #ifdef PLATFORM_IS_WINDOWS
-  strcpy(p, "..\\..\\packages");
+  success = add_relative_path(path, "..\\..\\packages");
 #else
-  strcpy(p, "../../packages");
+  success = add_relative_path(path, "../../packages");
 #endif
-  add_path(path);
+
+  if(!success)
+    return false;
+
+  return true;
 }
 
 
@@ -648,7 +669,11 @@ bool package_init(pass_opt_t* opt)
   // append the paths from an optional environment variable, and then the paths
   // that are relative to the compiler location on disk.
   package_add_paths(getenv("PONYPATH"), opt);
-  add_exec_dir(opt);
+  if(!add_exec_dir(opt))
+  {
+    errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc binary location");
+    return false;
+  }
 
   // Finally we add OS specific paths.
 #ifdef PLATFORM_IS_POSIX_BASED
