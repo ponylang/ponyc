@@ -13,7 +13,7 @@ void ponyint_cpu_init();
 uint32_t ponyint_cpu_count();
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool pinasio);
+  bool nopin, bool pinasio);
 
 void ponyint_cpu_affinity(uint32_t cpu);
 

@@ -185,9 +185,20 @@ uint32_t ponyint_cpu_count()
 }
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool pinasio)
+  bool nopin, bool pinasio)
 {
   uint32_t asio_cpu = -1;
+
+  if(nopin)
+  {
+    for(uint32_t i = 0; i < count; i++)
+    {
+      scheduler[i].cpu = -1;
+      scheduler[i].node = 0;
+    }
+
+    return asio_cpu;
+  }
 
 #if defined(PLATFORM_IS_LINUX)
   for(uint32_t i = 0; i < count; i++)
@@ -240,9 +251,13 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
 
 void ponyint_cpu_affinity(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  if(cpu == (uint32_t)-1)
+    return;
+
+#if defined(PLATFORM_IS_LINUX)
   // Affinity is handled when spawning the thread.
-  (void)cpu;
+#elif defined(PLATFORM_IS_FREEBSD)
+  // No pinning, since we cannot yet determine hyperthreads vs physical cores.
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;

@@ -381,7 +381,8 @@ static void ponyint_sched_shutdown()
   ponyint_mpmcq_destroy(&inject);
 }
 
-pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pinasio)
+pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
+  bool pinasio)
 {
   use_yield = !noyield;
 
@@ -394,7 +395,8 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pinasio)
     scheduler_count * sizeof(scheduler_t));
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
-  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pinasio);
+  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, nopin,
+    pinasio);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
