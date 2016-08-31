@@ -90,49 +90,46 @@ actor Main
 ```
 """
 
-actor Promise[A: Any #share]
+actor Promise[A: Any #send]
   """
   A promise to eventually produce a result of type A. This promise can either
   be fulfilled or rejected.
 
   Any number of promises can be chained after this one.
   """
-  var _value: (_Pending | _Reject | A) = _Pending
-  embed _list: Array[_IThen[A]] = _list.create()
+  var _status: (_Pending | _Reject) = _Pending
+  var _next: (_IThen[A] | None) = None
 
   be apply(value: A) =>
     """
     Fulfill the promise.
     """
-    if _value isnt _Pending then
+    if _status isnt _Pending then
       return
     end
 
-    _value = value
-
-    for f in _list.values() do
-      f(value)
+    match _next
+    | let t: _IThen[A] =>
+      t(consume value)
+      _next = None
     end
-
-    _list.clear()
 
   be reject() =>
     """
     Reject the promise.
     """
-    if _value isnt _Pending then
+    if _status isnt _Pending then
       return
     end
 
-    _value = _Reject
-
-    for f in _list.values() do
-      f.reject()
+    _status = _Reject
+    match _next
+    | let t: _IThen[A] =>
+      t.reject()
+      _next = None
     end
 
-    _list.clear()
-
-  fun tag next[B: Any #share](fulfill: Fulfill[A, B],
+  fun tag next[B: Any #send](fulfill: Fulfill[A, B],
     rejected: Reject[B] = RejectAlways[B]): Promise[B]
   =>
     """
@@ -163,10 +160,8 @@ actor Promise[A: Any #share]
     or rejected, immediately fulfill or reject the incoming step. Otherwise,
     keep it in a list.
     """
-    if _value is _Pending then
-      _list.push(consume attach)
-    elseif _value is _Reject then
-      attach.reject()
+    if _status is _Pending then
+      _next = consume attach
     else
-      try attach(_value as A) end
+      attach.reject()
     end
