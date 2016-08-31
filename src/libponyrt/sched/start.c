@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "cpu.h"
 #include "../mem/heap.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
@@ -94,9 +95,7 @@ int pony_init(int argc, char** argv)
 
   argc = parse_opts(argc, argv, &opt);
 
-#if defined(PLATFORM_IS_LINUX)
-  ponyint_numa_init();
-#endif
+  ponyint_cpu_init();
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);

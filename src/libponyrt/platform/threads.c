@@ -52,13 +52,13 @@ static bool use_numa = false;
   err += (_##sym == NULL); \
 }
 
-void ponyint_numa_init()
+bool ponyint_numa_init()
 {
   void* lib = dlopen("libnuma.so.1", RTLD_LAZY);
   int err = 0;
 
   if(lib == NULL)
-    return;
+    return false;
 
   LOAD_SYMBOL(numa_available);
   LOAD_SYMBOL(numa_num_task_cpus);
@@ -77,13 +77,14 @@ void ponyint_numa_init()
   LOAD_SYMBOL(numa_bitmask_isbitset);
 
   if(err != 0)
-    return;
+    return false;
 
   if(_numa_available() == -1)
-    return;
+    return false;
 
   use_numa = true;
   _numa_set_localalloc();
+  return true;
 }
 
 uint32_t ponyint_numa_cores()
@@ -94,15 +95,11 @@ uint32_t ponyint_numa_cores()
   return 0;
 }
 
-void ponyint_numa_core_list(uint32_t* list)
+static uint32_t numa_core_list(cpu_set_t* mask, uint32_t index, uint32_t* list)
 {
-  if(!use_numa)
-    return;
-
   uint32_t nodes = _numa_bitmask_weight(*_numa_all_nodes_ptr);
   struct bitmask* cpu = _numa_allocate_cpumask();
   uint32_t node_count = 0;
-  uint32_t index = 0;
 
   for(uint32_t i = 0; node_count < nodes; i++)
   {
@@ -121,11 +118,30 @@ void ponyint_numa_core_list(uint32_t* list)
         continue;
 
       cpu_count++;
-      list[index++] = j;
+
+      if(CPU_ISSET(j, mask))
+        list[index++] = j;
     }
   }
 
   _numa_bitmask_free(cpu);
+  return index;
+}
+
+uint32_t ponyint_numa_core_list(cpu_set_t* hw_cpus, cpu_set_t* ht_cpus,
+  uint32_t* list)
+{
+  if(!use_numa)
+    return;
+
+  // Create an ordered list of cpus. Physical CPUs grouped by NUMA node come
+  // first, followed by hyperthreaded CPUs grouped by NUMA node.
+  uint32_t index = 0;
+
+  index = numa_core_list(hw_cpus, index, list);
+  index = numa_core_list(ht_cpus, index, list);
+
+  return index;
 }
 
 uint32_t ponyint_numa_node_of_cpu(uint32_t cpu)
@@ -150,7 +166,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
     return false;
 
   *thread = (HANDLE)p;
-#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_LINUX)
   pthread_attr_t attr;
   pthread_attr_init(&attr);
 
@@ -162,7 +178,6 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
 
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
 
-#if defined(PLATFORM_IS_LINUX)
     if(use_numa)
     {
       struct rlimit limit;
@@ -176,7 +191,6 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
         }
       }
     }
-#endif
   }
 
   if(pthread_create(thread, &attr, start, arg))
