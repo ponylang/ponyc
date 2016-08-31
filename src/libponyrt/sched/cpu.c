@@ -91,17 +91,17 @@ void ponyint_cpu_init()
   cpu_set_t hw_cpus;
   cpu_set_t ht_cpus;
 
-  sched_getaffinity(0, sizeof(cpu_set_t), &mask);
+  sched_getaffinity(0, sizeof(cpu_set_t), &all_cpus);
   CPU_ZERO(&hw_cpus);
   CPU_ZERO(&ht_cpus);
 
-  avail_cpu_count = CPU_COUNT(&mask);
+  avail_cpu_count = CPU_COUNT(&all_cpus);
   uint32_t index = 0;
   uint32_t found = 0;
 
   while(found < avail_cpu_count)
   {
-    if(CPU_ISSET(index, &mask))
+    if(CPU_ISSET(index, &all_cpus))
     {
       if(cpu_physical(index))
         CPU_SET(index, &hw_cpus);
