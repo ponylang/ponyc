@@ -36,8 +36,6 @@ void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr);
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr);
 
-void gencall_invariant_start(compile_t* c, LLVMValueRef ptr);
-
 PONY_EXTERN_C_END
 
 #endif
