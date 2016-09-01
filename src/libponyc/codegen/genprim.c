@@ -598,7 +598,11 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "imr,~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOrArgMemOnly(call);
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);
@@ -613,7 +617,12 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOnly(call);
+#else
+  (void)call;
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);
