@@ -446,7 +446,7 @@ bool ponyint_sched_start(bool library)
 
 void ponyint_sched_stop()
 {
-  _atomic_store(&detect_quiescence, true);
+  _atomic_store(&detect_quiescence, true, __ATOMIC_RELEASE);
   ponyint_sched_shutdown();
 }
 

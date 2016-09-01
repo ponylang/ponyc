@@ -36,72 +36,68 @@
 
 #ifdef __CLANG_ATOMICS
 
-#define _atomic_load(PTR) \
-  __c11_atomic_load(PTR, __ATOMIC_ACQUIRE)
+#define _atomic_load(PTR, ORDER) \
+  __c11_atomic_load(PTR, ORDER)
 
-#define _atomic_store(PTR, VAL) \
-  __c11_atomic_store(PTR, VAL, __ATOMIC_RELEASE)
+#define _atomic_store(PTR, VAL, ORDER) \
+  __c11_atomic_store(PTR, VAL, ORDER)
 
-#define _atomic_exchange(PTR, VAL) \
-  __c11_atomic_exchange(PTR, VAL, __ATOMIC_RELAXED)
+#define _atomic_exchange(PTR, VAL, ORDER) \
+  __c11_atomic_exchange(PTR, VAL, ORDER)
 
-#define _atomic_cas(PTR, EXPP, VAL) \
-  __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, \
-    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+#define _atomic_cas(PTR, EXPP, VAL, SUCC, FAIL) \
+  __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, SUCC, FAIL)
 
-#define _atomic_dwcas(PTR, EXPP, VAL) \
-  __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, \
-    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+#define _atomic_dwcas(PTR, EXPP, VAL, SUCC, FAIL) \
+  __c11_atomic_compare_exchange_strong(PTR, EXPP, VAL, SUCC, FAIL)
 
-#define _atomic_add(PTR, VAL) \
-  (__c11_atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
+#define _atomic_add(PTR, VAL, ORDER) \
+  (__c11_atomic_fetch_add(PTR, VAL, ORDER))
 
 #endif
 
 #ifdef __GNUC_ATOMICS
 
-#define _atomic_load(PTR) \
-  __atomic_load_n(PTR, __ATOMIC_ACQUIRE)
+#define _atomic_load(PTR, ORDER) \
+  __atomic_load_n(PTR, ORDER)
 
-#define _atomic_store(PTR, VAL) \
-  __atomic_store_n(PTR, VAL, __ATOMIC_RELEASE)
+#define _atomic_store(PTR, VAL, ORDER) \
+  __atomic_store_n(PTR, VAL, ORDER)
 
-#define _atomic_exchange(PTR, VAL) \
-  __atomic_exchange_n(PTR, VAL, __ATOMIC_RELAXED)
+#define _atomic_exchange(PTR, VAL, ORDER) \
+  __atomic_exchange_n(PTR, VAL, ORDER)
 
-#define _atomic_cas(PTR, EXPP, VAL) \
-  __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, \
-    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+#define _atomic_cas(PTR, EXPP, VAL, SUCC, FAIL) \
+  __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, SUCC, FAIL)
 
-#define _atomic_dwcas(PTR, EXPP, VAL) \
-  __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, \
-    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+#define _atomic_dwcas(PTR, EXPP, VAL, SUCC, FAIL) \
+  __atomic_compare_exchange_n(PTR, EXPP, VAL, 0, SUCC, FAIL)
 
-#define _atomic_add(PTR, VAL) \
-  (__atomic_fetch_add(PTR, VAL, __ATOMIC_RELEASE))
+#define _atomic_add(PTR, VAL, ORDER) \
+  (__atomic_fetch_add(PTR, VAL, ORDER))
 
 #endif
 
 #ifdef __SYNC_ATOMICS
 
-#define _atomic_load(PTR) \
+#define _atomic_load(PTR, ORDER) \
   (*(PTR))
 
-#define _atomic_store(PTR, VAL) \
+#define _atomic_store(PTR, VAL, ORDER) \
   (*(PTR) = VAL)
 
-#define _atomic_exchange(PTR, VAL) \
+#define _atomic_exchange(PTR, VAL, ORDER) \
   __sync_lock_test_and_set(PTR, VAL);
 
-#define _atomic_cas(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL, SUCC, FAIL) \
   (*(EXPP) == \
     (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
 
-#define _atomic_dwcas(PTR, EXPP, VAL) \
+#define _atomic_dwcas(PTR, EXPP, VAL, SUCC, FAIL) \
   (*(EXPP) == \
     (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
 
-#define _atomic_add(PTR, VAL) \
+#define _atomic_add(PTR, VAL, ORDER) \
   (__sync_fetch_and_add(PTR, VAL))
 
 #endif
@@ -112,26 +108,26 @@
 #pragma intrinsic(_InterlockedCompareExchangePointer)
 #pragma intrinsic(_InterlockedCompareExchange128)
 
-#define _atomic_load(PTR) \
+#define _atomic_load(PTR, ORDER) \
   (*(PTR))
 
-#define _atomic_store(PTR, VAL) \
+#define _atomic_store(PTR, VAL, ORDER) \
   (*(PTR) = VAL)
 
-#define _atomic_exchange(PTR, VAL) \
+#define _atomic_exchange(PTR, VAL, ORDER) \
   (_InterlockedExchangePointer((PVOID volatile*)PTR, VAL))
 
-#define _atomic_cas(PTR, EXPP, VAL) \
+#define _atomic_cas(PTR, EXPP, VAL, SUCC, FAIL) \
   (*(EXPP) == \
     (*((PVOID*)(EXPP)) = \
       _InterlockedCompareExchangePointer( \
         (PVOID volatile*)PTR, VAL, *(EXPP))))
 
-#define _atomic_dwcas(PTR, EXPP, VAL) \
+#define _atomic_dwcas(PTR, EXPP, VAL, SUCC, FAIL) \
   (_InterlockedCompareExchange128( \
     (LONGLONG volatile*)PTR, VAL.high, VAL.low, (LONGLONG*)EXPP))
 
-#define _atomic_add(PTR, VAL) \
+#define _atomic_add(PTR, VAL, ORDER) \
   (InterlockedAdd64((LONGLONG volatile*)PTR, VAL) - VAL)
 
 #endif

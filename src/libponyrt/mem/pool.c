@@ -493,7 +493,8 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   {
     p->central = cmp.node;
     xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
+  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw, __ATOMIC_ACQ_REL,
+    __ATOMIC_ACQUIRE));
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -511,7 +512,8 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
     xchg.node = next->central;
     xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
+  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw, __ATOMIC_ACQ_REL,
+    __ATOMIC_ACQUIRE));
 
   pool_item_t* p = (pool_item_t*)next;
 

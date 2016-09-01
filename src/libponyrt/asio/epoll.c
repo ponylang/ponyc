@@ -217,7 +217,8 @@ void pony_asio_event_subscribe(asio_event_t* ev)
     int sig = (int)ev->nsec;
     asio_event_t* prev = NULL;
 
-    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, ev))
+    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, ev,
+      __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
     {
       signal(sig, signal_handler);
       ev->fd = eventfd(0, EFD_NONBLOCK);
@@ -275,7 +276,8 @@ void pony_asio_event_unsubscribe(asio_event_t* ev)
     int sig = (int)ev->nsec;
     asio_event_t* prev = ev;
 
-    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, NULL))
+    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, NULL,
+      __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
     {
       signal(sig, SIG_DFL);
       close(ev->fd);
