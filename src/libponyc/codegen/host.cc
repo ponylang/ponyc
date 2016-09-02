@@ -208,10 +208,3 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module)
 
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
 }
-
-LLVMValueRef LLVMInvariantStart(LLVMModuleRef module)
-{
-  Module* m = unwrap(module);
-
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::invariant_start, {}));
-}

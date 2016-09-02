@@ -902,23 +902,3 @@ void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
   args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
   LLVMBuildCall(c->builder, func, args, 2, "");
 }
-
-void gencall_invariant_start(compile_t* c, LLVMValueRef ptr)
-{
-  LLVMValueRef func = LLVMInvariantStart(c->module);
-  LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
-
-  LLVMValueRef args[2];
-  // Check if we were passed a Pony Pointer. If so, the object is variable
-  // sized.
-  if(LLVMTypeOf(ptr) == c->void_ptr)
-  {
-    args[0] = LLVMConstInt(c->i64, -1, true);
-    args[1] = ptr;
-  } else {
-    args[0] = LLVMConstInt(c->i64, size, false);
-    args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  }
-  LLVMBuildCall(c->builder, func, args, 2, "");
-}

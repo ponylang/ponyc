@@ -41,7 +41,6 @@ LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module);
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
-LLVMValueRef LLVMInvariantStart(LLVMModuleRef module);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
