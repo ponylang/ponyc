@@ -48,7 +48,7 @@ bool ponyint_asio_start()
 
 bool ponyint_asio_stop()
 {
-  if(_atomic_load(&running_base.noisy_count) > 0)
+  if(_atomic_load(&running_base.noisy_count, __ATOMIC_ACQUIRE) > 0)
     return false;
 
   if(running_base.backend != NULL)
@@ -65,10 +65,10 @@ bool ponyint_asio_stop()
 
 void ponyint_asio_noisy_add()
 {
-  _atomic_add(&running_base.noisy_count, 1);
+  _atomic_add(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
 }
 
 void ponyint_asio_noisy_remove()
 {
-  _atomic_add(&running_base.noisy_count, -1);
+  _atomic_add(&running_base.noisy_count, -1, __ATOMIC_RELEASE);
 }

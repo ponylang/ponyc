@@ -87,7 +87,7 @@ void ponyint_pagemap_set(const void* m, void* v)
       memset(p, 0, level[i].size);
       void** prev = NULL;
 
-      if(!_atomic_cas(pv, &prev, p))
+      if(!_atomic_cas(pv, &prev, p, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
       {
         ponyint_pool_free(level[i].size_index, p);
         *pv = prev;

@@ -127,7 +127,7 @@ int pony_start(bool library)
   if(library)
     return 0;
 
-  return _atomic_load(&exit_code);
+  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
 
 int pony_stop()
@@ -135,10 +135,10 @@ int pony_stop()
   ponyint_sched_stop();
   ponyint_os_sockets_final();
 
-  return _atomic_load(&exit_code);
+  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
 
 void pony_exitcode(int code)
 {
-  _atomic_store(&exit_code, code);
+  _atomic_store(&exit_code, code, __ATOMIC_RELEASE);
 }

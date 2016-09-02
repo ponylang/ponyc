@@ -147,7 +147,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // If we have been scheduled, the head will not be marked as empty.
-  pony_msg_t* head = _atomic_load(&actor->q.head);
+  pony_msg_t* head = _atomic_load(&actor->q.head, __ATOMIC_ACQUIRE);
 
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
@@ -206,10 +206,10 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   // as empty. Otherwise, it may spuriously see that tail and head are not
   // the same and fail to mark the queue as empty, resulting in it getting
   // rescheduled.
-  pony_msg_t* head = _atomic_load(&actor->q.head);
+  pony_msg_t* head = _atomic_load(&actor->q.head, __ATOMIC_ACQUIRE);
 
   while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1)
-    head = _atomic_load(&actor->q.head);
+    head = _atomic_load(&actor->q.head, __ATOMIC_ACQUIRE);
 
   ponyint_messageq_destroy(&actor->q);
   ponyint_gc_destroy(&actor->gc);
