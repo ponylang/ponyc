@@ -2,11 +2,16 @@ primitive _FileHandle
 
 primitive FileOK
 primitive FileError
+primitive FileEOF
+primitive FileNull
+
 // TODO: break error down into multiple types
 
 type FileErrNo is
   ( FileOK
   | FileError
+  | FileEOF
+  | FileNull
   )
 
 primitive CreateFile
@@ -79,7 +84,7 @@ class File
           path.path.null_terminated().cstring(), mode.cstring())
 
         if _handle.is_null() then
-          _errno = FileError
+          _errno = FileNull
         else
           _fd = _get_fd(_handle)
 
@@ -117,7 +122,7 @@ class File
         from.path.null_terminated().cstring(), "rb".cstring())
 
       if _handle.is_null() then
-        _errno = FileError
+        _errno = FileNull
       else
         _fd = _get_fd(_handle)
 
@@ -148,6 +153,7 @@ class File
     end
 
     if _handle.is_null() then
+      _errno = FileNull
       error
     end
 
@@ -159,18 +165,39 @@ class File
     """
     _errno
 
+  fun ref clear_errno() =>
+    """
+    Clears the last error code set for this File
+    """
+    _errno = FileOK
+
+  fun ref check_error() =>
+    """
+    Checks for errors after File operations.
+    Clear OS error indicator if set.
+    """
+    if @feof[I32](_handle) != 0 then
+      _errno = FileEOF
+      @clearerr[None](_handle)
+    elseif @ferror[I32](_handle) != 0 then
+      _errno = FileError
+      @clearerr[None](_handle)
+    end
+
+    
   fun valid(): Bool =>
     """
     Returns true if the file is currently open.
     """
     not _handle.is_null()
 
-  fun get_fd(): I32 ? =>
+  fun ref get_fd(): I32 ? =>
     """
     Returns the underlying file descriptor.
     Raises an error if the file is not currently open.
     """
     if _handle.is_null() then
+      _errno = FileNull
       error
     end
 
@@ -182,6 +209,7 @@ class File
     there is no more data, this raises an error.
     """
     if _handle.is_null() then
+      _errno = FileNull
       error
     end
 
@@ -203,6 +231,10 @@ class File
 
       result.recalc()
 
+      if r.is_null() then
+        check_error() // either EOF or error
+      end
+      
       done = try
         r.is_null() or (result.at_offset(-1) == '\n')
       else
@@ -232,7 +264,8 @@ class File
     _last_line_length = len
     result
 
-  fun ref read(len: USize): Array[U8] iso^ =>
+  fun ref read(len: USize): Array[U8] iso^
+  =>
     """
     Returns up to len bytes.
     """
@@ -245,9 +278,14 @@ class File
         @fread[USize](result.cstring(), USize(1), len, _handle)
       end
 
+      if r < len then
+        check_error() // EOF or error
+      end 
+      
       result.truncate(r)
       result
     else
+      _errno = FileNull
       recover Array[U8] end
     end
 
@@ -266,9 +304,14 @@ class File
         @fread[USize](result.cstring(), USize(1), result.space(), _handle)
       end
 
+      if r < len then
+        check_error() // EOF or error
+      end 
+      
       result.truncate(r)
       result
     else
+      _errno = FileNull
       recover String end
     end
 
@@ -305,8 +348,10 @@ class File
         return true
       end
 
+      check_error()
       dispose()
     end
+    _errno = FileError
     false
 
   fun ref writev(data: ByteSeqIter box): Bool =>
@@ -320,17 +365,22 @@ class File
     end
     true
 
-  fun position(): USize =>
+  fun ref position(): USize =>
     """
     Return the current cursor position in the file.
     """
     if not _handle.is_null() then
-      ifdef windows then
+      let r = ifdef windows then
         @_ftelli64[U64](_handle).usize()
       else
         @ftell[USize](_handle)
       end
+      if r < 0 then
+        _errno = FileError
+      end
+      r
     else
+      _errno = FileNull
       0
     end
 
@@ -376,10 +426,13 @@ class File
     Flush the file.
     """
     if not _handle.is_null() then
-      ifdef linux then
+      let r = ifdef linux then
         @fflush_unlocked[I32](_handle)
       else
         @fflush[I32](_handle)
+      end
+      if r != 0 then
+        _errno = FileEOF
       end
     end
     this
@@ -393,7 +446,10 @@ class File
         let h = @_get_osfhandle[U64](_fd)
         @FlushFileBuffers[I32](h)
       else
-        @fsync[I32](_fd)
+        let r = @fsync[I32](_fd)
+        if r < 0 then
+          _errno = FileError
+        end
       end
     end
     this
@@ -475,8 +531,13 @@ class File
       ifdef windows then
         @_fseeki64[I32](_handle, offset, base)
       else
-        @fseek[I32](_handle, offset, base)
+        let r = @fseek[I32](_handle, offset, base)
+        if r < 0 then
+          _errno = FileError
+        end
       end
+    else
+      _errno = FileNull
     end
 
   fun tag _get_fd(handle: Pointer[_FileHandle]): I32 =>
