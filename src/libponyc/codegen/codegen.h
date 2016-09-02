@@ -28,7 +28,9 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
 #endif
 #if PONY_LLVM >= 308
+void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst);
 void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
+void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);

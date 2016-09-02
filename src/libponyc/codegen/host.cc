@@ -6,11 +6,13 @@
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
+#  pragma warning(disable:4291)
 #endif
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
@@ -67,9 +69,35 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 #endif
 
 #if PONY_LLVM >= 308
+void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
+{
+  Instruction* i = unwrap<Instruction>(inst);
+  if(CallInst* c = dyn_cast<CallInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOnly);
+  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOnly);
+  else
+    assert(0);
+}
+
 void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
 {
   unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
+}
+
+void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
+{
+  Instruction* i = unwrap<Instruction>(inst);
+  if(CallInst* c = dyn_cast<CallInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+  else
+    assert(0);
 }
 #endif
 
