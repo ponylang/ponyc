@@ -204,7 +204,7 @@ ifndef LLVM_CONFIG
   $(error No LLVM installation found!)
 endif
 
-llvm_version = $(shell $(LLVM_CONFIG) --version)
+llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
