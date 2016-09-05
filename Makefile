@@ -631,6 +631,19 @@ test-examples: all
 	@./examples1
 	@rm examples1
 
+test-ci: all
+	@$(PONY_BUILD_DIR)/libponyc.tests
+	@$(PONY_BUILD_DIR)/libponyrt.tests
+	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
+	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
+
 ifeq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION

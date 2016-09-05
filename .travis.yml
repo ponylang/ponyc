@@ -168,7 +168,7 @@ install:
     fi;
 
 script:
-  - make CC=$CC1 CXX=$CXX1 test
+  - make CC=$CC1 CXX=$CXX1 test-ci
 
 notifications:
   email:

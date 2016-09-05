@@ -130,4 +130,10 @@ test_script:
   - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify packages/stdlib
   - stdlib.exe
   - del stdlib.exe
+  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ --verify packages/stdlib
+  - stdlib.exe
+  - del stdlib.exe
+  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify examples
+  - examples.exe
+  - del examples.exe
 
