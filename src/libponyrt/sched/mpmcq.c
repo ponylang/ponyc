@@ -44,10 +44,10 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
   node->data = data;
   node->next = NULL;
 
-  // If we have a single producer, don't use an atomic instruction.
+  // If we have a single producer, operations on the head need not be atomic.
   mpmcq_node_t* prev = q->head;
   q->head = node;
-  prev->next = node;
+  _atomic_store(&prev->next, node, __ATOMIC_RELEASE);
 }
 
 void* ponyint_mpmcq_pop(mpmcq_t* q)
