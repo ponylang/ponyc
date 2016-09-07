@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Account for both hyperthreading and NUMA locality when assigning scheduler threads to cores on Linux.
 - Stop generating `llvm.invariant.start` intrinsic. It was causing various problems in code generation.
 - Buffer overflow triggerable by very long `ponyc` filename (issue #1177).
+- Assertion failure in optimisation passes.
 
 ### Added
 - `--ponypinasio` runtime option for pinning asio thread to a cpu core.

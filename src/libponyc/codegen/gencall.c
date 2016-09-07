@@ -456,13 +456,12 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
       r = invoke_fun(c, func, args, i, "", true);
     else
-    {
       r = codegen_call(c, func, args, i);
-      if(is_new_call)
-      {
-        LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
-        LLVMSetMetadataStr(r, "pony.newcall", md);
-      }
+
+    if(is_new_call)
+    {
+      LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+      LLVMSetMetadataStr(r, "pony.newcall", md);
     }
 
     codegen_debugloc(c, NULL);
