@@ -24,7 +24,7 @@ typedef struct options_t
 } options_t;
 
 // global data
-static int volatile exit_code;
+static ATOMIC_TYPE(int) exit_code;
 
 enum
 {
@@ -127,7 +127,7 @@ int pony_start(bool library)
   if(library)
     return 0;
 
-  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
+  return atomic_load_explicit(&exit_code, memory_order_acquire);
 }
 
 int pony_stop()
@@ -135,10 +135,10 @@ int pony_stop()
   ponyint_sched_stop();
   ponyint_os_sockets_final();
 
-  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
+  return atomic_load_explicit(&exit_code, memory_order_acquire);
 }
 
 void pony_exitcode(int code)
 {
-  _atomic_store(&exit_code, code, __ATOMIC_RELEASE);
+  atomic_store_explicit(&exit_code, code, memory_order_release);
 }

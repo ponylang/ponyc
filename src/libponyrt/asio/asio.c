@@ -10,7 +10,7 @@ struct asio_base_t
 {
   pony_thread_id_t tid;
   asio_backend_t* backend;
-  uint64_t volatile noisy_count;
+  ATOMIC_TYPE(uint64_t) noisy_count;
 };
 
 static asio_base_t running_base;
@@ -48,7 +48,7 @@ bool ponyint_asio_start()
 
 bool ponyint_asio_stop()
 {
-  if(_atomic_load(&running_base.noisy_count, __ATOMIC_ACQUIRE) > 0)
+  if(atomic_load_explicit(&running_base.noisy_count, memory_order_acquire) > 0)
     return false;
 
   if(running_base.backend != NULL)
@@ -65,10 +65,10 @@ bool ponyint_asio_stop()
 
 void ponyint_asio_noisy_add()
 {
-  _atomic_add(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
+  atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_release);
 }
 
 void ponyint_asio_noisy_remove()
 {
-  _atomic_add(&running_base.noisy_count, -1, __ATOMIC_RELEASE);
+  atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_release);
 }

@@ -20,7 +20,7 @@
 struct asio_backend_t
 {
   HANDLE wakeup;
-  bool stop;
+  ATOMIC_TYPE(bool) stop;
   asio_event_t* sighandlers[MAX_SIGNAL];
   messageq_t q;
 };
@@ -92,7 +92,7 @@ asio_backend_t* ponyint_asio_backend_init()
 
 void ponyint_asio_backend_final(asio_backend_t* b)
 {
-  b->stop = true;
+  atomic_store_explicit(&b->stop, true, memory_order_relaxed);
   SetEvent(b->wakeup);
 }
 
@@ -111,7 +111,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   // 2 => listen on queue wake event and stdin
   int handleCount = 1;
 
-  while(!b->stop)
+  while(!atomic_load_explicit(&b->stop, memory_order_relaxed))
   {
     switch(WaitForMultipleObjectsEx(handleCount, handles, FALSE, -1, TRUE))
     {
