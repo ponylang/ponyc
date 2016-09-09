@@ -6,48 +6,54 @@ typedef struct mpmcq_node_t mpmcq_node_t;
 
 struct mpmcq_node_t
 {
-  mpmcq_node_t* volatile next;
-  void* volatile data;
+  ATOMIC_TYPE(mpmcq_node_t*) next;
+  ATOMIC_TYPE(void*) data;
 };
 
 void ponyint_mpmcq_init(mpmcq_t* q)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
-  node->data = NULL;
-  node->next = NULL;
+  atomic_store_explicit(&node->data, NULL, memory_order_relaxed);
+  atomic_store_explicit(&node->next, NULL, memory_order_relaxed);
 
-  q->head = node;
-  q->tail.node = node;
+  mpmcq_dwcas_t tail;
+  tail.node = node;
+
+  atomic_store_explicit(&q->head, node, memory_order_relaxed);
+  atomic_store_explicit(&q->tail, tail, memory_order_relaxed);
 }
 
 void ponyint_mpmcq_destroy(mpmcq_t* q)
 {
-  POOL_FREE(mpmcq_node_t, q->tail.node);
+  mpmcq_dwcas_t tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+
+  POOL_FREE(mpmcq_node_t, tail.node);
+  tail.node = NULL;
   q->head = NULL;
-  q->tail.node = NULL;
+  atomic_store_explicit(&q->tail, tail, memory_order_relaxed);
 }
 
 void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
-  node->data = data;
-  node->next = NULL;
+  atomic_store_explicit(&node->data, data, memory_order_relaxed);
+  atomic_store_explicit(&node->next, NULL, memory_order_relaxed);
 
-  mpmcq_node_t* prev = (mpmcq_node_t*)_atomic_exchange(&q->head, node,
-    __ATOMIC_RELAXED);
-  _atomic_store(&prev->next, node, __ATOMIC_RELEASE);
+  mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
+    memory_order_relaxed);
+  atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
 void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
-  node->data = data;
-  node->next = NULL;
+  atomic_store_explicit(&node->data, data, memory_order_relaxed);
+  atomic_store_explicit(&node->next, NULL, memory_order_relaxed);
 
-  // If we have a single producer, operations on the head need not be atomic.
-  mpmcq_node_t* prev = q->head;
-  q->head = node;
-  _atomic_store(&prev->next, node, __ATOMIC_RELEASE);
+  // If we have a single producer, the swap of the head need not be atomic RMW.
+  mpmcq_node_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
+  atomic_store_explicit(&q->head, node, memory_order_relaxed);
+  atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
 void* ponyint_mpmcq_pop(mpmcq_t* q)
@@ -55,14 +61,13 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   mpmcq_dwcas_t cmp, xchg;
   mpmcq_node_t* next;
 
-  cmp.aba = q->tail.aba;
-  cmp.node = q->tail.node;
+  cmp = atomic_load_explicit(&q->tail, memory_order_acquire);
 
   do
   {
     // Get the next node rather than the tail. The tail is either a stub or has
     // already been consumed.
-    next = _atomic_load(&cmp.node->next, __ATOMIC_ACQUIRE);
+    next = atomic_load_explicit(&cmp.node->next, memory_order_acquire);
 
     // Bailout if we have no next node.
     if(next == NULL)
@@ -72,19 +77,19 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     // fails, cmp becomes the new tail and we retry the loop.
     xchg.aba = cmp.aba + 1;
     xchg.node = next;
-  } while(!_atomic_dwcas(&q->tail.dw, &cmp.dw, xchg.dw, __ATOMIC_ACQ_REL,
-    __ATOMIC_ACQUIRE));
+  } while(!atomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
+    memory_order_acq_rel, memory_order_acquire));
 
   // We'll return the data pointer from the next node.
-  void* data = _atomic_load(&next->data, __ATOMIC_ACQUIRE);
+  void* data = atomic_load_explicit(&next->data, memory_order_acquire);
 
   // Since we will be freeing the old tail, we need to be sure no other
   // consumer is still reading the old tail. To do this, we set the data
   // pointer of our new tail to NULL, and we wait until the data pointer of
   // the old tail is NULL.
-  _atomic_store(&next->data, NULL, __ATOMIC_RELEASE);
+  atomic_store_explicit(&next->data, NULL, memory_order_release);
 
-  while(_atomic_load(&cmp.node->data, __ATOMIC_ACQUIRE) != NULL)
+  while(atomic_load_explicit(&cmp.node->data, memory_order_acquire) != NULL)
     ponyint_cpu_relax();
 
   // Free the old tail. The new tail is the next node.
