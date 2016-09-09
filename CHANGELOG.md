@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Path.base now provides option to omit the file extension from the result.
 - Map.upsert returns value for upserted key rather than `this`.
 - `ponyc --version` now includes llvm version in its output.
+- LTO is now disabled by default on OSX.
 
 ## [0.3.0] - 2016-08-26
 

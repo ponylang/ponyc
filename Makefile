@@ -16,7 +16,6 @@ else
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
-    lto := yes
     ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
       AR := llvm-ar-mp-3.8
       AR_FLAGS := rcs
