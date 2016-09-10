@@ -79,7 +79,7 @@ pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 bool ponyint_messageq_markempty(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_acquire);
+  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_relaxed);
 
   if(((uintptr_t)head & 1) != 0)
     return true;
@@ -90,5 +90,5 @@ bool ponyint_messageq_markempty(messageq_t* q)
   head = (pony_msg_t*)((uintptr_t)head | 1);
 
   return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
-    memory_order_acq_rel, memory_order_acquire);
+    memory_order_release, memory_order_relaxed);
 }

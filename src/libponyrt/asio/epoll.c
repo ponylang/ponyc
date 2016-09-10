@@ -45,7 +45,8 @@ static void signal_handler(int sig)
   // Reset the signal handler.
   signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
-  asio_event_t* ev = b->sighandlers[sig];
+  asio_event_t* ev = atomic_load_explicit(&b->sighandlers[sig],
+    memory_order_acquire);
 
   if(ev == NULL)
     return;
@@ -219,7 +220,7 @@ void pony_asio_event_subscribe(asio_event_t* ev)
 
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
-      memory_order_acq_rel, memory_order_acquire))
+      memory_order_release, memory_order_relaxed))
     {
       signal(sig, signal_handler);
       ev->fd = eventfd(0, EFD_NONBLOCK);
@@ -279,7 +280,7 @@ void pony_asio_event_unsubscribe(asio_event_t* ev)
 
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
-      memory_order_acq_rel, memory_order_acquire))
+      memory_order_release, memory_order_relaxed))
     {
       signal(sig, SIG_DFL);
       close(ev->fd);

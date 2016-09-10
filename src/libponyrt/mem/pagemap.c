@@ -56,11 +56,11 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
-ATOMIC_TYPE(static void**) root;
+static ATOMIC_TYPE(void**) root;
 
 void* ponyint_pagemap_get(const void* m)
 {
-  void** v = atomic_load_explicit(&root, memory_order_acquire);
+  void** v = atomic_load_explicit(&root, memory_order_relaxed);
 
   for(int i = 0; i < PAGEMAP_LEVELS; i++)
   {
@@ -68,7 +68,8 @@ void* ponyint_pagemap_get(const void* m)
       return NULL;
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    v = (void**)v[ix];
+    ATOMIC_TYPE(void**)* av = (ATOMIC_TYPE(void**)*)&(v[ix]);
+    v = atomic_load_explicit(av, memory_order_relaxed);
   }
 
   return v;
@@ -89,7 +90,7 @@ void ponyint_pagemap_set(const void* m, void* v)
       void** prev = NULL;
 
       if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
-        memory_order_acq_rel, memory_order_acquire))
+        memory_order_release, memory_order_acquire))
       {
         ponyint_pool_free(level[i].size_index, p);
         pv_ld = prev;
@@ -102,5 +103,5 @@ void ponyint_pagemap_set(const void* m, void* v)
     pv = (ATOMIC_TYPE(void**)*)&(pv_ld[ix]);
   }
 
-  atomic_store_explicit(pv, (void**)v, memory_order_release);
+  atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
 }
