@@ -16,7 +16,6 @@ else
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
-    lto := yes
     ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
       AR := llvm-ar-mp-3.8
       AR_FLAGS := rcs
@@ -92,7 +91,8 @@ BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
 LINKER_FLAGS = -march=$(arch)
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
-  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
+  -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
@@ -202,6 +202,8 @@ endif
 ifndef LLVM_CONFIG
   $(error No LLVM installation found!)
 endif
+
+llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
@@ -625,6 +627,19 @@ test: all
 	@rm stdlib
 
 test-examples: all
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
+
+test-ci: all
+	@$(PONY_BUILD_DIR)/libponyc.tests
+	@$(PONY_BUILD_DIR)/libponyrt.tests
+	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
+	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
 	@rm examples1

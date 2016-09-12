@@ -6,7 +6,11 @@
 #include <stdbool.h>
 
 #if defined(__cplusplus)
+#  include <atomic>
+#  define ATOMIC_TYPE(T) std::atomic<T>
 extern "C" {
+#else
+#  define ATOMIC_TYPE(T) T _Atomic
 #endif
 
 #if defined(_MSC_VER)
@@ -37,7 +41,7 @@ typedef struct pony_msg_t
 {
   uint32_t index;
   uint32_t id;
-  struct pony_msg_t* volatile next;
+  ATOMIC_TYPE(struct pony_msg_t*) next;
 } pony_msg_t;
 
 /// Convenience message for sending an integer.

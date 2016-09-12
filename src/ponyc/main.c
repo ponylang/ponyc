@@ -273,7 +273,8 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%s [%s]\n", PONY_VERSION, PONY_BUILD_CONFIG);
+        printf("%s [%s] (llvm %s)\n", PONY_VERSION, PONY_BUILD_CONFIG,
+          LLVM_VERSION);
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;

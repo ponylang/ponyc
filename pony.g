@@ -209,7 +209,7 @@ tuple
   ;
 
 lambdacaptures
-  : ('(' | LPAREN_NEW) lambdacapture (',' lambdacapture)* ')'
+  : ('(' | LPAREN_NEW) (lambdacapture | 'this') (',' (lambdacapture | 'this'))* ')'
   ;
 
 lambdacapture

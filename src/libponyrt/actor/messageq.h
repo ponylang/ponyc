@@ -8,7 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct messageq_t
 {
-  pony_msg_t* volatile head;
+  ATOMIC_TYPE(pony_msg_t*) head;
   pony_msg_t* tail;
 } messageq_t;
 
