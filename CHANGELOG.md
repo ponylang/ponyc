@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Buffer overflow triggerable by very long `ponyc` filename (issue #1177).
 - Assertion failure in optimisation passes.
 - Race condition in scheduler queues on weakly-ordered architectures.
+- Issue #1212 by reverting commit e56075d46d7d9e1d8c5e8be7ed0506ad2de98734
 
 ### Added
 - `--ponypinasio` runtime option for pinning asio thread to a cpu core.
