@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 - `--ponypinasio` runtime option for pinning asio thread to a cpu core.
 - `--ponynopin` runtime option for not pinning any threads at all.
+- Improved error handling for `files` package.
 
 ### Changed
 
