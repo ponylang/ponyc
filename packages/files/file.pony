@@ -3,15 +3,21 @@ primitive _FileHandle
 primitive FileOK
 primitive FileError
 primitive FileEOF
-primitive FileNull
+primitive FileEBADF
+primitive FileEEXIST
 
-// TODO: break error down into multiple types
+primitive _EBADF
+  fun apply(): I32 => 9
+
+primitive _EEXIST
+  fun apply(): I32 => 17
 
 type FileErrNo is
   ( FileOK
   | FileError
   | FileEOF
-  | FileNull
+  | FileEBADF
+  | FileEEXIST
   )
 
 primitive CreateFile
@@ -84,7 +90,7 @@ class File
           path.path.null_terminated().cstring(), mode.cstring())
 
         if _handle.is_null() then
-          _errno = FileNull
+          _errno = FileError
         else
           _fd = _get_fd(_handle)
 
@@ -122,7 +128,7 @@ class File
         from.path.null_terminated().cstring(), "rb".cstring())
 
       if _handle.is_null() then
-        _errno = FileNull
+        _errno = FileError
       else
         _fd = _get_fd(_handle)
 
@@ -153,7 +159,7 @@ class File
     end
 
     if _handle.is_null() then
-      _errno = FileNull
+      _errno = FileError
       error
     end
 
@@ -167,23 +173,37 @@ class File
 
   fun ref clear_errno() =>
     """
-    Clears the last error code set for this File
+    Clears the last error code set for this File.
+    Clears the error indicator for the stream.
     """
-    _errno = FileOK
-
-  fun ref check_error() =>
-    """
-    Checks for errors after File operations.
-    Clear OS error indicator if set.
-    """
-    if @feof[I32](_handle) != 0 then
-      _errno = FileEOF
-      @clearerr[None](_handle)
-    elseif @ferror[I32](_handle) != 0 then
-      _errno = FileError
+    if not _handle.is_null() then
       @clearerr[None](_handle)
     end
+    _errno = FileOK
 
+  fun get_stream_error(): FileErrNo =>
+    """
+    Checks for errors after File stream operations.
+    Retrieves errno if ferror is true.
+    """
+    if @feof[I32](_handle) != 0 then
+      return FileEOF
+    end
+    if @ferror[I32](_handle) != 0 then
+      return get_error()
+    end
+    FileOK
+
+  fun get_error(): FileErrNo =>
+    """
+    Fetch errno from the OS.
+    """
+    let os_errno = @pony_os_errno[I32]()
+    match os_errno
+    | _EBADF() => return FileEBADF
+    | _EEXIST() => return FileEEXIST
+    end
+    FileOK
     
   fun valid(): Bool =>
     """
@@ -191,13 +211,12 @@ class File
     """
     not _handle.is_null()
 
-  fun ref get_fd(): I32 ? =>
+  fun get_fd(): I32 ? =>
     """
     Returns the underlying file descriptor.
     Raises an error if the file is not currently open.
     """
     if _handle.is_null() then
-      _errno = FileNull
       error
     end
 
@@ -209,7 +228,6 @@ class File
     there is no more data, this raises an error.
     """
     if _handle.is_null() then
-      _errno = FileNull
       error
     end
 
@@ -232,7 +250,7 @@ class File
       result.recalc()
 
       if r.is_null() then
-        check_error() // either EOF or error
+        _errno = get_stream_error() // either EOF or error
       end
       
       done = try
@@ -264,8 +282,7 @@ class File
     _last_line_length = len
     result
 
-  fun ref read(len: USize): Array[U8] iso^
-  =>
+  fun ref read(len: USize): Array[U8] iso^ =>
     """
     Returns up to len bytes.
     """
@@ -279,13 +296,12 @@ class File
       end
 
       if r < len then
-        check_error() // EOF or error
+        _errno = get_stream_error() // EOF or error
       end 
       
       result.truncate(r)
       result
     else
-      _errno = FileNull
       recover Array[U8] end
     end
 
@@ -305,13 +321,12 @@ class File
       end
 
       if r < len then
-        check_error() // EOF or error
+        _errno = get_stream_error() // EOF or error
       end 
       
       result.truncate(r)
       result
     else
-      _errno = FileNull
       recover String end
     end
 
@@ -347,11 +362,11 @@ class File
       if len == data.size() then
         return true
       end
-
-      check_error()
+      // check error
+      _errno = get_stream_error()
+      // fwrite can't resume in case of error
       dispose()
     end
-    _errno = FileError
     false
 
   fun ref writev(data: ByteSeqIter box): Bool =>
@@ -376,11 +391,10 @@ class File
         @ftell[USize](_handle)
       end
       if r < 0 then
-        _errno = FileError
+        _errno = get_error()
       end
       r
     else
-      _errno = FileNull
       0
     end
 
@@ -432,7 +446,7 @@ class File
         @fflush[I32](_handle)
       end
       if r != 0 then
-        _errno = FileEOF
+        _errno = get_error()
       end
     end
     this
@@ -448,7 +462,7 @@ class File
       else
         let r = @fsync[I32](_fd)
         if r < 0 then
-          _errno = FileError
+          _errno = get_error()
         end
       end
     end
@@ -461,16 +475,22 @@ class File
     if path.caps(FileTruncate) and writeable and (not _handle.is_null()) then
       flush()
       let pos = position()
-      let success = ifdef windows then
-        @_chsize_s[I32](_fd, len) == 0
+      let result = ifdef windows then
+        @_chsize_s[I32](_fd, len)
       else
-        @ftruncate[I32](_fd, len) == 0
+        @ftruncate[I32](_fd, len)
       end
 
       if pos >= len then
         _seek(0, 2)
       end
-      success
+      
+      if result == 0 then
+        true
+      else
+        _errno = get_error()
+        false
+      end
     else
       false
     end
@@ -533,11 +553,9 @@ class File
       else
         let r = @fseek[I32](_handle, offset, base)
         if r < 0 then
-          _errno = FileError
+          _errno = get_error()
         end
       end
-    else
-      _errno = FileNull
     end
 
   fun tag _get_fd(handle: Pointer[_FileHandle]): I32 =>
