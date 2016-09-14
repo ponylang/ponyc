@@ -95,7 +95,7 @@ class File
           path.path.null_terminated().cstring(), mode.cstring())
 
         if _handle.is_null() then
-          _errno = FileError
+          _errno = get_error()
         else
           _fd = _get_fd(_handle)
 
