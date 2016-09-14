@@ -248,7 +248,7 @@ class iso _TestPathVolume is UnitTest
 class iso _TestFileOpenError is UnitTest
   fun name(): String => "files/File.open-error"
   fun apply(h: TestHelper) =>
-    let path = "tmp.readonly1"
+    let path = "tmp.readonly"
     try
       let filepath = FilePath(h.env.root as AmbientAuth, path)
       let file1 = File(filepath)
@@ -262,7 +262,7 @@ class iso _TestFileOpenError is UnitTest
         end
       // try to open file for writing
       let file2 = File(filepath)  
-      h.assert_true(file2.errno() is FileError)
+      h.assert_true(file2.errno() is FilePermissionDenied)
       h.assert_false(file2.valid())
       filepath.remove()
     end

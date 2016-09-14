@@ -3,9 +3,9 @@ primitive _FileHandle
 primitive FileOK
 primitive FileError
 primitive FileEOF
-primitive FileEBADF
-primitive FileEEXIST
-primitive FileEACCES
+primitive FileBadFileNumber
+primitive FileExists
+primitive FilePermissionDenied
 
 primitive _EBADF
   fun apply(): I32 => 9
@@ -20,9 +20,9 @@ type FileErrNo is
   ( FileOK
   | FileError
   | FileEOF
-  | FileEBADF
-  | FileEEXIST
-  | FileEACCES
+  | FileBadFileNumber
+  | FileExists
+  | FilePermissionDenied
   )
 
 primitive CreateFile
@@ -95,7 +95,7 @@ class File
           path.path.null_terminated().cstring(), mode.cstring())
 
         if _handle.is_null() then
-          _errno = get_error()
+          _errno = _get_error()
         else
           _fd = _get_fd(_handle)
 
@@ -164,7 +164,7 @@ class File
     end
 
     if _handle.is_null() then
-      _errno = FileError
+      _errno = _get_error()
       error
     end
 
@@ -195,19 +195,19 @@ class File
       return FileEOF
     end
     if @ferror[I32](_handle) != 0 then
-      return get_error()
+      return _get_error()
     end
     FileOK
 
-  fun get_error(): FileErrNo =>
+  fun _get_error(): FileErrNo =>
     """
     Fetch errno from the OS.
     """
     let os_errno = @pony_os_errno[I32]()
     match os_errno
-    | _EBADF() => return FileEBADF
-    | _EEXIST() => return FileEEXIST
-    | _EACCES() => return FileEACCES
+    | _EBADF() => return FileBadFileNumber
+    | _EEXIST() => return FileExists
+    | _EACCES() => return FilePermissionDenied
     else
       return FileError
     end
@@ -399,7 +399,7 @@ class File
         @ftell[USize](_handle)
       end
       if r < 0 then
-        _errno = get_error()
+        _errno = _get_error()
       end
       r
     else
@@ -454,7 +454,7 @@ class File
         @fflush[I32](_handle)
       end
       if r != 0 then
-        _errno = get_error()
+        _errno = _get_error()
       end
     end
     this
@@ -470,7 +470,7 @@ class File
       else
         let r = @fsync[I32](_fd)
         if r < 0 then
-          _errno = get_error()
+          _errno = _get_error()
         end
       end
     end
@@ -496,7 +496,7 @@ class File
       if result == 0 then
         true
       else
-        _errno = get_error()
+        _errno = _get_error()
         false
       end
     else
@@ -561,7 +561,7 @@ class File
       else
         let r = @fseek[I32](_handle, offset, base)
         if r < 0 then
-          _errno = get_error()
+          _errno = _get_error()
         end
       end
     end
