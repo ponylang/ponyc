@@ -5,12 +5,21 @@ All notable changes to the Pony compiler and standard library will be documented
 ## [unreleased] - unreleased
 
 ### Fixed
+
+### Added
+
+### Changed
+
+## [0.3.1] - 2016-09-14
+
+### Fixed
 - Make sure all scheduler threads are pinned to CPU cores; on Linux/FreeBSD this wasn't the case for the main thread.
 - Account for both hyperthreading and NUMA locality when assigning scheduler threads to cores on Linux.
 - Stop generating `llvm.invariant.start` intrinsic. It was causing various problems in code generation.
 - Buffer overflow triggerable by very long `ponyc` filename (issue #1177).
 - Assertion failure in optimisation passes.
 - Race condition in scheduler queues on weakly-ordered architectures.
+- Issue #1212 by reverting commit e56075d46d7d9e1d8c5e8be7ed0506ad2de98734
 
 ### Added
 - `--ponypinasio` runtime option for pinning asio thread to a cpu core.

@@ -34,8 +34,6 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
   genfun_param_attrs(t, m, m->func);
-  if(ast_id(ast_childidx(m->r_fun, 5)) != TK_QUESTION)
-    LLVMAddFunctionAttr(m->func, LLVMNoUnwindAttribute);
   codegen_startfun(c, m->func, NULL, NULL);
 }
 
