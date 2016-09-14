@@ -5,6 +5,7 @@ primitive FileError
 primitive FileEOF
 primitive FileEBADF
 primitive FileEEXIST
+primitive FileEACCES
 
 primitive _EBADF
   fun apply(): I32 => 9
@@ -12,12 +13,16 @@ primitive _EBADF
 primitive _EEXIST
   fun apply(): I32 => 17
 
+primitive _EACCES
+  fun apply(): I32 => 13
+    
 type FileErrNo is
   ( FileOK
   | FileError
   | FileEOF
   | FileEBADF
   | FileEEXIST
+  | FileEACCES
   )
 
 primitive CreateFile
@@ -202,8 +207,11 @@ class File
     match os_errno
     | _EBADF() => return FileEBADF
     | _EEXIST() => return FileEEXIST
+    | _EACCES() => return FileEACCES
+    else
+      return FileError
     end
-    FileOK
+
     
   fun valid(): Bool =>
     """

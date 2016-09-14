@@ -16,7 +16,8 @@ actor Main is TestList
     test(_TestPathBase)
     test(_TestPathExt)
     test(_TestPathVolume)
-
+    test(_TestFileOpenError)
+    
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
     let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
@@ -242,4 +243,26 @@ class iso _TestPathVolume is UnitTest
     else
       h.assert_eq[String](res1, "")
       h.assert_eq[String](res2, "")
+    end
+
+class iso _TestFileOpenError is UnitTest
+  fun name(): String => "files/File.open-error"
+  fun apply(h: TestHelper) =>
+    let path = "tmp.readonly1"
+    try
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file1 = File(filepath)
+      file1.dispose()
+      // take away write permissions
+      let m = I32(292) // file mode 444
+      let chmod_result = ifdef windows then
+          0 == @_chmod[I32](path.null_terminated().cstring(), m)
+        else
+          0 == @chmod[I32](path.null_terminated().cstring(), m)
+        end
+      // try to open file for writing
+      let file2 = File(filepath)  
+      h.assert_true(file2.errno() is FileError)
+      h.assert_false(file2.valid())
+      filepath.remove()
     end
