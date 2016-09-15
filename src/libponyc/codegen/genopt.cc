@@ -1043,7 +1043,7 @@ bool target_is_posix(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux();
+  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSDragonFly() || triple.isOSLinux();
 }
 
 bool target_is_x86(char* t)
