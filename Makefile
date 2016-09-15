@@ -51,13 +51,7 @@ else
   SILENT =
 endif
 
-ifneq ($(wildcard .git),)
-tag := $(shell git describe --tags --always)
-git := yes
-else
 tag := $(shell cat VERSION)
-git := no
-endif
 
 # package_name, _version, and _iteration can be overriden by Travis or AppVeyor
 package_base_version ?= $(tag)
@@ -644,13 +638,9 @@ test-ci: all
 	@./examples1
 	@rm examples1
 
-ifeq ($(git),yes)
-setversion:
-	@echo $(tag) > VERSION
-
 $(eval $(call EXPAND_RELEASE))
 
-release: prerelease setversion
+release: prerelease
 	$(SILENT)git add VERSION
 	$(SILENT)git commit -m "Releasing version $(tag)"
 	$(SILENT)git tag $(tag)
