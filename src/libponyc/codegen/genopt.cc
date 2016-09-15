@@ -1011,6 +1011,13 @@ bool target_is_linux(char* t)
   return triple.isOSLinux();
 }
 
+bool target_is_dragonfly(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSDragonFly();
+}
+
 bool target_is_freebsd(char* t)
 {
   Triple triple = Triple(t);

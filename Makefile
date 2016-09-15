@@ -34,6 +34,11 @@ else
     OSTYPE = freebsd
     CXX = c++
   endif
+
+  ifeq ($(UNAME_S),DragonFly)
+    OSTYPE = dragonfly
+    CXX = c++
+  endif
 endif
 
 ifdef LTO_PLUGIN
@@ -142,7 +147,7 @@ ifeq ($(config),release)
       AR_FLAGS += --plugin $(LTO_PLUGIN)
     endif
 
-    ifneq (,$(filter $(OSTYPE),linux freebsd))
+    ifneq (,$(filter $(OSTYPE),linux freebsd,dragonfly))
       LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
     endif
   endif
@@ -254,7 +259,9 @@ endif
 
 ifneq ($(OSTYPE),osx)
   ifneq ($(OSTYPE),freebsd)
-    libponyrt.except += src/libponyrt/asio/kqueue.c
+    ifneq ($(OSTYPE),dragonfly)
+      libponyrt.except += src/libponyrt/asio/kqueue.c
+    endif
   endif
 endif
 
@@ -305,6 +312,14 @@ ifeq ($(OSTYPE), freebsd)
   llvm.libs += -lpthread
 endif
 
+ifeq ($(OSTYPE), dragonfly)
+  llvm.libs += -lpthread
+endif
+
+ifeq ($(OSTYPE), dragonfly)
+  llvm.ldflags += -L/usr/local/lib
+endif
+
 prebuilt := llvm
 
 # Binaries. Defined as
@@ -333,7 +348,7 @@ libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 
-ifneq (,$(filter $(OSTYPE), osx freebsd))
+ifneq (,$(filter $(OSTYPE), osx freebsd dragonfly))
   libponyrt.include += -I /usr/local/include
 endif
 

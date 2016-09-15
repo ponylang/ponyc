@@ -3,7 +3,7 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>

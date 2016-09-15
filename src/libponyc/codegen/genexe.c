@@ -259,7 +259,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
 
-#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY)
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 

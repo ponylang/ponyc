@@ -24,6 +24,8 @@
 #  define PLATFORM_IS_LINUX
 #elif defined(__FreeBSD__)
 #  define PLATFORM_IS_FREEBSD
+#elif defined(__DragonFly__)
+#  define PLATFORM_IS_DRAGONFLY
 #elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
@@ -91,7 +93,8 @@
 #  error PLATFORM NOT SUPPORTED!
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_FREEBSD) || \
+    defined(PLATFORM_IS_DRAGONFLY)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 
