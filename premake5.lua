@@ -126,7 +126,11 @@
       buildoptions "/PROFILE"
 
     configuration "vs*"
-      local version = os.outputof("type VERSION")
+      local version, exitcode = os.outputof("git describe --tags --always")
+
+      if exitcode ~= 0 then
+        version = os.outputof("type VERSION")
+      end
 
       debugdir "."
       defines {

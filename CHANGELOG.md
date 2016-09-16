@@ -5,12 +5,10 @@ All notable changes to the Pony compiler and standard library will be documented
 ## [unreleased] - unreleased
 
 ### Fixed
-- The `ponyc` version is now consistently set from the VERSION file.
 
 ### Added
 
 ### Changed
-- The `setversion` and `release` commands have been removed from `Makefile`.
 
 ## [0.3.1] - 2016-09-14
 
