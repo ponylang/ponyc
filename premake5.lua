@@ -127,6 +127,7 @@
 
     configuration "vs*"
       local version = os.outputof("type VERSION")
+	  version = version .. "-" .. os.outputof("git rev-parse --short HEAD")
 
       debugdir "."
       defines {
