@@ -98,6 +98,7 @@ matrix:
       env:
         - LLVM_CONFIG="llvm-config-3.6"
         - config=release
+        - lto=no
         - CC1=clang-3.6
         - CXX1=clang++-3.6
     - os: osx
@@ -110,6 +111,7 @@ matrix:
       env:
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
+        - lto=no
         - CC1=clang-3.7
         - CXX1=clang++-3.7
     - os: osx
@@ -122,6 +124,7 @@ matrix:
       env:
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
+        - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
 
