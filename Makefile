@@ -51,7 +51,11 @@ else
   SILENT =
 endif
 
-tag := $(shell cat VERSION)
+ifneq ($(wildcard .git),)
+  tag := $(shell cat VERSION)-$(shell git rev-parse --short HEAD)
+else
+  tag := $(shell cat VERSION)
+endif
 
 # package_name, _version, and _iteration can be overriden by Travis or AppVeyor
 package_base_version ?= $(tag)
