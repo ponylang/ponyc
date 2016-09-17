@@ -36,6 +36,13 @@ else
   endif
 endif
 
+ifndef lto
+  ifeq ($(UNAME_S),Darwin)
+  	# turn lto on for OSX if user hasn't specified a value
+   	lto := yes
+   endif
+endif
+
 ifdef LTO_PLUGIN
   lto := yes
 endif
@@ -438,7 +445,7 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
