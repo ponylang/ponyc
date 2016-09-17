@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 - The `setversion` and `release` commands have been removed from `Makefile`.
+- make now builds a `release` rather than `debug` build by default
 
 ## [0.3.1] - 2016-09-14
 
