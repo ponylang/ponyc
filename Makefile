@@ -40,8 +40,8 @@ ifdef LTO_PLUGIN
   lto := yes
 endif
 
-# Default settings (silent debug build).
-config ?= debug
+# Default settings (silent release build).
+config ?= release
 arch ?= native
 bits ?= $(shell getconf LONG_BIT)
 
@@ -438,7 +438,7 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
