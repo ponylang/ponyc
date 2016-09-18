@@ -200,18 +200,15 @@ class iso _TestPathBase is UnitTest
   fun name(): String => "files/Path.dir"
   fun apply(h: TestHelper) =>
 
-    ifdef windows then
-      let res1 = Path.base("\\dir\\base.ext")
-      let res2 = Path.base("\\dir\\")
-      h.assert_eq[String](res1, "base.ext")
-      h.assert_eq[String](res2, "")
-
+    (let p1, let p2) = ifdef windows then
+      ("\\dir\\base.ext", "\\dir\\")
     else
-      let res1 = Path.base("/dir/base.ext")
-      let res2 = Path.base("/dir/")
-      h.assert_eq[String](res1, "base.ext")
-      h.assert_eq[String](res2, "")
+      ("/dir/base.ext", "/dir/")
     end
+
+    h.assert_eq[String](Path.base(p1), "base.ext")
+    h.assert_eq[String](Path.base(p1, false), "base")
+    h.assert_eq[String](Path.base(p2), "")
 
 
 class iso _TestPathExt is UnitTest

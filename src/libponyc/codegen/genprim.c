@@ -34,8 +34,6 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
   genfun_param_attrs(t, m, m->func);
-  if(ast_id(ast_childidx(m->r_fun, 5)) != TK_QUESTION)
-    LLVMAddFunctionAttr(m->func, LLVMNoUnwindAttribute);
   codegen_startfun(c, m->func, NULL, NULL);
 }
 
@@ -196,14 +194,6 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
       LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
   }
 
-  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
-  if(cap == TK_VAL || ((ast_id(typearg) == TK_NOMINAL) &&
-    (cap_single(typearg) == TK_VAL)))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, result);
-  }
-
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
@@ -225,13 +215,6 @@ static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
-
-  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
-  if((ast_id(typearg) == TK_NOMINAL) && (cap_single(typearg) == TK_VAL))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, result);
-  }
 
   LLVMBuildStore(c->builder, LLVMGetParam(m->func, 2), loc);
 
@@ -330,13 +313,6 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef elem_ptr = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
-
-  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
-  if((ast_id(typearg) == TK_NOMINAL) && (cap_single(typearg) == TK_VAL))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(result)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, result);
-  }
 
   LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
   src = LLVMBuildBitCast(c->builder, src, t->use_type, "");
@@ -537,11 +513,6 @@ static void maybe_apply(compile_t* c, void* data, token_id cap)
   LLVMPositionBuilderAtEnd(c->builder, is_false);
   result = LLVMBuildBitCast(c->builder, result, t_elem->use_type, "");
 
-  ast_t* typearg = ast_child(ast_childidx(t->ast, 2));
-  if(cap == TK_VAL || ((ast_id(typearg) == TK_NOMINAL) &&
-    (cap_single(typearg) == TK_VAL)))
-    gencall_invariant_start(c, result);
-
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
@@ -598,7 +569,11 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "imr,~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOrArgMemOnly(call);
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);
@@ -613,7 +588,12 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOnly(call);
+#else
+  (void)call;
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);

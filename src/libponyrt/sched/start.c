@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "cpu.h"
 #include "../mem/heap.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
@@ -18,11 +19,12 @@ typedef struct options_t
   double gc_factor;
   bool noyield;
   bool noblock;
+  bool nopin;
   bool pinasio;
 } options_t;
 
 // global data
-static int volatile exit_code;
+static ATOMIC_TYPE(int) exit_code;
 
 enum
 {
@@ -34,6 +36,7 @@ enum
   OPT_GCFACTOR,
   OPT_NOYIELD,
   OPT_NOBLOCK,
+  OPT_NOPIN,
   OPT_PINASIO
 };
 
@@ -47,6 +50,7 @@ static opt_arg_t args[] =
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
+  {"ponynopin", 0, OPT_ARG_NONE, OPT_NOPIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
 
   OPT_ARGS_FINISH
@@ -70,6 +74,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
+      case OPT_NOPIN: opt->nopin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
 
       default: exit(-1);
@@ -94,16 +99,17 @@ int pony_init(int argc, char** argv)
 
   argc = parse_opts(argc, argv, &opt);
 
-#if defined(PLATFORM_IS_LINUX)
-  ponyint_numa_init();
-#endif
+  ponyint_cpu_init();
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);
   ponyint_actor_setnoblock(opt.noblock);
 
   pony_exitcode(0);
-  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pinasio);
+
+  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
+    opt.pinasio);
+
   ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
 
@@ -121,7 +127,7 @@ int pony_start(bool library)
   if(library)
     return 0;
 
-  return _atomic_load(&exit_code);
+  return atomic_load_explicit(&exit_code, memory_order_acquire);
 }
 
 int pony_stop()
@@ -129,10 +135,10 @@ int pony_stop()
   ponyint_sched_stop();
   ponyint_os_sockets_final();
 
-  return _atomic_load(&exit_code);
+  return atomic_load_explicit(&exit_code, memory_order_acquire);
 }
 
 void pony_exitcode(int code)
 {
-  _atomic_store(&exit_code, code);
+  atomic_store_explicit(&exit_code, code, memory_order_release);
 }

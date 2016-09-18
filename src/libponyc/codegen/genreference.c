@@ -93,7 +93,7 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(ast_id(l_type) != TK_TUPLETYPE)
   {
     field = LLVMBuildLoad(c->builder, field, "");
-    if((ast_id(ast) == TK_FLETREF) || (cap_single(l_type) == TK_VAL))
+    if(cap_single(l_type) == TK_VAL)
     {
       LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
       const char id[] = "invariant.load";
@@ -102,14 +102,6 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
     LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
     const char id[] = "tbaa";
     LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  }
-
-  ast_t* f_type = ast_type(ast);
-
-  if((ast_id(f_type) == TK_NOMINAL) && (cap_single(f_type) == TK_VAL))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(field)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, field);
   }
 
   return field;
@@ -121,14 +113,6 @@ LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
 
   if(field == NULL)
     return NULL;
-
-  ast_t* f_type = ast_type(ast);
-
-  if((ast_id(f_type) == TK_NOMINAL) && (cap_single(f_type) == TK_VAL))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(field)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, field);
-  }
 
   return field;
 }
@@ -236,24 +220,7 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   if(local_ptr == NULL)
     return NULL;
 
-  LLVMValueRef local = LLVMBuildLoad(c->builder, local_ptr, "");
-
-  if(ast_id(ast) == TK_LETREF)
-  {
-    LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
-    const char id[] = "invariant.load";
-    LLVMSetMetadata(local, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  }
-
-  ast_t* l_type = ast_type(ast);
-
-  if((ast_id(l_type) == TK_NOMINAL) && (cap_single(l_type) == TK_VAL))
-  {
-    if(LLVMGetTypeKind(LLVMTypeOf(local)) == LLVMPointerTypeKind)
-      gencall_invariant_start(c, local);
-  }
-
-  return local;
+  return LLVMBuildLoad(c->builder, local_ptr, "");
 }
 
 LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)

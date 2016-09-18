@@ -199,9 +199,9 @@ public:
     }
 
     SmallVector<CallInst*, 4> tail;
-    Instruction* new_call = NULL;
+    SmallVector<Instruction*, 4> new_calls;
 
-    if(!canStackAlloc(inst, dt, tail, &new_call))
+    if(!canStackAlloc(inst, dt, tail, new_calls))
       return false;
 
     for(auto iter = tail.begin(), end = tail.end(); iter != end; ++iter)
@@ -217,14 +217,11 @@ public:
     inst->replaceAllUsesWith(replace);
     inst->eraseFromParent();
 
-    if(new_call != NULL)
+    for(auto new_call: new_calls)
     {
       // Force constructor inlining to see if fields can be stack-allocated.
       InlineFunctionInfo ifi{};
       InlineFunction(CallSite(new_call), ifi);
-
-      for(AllocaInst* inlined_alloca : ifi.StaticAllocas)
-        inlined_alloca->moveBefore(begin);
     }
 
     print_transform(c, replace, "stack allocation");
@@ -235,7 +232,7 @@ public:
   }
 
   bool canStackAlloc(Instruction* alloc, DominatorTree& dt,
-    SmallVector<CallInst*, 4>& tail, Instruction** out_new_call)
+    SmallVector<CallInst*, 4>& tail, SmallVector<Instruction*, 4>& new_calls)
   {
     // This is based on the pass in the LDC compiler.
     SmallVector<Use*, 16> work;
@@ -279,10 +276,7 @@ public:
           }
 
           if(inst->getMetadata("pony.newcall") != NULL)
-          {
-            assert(*out_new_call == NULL);
-            *out_new_call = inst;
-          }
+            new_calls.push_back(inst);
 
           auto first = call.arg_begin();
 

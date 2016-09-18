@@ -554,16 +554,15 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // Set the target triple.
   LLVMSetTarget(c->module, opt->triple);
 
-  // Set the data layout.http://llvm.org/docs/LangRef.html#data-layout
+  // Set the data layout.
 #if PONY_LLVM <= 308
   c->target_data = LLVMGetTargetMachineData(c->machine);
+#else
+  c->target_data = LLVMCreateTargetDataLayout(c->machine);
+#endif
   char* layout = LLVMCopyStringRepOfTargetData(c->target_data);
   LLVMSetDataLayout(c->module, layout);
   LLVMDisposeMessage(layout);
-#else
-  c->target_data = LLVMCreateTargetData(opt->triple);
-  LLVMSetDataLayout(c->module, opt->triple);
-#endif
 
   // IR builder.
   c->builder = LLVMCreateBuilderInContext(c->context);

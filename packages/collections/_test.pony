@@ -172,6 +172,22 @@ class iso _TestMapUpsert is UnitTest
     x2.upsert(1, "def", g)
     h.assert_eq[String]("1, 2, 3, abc, def", x2(1))
 
+    // verify correct results when we trigger a resize
+    let prealloc: USize = 6
+    let expected_initial_size: USize = (prealloc * 4) / 3
+    let x3: Map[U32, U64] = Map[U32,U64](prealloc)
+    let f' = lambda(x: U64, y: U64): U64 => x + y end
+    h.assert_eq[USize](expected_initial_size, x3.space())
+    h.assert_eq[U64](1, x3.upsert(1, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(2, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(3, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(4, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(5, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(6, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(7, 1, f'))
+    h.assert_eq[U64](2, x3.upsert(5, 1, f'))
+    h.assert_ne[USize](expected_initial_size, x3.space())
+
 class iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
 

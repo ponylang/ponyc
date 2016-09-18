@@ -26,6 +26,7 @@ DECL(parampattern);
 DECL(pattern);
 DECL(idseq_in_seq);
 DECL(members);
+DECL(thisliteral);
 
 
 /* Precedence
@@ -309,12 +310,13 @@ DEF(lambdacapture);
   IF(TK_ASSIGN, RULE("capture value", infix));
   DONE();
 
-// (LPAREN | LPAREN_NEW) lambdacapture {COMMA lambdacapture} RPAREN
+// (LPAREN | LPAREN_NEW) (lambdacapture | thisliteral)
+// {COMMA (lambdacapture | thisliteral)} RPAREN
 DEF(lambdacaptures);
   AST_NODE(TK_LAMBDACAPTURES);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("capture", lambdacapture);
-  WHILE(TK_COMMA, RULE("capture", lambdacapture));
+  RULE("capture", lambdacapture, thisliteral);
+  WHILE(TK_COMMA, RULE("capture", lambdacapture, thisliteral));
   SKIP(NULL, TK_RPAREN);
   DONE();
 

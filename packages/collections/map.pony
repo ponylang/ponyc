@@ -81,7 +81,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     None
 
-  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): HashMap[K, V, H]^ =>
+  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V ? =>
     """
     Combines a provided value with the current value for the provided key
     using the provided function. If the provided key has not been added to
@@ -100,6 +100,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     m.upsert("new-key", 4, lambda(x: U64, y: U64): U64 => x + y end)
 
     then "new-key" is added to the map with a value of 4.
+
+    Returns the value that we set the key to
     """
 
     (let i, let found) = _search(key)
@@ -109,15 +111,20 @@ class HashMap[K, V, H: HashFunction[K] val]
         (let pkey, let pvalue) = (_array(i) = _MapEmpty) as (K^, V^)
         _array(i) = (consume pkey, f(consume pvalue, consume value))
       else
+        let key' = key
         _array(i) = (consume key, consume value)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
+          return this(key')
         end
       end
+
+      return _array(i) as (_, V)
+    else
+      error
     end
-    this
 
   fun ref insert(key: K, value: V): V ? =>
     """

@@ -11,59 +11,122 @@ sudo: required
 matrix:
   include:
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.6.2"
         - LLVM_CONFIG="llvm-config-3.6"
         - config=debug
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.6.2"
         - LLVM_CONFIG="llvm-config-3.6"
         - config=release
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.8.0"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
       env:
         - LLVM_VERSION="3.8.0"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.6"
         - config=debug
+        - CC1=clang-3.6
+        - CXX1=clang++-3.6
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.6"
         - config=release
+        - lto=no
+        - CC1=clang-3.6
+        - CXX1=clang++-3.6
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
+        - CC1=clang-3.7
+        - CXX1=clang++-3.7
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
+        - lto=no
+        - CC1=clang-3.7
+        - CXX1=clang++-3.7
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
+        - CC1=clang-3.8
+        - CXX1=clang++-3.8
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
+        - lto=no
+        - CC1=clang-3.8
+        - CXX1=clang++-3.8
 
 rvm:
   - 2.2.3
@@ -104,11 +167,12 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ];
     then
       brew update;
+      brew install gmp; brew link --overwrite gmp;
       brew install llvm36 llvm37 llvm38 pcre2 libressl;
     fi;
 
 script:
-  - make test
+  - make CC=$CC1 CXX=$CXX1 test-ci
 
 notifications:
   email:

@@ -10,10 +10,10 @@ static size_t messageq_size_debug(messageq_t* q)
   pony_msg_t* tail = q->tail;
   size_t count = 0;
 
-  while(tail->next != NULL)
+  while(atomic_load_explicit(&tail->next, memory_order_relaxed) != NULL)
   {
     count++;
-    tail = tail->next;
+    tail = atomic_load_explicit(&tail->next, memory_order_relaxed);
   }
 
   return count;
@@ -25,9 +25,10 @@ void ponyint_messageq_init(messageq_t* q)
 {
   pony_msg_t* stub = POOL_ALLOC(pony_msg_t);
   stub->index = POOL_INDEX(sizeof(pony_msg_t));
-  stub->next = NULL;
+  atomic_store_explicit(&stub->next, NULL, memory_order_relaxed);
 
-  q->head = (pony_msg_t*)((uintptr_t)stub | 1);
+  atomic_store_explicit(&q->head, (pony_msg_t*)((uintptr_t)stub | 1),
+    memory_order_relaxed);
   q->tail = stub;
 
 #ifndef NDEBUG
@@ -38,23 +39,25 @@ void ponyint_messageq_init(messageq_t* q)
 void ponyint_messageq_destroy(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  assert(((uintptr_t)q->head & ~(uintptr_t)1) == (uintptr_t)tail);
+  assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
+    ~(uintptr_t)1)) == (uintptr_t)tail);
 
   ponyint_pool_free(tail->index, tail);
-  q->head = NULL;
+  atomic_store_explicit(&q->head, NULL, memory_order_relaxed);
   q->tail = NULL;
 }
 
 bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
 {
-  m->next = NULL;
+  atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
 
-  pony_msg_t* prev = (pony_msg_t*)_atomic_exchange(&q->head, m);
+  pony_msg_t* prev = atomic_exchange_explicit(&q->head, m,
+    memory_order_relaxed);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
-  _atomic_store(&prev->next, m);
+  atomic_store_explicit(&prev->next, m, memory_order_release);
 
   return was_empty;
 }
@@ -62,7 +65,7 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
 pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* next = _atomic_load(&tail->next);
+  pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
 
   if(next != NULL)
   {
@@ -76,7 +79,7 @@ pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 bool ponyint_messageq_markempty(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* head = _atomic_load(&q->head);
+  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_acquire);
 
   if(((uintptr_t)head & 1) != 0)
     return true;
@@ -86,5 +89,6 @@ bool ponyint_messageq_markempty(messageq_t* q)
 
   head = (pony_msg_t*)((uintptr_t)head | 1);
 
-  return _atomic_cas(&q->head, &tail, head);
+  return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
+    memory_order_acq_rel, memory_order_acquire);
 }

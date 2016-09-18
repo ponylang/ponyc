@@ -19,8 +19,8 @@ struct asio_backend_t
   int epfd;
   int wakeup;    /* eventfd to break epoll loop */
   struct epoll_event events[MAX_EVENTS];
-  asio_event_t* sighandlers[MAX_SIGNAL];
-  bool terminate;
+  ATOMIC_TYPE(asio_event_t*) sighandlers[MAX_SIGNAL];
+  ATOMIC_TYPE(bool) terminate;
   messageq_t q;
 };
 
@@ -98,7 +98,7 @@ asio_backend_t* ponyint_asio_backend_init()
 
 void ponyint_asio_backend_final(asio_backend_t* b)
 {
-  b->terminate = true;
+  atomic_store_explicit(&b->terminate, true, memory_order_relaxed);
   eventfd_write(b->wakeup, 1);
 }
 
@@ -107,7 +107,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pony_register_thread();
   asio_backend_t* b = arg;
 
-  while(!b->terminate)
+  while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
   {
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
 
@@ -217,7 +217,9 @@ void pony_asio_event_subscribe(asio_event_t* ev)
     int sig = (int)ev->nsec;
     asio_event_t* prev = NULL;
 
-    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, ev))
+    if((sig < MAX_SIGNAL) &&
+      atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
+      memory_order_acq_rel, memory_order_acquire))
     {
       signal(sig, signal_handler);
       ev->fd = eventfd(0, EFD_NONBLOCK);
@@ -275,7 +277,9 @@ void pony_asio_event_unsubscribe(asio_event_t* ev)
     int sig = (int)ev->nsec;
     asio_event_t* prev = ev;
 
-    if((sig < MAX_SIGNAL) && _atomic_cas(&b->sighandlers[sig], &prev, NULL))
+    if((sig < MAX_SIGNAL) &&
+      atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
+      memory_order_acq_rel, memory_order_acquire))
     {
       signal(sig, SIG_DFL);
       close(ev->fd);

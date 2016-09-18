@@ -19,6 +19,11 @@
 #include "cpu.h"
 #include "../mem/pool.h"
 
+#if defined(PLATFORM_IS_LINUX)
+static uint32_t avail_cpu_count;
+static uint32_t* avail_cpu_list;
+#endif
+
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 
 #include <sys/types.h>
@@ -32,6 +37,8 @@ static uint32_t property(const char* key)
   return value;
 }
 #endif
+
+static uint32_t hw_cpu_count;
 
 #if defined(PLATFORM_IS_LINUX)
 static bool cpu_physical(uint32_t cpu)
@@ -55,36 +62,86 @@ static bool cpu_physical(uint32_t cpu)
 
   return true;
 }
-#endif
 
-uint32_t ponyint_cpu_count()
+static uint32_t cpu_add_mask_to_list(uint32_t i, cpu_set_t* mask)
 {
-#if defined(PLATFORM_IS_LINUX)
-  uint32_t count = ponyint_numa_cores();
+  uint32_t count = CPU_COUNT(mask);
+  uint32_t index = 0;
+  uint32_t found = 0;
 
-  if(count > 0)
-    return count;
-
-  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
-  count = 0;
-
-  for(uint32_t i = 0; i < max; i++)
+  while(found < count)
   {
-    if(cpu_physical(i))
-      count++;
+    if(CPU_ISSET(index, mask))
+    {
+      avail_cpu_list[i++] = index;
+      found++;
+    }
+
+    index++;
   }
 
-  return count;
+  return i;
+}
+#endif
+
+void ponyint_cpu_init()
+{
+#if defined(PLATFORM_IS_LINUX)
+  cpu_set_t all_cpus;
+  cpu_set_t hw_cpus;
+  cpu_set_t ht_cpus;
+
+  sched_getaffinity(0, sizeof(cpu_set_t), &all_cpus);
+  CPU_ZERO(&hw_cpus);
+  CPU_ZERO(&ht_cpus);
+
+  avail_cpu_count = CPU_COUNT(&all_cpus);
+  uint32_t index = 0;
+  uint32_t found = 0;
+
+  while(found < avail_cpu_count)
+  {
+    if(CPU_ISSET(index, &all_cpus))
+    {
+      if(cpu_physical(index))
+        CPU_SET(index, &hw_cpus);
+      else
+        CPU_SET(index, &ht_cpus);
+
+      found++;
+    }
+
+    index++;
+  }
+
+  hw_cpu_count = CPU_COUNT(&hw_cpus);
+
+  if(ponyint_numa_init())
+  {
+    uint32_t numa_count = ponyint_numa_cores();
+
+    if(avail_cpu_count > numa_count)
+      avail_cpu_count = numa_count;
+
+    avail_cpu_list = (uint32_t*)malloc(avail_cpu_count * sizeof(uint32_t));
+    avail_cpu_count =
+      ponyint_numa_core_list(&hw_cpus, &ht_cpus, avail_cpu_list);
+  } else {
+    avail_cpu_list = (uint32_t*)malloc(avail_cpu_count * sizeof(uint32_t));
+
+    uint32_t i = 0;
+    i = cpu_add_mask_to_list(i, &hw_cpus);
+    i = cpu_add_mask_to_list(i, &ht_cpus);
+  }
 #elif defined(PLATFORM_IS_FREEBSD)
-  return property("hw.ncpu");
+  hw_cpu_count = property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
-  return property("hw.physicalcpu");
+  hw_cpu_count = property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_WINDOWS)
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
   DWORD len = 0;
   DWORD offset = 0;
-  uint32_t count = 0;
 
   while(true)
   {
@@ -98,7 +155,7 @@ uint32_t ponyint_cpu_count()
       ptr = info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(len);
       continue;
     } else {
-      return 0;
+      return;
     }
   }
 
@@ -107,7 +164,7 @@ uint32_t ponyint_cpu_count()
     switch(info->Relationship)
     {
       case RelationProcessorCore:
-        count++;
+        hw_cpu_count++;
         break;
 
       default: {}
@@ -119,65 +176,60 @@ uint32_t ponyint_cpu_count()
 
   if(ptr != NULL)
     free(ptr);
-
-  return count;
 #endif
 }
 
-uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler, bool pinasio)
+uint32_t ponyint_cpu_count()
+{
+  return hw_cpu_count;
+}
+
+uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
+  bool nopin, bool pinasio)
 {
   uint32_t asio_cpu = -1;
 
-#if defined(PLATFORM_IS_LINUX)
-  uint32_t cpu_count = ponyint_numa_cores();
-
-  if(cpu_count > 0)
+  if(nopin)
   {
-    uint32_t* list = ponyint_pool_alloc_size(cpu_count * sizeof(uint32_t));
-    ponyint_numa_core_list(list);
-
     for(uint32_t i = 0; i < count; i++)
     {
-      uint32_t cpu = list[i % cpu_count];
-      scheduler[i].cpu = cpu;
-      scheduler[i].node = ponyint_numa_node_of_cpu(cpu);
+      scheduler[i].cpu = -1;
+      scheduler[i].node = 0;
     }
-
-    // If pinning asio thread to a core is requested override the default
-    // asio_cpu of -1
-    if(pinasio)
-      asio_cpu = list[count % cpu_count];
-
-    ponyint_pool_free_size(cpu_count * sizeof(uint32_t), list);
 
     return asio_cpu;
   }
 
-  // Physical cores come first, so assign in sequence.
-  cpu_count = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
-
-  // If pinning asio thread to a core is requested override the default
-  // asio_cpu of -1
-  if(pinasio)
-    asio_cpu = count % cpu_count;
-
+#if defined(PLATFORM_IS_LINUX)
   for(uint32_t i = 0; i < count; i++)
   {
-    scheduler[i].cpu = i % cpu_count;
-    scheduler[i].node = 0;
+    uint32_t cpu = avail_cpu_list[i % avail_cpu_count];
+    scheduler[i].cpu = cpu;
+    scheduler[i].node = ponyint_numa_node_of_cpu(cpu);
   }
-#elif defined(PLATFORM_IS_FREEBSD)
-  // Spread across available cores.
-  uint32_t cpu_count = property("hw.ncpu");
 
   // If pinning asio thread to a core is requested override the default
   // asio_cpu of -1
   if(pinasio)
-    asio_cpu = count % cpu_count;
+    asio_cpu = avail_cpu_list[count % avail_cpu_count];
+
+  avail_cpu_count = 0;
+  free(avail_cpu_list);
+  avail_cpu_list = NULL;
+
+  return asio_cpu;
+#elif defined(PLATFORM_IS_FREEBSD)
+  // FreeBSD does not currently do thread pinning, as we can't yet determine
+  // which cores are hyperthreads.
+
+  // If pinning asio thread to a core is requested override the default
+  // asio_cpu of -1
+  if(pinasio)
+    asio_cpu = count % hw_cpu_count;
 
   for(uint32_t i = 0; i < count; i++)
   {
-    scheduler[i].cpu = i % cpu_count;
+    scheduler[i].cpu = i % hw_cpu_count;
     scheduler[i].node = 0;
   }
 #else
@@ -199,9 +251,13 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler, bool pinasio
 
 void ponyint_cpu_affinity(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  if(cpu == (uint32_t)-1)
+    return;
+
+#if defined(PLATFORM_IS_LINUX)
   // Affinity is handled when spawning the thread.
-  (void)cpu;
+#elif defined(PLATFORM_IS_FREEBSD)
+  // No pinning, since we cannot yet determine hyperthreads vs physical cores.
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;
