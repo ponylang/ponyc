@@ -127,7 +127,11 @@
 
     configuration "vs*"
       local version = os.outputof("type VERSION")
-      version = version .. "-" .. os.outputof("git rev-parse --short HEAD")
+
+      local build, exitcode = os.outputof("git rev-parse --short HEAD")
+      if exitcode == 0 then
+        version = version .. "-" .. build
+      end
 
       debugdir "."
       defines {
