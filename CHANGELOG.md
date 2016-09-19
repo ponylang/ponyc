@@ -5,6 +5,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ## [unreleased] - unreleased
 
 ### Fixed
+- Incorrect build number generated on Windows when building from non-git directory.
 
 ### Added
 
