@@ -187,6 +187,15 @@ class Reader
 
     consume out
 
+  fun ref string(): String ? =>
+    """
+    Return a NULL terminated string. The ending NULL byte is consumed.
+    """
+    let len = _distance_of(0)
+    let result = block(len)
+    result.truncate(len - 1)
+    String.from_array(consume result)
+
   fun ref u8(): U8 ? =>
     """
     Get a U8. Raise an error if there isn't enough data.
@@ -534,6 +543,13 @@ class Reader
     Get the length of a pending line. Raise an error if there is no pending
     line.
     """
+    _distance_of('\n')
+
+  fun ref _distance_of(char: U8): USize ? =>
+    """
+    Return the relative offset of the first occurrence of a byte. Raise an 
+    error if the byte is not found.
+    """
     if _chunks.size() == 0 then
       error
     end
@@ -554,7 +570,7 @@ class Reader
       (var data, var offset) = node()
 
       try
-        let len = (_line_len + data.find('\n', offset) + 1) - offset
+        let len = (_line_len + data.find(char, offset) + 1) - offset
         _line_node = None
         _line_len = 0
         return len

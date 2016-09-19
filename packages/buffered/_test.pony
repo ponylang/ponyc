@@ -35,6 +35,8 @@ class iso _TestReader is UnitTest
     b.append(recover [as U8: 'h', 'i'] end)
     b.append(recover [as U8: '\n', 't', 'h', 'e'] end)
     b.append(recover [as U8: 'r', 'e', '\r', '\n'] end)
+    b.append(recover [as U8: 's', 't', 'r', '1', 0] end)
+    b.append(recover [as U8: 's', 't', 'r', '2', 0, 0, 'r'] end)
 
     // These expectations peek into the buffer without consuming bytes.
     h.assert_eq[U8](b.peek_u8(), 0x42)
@@ -63,6 +65,11 @@ class iso _TestReader is UnitTest
 
     h.assert_eq[String](b.line(), "hi")
     h.assert_eq[String](b.line(), "there")
+    h.assert_eq[String](b.string(), "str1")
+    h.assert_eq[String](b.string(), "str2")
+    h.assert_eq[String](b.string(), "")
+    h.assert_eq[U8](b.u8(), 'r')
+
 
     b.append(recover [as U8: 'h', 'i'] end)
 
