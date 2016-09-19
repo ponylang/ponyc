@@ -13,7 +13,7 @@ class iso _TestReader is UnitTest
   """
   Test adding to and reading from a Reader.
   """
-  fun name(): String => "net/Reader"
+  fun name(): String => "buffered/Reader"
 
   fun apply(h: TestHelper) ? =>
     let b = Reader
@@ -79,7 +79,7 @@ class iso _TestWriter is UnitTest
   """
   Test writing to and reading from a Writer.
   """
-  fun name(): String => "net/Writer"
+  fun name(): String => "buffered/Writer"
 
   fun apply(h: TestHelper) ? =>
     let b = Reader
