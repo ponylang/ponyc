@@ -17,6 +17,7 @@ use "ponytest"
 use assert = "assert"
 use base64 = "encode/base64"
 use builtin_test = "builtin_test"
+use buffered = "buffered"
 use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
 use collections = "collections"
@@ -53,6 +54,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     base64.Main.make().tests(test)
     builtin_test.Main.make().tests(test)
+    buffered.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
