@@ -85,15 +85,19 @@ yum install ponyc-master
 
 For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
 
-To install release builds via Apt:
+To prepare installation via Apt:
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 
-sudo apt-get install ponyc-release
+sudo apt-get update
 ```
 
-Or, for master builds:
+To install release builds:
+```bash
+sudo apt-get install ponyc-release
 ```
+Or, for master builds:
+```bash
 sudo apt-get install ponyc-master
 ```
 
