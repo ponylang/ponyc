@@ -88,6 +88,8 @@ To install release builds via Apt:
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 
+sudo apt-get update
+
 sudo apt-get install ponyc-release
 ```
 
