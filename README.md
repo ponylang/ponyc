@@ -104,7 +104,7 @@ sudo apt-get install ponyc-master
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+For 64-Bit Windows, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
 
 ```powershell
 Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
@@ -112,7 +112,9 @@ Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERS
 .\ponyc-VERSION\ponyc\bin\ponyc.exe --version
 ```
 
-Windows 10 users will need to install the Windows 10 SDK in order to build programs with ponyc. It can be downloaded [from Microsoft](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+You will need [LLVM for Windows](http://releases.ponylang.org/llvm/).
+
+Windows 10 users will also need to install the Windows 10 SDK in order to build programs with ponyc. It can be downloaded [from Microsoft](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
