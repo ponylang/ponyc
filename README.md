@@ -112,10 +112,6 @@ Windows 10 users will need to install the Windows 10 SDK in order to build progr
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
-The homebrew version is currently woefully out of date. We are transitioning to
-a new release system that will keep homebrew up to date. For now, please build
-from source.
-
 ```bash
 $ brew update
 $ brew install ponyc
