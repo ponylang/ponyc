@@ -87,6 +87,7 @@ To install release builds via Apt:
 
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
+sudo apt-get update
 
 sudo apt-get update
 
@@ -139,6 +140,13 @@ A live ebuild is also available in the [overlay](https://github.com/stefantalpal
 Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work**. If you are using LLVM 3.7.x, you need to use 3.7.1. If you are using LLVM 3.6.x, make sure to use 3.6.2.
 
 ## Building on Linux
+
+Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
+```bash
+$ sudo apt install git
+$ git clone git://github.com/ponylang/ponyc
+```
+
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 ### Arch
@@ -195,11 +203,13 @@ $ make
 $ sudo make install
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc, compile and run helloworld:
 
 ```bash
+$ cd ~/ponyc/
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ### Ubuntu (14.04, 15.10, 16.04)
@@ -222,11 +232,13 @@ $ make
 $ sudo make install
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc, compile and run helloworld:
 
 ```bash
+$ cd ~/ponyc/
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ### Other Linux distributions
@@ -250,11 +262,13 @@ $ make
 $ sudo make install
 ```
 
-Finally to build ponyc and compile the hello world app:
+Finally to build ponyc, compile and run the hello world app:
 
 ```bash
+$ cd ~/ponyc/
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ## Building on FreeBSD
