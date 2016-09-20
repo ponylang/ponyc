@@ -87,7 +87,7 @@ To install release builds via Apt:
 
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
-
+sudo apt-get update
 sudo apt-get install ponyc-release
 ```
 
@@ -202,6 +202,17 @@ $ ./build/release/ponyc examples/helloworld
 
 ### Ubuntu (14.04, 15.10, 16.04)
 
+Install and setup Git (if not already done get an Account here: https://github.com/ )
+```bash
+$ sudo apt install git
+$ git config --global user.email "you@example.com"
+$ git config --global user.name "Your Name"
+```
+Get Pony-Sources from Github:
+```bash
+$ git clone git://github.com/ponylang/ponyc
+```
+
 You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.org/releases/download.html#3.8.0) under Pre-Built Binaries:
 
 ```bash
@@ -220,11 +231,13 @@ $ make
 $ sudo make install
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc and compile and run helloworld:
 
 ```bash
+$ cd ~/ponyc/
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ### Other Linux distributions
