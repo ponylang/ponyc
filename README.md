@@ -139,14 +139,9 @@ Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work*
 
 ## Building on Linux
 
-Install and setup Git (if not already done get an Account here: https://github.com/ )
+Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
 ```bash
 $ sudo apt install git
-$ git config --global user.email "you@example.com"
-$ git config --global user.name "Your Name"
-```
-Get Pony-Sources from Github:
-```bash
 $ git clone git://github.com/ponylang/ponyc
 ```
 
