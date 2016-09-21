@@ -147,7 +147,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // If we have been scheduled, the head will not be marked as empty.
-  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
+  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {

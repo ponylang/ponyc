@@ -503,7 +503,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
 
     xchg = (pool_central_t*)((uintptr_t)p | ((aba + 1) & ~mask));
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
-    memory_order_acq_rel, memory_order_acquire));
+    memory_order_release, memory_order_relaxed));
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -528,7 +528,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
     xchg = (pool_central_t*)((uintptr_t)next->central | ((aba + 1) & ~mask));
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
-    memory_order_acq_rel, memory_order_acquire));
+    memory_order_acq_rel, memory_order_relaxed));
 
   pool_item_t* p = (pool_item_t*)next;
 

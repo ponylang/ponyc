@@ -83,10 +83,10 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     // fails, cmp becomes the new tail and we retry the loop.
     xchg = (mpmcq_node_t*)((uintptr_t)next | ((aba + 1) & ~mask));
   } while(!atomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
-    memory_order_acq_rel, memory_order_acquire));
+    memory_order_acq_rel, memory_order_relaxed));
 
   // We'll return the data pointer from the next node.
-  void* data = atomic_load_explicit(&next->data, memory_order_acquire);
+  void* data = atomic_load_explicit(&next->data, memory_order_relaxed);
 
   // Since we will be freeing the old tail, we need to be sure no other
   // consumer is still reading the old tail. To do this, we set the data
