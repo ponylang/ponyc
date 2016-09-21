@@ -70,7 +70,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  ATOMIC_TYPE(pool_cmp_t) central;
+  ATOMIC_TYPE(pool_central_t*) central;
 } pool_global_t;
 
 /// An item on a thread-local list of free blocks.
@@ -479,7 +479,8 @@ static void pool_free_pages(void* p, size_t size)
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
 {
-  pool_cmp_t cmp, xchg;
+  pool_central_t* cmp;
+  pool_central_t* xchg;
   pool_central_t* p = (pool_central_t*)thread->pool;
   p->length = thread->length;
 
@@ -490,32 +491,42 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   TRACK_PUSH((pool_item_t*)p, p->length, global->size);
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
-  xchg.node = p;
+
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
 
   do
   {
-    p->central = cmp.node;
-    xchg.aba = cmp.aba + 1;
+    // We know the alignment boundary of the objects in the stack so we use the
+    // low bits for ABA protection.
+    uintptr_t aba = (uintptr_t)cmp & ~mask;
+    p->central = (pool_central_t*)((uintptr_t)cmp & mask);
+
+    xchg = (pool_central_t*)((uintptr_t)p | ((aba + 1) & ~mask));
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
     memory_order_acq_rel, memory_order_acquire));
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 {
-  pool_cmp_t cmp, xchg;
+  pool_central_t* cmp;
+  pool_central_t* xchg;
   pool_central_t* next;
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
 
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
+
   do
   {
-    next = cmp.node;
+    // We know the alignment boundary of the objects in the stack so we use the
+    // low bits for ABA protection.
+    uintptr_t aba = (uintptr_t)cmp & ~mask;
+    next = (pool_central_t*)((uintptr_t)cmp & mask);
 
     if(next == NULL)
       return NULL;
 
-    xchg.node = next->central;
-    xchg.aba = cmp.aba + 1;
+    xchg = (pool_central_t*)((uintptr_t)next->central | ((aba + 1) & ~mask));
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
     memory_order_acq_rel, memory_order_acquire));
 

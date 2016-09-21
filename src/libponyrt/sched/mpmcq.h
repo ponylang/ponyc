@@ -18,7 +18,7 @@ __pony_spec_align__(
   typedef struct mpmcq_t
   {
     ATOMIC_TYPE(mpmcq_node_t*) head;
-    ATOMIC_TYPE(mpmcq_dwcas_t) tail;
+    ATOMIC_TYPE(mpmcq_node_t*) tail;
   } mpmcq_t, 64
 );
 
