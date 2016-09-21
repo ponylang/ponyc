@@ -11,6 +11,7 @@ actor Main is TestList
     test(_TestStdinStdout)
     test(_TestStderr)
     test(_TestFileExec)
+    test(_TestExpect)
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
@@ -85,6 +86,52 @@ class iso _TestFileExec is UnitTest
       let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
         consume args, consume vars)
       h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestExpect is UnitTest
+  fun name(): String =>
+    "process/Expect"
+
+  fun apply(h: TestHelper) =>
+    let notifier = recover object is ProcessNotify
+      let _h: TestHelper = h
+      var _expect: USize = 0
+      let _out: Array[String] = Array[String]
+
+      fun ref created(process: ProcessMonitor ref) =>
+        process.expect(2)
+
+      fun ref expect(process: ProcessMonitor ref, qty: USize): USize =>
+        _expect = qty
+        _expect
+
+      fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+        _h.assert_eq[USize](_expect, data.size())
+        process.expect(if _expect == 2 then 4 else 2 end)
+        _out.push(String.from_array(consume data))
+
+      fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+        _h.assert_eq[I32](child_exit_code, 0)
+        _h.assert_array_eq[String](_out, ["he", "llo ", "th", "ere!"])
+        _h.complete(true)
+    end end
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("echo")
+      args.push("hello there!")
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+        h.long_test(5_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end

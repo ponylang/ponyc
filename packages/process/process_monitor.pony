@@ -180,7 +180,10 @@ actor ProcessMonitor
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
 
-  var _read_buf: Array[U8] iso = recover Array[U8].undefined(4096) end
+  let _max_size: USize = 4096
+  var _read_buf: Array[U8] iso = recover Array[U8].undefined(_max_size) end
+  var _read_len: USize = 0
+  var _expect: USize = 0
 
   var _stdin_read:   U32 = -1
   var _stdin_write:  U32 = -1
@@ -245,6 +248,7 @@ actor ProcessMonitor
     else
       compile_error "unsupported platform"
     end
+    _notifier.created(this)
 
   fun _child(path: String, argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag])
@@ -416,6 +420,14 @@ actor ProcessMonitor
     end
     _close()
 
+  fun ref expect(qty: USize = 0) =>
+    """
+    A `stdout` call on the notifier must contain exactly `qty` bytes. If
+    `qty` is zero, the call can contain any amount of data.
+    """
+    _expect = _notifier.expect(this, qty)
+    _read_buf_size()
+
   fun _kill_child() ? =>
     """
     Terminate the child process.
@@ -526,7 +538,8 @@ actor ProcessMonitor
       if fd == -1 then return false end
       var sum: USize = 0
       while true do
-        let len = @read[ISize](fd, _read_buf.cstring(), _read_buf.space())
+        let len = @read[ISize](fd, _read_buf.cstring().usize() + _read_len,
+          _read_buf.size() - _read_len)
         let errno = @pony_os_errno()
         let next = _read_buf.space()
         match len
@@ -539,24 +552,41 @@ actor ProcessMonitor
         | 0  =>
           _close_fd(fd)
           return false
-        else
-          let data = _read_buf = recover Array[U8].undefined(next) end
-          data.truncate(len.usize())
-          match fd
-          | _stdout_read => _notifier.stdout(this, consume data)
-          | _stderr_read => _notifier.stderr(this, consume data)
+        end
+
+        _read_len = _read_len + len.usize()
+
+        let data = _read_buf = recover Array[U8].undefined(next) end
+        data.truncate(_read_len)
+
+        match fd
+        | _stdout_read =>
+          if _read_len >= _expect then
+            _notifier.stdout(this, consume data)
+            _read_len = 0
+            _read_buf_size()
           end
-          sum = sum + len.usize()
-          if sum > (1 << 12) then
-            // If we've read 4 kb, yield and read again later.
-            _read_again(fd)
-            return true
-          end
+        | _stderr_read =>
+          _notifier.stderr(this, consume data)
+        end
+
+        sum = sum + len.usize()
+        if sum > (1 << 12) then
+          // If we've read 4 kb, yield and read again later.
+          _read_again(fd)
+          return true
         end
       end
       true
     else
       true
+    end
+
+  fun ref _read_buf_size() =>
+    if _expect > 0 then
+      _read_buf.undefined(_expect)
+    else
+      _read_buf.undefined(_max_size)
     end
 
   be _read_again(fd: U32) =>

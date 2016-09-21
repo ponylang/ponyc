@@ -9,6 +9,10 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- ProcessMonitor.expect
+- ProcessNotify.created
+- ProcessNotify.expect
+
 ### Changed
 
 ## [0.3.2] - 2016-09-18
