@@ -16,7 +16,9 @@ actor Main is TestList
     test(_TestPathBase)
     test(_TestPathExt)
     test(_TestPathVolume)
-
+    test(_TestFileOpenError)
+    test(_TestFileEOF)
+    
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
     let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
@@ -242,4 +244,47 @@ class iso _TestPathVolume is UnitTest
     else
       h.assert_eq[String](res1, "")
       h.assert_eq[String](res2, "")
+    end
+
+class iso _TestFileOpenError is UnitTest
+  fun name(): String => "files/File.open-error"
+  fun apply(h: TestHelper) =>
+    let path = "tmp.readonly"
+    try
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file1 = File(filepath)
+      file1.dispose()
+      // take away write permissions
+      let m = I32(292) // file mode 444
+      let chmod_result = ifdef windows then
+          0 == @_chmod[I32](path.null_terminated().cstring(), m)
+        else
+          0 == @chmod[I32](path.null_terminated().cstring(), m)
+        end
+      // try to open file for writing
+      let file2 = File(filepath)  
+      h.assert_true(file2.errno() is FilePermissionDenied)
+      h.assert_false(file2.valid())
+      filepath.remove()
+    end
+
+class iso _TestFileEOF is UnitTest
+  fun name(): String => "files/File.eof-error"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.eof"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = File(filepath)
+      file.print("foobar")
+      file.sync()
+      file.seek_start(0)
+      let line1 = file.line()
+      h.assert_eq[String]("foobar", consume line1 )
+      try
+        let line2 = file.line()
+        h.fail("Read beyond EOF without error!")
+      else
+        h.assert_true(file.errno() is FileEOF)
+      end
+      filepath.remove()
     end

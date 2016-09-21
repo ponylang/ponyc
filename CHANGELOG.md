@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Incorrect build number generated on Windows when building from non-git directory.
 
 ### Added
+- Improved error handling for `files` package.
 
 - ProcessMonitor.expect
 - ProcessNotify.created
