@@ -187,13 +187,6 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
-  if(cap == TK_VAL)
-  {
-      LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
-      const char id[] = "invariant.load";
-      LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  }
-
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }

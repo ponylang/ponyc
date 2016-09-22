@@ -93,12 +93,6 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(ast_id(l_type) != TK_TUPLETYPE)
   {
     field = LLVMBuildLoad(c->builder, field, "");
-    if(cap_single(l_type) == TK_VAL)
-    {
-      LLVMValueRef metadata = LLVMMDNodeInContext(c->context, NULL, 0);
-      const char id[] = "invariant.load";
-      LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-    }
     LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
     const char id[] = "tbaa";
     LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
