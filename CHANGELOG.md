@@ -17,6 +17,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- On Linux and FreeBSD, ponyc now uses $CC as the linker if the environment variable is defined.
+
 ## [0.3.2] - 2016-09-18
 
 ### Fixed
