@@ -269,7 +269,7 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
   if(!reify_defaults(type_params, type_args, true, opt))
     return NULL;
 
-  ast_t* reified = reify(method, type_params, type_args, opt);
+  ast_t* reified = reify(method, type_params, type_args, opt, true);
 
   if(reified == NULL)
     return NULL;

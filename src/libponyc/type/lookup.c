@@ -159,9 +159,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* r_find = viewpoint_replacethis(find, orig);
-  ast_t* rr_find = reify(r_find, typeparams, typeargs, opt);
-  ast_free_unattached(r_find);
-  return rr_find;
+  return reify(r_find, typeparams, typeargs, opt, false);
 }
 
 static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
