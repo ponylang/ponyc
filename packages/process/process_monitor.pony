@@ -563,12 +563,13 @@ actor ProcessMonitor
         | _stdout_read =>
           if _read_len >= _expect then
             _notifier.stdout(this, consume data)
-            _read_len = 0
-            _read_buf_size()
           end
         | _stderr_read =>
           _notifier.stderr(this, consume data)
         end
+
+        _read_len = 0
+        _read_buf_size()
 
         sum = sum + len.usize()
         if sum > (1 << 12) then
