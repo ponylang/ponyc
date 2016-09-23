@@ -58,13 +58,6 @@ typedef struct pool_central_t
   struct pool_central_t* central;
 } pool_central_t;
 
-/// An ABA protected CAS pointer to a per-size global free list.
-typedef struct pool_cmp_t
-{
-  uintptr_t aba;
-  pool_central_t* node;
-} pool_cmp_t;
-
 /// A per-size global list of free lists header.
 typedef struct pool_global_t
 {
@@ -89,35 +82,25 @@ typedef struct pool_block_header_t
   size_t largest_size;
 } pool_block_header_t;
 
-// We can't initialise the central field because the aggregate initialisation of
-// global atomic structs is impossible. The field will be zero-initialised so
-// we disable the diagnostic temporarily.
-#ifdef PLATFORM_IS_CLANG_OR_GCC
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
 static pool_global_t pool_global[POOL_COUNT] =
 {
-  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0)},
-  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1)},
-  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2)},
-  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3)},
-  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4)},
-  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5)},
-  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6)},
-  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7)},
-  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8)},
-  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9)},
-  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10)},
-  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11)},
-  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12)},
-  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13)},
-  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14)},
-  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15)},
+  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), NULL},
+  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), NULL},
+  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), NULL},
+  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), NULL},
+  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), NULL},
+  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), NULL},
+  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), NULL},
+  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), NULL},
+  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), NULL},
+  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), NULL},
+  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), NULL},
+  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), NULL},
+  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), NULL},
+  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), NULL},
+  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), NULL},
+  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), NULL},
 };
-#ifdef PLATFORM_IS_CLANG_OR_GCC
-#  pragma GCC diagnostic pop
-#endif
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 static __pony_thread_local pool_block_header_t pool_block_header;
