@@ -272,3 +272,20 @@ TEST_F(BadPonyTest, WithBlockTypeInference)
 
   TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }
+
+TEST_F(BadPonyTest, EmbedNestedTuple)
+{
+  // From issue #1136
+  const char* src =
+    "class Foo\n"
+    "  fun get_foo(): Foo => Foo\n"
+
+    "actor Main\n"
+    "  embed foo: Foo\n"
+    "  let x: U64\n"
+    
+    "  new create(env: Env) =>\n"
+    "    (foo, x) = (Foo.get_foo(), 42)";
+
+  TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
