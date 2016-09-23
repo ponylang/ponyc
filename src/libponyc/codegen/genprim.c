@@ -187,6 +187,16 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
+  ast_t* tcap = ast_childidx(t->ast, 3);
+  token_id tmp_cap = ast_id(tcap);
+  ast_setid(tcap, cap);
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
+  ast_setid(tcap, tmp_cap);
+
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
@@ -209,7 +219,13 @@ static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
-  LLVMBuildStore(c->builder, LLVMGetParam(m->func, 2), loc);
+  LLVMValueRef value = LLVMGetParam(m->func, 2);
+  LLVMValueRef store = LLVMBuildStore(c->builder, value, loc);
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -306,6 +322,10 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef elem_ptr = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
   src = LLVMBuildBitCast(c->builder, src, t->use_type, "");

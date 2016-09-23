@@ -232,7 +232,9 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
     return;
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
-  LLVMBuildStore(c->builder, t->desc, desc_ptr);
+  LLVMValueRef store = LLVMBuildStore(c->builder, t->desc, desc_ptr);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
 
 static void set_method_external_nominal(reach_type_t* t, const char* name)

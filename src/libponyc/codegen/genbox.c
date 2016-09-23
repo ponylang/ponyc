@@ -1,5 +1,7 @@
 #include "genbox.h"
 #include "gencall.h"
+#include "genname.h"
+#include "gentype.h"
 #include <assert.h>
 
 LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
@@ -20,7 +22,12 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 
   // Store the primitive in element 1.
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
-  LLVMBuildStore(c->builder, value, value_ptr);
+  LLVMValueRef store = LLVMBuildStore(c->builder, value, value_ptr);
+
+  const char* box_name = genname_box(t->name);
+  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   return this_ptr;
 }
@@ -43,5 +50,12 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
     t->structure_ptr, "");
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
 
-  return LLVMBuildLoad(c->builder, value_ptr, "");
+  LLVMValueRef value = LLVMBuildLoad(c->builder, value_ptr, "");
+
+  const char* box_name = genname_box(t->name);
+  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(value, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
+  return value;
 }
