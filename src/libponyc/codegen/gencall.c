@@ -327,6 +327,34 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
+typedef struct call_tuple_indices_t
+{
+  size_t* data;
+  size_t count;
+  size_t alloc;
+} call_tuple_indices_t;
+
+static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
+{
+  if(ti->count == ti->alloc)
+  {
+    size_t* tmp_data =
+      (size_t*)ponyint_pool_alloc_size(2 * ti->alloc * sizeof(size_t));
+    memcpy(tmp_data, ti->data, ti->count * sizeof(size_t));
+    ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+    ti->alloc *= 2;
+    ti->data = tmp_data;
+  }
+  ti->data[ti->count++] = idx;
+}
+
+static size_t tuple_indices_pop(call_tuple_indices_t* ti)
+{
+  assert(ti->count > 0);
+
+  return ti->data[--ti->count];
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.
@@ -393,22 +421,65 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_NEWREF:
       case TK_NEWBEREF:
       {
-        ast_t* parent = ast_parent(ast);
+        call_tuple_indices_t tuple_indices = {NULL, 0, 4};
+        tuple_indices.data =
+          (size_t*)ponyint_pool_alloc_size(4 * sizeof(size_t));
+
+        ast_t* current = ast;
+        ast_t* parent = ast_parent(current);
         while((parent != NULL) && (ast_id(parent) != TK_ASSIGN) &&
           (ast_id(parent) != TK_CALL))
-          parent = ast_parent(parent);
+        {
+          if(ast_id(parent) == TK_TUPLE)
+          {
+            size_t index = 0;
+            ast_t* child = ast_child(parent);
+            while(current != child)
+            {
+              ++index;
+              child = ast_sibling(child);
+            }
+            tuple_indices_push(&tuple_indices, index);
+          }
+          current = parent;
+          parent = ast_parent(current);
+        }
 
         // If we're constructing an embed field, pass a pointer to the field
         // as the receiver. Otherwise, allocate an object.
-        if((parent != NULL) && (ast_id(parent) == TK_ASSIGN) &&
-         (ast_id(ast_childidx(parent, 1)) == TK_EMBEDREF))
+        if((parent != NULL) && (ast_id(parent) == TK_ASSIGN))
         {
-          args[0] = gen_fieldptr(c, ast_childidx(parent, 1));
-          set_descriptor(c, t, args[0]);
+          size_t index = 1;
+          current = ast_childidx(parent, 1);
+          while((ast_id(current) == TK_TUPLE) || (ast_id(current) == TK_SEQ))
+          {
+            parent = current;
+            if(ast_id(current) == TK_TUPLE)
+            {
+              // If there are no indices left, we're destructuring a tuple.
+              // Errors in those cases have already been catched by the expr
+              // pass.
+              if(tuple_indices.count == 0)
+                break;
+              index = tuple_indices_pop(&tuple_indices);
+              current = ast_childidx(parent, index);
+            } else {
+              current = ast_childlast(parent);
+            }
+          }
+          if(ast_id(current) == TK_EMBEDREF)
+          {
+            args[0] = gen_fieldptr(c, current);
+            set_descriptor(c, t, args[0]);
+          } else {
+            args[0] = gencall_alloc(c, t);
+          }
         } else {
           args[0] = gencall_alloc(c, t);
         }
         is_new_call = true;
+        ponyint_pool_free_size(tuple_indices.alloc * sizeof(size_t),
+          tuple_indices.data);
         break;
       }
 

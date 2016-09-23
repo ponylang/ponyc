@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Incorrect build number generated on Windows when building from non-git directory.
 - Stop generating `llvm.invariant.load` for fields of `val` references.
+- Embedded fields construction through tuples.
 
 ### Added
 
