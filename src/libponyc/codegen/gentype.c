@@ -82,11 +82,51 @@ LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
   return md->metadata;
 }
 
+LLVMValueRef tbaa_metadata_for_box_type(compile_t* c, const char* box_name)
+{
+  tbaa_metadata_t k;
+  k.name = box_name;
+  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k);
+  if(md != NULL)
+    return md->metadata;
+
+  md = POOL_ALLOC(tbaa_metadata_t);
+  md->name = box_name;
+  tbaa_metadatas_put(c->tbaa_mds, md);
+
+  LLVMValueRef params[2];
+  params[0] = LLVMMDStringInContext(c->context, box_name,
+    (unsigned)strlen(box_name));
+  params[1] = c->tbaa_root;
+
+  md->metadata = LLVMMDNodeInContext(c->context, params, 2);
+  return md->metadata;
+}
+
 static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
 {
   const char str[] = "Pony TBAA";
   LLVMValueRef mdstr = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
   return LLVMMDNodeInContext(ctx, &mdstr, 1);
+}
+
+static LLVMValueRef make_tbaa_descriptor(LLVMContextRef ctx, LLVMValueRef root)
+{
+  const char str[] = "Type descriptor";
+  LLVMValueRef params[3];
+  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+  params[1] = root;
+  params[2] = LLVMConstInt(LLVMInt64TypeInContext(ctx), 1, false);
+  return LLVMMDNodeInContext(ctx, params, 3);
+}
+
+static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
+{
+  const char str[] = "Descriptor pointer";
+  LLVMValueRef params[2];
+  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+  params[1] = root;
+  return LLVMMDNodeInContext(ctx, params, 2);
 }
 
 static bool make_opaque_struct(compile_t* c, reach_type_t* t)
@@ -662,6 +702,8 @@ bool gentypes(compile_t* c)
   size_t i;
 
   c->tbaa_root = make_tbaa_root(c->context);
+  c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
+  c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);
 
   genprim_builtins(c);
 
