@@ -1,0 +1,4 @@
+probe begin = process("helloworld").mark("sched_exit")
+{
+  probestr = sprintf("%s", $$name);
+}
