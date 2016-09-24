@@ -514,7 +514,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       if(!check_constraints(left, typeparams, right, true, opt))
         return false;
 
-      type = reify(type, typeparams, right, opt);
+      type = reify(type, typeparams, right, opt, true);
       typeparams = ast_childidx(type, 1);
       ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 

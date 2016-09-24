@@ -149,7 +149,8 @@ bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   return true;
 }
 
-ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt)
+ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
+  bool duplicate)
 {
   (void)opt;
   assert(
@@ -161,8 +162,11 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt)
     (ast_id(typeargs) == TK_NONE)
     );
 
-  // Duplicate the node.
-  ast_t* r_ast = ast_dup(ast);
+  ast_t* r_ast;
+  if(duplicate)
+    r_ast = ast_dup(ast);
+  else
+    r_ast = ast;
 
   // Iterate pairwise through the typeparams and typeargs.
   ast_t* typeparam = ast_child(typeparams);
@@ -177,6 +181,34 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt)
 
   assert(typeparam == NULL);
   assert(typearg == NULL);
+  return r_ast;
+}
+
+ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
+  pass_opt_t* opt)
+{
+  (void)opt;
+  switch(ast_id(ast))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      break;
+
+    default:
+      assert(false);
+  }
+
+  // Remove the body AST to avoid duplicating it.
+  ast_t* body = ast_childidx(ast, 6);
+  ast_t* temp_body = ast_blank(TK_NONE);
+  ast_swap(body, temp_body);
+
+  ast_t* r_ast = reify(ast, typeparams, typeargs, opt, true);
+
+  ast_swap(temp_body, body);
+  ast_free_unattached(temp_body);
+
   return r_ast;
 }
 
@@ -226,7 +258,8 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
     // Reify the constraint.
     ast_t* constraint = ast_childidx(typeparam, 1);
     ast_t* bind_constraint = bind_type(constraint);
-    ast_t* r_constraint = reify(bind_constraint, typeparams, typeargs, opt);
+    ast_t* r_constraint = reify(bind_constraint, typeparams, typeargs, opt,
+      true);
 
     if(bind_constraint != r_constraint)
       ast_free_unattached(bind_constraint);

@@ -394,7 +394,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
       super_typeparam = ast_sibling(super_typeparam);
     }
 
-    r_sub = reify(sub, sub_typeparams, typeargs, opt);
+    r_sub = reify(sub, sub_typeparams, typeargs, opt, true);
     ast_free_unattached(typeargs);
   }
 
@@ -720,7 +720,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), NULL);
 
     // If we don't provide a method, we aren't a subtype.
-    if(sub_member == NULL)
+    if((sub_member == NULL) || (ast_id(sub_member) != TK_FUN &&
+      ast_id(sub_member) != TK_BE && ast_id(sub_member) != TK_NEW))
     {
       if(errorf != NULL)
       {
@@ -736,11 +737,12 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     }
 
     // Reify the method on the subtype.
-    ast_t* r_sub_member = reify(sub_member, sub_typeparams, sub_typeargs, opt);
+    ast_t* r_sub_member = reify_method_def(sub_member, sub_typeparams,
+      sub_typeargs, opt);
     assert(r_sub_member != NULL);
 
     // Reify the method on the supertype.
-    ast_t* r_super_member = reify(super_member, super_typeparams,
+    ast_t* r_super_member = reify_method_def(super_member, super_typeparams,
       super_typeargs, opt);
     assert(r_super_member != NULL);
 
@@ -812,7 +814,7 @@ static bool nominal_provides_trait(ast_t* type, ast_t* trait,
   while(child != NULL)
   {
     // Reify the child with our typeargs.
-    ast_t* r_child = reify(child, typeparams, typeargs, opt);
+    ast_t* r_child = reify(child, typeparams, typeargs, opt, true);
     assert(r_child != NULL);
 
     // Use the cap and ephemerality of the trait.
