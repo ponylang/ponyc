@@ -296,6 +296,6 @@ TEST_F(BadPonyTest, MainWithoutConstructor)
   const char* src =
     "actor Main\n";
 
-  TEST_ERRORS_1(src, "A Main actor must have a create constructor which takes "
+  TEST_ERRORS_1(src, "The Main actor must have a create constructor which takes "
                      "a single Env parameter");
 }
