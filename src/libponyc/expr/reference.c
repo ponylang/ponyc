@@ -1330,7 +1330,7 @@ static bool check_main_create(pass_opt_t* opt, ast_t* ast)
   if(ast_childcount(params) != 1)
   {
     ast_error(opt->check.errors, params,
-      "the create constructor of a Main actor must take a single Env "
+      "The Main actor must have a create constructor which takes a single Env "
       "parameter");
     ok = false;
   }
