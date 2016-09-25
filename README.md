@@ -155,7 +155,7 @@ pacman -S llvm make ncurses openssl pcre2 zlib
 To build ponyc and compile helloworld:
 
 ```bash
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 ```
 
@@ -204,7 +204,7 @@ To build ponyc, compile and run helloworld:
 
 ```bash
 $ cd ~/ponyc/
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
@@ -233,7 +233,7 @@ To build ponyc, compile and run helloworld:
 
 ```bash
 $ cd ~/ponyc/
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
@@ -263,7 +263,7 @@ Finally to build ponyc, compile and run the hello world app:
 
 ```bash
 $ cd ~/ponyc/
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
@@ -282,7 +282,7 @@ sudo pkg install libunwind
 This will build ponyc and compile helloworld:
 
 ```bash
-$ gmake config=release
+$ gmake
 $ ./build/release/ponyc examples/helloworld
 ```
 
@@ -307,7 +307,7 @@ $ sudo port select --set llvm mp-llvm-3.8
 
 Then launch the build with Make:
 ```
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 ```
 
@@ -365,13 +365,13 @@ Now you can run the pony compiler and tests:
 You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line:
 
 ```bash
-$ make config=release lto=yes
+$ make lto=yes
 ```
 
 If the build fails, you have to specify the LTO plugin for your compiler in the `LTO_PLUGIN` variable. For example:
 
 ```bash
-$ make config=release LTO_PLUGIN=/usr/lib/LLVMgold.so
+$ make LTO_PLUGIN=/usr/lib/LLVMgold.so
 ```
 
 Refer to your compiler documentation for the plugin to use in your case.
