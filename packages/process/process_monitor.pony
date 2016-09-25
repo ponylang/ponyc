@@ -366,8 +366,7 @@ actor ProcessMonitor
     """
     Print some bytes and insert a newline afterwards.
     """
-    write(data)
-    write("\n")
+    _print_final(data)
 
   be write(data: ByteSeq) =>
     """
@@ -391,7 +390,7 @@ actor ProcessMonitor
     Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      print(bytes)
+      _print_final(bytes)
     end
 
   be writev(data: ByteSeqIter) =>
@@ -399,7 +398,24 @@ actor ProcessMonitor
     Write an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      write(bytes)
+      _write_final(bytes)
+    end
+
+  fun ref _print_final(data: ByteSeq) =>
+    _write_final(data)
+    _write_final("\n")
+
+  fun ref _write_final(data: ByteSeq) =>
+    ifdef posix then
+      let d = data
+      if _stdin_write > 0 then
+        let res = @write[ISize](_stdin_write, d.cstring(), d.size())
+        if res < 0 then
+          _notifier.failed(this, WriteError)
+        end
+      else
+        _notifier.failed(this, WriteError)
+      end
     end
 
   be done_writing() =>
