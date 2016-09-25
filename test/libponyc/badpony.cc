@@ -283,9 +283,19 @@ TEST_F(BadPonyTest, EmbedNestedTuple)
     "actor Main\n"
     "  embed foo: Foo\n"
     "  let x: U64\n"
-    
+
     "  new create(env: Env) =>\n"
     "    (foo, x) = (Foo.get_foo(), 42)";
 
   TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(BadPonyTest, MainWithoutConstructor)
+{
+  // From issue #1259
+  const char* src =
+    "actor Main\n";
+
+  TEST_ERRORS_1(src, "A Main actor must have a create constructor which takes "
+                     "a single Env parameter");
 }
