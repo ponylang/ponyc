@@ -124,9 +124,9 @@ ifdef use
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
   endif
 
-  ifneq (,$(filter $(use), telemetry))
-    ALL_CFLAGS += -DUSE_TELEMETRY
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-telemetry
+  ifneq (,$(filter $(use), dtrace))
+    ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
 endif
 
@@ -697,7 +697,7 @@ help:
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
 	@echo '   pooltrack'
-	@echo '   telemetry'
+	@echo '   dtrace'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'
