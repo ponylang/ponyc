@@ -86,21 +86,25 @@
     }
 
     configuration "Debug"
+      local llvm_version = string.gsub(llvm_config("--version"), "\n", "")
       targetdir "build/debug"
       objdir "build/debug/obj"
       defines "DEBUG"
       defines "PONY_BUILD_CONFIG=\"debug\""
+      defines { "LLVM_VERSION=\"".. llvm_version .. "\"" }
       flags { "Symbols" }
 
     configuration "Release"
       targetdir "build/release"
       objdir "build/release/obj"
       defines "PONY_BUILD_CONFIG=\"release\""
+      defines { "LLVM_VERSION=\"" .. llvm_config("--version") .. "\"" }
 
     configuration "Profile"
       targetdir "build/profile"
       objdir "build/profile/obj"
       defines "PONY_BUILD_CONFIG=\"profile\""
+      defines { "LLVM_VERSION=\"" .. llvm_config("--version") .. "\"" }
 
     configuration "Release or Profile"
       defines "NDEBUG"
@@ -122,10 +126,11 @@
       buildoptions "/PROFILE"
 
     configuration "vs*"
-      local version, exitcode = os.outputof("git describe --tags --always")
+      local version = os.outputof("type VERSION")
 
-      if exitcode ~= 0 then
-        version = os.outputof("type VERSION")
+      local build, exitcode = os.outputof("git rev-parse --short HEAD")
+      if exitcode == 0 then
+        version = version .. "-" .. build
       end
 
       debugdir "."

@@ -121,7 +121,13 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 
       if(ast_id(left) != TK_THIS)
       {
-        ast_error(opt->check.errors, ast, "can't assign to a let field");
+        if(ast_id(ast_type(left)) == TK_TUPLETYPE)
+        {
+          ast_error(opt->check.errors, ast,
+            "can't assign to an element of a tuple");
+        } else {
+          ast_error(opt->check.errors, ast, "can't assign to a let field");
+        }
         return false;
       }
 
@@ -426,6 +432,71 @@ static bool is_expr_constructor(ast_t* ast)
   }
 }
 
+static bool tuple_contains_embed(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_TUPLE);
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    if(ast_id(child) != TK_DONTCARE)
+    {
+      assert(ast_id(child) == TK_SEQ);
+      ast_t* member = ast_childlast(child);
+      if(ast_id(member) == TK_EMBEDREF)
+      {
+        return true;
+      } else if(ast_id(member) == TK_TUPLE) {
+        if(tuple_contains_embed(member))
+          return true;
+      }
+    }
+    child = ast_sibling(child);
+  }
+  return false;
+}
+
+static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
+{
+  bool result = true;
+  if(ast_id(left) == TK_EMBEDREF)
+  {
+    if(!is_expr_constructor(right))
+    {
+      ast_error(opt->check.errors, left,
+        "an embedded field must be assigned using a constructor");
+      ast_error_continue(opt->check.errors, right,
+        "the assigned expression is here");
+      return false;
+    }
+  } else if(ast_id(left) == TK_TUPLE) {
+    if(ast_id(right) == TK_TUPLE)
+    {
+      ast_t* l_child = ast_child(left);
+      ast_t* r_child = ast_child(right);
+      while(l_child != NULL)
+      {
+        if(ast_id(l_child) != TK_DONTCARE)
+        {
+          assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
+          ast_t* l_member = ast_childlast(l_child);
+          ast_t* r_member = ast_childlast(r_child);
+          if(!check_embed_construction(opt, l_member, r_member))
+            result = false;
+        }
+        l_child = ast_sibling(l_child);
+        r_child = ast_sibling(r_child);
+      }
+      assert(r_child == NULL);
+    } else if(tuple_contains_embed(left)) {
+      ast_error(opt->check.errors, left,
+        "an embedded field must be assigned using a constructor");
+      ast_error_continue(opt->check.errors, right,
+        "the assigned expression isn't a tuple literal");
+    }
+  }
+  return result;
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -540,16 +611,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   ast_free_unattached(a_type);
 
-  // If it's an embedded field, check for a constructor result.
-  if(ast_id(left) == TK_EMBEDREF)
-  {
-    if(!is_expr_constructor(right))
-    {
-      ast_error(opt->check.errors, ast,
-        "an embedded field must be assigned using a constructor");
-      return false;
-    }
-  }
+  if(!check_embed_construction(opt, left, right))
+    return false;
 
   ast_settype(ast, consume_type(l_type, TK_NONE));
   ast_inheritflags(ast);

@@ -75,7 +75,8 @@ struct scheduler_t
   messageq_t mq;
 };
 
-pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield);
+pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
+  bool pinasio);
 
 bool ponyint_sched_start(bool library);
 

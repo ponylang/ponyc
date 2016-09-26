@@ -6,7 +6,44 @@ use @strtod[F64](nptr: Pointer[U8] box, endptr: USize)
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
+  A String is an ordered collection of characters.
+
   Strings don't specify an encoding.
+
+  Example usage of some common String methods:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    try
+      // construct a new string
+      let str = "Hello"
+
+      // make an uppercased version
+      let str_upper = str.upper()
+      // make a reversed version
+      let str_reversed = str.reverse()
+
+      // add " world" to the end of our original string
+      let str_new = str.add(" world")
+
+      // count occurrences of letter "l"
+      let count = str_new.count("l")
+
+      // find first occurrence of letter "w"
+      let first_w = str_new.find("w")
+      // find first occurrence of letter "d"
+      let first_d = str_new.find("d")
+
+      // get substring capturing "world"
+      let substr = str_new.substring(first_w, first_d+1)
+      // clone substring
+      let substr_clone = substr.clone()
+
+      // print our substr
+      env.out.print(consume substr)
+  end
+```
   """
   var _size: USize
   var _alloc: USize
@@ -41,10 +78,21 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
       _set(_size, 0)
     end
 
-  new from_cstring(str: Pointer[U8], len: USize = 0) =>
+  new iso from_iso_array(data: Array[U8] iso) =>
+    """
+    Create a string from an array, reusing the underlying data pointer
+    """
+    _size = data.size()
+    _alloc = data.space()
+    _ptr = (consume data)._cstring()._unsafe()
+
+  new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
     """
     The cstring is not copied. This must be done only with C-FFI functions that
-    return null-terminated pony_alloc'd character arrays.
+    return pony_alloc'd character arrays. If len is not given, the pointer is
+    scanned for the first null byte, which will be interpreted as the null
+    terminator. Therefore, strings without null terminators must specify
+    a length to retain memory safety.
     """
     if str.is_null() then
       _size = 0
@@ -60,7 +108,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         end
       end
 
-      _alloc = _size + 1
+      _alloc = alloc.max(_size + 1)
       _ptr = str
     end
 
@@ -165,7 +213,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
     var i = offset_to_index(from)
-    var j = offset_to_index(to).min(_size)
+    let j = offset_to_index(to).min(_size)
     var n = USize(0)
 
     while i < j do
@@ -206,16 +254,18 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Try to remove unused space, making it available for garbage collection. The
     request may be ignored. The string is returned to allow call chaining.
     """
-    if _size <= 512 then
-      if _size.next_pow2() != _alloc.next_pow2() then
-        _alloc = _size.next_pow2()
+    if (_size + 1) <= 512 then
+      if (_size + 1).next_pow2() != _alloc.next_pow2() then
+        _alloc = (_size + 1).next_pow2()
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
         _ptr._consume_from(consume old_ptr, _size)
+        _set(_size, 0)
       end
-    elseif _size < _alloc then
-      _alloc = _size
+    elseif (_size + 1) < _alloc then
+      _alloc = (_size + 1)
       let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._consume_from(consume old_ptr, _size)
+      _set(_size, 0)
     end
     this
 
@@ -247,7 +297,63 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     _size = len.min(_alloc - 1)
     _set(_size, 0)
+
     this
+
+  fun ref trim_in_place(from: USize = 0, to: USize = -1): String ref^ =>
+    """
+    Trim the string to a portion of itself, covering `from` until `to`.
+    Unlike slice, the operation does not allocate a new string nor copy elements.
+    The same string is returned to allow call chaining.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    _size = last - offset
+    _alloc = _alloc - offset
+    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+
+    this
+
+  fun val trim(from: USize = 0, to: USize = -1): String val =>
+    """
+    Return a shared portion of this string, covering `from` until `to`.
+    Both the original and the new string are immutable, as they share memory.
+    The operation does not allocate a new string pointer nor copy elements.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    recover
+      let size' = last - offset
+      let alloc = _alloc - offset
+
+      if size' > 0 then
+        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+  fun is_null_terminated(): Bool =>
+    """
+    Return true if the string is null-terminated and safe to pass to an FFI
+    function that doesn't accept a size argument, expecting a null-terminator.
+    This method checks that there is a null byte just after the final position
+    of populated bytes in the string, but does not check for other null bytes
+    which may be present earlier in the content of the string.
+    If you need a null-terminated copy of this string, use the clone method.
+    """
+    (_alloc > 0) and (_ptr._apply(_size) == 0)
+
+  fun null_terminated(): this->String ref =>
+    """
+    Returns a null-terminated version of the string, safe to pass to an FFI
+    function that doesn't accept a size argument, expecting a null-terminator.
+    If the underlying string is already null terminated, this is returned;
+    otherwise the string is cloned and the null-terminated clone is returned.
+    """
+    if is_null_terminated() then this else clone() end
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
@@ -261,7 +367,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     let err: (U32, U8) = (0xFFFD, 1)
 
     if i >= _size then error end
-    var c = _ptr._apply(i)
+    let c = _ptr._apply(i)
 
     if c < 0x80 then
       // 1-byte
@@ -275,7 +381,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
+        let c2 = _ptr._apply(i + 1)
         if (c2 and 0xC0) != 0x80 then
           // Not a continuation byte.
           err
@@ -289,8 +395,8 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
-        var c3 = _ptr._apply(i + 2)
+        let c2 = _ptr._apply(i + 1)
+        let c3 = _ptr._apply(i + 2)
         if
           // Not continuation bytes.
           ((c2 and 0xC0) != 0x80) or
@@ -309,9 +415,9 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
         // Not enough bytes.
         err
       else
-        var c2 = _ptr._apply(i + 1)
-        var c3 = _ptr._apply(i + 2)
-        var c4 = _ptr._apply(i + 3)
+        let c2 = _ptr._apply(i + 1)
+        let c3 = _ptr._apply(i + 2)
+        let c4 = _ptr._apply(i + 3)
         if
           // Not continuation bytes.
           ((c2 and 0xC0) != 0x80) or
@@ -373,6 +479,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     let str = recover String(len) end
     _ptr._copy_to(str._ptr._unsafe(), len + 1)
     str._size = len
+    str._set(len, 0)
     str
 
   fun find(s: String box, offset: ISize = 0, nth: USize = 0): ISize ? =>
@@ -386,7 +493,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -406,16 +513,18 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
   fun rfind(s: String box, offset: ISize = -1, nth: USize = 0): ISize ? =>
     """
-    Return the index of n-th instance of s in the string starting from the end.
-    Raise an error if there is no n-th occurence of s or s is empty.
+    Return the index of n-th instance of `s` in the string starting from the
+    end. The `offset` represents the highest index to included in the search.
+    Raise an error if there is no n-th occurence of `s` or `s` is empty.
     """
-    var i = offset_to_index(offset) - s._size
+    var i = (offset_to_index(offset) + 1) - s._size
+
     var steps = nth + 1
 
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -443,7 +552,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     while i < _size do
       var j: USize = 0
 
-      var same = while j < s._size do
+      let same = while j < s._size do
         if _ptr._apply(i + j) != s._ptr._apply(j) then
           break false
         end
@@ -488,7 +597,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Returns true if the substring s is present at the given offset.
     """
-    var i = offset_to_index(offset)
+    let i = offset_to_index(offset)
 
     if (i + s.size()) <= _size then
       @memcmp(_ptr._offset(i), s._ptr, s._size) == 0
@@ -500,7 +609,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
-    var i = offset_to_index(offset)
+    let i = offset_to_index(offset)
 
     if i < _size then
       let n = len.min(_size - i)
@@ -520,7 +629,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
 
     if (start < _size) and (start < finish) then
       let len = finish - start
-      var str = recover String(len) end
+      let str = recover String(len) end
       _ptr._offset(start)._copy_to(str._ptr._unsafe(), len)
       str._size = len
       str._set(len, 0)
@@ -533,7 +642,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Returns a lower case version of the string.
     """
-    var s = clone()
+    let s = clone()
     s.lower_in_place()
     s
 
@@ -544,7 +653,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var i: USize = 0
 
     while i < _size do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
 
       if (c >= 0x41) and (c <= 0x5A) then
         _set(i, c + 0x20)
@@ -559,7 +668,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns an upper case version of the string. Currently only knows ASCII
     case.
     """
-    var s = clone()
+    let s = clone()
     s.upper_in_place()
     s
 
@@ -570,7 +679,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var i: USize = 0
 
     while i < _size do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
 
       if (c >= 0x61) and (c <= 0x7A) then
         _set(i, c - 0x20)
@@ -584,7 +693,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     """
     Returns a reversed version of the string.
     """
-    var s = clone()
+    let s = clone()
     s.reverse_in_place()
     s
 
@@ -735,7 +844,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns a version of the string with the given string inserted at the given
     offset.
     """
-    var s = clone()
+    let s = clone()
     s.insert_in_place(offset, that)
     s
 
@@ -745,7 +854,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     offset is out of bounds.
     """
     reserve(_size + that._size)
-    var index = offset_to_index(offset).min(_size)
+    let index = offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + that._size,
       _ptr.usize() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
@@ -758,7 +867,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
     reserve(_size + 1)
-    var index = offset_to_index(offset).min(_size)
+    let index = offset_to_index(offset).min(_size)
     @memmove(_ptr.usize() + index + 1, _ptr.usize() + index,
       _size - index)
     _set(index, value)
@@ -771,7 +880,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Returns a version of the string with the given range deleted.
     Index range [`from` .. `to`) is half-open.
     """
-    var s = clone()
+    let s = clone()
     s.cut_in_place(from, to)
     s
 
@@ -984,7 +1093,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     Return a string that is a concatenation of this and that.
     """
     let len = _size + that._size
-    var s = recover String(len) end
+    let s = recover String(len) end
     (consume s)._append(this)._append(that)
 
   fun join(data: ReadSeq[Stringable]): String iso^ =>
@@ -995,10 +1104,11 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     var buf = recover String end
     var first = true
     for v in data.values() do
-      if not first then
+      if first then
+        first = false
+      else
         buf = (consume buf)._append(this)
       end
-      first = false
       buf.append(v.string())
     end
     buf
@@ -1261,7 +1371,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     (10, 0)
 
   fun f32(offset: ISize = 0): F32 =>
-    var index = offset_to_index(offset)
+    let index = offset_to_index(offset)
 
     if index < _size then
       @strtof(_ptr._offset(index), 0)
@@ -1270,7 +1380,7 @@ class val String is (Seq[U8] & Comparable[String box] & Stringable)
     end
 
   fun f64(offset: ISize = 0): F64 =>
-    var index = offset_to_index(offset)
+    let index = offset_to_index(offset)
 
     if index < _size then
       @strtod(_ptr._offset(index), 0)

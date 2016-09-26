@@ -24,6 +24,7 @@ actor Main is TestList
     test(_TestListsContains)
     test(_TestListsReverse)
     test(_TestHashSetContains)
+    test(_TestSort)
 
 class iso _TestList is UnitTest
   fun name(): String => "collections/List"
@@ -170,6 +171,22 @@ class iso _TestMapUpsert is UnitTest
     h.assert_eq[String]("1, 2, 3, abc", x2(1))
     x2.upsert(1, "def", g)
     h.assert_eq[String]("1, 2, 3, abc, def", x2(1))
+
+    // verify correct results when we trigger a resize
+    let prealloc: USize = 6
+    let expected_initial_size: USize = (prealloc * 4) / 3
+    let x3: Map[U32, U64] = Map[U32,U64](prealloc)
+    let f' = lambda(x: U64, y: U64): U64 => x + y end
+    h.assert_eq[USize](expected_initial_size, x3.space())
+    h.assert_eq[U64](1, x3.upsert(1, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(2, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(3, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(4, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(5, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(6, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(7, 1, f'))
+    h.assert_eq[U64](2, x3.upsert(5, 1, f'))
+    h.assert_ne[USize](expected_initial_size, x3.space())
 
 class iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
@@ -483,3 +500,27 @@ class iso _TestHashSetContains is UnitTest
     // And resetting an element should cause it to be found again
     a.set(0)
     h.assert_true(a.contains(0), not_found_fail)
+
+class iso _TestSort is UnitTest
+  fun name(): String => "collections/Sort"
+
+  fun apply(h: TestHelper) =>
+    test_sort[USize](h,
+      [23, 26, 31, 41, 53, 58, 59, 84, 93, 97],
+      [31, 41, 59, 26, 53, 58, 97, 93, 23, 84])
+    test_sort[I64](h,
+      [-5467984, -784, 0, 0, 42, 59, 74, 238, 905, 959, 7586, 7586, 9845],
+      [74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586])
+    test_sort[F64](h,
+      [-959.7485, -784.0, 2.3, 7.8, 7.8, 59.0, 74.3, 238.2, 905, 9845.768],
+      [74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8])
+    test_sort[String](h,
+      ["", "%*&^*&^&", "***", "Hello", "bar", "f00", "foo", "foo"],
+      ["", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"])
+
+  fun test_sort[A: (Comparable[A] val & Stringable)](
+    h: TestHelper,
+    sorted: Array[A],
+    unsorted: Array[A]
+  ) =>
+    h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))

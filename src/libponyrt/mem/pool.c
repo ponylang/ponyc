@@ -58,27 +58,12 @@ typedef struct pool_central_t
   struct pool_central_t* central;
 } pool_central_t;
 
-/// An ABA protected CAS pointer to a per-size global free list.
-typedef struct pool_cmp_t
-{
-  union
-  {
-    struct
-    {
-      uintptr_t aba;
-      pool_central_t* node;
-    };
-
-    dw_t dw;
-  };
-} pool_cmp_t;
-
 /// A per-size global list of free lists header.
 typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  dw_t central;
+  ATOMIC_TYPE(pool_central_t*) central;
 } pool_global_t;
 
 /// An item on a thread-local list of free blocks.
@@ -99,22 +84,22 @@ typedef struct pool_block_header_t
 
 static pool_global_t pool_global[POOL_COUNT] =
 {
-  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), 0},
-  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), 0},
-  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), 0},
-  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), 0},
-  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), 0},
-  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), 0},
-  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), 0},
-  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), 0},
-  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), 0},
-  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), 0},
-  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), 0},
-  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), 0},
-  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), 0},
-  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), 0},
-  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), 0},
-  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), 0},
+  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), NULL},
+  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), NULL},
+  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), NULL},
+  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), NULL},
+  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), NULL},
+  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), NULL},
+  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), NULL},
+  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), NULL},
+  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), NULL},
+  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), NULL},
+  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), NULL},
+  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), NULL},
+  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), NULL},
+  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), NULL},
+  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), NULL},
+  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), NULL},
 };
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
@@ -144,7 +129,7 @@ typedef struct
 } pool_track_info_t;
 
 static __pony_thread_local pool_track_info_t track;
-static int volatile track_global_thread_id;
+static ATOMIC_TYPE(int) track_global_thread_id;
 static pool_track_info_t* track_global_info[POOL_TRACK_MAX_THREADS];
 
 static void pool_event_print(int thread, void* op, size_t event, size_t tsc,
@@ -258,7 +243,8 @@ static void track_init()
     return;
 
   track.init = true;
-  track.thread_id = _atomic_add(&track_global_thread_id, 1);
+  track.thread_id = atomic_fetch_add(&track_global_thread_id, 1,
+    memory_order_relaxed);
   track_global_info[track.thread_id] = &track;
 
   // Force the symbol to be linked.
@@ -476,7 +462,8 @@ static void pool_free_pages(void* p, size_t size)
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
 {
-  pool_cmp_t cmp, xchg;
+  pool_central_t* cmp;
+  pool_central_t* xchg;
   pool_central_t* p = (pool_central_t*)thread->pool;
   p->length = thread->length;
 
@@ -486,32 +473,45 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   assert(p->length == global->count);
   TRACK_PUSH((pool_item_t*)p, p->length, global->size);
 
-  cmp.dw = global->central;
-  xchg.node = p;
+  cmp = atomic_load_explicit(&global->central, memory_order_acquire);
+
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
 
   do
   {
-    p->central = cmp.node;
-    xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
+    // We know the alignment boundary of the objects in the stack so we use the
+    // low bits for ABA protection.
+    uintptr_t aba = (uintptr_t)cmp & ~mask;
+    p->central = (pool_central_t*)((uintptr_t)cmp & mask);
+
+    xchg = (pool_central_t*)((uintptr_t)p | ((aba + 1) & ~mask));
+  } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
+    memory_order_release, memory_order_relaxed));
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 {
-  pool_cmp_t cmp, xchg;
+  pool_central_t* cmp;
+  pool_central_t* xchg;
   pool_central_t* next;
-  cmp.dw = global->central;
+
+  cmp = atomic_load_explicit(&global->central, memory_order_acquire);
+
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
 
   do
   {
-    next = cmp.node;
+    // We know the alignment boundary of the objects in the stack so we use the
+    // low bits for ABA protection.
+    uintptr_t aba = (uintptr_t)cmp & ~mask;
+    next = (pool_central_t*)((uintptr_t)cmp & mask);
 
     if(next == NULL)
       return NULL;
 
-    xchg.node = next->central;
-    xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw));
+    xchg = (pool_central_t*)((uintptr_t)next->central | ((aba + 1) & ~mask));
+  } while(!atomic_compare_exchange_weak_explicit(&global->central, &cmp, xchg,
+    memory_order_acq_rel, memory_order_relaxed));
 
   pool_item_t* p = (pool_item_t*)next;
 

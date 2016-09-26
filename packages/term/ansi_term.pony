@@ -1,4 +1,12 @@
 use "time"
+use "signals"
+use @ioctl[I32](fx: I32, cmd: ULong, ...) if posix
+
+struct _TermSize
+  var row: U16 = 0
+  var col: U16 = 0
+  var xpixel: U16 = 0
+  var ypixel: U16 = 0
 
 primitive _EscapeNone
 primitive _EscapeStart
@@ -13,6 +21,26 @@ type _EscapeState is
   | _EscapeCSI
   | _EscapeMod
   )
+
+class _TermResizeNotify is SignalNotify
+  let _term: ANSITerm tag
+
+  new create(term: ANSITerm tag) =>
+    _term = term
+
+  fun apply(times: U32): Bool =>
+    _term.size()
+    true
+
+primitive _TIOCGWINSZ
+  fun apply(): ULong =>
+    ifdef linux then
+      21523
+    elseif osx or freebsd then
+      1074295912
+    else
+      0
+    end
 
 actor ANSITerm
   """
@@ -37,6 +65,10 @@ actor ANSITerm
     _timers = timers
     _notify = consume notify
     _source = source
+
+    SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+
+    _size()
 
   be apply(data: Array[U8] iso) =>
     """
@@ -153,6 +185,19 @@ actor ANSITerm
     Pass a prompt along to the notifier.
     """
     _notify.prompt(this, value)
+
+  be size() =>
+    _size()
+
+  fun ref _size() =>
+    """
+    Pass the window size to the notifier.
+    """
+    let ws: _TermSize = _TermSize
+    ifdef posix then
+      @ioctl[I32](0, _TIOCGWINSZ(), ws) // do error handling
+      _notify.size(ws.row, ws.col)
+    end
 
   be dispose() =>
     """

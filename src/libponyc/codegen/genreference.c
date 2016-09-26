@@ -2,8 +2,11 @@
 #include "genexpr.h"
 #include "genname.h"
 #include "gencall.h"
+#include "gentype.h"
 #include "../expr/literal.h"
+#include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/viewpoint.h"
 #include <string.h>
 #include <assert.h>
 
@@ -84,9 +87,26 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(field == NULL)
     return NULL;
 
+  assert((ast_id(l_type) == TK_NOMINAL) || (ast_id(l_type) == TK_TUPLETYPE));
+
   // Don't load if we're reading from a tuple.
   if(ast_id(l_type) != TK_TUPLETYPE)
+  {
     field = LLVMBuildLoad(c->builder, field, "");
+    LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
+    const char id[] = "tbaa";
+    LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  }
+
+  return field;
+}
+
+LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef field = gen_fieldptr(c, ast);
+
+  if(field == NULL)
+    return NULL;
 
   return field;
 }

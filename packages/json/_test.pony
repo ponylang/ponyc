@@ -468,22 +468,22 @@ class iso _TestPrintArray is UnitTest
     let array: JsonArray = JsonArray
 
     doc.data = array
-    h.assert_eq[String]("[]", doc.string(true))
+    h.assert_eq[String]("[]", doc.string("  ", true))
 
     array.data.clear()
     array.data.push(true)
-    h.assert_eq[String]("[\n  true\n]", doc.string(true))
+    h.assert_eq[String]("[\n  true\n]", doc.string("  ", true))
 
     array.data.clear()
     array.data.push(true)
     array.data.push(false)
-    h.assert_eq[String]("[\n  true,\n  false\n]", doc.string(true))
+    h.assert_eq[String]("[\n  true,\n  false\n]", doc.string("  ", true))
 
     array.data.clear()
     array.data.push(true)
     array.data.push(I64(13))
     array.data.push(None)
-    h.assert_eq[String]("[\n  true,\n  13,\n  null\n]", doc.string(true))
+    h.assert_eq[String]("[\n  true,\n  13,\n  null\n]", doc.string("  ", true))
 
     array.data.clear()
     array.data.push(true)
@@ -492,7 +492,7 @@ class iso _TestPrintArray is UnitTest
     nested.data.push(None)
     array.data.push(nested)
     h.assert_eq[String]("[\n  true,\n  [\n    52,\n    null\n  ]\n]",
-      doc.string(true))
+      doc.string("  ", true))
 
 class iso _TestNoPrettyPrintArray is UnitTest
   """
@@ -505,22 +505,22 @@ class iso _TestNoPrettyPrintArray is UnitTest
     let array: JsonArray = JsonArray
 
     doc.data = array
-    h.assert_eq[String]("[]", doc.string(false))
+    h.assert_eq[String]("[]", doc.string())
 
     array.data.clear()
     array.data.push(true)
-    h.assert_eq[String]("[true]", doc.string(false))
+    h.assert_eq[String]("[true]", doc.string())
 
     array.data.clear()
     array.data.push(true)
     array.data.push(false)
-    h.assert_eq[String]("[true,false]", doc.string(false))
+    h.assert_eq[String]("[true,false]", doc.string())
 
     array.data.clear()
     array.data.push(true)
     array.data.push(I64(13))
     array.data.push(None)
-    h.assert_eq[String]("[true,13,null]", doc.string(false))
+    h.assert_eq[String]("[true,13,null]", doc.string())
 
     array.data.clear()
     array.data.push(true)
@@ -529,7 +529,7 @@ class iso _TestNoPrettyPrintArray is UnitTest
     nested.data.push(None)
     array.data.push(nested)
     h.assert_eq[String]("[true,[52,null]]",
-      doc.string(false))
+      doc.string())
 
 class iso _TestPrintObject is UnitTest
   """
@@ -542,16 +542,16 @@ class iso _TestPrintObject is UnitTest
     let obj: JsonObject = JsonObject
 
     doc.data = obj
-    h.assert_eq[String]("{}", doc.string(true))
+    h.assert_eq[String]("{}", doc.string("  ", true))
 
     obj.data.clear()
     obj.data("foo") = true
-    h.assert_eq[String]("{\n  \"foo\": true\n}", doc.string(true))
+    h.assert_eq[String]("{\n  \"foo\": true\n}", doc.string("  ", true))
 
     obj.data.clear()
     obj.data("a") = true
     obj.data("b") = I64(3)
-    let s = doc.string(true)
+    let s = doc.string("  ", true)
     h.assert_true((s == "{\n  \"a\": true,\n  \"b\": 3\n}") or
       (s == "{\n  \"b\": false,\n  \"a\": true\n}"))
 
@@ -569,16 +569,16 @@ class iso _TestNoPrettyPrintObject is UnitTest
     let obj: JsonObject = JsonObject
 
     doc.data = obj
-    h.assert_eq[String]("{}", doc.string(false))
+    h.assert_eq[String]("{}", doc.string())
 
     obj.data.clear()
     obj.data("foo") = true
-    h.assert_eq[String]("{\"foo\":true}", doc.string(false))
+    h.assert_eq[String]("{\"foo\":true}", doc.string())
 
     obj.data.clear()
     obj.data("a") = true
     obj.data("b") = I64(3)
-    let s = doc.string(false)
+    let s = doc.string()
     h.assert_true((s == "{\"a\":true,\"b\":3}") or
       (s == "{\"b\":3,\"a\":true}"))
 
@@ -625,7 +625,7 @@ class iso _TestParsePrint is UnitTest
 
     let doc: JsonDoc = JsonDoc
     doc.parse(src)
-    let printed = doc.string(true)
+    let printed = doc.string("  ", true)
 
     // TODO: Sort out line endings on different platforms. For now normalise
     // before comparing

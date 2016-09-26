@@ -102,7 +102,7 @@ static bool check_type_params(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  type = reify(type, typeparams, typeargs, opt);
+  type = reify(type, typeparams, typeargs, opt, true);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 

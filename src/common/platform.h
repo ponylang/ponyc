@@ -270,14 +270,6 @@ inline uint64_t __pony_ffsl(uint64_t x)
             __builtin_choose_expr(COND, THEN, ELSE)
 #endif
 
-#if defined(PLATFORM_IS_ILP32)
-typedef int64_t dw_t;
-#elif defined(PLATFORM_IS_VISUAL_STUDIO)
-typedef struct dw_t { uint64_t low; int64_t high; } dw_t;
-#else
-typedef __int128_t dw_t;
-#endif
-
 #include "atomics.h"
 #include "threads.h"
 #include "paths.h"

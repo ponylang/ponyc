@@ -56,11 +56,11 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
-static void** root;
+static ATOMIC_TYPE(void**) root;
 
 void* ponyint_pagemap_get(const void* m)
 {
-  void** v = root;
+  void** v = atomic_load_explicit(&root, memory_order_relaxed);
 
   for(int i = 0; i < PAGEMAP_LEVELS; i++)
   {
@@ -68,7 +68,8 @@ void* ponyint_pagemap_get(const void* m)
       return NULL;
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    v = (void**)v[ix];
+    ATOMIC_TYPE(void**)* av = (ATOMIC_TYPE(void**)*)&(v[ix]);
+    v = atomic_load_explicit(av, memory_order_relaxed);
   }
 
   return v;
@@ -76,27 +77,31 @@ void* ponyint_pagemap_get(const void* m)
 
 void ponyint_pagemap_set(const void* m, void* v)
 {
-  void*** pv = &root;
+  ATOMIC_TYPE(void**)* pv = &root;
   void* p;
 
   for(int i = 0; i < PAGEMAP_LEVELS; i++)
   {
-    if(*pv == NULL)
+    void** pv_ld = atomic_load_explicit(pv, memory_order_acquire);
+    if(pv_ld == NULL)
     {
       p = ponyint_pool_alloc(level[i].size_index);
       memset(p, 0, level[i].size);
       void** prev = NULL;
 
-      if(!_atomic_cas(pv, &prev, p))
+      if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
+        memory_order_release, memory_order_acquire))
       {
         ponyint_pool_free(level[i].size_index, p);
-        *pv = prev;
+        pv_ld = prev;
+      } else {
+        pv_ld = (void**)p;
       }
     }
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    pv = (void***)&((*pv)[ix]);
+    pv = (ATOMIC_TYPE(void**)*)&(pv_ld[ix]);
   }
 
-  *pv = (void**)v;
+  atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
 }

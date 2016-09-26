@@ -955,6 +955,18 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     default: {}
   }
 
+  ast_t* capture = ast_child(captures);
+  while(capture != NULL)
+  {
+    if(ast_id(capture) == TK_THIS)
+    {
+      ast_error(opt->check.errors, capture,
+        "use a named capture to capture 'this'");
+      return AST_ERROR;
+    }
+    capture = ast_sibling(capture);
+  }
+
   return AST_OK;
 }
 

@@ -50,7 +50,7 @@ typedef struct asio_base_t asio_base_t;
 asio_backend_t* ponyint_asio_backend_init();
 
 /// Call this when the scheduler is initialised.
-void ponyint_asio_init();
+void ponyint_asio_init(uint32_t cpu);
 
 /// Call this when the scheduler runs its threads.
 bool ponyint_asio_start();

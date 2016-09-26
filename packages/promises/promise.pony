@@ -1,5 +1,5 @@
 """
-## Promises Package
+# Promises Package
 
 A `Promise` represents a value that will be available at a later
 time. `Promise`s can either be fulfilled with a value or rejected. Any

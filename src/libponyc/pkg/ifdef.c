@@ -318,7 +318,7 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
   if(!had_valid_decl)
   {
     ast_error(opt->check.errors, call,
-      "No FFI declaration found for %s in config: %s", ffi_name,
+      "No FFI declaration found for '%s' in config: %s", ffi_name,
       buildflagset_print(config));
     return false;
   }

@@ -43,28 +43,28 @@ class iso _TestChain is UnitTest
       values()) do
       actual.push(x)
     end
-  
+
     h.assert_array_eq[String](expected, actual)
     actual.clear()
 
     for x in Chain[String]([input0.values()].values()) do
       actual.push(x)
     end
-  
+
     h.assert_array_eq[String](input0, actual)
     actual.clear()
 
     for x in Chain[String]([input0.values(), input0.values()].values()) do
       actual.push(x)
     end
-  
+
     h.assert_array_eq[String](input0, actual)
     actual.clear()
 
     for x in Chain[String](Array[Iterator[String]].values()) do
       actual.push(x)
     end
-  
+
     h.assert_array_eq[String](input0, actual)
     actual.clear()
 
@@ -93,7 +93,7 @@ class iso _TestZip is UnitTest
 
     let expected1 = ["a", "b", "c"]
     let expected2 = [as U32: 1, 2, 3]
-    let expected3 = [as F32: 75.8, 90.1, 82.7, 13.4, 17.9]
+    let expected3 = [as F32: 75.8, 90.1, 82.7]
     let expected4 = [as I32: 51, 62, 73]
     let expected5 = [as USize: 14, 27, 39]
 
@@ -115,12 +115,10 @@ class iso _TestZip is UnitTest
 
     h.assert_array_eq[String](expected1, actual1)
 
-    // Skipping for now because of issue 563
-    // (https://github.com/ponylang/ponyc/issues/563)
-    // h.assert_array_eq[U32](expected2, actual2)
-    // h.assert_array_eq[F32](expected3, actual3)
-    // h.assert_array_eq[I32](expected4, actual4)
-    // h.assert_array_eq[USize](expected5, actual5)
+    h.assert_array_eq[U32](expected2, actual2)
+    h.assert_array_eq[F32](expected3, actual3)
+    h.assert_array_eq[I32](expected4, actual4)
+    h.assert_array_eq[USize](expected5, actual5)
 
 class iso _TestRepeat is UnitTest
   fun name(): String => "itertools/Repeat"
@@ -176,7 +174,7 @@ class iso _TestCycle is UnitTest
     else
       h.fail()
     end
-    
+
     h.assert_array_eq[String](expected, actual)
 
 class iso _TestMapFn is UnitTest

@@ -1,5 +1,6 @@
 #include "gendesc.h"
 #include "genname.h"
+#include "gentype.h"
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
@@ -38,6 +39,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
+  const char* box_name = genname_box(t->name);
   const char* unbox_name = genname_unbox(m->full_name);
 
   if(ast_id(m->r_fun) != TK_NEW)
@@ -61,6 +63,10 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
+
+  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(primitive, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
@@ -474,13 +480,20 @@ void gendesc_table(compile_t* c)
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
 {
   LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, desc, index, "");
-  return LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef field = LLVMBuildLoad(c->builder, ptr, "");
+  const char id[] = "tbaa";
+  LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1),
+    c->tbaa_descriptor);
+  return field;
 }
 
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 {
   LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
-  return LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef desc = LLVMBuildLoad(c->builder, ptr, "");
+  const char id[] = "tbaa";
+  LLVMSetMetadata(desc, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
+  return desc;
 }
 
 LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef object)
@@ -503,7 +516,10 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
   gep[1] = LLVMConstInt(c->i32, colour, false);
 
   LLVMValueRef func_ptr = LLVMBuildInBoundsGEP(c->builder, vtable, gep, 2, "");
-  return LLVMBuildLoad(c->builder, func_ptr, "");
+  LLVMValueRef fun = LLVMBuildLoad(c->builder, func_ptr, "");
+  const char id[] = "tbaa";
+  LLVMSetMetadata(fun, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descriptor);
+  return fun;
 }
 
 LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
@@ -532,7 +548,11 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
 
   LLVMValueRef field_desc = LLVMBuildInBoundsGEP(c->builder, fields, gep, 2,
     "");
-  return LLVMBuildLoad(c->builder, field_desc, "");
+  LLVMValueRef field_info = LLVMBuildLoad(c->builder, field_desc, "");
+  const char id[] = "tbaa";
+  LLVMSetMetadata(field_info, LLVMGetMDKindID(id, sizeof(id) - 1),
+    c->tbaa_descriptor);
+  return field_info;
 }
 
 LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
@@ -549,6 +569,8 @@ LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
   LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
     LLVMPointerType(c->object_ptr, 0), "");
+  // gendesc_fieldload is called from trace functions, no need for TBAA metadata
+  // here.
   return LLVMBuildLoad(c->builder, object_ptr, "");
 }
 
@@ -619,6 +641,9 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 
   LLVMValueRef id_ptr = LLVMBuildInBoundsGEP(c->builder, list, gep, 2, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "");
+  const char node_id[] = "tbaa";
+  LLVMSetMetadata(id, LLVMGetMDKindID(node_id, sizeof(node_id) - 1),
+    c->tbaa_descriptor);
   LLVMValueRef test_id = LLVMBuildICmp(c->builder, LLVMIntEQ, id, trait_id,
     "");
 

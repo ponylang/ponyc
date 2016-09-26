@@ -11,12 +11,6 @@ actor Main is TestList
     test(_TestCombineShortArg)
     test(_TestArgLeadingDash)
 
-primitive TestOptions
-  fun from(renv: Env val, args: Array[String] val): Options =>
-    let env = recover val Env.create(renv.root, renv.input, renv.out, renv.err,
-      args, None) end
-    Options(env)
-
 class iso _TestLongOptions is UnitTest
   """
   Long options start with two leading dashes, and can be lone, have a following
@@ -25,8 +19,7 @@ class iso _TestLongOptions is UnitTest
   fun name(): String => "options/Options.longOptions"
 
   fun apply(h: TestHelper) =>
-    let options = TestOptions.from(h.env, recover ["--none", "--i64", "12345",
-      "--f64=67.890"] end)
+    let options = Options(["--none", "--i64", "12345", "--f64=67.890"])
     var none: Bool = false
     var i64: I64 = -1
     var f64: F64 = -1
@@ -54,8 +47,7 @@ class iso _TestShortOptions is UnitTest
   fun name(): String => "options/Options.shortOptions"
 
   fun apply(h: TestHelper) =>
-    let options = TestOptions.from(h.env, recover val ["-n", "-i", "12345",
-      "-f67.890"] end)
+    let options = Options(["-n", "-i", "12345", "-f67.890"])
     var none: Bool = false
     var i64: I64 = -1
     var f64: F64 = -1
@@ -84,7 +76,7 @@ class iso _TestCombineShortOptions is UnitTest
   fun name(): String => "options/Options.combineShort"
 
   fun apply(h: TestHelper) =>
-    let options = TestOptions.from(h.env, recover val ["-ab"] end)
+    let options = Options(["-ab"])
     var aaa: Bool = false
     var bbb: Bool = false
     options
@@ -107,8 +99,7 @@ class iso _TestCombineShortArg is UnitTest
   fun name(): String => "options/Options.combineShortArg"
 
   fun apply(h: TestHelper) =>
-    let options =
-      TestOptions.from(h.env, recover val ["-ab99", "-ac", "99"] end)
+    let options = Options(["-ab99", "-ac", "99"])
     var aaa: Bool = false
     var bbb: I64 = -1
     var ccc: I64 = -1
@@ -136,8 +127,7 @@ class iso _TestArgLeadingDash is UnitTest
   fun name(): String => "options/Options.testArgLeadingDash"
 
   fun apply(h: TestHelper) =>
-    let options =
-      TestOptions.from(h.env, recover val ["--aaa", "-2", "--bbb=-2"] end)
+    let options = Options(["--aaa", "-2", "--bbb=-2"])
     var aaa: I64 = -1
     var bbb: I64 = -1
     options

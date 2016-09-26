@@ -323,9 +323,7 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
     AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
       body);
 
-    ast_t* r_fun = reify(fun, typeparams, typeargs, opt);
-    ast_free_unattached(fun);
-    fun = r_fun;
+    fun = reify(fun, typeparams, typeargs, opt, false);
   }
 
   m->r_fun = fun;
@@ -483,7 +481,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 
         t->fields[index].embed = ast_id(member) == TK_EMBED;
         t->fields[index].ast = reify(ast_type(member), typeparams, typeargs,
-          opt);
+          opt, true);
         ast_setpos(t->fields[index].ast, NULL, ast_line(name), ast_pos(name));
         t->fields[index].type = add_type(r, type, opt);
 

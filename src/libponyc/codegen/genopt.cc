@@ -1,11 +1,13 @@
 #ifdef _MSC_VER
 #  pragma warning(push)
-//because LLVM IR Builder code is broken: e.g. Instructions.h:521-527
+// because LLVM IR Builder code is broken: e.g. Instructions.h:521-527
 #  pragma warning(disable:4244)
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
+// LLVM claims DEBUG as a macro name. Conflicts with MSVC headers.
+#  pragma warning(disable:4005)
 #endif
 
 #include "genopt.h"
@@ -30,6 +32,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
 #include "../../libponyrt/mem/heap.h"
@@ -196,8 +199,9 @@ public:
     }
 
     SmallVector<CallInst*, 4> tail;
+    SmallVector<Instruction*, 4> new_calls;
 
-    if(!canStackAlloc(inst, dt, tail))
+    if(!canStackAlloc(inst, dt, tail, new_calls))
       return false;
 
     for(auto iter = tail.begin(), end = tail.end(); iter != end; ++iter)
@@ -213,6 +217,13 @@ public:
     inst->replaceAllUsesWith(replace);
     inst->eraseFromParent();
 
+    for(auto new_call: new_calls)
+    {
+      // Force constructor inlining to see if fields can be stack-allocated.
+      InlineFunctionInfo ifi{};
+      InlineFunction(CallSite(new_call), ifi);
+    }
+
     print_transform(c, replace, "stack allocation");
     c->opt->check.stats.heap_alloc--;
     c->opt->check.stats.stack_alloc++;
@@ -221,7 +232,7 @@ public:
   }
 
   bool canStackAlloc(Instruction* alloc, DominatorTree& dt,
-    SmallVector<CallInst*, 4>& tail)
+    SmallVector<CallInst*, 4>& tail, SmallVector<Instruction*, 4>& new_calls)
   {
     // This is based on the pass in the LDC compiler.
     SmallVector<Use*, 16> work;
@@ -263,6 +274,9 @@ public:
               break;
             }
           }
+
+          if(inst->getMetadata("pony.newcall") != NULL)
+            new_calls.push_back(inst);
 
           auto first = call.arg_begin();
 
@@ -849,9 +863,15 @@ static void optimise(compile_t* c, bool pony_specific)
   Module* m = unwrap(c->module);
   TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
 
+#if PONY_LLVM >= 307
+  llvm::legacy::PassManager lpm;
+  llvm::legacy::PassManager mpm;
+  llvm::legacy::FunctionPassManager fpm(m);
+#else
   PassManager lpm;
   PassManager mpm;
   FunctionPassManager fpm(m);
+#endif
 
 #if PONY_LLVM >= 307
   TargetLibraryInfoImpl *tl = new TargetLibraryInfoImpl(

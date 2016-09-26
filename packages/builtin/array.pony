@@ -179,6 +179,41 @@ class Array[A] is Seq[A]
     _size = _size.min(len)
     this
 
+  fun ref trim_in_place(from: USize = 0, to: USize = -1): Array[A]^ =>
+    """
+    Trim the array to a portion of itself, covering `from` until `to`.
+    Unlike slice, the operation does not allocate a new array nor copy elements.
+    The same array is returned to allow call chaining.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    _size = last - offset
+    _alloc = _alloc - offset
+    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+
+    this
+
+  fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
+    """
+    Return a shared portion of this array, covering `from` until `to`.
+    Both the original and the new array are immutable, as they share memory.
+    The operation does not allocate a new array pointer nor copy elements.
+    """
+    let last = _size.min(to)
+    let offset = last.min(from)
+
+    recover
+      let size' = last - offset
+      let alloc = _alloc - offset
+
+      if size' > 0 then
+        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
   fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
     len: USize): this->Array[A]^
   =>
@@ -262,15 +297,17 @@ class Array[A] is Seq[A]
     let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
-    let cap = copy_len + offset
-    var i = offset
+    var n = USize(0)
 
     try
-      while i < cap do
-        push(seq(i))
-        i = i + 1
+      while n < copy_len do
+        _ptr._update(_size + n, seq(offset + n))
+
+        n = n + 1
       end
     end
+
+    _size = _size + n
 
     this
 
@@ -281,9 +318,10 @@ class Array[A] is Seq[A]
     Add len iterated elements to the end of the array, starting from the given
     offset. The array is returned to allow call chaining.
     """
-    try
-      var n = USize(0)
 
+    var n = USize(0)
+
+    try
       while n < offset do
         if iter.has_next() then
           iter.next()
@@ -293,14 +331,40 @@ class Array[A] is Seq[A]
 
         n = n + 1
       end
+    end
 
-      n = 0
+    n = 0
 
-      while n < len do
-        if iter.has_next() then
-          push(iter.next())
-        else
-          return this
+    // If a concrete len is specified, we take the caller at their word
+    // and reserve that much space, even though we can't verify that the
+    // iterator actually has that many elements available. Reserving ahead
+    // of time lets us take a fast path of direct pointer access.
+    if len != -1 then
+      reserve(_size + len)
+
+      try
+        while n < len do
+          if iter.has_next() then
+            _ptr._update(_size + n, iter.next())
+          else
+            break
+          end
+
+          n = n + 1
+        end
+      end
+
+      _size = _size + n
+    else
+      try
+        while n < len do
+          if iter.has_next() then
+            push(iter.next())
+          else
+            break
+          end
+
+          n = n + 1
         end
       end
     end

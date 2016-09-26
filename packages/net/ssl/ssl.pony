@@ -53,7 +53,7 @@ class SSL
       not DNS.is_ip6(_hostname)
     then
       // SSL_set_tlsext_host_name
-      @SSL_ctrl(_ssl, 55, 0, _hostname.cstring())
+      @SSL_ctrl(_ssl, 55, 0, _hostname.null_terminated().cstring())
     end
 
     if server then

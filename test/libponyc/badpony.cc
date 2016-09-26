@@ -231,3 +231,71 @@ TEST_F(BadPonyTest, ParenthesisedReturn2)
 
   TEST_ERRORS_1(src, "Unreachable code");
 }
+
+TEST_F(BadPonyTest, MatchUncalledMethod)
+{
+  // From issue #903
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    match foo\n"
+    "    | None => None\n"
+    "    end\n"
+
+    "  fun foo() =>\n"
+    "    None";
+
+  TEST_ERRORS_2(src, "can't reference a method without calling it",
+                     "this pattern can never match");
+}
+
+TEST_F(BadPonyTest, TupleFieldReassign)
+{
+  // From issue #1101
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var foo: (U64, String) = (42, \"foo\")\n"
+    "    foo._2 = \"bar\"";
+
+  TEST_ERRORS_2(src, "can't assign to an element of a tuple",
+                     "left side must be something that can be assigned to");
+}
+
+TEST_F(BadPonyTest, WithBlockTypeInference)
+{
+  // From issue #1135
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    with x = 1 do None end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, EmbedNestedTuple)
+{
+  // From issue #1136
+  const char* src =
+    "class Foo\n"
+    "  fun get_foo(): Foo => Foo\n"
+
+    "actor Main\n"
+    "  embed foo: Foo\n"
+    "  let x: U64\n"
+
+    "  new create(env: Env) =>\n"
+    "    (foo, x) = (Foo.get_foo(), 42)";
+
+  TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(BadPonyTest, MainWithoutConstructor)
+{
+  // From issue #1259
+  const char* src =
+    "actor Main\n";
+
+  TEST_ERRORS_1(src, "The Main actor must have a create constructor which takes "
+                     "a single Env parameter");
+}

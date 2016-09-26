@@ -9,26 +9,10 @@ PONY_EXTERN_C_BEGIN
 typedef struct mpmcq_node_t mpmcq_node_t;
 
 __pony_spec_align__(
-  typedef struct mpmcq_dwcas_t
-  {
-    union
-    {
-      struct
-      {
-        uintptr_t aba;
-        mpmcq_node_t* node;
-      };
-
-      dw_t dw;
-    };
-  } mpmcq_dwcas_t, 16
-);
-
-__pony_spec_align__(
   typedef struct mpmcq_t
   {
-    mpmcq_node_t* volatile head;
-    mpmcq_dwcas_t tail;
+    ATOMIC_TYPE(mpmcq_node_t*) head;
+    ATOMIC_TYPE(mpmcq_node_t*) tail;
   } mpmcq_t, 64
 );
 

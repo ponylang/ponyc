@@ -136,7 +136,7 @@ actor Main
       imaginary)
 
   fun ref arguments(env: Env) ? =>
-    let options = Options(env)
+    let options = Options(env.args)
 
     options
       .add("iterations", "i", I64Argument)

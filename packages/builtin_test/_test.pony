@@ -28,6 +28,9 @@ actor Main is TestList
     test(_TestStringRemove)
     test(_TestStringSubstring)
     test(_TestStringCut)
+    test(_TestStringTrim)
+    test(_TestStringTrimInPlace)
+    test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringJoin)
@@ -36,9 +39,14 @@ actor Main is TestList
     test(_TestStringContains)
     test(_TestStringReadInt)
     test(_TestStringUTF32)
+    test(_TestStringRFind)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
+    test(_TestArrayAppend)
+    test(_TestArrayConcat)
     test(_TestArraySlice)
+    test(_TestArrayTrim)
+    test(_TestArrayTrimInPlace)
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
@@ -48,6 +56,7 @@ actor Main is TestList
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
+    test(_TestFormatSettingsInt)
 
 
 class iso _TestAbs is UnitTest
@@ -382,6 +391,56 @@ class iso _TestStringCut is UnitTest
     h.assert_eq[String]("0123", "0123456".cut(4))
 
 
+class iso _TestStringTrim is UnitTest
+  """
+  Test trimming part of a string.
+  """
+  fun name(): String => "builtin/String.trim"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String]("45", "0123456".trim(4, 6))
+    h.assert_eq[String]("456", "0123456".trim(4, 7))
+    h.assert_eq[String]("456", "0123456".trim(4))
+    h.assert_eq[String]("", "0123456".trim(4, 4))
+    h.assert_eq[String]("", "0123456".trim(4, 1))
+
+
+class iso _TestStringTrimInPlace is UnitTest
+  """
+  Test trimming part of a string in place.
+  """
+  fun name(): String => "builtin/String.trim_in_place"
+
+  fun apply(h: TestHelper) =>
+    case(h, "45", "0123456", 4, 6)
+    case(h, "456", "0123456", 4, 7)
+    case(h, "456", "0123456", 4)
+    case(h, "", "0123456", 4, 4)
+    case(h, "", "0123456", 4, 1)
+
+  fun case(h: TestHelper, expected: String, orig: String, from: USize,
+    to: USize = -1)
+  =>
+    let copy: String ref = orig.clone()
+    copy.trim_in_place(from, to)
+    h.assert_eq[String box](expected, copy)
+
+
+class iso _TestStringIsNullTerminated is UnitTest
+  """
+  Test checking if a string is null terminated.
+  """
+  fun name(): String => "builtin/String.is_null_terminated"
+
+  fun apply(h: TestHelper) =>
+    h.assert_true("".is_null_terminated())
+    h.assert_true("0123456".is_null_terminated())
+    h.assert_true("0123456".trim(4, 7).is_null_terminated())
+    h.assert_false("0123456".trim(2, 4).is_null_terminated())
+    h.assert_true("0123456".trim(2, 4).clone().is_null_terminated())
+    h.assert_true("0123456".trim(2, 4).null_terminated().is_null_terminated())
+
+
 class iso _TestSpecialValuesF32 is UnitTest
   """
   Test whether a F32 is infinite or NaN.
@@ -709,6 +768,86 @@ class iso _TestStringUTF32 is UnitTest
     h.assert_eq[U32](0x2070E, s.utf32(0)._1)
 
 
+class iso _TestStringRFind is UnitTest
+  fun name(): String => "builtin/String.rfind"
+
+  fun apply(h: TestHelper) ? =>
+    let s = "-foo-bar-baz-"
+    h.assert_eq[ISize](s.rfind("-"), 12)
+    h.assert_eq[ISize](s.rfind("-", -2), 8)
+    h.assert_eq[ISize](s.rfind("-bar", 7), 4)
+
+
+class iso _TestArrayAppend is UnitTest
+  fun name(): String => "builtin/Array.append"
+
+  fun apply(h: TestHelper) ? =>
+    var a = ["one", "two", "three"]
+    var b = ["four", "five", "six"]
+    a.append(b)
+    h.assert_eq[USize](a.size(), 6)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("four", a(3))
+    h.assert_eq[String]("five", a(4))
+    h.assert_eq[String]("six", a(5))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.append(b, 1)
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+    h.assert_eq[String]("six", a(4))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.append(b, 1, 1)
+    h.assert_eq[USize](a.size(), 4)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+
+
+class iso _TestArrayConcat is UnitTest
+  fun name(): String => "builtin/Array.concat"
+
+  fun apply(h: TestHelper) ? =>
+    var a = ["one", "two", "three"]
+    var b = ["four", "five", "six"]
+    a.concat(b.values())
+    h.assert_eq[USize](a.size(), 6)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("four", a(3))
+    h.assert_eq[String]("five", a(4))
+    h.assert_eq[String]("six", a(5))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.concat(b.values(), 1)
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+    h.assert_eq[String]("six", a(4))
+
+    a = ["one", "two", "three"]
+    b = ["four", "five", "six"]
+    a.concat(b.values(), 1, 1)
+    h.assert_eq[USize](a.size(), 4)
+    h.assert_eq[String]("one", a(0))
+    h.assert_eq[String]("two", a(1))
+    h.assert_eq[String]("three", a(2))
+    h.assert_eq[String]("five", a(3))
+
+
 class iso _TestArraySlice is UnitTest
   """
   Test slicing arrays.
@@ -744,6 +883,41 @@ class iso _TestArraySlice is UnitTest
     h.assert_eq[String]("three", e(1))
     h.assert_eq[String]("one", e(2))
 
+
+class iso _TestArrayTrim is UnitTest
+  """
+  Test trimming part of a string.
+  """
+  fun name(): String => "builtin/Array.trim"
+
+  fun apply(h: TestHelper) =>
+    let orig: Array[U8] val = recover [0, 1, 2, 3, 4, 5, 6] end
+    h.assert_array_eq[U8]([as U8: 4, 5], orig.trim(4, 6))
+    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4, 7))
+    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4))
+    h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
+    h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
+
+
+class iso _TestArrayTrimInPlace is UnitTest
+  """
+  Test trimming part of a string in place.
+  """
+  fun name(): String => "builtin/Array.trim_in_place"
+
+  fun apply(h: TestHelper) =>
+    case(h, [4, 5], [0, 1, 2, 3, 4, 5, 6], 4, 6)
+    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4, 7)
+    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4)
+    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 4)
+    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 1)
+
+  fun case(h: TestHelper, expected: Array[U8], orig: Array[U8], from: USize,
+    to: USize = -1)
+  =>
+    let copy: Array[U8] ref = orig.clone()
+    copy.trim_in_place(from, to)
+    h.assert_array_eq[U8](expected, copy)
 
 class iso _TestArrayInsert is UnitTest
   """
@@ -1051,3 +1225,96 @@ class iso _TestCCallback is UnitTest
     let cb: Callback = Callback
     let r = @pony_test_callback[I32](cb, addressof cb.apply, I32(3))
     h.assert_eq[I32](6, r)
+
+class iso _TestFormatSettingsInt is UnitTest
+  """
+  Test format settings
+  """
+  fun name(): String => "builtin/FormatSettingsInt"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String]("00010", U64(10)
+      .string(FormatSettingsInt.set_precision(5)))
+    h.assert_eq[String]("0x0000A", U64(10)
+      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)))
+    h.assert_eq[String]("0000A", U64(10)
+      .string(FormatSettingsInt.set_precision(5).set_format(FormatHexBare)))
+    h.assert_eq[String]("0x0000a", U64(10)
+      .string(FormatSettingsInt.set_precision(5).set_format(FormatHexSmall)))
+    h.assert_eq[String]("0000a", U64(10)
+      .string(FormatSettingsInt.set_precision(5)
+      .set_format(FormatHexSmallBare)))
+    h.assert_eq[String](" 0x0000A", U64(10)
+      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)
+      .set_width(8)))
+    h.assert_eq[String]("0x0000A ", U64(10)
+      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)
+      .set_width(8).set_align(AlignLeft)))
+    h.assert_eq[String]("   0000a", U64(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
+    h.assert_eq[String]("0000a   ", U64(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
+      .set_align(AlignLeft)))
+
+    h.assert_eq[String]("-00010", I64(-10).string(FormatSettingsInt
+      .set_precision(5)))
+    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex)))
+    h.assert_eq[String]("-0000A", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexBare)))
+    h.assert_eq[String]("-0x0000a", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmall)))
+    h.assert_eq[String]("-0000a", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare)))
+    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)))
+    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)
+      .set_align(AlignLeft)))
+    h.assert_eq[String]("  -0000a", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
+    h.assert_eq[String]("-0000a  ", I64(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
+      .set_align(AlignLeft)))
+
+    h.assert_eq[String]("00010", U128(10).string(FormatSettingsInt
+      .set_precision(5)))
+    h.assert_eq[String]("0x0000A", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex)))
+    h.assert_eq[String]("0000A", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexBare)))
+    h.assert_eq[String]("0x0000a", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmall)))
+    h.assert_eq[String]("0000a", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare)))
+    h.assert_eq[String](" 0x0000A", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)))
+    h.assert_eq[String]("0x0000A ", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)
+      .set_align(AlignLeft)))
+    h.assert_eq[String]("   0000a", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
+    h.assert_eq[String]("0000a   ", U128(10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
+      .set_align(AlignLeft)))
+
+    h.assert_eq[String]("-00010", I128(-10).string(FormatSettingsInt
+      .set_precision(5)))
+    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex)))
+    h.assert_eq[String]("-0000A", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexBare)))
+    h.assert_eq[String]("-0x0000a", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmall)))
+    h.assert_eq[String]("-0000a", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare)))
+    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)))
+    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHex).set_width(8)
+      .set_align(AlignLeft)))
+    h.assert_eq[String]("  -0000a", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
+    h.assert_eq[String]("-0000a  ", I128(-10).string(FormatSettingsInt
+      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
+      .set_align(AlignLeft)))

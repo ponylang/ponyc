@@ -8,18 +8,25 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 
 #include <assert.h>
 #include <string.h>
 
-#define FIND_METHOD(name) \
+#define FIND_METHOD(name, cap) \
   const char* strtab_name = stringtab(name); \
-  reach_method_t* m = reach_method(t, TK_NONE, strtab_name, NULL); \
+  reach_method_t* m = reach_method(t, cap, strtab_name, NULL); \
   if(m == NULL) return; \
   m->intrinsic = true;
 
-#define BOX_FUNCTION() \
-  box_function(t, m, strtab_name);
+#define BOX_FUNCTION(gen, gen_data) \
+  box_function(c, (generate_box_fn)gen, gen_data);
+
+#define GENERIC_FUNCTION(name, gen) \
+  generic_function(c, t, stringtab(name), gen);
+
+typedef void (*generate_box_fn)(compile_t*, void*, token_id);
+typedef void (*generate_gen_fn)(compile_t*, reach_type_t*, reach_method_t*);
 
 static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   LLVMTypeRef result, LLVMTypeRef* params, unsigned count)
@@ -30,38 +37,30 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   codegen_startfun(c, m->func, NULL, NULL);
 }
 
-static void box_function(reach_type_t* t, reach_method_t* m, const char* name)
+static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 {
-  if((m->cap != TK_BOX) && (m->cap != TK_TAG))
-    return;
+  gen(c, gen_data, TK_NONE);
+  gen(c, gen_data, TK_REF);
+  gen(c, gen_data, TK_VAL);
+}
 
-  reach_method_t* m_ref = reach_method(t, TK_REF, name, NULL);
-
-  if(m_ref != NULL)
+static void generic_function(compile_t* c, reach_type_t* t, const char* name,
+  generate_gen_fn gen)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_method_name_t* mn;
+  while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
   {
-    m_ref->func_type = m->func_type;
-    m_ref->func = m->func;
-    m_ref->intrinsic = true;
-  }
-
-  reach_method_t* m_val = reach_method(t, TK_VAL, name, NULL);
-
-  if(m_val != NULL)
-  {
-    m_val->func_type = m->func_type;
-    m_val->func = m->func;
-    m_val->intrinsic = true;
-  }
-
-  if(m->cap == TK_TAG)
-  {
-    reach_method_t* m_box = reach_method(t, TK_BOX, name, NULL);
-
-    if(m_box != NULL)
+    if(mn->name == name)
     {
-      m_box->func_type = m->func_type;
-      m_box->func = m->func;
-      m_box->intrinsic = true;
+      size_t j = HASHMAP_BEGIN;
+      reach_method_t* m;
+      while((m = reach_methods_next(&mn->r_methods, &j)) != NULL)
+      {
+        m->intrinsic = true;
+        gen(c, t, m);
+      }
+      break;
     }
   }
 }
@@ -86,7 +85,7 @@ static LLVMValueRef field_value(compile_t* c, LLVMValueRef object, int index)
 
 static void pointer_create(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("create");
+  FIND_METHOD("create", TK_NONE);
   start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMValueRef result = LLVMConstNull(t->use_type);
@@ -98,7 +97,7 @@ static void pointer_create(compile_t* c, reach_type_t* t)
 static void pointer_alloc(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
-  FIND_METHOD("_alloc");
+  FIND_METHOD("_alloc", TK_NONE);
 
   LLVMTypeRef params[2];
   params[0] = t->use_type;
@@ -129,7 +128,7 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
 static void pointer_realloc(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
-  FIND_METHOD("_realloc");
+  FIND_METHOD("_realloc", TK_NONE);
 
   LLVMTypeRef params[2];
   params[0] = t->use_type;
@@ -161,16 +160,19 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
 
 static void pointer_unsafe(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("_unsafe");
+  FIND_METHOD("_unsafe", TK_NONE);
   start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMGetParam(m->func, 0));
   codegen_finishfun(c);
 }
 
-static void pointer_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
+static void pointer_apply(compile_t* c, void* data, token_id cap)
 {
-  FIND_METHOD("_apply");
+  reach_type_t* t = ((reach_type_t**)data)[0];
+  reach_type_t* t_elem = ((reach_type_t**)data)[1];
+
+  FIND_METHOD("_apply", cap);
 
   LLVMTypeRef params[2];
   params[0] = t->use_type;
@@ -185,15 +187,23 @@ static void pointer_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
 
+  ast_t* tcap = ast_childidx(t->ast, 3);
+  token_id tmp_cap = ast_id(tcap);
+  ast_setid(tcap, cap);
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
+  ast_setid(tcap, tmp_cap);
+
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
-  FIND_METHOD("_update");
+  FIND_METHOD("_update", TK_NONE);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -208,15 +218,25 @@ static void pointer_update(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef loc = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &index, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
-  LLVMBuildStore(c->builder, LLVMGetParam(m->func, 2), loc);
+
+  LLVMValueRef value = LLVMGetParam(m->func, 2);
+  LLVMValueRef store = LLVMBuildStore(c->builder, value, loc);
+
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
 
-static void pointer_offset(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
+static void pointer_offset(compile_t* c, void* data, token_id cap)
 {
-  FIND_METHOD("_offset");
+  reach_type_t* t = ((reach_type_t**)data)[0];
+  reach_type_t* t_elem = ((reach_type_t**)data)[1];
+
+  FIND_METHOD("_offset", cap);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -234,14 +254,12 @@ static void pointer_offset(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_element_size(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
-  FIND_METHOD("_element_size");
+  FIND_METHOD("_element_size", TK_NONE);
   start_function(c, t, m, c->intptr, &t->use_type, 1);
 
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
@@ -249,13 +267,11 @@ static void pointer_element_size(compile_t* c, reach_type_t* t,
 
   LLVMBuildRet(c->builder, l_size);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
-  FIND_METHOD("_insert");
+  FIND_METHOD("_insert", TK_NONE);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -274,22 +290,11 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
   LLVMValueRef src = LLVMBuildBitCast(c->builder, ptr,
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef dst = LLVMBuildInBoundsGEP(c->builder, src, &n, 1, "");
+  dst = LLVMBuildBitCast(c->builder, dst, t->use_type, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = LLVMBuildBitCast(c->builder, dst, t->use_type, "");
-  args[1] = ptr;
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memmove.*(ptr + (n * sizeof(elem)), ptr, len * sizeof(elem))
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memmove(c, dst, ptr, elen);
 
   // Return ptr.
   LLVMBuildRet(c->builder, ptr);
@@ -298,7 +303,7 @@ static void pointer_insert(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 
 static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
-  FIND_METHOD("_delete");
+  FIND_METHOD("_delete", TK_NONE);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -318,33 +323,28 @@ static void pointer_delete(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
     LLVMPointerType(t_elem->use_type, 0), "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
 
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
   LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
+  src = LLVMBuildBitCast(c->builder, src, t->use_type, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = ptr;
-  args[1] = LLVMBuildBitCast(c->builder, src, t->use_type, "");
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memmove.*(ptr, ptr + (n * sizeof(elem)), len * sizeof(elem))
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memmove.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memmove(c, ptr, src, elen);
 
   // Return ptr[0].
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
 
-static void pointer_copy_to(compile_t* c, reach_type_t* t,
-  reach_type_t* t_elem)
+static void pointer_copy_to(compile_t* c, void* data, token_id cap)
 {
-  FIND_METHOD("_copy_to");
+  reach_type_t* t = ((reach_type_t**)data)[0];
+  reach_type_t* t_elem = ((reach_type_t**)data)[1];
+
+  FIND_METHOD("_copy_to", cap);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -361,31 +361,17 @@ static void pointer_copy_to(compile_t* c, reach_type_t* t,
   LLVMValueRef n = LLVMGetParam(m->func, 2);
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = ptr2;
-  args[1] = ptr;
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memcpy.*(ptr2, ptr, n * sizeof(elem), 1, 0)
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, ptr2, ptr, elen);
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_consume_from(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
-  FIND_METHOD("_consume_from");
+  FIND_METHOD("_consume_from", TK_NONE);
 
   LLVMTypeRef params[3];
   params[0] = t->use_type;
@@ -402,30 +388,16 @@ static void pointer_consume_from(compile_t* c, reach_type_t* t,
   LLVMValueRef n = LLVMGetParam(m->func, 2);
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
-  LLVMValueRef args[5];
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  args[1] = LLVMBuildBitCast(c->builder, ptr2, c->void_ptr, "");
-  args[2] = elen;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
   // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, ptr, ptr2, elen);
 
   LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void pointer_usize(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("usize");
+  FIND_METHOD("usize", TK_NONE);
   start_function(c, t, m, c->intptr, &t->use_type, 1);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
@@ -437,7 +409,7 @@ static void pointer_usize(compile_t* c, reach_type_t* t)
 
 static void pointer_is_null(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("is_null");
+  FIND_METHOD("is_null", TK_NONE);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef ptr = LLVMGetParam(m->func, 0);
@@ -450,7 +422,7 @@ static void pointer_is_null(compile_t* c, reach_type_t* t)
 
 static void pointer_eq(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("eq");
+  FIND_METHOD("eq", TK_NONE);
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = t->use_type;
@@ -467,7 +439,7 @@ static void pointer_eq(compile_t* c, reach_type_t* t)
 
 static void pointer_lt(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("lt");
+  FIND_METHOD("lt", TK_NONE);
   LLVMTypeRef params[2];
   params[0] = t->use_type;
   params[1] = t->use_type;
@@ -488,18 +460,22 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   ast_t* typearg = ast_child(typeargs);
   reach_type_t* t_elem = reach_type(c->reach, typearg);
 
+  reach_type_t* box_args[2];
+  box_args[0] = t;
+  box_args[1] = t_elem;
+
   pointer_create(c, t);
   pointer_alloc(c, t, t_elem);
 
   pointer_realloc(c, t, t_elem);
   pointer_unsafe(c, t);
-  pointer_apply(c, t, t_elem);
+  BOX_FUNCTION(pointer_apply, box_args);
   pointer_update(c, t, t_elem);
-  pointer_offset(c, t, t_elem);
+  BOX_FUNCTION(pointer_offset, box_args);
   pointer_element_size(c, t, t_elem);
   pointer_insert(c, t, t_elem);
   pointer_delete(c, t, t_elem);
-  pointer_copy_to(c, t, t_elem);
+  BOX_FUNCTION(pointer_copy_to, box_args);
   pointer_consume_from(c, t, t_elem);
   pointer_usize(c, t);
   pointer_is_null(c, t);
@@ -509,7 +485,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 
 static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 {
-  FIND_METHOD("create");
+  FIND_METHOD("create", TK_NONE);
 
   LLVMTypeRef params[2];
   params[0] = t->use_type;
@@ -524,17 +500,20 @@ static void maybe_create(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 
 static void maybe_none(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("none");
+  FIND_METHOD("none", TK_NONE);
   start_function(c, t, m, t->use_type, &t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMConstNull(t->use_type));
   codegen_finishfun(c);
 }
 
-static void maybe_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
+static void maybe_apply(compile_t* c, void* data, token_id cap)
 {
   // Returns the receiver if it isn't null.
-  FIND_METHOD("apply");
+  reach_type_t* t = ((reach_type_t**)data)[0];
+  reach_type_t* t_elem = ((reach_type_t**)data)[1];
+
+  FIND_METHOD("apply", cap);
   start_function(c, t, m, t_elem->use_type, &t->use_type, 1);
 
   LLVMValueRef result = LLVMGetParam(m->func, 0);
@@ -546,20 +525,19 @@ static void maybe_apply(compile_t* c, reach_type_t* t, reach_type_t* t_elem)
 
   LLVMPositionBuilderAtEnd(c->builder, is_false);
   result = LLVMBuildBitCast(c->builder, result, t_elem->use_type, "");
+
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
   gencall_throw(c);
 
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void maybe_is_none(compile_t* c, reach_type_t* t)
+static void maybe_is_none(compile_t* c, reach_type_t* t, token_id cap)
 {
   // Returns true if the receiver is null.
-  FIND_METHOD("is_none");
+  FIND_METHOD("is_none", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef receiver = LLVMGetParam(m->func, 0);
@@ -568,8 +546,6 @@ static void maybe_is_none(compile_t* c, reach_type_t* t)
 
   LLVMBuildRet(c->builder, value);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 void genprim_maybe_methods(compile_t* c, reach_type_t* t)
@@ -578,16 +554,19 @@ void genprim_maybe_methods(compile_t* c, reach_type_t* t)
   ast_t* typearg = ast_child(typeargs);
   reach_type_t* t_elem = reach_type(c->reach, typearg);
 
+  reach_type_t* box_args[2];
+  box_args[0] = t;
+  box_args[1] = t_elem;
+
   maybe_create(c, t, t_elem);
   maybe_none(c, t);
-  maybe_apply(c, t, t_elem);
-  maybe_is_none(c, t);
+  BOX_FUNCTION(maybe_apply, box_args);
+  BOX_FUNCTION(maybe_is_none, t);
 }
 
 static void donotoptimise_apply(compile_t* c, reach_type_t* t,
   reach_method_t* m)
 {
-  const char* strtab_name = m->name;
   m->intrinsic = true;
 
   ast_t* typearg = ast_child(m->typeargs);
@@ -603,49 +582,40 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "imr,~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
+  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOrArgMemOnly(call);
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void donotoptimise_observe(compile_t* c, reach_type_t* t)
+static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("observe");
+  FIND_METHOD("observe", cap);
 
   start_function(c, t, m, m->result->use_type, &t->use_type, 1);
 
   LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
     false);
-  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
+#if PONY_LLVM >= 308
+  LLVMSetCallInaccessibleMemOnly(call);
+#else
+  (void)call;
+#endif
 
   LLVMBuildRet(c->builder, m->result->instance);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t)
 {
-  size_t i = HASHMAP_BEGIN;
-  reach_method_name_t* mn;
-
-  const char* str_apply = stringtab("apply");
-  while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
-  {
-    if(mn->name == str_apply)
-    {
-      size_t j = HASHMAP_BEGIN;
-      reach_method_t* m;
-      while((m = reach_methods_next(&mn->r_methods, &j)) != NULL)
-        donotoptimise_apply(c, t, m);
-      break;
-    }
-  }
-  donotoptimise_observe(c, t);
+  GENERIC_FUNCTION("apply", donotoptimise_apply);
+  BOX_FUNCTION(donotoptimise_observe, t);
 }
 
 static void trace_array_elements(compile_t* c, reach_type_t* t,
@@ -834,17 +804,8 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   if((t_elem->underlying == TK_PRIMITIVE) && (t_elem->primitive != NULL))
   {
     // memcpy machine words
-    args[0] = ptr_offset_addr;
-    args[1] = ptr;
-    args[2] = LLVMBuildMul(c->builder, size, l_size, "");
-    args[3] = LLVMConstInt(c->i32, 1, false);
-    args[4] = LLVMConstInt(c->i1, 0, false);
-    if(target_is_ilp32(c->opt->triple))
-    {
-      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-    } else {
-      gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-    }
+    size = LLVMBuildMul(c->builder, size, l_size, "");
+    gencall_memcpy(c, ptr_offset_addr, ptr, size);
   } else {
     ptr = LLVMBuildBitCast(c->builder, ptr,
       LLVMPointerType(t_elem->use_type, 0), "");
@@ -1064,19 +1025,11 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
 
   // Serialise the string contents.
-  args[0] = LLVMBuildInBoundsGEP(c->builder, addr, &ptr_offset, 1, "");
-  args[1] = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
+  LLVMValueRef dst =  LLVMBuildInBoundsGEP(c->builder, addr, &ptr_offset, 1,
+    "");
+  LLVMValueRef src = LLVMBuildBitCast(c->builder, field_value(c, object, 3),
     c->void_ptr, "");
-  args[2] = alloc;
-  args[3] = LLVMConstInt(c->i32, 1, false);
-  args[4] = LLVMConstInt(c->i1, 0, false);
-
-  if(target_is_ilp32(c->opt->triple))
-  {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i32", args, 5, "");
-  } else {
-    gencall_runtime(c, "llvm.memcpy.p0i8.p0i8.i64", args, 5, "");
-  }
+  gencall_memcpy(c, dst, src, alloc);
 
   LLVMBuildBr(c->builder, post_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -1120,161 +1073,139 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-static void platform_freebsd(compile_t* c, reach_type_t* t)
+static void platform_freebsd(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("freebsd");
+  FIND_METHOD("freebsd", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_freebsd(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_linux(compile_t* c, reach_type_t* t)
+static void platform_linux(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("linux");
+  FIND_METHOD("linux", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_linux(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_osx(compile_t* c, reach_type_t* t)
+static void platform_osx(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("osx");
+  FIND_METHOD("osx", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_macosx(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_windows(compile_t* c, reach_type_t* t)
+static void platform_windows(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("windows");
+  FIND_METHOD("windows", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_windows(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_x86(compile_t* c, reach_type_t* t)
+static void platform_x86(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("x86");
+  FIND_METHOD("x86", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_x86(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_arm(compile_t* c, reach_type_t* t)
+static void platform_arm(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("arm");
+  FIND_METHOD("arm", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_arm(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_lp64(compile_t* c, reach_type_t* t)
+static void platform_lp64(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("lp64");
+  FIND_METHOD("lp64", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_lp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_llp64(compile_t* c, reach_type_t* t)
+static void platform_llp64(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("llp64");
+  FIND_METHOD("llp64", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_llp64(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_ilp32(compile_t* c, reach_type_t* t)
+static void platform_ilp32(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("ilp32");
+  FIND_METHOD("ilp32", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_ilp32(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_native128(compile_t* c, reach_type_t* t)
+static void platform_native128(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("native128");
+  FIND_METHOD("native128", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result =
     LLVMConstInt(c->ibool, target_is_native128(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
-static void platform_debug(compile_t* c, reach_type_t* t)
+static void platform_debug(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("debug");
+  FIND_METHOD("debug", cap);
   start_function(c, t, m, c->ibool, &t->use_type, 1);
 
   LLVMValueRef result = LLVMConstInt(c->ibool, !c->opt->release, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 void genprim_platform_methods(compile_t* c, reach_type_t* t)
 {
-  platform_freebsd(c, t);
-  platform_linux(c, t);
-  platform_osx(c, t);
-  platform_windows(c, t);
-  platform_x86(c, t);
-  platform_arm(c, t);
-  platform_lp64(c, t);
-  platform_llp64(c, t);
-  platform_ilp32(c, t);
-  platform_native128(c, t);
-  platform_debug(c, t);
+  BOX_FUNCTION(platform_freebsd, t);
+  BOX_FUNCTION(platform_linux, t);
+  BOX_FUNCTION(platform_osx, t);
+  BOX_FUNCTION(platform_windows, t);
+  BOX_FUNCTION(platform_x86, t);
+  BOX_FUNCTION(platform_arm, t);
+  BOX_FUNCTION(platform_lp64, t);
+  BOX_FUNCTION(platform_llp64, t);
+  BOX_FUNCTION(platform_ilp32, t);
+  BOX_FUNCTION(platform_native128, t);
+  BOX_FUNCTION(platform_debug, t);
 }
 
 typedef struct num_conv_t
@@ -1287,9 +1218,12 @@ typedef struct num_conv_t
   bool is_float;
 } num_conv_t;
 
-static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
-  bool native128)
+static void number_conversion(compile_t* c, void** data, token_id cap)
 {
+  num_conv_t* from = (num_conv_t*)data[0];
+  num_conv_t* to = (num_conv_t*)data[1];
+  bool native128 = data[2] != 0;
+
   if(!native128 &&
     ((from->is_float && (to->size > 64)) ||
     (to->is_float && (from->size > 64)))
@@ -1303,7 +1237,7 @@ static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
   if(t == NULL)
     return;
 
-  FIND_METHOD(to->fun_name);
+  FIND_METHOD(to->fun_name, cap);
   start_function(c, t, m, to->type, &from->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(m->func, 0);
@@ -1342,8 +1276,6 @@ static void number_conversion(compile_t* c, num_conv_t* from, num_conv_t* to,
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void number_conversions(compile_t* c)
@@ -1433,18 +1365,24 @@ static void number_conversions(compile_t* c)
     conv = llp64_conv;
 
   assert(conv != NULL);
-  bool native128 = target_is_native128(c->opt->triple);
+
+  void* data[3];
+  data[2] = (void*)target_is_native128(c->opt->triple);
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
+    data[0] = from;
     for(num_conv_t* to = conv; to->type_name != NULL; to++)
-      number_conversion(c, from, to, native128);
+    {
+      data[1] = to;
+      BOX_FUNCTION(number_conversion, data);
+    }
   }
 }
 
 static void f32__nan(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("_nan");
+  FIND_METHOD("_nan", TK_NONE);
   start_function(c, t, m, c->f32, &c->f32, 1);
 
   LLVMValueRef result = LLVMConstNaN(c->f32);
@@ -1454,7 +1392,7 @@ static void f32__nan(compile_t* c, reach_type_t* t)
 
 static void f32_from_bits(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("from_bits");
+  FIND_METHOD("from_bits", TK_NONE);
 
   LLVMTypeRef params[2];
   params[0] = c->f32;
@@ -1467,22 +1405,20 @@ static void f32_from_bits(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-static void f32_bits(compile_t* c, reach_type_t* t)
+static void f32_bits(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("bits");
+  FIND_METHOD("bits", cap);
   start_function(c, t, m, c->i32, &c->f32, 1);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 0),
     c->i32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void f64__nan(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("_nan");
+  FIND_METHOD("_nan", TK_NONE);
   start_function(c, t, m, c->f64, &c->f64, 1);
 
   LLVMValueRef result = LLVMConstNaN(c->f64);
@@ -1492,7 +1428,7 @@ static void f64__nan(compile_t* c, reach_type_t* t)
 
 static void f64_from_bits(compile_t* c, reach_type_t* t)
 {
-  FIND_METHOD("from_bits");
+  FIND_METHOD("from_bits", TK_NONE);
 
   LLVMTypeRef params[2];
   params[0] = c->f64;
@@ -1505,17 +1441,15 @@ static void f64_from_bits(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-static void f64_bits(compile_t* c, reach_type_t* t)
+static void f64_bits(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("bits");
+  FIND_METHOD("bits", cap);
   start_function(c, t, m, c->i64, &c->f64, 1);
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(m->func, 0),
     c->i64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
-
-  BOX_FUNCTION();
 }
 
 static void fp_intrinsics(compile_t* c)
@@ -1526,14 +1460,14 @@ static void fp_intrinsics(compile_t* c)
   {
     f32__nan(c, t);
     f32_from_bits(c, t);
-    f32_bits(c, t);
+    BOX_FUNCTION(f32_bits, t);
   }
 
   if((t = reach_type_name(c->reach, "F64")) != NULL)
   {
     f64__nan(c, t);
     f64_from_bits(c, t);
-    f64_bits(c, t);
+    BOX_FUNCTION(f64_bits, t);
   }
 }
 

@@ -232,7 +232,9 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
     return;
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
-  LLVMBuildStore(c->builder, t->desc, desc_ptr);
+  LLVMValueRef store = LLVMBuildStore(c->builder, t->desc, desc_ptr);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
 
 static void set_method_external_nominal(reach_type_t* t, const char* name)
@@ -327,6 +329,34 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
+typedef struct call_tuple_indices_t
+{
+  size_t* data;
+  size_t count;
+  size_t alloc;
+} call_tuple_indices_t;
+
+static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
+{
+  if(ti->count == ti->alloc)
+  {
+    size_t* tmp_data =
+      (size_t*)ponyint_pool_alloc_size(2 * ti->alloc * sizeof(size_t));
+    memcpy(tmp_data, ti->data, ti->count * sizeof(size_t));
+    ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+    ti->alloc *= 2;
+    ti->data = tmp_data;
+  }
+  ti->data[ti->count++] = idx;
+}
+
+static size_t tuple_indices_pop(call_tuple_indices_t* ti)
+{
+  assert(ti->count > 0);
+
+  return ti->data[--ti->count];
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.
@@ -382,6 +412,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     i++;
   }
 
+  bool is_new_call = false;
+
   // Generate the receiver. Must be done after the arguments because the args
   // could change things in the receiver expression that must be accounted for.
   if(call_needs_receiver(postfix, t))
@@ -391,21 +423,65 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_NEWREF:
       case TK_NEWBEREF:
       {
-        ast_t* parent = ast_parent(ast);
+        call_tuple_indices_t tuple_indices = {NULL, 0, 4};
+        tuple_indices.data =
+          (size_t*)ponyint_pool_alloc_size(4 * sizeof(size_t));
+
+        ast_t* current = ast;
+        ast_t* parent = ast_parent(current);
         while((parent != NULL) && (ast_id(parent) != TK_ASSIGN) &&
           (ast_id(parent) != TK_CALL))
-          parent = ast_parent(parent);
+        {
+          if(ast_id(parent) == TK_TUPLE)
+          {
+            size_t index = 0;
+            ast_t* child = ast_child(parent);
+            while(current != child)
+            {
+              ++index;
+              child = ast_sibling(child);
+            }
+            tuple_indices_push(&tuple_indices, index);
+          }
+          current = parent;
+          parent = ast_parent(current);
+        }
 
         // If we're constructing an embed field, pass a pointer to the field
         // as the receiver. Otherwise, allocate an object.
-        if((parent != NULL) && (ast_id(parent) == TK_ASSIGN) &&
-         (ast_id(ast_childidx(parent, 1)) == TK_EMBEDREF))
+        if((parent != NULL) && (ast_id(parent) == TK_ASSIGN))
         {
-          args[0] = gen_fieldptr(c, ast_childidx(parent, 1));
-          set_descriptor(c, t, args[0]);
+          size_t index = 1;
+          current = ast_childidx(parent, 1);
+          while((ast_id(current) == TK_TUPLE) || (ast_id(current) == TK_SEQ))
+          {
+            parent = current;
+            if(ast_id(current) == TK_TUPLE)
+            {
+              // If there are no indices left, we're destructuring a tuple.
+              // Errors in those cases have already been catched by the expr
+              // pass.
+              if(tuple_indices.count == 0)
+                break;
+              index = tuple_indices_pop(&tuple_indices);
+              current = ast_childidx(parent, index);
+            } else {
+              current = ast_childlast(parent);
+            }
+          }
+          if(ast_id(current) == TK_EMBEDREF)
+          {
+            args[0] = gen_fieldptr(c, current);
+            set_descriptor(c, t, args[0]);
+          } else {
+            args[0] = gencall_alloc(c, t);
+          }
         } else {
           args[0] = gencall_alloc(c, t);
         }
+        is_new_call = true;
+        ponyint_pool_free_size(tuple_indices.alloc * sizeof(size_t),
+          tuple_indices.data);
         break;
       }
 
@@ -455,8 +531,19 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     else
       r = codegen_call(c, func, args, i);
 
+    if(is_new_call)
+    {
+      LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+      LLVMSetMetadataStr(r, "pony.newcall", md);
+    }
+
     codegen_debugloc(c, NULL);
   }
+
+  // Class constructors return void, expression result is the receiver.
+  if(((ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF)) &&
+     (t->underlying == TK_CLASS))
+    r = args[0];
 
   ponyint_pool_free_size(buf_size, args);
   ponyint_pool_free_size(buf_size, params);
@@ -797,19 +884,23 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 
   LLVMValueRef result;
 
+  size_t size = t->abi_size;
+  if(size == 0)
+    size = 1;
+
   if(t->final_fn == NULL)
   {
-    if(t->abi_size <= HEAP_MAX)
+    if(size <= HEAP_MAX)
     {
-      uint32_t index = ponyint_heap_index(t->abi_size);
+      uint32_t index = ponyint_heap_index(size);
       args[1] = LLVMConstInt(c->i32, index, false);
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     } else {
-      args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
+      args[1] = LLVMConstInt(c->intptr, size, false);
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     }
   } else {
-    args[1] = LLVMConstInt(c->intptr, t->abi_size, false);
+    args[1] = LLVMConstInt(c->intptr, size, false);
     args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }
@@ -832,9 +923,37 @@ void gencall_throw(compile_t* c)
   LLVMBuildUnreachable(c->builder);
 }
 
+void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
+  LLVMValueRef n)
+{
+  LLVMValueRef func = LLVMMemcpy(c->module, target_is_ilp32(c->opt->triple));
+
+  LLVMValueRef args[5];
+  args[0] = dst;
+  args[1] = src;
+  args[2] = n;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
+  LLVMBuildCall(c->builder, func, args, 5, "");
+}
+
+void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
+  LLVMValueRef n)
+{
+  LLVMValueRef func = LLVMMemmove(c->module, target_is_ilp32(c->opt->triple));
+
+  LLVMValueRef args[5];
+  args[0] = dst;
+  args[1] = src;
+  args[2] = n;
+  args[3] = LLVMConstInt(c->i32, 1, false);
+  args[4] = LLVMConstInt(c->i1, 0, false);
+  LLVMBuildCall(c->builder, func, args, 5, "");
+}
+
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "llvm.lifetime.start");
+  LLVMValueRef func = LLVMLifetimeStart(c->module);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
@@ -846,7 +965,7 @@ void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "llvm.lifetime.end");
+  LLVMValueRef func = LLVMLifetimeEnd(c->module);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 

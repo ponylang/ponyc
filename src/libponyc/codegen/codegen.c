@@ -6,6 +6,7 @@
 #include "gendesc.h"
 #include "gencall.h"
 #include "genopt.h"
+#include "gentype.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
@@ -236,7 +237,7 @@ static void init_runtime(compile_t* c)
   params[0] = c->descriptor_ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
-  // $i8* pony_ctx()
+  // i8* pony_ctx()
   type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
@@ -248,6 +249,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->object_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE +
     (target_is_ilp32(c->opt->triple) ? 4 : 8));
@@ -257,6 +261,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_sendv(i8*, __object*, $message*);
   params[0] = c->void_ptr;
@@ -265,6 +272,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // i8* pony_alloc(i8*, intptr)
   params[0] = c->void_ptr;
@@ -272,6 +282,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
 #if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
@@ -283,6 +296,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceable(value, 0, HEAP_MIN);
 
@@ -292,6 +308,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceable(value, 0, HEAP_MAX + 1);
 
@@ -302,6 +321,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
 #if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
@@ -314,6 +336,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
 #if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
@@ -325,6 +350,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->msg_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_msg", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
   LLVMSetReturnNoAlias(value);
 
   // void pony_trace(i8*, i8*)
@@ -333,47 +361,74 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_trace", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  value = LLVMGetParam(value, 1);
+  LLVMAddAttribute(value, LLVMReadNoneAttribute);
 
-  // i8* pony_traceobject(i8*, __object*, __Desc*, i32)
+  // void pony_traceknown(i8*, __object*, __Desc*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->descriptor_ptr;
   params[3] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 4, false);
+  type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  value = LLVMGetParam(value, 1);
+  LLVMAddAttribute(value, LLVMReadNoneAttribute);
 
-  // i8* pony_traceunknown(i8*, __object*, i32)
+  // void pony_traceunknown(i8*, __object*, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  value = LLVMGetParam(value, 1);
+  LLVMAddAttribute(value, LLVMReadOnlyAttribute);
 
   // void pony_gc_send(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_gc_recv(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_recv", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_send_done(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_send_done", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_recv_done(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_serialise_reserve(i8*, i8*, intptr)
   params[0] = c->void_ptr;
@@ -382,6 +437,11 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  value = LLVMGetParam(value, 1);
+  LLVMAddAttribute(value, LLVMReadNoneAttribute);
 
   // intptr pony_serialise_offset(i8*, i8*)
   params[0] = c->void_ptr;
@@ -389,6 +449,11 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->intptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  value = LLVMGetParam(value, 1);
+  LLVMAddAttribute(value, LLVMReadOnlyAttribute);
 
   // i8* pony_deserialise_offset(i8*, __desc*, intptr)
   params[0] = c->void_ptr;
@@ -396,6 +461,9 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // i8* pony_deserialise_block(i8*, intptr, intptr)
   params[0] = c->void_ptr;
@@ -403,6 +471,10 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
+  LLVMSetReturnNoAlias(value);
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
@@ -410,6 +482,9 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->i32, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_init", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_become(i8*, __object*)
   params[0] = c->void_ptr;
@@ -417,47 +492,27 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_become", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // i32 pony_start(i32)
   params[0] = c->i32;
   type = LLVMFunctionType(c->i32, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#endif
 
   // void pony_throw()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
-  LLVMAddFunction(c->module, "pony_throw", type);
+  value = LLVMAddFunction(c->module, "pony_throw", type);
+  LLVMAddFunctionAttr(value, LLVMNoReturnAttribute);
 
   // i32 pony_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
-
-  // void llvm.memcpy.*(i8*, i8*, i32/64, i32, i1)
-  // void llvm.memmove.*(i8*, i8*, i32/64, i32, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
-  params[3] = c->i32;
-  params[4] = c->i1;
-  if(target_is_ilp32(c->opt->triple))
-  {
-    params[2] = c->i32;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i32", type);
-    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i32", type);
-  } else {
-    params[2] = c->i64;
-    type = LLVMFunctionType(c->void_type, params, 5, false);
-    LLVMAddFunction(c->module, "llvm.memcpy.p0i8.p0i8.i64", type);
-    LLVMAddFunction(c->module, "llvm.memmove.p0i8.p0i8.i64", type);
-  }
-
-  // void llvm.lifetime.start(i64, i8*)
-  // void llvm.lifetime.end(i64, i8*)
-  params[0] = c->i64;
-  params[1] = c->void_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
-  LLVMAddFunction(c->module, "llvm.lifetime.start", type);
-  LLVMAddFunction(c->module, "llvm.lifetime.end", type);
 }
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
@@ -473,6 +528,8 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
     builtin = package;
 
   c->reach = reach_new();
+
+  c->tbaa_mds = tbaa_metadatas_new();
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
@@ -490,7 +547,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   c->context = LLVMContextCreate();
   c->machine = make_machine(opt);
-  c->target_data = LLVMGetTargetMachineData(c->machine);
 
   // Create a module.
   c->module = LLVMModuleCreateWithNameInContext(c->filename, c->context);
@@ -499,6 +555,11 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   LLVMSetTarget(c->module, opt->triple);
 
   // Set the data layout.
+#if PONY_LLVM <= 308
+  c->target_data = LLVMGetTargetMachineData(c->machine);
+#else
+  c->target_data = LLVMCreateTargetDataLayout(c->machine);
+#endif
   char* layout = LLVMCopyStringRepOfTargetData(c->target_data);
   LLVMSetDataLayout(c->module, layout);
   LLVMDisposeMessage(layout);
@@ -569,6 +630,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
+  tbaa_metadatas_free(c->tbaa_mds);
   reach_free(c->reach);
 }
 

@@ -16,8 +16,18 @@ else
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
-    lto := yes
-    AR := /usr/bin/ar
+    ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
+      AR := llvm-ar-mp-3.8
+      AR_FLAGS := rcs
+    else
+      ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
+        AR := llvm-ar-3.8
+        AR_FLAGS := rcs
+      else
+        AR := /usr/bin/ar
+	AR_FLAGS := -rcs
+      endif
+    endif
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
@@ -26,12 +36,19 @@ else
   endif
 endif
 
+ifndef lto
+  ifeq ($(UNAME_S),Darwin)
+  	# turn lto on for OSX if user hasn't specified a value
+   	lto := yes
+   endif
+endif
+
 ifdef LTO_PLUGIN
   lto := yes
 endif
 
-# Default settings (silent debug build).
-config ?= debug
+# Default settings (silent release build).
+config ?= release
 arch ?= native
 bits ?= $(shell getconf LONG_BIT)
 
@@ -42,16 +59,19 @@ else
 endif
 
 ifneq ($(wildcard .git),)
-tag := $(shell git describe --tags --always)
-git := yes
+  tag := $(shell cat VERSION)-$(shell git rev-parse --short HEAD)
 else
-tag := $(shell cat VERSION)
-git := no
+  tag := $(shell cat VERSION)
 endif
 
-package_version := $(tag)
-archive = ponyc-$(package_version).tar
-package = build/ponyc-$(package_version)
+# package_name, _version, and _iteration can be overriden by Travis or AppVeyor
+package_base_version ?= $(tag)
+package_iteration ?= "1"
+package_name ?= "ponyc-unknown"
+package_conflicts ?= "ponyc-release"
+package_version = $(package_base_version)-$(package_iteration)
+archive = $(package_name)-$(package_version).tar
+package = build/$(package_name)-$(package_version)
 
 symlink := yes
 
@@ -74,9 +94,10 @@ LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS = -march=$(arch)
-AR_FLAGS = -rcs
+AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
-  -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
+  -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
@@ -140,28 +161,54 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
+  ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.9
+    LLVM_LINK = llvm-link-3.9
+    LLVM_OPT = opt-3.9
+  else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.8
+    LLVM_LINK = llvm-link-3.8
+    LLVM_OPT = opt-3.8
+  else ifneq (,$(shell which llvm-config-mp-3.8 2> /dev/null))
+    LLVM_CONFIG = llvm-config-mp-3.8
+    LLVM_LINK = llvm-link-mp-3.8
+    LLVM_OPT = opt-mp-3.8
   else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.7
+    LLVM_LINK = llvm-link-3.7
+    LLVM_OPT = opt-3.7
   else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.6
+    LLVM_LINK = llvm-link-3.6
+    LLVM_OPT = opt-3.6
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
+    LLVM_LINK = llvm-link38
+    LLVM_OPT = opt38
   else ifneq (,$(shell which llvm-config37 2> /dev/null))
     LLVM_CONFIG = llvm-config37
+    LLVM_LINK = llvm-link37
+    LLVM_OPT = opt37
   else ifneq (,$(shell which llvm-config36 2> /dev/null))
     LLVM_CONFIG = llvm-config36
+    LLVM_LINK = llvm-link36
+    LLVM_OPT = opt36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
+    LLVM_LINK = llvm-link
+    LLVM_OPT = opt
   endif
 endif
 
 ifndef LLVM_CONFIG
   $(error No LLVM installation found!)
 endif
+
+llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
@@ -398,7 +445,7 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
@@ -480,9 +527,9 @@ $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
   ifeq ($(runtime-bitcode),yes)
 $($(1))/libponyrt.bc: $(depends) $(bcfiles)
 	@echo 'Generating bitcode for libponyrt'
-	$(SILENT)llvm-link -o $$@ $(bcfiles)
+	$(SILENT)$(LLVM_LINK) -o $$@ $(bcfiles)
     ifeq ($(config),release)
-	$(SILENT)opt -O3 -o $$@ $$@
+	$(SILENT)$(LLVM_OPT) -O3 -o $$@ $$@
     endif
 libponyrt: $($(1))/libponyrt.bc $($(1))/libponyrt.$(LIB_EXT)
   else
@@ -507,32 +554,6 @@ endef
 
 $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
-define EXPAND_RELEASE
-$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
-ifneq ($(branch),master)
-prerelease:
-	$$(error "Releases not allowed on $(branch) branch.")
-else
-ifndef version
-prerelease:
-	$$(error "No version number specified.")
-else
-$(eval tag := $(version))
-$(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
-ifneq ($(unstaged),0)
-prerelease:
-	$$(error "Detected unstaged changes. Release aborted")
-else
-prerelease: libponyc libponyrt ponyc
-	@while [ -z "$$$$CONTINUE" ]; do \
-	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
-	done ; \
-	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
-	@echo "Releasing ponyc v$(tag)."
-endif
-endif
-endif
-endef
 
 define EXPAND_INSTALL
 install: libponyc libponyrt ponyc
@@ -589,28 +610,26 @@ test-examples: all
 	@./examples1
 	@rm examples1
 
-ifeq ($(git),yes)
-setversion:
-	@echo $(tag) > VERSION
-
-$(eval $(call EXPAND_RELEASE))
-
-release: prerelease setversion
-	$(SILENT)git add VERSION
-	$(SILENT)git commit -m "Releasing version $(tag)"
-	$(SILENT)git tag $(tag)
-	$(SILENT)git push
-	$(SILENT)git push --tags
-	$(SILENT)git checkout release
-	$(SILENT)git pull
-	$(SILENT)git merge master
-	$(SILENT)git push
-	$(SILENT)git checkout $(branch)
-endif
+test-ci: all
+	@$(PONY_BUILD_DIR)/libponyc.tests
+	@$(PONY_BUILD_DIR)/libponyrt.tests
+	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
+	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@./stdlib
+	@rm stdlib
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@./examples1
+	@rm examples1
 
 # Note: linux only
+# FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
 deploy: test
+	$(SILENT)sh .bintray.sh debian "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh rpm    "$(package_version)" "$(package_name)"
+	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
@@ -634,9 +653,9 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	$(SILENT)git archive release > build/bin/$(archive)
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)

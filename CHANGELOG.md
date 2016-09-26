@@ -6,6 +6,72 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+### Added
+
+- TCP writev performance improvement by avoiding throwing errors
+
+### Changed
+
+## [0.3.3] - 2016-09-23
+
+### Fixed
+
+- Incorrect build number generated on Windows when building from non-git directory.
+- Stop generating `llvm.invariant.load` for fields of `val` references.
+- Embedded fields construction through tuples.
+
+### Added
+
+- Improved error handling for `files` package.
+- ProcessMonitor.expect
+- ProcessNotify.created
+- ProcessNotify.expect
+
+### Changed
+
+- On Linux and FreeBSD, ponyc now uses $CC as the linker if the environment variable is defined.
+
+## [0.3.2] - 2016-09-18
+
+### Fixed
+
+- The `ponyc` version is now consistently set from the VERSION file.
+- Stop generating `llvm.invariant.load` intrinsic for "let" references, as these don't necessarily match the semantics of that intrinsic.
+
+### Changed
+
+- The `setversion` and `release` commands have been removed from `Makefile`.
+- LTO is again enabled by default on OSX
+- make now builds a `release` rather than `debug` build by default
+
+## [0.3.1] - 2016-09-14
+
+### Fixed
+
+- Make sure all scheduler threads are pinned to CPU cores; on Linux/FreeBSD this wasn't the case for the main thread.
+- Account for both hyperthreading and NUMA locality when assigning scheduler threads to cores on Linux.
+- Stop generating `llvm.invariant.start` intrinsic. It was causing various problems in code generation.
+- Buffer overflow triggerable by very long `ponyc` filename (issue #1177).
+- Assertion failure in optimisation passes.
+- Race condition in scheduler queues on weakly-ordered architectures.
+- Issue #1212 by reverting commit e56075d46d7d9e1d8c5e8be7ed0506ad2de98734
+
+### Added
+
+- `--ponypinasio` runtime option for pinning asio thread to a cpu core.
+- `--ponynopin` runtime option for not pinning any threads at all.
+
+### Changed
+
+- Path.base now provides option to omit the file extension from the result.
+- Map.upsert returns value for upserted key rather than `this`.
+- `ponyc --version` now includes llvm version in its output.
+- LTO is now disabled by default on OSX.
+
+## [0.3.0] - 2016-08-26
+
+### Fixed
+
 - Check for Main.create before reachability analysis.
 - Interface subtyping need not be invariant on type args.
 - @fowles: handle regex empty match.
@@ -44,6 +110,15 @@ All notable changes to the Pony compiler and standard library will be documented
 - String.read_int failure on lowest number in the range of signed integers.
 - Regex incorrect of len variable when PCRE2_ERROR_NOMEMORY is encountered.
 - No longer silently ignores lib paths containing parens on Windows.
+- Make linking more dynamic and allow for overriding linker and linker arch.
+- Fix issue with creating hex and octal strings if precision was specified.
+- Correctly parses Windows 10 SDK versions, and includes new UCRT library when linking with Windows 10 SDK.
+- Performance of Array.append and Array.concat (no unnecessary calls to push).
+- Performance of Map.upsert and Map.update (don't replace existing keys)
+- Segmentation fault from allocating zero-sized struct.
+- Segmentation fault from serialising zero-sized array.
+- Assertion failure from type-checking in invalid programs.
+- Make the offset parameter of String.rfind inclusive of the given index.
 
 ### Added
 
@@ -90,6 +165,12 @@ All notable changes to the Pony compiler and standard library will be documented
 - `String.push_utf32()` method.
 - Allow the use of a LLVM bitcode file for the runtime instead of a static library.
 - add iterators to persistent/Map (`keys()`, `values()`, and `pairs()`)
+- add notification of terminal resize
+- `trim` and `trim_in_place` methods for `Array` and `String`.
+- `is_null_terminated` and `null_terminated` methods for `String`.
+- `from_iso_array` constructor on `String`.
+- `Sort` primitive
+- PonyBench package
 
 ### Changed
 
@@ -105,7 +186,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Parameterized Array.find and Array.rfind with a comparator.
 - `this->` adapted types check match on the upper bounds.
 - Renamed `identityof` to `digestof`.
-- Renamed `net/Buffer` to `net/ReadBuffer`
+- Moved and renamed `net/Buffer` to `buffered/Reader` and `buffered/Writer`.
 - Print compiler error and info messages to stderr instead of stdout.
 - `Hashmap.concat` now returns `this` rather than `None`
 - Only allow single, internal underscores in numeric literals.
@@ -113,6 +194,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Strings now grow and shrink geometrically.
 - Embedded fields can now be constructed from complex expressions containing constructors
 - Sendable members of non-sendable objects can be used in recover expressions in certain cases.
+- ProcessNotify functions are passed a reference to ProcessMonitor.
+- The constructor of `Options` doesn't require an `Env` anymore but just a simple `String` array.
 
 ## [0.2.1] - 2015-10-06
 

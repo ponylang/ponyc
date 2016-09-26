@@ -62,7 +62,7 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
   }
 }
 
-static void make_signature(reach_type_t* t, reach_method_t* m)
+static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   // Count the parameters, including the receiver.
   size_t count = m->param_count + 1;
@@ -76,9 +76,13 @@ static void make_signature(reach_type_t* t, reach_method_t* m)
   for(size_t i = 0; i < m->param_count; i++)
     tparams[i + 1] = m->params[i].type->use_type;
 
-  // Generate the function type.
-  m->func_type = LLVMFunctionType(m->result->use_type, tparams, (int)count,
-    false);
+  // Generate the function type. Class constructors return void to avoid
+  // clobbering nocapture information.
+  if((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS))
+    m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
+  else
+    m->func_type = LLVMFunctionType(m->result->use_type, tparams, (int)count,
+      false);
 
   ponyint_pool_free_size(tparam_size, tparams);
 }
@@ -134,7 +138,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   switch(ast_id(m->r_fun))
   {
     case TK_NEW:
-      handler = (t->underlying == TK_ACTOR) && !m->forwarding;
+      handler = t->underlying == TK_ACTOR;
       break;
 
     case TK_BE:
@@ -144,7 +148,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     default: {}
   }
 
-  make_signature(t, m);
+  make_signature(c, t, m);
 
   switch(t->underlying)
   {
@@ -442,7 +446,10 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast_childlast(body));
-  LLVMBuildRet(c->builder, value);
+  if(t->underlying == TK_CLASS)
+    LLVMBuildRetVoid(c->builder);
+  else
+    LLVMBuildRet(c->builder, value);
   codegen_debugloc(c, NULL);
 
   codegen_finishfun(c);

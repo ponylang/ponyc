@@ -6,10 +6,13 @@
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
+#  pragma warning(disable:4291)
 #endif
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
@@ -65,6 +68,39 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 }
 #endif
 
+#if PONY_LLVM >= 308
+void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
+{
+  Instruction* i = unwrap<Instruction>(inst);
+  if(CallInst* c = dyn_cast<CallInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOnly);
+  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOnly);
+  else
+    assert(0);
+}
+
+void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
+{
+  unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
+}
+
+void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
+{
+  Instruction* i = unwrap<Instruction>(inst);
+  if(CallInst* c = dyn_cast<CallInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
+    c->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+  else
+    assert(0);
+}
+#endif
+
 #if PONY_LLVM < 307
 static fltSemantics const* float_semantics(Type* t)
 {
@@ -111,4 +147,64 @@ LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
   SMDiagnostic diag;
 
   return wrap(parseIRFile(file, diag, *unwrap(ctx)).release());
+}
+
+// From LLVM internals.
+static MDNode* extractMDNode(MetadataAsValue* mdv)
+{
+  Metadata* md = mdv->getMetadata();
+  assert(isa<MDNode>(md) || isa<ConstantAsMetadata>(md));
+
+  MDNode* n = dyn_cast<MDNode>(md);
+  if(n != NULL)
+    return n;
+
+  return MDNode::get(mdv->getContext(), md);
+}
+
+void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
+{
+  assert(node != NULL);
+
+  MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
+
+  unwrap<Instruction>(inst)->setMetadata(str, n);
+}
+
+LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
+{
+  Module* m = unwrap(module);
+
+  Type* params[3];
+  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[1] = params[0];
+  params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memcpy, {params, 3}));
+}
+
+LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
+{
+  Module* m = unwrap(module);
+
+  Type* params[3];
+  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[1] = params[0];
+  params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memmove, {params, 3}));
+}
+
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module)
+{
+  Module* m = unwrap(module);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, {}));
+}
+
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module)
+{
+  Module* m = unwrap(module);
+
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
 }

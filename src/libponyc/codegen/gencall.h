@@ -26,6 +26,12 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t);
 
 void gencall_throw(compile_t* c);
 
+void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
+  LLVMValueRef n);
+
+void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
+  LLVMValueRef n);
+
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr);
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr);

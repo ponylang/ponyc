@@ -10,10 +10,11 @@ struct asio_base_t
 {
   pony_thread_id_t tid;
   asio_backend_t* backend;
-  uint64_t volatile noisy_count;
+  ATOMIC_TYPE(uint64_t) noisy_count;
 };
 
 static asio_base_t running_base;
+static uint32_t asio_cpu;
 
 /** Start an asynchronous I/O event mechanism.
  *
@@ -30,15 +31,16 @@ asio_backend_t* ponyint_asio_get_backend()
   return running_base.backend;
 }
 
-void ponyint_asio_init()
+void ponyint_asio_init(uint32_t cpu)
 {
+  asio_cpu = cpu;
   running_base.backend = ponyint_asio_backend_init();
 }
 
 bool ponyint_asio_start()
 {
-  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch, -1,
-    running_base.backend))
+  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
+    asio_cpu, running_base.backend))
     return false;
 
   return true;
@@ -46,7 +48,7 @@ bool ponyint_asio_start()
 
 bool ponyint_asio_stop()
 {
-  if(_atomic_load(&running_base.noisy_count) > 0)
+  if(atomic_load_explicit(&running_base.noisy_count, memory_order_relaxed) > 0)
     return false;
 
   if(running_base.backend != NULL)
@@ -63,10 +65,10 @@ bool ponyint_asio_stop()
 
 void ponyint_asio_noisy_add()
 {
-  _atomic_add(&running_base.noisy_count, 1);
+  atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
 }
 
 void ponyint_asio_noisy_remove()
 {
-  _atomic_add(&running_base.noisy_count, -1);
+  atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
 }

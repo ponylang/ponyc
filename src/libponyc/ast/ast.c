@@ -1471,3 +1471,38 @@ void ast_extract_children(ast_t* parent, size_t child_count,
     p = next;
   }
 }
+
+void unattached_asts_init(unattached_asts_t* asts)
+{
+  asts->storage = (ast_t**)ponyint_pool_alloc_size(16 * sizeof(ast_t*));
+  asts->count = 0;
+  asts->alloc = 16;
+}
+
+void unattached_asts_put(unattached_asts_t* asts, ast_t* ast)
+{
+  if(asts->count == asts->alloc)
+  {
+    size_t new_alloc = asts->alloc << 2;
+    ast_t** new_storage =
+      (ast_t**)ponyint_pool_alloc_size(new_alloc * sizeof(ast_t*));
+    memcpy(new_storage, asts->storage, asts->count * sizeof(ast_t*));
+    ponyint_pool_free_size(asts->alloc, asts->storage);
+    asts->alloc = new_alloc;
+    asts->storage = new_storage;
+  }
+  asts->storage[asts->count++] = ast;
+}
+
+void unattached_asts_clear(unattached_asts_t* asts)
+{
+  for(size_t i = 0; i < asts->count; ++i)
+    ast_free_unattached(asts->storage[i]);
+  asts->count = 0;
+}
+
+void unattached_asts_destroy(unattached_asts_t* asts)
+{
+  unattached_asts_clear(asts);
+  ponyint_pool_free_size(asts->alloc, asts->storage);
+}

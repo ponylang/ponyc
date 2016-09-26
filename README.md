@@ -2,9 +2,7 @@
 
 Need help? Not to worry, we have you covered.
 
-We have a couple resources designed to help you learn, we suggest starting with
-the tutorial and from there, moving on to the Pony Patterns book. Additionally,
-standard library documentation is available online.
+We have a couple resources designed to help you learn, we suggest starting with the tutorial and from there, moving on to the Pony Patterns book. Additionally, standard library documentation is available online.
 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
@@ -62,51 +60,90 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 
 If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
 
-## Mac OS X using [Homebrew](http://brew.sh)
 
-The homebrew version is currently woefully out of date. We are transitioning to
-a new release system that will keep homebrew up to date. For now, please build
-from source.
+## Linux using an RPM package (via Bintray)
+
+For Red Hat, CentOS, or Fedora Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+
+To install  release builds via Yum:
+```bash
+wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
+sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
+
+sudo yum install ponyc-release
+```
+
+Or, for master builds:
+```bash
+yum install ponyc-master
+```
+
+
+## Linux using a DEB package (via Bintray)
+
+For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
+
+To install release builds via Apt:
+
+```bash
+echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
+sudo apt-get update
+sudo apt-get install ponyc-release
+```
+
+
+Or, for master builds:
+```
+sudo apt-get install ponyc-master
+```
+
+
+## Windows using ZIP (via Bintray)
+
+For Windows, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+
+```powershell
+Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
+7z x .\ponyc-VERSION.zip
+.\ponyc-VERSION\ponyc\bin\ponyc.exe --version
+```
+
+Windows 10 users will need to install the Windows 10 SDK in order to build programs with ponyc. It can be downloaded [from Microsoft](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+
+## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
 $ brew update
 $ brew install ponyc
 ```
 
-## Linux
-
-### Arch
+## Arch Linux
 
 ```bash
 pacman -S ponyc
 ```
 
-### Gentoo
+## Gentoo Linux
 
 ```bash
 layman -a stefantalpalaru
 emerge dev-lang/pony
 ```
 
-A live ebuild is also available in the
-[overlay](https://github.com/stefantalpalaru/gentoo-overlay)
-(dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
-
-### Other distributions
-
-We're transitioning to a new binary release system. For now, please build from source.
-
-## Windows
-
-To run as native Windows binary, you will need to [build from source](#building-ponyc-from-source).
-
-If you are running Windows 10 Anniversary Update, you can install Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about). This was tested on build 14372.0.
+A live ebuild is also available in the [overlay](https://github.com/stefantalpalaru/gentoo-overlay) (dev-lang/pony-9999) and for Vim users there's app-vim/pony-syntax.
 
 # Building ponyc from source
 
 Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work**. If you are using LLVM 3.7.x, you need to use 3.7.1. If you are using LLVM 3.6.x, make sure to use 3.6.2.
 
 ## Building on Linux
+
+Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
+```bash
+$ sudo apt install git
+$ git clone git://github.com/ponylang/ponyc
+```
+
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 ### Arch
@@ -118,8 +155,20 @@ pacman -S llvm make ncurses openssl pcre2 zlib
 To build ponyc and compile helloworld:
 
 ```bash
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
+```
+
+If you get errors like
+
+```bash
+/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
+```
+
+try running `ponyc` with the `--pic` flag.
+
+```bash
+$ ./build/release/ponyc --pic examples/helloworld
 ```
 
 ### Debian Jessie
@@ -151,11 +200,13 @@ $ make
 $ sudo make install
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc, compile and run helloworld:
 
 ```bash
-$ make config=release
+$ cd ~/ponyc/
+$ make
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ### Ubuntu (14.04, 15.10, 16.04)
@@ -164,11 +215,7 @@ You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.
 
 ```bash
 $ sudo apt-get update
-$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev
-$ wget <clang-binaries-tarball-url>
-$ tar xvf clang*
-$ cd clang*
-$ sudo cp -r * /usr/local/ && cd ..
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-dev
 ```
 
 Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
@@ -182,11 +229,13 @@ $ make
 $ sudo make install
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc, compile and run helloworld:
 
 ```bash
-$ make config=release
+$ cd ~/ponyc/
+$ make
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ### Other Linux distributions
@@ -210,11 +259,13 @@ $ make
 $ sudo make install
 ```
 
-Finally to build ponyc and compile the hello world app:
+Finally to build ponyc, compile and run the hello world app:
 
 ```bash
-$ make config=release
+$ cd ~/ponyc/
+$ make
 $ ./build/release/ponyc examples/helloworld
+$ ./helloworld
 ```
 
 ## Building on FreeBSD
@@ -231,7 +282,7 @@ sudo pkg install libunwind
 This will build ponyc and compile helloworld:
 
 ```bash
-$ gmake config=release
+$ gmake
 $ ./build/release/ponyc examples/helloworld
 ```
 
@@ -256,12 +307,14 @@ $ sudo port select --set llvm mp-llvm-3.8
 
 Then launch the build with Make:
 ```
-$ make config=release
+$ make
 $ ./build/release/ponyc examples/helloworld
 ```
 
 ## Building on Windows
 [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
+
+_Note: it may also be possible (as tested on build 14372.0 of Windows 10) to build Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about)._
 
 The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 or 3.8 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
@@ -312,18 +365,16 @@ Now you can run the pony compiler and tests:
 You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line:
 
 ```bash
-$ make config=release lto=yes
+$ make lto=yes
 ```
 
 If the build fails, you have to specify the LTO plugin for your compiler in the `LTO_PLUGIN` variable. For example:
 
 ```bash
-$ make config=release LTO_PLUGIN=/usr/lib/LLVMgold.so
+$ make LTO_PLUGIN=/usr/lib/LLVMgold.so
 ```
 
 Refer to your compiler documentation for the plugin to use in your case.
-
-LTO is enabled by default on OSX.
 
 
 ## VirtualBox
@@ -338,8 +389,11 @@ On ARM and MIPS platforms, the default gcc architecture specification used in th
 ```bash
 $ make arch=armv7
 ```
+
 To get a complete list of acceptable architecture names, use the gcc command:
+
 ```bash
 gcc -march=none
 ```
+
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
