@@ -162,7 +162,7 @@ class _TestTCP is TCPListenNotify
       let auth = _h.env.root as AmbientAuth
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()
-      _h.dispose_when_done(TCPConnection.ip4(auth, consume notify, host, port))
+      _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
       _h.complete_action("client create")
     else
       _h.fail_action("client create")
