@@ -2,17 +2,15 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.4.0] - 2016-09-26
 
 ### Fixed
 
-* Unexpected message ordering in `ProcessManager` (issue #1265)
+- Unexpected message ordering in `ProcessManager` (issue #1265)
 
 ### Added
 
 - TCP writev performance improvement by avoiding throwing errors
-
-### Changed
 
 ## [0.3.3] - 2016-09-23
 
