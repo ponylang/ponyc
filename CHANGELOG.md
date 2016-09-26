@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+* Unexpected message ordering in `ProcessManager` (issue #1265)
+
 ### Added
 
 ### Changed

@@ -12,6 +12,8 @@ actor Main is TestList
     test(_TestStderr)
     test(_TestFileExec)
     test(_TestExpect)
+    test(_TestWritevOrdering)
+    test(_TestPrintvOrdering)
 
 class iso _TestStdinStdout is UnitTest
   fun name(): String =>
@@ -139,6 +141,70 @@ class iso _TestExpect is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
+class iso _TestWritevOrdering is UnitTest
+  fun name(): String =>
+    "process/WritevOrdering"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("onetwothree",
+      "", 0, h)
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("cat")
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+      let params: Array[String] iso = recover Array[String](3) end
+      params.push("one")
+      params.push("two")
+      params.push("three")
+
+      pm.writev(consume params)
+      pm.done_writing()  // closing stdin allows "cat" to terminate
+      h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestPrintvOrdering is UnitTest
+  fun name(): String =>
+    "process/PrintvOrdering"
+
+  fun apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient("one\ntwo\nthree\n",
+      "", 0, h)
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("cat")
+      let vars: Array[String] iso = recover Array[String](2) end
+      vars.push("HOME=/")
+      vars.push("PATH=/bin")
+
+      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+        consume args, consume vars)
+      let params: Array[String] iso = recover Array[String](3) end
+      params.push("one")
+      params.push("two")
+      params.push("three")
+
+      pm.printv(consume params)
+      pm.done_writing()  // closing stdin allows "cat" to terminate
+      h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -203,3 +269,4 @@ class _ProcessClient is ProcessNotify
     _h.assert_eq[String box](_err, _d_stderr)
     _h.assert_eq[I32](_exit_code, child_exit_code)
     _h.complete(true)
+
