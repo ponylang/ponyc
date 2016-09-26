@@ -68,6 +68,7 @@ Leave a comment on the GitHub issue for this release to let everyone know that y
 
 ### Update VERSION and CHANGELOG
 
+* git checkout master
 * git pull
 * git checkout -b release-0.3.1 8a8ee28
 
