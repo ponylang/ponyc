@@ -10,6 +10,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- TCP writev performance improvement by avoiding throwing errors
+
 ### Changed
 
 ## [0.3.3] - 2016-09-23

@@ -6,9 +6,9 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestBroadcast)
+    test(_TestTCPWritev)
     ifdef not windows then
       test(_TestTCPExpect)
-      test(_TestTCPWritev)
     end
 
 class _TestPing is UDPNotify
@@ -162,7 +162,7 @@ class _TestTCP is TCPListenNotify
       let auth = _h.env.root as AmbientAuth
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()
-      _h.dispose_when_done(TCPConnection.ip4(auth, consume notify, host, port))
+      _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
       _h.complete_action("client create")
     else
       _h.fail_action("client create")
@@ -265,62 +265,41 @@ class iso _TestTCPWritev is UnitTest
   fun name(): String => "net/TCP.writev"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("client receive")
+    h.expect_action("client connect")
     h.expect_action("server receive")
 
-    _TestTCP(h)(_TestTCPWritevNotify(h, false), _TestTCPWritevNotify(h, true))
+    _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h))
 
-class _TestTCPWritevNotify is TCPConnectionNotify
+class _TestTCPWritevNotifyClient is TCPConnectionNotify
   let _h: TestHelper
-  let _server: Bool
-  var _buffer: String iso = recover iso String end
 
-  new iso create(h: TestHelper, server: Bool) =>
+  new iso create(h: TestHelper) =>
     _h = h
-    _server = server
 
-  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
-    if not _server then
-      _h.fail("TCPConnectionNotify.sent invoked on the client side, " +
-              "when the sentv success should have prevented it.")
-    end
-
-    let data_str = recover trn String.append(data) end
-    if data_str == "ignore me" then error end
-
-    if data_str == "replace me" then return ", hello" end
-
-    _h.assert_eq[String]("hello", consume data_str)
-    data
-
-  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter ?=>
-    if _server then error end
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
     recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
-
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
-    _buffer.append(consume data)
-
-    let expected =
-      if _server
-      then "hello, hello (from client)"
-      else "hello, hello"
-      end
-
-    if _buffer.size() >= expected.size() then
-      let buffer: String = _buffer = recover iso String end
-      _h.assert_eq[String](expected, consume buffer)
-
-      if _server then
-        _h.complete_action("server receive")
-        conn.writev(recover ["hello", "ignore me", "replace me"] end)
-      else
-        _h.complete_action("client receive")
-      end
-    end
-
-  fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("client connect")
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.writev(recover ["hello", ", hello"] end)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect")
+
+class _TestTCPWritevNotifyServer is TCPConnectionNotify
+  let _h: TestHelper
+  var _buffer: String iso = recover iso String end
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    _buffer.append(consume data)
+
+    let expected = "hello, hello (from client)"
+
+    if _buffer.size() >= expected.size() then
+      let buffer: String = _buffer = recover iso String end
+      _h.assert_eq[String](expected, consume buffer)
+      _h.complete_action("server receive")
+    end
