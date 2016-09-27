@@ -133,7 +133,7 @@ static bool uri_command(pass_opt_t* opt, ast_t* ast, ast_t* uri, ast_t* alias,
     return false;
   }
 
-  if(!ifdef_cond_eval(guard, opt))
+  if(ifdef_cond_normalise(&guard, opt) && !ifdef_cond_eval(guard, opt))
     return true;
 
   assert(handlers[index].handler != NULL);
