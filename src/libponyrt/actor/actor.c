@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <dtrace.h>
 
 enum
 {
@@ -103,10 +104,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   if(!ponyint_heap_startgc(&actor->heap))
     return;
 
-#ifdef USE_TELEMETRY
-  ctx->count_gc_passes++;
-  size_t tsc = ponyint_cpu_tick();
-#endif
+  DTRACE0(GC_START);
 
   ponyint_gc_mark(ctx);
 
@@ -116,9 +114,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   ponyint_mark_done(ctx);
   ponyint_heap_endgc(&actor->heap);
 
-#ifdef USE_TELEMETRY
-  ctx->time_in_gc += (ponyint_cpu_tick() - tsc);
-#endif
+  DTRACE0(GC_END);
 }
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
