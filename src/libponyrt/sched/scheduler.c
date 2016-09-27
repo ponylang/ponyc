@@ -20,6 +20,7 @@ typedef enum
   SCHED_CNF,
   SCHED_ACK,
   SCHED_TERMINATE
+
 } sched_msg_t;
 
 // Scheduler global data.
@@ -320,8 +321,10 @@ static void ponyint_sched_shutdown()
 
   ponyint_cycle_terminate(&scheduler[0].ctx);
 
-#ifdef USE_TELEMETRY
+#ifdef USE_DTRACE
+  #include "../../../systemtap/trace.h"
   printf("\"telemetry\": [\n");
+  TRACE(HELLOWORLD_INPUT_START());
 #endif
 
   for(uint32_t i = 0; i < scheduler_count; i++)
@@ -371,7 +374,7 @@ static void ponyint_sched_shutdown()
 #endif
   }
 
-#ifdef USE_TELEMETRY
+#ifdef USE_DTRACE
   printf("\n]\n");
 #endif
 

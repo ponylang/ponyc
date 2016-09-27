@@ -1,0 +1,4 @@
+probe * {
+
+	printf("Probestr :) %s\n", $$locals);
+}

@@ -58,6 +58,8 @@ else
   SILENT =
 endif
 
+
+
 ifneq ($(wildcard .git),)
   tag := $(shell cat VERSION)-$(shell git rev-parse --short HEAD)
 else
@@ -124,9 +126,10 @@ ifdef use
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
   endif
 
-  ifneq (,$(filter $(use), telemetry))
-    ALL_CFLAGS += -DUSE_TELEMETRY
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-telemetry
+  ifneq (,$(filter $(use), dtrace))
+    DTRACE := dtrace
+    ALL_CFLAGS += -DUSE_DTRACE
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
 endif
 
@@ -387,6 +390,7 @@ libponyc.tests.depends := libponyc libgtest
 libponyrt.tests.depends := libponyrt libgtest
 ponyc.depends := libponyc libponyrt
 
+
 # Generic make section, edit with care.
 ##########################################################################
 #                                                                        #
@@ -543,7 +547,13 @@ $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
+  ifeq ($(DTRACE), dtrace)
+	@echo 'Generating systemtap object file'
+	$(DTRACE) -C -G -s systemtap/probes.d -o systemtap/probes.o
+	$(SILENT)$(linker) -o $$@ $(ofiles) $(linkcmd) systemtap/probes.o
+  else
 	$(SILENT)$(linker) -o $$@ $(ofiles) $(linkcmd)
+  endif
 $(1): $($(1))/$(1)
 endif
 
@@ -560,6 +570,7 @@ install: libponyc libponyrt ponyc
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include
+
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
@@ -568,6 +579,7 @@ endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
 	$(SILENT)cp -r packages $(destdir)/
+
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
@@ -680,6 +692,7 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
+	@rm -f systemtap/*.o
 	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
