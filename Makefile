@@ -112,6 +112,7 @@ endif
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
+DTRACE ?=
 
 ifdef use
   ifneq (,$(filter $(use), valgrind))
@@ -125,6 +126,12 @@ ifdef use
   endif
 
   ifneq (,$(filter $(use), dtrace))
+    DTRACE += $(shell which dtrace)
+    ifeq (, $(DTRACE))
+      $(error No dtrace compatibile user application static probe generation
+       tool found)
+    endif
+
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
@@ -371,6 +378,10 @@ ifeq ($(OSTYPE),linux)
   libponyrt.tests.links += pthread dl
 endif
 
+ifneq (, $(DTRACE))
+  $(shell $(DTRACE) -h -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_SOURCE_DIR)/common/dtrace_probes.h)
+endif
+
 # Overwrite the default linker for a target.
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 
@@ -523,7 +534,15 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifeq ($(1),libponyrt)
 $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking libponyrt'
-	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+    ifneq (,$(DTRACE))
+    ifeq ($(OSTYPE), linux)
+	@echo 'Generating dtrace object file'
+    $(shell $(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+    endif
+    else
+    $(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+    endif
   ifeq ($(runtime-bitcode),yes)
 $($(1))/libponyrt.bc: $(depends) $(bcfiles)
 	@echo 'Generating bitcode for libponyrt'
