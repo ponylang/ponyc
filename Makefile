@@ -112,7 +112,6 @@ endif
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
-DTRACE ?=
 
 ifdef use
   ifneq (,$(filter $(use), valgrind))
@@ -126,7 +125,7 @@ ifdef use
   endif
 
   ifneq (,$(filter $(use), dtrace))
-    DTRACE += $(shell which dtrace)
+    DTRACE ?= $(shell which dtrace)
     ifeq (, $(DTRACE))
       $(error No dtrace compatibile user application static probe generation
        tool found)
@@ -537,11 +536,13 @@ $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
     ifneq (,$(DTRACE))
     ifeq ($(OSTYPE), linux)
 	@echo 'Generating dtrace object file'
-    $(shell $(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o)
+	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+    else
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
     endif
     else
-    $(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
     endif
   ifeq ($(runtime-bitcode),yes)
 $($(1))/libponyrt.bc: $(depends) $(bcfiles)
