@@ -7,6 +7,7 @@
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
 #  pragma warning(disable:4291)
+#  pragma warning(disable:4146)
 #endif
 
 #include <llvm/IR/Constants.h>

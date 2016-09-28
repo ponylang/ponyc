@@ -41,6 +41,9 @@
     for lib in string.gmatch(output, "-l(%S+)") do
       links { lib }
     end
+    for lib in string.gmatch(output, "lib.(%S+).lib") do
+      links { lib }
+    end
   end
 
   function llvm_config(opt)
