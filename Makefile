@@ -705,6 +705,7 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
+	@rm src/common/dtrace_probes.h
 	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
