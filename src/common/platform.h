@@ -42,6 +42,7 @@
 #  pragma warning(disable:4510)
 #  pragma warning(disable:4512)
 #  pragma warning(disable:4610)
+#  pragma warning(disable:4146)
 /** Disable warning about __declspec(restrict) not being used at function
  *  definition. According to the documentation, it should not matter.
  *  Also, using extern "C" does not remove this warning.
