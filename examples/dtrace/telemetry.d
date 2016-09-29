@@ -11,43 +11,43 @@ inline unsigned int ACTORMSG_CONF = (UINT32_MAX - 2);
 inline unsigned int ACTORMSG_ACK = (UINT32_MAX - 1);
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_BLOCK /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_BLOCK /
 {
   @counts[arg0, "Block Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_UNBLOCK /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_UNBLOCK /
 {
   @counts[arg0, "Unblock Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_ACQUIRE /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_ACQUIRE /
 {
   @counts[arg0, "Acquire Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_RELEASE /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_RELEASE /
 {
   @counts[arg0, "Release Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_CONF /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_CONF /
 {
   @counts[arg0, "Confirmation Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 == ACTORMSG_ACK /
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_ACK /
 {
   @counts[arg0, "Acknowledgement Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg1 < ACTORMSG_BLOCK /
+/ (unsigned int)arg1 < (unsigned int)ACTORMSG_BLOCK /
 {
   @counts[arg0, "Application Messages Sent"] = count();
 }
