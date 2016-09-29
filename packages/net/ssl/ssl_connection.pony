@@ -135,6 +135,6 @@ class SSLConnection is TCPConnectionNotify
 
     try
       while _ssl.can_send() do
-        conn.write_final(_ssl.send())
+        _notify.sent(conn, _ssl.send())
       end
     end
