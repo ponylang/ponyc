@@ -152,6 +152,17 @@ class Reader
 
     consume out
 
+
+  fun ref read_until(separator: U8): Array[U8] iso^ ? =>
+    """
+    Find the first occurence of the separator and return the block of bytes
+    before its position. The separator is not included in the returned array,
+    but it is removed from the buffer.
+    """
+    let b = block(_distance_of(separator) - 1)
+    u8()
+    consume b
+
   fun ref line(): String ? =>
     """
     Return a \n or \r\n terminated line as a string. The newline is not
@@ -529,10 +540,9 @@ class Reader
 
     error
 
-  fun ref _line_length(): USize ? =>
+  fun ref _distance_of(byte: U8): USize ? =>
     """
-    Get the length of a pending line. Raise an error if there is no pending
-    line.
+    Get the distance to the first occurence of the given byte
     """
     if _chunks.size() == 0 then
       error
@@ -554,7 +564,7 @@ class Reader
       (var data, var offset) = node()
 
       try
-        let len = (_line_len + data.find('\n', offset) + 1) - offset
+        let len = (_line_len + data.find(byte, offset) + 1) - offset
         _line_node = None
         _line_len = 0
         return len
@@ -571,3 +581,10 @@ class Reader
 
     _line_node = node
     error
+
+  fun ref _line_length(): USize ? =>
+    """
+    Get the length of a pending line. Raise an error if there is no pending
+    line.
+    """
+    _distance_of('\n')
