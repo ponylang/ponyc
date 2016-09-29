@@ -1,4 +1,4 @@
-#!/usr/sbin/dtrace -s
+#!/usr/sbin/dtrace -x aggsortkey -x aggsortkeypos=1 -s
 
 #pragma D option quiet
 
@@ -11,95 +11,93 @@ inline unsigned int ACTORMSG_CONF = (UINT32_MAX - 2);
 inline unsigned int ACTORMSG_ACK = (UINT32_MAX - 1);
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_BLOCK /
+/ (int)arg1 == ACTORMSG_BLOCK /
 {
-  @messages["Block Messages Sent"] = count();
+  @counts[arg0, "Block Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_UNBLOCK /
+/ (int)arg1 == ACTORMSG_UNBLOCK /
 {
-  @messages["Unblock Messages Sent"] = count();
+  @counts[arg0, "Unblock Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_ACQUIRE /
+/ (int)arg1 == ACTORMSG_ACQUIRE /
 {
-  @messages["Acquire Messages Sent"] = count();
+  @counts[arg0, "Acquire Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_RELEASE /
+/ (int)arg1 == ACTORMSG_RELEASE /
 {
-  @messages["Release Messages Sent"] = count();
+  @counts[arg0, "Release Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_CONF /
+/ (int)arg1 == ACTORMSG_CONF /
 {
-  @messages["Confirmation Messages Sent"] = count();
+  @counts[arg0, "Confirmation Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 == ACTORMSG_ACK /
+/ (int)arg1 == ACTORMSG_ACK /
 {
-  @messages["Acknowledgement Messages Sent"] = count();
+  @counts[arg0, "Acknowledgement Messages Sent"] = count();
 }
 
 pony*:::actor-msg-send
-/ (int)arg0 < ACTORMSG_BLOCK /
+/ (int)arg1 < ACTORMSG_BLOCK /
 {
-  @messages["Application Messages Sent"] = count();
+  @counts[arg0, "Application Messages Sent"] = count();
 }
 
 pony*:::actor-alloc
 {
-  @counts["Actor Allocations"] = count();
+  @counts[arg0, "Actor Allocations"] = count();
 }
 
 pony*:::heap-alloc
 {
-  @counts["Heap Allocations"] = count();
-  @sizes["Heap Allocations Size"] = sum(arg0);
+  @counts[arg0, "Heap Allocations"] = count();
+  @sizes[arg0, "Heap Allocations Size"] = sum(arg1);
 }
 
 pony*:::gc-start
 {
-  @counts["GC Passes"] = count();
+  @counts[arg0, "GC Passes"] = count();
   self->start_gc = timestamp;
 }
 
 pony*:::gc-end
 {
-  @times["Time in GC (ns)"] = sum(timestamp - self->start_gc);
+  @times[arg0, "Time in GC"] = sum(timestamp - self->start_gc);
 }
 
 pony*:::gc-send-start
 {
-  @counts["Objects Sent"] = count();
+  @counts[arg0, "Objects Sent"] = count();
   self->start_send = timestamp;
 }
 
 pony*:::gc-send-end
 {
-  @times["Time in Send Scan (ns)"] = sum(timestamp - self->start_send);
+  @times[arg0, "Time in Send Scan"] = sum(timestamp - self->start_send);
 }
 
 pony*:::gc-recv-start
 {
-  @counts["Objects Received"] = count();
+  @counts[arg0, "Objects Received"] = count();
   self->start_recv = timestamp;
 }
 
 pony*:::gc-recv-end
 {
-  @times["Time in Recv Scan (ns)"] = sum(timestamp - self->start_recv);
+  @times[arg0, "Time in Recv Scan"] = sum(timestamp - self->start_recv);
 }
 
 END
 {
-  printa(@counts);
-  printa(@messages);
-  printa(@times);
-  printa(@sizes);
+  printf("%?s  %-40s %10s %10s %10s\n", "SCHEDULER", "EVENT", "COUNT", "TIME (ns)", "SIZE");
+  printa("%?p  %-40s %@10d %@10d %@10d\n", @counts, @times, @sizes);
 }

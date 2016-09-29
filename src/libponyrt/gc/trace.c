@@ -12,7 +12,7 @@ void pony_gc_send(pony_ctx_t* ctx)
   ctx->trace_object = ponyint_gc_sendobject;
   ctx->trace_actor = ponyint_gc_sendactor;
 
-  DTRACE0(GC_SEND_START);
+  DTRACE1(GC_SEND_START, (uintptr_t)ctx->scheduler);
 }
 
 void pony_gc_recv(pony_ctx_t* ctx)
@@ -21,7 +21,7 @@ void pony_gc_recv(pony_ctx_t* ctx)
   ctx->trace_object = ponyint_gc_recvobject;
   ctx->trace_actor = ponyint_gc_recvactor;
 
-  DTRACE0(GC_RECV_START);
+  DTRACE1(GC_RECV_START, (uintptr_t)ctx->scheduler);
 }
 
 void ponyint_gc_mark(pony_ctx_t* ctx)
@@ -51,7 +51,7 @@ void pony_send_done(pony_ctx_t* ctx)
   ponyint_gc_sendacquire(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
-  DTRACE0(GC_SEND_END);
+  DTRACE1(GC_SEND_END, (uintptr_t)ctx->scheduler);
 }
 
 void pony_recv_done(pony_ctx_t* ctx)
@@ -59,7 +59,7 @@ void pony_recv_done(pony_ctx_t* ctx)
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
-  DTRACE0(GC_RECV_END);
+  DTRACE1(GC_RECV_END, (uintptr_t)ctx->scheduler);
 }
 
 void ponyint_mark_done(pony_ctx_t* ctx)
