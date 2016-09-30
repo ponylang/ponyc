@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Memory copy bounds for `String.clone` (issue #1289).
+- Security issues in `ProcessMonitor` (issue #1180)
 
 ### Added
 
