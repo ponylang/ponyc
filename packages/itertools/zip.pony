@@ -2,7 +2,7 @@ class Zip2[A, B] is Iterator[(A, B)]
   """
   Zip two iterators together so that each call to next() results in the
   a tuple with the next value of the first iterator and the next value
-  of the second iterator. The number of items returned it the minimum of
+  of the second iterator. The number of items returned is the minimum of
   the number of items returned by the two iterators.
 
   ## Example program
@@ -22,7 +22,7 @@ class Zip2[A, B] is Iterator[(A, B)]
     new create(env: Env) =>
       var i1: Array[I32] ref = [as I32: 1, 2, 3]
       var i2: Array[String] ref = ["a", "b", "q", "f"]
-  
+
       for (x, y) in Zip2[I32, String](i1.values(), i2.values()) do
         env.out.print("".add(x.string()).add(" ").add(y))
       end
@@ -46,7 +46,7 @@ class Zip3[A, B, C] is Iterator[(A, B, C)]
   Zip three iterators together so that each call to next() results in
   the a tuple with the next value of the first iterator, the next value
   of the second iterator, and the value of the third iterator. The
-  number of items returned it the minimum of the number of items
+  number of items returned is the minimum of the number of items
   returned by the three iterators.
 
   ## Example Program
@@ -67,7 +67,7 @@ class Zip3[A, B, C] is Iterator[(A, B, C)]
       var i1: Array[I32] ref = [as I32: 1, 2, 3]
       var i2: Array[String] ref = ["a", "b", "q", "f"]
       var i3: Array[Float] ref = [as F32: 0.5, 9.8, 3.3]
-  
+
       for (x, y, z) in Zip3[I32, String, F32](i1.values(), i2.values(),
         i3.values()) do
         env.out.print("".add(x.string()).add(" ").add(y).add(" ")
@@ -94,7 +94,7 @@ class Zip4[A, B, C, D] is Iterator[(A, B, C, D)]
   """
   Zip four iterators together so that each call to next() results in the
   a tuple with the next value of each of the iterators. The number of
-  items returned it the minimum of the number of items returned by the
+  items returned is the minimum of the number of items returned by the
   iterators.
 
   ## Example Program
@@ -116,7 +116,7 @@ class Zip4[A, B, C, D] is Iterator[(A, B, C, D)]
       var i2: Array[String] ref = ["a", "b", "q", "f"]
       var i3: Array[Float] ref = [as F32: 0.5, 9.8, 3.3]
       var i4: Array[String] ref = ["m", "n", "o", "p", "q", "r"]
-  
+
       for (x, y, z, xx) in Zip3[I32, String, F32](i1.values(), i2.values(),
         i3.values(), i4.values()) do
         env.out.print("".add(x.string()).add(" ").add(y).add(" ")
@@ -147,7 +147,7 @@ class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
   """
   Zip five iterators together so that each call to next() results in the
   a tuple with the next value of each of the iterators. The number of
-  items returned it the minimum of the number of items returned by the
+  items returned is the minimum of the number of items returned by the
   iterators.
 
   ## Example Program
@@ -170,7 +170,7 @@ class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
       var i3: Array[Float] ref = [as F32: 0.5, 9.8, 3.3]
       var i4: Array[String] ref = ["m", "n", "o", "p", "q", "r"]
       var i5: Array[I32] ref = [as I32: 2, 6, 5, 3, 5]
-  
+
       for (x, y, z, xx, yy) in Zip3[I32, String, F32](i1.values(), i2.values(),
         i3.values(), i4.values(), i5.values()) do
         env.out.print("".add(x.string()).add(" ").add(y).add(" ")
