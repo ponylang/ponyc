@@ -157,7 +157,8 @@ class Reader
     """
     Find the first occurence of the separator and return the block of bytes
     before its position. The separator is not included in the returned array,
-    but it is removed from the buffer.
+    but it is removed from the buffer. To read a line of text, prefer line()
+    that handles \n and \r\n.
     """
     let b = block(_distance_of(separator) - 1)
     u8()
