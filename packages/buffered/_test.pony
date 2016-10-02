@@ -74,7 +74,12 @@ class iso _TestReader is UnitTest
     b.append(recover [as U8: '!', '\n'] end)
     h.assert_eq[String](b.line(), "hi!")
 
-    b.append(recover [as U8: 's', 't', 'r', '1', 0] end)
+    b.append(recover [as U8: 's', 't', 'r', '1'] end)
+    try
+      b.read_until(0)
+      h.fail("should fail reading until 0")
+    end
+    b.append(recover [as U8: 0] end)
     b.append(recover [as U8: 'f', 'i', 'e', 'l', 'd', '1', ';',
       'f', 'i', 'e', 'l', 'd', '2', ';', ';'] end)
     h.assert_eq[String](String.from_array(b.read_until(0)), "str1")
