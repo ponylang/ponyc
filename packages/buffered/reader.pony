@@ -63,8 +63,8 @@ class Reader
   """
   embed _chunks: List[(Array[U8] val, USize)] = _chunks.create()
   var _available: USize = 0
-  var _line_node: (ListNode[(Array[U8] val, USize)] | None) = None
-  var _line_len: USize = 0
+  var _search_node: (ListNode[(Array[U8] val, USize)] | None) = None
+  var _search_len: USize = 0
 
   fun size(): USize =>
     """
@@ -168,7 +168,7 @@ class Reader
     Return a \n or \r\n terminated line as a string. The newline is not
     included in the returned string, but it is removed from the network buffer.
     """
-    let len = _line_length()
+    let len = _search_length()
 
     _available = _available - len
     var out = recover String(len) end
@@ -548,8 +548,8 @@ class Reader
       error
     end
 
-    var node = if _line_len > 0 then
-      let prev = _line_node as ListNode[(Array[U8] val, USize)]
+    var node = if _search_len > 0 then
+      let prev = _search_node as ListNode[(Array[U8] val, USize)]
 
       if not prev.has_next() then
         error
@@ -564,13 +564,13 @@ class Reader
       (var data, var offset) = node()
 
       try
-        let len = (_line_len + data.find(byte, offset) + 1) - offset
-        _line_node = None
-        _line_len = 0
+        let len = (_search_len + data.find(byte, offset) + 1) - offset
+        _search_node = None
+        _search_len = 0
         return len
       end
 
-      _line_len = _line_len + (data.size() - offset)
+      _search_len = _search_len + (data.size() - offset)
 
       if not node.has_next() then
         break
@@ -579,10 +579,10 @@ class Reader
       node = node.next() as ListNode[(Array[U8] val, USize)]
     end
 
-    _line_node = node
+    _search_node = node
     error
 
-  fun ref _line_length(): USize ? =>
+  fun ref _search_length(): USize ? =>
     """
     Get the length of a pending line. Raise an error if there is no pending
     line.
