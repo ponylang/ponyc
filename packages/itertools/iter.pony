@@ -81,16 +81,16 @@ class Iter[A] is Iterator[A]
     Iter[A](object is Iterator[A]
       let _fn: {(A!): Bool ?} box = fn
       let _iter: Iterator[A] = _iter
-      var _next: (A! | None) = None
+      var _next: (A! | _None) = _None
 
       fun ref _find_next() =>
         try
           match _next
-          | None =>
+          | _None =>
             if _iter.has_next() then
               _next = _iter.next()
               if try not _fn(_next as A) else true end then
-                _next = None
+                _next = _None
                 _find_next()
               end
             end
@@ -99,7 +99,7 @@ class Iter[A] is Iterator[A]
 
       fun ref has_next(): Bool =>
         match _next
-        | None =>
+        | _None =>
           if _iter.has_next() then
             _find_next()
             has_next()
@@ -113,7 +113,7 @@ class Iter[A] is Iterator[A]
       fun ref next(): A ? =>
         match _next
         | let v: A =>
-          _next = None
+          _next = _None
           consume v
         else
           if _iter.has_next() then
