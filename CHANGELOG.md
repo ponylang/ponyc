@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- read_until method on buffered.Reader (RFC 0013)
 
 ### Changed
 
