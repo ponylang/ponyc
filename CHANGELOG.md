@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - `Iter` class (issue #1267)
+- read_until method on buffered.Reader (RFC 0013)
 
 ### Changed
 
