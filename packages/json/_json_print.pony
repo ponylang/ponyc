@@ -1,3 +1,5 @@
+use "format"
+
 primitive _JsonPrint
   fun _indent(buf: String iso, indent: String, level': USize): String iso^ =>
     """
@@ -112,17 +114,15 @@ primitive _JsonPrint
           buf.push(c.u8())
         elseif c < 0x10000 then
           buf.append("\\u")
-          let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
-            .set_fill('0')
-          buf.append(c.string(fmt))
+          buf.append(Format.int[U32](c where
+            fmt=FormatHexBare, width=4, fill='0'))
         else
           let high = (((c - 0x10000) >> 10) and 0x3FF) + 0xD800
           let low = ((c - 0x10000) and 0x3FF) + 0xDC00
-          let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
           buf.append("\\u")
-          buf.append(high.string(fmt))
+          buf.append(Format.int[U32](high where fmt=FormatHexBare, width=4))
           buf.append("\\u")
-          buf.append(low.string(fmt))
+          buf.append(Format.int[U32](low where fmt=FormatHexBare, width=4))
         end
       end
     end

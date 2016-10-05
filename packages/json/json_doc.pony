@@ -1,4 +1,5 @@
 use "collections"
+use "format"
 
 class JsonDoc
   """
@@ -313,11 +314,11 @@ class JsonDoc
     end
 
     let trailing = _parse_unicode_digits()
-    let fmt = FormatSettingsInt.set_format(FormatHexBare).set_width(4)
 
     if (value >= 0xDC00) or (trailing < 0xDC00) or (trailing >= 0xE000) then
-      _error("Expected UTF-16 surrogate pair, got \\u" + value.string(fmt) +
-        " \\u" + trailing.string(fmt))
+      _error("Expected UTF-16 surrogate pair, got \\u" +
+        Format.int[U32](value where fmt=FormatHexBare, width=4) + " \\u" +
+        Format.int[U32](trailing where fmt=FormatHexBare, width=4))
       error
     end
 

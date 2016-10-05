@@ -56,10 +56,7 @@ class val URL
       URLEncode.check(query, URLPartQuery) and
       URLEncode.check(fragment, URLPartFragment)
 
-  fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignLeft, fill: U32 = ' '): String iso^
-  =>
+  fun string(): String iso^ =>
     """
     Combine the components into a string.
     """

@@ -8,5 +8,5 @@ primitive Bool is Stringable
   fun op_xor(y: Bool): Bool => this xor y
   fun op_not(): Bool => not this
 
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^ =>
-    (if this then "true" else "false" end).string(fmt)
+  fun string(): String iso^ =>
+    (if this then "true" else "false" end).string()
