@@ -507,6 +507,14 @@ size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 #endif
 }
 
+void pony_os_std_print(FILE* fp, char* buffer, size_t len)
+{
+  if(len == 0)
+    return;
+
+  fprintf(fp, "%s\n", buffer);
+}
+
 void pony_os_std_write(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
