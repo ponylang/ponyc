@@ -1,4 +1,4 @@
-#!/usr/sbin/dtrace -x aggsortkey -x aggsortkeypos=1 -s
+#!/usr/bin/env dtrace -x aggsortkey -x aggsortkeypos=1 -s
 
 #pragma D option quiet
 
