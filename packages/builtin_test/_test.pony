@@ -424,6 +424,7 @@ class iso _TestStringTrimInPlace is UnitTest
     let copy: String ref = orig.clone()
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
+    h.assert_eq[String box](expected, copy.clone()) // safe to clone
 
 
 class iso _TestStringIsNullTerminated is UnitTest

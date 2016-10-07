@@ -477,7 +477,7 @@ actor Main
     """
     let len = _size
     let str = recover String(len) end
-    _ptr._copy_to(str._ptr._unsafe(), len + 1)
+    _ptr._copy_to(str._ptr._unsafe(), len)
     str._size = len
     str._set(len, 0)
     str
