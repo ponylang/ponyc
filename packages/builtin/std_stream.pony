@@ -53,8 +53,7 @@ actor StdStream
     """
     Print some bytes and insert a newline afterwards.
     """
-    _write(data)
-    _write("\n")
+    _print(data)
 
   be write(data: ByteSeq) =>
     """
@@ -67,8 +66,7 @@ actor StdStream
     Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      _write(bytes)
-      _write("\n")
+      _print(bytes)
     end
 
   be writev(data: ByteSeqIter) =>
@@ -84,3 +82,9 @@ actor StdStream
     Write the bytes without explicitly flushing.
     """
     @pony_os_std_write[None](_stream, data.cstring(), data.size())
+
+  fun ref _print(data: ByteSeq) =>
+    """
+    Write the bytes and a newline without explicitly flushing.
+    """
+    @pony_os_std_print[None](_stream, data.cstring(), data.size())

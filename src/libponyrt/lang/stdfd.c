@@ -333,7 +333,7 @@ static void stdin_tty()
 }
 #endif
 
-static char ansi_parse(const char* buffer, size_t* pos, size_t len,
+char ansi_parse(const char* buffer, size_t* pos, size_t len,
   int* argc, int* argv)
 {
   size_t n;
@@ -507,52 +507,18 @@ size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 #endif
 }
 
-static bool fp_tty(FILE* fp)
+void pony_os_std_print(FILE* fp, char* buffer, size_t len)
 {
-  return
-    ((fp == stdout) && is_stdout_tty) ||
-    ((fp == stderr) && is_stderr_tty);
+  if(len == 0)
+    return;
+
+  fprintf(fp, "%s\n", buffer);
 }
 
 void pony_os_std_write(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
     return;
-
-  if(!fp_tty(fp))
-  {
-    // Find ANSI codes and strip them from the output.
-    const size_t final = len - 1;
-    size_t last = 0;
-    size_t pos = 0;
-
-    while(pos < final)
-    {
-      if((buffer[pos] == '\x1B') && (buffer[pos + 1] == '['))
-      {
-        // Write any pending data.
-        if(pos > last)
-          fwrite(&buffer[last], pos - last, 1, fp);
-
-        int argc = 0;
-        int argv[6] = {0};
-
-        pos += 2;
-        ansi_parse(buffer, &pos, len, &argc, argv);
-        last = pos;
-      }
-      else
-      {
-        pos++;
-      }
-    }
-
-    // Write any remaining data.
-    if(len > last)
-      fwrite(&buffer[last], len - last, 1, fp);
-
-    return;
-  }
 
 #ifdef PLATFORM_IS_WINDOWS
   CONSOLE_SCREEN_BUFFER_INFO csbi;
