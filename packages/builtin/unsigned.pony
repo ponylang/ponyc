@@ -316,11 +316,8 @@ primitive U128 is _UnsignedInteger[U128]
   fun max(y: U128): U128 => if this > y then this else y end
   fun hash(): U64 => ((this >> 64).u64() xor this.u64()).hash()
 
-  fun string(
-    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
-    : String iso^
-  =>
-    _ToString._u128(this, false, fmt)
+  fun string(): String iso^ =>
+    _ToString._u128(this, false)
 
   fun mul(y: U128): U128 =>
     ifdef native128 then

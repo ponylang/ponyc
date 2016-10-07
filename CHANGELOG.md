@@ -12,9 +12,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - `Iter` class (issue #1267)
 - read_until method on buffered.Reader (RFC 0013)
+- `format` package (issue #1285)
 
 ### Changed
 
+- `Stringable` interface no longer involves formatting (issue #1285)
 
 ## [0.4.0] - 2016-09-26
 

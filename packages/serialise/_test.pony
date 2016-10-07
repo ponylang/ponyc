@@ -70,7 +70,6 @@ class _Simple
   var words6: (Any ref | None) = None
   var string: String = "hello"
   var none: None = None
-  var fmt: FormatInt = FormatOctal
   var tuple: (U64, String) = (99, "goodbye")
   var tuple2: ((U64, String) | None) = (101, "awesome")
   var a_tag: _MachineWords tag = words1
@@ -89,7 +88,6 @@ class _Simple
     (words6 is that.words6) and
     (string == that.string) and
     (none is that.none) and
-    (fmt is that.fmt) and
     (tuple._1 == that.tuple._1) and
     (tuple._2 == that.tuple._2) and
     try

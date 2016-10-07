@@ -56,7 +56,6 @@ actor Main is TestList
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
-    test(_TestFormatSettingsInt)
 
 
 class iso _TestAbs is UnitTest
@@ -133,12 +132,6 @@ class iso _TestIntToString is UnitTest
     h.assert_eq[String]("0", U32(0).string())
     h.assert_eq[String]("3", U32(3).string())
     h.assert_eq[String]("1234", U32(1234).string())
-    h.assert_eq[String]("003",
-      U32(3).string(FormatSettingsInt.set_precision(3)))
-    h.assert_eq[String]("  3",
-      U32(3).string(FormatSettingsInt.set_width(3)))
-    h.assert_eq[String]("  003",
-      U32(3).string(FormatSettingsInt.set_precision(3).set_width(5)))
 
 
 class iso _TestFloatToString is UnitTest
@@ -1226,96 +1219,3 @@ class iso _TestCCallback is UnitTest
     let cb: Callback = Callback
     let r = @pony_test_callback[I32](cb, addressof cb.apply, I32(3))
     h.assert_eq[I32](6, r)
-
-class iso _TestFormatSettingsInt is UnitTest
-  """
-  Test format settings
-  """
-  fun name(): String => "builtin/FormatSettingsInt"
-
-  fun apply(h: TestHelper) =>
-    h.assert_eq[String]("00010", U64(10)
-      .string(FormatSettingsInt.set_precision(5)))
-    h.assert_eq[String]("0x0000A", U64(10)
-      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)))
-    h.assert_eq[String]("0000A", U64(10)
-      .string(FormatSettingsInt.set_precision(5).set_format(FormatHexBare)))
-    h.assert_eq[String]("0x0000a", U64(10)
-      .string(FormatSettingsInt.set_precision(5).set_format(FormatHexSmall)))
-    h.assert_eq[String]("0000a", U64(10)
-      .string(FormatSettingsInt.set_precision(5)
-      .set_format(FormatHexSmallBare)))
-    h.assert_eq[String](" 0x0000A", U64(10)
-      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)
-      .set_width(8)))
-    h.assert_eq[String]("0x0000A ", U64(10)
-      .string(FormatSettingsInt.set_precision(5).set_format(FormatHex)
-      .set_width(8).set_align(AlignLeft)))
-    h.assert_eq[String]("   0000a", U64(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
-    h.assert_eq[String]("0000a   ", U64(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
-      .set_align(AlignLeft)))
-
-    h.assert_eq[String]("-00010", I64(-10).string(FormatSettingsInt
-      .set_precision(5)))
-    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex)))
-    h.assert_eq[String]("-0000A", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexBare)))
-    h.assert_eq[String]("-0x0000a", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmall)))
-    h.assert_eq[String]("-0000a", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare)))
-    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)))
-    h.assert_eq[String]("-0x0000A", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)
-      .set_align(AlignLeft)))
-    h.assert_eq[String]("  -0000a", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
-    h.assert_eq[String]("-0000a  ", I64(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
-      .set_align(AlignLeft)))
-
-    h.assert_eq[String]("00010", U128(10).string(FormatSettingsInt
-      .set_precision(5)))
-    h.assert_eq[String]("0x0000A", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex)))
-    h.assert_eq[String]("0000A", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexBare)))
-    h.assert_eq[String]("0x0000a", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmall)))
-    h.assert_eq[String]("0000a", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare)))
-    h.assert_eq[String](" 0x0000A", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)))
-    h.assert_eq[String]("0x0000A ", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)
-      .set_align(AlignLeft)))
-    h.assert_eq[String]("   0000a", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
-    h.assert_eq[String]("0000a   ", U128(10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
-      .set_align(AlignLeft)))
-
-    h.assert_eq[String]("-00010", I128(-10).string(FormatSettingsInt
-      .set_precision(5)))
-    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex)))
-    h.assert_eq[String]("-0000A", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexBare)))
-    h.assert_eq[String]("-0x0000a", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmall)))
-    h.assert_eq[String]("-0000a", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare)))
-    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)))
-    h.assert_eq[String]("-0x0000A", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHex).set_width(8)
-      .set_align(AlignLeft)))
-    h.assert_eq[String]("  -0000a", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)))
-    h.assert_eq[String]("-0000a  ", I128(-10).string(FormatSettingsInt
-      .set_precision(5).set_format(FormatHexSmallBare).set_width(8)
-      .set_align(AlignLeft)))

@@ -74,19 +74,13 @@ trait val Integer[A: Integer[A] val] is Real[A]
 trait val _SignedInteger[A: _SignedInteger[A, B] val,
     B: _UnsignedInteger[B] val] is Integer[A]
   fun abs(): B
-  fun string(
-    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
-    : String iso^
-  =>
-    _ToString._u64(abs().u64(), i64() < 0, fmt)
+  fun string(): String iso^ =>
+    _ToString._u64(abs().u64(), i64() < 0)
 
 trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
-  fun string(
-    fmt: FormatSettings[FormatInt, PrefixNumber] = FormatDefaultNumber)
-    : String iso^
-  =>
-    _ToString._u64(u64(), false, fmt)
+  fun string(): String iso^ =>
+    _ToString._u64(u64(), false)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   new val epsilon()
@@ -142,11 +136,8 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
 
   fun copysign(sign: A): A
 
-  fun string(
-    fmt: FormatSettings[FormatFloat, PrefixNumber] = FormatDefaultNumber)
-    : String iso^
-  =>
-    _ToString._f64(f64(), fmt)
+  fun string(): String iso^ =>
+    _ToString._f64(f64())
 
 type Number is (Int | Float)
 

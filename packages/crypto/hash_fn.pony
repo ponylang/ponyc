@@ -2,6 +2,8 @@ use "path:/usr/local/opt/libressl/lib" if osx
 use "lib:crypto" if not windows
 use "lib:libcrypto-32" if windows
 
+use "format"
+
 interface HashFn
   """
   Produces a fixed-length byte array based on the input sequence.
@@ -139,10 +141,9 @@ primitive ToHexString
     Return the lower-case hexadecimal string representation of the given Array
     of U8.
     """
-    let fmt = FormatSettingsInt.set_format(FormatHexSmallBare).set_width(2)
-    fmt.fill' = '0'
     let out = recover String(bs.size() * 2) end
     for c in bs.values() do
-      out.append(c.string(fmt))
+      out.append(Format.int[U8](c where
+        fmt=FormatHexSmallBare, width=2, fill='0'))
     end
     consume out

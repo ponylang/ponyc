@@ -64,6 +64,7 @@ sub	      10000000	         3 ns/op
 ```
 """
 use "collections"
+use "format"
 use "promises"
 use "term"
 use "time"
@@ -152,8 +153,8 @@ actor PonyBench
     if _bs.size() < 2 then bf() end
 
   be _result(name: String, ops: U64, nspo: U64) =>
-    let fmt = FormatSettingsInt.set_width(10)
-    let sl = [name, "\t", ops.string(fmt), "\t", nspo.string(fmt), " ns/op"]
+    let sl = [name, "\t", Format.int[U64](ops where width=10), "\t",
+      Format.int[U64](nspo where width=10), " ns/op"]
     _update(name, String.join(sl))
     _next()
 

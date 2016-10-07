@@ -1,17 +1,17 @@
 primitive Less is Equatable[Compare]
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  fun string(): String iso^
   =>
-    "Less".string(fmt)
+    "Less".string()
 
 primitive Equal is Equatable[Compare]
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  fun string(): String iso^
   =>
-    "Equal".string(fmt)
+    "Equal".string()
 
 primitive Greater is Equatable[Compare]
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^
+  fun string(): String iso^
   =>
-    "Greater".string(fmt)
+    "Greater".string()
 
 
 type Compare is (Less | Equal | Greater)

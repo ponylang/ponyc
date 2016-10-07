@@ -1,3 +1,3 @@
 primitive None is Stringable
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^ =>
-    "None".string(fmt)
+  fun string(): String iso^ =>
+    "None".string()

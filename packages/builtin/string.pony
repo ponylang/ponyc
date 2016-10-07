@@ -1391,30 +1391,8 @@ actor Main
   fun hash(): U64 =>
     @ponyint_hash_block[U64](_ptr, _size)
 
-  fun string(fmt: FormatSettings = FormatSettingsDefault): String iso^ =>
-    // TODO: fill character
-    let copy_len = _size.min(fmt.precision().usize())
-    let len = copy_len.max(fmt.width().usize())
-    let str = recover String(len) end
-
-    match fmt.align()
-    | AlignLeft =>
-      _ptr._copy_to(str._ptr._unsafe(), copy_len)
-      @memset(str._ptr.usize() + copy_len, U32(' '), len - copy_len)
-    | AlignRight =>
-      @memset(str._ptr, U32(' '), len - copy_len)
-      _ptr._copy_to(str._ptr._unsafe()._offset(len - copy_len), copy_len)
-    | AlignCenter =>
-      let half = (len - copy_len) / 2
-      @memset(str._ptr, U32(' '), half)
-      _ptr._copy_to(str._ptr._unsafe()._offset(half), copy_len)
-      @memset(str._ptr.usize() + copy_len + half, U32(' '),
-        len - copy_len - half)
-    end
-
-    str._size = len
-    str._set(len, 0)
-    str
+  fun string(): String iso^ =>
+    clone()
 
   fun values(): StringBytes^ =>
     """
