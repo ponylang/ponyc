@@ -171,12 +171,12 @@ void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i);
 /** Store a continuation.
  *
  * This puts a message at the front of the actor's queue, instead of at the
- * back. This is not concurrency safe: only a single actor should push a
- * continuation to another actor.
+ * back. This is not concurrency safe: an actor should only push a continuation
+ * to itself.
  *
  * Not used in Pony.
  */
-void pony_continuation(pony_actor_t* to, pony_msg_t* m);
+void pony_continuation(pony_actor_t* self, pony_msg_t* m);
 
 /** Allocate memory on the current actor's heap.
  *

@@ -131,7 +131,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   while(actor->continuation != NULL)
   {
     msg = actor->continuation;
-    actor->continuation = msg->next;
+    actor->continuation = atomic_load_explicit(&msg->next,
+       memory_order_relaxed);
     bool ret = handle_message(ctx, actor, msg);
     ponyint_pool_free(msg->index, msg);
 
@@ -373,10 +374,10 @@ void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
   pony_sendv(ctx, to, &m->msg);
 }
 
-void pony_continuation(pony_actor_t* to, pony_msg_t* m)
+void pony_continuation(pony_actor_t* self, pony_msg_t* m)
 {
-  m->next = to->continuation;
-  to->continuation = m;
+  atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
+  self->continuation = m;
 }
 
 void* pony_alloc(pony_ctx_t* ctx, size_t size)
