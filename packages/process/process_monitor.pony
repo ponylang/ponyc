@@ -64,14 +64,11 @@ class ProcessClient is ProcessNotify
     match err
     | ExecveError   => _env.out.print("ProcessError: ExecveError")
     | PipeError     => _env.out.print("ProcessError: PipeError")
-    | Dup2Error     => _env.out.print("ProcessError: Dup2Error")
     | ForkError     => _env.out.print("ProcessError: ForkError")
-    | FcntlError    => _env.out.print("ProcessError: FcntlError")
     | WaitpidError  => _env.out.print("ProcessError: WaitpidError")
-    | CloseError    => _env.out.print("ProcessError: CloseError")
-    | ReadError     => _env.out.print("ProcessError: ReadError")
     | WriteError    => _env.out.print("ProcessError: WriteError")
     | KillError     => _env.out.print("ProcessError: KillError")
+    | CapError      => _env.out.print("ProcessError: CapError")
     | Unsupported   => _env.out.print("ProcessError: Unsupported")
     else
       _env.out.print("Unknown ProcessError!")
@@ -144,12 +141,8 @@ primitive _ONONBLOCK
 
 primitive ExecveError
 primitive PipeError
-primitive Dup2Error
 primitive ForkError
-primitive FcntlError
 primitive WaitpidError
-primitive CloseError
-primitive ReadError
 primitive WriteError
 primitive KillError
 primitive Unsupported // we throw this on non POSIX systems
@@ -157,13 +150,9 @@ primitive CapError
 
 type ProcessError is
   ( ExecveError
-  | CloseError
-  | Dup2Error
-  | FcntlError
   | ForkError
   | KillError
   | PipeError
-  | ReadError
   | Unsupported
   | WaitpidError
   | WriteError

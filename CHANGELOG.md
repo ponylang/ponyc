@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - `Stringable` interface no longer involves formatting (issue #1285)
+- Remove unused error types from ProcessError (issue #1293)
 
 ## [0.4.0] - 2016-09-26
 
