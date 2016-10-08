@@ -243,12 +243,8 @@ class _ProcessClient is ProcessNotify
     match err
     | ExecveError   => _h.fail("ProcessError: ExecveError")
     | PipeError     => _h.fail("ProcessError: PipeError")
-    | Dup2Error     => _h.fail("ProcessError: Dup2Error")
     | ForkError     => _h.fail("ProcessError: ForkError")
-    | FcntlError    => _h.fail("ProcessError: FcntlError")
     | WaitpidError  => _h.fail("ProcessError: WaitpidError")
-    | CloseError    => _h.fail("ProcessError: CloseError")
-    | ReadError     => _h.fail("ProcessError: ReadError")
     | WriteError    => _h.fail("ProcessError: WriteError")
     | KillError     => _h.fail("ProcessError: KillError")
     | Unsupported   => _h.fail("ProcessError: Unsupported")
