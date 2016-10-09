@@ -18,10 +18,7 @@ use "process"
 use "files"
 
 actor Main
-  let _env: Env
-
   new create(env: Env) =>
-    _env = env
     // create a notifier
     let client = ProcessClient(_env)
     let notifier: ProcessNotify iso = consume client
@@ -36,7 +33,8 @@ actor Main
       vars.push("HOME=/")
       vars.push("PATH=/bin")
       // create a ProcessMonitor and spawn the child process
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
       consume args, consume vars)
       // write to STDIN of the child process
       pm.write("one, two, three")
@@ -159,6 +157,8 @@ type ProcessError is
   | CapError
   )
 
+type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
+
 actor ProcessMonitor
   """
   Forks and monitors a process. Notifies a client about STDOUT / STDERR events.
@@ -186,8 +186,8 @@ actor ProcessMonitor
 
   var _closed: Bool = false
 
-  new create(notifier: ProcessNotify iso, filepath: FilePath,
-    args: Array[String] val, vars: Array[String] val)
+  new create(auth: ProcessMonitorAuth, notifier: ProcessNotify iso,
+    filepath: FilePath, args: Array[String] val, vars: Array[String] val)
   =>
     """
     Create infrastructure to communicate with a forked child process
@@ -195,8 +195,22 @@ actor ProcessMonitor
     user about incoming data via the notifier.
     """
     _notifier = consume notifier
+
+    // We need permission to execute and the
+    // file itself needs to be an executable
     if not filepath.caps(FileExec) then
       _notifier.failed(this, CapError)
+      return
+    end
+
+    let ok = try
+      FileInfo(filepath).mode.any_exec
+    else
+      false
+    end
+    if not ok then
+      // path is to a non-executable file or that file doesn't exist
+      _notifier.failed(this, ExecveError)
       return
     end
 

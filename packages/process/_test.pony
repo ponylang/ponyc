@@ -10,7 +10,8 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestStdinStdout)
     test(_TestStderr)
-    test(_TestFileExec)
+    test(_TestFileExecCapabilityIsRequired)
+    test(_TestNonExecutablePathResultsInExecveError)
     test(_TestExpect)
     test(_TestWritevOrdering)
     test(_TestPrintvOrdering)
@@ -30,7 +31,8 @@ class iso _TestStdinStdout is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
         pm.write("one, two, three")
         pm.done_writing()  // closing stdin allows "cat" to terminate
@@ -59,7 +61,8 @@ class iso _TestStderr is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
         h.long_test(5_000_000_000)
     else
@@ -69,13 +72,12 @@ class iso _TestStderr is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestFileExec is UnitTest
+class iso _TestFileExecCapabilityIsRequired is UnitTest
   fun name(): String =>
-    "process/FileExec"
+    "process/TestFileExecCapabilityIsRequired"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient("",
-      "cat: file_does_not_exist: No such file or directory\n", 1, h)
+    let notifier: ProcessNotify iso = _ProcessClient("", "", 1, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/date",
         recover val FileCaps.all().unset(FileExec) end)
@@ -85,7 +87,8 @@ class iso _TestFileExec is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
       h.long_test(5_000_000_000)
     else
@@ -94,6 +97,61 @@ class iso _TestFileExec is UnitTest
 
   fun timed_out(h: TestHelper) =>
     h.complete(false)
+
+class iso _TestNonExecutablePathResultsInExecveError is UnitTest
+  fun name(): String =>
+    "process/_TestNonExecutablePathResultsInExecveError"
+
+  fun apply(h: TestHelper) =>
+    try
+      let path = _setup_file(h)
+      let args: Array[String] iso = recover Array[String](1) end
+      let vars: Array[String] iso = recover Array[String](2) end
+
+      let auth = h.env.root as AmbientAuth
+      let notifier = _setup_notifier(h, path)
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
+        consume args, consume vars)
+      h.long_test(5_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+  fun _setup_notifier(h: TestHelper, path: FilePath): ProcessNotify iso^ =>
+    recover object is ProcessNotify
+      let _h: TestHelper = h
+      let _path: FilePath = path
+
+     fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+        match err
+        | ExecveError => _h.complete(true)
+        else
+          _h.fail("Unexpected process error")
+          _h.complete(false)
+        end
+        _cleanup()
+
+      fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+        _h.fail("Dispose shouldn't have been called.")
+        _h.complete(false)
+        _cleanup()
+
+      fun _cleanup() =>
+        _path.remove()
+    end end
+
+  fun _setup_file(h: TestHelper): FilePath ? =>
+    let tmp_dir = FilePath(h.env.root as AmbientAuth, "/tmp/")
+    let path = FilePath(h.env.root as AmbientAuth,
+      tmp_dir.path + "/" + Path.random(32))
+    let tmp_file = CreateFile(path) as File
+    let mode = FileMode
+    mode.any_exec = false
+    tmp_file.path.chmod(consume mode)
+    path
 
 class iso _TestExpect is UnitTest
   fun name(): String =>
@@ -131,7 +189,8 @@ class iso _TestExpect is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
         h.long_test(5_000_000_000)
     else
@@ -156,7 +215,8 @@ class iso _TestWritevOrdering is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
       let params: Array[String] iso = recover Array[String](3) end
       params.push("one")
@@ -188,7 +248,8 @@ class iso _TestPrintvOrdering is UnitTest
       vars.push("HOME=/")
       vars.push("PATH=/bin")
 
-      let pm: ProcessMonitor = ProcessMonitor(consume notifier, path,
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
       let params: Array[String] iso = recover Array[String](3) end
       params.push("one")
