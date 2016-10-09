@@ -261,7 +261,7 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
 // Functions to handle types
 
 static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links);
+  const char* separator, const char* postamble, bool generate_links, bool line_breaks);
 
 // Report the human readable description for the given capability node.
 // The returned string is valid forever and should not be freed.
@@ -318,12 +318,12 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
         fprintf(docgen->type_file, "[%s](%s)", ast_nice_name(id), tqfn);
         ponyint_pool_free_size(link_len, tqfn);
 
-        doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true);
+        doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true, false);
       }
       else
       {
         fprintf(docgen->type_file, "%s", ast_nice_name(id));
-        doc_type_list(docgen, tparams, "[", ", ", "]", false);
+        doc_type_list(docgen, tparams, "[", ", ", "]", false, false);
       }
 
       const char* cap_text = doc_get_cap(cap);
@@ -337,15 +337,15 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     }
 
     case TK_UNIONTYPE:
-      doc_type_list(docgen, type, "(", " | ", ")", generate_links);
+      doc_type_list(docgen, type, "(", " | ", ")", generate_links, true);
       break;
 
     case TK_ISECTTYPE:
-      doc_type_list(docgen, type, "(", " & ", ")", generate_links);
+      doc_type_list(docgen, type, "(", " & ", ")", generate_links, false);
       break;
 
     case TK_TUPLETYPE:
-      doc_type_list(docgen, type, "(", " , ", ")", generate_links);
+      doc_type_list(docgen, type, "(", " , ", ")", generate_links, false);
       break;
 
     case TK_TYPEPARAMREF:
@@ -394,7 +394,7 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
 // preamble, separator and psotamble text. If the list is empty nothing is
 // written.
 static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links)
+  const char* separator, const char* postamble, bool generate_links, bool line_breaks)
 {
   assert(docgen != NULL);
   assert(docgen->type_file != NULL);
@@ -408,12 +408,22 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
 
   fprintf(docgen->type_file, "%s", preamble);
 
+  int listItemCount = 0;
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
     doc_type(docgen, p, generate_links);
 
-    if(ast_sibling(p) != NULL)
+    if(ast_sibling(p) != NULL) {
       fprintf(docgen->type_file, "%s", separator);
+
+      if (line_breaks) {
+        if (listItemCount++ == 2) {
+          fprintf(docgen->type_file, "\n    ");
+          listItemCount = 0;
+        }
+      }
+    }
+
   }
 
   fprintf(docgen->type_file, "%s", postamble);
@@ -773,15 +783,15 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   fprintf(docgen->type_file, "%s", name);
 
   doc_type_params(docgen, tparams, false);
-  doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false);
+  doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false, false);
   fprintf(docgen->type_file, "\n```\n\n");
 
   if (ast_id(ast) !=  TK_TYPE)
     doc_type_list(docgen, provides,
-      "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true);
+      "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true, false);
   else
     doc_type_list(docgen, provides,
-      "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true);
+      "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true, false);
 
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
