@@ -133,7 +133,19 @@ Does not alter the AST at all.
 
 * Expression type check pass (AST)
 
-TODO
+Resolves types for all expressions and confirms type safety of the program.
+Also performs some "sugar" replacements that require knowledge of types.
+
+Mutates the AST extensively.
+
+
+* Verify pass (AST)
+
+Perform various checks that are not required for type resolution, and are not
+intrinsically related to the work done in the expression type check pass.
+These checks may or may not require types to be resolved.
+
+Does not mutate the structure of the AST, but may set and use flags.
 
 
 * Finaliser pass (AST)
@@ -166,6 +178,7 @@ typedef enum pass_id
   PASS_TRAITS,
   PASS_DOCS,
   PASS_EXPR,
+  PASS_VERIFY,
   PASS_REACH,
   PASS_PAINT,
   PASS_FINALISER,
