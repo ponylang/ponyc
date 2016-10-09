@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Memory copy bounds for `String.clone` (issue #1289).
 - Security issues in `ProcessMonitor` (issue #1180)
+- `SSLConnection` bugs due to missing `sentv` notify method (issue #1282)
 
 ### Added
 

@@ -51,6 +51,8 @@ class SSLConnection is TCPConnectionNotify
     if _connected then
       try
         _ssl.write(data)
+      else
+        return ""
       end
     else
       _pending.push(data)
@@ -58,6 +60,13 @@ class SSLConnection is TCPConnectionNotify
 
     _poll(conn)
     ""
+
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
+    for bytes in data.values() do
+      sent(conn, bytes)
+    end
+
+  recover val Array[ByteSeq] end
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
