@@ -6,6 +6,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+### Added
+
+### Changed
+
+## [0.5.0] - 2016-10-09
+
+### Fixed
+
 - Memory copy bounds for `String.clone` (issue #1289).
 - Security issues in `ProcessMonitor` (issue #1180)
 - `SSLConnection` bugs due to missing `sentv` notify method (issue #1282)
