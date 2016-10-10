@@ -195,17 +195,6 @@ TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
   TEST_ERRORS_1(src, "type aliases can't be recursive");
 }
 
-TEST_F(BadPonyTest, MainActorFunCreate)
-{
-  // From issue #906
-  const char* src =
-    "actor Main\n"
-    "  fun create(env: Env) =>\n"
-    "    None";
-
-  TEST_ERRORS_1(src, "the create method of a Main actor must be a constructor");
-}
-
 TEST_F(BadPonyTest, ParenthesisedReturn)
 {
   // From issue #1050
@@ -288,14 +277,4 @@ TEST_F(BadPonyTest, EmbedNestedTuple)
     "    (foo, x) = (Foo.get_foo(), 42)";
 
   TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
-}
-
-TEST_F(BadPonyTest, MainWithoutConstructor)
-{
-  // From issue #1259
-  const char* src =
-    "actor Main\n";
-
-  TEST_ERRORS_1(src, "The Main actor must have a create constructor which takes "
-                     "a single Env parameter");
 }
