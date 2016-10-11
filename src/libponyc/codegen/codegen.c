@@ -237,32 +237,71 @@ static void init_runtime(compile_t* c)
   params[0] = c->descriptor_ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
+#if PONY_LLVM >= 309
+  LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
+    inaccessiblemem_or_argmemonly, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
+    PONY_ACTOR_PAD_SIZE + (target_is_ilp32(c->opt->triple) ? 4 : 8));
+  LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, ponyint_pool_size(0));
+  LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
+    HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_large_attr, dereferenceable,
+    HEAP_MAX << 1);
+#endif
+
   // i8* pony_ctx()
   type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readnone_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMAddFunctionAttr(value, LLVMReadNoneAttribute);
+#endif
 
   // __object* pony_create(i8*, __Desc*)
   params[0] = c->void_ptr;
   params[1] = c->descriptor_ptr;
   type = LLVMFunctionType(c->object_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceable(value, 0, PONY_ACTOR_PAD_SIZE +
     (target_is_ilp32(c->opt->triple) ? 4 : 8));
+#endif
 
   // void ponyint_destroy(__object*)
   params[0] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // void pony_sendv(i8*, __object*, $message*);
@@ -271,9 +310,15 @@ static void init_runtime(compile_t* c)
   params[2] = c->msg_ptr;
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // i8* pony_alloc(i8*, intptr)
@@ -281,13 +326,23 @@ static void init_runtime(compile_t* c)
   params[1] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_or_null_alloc_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
-#if PONY_LLVM >= 307
+#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
+#  endif
 #endif
 
   // i8* pony_alloc_small(i8*, i32)
@@ -295,24 +350,44 @@ static void init_runtime(compile_t* c)
   params[1] = c->i32;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_alloc_small_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceable(value, 0, HEAP_MIN);
+#endif
 
   // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->void_ptr;
   params[1] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_alloc_large_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
-  LLVMSetDereferenceable(value, 0, HEAP_MAX + 1);
+  LLVMSetDereferenceable(value, 0, HEAP_MAX << 1);
+#endif
 
   // i8* pony_realloc(i8*, i8*, intptr)
   params[0] = c->void_ptr;
@@ -320,13 +395,23 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_or_null_alloc_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
-#if PONY_LLVM >= 307
+#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
+#  endif
 #endif
 
   // i8* pony_alloc_final(i8*, intptr, c->final_fn)
@@ -335,13 +420,23 @@ static void init_runtime(compile_t* c)
   params[2] = c->final_fn;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_or_null_alloc_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
-#if PONY_LLVM >= 307
+#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
+#  endif
 #endif
 
   // $message* pony_alloc_msg(i32, i32)
@@ -349,23 +444,38 @@ static void init_runtime(compile_t* c)
   params[1] = c->i32;
   type = LLVMFunctionType(c->msg_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_msg", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
+#endif
 
   // void pony_trace(i8*, i8*)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_trace", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   value = LLVMGetParam(value, 1);
   LLVMAddAttribute(value, LLVMReadNoneAttribute);
+#endif
 
   // void pony_traceknown(i8*, __object*, __Desc*, i32)
   params[0] = c->void_ptr;
@@ -374,12 +484,19 @@ static void init_runtime(compile_t* c)
   params[3] = c->i32;
   type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   value = LLVMGetParam(value, 1);
-  LLVMAddAttribute(value, LLVMReadNoneAttribute);
+  LLVMAddAttribute(value, LLVMReadOnlyAttribute);
+#endif
 
   // void pony_traceunknown(i8*, __object*, i32)
   params[0] = c->void_ptr;
@@ -387,47 +504,68 @@ static void init_runtime(compile_t* c)
   params[2] = c->i32;
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   value = LLVMGetParam(value, 1);
   LLVMAddAttribute(value, LLVMReadOnlyAttribute);
+#endif
 
   // void pony_gc_send(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // void pony_gc_recv(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_recv", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // void pony_send_done(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_send_done", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
-  LLVMSetInaccessibleMemOrArgMemOnly(value);
 #endif
 
   // void pony_recv_done(i8*)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
-  LLVMSetInaccessibleMemOrArgMemOnly(value);
 #endif
 
   // void pony_serialise_reserve(i8*, i8*, intptr)
@@ -436,24 +574,38 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   value = LLVMGetParam(value, 1);
   LLVMAddAttribute(value, LLVMReadNoneAttribute);
+#endif
 
   // intptr pony_serialise_offset(i8*, i8*)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
   type = LLVMFunctionType(c->intptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   value = LLVMGetParam(value, 1);
   LLVMAddAttribute(value, LLVMReadOnlyAttribute);
+#endif
 
   // i8* pony_deserialise_offset(i8*, __desc*, intptr)
   params[0] = c->void_ptr;
@@ -461,7 +613,10 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
-#if PONY_LLVM >= 308
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#elif PONY_LLVM == 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
 #endif
 
@@ -471,19 +626,31 @@ static void init_runtime(compile_t* c)
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
-#if PONY_LLVM >= 308
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+#else
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
-#endif
+#  endif
   LLVMSetReturnNoAlias(value);
+#endif
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
   params[1] = LLVMPointerType(c->void_ptr, 0);
   type = LLVMFunctionType(c->i32, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_init", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // void pony_become(i8*, __object*)
@@ -491,24 +658,40 @@ static void init_runtime(compile_t* c)
   params[1] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_become", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // i32 pony_start(i32)
   params[0] = c->i32;
   type = LLVMFunctionType(c->i32, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
   LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
 #endif
 
   // void pony_throw()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_throw", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, noreturn_attr);
+#else
   LLVMAddFunctionAttr(value, LLVMNoReturnAttribute);
+#endif
 
   // i32 pony_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
@@ -741,7 +924,12 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
       if(LLVMGetTypeKind(elem) == LLVMStructTypeKind)
       {
         size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
+#if PONY_LLVM >= 309
+        LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
+        LLVMAddAttributeAtIndex(fun, i, deref_attr);
+#else
         LLVMSetDereferenceable(fun, i, size);
+#endif
       }
     }
 

@@ -11,6 +11,7 @@
 #include "../type/lookup.h"
 #include "../../libponyrt/ds/fun.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../../libponyrt/mem/heap.h"
 #include <string.h>
 #include <assert.h>
 
@@ -167,7 +168,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     // Generate the sender prototype.
     const char* sender_name = genname_be(m->full_name);
     m->func = codegen_addfun(c, sender_name, m->func_type);
-    genfun_param_attrs(t, m, m->func);
+    genfun_param_attrs(c, t, m, m->func);
 
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(m->func_type);
@@ -181,12 +182,12 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
     // Generate the handler prototype.
     m->func_handler = codegen_addfun(c, m->full_name, handler_type);
-    genfun_param_attrs(t, m, m->func_handler);
+    genfun_param_attrs(c, t, m, m->func_handler);
     make_function_debug(c, t, m, m->func_handler);
   } else {
     // Generate the function prototype.
     m->func = codegen_addfun(c, m->full_name, m->func_type);
-    genfun_param_attrs(t, m, m->func);
+    genfun_param_attrs(c, t, m, m->func);
     make_function_debug(c, t, m, m->func);
   }
 
@@ -534,10 +535,20 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   LLVMValueRef fun = codegen_addfun(c, funname, ftype);
   if(t->underlying != TK_PRIMITIVE)
   {
-    LLVMSetReturnNoAlias(fun);
     LLVMTypeRef elem = LLVMGetElementType(t->use_type);
     size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
+#if PONY_LLVM >= 309
+    LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
+    LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
+    LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
+
+    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
+    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, align_attr);
+#else
+    LLVMSetReturnNoAlias(fun);
     LLVMSetDereferenceable(fun, 0, size);
+#endif
   }
   codegen_startfun(c, fun, NULL, NULL);
 
@@ -598,22 +609,30 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   return true;
 }
 
-void genfun_param_attrs(reach_type_t* t, reach_method_t* m, LLVMValueRef fun)
+void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
+  LLVMValueRef fun)
 {
+#if PONY_LLVM >= 309
+  LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
+#else
+  (void)c;
+#endif
+
   LLVMValueRef param = LLVMGetFirstParam(fun);
   reach_type_t* type = t;
   token_id cap = m->cap;
-  int i = -1;
+  int i = 0;
 
   while(param != NULL)
   {
     LLVMTypeRef m_type = LLVMTypeOf(param);
     if(LLVMGetTypeKind(m_type) == LLVMPointerTypeKind)
     {
-      if(i > -1)
+      if(i > 0)
       {
-        type = m->params[i].type;
-        cap = m->params[i].cap;
+        type = m->params[i-1].type;
+        cap = m->params[i-1].cap;
       }
       else if(ast_id(m->r_fun) == TK_NEW)
       {
@@ -626,18 +645,31 @@ void genfun_param_attrs(reach_type_t* t, reach_method_t* m, LLVMValueRef fun)
         switch(cap)
         {
           case TK_ISO:
+#if PONY_LLVM >= 309
+            LLVMAddAttributeAtIndex(fun, i + 1, noalias_attr);
+#else
             LLVMAddAttribute(param, LLVMNoAliasAttribute);
+#endif
             break;
           case TK_TRN:
           case TK_REF:
             break;
           case TK_VAL:
           case TK_TAG:
+#if PONY_LLVM >= 309
+            LLVMAddAttributeAtIndex(fun, i + 1, noalias_attr);
+            LLVMAddAttributeAtIndex(fun, i + 1, readonly_attr);
+#else
             LLVMAddAttribute(param, LLVMNoAliasAttribute);
             LLVMAddAttribute(param, LLVMReadOnlyAttribute);
+#endif
             break;
           case TK_BOX:
+#if PONY_LLVM >= 309
+            LLVMAddAttributeAtIndex(fun, i + 1, readonly_attr);
+#else
             LLVMAddAttribute(param, LLVMReadOnlyAttribute);
+#endif
             break;
           default:
             assert(0);
