@@ -30,9 +30,10 @@ static void show_send(pass_opt_t* opt, ast_t* ast)
   if(ast_id(ast) == TK_CALL)
   {
     if(ast_cansend(ast))
-      ast_error(opt->check.errors, ast, "a message can be sent here");
+      ast_error_continue(opt->check.errors, ast, "a message can be sent here");
     else if(ast_mightsend(ast))
-      ast_error(opt->check.errors, ast, "a message might be sent here");
+      ast_error_continue(opt->check.errors, ast,
+        "a message might be sent here");
   }
 }
 
