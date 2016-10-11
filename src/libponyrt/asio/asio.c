@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -10,7 +12,7 @@ struct asio_base_t
 {
   pony_thread_id_t tid;
   asio_backend_t* backend;
-  ATOMIC_TYPE(uint64_t) noisy_count;
+  PONY_ATOMIC(uint64_t) noisy_count;
 };
 
 static asio_base_t running_base;

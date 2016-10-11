@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "scheduler.h"
 #include "cpu.h"
 #include "../mem/heap.h"
@@ -24,7 +26,7 @@ typedef struct options_t
 } options_t;
 
 // global data
-static ATOMIC_TYPE(int) exit_code;
+static PONY_ATOMIC(int) exit_code;
 
 enum
 {

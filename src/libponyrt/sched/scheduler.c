@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "scheduler.h"
 #include "cpu.h"
 #include "mpmcq.h"
@@ -25,7 +27,7 @@ typedef enum
 // Scheduler global data.
 static uint32_t scheduler_count;
 static scheduler_t* scheduler;
-static ATOMIC_TYPE(bool) detect_quiescence;
+static PONY_ATOMIC(bool) detect_quiescence;
 static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
