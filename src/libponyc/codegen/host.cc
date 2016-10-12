@@ -42,6 +42,7 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
 }
 
+#if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun)
 {
   unwrap<Function>(fun)->setDoesNotAlias(0);
@@ -57,7 +58,7 @@ void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size)
   f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
 }
 
-#if PONY_LLVM >= 307
+#  if PONY_LLVM >= 307
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 {
   Function* f = unwrap<Function>(fun);
@@ -67,9 +68,9 @@ void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
 
   f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
 }
-#endif
+#  endif
 
-#if PONY_LLVM >= 308
+#  if PONY_LLVM >= 308
 void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
 {
   Instruction* i = unwrap<Instruction>(inst);
@@ -100,6 +101,7 @@ void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
   else
     assert(0);
 }
+#  endif
 #endif
 
 #if PONY_LLVM < 307
