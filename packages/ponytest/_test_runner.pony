@@ -195,7 +195,6 @@ actor _TestRunner
 
     let timer = Timer(object iso
       let _runner: _TestRunner = this
-      fun cancel(timer: Timer) => None
       fun apply(timer: Timer, count: U64): Bool => _runner._timeout(); false
       fun cancel(timer: Timer) => None
       end, timeout)
