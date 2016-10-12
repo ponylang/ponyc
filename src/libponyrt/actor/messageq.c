@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "messageq.h"
 #include "../mem/pool.h"
 #include <string.h>

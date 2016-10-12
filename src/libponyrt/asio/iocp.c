@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "event.h"
 #include "asio.h"
 
@@ -20,7 +22,7 @@
 struct asio_backend_t
 {
   HANDLE wakeup;
-  ATOMIC_TYPE(bool) stop;
+  PONY_ATOMIC(bool) stop;
   asio_event_t* sighandlers[MAX_SIGNAL];
   messageq_t q;
 };

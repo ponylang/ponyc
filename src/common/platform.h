@@ -271,7 +271,6 @@ inline uint64_t __pony_ffsl(uint64_t x)
             __builtin_choose_expr(COND, THEN, ELSE)
 #endif
 
-#include "atomics.h"
 #include "threads.h"
 #include "paths.h"
 

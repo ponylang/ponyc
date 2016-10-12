@@ -1,9 +1,12 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "pagemap.h"
 #include "alloc.h"
 #include "pool.h"
 #include <string.h>
 
 #include <platform.h>
+#include <pony/detail/atomics.h>
 
 #ifdef PLATFORM_IS_ILP32
 # define PAGEMAP_ADDRESSBITS 32
@@ -56,7 +59,7 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
-static ATOMIC_TYPE(void**) root;
+static PONY_ATOMIC(void**) root;
 
 void* ponyint_pagemap_get(const void* m)
 {
@@ -68,7 +71,7 @@ void* ponyint_pagemap_get(const void* m)
       return NULL;
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    ATOMIC_TYPE(void**)* av = (ATOMIC_TYPE(void**)*)&(v[ix]);
+    PONY_ATOMIC(void**)* av = (PONY_ATOMIC(void**)*)&(v[ix]);
     v = atomic_load_explicit(av, memory_order_relaxed);
   }
 
@@ -77,7 +80,7 @@ void* ponyint_pagemap_get(const void* m)
 
 void ponyint_pagemap_set(const void* m, void* v)
 {
-  ATOMIC_TYPE(void**)* pv = &root;
+  PONY_ATOMIC(void**)* pv = &root;
   void* p;
 
   for(int i = 0; i < PAGEMAP_LEVELS; i++)
@@ -100,7 +103,7 @@ void ponyint_pagemap_set(const void* m, void* v)
     }
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    pv = (ATOMIC_TYPE(void**)*)&(pv_ld[ix]);
+    pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
   }
 
   atomic_store_explicit(pv, (void**)v, memory_order_relaxed);

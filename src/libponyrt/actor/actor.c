@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "actor.h"
 #include "../sched/scheduler.h"
 #include "../sched/cpu.h"

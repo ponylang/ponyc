@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "asio.h"
 #include "event.h"
 #ifdef ASIO_USE_EPOLL
@@ -19,8 +21,8 @@ struct asio_backend_t
   int epfd;
   int wakeup;    /* eventfd to break epoll loop */
   struct epoll_event events[MAX_EVENTS];
-  ATOMIC_TYPE(asio_event_t*) sighandlers[MAX_SIGNAL];
-  ATOMIC_TYPE(bool) terminate;
+  PONY_ATOMIC(asio_event_t*) sighandlers[MAX_SIGNAL];
+  PONY_ATOMIC(bool) terminate;
   messageq_t q;
 };
 
