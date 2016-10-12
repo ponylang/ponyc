@@ -64,7 +64,6 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
 
@@ -106,7 +105,6 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
     type = ast_from(ast, TK_CASES);
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   ast_consolidate_branches(ast, branch_count);
   return true;
 }
@@ -362,7 +360,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_free_unattached(operand_type);
-  ast_inheritflags(ast);
   return ok;
 }
 

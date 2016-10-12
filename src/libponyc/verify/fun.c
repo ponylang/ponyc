@@ -189,12 +189,74 @@ static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+static bool show_partiality(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  bool found = false;
+
+  while(child != NULL)
+  {
+    if(ast_canerror(child))
+      found |= show_partiality(opt, child);
+
+    child = ast_sibling(child);
+  }
+
+  if(found)
+    return true;
+
+  if(ast_canerror(ast))
+  {
+    ast_error_continue(opt->check.errors, ast, "an error can be raised here");
+    return true;
+  }
+
+  return false;
+}
+
 bool verify_fun(pass_opt_t* opt, ast_t* ast)
 {
+  assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
+    (ast_id(ast) == TK_NEW));
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+
+  // Run checks tailored to specific kinds of methods, if any apply.
   if(!verify_main_create(opt, ast) ||
     !verify_primitive_init(opt, ast) ||
     !verify_any_final(opt, ast))
     return false;
+
+  // Check partial functions.
+  if(ast_id(can_error) == TK_QUESTION)
+  {
+    // If the function is marked as partial, it must have the potential
+    // to raise an error somewhere in the body. This check is skipped for
+    // traits and interfaces - they are allowed to give a default implementation
+    // of the method that does or does not have the potential to raise an error.
+    bool is_trait =
+      (ast_id(opt->check.frame->type) == TK_TRAIT) ||
+      (ast_id(opt->check.frame->type) == TK_INTERFACE) ||
+      (ast_id((ast_t*)ast_data(ast)) == TK_TRAIT) ||
+      (ast_id((ast_t*)ast_data(ast)) == TK_INTERFACE);
+
+    if(!is_trait &&
+      !ast_canerror(body) &&
+      (ast_id(ast_type(body)) != TK_COMPILE_INTRINSIC))
+    {
+      ast_error(opt->check.errors, can_error, "function signature is marked as "
+        "partial but the function body cannot raise an error");
+      return false;
+    }
+  } else {
+    // If the function is not marked as partial, it must never raise an error.
+    if(ast_canerror(body))
+    {
+      ast_error(opt->check.errors, can_error, "function signature is not "
+        "marked as partial but the function body can raise an error");
+      show_partiality(opt, body);
+      return false;
+    }
+  }
 
   return true;
 }

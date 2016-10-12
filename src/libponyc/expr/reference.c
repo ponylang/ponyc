@@ -1091,7 +1091,6 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
         // At least one tuple member is literal, so whole tuple is
         ast_free(type);
         make_literal_type(ast);
-        ast_inheritflags(ast);
         return true;
       }
 
@@ -1101,7 +1100,6 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   return true;
 }
 
@@ -1182,31 +1180,6 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   }
 
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
-}
-
-static bool show_partiality(pass_opt_t* opt, ast_t* ast)
-{
-  ast_t* child = ast_child(ast);
-  bool found = false;
-
-  while(child != NULL)
-  {
-    if(ast_canerror(child))
-      found |= show_partiality(opt, child);
-
-    child = ast_sibling(child);
-  }
-
-  if(found)
-    return true;
-
-  if(ast_canerror(ast))
-  {
-    ast_error(opt->check.errors, ast, "an error can be raised here");
-    return true;
-  }
-
-  return false;
 }
 
 static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
@@ -1298,54 +1271,13 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 
 bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
-
-  AST_GET_CHILDREN(ast,
-    cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
 
   if(ast_id(body) == TK_NONE)
     return true;
 
   if(!coerce_literals(&body, type, opt))
     return false;
-
-  bool is_trait =
-    (ast_id(t->frame->type) == TK_TRAIT) ||
-    (ast_id(t->frame->type) == TK_INTERFACE) ||
-    (ast_id((ast_t*)ast_data(ast)) == TK_TRAIT) ||
-    (ast_id((ast_t*)ast_data(ast)) == TK_INTERFACE);
-
-  // Check partial functions.
-  if(ast_id(can_error) == TK_QUESTION)
-  {
-    // If a partial function, check that we might actually error.
-    ast_t* body_type = ast_type(body);
-
-    if(body_type == NULL)
-    {
-      // An error has already occurred.
-      assert(errors_get_count(t->errors) > 0);
-      return false;
-    }
-
-    if(!is_trait &&
-      !ast_canerror(body) &&
-      (ast_id(body_type) != TK_COMPILE_INTRINSIC))
-    {
-      ast_error(opt->check.errors, can_error,
-        "function body is not partial but the function is");
-      return false;
-    }
-  } else {
-    // If not a partial function, check that we can't error.
-    if(ast_canerror(body))
-    {
-      ast_error(opt->check.errors, can_error,
-        "function body is partial but the function is not");
-      show_partiality(opt, body);
-      return false;
-    }
-  }
 
   switch(ast_id(ast))
   {

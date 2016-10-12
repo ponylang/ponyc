@@ -246,3 +246,219 @@ TEST_F(VerifyTest, ClassFinalPartial)
   TEST_ERRORS_1(src,
     "a _final method cannot be a partial function");
 }
+
+TEST_F(VerifyTest, TryNoError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    try None end";
+
+  TEST_ERRORS_1(src, "try expression never results in an error");
+}
+
+TEST_F(VerifyTest, TryError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    try error end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TryTryElseError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    try try error else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TryBranchedError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    try if true then error else None end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TryCallPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() =>\n"
+    "    try partial() end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TryCallCurriedPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() =>\n"
+    "    let fn = this~partial()\n"
+    "    try fn() end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionNoError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    error";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionBranchedError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    if true then error else None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionCallPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionCallCurriedPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() ? =>\n"
+    "    let fn = this~partial()\n"
+    "    fn()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, NonPartialFunctionError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "function signature is not marked as partial but the "
+    "function body can raise an error");
+}
+
+TEST_F(VerifyTest, TraitPartialFunctionNoError)
+{
+  const char* src =
+    "trait Foo\n"
+    "  fun apply() ? =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TraitNonPartialFunctionError)
+{
+  const char* src =
+    "trait Foo\n"
+    "  fun apply() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "function signature is not marked as partial but the "
+    "function body can raise an error");
+}
+
+TEST_F(VerifyTest, InterfacePartialFunctionNoError)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply() ? =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, InterfaceNonPartialFunctionError)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "function signature is not marked as partial but the "
+    "function body can raise an error");
+}
+
+TEST_F(VerifyTest, FFICallPartial)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(): U64 ? =>\n"
+    "    @foo[U64]() ?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
+{
+  const char* src =
+    "use @foo[U64]() ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 ? =>\n"
+    "    @foo[U64]() ?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, FFICallWithPartialDeclaration)
+{
+  const char* src =
+    "use @foo[U64]() ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 ? =>\n"
+    "    @foo[U64]()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
+{
+  const char* src =
+    "use @foo[U64]()\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 ? =>\n"
+    "    @foo[U64]() ?";
+
+  TEST_ERRORS_1(src, "call is partial but the declaration is not");
+}

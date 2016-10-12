@@ -42,7 +42,6 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
     // Type is unioned with the type of the last child.
     type = control_type_add_branch(opt, type, last);
     ast_settype(ast, type);
-    ast_inheritflags(ast);
   }
 
   if(!ast_has_scope(ast))
@@ -156,7 +155,6 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
 
@@ -219,7 +217,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     type = ast_from(ast, TK_WHILE);
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
@@ -277,7 +274,6 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     type = ast_from(ast, TK_REPEAT);
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
@@ -297,14 +293,6 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
     is_typecheck_error(else_type) ||
     is_typecheck_error(then_type))
     return false;
-
-  // It has to be possible for the left side to result in an error.
-  if((ast_id(ast) == TK_TRY) && !ast_canerror(body))
-  {
-    ast_error(opt->check.errors, body,
-      "try expression never results in an error");
-    return false;
-  }
 
   ast_t* type = NULL;
 
@@ -342,17 +330,6 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, type);
 
-  // Doesn't inherit error from the body.
-  if(ast_canerror(else_clause) || ast_canerror(then_clause))
-    ast_seterror(ast);
-
-  if(ast_cansend(body) || ast_cansend(else_clause) || ast_cansend(then_clause))
-    ast_setsend(ast);
-
-  if(ast_mightsend(body) || ast_mightsend(else_clause) ||
-    ast_mightsend(then_clause))
-    ast_setmightsend(ast);
-
   literal_unify_control(ast, opt);
 
   // Push the symbol status from the then clause to our parent scope.
@@ -385,7 +362,6 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, r_type);
-  ast_inheritflags(ast);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), expr);
@@ -413,7 +389,6 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_BREAK));
-  ast_inheritflags(ast);
 
   // Add type to loop.
   ast_t* body = ast_child(ast);
@@ -545,7 +520,6 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, ast_from(ast, TK_RETURN));
-  ast_inheritflags(ast);
   return ok;
 }
 
@@ -556,7 +530,6 @@ bool expr_error(pass_opt_t* opt, ast_t* ast)
   assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_ERROR));
-  ast_seterror(ast);
   return true;
 }
 
