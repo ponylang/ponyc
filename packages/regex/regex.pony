@@ -63,7 +63,7 @@ class Regex
     var err: I32 = 0
     var erroffset: USize = 0
 
-    _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
+    _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cpointer(), from.size(),
         _PCRE2.utf(), addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
@@ -124,8 +124,8 @@ class Regex
 
     repeat
       rc = @pcre2_substitute_8[I32](_pattern,
-        subject.cstring(), subject.size(), offset, opt, Pointer[U8],
-        Pointer[U8], value.cstring(), value.size(), out.cstring(),
+        subject.cpointer(), subject.size(), offset, opt, Pointer[U8],
+        Pointer[U8], value.cpointer(), value.size(), out.cpointer(),
         addressof len)
 
       if rc == -48 then
@@ -174,7 +174,7 @@ class Regex
     does not exist.
     """
     let rc = @pcre2_substring_number_from_name[I32](_pattern,
-      name.null_terminated().cstring())
+      name.cstring())
 
     if rc < 0 then
       error
@@ -206,10 +206,10 @@ class Regex
       Pointer[U8])
 
     let rc = if _jit then
-      @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
+      @pcre2_jit_match_8[I32](_pattern, subject.cpointer(), subject.size(),
         offset, options, m, Pointer[U8])
     else
-      @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), offset,
+      @pcre2_match_8[I32](_pattern, subject.cpointer(), subject.size(), offset,
         options, m, Pointer[U8])
     end
 

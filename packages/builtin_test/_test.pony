@@ -433,7 +433,7 @@ class iso _TestStringIsNullTerminated is UnitTest
     h.assert_true("0123456".trim(4, 7).is_null_terminated())
     h.assert_false("0123456".trim(2, 4).is_null_terminated())
     h.assert_true("0123456".trim(2, 4).clone().is_null_terminated())
-    h.assert_true("0123456".trim(2, 4).null_terminated().is_null_terminated())
+    h.assert_false("0123456".trim(2, 4).is_null_terminated())
 
 
 class iso _TestSpecialValuesF32 is UnitTest

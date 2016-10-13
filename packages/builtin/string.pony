@@ -70,11 +70,11 @@ actor Main
       try (data(_size - 1) == 0) else false end
     then
       _alloc = data.space()
-      _ptr = data._cstring()._unsafe()
+      _ptr = data.cpointer()._unsafe()
     else
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      data._cstring()._copy_to(_ptr, _size)
+      data._copy_to(_ptr, _size)
       _set(_size, 0)
     end
 
@@ -84,15 +84,14 @@ actor Main
     """
     _size = data.size()
     _alloc = data.space()
-    _ptr = (consume data)._cstring()._unsafe()
+    _ptr = (consume data).cpointer()._unsafe()
 
-  new from_cstring(str: Pointer[U8], len: USize = 0, alloc: USize = 0) =>
+  new from_cpointer(str: Pointer[U8], len: USize, alloc: USize = 0) =>
     """
-    The cstring is not copied. This must be done only with C-FFI functions that
-    return pony_alloc'd character arrays. If len is not given, the pointer is
-    scanned for the first null byte, which will be interpreted as the null
-    terminator. Therefore, strings without null terminators must specify
-    a length to retain memory safety.
+    Return a string from binary pointer data without making a
+    copy. This must be done only with C-FFI functions that return
+    pony_alloc'd character arrays. If a null pointer is given then an
+    empty string is returned.
     """
     if str.is_null() then
       _size = 0
@@ -101,14 +100,38 @@ actor Main
       _set(0, 0)
     else
       _size = len
+      _alloc = alloc.max(_size.min(len.max_value() - 1) + 1)
+      _ptr = str
+    end
 
-      if len == 0 then
-        while str._apply(_size) != 0 do
-          _size = _size + 1
+  new from_cstring(str: Pointer[U8]) =>
+    """
+    Return a string from a pointer to a null-terminated cstring
+    without making a copy. The data is not copied. This must be done
+    only with C-FFI functions that return pony_alloc'd character
+    arrays. The pointer is scanned for the first null byte, which will
+    be interpreted as the null terminator. Note that the scan is
+    unbounded; the pointed to data must be null-terminated within
+    the allocated array to preserve memory safety. If a null pointer
+    is given then an empty string is returned.
+    """
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      var i: USize = 0
+
+      while true do
+        if str._apply(i) == 0 then
+          break
         end
+        i = i + 1
       end
 
-      _alloc = alloc.max(_size + 1)
+      _size = i
+      _alloc = i + 1
       _ptr = str
     end
 
@@ -177,24 +200,42 @@ actor Main
     end
     _set(_size, 0)
 
-  fun cstring(): Pointer[U8] tag =>
+  fun box _copy_to(ptr: Pointer[U8] ref, copy_len: USize,
+    from_offset: USize = 0, to_offset: USize = 0) =>
     """
-    Returns a C compatible pointer to a null terminated string.
+    Copy copy_len characters from this to that at specified offsets.
+    """
+    _ptr._offset(from_offset)._copy_to(ptr._offset(to_offset), copy_len)
+
+  fun cpointer(): Pointer[U8] tag =>
+    """
+    Returns a C compatible pointer to the underlying string allocation.
     """
     _ptr
 
-  fun _cstring(): Pointer[U8] box =>
+  fun cstring(): Pointer[U8] tag =>
     """
-    Returns a C compatible pointer to a null terminated string.
+    Returns a C compatible pointer to a null-terminated version of the
+    string, safe to pass to an FFI function that doesn't accept a size
+    argument, expecting a null-terminator.  If the underlying string
+    is already null terminated, this is returned; otherwise the string
+    is copied into a new, null-terminated allocation.
     """
-    _ptr
+    if is_null_terminated() then
+      return _ptr
+    end
+
+    let ptr = Pointer[U8]._alloc(_size + 1)
+    _ptr._copy_to(ptr._unsafe(), _size)
+    ptr._update(_size + 1, 0)
+    ptr
 
   fun val array(): Array[U8] val =>
     """
     Returns an Array[U8] that that reuses the underlying data pointer.
     """
     recover
-      Array[U8].from_cstring(_ptr._unsafe(), _size, _alloc)
+      Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
     end
 
   fun size(): USize =>
@@ -329,7 +370,7 @@ actor Main
       let alloc = _alloc - offset
 
       if size' > 0 then
-        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+        from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
       else
         create()
       end
@@ -345,15 +386,6 @@ actor Main
     If you need a null-terminated copy of this string, use the clone method.
     """
     (_alloc > 0) and (_ptr._apply(_size) == 0)
-
-  fun null_terminated(): this->String ref =>
-    """
-    Returns a null-terminated version of the string, safe to pass to an FFI
-    function that doesn't accept a size argument, expecting a null-terminator.
-    If the underlying string is already null terminated, this is returned;
-    otherwise the string is cloned and the null-terminated clone is returned.
-    """
-    if is_null_terminated() then this else clone() end
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
@@ -473,7 +505,8 @@ actor Main
 
   fun clone(): String iso^ =>
     """
-    Returns a copy of the string.
+    Returns a copy of the string. The resulting string is
+    null-terminated even if the original is not.
     """
     let len = _size
     let str = recover String(len) end
@@ -781,7 +814,7 @@ actor Main
 
     match seq
     | let s: (String box | Array[U8] box) =>
-      s._cstring()._offset(offset)._copy_to(_ptr._offset(_size), copy_len)
+      s._copy_to(_ptr, copy_len, offset, _size)
       _size = _size + copy_len
       _set(_size, 0)
     else

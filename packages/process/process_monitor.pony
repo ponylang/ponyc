@@ -268,8 +268,8 @@ actor ProcessMonitor
       _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
       _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
       _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      if 0 > @execve[I32](path.null_terminated().cstring(), argp.cstring(),
-        envp.cstring())
+      if 0 > @execve[I32](path.cstring(), argp.cpointer(),
+        envp.cpointer())
       then
         @_exit[None](I32(-1))
       end
@@ -295,7 +295,7 @@ actor ProcessMonitor
     """
     let argv = Array[Pointer[U8] tag](args.size() + 1)
     for s in args.values() do
-      argv.push(s.null_terminated().cstring())
+      argv.push(s.cstring())
     end
     argv.push(Pointer[U8]) // nullpointer to terminate list of args
     argv
@@ -379,7 +379,7 @@ actor ProcessMonitor
     ifdef posix then
       let d = data
       if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cstring(), d.size())
+        let res = @write[ISize](_stdin_write, d.cpointer(), d.size())
         if res < 0 then
           _notifier.failed(this, WriteError)
         end
@@ -412,7 +412,7 @@ actor ProcessMonitor
     ifdef posix then
       let d = data
       if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cstring(), d.size())
+        let res = @write[ISize](_stdin_write, d.cpointer(), d.size())
         if res < 0 then
           _notifier.failed(this, WriteError)
         end
@@ -557,7 +557,7 @@ actor ProcessMonitor
       if fd == -1 then return false end
       var sum: USize = 0
       while true do
-        let len = @read[ISize](fd, _read_buf.cstring().usize() + _read_len,
+        let len = @read[ISize](fd, _read_buf.cpointer().usize() + _read_len,
           _read_buf.size() - _read_len)
         let errno = @pony_os_errno()
         let next = _read_buf.space()

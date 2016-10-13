@@ -492,7 +492,7 @@ primitive Path
     isn't one.
     """
     let cstring = @pony_os_realpath[Pointer[U8] iso^](
-      path.null_terminated().cstring())
+      path.cstring())
 
     if cstring.is_null() then
       error

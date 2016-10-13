@@ -76,7 +76,7 @@ class Digest
     called.
     """
     if _hash isnt None then error end
-    @EVP_DigestUpdate[None](_ctx, input.cstring(), input.size())
+    @EVP_DigestUpdate[None](_ctx, input.cpointer(), input.size())
 
   fun ref final(): Array[U8] val =>
     """
@@ -86,10 +86,10 @@ class Digest
     | let h: Array[U8] val => h
     else
       let size = _digest_size
-      let digest = recover String.from_cstring(
+      let digest = recover String.from_cpointer(
         @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size), size
       ) end
-      @EVP_DigestFinal_ex[None](_ctx, digest.cstring(), Pointer[USize])
+      @EVP_DigestFinal_ex[None](_ctx, digest.cpointer(), Pointer[USize])
       @EVP_MD_CTX_cleanup[None](_ctx)
       let h = (consume digest).array()
       _hash = h

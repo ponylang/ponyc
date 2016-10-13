@@ -92,7 +92,7 @@ class File
 
       if mode != "x" then
         _handle = @fopen[Pointer[_FileHandle]](
-          path.path.null_terminated().cstring(), mode.cstring())
+          path.path.cstring(), mode.cstring())
 
         if _handle.is_null() then
           _errno = _get_error()
@@ -130,7 +130,7 @@ class File
       _errno = FileError
     else
       _handle = @fopen[Pointer[_FileHandle]](
-        from.path.null_terminated().cstring(), "rb".cstring())
+        from.path.cstring(), "rb".cstring())
 
       if _handle.is_null() then
         _errno = FileError
@@ -298,9 +298,9 @@ class File
       let result = recover Array[U8].undefined(len) end
 
       let r = ifdef linux then
-        @fread_unlocked[USize](result.cstring(), USize(1), len, _handle)
+        @fread_unlocked[USize](result.cpointer(), USize(1), len, _handle)
       else
-        @fread[USize](result.cstring(), USize(1), len, _handle)
+        @fread[USize](result.cpointer(), USize(1), len, _handle)
       end
 
       if r < len then
@@ -362,9 +362,9 @@ class File
     """
     if writeable and (not _handle.is_null()) then
       let len = ifdef linux then
-        @fwrite_unlocked[USize](data.cstring(), USize(1), data.size(), _handle)
+        @fwrite_unlocked[USize](data.cpointer(), USize(1), data.size(), _handle)
       else
-        @fwrite[USize](data.cstring(), USize(1), data.size(), _handle)
+        @fwrite[USize](data.cpointer(), USize(1), data.size(), _handle)
       end
 
       if len == data.size() then
