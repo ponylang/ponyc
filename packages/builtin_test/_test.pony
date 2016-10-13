@@ -53,6 +53,7 @@ actor Main is TestList
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestAddc)
+    test(_TestNextPow2)
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
@@ -1178,6 +1179,48 @@ class iso _TestAddc is UnitTest
     h.assert_eq[A](expected._1, actual._1)
     h.assert_eq[Bool](expected._2, actual._2)
 
+
+class iso _TestNextPow2 is UnitTest
+  """
+  Test power of 2 computations.
+  """
+  fun name(): String => "builtin/NextPow2"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[U8](32, U8(17).next_pow2())
+    h.assert_eq[U8](16, U8(16).next_pow2())
+    h.assert_eq[U8](1, U8(0).next_pow2())
+    h.assert_eq[U8](1, U8.max_value().next_pow2())
+
+    h.assert_eq[U16](32, U16(17).next_pow2())
+    h.assert_eq[U16](16, U16(16).next_pow2())
+    h.assert_eq[U16](1, U16(0).next_pow2())
+    h.assert_eq[U16](1, U16.max_value().next_pow2())
+
+    h.assert_eq[U32](32, U32(17).next_pow2())
+    h.assert_eq[U32](16, U32(16).next_pow2())
+    h.assert_eq[U32](1, U32(0).next_pow2())
+    h.assert_eq[U32](1, U32.max_value().next_pow2())
+
+    h.assert_eq[U64](32, U64(17).next_pow2())
+    h.assert_eq[U64](16, U64(16).next_pow2())
+    h.assert_eq[U64](1, U64(0).next_pow2())
+    h.assert_eq[U64](1, U64.max_value().next_pow2())
+
+    h.assert_eq[ULong](32, ULong(17).next_pow2())
+    h.assert_eq[ULong](16, ULong(16).next_pow2())
+    h.assert_eq[ULong](1, ULong(0).next_pow2())
+    h.assert_eq[ULong](1, ULong.max_value().next_pow2())
+
+    h.assert_eq[USize](32, USize(17).next_pow2())
+    h.assert_eq[USize](16, USize(16).next_pow2())
+    h.assert_eq[USize](1, USize(0).next_pow2())
+    h.assert_eq[USize](1, USize.max_value().next_pow2())
+
+    h.assert_eq[U128](32, U128(17).next_pow2())
+    h.assert_eq[U128](16, U128(16).next_pow2())
+    h.assert_eq[U128](1, U128(0).next_pow2())
+    h.assert_eq[U128](1, U128.max_value().next_pow2())
 
 struct _TestStruct
   var i: U32 = 0
