@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Concatenate docstrings from case methods (issue #575).
+
 ### Added
 
 ### Changed
