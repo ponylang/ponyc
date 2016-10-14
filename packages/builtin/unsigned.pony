@@ -6,11 +6,8 @@ primitive U8 is _UnsignedInteger[U8]
   new max_value() => 0xFF
 
   fun next_pow2(): U8 =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U8 => this
   fun bswap(): U8 => this
@@ -36,12 +33,8 @@ primitive U16 is _UnsignedInteger[U16]
   new max_value() => 0xFFFF
 
   fun next_pow2(): U16 =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U16 => this
   fun bswap(): U16 => @"llvm.bswap.i16"[U16](this)
@@ -67,13 +60,8 @@ primitive U32 is _UnsignedInteger[U32]
   new max_value() => 0xFFFF_FFFF
 
   fun next_pow2(): U32 =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x = x or (x >> 16)
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U32 => this
   fun bswap(): U32 => @"llvm.bswap.i32"[U32](this)
@@ -99,14 +87,8 @@ primitive U64 is _UnsignedInteger[U64]
   new max_value() => 0xFFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U64 =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x = x or (x >> 16)
-    x = x or (x >> 32)
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U64 => this
   fun bswap(): U64 => @"llvm.bswap.i64"[U64](this)
@@ -138,18 +120,8 @@ primitive ULong is _UnsignedInteger[ULong]
     end
 
   fun next_pow2(): ULong =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x = x or (x >> 16)
-
-    ifdef lp64 then
-      x = x or (x >> 32)
-    end
-
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): ULong => this
 
@@ -220,18 +192,8 @@ primitive USize is _UnsignedInteger[USize]
     end
 
   fun next_pow2(): USize =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x = x or (x >> 16)
-
-    ifdef llp64 or lp64 then
-      x = x or (x >> 32)
-    end
-
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): USize => this
 
@@ -296,15 +258,8 @@ primitive U128 is _UnsignedInteger[U128]
   new max_value() => 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U128 =>
-    var x = this - 1
-    x = x or (x >> 1)
-    x = x or (x >> 2)
-    x = x or (x >> 4)
-    x = x or (x >> 8)
-    x = x or (x >> 16)
-    x = x or (x >> 32)
-    x = x or (x >> 64)
-    x + 1
+    let x = (this - 1).clz()
+    1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U128 => this
   fun bswap(): U128 => @"llvm.bswap.i128"[U128](this)

@@ -119,17 +119,25 @@ size_t ponyint_hash_size(size_t key)
 
 size_t ponyint_next_pow2(size_t i)
 {
+#ifdef PLATFORM_IS_ILP32
   i--;
-
-  i |= i >> 1;
-  i |= i >> 2;
-  i |= i >> 4;
-  i |= i >> 8;
-  i |= i >> 16;
-
-#ifndef PLATFORM_IS_ILP32
-  i |= i >> 32;
+// On ARM 5 and higher, the clz instruction gives the correct result for 0.
+#  ifndef ARMV5
+  if(i == 0)
+    i = 32;
+  else
+#  endif
+    i = __pony_clz(i);
+  return 1 << (i == 0 ? 0 : 32 - i);
+#else
+  i--;
+#  ifndef ARMV5
+  if(i == 0)
+    i = 64;
+  else
+#  endif
+    i = __pony_clzl(i);
+  // Cast is needed for optimal code generation (avoids an extension).
+  return (size_t)1 << (i == 0 ? 0 : 64 - i);
 #endif
-
-  return i + 1;
 }
