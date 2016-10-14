@@ -1,0 +1,109 @@
+global gc_passes, time_in_gc, messages, alloc
+global tmp_ts /* construct to hold temporary timestamps */
+
+probe process.mark("actor-msg-send")
+{
+    /* At the time of writing no way was found to find the maximum
+        size of unsigned integer in SystemTap. This is needed since
+        the message type is calculated from that value. UINT32_MAX
+        must be changed on different types of machines */
+    UINT32_MAX = 4294967296;
+    ACTORMSG_BLOCK = (UINT32_MAX - 6);
+    ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
+    ACTORMSG_ACQUIRE = (UINT32_MAX - 4);
+    ACTORMSG_RELEASE = (UINT32_MAX - 3);
+    ACTORMSG_CONF = (UINT32_MAX - 2);
+    ACTORMSG_ACK = (UINT32_MAX - 1);
+
+    if ($arg2 < ACTORMSG_BLOCK) {
+        messages[$arg1, "count_msg_app"] ++;
+    }
+    if ($arg2 == ACTORMSG_BLOCK) {
+        messages[$arg1, "count_msg_block"] ++;
+    }
+    if ($arg2 == ACTORMSG_UNBLOCK) {
+        messages[$arg1, "count_msg_unblock"] ++;
+    }
+    if ($arg2 == ACTORMSG_ACQUIRE) {
+        messages[$arg1, "count_msg_acquire"] ++;
+    }
+    if ($arg2 == ACTORMSG_RELEASE) {
+        messages[$arg1, "count_msg_release"] ++;
+    }
+    if ($arg2 == ACTORMSG_CONF) {
+        messages[$arg1, "count_msg_conf"] ++;
+    }
+    if ($arg2 == ACTORMSG_ACK) {
+        messages[$arg1, "count_msg_ack"] ++;
+    }
+}
+
+probe process.mark("gc-start")
+{
+    gc_passes[$arg1] ++;
+    tmp_ts[$arg1, "gc"] = gettimeofday_us();
+}
+
+probe process.mark("gc-end")
+{
+    time_in_gc[$arg1, "gc"] = gettimeofday_us() - tmp_ts[$arg1, "gc"];
+    delete tmp_ts[$arg1, "gc"];
+}
+
+probe process.mark("gc-send-start")
+{
+    tmp_ts[$arg1, "gc_send"] = gettimeofday_us();
+}
+
+probe process.mark("gc-send-end")
+{
+    time_in_gc[$arg1, "gc_send"] = gettimeofday_us() - tmp_ts[$arg1, "gc_send"];
+    delete tmp_ts[$arg1, "gc_send"];
+}
+
+probe process.mark("gc-recv-start")
+{
+    tmp_ts[$arg1, "gc_recv"] = gettimeofday_us();
+}
+
+probe process.mark("gc-recv-end")
+{
+    time_in_gc[$arg1, "gc_recv"] = gettimeofday_us() - tmp_ts[$arg1, "gc_recv"];
+    delete tmp_ts[$arg1, "gc_recv"];
+}
+
+probe process.mark("heap-alloc")
+{
+    alloc[$arg1, "heap"] ++;
+    alloc[$arg1, "size"] = alloc[$arg1, "size"] + $arg2;
+}
+
+probe process.mark("actor-alloc")
+{
+    alloc[$arg1, "actor"] ++;
+}
+
+probe end
+{
+    printf("\"telemetry\" : [\n");
+    foreach (scheduler in gc_passes) {
+      printf("  {\n");
+      printf("    \"scheduler_id\": %d,\n", scheduler);
+      printf("    \"count_gc_passes\": %d,\n", gc_passes[scheduler]);
+      printf("    \"count_alloc\": %d,\n", alloc[scheduler, "heap"]);
+      printf("    \"count_alloc_size\": %d,\n", alloc[scheduler, "size"]);
+      printf("    \"count_alloc_actors\": %d,\n", alloc[scheduler, "actor"]);
+      printf("    \"count_msg_app\": %d,\n", messages[scheduler, "count_msg_app"]);
+      printf("    \"count_msg_block\": %d,\n", messages[scheduler, "count_msg_block"]);
+      printf("    \"count_msg_unblock\": %d,\n", messages[scheduler, "count_msg_unblock"]);
+      printf("    \"count_msg_acquire\": %d,\n", messages[scheduler, "count_msg_acquire"]);
+      printf("    \"count_msg_release\": %d,\n", messages[scheduler, "count_msg_release"]);
+      printf("    \"count_msg_conf\": %d,\n", messages[scheduler, "count_msg_conf"]);
+      printf("    \"count_msg_ack\": %d,\n", messages[scheduler, "count_msg_ack"]);
+      printf("    \"time_in_gc\": %d,\n", time_in_gc[scheduler, "gc"]);
+      printf("    \"time_in_send_scan\": %d,\n", time_in_gc[scheduler, "gc_send"]);
+      printf("    \"time_in_recv_scan\": %d,\n", time_in_gc[scheduler, "gc_recv"]);
+      printf("  },\n");
+    }
+    printf("]\n");
+}
