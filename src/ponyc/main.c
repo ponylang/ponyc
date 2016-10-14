@@ -154,6 +154,7 @@ static void usage()
     "    =traits\n"
     "    =docs\n"
     "    =expr\n"
+    "    =verify\n"
     "    =final\n"
     "    =reach\n"
     "    =paint\n"

@@ -198,7 +198,6 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
   ast_settype(ast, type_builtin(opt, ast, "Bool"));
-  ast_inheritflags(ast);
   return literal_is(ast, opt);
 }
 
@@ -615,7 +614,6 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_settype(ast, consume_type(l_type, TK_NONE));
-  ast_inheritflags(ast);
   return true;
 }
 
