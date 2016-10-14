@@ -8,6 +8,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- TCP read and write backpressure hooks in `TCPConnection (issue #1311)
+
 ### Changed
 
 ## [0.6.0] - 2016-10-20
