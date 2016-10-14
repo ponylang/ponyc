@@ -478,7 +478,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
 
-  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << (POOL_MIN_BITS - 1)) - 1);
 
   do
   {
@@ -500,7 +500,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
 
-  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << (POOL_MIN_BITS - 1)) - 1);
 
   do
   {

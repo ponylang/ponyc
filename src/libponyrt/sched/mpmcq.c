@@ -64,7 +64,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   cmp = atomic_load_explicit(&q->tail, memory_order_acquire);
 
   uintptr_t mask = UINTPTR_MAX ^
-    ((1 << (POOL_MIN_BITS + POOL_INDEX(sizeof(mpmcq_node_t*)))) - 1);
+    ((1 << (POOL_MIN_BITS + POOL_INDEX(sizeof(mpmcq_node_t)) - 1)) - 1);
 
   do
   {
