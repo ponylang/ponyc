@@ -8,6 +8,11 @@ actor Main is TestList
     test(_TestBroadcast)
     test(_TestTCPWritev)
     test(_TestTCPExpect)
+    test(_TestTCPMute)
+    test(_TestTCPUnmute)
+    ifdef not windows then
+      test(_TestTCPThrottle)
+    end
 
 class _TestPing is UDPNotify
   let _h: TestHelper
@@ -303,3 +308,210 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
       _h.assert_eq[String](expected, consume buffer)
       _h.complete_action("server receive")
     end
+
+class iso _TestTCPMute is UnitTest
+  """
+  Test that the `mute` behavior stops us from reading incoming data. The
+  test assumes that send/recv works correctly and that the absence of
+  data received is because we muted the connection.
+
+  Test works as follows:
+
+  Once an incoming connection is established, we set mute on it and then
+  verify that within a 2 second long test that received is not called on
+  our notifier. A timeout is considering passing and received being called
+  is grounds for a failure.
+  """
+  fun name(): String => "net/TCPMute"
+  fun label(): String => "tcpmute"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("sender sent data")
+
+    _TestTCP(h)(_TestTCPMuteSendNotify(h),
+      _TestTCPMuteReceiveNotify(h))
+
+    h.long_test(2_000_000_000)
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(true)
+
+class _TestTCPMuteReceiveNotify is TCPConnectionNotify
+  """
+  Notifier to fail a test if we receive data after muting the connection.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    _h.complete_action("receiver accepted")
+    conn.mute()
+    _h.complete_action("receiver muted")
+    conn.write("send me some data that i won't ever read")
+    _h.complete_action("receiver asks for data")
+    _h.dispose_when_done(conn)
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+    _h.complete(false)
+
+class _TestTCPMuteSendNotify is TCPConnectionNotify
+  """
+  Notifier that sends data back when it receives any. Used in conjunction with
+  the mute receiver to verify that after muting, we don't get any data on
+  to the `received` notifier on the muted connection. We only send in response
+  to data from the receiver to make sure we don't end up failing due to race
+  condition where the senders sends data on connect before the receiver has
+  executed its mute statement.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("sender connected")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("sender connected")
+
+   fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+     conn.write("it's sad that you won't ever read this")
+     _h.complete_action("sender sent data")
+
+class iso _TestTCPUnmute is UnitTest
+  """
+  Test that the `unmute` behavior will allow a connection to start reading
+  incoming data again. The test assumes that `mute` works correctly and that
+  after muting, `unmute` successfully reset the mute state rather than `mute`
+  being broken and never actually muting the connection.
+
+  Test works as follows:
+
+  Once an incoming connection is established, we set mute on it, request
+  that data be sent to us and then unmute the connection such that we should
+  receive the return data.
+  """
+  fun name(): String => "net/TCPUnmute"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("receiver unmuted")
+    h.expect_action("sender sent data")
+
+    _TestTCP(h)(_TestTCPMuteSendNotify(h),
+      _TestTCPUnmuteReceiveNotify(h))
+
+    h.long_test(2_000_000_000)
+
+class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
+  """
+  Notifier to test that after muting and unmuting a connection, we get data
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    _h.complete_action("receiver accepted")
+    conn.mute()
+    _h.complete_action("receiver muted")
+    conn.write("send me some data that i won't ever read")
+    _h.complete_action("receiver asks for data")
+    conn.unmute()
+    _h.complete_action("receiver unmuted")
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+    _h.complete(true)
+
+class iso _TestTCPThrottle is UnitTest
+  """
+  Test that when we experience backpressure when sending that the `throttled`
+  method is called on our `TCPConnectionNotify` instance.
+
+  We do this by starting up a server connection, muting it immediately and then
+  sending data to it which should trigger a throttling to happen. We don't
+  start sending data til after the receiver has muted itself and sent the
+  sender data. This verifies that muting has been completed before any data is
+  sent as part of testing throttling.
+
+  This test assumes that muting functionality is working correctly.
+  """
+  fun name(): String => "net/TCPThrottle"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("sender sent data")
+    h.expect_action("sender throttled")
+
+    _TestTCP(h)(_TestTCPThrottleSendNotify(h),
+      _TestTCPThrottleReceiveNotify(h))
+
+    h.long_test(10_000_000_000)
+
+class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
+  """
+  Notifier to that mutes itself on startup. We then send data to it in order
+  to trigger backpressure on the sender.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    _h.complete_action("receiver accepted")
+    conn.mute()
+    _h.complete_action("receiver muted")
+    conn.write("send me some data that i won't ever read")
+    _h.complete_action("receiver asks for data")
+    _h.dispose_when_done(conn)
+
+class _TestTCPThrottleSendNotify is TCPConnectionNotify
+  """
+  Notifier that sends data back when it receives any. Used in conjunction with
+  the mute receiver to verify that after muting, we don't get any data on
+  to the `received` notifier on the muted connection. We only send in response
+  to data from the receiver to make sure we don't end up failing due to race
+  condition where the senders sends data on connect before the receiver has
+  executed its mute statement.
+  """
+  let _h: TestHelper
+  var _throttled_yet: Bool = false
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("sender connected")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("sender connected")
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+    conn.write("it's sad that you won't ever read this")
+    _h.complete_action("sender sent data")
+
+  fun ref throttled(conn: TCPConnection ref) =>
+    _throttled_yet = true
+    _h.complete_action("sender throttled")
+    _h.complete(true)
+
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq =>
+    if not _throttled_yet then
+      conn.write("this is more data that you won't ever read")
+    end
+    data
