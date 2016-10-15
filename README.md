@@ -141,7 +141,11 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2013
 - XCode Clang >= 6.0
 
-Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work**. If you are using LLVM 3.7.x, you need to use 3.7.1. If you are using LLVM 3.6.x, make sure to use 3.6.2.
+Pony requires one of the following versions of LLVM:
+
+- 3.6.2
+- 3.7.1
+- 3.8.1
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
