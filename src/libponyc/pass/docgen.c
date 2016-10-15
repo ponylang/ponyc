@@ -620,6 +620,89 @@ static void doc_type_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     fprintf(docgen->type_file, "]");
 }
 
+// Write the expression to the current type file.
+void doc_expression(docgen_t* docgen, ast_t* ast)
+{
+  FILE* fp = docgen->type_file;
+  ast_t* child = ast_child(ast);
+
+  switch(ast_id(ast))
+  {
+    case TK_CALL:
+      while(child != NULL)
+      {
+        doc_expression(docgen, child);
+        child = ast_sibling(child);
+      }
+      fprintf(fp, "()");
+      break;
+
+    case TK_SEQ:
+      while(child != NULL)
+      {
+        doc_expression(docgen, child);
+        child = ast_sibling(child);
+        if (child != NULL) {
+          fprintf(fp, "; ");
+        }
+      }
+      break;
+
+    case TK_REFERENCE:
+      doc_expression(docgen, child);
+      break;
+
+    case TK_TYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      doc_type(docgen, ast, false);
+      break;
+
+    case TK_DOT:
+      while(child != NULL)
+      {
+        doc_expression(docgen, child);
+        child = ast_sibling(child);
+        if (child != NULL) {
+          fprintf(fp, ".");
+        }
+      }
+      break;
+
+    case TK_NONE:
+      break;
+
+    case TK_STRING:
+    {
+      char* escaped = ast_string_escape(ast);
+      fprintf(fp, "\"%s\"", escaped);
+      ponyint_pool_free_size(strlen(escaped) + 1, escaped);
+      break;
+    }
+
+    case TK_RECOVER:
+      fprintf(fp, "recover");
+      while(child != NULL)
+      {
+        if (ast_id(child) != TK_NONE) {
+          fprintf(fp, " ");
+          doc_expression(docgen, child);
+        }
+        child = ast_sibling(child);
+      }
+      fprintf(fp, " end");
+      break;
+
+    default:
+      fprintf(fp, "%s", ast_get_print(ast));
+      break;
+  }
+}
+
 // Write the given list of parameters to the current type file, with
 // surrounding (). If the given list is empty () is still written.
 static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
@@ -647,18 +730,9 @@ static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     doc_type(docgen, docgen_opt, type, false, true);
 
     // if we have a default value, add it to the documentation
-    if(ast_id(def_val) != TK_NONE)
-    {
-      switch(ast_id(def_val))
-      {
-        case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
-          break;
-
-        default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
-          break;
-      }
+    if(ast_id(def_val) != TK_NONE) {
+      fprintf(docgen->type_file, " = ");
+      doc_expression(docgen, def_val);
     }
   }
 
@@ -689,18 +763,9 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     doc_type(docgen, docgen_opt, type, true, true);
 
     // if we have a default value, add it to the documentation
-    if(ast_id(def_val) != TK_NONE)
-    {
-      switch(ast_id(def_val))
-      {
-        case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
-          break;
-
-        default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
-          break;
-      }
+    if(ast_id(def_val) != TK_NONE) {
+      fprintf(docgen->type_file, " = ");
+      doc_expression(docgen, def_val);
     }
 
     fprintf(docgen->type_file, "\n");
