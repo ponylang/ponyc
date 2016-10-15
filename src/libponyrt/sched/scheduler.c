@@ -179,15 +179,13 @@ static scheduler_t* choose_victim(scheduler_t* sched)
   while(true)
   {
     // Schedulers are laid out sequentially in memory
-    // If we know the location of the current victim,
-    // the first schedulder and the count, we wrap
-    // around like a linked list
 
     // Back up one.
     victim--;
 
-    // Wrap around to the end.
     if(victim < scheduler)
+      // victim is before the first scheduler location
+      // wrap around to the end.
       victim = &scheduler[scheduler_count - 1];
 
     if(victim == sched->last_victim)
