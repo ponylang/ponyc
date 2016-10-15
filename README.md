@@ -255,7 +255,7 @@ $ ./helloworld
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.6.x, 3.7.1, 3.8.x. _LLVM 3.7.0* isn't supported_
+* LLVM 3.6.2, 3.7.1, 3.8.1.
 * zlib
 * ncurses
 * pcre2
@@ -299,12 +299,12 @@ $ gmake
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not have this problem, and works fine with LLVM 3.7 and 3.8.
+Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6.2. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
 
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.6.2, 3.7.1, or 3.8 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
+You'll need llvm 3.6.2, 3.7.1, or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
 
 Installation via [homebrew](http://brew.sh):
 ```
@@ -329,7 +329,7 @@ $ ./build/release/ponyc examples/helloworld
 
 _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to build Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about)._
 
-The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 or 3.8 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7.1 or 3.8.1 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 LLVM recommends using the GnuWin32 unix tools; your mileage may vary using MSYS or Cygwin.
 
