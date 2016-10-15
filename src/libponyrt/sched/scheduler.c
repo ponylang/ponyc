@@ -64,6 +64,7 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 /**
  * Sends a message to a thread.
  */
+
 static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
@@ -131,11 +132,13 @@ static void read_msg(scheduler_t* sched)
   }
 }
 
+
 /**
  * If we can terminate, return true. If all schedulers are waiting, one of
  * them will stop the ASIO back end and tell the cycle detector to try to
  * terminate.
  */
+
 static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
   read_msg(sched);
@@ -167,12 +170,19 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
   return false;
 }
 
+
+
 static scheduler_t* choose_victim(scheduler_t* sched)
 {
   scheduler_t* victim = sched->last_victim;
 
   while(true)
   {
+    // Schedulers are laid out sequentially in memory
+    // If we know the location of the current victim,
+    // the first schedulder and the count, we wrap
+    // around like a linked list
+
     // Back up one.
     victim--;
 
@@ -199,6 +209,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 
   return NULL;
 }
+
 
 /**
  * Use mpmcqs to allow stealing directly from a victim, without waiting for a
