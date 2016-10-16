@@ -8,7 +8,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- DTrace and SystemTap support - `use=dtrace`
+
 ### Changed
+
+- Replaces `use=telemetry` by DTrace/SystemTap scripts
 
 ## [0.5.1] - 2016-10-15
 
