@@ -559,7 +559,7 @@ define EXPAND_INSTALL
 install: libponyc libponyrt ponyc
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
-	@mkdir -p $(destdir)/include
+	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
@@ -567,11 +567,12 @@ endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
+	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
 	$(SILENT)cp -r packages $(destdir)/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
-	@mkdir -p $(prefix)/include
+	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
 ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
@@ -579,6 +580,7 @@ ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 endif
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
+	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
 endif
 endef
 
@@ -594,6 +596,7 @@ ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
 endif
 	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
+	-$(SILENT)rm -r $(prefix)/include/pony/ 2>/dev/null ||:
 endef
 
 $(eval $(call EXPAND_UNINSTALL))
@@ -632,10 +635,10 @@ deploy: test
 	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
-	@mkdir -p $(package)/usr/include
+	@mkdir -p $(package)/usr/include/pony/detail
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
-	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
@@ -644,6 +647,7 @@ ifneq ($(wildcard build/release/libponyrt.bc),)
 endif
 	$(SILENT)cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
+	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
@@ -651,6 +655,7 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"

@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "pool.h"
 #include "alloc.h"
 #include "../ds/fun.h"
@@ -9,6 +11,7 @@
 #include <assert.h>
 
 #include <platform.h>
+#include <pony/detail/atomics.h>
 
 #ifdef USE_VALGRIND
 #include <valgrind/valgrind.h>
@@ -63,7 +66,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  ATOMIC_TYPE(pool_central_t*) central;
+  PONY_ATOMIC(pool_central_t*) central;
 } pool_global_t;
 
 /// An item on a thread-local list of free blocks.
@@ -129,7 +132,7 @@ typedef struct
 } pool_track_info_t;
 
 static __pony_thread_local pool_track_info_t track;
-static ATOMIC_TYPE(int) track_global_thread_id;
+static PONY_ATOMIC(int) track_global_thread_id;
 static pool_track_info_t* track_global_info[POOL_TRACK_MAX_THREADS];
 
 static void pool_event_print(int thread, void* op, size_t event, size_t tsc,
@@ -475,7 +478,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
 
-  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << (POOL_MIN_BITS - 1)) - 1);
 
   do
   {
@@ -497,7 +500,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
   cmp = atomic_load_explicit(&global->central, memory_order_acquire);
 
-  uintptr_t mask = UINTPTR_MAX ^ ((1 << POOL_MIN_BITS) - 1);
+  uintptr_t mask = UINTPTR_MAX ^ ((1 << (POOL_MIN_BITS - 1)) - 1);
 
   do
   {

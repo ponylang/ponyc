@@ -22,15 +22,17 @@ PONY_EXTERN_C_BEGIN
 // Missing from C API.
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
+#if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
-#if PONY_LLVM >= 307
+#  if PONY_LLVM >= 307
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
-#endif
-#if PONY_LLVM >= 308
+#  endif
+#  if PONY_LLVM >= 308
 void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst);
 void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
 void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
+#  endif
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
@@ -41,6 +43,16 @@ LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module);
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
+
+#if PONY_LLVM >= 309
+#define LLVM_DECLARE_ATTRIBUTEREF(decl, name, val) \
+  LLVMAttributeRef decl; \
+  { \
+    unsigned decl##_id = \
+      LLVMGetEnumAttributeKindForName(#name, sizeof(#name) - 1); \
+    decl = LLVMCreateEnumAttribute(c->context, decl##_id, val); \
+  }
+#endif
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 

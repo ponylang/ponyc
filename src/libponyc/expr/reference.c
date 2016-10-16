@@ -1091,7 +1091,6 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
         // At least one tuple member is literal, so whole tuple is
         ast_free(type);
         make_literal_type(ast);
-        ast_inheritflags(ast);
         return true;
       }
 
@@ -1101,7 +1100,6 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   return true;
 }
 
@@ -1182,31 +1180,6 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   }
 
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
-}
-
-static bool show_partiality(pass_opt_t* opt, ast_t* ast)
-{
-  ast_t* child = ast_child(ast);
-  bool found = false;
-
-  while(child != NULL)
-  {
-    if(ast_canerror(child))
-      found |= show_partiality(opt, child);
-
-    child = ast_sibling(child);
-  }
-
-  if(found)
-    return true;
-
-  if(ast_canerror(ast))
-  {
-    ast_error(opt->check.errors, ast, "an error can be raised here");
-    return true;
-  }
-
-  return false;
 }
 
 static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
@@ -1296,234 +1269,14 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
-static bool check_main_create(pass_opt_t* opt, ast_t* ast)
-{
-  if(ast_id(opt->check.frame->type) != TK_ACTOR)
-    return true;
-
-  ast_t* type_id = ast_child(opt->check.frame->type);
-
-  if(strcmp(ast_name(type_id), "Main"))
-    return true;
-
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
-
-  if(strcmp(ast_name(id), "create"))
-    return true;
-
-  bool ok = true;
-
-  if(ast_id(ast) != TK_NEW)
-  {
-    ast_error(opt->check.errors, ast,
-      "the create method of a Main actor must be a constructor");
-    ok = false;
-  }
-
-  if(ast_id(typeparams) != TK_NONE)
-  {
-    ast_error(opt->check.errors, typeparams,
-      "the create constructor of a Main actor must not be polymorphic");
-    ok = false;
-  }
-
-  if(ast_childcount(params) != 1)
-  {
-    ast_error(opt->check.errors, params,
-      "The Main actor must have a create constructor which takes a single Env "
-      "parameter");
-    ok = false;
-  }
-
-  ast_t* param = ast_child(params);
-
-  if(param != NULL)
-  {
-    ast_t* p_type = ast_childidx(param, 1);
-
-    if(!is_env(p_type))
-    {
-      ast_error(opt->check.errors, p_type, "must be of type Env");
-      ok = false;
-    }
-  }
-
-  return ok;
-}
-
-static bool check_primitive_init(pass_opt_t* opt, ast_t* ast)
-{
-  if(ast_id(opt->check.frame->type) != TK_PRIMITIVE)
-    return true;
-
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
-
-  if(strcmp(ast_name(id), "_init"))
-    return true;
-
-  bool ok = true;
-
-  if(ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE)
-  {
-    ast_error(opt->check.errors, ast,
-      "a primitive with type parameters cannot have an _init");
-    ok = false;
-  }
-
-  if(ast_id(ast) != TK_FUN)
-  {
-    ast_error(opt->check.errors, ast, "a primitive _init must be a function");
-    ok = false;
-  }
-
-  if(ast_id(cap) != TK_BOX)
-  {
-    ast_error(opt->check.errors, cap, "a primitive _init must be box");
-    ok = false;
-  }
-
-  if(ast_id(typeparams) != TK_NONE)
-  {
-    ast_error(opt->check.errors, typeparams,
-      "a primitive _init must not be polymorphic");
-    ok = false;
-  }
-
-  if(ast_childcount(params) != 0)
-  {
-    ast_error(opt->check.errors, params,
-      "a primitive _init must take no parameters");
-    ok = false;
-  }
-
-  if(!is_none(result))
-  {
-    ast_error(opt->check.errors, result,
-      "a primitive _init must return None");
-    ok = false;
-  }
-
-  if(ast_id(can_error) != TK_NONE)
-  {
-    ast_error(opt->check.errors, can_error,
-      "a primitive _init cannot raise an error");
-    ok = false;
-  }
-
-  return ok;
-}
-
-static bool check_finaliser(pass_opt_t* opt, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-
-  if(strcmp(ast_name(id), "_final"))
-    return true;
-
-  bool ok = true;
-
-  if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
-    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE))
-  {
-    ast_error(opt->check.errors, ast,
-      "a primitive with type parameters cannot have a _final");
-    ok = false;
-  }
-
-  if(ast_id(ast) != TK_FUN)
-  {
-    ast_error(opt->check.errors, ast, "_final must be a function");
-    ok = false;
-  }
-
-  if(ast_id(cap) != TK_BOX)
-  {
-    ast_error(opt->check.errors, cap, "_final must be box");
-    ok = false;
-  }
-
-  if(ast_id(typeparams) != TK_NONE)
-  {
-    ast_error(opt->check.errors, typeparams, "_final must not be polymorphic");
-    ok = false;
-  }
-
-  if(ast_childcount(params) != 0)
-  {
-    ast_error(opt->check.errors, params, "_final must not have parameters");
-    ok = false;
-  }
-
-  if(!is_none(result))
-  {
-    ast_error(opt->check.errors, result, "_final must return None");
-    ok = false;
-  }
-
-  if(ast_id(can_error) != TK_NONE)
-  {
-    ast_error(opt->check.errors, can_error, "_final cannot raise an error");
-    ok = false;
-  }
-
-  return ok;
-}
-
 bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
-
-  AST_GET_CHILDREN(ast,
-    cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
 
   if(ast_id(body) == TK_NONE)
     return true;
 
   if(!coerce_literals(&body, type, opt))
-    return false;
-
-  bool is_trait =
-    (ast_id(t->frame->type) == TK_TRAIT) ||
-    (ast_id(t->frame->type) == TK_INTERFACE) ||
-    (ast_id((ast_t*)ast_data(ast)) == TK_TRAIT) ||
-    (ast_id((ast_t*)ast_data(ast)) == TK_INTERFACE);
-
-  // Check partial functions.
-  if(ast_id(can_error) == TK_QUESTION)
-  {
-    // If a partial function, check that we might actually error.
-    ast_t* body_type = ast_type(body);
-
-    if(body_type == NULL)
-    {
-      // An error has already occurred.
-      assert(errors_get_count(t->errors) > 0);
-      return false;
-    }
-
-    if(!is_trait &&
-      !ast_canerror(body) &&
-      (ast_id(body_type) != TK_COMPILE_INTRINSIC))
-    {
-      ast_error(opt->check.errors, can_error,
-        "function body is not partial but the function is");
-      return false;
-    }
-  } else {
-    // If not a partial function, check that we can't error.
-    if(ast_canerror(body))
-    {
-      ast_error(opt->check.errors, can_error,
-        "function body is partial but the function is not");
-      show_partiality(opt, body);
-      return false;
-    }
-  }
-
-  if(!check_primitive_init(opt, ast) || !check_finaliser(opt, ast))
-    return false;
-
-  if(!check_main_create(opt, ast))
     return false;
 
   switch(ast_id(ast))

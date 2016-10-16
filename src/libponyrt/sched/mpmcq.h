@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <platform.h>
+#include <pony/detail/atomics.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -11,8 +12,8 @@ typedef struct mpmcq_node_t mpmcq_node_t;
 __pony_spec_align__(
   typedef struct mpmcq_t
   {
-    ATOMIC_TYPE(mpmcq_node_t*) head;
-    ATOMIC_TYPE(mpmcq_node_t*) tail;
+    PONY_ATOMIC(mpmcq_node_t*) head;
+    PONY_ATOMIC(mpmcq_node_t*) tail;
   } mpmcq_t, 64
 );
 

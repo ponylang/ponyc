@@ -283,10 +283,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_COMPILE_INTRINSIC:
                         r = expr_compile_intrinsic(options, ast); break;
     case TK_LOCATION:   r = expr_location(options, ast); break;
-    case TK_POSITIONALARGS:
-    case TK_NAMEDARGS:
-    case TK_NAMEDARG:
-    case TK_UPDATEARG:  ast_inheritflags(ast); break;
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_DIGESTOF:   r = expr_digestof(options, ast); break;
     case TK_DONTCARE:   r = expr_dontcare(options, ast); break;
@@ -313,7 +309,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_FFICALL:
-      return expr_ffi(options, ast);
+      r = expr_ffi(options, ast);
 
     default: {}
   }

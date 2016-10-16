@@ -9,6 +9,7 @@
 #include "../pass/sugar.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/lookup.h"
 #include "../type/reify.h"
 #include "../type/safeto.h"
 #include "../type/sanitise.h"
@@ -459,25 +460,8 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
   ast_settype(ast, result);
-  ast_inheritflags(ast);
 
-  switch(ast_id(lhs))
-  {
-    case TK_NEWBEREF:
-    case TK_BEREF:
-      ast_setsend(ast);
-      return true;
-
-    case TK_NEWREF:
-    case TK_FUNREF:
-      ast_setmightsend(ast);
-      return true;
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
+  return true;
 }
 
 static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
@@ -550,27 +534,28 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  // LHS must be an application, possibly wrapped in another application
+  // if the method had type parameters for qualification.
   assert(ast_id(lhs) == TK_FUNAPP || ast_id(lhs) == TK_BEAPP ||
     ast_id(lhs) == TK_NEWAPP);
-
-  // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
   AST_GET_CHILDREN(lhs, receiver, method);
   ast_t* type_args = NULL;
 
-  switch(ast_id(receiver))
+  if(ast_id(receiver) == ast_id(lhs))
   {
-    case TK_NEWAPP:
-    case TK_BEAPP:
-    case TK_FUNAPP:
-      type_args = method;
-      AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
-      break;
-
-    default: {}
+    type_args = method;
+    AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
   }
+
+  // Look up the original method definition for this method call.
+  ast_t* method_def = lookup(opt, lhs, ast_type(receiver), ast_name(method));
+  assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
+    ast_id(method_def) == TK_NEW);
 
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
+  assert(ast_id(type) == TK_FUNTYPE);
 
   if(is_typecheck_error(type))
     return false;
@@ -579,7 +564,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     positional);
   AST_GET_CHILDREN(type, cap, type_params, target_params, result);
 
-  token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
+  token_id can_error = ast_id(ast_childidx(method_def, 5));
   const char* recv_name = package_hygienic_id(t);
 
   // Build captures. We always have at least one capture, for receiver.

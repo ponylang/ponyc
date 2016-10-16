@@ -619,7 +619,15 @@ static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
 
   if(!err)
+  {
+#if PONY_LLVM >= 309
+    LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
+
+    LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, nounwind_attr);
+#else
     LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
+#endif
+  }
 
   return func;
 }
@@ -699,7 +707,15 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
 
   if(!err)
+  {
+#if PONY_LLVM >= 309
+    LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
+
+    LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, nounwind_attr);
+#else
     LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
+#endif
+  }
 
   ponyint_pool_free_size(buf_size, f_params);
   return func;

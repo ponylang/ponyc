@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "mpmcq.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
@@ -6,8 +8,8 @@ typedef struct mpmcq_node_t mpmcq_node_t;
 
 struct mpmcq_node_t
 {
-  ATOMIC_TYPE(mpmcq_node_t*) next;
-  ATOMIC_TYPE(void*) data;
+  PONY_ATOMIC(mpmcq_node_t*) next;
+  PONY_ATOMIC(void*) data;
 };
 
 void ponyint_mpmcq_init(mpmcq_t* q)
@@ -62,7 +64,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   cmp = atomic_load_explicit(&q->tail, memory_order_acquire);
 
   uintptr_t mask = UINTPTR_MAX ^
-    ((1 << (POOL_MIN_BITS + POOL_INDEX(sizeof(mpmcq_node_t*)))) - 1);
+    ((1 << (POOL_MIN_BITS + POOL_INDEX(sizeof(mpmcq_node_t)) - 1)) - 1);
 
   do
   {

@@ -9,6 +9,7 @@
 #include "flatten.h"
 #include "traits.h"
 #include "expr.h"
+#include "verify.h"
 #include "finalisers.h"
 #include "docgen.h"
 #include "../codegen/codegen.h"
@@ -53,6 +54,7 @@ const char* pass_name(pass_id pass)
     case PASS_TRAITS: return "traits";
     case PASS_DOCS: return "docs";
     case PASS_EXPR: return "expr";
+    case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
     case PASS_REACH: return "reach";
     case PASS_PAINT: return "paint";
@@ -225,6 +227,9 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
     generate_docs(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
+    return r;
+
+  if(!visit_pass(astp, options, last, &r, PASS_VERIFY, NULL, pass_verify))
     return r;
 
   if(!check_limit(astp, options, PASS_FINALISER, last))

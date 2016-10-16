@@ -1,5 +1,5 @@
-#ifndef EXPR_FFI_H
-#define EXPR_FFI_H
+#ifndef PASS_VERIFY_H
+#define PASS_VERIFY_H
 
 #include <platform.h>
 #include "../ast/ast.h"
@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool expr_ffi(pass_opt_t* opt, ast_t* ast);
+ast_result_t pass_verify(ast_t** astp, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

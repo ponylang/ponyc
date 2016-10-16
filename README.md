@@ -134,7 +134,20 @@ A live ebuild is also available in the [overlay](https://github.com/stefantalpal
 
 # Building ponyc from source
 
-Pony requires LLVM 3.6, 3.7 or 3.8. Please note that **LLVM 3.7.0 does not work**. If you are using LLVM 3.7.x, you need to use 3.7.1. If you are using LLVM 3.6.x, make sure to use 3.6.2.
+First of all, you need a compiler with decent C11 support. The following compilers are supported, though we recommend to use the most recent versions.
+
+- GCC >= 4.7
+- Clang >= 3.3
+- MSVC >= 2013
+- XCode Clang >= 6.0
+
+Pony requires one of the following versions of LLVM:
+
+- 3.6.2
+- 3.7.1
+- 3.8.1
+
+Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
 ## Building on Linux
 
@@ -242,7 +255,7 @@ $ ./helloworld
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.6.x, 3.7.1, 3.8.x. _LLVM 3.7.0* isn't supported_
+* LLVM 3.6.2, 3.7.1, 3.8.1.
 * zlib
 * ncurses
 * pcre2
@@ -286,26 +299,26 @@ $ gmake
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7 or 3.8 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6. 64-bit X86 does not have this problem, and works fine with LLVM 3.7 and 3.8.
+Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6.2. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
 
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.6.2, 3.7.1, or 3.8 and the pcre2 library to build Pony.
+You'll need llvm 3.6.2, 3.7.1, or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
 
-Either install them via [homebrew](http://brew.sh):
+Installation via [homebrew](http://brew.sh):
 ```
 $ brew update
 $ brew install homebrew/versions/llvm38 pcre2 libressl
 ```
 
-Or install them via macport:
+Installation via [MacPorts](https://www.macports.org):
 ```
 $ sudo port install llvm-3.8 pcre2 libressl
 $ sudo port select --set llvm mp-llvm-3.8
 ```
 
-Then launch the build with Make:
+Launch the build with `make` after installing the dependencies:
 ```
 $ make
 $ ./build/release/ponyc examples/helloworld
@@ -316,7 +329,7 @@ $ ./build/release/ponyc examples/helloworld
 
 _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to build Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about)._
 
-The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 or 3.8 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7.1 or 3.8.1 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 LLVM recommends using the GnuWin32 unix tools; your mileage may vary using MSYS or Cygwin.
 
@@ -385,7 +398,7 @@ Use VirtualBox 5.x to avoid possible problems.
 
 ## Building Pony on Non-x86 platforms
 
-On ARM and MIPS platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
+On ARM platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
 ```bash
 $ make arch=armv7
 ```

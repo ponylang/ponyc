@@ -204,9 +204,6 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 
   ast_settype(ast, type_for_fun(method));
 
-  if(ast_id(can_error) == TK_QUESTION)
-    ast_seterror(ast);
-
   return is_method_called(opt, ast);
 }
 
@@ -391,11 +388,10 @@ static bool tuple_access(pass_opt_t* opt, ast_t* ast)
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
-  ast_inheritflags(ast);
   return true;
 }
 
-static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
+static bool member_access(pass_opt_t* opt, ast_t* ast)
 {
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
@@ -448,9 +444,6 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
   }
 
   ast_free_unattached(find);
-
-  if(!partial)
-    ast_inheritflags(ast);
 
   return ret;
 }
@@ -520,7 +513,6 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
       ast_settype(ast, type);
       ast_setid(ast, ast_id(left));
-      ast_inheritflags(ast);
       return true;
     }
 
@@ -539,7 +531,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
   return expr_qualify(opt, astp);
 }
 
-static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
+static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
 
@@ -575,17 +567,17 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(opt, ast);
 
-  return member_access(opt, ast, partial);
+  return member_access(opt, ast);
 }
 
 bool expr_dot(pass_opt_t* opt, ast_t** astp)
 {
-  return dot_or_tilde(opt, astp, false);
+  return dot_or_tilde(opt, astp);
 }
 
 bool expr_tilde(pass_opt_t* opt, ast_t** astp)
 {
-  if(!dot_or_tilde(opt, astp, true))
+  if(!dot_or_tilde(opt, astp))
     return false;
 
   ast_t* ast = *astp;

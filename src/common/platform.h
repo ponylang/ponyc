@@ -217,6 +217,8 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
 #  define __pony_popcount(X) __builtin_popcount((X))
 #  define __pony_ffs(X) __builtin_ffs((X))
 #  define __pony_ffsl(X) __builtin_ffsl((X))
+#  define __pony_clz(X) __builtin_clz((X))
+#  define __pony_clzl(X) __builtin_clzl((X))
 #else
 #  include <intrin.h>
 #  define __pony_popcount(X) __popcnt((X))
@@ -233,6 +235,20 @@ inline uint64_t __pony_ffsl(uint64_t x)
   DWORD i = 0;
   _BitScanForward64(&i, x);
   return i + 1;
+}
+
+inline uint32_t __pony_clz(uint32_t x)
+{
+  DWORD i = 0;
+  _BitScanReverse(&i, x);
+  return 31 - i;
+}
+
+inline uint64_t __pony_clzl(uint64_t x)
+{
+  DWORD i = 0;
+  _BitScanReverse64(&i, x);
+  return 63 - i;
 }
 
 #endif
@@ -271,7 +287,6 @@ inline uint64_t __pony_ffsl(uint64_t x)
             __builtin_choose_expr(COND, THEN, ELSE)
 #endif
 
-#include "atomics.h"
 #include "threads.h"
 #include "paths.h"
 
