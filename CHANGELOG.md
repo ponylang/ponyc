@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Compiling ponyrt with Clang versions >= 3.3, < 3.6.
+- Restrict mutable tuple recovery to maintain reference capability security (issue #1123)
 
 ### Added
 

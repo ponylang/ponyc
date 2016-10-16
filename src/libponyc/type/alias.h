@@ -19,6 +19,8 @@ ast_t* recover_type(ast_t* type, token_id cap);
 
 bool sendable(ast_t* type);
 
+bool immutable_or_opaque(ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif
