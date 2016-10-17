@@ -7,9 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestBroadcast)
     test(_TestTCPWritev)
-    ifdef not windows then
-      test(_TestTCPExpect)
-    end
+    test(_TestTCPExpect)
 
 class _TestPing is UDPNotify
   let _h: TestHelper
