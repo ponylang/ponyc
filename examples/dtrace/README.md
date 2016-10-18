@@ -47,7 +47,7 @@ restart. For more information visit the following article:
 
 ## Writing scripts for DTrace in Pony
 
-The following paragraph will inform you on the Pony provider and it's probes for
+The following paragraph will inform you on the Pony provider and its probes for
 DTrace. We refer to the [DTrace
 documentation](http://dtrace.org/guide/preface.html) for more information on the
 syntax and possibilities.
@@ -73,7 +73,7 @@ END
 ```
 
 This script increases a counter every time the "GC Start" probe is *fired* and
-prints it result at the end. Note the way in which we (describe the probe). It
+prints it result at the end. Note the way in which we access the probe. It
 consists of two parts: the first part is the provider and the second part, after `:::`
 is the name of the probe. The provider is during runtime appended by the process
 ID. In this example we use the `$target` variable to find the process ID.
@@ -105,7 +105,7 @@ the names of the probes into two parts: its category and the specific event. The
 name is split using `__`. We also add a comment to a probe explaining when it's
 fired and the information contained in its arguments.
 
-After adding the probe, we use it in the C code using the macro's. Note that the
+After adding the probe, we use it in the C code using the macros. Note that the
 split in the name is only a single underscore in the C code. The name of the
 probe should also be capitalised. We can call the probe defined as `gc__start`
 using the statement `DTRACE1(GC_START,  scheduler)`. In this statement

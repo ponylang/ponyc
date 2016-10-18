@@ -127,8 +127,7 @@ ifdef use
   ifneq (,$(filter $(use), dtrace))
     DTRACE ?= $(shell which dtrace)
     ifeq (, $(DTRACE))
-      $(error No dtrace compatibile user application static probe generation
-       tool found)
+      $(error No dtrace compatible user application static probe generation tool found)
     endif
 
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
