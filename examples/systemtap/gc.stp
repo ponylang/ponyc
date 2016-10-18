@@ -1,0 +1,20 @@
+global time_in_gc, tmp_ts
+
+probe process.mark("gc-start")
+{
+	tmp_ts[$arg1] = gettimeofday_ns();
+}
+
+probe process.mark("gc-end")
+{
+	delta = gettimeofday_ns() - tmp_ts[$arg1];
+	time_in_gc <<< delta;
+	delete tmp_ts[$arg1];
+}
+
+probe end
+{
+	printf("Total GC passes: %d\n", @count(time_in_gc));
+	print(@hist_log(time_in_gc));
+	printf("Total time spent in GC (in nano seconds): %d\n", @sum(time_in_gc));
+}

@@ -30,27 +30,6 @@ typedef struct pony_ctx_t
   void* serialise_buffer;
   size_t serialise_size;
   ponyint_serialise_t serialise;
-
-#ifdef USE_TELEMETRY
-  size_t tsc;
-
-  size_t count_gc_passes;
-  size_t count_alloc;
-  size_t count_alloc_size;
-  size_t count_alloc_actors;
-
-  size_t count_msg_app;
-  size_t count_msg_block;
-  size_t count_msg_unblock;
-  size_t count_msg_acquire;
-  size_t count_msg_release;
-  size_t count_msg_conf;
-  size_t count_msg_ack;
-
-  size_t time_in_gc;
-  size_t time_in_send_scan;
-  size_t time_in_recv_scan;
-#endif
 } pony_ctx_t;
 
 struct scheduler_t
