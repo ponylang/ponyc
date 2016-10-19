@@ -1076,6 +1076,22 @@ bool cap_sendable(token_id cap)
   return false;
 }
 
+bool cap_immutable_or_opaque(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_CAP_SHARE:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool cap_safetowrite(token_id into, token_id cap)
 {
   switch(into)
