@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - `SSLConnection` ignoring the `sent` notifier method (issue #1268)
 - Runtime crash in the runtime scheduler queues (issue #1319)
+- Ensuring TCP connection is established before writing data to it (issue #1310)
 
 ## [0.5.0] - 2016-10-09
 

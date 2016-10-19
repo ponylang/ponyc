@@ -39,6 +39,8 @@ actor TCPConnection
           recover MyTCPConnectionNotify(env.out) end, "", "8989")
       end
   ```
+
+  Note: when writing to the connection data will be silently discarded if the connection has not yet been established.
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
@@ -132,9 +134,9 @@ actor TCPConnection
 
   be write(data: ByteSeq) =>
     """
-    Write a single sequence of bytes.
+    Write a single sequence of bytes. Data will be silently discarded if the connection has not yet been established though.
     """
-    if not _closed then
+    if _connected and not _closed then
       _in_sent = true
       write_final(_notify.sent(this, data))
       _in_sent = false
@@ -142,9 +144,9 @@ actor TCPConnection
 
   be writev(data: ByteSeqIter) =>
     """
-    Write a sequence of sequences of bytes.
+    Write a sequence of sequences of bytes. Data will be silently discarded if the connection has not yet been established though.
     """
-    if not _closed then
+    if _connected and not _closed then
       _in_sent = true
 
       for bytes in _notify.sentv(this, data).values() do
@@ -287,9 +289,9 @@ actor TCPConnection
     """
     Write as much as possible to the socket. Set `_writeable` to `false` if not
     everything was written. On an error, close the connection. This is for
-    data that has already been transformed by the notifier.
+    data that has already been transformed by the notifier. Data will be silently discarded if the connection has not yet been established though.
     """
-    if not _closed then
+    if _connected and not _closed then
       ifdef windows then
         try
           // Add an IOCP write.
