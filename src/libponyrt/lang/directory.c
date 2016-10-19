@@ -131,7 +131,7 @@ const char* ponyint_unix_readdir(DIR* dir)
 
 #if defined(PLATFORM_IS_LINUX)
     size_t len = strlen(d->d_name);
-#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX)
+#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_DRAGONFLY)
     size_t len = d->d_namlen;
 #endif
 

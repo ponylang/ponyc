@@ -7,6 +7,7 @@
 PONY_EXTERN_C_BEGIN
 
 // OS names used in platform.pony
+#define OS_DRAGONFLY_NAME "dragonfly"
 #define OS_FREEBSD_NAME "freebsd"
 #define OS_LINUX_NAME "linux"
 #define OS_MACOSX_NAME "osx"
