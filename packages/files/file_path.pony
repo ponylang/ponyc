@@ -37,14 +37,14 @@ class val FilePath
         error
       end
 
-      path = Path.join(b.path, path').null_terminated()
+      path = Path.join(b.path, path')
       caps.intersect(b.caps)
 
       if not path.at(b.path, 0) then
         error
       end
     | let b: AmbientAuth =>
-      path = Path.abs(path').null_terminated()
+      path = Path.abs(path')
     else
       error
     end
@@ -79,13 +79,13 @@ class val FilePath
 
     caps.union(caps')
     caps.intersect(temp.caps)
-    path = temp.path.null_terminated()
+    path = temp.path
 
   new val _create(path': String, caps': FileCaps val) =>
     """
     Internal constructor.
     """
-    path = path'.null_terminated()
+    path = path'
     caps.union(caps')
 
   fun val join(path': String,
@@ -158,9 +158,9 @@ class val FilePath
 
       if element.size() > 0 then
         let r = ifdef windows then
-          @_mkdir[I32](element.null_terminated().cstring())
+          @_mkdir[I32](element.cstring())
         else
-          @mkdir[I32](element.null_terminated().cstring(), U32(0x1FF))
+          @mkdir[I32](element.cstring(), U32(0x1FF))
         end
 
         if r != 0 then
@@ -205,15 +205,15 @@ class val FilePath
 
       ifdef windows then
         if info.directory and not info.symlink then
-          0 == @_rmdir[I32](path.null_terminated().cstring())
+          0 == @_rmdir[I32](path.cstring())
         else
-          0 == @_unlink[I32](path.null_terminated().cstring())
+          0 == @_unlink[I32](path.cstring())
         end
       else
         if info.directory and not info.symlink then
-          0 == @rmdir[I32](path.null_terminated().cstring())
+          0 == @rmdir[I32](path.cstring())
         else
-          0 == @unlink[I32](path.null_terminated().cstring())
+          0 == @unlink[I32](path.cstring())
         end
       end
     else
@@ -228,8 +228,8 @@ class val FilePath
       return false
     end
 
-    0 == @rename[I32](path.null_terminated().cstring(),
-      new_path.path.null_terminated().cstring())
+    0 == @rename[I32](path.cstring(),
+      new_path.path.cstring())
 
   fun symlink(link_name: FilePath): Bool =>
     """
@@ -240,11 +240,11 @@ class val FilePath
     end
 
     ifdef windows then
-      0 != @CreateSymbolicLink[U8](link_name.path.null_terminated().cstring(),
-        path.null_terminated().cstring())
+      0 != @CreateSymbolicLink[U8](link_name.path.cstring(),
+        path.cstring())
     else
-      0 == @symlink[I32](path.null_terminated().cstring(),
-        link_name.path.null_terminated().cstring())
+      0 == @symlink[I32](path.cstring(),
+        link_name.path.cstring())
     end
 
   fun chmod(mode: FileMode box): Bool =>
@@ -258,9 +258,9 @@ class val FilePath
     let m = mode._os()
 
     ifdef windows then
-      0 == @_chmod[I32](path.null_terminated().cstring(), m)
+      0 == @_chmod[I32](path.cstring(), m)
     else
-      0 == @chmod[I32](path.null_terminated().cstring(), m)
+      0 == @chmod[I32](path.cstring(), m)
     end
 
   fun chown(uid: U32, gid: U32): Bool =>
@@ -271,7 +271,7 @@ class val FilePath
       false
     else
       if caps(FileChown) then
-        0 == @chown[I32](path.null_terminated().cstring(), uid, gid)
+        0 == @chown[I32](path.cstring(), uid, gid)
       else
         false
       end
@@ -293,10 +293,10 @@ class val FilePath
 
     ifdef windows then
       var tv: (I64, I64) = (atime._1, mtime._1)
-      0 == @_utime64[I32](path.null_terminated().cstring(), addressof tv)
+      0 == @_utime64[I32](path.cstring(), addressof tv)
     else
       var tv: (ILong, ILong, ILong, ILong) =
         (atime._1.ilong(), atime._2.ilong() / 1000,
           mtime._1.ilong(), mtime._2.ilong() / 1000)
-      0 == @utimes[I32](path.null_terminated().cstring(), addressof tv)
+      0 == @utimes[I32](path.cstring(), addressof tv)
     end

@@ -61,7 +61,7 @@ primitive Debug
     ifdef debug then
       try
         @fprintf[I32](_stream(stream), "%s\n".cstring(),
-          msg.null_terminated().cstring())
+          msg.cstring())
       end
     end
 
