@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Compiling ponyrt with Clang versions >= 3.3, < 3.6.
+
 ### Added
 
 - DTrace and SystemTap support - `use=dtrace`

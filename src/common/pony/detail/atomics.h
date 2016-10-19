@@ -55,7 +55,7 @@ using std::atomic_fetch_sub_explicit;
 #      include <stdatomic.h>
 #    endif
 #    define PONY_ATOMIC(T) T _Atomic
-#  elif __clang_major >= 3 && __clang_minor__ >= 3
+#  elif __clang_major__ >= 3 && __clang_minor__ >= 3
 // Valid on x86 and ARM given our uses of atomics.
 #    define PONY_ATOMIC(T) T
 #    define PONY_ATOMIC_BUILTINS
