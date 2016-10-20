@@ -81,7 +81,7 @@ ifdef destdir
   endif
 endif
 
-ifeq ($(OSTYPE),osx)
+ifneq (,$(filter $(OSTYPE), osx freebsd))
   symlink.flags = -sf
 else
   symlink.flags = -srf
