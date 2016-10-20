@@ -3,8 +3,9 @@
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
+#include "../../libponyrt/mem/pool.h"
 #include <assert.h>
-
+#include <string.h>
 
 /* The following sugar handles case methods.
 
@@ -90,6 +91,11 @@ static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
     ast_setid(new_t_params, TK_TYPEPARAMS);
   }
 
+  // provide an empty docstring to build upon
+  token_t *empty = token_new(TK_STRING);
+  token_set_string(empty, "", 0);
+  ast_t* wrapper_docstring = ast_token(empty);
+
   if(ast_id(case_method) == TK_FUN)
   {
     // Function case.
@@ -105,7 +111,7 @@ static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
         NODE(TK_NOMINAL, NONE ID("None") NONE NONE NONE)  // Return value.
         NONE    // Error.
         NODE(TK_SEQ)  // Body.
-        NONE    // Doc string.
+        TREE(wrapper_docstring) // Doc string.
         NONE)); // Guard.
 
     return wrapper;
@@ -122,7 +128,7 @@ static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
       NONE    // Return value.
       NONE    // Error.
       NODE(TK_SEQ)  // Body.
-      NONE    // Doc string.
+      TREE(wrapper_docstring) // Doc string.
       NONE)); // Guard.
 
     return wrapper;
@@ -529,6 +535,114 @@ static void build_t_params(ast_t* match_t_params,
 }
 
 
+// at this point docstrings might not have been hoisted
+static ast_t* get_docstring(ast_t* body, ast_t* doc)
+{
+  if (doc != NULL && ast_id(doc) == TK_STRING)
+    return doc;
+
+  if (body != NULL && ast_id(body) == TK_SEQ)
+  {
+    ast_t* first = ast_child(body);
+    if (first != NULL && ast_id(first) == TK_STRING)
+      return first;
+  }
+
+  return NULL;
+}
+
+
+static void print_params(ast_t* params, char* buf, size_t len)
+{
+  bool first = true;
+  ast_t* param = ast_child(params);
+  while (param != NULL)
+  {
+    if (first)
+      first = false;
+    else
+      strncat(buf, ", ", len);
+
+    AST_GET_CHILDREN(param, param_id, param_type);
+    strncat(buf, ast_name(param_id), len);
+    strncat(buf, ": ", len);
+    strncat(buf, ast_print_type(param_type), len);
+
+    param = ast_sibling(param);
+  }
+}
+
+
+static void add_docstring(ast_t* id, ast_t* match_docstring,
+  ast_t* case_docstring, ast_t* case_params, ast_t* case_ret)
+{
+  const char* match_ds = ast_name(match_docstring);
+  size_t m_ds_len = strlen(match_ds);
+  if (m_ds_len > 0) m_ds_len += 2;
+
+  const char* case_ds = ast_name(case_docstring);
+  const size_t c_ds_len = strlen(case_ds);
+
+  // get parameter text
+  char *params_ds = "";
+  size_t p_ds_len = 0;
+  size_t pidx = (size_t)-1;
+  if (case_params != NULL)
+  {
+    const size_t plen = 128;
+    pidx = ponyint_pool_index(plen);
+    params_ds = (char*)ponyint_pool_alloc(pidx);
+    params_ds[0] = 0;
+    print_params(case_params, params_ds, plen);
+    p_ds_len = strlen(params_ds);
+    if (p_ds_len > 0) p_ds_len += 2;
+  }
+
+  const char* id_name = ast_name(id);
+  const size_t id_len = strlen(id_name);
+
+  const size_t len = id_len + 2 + m_ds_len + p_ds_len + c_ds_len + 2;
+
+  if (c_ds_len > 0 && len > 0)
+  {
+    size_t idx = ponyint_pool_index(len);
+    char *buf = (char*)ponyint_pool_alloc(idx);
+    buf[0] = 0;
+
+    if (m_ds_len > 0)
+    {
+      strncat(buf, match_ds, len);
+      strncat(buf, "\n\n", len);
+    }
+
+    strncat(buf, "`", len);
+    strncat(buf, id_name, len);
+    strncat(buf, "(", len);
+
+    if (p_ds_len > 0)
+    {
+      strncat(buf, params_ds, len);
+    }
+
+    strncat(buf, ")", len);
+    if (ast_id(case_ret) != TK_NONE)
+    {
+      strncat(buf, ": ", len);
+      strncat(buf, ast_print_type(case_ret), len);
+    }
+
+    strncat(buf, "`: ", len);
+    strncat(buf, case_ds, len);
+
+    ast_set_name(match_docstring, buf);
+    ponyint_pool_free(idx, buf);
+  }
+
+  if (pidx != (size_t)-1)
+    ponyint_pool_free(pidx, params_ds);
+}
+
+
 // Add the given case method into the given match method wrapper and check the
 // are compatible.
 // Returns: match case for worker method or NULL on error.
@@ -543,7 +657,8 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
     fun_defaults(case_method);
 
   AST_GET_CHILDREN(match_method, match_cap, match_id, match_t_params,
-    match_params, match_ret_type, match_question);
+    match_params, match_ret_type, match_question, match_body,
+    match_docstring);
 
   AST_GET_CHILDREN(case_method, case_cap, case_id, case_t_params, case_params,
     case_ret_type, case_question, case_body, case_docstring, case_guard);
@@ -604,6 +719,17 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
   ast_swap(case_body, body);
   ast_t* guard = ast_from(case_guard, TK_NONE);
   ast_swap(case_guard, guard);
+
+  // concatenate docstring
+  match_docstring = get_docstring(match_body, match_docstring);
+  case_docstring = get_docstring(case_body, case_docstring);
+
+  if (match_docstring != NULL && ast_id(match_docstring) == TK_STRING
+      && case_docstring != NULL && ast_id(case_docstring) == TK_STRING)
+  {
+    add_docstring(case_id, match_docstring, case_docstring, case_params, 
+      case_ret_type);
+  }
 
   // Make match case.
   BUILD(match_case, pattern,
@@ -718,6 +844,11 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
 
   ast_append(wrapper_body, wrapper_call);
   ast_append(members, wrapper);
+
+  // strip wrapper docstring if empty
+  ast_t* wrapper_docs = ast_childidx(wrapper, 7);
+  if (wrapper_docs != NULL && ast_name_len(wrapper_docs) == 0)
+    ast_setid(wrapper_docs, TK_NONE);
 
   // Make worker function and add to containing entity.
   AST_GET_CHILDREN(wrapper, cap, wrapper_id, t_params, wrapper_params,
