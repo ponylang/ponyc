@@ -20,6 +20,8 @@ void ponyint_mpmcq_init(mpmcq_t* q)
 
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
   atomic_store_explicit(&q->tail, node, memory_order_relaxed);
+  atomic_store_explicit(&q->ticket, 0, memory_order_relaxed);
+  atomic_store_explicit(&q->waiting_for, 0, memory_order_relaxed);
 }
 
 void ponyint_mpmcq_destroy(mpmcq_t* q)
@@ -56,37 +58,33 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 
 void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
-  mpmcq_node_t* cmp;
-  mpmcq_node_t* xchg;
-  mpmcq_node_t* next;
-  mpmcq_node_t* tail;
+  size_t my_ticket = atomic_fetch_add_explicit(&q->ticket, 1,
+    memory_order_relaxed);
 
-  cmp = atomic_load_explicit(&q->tail, memory_order_acquire);
+  while(my_ticket != atomic_load_explicit(&q->waiting_for,
+    memory_order_relaxed))
+    ponyint_cpu_relax();
 
-  uintptr_t mask = UINTPTR_MAX ^
-    ((1 << (POOL_MIN_BITS + POOL_INDEX(sizeof(mpmcq_node_t)) - 1)) - 1);
+  atomic_thread_fence(memory_order_acquire);
 
-  do
+  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+  // Get the next node rather than the tail. The tail is either a stub or has
+  // already been consumed.
+  mpmcq_node_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
+  
+  // Bailout if we have no next node.
+  if(next == NULL)
   {
-    // We know the alignment boundary of the objects in the queue so we use the
-    // low bits for ABA protection.
-    uintptr_t aba = (uintptr_t)cmp & ~mask;
-    tail = (mpmcq_node_t*)((uintptr_t)cmp & mask);
+    atomic_store_explicit(&q->waiting_for, my_ticket + 1, memory_order_relaxed);
+    return NULL;
+  }
 
-    // Get the next node rather than the tail. The tail is either a stub or has
-    // already been consumed.
-    next = atomic_load_explicit(&tail->next, memory_order_acquire);
+  atomic_store_explicit(&q->tail, next, memory_order_relaxed);
+  atomic_store_explicit(&q->waiting_for, my_ticket + 1, memory_order_release);
 
-    // Bailout if we have no next node.
-    if(next == NULL)
-      return NULL;
-
-    // Make the next node the tail, incrementing the aba counter. If this
-    // fails, cmp becomes the new tail and we retry the loop.
-    xchg = (mpmcq_node_t*)((uintptr_t)next | ((aba + 1) & ~mask));
-  } while(!atomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
-    memory_order_acq_rel, memory_order_relaxed));
-
+  // Synchronise-with the push.
+  atomic_thread_fence(memory_order_acquire);
+  
   // We'll return the data pointer from the next node.
   void* data = atomic_load_explicit(&next->data, memory_order_relaxed);
 
@@ -96,8 +94,10 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // the old tail is NULL.
   atomic_store_explicit(&next->data, NULL, memory_order_release);
 
-  while(atomic_load_explicit(&tail->data, memory_order_acquire) != NULL)
+  while(atomic_load_explicit(&tail->data, memory_order_relaxed) != NULL)
     ponyint_cpu_relax();
+
+  atomic_thread_fence(memory_order_acquire);
 
   // Free the old tail. The new tail is the next node.
   POOL_FREE(mpmcq_node_t, tail);

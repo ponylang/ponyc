@@ -81,7 +81,7 @@ ifdef destdir
   endif
 endif
 
-ifeq ($(OSTYPE),osx)
+ifneq (,$(filter $(OSTYPE), osx freebsd))
   symlink.flags = -sf
 else
   symlink.flags = -srf
@@ -124,9 +124,14 @@ ifdef use
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
   endif
 
-  ifneq (,$(filter $(use), telemetry))
-    ALL_CFLAGS += -DUSE_TELEMETRY
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-telemetry
+  ifneq (,$(filter $(use), dtrace))
+    DTRACE ?= $(shell which dtrace)
+    ifeq (, $(DTRACE))
+      $(error No dtrace compatible user application static probe generation tool found)
+    endif
+
+    ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
 endif
 
@@ -371,6 +376,10 @@ ifeq ($(OSTYPE),linux)
   libponyrt.tests.links += pthread dl
 endif
 
+ifneq (, $(DTRACE))
+  $(shell $(DTRACE) -h -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_SOURCE_DIR)/common/dtrace_probes.h)
+endif
+
 # Overwrite the default linker for a target.
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 
@@ -523,7 +532,17 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifeq ($(1),libponyrt)
 $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking libponyrt'
+    ifneq (,$(DTRACE))
+    ifeq ($(OSTYPE), linux)
+	@echo 'Generating dtrace object file'
+	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+    else
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+    endif
+    else
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
+    endif
   ifeq ($(runtime-bitcode),yes)
 $($(1))/libponyrt.bc: $(depends) $(bcfiles)
 	@echo 'Generating bitcode for libponyrt'
@@ -685,6 +704,7 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
+	@rm src/common/dtrace_probes.h
 	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
@@ -702,7 +722,7 @@ help:
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
 	@echo '   pooltrack'
-	@echo '   telemetry'
+	@echo '   dtrace'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'

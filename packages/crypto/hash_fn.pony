@@ -21,8 +21,8 @@ primitive MD4 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @MD4[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @MD4[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive MD5 is HashFn
@@ -36,8 +36,8 @@ primitive MD5 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @MD5[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @MD5[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive RIPEMD160 is HashFn
@@ -51,8 +51,8 @@ primitive RIPEMD160 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @RIPEMD160[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @RIPEMD160[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive SHA1 is HashFn
@@ -67,8 +67,8 @@ primitive SHA1 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @SHA1[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @SHA1[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive SHA224 is HashFn
@@ -83,8 +83,8 @@ primitive SHA224 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @SHA224[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @SHA224[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive SHA256 is HashFn
@@ -99,8 +99,8 @@ primitive SHA256 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @SHA256[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @SHA256[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive SHA384 is HashFn
@@ -115,8 +115,8 @@ primitive SHA384 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @SHA384[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @SHA384[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive SHA512 is HashFn
@@ -131,8 +131,8 @@ primitive SHA512 is HashFn
         @pony_ctx[Pointer[None] iso](),
         size
       )
-      @SHA512[Pointer[U8]](input.cstring(), input.size(), digest)
-      Array[U8].from_cstring(digest, size)
+      @SHA512[Pointer[U8]](input.cpointer(), input.size(), digest)
+      Array[U8].from_cpointer(digest, size)
     end
 
 primitive ToHexString

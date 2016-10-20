@@ -14,6 +14,8 @@ __pony_spec_align__(
   {
     PONY_ATOMIC(mpmcq_node_t*) head;
     PONY_ATOMIC(mpmcq_node_t*) tail;
+    PONY_ATOMIC(size_t) ticket;
+    PONY_ATOMIC(size_t) waiting_for;
   } mpmcq_t, 64
 );
 

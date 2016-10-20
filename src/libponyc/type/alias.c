@@ -330,33 +330,60 @@ ast_t* consume_type(ast_t* type, token_id cap)
   return NULL;
 }
 
-ast_t* recover_type(ast_t* type, token_id cap)
+static ast_t* recover_complex(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
+      break;
+
+    default:
+      assert(false);
+      break;
+  }
+
+  // recover each element
+  ast_t* r_type = ast_from(type, ast_id(type));
+  ast_t* child = ast_child(type);
+
+  while(child != NULL)
+  {
+    ast_t* r_right = recover_type(child, cap);
+
+    if(r_right == NULL)
     {
-      // recover each element
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
+      ast_free_unattached(r_type);
+      return NULL;
+    }
 
-      while(child != NULL)
-      {
-        ast_t* r_right = recover_type(child, cap);
+    ast_append(r_type, r_right);
+    child = ast_sibling(child);
+  }
 
-        if(r_right == NULL)
-        {
-          ast_free_unattached(r_type);
-          return NULL;
-        }
+  return r_type;
+}
 
-        ast_append(r_type, r_right);
-        child = ast_sibling(child);
-      }
+ast_t* recover_type(ast_t* type, token_id cap)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      return recover_complex(type, cap);
 
-      return r_type;
+    case TK_TUPLETYPE:
+    {
+      if((cap == TK_VAL) || (cap == TK_BOX) || (cap == TK_TAG))
+        return recover_complex(type, cap);
+
+      if(immutable_or_opaque(type))
+        return recover_complex(type, cap);
+
+      // If we're recovering to something writable, we can't lift the reference
+      // capability because the objects in the tuple might alias each other.
+      return ast_dup(type);
     }
 
     case TK_NOMINAL:
@@ -435,6 +462,64 @@ bool sendable(ast_t* type)
     {
       AST_GET_CHILDREN(type, id, cap, eph);
       return cap_sendable(ast_id(cap));
+    }
+
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return false;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool immutable_or_opaque(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // Test each element.
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!immutable_or_opaque(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* lower = viewpoint_lower(type);
+
+      if(lower == NULL)
+        return false;
+
+      bool ok = immutable_or_opaque(lower);
+      ast_free_unattached(lower);
+      return ok;
+    }
+
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
+      return cap_immutable_or_opaque(ast_id(cap));
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      AST_GET_CHILDREN(type, id, cap, eph);
+      return cap_immutable_or_opaque(ast_id(cap));
     }
 
     case TK_FUNTYPE:

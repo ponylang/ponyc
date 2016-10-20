@@ -41,7 +41,7 @@ class Array[A] is Seq[A]
       _ptr = Pointer[A]
     end
 
-  new from_cstring(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
+  new from_cpointer(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
     copied.
@@ -56,15 +56,16 @@ class Array[A] is Seq[A]
 
     _ptr = ptr
 
-  fun cstring(): Pointer[A] tag =>
+  fun _copy_to(ptr: Pointer[this->A!], copy_len: USize,
+    from_offset: USize = 0, to_offset: USize = 0) =>
+    """
+    Copy copy_len elements from this to that at specified offsets.
+    """
+    _ptr._offset(from_offset)._copy_to(ptr._offset(to_offset), copy_len)
+
+  fun cpointer(): Pointer[A] tag =>
     """
     Return the underlying C-style pointer.
-    """
-    _ptr
-
-  fun _cstring(): Pointer[A] box =>
-    """
-    Internal cstring.
     """
     _ptr
 
@@ -208,7 +209,7 @@ class Array[A] is Seq[A]
       let alloc = _alloc - offset
 
       if size' > 0 then
-        from_cstring(_ptr._offset(offset)._unsafe(), size', alloc)
+        from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
       else
         create()
       end

@@ -27,6 +27,7 @@ using std::atomic_compare_exchange_weak_explicit;
 using std::atomic_compare_exchange_strong_explicit;
 using std::atomic_fetch_add_explicit;
 using std::atomic_fetch_sub_explicit;
+using std::atomic_thread_fence;
 #  endif
 #elif defined(__GNUC__) && !defined(__clang__)
 #  include <features.h>
@@ -55,7 +56,7 @@ using std::atomic_fetch_sub_explicit;
 #      include <stdatomic.h>
 #    endif
 #    define PONY_ATOMIC(T) T _Atomic
-#  elif __clang_major >= 3 && __clang_minor__ >= 3
+#  elif __clang_major__ >= 3 && __clang_minor__ >= 3
 // Valid on x86 and ARM given our uses of atomics.
 #    define PONY_ATOMIC(T) T
 #    define PONY_ATOMIC_BUILTINS
@@ -115,6 +116,9 @@ using std::atomic_fetch_sub_explicit;
       _Static_assert(sizeof(PTR) <= sizeof(void*), ""); \
       __atomic_fetch_sub(PTR, VAL, MO); \
     })
+
+#  define atomic_thread_fence(MO) \
+    __atomic_thread_fence(MO)
 
 #  undef PONY_ATOMIC_BUILTINS
 #endif

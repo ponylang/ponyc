@@ -75,7 +75,7 @@ actor UDPSocket
     """
     _notify = consume notify
     _event = @pony_os_listen_udp[AsioEventID](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring())
+      host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -91,7 +91,7 @@ actor UDPSocket
     """
     _notify = consume notify
     _event = @pony_os_listen_udp4[AsioEventID](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring())
+      host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -107,7 +107,7 @@ actor UDPSocket
     """
     _notify = consume notify
     _event = @pony_os_listen_udp6[AsioEventID](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring())
+      host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
@@ -154,7 +154,7 @@ actor UDPSocket
     revert to allowing the OS to choose, call with an empty string.
     """
     if not _closed then
-      @pony_os_multicast_interface[None](_fd, from.null_terminated().cstring())
+      @pony_os_multicast_interface[None](_fd, from.cstring())
     end
 
   be set_multicast_loopback(loopback: Bool) =>
@@ -181,8 +181,8 @@ actor UDPSocket
     specific interface.
     """
     if not _closed then
-      @pony_os_multicast_join[None](_fd, group.null_terminated().cstring(),
-        to.null_terminated().cstring())
+      @pony_os_multicast_join[None](_fd, group.cstring(),
+        to.cstring())
     end
 
   be multicast_leave(group: String, to: String = "") =>
@@ -192,8 +192,8 @@ actor UDPSocket
     previously added this group.
     """
     if not _closed then
-      @pony_os_multicast_leave[None](_fd, group.null_terminated().cstring(),
-        to.null_terminated().cstring())
+      @pony_os_multicast_leave[None](_fd, group.cstring(),
+        to.cstring())
     end
 
   be dispose() =>
@@ -260,7 +260,7 @@ actor UDPSocket
           let size = _packet_size
           let data = _read_buf = recover Array[U8].undefined(size) end
           let from = recover IPAddress end
-          let len = @pony_os_recvfrom[USize](_event, data.cstring(),
+          let len = @pony_os_recvfrom[USize](_event, data.cpointer(),
             data.space(), from) ?
 
           if len == 0 then
@@ -317,7 +317,7 @@ actor UDPSocket
     """
     ifdef windows then
       try
-        @pony_os_recvfrom[USize](_event, _read_buf.cstring(),
+        @pony_os_recvfrom[USize](_event, _read_buf.cpointer(),
           _read_buf.space(), _read_from) ?
       else
         _readable = false
@@ -331,7 +331,7 @@ actor UDPSocket
     """
     if not _closed then
       try
-        @pony_os_sendto[USize](_fd, data.cstring(), data.size(), to) ?
+        @pony_os_sendto[USize](_fd, data.cpointer(), data.size(), to) ?
       else
         _close()
       end

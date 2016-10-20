@@ -25,7 +25,7 @@ primitive Fact
     if not test then
       if msg.size() > 0 then
         @fprintf[I32](@pony_os_stderr[Pointer[U8]](), "%s\n".cstring(),
-          msg.null_terminated().cstring())
+          msg.cstring())
       end
       error
     end

@@ -45,7 +45,7 @@ class Directory
     path = from
 
     ifdef posix then
-      _fd = @open[I32](from.path.null_terminated().cstring(),
+      _fd = @open[I32](from.path.cstring(),
         @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
 
       if _fd == -1 then
@@ -94,7 +94,7 @@ class Directory
             @ponyint_o_cloexec())
           @fdopendir[Pointer[_DirectoryHandle]](fd)
         else
-          @opendir[Pointer[_DirectoryHandle]](path'.null_terminated().cstring())
+          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
         end
 
         if h.is_null() then
@@ -147,7 +147,7 @@ class Directory
     let path' = FilePath(path, target, path.caps)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.null_terminated().cstring(),
+      let fd' = @openat[I32](_fd, target.cstring(),
         @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
       _relative(path', fd')
     else
@@ -210,7 +210,7 @@ class Directory
     let path' = FilePath(path, target, path.caps)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.null_terminated().cstring(),
+      let fd' = @openat[I32](_fd, target.cstring(),
         @ponyint_o_rdwr() or @ponyint_o_creat() or @ponyint_o_cloexec(),
         I32(0x1B6))
       recover File._descriptor(fd', path') end
@@ -232,7 +232,7 @@ class Directory
     let path' = FilePath(path, target, path.caps - FileWrite)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.null_terminated().cstring(),
+      let fd' = @openat[I32](_fd, target.cstring(),
         @ponyint_o_rdonly() or @ponyint_o_cloexec(), I32(0x1B6))
       recover File._descriptor(fd', path') end
     else
@@ -307,7 +307,7 @@ class Directory
       let path' = FilePath(path, target, path.caps)
 
       ifdef linux or freebsd then
-        0 == @fchmodat[I32](_fd, target.null_terminated().cstring(), mode._os(),
+        0 == @fchmodat[I32](_fd, target.cstring(), mode._os(),
           I32(0))
       else
         path'.chmod(mode)
@@ -332,7 +332,7 @@ class Directory
       let path' = FilePath(path, target, path.caps)
 
       ifdef linux or freebsd then
-        0 == @fchownat[I32](_fd, target.null_terminated().cstring(), uid, gid,
+        0 == @fchownat[I32](_fd, target.cstring(), uid, gid,
           I32(0))
       else
         path'.chown(uid, gid)
@@ -368,7 +368,7 @@ class Directory
         var tv: (ILong, ILong, ILong, ILong) =
           (atime._1.ilong(), atime._2.ilong() / 1000,
             mtime._1.ilong(), mtime._2.ilong() / 1000)
-        0 == @futimesat[I32](_fd, target.null_terminated().cstring(),
+        0 == @futimesat[I32](_fd, target.cstring(),
           addressof tv)
       else
         path'.set_time(atime, mtime)
@@ -396,8 +396,8 @@ class Directory
       let path' = FilePath(path, link_name, path.caps)
 
       ifdef linux or freebsd then
-        0 == @symlinkat[I32](source.path.null_terminated().cstring(), _fd,
-          link_name.null_terminated().cstring())
+        0 == @symlinkat[I32](source.path.cstring(), _fd,
+          link_name.cstring())
       else
         source.symlink(path')
       end
@@ -433,10 +433,10 @@ class Directory
             end
           end
 
-          0 == @unlinkat(_fd, target.null_terminated().cstring(),
+          0 == @unlinkat(_fd, target.cstring(),
             @ponyint_at_removedir())
         else
-          0 == @unlinkat(_fd, target.null_terminated().cstring(), 0)
+          0 == @unlinkat(_fd, target.cstring(), 0)
         end
       else
         path'.remove()
@@ -465,8 +465,8 @@ class Directory
       let path'' = FilePath(to.path, target, to.path.caps)
 
       ifdef linux or freebsd then
-        0 == @renameat[I32](_fd, source.null_terminated().cstring(), to._fd,
-          target.null_terminated().cstring())
+        0 == @renameat[I32](_fd, source.cstring(), to._fd,
+          target.cstring())
       else
         path'.rename(path'')
       end

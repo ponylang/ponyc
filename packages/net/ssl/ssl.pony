@@ -53,7 +53,7 @@ class SSL
       not DNS.is_ip6(_hostname)
     then
       // SSL_set_tlsext_host_name
-      @SSL_ctrl(_ssl, 55, 0, _hostname.null_terminated().cstring())
+      @SSL_ctrl(_ssl, 55, 0, _hostname.cstring())
     end
 
     if server then
@@ -98,10 +98,10 @@ class SSL
       end
 
       _read_buf.undefined(offset + len)
-      @SSL_read[I32](_ssl, _read_buf.cstring().usize() + offset, len.i32())
+      @SSL_read[I32](_ssl, _read_buf.cpointer().usize() + offset, len.i32())
     else
       _read_buf.undefined(offset + len)
-      let r = @SSL_read[I32](_ssl, _read_buf.cstring().usize() + offset,
+      let r = @SSL_read[I32](_ssl, _read_buf.cpointer().usize() + offset,
         len.i32())
 
       if r <= 0 then
@@ -135,14 +135,14 @@ class SSL
     if _state isnt SSLReady then error end
 
     if data.size() > 0 then
-      @SSL_write[I32](_ssl, data.cstring(), data.size().u32())
+      @SSL_write[I32](_ssl, data.cpointer(), data.size().u32())
     end
 
   fun ref receive(data: ByteSeq) =>
     """
     When data is received, add it to the SSL session.
     """
-    @BIO_write[I32](_input, data.cstring(), data.size().u32())
+    @BIO_write[I32](_input, data.cpointer(), data.size().u32())
 
     if _state is SSLHandshake then
       let r = @SSL_do_handshake[I32](_ssl)
@@ -172,7 +172,7 @@ class SSL
     if len == 0 then error end
 
     let buf = recover Array[U8].undefined(len) end
-    @BIO_read[I32](_output, buf.cstring(), buf.size().u32())
+    @BIO_read[I32](_output, buf.cpointer(), buf.size().u32())
     buf
 
   fun ref dispose() =>

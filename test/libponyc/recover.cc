@@ -375,3 +375,70 @@ TEST_F(RecoverTest, CantDoPartialApplication_RefWithLowerToTag)
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
+
+TEST_F(RecoverTest, CanRecover_TupleMutableAlias)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo, Foo) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      (y, y)\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantRecover_TupleMutableLift)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso, Foo iso) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      (y, y)\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+TEST_F(RecoverTest, CanRecover_TupleMutableToImmutable)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo val, Foo val) = recover val\n"
+    "      let y: Foo = Foo\n"
+    "      (y, y)\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CanRecover_TupleInUnionNoInnerLift)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso | (Foo, Foo)) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      let z: (Foo | (Foo, Foo)) = (y, y)\n"
+    "      z\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantRecover_TupleInUnionInnerLift)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso | (Foo iso, Foo iso)) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      let z: (Foo | (Foo, Foo)) = (y, y)\n"
+    "      z\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}

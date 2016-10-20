@@ -63,9 +63,9 @@ class val SSLContext
       (cert.path.size() == 0) or
       (key.path.size() == 0) or
       (0 == @SSL_CTX_use_certificate_chain_file[I32](
-        _ctx, cert.path.null_terminated().cstring())) or
+        _ctx, cert.path.cstring())) or
       (0 == @SSL_CTX_use_PrivateKey_file[I32](
-        _ctx, key.path.null_terminated().cstring(), I32(1))) or
+        _ctx, key.path.cstring(), I32(1))) or
       (0 == @SSL_CTX_check_private_key[I32](_ctx))
     then
       error
@@ -104,7 +104,7 @@ class val SSLContext
     if
       _ctx.is_null() or
       (0 == @SSL_CTX_set_cipher_list[I32](_ctx,
-        ciphers.null_terminated().cstring()))
+        ciphers.cstring()))
     then
       error
     end

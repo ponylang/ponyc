@@ -2,6 +2,26 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.6.0] - 2016-10-20
+
+### Fixed
+
+- Compiling ponyrt with Clang versions >= 3.3, < 3.6.
+- Restrict mutable tuple recovery to maintain reference capability security (issue #1123)
+- Crash in the runtime scheduler queues
+
+### Added
+
+- DTrace and SystemTap support - `use=dtrace`
+
+### Changed
+
+- Replaces `use=telemetry` by DTrace/SystemTap scripts
+- `String.cstring()` now always returns a null-terminated string
+  (which may result in a copy) while `cpointer()` (also available on
+  `Array` objects) returns a pointer to the underlying array as-is
+  (issue #1309).
+
 ## [0.5.1] - 2016-10-15
 
 ### Fixed

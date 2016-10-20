@@ -74,8 +74,8 @@ actor TCPConnection
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp[U32](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring(),
-      from.null_terminated().cstring())
+      host.cstring(), service.cstring(),
+      from.cstring())
     _notify_connecting()
 
   new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -90,8 +90,8 @@ actor TCPConnection
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp4[U32](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring(),
-      from.null_terminated().cstring())
+      host.cstring(), service.cstring(),
+      from.cstring())
     _notify_connecting()
 
   new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
@@ -106,8 +106,8 @@ actor TCPConnection
     _max_size = max_size
     _notify = consume notify
     _connect_count = @pony_os_connect_tcp6[U32](this,
-      host.null_terminated().cstring(), service.null_terminated().cstring(),
-      from.null_terminated().cstring())
+      host.cstring(), service.cstring(),
+      from.cstring())
     _notify_connecting()
 
   new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,
@@ -293,7 +293,7 @@ actor TCPConnection
       ifdef windows then
         try
           // Add an IOCP write.
-          @pony_os_send[USize](_event, data.cstring(), data.size()) ?
+          @pony_os_send[USize](_event, data.cpointer(), data.size()) ?
           _pending.push((data, 0))
         end
       else
@@ -301,7 +301,7 @@ actor TCPConnection
           try
             // Send as much data as possible.
             var len =
-              @pony_os_send[USize](_event, data.cstring(), data.size()) ?
+              @pony_os_send[USize](_event, data.cpointer(), data.size()) ?
 
             if len < data.size() then
               // Send any remaining data later.
@@ -364,7 +364,7 @@ actor TCPConnection
 
           // Write as much data as possible.
           let len = @pony_os_send[USize](_event,
-            data.cstring().usize() + offset, data.size() - offset) ?
+            data.cpointer().usize() + offset, data.size() - offset) ?
 
           if (len + offset) < data.size() then
             // Send remaining data later.
@@ -431,7 +431,7 @@ actor TCPConnection
       try
         @pony_os_recv[USize](
           _event,
-          _read_buf.cstring().usize() + _read_len,
+          _read_buf.cpointer().usize() + _read_len,
           _read_buf.size() - _read_len) ?
       else
         _hard_close()
@@ -452,7 +452,7 @@ actor TCPConnection
           // Read as much data as possible.
           let len = @pony_os_recv[USize](
             _event,
-            _read_buf.cstring().usize() + _read_len,
+            _read_buf.cpointer().usize() + _read_len,
             _read_buf.size() - _read_len) ?
 
           match len

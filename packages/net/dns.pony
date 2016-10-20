@@ -48,13 +48,13 @@ primitive DNS
     """
     Returns true if the host is a literal IPv4 address.
     """
-    @pony_os_host_ip4[Bool](host.null_terminated().cstring())
+    @pony_os_host_ip4[Bool](host.cstring())
 
   fun is_ip6(host: String): Bool =>
     """
     Returns true if the host is a literal IPv6 address.
     """
-    @pony_os_host_ip6[Bool](host.null_terminated().cstring())
+    @pony_os_host_ip6[Bool](host.cstring())
 
   fun _resolve(auth: DNSLookupAuth, family: U32, host: String,
     service: String): Array[IPAddress] iso^
@@ -64,7 +64,7 @@ primitive DNS
     """
     var list = recover Array[IPAddress] end
     var result = @pony_os_addrinfo[Pointer[U8]](family,
-      host.null_terminated().cstring(), service.null_terminated().cstring())
+      host.cstring(), service.cstring())
 
     if not result.is_null() then
       var addr = result

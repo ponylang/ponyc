@@ -81,10 +81,10 @@ actor StdStream
     """
     Write the bytes without explicitly flushing.
     """
-    @pony_os_std_write[None](_stream, data.cstring(), data.size())
+    @pony_os_std_write[None](_stream, data.cpointer(), data.size())
 
   fun ref _print(data: ByteSeq) =>
     """
     Write the bytes and a newline without explicitly flushing.
     """
-    @pony_os_std_print[None](_stream, data.cstring(), data.size())
+    @pony_os_std_print[None](_stream, data.cpointer(), data.size())

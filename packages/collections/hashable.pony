@@ -57,11 +57,11 @@ primitive HashByteSeq
   Hash and equality functions for arbitrary ByteSeq.
   """
   fun hash(x: ByteSeq box): U64 =>
-    @ponyint_hash_block[U64](x.cstring(), x.size())
+    @ponyint_hash_block[U64](x.cpointer(), x.size())
 
   fun eq(x: ByteSeq box, y: ByteSeq box): Bool =>
     if x.size() == y.size() then
-      @memcmp[I32](x.cstring(), y.cstring(), x.size()) == 0
+      @memcmp[I32](x.cpointer(), y.cpointer(), x.size()) == 0
     else
       false
     end
