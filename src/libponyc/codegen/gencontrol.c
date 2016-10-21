@@ -182,7 +182,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   }
 
   // Push the loop status.
-  codegen_pushloop(c, init_block, post_block);
+  codegen_pushloop(c, init_block, post_block, else_block);
 
   // init
   // This jumps either to the body or the else clause. This is not evaluated
@@ -300,7 +300,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   }
 
   // Push the loop status.
-  codegen_pushloop(c, cond_block, post_block);
+  codegen_pushloop(c, cond_block, post_block, else_block);
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
@@ -383,33 +383,41 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* body = ast_child(ast);
-  ast_t* body_type = ast_type(body);
 
-  // Get the break target.
-  LLVMBasicBlockRef target = c->frame->break_target;
+  LLVMBasicBlockRef target;
 
-  // Get the phi node.
-  LLVMValueRef post_phi = LLVMGetFirstInstruction(target);
-  bool needed = (post_phi != NULL) && LLVMIsAPHINode(post_phi);
-
-  // Build the break expression.
-  LLVMValueRef value = gen_expr(c, body);
-
-  if(needed)
+  if(ast_id(body) == TK_NONE)
   {
-    // Cast it to the phi type if we need to.
-    LLVMTypeRef phi_type = LLVMTypeOf(post_phi);
-    value = gen_assign_cast(c, phi_type, value, body_type);
-  }
+    target = c->frame->break_novalue_target;
+  } else {
+    ast_t* body_type = ast_type(body);
 
-  if(value == NULL)
-    return NULL;
+    // Get the break target.
+    target = c->frame->break_target;
 
-  // Add break value to the post block phi node.
-  if(needed)
-  {
-    LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(c->builder);
-    LLVMAddIncoming(post_phi, &value, &insert_block, 1);
+    // Get the phi node.
+    LLVMValueRef post_phi = LLVMGetFirstInstruction(target);
+    bool needed = (post_phi != NULL) && LLVMIsAPHINode(post_phi);
+
+    // Build the break expression.
+    LLVMValueRef value = gen_expr(c, body);
+
+    if(needed)
+    {
+      // Cast it to the phi type if we need to.
+      LLVMTypeRef phi_type = LLVMTypeOf(post_phi);
+      value = gen_assign_cast(c, phi_type, value, body_type);
+    }
+
+    if(value == NULL)
+      return NULL;
+
+    // Add break value to the post block phi node.
+    if(needed)
+    {
+      LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(c->builder);
+      LLVMAddIncoming(post_phi, &value, &insert_block, 1);
+    }
   }
 
   // Jump to the break target.

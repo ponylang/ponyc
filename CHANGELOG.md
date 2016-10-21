@@ -10,6 +10,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- `break` without a value now generates its value from the `else` branch of a loop instead of being an implicit `break None`.
+- The `for` loop will now break out of the loop instead of continuing with the following iterations if `Iterator.next` errors.
+
 ## [0.6.0] - 2016-10-20
 
 ### Fixed
