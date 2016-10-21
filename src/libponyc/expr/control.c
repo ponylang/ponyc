@@ -393,17 +393,22 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   // Add type to loop.
   ast_t* body = ast_child(ast);
 
-  if(is_control_type(ast_type(body)))
+  if(ast_id(body) != TK_NONE)
   {
-    ast_error(opt->check.errors, body,
-      "break value cannot be a control statement");
-    return false;
+    if(is_control_type(ast_type(body)))
+    {
+      ast_error(opt->check.errors, body,
+        "break value cannot be a control statement");
+      return false;
+    }
+
+    ast_t* loop_type = ast_type(t->frame->loop);
+
+    // If there is no body the break will jump to the else branch, whose type
+    // has already been added to the loop type.
+    loop_type = control_type_add_branch(opt, loop_type, body);
+    ast_settype(t->frame->loop, loop_type);
   }
-
-  ast_t* loop_type = ast_type(t->frame->loop);
-
-  loop_type = control_type_add_branch(opt, loop_type, body);
-  ast_settype(t->frame->loop, loop_type);
 
   return true;
 }

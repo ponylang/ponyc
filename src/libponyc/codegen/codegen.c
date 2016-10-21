@@ -970,6 +970,7 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
 
   frame->fun = frame->prev->fun;
   frame->break_target = frame->prev->break_target;
+  frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = frame->prev->invoke_target;
   frame->di_file = frame->prev->di_file;
@@ -1065,12 +1066,13 @@ LLVMMetadataRef codegen_discope(compile_t* c)
 }
 
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
-  LLVMBasicBlockRef break_target)
+  LLVMBasicBlockRef break_target, LLVMBasicBlockRef break_novalue_target)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
   frame->break_target = break_target;
+  frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
   frame->invoke_target = frame->prev->invoke_target;
   frame->di_file = frame->prev->di_file;
@@ -1088,6 +1090,7 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
 
   frame->fun = frame->prev->fun;
   frame->break_target = frame->prev->break_target;
+  frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = invoke_target;
   frame->di_file = frame->prev->di_file;
