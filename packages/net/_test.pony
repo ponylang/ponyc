@@ -323,7 +323,6 @@ class iso _TestTCPMute is UnitTest
   is grounds for a failure.
   """
   fun name(): String => "net/TCPMute"
-  fun label(): String => "tcpmute"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("receiver accepted")
