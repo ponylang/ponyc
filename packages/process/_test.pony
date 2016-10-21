@@ -201,8 +201,8 @@ class iso _TestExpect is UnitTest
     h.complete(false)
 
 class iso _TestWritevOrdering is UnitTest
-  fun name(): String =>
-    "process/WritevOrdering"
+  fun name(): String => "process/WritevOrdering"
+  fun label(): String => "unreliable-osx"
 
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient("onetwothree",
@@ -234,8 +234,8 @@ class iso _TestWritevOrdering is UnitTest
     h.complete(false)
 
 class iso _TestPrintvOrdering is UnitTest
-  fun name(): String =>
-    "process/PrintvOrdering"
+  fun name(): String => "process/PrintvOrdering"
+  fun label(): String => "unreliable-osx"
 
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient("one\ntwo\nthree\n",
