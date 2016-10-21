@@ -100,7 +100,7 @@ class iso _TestBroadcast is UnitTest
   Test broadcasting with UDP.
   """
   fun name(): String => "net/Broadcast"
-  fun label(): String => "unreliable-osx"
+  fun label(): String => "unreliable-appveyor-osx"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("pong create")
