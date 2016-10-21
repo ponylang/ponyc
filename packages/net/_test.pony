@@ -106,6 +106,7 @@ class iso _TestBroadcast is UnitTest
   """
   fun name(): String => "net/Broadcast"
   fun label(): String => "unreliable-appveyor-osx"
+  fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("pong create")
@@ -188,6 +189,7 @@ class iso _TestTCPExpect is UnitTest
   """
   fun name(): String => "net/TCP.expect"
   fun label(): String => "unreliable-osx"
+  fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("client receive")
@@ -268,6 +270,7 @@ class iso _TestTCPWritev is UnitTest
   Test writev (and sent/sentv notification).
   """
   fun name(): String => "net/TCP.writev"
+  fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("client connect")
@@ -323,6 +326,7 @@ class iso _TestTCPMute is UnitTest
   is grounds for a failure.
   """
   fun name(): String => "net/TCPMute"
+  fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("receiver accepted")
@@ -397,6 +401,7 @@ class iso _TestTCPUnmute is UnitTest
   receive the return data.
   """
   fun name(): String => "net/TCPUnmute"
+  fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("receiver accepted")
