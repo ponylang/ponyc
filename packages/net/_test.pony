@@ -182,6 +182,7 @@ class iso _TestTCPExpect is UnitTest
   Test expecting framed data with TCP.
   """
   fun name(): String => "net/TCP.expect"
+  fun label(): String => "unreliable-osx"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("client receive")
