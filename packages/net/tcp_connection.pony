@@ -616,8 +616,13 @@ actor TCPConnection
             data.truncate(_read_len)
             _read_len = 0
 
-            _notify.received(this, consume data)
-            _read_buf_size()
+            if not _notify.received(this, consume data) then
+              _read_buf_size()
+              _read_again()
+              return
+            else
+              _read_buf_size()
+            end
           end
 
           sum = sum + len
