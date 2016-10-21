@@ -209,6 +209,12 @@ class Reader
       error
     end
 
+  fun ref bool(): Bool ? =>
+    """
+    Get a Bool. Raise an error if there isn't enough data.
+    """
+    u8().bool()
+
   fun ref i8(): I8 ? =>
     """
     Get an I8.

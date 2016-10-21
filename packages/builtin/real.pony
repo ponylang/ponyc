@@ -17,6 +17,7 @@ trait val _ArithmeticConvertible
 
   fun f32(): F32 => compile_intrinsic
   fun f64(): F64 => compile_intrinsic
+  fun bool(): Bool => compile_intrinsic
 
 trait val Real[A: Real[A] val] is
   (Stringable & _ArithmeticConvertible & Comparable[A])

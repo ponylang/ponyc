@@ -1325,6 +1325,7 @@ static void number_conversions(compile_t* c)
 {
   num_conv_t ilp32_conv[] =
   {
+    {"Bool", "bool", c->ibool, 8, true, false},
     {"I8", "i8", c->i8, 8, true, false},
     {"I16", "i16", c->i16, 16, true, false},
     {"I32", "i32", c->i32, 32, true, false},
@@ -1350,6 +1351,7 @@ static void number_conversions(compile_t* c)
 
   num_conv_t lp64_conv[] =
   {
+    {"Bool", "bool", c->ibool, 8, true, false},
     {"I8", "i8", c->i8, 8, true, false},
     {"I16", "i16", c->i16, 16, true, false},
     {"I32", "i32", c->i32, 32, true, false},
@@ -1375,6 +1377,7 @@ static void number_conversions(compile_t* c)
 
   num_conv_t llp64_conv[] =
   {
+    {"Bool", "bool", c->ibool, 8, true, false},
     {"I8", "i8", c->i8, 8, true, false},
     {"I16", "i16", c->i16, 16, true, false},
     {"I32", "i32", c->i32, 32, true, false},
