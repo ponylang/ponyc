@@ -225,7 +225,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _h.complete_action("expect received")
     qty
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     if _frame then
       _frame = false
       _expect = 0
@@ -250,6 +250,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     end
 
     conn.expect(_expect)
+    true
 
   fun ref _send(conn: TCPConnection ref, data: String) =>
     let len = data.size()
@@ -301,7 +302,7 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
   new iso create(h: TestHelper) =>
     _h = h
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     _buffer.append(consume data)
 
     let expected = "hello, hello (from client)"
@@ -311,6 +312,7 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
       _h.assert_eq[String](expected, consume buffer)
       _h.complete_action("server receive")
     end
+    true
 
 class iso _TestTCPMute is UnitTest
   """
@@ -360,8 +362,9 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver asks for data")
     _h.dispose_when_done(conn)
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     _h.complete(false)
+    true
 
 class _TestTCPMuteSendNotify is TCPConnectionNotify
   """
@@ -383,9 +386,10 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connected")
 
-   fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+   fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
      conn.write("it's sad that you won't ever read this")
      _h.complete_action("sender sent data")
+     true
 
 class iso _TestTCPUnmute is UnitTest
   """
@@ -434,8 +438,9 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     conn.unmute()
     _h.complete_action("receiver unmuted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     _h.complete(true)
+    true
 
 class iso _TestTCPThrottle is UnitTest
   """
@@ -505,9 +510,10 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connected")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     conn.write("it's sad that you won't ever read this")
     _h.complete_action("sender sent data")
+    true
 
   fun ref throttled(conn: TCPConnection ref) =>
     _throttled_yet = true
