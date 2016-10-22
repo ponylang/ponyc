@@ -21,8 +21,9 @@ class ClientSide is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _env.out.print("connect failed")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     _env.out.print(consume data)
+    true
 
   fun ref closed(conn: TCPConnection ref) =>
     _env.out.print("client closed")

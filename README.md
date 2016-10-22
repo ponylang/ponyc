@@ -146,6 +146,7 @@ Pony requires one of the following versions of LLVM:
 - 3.6.2
 - 3.7.1
 - 3.8.1
+- 3.9.0 (unsupported on OSX at the moment)
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 

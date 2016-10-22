@@ -2,6 +2,22 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.7.0] - 2016-10-22
+
+### Fixed
+
+- Concatenate docstrings from case methods (issue #575).
+
+### Added
+
+- TCP read and write backpressure hooks in `TCPConnection` (issue #1311)
+- Allow TCP notifiers to cause connections to yield while receiving (issue #1343)
+
+### Changed
+
+- `break` without a value now generates its value from the `else` branch of a loop instead of being an implicit `break None`.
+- The `for` loop will now break out of the loop instead of continuing with the following iterations if `Iterator.next` errors.
+
 ## [0.6.0] - 2016-10-20
 
 ### Fixed

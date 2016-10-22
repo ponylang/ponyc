@@ -301,6 +301,7 @@ void token_set_int(token_t* token, lexint_t* value)
   token->integer = *value;
 }
 
+
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 {
   assert(token != NULL);

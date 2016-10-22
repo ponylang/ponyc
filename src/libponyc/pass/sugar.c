@@ -496,7 +496,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
           NONE
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
       NODE(TK_SEQ, AST_SCOPE
-        NODE(TK_CONTINUE, NONE))
+        NODE(TK_BREAK, NONE))
       NONE));
 
   sugar_try(try_next);
@@ -1413,8 +1413,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NEW:        return sugar_new(options, ast);
     case TK_BE:         return sugar_be(options, ast);
     case TK_FUN:        return sugar_fun(options, ast);
-    case TK_RETURN:
-    case TK_BREAK:      return sugar_return(options, ast);
+    case TK_RETURN:     return sugar_return(options, ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:

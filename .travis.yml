@@ -88,6 +88,32 @@ matrix:
         - config=release
         - CC1=gcc-5
         - CXX1=g++-5
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+      env:
+        - LLVM_VERSION="3.9.0"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=debug
+        - CC1=gcc-5
+        - CXX1=g++-5
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+      env:
+        - LLVM_VERSION="3.9.0"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=release
+        - CC1=gcc-5
+        - CXX1=g++-5
     - os: osx
       env:
         - LLVM_CONFIG="llvm-config-3.6"
@@ -127,6 +153,20 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+    # LLVM 3.9 can be enabled for OSX once Homebrew supports it.
+    #- os: osx
+    #  env:
+    #    - LLVM_CONFIG="llvm-config-3.9"
+    #    - config=debug
+    #    - CC1=clang-3.9
+    #    - CXX1=clang++-3.9
+    #- os: osx
+    #  env:
+    #    - LLVM_CONFIG="llvm-config-3.9"
+    #    - config=release
+    #    - CC1=clang-3.9
+    #    - CXX1=clang++-3.9
+
 
 rvm:
   - 2.2.3
@@ -136,7 +176,7 @@ install:
   # prepare to deploy artifacts.
   - if [[
         "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.8.0" &&
+        "$LLVM_VERSION" == "3.9.0" &&
         "$config" == "release" &&
         "$TRAVIS_OS_NAME" == "linux" &&
         "$TRAVIS_PULL_REQUEST" == "false"
@@ -207,7 +247,7 @@ after_success:
   # For a master release build with the latest stable LLVM, upload docs.
   - if [[
         "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.8.0" &&
+        "$LLVM_VERSION" == "3.9.0" &&
         "$config" == "release" &&
         "$TRAVIS_OS_NAME" == "linux" &&
         "$TRAVIS_PULL_REQUEST" == "false" &&
