@@ -636,10 +636,10 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
-	@./stdlib
+	@./stdlib --sequential
 	@rm stdlib
 	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
-	@./stdlib
+	@./stdlib --sequential
 	@rm stdlib
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
