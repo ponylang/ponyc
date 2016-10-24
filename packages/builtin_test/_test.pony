@@ -43,6 +43,7 @@ actor Main is TestList
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
+    test(_TestArrayClone)
     test(_TestArrayConcat)
     test(_TestArraySlice)
     test(_TestArrayTrim)
@@ -807,6 +808,14 @@ class iso _TestArrayAppend is UnitTest
     h.assert_eq[String]("three", a(2))
     h.assert_eq[String]("five", a(3))
 
+class iso _TestArrayClone is UnitTest
+  fun name(): String => "builtin/Array.clone"
+
+  fun apply(h: TestHelper) =>
+    var a = ["one", "two", "three"]
+    var b: Array[String] val = a.clone()
+    a.append(b)
+    h.assert_eq[USize](a.size(), 6)
 
 class iso _TestArrayConcat is UnitTest
   fun name(): String => "builtin/Array.concat"
