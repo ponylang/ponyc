@@ -8,6 +8,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Runtime function `pony_send_next`. This function can help optimise some message sending scenarios.
+
 ### Changed
 
 ## [0.6.0] - 2016-10-20
