@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- `Array.clone()` now correctly returns an iso reference.
+
 ### Added
 
 ### Changed
