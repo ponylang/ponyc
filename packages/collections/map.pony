@@ -87,19 +87,19 @@ class HashMap[K, V, H: HashFunction[K] val]
     using the provided function. If the provided key has not been added to
     the map yet, it sets its value to the provided value.
 
-    As a simple example, say we had a map with U64 values and we wanted to
+    As a simple example, say we had a map with I64 values and we wanted to
     add 4 to the current value for key "test", which let's say is currently 2.
     We call
 
-    m.upsert("test", 4, lambda(x: U64, y: U64): U64 => x + y end)
+    m.upsert("test", 4, lambda(x: I64, y: I64): I64 => x - y end)
 
-    This changes the value associated with "test" to 6.
+    This changes the value associated with "test" to -2.
 
     If we have not yet added the key "new-key" to the map and we call
 
-    m.upsert("new-key", 4, lambda(x: U64, y: U64): U64 => x + y end)
+    m.upsert("new-key", 4, lambda(x: I64, y: I64): I64 => x - y end)
 
-    then "new-key" is added to the map with a value of 4.
+    then "new-key" is added to the map with a value of -4.
 
     Returns the value that we set the key to
     """
