@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Link the correct version of `libponyrt` when compiling with `--pic` on Linux (issue #1359)
+
 ### Added
 
 ### Changed
