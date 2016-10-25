@@ -207,6 +207,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* ponyrt = c->opt->runtimebc ? "" :
 #if defined(PLATFORM_IS_WINDOWS)
     "ponyrt.lib";
+#elif defined(PLATFORM_IS_LINUX)
+    c->opt->pic ? "-lponyrt-pic" : "-lponyrt";
 #else
     "-lponyrt";
 #endif

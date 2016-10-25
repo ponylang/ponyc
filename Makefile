@@ -580,6 +580,9 @@ install: libponyc libponyrt ponyc
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+ifeq ($(OSTYPE),linux)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(destdir)/lib
+endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
 endif
@@ -594,6 +597,9 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+ifeq ($(OSTYPE),linux)
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a
+endif
 ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
 endif
@@ -610,6 +616,9 @@ uninstall:
 	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+ifeq ($(OSTYPE),linux)
+	-$(SILENT)rm $(prefix)/lib/libponyrt-pic.a 2>/dev/null ||:
+endif
 ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
 	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
 endif
@@ -661,6 +670,9 @@ deploy: test
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+ifeq ($(OSTYPE),linux)
+	$(SILENT)cp build/release/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
+endif
 ifneq ($(wildcard build/release/libponyrt.bc),)
 	$(SILENT)cp build/release/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
 endif
@@ -668,6 +680,9 @@ endif
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+ifeq ($(OSTYPE),linux)
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
+endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
 endif
