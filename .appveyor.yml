@@ -10,7 +10,7 @@ branches:
 environment:
   matrix:
   - llvm: 3.9.0
-  - llvm: 3.8.0
+  - llvm: 3.8.1
   - llvm: 3.7.1
 
 configuration:

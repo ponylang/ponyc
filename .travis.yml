@@ -70,7 +70,7 @@ matrix:
           packages:
             - g++-5
       env:
-        - LLVM_VERSION="3.8.0"
+        - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
         - CC1=gcc-5
@@ -83,7 +83,7 @@ matrix:
           packages:
             - g++-5
       env:
-        - LLVM_VERSION="3.8.0"
+        - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
         - CC1=gcc-5
