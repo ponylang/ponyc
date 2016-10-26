@@ -6,6 +6,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
+  ast_t* args_ast);
+
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast);

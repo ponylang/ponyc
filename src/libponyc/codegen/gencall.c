@@ -6,6 +6,7 @@
 #include "genfun.h"
 #include "genname.h"
 #include "genopt.h"
+#include "gentrace.h"
 #include "../pkg/platformfuns.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
@@ -167,12 +168,8 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 }
 
 static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
-  ast_t* type, LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
+  reach_method_t* m, LLVMValueRef l_value)
 {
-  token_id cap = cap_dispatch(type);
-  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
-  assert(m != NULL);
-
   switch(t->underlying)
   {
     case TK_UNIONTYPE:
@@ -300,7 +297,9 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   assert(t != NULL);
 
   const char* name = ast_name(method);
-  LLVMValueRef funptr = dispatch_function(c, t, type, value, name, typeargs);
+  token_id cap = cap_dispatch(type);
+  reach_method_t* m = reach_method(t, cap, name, typeargs);
+  LLVMValueRef funptr = dispatch_function(c, t, m, value);
 
   if(c->linkage != LLVMExternalLinkage)
   {
@@ -329,6 +328,69 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
+  ast_t* args_ast)
+{
+  // Allocate the message, setting its size and ID.
+  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, m->msg_type);
+  LLVMTypeRef msg_type_ptr = LLVMPointerType(m->msg_type, 0);
+
+  LLVMValueRef msg_args[3];
+
+  msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
+  msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
+  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", msg_args, 2, "");
+  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
+
+  for(unsigned int i = 0; i < m->param_count; i++)
+  {
+    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i + 3, "");
+    LLVMBuildStore(c->builder, args[i+1], arg_ptr);
+  }
+
+  // Trace while populating the message contents.
+  ast_t* params = ast_childidx(m->r_fun, 3);
+  ast_t* param = ast_child(params);
+  ast_t* arg_ast = ast_child(args_ast);
+  bool need_trace = false;
+
+  while(param != NULL)
+  {
+    if(gentrace_needed(c, ast_type(arg_ast), ast_type(param)))
+    {
+      need_trace = true;
+      break;
+    }
+
+    param = ast_sibling(param);
+    arg_ast = ast_sibling(arg_ast);
+  }
+
+  LLVMValueRef ctx = codegen_ctx(c);
+
+  if(need_trace)
+  {
+    gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    param = ast_child(params);
+    arg_ast = ast_child(args_ast);
+
+    for(size_t i = 0; i < m->param_count; i++)
+    {
+      gentrace(c, ctx, args[i+1], ast_type(arg_ast), ast_type(param));
+      param = ast_sibling(param);
+      arg_ast = ast_sibling(arg_ast);
+    }
+
+    gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+  }
+
+  // Send the message.
+  msg_args[0] = ctx;
+  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
+  msg_args[2] = msg;
+  gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+}
+
 typedef struct call_tuple_indices_t
 {
   size_t* data;
@@ -355,6 +417,57 @@ static size_t tuple_indices_pop(call_tuple_indices_t* ti)
   assert(ti->count > 0);
 
   return ti->data[--ti->count];
+}
+
+static bool behaviour_in_every_subtype(reach_type_t* t, const char* method_name)
+{
+  switch(t->underlying)
+  {
+    case TK_CLASS:
+    case TK_STRUCT:
+    case TK_PRIMITIVE:
+      return false;
+
+    case TK_ACTOR:
+      return true;
+
+    default: {}
+  }
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub = t;
+  do
+  {
+    reach_method_name_t* n = reach_method_name(sub, method_name);
+
+    if(n == NULL)
+      continue;
+
+    size_t j = HASHMAP_BEGIN;
+    // The kind of a method cannot vary within a type so we only need to check
+    // one reach method.
+    reach_method_t* m = reach_methods_next(&n->r_methods, &j);
+
+    if(m == NULL)
+      continue;
+
+    if(ast_id(m->r_fun) == TK_FUN)
+      return false;
+
+    if(ast_id(m->r_fun) == TK_NEW)
+    {
+      switch(sub->underlying)
+      {
+        case TK_CLASS:
+        case TK_PRIMITIVE:
+          return false;
+
+        default: {}
+      }
+    }
+  } while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL);
+
+  return true;
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
@@ -500,8 +613,30 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, type, args[0], method_name,
-    typeargs);
+  token_id cap = cap_dispatch(type);
+  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
+  LLVMValueRef func = dispatch_function(c, t, m, args[0]);
+
+  bool is_message = false;
+
+  if((ast_id(postfix) == TK_NEWBEREF) || (ast_id(postfix) == TK_BEREF))
+  {
+    switch(t->underlying)
+    {
+      case TK_ACTOR:
+        is_message = true;
+        break;
+
+      case TK_UNIONTYPE:
+      case TK_ISECTTYPE:
+      case TK_INTERFACE:
+      case TK_TRAIT:
+        is_message = behaviour_in_every_subtype(t, method_name);
+        break;
+
+      default: {}
+    }
+  }
 
   // Cast the arguments to the parameter types.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -511,33 +646,53 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   arg = ast_child(positional);
   i = 1;
 
-  while(arg != NULL)
-  {
-    args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));;
-    arg = ast_sibling(arg);
-    i++;
-  }
-
   LLVMValueRef r = NULL;
 
-  if(func != NULL)
+  if(is_message)
   {
-    // If we can error out and we have an invoke target, generate an invoke
-    // instead of a call.
-    codegen_debugloc(c, ast);
-
-    if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
-      r = invoke_fun(c, func, args, i, "", true);
-    else
-      r = codegen_call(c, func, args, i);
-
-    if(is_new_call)
+    // If we're sending a message, trace and send here instead of calling the
+    // sender to trace the most specific types possible.
+    while(arg != NULL)
     {
-      LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
-      LLVMSetMetadataStr(r, "pony.newcall", md);
+      args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
+      arg = ast_sibling(arg);
+      i++;
     }
 
+    token_id cap = cap_dispatch(type);
+    reach_method_t* m = reach_method(t, cap, method_name, typeargs);
+
+    codegen_debugloc(c, ast);
+    gen_send_message(c, m, args, positional);
     codegen_debugloc(c, NULL);
+    r = args[0];
+  } else {
+    while(arg != NULL)
+    {
+      args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
+      arg = ast_sibling(arg);
+      i++;
+    }
+
+    if(func != NULL)
+    {
+      // If we can error out and we have an invoke target, generate an invoke
+      // instead of a call.
+      codegen_debugloc(c, ast);
+
+      if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
+        r = invoke_fun(c, func, args, i, "", true);
+      else
+        r = codegen_call(c, func, args, i);
+
+      if(is_new_call)
+      {
+        LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+        LLVMSetMetadataStr(r, "pony.newcall", md);
+      }
+
+      codegen_debugloc(c, NULL);
+    }
   }
 
   // Class constructors return void, expression result is the receiver.
@@ -594,8 +749,9 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   assert(t != NULL);
 
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, pattern_type, l_value,
-    c->str_eq, NULL);
+  token_id cap = cap_dispatch(pattern_type);
+  reach_method_t* m = reach_method(t, cap, c->str_eq, NULL);
+  LLVMValueRef func = dispatch_function(c, t, m, l_value);
 
   if(func == NULL)
     return NULL;
