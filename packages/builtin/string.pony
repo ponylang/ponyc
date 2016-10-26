@@ -993,15 +993,19 @@ actor Main
 
     Adjacent delimiters result in a zero length entry in the array. For
     example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    An empty string as delimiter will split at every character.
     """
     let result = recover Array[String] end
 
     if _size > 0 then
-      let chars = Array[U32](delim.size())
-
-      for rune in delim.runes() do
-        chars.push(rune)
-      end
+      let ds = delim.size()
+      let chars: (Array[U32] | None) =
+        if ds > 0 then
+          Array[U32](ds).concat(delim.runes())
+        else
+          None
+        end
 
       var cur = recover String end
       var i = USize(0)
@@ -1011,16 +1015,13 @@ actor Main
         while i < _size do
           (let c, let len) = utf32(i.isize())
 
-          if chars.contains(c) then
-            // If we find a delimeter, add the current string to the array.
-            occur = occur + 1
-
-            if (n > 0) and (occur >= n) then
-              break
-            end
-
-            result.push(cur = recover String end)
+          let found = match chars
+          | let chars': Array[U32] => chars'.contains(c)
           else
+            true
+          end
+
+          if (ds == 0) or (found is false) then
             // Add bytes to the current string.
             var j = U8(0)
 
@@ -1030,7 +1031,23 @@ actor Main
             end
           end
 
-          i = i + len.usize()
+          let k = len.usize()
+
+          if found then
+            // If we find a delimeter, add the current string to the array.
+            occur = occur + 1
+
+            if (n > 0) and (occur >= n) then
+              if ds == 0 then
+                i = i + k
+              end
+              break
+            end
+
+            result.push(cur = recover String end)
+          end
+
+          i = i + k
         end
       end
 

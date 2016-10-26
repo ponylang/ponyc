@@ -29,6 +29,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - `break` without a value now generates its value from the `else` branch of a loop instead of being an implicit `break None`.
 - The `for` loop will now break out of the loop instead of continuing with the following iterations if `Iterator.next` errors.
+- `String.split("")` now splits the string at every character instead
+  of returning an array with a copy of the entire string as the only
+  element.
 
 ## [0.6.0] - 2016-10-20
 
