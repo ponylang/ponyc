@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Iter class methods `all`, `any`, `collect`, `count`, `find`, `last`, `nth`, `run`, `skip`, `skip_while`, `take`, `take_while` (issue #1370)
 - Output of `ponyc --version` shows C compiler used to build pony (issue #1245)
 - Makefile detects `llvmconfig39` in addition to `llvm-config-3.9` (#1379)
+- LLVM 3.9 support
 
 ### Changed
 

@@ -116,12 +116,14 @@ matrix:
         - CXX1=g++-5
     - os: osx
       env:
+        - LLVM_VERSION="3.6.2"
         - LLVM_CONFIG="llvm-config-3.6"
         - config=debug
         - CC1=clang-3.6
         - CXX1=clang++-3.6
     - os: osx
       env:
+        - LLVM_VERSION="3.6.2"
         - LLVM_CONFIG="llvm-config-3.6"
         - config=release
         - lto=no
@@ -129,12 +131,14 @@ matrix:
         - CXX1=clang++-3.6
     - os: osx
       env:
+        - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
         - CC1=clang-3.7
         - CXX1=clang++-3.7
     - os: osx
       env:
+        - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
         - lto=no
@@ -142,30 +146,34 @@ matrix:
         - CXX1=clang++-3.7
     - os: osx
       env:
+        - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
         - CC1=clang-3.8
         - CXX1=clang++-3.8
     - os: osx
       env:
+        - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
-    # LLVM 3.9 can be enabled for OSX once Homebrew supports it.
-    #- os: osx
-    #  env:
-    #    - LLVM_CONFIG="llvm-config-3.9"
-    #    - config=debug
-    #    - CC1=clang-3.9
-    #    - CXX1=clang++-3.9
-    #- os: osx
-    #  env:
-    #    - LLVM_CONFIG="llvm-config-3.9"
-    #    - config=release
-    #    - CC1=clang-3.9
-    #    - CXX1=clang++-3.9
+    - os: osx
+      env:
+        - LLVM_VERSION="3.9.0"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=debug
+        - CC1=clang-3.9
+        - CXX1=clang++-3.9
+    - os: osx
+      env:
+        - LLVM_VERSION="3.9.0"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=release
+        - lto=no
+        - CC1=clang-3.9
+        - CXX1=clang++-3.9
 
 
 rvm:
@@ -208,7 +216,28 @@ install:
     then
       brew update;
       brew install gmp; brew link --overwrite gmp;
-      brew install llvm36 llvm37 llvm38 pcre2 libressl;
+      if [ "${LLVM_VERSION}" = "3.6.2" ];
+      then
+        brew install llvm36;
+      fi;
+      if [ "${LLVM_VERSION}" = "3.7.1" ];
+      then
+        brew install llvm37;
+      fi;
+      if [ "${LLVM_VERSION}" = "3.8.1" ];
+      then
+        brew install llvm38;
+      fi;
+      if [ "${LLVM_VERSION}" = "3.9.0" ];
+      then
+        brew install llvm;
+        brew link --overwrite --force llvm;
+        mkdir llvmsym;
+        ln -s `which llvm-config` llvmsym/llvm-config-3.9;
+        ln -s `which clang++` llvmsym/clang++-3.9;
+        export PATH=llvmsym/:$PATH;
+      fi;
+      brew install pcre2 libressl;
     fi;
 
 script:
