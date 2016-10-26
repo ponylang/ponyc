@@ -396,7 +396,7 @@ Use VirtualBox 5.x to avoid possible problems.
 
 ## AVX2 Support
 
-Pony binaries require CPUs with [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
+The Pony prebuilt binaries trigger illegal instruction errors under CPUs without [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
 
 ## Building Pony on Non-x86 platforms
 
