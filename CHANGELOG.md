@@ -11,8 +11,11 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Runtime function `pony_send_next`. This function can help optimise some message sending scenarios.
+- Floating point `min_normalised`. The function returns the smallest normalised positive number, as `min_value` used to do (issue #1351)
 
 ### Changed
+
+- Floating point `min_value` now returns the smallest negative number instead of the smallest normalised positive number (issue #1351)
 
 ## [0.7.0] - 2016-10-22
 

@@ -11,16 +11,22 @@ primitive F32 is FloatingPoint[F32]
 
   new min_value() =>
     """
-    Minimum positive value representable at full precision (ie a normalised
-    number).
+    Minimum negative value representable.
     """
-    from_bits(0x00800000)
+    from_bits(0xFF7FFFFF)
 
   new max_value() =>
     """
     Maximum positive value representable.
     """
     from_bits(0x7F7FFFFF)
+
+  new min_normalised() =>
+    """
+    Minimum positive value representable at full precision (ie a normalised
+    number).
+    """
+    from_bits(0x00800000)
 
   new epsilon() =>
     """
@@ -173,16 +179,22 @@ primitive F64 is FloatingPoint[F64]
 
   new min_value() =>
     """
-    Minimum positive value representable at full precision (ie a normalised
-    number).
+    Minimum negative value representable.
     """
-    from_bits(0x0010_0000_0000_0000)
+    from_bits(0xFFEF_FFFF_FFFF_FFFF)
 
   new max_value() =>
     """
     Maximum positive value representable.
     """
     from_bits(0x7FEF_FFFF_FFFF_FFFF)
+
+  new min_normalised() =>
+    """
+    Minimum positive value representable at full precision (ie a normalised
+    number).
+    """
+    from_bits(0x0010_0000_0000_0000)
 
   new epsilon() =>
     """
