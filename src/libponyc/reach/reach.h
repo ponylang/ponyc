@@ -36,6 +36,7 @@ struct reach_method_t
   uint32_t vtable_index;
 
   LLVMTypeRef func_type;
+  LLVMTypeRef msg_type;
   LLVMValueRef func;
   LLVMValueRef func_handler;
   LLVMMetadataRef di_method;

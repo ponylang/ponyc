@@ -85,6 +85,12 @@ void pony_release_done(pony_ctx_t* ctx)
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
 
+void pony_send_next(pony_ctx_t* ctx)
+{
+  ponyint_gc_handlestack(ctx);
+  ponyint_gc_done(ponyint_actor_gc(ctx->current));
+}
+
 void pony_trace(pony_ctx_t* ctx, void* p)
 {
   ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);

@@ -78,7 +78,6 @@ Or, for master builds:
 yum install ponyc-master
 ```
 
-
 ## Linux using a DEB package (via Bintray)
 
 For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
@@ -96,7 +95,6 @@ Or, for master builds:
 ```
 sudo apt-get install ponyc-master
 ```
-
 
 ## Windows using ZIP (via Bintray)
 
@@ -390,12 +388,15 @@ $ make LTO_PLUGIN=/usr/lib/LLVMgold.so
 
 Refer to your compiler documentation for the plugin to use in your case.
 
-
 ## VirtualBox
 
 Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for at least the x86_64 platform and possibly others.
 
 Use VirtualBox 5.x to avoid possible problems.
+
+## AVX2 Support
+
+The Pony prebuilt binaries trigger illegal instruction errors under CPUs without [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
 
 ## Building Pony on Non-x86 platforms
 
