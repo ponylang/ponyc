@@ -86,6 +86,12 @@ class Writer
     _byte(data)
     this
 
+  fun ref bool(data: Bool): Writer^ =>
+    """
+    Write a Bool to the buffer.
+    """
+    u8(data.u8())
+    
   fun ref u16_le(data: U16): Writer^ =>
     """
     Write a U16 to the buffer in little-endian byte order.
