@@ -98,6 +98,7 @@ AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
   -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DBUILD_COMPILER=\"$(compiler_version)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
@@ -214,6 +215,8 @@ ifndef LLVM_CONFIG
 endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
+
+compiler_version := "$(shell $(CC) --version | sed -n 1p)"
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
