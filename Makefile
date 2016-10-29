@@ -216,6 +216,15 @@ endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
+ifeq ($(llvm_version),3.6.2)
+else ifeq ($(llvm_version),3.7.1)
+else ifeq ($(llvm_version),3.8.1)
+else ifeq ($(llvm_version),3.9.0)
+else
+  $(warning WARNING: Unsupported LLVM version: $(llvm_version))
+  $(warning Please use LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0)
+endif
+
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
 
 ifeq ($(runtime-bitcode),yes)
