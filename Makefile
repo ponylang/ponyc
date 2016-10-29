@@ -187,6 +187,10 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-3.6
     LLVM_LINK = llvm-link-3.6
     LLVM_OPT = opt-3.6
+  else ifneq (,$(shell which llvm-config39 2> /dev/null))
+    LLVM_CONFIG = llvm-config39
+    LLVM_LINK = llvm-link39
+    LLVM_OPT = opt39
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
     LLVM_LINK = llvm-link38
