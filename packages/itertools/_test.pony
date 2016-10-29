@@ -13,12 +13,23 @@ actor Main is TestList
     test(_TestMapFn)
     test(_TestFilter)
 
+    test(_TestIterAll)
+    test(_TestIterAny)
+    test(_TestIterCollect)
+    test(_TestIterCount)
     test(_TestIterCycle)
     test(_TestIterEnum)
     test(_TestIterFilter)
+    test(_TestIterFind)
     test(_TestIterFold)
+    test(_TestIterLast)
     test(_TestIterMap)
+    test(_TestIterNth)
+    test(_TestIterRun)
+    test(_TestIterSkip)
+    test(_TestIterSkipWhile)
     test(_TestIterTake)
+    test(_TestIterTakeWhile)
     test(_TestIterZip)
 
 class iso _TestChain is UnitTest
@@ -233,6 +244,49 @@ class iso _TestFilter is UnitTest
 
     h.assert_array_eq[String](actual, expected)
 
+class iso _TestIterAll is UnitTest
+  fun name(): String => "itertools/Iter.all"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as I64: 1, 3, 6, 7, 9]
+    let is_positive = lambda(n: I64): Bool => n > 0 end
+    h.assert_true(Iter[I64](input.values()).all(is_positive))
+    input(2) = -6
+    h.assert_false(Iter[I64](input.values()).all(is_positive))
+
+class iso _TestIterAny is UnitTest
+  fun name(): String => "itertools/Iter.any"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as I64: -1, -3, 6, -7, -9]
+    let is_positive = lambda(n: I64): Bool => n > 0 end
+    h.assert_true(Iter[I64](input.values()).any(is_positive))
+    input(2) = -6
+    h.assert_false(Iter[I64](input.values()).any(is_positive))
+
+class iso _TestIterCollect is UnitTest
+  fun name(): String => "itertools/Iter.collect"
+
+  fun apply(h: TestHelper) =>
+    let input = [as I64: 1, 2, 3, 4, 5]
+    h.assert_array_eq[I64](
+      input,
+      Iter[I64](input.values()).collect(Array[I64]))
+
+class iso _TestIterCount is UnitTest
+  fun name(): String => "itertools/Iter.count"
+
+  fun apply(h: TestHelper) =>
+    let input1 = [as I64: 1, 2, 3, 4, 5]
+    h.assert_eq[USize](
+      input1.size(),
+      Iter[I64](input1.values()).count())
+
+    let input2 = Array[I64]
+    h.assert_eq[USize](
+      input2.size(),
+      Iter[I64](input2.values()).count())
+
 class iso _TestIterCycle is UnitTest
   fun name(): String => "itertools/Iter.cycle"
 
@@ -309,6 +363,25 @@ class iso _TestIterFilter is UnitTest
 
     h.assert_array_eq[String](actual, expected)
 
+class iso _TestIterFind is UnitTest
+  fun name(): String => "itertools/Iter.find"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as I64: 1, 2, 3, -4, 5]
+    h.assert_error(lambda()(input) ? =>
+      Iter[I64](input.values()).find(lambda(x: I64): Bool => x == 0 end)
+    end)
+    let ltzero = lambda(x: I64): Bool => x < 0 end
+    h.assert_eq[I64](
+      -4,
+      Iter[I64](input.values()).find(ltzero))
+    h.assert_error(lambda()(input, ltzero) ? =>
+      Iter[I64](input.values()).find(ltzero, 2)
+    end)
+    h.assert_eq[I64](
+      5,
+      Iter[I64](input.values()).find(lambda(x: I64): Bool => x > 0 end, 4))
+
 class iso _TestIterFold is UnitTest
   fun name(): String => "itertools/Iter.fold"
 
@@ -322,6 +395,25 @@ class iso _TestIterFold is UnitTest
     h.assert_error(lambda()(ns, err) ? =>
       Iter[I64](ns.values()).fold[I64](err, 0)
     end)
+
+class iso _TestIterLast is UnitTest
+  fun name(): String => "itertools/Iter.last"
+
+  fun apply(h: TestHelper) ? =>
+    let input1 = Array[I64]
+    h.assert_error(lambda()(input1) ? => Iter[I64](input1.values()).last() end)
+    let input2 =[as I64: 1]
+    h.assert_eq[I64](
+      1,
+      Iter[I64](input2.values()).last())
+    let input3 = [as I64: 1, 2]
+    h.assert_eq[I64](
+      2,
+      Iter[I64](input3.values()).last())
+    let input4 = [as I64: 1, 2, 3]
+    h.assert_eq[I64](
+      3,
+      Iter[I64](input4.values()).last())
 
 class iso _TestIterMap is UnitTest
   fun name(): String => "itertools/Iter.map"
@@ -338,6 +430,78 @@ class iso _TestIterMap is UnitTest
 
     h.assert_array_eq[String](actual, expected)
 
+class iso _TestIterNth is UnitTest
+  fun name(): String => "itertools/Iter.nth"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as USize: 1, 2, 3]
+    h.assert_eq[USize](
+      1,
+      Iter[USize](input.values()).nth(1))
+    h.assert_eq[USize](
+      2,
+      Iter[USize](input.values()).nth(2))
+    h.assert_eq[USize](
+      3,
+      Iter[USize](input.values()).nth(3))
+    h.assert_error(lambda()(input) ? => Iter[USize](input.values()).nth(4) end)
+
+class iso _TestIterRun is UnitTest
+  fun name(): String => "itertools/Iter.run"
+
+  fun apply(h: TestHelper) =>
+    h.expect_action("1")
+    h.expect_action("2")
+    h.expect_action("3")
+    h.expect_action("error")
+    
+    let xs = [as I64: 1, 2, 3]
+
+    h.long_test(100_000_000)
+    
+    Iter[I64](xs.values())
+      .map[None](lambda(x: I64)(h) => h.complete_action(x.string()) end)
+      .run()
+
+    Iter[I64](object ref is Iterator[I64]
+      fun ref has_next(): Bool => true
+      fun ref next(): I64 ? => error
+    end)
+      .run(lambda()(h) => h.complete_action("error") end)
+
+class iso _TestIterSkip is UnitTest
+  fun name(): String => "itertools/Iter.skip"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as I64: 1]
+    h.assert_error(lambda()(input) ? =>
+      Iter[I64](input.values()).skip(1).next()
+    end)
+    input.push(2)
+    h.assert_eq[I64](
+      2,
+      Iter[I64](input.values()).skip(1).next())
+    input.push(3)
+    h.assert_eq[I64](
+      3,
+      Iter[I64](input.values()).skip(2).next())
+
+class iso _TestIterSkipWhile is UnitTest
+  fun name(): String => "itertools/Iter.skip_while"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as I64: -1, 0, 1, 2, 3]
+    h.assert_eq[I64](
+      1,
+      Iter[I64](input.values()).skip_while(lambda(x: I64): Bool =>
+        x <= 0
+      end).next())
+    h.assert_eq[I64](
+      -1,
+      Iter[I64](input.values()).skip_while(lambda(x: I64): Bool =>
+        x < -2
+      end).next())
+
 class iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"
 
@@ -352,6 +516,24 @@ class iso _TestIterTake is UnitTest
     end
 
     h.assert_array_eq[String](expected, actual)
+
+class iso _TestIterTakeWhile is UnitTest
+  fun name(): String => "itertools/Iter.take_while"
+
+  fun apply(h: TestHelper) =>
+    let input = [as I64: -1, 0, 1, 2, 3]
+    h.assert_array_eq[I64](
+      [as I64: -1, 0],
+      Iter[I64](input.values()).take_while(lambda(x: I64): Bool => x < 1 end)
+        .collect(Array[I64]))
+    h.assert_array_eq[I64](
+      input,
+      Iter[I64](input.values()).take_while(lambda(x: I64): Bool => x < 4 end)
+        .collect(Array[I64]))
+    h.assert_array_eq[I64](
+      Array[I64],
+      Iter[I64](input.values()).take_while(lambda(x: I64): Bool ? => error end)
+        .collect(Array[I64]))
 
 class iso _TestIterZip is UnitTest
   fun name(): String => "itertools/Iter.zip"
@@ -386,7 +568,6 @@ class iso _TestIterZip is UnitTest
     end
 
     h.assert_array_eq[String](expected1, actual1)
-
     h.assert_array_eq[U32](expected2, actual2)
     h.assert_array_eq[F32](expected3, actual3)
     h.assert_array_eq[I32](expected4, actual4)
