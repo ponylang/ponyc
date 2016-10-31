@@ -591,7 +591,11 @@ $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 
 define EXPAND_INSTALL
+ifeq ($(OSTYPE),linux)
+install: libponyc libponyrt libponyrt-pic ponyc
+else
 install: libponyc libponyrt ponyc
+endif
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
