@@ -194,8 +194,6 @@ class iso Payload
 
     list.push(proto)
     list.push(" ")
-    list.push(status.string())
-    list.push(" ")
     list.push(method)
 
     if keepalive then
