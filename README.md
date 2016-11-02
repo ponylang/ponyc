@@ -98,8 +98,7 @@ sudo apt-get install ponyc-master
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and 
-on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+For Windows, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
 
 ```powershell
 Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
