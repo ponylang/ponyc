@@ -63,7 +63,7 @@ If you're using `docker-machine` instead of native docker, make sure you aren't 
 
 ## Linux using an RPM package (via Bintray)
 
-For Red Hat, CentOS, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
 To install release builds via Yum:
 ```bash
