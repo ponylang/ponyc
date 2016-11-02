@@ -63,9 +63,9 @@ If you're using `docker-machine` instead of native docker, make sure you aren't 
 
 ## Linux using an RPM package (via Bintray)
 
-For Red Hat, CentOS, or Fedora Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install  release builds via Yum:
+To install release builds via Yum:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
@@ -80,7 +80,7 @@ yum install ponyc-master
 
 ## Linux using a DEB package (via Bintray)
 
-For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
+For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
 
 To install release builds via Apt:
 
@@ -98,7 +98,7 @@ sudo apt-get install ponyc-master
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and availabe on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+For Windows, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
 
 ```powershell
 Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
