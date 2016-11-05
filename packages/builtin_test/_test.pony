@@ -14,6 +14,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestAbs)
+    test(_TestRotate)
     test(_TestStringRunes)
     test(_TestIntToString)
     test(_TestFloatToString)
@@ -60,6 +61,7 @@ actor Main is TestList
     test(_TestDivMod)
     test(_TestAddc)
     test(_TestNextPow2)
+    test(_TestNumberConversionSaturation)
     test(_TestMaybePointer)
     test(_TestValtrace)
     test(_TestCCallback)
@@ -105,6 +107,64 @@ class iso _TestAbs is UnitTest
     h.assert_eq[U128](3,          I128(-3).abs())
     h.assert_eq[U128](124,        I128(-124).abs())
     h.assert_eq[U128](0,          I128(0).abs())
+
+
+class iso _TestRotate is UnitTest
+  """
+  Test rotl and rotr function
+  """
+  fun name(): String => "builtin/Int.Rotate"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[U8](0x0F, U8(0x0F).rotl(0))
+    h.assert_eq[U8](0x3C, U8(0x0F).rotl(2))
+    h.assert_eq[U8](0x0F, U8(0x0F).rotl(8))
+    h.assert_eq[U8](0xF0, U8(0x0F).rotl(12))
+
+    h.assert_eq[U8](0x0F, U8(0x0F).rotr(0))
+    h.assert_eq[U8](0xC3, U8(0x0F).rotr(2))
+    h.assert_eq[U8](0x0F, U8(0x0F).rotr(8))
+    h.assert_eq[U8](0xF0, U8(0x0F).rotr(12))
+
+    h.assert_eq[U16](0x00F0, U16(0x00F0).rotl(0))
+    h.assert_eq[U16](0x0F00, U16(0x00F0).rotl(4))
+    h.assert_eq[U16](0x00F0, U16(0x00F0).rotl(16))
+    h.assert_eq[U16](0x0F00, U16(0x00F0).rotl(20))
+
+    h.assert_eq[U16](0x00F0, U16(0x00F0).rotr(0))
+    h.assert_eq[U16](0x000F, U16(0x00F0).rotr(4))
+    h.assert_eq[U16](0x00F0, U16(0x00F0).rotr(16))
+    h.assert_eq[U16](0x000F, U16(0x00F0).rotr(20))
+
+    h.assert_eq[U32](0x0F00, U32(0x0F00).rotl(0))
+    h.assert_eq[U32](0xF000, U32(0x0F00).rotl(4))
+    h.assert_eq[U32](0x0F00, U32(0x0F00).rotl(32))
+    h.assert_eq[U32](0xF000, U32(0x0F00).rotl(36))
+
+    h.assert_eq[U32](0x0F00, U32(0x0F00).rotr(0))
+    h.assert_eq[U32](0x00F0, U32(0x0F00).rotr(4))
+    h.assert_eq[U32](0x0F00, U32(0x0F00).rotr(32))
+    h.assert_eq[U32](0x00F0, U32(0x0F00).rotr(36))
+
+    h.assert_eq[U64](0x0F00, U64(0x0F00).rotl(0))
+    h.assert_eq[U64](0xF000, U64(0x0F00).rotl(4))
+    h.assert_eq[U64](0x0F00, U64(0x0F00).rotl(64))
+    h.assert_eq[U64](0xF000, U64(0x0F00).rotl(68))
+
+    h.assert_eq[U64](0x0F00, U64(0x0F00).rotr(0))
+    h.assert_eq[U64](0x00F0, U64(0x0F00).rotr(4))
+    h.assert_eq[U64](0x0F00, U64(0x0F00).rotr(64))
+    h.assert_eq[U64](0x00F0, U64(0x0F00).rotr(68))
+
+    h.assert_eq[U128](0x0F00, U128(0x0F00).rotl(0))
+    h.assert_eq[U128](0xF000, U128(0x0F00).rotl(4))
+    h.assert_eq[U128](0x0F00, U128(0x0F00).rotl(128))
+    h.assert_eq[U128](0xF000, U128(0x0F00).rotl(132))
+
+    h.assert_eq[U128](0x0F00, U128(0x0F00).rotr(0))
+    h.assert_eq[U128](0x00F0, U128(0x0F00).rotr(4))
+    h.assert_eq[U128](0x0F00, U128(0x0F00).rotr(128))
+    h.assert_eq[U128](0x00F0, U128(0x0F00).rotr(132))
 
 
 class iso _TestStringRunes is UnitTest
@@ -1390,6 +1450,55 @@ class iso _TestNextPow2 is UnitTest
     h.assert_eq[U128](16, U128(16).next_pow2())
     h.assert_eq[U128](1, U128(0).next_pow2())
     h.assert_eq[U128](1, U128.max_value().next_pow2())
+
+
+class iso _TestNumberConversionSaturation is UnitTest
+  """
+  Test saturation semantics for floating point/integer conversions.
+  """
+  fun name(): String => "builtin/NumberConversionSaturation"
+
+  fun apply(h: TestHelper) =>
+    float_to_ints[F32](h)
+    float_to_ints[F64](h)
+    float_to_int[F64, U128](h)
+
+    h.assert_eq[U128](0, F32.min_value().u128())
+    h.assert_eq[U128](U128.max_value(), (F32(1) / 0).u128())
+    h.assert_eq[U128](0, (F32(-1) / 0).u128())
+
+    h.assert_eq[F32](F32(1) / 0, U128.max_value().f32())
+
+    h.assert_eq[F32](F32(1) / 0, F64.max_value().f32())
+    h.assert_eq[F32](-F32(1) / 0, F64.min_value().f32())
+    h.assert_eq[F32](F32(1) / 0, (F64(1) / 0).f32())
+    h.assert_eq[F32](-F32(1) / 0, (-F64(1) / 0).f32())
+
+  fun float_to_ints[A: (Float & Real[A])](h: TestHelper) =>
+    float_to_int[A, I8](h)
+    float_to_int[A, I16](h)
+    float_to_int[A, I32](h)
+    float_to_int[A, I64](h)
+    float_to_int[A, ILong](h)
+    float_to_int[A, ISize](h)
+    float_to_int[A, I128](h)
+
+    float_to_int[A, U8](h)
+    float_to_int[A, U16](h)
+    float_to_int[A, U32](h)
+    float_to_int[A, U64](h)
+    float_to_int[A, ULong](h)
+    float_to_int[A, USize](h)
+
+  fun float_to_int[A: (Float & Real[A]), B: (Number & Real[B])](h: TestHelper)
+    =>
+    h.assert_eq[B](B.max_value(), B.from[A](A.max_value()))
+    h.assert_eq[B](B.min_value(), B.from[A](A.min_value()))
+
+    let inf = A.from[I8](1) / A.from[I8](0)
+    h.assert_eq[B](B.max_value(), B.from[A](inf))
+    h.assert_eq[B](B.min_value(), B.from[A](-inf))
+
 
 struct _TestStruct
   var i: U32 = 0

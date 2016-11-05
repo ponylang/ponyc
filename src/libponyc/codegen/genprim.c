@@ -1257,6 +1257,232 @@ typedef struct num_conv_t
   bool is_float;
 } num_conv_t;
 
+static void number_value(compile_t* c, num_conv_t* type, token_id cap)
+{
+  reach_type_t* t = reach_type_name(c->reach, type->type_name);
+
+  if(t == NULL)
+    return;
+
+  FIND_METHOD("_value", cap);
+  start_function(c, t, m, type->type, &type->type, 1);
+
+  LLVMValueRef arg = LLVMGetParam(m->func, 0);
+  LLVMBuildRet(c->builder, arg);
+
+  codegen_finishfun(c);
+}
+
+static LLVMBasicBlockRef handle_nan(compile_t* c, LLVMValueRef arg,
+  LLVMTypeRef int_type, uint64_t exp, uint64_t mantissa)
+{
+  LLVMBasicBlockRef nan = codegen_block(c, "");
+  LLVMBasicBlockRef non_nan = codegen_block(c, "");
+
+  LLVMValueRef exp_mask = LLVMConstInt(int_type, exp, false);
+  LLVMValueRef mant_mask = LLVMConstInt(int_type, mantissa, false);
+
+  LLVMValueRef bits = LLVMBuildBitCast(c->builder, arg, int_type, "");
+  LLVMValueRef exp_res = LLVMBuildAnd(c->builder, bits, exp_mask, "");
+  LLVMValueRef mant_res = LLVMBuildAnd(c->builder, bits, mant_mask, "");
+
+  exp_res = LLVMBuildICmp(c->builder, LLVMIntEQ, exp_res, exp_mask, "");
+  mant_res = LLVMBuildICmp(c->builder, LLVMIntNE, mant_res,
+    LLVMConstNull(int_type), "");
+
+  LLVMValueRef is_nan = LLVMBuildAnd(c->builder, exp_res, mant_res, "");
+  LLVMBuildCondBr(c->builder, is_nan, nan, non_nan);
+
+  LLVMPositionBuilderAtEnd(c->builder, nan);
+
+  return non_nan;
+}
+
+static LLVMValueRef handle_overflow_saturate(compile_t* c, LLVMValueRef arg,
+  LLVMTypeRef from, LLVMTypeRef to, LLVMValueRef to_max, LLVMValueRef to_min,
+  bool sign)
+{
+  LLVMBasicBlockRef overflow = codegen_block(c, "");
+  LLVMBasicBlockRef test_underflow = codegen_block(c, "");
+  LLVMBasicBlockRef underflow = codegen_block(c, "");
+  LLVMBasicBlockRef normal = codegen_block(c, "");
+
+  LLVMValueRef to_fmax;
+  if(sign)
+    to_fmax = LLVMBuildSIToFP(c->builder, to_max, from, "");
+  else
+    to_fmax = LLVMBuildUIToFP(c->builder, to_max, from, "");
+  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, arg,
+    to_fmax, "");
+  LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
+
+  LLVMPositionBuilderAtEnd(c->builder, overflow);
+  LLVMBuildRet(c->builder, to_max);
+
+  LLVMPositionBuilderAtEnd(c->builder, test_underflow);
+
+  LLVMValueRef to_fmin;
+  if(sign)
+    to_fmin = LLVMBuildSIToFP(c->builder, to_min, from, "");
+  else
+    to_fmin = LLVMBuildUIToFP(c->builder, to_min, from, "");
+  LLVMValueRef is_underflow = LLVMBuildFCmp(c->builder, LLVMRealOLT, arg,
+    to_fmin, "");
+  LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
+
+  LLVMPositionBuilderAtEnd(c->builder, underflow);
+  LLVMBuildRet(c->builder, to_min);
+
+  LLVMPositionBuilderAtEnd(c->builder, normal);
+
+  if(sign)
+    return LLVMBuildFPToSI(c->builder, arg, to, "");
+  return LLVMBuildFPToUI(c->builder, arg, to, "");
+}
+
+static LLVMValueRef f32_to_si_saturation(compile_t* c, LLVMValueRef arg,
+  num_conv_t* to)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
+    0x007FFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+  LLVMValueRef to_max = LLVMConstNull(to->type);
+  LLVMValueRef to_min = LLVMBuildNot(c->builder, to_max, "");
+  to_max = LLVMBuildLShr(c->builder, to_min, LLVMConstInt(to->type, 1, false),
+    "");
+  to_min = LLVMBuildXor(c->builder, to_max, to_min, "");
+  return handle_overflow_saturate(c, arg, c->f32, to->type, to_max, to_min,
+    true);
+}
+
+static LLVMValueRef f64_to_si_saturation(compile_t* c, LLVMValueRef arg,
+  num_conv_t* to)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
+    0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+  LLVMValueRef to_max = LLVMConstNull(to->type);
+  LLVMValueRef to_min = LLVMBuildNot(c->builder, to_max, "");
+  to_max = LLVMBuildLShr(c->builder, to_min, LLVMConstInt(to->type, 1, false),
+    "");
+  to_min = LLVMBuildXor(c->builder, to_max, to_min, "");
+  return handle_overflow_saturate(c, arg, c->f64, to->type, to_max, to_min,
+    true);
+}
+
+static LLVMValueRef f32_to_ui_saturation(compile_t* c, LLVMValueRef arg,
+  num_conv_t* to)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
+    0x007FFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+  LLVMValueRef to_min = LLVMConstNull(to->type);
+  LLVMValueRef to_max = LLVMBuildNot(c->builder, to_min, "");
+  return handle_overflow_saturate(c, arg, c->f32, to->type, to_max, to_min,
+    false);
+}
+
+static LLVMValueRef f32_to_u128_saturation(compile_t* c, LLVMValueRef arg)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
+    0x007FFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNull(c->i128));
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+
+  LLVMBasicBlockRef overflow = codegen_block(c, "");
+  LLVMBasicBlockRef test_underflow = codegen_block(c, "");
+  LLVMBasicBlockRef underflow = codegen_block(c, "");
+  LLVMBasicBlockRef normal = codegen_block(c, "");
+
+  LLVMValueRef min = LLVMConstNull(c->f32);
+  LLVMValueRef max = LLVMConstInf(c->f32, false);
+
+  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGE, arg, max,
+    "");
+  LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
+
+  LLVMPositionBuilderAtEnd(c->builder, overflow);
+  LLVMBuildRet(c->builder, LLVMBuildNot(c->builder, LLVMConstNull(c->i128),
+    ""));
+
+  LLVMPositionBuilderAtEnd(c->builder, test_underflow);
+  LLVMValueRef is_underflow = LLVMBuildFCmp(c->builder, LLVMRealOLT, arg, min,
+    "");
+  LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
+
+  LLVMPositionBuilderAtEnd(c->builder, underflow);
+  LLVMBuildRet(c->builder, LLVMConstNull(c->i128));
+
+  LLVMPositionBuilderAtEnd(c->builder, normal);
+  return LLVMBuildFPToUI(c->builder, arg, c->i128, "");
+}
+
+static LLVMValueRef f64_to_ui_saturation(compile_t* c, LLVMValueRef arg,
+  num_conv_t* to)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
+    0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+  LLVMValueRef to_min = LLVMConstNull(to->type);
+  LLVMValueRef to_max = LLVMBuildNot(c->builder, to_min, "");
+  return handle_overflow_saturate(c, arg, c->f64, to->type, to_max, to_min,
+    false);
+}
+
+static LLVMValueRef f64_to_f32_saturation(compile_t* c, LLVMValueRef arg)
+{
+  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
+    0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
+  LLVMBuildRet(c->builder, LLVMConstNaN(c->f32));
+
+  LLVMBasicBlockRef overflow = codegen_block(c, "");
+  LLVMBasicBlockRef test_underflow = codegen_block(c, "");
+  LLVMBasicBlockRef underflow = codegen_block(c, "");
+  LLVMBasicBlockRef normal = codegen_block(c, "");
+
+  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
+  LLVMValueRef f32_max = LLVMConstInt(c->i32, 0x7F7FFFFF, false);
+  f32_max = LLVMBuildBitCast(c->builder, f32_max, c->f32, "");
+  f32_max = LLVMBuildFPExt(c->builder, f32_max, c->f64, "");
+  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, arg,
+    f32_max, "");
+  LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
+
+  LLVMPositionBuilderAtEnd(c->builder, overflow);
+  LLVMBuildRet(c->builder, LLVMConstInf(c->f32, false));
+
+  LLVMPositionBuilderAtEnd(c->builder, test_underflow);
+  LLVMValueRef f32_min = LLVMConstInt(c->i32, 0xFF7FFFFF, false);
+  f32_min = LLVMBuildBitCast(c->builder, f32_min, c->f32, "");
+  f32_min = LLVMBuildFPExt(c->builder, f32_min, c->f64, "");
+  LLVMValueRef is_underflow = LLVMBuildFCmp(c->builder, LLVMRealOLT, arg,
+    f32_min, "");
+  LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
+
+  LLVMPositionBuilderAtEnd(c->builder, underflow);
+  LLVMBuildRet(c->builder, LLVMConstInf(c->f32, true));
+
+  LLVMPositionBuilderAtEnd(c->builder, normal);
+  return LLVMBuildFPTrunc(c->builder, arg, c->f32, "");
+}
+
+static LLVMValueRef u128_to_f32_saturation(compile_t* c, LLVMValueRef arg)
+{
+  LLVMValueRef val_f64 = LLVMBuildUIToFP(c->builder, arg, c->f64, "");
+  LLVMValueRef f32_max = LLVMConstInt(c->i32, 0x7F7FFFFF, false);
+  f32_max = LLVMBuildBitCast(c->builder, f32_max, c->f32, "");
+  f32_max = LLVMBuildFPExt(c->builder, f32_max, c->f64, "");
+  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, val_f64,
+    f32_max, "");
+  LLVMValueRef result = LLVMBuildUIToFP(c->builder, arg, c->f32, "");
+  return LLVMBuildSelect(c->builder, is_overflow, LLVMConstInf(c->f32, false),
+    result, "");
+}
+
 static void number_conversion(compile_t* c, void** data, token_id cap)
 {
   num_conv_t* from = (num_conv_t*)data[0];
@@ -1277,6 +1503,84 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
     return;
 
   FIND_METHOD(to->fun_name, cap);
+  start_function(c, t, m, to->type, &from->type, 1);
+
+  LLVMValueRef arg = LLVMGetParam(m->func, 0);
+  LLVMValueRef result;
+
+  if(from->is_float)
+  {
+    if(to->is_float)
+    {
+      if(from->size < to->size)
+        result = LLVMBuildFPExt(c->builder, arg, to->type, "");
+      else if(from->size > to->size)
+        result = f64_to_f32_saturation(c, arg);
+      else
+        result = arg;
+    } else if(to->is_signed) {
+      if(from->size < 64)
+        result = f32_to_si_saturation(c, arg, to);
+      else
+        result = f64_to_si_saturation(c, arg, to);
+    } else {
+      if(from->size < 64)
+      {
+        if(to->size > 64)
+          result = f32_to_u128_saturation(c, arg);
+        else
+          result = f32_to_ui_saturation(c, arg, to);
+      } else
+        result = f64_to_ui_saturation(c, arg, to);
+    }
+  } else if(to->is_float) {
+    if(from->is_signed)
+      result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
+    else if((from->size > 64) && (to->size < 64))
+      result = u128_to_f32_saturation(c, arg);
+    else
+      result = LLVMBuildUIToFP(c->builder, arg, to->type, "");
+  } else if(from->size > to->size) {
+      result = LLVMBuildTrunc(c->builder, arg, to->type, "");
+  } else if(from->size < to->size) {
+    if(from->is_signed)
+      result = LLVMBuildSExt(c->builder, arg, to->type, "");
+    else
+      result = LLVMBuildZExt(c->builder, arg, to->type, "");
+  } else {
+    result = arg;
+  }
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
+{
+  num_conv_t* from = (num_conv_t*)data[0];
+  num_conv_t* to = (num_conv_t*)data[1];
+  bool native128 = data[2] != 0;
+
+  if(!native128 &&
+    ((from->is_float && (to->size > 64)) ||
+    (to->is_float && (from->size > 64)))
+    )
+  {
+    return;
+  }
+
+  reach_type_t* t = reach_type_name(c->reach, from->type_name);
+
+  if(t == NULL)
+    return;
+
+  size_t buf_idx = ponyint_pool_index(strlen(to->fun_name) + sizeof("_unsafe"));
+  char* buf = (char*)ponyint_pool_alloc(buf_idx);
+  memcpy(buf, to->fun_name, strlen(to->fun_name));
+  strcpy(buf + strlen(to->fun_name), "_unsafe");
+
+  FIND_METHOD(buf, cap);
+  ponyint_pool_free(buf_idx, buf);
   start_function(c, t, m, to->type, &from->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(m->func, 0);
@@ -1410,11 +1714,13 @@ static void number_conversions(compile_t* c)
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
+    BOX_FUNCTION(number_value, from);
     data[0] = from;
     for(num_conv_t* to = conv; to->type_name != NULL; to++)
     {
       data[1] = to;
       BOX_FUNCTION(number_conversion, data);
+      BOX_FUNCTION(unsafe_number_conversion, data);
     }
   }
 }
@@ -1425,6 +1731,22 @@ static void f32__nan(compile_t* c, reach_type_t* t)
   start_function(c, t, m, c->f32, &c->f32, 1);
 
   LLVMValueRef result = LLVMConstNaN(c->f32);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void f32__inf(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_inf", TK_NONE);
+  LLVMTypeRef params[2];
+  params[0] = c->f32;
+  params[1] = c->ibool;
+  start_function(c, t, m, c->f32, params, 2);
+
+  LLVMValueRef sign = LLVMGetParam(m->func, 1);
+  sign = LLVMBuildTrunc(c->builder, sign, c->i1, "");
+  LLVMValueRef result = LLVMBuildSelect(c->builder, sign,
+    LLVMConstInf(c->f32, true), LLVMConstInf(c->f32, false), "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
@@ -1465,6 +1787,22 @@ static void f64__nan(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
+static void f64__inf(compile_t* c, reach_type_t* t)
+{
+  FIND_METHOD("_inf", TK_NONE);
+  LLVMTypeRef params[2];
+  params[0] = c->f64;
+  params[1] = c->ibool;
+  start_function(c, t, m, c->f64, params, 2);
+
+  LLVMValueRef sign = LLVMGetParam(m->func, 1);
+  sign = LLVMBuildTrunc(c->builder, sign, c->i1, "");
+  LLVMValueRef result = LLVMBuildSelect(c->builder, sign,
+    LLVMConstInf(c->f64, true), LLVMConstInf(c->f64, false), "");
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void f64_from_bits(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("from_bits", TK_NONE);
@@ -1498,6 +1836,7 @@ static void fp_intrinsics(compile_t* c)
   if((t = reach_type_name(c->reach, "F32")) != NULL)
   {
     f32__nan(c, t);
+    f32__inf(c, t);
     f32_from_bits(c, t);
     BOX_FUNCTION(f32_bits, t);
   }
@@ -1505,6 +1844,7 @@ static void fp_intrinsics(compile_t* c)
   if((t = reach_type_name(c->reach, "F64")) != NULL)
   {
     f64__nan(c, t);
+    f64__inf(c, t);
     f64_from_bits(c, t);
     BOX_FUNCTION(f64_bits, t);
   }

@@ -48,22 +48,35 @@ typedef enum token_id
   TK_ASSIGN,
 
   TK_PLUS,
+  TK_PLUS_TILDE,
   TK_MINUS,
+  TK_MINUS_TILDE,
   TK_MULTIPLY,
+  TK_MULTIPLY_TILDE,
   TK_DIVIDE,
+  TK_DIVIDE_TILDE,
   TK_MOD,
+  TK_MOD_TILDE,
   TK_AT,
 
   TK_LSHIFT,
+  TK_LSHIFT_TILDE,
   TK_RSHIFT,
+  TK_RSHIFT_TILDE,
 
   TK_LT,
+  TK_LT_TILDE,
   TK_LE,
+  TK_LE_TILDE,
   TK_GE,
+  TK_GE_TILDE,
   TK_GT,
+  TK_GT_TILDE,
 
   TK_EQ,
+  TK_EQ_TILDE,
   TK_NE,
+  TK_NE_TILDE,
 
   TK_PIPE,
   TK_ISECTTYPE,
@@ -72,6 +85,7 @@ typedef enum token_id
 
   TK_QUESTION,
   TK_UNARY_MINUS,
+  TK_UNARY_MINUS_TILDE,
   TK_ELLIPSIS,
   TK_CONSTANT,
 
@@ -79,6 +93,7 @@ typedef enum token_id
   TK_LPAREN_NEW,
   TK_LSQUARE_NEW,
   TK_MINUS_NEW,
+  TK_MINUS_TILDE_NEW,
 
   // Keywords
   TK_COMPILE_INTRINSIC,

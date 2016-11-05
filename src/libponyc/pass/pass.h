@@ -199,7 +199,6 @@ typedef struct pass_opt_t
   bool library;
   bool runtimebc;
   bool pic;
-  bool ieee_math;
   bool print_stats;
   bool verify;
   bool extfun;
