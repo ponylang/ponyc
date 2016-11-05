@@ -259,7 +259,9 @@ TEST_F(BadPonyTest, WithBlockTypeInference)
     "  new create(env: Env) =>\n"
     "    with x = 1 do None end";
 
-  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+  TEST_ERRORS_3(src, "could not infer literal type, no valid types found",
+                     "cannot infer type of $1$0",
+                     "cannot infer type of x");
 }
 
 TEST_F(BadPonyTest, EmbedNestedTuple)
@@ -277,4 +279,17 @@ TEST_F(BadPonyTest, EmbedNestedTuple)
     "    (foo, x) = (Foo.get_foo(), 42)";
 
   TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(BadPonyTest, CircularTypeInfer)
+{
+  // From issue #1334
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = x.create()\n"
+    "    let y = y.create()";
+
+  TEST_ERRORS_2(src, "cannot infer type of x",
+                     "cannot infer type of y");
 }
