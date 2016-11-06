@@ -162,7 +162,7 @@ class iso _TestStringToBool is UnitTest
     h.assert_eq[Bool](true, "true".bool())
     h.assert_eq[Bool](true, "TRUE".bool())
 
-    h.assert_error(lambda()? => "bogus".bool() end)
+    h.assert_error({()? => "bogus".bool() })
 
 
 class iso _TestStringToFloat is UnitTest
@@ -191,9 +191,9 @@ class iso _TestStringToU8 is UnitTest
     h.assert_eq[U8](123, "0123".u8())
     h.assert_eq[U8](89, "089".u8())
 
-    h.assert_error(lambda()? => "300".u8() end, "U8 300")
-    h.assert_error(lambda()? => "30L".u8() end, "U8 30L")
-    h.assert_error(lambda()? => "-10".u8() end, "U8 -10")
+    h.assert_error({()? => "300".u8() }, "U8 300")
+    h.assert_error({()? => "30L".u8() }, "U8 30L")
+    h.assert_error({()? => "-10".u8() }, "U8 -10")
 
     h.assert_eq[U8](16, "0x10".u8())
     h.assert_eq[U8](31, "0x1F".u8())
@@ -203,10 +203,10 @@ class iso _TestStringToU8 is UnitTest
     h.assert_eq[U8](2, "0B10".u8())
     h.assert_eq[U8](0x8A, "0b1000_1010".u8())
 
-    h.assert_error(lambda()? => "1F".u8() end, "U8 1F")
-    h.assert_error(lambda()? => "0x".u8() end, "U8 0x")
-    h.assert_error(lambda()? => "0b3".u8() end, "U8 0b3")
-    h.assert_error(lambda()? => "0d4".u8() end, "U8 0d4")
+    h.assert_error({()? => "1F".u8() }, "U8 1F")
+    h.assert_error({()? => "0x".u8() }, "U8 0x")
+    h.assert_error({()? => "0b3".u8() }, "U8 0b3")
+    h.assert_error({()? => "0d4".u8() }, "U8 0d4")
 
 
 class iso _TestStringToI8 is UnitTest
@@ -222,8 +222,8 @@ class iso _TestStringToI8 is UnitTest
     h.assert_eq[I8](89, "089".i8())
     h.assert_eq[I8](-10, "-10".i8())
 
-    h.assert_error(lambda()? => "200".i8() end, "I8 200")
-    h.assert_error(lambda()? => "30L".i8() end, "I8 30L")
+    h.assert_error({()? => "200".i8() }, "I8 200")
+    h.assert_error({()? => "30L".i8() }, "I8 30L")
 
     h.assert_eq[I8](16, "0x10".i8())
     h.assert_eq[I8](31, "0x1F".i8())
@@ -234,10 +234,10 @@ class iso _TestStringToI8 is UnitTest
     h.assert_eq[I8](0x4A, "0b100_1010".i8())
     h.assert_eq[I8](-0x4A, "-0b100_1010".i8())
 
-    h.assert_error(lambda()? => "1F".i8() end, "U8 1F")
-    h.assert_error(lambda()? => "0x".i8() end, "U8 0x")
-    h.assert_error(lambda()? => "0b3".i8() end, "U8 0b3")
-    h.assert_error(lambda()? => "0d4".i8() end, "U8 0d4")
+    h.assert_error({()? => "1F".i8() }, "U8 1F")
+    h.assert_error({()? => "0x".i8() }, "U8 0x")
+    h.assert_error({()? => "0b3".i8() }, "U8 0b3")
+    h.assert_error({()? => "0d4".i8() }, "U8 0d4")
 
 
 class iso _TestStringToIntLarge is UnitTest
@@ -249,45 +249,45 @@ class iso _TestStringToIntLarge is UnitTest
   fun apply(h: TestHelper) ? =>
     h.assert_eq[U16](0, "0".u16())
     h.assert_eq[U16](123, "123".u16())
-    h.assert_error(lambda()? => "-10".u16() end, "U16 -10")
-    h.assert_error(lambda()? => "65536".u16() end, "U16 65536")
-    h.assert_error(lambda()? => "30L".u16() end, "U16 30L")
+    h.assert_error({()? => "-10".u16() }, "U16 -10")
+    h.assert_error({()? => "65536".u16() }, "U16 65536")
+    h.assert_error({()? => "30L".u16() }, "U16 30L")
 
     h.assert_eq[I16](0, "0".i16())
     h.assert_eq[I16](123, "123".i16())
     h.assert_eq[I16](-10, "-10".i16())
-    h.assert_error(lambda()? => "65536".i16() end, "I16 65536")
-    h.assert_error(lambda()? => "30L".i16() end, "I16 30L")
+    h.assert_error({()? => "65536".i16() }, "I16 65536")
+    h.assert_error({()? => "30L".i16() }, "I16 30L")
 
     h.assert_eq[U32](0, "0".u32())
     h.assert_eq[U32](123, "123".u32())
-    h.assert_error(lambda()? => "-10".u32() end, "U32 -10")
-    h.assert_error(lambda()? => "30L".u32() end, "U32 30L")
+    h.assert_error({()? => "-10".u32() }, "U32 -10")
+    h.assert_error({()? => "30L".u32() }, "U32 30L")
 
     h.assert_eq[I32](0, "0".i32())
     h.assert_eq[I32](123, "123".i32())
     h.assert_eq[I32](-10, "-10".i32())
-    h.assert_error(lambda()? => "30L".i32() end, "I32 30L")
+    h.assert_error({()? => "30L".i32() }, "I32 30L")
 
     h.assert_eq[U64](0, "0".u64())
     h.assert_eq[U64](123, "123".u64())
-    h.assert_error(lambda()? => "-10".u64() end, "U64 -10")
-    h.assert_error(lambda()? => "30L".u64() end, "U64 30L")
+    h.assert_error({()? => "-10".u64() }, "U64 -10")
+    h.assert_error({()? => "30L".u64() }, "U64 30L")
 
     h.assert_eq[I64](0, "0".i64())
     h.assert_eq[I64](123, "123".i64())
     h.assert_eq[I64](-10, "-10".i64())
-    h.assert_error(lambda()? => "30L".i64() end, "I64 30L")
+    h.assert_error({()? => "30L".i64() }, "I64 30L")
 
     h.assert_eq[U128](0, "0".u128())
     h.assert_eq[U128](123, "123".u128())
-    h.assert_error(lambda()? => "-10".u128() end, "U128 -10")
-    h.assert_error(lambda()? => "30L".u128() end, "U128 30L")
+    h.assert_error({()? => "-10".u128() }, "U128 -10")
+    h.assert_error({()? => "30L".u128() }, "U128 30L")
 
     h.assert_eq[I128](0, "0".i128())
     h.assert_eq[I128](123, "123".i128())
     h.assert_eq[I128](-10, "-10".i128())
-    h.assert_error(lambda()? => "30L".i128() end, "I128 30L")
+    h.assert_error({()? => "30L".i128() }, "I128 30L")
 
 
 class iso _TestStringLstrip is UnitTest
@@ -933,7 +933,7 @@ class iso _TestArrayInsert is UnitTest
     c.insert(2, "four")
     h.assert_array_eq[String](["one", "three", "four"], c)
 
-    h.assert_error(lambda()? => ["one", "three"].insert(3, "invalid") end)
+    h.assert_error({()? => ["one", "three"].insert(3, "invalid") })
 
 class iso _TestArrayValuesRewind is UnitTest
   """
@@ -975,41 +975,41 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](1, a.find(1))
     h.assert_eq[USize](5, a.find(1 where offset = 3))
     h.assert_eq[USize](5, a.find(1 where nth = 1))
-    h.assert_error(lambda()(a)? => a.find(6) end)
+    h.assert_error({()(a)? => a.find(6) })
     h.assert_eq[USize](2, a.find(1 where
-      predicate = lambda(l: ISize, r: ISize): Bool => l > r end))
+      predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](0, a.find(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end))
+      predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }))
     h.assert_eq[USize](3, a.find(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
-      nth = 1))
-    h.assert_error(lambda()(a)? => a.find(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
-      nth = 2) end)
+      predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 1))
+    h.assert_error({()(a)? =>
+      a.find(0 where
+        predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
+    })
 
     h.assert_eq[USize](5, a.rfind(1))
     h.assert_eq[USize](1, a.rfind(1 where offset = 3))
     h.assert_eq[USize](1, a.rfind(1 where nth = 1))
-    h.assert_error(lambda()(a)? => a.rfind(6) end)
+    h.assert_error({()(a)? => a.rfind(6) })
     h.assert_eq[USize](4, a.rfind(1 where
-      predicate = lambda(l: ISize, r: ISize): Bool => l > r end))
+      predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](3, a.rfind(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end))
+      predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }))
     h.assert_eq[USize](0, a.rfind(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
-      nth = 1))
-    h.assert_error(lambda()(a)? => a.rfind(0 where
-      predicate = lambda(l: ISize, r: ISize): Bool => (l % 3) == r end,
-      nth = 2) end)
+      predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 1))
+    h.assert_error({()(a)? =>
+      a.rfind(0 where
+        predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
+    })
 
     var b = Array[_FindTestCls]
     let c = _FindTestCls
     b.push(c)
-    h.assert_error(lambda()(b)? => b.find(_FindTestCls) end)
+    h.assert_error({()(b)? => b.find(_FindTestCls) })
     h.assert_eq[USize](0, b.find(c))
     h.assert_eq[USize](0, b.find(_FindTestCls where
-      predicate = lambda(l: _FindTestCls box, r: _FindTestCls box): Bool =>
-        l == r end))
+      predicate = {(l: _FindTestCls box, r: _FindTestCls box): Bool => l == r }
+    ))
 
 
 class iso _TestMath128 is UnitTest
@@ -1236,7 +1236,7 @@ class iso _TestMaybePointer is UnitTest
     let a = MaybePointer[_TestStruct].none()
     h.assert_true(a.is_none())
 
-    h.assert_error(lambda()(a)? => let from_a = a() end)
+    h.assert_error({()(a)? => let from_a = a() })
 
     let s = _TestStruct
     s.i = 7

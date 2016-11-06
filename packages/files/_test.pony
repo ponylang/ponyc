@@ -58,7 +58,7 @@ class iso _TestWalk is UnitTest
       h, ["a/1", "a/2", "b", "c/3", "c/4", "d/5", "d/6"])
     try
       top.walk(
-        lambda(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
+        {(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
           if dir.path == p then
             h.assert_array_eq_unordered[String](["b", "c", "a", "d"], entries)
           elseif dir.path.at("a", -1) then
@@ -70,7 +70,7 @@ class iso _TestWalk is UnitTest
           else
             h.fail("Unexpected dir: " + dir.path)
           end
-        end)
+        })
     then
       h.assert_true(top.remove())
     end

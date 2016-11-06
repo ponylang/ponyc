@@ -7,6 +7,10 @@
 #define TEST_ERROR(src) DO(test_error(src, "syntax"))
 #define TEST_COMPILE(src) DO(test_compile(src, "syntax"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "syntax", errs)); }
+
 
 class ParseExprTest : public PassTest
 {};
@@ -90,7 +94,7 @@ TEST_F(ParseExprTest, Lambda)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda() => None end";
+    "    {() => None }";
 
   TEST_COMPILE(src);
 }
@@ -101,7 +105,7 @@ TEST_F(ParseExprTest, LambdaCap)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda iso() => None end";
+    "    {iso() => None }";
 
   TEST_COMPILE(src);
 }
@@ -112,7 +116,7 @@ TEST_F(ParseExprTest, LambdaCaptureVariable)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   TEST_COMPILE(src);
 }
@@ -123,7 +127,7 @@ TEST_F(ParseExprTest, LambdaCaptureExpression)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x = y) => None end";
+    "    {()(x = y) => None }";
 
   TEST_COMPILE(src);
 }
@@ -134,7 +138,7 @@ TEST_F(ParseExprTest, LambdaCaptureExpressionAndType)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x: T = y) => None end";
+    "    {()(x: T = y) => None }";
 
   TEST_COMPILE(src);
 }
@@ -145,9 +149,21 @@ TEST_F(ParseExprTest, LambdaCaptureTypeWithoutExpressionFail)
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x: T) => None end";
+    "    {()(x: T) => None }";
 
   TEST_ERROR(src);
+}
+
+
+TEST_F(ParseExprTest, LambdaOldSyntax)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    lambda() => None end";
+
+  TEST_ERRORS_1(src,
+    "lambda ... end is no longer supported syntax; use {...} for lambdas");
 }
 
 

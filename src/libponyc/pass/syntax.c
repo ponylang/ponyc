@@ -935,9 +935,9 @@ static ast_result_t syntax_compile_error(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_LAMBDA);
-  AST_GET_CHILDREN(ast, cap, name, typeparams, params, captures, type,
-    can_error, body);
-  switch(ast_id(type))
+  AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
+    ret_type, raises, body, reference_cap);
+  switch(ast_id(ret_type))
   {
     case TK_ISO:
     case TK_TRN:
@@ -946,9 +946,9 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     case TK_BOX:
     case TK_TAG:
     {
-      ast_error(opt->check.errors, type, "lambda return type: %s",
-        ast_print_type(type));
-      ast_error_continue(opt->check.errors, type, "lambda return type "
+      ast_error(opt->check.errors, ret_type, "lambda return type: %s",
+        ast_print_type(ret_type));
+      ast_error_continue(opt->check.errors, ret_type, "lambda return type "
         "cannot be capability");
       return AST_ERROR;
     }
@@ -965,6 +965,13 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
       return AST_ERROR;
     }
     capture = ast_sibling(capture);
+  }
+
+  if(ast_id(reference_cap) == TK_QUESTION)
+  {
+    ast_error(opt->check.errors, ast,
+      "lambda ... end is no longer supported syntax; use {...} for lambdas");
+    return AST_ERROR;
   }
 
   return AST_OK;

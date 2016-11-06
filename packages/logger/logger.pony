@@ -67,7 +67,7 @@ actor Main
   new create(env: Env) =>
     let logger = Logger[U64](Fine,
     env.out,
-    lambda(a: U64): String => a.string() end)
+    {(a: U64): String => a.string() })
 
     logger(Error) and logger.log(U64(42))
 ```
@@ -137,7 +137,7 @@ primitive StringLogger
     out: OutStream,
     formatter: LogFormatter = DefaultLogFormatter): Logger[String]
   =>
-    Logger[String](level, out, lambda(s: String): String => s end, formatter)
+    Logger[String](level, out, {(s: String): String => s }, formatter)
 
 interface val LogFormatter
   """

@@ -16,13 +16,13 @@ actor Main
     let bench = PonyBench(env)
 
     // benchmark Fib with different inputs
-    bench[USize]("fib 5", lambda(): USize => Fib(5) end)
-    bench[USize]("fib 10", lambda(): USize => Fib(10) end)
-    bench[USize]("fib 20", lambda(): USize => Fib(20) end)
-    bench[USize]("fib 40", lambda(): USize => Fib(40) end)
+    bench[USize]("fib 5", {(): USize => Fib(5) })
+    bench[USize]("fib 10", {(): USize => Fib(10) })
+    bench[USize]("fib 20", {(): USize => Fib(20) })
+    bench[USize]("fib 40", {(): USize => Fib(40) })
 
     // show what happens when a benchmark fails
-    bench[String]("fail", lambda(): String ? => error end)
+    bench[String]("fail", {(): String ? => error })
 
     // async benchmark
     bench.async[USize]("async", object iso
@@ -39,8 +39,8 @@ actor Main
     end, 1_000_000)
 
     // benchmarks with set ops
-    bench[USize]("add", lambda(): USize => 1 + 2 end, 10_000_000)
-    bench[USize]("sub", lambda(): USize => 2 - 1 end, 10_000_000)
+    bench[USize]("add", {(): USize => 1 + 2 }, 10_000_000)
+    bench[USize]("sub", {(): USize => 2 - 1 }, 10_000_000)
 
 primitive Fib
   fun apply(n: USize): USize =>
@@ -86,13 +86,9 @@ actor PonyBench
     """
     let bf = recover val
       if ops == 0 then
-        lambda()(notify = this, name, f) =>
-          _AutoBench[A](notify, name, f)()
-        end
+        {()(notify = this, name, f) => _AutoBench[A](notify, name, f)() }
       else
-        lambda()(notify = this, name, f, ops) =>
-          _Bench[A](notify)(name, f, ops)
-        end
+        {()(notify = this, name, f, ops) => _Bench[A](notify)(name, f, ops) }
       end
     end
     _bs.push((name, bf, ""))
@@ -127,12 +123,7 @@ actor PonyBench
       ts(consume t)
       try
         let p = f()
-        p.next[A](recover
-          lambda(a: A)(ts, tt): A =>
-            ts.cancel(tt)
-            a
-          end
-        end)
+        p.next[A]({(a: A)(ts, tt): A => ts.cancel(tt); a } iso)
       else
         _failure(name)
       end
@@ -140,13 +131,13 @@ actor PonyBench
 
     let bf = recover val
       if ops == 0 then
-        lambda()(notify = this, name, f) =>
+        {()(notify = this, name, f) =>
           _AutoBench[A](notify, name, f)()
-        end
+        }
       else
-        lambda()(notify = this, name, f, ops) =>
+        {()(notify = this, name, f, ops) =>
           _BenchAsync[A](notify)(name, f, ops)
-        end
+        }
       end
     end
     _bs.push((name, bf, ""))

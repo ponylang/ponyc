@@ -40,13 +40,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 2, 4, 6].values())
-      .all(lambda(x: I64): Bool => (x % 2) == 0 end)
+      .all({(x: I64): Bool => (x % 2) == 0 })
     ```
     `true`
 
     ```pony
     Iter[I64]([as I64: 2, 3, 4].values())
-      .all(lambda(x: I64): Bool => (x % 2) == 0 end)
+      .all({(x: I64): Bool => (x % 2) == 0 })
     ```
     `false`
     """
@@ -67,13 +67,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 2, 4, 6].values())
-      .any(lambda(x: I64): Bool => (x % 2) == 1 end)
+      .any({(x: I64): Bool => (x % 2) == 1 })
     ```
     `false`
 
     ```pony
     Iter[I64]([as I64: 2, 3, 4].values())
-      .any(lambda(x: I64): Bool => (x % 2) == 1 end)
+      .any({(x: I64): Bool => (x % 2) == 1 })
     ```
     `true`
     """
@@ -195,7 +195,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3, 4, 5, 6].values())
-      .filter(lambda(x: I64): Bool => (x % 2) == 0 end)
+      .filter({(x: I64): Bool => (x % 2) == 0 })
     ```
     `2 4 6`
     """
@@ -254,13 +254,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .find(lambda(x: I64): Bool => (x % 2) == 0 end)
+      .find({(x: I64): Bool => (x % 2) == 0 })
     ```
     `2`
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3, 4].values())
-      .find(lambda(x: I64): Bool => (x % 2) == 0 end, 2)
+      .find({(x: I64): Bool => (x % 2) == 0 }, 2)
     ```
     `4`
     """
@@ -284,7 +284,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .fold[I64](lambda(x: I64, sum: I64): I64 => sum + x end, 0)
+      .fold[I64]({(x: I64, sum: I64): I64 => sum + x }, 0)
     ```
     `6`
     """
@@ -320,7 +320,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .map[I64](lambda(x: I64): I64 => x * x end)
+      .map[I64]({(x: I64): I64 => x * x })
     ```
     `1 4 9`
     """
@@ -362,7 +362,7 @@ class Iter[A] is Iterator[A]
     end
     _iter.next()
 
-  fun ref run(on_error: {()} box = lambda() => None end) =>
+  fun ref run(on_error: {()} box = {() => None }) =>
     """
     Iterate through the values of the iterator without a for loop. The
     function `on_error` will be called if the iterator's `has_next` method
@@ -372,7 +372,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .map[None](lambda(x: I64)(env) => env.out.print(x.string()) end)
+      .map[None]({(x: I64)(env) => env.out.print(x.string()) })
       .run()
     ```
     ```
@@ -418,7 +418,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3, 4, 5, 6].values())
-      .skip_while(lambda(x: I64): Bool => x < 4 end)
+      .skip_while({(x: I64): Bool => x < 4 })
     ```
     `4 5 6`
     """
@@ -478,7 +478,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3, 4, 5, 6].values())
-      .take_while(lambda(x: I64): Bool => x < 4 end)
+      .take_while({(x: I64): Bool => x < 4 })
     ```
     `1 2 3`
     """

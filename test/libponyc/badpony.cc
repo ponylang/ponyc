@@ -126,7 +126,7 @@ TEST_F(BadPonyTest, InvalidLambdaReturnType)
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    lambda (): tag => this end\n";
+    "    {(): tag => this }\n";
 
   TEST_ERRORS_1(src, "lambda return type: tag");
 }
@@ -161,7 +161,7 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x) => None end\n"
+    "    {()(x) => None }\n"
     "    let x = 0";
 
    TEST_ERRORS_1(src, "declaration of 'x' appears after use");

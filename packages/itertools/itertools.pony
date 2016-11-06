@@ -19,9 +19,9 @@ any odd numbers, and prints the rest.
 
 ```pony
 let xs = Iter[I64]([as I64: 1, 2, 3, 4, 5].values())
-  .map[I64](lambda(x: I64): I64 => x + 1 end)
-  .filter(lambda(x: I64): Bool => (x % 2) == 0 end)
-  .map[None](lambda(x: I64)(env) => env.out.print(x.string()) end)
+  .map[I64]({(x: I64): I64 => x + 1 })
+  .filter({(x: I64): Bool => (x % 2) == 0 })
+  .map[None]({(x: I64)(env) => env.out.print(x.string()) })
 ```
 
 This will result in an iterator that prints the numbers 2, 4, and 6. However,
@@ -41,9 +41,9 @@ for a loop. So the final code would be as follows:
 
 ```pony
 Iter[I64]([as I64: 1, 2, 3, 4, 5].values())
-  .map[I64](lambda(x: I64): I64 => x + 1 end)
-  .filter(lambda(x: I64): Bool => (x % 2) == 0 end)
-  .map[None](lambda(x: I64)(env) => env.out.print(x.string()) end)
+  .map[I64]({(x: I64): I64 => x + 1 })
+  .filter({(x: I64): Bool => (x % 2) == 0 })
+  .map[None]({(x: I64)(env) => env.out.print(x.string()) })
   .run()
 ```
 
