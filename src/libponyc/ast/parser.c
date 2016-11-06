@@ -347,6 +347,7 @@ DEF(oldlambda);
 // LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
 // [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE [CAP]
 DEF(lambda);
+  PRINT_INLINE();
   AST_NODE(TK_LAMBDA);
   SKIP(NULL, TK_LBRACE);
   OPT RULE("receiver capability", cap);
