@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Changed lambda literal syntax to be more concise (issue #1391) (PR #1400)
 ## [0.8.0] - 2016-10-27
 
 ### Fixed
