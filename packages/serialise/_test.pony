@@ -205,15 +205,13 @@ class iso _TestFailures is UnitTest
     let ambient = h.env.root as AmbientAuth
     let serialise = SerialiseAuth(ambient)
 
-    h.assert_error(
-      lambda()(serialise)? =>
-        Serialised(serialise, _HasPointer)
-      end)
+    h.assert_error({()(serialise)? =>
+      Serialised(serialise, _HasPointer)
+    })
 
-    h.assert_error(
-      lambda()(serialise)? =>
-        Serialised(serialise, _HasActor)
-      end)
+    h.assert_error({()(serialise)? =>
+      Serialised(serialise, _HasActor)
+    })
 
 class _BoxedWord
   var f: Any val = U32(3)

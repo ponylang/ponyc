@@ -140,20 +140,18 @@ class iso _TestIGlob is UnitTest
   fun apply(h: TestHelper) ? =>
     let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
     try
-      Glob.iglob(
-        top, "*/1",
-        lambda(f: FilePath, matches: Array[String])(top, h) =>
-          try
-            match matches(0)
-            | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
-            | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
-            else
-              error
-            end
+      Glob.iglob(top, "*/1", {(f: FilePath, matches: Array[String])(top, h) =>
+        try
+          match matches(0)
+          | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
+          | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
           else
-              h.fail("Unexpected match: " + f.path)
+            error
           end
-        end)
+        else
+            h.fail("Unexpected match: " + f.path)
+        end
+      })
     then
       h.assert_true(top.remove())
     end

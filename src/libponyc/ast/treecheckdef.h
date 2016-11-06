@@ -330,14 +330,15 @@ RULE(try_expr,
 
 RULE(lambda,
   HAS_TYPE(type)
-  CHILD(cap, none)
+  CHILD(cap, none) // Receiver cap
   CHILD(id, none)
   CHILD(type_params, none)
   CHILD(params, none)
   CHILD(lambda_captures, none)
   CHILD(type, none) // Return
   CHILD(question, none)
-  CHILD(rawseq),
+  CHILD(rawseq)
+  CHILD(cap, none, question), // Type reference cap (? indicates old syntax)
   TK_LAMBDA);
 
 RULE(lambda_captures, ONE_OR_MORE(lambda_capture), TK_LAMBDACAPTURES);

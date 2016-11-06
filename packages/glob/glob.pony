@@ -149,9 +149,9 @@ primitive Glob
     let res = recover ref Array[FilePath] end
     iglob(
       root_path, pattern,
-      lambda ref(path: FilePath, match_groups: Array[String])(res) =>
+      {ref(path: FilePath, match_groups: Array[String])(res) =>
         res.push(path)
-      end)
+      })
     res
 
   fun _apply_glob_to_walk(

@@ -2709,7 +2709,7 @@ TEST_F(SugarTest, AsOperatorWithLambdaType)
   const char* short_form =
     "class Foo\n"
       "new create() =>\n"
-        "let x = lambda():U32 => 0 end\n"
+        "let x = {():U32 => 0 }\n"
         "try x as {():U32} val end";
 
   TEST_COMPILE(short_form);

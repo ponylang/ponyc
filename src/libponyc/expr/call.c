@@ -523,7 +523,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
    *
    * Partial call is converted to:
    * ```pony
-   * lambda(b: B = b_default)($0 = recv, a = foo): R => $0.f[T2](a, consume b)
+   * {(b: B = b_default)($0 = recv, a = foo): R => $0.f[T2](a, consume b) }
    * ```
    */
 
@@ -675,7 +675,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
         NODE(TK_CALL,
           TREE(lambda_call_args)
           NONE  // Named args.
-          TREE(call_receiver)))));
+          TREE(call_receiver)))
+      NONE)); // Lambda reference capability.
 
   // Need to preserve various lambda children.
   ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.

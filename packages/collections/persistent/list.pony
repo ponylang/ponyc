@@ -21,7 +21,7 @@ h.assert_eq[U32](l4_head, 1)
 h.assert_true(Lists[U32].eq(l4, Lists[U32]([1, 2, 3])))
 h.assert_true(Lists[U32].eq(l4_tail, Lists[U32]([2, 3])))
 
-let doubled = l4.map[U32](lambda(x: U32): U32 => x * 2 end)
+let doubled = l4.map[U32]({(x: U32): U32 => x * 2 })
 
 h.assert_true(Lists[U32].eq(doubled, Lists[U32]([2, 4, 6])))
 

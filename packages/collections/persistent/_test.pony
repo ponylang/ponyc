@@ -75,11 +75,11 @@ class iso _TestListApply is UnitTest
     h.assert_eq[U32](l1(0), 1)
     h.assert_eq[U32](l1(1), 2)
     h.assert_eq[U32](l1(2), 3)
-    h.assert_error(lambda()(l1)? => l1(3) end)
-    h.assert_error(lambda()(l1)? => l1(4) end)
+    h.assert_error({()(l1)? => l1(3) })
+    h.assert_error({()(l1)? => l1(4) })
 
     let l2 = Lists[U32].empty()
-    h.assert_error(lambda()(l2)? => l2(0) end)
+    h.assert_error({()(l2)? => l2(0) })
 
 class iso _TestListValues is UnitTest
   fun name(): String => "collections/persistent/List/values()"
@@ -125,7 +125,7 @@ class iso _TestListMap is UnitTest
   fun name(): String => "collections/persistent/Lists/map()"
 
   fun apply(h: TestHelper) ? =>
-    let l5 = Lists[U32]([1, 2, 3]).map[U32](lambda(x: U32): U32 => x * 2 end)
+    let l5 = Lists[U32]([1, 2, 3]).map[U32]({(x: U32): U32 => x * 2 })
     h.assert_true(Lists[U32].eq(l5, Lists[U32]([2,4,6])))
 
     true
@@ -134,7 +134,7 @@ class iso _TestListFlatMap is UnitTest
   fun name(): String => "collections/persistent/Lists/flat_map()"
 
   fun apply(h: TestHelper) ? =>
-    let f = lambda(x: U32): List[U32] => Lists[U32]([x - 1, x, x + 1]) end
+    let f = {(x: U32): List[U32] => Lists[U32]([x - 1, x, x + 1]) }
     let l6 = Lists[U32]([2, 5, 8]).flat_map[U32](f)
     h.assert_true(Lists[U32].eq(l6, Lists[U32]([1,2,3,4,5,6,7,8,9])))
 
@@ -144,7 +144,7 @@ class iso _TestListFilter is UnitTest
   fun name(): String => "collections/persistent/Lists/filter()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
+    let is_even = {(x: U32): Bool => (x % 2) == 0 }
     let l7 = Lists[U32]([1,2,3,4,5,6,7,8]).filter(is_even)
     h.assert_true(Lists[U32].eq(l7, Lists[U32]([2,4,6,8])))
 
@@ -154,12 +154,12 @@ class iso _TestListFold is UnitTest
   fun name(): String => "collections/persistent/Lists/fold()"
 
   fun apply(h: TestHelper) ? =>
-    let add = lambda(acc: U32, x: U32): U32 => acc + x end
+    let add = {(acc: U32, x: U32): U32 => acc + x }
     let value = Lists[U32]([1,2,3]).fold[U32](add, 0)
     h.assert_eq[U32](value, 6)
 
     let doubleAndPrepend =
-      lambda(acc: List[U32], x: U32): List[U32] => acc.prepend(x * 2) end
+      {(acc: List[U32], x: U32): List[U32] => acc.prepend(x * 2) }
     let l8 =
       Lists[U32]([1,2,3]).fold[List[U32]](doubleAndPrepend, Lists[U32].empty())
     h.assert_true(Lists[U32].eq(l8, Lists[U32]([6,4,2])))
@@ -170,7 +170,7 @@ class iso _TestListEveryExists is UnitTest
   fun name(): String => "collections/persistent/Lists/every()exists()"
 
   fun apply(h: TestHelper) =>
-    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
+    let is_even = {(x: U32): Bool => (x % 2) == 0 }
     let l9 = Lists[U32]([4,2,10])
     let l10 = Lists[U32]([1,1,3])
     let l11 = Lists[U32]([1,1,2])
@@ -193,7 +193,7 @@ class iso _TestListPartition is UnitTest
   fun name(): String => "collections/persistent/Lists/partition()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
+    let is_even = {(x: U32): Bool => (x % 2) == 0 }
     let l = Lists[U32]([1,2,3,4,5,6])
     (let hits, let misses) = l.partition(is_even)
     h.assert_true(Lists[U32].eq(hits, Lists[U32]([2,4,6])))
@@ -217,7 +217,7 @@ class iso _TestListDropWhile is UnitTest
   fun name(): String => "collections/persistent/List/drop_while()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
+    let is_even = {(x: U32): Bool => (x % 2) == 0 }
     let l = Lists[U32]([4,2,6,1,3,4,6])
     let empty = Lists[U32].empty()
     h.assert_true(Lists[U32].eq(l.drop_while(is_even), Lists[U32]([1,3,4,6])))
@@ -240,7 +240,7 @@ class iso _TestListTakeWhile is UnitTest
   fun name(): String => "collections/persistent/List/take_while()"
 
   fun apply(h: TestHelper) ? =>
-    let is_even = lambda(x: U32): Bool => (x % 2) == 0 end
+    let is_even = {(x: U32): Bool => (x % 2) == 0 }
     let l = Lists[U32]([4,2,6,1,3,4,6])
     let empty = Lists[U32].empty()
     h.assert_true(Lists[U32].eq(l.take_while(is_even), Lists[U32]([4,2,6])))
@@ -253,7 +253,7 @@ class iso _TestMap is UnitTest
 
   fun apply(h: TestHelper) =>
     let m1: Map[String,U32] = Maps.empty[String,U32]()
-    h.assert_error(lambda()(m1)? => m1("a") end)
+    h.assert_error({()(m1)? => m1("a") })
     let s1 = m1.size()
     h.assert_eq[USize](s1, 0)
 
@@ -281,17 +281,17 @@ class iso _TestMap is UnitTest
       h.assert_eq[U32](m7("b"), 3)
       h.assert_eq[U32](m7("a"), 10)
       let m8 = m7.remove("a")
-      h.assert_error(lambda()(m8 = m8)? => m8("a") end)
+      h.assert_error({()(m8 = m8)? => m8("a") })
       h.assert_eq[U32](m8("b"), 3)
       h.assert_eq[U32](m8("d"), 4)
       h.assert_eq[U32](m8("e"), 5)
       let m9 = m7.remove("e")
-      h.assert_error(lambda()(m9 = m9)? => m9("e") end)
+      h.assert_error({()(m9 = m9)? => m9("e") })
       h.assert_eq[U32](m9("b"), 3)
       h.assert_eq[U32](m9("d"), 4)
       let m10 = m9.remove("b").remove("d")
-      h.assert_error(lambda()(m10 = m10)? => m10("b") end)
-      h.assert_error(lambda()(m10 = m10)? => m10("d") end)
+      h.assert_error({()(m10 = m10)? => m10("b") })
+      h.assert_error({()(m10 = m10)? => m10("d") })
     else
       h.complete(false)
     end

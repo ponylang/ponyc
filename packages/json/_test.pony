@@ -41,9 +41,9 @@ class iso _TestParseBasic is UnitTest
     doc.parse(" true   ")
     h.assert_eq[Bool](true, doc.data as Bool)
 
-    h.assert_error(lambda()? => JsonDoc.parse("") end)
-    h.assert_error(lambda()? => JsonDoc.parse("   ") end)
-    h.assert_error(lambda()? => JsonDoc.parse("true true") end)
+    h.assert_error({()? => JsonDoc.parse("") })
+    h.assert_error({()? => JsonDoc.parse("   ") })
+    h.assert_error({()? => JsonDoc.parse("true true") })
 
 class iso _TestParseKeyword is UnitTest
   """
@@ -63,10 +63,10 @@ class iso _TestParseKeyword is UnitTest
     doc.parse("null")
     h.assert_eq[None](None, doc.data as None)
 
-    h.assert_error(lambda()? => JsonDoc.parse("tru e") end)
-    h.assert_error(lambda()? => JsonDoc.parse("truw") end)
-    h.assert_error(lambda()? => JsonDoc.parse("truez") end)
-    h.assert_error(lambda()? => JsonDoc.parse("TRUE") end)
+    h.assert_error({()? => JsonDoc.parse("tru e") })
+    h.assert_error({()? => JsonDoc.parse("truw") })
+    h.assert_error({()? => JsonDoc.parse("truez") })
+    h.assert_error({()? => JsonDoc.parse("TRUE") })
 
 class iso _TestParseNumber is UnitTest
   """
@@ -104,11 +104,11 @@ class iso _TestParseNumber is UnitTest
     doc.parse("1.23e3")
     h.assert_eq[F64](1230, doc.data as F64)
 
-    h.assert_error(lambda()? => JsonDoc.parse("0x4") end)
-    h.assert_error(lambda()? => JsonDoc.parse("+1") end)
-    h.assert_error(lambda()? => JsonDoc.parse("1.") end)
-    h.assert_error(lambda()? => JsonDoc.parse("1.-3") end)
-    h.assert_error(lambda()? => JsonDoc.parse("1e") end)
+    h.assert_error({()? => JsonDoc.parse("0x4") })
+    h.assert_error({()? => JsonDoc.parse("+1") })
+    h.assert_error({()? => JsonDoc.parse("1.") })
+    h.assert_error({()? => JsonDoc.parse("1.-3") })
+    h.assert_error({()? => JsonDoc.parse("1e") })
 
 class iso _TestParseString is UnitTest
   """
@@ -143,13 +143,13 @@ class iso _TestParseString is UnitTest
     doc.parse(""" "Foo\uD834\uDD1Ebar" """)
     h.assert_eq[String]("Foo\U01D11Ebar", doc.data as String)
 
-    h.assert_error(lambda()? => JsonDoc.parse(""" "Foo """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "Foo\z" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "\u" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "\u37" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "\u037g" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "\uD834" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse(""" "\uDD1E" """) end)
+    h.assert_error({()? => JsonDoc.parse(""" "Foo """) })
+    h.assert_error({()? => JsonDoc.parse(""" "Foo\z" """) })
+    h.assert_error({()? => JsonDoc.parse(""" "\u" """) })
+    h.assert_error({()? => JsonDoc.parse(""" "\u37" """) })
+    h.assert_error({()? => JsonDoc.parse(""" "\u037g" """) })
+    h.assert_error({()? => JsonDoc.parse(""" "\uD834" """) })
+    h.assert_error({()? => JsonDoc.parse(""" "\uDD1E" """) })
 
 class iso _TestParseArray is UnitTest
   """
@@ -195,13 +195,13 @@ class iso _TestParseArray is UnitTest
     h.assert_eq[None](None,
       ((doc.data as JsonArray).data(1) as JsonArray).data(1) as None)
 
-    h.assert_error(lambda()? => JsonDoc.parse("[true true]") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[,]") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[true,]") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[,true]") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[true") end)
-    h.assert_error(lambda()? => JsonDoc.parse("[true,") end)
+    h.assert_error({()? => JsonDoc.parse("[true true]") })
+    h.assert_error({()? => JsonDoc.parse("[,]") })
+    h.assert_error({()? => JsonDoc.parse("[true,]") })
+    h.assert_error({()? => JsonDoc.parse("[,true]") })
+    h.assert_error({()? => JsonDoc.parse("[") })
+    h.assert_error({()? => JsonDoc.parse("[true") })
+    h.assert_error({()? => JsonDoc.parse("[true,") })
 
 class iso _TestParseObject is UnitTest
   """
@@ -247,17 +247,17 @@ class iso _TestParseObject is UnitTest
     h.assert_eq[None](None,
       ((doc.data as JsonObject).data("b") as JsonObject).data("d") as None)
 
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a": 1 "b": 2}""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("{,}") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a": true,}""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{,"a": true}""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a" """) end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a": """) end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a": true""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a": true,""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{"a" true}""") end)
-    h.assert_error(lambda()? => JsonDoc.parse("""{:true}""") end)
+    h.assert_error({()? => JsonDoc.parse("""{"a": 1 "b": 2}""") })
+    h.assert_error({()? => JsonDoc.parse("{,}") })
+    h.assert_error({()? => JsonDoc.parse("""{"a": true,}""") })
+    h.assert_error({()? => JsonDoc.parse("""{,"a": true}""") })
+    h.assert_error({()? => JsonDoc.parse("""{""") })
+    h.assert_error({()? => JsonDoc.parse("""{"a" """) })
+    h.assert_error({()? => JsonDoc.parse("""{"a": """) })
+    h.assert_error({()? => JsonDoc.parse("""{"a": true""") })
+    h.assert_error({()? => JsonDoc.parse("""{"a": true,""") })
+    h.assert_error({()? => JsonDoc.parse("""{"a" true}""") })
+    h.assert_error({()? => JsonDoc.parse("""{:true}""") })
 
 class iso _TestParseRFC1 is UnitTest
   """

@@ -31,12 +31,9 @@ class iso _TestRegistrar is UnitTest
     let r = Registrar
     r("test") = _TestDisposable(h)
 
-    r[_TestDisposable]("test").next[None](
-      recover
-        lambda(value: _TestDisposable)(h) =>
-          value.dispose()
-        end
-      end)
+    r[_TestDisposable]("test").next[None]({(value: _TestDisposable)(h) =>
+      value.dispose()
+    } iso)
 
 actor _TestDisposable
   let _h: TestHelper

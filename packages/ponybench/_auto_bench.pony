@@ -14,16 +14,14 @@ actor _AutoBench[A: Any #share]
     max_ops: U64 = 100_000_000
   ) =>
     _notify = notify
-    _run = recover
-      lambda(ops: U64)(notify = this, name, f) =>
-        match f
-        | let fn: {(): A ?} val =>
-          _Bench[A](notify)(name, fn, ops)
-        | let fn: {(): Promise[A] ?} val =>
-          _BenchAsync[A](notify)(name, fn, ops)
-        end
+    _run = {(ops: U64)(notify = this, name, f) =>
+      match f
+      | let fn: {(): A ?} val =>
+        _Bench[A](notify)(name, fn, ops)
+      | let fn: {(): Promise[A] ?} val =>
+        _BenchAsync[A](notify)(name, fn, ops)
       end
-    end
+    } val
     _auto_ops = _AutoOps(bench_time, max_ops)
 
   be apply(ops: U64 = 1) => _run(ops)
