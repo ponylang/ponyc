@@ -89,7 +89,7 @@ static bool check_type_params(pass_opt_t* opt, ast_t** astp)
   if(ast_id(typeparams) == TK_NONE)
     return true;
 
-  BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
+  BUILD(typeargs, ast_parent(lhs), NODE(TK_TYPEARGS));
 
   if(!reify_defaults(typeparams, typeargs, true, opt))
   {
