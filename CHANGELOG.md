@@ -14,11 +14,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - Output of `ponyc --version` shows C compiler used to build pony (issue #1245)
 - Makefile detects `llvmconfig39` in addition to `llvm-config-3.9` (#1379)
 
-### Added
-
 ### Changed
 
 - Changed lambda literal syntax to be more concise (issue #1391) (PR #1400)
+
 ## [0.8.0] - 2016-10-27
 
 ### Fixed
