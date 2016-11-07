@@ -102,6 +102,22 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
       return constructor_type(opt, ast, cap, right, resultp);
     }
 
+    case TK_UNIONTYPE:
+    {
+      ast_error(opt->check.errors, ast,
+        "can't call a constructor on a type union: %s",
+        ast_print_type(type));
+      return false;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_error(opt->check.errors, ast,
+        "can't call a constructor on a type intersection: %s",
+        ast_print_type(type));
+      return false;
+    }
+
     default: {}
   }
 

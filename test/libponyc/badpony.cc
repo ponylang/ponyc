@@ -293,3 +293,18 @@ TEST_F(BadPonyTest, CircularTypeInfer)
   TEST_ERRORS_2(src, "cannot infer type of x",
                      "cannot infer type of y");
 }
+
+TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)
+{
+  // From issue #1398
+  const char* src =
+    "interface Foo\n"
+
+    "type Isect is (None & Foo)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Isect.create()";
+
+  TEST_ERRORS_1(src, "can't call a constructor on a type intersection");
+}
