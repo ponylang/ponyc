@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
 - Fix compiler assert fail on circular type inference error (issue #1334) (PR #1339)
 
 ### Added
