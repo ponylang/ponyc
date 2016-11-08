@@ -29,6 +29,8 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data);
 
 void* ponyint_mpmcq_pop(mpmcq_t* q);
 
+void* ponyint_mpmcq_pop_bailout_immediate(mpmcq_t* q);
+
 PONY_EXTERN_C_END
 
 #endif

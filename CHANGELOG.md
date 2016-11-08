@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fixed error message when no type arguments are given (issue #1396) (PR #1397)
 - Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
 - Fix compiler assert fail on circular type inference error (issue #1334) (PR #1339)
+- Performance problem in the scheduler queue when running with many threads (issue #1404)
 
 ### Added
 
