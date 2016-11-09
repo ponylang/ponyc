@@ -60,6 +60,8 @@ static const lextoken_t symbols[] =
   { "<=", TK_LE },
   { ">=", TK_GE },
 
+  { ".>", TK_CHAIN },
+
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
@@ -278,6 +280,8 @@ static const lextoken_t abstract[] =
   { "newapp", TK_NEWAPP },
   { "beapp", TK_BEAPP },
   { "funapp", TK_FUNAPP },
+  { "bechain", TK_BECHAIN },
+  { "funchain", TK_FUNCHAIN },
 
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}

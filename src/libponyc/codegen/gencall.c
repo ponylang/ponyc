@@ -489,6 +489,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
       typeargs = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
@@ -600,6 +602,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
       case TK_BEREF:
       case TK_FUNREF:
+      case TK_BECHAIN:
+      case TK_FUNCHAIN:
         args[0] = gen_expr(c, receiver);
         break;
 
@@ -698,6 +702,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Class constructors return void, expression result is the receiver.
   if(((ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF)) &&
      (t->underlying == TK_CLASS))
+    r = args[0];
+
+  // Chained methods forward their receiver.
+  if((ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN))
     r = args[0];
 
   ponyint_pool_free_size(buf_size, args);
