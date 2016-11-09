@@ -662,6 +662,7 @@ test-examples: all
 	@rm examples1
 
 test-ci: all
+	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
