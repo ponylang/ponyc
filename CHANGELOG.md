@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Stop leaking memory during serialization (issue #1413) (PR #1414)
 - Fixed compiler segmentation fault when given an invalid target triple. (PR #1406)
 - Fixed error message when no type arguments are given (issue #1396) (PR #1397)
 - Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
