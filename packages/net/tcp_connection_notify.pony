@@ -98,4 +98,3 @@ interface TCPConnectionNotify
     `write` and `writev` again.
     """
     None
-
