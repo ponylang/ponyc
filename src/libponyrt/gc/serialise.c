@@ -164,7 +164,7 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   ponyint_array_t* r = (ponyint_array_t*)out;
   r->size = ctx->serialise_size;
   r->alloc = r->size;
-  r->ptr = (char*)ponyint_pool_alloc_size(r->size);
+  r->ptr = (char*)pony_alloc(ctx, r->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
