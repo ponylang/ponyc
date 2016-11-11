@@ -13,7 +13,7 @@ class MapFn[A, B] is Iterator[B]
 
   actor Main
     new create(env: Env) =>
-      let fn = lambda (s: String): I32 => try s.i32() * 2 else 0 end end
+      let fn = {(s: String): I32 => try s.i32() * 2 else 0 end }
       for x in MapFn[String, I32](env.args.slice(1).values(), fn) do
         env.out.print(x.string())
       end

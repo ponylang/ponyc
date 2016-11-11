@@ -675,9 +675,6 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_t* type = ast_type(def);
 
-      if(is_typecheck_error(type))
-        return false;
-
       if(type != NULL && ast_id(type) == TK_INFERTYPE)
       {
         ast_error(opt->check.errors, ast, "cannot infer type of %s\n",
@@ -686,6 +683,9 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
         ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
         return false;
       }
+
+      if(is_typecheck_error(type))
+        return false;
 
       if(!valid_reference(opt, ast, type, status))
         return false;

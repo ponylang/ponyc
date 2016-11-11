@@ -77,7 +77,7 @@ class _TestObjectLogging is _LoggerTest[U64]
   =>
     Logger[U64](level',
       stream',
-      lambda(a: U64): String => a.string() end,
+      {(a: U64): String => a.string() },
       formatter')
 
   fun level(): LogLevel => Fine

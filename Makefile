@@ -98,6 +98,7 @@ AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
   -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DBUILD_COMPILER=\"$(compiler_version)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
@@ -186,6 +187,10 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-3.6
     LLVM_LINK = llvm-link-3.6
     LLVM_OPT = opt-3.6
+  else ifneq (,$(shell which llvm-config39 2> /dev/null))
+    LLVM_CONFIG = llvm-config39
+    LLVM_LINK = llvm-link39
+    LLVM_OPT = opt39
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
     LLVM_LINK = llvm-link38
@@ -214,6 +219,17 @@ ifndef LLVM_CONFIG
 endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
+
+ifeq ($(llvm_version),3.6.2)
+else ifeq ($(llvm_version),3.7.1)
+else ifeq ($(llvm_version),3.8.1)
+else ifeq ($(llvm_version),3.9.0)
+else
+  $(warning WARNING: Unsupported LLVM version: $(llvm_version))
+  $(warning Please use LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0)
+endif
+
+compiler_version := "$(shell $(CC) --version | sed -n 1p)"
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
@@ -575,7 +591,11 @@ $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 
 define EXPAND_INSTALL
+ifeq ($(OSTYPE),linux)
+install: libponyc libponyrt libponyrt-pic ponyc
+else
 install: libponyc libponyrt ponyc
+endif
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
@@ -642,6 +662,7 @@ test-examples: all
 	@rm examples1
 
 test-ci: all
+	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib

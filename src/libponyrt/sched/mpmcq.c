@@ -103,3 +103,16 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   POOL_FREE(mpmcq_node_t, tail);
   return data;
 }
+
+void* ponyint_mpmcq_pop_bailout_immediate(mpmcq_t* q)
+{
+  mpmcq_node_t* head = atomic_load_explicit(&q->head, memory_order_relaxed);
+  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+
+  // If we believe the queue is empty, bailout immediately without taking a
+  // ticket to avoid unnecessary contention.
+  if(head == tail)
+    return NULL;
+
+  return ponyint_mpmcq_pop(q);
+}

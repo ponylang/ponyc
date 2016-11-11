@@ -14,24 +14,24 @@ static void type_append(printbuf_t* buf, ast_t* type, bool first)
   {
     case TK_UNIONTYPE:
     {
-      // 3u_Arg1_Arg2_Arg3
-      printbuf(buf, "%du", ast_childcount(type));
+      // u3_Arg1_Arg2_Arg3
+      printbuf(buf, "u%d", ast_childcount(type));
       types_append(buf, type);
       return;
     }
 
     case TK_ISECTTYPE:
     {
-      // 3i_Arg1_Arg2_Arg3
-      printbuf(buf, "%di", ast_childcount(type));
+      // i3_Arg1_Arg2_Arg3
+      printbuf(buf, "i%d", ast_childcount(type));
       types_append(buf, type);
       return;
     }
 
     case TK_TUPLETYPE:
     {
-      // 3t_Arg1_Arg2_Arg3
-      printbuf(buf, "%dt", ast_childcount(type));
+      // t3_Arg1_Arg2_Arg3
+      printbuf(buf, "t%d", ast_childcount(type));
       types_append(buf, type);
       return;
     }

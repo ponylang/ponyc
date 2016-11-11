@@ -322,10 +322,10 @@ DEF(lambdacaptures);
 
 // LAMBDA [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
 // [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
-DEF(lambda);
+DEF(oldlambda);
   PRINT_INLINE();
   TOKEN(NULL, TK_LAMBDA);
-  OPT RULE("capability", cap);
+  OPT RULE("receiver capability", cap);
   OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
@@ -337,6 +337,32 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   TERMINATE("lambda expression", TK_END);
+  AST_NODE(TK_QUESTION); // Reference capability - question indicates old syntax
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(7, AST_FLAG_PRESERVE); // Body
+  DONE();
+
+// LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE [CAP]
+DEF(lambda);
+  PRINT_INLINE();
+  AST_NODE(TK_LAMBDA);
+  SKIP(NULL, TK_LBRACE);
+  OPT RULE("receiver capability", cap);
+  OPT TOKEN("function name", TK_ID);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", params);
+  SKIP(NULL, TK_RPAREN);
+  OPT RULE("captures", lambdacaptures);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_DBLARROW);
+  RULE("lambda body", rawseq);
+  TERMINATE("lambda expression", TK_RBRACE);
+  OPT RULE("reference capability", cap);
   SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
   SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
   SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
@@ -438,13 +464,13 @@ DEF(ffi);
 // ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    ffi, location);
+    oldlambda, ffi, location);
   DONE();
 
 // ref | this | literal | tuple | array | object | lambda | ffi | location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, ffi, location);
+    lambda, oldlambda, ffi, location);
   DONE();
 
 // DOT ID
@@ -458,6 +484,13 @@ DEF(dot);
 DEF(tilde);
   INFIX_BUILD();
   TOKEN(NULL, TK_TILDE);
+  TOKEN("method name", TK_ID);
+  DONE();
+
+// CHAIN ID
+DEF(chain);
+  INFIX_BUILD();
+  TOKEN(NULL, TK_CHAIN);
   TOKEN("method name", TK_ID);
   DONE();
 
@@ -478,16 +511,16 @@ DEF(call);
   TERMINATE("call arguments", TK_RPAREN);
   DONE();
 
-// atom {dot | tilde | qualify | call}
+// atom {dot | tilde | chain | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  SEQ("postfix expression", dot, tilde, qualify, call);
+  SEQ("postfix expression", dot, tilde, chain, qualify, call);
   DONE();
 
-// atom {dot | tilde | qualify | call}
+// atom {dot | tilde | chain | qualify | call}
 DEF(nextpostfix);
   RULE("value", nextatom);
-  SEQ("postfix expression", dot, tilde, qualify, call);
+  SEQ("postfix expression", dot, tilde, chain, qualify, call);
   DONE();
 
 // (VAR | LET | EMBED | $LET) ID [COLON type]

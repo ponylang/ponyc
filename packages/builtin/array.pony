@@ -374,7 +374,7 @@ class Array[A] is Seq[A]
 
   fun find(value: A!, offset: USize = 0, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the beginning of the array,
@@ -403,7 +403,7 @@ class Array[A] is Seq[A]
     error
 
   fun contains(value: A!, predicate: {(box->A!, box->A!): Bool} val =
-    lambda(l: box->A!, r: box->A!): Bool => l is r end): Bool =>
+    {(l: box->A!, r: box->A!): Bool => l is r }): Bool =>
     """
     Returns true if the array contains `value`, false otherwise.
     """
@@ -420,7 +420,7 @@ class Array[A] is Seq[A]
 
   fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the end of the array, starting at

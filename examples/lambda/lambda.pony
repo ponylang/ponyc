@@ -5,15 +5,15 @@ Simple example of creating and calling a lambda function.
 actor Main
   new create(env: Env) =>
     // First let's pass an add function.
-    let x = f(lambda(a: U32, b: U32): U32 => a + b end, 6)
+    let x = f({(a: U32, b: U32): U32 => a + b }, 6)
     env.out.print("Add: " + x.string())
 
     // Now a multiply.
-    let y = f(lambda(a: U32, b: U32): U32 => a * b end, 6)
+    let y = f({(a: U32, b: U32): U32 => a * b }, 6)
     env.out.print("Mult: " + y.string())
 
     // And finally a lambda that raises an error.
-    let z = f(lambda(a: U32, b: U32): U32 ? => error end, 6)
+    let z = f({(a: U32, b: U32): U32 ? => error }, 6)
     env.out.print("Error: " + z.string())
 
   fun f(fn: {(U32, U32): U32 ?} val, x: U32): U32 =>

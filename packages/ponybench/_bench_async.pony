@@ -14,12 +14,7 @@ actor _BenchAsync[A: Any #share]
       let pn = _PromiseNotify(_notify, name, ops)
       for i in Range[U64](0, ops) do
         let p = f()
-        p.next[A](recover
-          lambda(a: A)(pn): A =>
-            pn()
-            a
-          end
-        end)
+        p.next[A]({(a: A)(pn): A => pn(); a } iso)
       end
     else
       _notify._failure(name)

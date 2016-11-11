@@ -62,6 +62,32 @@
     return output
   end
 
+  function build_compiler()
+    local vcver = tonumber(os.getenv("_MSC_FULL_VER"))
+    if vcver == nil then
+      return "?"
+    end
+    local vcmaj = vcver / 10000000
+    local vcmin = (vcver % 10000000) / 1000000
+    local vcbld = vcver % 1000000
+    local vcday = tonumber(os.getenv("_MSC_BUILD"))
+    if vcday == nil then
+      return "?"
+    end
+
+    local osverstr = os.getenv("NTDDI_VERSION")
+    if osverstr == nil then
+      return "?"
+    end
+    local osver = tonumber(string.sub(osverstr, 3), 16)
+    local osmaj = osver / 10000000
+    local osmin = (osver % 10000000) / 100000
+    local osbld = osver % 100000
+
+    return string.format("VC++ %02d.%02d.%d.%d Windows %02d.%02d.%d",
+      vcmaj, vcmin, vcbld, vcday, osmaj, osmin, osbld)
+  end
+
   function testsuite()
     kind "ConsoleApp"
     language "C++"
@@ -95,6 +121,7 @@
       defines "DEBUG"
       defines "PONY_BUILD_CONFIG=\"debug\""
       defines { "LLVM_VERSION=\"".. llvm_version .. "\"" }
+      defines {"BUILD_COMPILER=\"" .. build_compiler() .. "\""}
       flags { "Symbols" }
 
     configuration "Release"
@@ -102,12 +129,14 @@
       objdir "build/release/obj"
       defines "PONY_BUILD_CONFIG=\"release\""
       defines { "LLVM_VERSION=\"" .. llvm_config("--version") .. "\"" }
+      defines {"BUILD_COMPILER=\"" .. build_compiler() .. "\""}
 
     configuration "Profile"
       targetdir "build/profile"
       objdir "build/profile/obj"
       defines "PONY_BUILD_CONFIG=\"profile\""
       defines { "LLVM_VERSION=\"" .. llvm_config("--version") .. "\"" }
+      defines {"BUILD_COMPILER=\"" .. build_compiler() .. "\""}
 
     configuration "Release or Profile"
       defines "NDEBUG"

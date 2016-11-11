@@ -172,6 +172,10 @@ call
   : '(' positional? named? ')'
   ;
 
+chain
+  : '.>' ID
+  ;
+
 tilde
   : '~' ID
   ;
@@ -187,6 +191,7 @@ nextatom
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
+  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
@@ -199,6 +204,7 @@ atom
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' cap? ('is' type)? members 'end'
+  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
@@ -328,6 +334,7 @@ antlr_1
 antlr_2
   : dot
   | tilde
+  | chain
   | typeargs
   | call
   ;
@@ -335,6 +342,7 @@ antlr_2
 antlr_3
   : dot
   | tilde
+  | chain
   | typeargs
   | call
   ;

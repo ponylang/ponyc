@@ -41,12 +41,12 @@ class iso _TestGroups is UnitTest
     let m2 = r("123.")
     h.assert_eq[String](m2(0), "123.")
     h.assert_eq[String](m2(1), "123")
-    h.assert_error(lambda()(m2 = m2)? => m2(2) end)
+    h.assert_error({()(m2 = m2)? => m2(2) })
     h.assert_array_eq[String](m2.groups(), ["123", ""])
 
     let m3 = r(".456")
     h.assert_eq[String](m3(0), ".456")
-    h.assert_error(lambda()(m3 = m3)? => m3(1) end)
+    h.assert_error({()(m3 = m3)? => m3(1) })
     h.assert_eq[String](m3(2), "456")
     h.assert_array_eq[String](m3.groups(), ["", "456"])
 
@@ -80,4 +80,4 @@ class iso _TestError is UnitTest
   fun name(): String => "regex/Regex.create/fails"
 
   fun apply(h: TestHelper) =>
-    h.assert_error(lambda()? => Regex("(\\d+") end)
+    h.assert_error({()? => Regex("(\\d+") })

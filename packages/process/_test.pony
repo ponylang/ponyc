@@ -326,4 +326,3 @@ class _ProcessClient is ProcessNotify
     _h.assert_eq[String box](_err, _d_stderr)
     _h.assert_eq[I32](_exit_code, child_exit_code)
     _h.complete(true)
-

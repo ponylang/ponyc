@@ -2,6 +2,30 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.9.0] - 2016-11-11
+
+### Fixed
+
+- Stop leaking memory during serialization (issue #1413) (PR #1414)
+- Fixed compiler segmentation fault when given an invalid target triple. (PR #1406)
+- Fixed error message when no type arguments are given (issue #1396) (PR #1397)
+- Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
+- Fix compiler assert fail on circular type inference error (issue #1334) (PR #1339)
+- Performance problem in the scheduler queue when running with many threads (issue #1404)
+- Invalid name mangling in generated C headers (issue #1377)
+
+### Added
+
+- Method chaining (RFC #25) (PR #1411)
+- Iter class methods `all`, `any`, `collect`, `count`, `find`, `last`, `nth`, `run`, `skip`, `skip_while`, `take`, `take_while` (issue #1370)
+- Output of `ponyc --version` shows C compiler used to build pony (issue #1245)
+- Makefile detects `llvmconfig39` in addition to `llvm-config-3.9` (#1379)
+- LLVM 3.9 support
+
+### Changed
+
+- Changed lambda literal syntax to be more concise (issue #1391) (PR #1400)
+
 ## [0.8.0] - 2016-10-27
 
 ### Fixed

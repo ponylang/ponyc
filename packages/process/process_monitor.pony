@@ -20,7 +20,7 @@ use "files"
 actor Main
   new create(env: Env) =>
     // create a notifier
-    let client = ProcessClient(_env)
+    let client = ProcessClient(env)
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
     try

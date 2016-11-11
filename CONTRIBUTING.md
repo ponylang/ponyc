@@ -44,7 +44,14 @@ Before issuing a pull request we ask that you squash all your commits into a sin
 
 If you aren't sure how to squash multiple commits into one, Steve Klabnik wrote [a handy guide](http://blog.steveklabnik.com/posts/2012-11-08-how-to-squash-commits-in-a-github-pull-request) that you can refer to.
 
-We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural effects in ponyc. If your PR includes such changes (rather than say a documentation update), please make sure that as part of PR, you have also updated the CHANGELOG. The entries in the CHANGELOG are in time-ascending order, so please add your change description to the bottom of the appropriate section ("Fixed", "Added", or "Changed") of the "unreleased" log.
+We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural effects in ponyc. If your PR includes such changes (rather than say a documentation update), a Pony team member will do the following before merging it, so that the PR will be automatically added to the CHANGELOG:
+
+* Ensure that the ticket is tagged with one or more appropriate "changelog - *" labels - each label corresponds to a section of the changelog where this change will be automatically mentioned.
+* Ensure that the ticket title is appropriate - the title will be used as the summary of the change, so it should be appropriately formatted, including a ticket reference if the PR is a fix to an existing bug ticket.
+  * For example, an appropriate title for a PR that fixes a bug reported in issue ticket #98 might look like:
+  * *Fixed compiler crash related to tuple recovery (issue #98)*
+
+Once those conditions are met, the PR can be merged, and an automated system will immediately add the entry to the changelog. Keeping the changelog entries out of the file changes in the PR helps to avoid conflicts and other administrative headaches when many PRs are in progress.
 
 Documentation Formatting
 ---------------
