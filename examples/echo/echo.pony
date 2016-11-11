@@ -29,7 +29,7 @@ class Listener is TCPListenNotify
     _out.print("couldn't listen")
     listen.close()
 
-  fun ref connected(listen: TCPListener ref) : TCPConnectionNotify iso^ =>
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     Server(_out)
 
 class Server is TCPConnectionNotify

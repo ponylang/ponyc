@@ -17,5 +17,3 @@ actor Consumer
   be consuming(product: Product) =>
     _out.print("**Consumer** Consuming product " + product.id.string())
     _quantity_to_consume = _quantity_to_consume -1
-
-

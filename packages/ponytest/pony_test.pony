@@ -161,7 +161,7 @@ Test can have label. Labels are used to filter which tests are run, by setting
 command line argument `--label=[some custom label]`. It can be used to separate
 unit tests from integration tests.
 
-By default label is empty. You can set it up by overriding `label() : String`
+By default label is empty. You can set it up by overriding `label(): String`
 method in unit test.
 
 ```pony
@@ -170,7 +170,7 @@ use "ponytest"
 class iso _I8AddTest is UnitTest
   fun name(): String => "_I8AddTest"
   fun label(): String => "simple"
-  fun apply(h : TestHelper) =>
+  fun apply(h: TestHelper) =>
     h.assert_eq[I8](1, 1)
 
 ```
@@ -216,7 +216,7 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
-  var _label : String = ""
+  var _label: String = ""
 
   new create(env: Env, list: TestList tag) =>
     """
