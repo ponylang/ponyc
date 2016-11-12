@@ -4,6 +4,10 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 typedef struct mpmcq_node_t mpmcq_node_t;
 
 struct mpmcq_node_t
@@ -41,6 +45,9 @@ void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 
   mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
     memory_order_relaxed);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&prev->next);
+#endif
   atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
@@ -53,6 +60,9 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
   // If we have a single producer, the swap of the head need not be atomic RMW.
   mpmcq_node_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&prev->next);
+#endif
   atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
@@ -66,6 +76,9 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     ponyint_cpu_relax();
 
   atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&q->waiting_for);
+#endif
 
   mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
   // Get the next node rather than the tail. The tail is either a stub or has
@@ -80,10 +93,16 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   }
 
   atomic_store_explicit(&q->tail, next, memory_order_relaxed);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&q->waiting_for);
+#endif
   atomic_store_explicit(&q->waiting_for, my_ticket + 1, memory_order_release);
 
   // Synchronise-with the push.
   atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(next);
+#endif
   
   // We'll return the data pointer from the next node.
   void* data = atomic_load_explicit(&next->data, memory_order_relaxed);
@@ -92,12 +111,19 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // consumer is still reading the old tail. To do this, we set the data
   // pointer of our new tail to NULL, and we wait until the data pointer of
   // the old tail is NULL.
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&next->data);
+#endif
   atomic_store_explicit(&next->data, NULL, memory_order_release);
 
   while(atomic_load_explicit(&tail->data, memory_order_relaxed) != NULL)
     ponyint_cpu_relax();
 
   atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&tail->data);
+  ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
+#endif
 
   // Free the old tail. The new tail is the next node.
   POOL_FREE(mpmcq_node_t, tail);
