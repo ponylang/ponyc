@@ -11,6 +11,10 @@
 #include <assert.h>
 #include <dtrace.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 enum
 {
   FLAG_BLOCKED = 1 << 0,
@@ -209,6 +213,10 @@ void ponyint_actor_destroy(pony_actor_t* actor)
 
   while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1)
     head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
+
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&actor->q.head);
+#endif
 
   ponyint_messageq_destroy(&actor->q);
   ponyint_gc_destroy(&actor->gc);

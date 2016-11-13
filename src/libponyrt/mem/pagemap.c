@@ -8,6 +8,10 @@
 #include <platform.h>
 #include <pony/detail/atomics.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 #ifdef PLATFORM_IS_ILP32
 # define PAGEMAP_ADDRESSBITS 32
 # define PAGEMAP_LEVELS 2
@@ -92,9 +96,15 @@ void ponyint_pagemap_set(const void* m, void* v)
       memset(p, 0, level[i].size);
       void** prev = NULL;
 
+#ifdef USE_VALGRIND
+        ANNOTATE_HAPPENS_BEFORE(pv);
+#endif
       if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
         memory_order_release, memory_order_acquire))
       {
+#ifdef USE_VALGRIND
+        ANNOTATE_HAPPENS_AFTER(pv);
+#endif
         ponyint_pool_free(level[i].size_index, p);
         pv_ld = prev;
       } else {

@@ -16,6 +16,7 @@
 
 #ifdef USE_VALGRIND
 #include <valgrind/valgrind.h>
+#include <valgrind/helgrind.h>
 #endif
 
 /* Because of the way free memory is reused as its own linked list container,
@@ -485,12 +486,18 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     ponyint_cpu_relax();
 
   atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&global->waiting_for);
+#endif
 
   pool_central_t* top = atomic_load_explicit(&global->central,
     memory_order_relaxed);
   p->central = top;
 
   atomic_store_explicit(&global->central, p, memory_order_relaxed);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&global->waiting_for);
+#endif
   atomic_store_explicit(&global->waiting_for, my_ticket + 1,
     memory_order_release);
 }
@@ -510,6 +517,9 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
     ponyint_cpu_relax();
 
   atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&global->waiting_for);
+#endif
 
   pool_central_t* top = atomic_load_explicit(&global->central,
     memory_order_relaxed);
@@ -524,6 +534,9 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   pool_central_t* next = top->central;
 
   atomic_store_explicit(&global->central, next, memory_order_relaxed);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&global->waiting_for);
+#endif
   atomic_store_explicit(&global->waiting_for, my_ticket + 1,
     memory_order_release);
 
@@ -597,6 +610,7 @@ void* ponyint_pool_alloc(size_t index)
 
 #ifdef USE_VALGRIND
   VALGRIND_ENABLE_ERROR_REPORTING;
+  VALGRIND_HG_CLEAN_MEMORY(p, ponyint_pool_size(index));
   VALGRIND_MALLOCLIKE_BLOCK(p, ponyint_pool_size(index), 0, 0);
 #endif
 
@@ -606,6 +620,7 @@ void* ponyint_pool_alloc(size_t index)
 void ponyint_pool_free(size_t index, void* p)
 {
 #ifdef USE_VALGRIND
+  VALGRIND_HG_CLEAN_MEMORY(p, ponyint_pool_size(index));
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
@@ -647,6 +662,7 @@ void* ponyint_pool_alloc_size(size_t size)
 
 #ifdef USE_VALGRIND
   VALGRIND_ENABLE_ERROR_REPORTING;
+  VALGRIND_HG_CLEAN_MEMORY(p, size);
   VALGRIND_MALLOCLIKE_BLOCK(p, size, 0, 0);
 #endif
 
@@ -661,6 +677,7 @@ void ponyint_pool_free_size(size_t size, void* p)
     return ponyint_pool_free(index, p);
 
 #ifdef USE_VALGRIND
+  VALGRIND_HG_CLEAN_MEMORY(p, size);
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
