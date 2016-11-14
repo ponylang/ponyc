@@ -11,11 +11,10 @@ interface TCPListenNotify
     """
     None
 
-  fun ref not_listening(listen: TCPListener ref) =>
+  fun ref not_listening(listen: TCPListener ref)
     """
     Called if it wasn't possible to bind the listener to an address.
     """
-    None
 
   fun ref closed(listen: TCPListener ref) =>
     """

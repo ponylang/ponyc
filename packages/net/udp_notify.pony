@@ -11,11 +11,10 @@ interface UDPNotify
     """
     None
 
-  fun ref not_listening(sock: UDPSocket ref) =>
+  fun ref not_listening(sock: UDPSocket ref)
     """
     Called if it wasn't possible to bind the socket to an address.
     """
-    None
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>

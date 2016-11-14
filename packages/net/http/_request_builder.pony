@@ -57,3 +57,6 @@ class _RequestBuilder is TCPConnectionNotify
       end
     end
     true
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None

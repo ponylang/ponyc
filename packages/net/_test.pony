@@ -314,6 +314,9 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
     end
     true
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
+
 class iso _TestTCPMute is UnitTest
   """
   Test that the `mute` behavior stops us from reading incoming data. The
@@ -365,6 +368,10 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
   fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     _h.complete(false)
     true
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
+
 
 class _TestTCPMuteSendNotify is TCPConnectionNotify
   """
@@ -442,6 +449,10 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     _h.complete(true)
     true
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
+
+
 class iso _TestTCPThrottle is UnitTest
   """
   Test that when we experience backpressure when sending that the `throttled`
@@ -488,6 +499,9 @@ class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
     conn.write("send me some data that i won't ever read")
     _h.complete_action("receiver asks for data")
     _h.dispose_when_done(conn)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
 
 class _TestTCPThrottleSendNotify is TCPConnectionNotify
   """
