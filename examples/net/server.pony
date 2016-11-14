@@ -22,3 +22,6 @@ class ServerSide is TCPConnectionNotify
 
   fun ref closed(conn: TCPConnection ref) =>
     _env.out.print("server closed")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _env.out.print("connect failed")

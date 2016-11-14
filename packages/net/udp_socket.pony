@@ -22,6 +22,9 @@ actor UDPSocket
     =>
       sock.write(consume data, from)
 
+    fun ref not_listening(sock: UDPSocket ref) =>
+      None
+
   actor Main
     new create(env: Env) =>
       try
@@ -47,6 +50,8 @@ actor UDPSocket
     =>
       _out.print("GOT:" + String.from_array(consume data))
       sock.dispose()
+    fun ref not_listening(sock: UDPSocket ref) =>
+      None
 
   actor Main
     new create(env: Env) =>

@@ -92,3 +92,9 @@ class _ServerConnHandler is TCPConnectionNotify
     try
       (_session as _ServerConnection).cancel(Payload.request())
     end
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    """
+    The connection has failed. This is server side, no op in this case.
+    """
+    None
