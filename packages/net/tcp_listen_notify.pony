@@ -14,6 +14,14 @@ interface TCPListenNotify
   fun ref not_listening(listen: TCPListener ref)
     """
     Called if it wasn't possible to bind the listener to an address.
+
+    It is expected to implement proper error handling. You need to opt in to
+    ignoring errors, which can be implemented like this:
+
+    ```
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
+    ```
     """
 
   fun ref closed(listen: TCPListener ref) =>
