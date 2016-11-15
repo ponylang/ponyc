@@ -7,6 +7,7 @@
 #include "../gc/cycle.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
+#include <dtrace.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -89,6 +90,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
 int pony_init(int argc, char** argv)
 {
+  DTRACE0(RT_INIT);
   options_t opt;
   memset(&opt, 0, sizeof(options_t));
 
