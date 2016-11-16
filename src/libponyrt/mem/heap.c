@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include <platform.h>
+#include <dtrace.h>
 
 typedef struct chunk_t
 {
@@ -180,6 +181,7 @@ void ponyint_heap_setnextgcfactor(double factor)
   if(factor < 1.0)
     factor = 1.0;
 
+  DTRACE1(GC_THRESHOLD, factor);
   heap_nextgc_factor = factor;
 }
 

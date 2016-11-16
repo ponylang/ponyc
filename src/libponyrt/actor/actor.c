@@ -99,6 +99,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         ponyint_cycle_unblock(ctx, actor);
       }
 
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return true;
     }
@@ -312,7 +313,7 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 
 void ponyint_destroy(pony_actor_t* actor)
 {
-  // This destroy an actor immediately. If any other actor has a reference to
+  // This destroys an actor immediately. If any other actor has a reference to
   // this actor, the program will likely crash. The finaliser is not called.
   ponyint_actor_setpendingdestroy(actor);
   ponyint_actor_destroy(actor);

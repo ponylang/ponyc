@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 #include <platform.h>
+#include <dtrace.h>
 
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   #include <sched.h>
@@ -301,6 +302,7 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
     }
   }
 
+  DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
   nanosleep(&ts, NULL);
 #else
   Sleep(0);

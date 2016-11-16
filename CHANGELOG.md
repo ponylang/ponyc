@@ -8,6 +8,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Extra DTrace/SystemTap probes concerning scheduling.
+
 ### Changed
 
 ## [0.9.0] - 2016-11-11
