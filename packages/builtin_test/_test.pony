@@ -40,6 +40,7 @@ actor Main is TestList
     test(_TestStringReadInt)
     test(_TestStringUTF32)
     test(_TestStringRFind)
+    test(_TestStringFromArray)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -771,6 +772,19 @@ class iso _TestStringRFind is UnitTest
     h.assert_eq[ISize](s.rfind("-"), 12)
     h.assert_eq[ISize](s.rfind("-", -2), 8)
     h.assert_eq[ISize](s.rfind("-bar", 7), 4)
+
+
+class iso _TestStringFromArray is UnitTest
+  fun name(): String => "builtin/String.from_array"
+
+  fun apply(h: TestHelper) =>
+    let s_null = String.from_array(recover ['f', 'o', 'o', 0] end)
+    h.assert_eq[String](s_null, "foo\x00")
+    h.assert_eq[USize](s_null.size(), 4)
+
+    let s_no_null = String.from_array(recover ['f', 'o', 'o'] end)
+    h.assert_eq[String](s_no_null, "foo")
+    h.assert_eq[USize](s_no_null.size(), 3)
 
 
 class iso _TestArrayAppend is UnitTest
