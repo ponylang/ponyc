@@ -250,6 +250,26 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
+### FreeBSD
+
+First, install the required dependencies:
+
+```bash
+sudo pkg install gmake
+sudo pkg install llvm38
+sudo pkg install pcre2
+sudo pkg install libunwind
+```
+
+This will build ponyc and compile helloworld:
+
+```bash
+$ gmake
+$ ./build/release/ponyc examples/helloworld
+```
+
+Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6.2. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
+
 ### Other Linux distributions
 
 You need to have the development versions of the following installed:
@@ -279,26 +299,6 @@ $ make
 $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
-
-## Building on FreeBSD
-
-First, install the required dependencies:
-
-```bash
-sudo pkg install gmake
-sudo pkg install llvm38
-sudo pkg install pcre2
-sudo pkg install libunwind
-```
-
-This will build ponyc and compile helloworld:
-
-```bash
-$ gmake
-$ ./build/release/ponyc examples/helloworld
-```
-
-Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6.2. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
 
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
