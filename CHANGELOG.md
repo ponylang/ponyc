@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Update from_array to prevent a copy (issue #1097) (PR #1423)
+
 ## [0.9.0] - 2016-11-11
 
 ### Fixed
