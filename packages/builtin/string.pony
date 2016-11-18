@@ -60,23 +60,11 @@ actor Main
 
   new val from_array(data: Array[U8] val) =>
     """
-    Create a string from an array, reusing the underlying data pointer if the
-    array is null terminated, or copying the data if it is not.
+    Create a string from an array, reusing the underlying data pointer.
     """
     _size = data.size()
-
-    if
-      (_size > 0) and
-      try (data(_size - 1) == 0) else false end
-    then
-      _alloc = data.space()
-      _ptr = data.cpointer()._unsafe()
-    else
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      data._copy_to(_ptr, _size)
-      _set(_size, 0)
-    end
+    _alloc = data.space()
+    _ptr = data.cpointer()._unsafe()
 
   new iso from_iso_array(data: Array[U8] iso) =>
     """
