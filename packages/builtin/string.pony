@@ -259,7 +259,7 @@ actor Main
     """
     Returns the space available for data, not including the null terminator.
     """
-    _alloc - 1
+    if _is_null_terminated() then _alloc - 1 else _alloc end
 
   fun ref reserve(len: USize): String ref^ =>
     """
