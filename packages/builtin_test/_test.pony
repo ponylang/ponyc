@@ -436,11 +436,8 @@ class iso _TestStringIsNullTerminated is UnitTest
     h.assert_true("0123456".trim(2, 4).clone().is_null_terminated())
     h.assert_false("0123456".trim(2, 4).is_null_terminated())
 
-    h.assert_false(String.from_iso_array(recover
+    h.assert_true(String.from_iso_array(recover
       ['a', 'b', 'c']
-    end).is_null_terminated())
-    h.assert_false(String.from_iso_array(recover
-      ['a', 'b', 'c', 0] // zero byte is not a terminator
     end).is_null_terminated())
     h.assert_false(String.from_iso_array(recover
       ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] // power of two sized array
