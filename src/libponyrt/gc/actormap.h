@@ -26,7 +26,7 @@ void ponyint_actorref_free(actorref_t* aref);
 
 DECLARE_HASHMAP(ponyint_actormap, actormap_t, actorref_t);
 
-actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor);
+actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor, size_t* index);
 
 actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark);

@@ -69,7 +69,8 @@ protected:
   {
     reach_type_t t;
     t.name = stringtab(name);
-    reach_type_t* type = reach_types_get(&_set->types, &t);
+    size_t index = HASHMAP_UNKNOWN;
+    reach_type_t* type = reach_types_get(&_set->types, &t, &index);
     ASSERT_NE((void*)NULL, type);
 
     ASSERT_LE(min_expected, type->vtable_size);
@@ -88,7 +89,7 @@ protected:
       reach_method_t m2;
       memset(&m2, 0, sizeof(reach_method_t));
       m2.name = n->name;
-      reach_method_t* method = reach_methods_get(&n->r_methods, &m2);
+      reach_method_t* method = reach_methods_get(&n->r_methods, &m2, &index);
 
       assert(method != NULL);
 
@@ -103,6 +104,7 @@ protected:
     uint32_t* actual)
   {
     size_t i = HASHMAP_BEGIN;
+    size_t index = HASHMAP_UNKNOWN;
     reach_type_t* type;
     uint32_t colour = (uint32_t)-1;
 
@@ -110,14 +112,14 @@ protected:
     {
       reach_method_name_t m1;
       m1.name = stringtab(name);
-      reach_method_name_t* n = reach_method_names_get(&type->methods, &m1);
+      reach_method_name_t* n = reach_method_names_get(&type->methods, &m1, &index);
 
       if(n != NULL)
       {
         reach_method_t m2;
         memset(&m2, 0, sizeof(reach_method_t));
         m2.name = stringtab(name);
-        reach_method_t* method = reach_methods_get(&n->r_methods, &m2);
+        reach_method_t* method = reach_methods_get(&n->r_methods, &m2, &index);
 
         ASSERT_NE((void*)NULL, method);
 

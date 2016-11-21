@@ -222,7 +222,8 @@ static colour_record_t* add_colour(painter_t* painter)
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
   name_record_t n = { name, 0, 0, NULL };
-  return name_records_get(&painter->names, &n);
+  size_t index = HASHMAP_UNKNOWN;
+  return name_records_get(&painter->names, &n, &index);
 }
 
 

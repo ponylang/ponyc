@@ -1001,10 +1001,11 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && !p->alive)
     {
@@ -1026,10 +1027,11 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && p->alive)
     {
@@ -1126,10 +1128,11 @@ LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL)
       return p->alloca;
