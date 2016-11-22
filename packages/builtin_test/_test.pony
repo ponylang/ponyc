@@ -41,6 +41,7 @@ actor Main is TestList
     test(_TestStringUTF32)
     test(_TestStringRFind)
     test(_TestStringFromArray)
+    test(_TestStringFromIsoArray)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -786,6 +787,23 @@ class iso _TestStringFromArray is UnitTest
     h.assert_eq[String](s_no_null, "foo")
     h.assert_eq[USize](s_no_null.size(), 3)
 
+
+class iso _TestStringFromIsoArray is UnitTest
+  fun name(): String => "builtin/String.from_iso_array"
+
+  fun apply(h: TestHelper) =>
+    let s = String.from_iso_array(recover ['f', 'o', 'o'] end)
+    h.assert_eq[String](s, "foo")
+    h.assert_eq[USize](s.size(), 3)
+    h.assert_true((s.space() == 3) or s.is_null_terminated())
+/*
+    let s2 = String.from_iso_array(recover
+      ['1', '1', '1', '1', '1', '1', '1', '1']
+    end)
+    h.assert_eq[String](s, "11111111")
+    h.assert_eq[USize](s.size(), 8)
+    h.assert_true((s.space() == 8) or s.is_null_terminated())
+*/
 
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
