@@ -73,6 +73,9 @@ actor Main
     _size = data.size()
     _alloc = data.space()
     _ptr = (consume data).cpointer()._unsafe()
+    if _alloc > _size then
+      _set(_size, 0)
+    end
 
   new from_cpointer(str: Pointer[U8], len: USize, alloc: USize = 0) =>
     """

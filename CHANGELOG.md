@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
 ### Added
 
 - Extra DTrace/SystemTap probes concerning scheduling.
@@ -13,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Update from_array to prevent a copy (issue #1097) (PR #1423)
+
 ## [0.9.0] - 2016-11-11
 
 ### Fixed
