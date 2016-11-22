@@ -792,7 +792,7 @@ class iso _TestStringFromIsoArray is UnitTest
   fun name(): String => "builtin/String.from_iso_array"
 
   fun apply(h: TestHelper) =>
-    let s = String.from_iso_array(recover ['f', 'o', 'o'] end)
+    let s = recover val String.from_iso_array(recover ['f', 'o', 'o'] end) end
     h.assert_eq[String](s, "foo")
     h.assert_eq[USize](s.size(), 3)
     h.assert_true((s.space() == 3) or s.is_null_terminated())
