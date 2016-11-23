@@ -33,6 +33,7 @@ actor Main is TestList
     test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
+    test(_TestStringSplitBy)
     test(_TestStringJoin)
     test(_TestStringCount)
     test(_TestStringCompare)
@@ -544,6 +545,66 @@ class iso _TestStringSplit is UnitTest
     h.assert_eq[String](r(1), "2")
     h.assert_eq[String](r(2), "3  4")
 
+class iso _TestStringSplitBy is UnitTest
+  """
+  Test String.split_by
+  """
+  fun name(): String => "builtin/String.split_by"
+
+  fun apply(h: TestHelper) ? =>
+    var r = "opinion".split_by("pi")
+    h.assert_eq[USize](r.size(), 2)
+    h.assert_eq[String](r(0), "o")
+    h.assert_eq[String](r(1), "nion")
+
+    r = "opopgadget".split_by("op")
+    h.assert_eq[USize](r.size(), 3)
+    h.assert_eq[String](r(0), "")
+    h.assert_eq[String](r(1), "")
+    h.assert_eq[String](r(2), "gadget")
+
+    r = "simple spaces, with one trailing ".split_by(" ")
+    h.assert_eq[USize](r.size(), 6)
+    h.assert_eq[String](r(0), "simple")
+    h.assert_eq[String](r(1), "spaces,")
+    h.assert_eq[String](r(2), "with")
+    h.assert_eq[String](r(3), "one")
+    h.assert_eq[String](r(4), "trailing")
+    h.assert_eq[String](r(5), "")
+
+    r = " with more trailing  ".split_by(" ")
+    h.assert_eq[USize](r.size(), 6)
+    h.assert_eq[String](r(0), "")
+    h.assert_eq[String](r(1), "with")
+    h.assert_eq[String](r(2), "more")
+    h.assert_eq[String](r(3), "trailing")
+    h.assert_eq[String](r(4), "")
+    h.assert_eq[String](r(5), "")
+
+    r = "should not split this too much".split(" ", 3)
+    h.assert_eq[USize](r.size(), 3)
+    h.assert_eq[String](r(0), "should")
+    h.assert_eq[String](r(1), "not")
+    h.assert_eq[String](r(2), "split this too much")
+
+    let s = "this should not even be split"
+    r = s.split_by(" ", 0)
+    h.assert_eq[USize](r.size(), 1)
+    h.assert_eq[String](r(0), s)
+
+    r = s.split_by("")
+    h.assert_eq[USize](r.size(), 1)
+    h.assert_eq[String](r(0), s)
+
+    r = "make some ☃s and ☺ for the winter ☺".split_by("☃")
+    h.assert_eq[USize](r.size(), 2)
+    h.assert_eq[String](r(0), "make some ")
+    h.assert_eq[String](r(1), "s and ☺ for the winter ☺")
+
+    r = "try with trailing patternpatternpattern".split_by("pattern", 2)
+    h.assert_eq[USize](r.size(), 2)
+    h.assert_eq[String](r(0), "try with trailing ")
+    h.assert_eq[String](r(1), "patternpattern")
 
 class iso _TestStringJoin is UnitTest
   """

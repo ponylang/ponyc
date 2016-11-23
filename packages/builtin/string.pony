@@ -976,6 +976,33 @@ actor Main
     end
     this
 
+  fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
+    """
+    Split the string into an array of strings that are delimited by `delim` in
+    the original string. If `n > 0`, then the split count is limited to n.
+
+    Adjacent delimiters result in a zero length entry in the array. For
+    example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    An empty delimiter results in an array that contains a single element equal
+    to the whole string.
+    """
+    let delim_size = ISize.from[USize](delim.size())
+    let total_size = ISize.from[USize](size())
+
+    let result = recover Array[String] end
+    var current = ISize(0)
+
+    while ((result.size() + 1) < n) and (current < total_size) do
+      try
+        let delim_start = find(delim where offset = current)
+        result.push(substring(current, delim_start))
+        current = delim_start + delim_size
+      else break end
+    end
+    result.push(substring(current))
+    consume result
+
   fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """
     Split the string into an array of strings. Any character in the delimiter
