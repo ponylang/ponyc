@@ -210,11 +210,13 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   // as empty. Otherwise, it may spuriously see that tail and head are not
   // the same and fail to mark the queue as empty, resulting in it getting
   // rescheduled.
-  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
+  pony_msg_t* head = NULL;
+  do
+  {
+    head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
+  } while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1);
 
-  while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1)
-    head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
-
+  atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_AFTER(&actor->q.head);
 #endif
