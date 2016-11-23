@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
 ### Added
 
+- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
 - Extra DTrace/SystemTap probes concerning scheduling.
 
 ### Changed
