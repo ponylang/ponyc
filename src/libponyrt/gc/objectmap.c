@@ -37,24 +37,25 @@ static void object_free(object_t* obj)
 DEFINE_HASHMAP(ponyint_objectmap, objectmap_t, object_t, object_hash,
   object_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size, object_free);
 
-object_t* ponyint_objectmap_getobject(objectmap_t* map, void* address)
+object_t* ponyint_objectmap_getobject(objectmap_t* map, void* address, size_t* index)
 {
   object_t obj;
   obj.address = address;
 
-  return ponyint_objectmap_get(map, &obj);
+  return ponyint_objectmap_get(map, &obj, index);
 }
 
 object_t* ponyint_objectmap_getorput(objectmap_t* map, void* address,
   uint32_t mark)
 {
-  object_t* obj = ponyint_objectmap_getobject(map, address);
+  size_t index = HASHMAP_UNKNOWN;
+  object_t* obj = ponyint_objectmap_getobject(map, address, &index);
 
   if(obj != NULL)
     return obj;
 
   obj = object_alloc(address, mark);
-  ponyint_objectmap_put(map, obj);
+  ponyint_objectmap_putindex(map, obj, index);
   return obj;
 }
 

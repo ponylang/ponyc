@@ -127,7 +127,8 @@ static reach_method_t* reach_rmethod(reach_method_name_t* n, const char* name)
 {
   reach_method_t k;
   k.name = name;
-  return reach_methods_get(&n->r_methods, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  return reach_methods_get(&n->r_methods, &k, &index);
 }
 
 static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
@@ -214,7 +215,8 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   add_rmethod(r, t, n2, m->cap, m->typeargs, opt);
 
   // Add this mangling to the type if it isn't already there.
-  reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m);
+  size_t index = HASHMAP_UNKNOWN;
+  reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m, &index);
 
   if(mangled != NULL)
     return;
@@ -238,7 +240,9 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   mangled->result = m->result;
 
   // Add to the mangled table only.
-  reach_mangled_put(&n2->r_mangled, mangled);
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  reach_mangled_putindex(&n2->r_mangled, mangled, index);
 }
 
 static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
@@ -1030,14 +1034,16 @@ reach_type_t* reach_type(reach_t* r, ast_t* type)
 {
   reach_type_t k;
   k.name = genname_type(type);
-  return reach_types_get(&r->types, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  return reach_types_get(&r->types, &k, &index);
 }
 
 reach_type_t* reach_type_name(reach_t* r, const char* name)
 {
   reach_type_t k;
   k.name = stringtab(name);
-  return reach_types_get(&r->types, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  return reach_types_get(&r->types, &k, &index);
 }
 
 reach_method_t* reach_method(reach_type_t* t, token_id cap,
@@ -1077,7 +1083,8 @@ reach_method_name_t* reach_method_name(reach_type_t* t, const char* name)
 {
   reach_method_name_t k;
   k.name = name;
-  return reach_method_names_get(&t->methods, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  return reach_method_names_get(&t->methods, &k, &index);
 }
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name)

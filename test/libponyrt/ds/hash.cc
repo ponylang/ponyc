@@ -138,10 +138,11 @@ TEST_F(HashMapTest, InsertAndRetrieve)
   hash_elem_t* e = get_element();
   e->key = 1;
   e->val = 42;
+  size_t index = HASHMAP_UNKNOWN;
 
   testmap_put(&_map, e);
 
-  hash_elem_t* n = testmap_get(&_map, e);
+  hash_elem_t* n = testmap_get(&_map, e, &index);
 
   ASSERT_EQ(e->val, n->val);
 }
@@ -153,13 +154,14 @@ TEST_F(HashMapTest, TryGetNonExistent)
 {
   hash_elem_t* e1 = get_element();
   hash_elem_t* e2 = get_element();
+  size_t index = HASHMAP_UNKNOWN;
 
   e1->key = 1;
   e2->key = 2;
 
   testmap_put(&_map, e1);
 
-  hash_elem_t* n = testmap_get(&_map, e2);
+  hash_elem_t* n = testmap_get(&_map, e2, &index);
 
   ASSERT_EQ(NULL, n);
 }
@@ -171,6 +173,7 @@ TEST_F(HashMapTest, ReplacingElementReturnsReplaced)
 {
   hash_elem_t* e1 = get_element();
   hash_elem_t* e2 = get_element();
+  size_t index = HASHMAP_UNKNOWN;
 
   e1->key = 1;
   e2->key = 1;
@@ -180,7 +183,7 @@ TEST_F(HashMapTest, ReplacingElementReturnsReplaced)
   hash_elem_t* n = testmap_put(&_map, e2);
   ASSERT_EQ(n, e1);
 
-  hash_elem_t* m = testmap_get(&_map, e2);
+  hash_elem_t* m = testmap_get(&_map, e2, &index);
   ASSERT_EQ(m, e2);
 }
 
@@ -196,6 +199,7 @@ TEST_F(HashMapTest, DeleteElement)
 
   e1->key = 1;
   e2->key = 2;
+  size_t index = HASHMAP_UNKNOWN;
 
   testmap_put(&_map, e1);
   testmap_put(&_map, e2);
@@ -211,7 +215,7 @@ TEST_F(HashMapTest, DeleteElement)
   ASSERT_EQ(n1, e1);
   ASSERT_EQ(l, (size_t)1);
 
-  hash_elem_t* n2 = testmap_get(&_map, e2);
+  hash_elem_t* n2 = testmap_get(&_map, e2, &index);
 
   ASSERT_EQ(n2, e2);
 }
@@ -261,6 +265,7 @@ TEST_F(HashMapTest, RemoveByIndex)
   put_elements(100);
 
   size_t i = HASHMAP_BEGIN;
+  size_t index = HASHMAP_UNKNOWN;
   hash_elem_t* p = NULL;
 
   while((curr = testmap_next(&_map, &i)) != NULL)
@@ -275,5 +280,51 @@ TEST_F(HashMapTest, RemoveByIndex)
   hash_elem_t* n = testmap_removeindex(&_map, i);
 
   ASSERT_EQ(n, p);
-  ASSERT_EQ(NULL, testmap_get(&_map, p));
+  ASSERT_EQ(NULL, testmap_get(&_map, p, &index));
 }
+
+/** An element not found can be put by index into
+ * an empty map and retrieved successfully.
+ */
+TEST_F(HashMapTest, EmptyPutByIndex)
+{
+  hash_elem_t* e = get_element();
+  e->key = 1000;
+  e->val = 42;
+  size_t index = HASHMAP_UNKNOWN;
+
+  hash_elem_t* n = testmap_get(&_map, e, &index);
+
+  ASSERT_EQ(NULL, n);
+  ASSERT_EQ(HASHMAP_UNKNOWN, index);
+
+  testmap_putindex(&_map, e, index);
+
+  hash_elem_t* m = testmap_get(&_map, e, &index);
+
+  ASSERT_EQ(e->val, m->val);
+}
+
+/** An element not found can be put by index into
+ * a non-empty map and retrieved successfully.
+ */
+TEST_F(HashMapTest, NotEmptyPutByIndex)
+{
+  put_elements(100);
+
+  hash_elem_t* e = get_element();
+  e->key = 1000;
+  e->val = 42;
+  size_t index = HASHMAP_UNKNOWN;
+
+  hash_elem_t* n = testmap_get(&_map, e, &index);
+
+  ASSERT_EQ(NULL, n);
+
+  testmap_putindex(&_map, e, index);
+
+  hash_elem_t* m = testmap_get(&_map, e, &index);
+
+  ASSERT_EQ(e->val, m->val);
+}
+
