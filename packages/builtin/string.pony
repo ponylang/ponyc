@@ -376,7 +376,7 @@ actor Main
     which may be present earlier in the content of the string.
     If you need a null-terminated copy of this string, use the clone method.
     """
-    (_alloc > 0) and (_ptr._apply(_size) == 0)
+    (_alloc > 0) and (_alloc != _size) and (_ptr._apply(_size) == 0)
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
