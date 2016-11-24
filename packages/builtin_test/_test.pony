@@ -43,6 +43,7 @@ actor Main is TestList
     test(_TestStringRFind)
     test(_TestStringFromArray)
     test(_TestStringFromIsoArray)
+    test(_TestStringSpace)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -864,14 +865,27 @@ class iso _TestStringFromIsoArray is UnitTest
     h.assert_eq[String](s, "foo")
     h.assert_eq[USize](s.size(), 3)
     h.assert_true((s.space() == 3) or s.is_null_terminated())
-/*
-    let s2 = String.from_iso_array(recover
+
+    let s2 = recover val String.from_iso_array(recover
+      ['1', '1', '1', '1', '1', '1', '1', '1']
+    end) end
+    h.assert_eq[String](s2, "11111111")
+    h.assert_eq[USize](s2.size(), 8)
+    h.assert_true((s2.space() == 8) or s2.is_null_terminated())
+
+
+class iso _TestStringSpace is UnitTest
+  fun name(): String => "builtin/String.space"
+
+  fun apply(h: TestHelper) =>
+    let s = String.from_iso_array(recover
       ['1', '1', '1', '1', '1', '1', '1', '1']
     end)
-    h.assert_eq[String](s, "11111111")
+
     h.assert_eq[USize](s.size(), 8)
-    h.assert_true((s.space() == 8) or s.is_null_terminated())
-*/
+    h.assert_eq[USize](s.space(), 8)
+    h.assert_false(s.is_null_terminated())
+
 
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
