@@ -1,4 +1,5 @@
 #include <platform.h>
+#include <openssl/ssl.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
 static HANDLE* locks;
@@ -11,6 +12,8 @@ PONY_EXTERN_C_BEGIN
 
 // Forward declaration to avoid C++ name mangling
 void* ponyint_ssl_multithreading(uint32_t count);
+void* ponyint_ssl_ctx_accessor(SSL_CTX *ctx, uint32_t element);
+void ponyint_ssl_ctx_clear_extra_certs(SSL_CTX *ctx);
 
 PONY_EXTERN_C_END
 
@@ -51,4 +54,36 @@ void* ponyint_ssl_multithreading(uint32_t count)
 #endif
 
   return locking_callback;
+}
+
+#define DEFAULT_PASSWD_CALLBACK 0
+#define DEFAULT_PASSWD_CALLBACK_USERDATA 1
+
+void* ponyint_ssl_ctx_accessor(SSL_CTX *ctx, uint32_t element)
+{
+  switch (element)
+  {
+  case DEFAULT_PASSWD_CALLBACK:
+    return ctx->default_passwd_callback;
+  case DEFAULT_PASSWD_CALLBACK_USERDATA:
+    return ctx->default_passwd_callback_userdata;
+  default:
+    return 0;
+  }
+}
+
+/*
+ * OpenSSL later vesions (untested):
+ * var ret = @SSL_CTX_clear_chain_certs[I32](_ctx)
+ * if ret == 0 then
+ *   _SSLDebug()
+ *   error
+ * end
+*/
+void ponyint_ssl_ctx_clear_extra_certs(SSL_CTX *ctx)
+{
+  if (ctx->extra_certs != NULL) {
+    sk_X509_pop_free(ctx->extra_certs, X509_free);
+    ctx->extra_certs = NULL;
+  }
 }

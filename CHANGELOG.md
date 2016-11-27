@@ -148,6 +148,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - TCP sockets on Linux now use Epoll One Shot
 - Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
 - TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
+- net.ssl.SSLContext.set_cert takes Array[U8] as well as FilePath versions of the certificate and key.
 
 ## [0.10.0] - 2016-12-12
 
