@@ -864,14 +864,14 @@ class iso _TestStringFromIsoArray is UnitTest
     let s = recover val String.from_iso_array(recover ['f', 'o', 'o'] end) end
     h.assert_eq[String](s, "foo")
     h.assert_eq[USize](s.size(), 3)
-    h.assert_true((s.space() == 3) or s.is_null_terminated())
+    h.assert_ne[Bool]((s.space() == 3), s.is_null_terminated())
 
     let s2 = recover val String.from_iso_array(recover
       ['1', '1', '1', '1', '1', '1', '1', '1']
     end) end
     h.assert_eq[String](s2, "11111111")
     h.assert_eq[USize](s2.size(), 8)
-    h.assert_true((s2.space() == 8) or s2.is_null_terminated())
+    h.assert_ne[Bool]((s2.space() == 8), s2.is_null_terminated())
 
 
 class iso _TestStringSpace is UnitTest
