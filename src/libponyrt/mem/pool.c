@@ -700,8 +700,7 @@ size_t ponyint_pool_index(size_t size)
   if(size > POOL_MAX)
     return POOL_COUNT;
 
-  size = ponyint_next_pow2(size);
-  return __pony_ffsl(size) - (POOL_MIN_BITS + 1);
+  return ((size_t)64 - __pony_clzl(size)) - POOL_MIN_BITS;
 }
 
 size_t ponyint_pool_size(size_t index)

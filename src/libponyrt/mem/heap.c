@@ -225,7 +225,7 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   {
     // Clear and use the first available slot.
     uint32_t slots = chunk->slots;
-    uint32_t bit = __pony_ffs(slots) - 1;
+    uint32_t bit = __pony_ctz(slots);
     slots &= ~(1 << bit);
 
     m = chunk->m + (bit << HEAP_MINBITS);
