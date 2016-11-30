@@ -115,7 +115,7 @@ deploy:
         configuration: Release
     publish: true
 
-cache:
+cache: # cache rebuild change 1
   - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
   - C:\premake5.exe -> .appveyor.yml
   - C:\ponyc-windows-libs\ -> .appveyor.yml
