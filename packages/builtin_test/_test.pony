@@ -44,6 +44,7 @@ actor Main is TestList
     test(_TestStringFromArray)
     test(_TestStringFromIsoArray)
     test(_TestStringSpace)
+    test(_TestStringRecalc)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -885,6 +886,34 @@ class iso _TestStringSpace is UnitTest
     h.assert_eq[USize](s.size(), 8)
     h.assert_eq[USize](s.space(), 8)
     h.assert_false(s.is_null_terminated())
+
+
+class iso _TestStringRecalc is UnitTest
+  fun name(): String => "builtin/String.recalc"
+
+  fun apply(h: TestHelper) =>
+    let s: String ref = String.from_iso_array(recover
+      ['1', '1', '1', '1', '1', '1', '1', '1']
+    end)
+    s.recalc()
+    h.assert_eq[USize](s.size(), 8)
+    h.assert_eq[USize](s.space(), 8)
+    h.assert_false(s.is_null_terminated())
+
+    let s2: String ref = "foobar".clone()
+    s2.recalc()
+    h.assert_eq[USize](s2.size(), 6)
+    h.assert_eq[USize](s2.space(), 6)
+    h.assert_true(s2.is_null_terminated())
+
+    let s3: String ref = String.from_iso_array(recover
+      ['1', 0, 0, 0, 0, 0, 0, '1']
+    end)
+    s3.truncate(1)
+    s3.recalc()
+    h.assert_eq[USize](s3.size(), 1)
+    h.assert_eq[USize](s3.space(), 7)
+    h.assert_true(s3.is_null_terminated())
 
 
 class iso _TestArrayAppend is UnitTest
