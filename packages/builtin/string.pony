@@ -304,18 +304,17 @@ actor Main
   fun ref recalc(): String ref^ =>
     """
     Recalculates the string length. This is only needed if the string is
-    changed via an FFI call. If the string is not null terminated at the
-    allocated length, a null is added.
+    changed via an FFI call. If a null terminator byte is not found within the
+    allocated length, the size will not be changed.
     """
-    _size = 0
+    var s: USize = 0
 
-    while (_size < _alloc) and (_ptr._apply(_size) > 0) do
-      _size = _size + 1
+    while (s < _alloc) and (_ptr._apply(s) > 0) do
+      s = s + 1
     end
 
-    if _size == _alloc then
-      _size = _size - 1
-      _set(_size, 0)
+    if s != _alloc then
+      _size = s
     end
 
     this
