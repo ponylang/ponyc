@@ -500,17 +500,23 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
   assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   ast_t* def = (ast_t*)ast_data(typeparamref);
   ast_t* constraint = ast_childidx(def, 1);
+  astlist_t* def_list = astlist_push(NULL, def);
 
-  while((constraint != NULL) && (ast_id(constraint) == TK_TYPEPARAMREF))
+  while(ast_id(constraint) == TK_TYPEPARAMREF)
   {
     ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
-    if(constraint_def == def)
-      return NULL;
+    if(astlist_find(def_list, constraint_def))
+    {
+      constraint = NULL;
+      break;
+    }
 
+    def_list = astlist_push(def_list, constraint_def);
     constraint = ast_childidx(constraint_def, 1);
   }
 
+  astlist_free(def_list);
   return constraint;
 }
 
