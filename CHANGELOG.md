@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler handling of type params in stacks (issue #918) (PR #1452)
 - Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
 - Make space() check if string is null terminated (issue #1426) (PR #1430)
 - Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
