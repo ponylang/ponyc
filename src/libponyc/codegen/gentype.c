@@ -745,6 +745,12 @@ bool gentypes(compile_t* c)
     make_global_instance(c, t);
   }
 
+  // Cache the instance of None, which is used as the return value for
+  // behaviour calls.
+  t = reach_type_name(c->reach, "None");
+  assert(t != NULL);
+  c->none_instance = t->instance;
+
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Function prototypes\n");
 

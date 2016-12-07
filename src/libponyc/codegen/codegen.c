@@ -762,6 +762,9 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->reach = reach_new();
   c->tbaa_mds = tbaa_metadatas_new();
 
+  // This gets a real value once the instance of None has been generated.
+  c->none_instance = NULL;
+
   return true;
 }
 
