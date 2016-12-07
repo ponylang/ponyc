@@ -623,7 +623,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   bool is_message = false;
 
-  if((ast_id(postfix) == TK_NEWBEREF) || (ast_id(postfix) == TK_BEREF))
+  if((ast_id(postfix) == TK_NEWBEREF) || (ast_id(postfix) == TK_BEREF) ||
+    (ast_id(postfix) == TK_BECHAIN))
   {
     switch(t->underlying)
     {
