@@ -40,7 +40,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 {
-  gen(c, gen_data, TK_NONE);
+  gen(c, gen_data, TK_BOX);
   gen(c, gen_data, TK_REF);
   gen(c, gen_data, TK_VAL);
 }
