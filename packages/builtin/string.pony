@@ -326,7 +326,13 @@ actor Main
 
     Note that memory is not freed by this operation.
     """
-    _size = len.min(_alloc - 1)
+    if len >= _alloc then
+      _size = len.min(_alloc)
+      reserve(_alloc + 1)
+    else
+      _size = len.min(_alloc - 1)
+    end
+
     _set(_size, 0)
 
     this

@@ -45,6 +45,7 @@ actor Main is TestList
     test(_TestStringFromIsoArray)
     test(_TestStringSpace)
     test(_TestStringRecalc)
+    test(_TestStringTruncate)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -914,6 +915,31 @@ class iso _TestStringRecalc is UnitTest
     h.assert_eq[USize](s3.size(), 1)
     h.assert_eq[USize](s3.space(), 7)
     h.assert_true(s3.is_null_terminated())
+
+
+class iso _TestStringTruncate is UnitTest
+  fun name(): String => "builtin/String.truncate"
+
+  fun apply(h: TestHelper) =>
+    let s = recover ref String.from_iso_array(recover
+      ['1', '1', '1', '1', '1', '1', '1', '1']
+    end) end
+    s.truncate(s.space())
+    h.assert_true(s.is_null_terminated())
+    h.assert_eq[String](s.clone(), "11111111")
+    h.assert_eq[USize](s.size(), 8)
+    h.assert_eq[USize](s.space(), 15) // created extra allocation for null
+
+    s.truncate(100)
+    h.assert_true(s.is_null_terminated())
+    h.assert_eq[USize](s.size(), 16) // sized up to _alloc
+    h.assert_eq[USize](s.space(), 31) // created extra allocation for null
+
+    s.truncate(3)
+    h.assert_true(s.is_null_terminated())
+    h.assert_eq[String](s.clone(), "111")
+    h.assert_eq[USize](s.size(), 3)
+    h.assert_eq[USize](s.space(), 31)
 
 
 class iso _TestArrayAppend is UnitTest
