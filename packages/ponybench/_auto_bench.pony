@@ -9,18 +9,41 @@ actor _AutoBench[A: Any #share]
   new create(
     notify: _BenchNotify,
     name: String,
-    f: ({(): A ?} val | {(): Promise[A] ?} val),
+    f: {(): A ?} val,
     bench_time: U64 = 1_000_000_000,
     max_ops: U64 = 100_000_000
   ) =>
     _notify = notify
     _run = {(ops: U64)(notify = this, name, f) =>
-      match f
-      | let fn: {(): A ?} val =>
-        _Bench[A](notify)(name, fn, ops)
-      | let fn: {(): Promise[A] ?} val =>
-        _BenchAsync[A](notify)(name, fn, ops)
-      end
+      _Bench[A](notify)(name, f, ops)
+    } val
+    _auto_ops = _AutoOps(bench_time, max_ops)
+
+  be apply(ops: U64 = 1) => _run(ops)
+
+  be _result(name: String, ops: U64, nspo: U64) =>
+    match _auto_ops(ops, ops*nspo, nspo)
+    | let ops': U64 => apply(ops')
+    else _notify._result(name, ops, nspo)
+    end
+
+  be _failure(name: String) => _notify._failure(name)
+
+actor _AutoBenchAsync[A: Any #share]
+  let _notify: _BenchNotify
+  let _run: {(U64)} val
+  let _auto_ops: _AutoOps
+
+  new create(
+    notify: _BenchNotify,
+    name: String,
+    f: {(): Promise[A] ?} val,
+    bench_time: U64 = 1_000_000_000,
+    max_ops: U64 = 100_000_000
+  ) =>
+    _notify = notify
+    _run = {(ops: U64)(notify = this, name, f) =>
+      _BenchAsync[A](notify)(name, f, ops)
     } val
     _auto_ops = _AutoOps(bench_time, max_ops)
 

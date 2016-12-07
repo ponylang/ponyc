@@ -132,7 +132,7 @@ actor PonyBench
     let bf = recover val
       if ops == 0 then
         {()(notify = this, name, f) =>
-          _AutoBench[A](notify, name, f)()
+          _AutoBenchAsync[A](notify, name, f)()
         }
       else
         {()(notify = this, name, f, ops) =>
