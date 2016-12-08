@@ -374,6 +374,26 @@ TEST_F(VerifyTest, NonPartialFunctionError)
     "function body can raise an error");
 }
 
+TEST_F(VerifyTest, ErroringBehaviourError)
+{
+  const char* src =
+    "actor Foo\n"
+    "  be apply() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "a behaviour must handle any potential error");
+}
+
+TEST_F(VerifyTest, ErroringActorConstructorError)
+{
+  const char* src =
+    "actor Foo\n"
+    "  new create() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "an actor constructor must handle any potential error");
+}
+
 TEST_F(VerifyTest, TraitPartialFunctionNoError)
 {
   const char* src =
