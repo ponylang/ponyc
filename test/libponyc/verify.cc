@@ -309,6 +309,17 @@ TEST_F(VerifyTest, TryCallCurriedPartialFunction)
   TEST_COMPILE(src);
 }
 
+TEST_F(VerifyTest, TryCallChainedPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() =>\n"
+    "    try this.>partial() end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, PartialFunctionNoError)
 {
   const char* src =
