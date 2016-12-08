@@ -220,11 +220,11 @@ actor Main
       match punk
       | true =>
         PunkDemo(env)
-          .loop()
-          .inc().inc().inc()
-          .dec().dec().dec()
-          .inc().dec()
-          .kill()
+          .>loop()
+          .>inc().>inc().>inc()
+          .>dec().>dec().>dec()
+          .>inc().>dec()
+          .>kill()
       else
         match perf > 0
         | true =>
@@ -232,8 +232,8 @@ actor Main
           LonelyPony(env,debug,perf).perf()
         else
           match lonely
-          | false => InterruptiblePony(env,debug).forever().kill()
-          | true => LonelyPony(env,debug).forever().kill()
+          | false => InterruptiblePony(env,debug).>forever().>kill()
+          | true => LonelyPony(env,debug).>forever().>kill()
           end
         end
       end

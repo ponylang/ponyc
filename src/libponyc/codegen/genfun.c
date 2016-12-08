@@ -359,8 +359,8 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Send the arguments in a message to 'this'.
   gen_send_message(c, m, param_vals, params);
 
-  // Return 'this'.
-  LLVMBuildRet(c->builder, param_vals[0]);
+  // Return None.
+  LLVMBuildRet(c->builder, c->none_instance);
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, param_vals);

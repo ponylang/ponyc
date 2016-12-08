@@ -987,3 +987,49 @@ TEST_F(SubTypeTest, IsSubTypeArrow)
 
   pass_opt_init(&opt);
 }
+
+
+TEST_F(SubTypeTest, IsFunTagSubBe)
+{
+  const char* src =
+    "trait tag T\n"
+    "  be foo()\n"
+
+    "class tag C is T\n"
+    "  fun tag foo() => None\n"
+
+    "interface Test\n"
+    "  fun z(t: T, c: C)";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_TRUE(is_subtype(type_of("c"), type_of("t"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsBeSubFunTag)
+{
+  const char* src =
+    "trait tag T\n"
+    "  fun tag foo()\n"
+
+    "actor A is T\n"
+    "  be foo() => None\n"
+
+    "interface Test\n"
+    "  fun z(t: T, a: A)";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_TRUE(is_subtype(type_of("a"), type_of("t"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}

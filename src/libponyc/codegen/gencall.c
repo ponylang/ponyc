@@ -670,7 +670,17 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     codegen_debugloc(c, ast);
     gen_send_message(c, m, args, positional);
     codegen_debugloc(c, NULL);
-    r = args[0];
+    switch(ast_id(postfix))
+    {
+      case TK_NEWREF:
+      case TK_NEWBEREF:
+        r = args[0];
+        break;
+
+      default:
+        r = c->none_instance;
+        break;
+    }
   } else {
     while(arg != NULL)
     {

@@ -194,7 +194,7 @@ TEST_F(SugarTest, ActorWithCreateBehaviour)
   const char* full_form =
     "use \"builtin\"\n"
     "actor tag Foo\n"
-    "  be tag create():Foo tag => 3";
+    "  be tag create():None => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -345,7 +345,7 @@ TEST_F(SugarTest, BehaviourReturnType)
     "use \"builtin\"\n"
     "actor tag Foo\n"
     "  var create: U32\n"
-    "  be tag foo():Foo tag => 3";
+    "  be tag foo():None => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -1549,7 +1549,7 @@ TEST_F(SugarTest, ObjectWithBehaviour)
     "    None\n"
 
     "actor tag $T\n"
-    "  be tag foo(): $T tag =>\n"
+    "  be tag foo(): None =>\n"
     "    4\n"
     "  new tag create(): $T tag^ => true";
 
@@ -1626,7 +1626,7 @@ TEST_F(SugarTest, ObjectTagWithBehaviour)
     "    None\n"
 
     "actor tag $T\n"
-    "  be tag foo(): $T tag =>\n"
+    "  be tag foo(): None =>\n"
     "    4\n"
     "  new tag create(): $T tag^ => true";
 
@@ -2498,7 +2498,7 @@ TEST_F(SugarTest, CaseBehaviour)
     "use \"builtin\"\n"
     "actor tag Foo\n"
     "  var create: U32\n"
-    "  be tag fib(a: U64): Foo tag =>\n"
+    "  be tag fib(a: U64): None =>\n"
     "    $1(consume a)\n"
     "  fun ref $1($2: U64): None =>\n"
     "    match consume $2\n"

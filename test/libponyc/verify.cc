@@ -186,10 +186,9 @@ TEST_F(VerifyTest, ActorBeFinal)
     "  be _final() =>\n"
     "    None";
 
-  TEST_ERRORS_3(src,
+  TEST_ERRORS_2(src,
     "a _final method must be a function",
-    "a _final method must use box as the receiver capability",
-    "a _final method must return None");
+    "a _final method must use box as the receiver capability");
 }
 
 TEST_F(VerifyTest, ClassFunRefFinal)
