@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
 - Update from_array to prevent a copy (issue #1097) (PR #1423)
 
 ## [0.9.0] - 2016-11-11
