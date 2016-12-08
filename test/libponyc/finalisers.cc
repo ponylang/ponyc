@@ -97,3 +97,16 @@ TEST_F(FinalisersTest, FinalCannotCallBehaviourInTryElseBlock)
 
   TEST_ERRORS_1(src, "_final cannot create actors or send messages");
 }
+
+TEST_F(FinalisersTest, FinalCannotCallChainedBehaviour)
+{
+  const char* src =
+    "actor Actor\n"
+    "  be apply() => None\n"
+    "class Foo\n"
+    "  let a: Actor = Actor\n"
+    "  fun _final() =>\n"
+    "    a.>apply()";
+
+  TEST_ERRORS_1(src, "_final cannot create actors or send messages");
+}

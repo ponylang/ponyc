@@ -101,6 +101,7 @@ static int check_call_send(ast_t* ast, bool in_final)
   {
     case TK_NEWREF:
     case TK_FUNREF:
+    case TK_FUNCHAIN:
       // Qualified. Get the real receiver.
       receiver = ast_child(receiver);
       method = ast_sibling(receiver);

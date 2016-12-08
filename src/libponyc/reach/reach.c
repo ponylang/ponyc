@@ -780,6 +780,8 @@ static void reachable_fun(reach_t* r, ast_t* ast, pass_opt_t* opt)
     case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
       typeargs = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
