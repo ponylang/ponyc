@@ -116,10 +116,10 @@ deploy:
         configuration: Release
     publish: true
 
-cache:
-  # - 'C:\LLVM-%llvm%-pony\ -> .appveyor.yml'
-  - C:\premake5.exe -> .appveyor.yml
-  - C:\ponyc-windows-libs\ -> .appveyor.yml
+# cache:
+#   - 'C:\LLVM-%llvm%-pony\ -> .appveyor.yml'
+#   - C:\premake5.exe -> .appveyor.yml
+#   - C:\ponyc-windows-libs\ -> .appveyor.yml
 
 build:
   project: work\vs2015\ponyc.sln
