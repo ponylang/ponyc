@@ -251,8 +251,18 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     // If the function is not marked as partial, it must never raise an error.
     if(ast_canerror(body))
     {
-      ast_error(opt->check.errors, can_error, "function signature is not "
-        "marked as partial but the function body can raise an error");
+      if(ast_id(ast) == TK_BE)
+      {
+        ast_error(opt->check.errors, can_error, "a behaviour must handle any "
+          "potential error");
+      } else if((ast_id(ast) == TK_NEW) &&
+        (ast_id(opt->check.frame->type) == TK_ACTOR)) {
+        ast_error(opt->check.errors, can_error, "an actor constructor must "
+          "handle any potential error");
+      } else {
+        ast_error(opt->check.errors, can_error, "function signature is not "
+          "marked as partial but the function body can raise an error");
+      }
       show_partiality(opt, body);
       return false;
     }
