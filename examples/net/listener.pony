@@ -19,12 +19,12 @@ class Listener is TCPListenNotify
         let auth = env.root as AmbientAuth
         recover
           SSLContext
-            .set_authority(FilePath(auth, "./test/pony/net/cert.pem"))
-            .set_cert(
+            .>set_authority(FilePath(auth, "./test/pony/net/cert.pem"))
+            .>set_cert(
               FilePath(auth, "./test/pony/net/cert.pem"),
               FilePath(auth, "./test/pony/net/key.pem"))
-            .set_client_verify(true)
-            .set_server_verify(true)
+            .>set_client_verify(true)
+            .>set_server_verify(true)
         end
       end
     end

@@ -57,7 +57,7 @@ class _TestPing is UDPNotify
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress) =>
     _h.complete_action("ping receive")
 
-    let s = String.append(consume data)
+    let s = String.>append(consume data)
     _h.assert_eq[String box](s, "pong!")
     _h.complete(true)
 
@@ -94,7 +94,7 @@ class _TestPong is UDPNotify
   =>
     _h.complete_action("pong receive")
 
-    let s = String.append(consume data)
+    let s = String.>append(consume data)
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
       recover val [[U8('p'), U8('o'), U8('n'), U8('g'), U8('!')]] end,
@@ -286,7 +286,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     _h = h
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
-    recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
+    recover Array[ByteSeq].>concat(data.values()).>push(" (from client)") end
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")

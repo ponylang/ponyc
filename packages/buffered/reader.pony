@@ -72,23 +72,21 @@ class Reader
     """
     _available
 
-  fun ref clear(): Reader^ =>
+  fun ref clear() =>
     """
     Discard all pending data.
     """
     _chunks.clear()
     _available = 0
-    this
 
-  fun ref append(data: Array[U8] val): Reader^ =>
+  fun ref append(data: Array[U8] val) =>
     """
     Add a chunk of data.
     """
     _available = _available + data.size()
     _chunks.push((data, 0))
-    this
 
-  fun ref skip(n: USize): Reader^ ? =>
+  fun ref skip(n: USize) ? =>
     """
     Skip n bytes.
     """
@@ -110,7 +108,6 @@ class Reader
         _chunks.shift()
       end
 
-      this
     else
       error
     end
@@ -124,7 +121,7 @@ class Reader
     end
 
     _available = _available - len
-    var out = recover Array[U8].undefined(len) end
+    var out = recover Array[U8].>undefined(len) end
     var i = USize(0)
 
     while i < len do

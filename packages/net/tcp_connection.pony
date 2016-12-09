@@ -177,7 +177,7 @@ actor TCPConnection
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
     will be made from the specified interface.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -193,7 +193,7 @@ actor TCPConnection
     """
     Connect via IPv4.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -209,7 +209,7 @@ actor TCPConnection
     """
     Connect via IPv6.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -231,7 +231,7 @@ actor TCPConnection
     _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
     _connected = true
     _writeable = true
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
 

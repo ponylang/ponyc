@@ -79,7 +79,7 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].>undefined(size) end
     _notify_listening()
     _start_next_read()
 
@@ -95,7 +95,7 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].>undefined(size) end
     _notify_listening()
     _start_next_read()
 
@@ -111,7 +111,7 @@ actor UDPSocket
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].undefined(size) end
+    _read_buf = recover Array[U8].>undefined(size) end
     _notify_listening()
     _start_next_read()
 
@@ -258,7 +258,7 @@ actor UDPSocket
 
         while _readable do
           let size = _packet_size
-          let data = _read_buf = recover Array[U8].undefined(size) end
+          let data = _read_buf = recover Array[U8].>undefined(size) end
           let from = recover IPAddress end
           let len = @pony_os_recvfrom[USize](_event, data.cpointer(),
             data.space(), from) ?
@@ -302,7 +302,7 @@ actor UDPSocket
 
       // Hand back read data
       let size = _packet_size
-      let data = _read_buf = recover Array[U8].undefined(size) end
+      let data = _read_buf = recover Array[U8].>undefined(size) end
       let from = _read_from = recover IPAddress end
       data.truncate(len.usize())
       _notify.received(this, consume data, consume from)

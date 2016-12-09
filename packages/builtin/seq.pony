@@ -7,7 +7,7 @@ interface Seq[A]
     Create a sequence, reserving space for len elements.
     """
 
-  fun ref reserve(len: USize): Seq[A]^
+  fun ref reserve(len: USize)
     """
     Reserve space for len elements.
     """
@@ -29,12 +29,12 @@ interface Seq[A]
     Raises an error if the index is out of bounds.
     """
 
-  fun ref clear(): Seq[A]^
+  fun ref clear()
     """
     Removes all elements from the sequence.
     """
 
-  fun ref push(value: A): Seq[A]^
+  fun ref push(value: A)
     """
     Adds an element to the end of the sequence.
     """
@@ -44,7 +44,7 @@ interface Seq[A]
     Removes an element from the end of the sequence.
     """
 
-  fun ref unshift(value: A): Seq[A]^
+  fun ref unshift(value: A)
     """
     Adds an element to the beginning of the sequence.
     """
@@ -55,20 +55,19 @@ interface Seq[A]
     """
 
   fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
-    len: USize = -1): Seq[A]^
+    len: USize = -1)
     """
     Add len elements to the end of the list, starting from the given
     offset.
     """
 
   fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
-    : Seq[A]^
     """
     Add len iterated elements to the end of the list, starting from the given
     offset.
     """
 
-  fun ref truncate(len: USize): Seq[A]^
+  fun ref truncate(len: USize)
     """
     Truncate the sequence to the given length, discarding excess elements.
     If the sequence is already smaller than len, do nothing.

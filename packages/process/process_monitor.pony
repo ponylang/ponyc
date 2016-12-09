@@ -170,7 +170,7 @@ actor ProcessMonitor
   var _stderr_event: AsioEventID = AsioEvent.none()
 
   let _max_size: USize = 4096
-  var _read_buf: Array[U8] iso = recover Array[U8].undefined(_max_size) end
+  var _read_buf: Array[U8] iso = recover Array[U8].>undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
 
@@ -575,7 +575,7 @@ actor ProcessMonitor
 
         _read_len = _read_len + len.usize()
 
-        let data = _read_buf = recover Array[U8].undefined(next) end
+        let data = _read_buf = recover Array[U8].>undefined(next) end
         data.truncate(_read_len)
 
         match fd

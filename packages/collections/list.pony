@@ -26,11 +26,11 @@ class List[A] is Seq[A]
       push(consume value)
     end
 
-  fun ref reserve(len: USize): List[A]^ =>
+  fun ref reserve(len: USize) =>
     """
     Do nothing, but be compatible with Seq.
     """
-    this
+    None
 
   fun size(): USize =>
     """
@@ -70,21 +70,20 @@ class List[A] is Seq[A]
 
     node
 
-  fun ref remove(i: USize): List[A]^ ? =>
+  fun ref remove(i: USize): ListNode[A] ? =>
     """
     Remove the i-th node, raising an error if the index is out of bounds.
+    The removed node is returned.
     """
-    index(i).remove()
-    this
+    index(i).>remove()
 
-  fun ref clear(): List[A]^ =>
+  fun ref clear() =>
     """
     Empties the list.
     """
     _head = None
     _tail = None
     _size = 0
-    this
 
   fun head(): this->ListNode[A] ? =>
     """
@@ -98,7 +97,7 @@ class List[A] is Seq[A]
     """
     _tail as this->ListNode[A]
 
-  fun ref prepend_node(node: ListNode[A]): List[A]^ =>
+  fun ref prepend_node(node: ListNode[A]) =>
     """
     Adds a node to the head of the list.
     """
@@ -108,9 +107,8 @@ class List[A] is Seq[A]
     else
       _set_both(node)
     end
-    this
 
-  fun ref append_node(node: ListNode[A]): List[A]^ =>
+  fun ref append_node(node: ListNode[A]) =>
     """
     Adds a node to the tail of the list.
     """
@@ -120,9 +118,8 @@ class List[A] is Seq[A]
     else
       _set_both(node)
     end
-    this
 
-  fun ref append_list(that: List[A]): List[A]^ =>
+  fun ref append_list(that: List[A]) =>
     """
     Remove all nodes from that and append them to this.
     """
@@ -131,9 +128,8 @@ class List[A] is Seq[A]
         try append_node(that.head()) end
       end
     end
-    this
 
-  fun ref prepend_list(that: List[A]): List[A]^ =>
+  fun ref prepend_list(that: List[A]) =>
     """
     Remove all nodes from that and prepend them to this.
     """
@@ -142,9 +138,8 @@ class List[A] is Seq[A]
         try prepend_node(that.tail()) end
       end
     end
-    this
 
-  fun ref push(a: A): List[A]^ =>
+  fun ref push(a: A) =>
     """
     Adds a value to the tail of the list.
     """
@@ -154,9 +149,9 @@ class List[A] is Seq[A]
     """
     Removes a value from the tail of the list.
     """
-    tail().remove().pop()
+    tail().>remove().pop()
 
-  fun ref unshift(a: A): List[A]^ =>
+  fun ref unshift(a: A) =>
     """
     Adds a value to the head of the list.
     """
@@ -166,16 +161,16 @@ class List[A] is Seq[A]
     """
     Removes a value from the head of the list.
     """
-    head().remove().pop()
+    head().>remove().pop()
 
   fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
-    len: USize = -1): List[A]^
+    len: USize = -1)
   =>
     """
     Append len elements from a sequence, starting from the given offset.
     """
     if offset >= seq.size() then
-      return this
+      return
     end
 
     let copy_len = len.min(seq.size() - offset)
@@ -191,11 +186,7 @@ class List[A] is Seq[A]
       end
     end
 
-    this
-
-  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
-    : List[A]^
-  =>
+  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1) =>
     """
     Add len iterated elements to the end of the list, starting from the given
     offset.
@@ -205,7 +196,7 @@ class List[A] is Seq[A]
         if iter.has_next() then
           iter.next()
         else
-          return this
+          return
         end
       end
 
@@ -213,14 +204,12 @@ class List[A] is Seq[A]
         if iter.has_next() then
           push(iter.next())
         else
-          return this
+          return
         end
       end
     end
 
-    this
-
-  fun ref truncate(len: USize): List[A]^ =>
+  fun ref truncate(len: USize) =>
     """
     Truncate the list to the given length, discarding excess elements.
     If the list is already smaller than len, do nothing.
@@ -230,8 +219,6 @@ class List[A] is Seq[A]
         pop()
       end
     end
-
-    this
 
   fun clone(): List[this->A!]^ =>
     """

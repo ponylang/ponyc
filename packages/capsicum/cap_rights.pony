@@ -57,17 +57,15 @@ class CapRights0
       @__cap_rights_get[I32](_version(), fd, addressof _r0)
     end
 
-  fun ref set(cap: U64): CapRights0^ =>
+  fun ref set(cap: U64) =>
     ifdef freebsd or "capsicum" then
       @__cap_rights_set[None](addressof _r0, cap, U64(0))
     end
-    this
 
-  fun ref unset(cap: U64): CapRights0^ =>
+  fun ref unset(cap: U64) =>
     ifdef freebsd or "capsicum" then
       @__cap_rights_clear[None](addressof _r0, cap, U64(0))
     end
-    this
 
   fun limit(fd: I32): Bool =>
     """

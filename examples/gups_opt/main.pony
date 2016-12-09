@@ -133,7 +133,7 @@ actor Updater
     _output = _output.create(updaters)
 
     let size = 1 << loglocal
-    _table = Array[U64].undefined(size)
+    _table = Array[U64].>undefined(size)
 
     var offset = index * size
 
@@ -222,7 +222,7 @@ primitive PolyRand
       return 1
     end
 
-    var m2 = Array[U64].undefined(64)
+    var m2 = Array[U64].>undefined(64)
     var temp = U64(1)
 
     try
