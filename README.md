@@ -31,6 +31,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
     - [pony-snippets](https://github.com/SeanTAllen/pony-snippets)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
+* Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 
 # Installation
 
