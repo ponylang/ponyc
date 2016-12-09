@@ -1,61 +1,74 @@
 use "collections"
 use "promises"
 
-actor _AutoBench[A: Any #share]
+actor _AutoBench[A: Any #share] is _Benchmark
+  let _name: String
   let _notify: _BenchNotify
-  let _run: {(U64)} val
+  let _f: {(): A ?} val
+  var _bench: _Bench[A]
   let _auto_ops: _AutoOps
 
   new create(
-    notify: _BenchNotify,
     name: String,
+    notify: _BenchNotify,
     f: {(): A ?} val,
     bench_time: U64 = 1_000_000_000,
     max_ops: U64 = 100_000_000
   ) =>
+    _name = name
     _notify = notify
-    _run = {(ops: U64)(notify = this, name, f) =>
-      _Bench[A](notify)(name, f, ops)
-    } val
+    _f = f
+    _bench = _Bench[A](_name, this, _f, 1)
     _auto_ops = _AutoOps(bench_time, max_ops)
 
-  be apply(ops: U64 = 1) => _run(ops)
+  be run() => _bench.run()
 
   be _result(name: String, ops: U64, nspo: U64) =>
     match _auto_ops(ops, ops*nspo, nspo)
-    | let ops': U64 => apply(ops')
+    | let ops': U64 =>
+      _bench = _Bench[A](_name, this, _f, ops')
+      run()
     else _notify._result(name, ops, nspo)
     end
 
-  be _failure(name: String) => _notify._failure(name)
+  be _failure(name: String, timeout: Bool) =>
+    _notify._failure(name, timeout)
 
-actor _AutoBenchAsync[A: Any #share]
-  let _notify: _BenchNotify
-  let _run: {(U64)} val
-  let _auto_ops: _AutoOps
-
-  new create(
-    notify: _BenchNotify,
-    name: String,
-    f: {(): Promise[A] ?} val,
-    bench_time: U64 = 1_000_000_000,
-    max_ops: U64 = 100_000_000
-  ) =>
-    _notify = notify
-    _run = {(ops: U64)(notify = this, name, f) =>
-      _BenchAsync[A](notify)(name, f, ops)
-    } val
-    _auto_ops = _AutoOps(bench_time, max_ops)
-
-  be apply(ops: U64 = 1) => _run(ops)
-
-  be _result(name: String, ops: U64, nspo: U64) =>
-    match _auto_ops(ops, ops*nspo, nspo)
-    | let ops': U64 => apply(ops')
-    else _notify._result(name, ops, nspo)
-    end
-
-  be _failure(name: String) => _notify._failure(name)
+actor _AutoBenchAsync[A: Any #share] is _Benchmark
+    let _name: String
+    let _notify: _BenchNotify
+    let _f: {(): Promise[A] ?} val
+    let _timeout: U64
+    var _bench: _BenchAsync[A]
+    let _auto_ops: _AutoOps
+  
+    new create(
+      name: String,
+      notify: _BenchNotify,
+      f: {(): Promise[A] ?} val,
+      timeout: U64,
+      bench_time: U64 = 1_000_000_000,
+      max_ops: U64 = 100_000_000
+    ) =>
+      _name = name
+      _notify = notify
+      _f = f
+      _timeout = timeout
+      _bench = _BenchAsync[A](_name, this, _f, 1, _timeout)
+      _auto_ops = _AutoOps(bench_time, max_ops)
+  
+    be run() => _bench.run()
+  
+    be _result(name: String, ops: U64, nspo: U64) =>
+      match _auto_ops(ops, ops*nspo, nspo)
+      | let ops': U64 =>
+        _bench = _BenchAsync[A](_name, this, _f, ops', _timeout)
+        run()
+      else _notify._result(name, ops, nspo)
+      end
+  
+    be _failure(name: String, timeout: Bool) =>
+      _notify._failure(name, timeout)
 
 class _AutoOps
   let _bench_time: U64
