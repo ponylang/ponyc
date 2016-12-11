@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Make space() check if string is null terminated (issue #1426) (PR #1430)
 - Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
 - Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
+
 ### Added
 
 - Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
