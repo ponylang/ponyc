@@ -308,3 +308,26 @@ TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)
 
   TEST_ERRORS_1(src, "can't call a constructor on a type intersection");
 }
+
+TEST_F(BadPonyTest, AssignToFieldOfIso)
+{
+  // From issue #1469
+  const char* src =
+    "class Foo\n"
+    "  var x: String ref = String\n"
+    "  fun iso bar(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    x = s\n"
+    "   consume s\n"
+
+    "  fun ref foo(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    let y: Foo iso = Foo\n"
+    "    y.x = s\n"
+    "    consume s";
+
+  TEST_ERRORS_2(src,
+    "right side must be a subtype of left side",
+    "right side must be a subtype of left side"
+    );
+}
