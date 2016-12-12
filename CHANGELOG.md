@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't violate reference capabilities when assigning via a field (PR #1471)
 - Check errors correctly for method chaining (PR #1463)
 - Fix compiler handling of type params in stacks (issue #918) (PR #1452)
 - Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
