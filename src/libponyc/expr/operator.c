@@ -532,12 +532,27 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   // Inferring locals may have changed the left type.
   l_type = ast_type(left);
+  ast_t* fl_type = l_type;
+
+  switch(ast_id(left))
+  {
+    case TK_FVARREF:
+    case TK_FLETREF:
+    {
+      // Must be a subtype of the field type, not the viewpoint adapted type.
+      AST_GET_CHILDREN(left, origin, field);
+      fl_type = ast_type(field);
+      break;
+    }
+
+    default: {}
+  }
 
   // Assignment is based on the alias of the right hand side.
   ast_t* a_type = alias(r_type);
 
   errorframe_t info = NULL;
-  if(!is_subtype(a_type, l_type, &info, opt))
+  if(!is_subtype(a_type, fl_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
