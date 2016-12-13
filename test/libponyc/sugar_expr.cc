@@ -214,7 +214,7 @@ TEST_F(SugarExprTest, PartialBehaviour)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    {box()($1 = x): T tag => $1.f() }";
+    "    {box()($1 = x) => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }

@@ -45,6 +45,7 @@ enum
   AST_FLAG_ERROR_2      = 0x40000,
 };
 
+DECLARE_LIST(astlist, astlist_t, ast_t);
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);

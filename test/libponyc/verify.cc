@@ -186,10 +186,9 @@ TEST_F(VerifyTest, ActorBeFinal)
     "  be _final() =>\n"
     "    None";
 
-  TEST_ERRORS_3(src,
+  TEST_ERRORS_2(src,
     "a _final method must be a function",
-    "a _final method must use box as the receiver capability",
-    "a _final method must return None");
+    "a _final method must use box as the receiver capability");
 }
 
 TEST_F(VerifyTest, ClassFunRefFinal)
@@ -310,6 +309,17 @@ TEST_F(VerifyTest, TryCallCurriedPartialFunction)
   TEST_COMPILE(src);
 }
 
+TEST_F(VerifyTest, TryCallChainedPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() =>\n"
+    "    try this.>partial() end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, PartialFunctionNoError)
 {
   const char* src =
@@ -373,6 +383,26 @@ TEST_F(VerifyTest, NonPartialFunctionError)
 
   TEST_ERRORS_1(src, "function signature is not marked as partial but the "
     "function body can raise an error");
+}
+
+TEST_F(VerifyTest, ErroringBehaviourError)
+{
+  const char* src =
+    "actor Foo\n"
+    "  be apply() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "a behaviour must handle any potential error");
+}
+
+TEST_F(VerifyTest, ErroringActorConstructorError)
+{
+  const char* src =
+    "actor Foo\n"
+    "  new create() =>\n"
+    "    error";
+
+  TEST_ERRORS_1(src, "an actor constructor must handle any potential error");
 }
 
 TEST_F(VerifyTest, TraitPartialFunctionNoError)

@@ -378,8 +378,9 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 
   if(ast_id(result) == TK_NONE)
   {
-    // Return type is This tag
-    ast_replace(&result, type_for_this(opt, ast, TK_TAG, TK_NONE, false));
+    // Return type is None.
+    ast_t* type = type_sugar(ast, NULL, "None");
+    ast_replace(&result, type);
   }
 
   sugar_docstring(ast);

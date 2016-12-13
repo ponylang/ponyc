@@ -31,6 +31,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
     - [pony-snippets](https://github.com/SeanTAllen/pony-snippets)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
+* Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 
 # Installation
 
@@ -106,7 +107,7 @@ Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERS
 .\ponyc-VERSION\ponyc\bin\ponyc.exe --version
 ```
 
-Windows 10 users will need to install the Windows 10 SDK in order to build programs with ponyc. It can be downloaded [from Microsoft](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+Windows users will need to install Visual Studio 2015 and the Windows 10 SDK in order to build programs with ponyc. It can be downloaded from Microsoft ([Visual Studio](https://www.visualstudio.com/vs/community/), [SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
 
 ## Mac OS X using [Homebrew](http://brew.sh)
 
@@ -223,23 +224,12 @@ $ ./helloworld
 
 ### Ubuntu (14.04, 15.10, 16.04)
 
-You should install prebuilt Clang 3.8 from the [LLVM download page](http://llvm.org/releases/download.html#3.8.0) under Pre-Built Binaries:
-
 ```bash
 $ sudo apt-get update
-$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-dev
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
 ```
 
-Ubuntu and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
-
-```bash
-$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-$ tar xvf pcre2-10.21.tar.bz2
-$ cd pcre2-10.21
-$ ./configure --prefix=/usr
-$ make
-$ sudo make install
-```
+You should install LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
 
 To build ponyc, compile and run helloworld:
 
@@ -254,7 +244,7 @@ $ ./helloworld
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.6.2, 3.7.1, 3.8.1.
+* LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0
 * zlib
 * ncurses
 * pcre2

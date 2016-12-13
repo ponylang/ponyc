@@ -56,6 +56,13 @@ struct ast_t
   uint32_t flags;
 };
 
+static bool ast_cmp(ast_t* a, ast_t* b)
+{
+  return a == b;
+}
+
+DEFINE_LIST(astlist, astlist_t, ast_t, ast_cmp, NULL);
+
 static const char in[] = "  ";
 static const size_t in_len = 2;
 static size_t width = 80;

@@ -60,23 +60,11 @@ actor Main
 
   new val from_array(data: Array[U8] val) =>
     """
-    Create a string from an array, reusing the underlying data pointer if the
-    array is null terminated, or copying the data if it is not.
+    Create a string from an array, reusing the underlying data pointer.
     """
     _size = data.size()
-
-    if
-      (_size > 0) and
-      try (data(_size - 1) == 0) else false end
-    then
-      _alloc = data.space()
-      _ptr = data.cpointer()._unsafe()
-    else
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      data._copy_to(_ptr, _size)
-      _set(_size, 0)
-    end
+    _alloc = data.space()
+    _ptr = data.cpointer()._unsafe()
 
   new iso from_iso_array(data: Array[U8] iso) =>
     """
@@ -85,6 +73,9 @@ actor Main
     _size = data.size()
     _alloc = data.space()
     _ptr = (consume data).cpointer()._unsafe()
+    if _alloc > _size then
+      _set(_size, 0)
+    end
 
   new from_cpointer(str: Pointer[U8], len: USize, alloc: USize = 0) =>
     """
@@ -271,7 +262,7 @@ actor Main
     """
     Returns the space available for data, not including the null terminator.
     """
-    _alloc - 1
+    if is_null_terminated() then _alloc - 1 else _alloc end
 
   fun ref reserve(len: USize): String ref^ =>
     """
@@ -313,18 +304,17 @@ actor Main
   fun ref recalc(): String ref^ =>
     """
     Recalculates the string length. This is only needed if the string is
-    changed via an FFI call. If the string is not null terminated at the
-    allocated length, a null is added.
+    changed via an FFI call. If a null terminator byte is not found within the
+    allocated length, the size will not be changed.
     """
-    _size = 0
+    var s: USize = 0
 
-    while (_size < _alloc) and (_ptr._apply(_size) > 0) do
-      _size = _size + 1
+    while (s < _alloc) and (_ptr._apply(s) > 0) do
+      s = s + 1
     end
 
-    if _size == _alloc then
-      _size = _size - 1
-      _set(_size, 0)
+    if s != _alloc then
+      _size = s
     end
 
     this
@@ -336,7 +326,13 @@ actor Main
 
     Note that memory is not freed by this operation.
     """
-    _size = len.min(_alloc - 1)
+    if len >= _alloc then
+      _size = len.min(_alloc)
+      reserve(_alloc + 1)
+    else
+      _size = len.min(_alloc - 1)
+    end
+
     _set(_size, 0)
 
     this
@@ -385,7 +381,7 @@ actor Main
     which may be present earlier in the content of the string.
     If you need a null-terminated copy of this string, use the clone method.
     """
-    (_alloc > 0) and (_ptr._apply(_size) == 0)
+    (_alloc > 0) and (_alloc != _size) and (_ptr._apply(_size) == 0)
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
@@ -984,6 +980,33 @@ actor Main
       end
     end
     this
+
+  fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
+    """
+    Split the string into an array of strings that are delimited by `delim` in
+    the original string. If `n > 0`, then the split count is limited to n.
+
+    Adjacent delimiters result in a zero length entry in the array. For
+    example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    An empty delimiter results in an array that contains a single element equal
+    to the whole string.
+    """
+    let delim_size = ISize.from[USize](delim.size())
+    let total_size = ISize.from[USize](size())
+
+    let result = recover Array[String] end
+    var current = ISize(0)
+
+    while ((result.size() + 1) < n) and (current < total_size) do
+      try
+        let delim_start = find(delim where offset = current)
+        result.push(substring(current, delim_start))
+        current = delim_start + delim_size
+      else break end
+    end
+    result.push(substring(current))
+    consume result
 
   fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """

@@ -234,13 +234,16 @@ void buildflagset_add(buildflagset_t* set, const char* flag)
 
   // Just a normal flag.
   flag_t f1 = {flag, false};
-  flag_t* f2 = flagtab_get(set->flags, &f1);
+  size_t index = HASHMAP_UNKNOWN;
+  flag_t* f2 = flagtab_get(set->flags, &f1, &index);
 
   if(f2 != NULL)  // Flag already in our table.
     return;
 
   // Add flag to our table.
-  flagtab_put(set->flags, flag_dup(&f1));
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  flagtab_putindex(set->flags, flag_dup(&f1), index);
 }
 
 
@@ -403,7 +406,8 @@ bool buildflagset_get(buildflagset_t* set, const char* flag)
 
   // Just a normal flag.
   flag_t f1 = {flag, false};
-  flag_t* f2 = flagtab_get(set->flags, &f1);
+  size_t h_index = HASHMAP_UNKNOWN;
+  flag_t* f2 = flagtab_get(set->flags, &f1, &h_index);
 
   // Flag MUST have been added previously.
   assert(f2 != NULL);
@@ -515,13 +519,16 @@ bool define_build_flag(const char* name)
   }
 
   flag_t f1 = {stringtab(name), false};
-  flag_t* f2 = flagtab_get(_user_flags, &f1);
+  size_t index = HASHMAP_UNKNOWN;
+  flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
 
   if(f2 != NULL)  // Flag already in our table.
     return false;
 
   // Add flag to our table.
-  flagtab_put(_user_flags, flag_dup(&f1));
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  flagtab_putindex(_user_flags, flag_dup(&f1), index);
   return true;
 }
 
@@ -535,7 +542,8 @@ bool is_build_flag_defined(const char* name)
     return false;
 
   flag_t f1 = { stringtab(name), false };
-  flag_t* f2 = flagtab_get(_user_flags, &f1);
+  size_t index = HASHMAP_UNKNOWN;
+  flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
 
   return f2 != NULL;
 }

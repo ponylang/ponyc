@@ -154,8 +154,9 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   // get the object
+  size_t index = HASHMAP_UNKNOWN;
   gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getobject(&gc->local, p);
+  object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
   assert(obj != NULL);
 
   if(obj->mark == gc->mark)
@@ -221,8 +222,9 @@ static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
 static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
+  size_t index = HASHMAP_UNKNOWN;
   gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getobject(&gc->local, p);
+  object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
   assert(obj != NULL);
 
   if(obj->mark == gc->mark)
@@ -653,11 +655,12 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
   objectmap_t* map = &aref->map;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
+  size_t index = HASHMAP_UNKNOWN;
 
   while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
     void* p = obj->address;
-    object_t* obj_local = ponyint_objectmap_getobject(&gc->local, p);
+    object_t* obj_local = ponyint_objectmap_getobject(&gc->local, p, &index);
 
     assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;

@@ -154,6 +154,7 @@ typedef struct compile_t
   LLVMValueRef tbaa_root;
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
+  LLVMValueRef none_instance;
 
   LLVMTypeRef void_type;
   LLVMTypeRef ibool;

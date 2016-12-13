@@ -762,6 +762,9 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->reach = reach_new();
   c->tbaa_mds = tbaa_metadatas_new();
 
+  // This gets a real value once the instance of None has been generated.
+  c->none_instance = NULL;
+
   return true;
 }
 
@@ -1001,10 +1004,11 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && !p->alive)
     {
@@ -1026,10 +1030,11 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && p->alive)
     {
@@ -1126,10 +1131,11 @@ LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL)
       return p->alloca;
