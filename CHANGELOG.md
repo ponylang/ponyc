@@ -6,6 +6,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+### Added
+
+### Changed
+
+## [0.10.0] - 2016-12-12
+
+### Fixed
+
 - Don't violate reference capabilities when assigning via a field (PR #1471)
 - Check errors correctly for method chaining (PR #1463)
 - Fix compiler handling of type params in stacks (issue #918) (PR #1452)
