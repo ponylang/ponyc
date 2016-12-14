@@ -48,7 +48,7 @@ primitive Format
         end
       end
 
-      s.recalc()
+      s.>recalc()
     end
 
   fun int[A: (Int & Integer[A])](x: A, fmt: FormatInt = FormatDefault,

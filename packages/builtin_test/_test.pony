@@ -303,10 +303,10 @@ class iso _TestStringLstrip is UnitTest
   fun name(): String => "builtin/String.lstrip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "foobar".clone().lstrip("foo") end, "bar")
-    h.assert_eq[String](recover "fooooooobar".clone().lstrip("foo") end, "bar")
-    h.assert_eq[String](recover "   foobar".clone().lstrip() end, "foobar")
-    h.assert_eq[String](recover "  foobar  ".clone().lstrip() end, "foobar  ")
+    h.assert_eq[String](recover "foobar".clone().>lstrip("foo") end, "bar")
+    h.assert_eq[String](recover "fooooooobar".clone().>lstrip("foo") end, "bar")
+    h.assert_eq[String](recover "   foobar".clone().>lstrip() end, "foobar")
+    h.assert_eq[String](recover "  foobar  ".clone().>lstrip() end, "foobar  ")
 
 
 class iso _TestStringRstrip is UnitTest
@@ -316,10 +316,10 @@ class iso _TestStringRstrip is UnitTest
   fun name(): String => "builtin/String.rstrip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "foobar".clone().rstrip("bar") end, "foo")
-    h.assert_eq[String](recover "foobaaaaaar".clone().rstrip("bar") end, "foo")
-    h.assert_eq[String](recover "foobar  ".clone().rstrip() end, "foobar")
-    h.assert_eq[String](recover "  foobar  ".clone().rstrip() end, "  foobar")
+    h.assert_eq[String](recover "foobar".clone().>rstrip("bar") end, "foo")
+    h.assert_eq[String](recover "foobaaaaaar".clone().>rstrip("bar") end, "foo")
+    h.assert_eq[String](recover "foobar  ".clone().>rstrip() end, "foobar")
+    h.assert_eq[String](recover "  foobar  ".clone().>rstrip() end, "  foobar")
 
 
 class iso _TestStringStrip is UnitTest
@@ -329,10 +329,10 @@ class iso _TestStringStrip is UnitTest
   fun name(): String => "builtin/String.strip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "  foobar  ".clone().strip() end, "foobar")
-    h.assert_eq[String](recover "barfoobar".clone().strip("bar") end, "foo")
-    h.assert_eq[String](recover "foobarfoo".clone().strip("foo") end, "bar")
-    h.assert_eq[String](recover "foobarfoo".clone().strip("bar") end,
+    h.assert_eq[String](recover "  foobar  ".clone().>strip() end, "foobar")
+    h.assert_eq[String](recover "barfoobar".clone().>strip("bar") end, "foo")
+    h.assert_eq[String](recover "foobarfoo".clone().>strip("foo") end, "bar")
+    h.assert_eq[String](recover "foobarfoo".clone().>strip("bar") end,
       "foobarfoo")
 
 
@@ -522,7 +522,7 @@ class iso _TestStringReplace is UnitTest
   fun name(): String => "builtin/String.replace"
 
   fun apply(h: TestHelper) =>
-    let s = String.append("this is a robbery, this is a stickup")
+    let s = String.>append("this is a robbery, this is a stickup")
     s.replace("is a", "is not a")
     h.assert_eq[String box](s, "this is not a robbery, this is not a stickup")
 

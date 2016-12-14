@@ -264,7 +264,7 @@ actor Main
     """
     if is_null_terminated() then _alloc - 1 else _alloc end
 
-  fun ref reserve(len: USize): String ref^ =>
+  fun ref reserve(len: USize) =>
     """
     Reserve space for len bytes. An additional byte will be reserved for the
     null terminator.
@@ -279,9 +279,8 @@ actor Main
       end
       _ptr = _ptr._realloc(_alloc)
     end
-    this
 
-  fun ref compact(): String ref^ =>
+  fun ref compact() =>
     """
     Try to remove unused space, making it available for garbage collection. The
     request may be ignored. The string is returned to allow call chaining.
@@ -299,9 +298,8 @@ actor Main
       _ptr._consume_from(consume old_ptr, _size)
       _set(_size, 0)
     end
-    this
 
-  fun ref recalc(): String ref^ =>
+  fun ref recalc() =>
     """
     Recalculates the string length. This is only needed if the string is
     changed via an FFI call. If a null terminator byte is not found within the
@@ -317,9 +315,7 @@ actor Main
       _size = s
     end
 
-    this
-
-  fun ref truncate(len: USize): String ref^ =>
+  fun ref truncate(len: USize) =>
     """
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
@@ -335,13 +331,10 @@ actor Main
 
     _set(_size, 0)
 
-    this
-
-  fun ref trim_in_place(from: USize = 0, to: USize = -1): String ref^ =>
+  fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """
     Trim the string to a portion of itself, covering `from` until `to`.
     Unlike slice, the operation does not allocate a new string nor copy elements.
-    The same string is returned to allow call chaining.
     """
     let last = _size.min(to)
     let offset = last.min(from)
@@ -349,8 +342,6 @@ actor Main
     _size = last - offset
     _alloc = _alloc - offset
     _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
-
-    this
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """
@@ -634,7 +625,7 @@ actor Main
       false
     end
 
-  fun ref delete(offset: ISize, len: USize = 1): String ref^ =>
+  fun ref delete(offset: ISize, len: USize = 1) =>
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
@@ -646,7 +637,6 @@ actor Main
       _ptr._offset(i)._delete(n, _size - i)
       _set(_size, 0)
     end
-    this
 
   fun substring(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
@@ -675,7 +665,7 @@ actor Main
     s.lower_in_place()
     s
 
-  fun ref lower_in_place(): String ref^ =>
+  fun ref lower_in_place() =>
     """
     Transforms the string to lower case. Currently only knows ASCII case.
     """
@@ -690,7 +680,6 @@ actor Main
 
       i = i + 1
     end
-    this
 
   fun upper(): String iso^ =>
     """
@@ -701,7 +690,7 @@ actor Main
     s.upper_in_place()
     s
 
-  fun ref upper_in_place(): String ref^ =>
+  fun ref upper_in_place() =>
     """
     Transforms the string to upper case.
     """
@@ -716,7 +705,6 @@ actor Main
 
       i = i + 1
     end
-    this
 
   fun reverse(): String iso^ =>
     """
@@ -726,7 +714,7 @@ actor Main
     s.reverse_in_place()
     s
 
-  fun ref reverse_in_place(): String ref^ =>
+  fun ref reverse_in_place() =>
     """
     Reverses the byte order in the string. This needs to be changed to handle
     UTF-8 correctly.
@@ -743,9 +731,8 @@ actor Main
         j = j - 1
       end
     end
-    this
 
-  fun ref push(value: U8): String ref^ =>
+  fun ref push(value: U8) =>
     """
     Add a byte to the end of the string.
     """
@@ -753,7 +740,6 @@ actor Main
     _set(_size, value)
     _size = _size + 1
     _set(_size, 0)
-    this
 
   fun ref pop(): U8 ? =>
     """
@@ -766,7 +752,7 @@ actor Main
       error
     end
 
-  fun ref unshift(value: U8): String ref^ =>
+  fun ref unshift(value: U8) =>
     """
     Adds a byte to the beginning of the string.
     """
@@ -779,8 +765,6 @@ actor Main
       _set(0, 0)
       _size = 0
     end
-
-    this
 
   fun ref shift(): U8 ? =>
     """
@@ -795,14 +779,12 @@ actor Main
       error
     end
 
-  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1)
-    : String ref^
-  =>
+  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1) =>
     """
     Append the elements from a sequence, starting from the given offset.
     """
     if offset >= seq.size() then
-      return this
+      return
     end
 
     let copy_len = len.min(seq.size() - offset)
@@ -825,14 +807,10 @@ actor Main
       end
     end
 
-    this
-
-  fun ref concat(iter: Iterator[U8], offset: USize = 0, len: USize = -1)
-    : String ref^
-  =>
+  fun ref concat(iter: Iterator[U8], offset: USize = 0, len: USize = -1) =>
     """
     Add len iterated bytes to the end of the string, starting from the given
-    offset. The string is returned to allow call chaining.
+    offset.
     """
     try
       var n = USize(0)
@@ -841,7 +819,7 @@ actor Main
         if iter.has_next() then
           iter.next()
         else
-          return this
+          return
         end
 
         n = n + 1
@@ -853,20 +831,17 @@ actor Main
         if iter.has_next() then
           push(iter.next())
         else
-          return this
+          return
         end
       end
     end
 
-    this
-
-  fun ref clear(): String ref^ =>
+  fun ref clear() =>
     """
     Truncate the string to zero length.
     """
     _set(0, 0)
     _size = 0
-    this
 
   fun insert(offset: ISize, that: String): String iso^ =>
     """
@@ -877,7 +852,7 @@ actor Main
     s.insert_in_place(offset, that)
     s
 
-  fun ref insert_in_place(offset: ISize, that: String box): String ref^ =>
+  fun ref insert_in_place(offset: ISize, that: String box) =>
     """
     Inserts the given string at the given offset. Appends the string if the
     offset is out of bounds.
@@ -889,9 +864,8 @@ actor Main
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _set(_size, 0)
-    this
 
-  fun ref insert_byte(offset: ISize, value: U8): String ref^ =>
+  fun ref insert_byte(offset: ISize, value: U8) =>
     """
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
@@ -902,7 +876,6 @@ actor Main
     _set(index, value)
     _size = _size + 1
     _set(_size, 0)
-    this
 
   fun cut(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
@@ -913,8 +886,7 @@ actor Main
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: ISize, to: ISize = ISize.max_value()): String ref^
-  =>
+  fun ref cut_in_place(from: ISize, to: ISize = ISize.max_value()) =>
     """
     Cuts the given range out of the string.
     Index range [`from` .. `to`) is half-open.
@@ -935,7 +907,6 @@ actor Main
       _size = _size - fragment_len
       _set(_size, 0)
     end
-    this
 
   fun ref remove(s: String box): USize =>
     """
@@ -954,12 +925,10 @@ actor Main
     end
     n
 
-  fun ref replace(from: String box, to: String box, n: USize = 0):
-    String ref^
-  =>
+  fun ref replace(from: String box, to: String box, n: USize = 0): USize =>
     """
     Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
-    occurrences will be replaced.
+    occurrences will be replaced. Returns the count of replaced occurrences.
     """
     let from_len = from.size().isize()
     let to_len = to.size().isize()
@@ -979,7 +948,7 @@ actor Main
         end
       end
     end
-    this
+    occur
 
   fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
     """
@@ -1068,13 +1037,13 @@ actor Main
 
     consume result
 
-  fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref strip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all leading and trailing characters from the string that are in s.
     """
-    lstrip(s).rstrip(s)
+    this.>lstrip(s).>rstrip(s)
 
-  fun ref rstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref rstrip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all trailing characters within the string that are in s. By default,
     trailing whitespace is removed.
@@ -1104,9 +1073,7 @@ actor Main
       truncate(i + 1)
     end
 
-    this
-
-  fun ref lstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref lstrip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all leading characters within the string that are in s. By default,
     leading whitespace is removed.
@@ -1135,8 +1102,6 @@ actor Main
         delete(0, i)
       end
     end
-
-    this
 
   fun iso _append(s: String box): String iso^ =>
     reserve(s._size + _size)

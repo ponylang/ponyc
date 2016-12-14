@@ -31,6 +31,132 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
 - Update from_array to prevent a copy (issue #1097) (PR #1423)
+- Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
+  - builtin.Seq
+    - reserve
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - builtin.Array
+    - reserve
+    - compact
+    - undefined
+    - insert
+    - truncate
+    - trim_in_place
+    - copy_to
+    - remove
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - reverse_in_place
+  - builtin.String
+    - reserve
+    - compact
+    - recalc
+    - truncate
+    - trim_in_place
+    - delete
+    - lower_in_place
+    - upper_in_place
+    - reverse_in_place
+    - push
+    - unshift
+    - append
+    - concat
+    - clear
+    - insert_in_place
+    - insert_byte
+    - cut_in_place
+    - replace (returns the number of occurrences replaced)
+    - strip
+    - lstrip
+    - rstrip
+  - buffered.Reader
+    - clear
+    - append
+    - skip
+  - buffered.Writer
+    - reserve
+    - reserve_chunks
+    - number writing functions (e.g. u16_le)
+    - write
+    - writev
+  - capsicum.CapRights0
+    - set
+    - unset
+  - collections.Flag
+    - all
+    - clear
+    - set
+    - unset
+    - flip
+    - union
+    - intersect
+    - difference
+    - remove
+  - collections.ListNode
+    - prepend (returns whether the node was removed from another List)
+    - append (returns whether the node was removed from another List)
+    - remove
+  - collections.List
+    - reserve
+    - remove
+    - clear
+    - prepend_node
+    - append_node
+    - prepend_list
+    - append_list
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - collections.Map
+    - concat
+    - compact
+    - clear
+  - collections.RingBuffer
+    - push (returns whether the collection was full)
+    - clear
+  - collections.Set
+    - clear
+    - set
+    - unset
+    - union
+    - intersect
+    - difference
+    - remove
+  - files.FileMode
+    - exec
+    - shared
+    - group
+    - private
+  - files.File
+    - seek_start
+    - seek_end
+    - seek
+    - flush
+    - sync
+  - time.Date
+    - normal
+  - net.http.Payload
+    - update (returns the old value)
+  - net.ssl.SSLContext
+    - set_cert
+    - set_authority
+    - set_ciphers
+    - set_client_verify
+    - set_server_verify
+    - set_verify_depth
+    - allow_tls_v1
+    - allow_tls_v1_1
+    - allow_tls_v1_2
 
 ## [0.9.0] - 2016-11-11
 

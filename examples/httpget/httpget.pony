@@ -13,8 +13,8 @@ actor Main
     let sslctx = try
       recover
         SSLContext
-          .set_client_verify(true)
-          .set_authority(FilePath(env.root as AmbientAuth, "cacert.pem"))
+          .>set_client_verify(true)
+          .>set_authority(FilePath(env.root as AmbientAuth, "cacert.pem"))
       end
     end
 

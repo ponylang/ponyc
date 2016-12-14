@@ -129,7 +129,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     if opt.has_argument() then
       // If 'matched' is non-empty, then the rest (without - or =) must be the
       // argument.
-      matched.lstrip("-").remove("=")
+      matched.>lstrip("-").>remove("=")
     end
 
     try

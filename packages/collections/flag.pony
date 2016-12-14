@@ -39,68 +39,59 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
     """
     (_value and flag.value()) > 0
 
-  fun ref all(): Flags[A, B]^ =>
+  fun ref all() =>
     """
     Sets all bits, including undefined flags.
     """
     _value = -1
-    this
 
-  fun ref clear(): Flags[A, B]^ =>
+  fun ref clear() =>
     """
     Unsets all flags.
     """
     _value = 0
-    this
 
-  fun ref set(flag: A): Flags[A, B]^ =>
+  fun ref set(flag: A) =>
     """
     Sets the flag.
     """
     _value = _value or flag.value()
-    this
 
-  fun ref unset(flag: A): Flags[A, B]^ =>
+  fun ref unset(flag: A) =>
     """
     Unsets the flag.
     """
     _value = _value and not flag.value()
-    this
 
-  fun ref flip(flag: A): Flags[A, B]^ =>
+  fun ref flip(flag: A) =>
     """
     Sets the flag if it is unset, unsets the flag if it is set.
     """
     _value = _value xor flag.value()
-    this
 
-  fun ref union(that: Flags[A, B] box): Flags[A, B]^ =>
+  fun ref union(that: Flags[A, B] box) =>
     """
     The union of this and that.
     """
     _value = this._value or that._value
-    this
 
-  fun ref intersect(that: Flags[A, B] box): Flags[A, B]^ =>
+  fun ref intersect(that: Flags[A, B] box) =>
     """
     The intersection of this and that.
     """
     _value = this._value and that._value
-    this
 
-  fun ref difference(that: Flags[A, B] box): Flags[A, B]^ =>
+  fun ref difference(that: Flags[A, B] box) =>
     """
     The symmetric difference of this and that.
     """
     _value = this._value xor that._value
-    this
 
-  fun ref remove(that: Flags[A, B] box): Flags[A, B]^ =>
+  fun ref remove(that: Flags[A, B] box) =>
     """
     Unset flags that are set in that.
     """
     _value = this._value xor that._value
-    this
 
   fun add(flag: A): Flags[A, B] iso^ =>
     """
