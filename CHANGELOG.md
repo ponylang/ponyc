@@ -10,27 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
-## [0.10.0] - 2016-12-12
-
-### Fixed
-
-- Don't violate reference capabilities when assigning via a field (PR #1471)
-- Check errors correctly for method chaining (PR #1463)
-- Fix compiler handling of type params in stacks (issue #918) (PR #1452)
-- Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
-- Make space() check if string is null terminated (issue #1426) (PR #1430)
-- Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
-- Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
-
-### Added
-
-- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
-- Extra DTrace/SystemTap probes concerning scheduling.
-
-### Changed
-
-- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
-- Update from_array to prevent a copy (issue #1097) (PR #1423)
 - Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
   - builtin.Seq
     - reserve
@@ -157,6 +136,28 @@ All notable changes to the Pony compiler and standard library will be documented
     - allow_tls_v1
     - allow_tls_v1_1
     - allow_tls_v1_2
+
+## [0.10.0] - 2016-12-12
+
+### Fixed
+
+- Don't violate reference capabilities when assigning via a field (PR #1471)
+- Check errors correctly for method chaining (PR #1463)
+- Fix compiler handling of type params in stacks (issue #918) (PR #1452)
+- Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
+- Make space() check if string is null terminated (issue #1426) (PR #1430)
+- Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
+- Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
+
+### Added
+
+- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
+- Extra DTrace/SystemTap probes concerning scheduling.
+
+### Changed
+
+- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
+- Update from_array to prevent a copy (issue #1097) (PR #1423)
 
 ## [0.9.0] - 2016-11-11
 
