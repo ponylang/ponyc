@@ -136,6 +136,7 @@ All notable changes to the Pony compiler and standard library will be documented
     - allow_tls_v1
     - allow_tls_v1_1
     - allow_tls_v1_2
+- TCP sockets on Linux now use Epoll One Shot
 
 ## [0.10.0] - 2016-12-12
 
