@@ -4,6 +4,7 @@ use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_fd[U32](event: AsioEventID)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_resubscribe[None](event: AsioEventID, flags: U32)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
 type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
@@ -228,7 +229,13 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
+    ifdef linux then
+      _event = @pony_asio_event_create(this, fd,
+        AsioEvent.read_write_oneshot(), 0, true)
+    else
+      _event = @pony_asio_event_create(this, fd,
+        AsioEvent.read_write(), 0, true)
+    end
     _connected = true
     _writeable = true
     _read_buf = recover Array[U8].>undefined(init_size) end
@@ -397,6 +404,7 @@ actor TCPConnection
 
       _try_shutdown()
     end
+    _resubscribe_event()
 
   be _read_again() =>
     """
@@ -603,6 +611,7 @@ actor TCPConnection
           | 0 =>
             // Would block, try again later.
             _readable = false
+            _resubscribe_event()
             return
           | _next_size =>
             // Increase the read buffer size.
@@ -739,9 +748,27 @@ actor TCPConnection
   fun ref _apply_backpressure() =>
     ifdef not windows then
       _writeable = false
+      ifdef linux then
+        _resubscribe_event()
+      end
     end
 
     _notify.throttled(this)
 
   fun ref _release_backpressure() =>
     _notify.unthrottled(this)
+
+  fun ref _resubscribe_event() =>
+    ifdef linux then
+      let flags = if not _readable and not _writeable then
+        AsioEvent.read_write_oneshot()
+      elseif not _readable then
+        AsioEvent.read() or AsioEvent.oneshot()
+      elseif not _writeable then
+        AsioEvent.write() or AsioEvent.oneshot()
+      else
+        return
+      end
+
+      @pony_asio_event_resubscribe(_event, flags)
+    end
