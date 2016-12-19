@@ -8,7 +8,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Map.get_or_else performance
 
+- Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
 - Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
+
 ### Added
 
 ### Changed
