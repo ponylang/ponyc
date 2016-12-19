@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Map.get_or_else performance
 
+- Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
 ### Added
 
 ### Changed
