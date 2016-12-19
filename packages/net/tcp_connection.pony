@@ -274,6 +274,7 @@ actor TCPConnection
     Start reading off this TCPConnection again after having been muted.
     """
     _muted = false
+    _pending_reads()
 
   be set_notify(notify: TCPConnectionNotify iso) =>
     """
@@ -589,7 +590,6 @@ actor TCPConnection
 
         while _readable and not _shutdown_peer do
           if _muted then
-            _read_again()
             return
           end
 
