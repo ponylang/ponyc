@@ -505,7 +505,7 @@ actor TCPConnection
           if (len + offset) < data.size() then
             // Send remaining data later.
             node() = (data, offset + len)
-            _writeable = false
+            _apply_backpressure()
           else
             // This chunk has been fully sent.
             _pending.shift()
