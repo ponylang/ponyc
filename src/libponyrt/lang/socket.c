@@ -568,8 +568,13 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
     return false;
   }
 
+#ifdef PLATFORM_IS_LINUX
+  // Create an event and subscribe it.
+  pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE | ASIO_ONESHOT, 0, true);
+#else
   // Create an event and subscribe it.
   pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE, 0, true);
+#endif
 #endif
 
   return true;
