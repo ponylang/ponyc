@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Map.get_or_else performance
+
 ### Added
 
 ### Changed
