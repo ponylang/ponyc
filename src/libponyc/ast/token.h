@@ -35,6 +35,7 @@ typedef enum token_id
   TK_RPAREN,
   TK_LSQUARE,
   TK_RSQUARE,
+  TK_BACKSLASH,
 
   TK_COMMA,
   TK_ARROW,

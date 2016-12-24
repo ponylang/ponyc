@@ -485,6 +485,7 @@ static ast_result_t sugar_try(ast_t* ast)
 static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
+  ast_t* annotation = ast_consumeannotation(*astp);
 
   expand_none(for_else, true);
   const char* iter_name = package_hygienic_id(&opt->check);
@@ -508,6 +509,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         TREE(for_iter)
         NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
       NODE(TK_WHILE, AST_SCOPE
+        ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
             NONE
@@ -560,6 +562,8 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
+  ast_t* main_annotation = ast_consumeannotation(*astp);
+  ast_t* else_annotation = ast_consumeannotation(else_clause);
   token_id try_token;
 
   if(ast_id(else_clause) == TK_NONE)
@@ -573,9 +577,11 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   BUILD(replace, *astp,
     NODE(TK_SEQ,
       NODE(try_token,
+        ANNOTATE(main_annotation)
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE
+          ANNOTATE(else_annotation)
           TREE(else_clause))
         NODE(TK_SEQ, AST_SCOPE))));
 
@@ -749,6 +755,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_result_t r = AST_OK;
 
   AST_GET_CHILDREN(ast, cap, provides, members);
+  ast_t* annotation = ast_consumeannotation(ast);
   const char* c_id = package_hygienic_id(&opt->check);
 
   ast_t* t_params;
@@ -762,6 +769,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_CLASS, AST_SCOPE
+      ANNOTATE(annotation)
       NICE_ID(c_id, nice_id)
       TREE(t_params)
       NONE

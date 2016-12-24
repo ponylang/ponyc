@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') ('\' ID (',' ID)* '\')? '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members
@@ -34,7 +34,11 @@ field
   ;
 
 method
-  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') ('\' ID (',' ID)* '\')? cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
+  ;
+
+annotatedrawseq
+  : ('\' ID (',' ID)* '\')? (exprseq | jump)
   ;
 
 rawseq
@@ -84,30 +88,30 @@ binop
   ;
 
 nextterm
-  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
-  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
-  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
-  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
-  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
-  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
-  | 'recover' cap? rawseq 'end'
+  : 'if' ('\' ID (',' ID)* '\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'ifdef' ('\' ID (',' ID)* '\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'match' ('\' ID (',' ID)* '\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
+  | 'while' ('\' ID (',' ID)* '\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'repeat' ('\' ID (',' ID)* '\')? rawseq 'until' rawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\' ID (',' ID)* '\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'with' ('\' ID (',' ID)* '\')? (withelem (',' withelem)*) 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'try' ('\' ID (',' ID)* '\')? rawseq ('else' annotatedrawseq)? ('then' annotatedrawseq)? 'end'
+  | 'recover' ('\' ID (',' ID)* '\')? cap? rawseq 'end'
   | 'consume' cap? term
   | nextpattern
   | '#' postfix
   ;
 
 term
-  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
-  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
-  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
-  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
-  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
-  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
-  | 'recover' cap? rawseq 'end'
+  : 'if' ('\' ID (',' ID)* '\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'ifdef' ('\' ID (',' ID)* '\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'match' ('\' ID (',' ID)* '\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
+  | 'while' ('\' ID (',' ID)* '\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'repeat' ('\' ID (',' ID)* '\')? rawseq 'until' rawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\' ID (',' ID)* '\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'with' ('\' ID (',' ID)* '\')? (withelem (',' withelem)*) 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'try' ('\' ID (',' ID)* '\')? rawseq ('else' annotatedrawseq)? ('then' annotatedrawseq)? 'end'
+  | 'recover' ('\' ID (',' ID)* '\')? cap? rawseq 'end'
   | 'consume' cap? term
   | pattern
   | '#' postfix
@@ -118,15 +122,15 @@ withelem
   ;
 
 caseexpr
-  : '|' pattern? ('if' rawseq)? ('=>' rawseq)?
+  : '|' ('\' ID (',' ID)* '\')? pattern? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 elseifdef
-  : 'elseif' infix 'then' rawseq (elseifdef | ('else' rawseq))?
+  : 'elseif' ('\' ID (',' ID)* '\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))?
   ;
 
 elseif
-  : 'elseif' rawseq 'then' rawseq (elseif | ('else' rawseq))?
+  : 'elseif' ('\' ID (',' ID)* '\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))?
   ;
 
 idseq
@@ -190,9 +194,9 @@ nextatom
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' cap? ('is' type)? members 'end'
-  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' ('\' ID (',' ID)* '\')? cap? ('is' type)? members 'end'
+  | '{' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | 'lambda' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
@@ -203,9 +207,9 @@ atom
   | literal
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' cap? ('is' type)? members 'end'
-  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' ('\' ID (',' ID)* '\')? cap? ('is' type)? members 'end'
+  | '{' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | 'lambda' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
