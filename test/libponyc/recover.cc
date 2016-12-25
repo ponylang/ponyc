@@ -71,7 +71,7 @@ TEST_F(RecoverTest, CantRecover_NewTagToVal)
   TEST_ERRORS_1(src, "can't recover to this capability");
 }
 
-TEST_F(RecoverTest, CantAccess_LetLocalRef)
+TEST_F(RecoverTest, CanSee_LetLocalRefAsTag)
 {
   const char* src =
     "class Inner\n"
@@ -83,7 +83,7 @@ TEST_F(RecoverTest, CantAccess_LetLocalRef)
     "    let inner: Inner ref = Inner\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't access a non-sendable local defined outside");
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_LetLocalVal)
@@ -116,7 +116,7 @@ TEST_F(RecoverTest, CanAccess_LetLocalConsumedIso)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_VarLocalRef)
+TEST_F(RecoverTest, CanSee_VarLocalRefAsTag)
 {
   const char* src =
     "class Inner\n"
@@ -128,7 +128,7 @@ TEST_F(RecoverTest, CantAccess_VarLocalRef)
     "    var inner: Inner ref = Inner\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't access a non-sendable local defined outside");
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_VarLocalVal)
@@ -161,7 +161,7 @@ TEST_F(RecoverTest, CanAccess_VarLocalConsumedIso)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_ParamRef)
+TEST_F(RecoverTest, CanSee_ParamRefAsTag)
 {
   const char* src =
     "class Inner\n"
@@ -172,7 +172,7 @@ TEST_F(RecoverTest, CantAccess_ParamRef)
     "  fun apply(inner: Inner ref): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't access a non-sendable parameter");
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_ParamVal)
@@ -309,6 +309,83 @@ TEST_F(RecoverTest, CantAccess_AssignedField)
     "left side must be something that can be assigned to");
 }
 
+TEST_F(RecoverTest, CantAccess_ThisOriginallyTagField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun tag apply(): Wrap iso =>\n"
+    "    recover Wrap(inner) end";
+
+  TEST_ERRORS_1(src, "can't read a field through Class tag");
+}
+
+TEST_F(RecoverTest, CantAccess_LocalOriginallyTagField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    let c: Class tag = Class\n"
+    "    recover Wrap(c.inner) end";
+
+  TEST_ERRORS_1(src, "can't read a field through Class tag");
+}
+
+TEST_F(RecoverTest, CantAccess_ParamOriginallyTagField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun apply(c: Class tag): Wrap iso =>\n"
+    "    recover Wrap(c.inner) end";
+
+  TEST_ERRORS_1(src, "can't read a field through Class tag");
+}
+
+TEST_F(RecoverTest, CanAccess_LocalSendableField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    let c: Class ref = Class\n"
+    "    recover Wrap(c.inner) end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CanAccess_ParamSendableField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner val = Inner\n"
+    "  fun apply(c: Class ref): Wrap iso =>\n"
+    "    recover Wrap(c.inner) end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(RecoverTest, CanAccess_MutableMethod)
 {
   const char* src =
@@ -324,7 +401,7 @@ TEST_F(RecoverTest, CanAccess_MutableMethod)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_MethodParamNonSendable)
+TEST_F(RecoverTest, CantAccess_MethodArgNonSendable)
 {
   const char* src =
     "class Inner\n"
@@ -332,6 +409,7 @@ TEST_F(RecoverTest, CantAccess_MethodParamNonSendable)
     "  new create(s: Inner box) => None\n"
 
     "class Class\n"
+    "  new create() => None\n"
     "  fun inner(c: Class): Inner val => Inner\n"
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner(Class)) end";

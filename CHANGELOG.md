@@ -140,6 +140,7 @@ All notable changes to the Pony compiler and standard library will be documented
     - allow_tls_v1_1
     - allow_tls_v1_2
 - TCP sockets on Linux now use Epoll One Shot
+- Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
 
 ## [0.10.0] - 2016-12-12
 
