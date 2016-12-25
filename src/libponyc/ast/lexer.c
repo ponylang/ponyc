@@ -62,6 +62,8 @@ static const lextoken_t symbols[] =
 
   { ".>", TK_CHAIN },
 
+  { "\\", TK_BACKSLASH },
+
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },

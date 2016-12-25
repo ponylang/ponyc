@@ -120,5 +120,7 @@
 /// Set the data field of the enclosing node
 #define DATA(target) ast_setdata(parent, (void*)(target));
 
+/// Set the annotation of the enclosing node
+#define ANNOTATE(target) ast_setannotation(parent, target);
 
 #endif

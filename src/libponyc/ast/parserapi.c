@@ -101,7 +101,7 @@ static void syntax_error(parser_t* parser, const char* expected,
 
 // Standard build functions
 
-void default_builder(rule_state_t* state, ast_t* new_ast)
+static void default_builder(rule_state_t* state, ast_t* new_ast)
 {
   assert(state != NULL);
   assert(new_ast != NULL);
@@ -151,6 +151,15 @@ void infix_reverse_builder(rule_state_t* state, ast_t* new_ast)
   state->ast = new_ast;
 
   // state->last_child is actually still valid, so leave it
+}
+
+
+static void annotation_builder(rule_state_t* state, ast_t* new_ast)
+{
+  assert(state != NULL);
+  assert(new_ast != NULL);
+
+  ast_setannotation(state->ast, new_ast);
 }
 
 
@@ -472,7 +481,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
  *    NULL to propogate a restarted error.
  */
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set, bool* out_found)
+  const rule_t* rule_set, bool* out_found, bool annotate)
 {
   assert(parser != NULL);
   assert(state != NULL);
@@ -492,9 +501,9 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
       (rule_set[1] == NULL) ? "" : "s", desc);
   }
 
+  builder_fn_t build_fn = annotate ? annotation_builder : default_builder;
   for(const rule_t* p = rule_set; *p != NULL; p++)
   {
-    builder_fn_t build_fn = default_builder;
     ast_t* rule_ast = (*p)(parser, &build_fn, desc);
 
     if(rule_ast == PARSE_ERROR)

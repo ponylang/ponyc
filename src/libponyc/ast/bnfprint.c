@@ -814,6 +814,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
     bnf_rule_set(p, tokens); \
   }
 
+#define ANNOTATE(rule) OPT RULE("annotations", rule)
+
 #define DONE()  }
 
 
