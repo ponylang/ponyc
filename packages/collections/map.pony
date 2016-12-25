@@ -174,8 +174,16 @@ class HashMap[K, V, H: HashFunction[K] val]
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
     """
-    try
-      apply(key)
+    (let i, let found) = _search(key)
+
+    if found then
+      try
+        _array(i) as (_, this->V)
+      else
+        // This should never happen as we have already
+        // proven that _array(i) exists
+        consume alt
+      end
     else
       consume alt
     end
