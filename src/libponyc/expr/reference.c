@@ -632,9 +632,9 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       if(!sendable(type) && (t->frame->recover != NULL))
       {
-        ast_error(opt->check.errors, ast, "can't access a non-sendable "
-          "parameter from inside a recover expression");
-        return false;
+        ast_t* parent = ast_parent(ast);
+        if(ast_id(parent) != TK_DOT)
+          type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
       }
 
       // Get the type of the parameter and attach it to our reference.
@@ -716,10 +716,9 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
           if(t->frame->recover != def_recover)
           {
-            ast_error(opt->check.errors, ast, "can't access a non-sendable "
-              "local defined outside of a recover expression from within "
-              "that recover expression");
-            return false;
+            ast_t* parent = ast_parent(ast);
+            if(ast_id(parent) != TK_DOT)
+              type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
           }
         }
       }
