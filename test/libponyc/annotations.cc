@@ -13,7 +13,7 @@ TEST_F(AnnotationsTest, AnnotateTypes)
 {
   const char* src =
     "actor \\a, b\\ A\n"
-	"class \\a, b\\ C\n"
+    "class \\a, b\\ C\n"
     "primitive \\a, b\\ P\n"
     "struct \\a, b\\ S\n"
     "interface \\a, b\\ I\n"
@@ -25,10 +25,10 @@ TEST_F(AnnotationsTest, AnnotateTypes)
 TEST_F(AnnotationsTest, AnnotateMethods)
 {   
   const char* src =
-	"actor A\n"
+    "actor A\n"
     "  new \\a, b\\ create() => None\n"
     "  be \\a, b\\ apply() => None\n"
-	"  fun \\a, b\\ apply() => None";
+    "  fun \\a, b\\ apply() => None";
 
   TEST_COMPILE(src, "syntax");
 }
@@ -38,21 +38,21 @@ TEST_F(AnnotationsTest, AnnotateCompoundExpr)
   const char* src =
     "class C\n"
     "  fun apply() =>\n"
-	"    if \\a, b\\ foo then\n"
-	"      None\n"
-	"    elseif \\a, b\\ bar then\n"
-	"      None\n"
-	"    else \\a, b\\ \n"
-	"      None\n"
-	"    end\n"
+    "    if \\a, b\\ foo then\n"
+    "      None\n"
+    "    elseif \\a, b\\ bar then\n"
+    "      None\n"
+    "    else \\a, b\\ \n"
+    "      None\n"
+    "    end\n"
 
-	"    ifdef \\a, b\\ \"foo\" then\n"
-	"      None\n"
-	"    elseif \\a, b\\ \"bar\" then\n"
-	"      None\n"
-	"    else \\a, b\\ \n"
-	"      None\n"
-	"    end\n"
+    "    ifdef \\a, b\\ \"foo\" then\n"
+    "      None\n"
+    "    elseif \\a, b\\ \"bar\" then\n"
+    "      None\n"
+    "    else \\a, b\\ \n"
+    "      None\n"
+    "    end\n"
 
     "    while \\a, b\\ foo do\n"
     "      None\n"
@@ -60,25 +60,25 @@ TEST_F(AnnotationsTest, AnnotateCompoundExpr)
     "      None\n"
     "    end\n"
 
-	"    repeat \\a, b\\ \n"
-	"      None\n"
-	"    until foo end\n"
+    "    repeat \\a, b\\ \n"
+    "      None\n"
+    "    until foo end\n"
 
-	"    match \\a, b\\ x\n"
-	"    | \\a, b\\ foo => None\n"
-	"    else \\a, b\\ \n"
-	"      None\n"
-	"    end\n"
+    "    match \\a, b\\ x\n"
+    "    | \\a, b\\ foo => None\n"
+    "    else \\a, b\\ \n"
+    "      None\n"
+    "    end\n"
 
-	"    try \\a, b\\ \n"
-	"      None\n"
-	"    else \\a, b\\ \n"
-	"      None\n"
-	"    then \\a, b\\ \n"
-	"      None\n"
-	"    end\n"
+    "    try \\a, b\\ \n"
+    "      None\n"
+    "    else \\a, b\\ \n"
+    "      None\n"
+    "    then \\a, b\\ \n"
+    "      None\n"
+    "    end\n"
 
-	"    recover \\a, b\\ foo end";
+    "    recover \\a, b\\ foo end";
 
   TEST_COMPILE(src, "syntax");
 }
@@ -102,7 +102,7 @@ TEST_F(AnnotationsTest, InvalidAnnotationError)
 TEST_F(AnnotationsTest, AnnotationsArePresent)
 {
   const char* src =
-	"class \\a, b\\ C";
+    "class \\a, b\\ C";
 
   TEST_COMPILE(src, "scope");
 
@@ -132,17 +132,17 @@ TEST_F(AnnotationsTest, AnnotateSugar)
     "      None\n"
     "    end\n"
 
-	"  fun test_with() =>\n"
-	"    with \\a\\ x = 42 do\n"
-	"      None\n"
-	"    else \\b\\ \n"
-	"      None\n"
-	"    end\n"
+    "  fun test_with() =>\n"
+    "    with \\a\\ x = 42 do\n"
+    "      None\n"
+    "    else \\b\\ \n"
+    "      None\n"
+    "    end\n"
 
-	"  fun test_object() =>\n"
-	"    object \\a\\ \n"
-	"      fun \\b\\ apply() => None\n"
-	"    end";
+    "  fun test_object() =>\n"
+    "    object \\a\\ \n"
+    "      fun \\b\\ apply() => None\n"
+    "    end";
 
   TEST_COMPILE(src, "scope");
 
