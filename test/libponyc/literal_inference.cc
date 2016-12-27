@@ -829,6 +829,18 @@ TEST_F(LiteralTest, If_Simple)
 }
 
 
+TEST_F(LiteralTest, If_InferLocalFromBranch)
+{
+  const char* src =
+   "class Foo1c\n"
+    "  fun test() => let a = if true then USize.create() else 123 end\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("USize", TK_NOMINAL, numeric_literal(123)));
+}
+
+
 TEST_F(LiteralTest, Match_ResultInt)
 {
   const char* src =
