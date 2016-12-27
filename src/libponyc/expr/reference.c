@@ -719,6 +719,25 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
             ast_t* parent = ast_parent(ast);
             if(ast_id(parent) != TK_DOT)
               type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
+
+            if(ast_id(ast) == TK_VARREF)
+            {
+              ast_t* current = ast;
+              while(ast_id(parent) != TK_RECOVER && ast_id(parent) != TK_ASSIGN)
+              {
+                current = parent;
+                parent = ast_parent(parent);
+              }
+              if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+              {
+                ast_error(opt->check.errors, ast, "can't access a non-sendable "
+                  "local defined outside of a recover expression from within "
+                  "that recover epression");
+                ast_error_continue(opt->check.errors, parent, "this would be "
+                  "possible if the local wasn't assigned to");
+                return false;
+              }
+            }
           }
         }
       }
