@@ -633,7 +633,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       if(!sendable(type) && (t->frame->recover != NULL))
       {
         ast_t* parent = ast_parent(ast);
-        if(ast_id(parent) != TK_DOT)
+        if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
           type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
       }
 
@@ -717,7 +717,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
           if(t->frame->recover != def_recover)
           {
             ast_t* parent = ast_parent(ast);
-            if(ast_id(parent) != TK_DOT)
+            if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
               type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
           }
         }
@@ -965,7 +965,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   if(!cap_sendable(cap) && (t->frame->recover != NULL))
   {
     ast_t* parent = ast_parent(ast);
-    if(ast_id(parent) != TK_DOT)
+    if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
       cap = TK_TAG;
   }
 
