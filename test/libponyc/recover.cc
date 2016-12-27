@@ -520,3 +520,18 @@ TEST_F(RecoverTest, CantRecover_TupleInUnionInnerLift)
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
+
+TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    var a: String ref = String\n"
+    "    recover\n"
+    "      let b: String ref = String\n"
+    "      a = b\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
+    "left side must be something that can be assigned to");
+}
