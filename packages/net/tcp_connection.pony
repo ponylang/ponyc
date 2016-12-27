@@ -229,7 +229,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    ifdef linux then
+    ifdef not windows then
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write_oneshot(), 0, true)
     else
@@ -748,9 +748,7 @@ actor TCPConnection
   fun ref _apply_backpressure() =>
     ifdef not windows then
       _writeable = false
-      ifdef linux then
-        _resubscribe_event()
-      end
+      _resubscribe_event()
     end
 
     _notify.throttled(this)
@@ -759,7 +757,7 @@ actor TCPConnection
     _notify.unthrottled(this)
 
   fun ref _resubscribe_event() =>
-    ifdef linux then
+    ifdef not windows then
       let flags = if not _readable and not _writeable then
         AsioEvent.read_write_oneshot()
       elseif not _readable then
