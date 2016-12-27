@@ -36,21 +36,12 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_t* type = NULL;
-  size_t branch_count = 0;
 
   if(!is_control_type(cases_type))
-  {
     type = control_type_add_branch(opt, type, cases);
-    ast_inheritbranch(ast, cases);
-    branch_count++;
-  }
 
   if(!is_control_type(else_type))
-  {
     type = control_type_add_branch(opt, type, else_clause);
-    ast_inheritbranch(ast, else_clause);
-    branch_count++;
-  }
 
   if(type == NULL)
   {
@@ -64,11 +55,8 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -84,7 +72,6 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_t* type = NULL;
-  size_t branch_count = 0;
 
   while(the_case != NULL)
   {
@@ -92,11 +79,7 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
     ast_t* body_type = ast_type(body);
 
     if(!is_typecheck_error(body_type) && !is_control_type(body_type))
-    {
       type = control_type_add_branch(opt, type, body);
-      ast_inheritbranch(ast, the_case);
-      branch_count++;
-    }
 
     the_case = ast_sibling(the_case);
   }
@@ -105,7 +88,7 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
     type = ast_from(ast, TK_CASES);
 
   ast_settype(ast, type);
-  ast_consolidate_branches(ast, branch_count);
+
   return true;
 }
 

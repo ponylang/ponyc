@@ -43,10 +43,7 @@ TEST_F(BadPonyTest, DontCareInFieldType)
     "class Abc\n"
     "  var _test1: (_)";
 
-  TEST_ERRORS_3(src,
-    "the don't care token can only appear in",
-    "field left undefined in constructor",
-    "constructor with undefined fields");
+  TEST_ERRORS_1(src, "the don't care token can only appear in");
 }
 
 

@@ -1,5 +1,5 @@
-#ifndef EXPR_CALL_H
-#define EXPR_CALL_H
+#ifndef PASS_STATUS_H
+#define PASS_STATUS_H
 
 #include <platform.h>
 #include "../ast/ast.h"
@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool expr_call(pass_opt_t* opt, ast_t** astp);
+ast_result_t pass_status(ast_t** astp, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

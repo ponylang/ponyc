@@ -34,47 +34,6 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
   return expr_call(opt, astp);
 }
 
-bool is_this_incomplete(typecheck_t* t, ast_t* ast)
-{
-  // If we're in a default field initialiser, we're incomplete by definition.
-  if(t->frame->method == NULL)
-    return true;
-
-  // If we're not in a constructor, we're complete by definition.
-  if(ast_id(t->frame->method) != TK_NEW)
-    return false;
-
-  // Check if all fields have been marked as defined.
-  ast_t* members = ast_childidx(t->frame->type, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FLET:
-      case TK_FVAR:
-      case TK_EMBED:
-      {
-        sym_status_t status;
-        ast_t* id = ast_child(member);
-        ast_get(ast, ast_name(id), &status);
-
-        if(status != SYM_DEFINED)
-          return true;
-
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return false;
-}
-
 static bool check_type_params(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* lhs = *astp;

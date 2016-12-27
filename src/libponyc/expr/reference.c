@@ -80,58 +80,6 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
   }
 }
 
-static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
-{
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(parent) != TK_DOT)
-    return false;
-
-  AST_GET_CHILDREN(parent, left, right);
-  ast_t* find = lookup_try(opt, parent, type, ast_name(right));
-
-  if(find == NULL)
-    return false;
-
-  bool ok = ast_id(find) == TK_NEW;
-  ast_free_unattached(find);
-  return ok;
-}
-
-static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
-  sym_status_t status)
-{
-  if(is_constructed_from(opt, ast, type))
-    return true;
-
-  switch(status)
-  {
-    case SYM_DEFINED:
-      return true;
-
-    case SYM_CONSUMED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use a consumed local in an expression");
-      return false;
-
-    case SYM_UNDEFINED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use an undefined variable in an expression");
-      return false;
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
 static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
   errorframe_t* errorf)
 {
@@ -323,18 +271,6 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   // Set the type so that it isn't free'd as unattached.
   ast_setid(ast, tid);
   ast_settype(ast, type);
-
-  if(ast_id(left) == TK_THIS)
-  {
-    // Handle symbol status if the left side is 'this'.
-    const char* name = ast_name(id);
-
-    sym_status_t status;
-    ast_get(ast, name, &status);
-
-    if(!valid_reference(opt, ast, type, status))
-      return false;
-  }
 
   return true;
 }
@@ -627,9 +563,6 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       if(is_typecheck_error(type))
         return false;
 
-      if(!valid_reference(opt, ast, type, status))
-        return false;
-
       if(!sendable(type) && (t->frame->recover != NULL))
       {
         ast_t* parent = ast_parent(ast);
@@ -685,9 +618,6 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       }
 
       if(is_typecheck_error(type))
-        return false;
-
-      if(!valid_reference(opt, ast, type, status))
         return false;
 
       ast_t* var = ast_parent(def);
@@ -1020,36 +950,37 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  // Unless this is a field lookup, treat an incomplete `this` as a tag.
-  ast_t* parent = ast_parent(ast);
-  bool incomplete_ok = false;
+  // TODO:
+  // // Unless this is a field lookup, treat an incomplete `this` as a tag.
+  // ast_t* parent = ast_parent(ast);
+  // bool incomplete_ok = false;
 
-  if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
-  {
-    ast_t* right = ast_sibling(ast);
-    assert(ast_id(right) == TK_ID);
-    ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
+  // if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
+  // {
+  //   ast_t* right = ast_sibling(ast);
+  //   assert(ast_id(right) == TK_ID);
+  //   ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
 
-    if(find != NULL)
-    {
-      switch(ast_id(find))
-      {
-        case TK_FVAR:
-        case TK_FLET:
-        case TK_EMBED:
-          incomplete_ok = true;
-          break;
+  //   if(find != NULL)
+  //   {
+  //     switch(ast_id(find))
+  //     {
+  //       case TK_FVAR:
+  //       case TK_FLET:
+  //       case TK_EMBED:
+  //         incomplete_ok = true;
+  //         break;
 
-        default: {}
-      }
-    }
-  }
+  //       default: {}
+  //     }
+  //   }
+  // }
 
-  if(!incomplete_ok && is_this_incomplete(t, ast))
-  {
-    ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
-    ast_replace(&nominal, tag_type);
-  }
+  // if(!incomplete_ok && is_this_incomplete(t, ast))
+  // {
+  //   ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+  //   ast_replace(&nominal, tag_type);
+  // }
 
   if(arrow)
     type = ast_parent(nominal);
@@ -1181,49 +1112,6 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
 }
 
-static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-  bool result = true;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        sym_status_t status;
-        ast_t* id = ast_child(member);
-        ast_t* def = ast_get(ast, ast_name(id), &status);
-
-        if((def != member) || (status != SYM_DEFINED))
-        {
-          ast_error(opt->check.errors, def,
-            "field left undefined in constructor");
-          result = false;
-        }
-
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(!result)
-    ast_error(opt->check.errors, ast,
-      "constructor with undefined fields is here");
-
-  return result;
-}
-
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -1289,9 +1177,6 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
         if(!check_return_type(opt, ast))
          ok = false;
       }
-
-      if(!check_fields_defined(opt, ast))
-        ok = false;
 
       return ok;
     }

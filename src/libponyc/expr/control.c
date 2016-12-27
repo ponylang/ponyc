@@ -30,50 +30,21 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(ok)
-  {
-    // We might already have a type due to a return expression.
-    ast_t* type = ast_type(ast);
-    ast_t* last = ast_childlast(ast);
+  if(!ok)
+    return false;
 
-    if((type != NULL) && !coerce_literals(&last, type, opt))
-      return false;
+  // We might already have a type due to a return expression.
+  ast_t* type = ast_type(ast);
+  ast_t* last = ast_childlast(ast);
 
-    // Type is unioned with the type of the last child.
-    type = control_type_add_branch(opt, type, last);
-    ast_settype(ast, type);
-  }
+  if((type != NULL) && !coerce_literals(&last, type, opt))
+    return false;
 
-  if(!ast_has_scope(ast))
-    return ok;
+  // Type is unioned with the type of the last child.
+  type = control_type_add_branch(opt, type, last);
+  ast_settype(ast, type);
 
-  ast_t* parent = ast_parent(ast);
-
-  switch(ast_id(parent))
-  {
-    case TK_TRY:
-    case TK_TRY_NO_CHECK:
-    {
-      // Propagate consumes forward in a try expression.
-      AST_GET_CHILDREN(parent, body, else_clause, then_clause);
-
-      if(body == ast)
-      {
-        // Push our consumes, but not defines, to the else clause.
-        ast_inheritbranch(else_clause, body);
-        ast_consolidate_branches(else_clause, 2);
-      } else if(else_clause == ast) {
-        // Push our consumes, but not defines, to the then clause. This
-        // includes the consumes from the body.
-        ast_inheritbranch(then_clause, else_clause);
-        ast_consolidate_branches(then_clause, 2);
-      }
-    }
-
-    default: {}
-  }
-
-  return ok;
+  return true;
 }
 
 // Determine which branch of the given ifdef to use and convert the ifdef into
@@ -127,21 +98,12 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_t* type = NULL;
-  size_t branch_count = 0;
 
   if(!is_control_type(l_type))
-  {
     type = control_type_add_branch(opt, type, left);
-    ast_inheritbranch(ast, left);
-    branch_count++;
-  }
 
   if(!is_control_type(r_type))
-  {
     type = control_type_add_branch(opt, type, right);
-    ast_inheritbranch(ast, right);
-    branch_count++;
-  }
 
   if(type == NULL)
   {
@@ -155,11 +117,7 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
-
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
 
   if(ast_id(ast) == TK_IFDEF)
     return resolve_ifdef(opt, ast);
@@ -187,14 +145,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
     return false;
 
-  // All consumes have to be in scope when the loop body finishes.
-  errorframe_t errorf = NULL;
-  if(!ast_all_consumes_in_scope(body, body, &errorf))
-  {
-    errorframe_report(&errorf, opt->check.errors);
-    return false;
-  }
-
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
@@ -204,14 +154,7 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     type = control_type_add_branch(opt, type, body);
 
   if(!is_control_type(else_type))
-  {
     type = control_type_add_branch(opt, type, else_clause);
-    ast_inheritbranch(ast, body);
-
-    // Use a branch count of two instead of one. This means we will pick up any
-    // consumes, but not any definitions, since definitions may not occur.
-    ast_consolidate_branches(ast, 2);
-  }
 
   if(type == NULL)
     type = ast_from(ast, TK_WHILE);
@@ -219,8 +162,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   ast_settype(ast, type);
   literal_unify_control(ast, opt);
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -244,14 +185,6 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
     return false;
 
-  // All consumes have to be in scope when the loop body finishes.
-  errorframe_t errorf = NULL;
-  if(!ast_all_consumes_in_scope(body, body, &errorf))
-  {
-    errorframe_report(&errorf, opt->check.errors);
-    return false;
-  }
-
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
@@ -261,14 +194,7 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     type = control_type_add_branch(opt, type, body);
 
   if(!is_control_type(else_type))
-  {
     type = control_type_add_branch(opt, type, else_clause);
-    ast_inheritbranch(ast, else_clause);
-
-    // Use a branch count of two instead of one. This means we will pick up any
-    // consumes, but not any definitions, since definitions may not occur.
-    ast_consolidate_branches(ast, 2);
-  }
 
   if(type == NULL)
     type = ast_from(ast, TK_REPEAT);
@@ -276,8 +202,6 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   ast_settype(ast, type);
   literal_unify_control(ast, opt);
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -329,11 +253,8 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-
   literal_unify_control(ast, opt);
 
-  // Push the symbol status from the then clause to our parent scope.
-  ast_inheritstatus(ast_parent(ast), then_clause);
   return true;
 }
 
@@ -363,8 +284,6 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, r_type);
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), expr);
   return true;
 }
 
@@ -375,13 +294,6 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   if(t->frame->loop_body == NULL)
   {
     ast_error(opt->check.errors, ast, "must be in a loop");
-    return false;
-  }
-
-  errorframe_t errorf = NULL;
-  if(!ast_all_consumes_in_scope(t->frame->loop_body, ast, &errorf))
-  {
-    errorframe_report(&errorf, opt->check.errors);
     return false;
   }
 
@@ -420,13 +332,6 @@ bool expr_continue(pass_opt_t* opt, ast_t* ast)
   if(t->frame->loop_body == NULL)
   {
     ast_error(opt->check.errors, ast, "must be in a loop");
-    return false;
-  }
-
-  errorframe_t errorf = NULL;
-  if(!ast_all_consumes_in_scope(t->frame->loop_body, ast, &errorf))
-  {
-    errorframe_report(&errorf, opt->check.errors);
     return false;
   }
 
@@ -484,12 +389,6 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(t->frame->method))
   {
     case TK_NEW:
-      if(is_this_incomplete(t, ast))
-      {
-        ast_error(opt->check.errors, ast,
-          "all fields must be defined before constructor returns");
-        ok = false;
-      }
       break;
 
     case TK_BE:

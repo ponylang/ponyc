@@ -12,75 +12,6 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
-{
-  assert(ast_id(ast) == TK_ID);
-  const char* name = ast_name(ast);
-
-  sym_status_t status;
-  ast_get(ast, name, &status);
-
-  switch(status)
-  {
-    case SYM_UNDEFINED:
-      if(need_value)
-      {
-        ast_error(opt->check.errors, ast,
-          "the left side is undefined but its value is used");
-        return false;
-      }
-
-      ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
-
-    case SYM_DEFINED:
-      if(let)
-      {
-        ast_error(opt->check.errors, ast,
-          "can't assign to a let or embed definition more than once");
-        return false;
-      }
-
-      return true;
-
-    case SYM_CONSUMED:
-    {
-      bool ok = true;
-
-      if(need_value)
-      {
-        ast_error(opt->check.errors, ast,
-          "the left side is consumed but its value is used");
-        ok = false;
-      }
-
-      if(let)
-      {
-        ast_error(opt->check.errors, ast,
-          "can't assign to a let or embed definition more than once");
-        ok = false;
-      }
-
-      if(opt->check.frame->try_expr != NULL)
-      {
-        ast_error(opt->check.errors, ast,
-          "can't reassign to a consumed identifier in a try expression");
-        ok = false;
-      }
-
-      if(ok)
-        ast_setstatus(ast, name, SYM_DEFINED);
-
-      return ok;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
 static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
@@ -91,28 +22,14 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 
     case TK_VAR:
     case TK_LET:
-      return assign_id(opt, ast_child(ast), ast_id(ast) == TK_LET, need_value);
-
     case TK_VARREF:
-    {
-      ast_t* id = ast_child(ast);
-      return assign_id(opt, id, false, need_value);
-    }
+    case TK_FVARREF:
+      return true;
 
     case TK_LETREF:
     {
       ast_error(opt->check.errors, ast, "can't assign to a let local");
       return false;
-    }
-
-    case TK_FVARREF:
-    {
-      AST_GET_CHILDREN(ast, left, right);
-
-      if(ast_id(left) == TK_THIS)
-        return assign_id(opt, right, false, need_value);
-
-      return true;
     }
 
     case TK_FLETREF:
@@ -138,7 +55,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
         return false;
       }
 
-      return assign_id(opt, right, true, need_value);
+      return true;
     }
 
     case TK_EMBEDREF:
@@ -158,7 +75,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
         return false;
       }
 
-      return assign_id(opt, right, true, need_value);
+      return true;
     }
 
     case TK_TUPLE:
@@ -639,42 +556,6 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
 
   if(is_typecheck_error(type))
     return false;
-
-  const char* name = NULL;
-
-  switch(ast_id(term))
-  {
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_PARAMREF:
-    {
-      ast_t* id = ast_child(term);
-      name = ast_name(id);
-      break;
-    }
-
-    case TK_THIS:
-    {
-      name = stringtab("this");
-      break;
-    }
-
-    default:
-      ast_error(opt->check.errors, ast,
-        "consume must take 'this', a local, or a parameter");
-      return false;
-  }
-
-  // Can't consume from an outer scope while in a loop condition.
-  if((opt->check.frame->loop_cond != NULL) &&
-    !ast_within_scope(opt->check.frame->loop_cond, ast, name))
-  {
-    ast_error(opt->check.errors, ast,
-      "can't consume from an outer scope in a loop condition");
-    return false;
-  }
-
-  ast_setstatus(ast, name, SYM_CONSUMED);
 
   token_id tcap = ast_id(cap);
   ast_t* c_type = consume_type(type, tcap);

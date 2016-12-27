@@ -139,6 +139,11 @@ Also performs some "sugar" replacements that require knowledge of types.
 Mutates the AST extensively.
 
 
+* Expression status check pass (AST)
+
+TODO
+
+
 * Verify pass (AST)
 
 Perform various checks that are not required for type resolution, and are not
@@ -178,6 +183,7 @@ typedef enum pass_id
   PASS_TRAITS,
   PASS_DOCS,
   PASS_EXPR,
+  PASS_STATUS,
   PASS_VERIFY,
   PASS_REACH,
   PASS_PAINT,
