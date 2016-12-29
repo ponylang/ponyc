@@ -206,7 +206,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   const char* ponyrt = c->opt->runtimebc ? "" :
 #if defined(PLATFORM_IS_WINDOWS)
-    "ponyrt.lib";
+    "libponyrt.lib";
 #elif defined(PLATFORM_IS_LINUX)
     c->opt->pic ? "-lponyrt-pic" : "-lponyrt";
 #else
@@ -364,7 +364,7 @@ static bool link_exe(compile_t* c, ast_t* program,
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
       "%s %s %s \"",
-      vcvars.link, file_exe, file_o, ucrt_lib, vcvars.kernel32, 
+      vcvars.link, file_exe, file_o, ucrt_lib, vcvars.kernel32,
       vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 
