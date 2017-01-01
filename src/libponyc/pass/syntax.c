@@ -1126,12 +1126,13 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_VALUEFORMALARG:
     case TK_VALUEFORMALPARAM:
       ast_error(options->check.errors, ast,
-        "Value formal parameters not yet supported. "
+        "Value formal parameters not yet supported");
+      ast_error_continue(options->check.errors, ast_parent(ast), 
         "Note that many functions including array indexing use the apply "
-        "method raher than square brackets");
+        "method rather than square brackets");
       r = AST_ERROR;
       break;
-    
+
     case TK_CONSTANT:
       ast_error(options->check.errors, ast,
         "Compile time expressions not yet supported");
