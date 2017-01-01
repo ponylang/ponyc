@@ -341,6 +341,7 @@ TEST_F(BadPonyTest, IndexArrayWithBrackets)
         "let xs = [as I64: 1, 2, 3]\n"
         "xs[1]";
 
-  TEST_ERRORS_1(src, "array indexing is not done with square brackets, "
-    "try using parentheses");
+  TEST_ERRORS_1(src, "Value formal parameters not yet supported. "
+            "Note that many functions including array indexing use the apply "
+            "method raher than square brackets");
 }
