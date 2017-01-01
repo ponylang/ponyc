@@ -331,3 +331,16 @@ TEST_F(BadPonyTest, AssignToFieldOfIso)
     "right side must be a subtype of left side"
     );
 }
+
+TEST_F(BadPonyTest, IndexArrayWithBrackets)
+{
+  // From issue #1493
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let xs = [as I64: 1, 2, 3]\n"
+        "xs[1]";
+
+  TEST_ERRORS_1(src, "array indexing is not done with square brackets, "
+    "try using parentheses");
+}
