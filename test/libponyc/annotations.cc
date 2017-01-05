@@ -62,7 +62,9 @@ TEST_F(AnnotationsTest, AnnotateCompoundExpr)
 
     "    repeat \\a, b\\ \n"
     "      None\n"
-    "    until foo end\n"
+    "    until \\a, b\\ foo else \\a, b\\ \n"
+    "      None\n"
+    "    end\n"
 
     "    match \\a, b\\ x\n"
     "    | \\a, b\\ foo => None\n"
