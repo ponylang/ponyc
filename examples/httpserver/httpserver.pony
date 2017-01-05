@@ -1,4 +1,5 @@
 use "net/http"
+use "crypto"
 
 actor Main
   new create(env: Env) =>
@@ -55,6 +56,15 @@ primitive Handle
     if request.url.fragment.size() > 0 then
       response.add_chunk("#")
       response.add_chunk(request.url.fragment)
+    end
+
+    if request.method == "POST" then
+      let digest = Digest.sha256()
+      for chunk in request.body().values() do
+        digest.append(chunk)
+      end
+      response.add_chunk(", sha256: ")
+      response.add_chunk(ToHexString(digest.final()))
     end
 
     (consume request).respond(consume response)
