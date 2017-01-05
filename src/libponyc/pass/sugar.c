@@ -538,10 +538,9 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
     assert(id != NULL);
 
     // Don't call dispose() on don't cares
-    if(ast_id(id) == TK_DONTCARE)
+    if(is_name_dontcare(ast_name(id)))
       return;
 
-    assert(ast_id(id) == TK_ID);
     BUILD(dispose, idseq,
       NODE(TK_CALL,
         NONE NONE
@@ -652,6 +651,7 @@ static bool sugar_match_capture(pass_opt_t* opt, ast_t* pattern)
 
       // Change this to a capture.
       ast_setid(pattern, TK_MATCH_CAPTURE);
+
       return true;
     }
 
@@ -971,9 +971,19 @@ static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
       break;
     }
 
-    case TK_DONTCARE:
-      ast_append(pattern, type);
-      break;
+    case TK_NOMINAL:
+    {
+      ast_t* id = ast_childidx(type, 1);
+      if(is_name_dontcare(ast_name(id)))
+      {
+        BUILD(dontcare, pattern,
+          NODE(TK_SEQ,
+            NODE(TK_REFERENCE, ID("_"))));
+        ast_append(pattern, dontcare);
+        break;
+      }
+      // Fallthrough.
+    }
 
     default:
     {
@@ -1193,21 +1203,6 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
   // Since we've effectively replaced ast with its successor we need to process
   // that too
   return pass_sugar(astp, options);
-}
-
-
-static ast_result_t sugar_let(pass_opt_t* opt, ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-
-  if(ast_id(id) == TK_DONTCARE)
-  {
-    // Replace "_" with "$1" in with and for variable lists
-    ast_setid(id, TK_ID);
-    ast_set_name(id, package_hygienic_id(&opt->check));
-  }
-
-  return AST_OK;
 }
 
 
@@ -1457,7 +1452,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_IFDEF:      return sugar_ifdef(options, ast);
     case TK_USE:        return sugar_use(options, ast);
     case TK_SEMI:       return sugar_semi(options, astp);
-    case TK_LET:        return sugar_let(options, ast);
     case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);
     case TK_LOCATION:   return sugar_location(options, astp);
     default:            return AST_OK;

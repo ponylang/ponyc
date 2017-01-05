@@ -86,6 +86,9 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
   switch(ast_id(ast))
   {
     case TK_DONTCARE:
+      return true;
+
+    case TK_DONTCAREREF:
       // Can only assign to it if we don't need the value.
       return !need_value;
 
@@ -437,17 +440,14 @@ static bool tuple_contains_embed(ast_t* ast)
   ast_t* child = ast_child(ast);
   while(child != NULL)
   {
-    if(ast_id(child) != TK_DONTCARE)
+    assert(ast_id(child) == TK_SEQ);
+    ast_t* member = ast_childlast(child);
+    if(ast_id(member) == TK_EMBEDREF)
     {
-      assert(ast_id(child) == TK_SEQ);
-      ast_t* member = ast_childlast(child);
-      if(ast_id(member) == TK_EMBEDREF)
-      {
+      return true;
+    } else if(ast_id(member) == TK_TUPLE) {
+      if(tuple_contains_embed(member))
         return true;
-      } else if(ast_id(member) == TK_TUPLE) {
-        if(tuple_contains_embed(member))
-          return true;
-      }
     }
     child = ast_sibling(child);
   }
@@ -474,14 +474,12 @@ static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
       ast_t* r_child = ast_child(right);
       while(l_child != NULL)
       {
-        if(ast_id(l_child) != TK_DONTCARE)
-        {
-          assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
-          ast_t* l_member = ast_childlast(l_child);
-          ast_t* r_member = ast_childlast(r_child);
-          if(!check_embed_construction(opt, l_member, r_member))
-            result = false;
-        }
+        assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
+        ast_t* l_member = ast_childlast(l_child);
+        ast_t* r_member = ast_childlast(r_child);
+        if(!check_embed_construction(opt, l_member, r_member))
+          result = false;
+
         l_child = ast_sibling(l_child);
         r_child = ast_sibling(r_child);
       }
@@ -507,8 +505,14 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(l_type == NULL || !is_lvalue(opt, left, is_result_needed(ast)))
   {
-    ast_error(opt->check.errors, ast,
-      "left side must be something that can be assigned to");
+    if(ast_id(left) == TK_DONTCAREREF)
+    {
+      ast_error(opt->check.errors, left,
+        "can't read from '_'");
+    } else {
+      ast_error(opt->check.errors, ast,
+        "left side must be something that can be assigned to");
+    }
     return false;
   }
 

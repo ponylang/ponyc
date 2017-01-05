@@ -49,6 +49,12 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_localload(c, ast);
       break;
 
+    case TK_DONTCARE:
+    case TK_DONTCAREREF:
+    case TK_MATCH_DONTCARE:
+      ret = GEN_NOVALUE;
+      break;
+
     case TK_IF:
       ret = gen_if(c, ast);
       break;
@@ -167,10 +173,6 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_DIGESTOF:
       ret = gen_digestof(c, ast);
-      break;
-
-    case TK_DONTCARE:
-      ret = GEN_NOVALUE;
       break;
 
     case TK_COMPILE_INTRINSIC:

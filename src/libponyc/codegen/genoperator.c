@@ -331,7 +331,7 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
         expr = child;
         break;
 
-      case TK_DONTCARE:
+      case TK_DONTCAREREF:
         // Ignore this element.
         break;
 
@@ -383,6 +383,10 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       return assign_rvalue(c, ast_child(left), r_type, r_value);
     }
 
+    case TK_MATCH_CAPTURE:
+      // The alloca has already been generated.
+      return assign_rvalue(c, ast_child(left), r_type, r_value);
+
     case TK_FVARREF:
     case TK_FLETREF:
     {
@@ -408,6 +412,15 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       return ret;
     }
 
+    case TK_DONTCARE:
+    case TK_DONTCAREREF:
+    case TK_MATCH_DONTCARE:
+    {
+      // Do nothing. The type checker has already ensured that nobody will try
+      // to use the result of the assignment.
+      return GEN_NOVALUE;
+    }
+
     case TK_TUPLE:
     {
       // If the l_value is a tuple, assemble it as the result.
@@ -425,7 +438,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
 
     case TK_ID:
     {
-      // We may have recursed here from a VAR or LET or arrived directly.
+      // We have recursed here from a VAR, LET or MATCH_CAPTURE.
       const char* name = ast_name(left);
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
@@ -668,10 +681,10 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 LLVMValueRef gen_assign_value(compile_t* c, ast_t* left, LLVMValueRef right,
   ast_t* right_type)
 {
+  // This is from pattern matching.
   // Must generate the right hand side before the left hand side.
   if(right == NULL)
     return NULL;
 
-  // This is from pattern matching and we should not generate the alloca again.
-  return assign_rvalue(c, ast_child(left), right_type, right);
+  return assign_rvalue(c, left, right_type, right);
 }

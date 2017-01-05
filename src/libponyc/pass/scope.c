@@ -6,6 +6,7 @@
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include <string.h>
 #include <assert.h>
 
@@ -17,6 +18,9 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
 {
   assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
+
+  if(is_name_dontcare(s))
+    return true;
 
   sym_status_t status = SYM_NONE;
 

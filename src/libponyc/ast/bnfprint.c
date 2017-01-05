@@ -61,7 +61,7 @@ static const char* antlr_post =
   "// Lexer\n\n"
   "ID\n"
   "  : LETTER (LETTER | DIGIT | '_' | '\\'')*\n"
-  "  | '_' (LETTER | DIGIT | '_' | '\\'')+\n"
+  "  | '_' (LETTER | DIGIT | '_' | '\\'')*\n"
   "  ;\n\n"
   "INT\n"
   "  : DIGIT (DIGIT | '_')*\n"
