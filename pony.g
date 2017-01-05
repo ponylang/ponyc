@@ -135,13 +135,12 @@ elseif
 
 idseq
   : ID
-  | '_'
-  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  | ('(' | LPAREN_NEW) idseq_in_seq (',' idseq_in_seq)* ')'
   ;
 
 idseq_in_seq
   : ID
-  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  | ('(' | LPAREN_NEW) idseq_in_seq (',' idseq_in_seq)* ')'
   ;
 
 nextpattern
@@ -192,7 +191,7 @@ nextatom
   : ID
   | 'this'
   | literal
-  | LPAREN_NEW (rawseq | '_') tuple? ')'
+  | LPAREN_NEW rawseq tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' ('\' ID (',' ID)* '\')? cap? ('is' type)? members 'end'
   | '{' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
@@ -205,7 +204,7 @@ atom
   : ID
   | 'this'
   | literal
-  | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
+  | ('(' | LPAREN_NEW) rawseq tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' ('\' ID (',' ID)* '\')? cap? ('is' type)? members 'end'
   | '{' ('\' ID (',' ID)* '\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
@@ -215,7 +214,7 @@ atom
   ;
 
 tuple
-  : ',' (rawseq | '_') (',' (rawseq | '_'))*
+  : ',' rawseq (',' rawseq)*
   ;
 
 lambdacaptures
@@ -245,7 +244,7 @@ type
 atomtype
   : 'this'
   | cap
-  | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
+  | ('(' | LPAREN_NEW) infixtype tupletype? ')'
   | nominal
   | lambdatype
   ;
@@ -255,7 +254,7 @@ lambdatype
   ;
 
 tupletype
-  : ',' (infixtype | '_') (',' (infixtype | '_'))*
+  : ',' infixtype (',' infixtype)*
   ;
 
 infixtype
@@ -322,7 +321,7 @@ literal
   ;
 
 param
-  : (parampattern | '_') (':' type)? ('=' infix)?
+  : parampattern (':' type)? ('=' infix)?
   ;
 
 antlr_0
@@ -379,7 +378,7 @@ Type:
 
 ID
   : LETTER (LETTER | DIGIT | '_' | '\'')*
-  | '_' (LETTER | DIGIT | '_' | '\'')+
+  | '_' (LETTER | DIGIT | '_' | '\'')*
   ;
 
 INT

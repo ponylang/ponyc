@@ -283,6 +283,18 @@ TEST_F(ScopeTest, Package)
 }
 
 
+TEST_F(ScopeTest, CanShadowDontcare)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo() =>\n"
+    "    var _: None\n"
+    "    var _: None";
+
+  TEST_COMPILE(src);
+}
+
+
 /*
 TEST_F(ScopeTest, Use)
 {

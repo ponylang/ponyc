@@ -293,6 +293,14 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 
   // Find our definition.
   const char* name = ast_name(type_id);
+
+  if(is_name_dontcare(name))
+  {
+    ast_error(opt->check.errors, type_id,
+      "can't use '_' as a type name");
+    return false;
+  }
+
   ast_t* def = ast_get(r_scope, name, NULL);
   bool r = true;
 

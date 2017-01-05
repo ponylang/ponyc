@@ -36,20 +36,6 @@ class BadPonyTest : public PassTest
 
 // Cases from reported issues
 
-TEST_F(BadPonyTest, DontCareInFieldType)
-{
-  // From issue #207
-  const char* src =
-    "class Abc\n"
-    "  var _test1: (_)";
-
-  TEST_ERRORS_3(src,
-    "the don't care token can only appear in",
-    "field left undefined in constructor",
-    "constructor with undefined fields");
-}
-
-
 TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
 {
   // From issue #218
@@ -82,20 +68,6 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
     "    None";
 
   TEST_ERRORS_1(src, "not enough type arguments");
-}
-
-
-TEST_F(BadPonyTest, DontCareInIntLiteralType)
-{
-  // From issue #222
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let crashme: (_, I32) = (4, 4)";
-
-  TEST_ERRORS_2(src,
-    "the don't care token can only appear in",
-    "could not infer literal type, no valid types found");
 }
 
 TEST_F(BadPonyTest, TupleIndexIsZero)

@@ -423,7 +423,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
       return uifset_simple_type(opt, type);
 
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
     case TK_FUNTYPE:
       return UIF_NO_TYPES;
 

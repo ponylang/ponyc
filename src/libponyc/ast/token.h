@@ -73,7 +73,6 @@ typedef enum token_id
   TK_QUESTION,
   TK_UNARY_MINUS,
   TK_ELLIPSIS,
-  TK_DONTCARE,
   TK_CONSTANT,
 
   // Newline symbols, only used by lexer and parser
@@ -103,6 +102,7 @@ typedef enum token_id
   TK_VAR,
   TK_LET,
   TK_EMBED,
+  TK_DONTCARE,
   TK_NEW,
   TK_FUN,
   TK_BE,
@@ -192,6 +192,7 @@ typedef enum token_id
   TK_THISTYPE,
   TK_FUNTYPE,
   TK_LAMBDATYPE,
+  TK_DONTCARETYPE,
   TK_INFERTYPE,
   TK_ERRORTYPE,
 
@@ -221,6 +222,7 @@ typedef enum token_id
   TK_CASES,
   TK_CASE,
   TK_MATCH_CAPTURE,
+  TK_MATCH_DONTCARE,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -236,6 +238,7 @@ typedef enum token_id
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
+  TK_DONTCAREREF,
   TK_NEWAPP,
   TK_BEAPP,
   TK_FUNAPP,

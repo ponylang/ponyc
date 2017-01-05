@@ -6,6 +6,7 @@
 #include "../type/alias.h"
 #include "../type/lookup.h"
 #include "../ast/stringtab.h"
+#include "../ast/id.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
 #include <assert.h>
@@ -113,7 +114,7 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 {
   if(ast_id(pattern) == TK_NONE)
   {
-    ast_t* type = ast_from(pattern, TK_DONTCARE);
+    ast_t* type = ast_from(pattern, TK_DONTCARETYPE);
     ast_settype(pattern, type);
     return type;
   }
@@ -128,12 +129,10 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   switch(ast_id(pattern))
   {
-    case TK_DONTCARE:
+    case TK_DONTCAREREF:
     case TK_MATCH_CAPTURE:
-    {
-      // Return the capture type or don't care.
+    case TK_MATCH_DONTCARE:
       return ast_type(pattern);
-    }
 
     case TK_TUPLE:
     {
@@ -368,7 +367,11 @@ bool expr_match_capture(pass_opt_t* opt, ast_t* ast)
   (void)opt;
   assert(ast != NULL);
 
-  ast_t* type = ast_childidx(ast, 1);
+  AST_GET_CHILDREN(ast, id, type);
+
+  if(is_name_dontcare(ast_name(id)))
+    ast_setid(ast, TK_MATCH_DONTCARE);
+
   assert(type != NULL);
 
   // Capture type is as specified.

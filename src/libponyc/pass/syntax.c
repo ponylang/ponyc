@@ -462,6 +462,48 @@ static ast_result_t syntax_arrowtype(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_nominal(pass_opt_t* opt, ast_t* ast)
+{
+  assert(ast != NULL);
+  AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
+
+  if(!is_name_dontcare(ast_name(name)))
+    return AST_OK;
+
+  ast_result_t r = AST_OK;
+
+  if(ast_id(package) != TK_NONE)
+  {
+    ast_error(opt->check.errors, package,
+      "'_' cannot be in a package");
+    r = AST_ERROR;
+  }
+
+  if(ast_id(typeargs) != TK_NONE)
+  {
+    ast_error(opt->check.errors, typeargs,
+      "'_' cannot have generic arguments");
+    r = AST_ERROR;
+  }
+
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(opt->check.errors, cap,
+      "'_' cannot specify capability");
+    r = AST_ERROR;
+  }
+
+  if(ast_id(eph) != TK_NONE)
+  {
+    ast_error(opt->check.errors, eph,
+      "'_' cannot specify capability modifier");
+    r = AST_ERROR;
+  }
+
+  return r;
+}
+
+
 static ast_result_t syntax_match(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast != NULL);
@@ -1084,6 +1126,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_INTERFACE:  r = syntax_entity(options, ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = syntax_thistype(options, ast); break;
     case TK_ARROW:      r = syntax_arrowtype(options, ast); break;
+    case TK_NOMINAL:    r = syntax_nominal(options, ast); break;
     case TK_MATCH:      r = syntax_match(options, ast); break;
     case TK_FFIDECL:    r = syntax_ffi(options, ast, false); break;
     case TK_FFICALL:    r = syntax_ffi(options, ast, true); break;
