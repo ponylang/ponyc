@@ -26,6 +26,8 @@ asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->flags = flags;
   ev->noisy = noisy;
   ev->nsec = nsec;
+  ev->writeable = false;
+  ev->readable = false;
 
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
@@ -63,6 +65,34 @@ int pony_asio_event_fd(asio_event_t* ev)
     return -1;
 
   return ev->fd;
+}
+
+bool pony_asio_event_get_writeable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return ev->writeable;
+}
+
+void pony_asio_event_set_writeable(asio_event_t* ev, bool writeable)
+{
+  if(ev != NULL)
+    ev->writeable = writeable;
+}
+
+bool pony_asio_event_get_readable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return ev->readable;
+}
+
+void pony_asio_event_set_readable(asio_event_t* ev, bool readable)
+{
+  if(ev != NULL)
+    ev->readable = readable;
 }
 
 uint64_t pony_asio_event_nsec(asio_event_t* ev)
