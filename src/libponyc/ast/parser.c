@@ -721,7 +721,7 @@ DEF(whileloop);
   TERMINATE("while loop", TK_END);
   DONE();
 
-// REPEAT [annotations] seq UNTIL seq [ELSE annotatedseq] END
+// REPEAT [annotations] seq UNTIL annotatedrawseq [ELSE annotatedseq] END
 DEF(repeat);
   PRINT_INLINE();
   TOKEN(NULL, TK_REPEAT);
@@ -729,7 +729,7 @@ DEF(repeat);
   SCOPE();
   RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", rawseq);
+  RULE("condition expression", annotatedrawseq);
   IF(TK_ELSE, RULE("else clause", annotatedseq));
   TERMINATE("repeat loop", TK_END);
   DONE();
