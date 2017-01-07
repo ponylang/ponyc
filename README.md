@@ -293,7 +293,7 @@ Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently p
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.6.2, 3.7.1, or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
+You'll need llvm 3.7.1 or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
 
 Installation via [homebrew](http://brew.sh):
 ```
