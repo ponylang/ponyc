@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - AST annotations (RFC 27) (PR #1485)
+
 ### Changed
 
 - Always allow writing to `_` (dontcare) (PR #1499)
