@@ -9,7 +9,7 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.9.0
+  - llvm: 3.9.1
   - llvm: 3.8.1
   - llvm: 3.7.1
 
@@ -98,7 +98,7 @@ deploy:
     version: $(appveyor_build_version)
     on:
         branch: master
-        llvm: 3.9.0
+        llvm: 3.9.1
         configuration: Release
     publish: true
 
@@ -112,7 +112,7 @@ deploy:
     version: $(appveyor_build_version)
     on:
         branch: release
-        llvm: 3.9.0
+        llvm: 3.9.1
         configuration: Release
     publish: true
 

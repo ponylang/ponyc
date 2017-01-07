@@ -145,7 +145,7 @@ Pony requires one of the following versions of LLVM:
 - 3.6.2
 - 3.7.1
 - 3.8.1
-- 3.9.0
+- 3.9.1
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
@@ -229,7 +229,7 @@ $ sudo apt-get update
 $ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
 ```
 
-You should install LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
+You should install LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
 
 To build ponyc, compile and run helloworld:
 
@@ -244,7 +244,7 @@ $ ./helloworld
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0
+* LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.1
 * zlib
 * ncurses
 * pcre2
