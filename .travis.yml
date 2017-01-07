@@ -116,21 +116,6 @@ matrix:
         - CXX1=g++-5
     - os: osx
       env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=debug
-        - CC1=clang-3.6
-        - CXX1=clang++-3.6
-    - os: osx
-      env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=release
-        - lto=no
-        - CC1=clang-3.6
-        - CXX1=clang++-3.6
-    - os: osx
-      env:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
@@ -216,10 +201,6 @@ install:
     then
       brew update;
       brew install gmp; brew link --overwrite gmp;
-      if [ "${LLVM_VERSION}" = "3.6.2" ];
-      then
-        brew install llvm36;
-      fi;
       if [ "${LLVM_VERSION}" = "3.7.1" ];
       then
         brew install llvm37;
