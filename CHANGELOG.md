@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Ensure TCPConnection is established before writing data to it (issue #1310)
 - Deprecate LLVM 3.6 OSX support (PR #1502)
 - Always allow writing to `_` (dontcare) (PR #1499)
 - Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
@@ -246,7 +247,6 @@ All notable changes to the Pony compiler and standard library will be documented
   (which may result in a copy) while `cpointer()` (also available on
   `Array` objects) returns a pointer to the underlying array as-is
   (issue #1309).
-- Ensure TCPConnection is established before writing data to it (issue #1310)
 
 ## [0.5.1] - 2016-10-15
 
