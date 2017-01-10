@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Readline interpret C-d on empty line as EOF (PR #1504)
 - AST annotations (RFC 27) (PR #1485)
 
 ### Changed
