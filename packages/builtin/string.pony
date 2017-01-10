@@ -60,23 +60,11 @@ actor Main
 
   new val from_array(data: Array[U8] val) =>
     """
-    Create a string from an array, reusing the underlying data pointer if the
-    array is null terminated, or copying the data if it is not.
+    Create a string from an array, reusing the underlying data pointer.
     """
     _size = data.size()
-
-    if
-      (_size > 0) and
-      try (data(_size - 1) == 0) else false end
-    then
-      _alloc = data.space()
-      _ptr = data.cpointer()._unsafe()
-    else
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      data._copy_to(_ptr, _size)
-      _set(_size, 0)
-    end
+    _alloc = data.space()
+    _ptr = data.cpointer()._unsafe()
 
   new iso from_iso_array(data: Array[U8] iso) =>
     """
@@ -85,6 +73,9 @@ actor Main
     _size = data.size()
     _alloc = data.space()
     _ptr = (consume data).cpointer()._unsafe()
+    if _alloc > _size then
+      _set(_size, 0)
+    end
 
   new from_cpointer(str: Pointer[U8], len: USize, alloc: USize = 0) =>
     """
@@ -271,9 +262,9 @@ actor Main
     """
     Returns the space available for data, not including the null terminator.
     """
-    _alloc - 1
+    if is_null_terminated() then _alloc - 1 else _alloc end
 
-  fun ref reserve(len: USize): String ref^ =>
+  fun ref reserve(len: USize) =>
     """
     Reserve space for len bytes. An additional byte will be reserved for the
     null terminator.
@@ -288,9 +279,8 @@ actor Main
       end
       _ptr = _ptr._realloc(_alloc)
     end
-    this
 
-  fun ref compact(): String ref^ =>
+  fun ref compact() =>
     """
     Try to remove unused space, making it available for garbage collection. The
     request may be ignored. The string is returned to allow call chaining.
@@ -308,44 +298,43 @@ actor Main
       _ptr._consume_from(consume old_ptr, _size)
       _set(_size, 0)
     end
-    this
 
-  fun ref recalc(): String ref^ =>
+  fun ref recalc() =>
     """
     Recalculates the string length. This is only needed if the string is
-    changed via an FFI call. If the string is not null terminated at the
-    allocated length, a null is added.
+    changed via an FFI call. If a null terminator byte is not found within the
+    allocated length, the size will not be changed.
     """
-    _size = 0
+    var s: USize = 0
 
-    while (_size < _alloc) and (_ptr._apply(_size) > 0) do
-      _size = _size + 1
+    while (s < _alloc) and (_ptr._apply(s) > 0) do
+      s = s + 1
     end
 
-    if _size == _alloc then
-      _size = _size - 1
-      _set(_size, 0)
+    if s != _alloc then
+      _size = s
     end
 
-    this
-
-  fun ref truncate(len: USize): String ref^ =>
+  fun ref truncate(len: USize) =>
     """
     Truncates the string at the minimum of len and space. Ensures there is a
     null terminator. Does not check for null terminators inside the string.
 
     Note that memory is not freed by this operation.
     """
-    _size = len.min(_alloc - 1)
+    if len >= _alloc then
+      _size = len.min(_alloc)
+      reserve(_alloc + 1)
+    else
+      _size = len.min(_alloc - 1)
+    end
+
     _set(_size, 0)
 
-    this
-
-  fun ref trim_in_place(from: USize = 0, to: USize = -1): String ref^ =>
+  fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """
     Trim the string to a portion of itself, covering `from` until `to`.
     Unlike slice, the operation does not allocate a new string nor copy elements.
-    The same string is returned to allow call chaining.
     """
     let last = _size.min(to)
     let offset = last.min(from)
@@ -353,8 +342,6 @@ actor Main
     _size = last - offset
     _alloc = _alloc - offset
     _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
-
-    this
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """
@@ -385,7 +372,7 @@ actor Main
     which may be present earlier in the content of the string.
     If you need a null-terminated copy of this string, use the clone method.
     """
-    (_alloc > 0) and (_ptr._apply(_size) == 0)
+    (_alloc > 0) and (_alloc != _size) and (_ptr._apply(_size) == 0)
 
   fun utf32(offset: ISize): (U32, U8) ? =>
     """
@@ -638,7 +625,7 @@ actor Main
       false
     end
 
-  fun ref delete(offset: ISize, len: USize = 1): String ref^ =>
+  fun ref delete(offset: ISize, len: USize = 1) =>
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
@@ -650,7 +637,6 @@ actor Main
       _ptr._offset(i)._delete(n, _size - i)
       _set(_size, 0)
     end
-    this
 
   fun substring(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
@@ -679,7 +665,7 @@ actor Main
     s.lower_in_place()
     s
 
-  fun ref lower_in_place(): String ref^ =>
+  fun ref lower_in_place() =>
     """
     Transforms the string to lower case. Currently only knows ASCII case.
     """
@@ -694,7 +680,6 @@ actor Main
 
       i = i + 1
     end
-    this
 
   fun upper(): String iso^ =>
     """
@@ -705,7 +690,7 @@ actor Main
     s.upper_in_place()
     s
 
-  fun ref upper_in_place(): String ref^ =>
+  fun ref upper_in_place() =>
     """
     Transforms the string to upper case.
     """
@@ -720,7 +705,6 @@ actor Main
 
       i = i + 1
     end
-    this
 
   fun reverse(): String iso^ =>
     """
@@ -730,7 +714,7 @@ actor Main
     s.reverse_in_place()
     s
 
-  fun ref reverse_in_place(): String ref^ =>
+  fun ref reverse_in_place() =>
     """
     Reverses the byte order in the string. This needs to be changed to handle
     UTF-8 correctly.
@@ -747,9 +731,8 @@ actor Main
         j = j - 1
       end
     end
-    this
 
-  fun ref push(value: U8): String ref^ =>
+  fun ref push(value: U8) =>
     """
     Add a byte to the end of the string.
     """
@@ -757,7 +740,6 @@ actor Main
     _set(_size, value)
     _size = _size + 1
     _set(_size, 0)
-    this
 
   fun ref pop(): U8 ? =>
     """
@@ -770,7 +752,7 @@ actor Main
       error
     end
 
-  fun ref unshift(value: U8): String ref^ =>
+  fun ref unshift(value: U8) =>
     """
     Adds a byte to the beginning of the string.
     """
@@ -783,8 +765,6 @@ actor Main
       _set(0, 0)
       _size = 0
     end
-
-    this
 
   fun ref shift(): U8 ? =>
     """
@@ -799,14 +779,12 @@ actor Main
       error
     end
 
-  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1)
-    : String ref^
-  =>
+  fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1) =>
     """
     Append the elements from a sequence, starting from the given offset.
     """
     if offset >= seq.size() then
-      return this
+      return
     end
 
     let copy_len = len.min(seq.size() - offset)
@@ -829,14 +807,10 @@ actor Main
       end
     end
 
-    this
-
-  fun ref concat(iter: Iterator[U8], offset: USize = 0, len: USize = -1)
-    : String ref^
-  =>
+  fun ref concat(iter: Iterator[U8], offset: USize = 0, len: USize = -1) =>
     """
     Add len iterated bytes to the end of the string, starting from the given
-    offset. The string is returned to allow call chaining.
+    offset.
     """
     try
       var n = USize(0)
@@ -845,7 +819,7 @@ actor Main
         if iter.has_next() then
           iter.next()
         else
-          return this
+          return
         end
 
         n = n + 1
@@ -857,20 +831,17 @@ actor Main
         if iter.has_next() then
           push(iter.next())
         else
-          return this
+          return
         end
       end
     end
 
-    this
-
-  fun ref clear(): String ref^ =>
+  fun ref clear() =>
     """
     Truncate the string to zero length.
     """
     _set(0, 0)
     _size = 0
-    this
 
   fun insert(offset: ISize, that: String): String iso^ =>
     """
@@ -881,7 +852,7 @@ actor Main
     s.insert_in_place(offset, that)
     s
 
-  fun ref insert_in_place(offset: ISize, that: String box): String ref^ =>
+  fun ref insert_in_place(offset: ISize, that: String box) =>
     """
     Inserts the given string at the given offset. Appends the string if the
     offset is out of bounds.
@@ -893,9 +864,8 @@ actor Main
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _set(_size, 0)
-    this
 
-  fun ref insert_byte(offset: ISize, value: U8): String ref^ =>
+  fun ref insert_byte(offset: ISize, value: U8) =>
     """
     Inserts a byte at the given offset. Appends if the offset is out of bounds.
     """
@@ -906,7 +876,6 @@ actor Main
     _set(index, value)
     _size = _size + 1
     _set(_size, 0)
-    this
 
   fun cut(from: ISize, to: ISize = ISize.max_value()): String iso^ =>
     """
@@ -917,8 +886,7 @@ actor Main
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: ISize, to: ISize = ISize.max_value()): String ref^
-  =>
+  fun ref cut_in_place(from: ISize, to: ISize = ISize.max_value()) =>
     """
     Cuts the given range out of the string.
     Index range [`from` .. `to`) is half-open.
@@ -939,7 +907,6 @@ actor Main
       _size = _size - fragment_len
       _set(_size, 0)
     end
-    this
 
   fun ref remove(s: String box): USize =>
     """
@@ -958,12 +925,10 @@ actor Main
     end
     n
 
-  fun ref replace(from: String box, to: String box, n: USize = 0):
-    String ref^
-  =>
+  fun ref replace(from: String box, to: String box, n: USize = 0): USize =>
     """
     Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
-    occurrences will be replaced.
+    occurrences will be replaced. Returns the count of replaced occurrences.
     """
     let from_len = from.size().isize()
     let to_len = to.size().isize()
@@ -983,7 +948,34 @@ actor Main
         end
       end
     end
-    this
+    occur
+
+  fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
+    """
+    Split the string into an array of strings that are delimited by `delim` in
+    the original string. If `n > 0`, then the split count is limited to n.
+
+    Adjacent delimiters result in a zero length entry in the array. For
+    example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    An empty delimiter results in an array that contains a single element equal
+    to the whole string.
+    """
+    let delim_size = ISize.from[USize](delim.size())
+    let total_size = ISize.from[USize](size())
+
+    let result = recover Array[String] end
+    var current = ISize(0)
+
+    while ((result.size() + 1) < n) and (current < total_size) do
+      try
+        let delim_start = find(delim where offset = current)
+        result.push(substring(current, delim_start))
+        current = delim_start + delim_size
+      else break end
+    end
+    result.push(substring(current))
+    consume result
 
   fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """
@@ -1045,13 +1037,13 @@ actor Main
 
     consume result
 
-  fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref strip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all leading and trailing characters from the string that are in s.
     """
-    lstrip(s).rstrip(s)
+    this.>lstrip(s).>rstrip(s)
 
-  fun ref rstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref rstrip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all trailing characters within the string that are in s. By default,
     trailing whitespace is removed.
@@ -1081,9 +1073,7 @@ actor Main
       truncate(i + 1)
     end
 
-    this
-
-  fun ref lstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+  fun ref lstrip(s: String box = " \t\v\f\r\n") =>
     """
     Remove all leading characters within the string that are in s. By default,
     leading whitespace is removed.
@@ -1112,8 +1102,6 @@ actor Main
         delete(0, i)
       end
     end
-
-    this
 
   fun iso _append(s: String box): String iso^ =>
     reserve(s._size + _size)

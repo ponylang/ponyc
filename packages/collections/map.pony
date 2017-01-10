@@ -87,19 +87,19 @@ class HashMap[K, V, H: HashFunction[K] val]
     using the provided function. If the provided key has not been added to
     the map yet, it sets its value to the provided value.
 
-    As a simple example, say we had a map with U64 values and we wanted to
+    As a simple example, say we had a map with I64 values and we wanted to
     add 4 to the current value for key "test", which let's say is currently 2.
     We call
 
-    m.upsert("test", 4, lambda(x: U64, y: U64): U64 => x + y end)
+    m.upsert("test", 4, {(x: I64, y: I64): I64 => x - y })
 
-    This changes the value associated with "test" to 6.
+    This changes the value associated with "test" to -2.
 
     If we have not yet added the key "new-key" to the map and we call
 
-    m.upsert("new-key", 4, lambda(x: U64, y: U64): U64 => x + y end)
+    m.upsert("new-key", 4, {(x: I64, y: I64): I64 => x - y })
 
-    then "new-key" is added to the map with a value of 4.
+    then "new-key" is added to the map with a value of -4.
 
     Returns the value that we set the key to
     """
@@ -174,8 +174,16 @@ class HashMap[K, V, H: HashFunction[K] val]
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
     """
-    try
-      apply(key)
+    (let i, let found) = _search(key)
+
+    if found then
+      try
+        _array(i) as (_, this->V)
+      else
+        // This should never happen as we have already
+        // proven that _array(i) exists
+        consume alt
+      end
     else
       consume alt
     end
@@ -187,14 +195,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     (_, let found) = _search(k)
     found
 
-  fun ref concat(iter: Iterator[(K^, V^)]): HashMap[K, V, H]^ =>
+  fun ref concat(iter: Iterator[(K^, V^)]) =>
     """
     Add K, V pairs from the iterator to the map.
     """
     for (k, v) in iter do
       this(consume k) = consume v
     end
-    this
 
   fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
     HashMap[this->K!, this->V!, H2]^
@@ -235,12 +242,11 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _array(i) as (this->K, this->V)
 
-  fun ref compact(): HashMap[K, V, H]^ =>
+  fun ref compact() =>
     """
     Minimise the memory used for the map.
     """
     _resize(((_size * 4) / 3).next_pow2().max(8))
-    this
 
   fun clone[H2: HashFunction[this->K!] val = H]():
     HashMap[this->K!, this->V!, H2]^
@@ -256,7 +262,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     r
 
-  fun ref clear(): HashMap[K, V, H]^ =>
+  fun ref clear() =>
     """
     Remove all entries.
     """
@@ -264,7 +270,6 @@ class HashMap[K, V, H: HashFunction[K] val]
     // Our default prealloc of 6 corresponds to an array alloc size of 8.
     let n: USize = 8
     _array = _array.init(_MapEmpty, n)
-    this
 
   fun _search(key: box->K!): (USize, Bool) =>
     """

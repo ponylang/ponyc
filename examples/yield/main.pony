@@ -48,27 +48,27 @@ class StopWatch
   """
   A simple stopwatch class for performance micro-benchmarking
   """
-  var _s : U64 = 0
+  var _s: U64 = 0
 
-  fun ref start() : StopWatch =>
+  fun ref start(): StopWatch =>
     _s = Time.nanos()
     this
 
-  fun delta() : U64 =>
+  fun delta(): U64 =>
     Time.nanos() - _s
 
 actor LonelyPony
   """
   A simple manifestation of the lonely pony problem
   """
-  var _env : Env
-  let _sw : StopWatch = StopWatch
-  var _alive : Bool = true
-  var _debug : Bool = false
-  var _m : U64
-  var _n : U64
+  var _env: Env
+  let _sw: StopWatch = StopWatch
+  var _alive: Bool = true
+  var _debug: Bool = false
+  var _m: U64
+  var _n: U64
 
-  new create(env : Env, debug : Bool = false, n : U64 = 0) =>
+  new create(env: Env, debug: Bool = false, n: U64 = 0) =>
     _env = env
     _debug = debug
     _m = n
@@ -105,13 +105,13 @@ actor InterruptiblePony
   """
   An interruptible version that avoids the lonely pony problem
   """
-  var _env : Env
-  let _sw : StopWatch = StopWatch
-  var _alive : Bool = true
-  var _debug : Bool = false
-  var _n : U64
+  var _env: Env
+  let _sw: StopWatch = StopWatch
+  var _alive: Bool = true
+  var _debug: Bool = false
+  var _n: U64
 
-  new create(env : Env, debug : Bool, n : U64 = 0) =>
+  new create(env: Env, debug: Bool, n: U64 = 0) =>
     _env = env
     _debug = debug
     _n = n
@@ -152,11 +152,11 @@ actor InterruptiblePony
     this
 
 actor PunkDemo
-  var _env : Env
-  var _alive : Bool = false
-  var _current : U8 = 0
+  var _env: Env
+  var _alive: Bool = false
+  var _current: U8 = 0
 
-  new create(env : Env) =>
+  new create(env: Env) =>
     _env = env
 
   be inc() =>
@@ -184,15 +184,15 @@ actor PunkDemo
     end
 
 actor Main
-  var _env : Env
-  new create(env : Env) =>
+  var _env: Env
+  new create(env: Env) =>
     _env = env
 
-    var punk : Bool = false
-    var lonely : Bool = false
-    var perf : U64 = 0
-    var debug : Bool = false
-    var err : Bool = false
+    var punk: Bool = false
+    var lonely: Bool = false
+    var perf: U64 = 0
+    var debug: Bool = false
+    var err: Bool = false
 
     let options = Options(env.args) +
       ("punk", "p", None) +
@@ -205,7 +205,7 @@ actor Main
       match opt
       | ("punk", None) => punk = true
       | ("lonely", None) => lonely = true
-      | ("bench", let arg : I64) => perf = arg.u64()
+      | ("bench", let arg: I64) => perf = arg.u64()
       | ("debug", None) => debug = true
       else
         err = true
@@ -220,11 +220,11 @@ actor Main
       match punk
       | true =>
         PunkDemo(env)
-          .loop()
-          .inc().inc().inc()
-          .dec().dec().dec()
-          .inc().dec()
-          .kill()
+          .>loop()
+          .>inc().>inc().>inc()
+          .>dec().>dec().>dec()
+          .>inc().>dec()
+          .>kill()
       else
         match perf > 0
         | true =>
@@ -232,8 +232,8 @@ actor Main
           LonelyPony(env,debug,perf).perf()
         else
           match lonely
-          | false => InterruptiblePony(env,debug).forever().kill()
-          | true => LonelyPony(env,debug).forever().kill()
+          | false => InterruptiblePony(env,debug).>forever().>kill()
+          | true => LonelyPony(env,debug).>forever().>kill()
           end
         end
       end

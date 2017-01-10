@@ -6,7 +6,7 @@
 #include "dtrace_probes.h"
 
 #define DTRACE_ENABLED(name)                         \
-  PONY_##name##_enabled()
+  PONY_##name##_ENABLED()
 #define DTRACE0(name)                                \
   PONY_##name()
 #define DTRACE1(name, a0)                            \

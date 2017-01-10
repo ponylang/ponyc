@@ -698,7 +698,7 @@ static void init_runtime(compile_t* c)
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 }
 
-static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
+static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
 
@@ -709,10 +709,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // If we have only one package, we are compiling builtin itself.
   if(builtin == NULL)
     builtin = package;
-
-  c->reach = reach_new();
-
-  c->tbaa_mds = tbaa_metadatas_new();
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(package);
@@ -728,8 +724,12 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   else
     c->linkage = LLVMPrivateLinkage;
 
-  c->context = LLVMContextCreate();
   c->machine = make_machine(opt);
+
+  if(c->machine == NULL)
+    return false;
+
+  c->context = LLVMContextCreate();
 
   // Create a module.
   c->module = LLVMModuleCreateWithNameInContext(c->filename, c->context);
@@ -758,6 +758,14 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // Empty frame stack.
   c->frame = NULL;
+
+  c->reach = reach_new();
+  c->tbaa_mds = tbaa_metadatas_new();
+
+  // This gets a real value once the instance of None has been generated.
+  c->none_instance = NULL;
+
+  return true;
 }
 
 bool codegen_merge_runtime_bitcode(compile_t* c)
@@ -888,7 +896,9 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   compile_t c;
   memset(&c, 0, sizeof(compile_t));
 
-  init_module(&c, program, opt);
+  if(!init_module(&c, program, opt))
+    return false;
+
   init_runtime(&c);
   genprim_reachable_init(&c, program);
 
@@ -970,6 +980,7 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
 
   frame->fun = frame->prev->fun;
   frame->break_target = frame->prev->break_target;
+  frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = frame->prev->invoke_target;
   frame->di_file = frame->prev->di_file;
@@ -993,10 +1004,11 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && !p->alive)
     {
@@ -1018,10 +1030,11 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL && p->alive)
     {
@@ -1065,12 +1078,13 @@ LLVMMetadataRef codegen_discope(compile_t* c)
 }
 
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
-  LLVMBasicBlockRef break_target)
+  LLVMBasicBlockRef break_target, LLVMBasicBlockRef break_novalue_target)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
   frame->break_target = break_target;
+  frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
   frame->invoke_target = frame->prev->invoke_target;
   frame->di_file = frame->prev->di_file;
@@ -1088,6 +1102,7 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
 
   frame->fun = frame->prev->fun;
   frame->break_target = frame->prev->break_target;
+  frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = invoke_target;
   frame->di_file = frame->prev->di_file;
@@ -1116,10 +1131,11 @@ LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
 
   compile_local_t k;
   k.name = name;
+  size_t index = HASHMAP_UNKNOWN;
 
   while(frame != NULL)
   {
-    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+    compile_local_t* p = compile_locals_get(&frame->locals, &k, &index);
 
     if(p != NULL)
       return p->alloca;

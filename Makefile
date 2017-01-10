@@ -81,7 +81,7 @@ ifdef destdir
   endif
 endif
 
-ifeq ($(OSTYPE),osx)
+ifneq (,$(filter $(OSTYPE), osx freebsd))
   symlink.flags = -sf
 else
   symlink.flags = -srf
@@ -98,6 +98,7 @@ AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
   -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
+  -DBUILD_COMPILER=\"$(compiler_version)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
@@ -186,6 +187,10 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-3.6
     LLVM_LINK = llvm-link-3.6
     LLVM_OPT = opt-3.6
+  else ifneq (,$(shell which llvm-config39 2> /dev/null))
+    LLVM_CONFIG = llvm-config39
+    LLVM_LINK = llvm-link39
+    LLVM_OPT = opt39
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
     LLVM_LINK = llvm-link38
@@ -214,6 +219,17 @@ ifndef LLVM_CONFIG
 endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
+
+ifeq ($(llvm_version),3.6.2)
+else ifeq ($(llvm_version),3.7.1)
+else ifeq ($(llvm_version),3.8.1)
+else ifeq ($(llvm_version),3.9.0)
+else
+  $(warning WARNING: Unsupported LLVM version: $(llvm_version))
+  $(warning Please use LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0)
+endif
+
+compiler_version := "$(shell $(CC) --version | sed -n 1p)"
 
 ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
@@ -575,11 +591,18 @@ $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 
 define EXPAND_INSTALL
+ifeq ($(OSTYPE),linux)
+install: libponyc libponyrt libponyrt-pic ponyc
+else
 install: libponyc libponyrt ponyc
+endif
 	@mkdir -p $(destdir)/bin
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+ifeq ($(OSTYPE),linux)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(destdir)/lib
+endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
 endif
@@ -594,6 +617,9 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+ifeq ($(OSTYPE),linux)
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a
+endif
 ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
 endif
@@ -610,6 +636,9 @@ uninstall:
 	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+ifeq ($(OSTYPE),linux)
+	-$(SILENT)rm $(prefix)/lib/libponyrt-pic.a 2>/dev/null ||:
+endif
 ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
 	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
 endif
@@ -624,7 +653,7 @@ test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
-	@./stdlib
+	@./stdlib --sequential
 	@rm stdlib
 
 test-examples: all
@@ -633,13 +662,14 @@ test-examples: all
 	@rm examples1
 
 test-ci: all
+	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
-	@./stdlib
+	@./stdlib --sequential
 	@rm stdlib
 	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
-	@./stdlib
+	@./stdlib --sequential
 	@rm stdlib
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
@@ -661,6 +691,9 @@ deploy: test
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+ifeq ($(OSTYPE),linux)
+	$(SILENT)cp build/release/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
+endif
 ifneq ($(wildcard build/release/libponyrt.bc),)
 	$(SILENT)cp build/release/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
 endif
@@ -668,6 +701,9 @@ endif
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+ifeq ($(OSTYPE),linux)
+	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
+endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
 endif
@@ -704,7 +740,7 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
-	@rm src/common/dtrace_probes.h
+	@rm -f src/common/dtrace_probes.h
 	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 

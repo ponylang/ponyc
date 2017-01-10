@@ -89,7 +89,7 @@ static bool check_type_params(pass_opt_t* opt, ast_t** astp)
   if(ast_id(typeparams) == TK_NONE)
     return true;
 
-  BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
+  BUILD(typeargs, ast_parent(lhs), NODE(TK_TYPEARGS));
 
   if(!reify_defaults(typeparams, typeargs, true, opt))
   {
@@ -294,9 +294,23 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   ast_t* positional, ast_t* result)
 {
+  switch(ast_id(ast))
+  {
+    case TK_FUNREF:
+    case TK_FUNAPP:
+    case TK_FUNCHAIN:
+      break;
+
+    default:
+      assert(0);
+      break;
+  }
+
   // We can recover the receiver (ie not alias the receiver type) if all
   // arguments are safe and the result is either safe or unused.
-  if(is_result_needed(ast) && !safe_to_autorecover(receiver_type, result))
+  // The result of a chained method is always unused.
+  ast_t* call = ast_parent(ast);
+  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result))
     return false;
 
   ast_t* arg = ast_child(positional);
@@ -324,7 +338,21 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   return true;
 }
 
-static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
+static ast_t* method_receiver_type(ast_t* method)
+{
+  ast_t* receiver = ast_child(method);
+
+  // Dig through function qualification.
+  if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+     (ast_id(receiver) == TK_FUNCHAIN))
+    receiver = ast_child(receiver);
+
+  ast_t* r_type = ast_type(receiver);
+
+  return r_type;
+}
+
+static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
@@ -335,15 +363,8 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-  // Check receiver cap.
-  ast_t* receiver = ast_child(lhs);
-
-  // Dig through function qualification.
-  if(ast_id(receiver) == TK_FUNREF || ast_id(receiver) == TK_FUNAPP)
-    receiver = ast_child(receiver);
-
   // Receiver type, alias of receiver type, and target type.
-  ast_t* r_type = ast_type(receiver);
+  ast_t* r_type = method_receiver_type(lhs);
 
   if(is_typecheck_error(r_type))
     return false;
@@ -352,7 +373,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
   ast_t* a_type;
 
   // If we can recover the receiver, we don't alias it here.
-  bool can_recover = auto_recover_call(ast, r_type, positional, result);
+  bool can_recover = auto_recover_call(lhs, r_type, positional, result);
   bool cap_recover = false;
 
   switch(ast_id(cap))
@@ -373,9 +394,17 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
   }
 
   if(can_recover && cap_recover)
+  {
     a_type = r_type;
+    if(recovered != NULL)
+      *recovered = true;
+  }
   else
+  {
     a_type = alias(r_type);
+    if(recovered != NULL)
+      *recovered = false;
+  }
 
   errorframe_t info = NULL;
   bool ok = is_subtype(a_type, t_type, &info, opt);
@@ -386,7 +415,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
 
     ast_error_frame(&frame, ast,
       "receiver type is not a subtype of target type");
-    ast_error_frame(&frame, receiver,
+    ast_error_frame(&frame, ast_child(lhs),
       "receiver type: %s", ast_print_type(a_type));
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
@@ -408,6 +437,92 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast)
   ast_free_unattached(r_type);
   ast_free_unattached(t_type);
   return ok;
+}
+
+static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+     case TK_THIS:
+     case TK_FLETREF:
+     case TK_FVARREF:
+     case TK_EMBEDREF:
+     case TK_PARAMREF:
+     {
+       ast_t* type = ast_type(ast);
+       return sendable(type);
+     }
+
+     case TK_LETREF:
+     case TK_VARREF:
+     {
+       const char* name = ast_name(ast_child(ast));
+       sym_status_t status;
+       ast_t* def = ast_get(ast, name, &status);
+       ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+       if(t->frame->recover == def_recover)
+         return true;
+       ast_t* type = ast_type(ast);
+       return sendable(type);
+     }
+
+     default:
+       // Unsafe receivers inside expressions are catched before we get there.
+       return true;
+  }
+}
+
+static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
+{
+  if(opt->check.frame->recover != NULL)
+  {
+    AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+    ast_t* type = ast_type(lhs);
+
+    AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+    // If the method is tag, the call is always safe.
+    if(ast_id(cap) == TK_TAG)
+      return true;
+
+    ast_t* receiver = ast_child(lhs);
+
+    // Dig through function qualification.
+    if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+       (ast_id(receiver) == TK_FUNCHAIN))
+      receiver = ast_child(receiver);
+
+    if(!is_receiver_safe(&opt->check, receiver))
+    {
+      ast_t* arg = ast_child(positional);
+      bool args_sendable = true;
+      while(arg != NULL)
+      {
+        if(ast_id(arg) != TK_NONE)
+        {
+          // Don't typecheck arg_type, this was already done in
+          // auto_recover_call.
+          ast_t* arg_type = ast_type(arg);
+          if(!sendable(arg_type))
+          {
+            args_sendable = false;
+            break;
+          }
+        }
+        arg = ast_sibling(arg);
+      }
+      if(!args_sendable || !sendable(result))
+      {
+        ast_error(opt->check.errors, ast, "can't call method on non-sendable "
+          "object inside of a recover expression");
+        ast_error_continue(opt->check.errors, ast, "this would be possible if "
+          "the arguments and return value were all sendable");
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
@@ -437,7 +552,10 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(!check_receiver_cap(opt, ast))
+      if(!check_receiver_cap(opt, ast, NULL))
+        return false;
+
+      if(!check_nonsendable_recover(opt, ast))
         return false;
       break;
 
@@ -523,7 +641,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
    *
    * Partial call is converted to:
    * ```pony
-   * lambda(b: B = b_default)($0 = recv, a = foo): R => $0.f[T2](a, consume b)
+   * {(b: B = b_default)($0 = recv, a = foo): R => $0.f[T2](a, consume b) }
    * ```
    */
 
@@ -675,7 +793,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
         NODE(TK_CALL,
           TREE(lambda_call_args)
           NONE  // Named args.
-          TREE(call_receiver)))));
+          TREE(call_receiver)))
+      NONE)); // Lambda reference capability.
 
   // Need to preserve various lambda children.
   ast_setflag(ast_childidx(*astp, 2), AST_FLAG_PRESERVE); // Type params.
@@ -685,6 +804,36 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // Catch up to this pass.
   return ast_passes_subtree(astp, opt, PASS_EXPR);
+}
+
+static bool method_chain(pass_opt_t* opt, ast_t* ast)
+{
+  if(!method_application(opt, ast, false))
+    return false;
+
+  // We check the receiver cap now instead of in method_application because
+  // we need to know whether the receiver was recovered.
+  ast_t* lhs = ast_childidx(ast, 2);
+  ast_t* r_type = method_receiver_type(lhs);
+  if(ast_id(lhs) == TK_FUNCHAIN)
+  {
+    bool recovered;
+    if(!check_receiver_cap(opt, ast, &recovered))
+      return false;
+
+    if(!check_nonsendable_recover(opt, ast))
+      return false;
+
+    ast_t* f_type = ast_type(lhs);
+    token_id f_cap = ast_id(ast_child(f_type));
+
+    ast_t* c_type = chain_type(r_type, f_cap, recovered);
+    ast_settype(ast, c_type);
+  } else {
+    ast_settype(ast, r_type);
+  }
+
+  return true;
 }
 
 bool expr_call(pass_opt_t* opt, ast_t** astp)
@@ -715,6 +864,10 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
     case TK_BEAPP:
     case TK_FUNAPP:
       return partial_application(opt, astp);
+
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
+      return method_chain(opt, ast);
 
     default: {}
   }

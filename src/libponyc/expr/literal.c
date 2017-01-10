@@ -423,7 +423,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
       return uifset_simple_type(opt, type);
 
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
     case TK_FUNTYPE:
       return UIF_NO_TYPES;
 
@@ -844,7 +844,8 @@ static bool unify(ast_t* ast, pass_opt_t* opt, bool report_errors)
 bool literal_member_access(ast_t* ast, pass_opt_t* opt)
 {
   assert(ast != NULL);
-  assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE);
+  assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE ||
+    ast_id(ast) == TK_CHAIN);
 
   AST_GET_CHILDREN(ast, receiver, name_node);
 

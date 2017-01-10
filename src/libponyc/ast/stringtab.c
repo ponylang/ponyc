@@ -63,7 +63,8 @@ const char* stringtab_len(const char* string, size_t len)
     return NULL;
 
   stringtab_entry_t key = {string, len, 0};
-  stringtab_entry_t* n = strtable_get(&table, &key);
+  size_t index = HASHMAP_UNKNOWN;
+  stringtab_entry_t* n = strtable_get(&table, &key, &index);
 
   if(n != NULL)
     return n->str;
@@ -77,7 +78,9 @@ const char* stringtab_len(const char* string, size_t len)
   n->len = len;
   n->buf_size = len + 1;
 
-  strtable_put(&table, n);
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  strtable_putindex(&table, n, index);
   return n->str;
 }
 
@@ -88,7 +91,8 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   size_t len = strlen(string);
   stringtab_entry_t key = {string, len, 0};
-  stringtab_entry_t* n = strtable_get(&table, &key);
+  size_t index = HASHMAP_UNKNOWN;
+  stringtab_entry_t* n = strtable_get(&table, &key, &index);
 
   if(n != NULL)
   {
@@ -101,7 +105,9 @@ const char* stringtab_consume(const char* string, size_t buf_size)
   n->len = len;
   n->buf_size = buf_size;
 
-  strtable_put(&table, n);
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  strtable_putindex(&table, n, index);
   return n->str;
 }
 

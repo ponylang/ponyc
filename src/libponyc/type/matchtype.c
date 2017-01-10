@@ -438,7 +438,7 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern,
 static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
   pass_opt_t* opt)
 {
-  if(ast_id(pattern) == TK_DONTCARE)
+  if(ast_id(pattern) == TK_DONTCARETYPE)
     return MATCHTYPE_ACCEPT;
 
   switch(ast_id(pattern))
@@ -460,9 +460,6 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
 
     case TK_ARROW:
       return is_x_match_arrow(operand, pattern, opt);
-
-    case TK_DONTCARE:
-      return MATCHTYPE_ACCEPT;
 
     case TK_FUNTYPE:
       return MATCHTYPE_DENY;

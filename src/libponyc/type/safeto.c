@@ -60,6 +60,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_LET:
     case TK_VARREF:
     case TK_DONTCARE:
+    case TK_DONTCAREREF:
       return true;
 
     case TK_FVARREF:

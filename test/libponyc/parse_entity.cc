@@ -90,6 +90,13 @@ TEST_F(ParseEntityTest, ActorCannotBeGenericAndCApi)
 }
 
 
+TEST_F(ParseEntityTest, ActorCannotBeDontcare)
+{
+  const char* src = "actor _";
+
+  TEST_ERROR(src);
+}
+
 
 // Classes
 
@@ -141,6 +148,13 @@ TEST_F(ParseEntityTest, ClassCannotBeCApi)
   TEST_ERROR(src);
 }
 
+
+TEST_F(ParseEntityTest, ClassCannotBeDontcare)
+{
+  const char* src = "class _";
+
+  TEST_ERROR(src);
+}
 
 
 // Primitives
@@ -205,6 +219,14 @@ TEST_F(ParseEntityTest, PrimitiveCannotBeCApi)
 }
 
 
+TEST_F(ParseEntityTest, PrimitiveCannotBeDontcare)
+{
+  const char* src = "primitive _";
+
+  TEST_ERROR(src);
+}
+
+
 // Traits
 
 TEST_F(ParseEntityTest, TraitMinimal)
@@ -254,6 +276,14 @@ TEST_F(ParseEntityTest, TraitCannotHaveConstructor)
 TEST_F(ParseEntityTest, TraitCannotBeCApi)
 {
   const char* src = "trait @ Foo";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, TraitCannotBeDontcare)
+{
+  const char* src = "trait _";
 
   TEST_ERROR(src);
 }
@@ -313,6 +343,14 @@ TEST_F(ParseEntityTest, InterfaceCannotBeCApi)
 }
 
 
+TEST_F(ParseEntityTest, InterfaceCannotBeDontcare)
+{
+  const char* src = "interface _";
+
+  TEST_ERROR(src);
+}
+
+
 // Aliases
 
 TEST_F(ParseEntityTest, Alias)
@@ -326,6 +364,14 @@ TEST_F(ParseEntityTest, Alias)
 TEST_F(ParseEntityTest, AliasMustHaveType)
 {
   const char* src = "type Foo";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, AliasCannotBeDontcare)
+{
+  const char* src = "type _ is Foo";
 
   TEST_ERROR(src);
 }
@@ -413,6 +459,14 @@ TEST_F(ParseEntityTest, InterfaceFunctionCannotBeCCallable)
 }
 
 
+TEST_F(ParseEntityTest, FunctionCannotBeDontcare)
+{
+  const char* src = "class Foo fun _() => 3";
+
+  TEST_ERROR(src);
+}
+
+
 // Behaviours
 
 TEST_F(ParseEntityTest, Behaviour)
@@ -495,6 +549,14 @@ TEST_F(ParseEntityTest, InterfaceBehaviourCannotBeCCallable)
 }
 
 
+TEST_F(ParseEntityTest, BehaviourCannotBeDontcare)
+{
+  const char* src = "actor Foo be _() => 3";
+
+  TEST_ERROR(src);
+}
+
+
 // Constructors
 
 TEST_F(ParseEntityTest, ConstructorMinimal)
@@ -556,6 +618,14 @@ TEST_F(ParseEntityTest, ActorConstructorCannotBePartial)
 TEST_F(ParseEntityTest, ConstructorMustHaveBody)
 {
   const char* src = "class Foo new m()";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, ConstructorCannotBeDontcare)
+{
+  const char* src = "class Foo new _() => 3";
 
   TEST_ERROR(src);
 }
@@ -671,6 +741,15 @@ TEST_F(ParseEntityTest, FieldDelegateCannotHaveCapability)
 
     "class Foo\n"
     "  var bar: T delegate T1 ref";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, FieldCannotBeDontcare)
+{
+  const char* src =
+    "class Foo let _: None";
 
   TEST_ERROR(src);
 }
@@ -880,6 +959,15 @@ TEST_F(ParseEntityTest, OsNameCaseSensitiveInConditionWrong)
 {
   const char* src =
     "use \"foo\" if WINDOWS";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ParseEntityTest, UseUriCannotBeDontcare)
+{
+  const char* src =
+    "use _ = \"foo\"";
 
   TEST_ERROR(src);
 }

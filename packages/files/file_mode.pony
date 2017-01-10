@@ -20,33 +20,30 @@ class FileMode
   var any_write: Bool = false
   var any_exec: Bool = false
 
-  fun ref exec(): FileMode =>
+  fun ref exec() =>
     """
     Set the executable flag for everyone.
     """
     owner_exec = true
     group_exec = true
     any_exec = true
-    this
 
-  fun ref shared(): FileMode =>
+  fun ref shared() =>
     """
     Set the write flag for everyone to the same as owner_write.
     """
     group_write = owner_write
     any_write = owner_write
-    this
 
-  fun ref group(): FileMode =>
+  fun ref group() =>
     """
     Clear all of the any-user flags.
     """
     any_read = false
     any_write = false
     any_exec = false
-    this
 
-  fun ref private(): FileMode =>
+  fun ref private() =>
     """
     Clear all of the group and any-user flags.
     """
@@ -56,7 +53,6 @@ class FileMode
     any_read = false
     any_write = false
     any_exec = false
-    this
 
   fun _os(): U32 =>
     """

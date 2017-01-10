@@ -26,7 +26,7 @@ class Date
     """
     @ponyint_timegm[I64](this)
 
-  fun ref normal(): Date^ =>
+  fun ref normal() =>
     """
     Normalise all the fields of the date. For example, if the hour is 24, it is
     set to 0 and the day is advanced. This allows fields to be changed naively,
@@ -34,7 +34,6 @@ class Date
     normalising the date.
     """
     @ponyint_gmtime[None](this, time(), nsec)
-    this
 
   fun format(fmt: String): String =>
     """

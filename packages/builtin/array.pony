@@ -81,7 +81,7 @@ class Array[A] is Seq[A]
     """
     _alloc
 
-  fun ref reserve(len: USize): Array[A]^ =>
+  fun ref reserve(len: USize) =>
     """
     Reserve space for len elements, including whatever elements are already in
     the array. Array space grows geometrically.
@@ -90,12 +90,11 @@ class Array[A] is Seq[A]
       _alloc = len.next_pow2().max(len).max(8)
       _ptr = _ptr._realloc(_alloc)
     end
-    this
 
-  fun ref compact(): Array[A]^ =>
+  fun ref compact() =>
     """
     Try to remove unused space, making it available for garbage collection. The
-    request may be ignored. The array is returned to allow call chaining.
+    request may be ignored.
     """
     if _size <= (512 / _ptr._element_size()) then
       if _size.next_pow2() != _alloc.next_pow2() then
@@ -108,17 +107,14 @@ class Array[A] is Seq[A]
       let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
       _ptr._consume_from(consume old_ptr, _size)
     end
-    this
 
-  fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize): Array[A]^
-  =>
+  fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize) =>
     """
     Resize to len elements, populating previously empty elements with random
     memory. This is only allowed for an array of numbers.
     """
     reserve(len)
     _size = len
-    this
 
   fun apply(i: USize): this->A ? =>
     """
@@ -140,19 +136,17 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref insert(i: USize, value: A): Array[A]^ ? =>
+  fun ref insert(i: USize, value: A) ? =>
     """
     Insert an element into the array. Elements after this are moved up by one
     index, extending the array.
     An out of bounds index raises an error.
-    The array is returned to allow call chaining.
     """
     if i <= _size then
       reserve(_size + 1)
       _ptr._offset(i)._insert(1, _size - i)
       _ptr._update(i, consume value)
       _size = _size + 1
-      this
     else
       error
     end
@@ -171,20 +165,17 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun ref truncate(len: USize): Array[A]^ =>
+  fun ref truncate(len: USize) =>
     """
     Truncate an array to the given length, discarding excess elements. If the
     array is already smaller than len, do nothing.
-    The array is returned to allow call chaining.
     """
     _size = _size.min(len)
-    this
 
-  fun ref trim_in_place(from: USize = 0, to: USize = -1): Array[A]^ =>
+  fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """
     Trim the array to a portion of itself, covering `from` until `to`.
     Unlike slice, the operation does not allocate a new array nor copy elements.
-    The same array is returned to allow call chaining.
     """
     let last = _size.min(to)
     let offset = last.min(from)
@@ -192,8 +183,6 @@ class Array[A] is Seq[A]
     _size = last - offset
     _alloc = _alloc - offset
     _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
-
-    this
 
   fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
     """
@@ -216,11 +205,10 @@ class Array[A] is Seq[A]
     end
 
   fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
-    len: USize): this->Array[A]^
+    len: USize)
   =>
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
-    The array is returned to allow call chaining.
     """
     dst.reserve(dst_idx + len)
     _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
@@ -228,37 +216,30 @@ class Array[A] is Seq[A]
     if dst._size < (dst_idx + len) then
       dst._size = dst_idx + len
     end
-    this
 
-  fun ref remove(i: USize, n: USize): Array[A]^ =>
+  fun ref remove(i: USize, n: USize) =>
     """
     Remove n elements from the array, beginning at index i.
-    The array is returned to allow call chaining.
     """
     if i < _size then
       let count = n.min(_size - i)
       _size = _size - count
       _ptr._offset(i)._delete(count, _size - i)
     end
-    this
 
-  fun ref clear(): Array[A]^ =>
+  fun ref clear() =>
     """
     Remove all elements from the array.
-    The array is returned to allow call chaining.
     """
     _size = 0
-    this
 
-  fun ref push(value: A): Array[A]^ =>
+  fun ref push(value: A) =>
     """
     Add an element to the end of the array.
-    The array is returned to allow call chaining.
     """
     reserve(_size + 1)
     _ptr._update(_size, consume value)
     _size = _size + 1
-    this
 
   fun ref pop(): A^ ? =>
     """
@@ -267,15 +248,13 @@ class Array[A] is Seq[A]
     """
     delete(_size - 1)
 
-  fun ref unshift(value: A): Array[A]^ =>
+  fun ref unshift(value: A) =>
     """
     Add an element to the beginning of the array.
-    The array is returned to allow call chaining.
     """
     try
       insert(0, consume value)
     end
-    this
 
   fun ref shift(): A^ ? =>
     """
@@ -285,14 +264,13 @@ class Array[A] is Seq[A]
     delete(0)
 
   fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
-    len: USize = -1): Array[A]^
+    len: USize = -1)
   =>
     """
     Append the elements from a sequence, starting from the given offset.
-    The array is returned to allow call chaining.
     """
     if offset >= seq.size() then
-      return this
+      return
     end
 
     let copy_len = len.min(seq.size() - offset)
@@ -310,14 +288,10 @@ class Array[A] is Seq[A]
 
     _size = _size + n
 
-    this
-
-  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1)
-    : Array[A]^
-  =>
+  fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1) =>
     """
     Add len iterated elements to the end of the array, starting from the given
-    offset. The array is returned to allow call chaining.
+    offset.
     """
 
     var n = USize(0)
@@ -327,7 +301,7 @@ class Array[A] is Seq[A]
         if iter.has_next() then
           iter.next()
         else
-          return this
+          return
         end
 
         n = n + 1
@@ -370,11 +344,9 @@ class Array[A] is Seq[A]
       end
     end
 
-    this
-
   fun find(value: A!, offset: USize = 0, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the beginning of the array,
@@ -403,7 +375,7 @@ class Array[A] is Seq[A]
     error
 
   fun contains(value: A!, predicate: {(box->A!, box->A!): Bool} val =
-    lambda(l: box->A!, r: box->A!): Bool => l is r end): Bool =>
+    {(l: box->A!, r: box->A!): Bool => l is r }): Bool =>
     """
     Returns true if the array contains `value`, false otherwise.
     """
@@ -420,7 +392,7 @@ class Array[A] is Seq[A]
 
   fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      lambda(l: box->A!, r: box->A!): Bool => l is r end): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
   =>
     """
     Find the `nth` appearance of `value` from the end of the array, starting at
@@ -511,9 +483,9 @@ class Array[A] is Seq[A]
     The new array contains references to the same elements that the old array
     contains, the elements themselves are not copied.
     """
-    clone().reverse_in_place()
+    clone().>reverse_in_place()
 
-  fun ref reverse_in_place(): Array[A] ref^ =>
+  fun ref reverse_in_place() =>
     """
     Reverse the array in place.
     """
@@ -529,7 +501,6 @@ class Array[A] is Seq[A]
         j = j - 1
       end
     end
-    this
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     """

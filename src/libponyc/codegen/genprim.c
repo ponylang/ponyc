@@ -40,7 +40,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 {
-  gen(c, gen_data, TK_NONE);
+  gen(c, gen_data, TK_BOX);
   gen(c, gen_data, TK_REF);
   gen(c, gen_data, TK_VAL);
 }
@@ -669,7 +669,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
 
-  if(!gentrace_needed(typearg))
+  if(!gentrace_needed(c, typearg, NULL))
     return;
 
   reach_type_t* t_elem = reach_type(c->reach, typearg);
@@ -699,7 +699,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, pointer, &phi, 1,
     "");
   LLVMValueRef elem = LLVMBuildLoad(c->builder, elem_ptr, "");
-  gentrace(c, ctx, elem, typearg);
+  gentrace(c, ctx, elem, typearg, NULL);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);

@@ -6,6 +6,7 @@
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
+#  pragma warning(disable:4146)
 // LLVM claims DEBUG as a macro name. Conflicts with MSVC headers.
 #  pragma warning(disable:4005)
 #endif

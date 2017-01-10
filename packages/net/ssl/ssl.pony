@@ -171,7 +171,7 @@ class SSL
     let len = @BIO_ctrl_pending[USize](_output)
     if len == 0 then error end
 
-    let buf = recover Array[U8].undefined(len) end
+    let buf = recover Array[U8].>undefined(len) end
     @BIO_read[I32](_output, buf.cpointer(), buf.size().u32())
     buf
 

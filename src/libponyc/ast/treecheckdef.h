@@ -171,7 +171,7 @@ RULE(asop,
 
 RULE(tuple,
   HAS_TYPE(type)
-  ONE_OR_MORE(rawseq, dont_care),
+  ONE_OR_MORE(rawseq),
   TK_TUPLE);
 
 RULE(consume,
@@ -319,7 +319,7 @@ RULE(match_case,
   CHILD(rawseq, none),  // Body
   TK_CASE);
 
-RULE(no_case_expr, HAS_TYPE(dont_care), TK_NONE);
+RULE(no_case_expr, HAS_TYPE(dontcare_type), TK_NONE);
 
 RULE(try_expr,
   HAS_TYPE(type)
@@ -330,14 +330,15 @@ RULE(try_expr,
 
 RULE(lambda,
   HAS_TYPE(type)
-  CHILD(cap, none)
+  CHILD(cap, none) // Receiver cap
   CHILD(id, none)
   CHILD(type_params, none)
   CHILD(params, none)
   CHILD(lambda_captures, none)
   CHILD(type, none) // Return
   CHILD(question, none)
-  CHILD(rawseq),
+  CHILD(rawseq)
+  CHILD(cap, none, question), // Type reference cap (? indicates old syntax)
   TK_LAMBDA);
 
 RULE(lambda_captures, ONE_OR_MORE(lambda_capture), TK_LAMBDACAPTURES);
@@ -402,8 +403,8 @@ RULE(local_ref,
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, cap, nominal,
-  type_param_ref, dont_care, fun_type, error_type, lambda_type,
-  literal_type, opliteral_type, control_type, dont_care);
+  type_param_ref, dontcare_type, fun_type, error_type, lambda_type,
+  literal_type, opliteral_type, control_type);
 
 RULE(type_infix, ONE_OR_MORE(type), TK_UNIONTYPE, TK_ISECTTYPE);
 
@@ -457,7 +458,7 @@ RULE(borrowed, LEAF, TK_BORROWED);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
 RULE(control_type, LEAF, TK_IF, TK_CASES, TK_COMPILE_INTRINSIC,
   TK_COMPILE_ERROR, TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR);
-RULE(dont_care, HAS_TYPE(type), TK_DONTCARE);
+RULE(dontcare_type, LEAF, TK_DONTCARETYPE);
 RULE(ellipsis, LEAF, TK_ELLIPSIS);
 RULE(ephemeral, LEAF, TK_EPHEMERAL);
 RULE(error_type, LEAF, TK_ERRORTYPE);

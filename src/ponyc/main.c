@@ -249,57 +249,6 @@ static bool compile_package(const char* path, pass_opt_t* opt,
   return ok;
 }
 
-static char* compiler_version()
-{
-#ifdef PLATFORM_IS_WINDOWS
-  const int size = 128;
-  static char buff[size];
-  buff[0] = 0;
-
-# if defined(_MSC_FULL_VER) && defined(NTDDI_VERSION)
-  uint64_t vcver = _MSC_FULL_VER;
-  int vcmaj = (int)(vcver / 10000000);
-  int vcmin = (int)((vcver % 10000000) / 1000000);
-  int vcbld = (int)(vcver % 1000000);
-  int vcday = _MSC_BUILD;
-
-  uint64_t osver = NTDDI_VERSION;
-  int osmaj = (int)(osver / 10000000);
-  int osmin = (int)((osver % 10000000) / 100000);
-  int osbld = (int)(osver % 100000);
-
-  snprintf(buff, size,
-    "VC++ %02d.%02d.%d.%d Windows %02d.%02d.%d",
-    vcmaj, vcmin, vcbld, vcday,
-    osmaj, osmin, osbld);
-  return buff;
-# else
-  return "?";
-# endif
-#else
-  char* cc = PONY_COMPILER;
-  char* args = " --version";
-  size_t idx = ponyint_pool_index(strlen(cc) + strlen(args));
-  char* cmd = ponyint_pool_alloc(idx);
-  strcat(cmd, cc);
-  strcat(cmd, args);
-
-  FILE* fp = popen(cmd, "r");
-  ponyint_pool_free(idx, cmd);
-  if (fp == NULL)
-    return cc;
-
-  char buff[60];
-  char* info = fgets(buff, sizeof(buff), fp);
-  pclose(fp);
-  if (info == NULL)
-    return cc;
-
-  strtok(info, "\n");
-  return info;
-#endif
-}
-
 int main(int argc, char* argv[])
 {
   stringtab_init();
@@ -326,8 +275,8 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%s [%s] (llvm %s) (%s)\n", PONY_VERSION, PONY_BUILD_CONFIG,
-          LLVM_VERSION, compiler_version());
+        printf("%s [%s]\ncompiled with: llvm %s -- %s\n", PONY_VERSION, PONY_BUILD_CONFIG,
+          LLVM_VERSION, BUILD_COMPILER);
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;

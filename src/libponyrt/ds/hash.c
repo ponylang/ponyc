@@ -120,13 +120,12 @@ void ponyint_hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
   map->buckets = NULL;
 }
 
-void* ponyint_hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp)
+void* ponyint_hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp, size_t* pos)
 {
   if(map->count == 0)
     return NULL;
 
-  size_t pos;
-  return search(map, &pos, key, hash, cmp);
+  return search(map, pos, key, hash, cmp);
 }
 
 void* ponyint_hashmap_put(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
@@ -146,6 +145,33 @@ void* ponyint_hashmap_put(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
 
     if((map->count << 1) > map->size)
       resize(map, hash, cmp, alloc, fr);
+  }
+
+  return elem;
+}
+
+void* ponyint_hashmap_putindex(hashmap_t* map, void* entry, hash_fn hash, cmp_fn cmp,
+  alloc_fn alloc, free_size_fn fr, size_t pos)
+{
+  if(pos == HASHMAP_UNKNOWN)
+    return ponyint_hashmap_put(map, entry, hash, cmp, alloc, fr);
+
+  if(map->size == 0)
+    ponyint_hashmap_init(map, 4, alloc);
+
+  assert(pos <= map->size);
+  void* elem = map->buckets[pos];
+
+  map->buckets[pos] = entry;
+
+  if(elem == DELETED || elem == 0)
+  {
+    map->count++;
+
+    if((map->count << 1) > map->size)
+      resize(map, hash, cmp, alloc, fr);
+
+    return entry;
   }
 
   return elem;

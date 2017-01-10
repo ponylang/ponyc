@@ -58,11 +58,14 @@ interface TCPConnectionNotify
     """
     data
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     """
-    Called when new data is received on the connection.
+    Called when new data is received on the connection. Return true if you
+    want to continue receiving messages without yielding until you read
+    max_size on the TCPConnection. Return false to cause the TCPConnection
+    to yield now.
     """
-    None
+    true
 
   fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
     """
@@ -75,5 +78,23 @@ interface TCPConnectionNotify
   fun ref closed(conn: TCPConnection ref) =>
     """
     Called when the connection is closed.
+    """
+    None
+
+  fun ref throttled(conn: TCPConnection ref) =>
+    """
+    Called when the connection starts experiencing TCP backpressure. You should
+    respond to this by pausing additional calls to `write` and `writev` until
+    you are informed that pressure has been released. Failure to respond to
+    the `throttled` notification will result in outgoing data queuing in the
+    connection and increasing memory usage.
+    """
+    None
+
+  fun ref unthrottled(conn: TCPConnection ref) =>
+    """
+    Called when the connection stops experiencing TCP backpressure. Upon
+    receiving this notification, you should feel free to start making calls to
+    `write` and `writev` again.
     """
     None

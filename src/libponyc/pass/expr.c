@@ -93,6 +93,11 @@ bool is_result_needed(ast_t* ast)
       // Result of a behaviour isn't needed.
       return false;
 
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
+      // Result of a chained method isn't needed.
+      return false;
+
     default: {}
   }
 
@@ -258,6 +263,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_RECOVER:    r = expr_recover(options, ast); break;
     case TK_DOT:        r = expr_dot(options, astp); break;
     case TK_TILDE:      r = expr_tilde(options, astp); break;
+    case TK_CHAIN:      r = expr_chain(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
     case TK_CALL:       r = expr_call(options, astp); break;
     case TK_IFDEF:
@@ -285,7 +291,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_LOCATION:   r = expr_location(options, ast); break;
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_DIGESTOF:   r = expr_digestof(options, ast); break;
-    case TK_DONTCARE:   r = expr_dontcare(options, ast); break;
 
     case TK_LAMBDA:
       if(!expr_lambda(options, astp))

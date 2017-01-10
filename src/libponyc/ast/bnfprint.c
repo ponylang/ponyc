@@ -61,7 +61,7 @@ static const char* antlr_post =
   "// Lexer\n\n"
   "ID\n"
   "  : LETTER (LETTER | DIGIT | '_' | '\\'')*\n"
-  "  | '_' (LETTER | DIGIT | '_' | '\\'')+\n"
+  "  | '_' (LETTER | DIGIT | '_' | '\\'')*\n"
   "  ;\n\n"
   "INT\n"
   "  : DIGIT (DIGIT | '_')*\n"
@@ -813,6 +813,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
     p = bnf_add(bnf_create(BNF_OR), p); \
     bnf_rule_set(p, tokens); \
   }
+
+#define ANNOTATE(rule) OPT RULE("annotations", rule)
 
 #define DONE()  }
 

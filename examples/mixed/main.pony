@@ -20,7 +20,7 @@ actor Worker
         false
       end
 
-  fun ref factorize(bigint: U64) : Array[U64] =>
+  fun ref factorize(bigint: U64): Array[U64] =>
     var factors = Array[U64](2)
 
     if bigint <= 3 then
@@ -81,7 +81,7 @@ actor Ring
       Worker(_env)
     end
 
-  fun tag spawn_ring(env: Env, size: U32, pass': U32) : Ring =>
+  fun tag spawn_ring(env: Env, size: U32, pass': U32): Ring =>
     var next: Ring = this
 
     for i in Range[U32](0, size) do

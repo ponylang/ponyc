@@ -7,6 +7,7 @@
 #include "../gc/cycle.h"
 #include "../asio/asio.h"
 #include "../mem/pool.h"
+#include <dtrace.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -53,7 +54,10 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
  */
 static pony_actor_t* pop_global(scheduler_t* sched)
 {
-  pony_actor_t* actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+  // The global queue is empty most of the time. We use pop_bailout_immediate
+  // to avoid unnecessary synchronisation in that common case.
+  pony_actor_t* actor =
+    (pony_actor_t*)ponyint_mpmcq_pop_bailout_immediate(&inject);
 
   if(actor != NULL)
     return actor;
@@ -224,17 +228,23 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     scheduler_t* victim = choose_victim(sched);
 
     if(victim == NULL)
-      victim = sched;
-
-    actor = pop_global(victim);
+      actor = (pony_actor_t*)ponyint_mpmcq_pop_bailout_immediate(&inject);
+    else
+      actor = pop_global(victim);
 
     if(actor != NULL)
+    {
+      DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
       break;
+    }
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
     if(quiescent(sched, tsc, tsc2))
+    {
+      DTRACE2(WORK_STEAL_FAILURE, (uintptr_t)sched, (uintptr_t)victim);
       return NULL;
+    }
 
     // If we have been passed an actor (implicitly, the cycle detector), and
     // enough time has elapsed without stealing or quiescing, return the actor
@@ -256,6 +266,9 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 static void run(scheduler_t* sched)
 {
   pony_actor_t* actor = pop_global(sched);
+  if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
+    DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+  }
 
   while(true)
   {
@@ -270,6 +283,7 @@ static void run(scheduler_t* sched)
         assert(pop(sched) == NULL);
         return;
       }
+      DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
     }
 
     // Run the current actor and get the next actor.
@@ -283,7 +297,9 @@ static void run(scheduler_t* sched)
         // If we have a next actor, we go on the back of the queue. Otherwise,
         // we continue to run this actor.
         push(sched, actor);
+        DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
       } else if(ponyint_is_cycle(actor)) {
         // If all we have is the cycle detector, try to steal something else to
         // run as well.
@@ -292,6 +308,7 @@ static void run(scheduler_t* sched)
         if(next == NULL)
         {
           // Termination.
+          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
           return;
         }
 
@@ -299,13 +316,19 @@ static void run(scheduler_t* sched)
         if(actor != next)
         {
           push(sched, actor);
+          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
           actor = next;
+          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         }
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
+      DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
       actor = next;
+      if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+      }
     }
   }
 }
@@ -329,6 +352,7 @@ static void ponyint_sched_shutdown()
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
 
+  DTRACE0(RT_END);
   ponyint_cycle_terminate(&scheduler[0].ctx);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
@@ -386,6 +410,7 @@ bool ponyint_sched_start(bool library)
 
   atomic_store_explicit(&detect_quiescence, !library, memory_order_relaxed);
 
+  DTRACE0(RT_START);
   uint32_t start = 0;
 
   if(library)

@@ -33,7 +33,7 @@ TEST_F(SugarExprTest, PartialMinimal)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x) => $1.f() end";
+    "    {box()($1 = x) => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -55,7 +55,7 @@ TEST_F(SugarExprTest, PartialReceiverCapability)
 
     "class Foo\n"
     "  fun f(x: T ref) =>\n"
-    "    lambda ref()($1 = x) => $1.f() end";
+    "    {ref()($1 = x) => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -117,10 +117,10 @@ TEST_F(SugarExprTest, PartialSomeArgs)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box(b: U32, d: U32)\n"
+    "    {box(b: U32, d: U32)\n"
     "      ($1 = x, a: U32 = (3), c: U32 = (4)) =>\n"
     "      $1.f(a, consume b, c, consume d)\n"
-    "    end";
+    "    }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -142,10 +142,10 @@ TEST_F(SugarExprTest, PartialAllArgs)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
+    "    {box()($1 = x, a: U32 = (1), b: U32 = (2), c: U32 = (3),\n"
     "      d: U32 = (4)) =>\n"
     "      $1.f(a, b, c, d)\n"
-    "    end";
+    "    }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -167,10 +167,10 @@ TEST_F(SugarExprTest, PartialDefaultArgs)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box(b: U32 = 2, d: U32 = 4)\n"
+    "    {box(b: U32 = 2, d: U32 = 4)\n"
     "      ($1 = x, a: U32 = (5), c: U32 = (6)) =>\n"
     "      $1.f(a, consume b, c, consume d)\n"
-    "    end";
+    "    }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -192,7 +192,7 @@ TEST_F(SugarExprTest, PartialResult)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x): U32 => $1.f() end";
+    "    {box()($1 = x): U32 => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -214,7 +214,7 @@ TEST_F(SugarExprTest, PartialBehaviour)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x): T tag => $1.f() end";
+    "    {box()($1 = x) => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -236,7 +236,7 @@ TEST_F(SugarExprTest, PartialRaisesError)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x): U32 ? => $1.f() end";
+    "    {box()($1 = x): U32 ? => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -258,7 +258,7 @@ TEST_F(SugarExprTest, PartialParameterTypeParameters)
 
     "class Foo[A: T #read]\n"
     "  fun f(t: T box, a: A) =>\n"
-    "    lambda box()($1 = t, a: A = (a)) => $1.f(a) end";
+    "    {box()($1 = t, a: A = (a)) => $1.f(a) }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -280,7 +280,7 @@ TEST_F(SugarExprTest, PartialReceiverTypeParameters)
 
     "class Foo[A: T #read]\n"
     "  fun f(x: A) =>\n"
-    "    lambda box()($1 = x) => $1.f() end";
+    "    {box()($1 = x) => $1.f() }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -302,7 +302,7 @@ TEST_F(SugarExprTest, PartialFunctionTypeParameter)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    lambda box()($1 = x, a: U32 = (3)) => $1.f[U32](a) end";
+    "    {box()($1 = x, a: U32 = (3)) => $1.f[U32](a) }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -315,7 +315,7 @@ TEST_F(SugarExprTest, LambdaMinimal)
   const char* short_form =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda() => None end";
+    "    {() => None }";
 
   const char* full_form =
     "class Foo\n"
@@ -339,7 +339,7 @@ TEST_F(SugarExprTest, LambdaFull)
 
     "class Foo\n"
     "  fun f(c: C val, d: D2 val) =>\n"
-    "    lambda iso (a: A, b: B)(c, _c = c, _d: D val = d): A => a end";
+    "    {ref(a: A, b: B)(c, _c = c, _d: D val = d): A => a } iso";
 
   const char* full_form =
     "trait A\n"
@@ -350,11 +350,11 @@ TEST_F(SugarExprTest, LambdaFull)
 
     "class Foo\n"
     "  fun f(c: C val, d: D2 val) =>\n"
-    "    object ref\n"
+    "    object iso\n"
     "      var c: C val = c\n"
     "      var _c: C val = c\n"
     "      var _d: D val = d\n"
-    "      fun iso apply(a: A, b: B): A => a\n"
+    "      fun ref apply(a: A, b: B): A => a\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -366,7 +366,7 @@ TEST_F(SugarExprTest, LambdaThrow)
   const char* short_form =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda() ? => error end";
+    "    {() ? => error }";
 
   const char* full_form =
     "class Foo\n"
@@ -386,7 +386,7 @@ TEST_F(SugarExprTest, LambdaWithTypeArgs)
 
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda[A: T]() => None end";
+    "    {[A: T]() => None }";
 
   const char* full_form =
     "trait T\n"
@@ -409,7 +409,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalLet)
     "class Foo\n"
     "  fun f() =>\n"
     "    let x: U32 = 4\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   const char* full_form =
     "trait T\n"
@@ -434,7 +434,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalVar)
     "class Foo\n"
     "  fun f() =>\n"
     "    var x: U32 = 4\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   const char* full_form =
     "trait T\n"
@@ -458,7 +458,7 @@ TEST_F(SugarExprTest, LambdaCaptureParameter)
 
     "class Foo\n"
     "  fun f(x: U32) =>\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   const char* full_form =
     "trait T\n"
@@ -482,7 +482,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldLet)
     "class Foo\n"
     "  let x: U32 = 4\n"
     "  fun f() =>\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   const char* full_form =
     "trait T\n"
@@ -507,7 +507,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
     "class Foo\n"
     "  var x: U32 = 4\n"
     "  fun f() =>\n"
-    "    lambda()(x) => None end";
+    "    {()(x) => None }";
 
   const char* full_form =
     "trait T\n"
@@ -529,7 +529,7 @@ TEST_F(SugarExprTest, LambdaNamed)
   const char* short_form =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda bar() => None end";
+    "    {bar() => None }";
 
   const char* full_form =
     "class Foo\n"

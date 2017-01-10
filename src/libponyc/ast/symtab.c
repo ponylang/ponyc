@@ -89,28 +89,35 @@ bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
   if(no_case != name)
   {
     symbol_t s1 = {no_case, def, SYM_NOCASE, 0};
-    symbol_t* s2 = symtab_get(symtab, &s1);
+    size_t index = HASHMAP_UNKNOWN;
+    symbol_t* s2 = symtab_get(symtab, &s1, &index);
 
     if(s2 != NULL)
       return false;
 
-    symtab_put(symtab, sym_dup(&s1));
+    // didn't find it in the map but index is where we can put the
+    // new one without another search
+    symtab_putindex(symtab, sym_dup(&s1), index);
   }
 
   symbol_t s1 = {name, def, status, 0};
-  symbol_t* s2 = symtab_get(symtab, &s1);
+  size_t index = HASHMAP_UNKNOWN;
+  symbol_t* s2 = symtab_get(symtab, &s1, &index);
 
   if(s2 != NULL)
     return false;
 
-  symtab_put(symtab, sym_dup(&s1));
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  symtab_putindex(symtab, sym_dup(&s1), index);
   return true;
 }
 
 ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
 {
   symbol_t s1 = {name, NULL, SYM_NONE, 0};
-  symbol_t* s2 = symtab_get(symtab, &s1);
+  size_t index = HASHMAP_UNKNOWN;
+  symbol_t* s2 = symtab_get(symtab, &s1, &index);
 
   if(s2 != NULL)
   {
@@ -135,7 +142,8 @@ ast_t* symtab_find_case(symtab_t* symtab, const char* name,
   // Same as symtab_get, but is partially case insensitive. That is, type names
   // are compared as uppercase and other symbols are compared as lowercase.
   symbol_t s1 = {name, NULL, SYM_NONE, 0};
-  symbol_t* s2 = symtab_get(symtab, &s1);
+  size_t index = HASHMAP_UNKNOWN;
+  symbol_t* s2 = symtab_get(symtab, &s1, &index);
 
   if(s2 != NULL)
   {
@@ -159,18 +167,24 @@ ast_t* symtab_find_case(symtab_t* symtab, const char* name,
 void symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
 {
   symbol_t s1 = {name, NULL, status, 0};
-  symbol_t* s2 = symtab_get(symtab, &s1);
+  size_t index = HASHMAP_UNKNOWN;
+  symbol_t* s2 = symtab_get(symtab, &s1, &index);
 
   if(s2 != NULL)
     s2->status = status;
   else
-    symtab_put(symtab, sym_dup(&s1));
+  {
+    // didn't find it in the map but index is where we can put the
+    // new one without another search
+    symtab_putindex(symtab, sym_dup(&s1), index);
+  }
 }
 
 void symtab_inherit_status(symtab_t* dst, symtab_t* src)
 {
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
+  size_t index = HASHMAP_UNKNOWN;
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
@@ -178,7 +192,7 @@ void symtab_inherit_status(symtab_t* dst, symtab_t* src)
     if(sym->def != NULL)
       continue;
 
-    symbol_t* dsym = symtab_get(dst, sym);
+    symbol_t* dsym = symtab_get(dst, sym, &index);
 
     if(dsym != NULL)
     {
@@ -186,7 +200,9 @@ void symtab_inherit_status(symtab_t* dst, symtab_t* src)
       dsym->status = sym->status;
     } else {
       // Add this symbol to the destination.
-      symtab_put(dst, sym_dup(sym));
+      // didn't find it in the map but index is where we can put the
+      // new one without another search
+      symtab_putindex(dst, sym_dup(sym), index);
     }
   }
 }
@@ -195,6 +211,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
 {
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
+  size_t index = HASHMAP_UNKNOWN;
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
@@ -202,7 +219,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
     if(sym->def != NULL)
       continue;
 
-    symbol_t* dsym = symtab_get(dst, sym);
+    symbol_t* dsym = symtab_get(dst, sym, &index);
 
     if(dsym != NULL)
     {
@@ -227,7 +244,9 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
         dsym->branch_count = 1;
       }
 
-      symtab_put(dst, dsym);
+      // didn't find it in the map but index is where we can put the
+      // new one without another search
+      symtab_putindex(dst, dsym, index);
     }
   }
 }

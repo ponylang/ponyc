@@ -29,7 +29,7 @@ class Listener is TCPListenNotify
     _out.print("couldn't listen")
     listen.close()
 
-  fun ref connected(listen: TCPListener ref) : TCPConnectionNotify iso^ =>
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     Server(_out)
 
 class Server is TCPConnectionNotify
@@ -41,10 +41,11 @@ class Server is TCPConnectionNotify
   fun ref accepted(conn: TCPConnection ref) =>
     _out.print("connection accepted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
     _out.print("data received, looping it back")
     conn.write("server says: ")
     conn.write(consume data)
+    true
 
   fun ref closed(conn: TCPConnection ref) =>
     _out.print("server closed")

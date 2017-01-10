@@ -123,12 +123,12 @@ primitive Glob
               i = i + 1
             end
             let sub = recover ref pat.substring(i.isize(), j.isize()) end
-            res.append(sub.replace("\\","\\\\"))
+            res.append(sub.>replace("\\","\\\\"))
             res.append("])")
             i = j + 1
           end
         else
-          if alpha_num_regex != String(1).push(c) then
+          if alpha_num_regex != String(1).>push(c) then
             res.append("\\")
           end
           res.push(c)
@@ -149,9 +149,9 @@ primitive Glob
     let res = recover ref Array[FilePath] end
     iglob(
       root_path, pattern,
-      lambda ref(path: FilePath, match_groups: Array[String])(res) =>
+      {ref(path: FilePath, match_groups: Array[String])(res) =>
         res.push(path)
-      end)
+      })
     res
 
   fun _apply_glob_to_walk(

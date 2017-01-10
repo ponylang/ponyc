@@ -16,7 +16,7 @@ class val FilePath
   let caps: FileCaps = FileCaps
 
   new val create(base: (FilePath | AmbientAuth), path': String,
-    caps': FileCaps val = recover val FileCaps.all() end) ?
+    caps': FileCaps val = recover val FileCaps.>all() end) ?
   =>
     """
     Create a new path. The caller must either provide the root capability or an
@@ -50,7 +50,7 @@ class val FilePath
     end
 
   new val mkdtemp(base: (FilePath | AmbientAuth), prefix: String = "",
-    caps': FileCaps val = recover val FileCaps.all() end) ?
+    caps': FileCaps val = recover val FileCaps.>all() end) ?
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
@@ -89,7 +89,7 @@ class val FilePath
     caps.union(caps')
 
   fun val join(path': String,
-    caps': FileCaps val = recover val FileCaps.all() end): FilePath ? =>
+    caps': FileCaps val = recover val FileCaps.>all() end): FilePath ? =>
     """
     Return a new path relative to this one.
     """

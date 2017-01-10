@@ -69,6 +69,7 @@ typedef struct compile_frame_t
   LLVMValueRef ctx;
 
   LLVMBasicBlockRef break_target;
+  LLVMBasicBlockRef break_novalue_target;
   LLVMBasicBlockRef continue_target;
   LLVMBasicBlockRef invoke_target;
 
@@ -153,6 +154,7 @@ typedef struct compile_t
   LLVMValueRef tbaa_root;
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
+  LLVMValueRef none_instance;
 
   LLVMTypeRef void_type;
   LLVMTypeRef ibool;
@@ -218,7 +220,7 @@ LLVMMetadataRef codegen_difile(compile_t* c);
 LLVMMetadataRef codegen_discope(compile_t* c);
 
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
-  LLVMBasicBlockRef break_target);
+  LLVMBasicBlockRef break_target, LLVMBasicBlockRef break_novalue_target);
 
 void codegen_poploop(compile_t* c);
 

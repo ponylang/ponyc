@@ -92,8 +92,9 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_GET_CHILDREN(ast, cap, name, t_params, params, captures, ret_type,
-    raises, body);
+  AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
+    ret_type, raises, body, reference_cap);
+  ast_t* annotation = ast_consumeannotation(ast);
 
   ast_t* members = ast_from(ast, TK_MEMBERS);
   ast_t* last_member = NULL;
@@ -130,7 +131,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Make the apply function
   BUILD(apply, ast,
     NODE(TK_FUN, AST_SCOPE
-      TREE(cap)
+      ANNOTATE(annotation)
+      TREE(receiver_cap)
       ID(fn_name)
       TREE(t_params)
       TREE(params)
@@ -143,7 +145,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_list_append(members, &last_member, apply);
 
   printbuf_t* buf = printbuf_new();
-  printbuf(buf, "lambda(");
+  printbuf(buf, "{(");
   bool first = true;
 
   for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
@@ -164,12 +166,12 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   if(ast_id(raises) != TK_NONE)
     printbuf(buf, " ?");
 
-  printbuf(buf, " end");
+  printbuf(buf, "}");
 
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT, DATA(stringtab(buf->m))
-      NONE
+      TREE(reference_cap)
       NONE  // Provides list
       TREE(members)));
 

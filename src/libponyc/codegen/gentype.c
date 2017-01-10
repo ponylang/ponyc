@@ -50,13 +50,16 @@ LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
   const char* name = genname_type_and_cap(type);
   tbaa_metadata_t k;
   k.name = name;
-  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k, &index);
   if(md != NULL)
     return md->metadata;
 
   md = POOL_ALLOC(tbaa_metadata_t);
   md->name = name;
-  tbaa_metadatas_put(c->tbaa_mds, md);
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  tbaa_metadatas_putindex(c->tbaa_mds, md, index);
 
   LLVMValueRef params[3];
   params[0] = LLVMMDStringInContext(c->context, name, (unsigned)strlen(name));
@@ -86,13 +89,16 @@ LLVMValueRef tbaa_metadata_for_box_type(compile_t* c, const char* box_name)
 {
   tbaa_metadata_t k;
   k.name = box_name;
-  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k);
+  size_t index = HASHMAP_UNKNOWN;
+  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k, &index);
   if(md != NULL)
     return md->metadata;
 
   md = POOL_ALLOC(tbaa_metadata_t);
   md->name = box_name;
-  tbaa_metadatas_put(c->tbaa_mds, md);
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  tbaa_metadatas_putindex(c->tbaa_mds, md, index);
 
   LLVMValueRef params[2];
   params[0] = LLVMMDStringInContext(c->context, box_name,
@@ -675,7 +681,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     {
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      gentrace(c, ctx, value, t->fields[i].ast);
+      gentrace(c, ctx, value, t->fields[i].ast, NULL);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = t->fields[i].type->trace_fn;
@@ -738,6 +744,12 @@ bool gentypes(compile_t* c)
 
     make_global_instance(c, t);
   }
+
+  // Cache the instance of None, which is used as the return value for
+  // behaviour calls.
+  t = reach_type_name(c->reach, "None");
+  assert(t != NULL);
+  c->none_instance = t->instance;
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Function prototypes\n");

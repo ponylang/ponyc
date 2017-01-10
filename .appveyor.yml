@@ -9,7 +9,8 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.8.0
+  - llvm: 3.9.0
+  - llvm: 3.8.1
   - llvm: 3.7.1
 
 configuration:
@@ -29,7 +30,7 @@ install:
   - ps: |
       cd C:\
       $premakeInstalled = Test-Path C:\premake5.exe
-      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}
+      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}-pony
       if(-Not $premakeInstalled)
       {
         wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
@@ -40,9 +41,10 @@ install:
       {
         wget "https://github.com/ponylang/ponyc-windows-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
         7z x C:\LLVM.7z
+        ren C:\LLVM-${env:llvm} C:\LLVM-${env:llvm}-pony
         del C:\LLVM.7z
       }
-      $env:path += ";C:\LLVM-${env:llvm}\bin"
+      $env:path += ";C:\LLVM-${env:llvm}-pony\bin"
   - ps: |
       cd C:\
       $libsInstalled = Test-Path C:\ponyc-windows-libs
@@ -96,7 +98,7 @@ deploy:
     version: $(appveyor_build_version)
     on:
         branch: master
-        llvm: 3.8.0
+        llvm: 3.9.0
         configuration: Release
     publish: true
 
@@ -110,14 +112,14 @@ deploy:
     version: $(appveyor_build_version)
     on:
         branch: release
-        llvm: 3.8.0
+        llvm: 3.9.0
         configuration: Release
     publish: true
 
-cache:
-  - 'C:\LLVM-%llvm%\ -> .appveyor.yml'
-  - C:\premake5.exe -> .appveyor.yml
-  - C:\ponyc-windows-libs\ -> .appveyor.yml
+# cache:
+#   - 'C:\LLVM-%llvm%-pony\ -> .appveyor.yml'
+#   - C:\premake5.exe -> .appveyor.yml
+#   - C:\ponyc-windows-libs\ -> .appveyor.yml
 
 build:
   project: work\vs2015\ponyc.sln
@@ -128,12 +130,11 @@ test_script:
   - C:\projects\ponyc\build\%CONFIGURATION%\testrt.exe
   - CALL "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\vcvars64.bat"
   - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify packages/stdlib
-  - stdlib.exe
+  - stdlib.exe --sequential
   - del stdlib.exe
   - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ --verify packages/stdlib
-  - stdlib.exe
+  - stdlib.exe --sequential
   - del stdlib.exe
   - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify examples
   - examples.exe
   - del examples.exe
-

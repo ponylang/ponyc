@@ -378,8 +378,9 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 
   if(ast_id(result) == TK_NONE)
   {
-    // Return type is This tag
-    ast_replace(&result, type_for_this(opt, ast, TK_TAG, TK_NONE, false));
+    // Return type is None.
+    ast_t* type = type_sugar(ast, NULL, "None");
+    ast_replace(&result, type);
   }
 
   sugar_docstring(ast);
@@ -484,6 +485,7 @@ static ast_result_t sugar_try(ast_t* ast)
 static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
+  ast_t* annotation = ast_consumeannotation(*astp);
 
   expand_none(for_else, true);
   const char* iter_name = package_hygienic_id(&opt->check);
@@ -496,7 +498,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
           NONE
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
       NODE(TK_SEQ, AST_SCOPE
-        NODE(TK_CONTINUE, NONE))
+        NODE(TK_BREAK, NONE))
       NONE));
 
   sugar_try(try_next);
@@ -507,6 +509,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         TREE(for_iter)
         NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
       NODE(TK_WHILE, AST_SCOPE
+        ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
             NONE
@@ -535,10 +538,9 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
     assert(id != NULL);
 
     // Don't call dispose() on don't cares
-    if(ast_id(id) == TK_DONTCARE)
+    if(is_name_dontcare(ast_name(id)))
       return;
 
-    assert(ast_id(id) == TK_ID);
     BUILD(dispose, idseq,
       NODE(TK_CALL,
         NONE NONE
@@ -559,6 +561,8 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
+  ast_t* main_annotation = ast_consumeannotation(*astp);
+  ast_t* else_annotation = ast_consumeannotation(else_clause);
   token_id try_token;
 
   if(ast_id(else_clause) == TK_NONE)
@@ -572,9 +576,11 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   BUILD(replace, *astp,
     NODE(TK_SEQ,
       NODE(try_token,
+        ANNOTATE(main_annotation)
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE
+          ANNOTATE(else_annotation)
           TREE(else_clause))
         NODE(TK_SEQ, AST_SCOPE))));
 
@@ -645,6 +651,7 @@ static bool sugar_match_capture(pass_opt_t* opt, ast_t* pattern)
 
       // Change this to a capture.
       ast_setid(pattern, TK_MATCH_CAPTURE);
+
       return true;
     }
 
@@ -748,6 +755,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_result_t r = AST_OK;
 
   AST_GET_CHILDREN(ast, cap, provides, members);
+  ast_t* annotation = ast_consumeannotation(ast);
   const char* c_id = package_hygienic_id(&opt->check);
 
   ast_t* t_params;
@@ -761,6 +769,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_CLASS, AST_SCOPE
+      ANNOTATE(annotation)
       NICE_ID(c_id, nice_id)
       TREE(t_params)
       NONE
@@ -962,9 +971,19 @@ static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
       break;
     }
 
-    case TK_DONTCARE:
-      ast_append(pattern, type);
-      break;
+    case TK_NOMINAL:
+    {
+      ast_t* id = ast_childidx(type, 1);
+      if(is_name_dontcare(ast_name(id)))
+      {
+        BUILD(dontcare, pattern,
+          NODE(TK_SEQ,
+            NODE(TK_REFERENCE, ID("_"))));
+        ast_append(pattern, dontcare);
+        break;
+      }
+      // Fallthrough.
+    }
 
     default:
     {
@@ -1187,21 +1206,6 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 }
 
 
-static ast_result_t sugar_let(pass_opt_t* opt, ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-
-  if(ast_id(id) == TK_DONTCARE)
-  {
-    // Replace "_" with "$1" in with and for variable lists
-    ast_setid(id, TK_ID);
-    ast_set_name(id, package_hygienic_id(&opt->check));
-  }
-
-  return AST_OK;
-}
-
-
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
   assert(astp != NULL);
@@ -1413,8 +1417,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NEW:        return sugar_new(options, ast);
     case TK_BE:         return sugar_be(options, ast);
     case TK_FUN:        return sugar_fun(options, ast);
-    case TK_RETURN:
-    case TK_BREAK:      return sugar_return(options, ast);
+    case TK_RETURN:     return sugar_return(options, ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:
@@ -1449,7 +1452,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_IFDEF:      return sugar_ifdef(options, ast);
     case TK_USE:        return sugar_use(options, ast);
     case TK_SEMI:       return sugar_semi(options, astp);
-    case TK_LET:        return sugar_let(options, ast);
     case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);
     case TK_LOCATION:   return sugar_location(options, astp);
     default:            return AST_OK;

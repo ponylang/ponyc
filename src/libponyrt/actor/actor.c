@@ -11,6 +11,10 @@
 #include <assert.h>
 #include <dtrace.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 enum
 {
   FLAG_BLOCKED = 1 << 0,
@@ -95,6 +99,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         ponyint_cycle_unblock(ctx, actor);
       }
 
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return true;
     }
@@ -205,10 +210,16 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   // as empty. Otherwise, it may spuriously see that tail and head are not
   // the same and fail to mark the queue as empty, resulting in it getting
   // rescheduled.
-  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
+  pony_msg_t* head = NULL;
+  do
+  {
+    head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
+  } while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1);
 
-  while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1)
-    head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
+  atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&actor->q.head);
+#endif
 
   ponyint_messageq_destroy(&actor->q);
   ponyint_gc_destroy(&actor->gc);
@@ -304,7 +315,7 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 
 void ponyint_destroy(pony_actor_t* actor)
 {
-  // This destroy an actor immediately. If any other actor has a reference to
+  // This destroys an actor immediately. If any other actor has a reference to
   // this actor, the program will likely crash. The finaliser is not called.
   ponyint_actor_setpendingdestroy(actor);
   ponyint_actor_destroy(actor);

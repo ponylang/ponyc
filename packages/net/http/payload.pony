@@ -56,7 +56,7 @@ class iso Payload
     """
     _headers(key)
 
-  fun ref update(key: String, value: String): Payload ref^ =>
+  fun ref update(key: String, value: String): (String | None) =>
     """
     Set a header. If we've already received the header, append the value as a
     comma separated list, as per RFC 2616 section 4.2.
@@ -64,8 +64,8 @@ class iso Payload
     match _headers(key) = value
     | let prev: String =>
       _headers(key) = prev + "," + value
+      prev
     end
-    this
 
   fun headers(): this->Map[String, String] =>
     """
@@ -91,12 +91,11 @@ class iso Payload
 
     len
 
-  fun ref add_chunk(data: ByteSeq): Payload ref^ =>
+  fun ref add_chunk(data: ByteSeq) =>
     """
     Add a chunk to the body.
     """
     _body.push(data)
-    this
 
   fun iso respond(response': Payload) =>
     """
@@ -193,8 +192,6 @@ class iso Payload
     var list = recover Array[ByteSeq](len) end
 
     list.push(proto)
-    list.push(" ")
-    list.push(status.string())
     list.push(" ")
     list.push(method)
 

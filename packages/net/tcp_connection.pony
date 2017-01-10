@@ -4,6 +4,7 @@ use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_fd[U32](event: AsioEventID)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_resubscribe[None](event: AsioEventID, flags: U32)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
 type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
@@ -42,6 +43,112 @@ actor TCPConnection
 
   Note: when writing to the connection data will be silently discarded if the
   connection has not yet been established.
+
+  ## Backpressure support
+
+  ### Write
+
+  The TCP protocol has built-in backpressure support. This is generally
+  experienced as the outgoing write buffer becoming full and being unable
+  to write all requested data to the socket. In `TCPConnection`, this is
+  hidden from the programmer. When this occurs, `TCPConnection` will buffer
+  the extra data until such time as it is able to be sent. Left unchecked,
+  this could result in uncontrolled queuing. To address this,
+  `TCPConnectionNotify` implements two methods `throttled` and `unthrottled`
+  that are called when backpressure is applied and released.
+
+  Upon receiving a `throttled` notification, your application has two choices
+  on how to handle it. One is to inform any actors sending the connection to
+  stop sending data. For example, you might construct your application like:
+
+  ```pony
+  // Here we have a TCPConnectionNotify that upon construction
+  // is given a tag to a "Coordinator". Any actors that want to
+  // "publish" to this connection should register with the
+  // coordinator. This allows the notifier to inform the coordinator
+  // that backpressure has been applied and then it in turn can
+  // notify senders who could then pause sending.
+
+  class SlowDown is TCPConnectionNotify
+    let _coordinator: Coordinator
+
+    new create(coordinator: Coordinator) =>
+      _coordinator = coordinator
+
+    fun ref throttled(connection: TCPConnection ref) =>
+      _coordinator.throttled(this)
+
+    fun ref unthrottled(connection: TCPConnection ref) =>
+      _coordinator.unthrottled(this)
+
+  actor Coordinator
+    var _senders: List[Any tag] = _senders.create()
+
+    be register(sender: Any tag) =>
+      _senders.push(sender)
+
+    be throttled(connection: TCPConnection) =>
+      for sender in _senders.values() do
+        sender.pause_sending_to(connection)
+      end
+
+     be unthrottled(connection: TCPConnection) =>
+      for sender in _senders.values() do
+        sender.resume_sending_to(connection)
+      end
+  ```
+
+  Or if you want, you could handle backpressure by shedding load, that is,
+  dropping the extra data rather than carrying out the send. This might look
+  like:
+
+  ```pony
+  class ThrowItAway is TCPConnectionNotify
+    var _throttled = false
+
+    fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq =>
+      if not _throttled then
+        data
+      else
+        ""
+      end
+
+  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
+    if not _throttled then
+      data
+    else
+      Array[String]
+    end
+
+    fun ref throttled(connection: TCPConnection ref) =>
+      _throttled = true
+
+    fun ref unthrottled(connection: TCPConnection ref) =>
+      _throttled = false
+  ```
+
+  In general, unless you have a very specific use case, we strongly advise that
+  you don't implement a load shedding scheme where you drop data.
+
+  ### Read
+
+  If your application is unable to keep up with data being sent to it over
+  a `TCPConnection` you can use the builtin read backpressure support to
+  pause reading the socket which will in turn start to exert backpressure on
+  the corresponding writer on the other end of that socket.
+
+  The `mute` behavior allow any other actors in your application to request
+  the cessation of additional reads until such time as `unmute` is called.
+  Please note that this cessation is not guaranteed to happen immediately as
+  it is the result of an asynchronous behavior call and as such will have to
+  wait for existing messages in the `TCPConnection`'s mailbox to be handled.
+
+  On non-windows platforms, your `TCPConnection` will not notice if the
+  other end of the connection closes until you unmute it. Unix type systems
+  like FreeBSD, Linux and OSX learn about a closed connection upon read. On
+  these platforms, you **must** call `unmute` on a muted connection to have
+  it close. Without calling `unmute` the `TCPConnection` actor will never
+  exit.
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
@@ -64,6 +171,8 @@ actor TCPConnection
   var _read_len: USize = 0
   var _expect: USize = 0
 
+  var _muted: Bool = false
+
   new create(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
     host: String, service: String, from: String = "", init_size: USize = 64,
     max_size: USize = 16384)
@@ -72,7 +181,7 @@ actor TCPConnection
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
     will be made from the specified interface.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -88,7 +197,7 @@ actor TCPConnection
     """
     Connect via IPv4.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -104,7 +213,7 @@ actor TCPConnection
     """
     Connect via IPv6.
     """
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
@@ -123,10 +232,16 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @pony_asio_event_create(this, fd, AsioEvent.read_write(), 0, true)
+    ifdef not windows then
+      _event = @pony_asio_event_create(this, fd,
+        AsioEvent.read_write_oneshot(), 0, true)
+    else
+      _event = @pony_asio_event_create(this, fd,
+        AsioEvent.read_write(), 0, true)
+    end
     _connected = true
     _writeable = true
-    _read_buf = recover Array[U8].undefined(init_size) end
+    _read_buf = recover Array[U8].>undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
 
@@ -158,6 +273,20 @@ actor TCPConnection
 
       _in_sent = false
     end
+
+  be mute() =>
+    """
+    Temporarily suspend reading off this TCPConnection until such time as
+    `unmute` is called.
+    """
+    _muted = true
+
+  be unmute() =>
+    """
+    Start reading off this TCPConnection again after having been muted.
+    """
+    _muted = false
+    _pending_reads()
 
   be set_notify(notify: TCPConnectionNotify iso) =>
     """
@@ -281,6 +410,7 @@ actor TCPConnection
 
       _try_shutdown()
     end
+    _resubscribe_event()
 
   be _read_again() =>
     """
@@ -301,6 +431,13 @@ actor TCPConnection
           // Add an IOCP write.
           @pony_os_send[USize](_event, data.cpointer(), data.size()) ?
           _pending.push((data, 0))
+
+          if _pending.size() > 32 then
+            // If more than 32 asynchronous writes are scheduled, apply
+            // backpressure. The choice of 32 is rather arbitrary an
+            // probably needs tuning
+            _apply_backpressure()
+          end
         end
       else
         if _writeable then
@@ -312,7 +449,7 @@ actor TCPConnection
             if len < data.size() then
               // Send any remaining data later.
               _pending.push((data, len))
-              _writeable = false
+              _apply_backpressure()
             end
           else
             // Non-graceful shutdown on error.
@@ -355,6 +492,13 @@ actor TCPConnection
           end
         end
       end
+
+      if _pending.size() < 16 then
+        // If fewer than 16 asynchronous writes are scheduled, remove
+        // backpressure. The choice of 16 is rather arbitrary and probably
+        // needs to be tuned.
+        _release_backpressure()
+      end
     end
 
   fun ref _pending_writes() =>
@@ -375,10 +519,14 @@ actor TCPConnection
           if (len + offset) < data.size() then
             // Send remaining data later.
             node() = (data, offset + len)
-            _writeable = false
+            _apply_backpressure()
           else
             // This chunk has been fully sent.
             _pending.shift()
+
+            if _pending.size() == 0 then
+              _release_backpressure()
+            end
           end
         else
           // Non-graceful shutdown on error.
@@ -407,7 +555,7 @@ actor TCPConnection
 
       _read_len = _read_len + len.usize()
 
-      if _read_len >= _expect then
+      if (not _muted) and (_read_len >= _expect) then
         let data = _read_buf = recover Array[U8] end
         data.truncate(_read_len)
         _read_len = 0
@@ -446,15 +594,19 @@ actor TCPConnection
 
   fun ref _pending_reads() =>
     """
-    Read while data is available, guessing the next packet length as we go. If
-    we read 4 kb of data, send ourself a resume message and stop reading, to
-    avoid starving other actors.
+    Unless this connection is currently muted, read while data is available,
+    guessing the next packet length as we go. If we read 4 kb of data, send
+    ourself a resume message and stop reading, to avoid starving other actors.
     """
     ifdef not windows then
       try
         var sum: USize = 0
 
         while _readable and not _shutdown_peer do
+          if _muted then
+            return
+          end
+
           // Read as much data as possible.
           let len = @pony_os_recv[USize](
             _event,
@@ -465,6 +617,7 @@ actor TCPConnection
           | 0 =>
             // Would block, try again later.
             _readable = false
+            _resubscribe_event()
             return
           | _next_size =>
             // Increase the read buffer size.
@@ -478,8 +631,13 @@ actor TCPConnection
             data.truncate(_read_len)
             _read_len = 0
 
-            _notify.received(this, consume data)
-            _read_buf_size()
+            if not _notify.received(this, consume data) then
+              _read_buf_size()
+              _read_again()
+              return
+            else
+              _read_buf_size()
+            end
           end
 
           sum = sum + len
@@ -510,9 +668,22 @@ actor TCPConnection
 
   fun ref close() =>
     """
-    Perform a graceful shutdown. Don't accept new writes, but don't finish
-    closing until we get a zero length read.
+    Attempt to perform a graceful shutdown. Don't accept new writes. If the
+    connection isn't muted then we won't finish closing until we get a zero
+    length read.  If the connection is muted, perform a hard close and
+    shut down immediately.
     """
+     ifdef windows then
+      _close()
+    else
+      if _muted then
+        _hard_close()
+      else
+       _close()
+     end
+    end
+
+  fun ref _close() =>
     _closed = true
     _try_shutdown()
 
@@ -579,3 +750,29 @@ actor TCPConnection
     _notify.closed(this)
 
     try (_listen as TCPListener)._conn_closed() end
+
+  fun ref _apply_backpressure() =>
+    ifdef not windows then
+      _writeable = false
+      _resubscribe_event()
+    end
+
+    _notify.throttled(this)
+
+  fun ref _release_backpressure() =>
+    _notify.unthrottled(this)
+
+  fun ref _resubscribe_event() =>
+    ifdef not windows then
+      let flags = if not _readable and not _writeable then
+        AsioEvent.read_write_oneshot()
+      elseif not _readable then
+        AsioEvent.read() or AsioEvent.oneshot()
+      elseif not _writeable then
+        AsioEvent.write() or AsioEvent.oneshot()
+      else
+        return
+      end
+
+      @pony_asio_event_resubscribe(_event, flags)
+    end

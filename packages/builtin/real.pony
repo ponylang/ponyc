@@ -83,6 +83,7 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
     _ToString._u64(u64(), false)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
+  new val min_normalised()
   new val epsilon()
   fun tag radix(): U8
   fun tag precision2(): U8

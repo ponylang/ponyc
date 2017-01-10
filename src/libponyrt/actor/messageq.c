@@ -5,6 +5,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 #ifndef NDEBUG
 
 static size_t messageq_size_debug(messageq_t* q)
@@ -43,6 +47,12 @@ void ponyint_messageq_destroy(messageq_t* q)
   pony_msg_t* tail = q->tail;
   assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
     ~(uintptr_t)1)) == (uintptr_t)tail);
+#ifdef USE_VALGRIND
+#  ifdef NDEBUG
+  ANNOTATE_HAPPENS_AFTER(&q->head);
+#  endif
+  ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
+#endif
 
   ponyint_pool_free(tail->index, tail);
   atomic_store_explicit(&q->head, NULL, memory_order_relaxed);
@@ -59,6 +69,9 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&prev->next);
+#endif
   atomic_store_explicit(&prev->next, m, memory_order_release);
 
   return was_empty;
@@ -68,10 +81,16 @@ pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&tail->next);
+#endif
 
   if(next != NULL)
   {
     q->tail = next;
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
+#endif
     ponyint_pool_free(tail->index, tail);
   }
 
@@ -91,6 +110,9 @@ bool ponyint_messageq_markempty(messageq_t* q)
 
   head = (pony_msg_t*)((uintptr_t)head | 1);
 
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&q->head);
+#endif
   return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
     memory_order_release, memory_order_relaxed);
 }

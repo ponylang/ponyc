@@ -36,20 +36,6 @@ class BadPonyTest : public PassTest
 
 // Cases from reported issues
 
-TEST_F(BadPonyTest, DontCareInFieldType)
-{
-  // From issue #207
-  const char* src =
-    "class Abc\n"
-    "  var _test1: (_)";
-
-  TEST_ERRORS_3(src,
-    "the don't care token can only appear in",
-    "field left undefined in constructor",
-    "constructor with undefined fields");
-}
-
-
 TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
 {
   // From issue #218
@@ -84,20 +70,6 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
   TEST_ERRORS_1(src, "not enough type arguments");
 }
 
-
-TEST_F(BadPonyTest, DontCareInIntLiteralType)
-{
-  // From issue #222
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let crashme: (_, I32) = (4, 4)";
-
-  TEST_ERRORS_2(src,
-    "the don't care token can only appear in",
-    "could not infer literal type, no valid types found");
-}
-
 TEST_F(BadPonyTest, TupleIndexIsZero)
 {
   // From issue #397
@@ -126,7 +98,7 @@ TEST_F(BadPonyTest, InvalidLambdaReturnType)
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    lambda (): tag => this end\n";
+    "    {(): tag => this }\n";
 
   TEST_ERRORS_1(src, "lambda return type: tag");
 }
@@ -161,7 +133,7 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
   const char* src =
     "class Foo\n"
     "  fun f() =>\n"
-    "    lambda()(x) => None end\n"
+    "    {()(x) => None }\n"
     "    let x = 0";
 
    TEST_ERRORS_1(src, "declaration of 'x' appears after use");
@@ -259,7 +231,9 @@ TEST_F(BadPonyTest, WithBlockTypeInference)
     "  new create(env: Env) =>\n"
     "    with x = 1 do None end";
 
-  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+  TEST_ERRORS_3(src, "could not infer literal type, no valid types found",
+                     "cannot infer type of $1$0",
+                     "cannot infer type of x");
 }
 
 TEST_F(BadPonyTest, EmbedNestedTuple)
@@ -277,4 +251,67 @@ TEST_F(BadPonyTest, EmbedNestedTuple)
     "    (foo, x) = (Foo.get_foo(), 42)";
 
   TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(BadPonyTest, CircularTypeInfer)
+{
+  // From issue #1334
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = x.create()\n"
+    "    let y = y.create()";
+
+  TEST_ERRORS_2(src, "cannot infer type of x",
+                     "cannot infer type of y");
+}
+
+TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)
+{
+  // From issue #1398
+  const char* src =
+    "interface Foo\n"
+
+    "type Isect is (None & Foo)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Isect.create()";
+
+  TEST_ERRORS_1(src, "can't call a constructor on a type intersection");
+}
+
+TEST_F(BadPonyTest, AssignToFieldOfIso)
+{
+  // From issue #1469
+  const char* src =
+    "class Foo\n"
+    "  var x: String ref = String\n"
+    "  fun iso bar(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    x = s\n"
+    "   consume s\n"
+
+    "  fun ref foo(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    let y: Foo iso = Foo\n"
+    "    y.x = s\n"
+    "    consume s";
+
+  TEST_ERRORS_2(src,
+    "right side must be a subtype of left side",
+    "right side must be a subtype of left side"
+    );
+}
+
+TEST_F(BadPonyTest, IndexArrayWithBrackets)
+{
+  // From issue #1493
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let xs = [as I64: 1, 2, 3]\n"
+        "xs[1]";
+
+  TEST_ERRORS_1(src, "Value formal parameters not yet supported");
 }

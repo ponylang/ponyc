@@ -267,6 +267,17 @@ void pony_acquire_done(pony_ctx_t* ctx);
  */
 void pony_release_done(pony_ctx_t* ctx);
 
+/** Continue gc tracing with another message.
+ *
+ * When sending multiple messages following each other, you can use this
+ * function to trace the content of every message in one
+ * pony_gc_send/pony_send_done round instead of doing one pair of calls for each
+ * message. Call pony_send_next before tracing the content of a new message.
+ * Using this function can reduce the amount of gc-specific messages
+ * sent.
+ */
+void pony_send_next(pony_ctx_t* ctx);
+
 /** Identifiers for reference capabilities when tracing.
  *
  * At runtime, we need to identify if the object is logically mutable,
