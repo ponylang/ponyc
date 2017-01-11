@@ -340,9 +340,7 @@ static void init_runtime(compile_t* c)
   LLVMSetInaccessibleMemOrArgMemOnly(value);
 #  endif
   LLVMSetReturnNoAlias(value);
-#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
-#  endif
 #endif
 
   // i8* pony_alloc_small(i8*, i32)
@@ -409,9 +407,7 @@ static void init_runtime(compile_t* c)
   LLVMSetInaccessibleMemOrArgMemOnly(value);
 #  endif
   LLVMSetReturnNoAlias(value);
-#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
-#  endif
 #endif
 
   // i8* pony_alloc_final(i8*, intptr, c->final_fn)
@@ -434,9 +430,7 @@ static void init_runtime(compile_t* c)
   LLVMSetInaccessibleMemOrArgMemOnly(value);
 #  endif
   LLVMSetReturnNoAlias(value);
-#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
-#  endif
 #endif
 
   // $message* pony_alloc_msg(i32, i32)
