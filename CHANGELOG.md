@@ -18,7 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
-- Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502)
+- Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
 - Ensure TCPConnection is established before writing data to it (issue #1310)
 - Always allow writing to `_` (dontcare) (PR #1499)
 - Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
