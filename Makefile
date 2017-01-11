@@ -199,10 +199,6 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config37
     LLVM_LINK = llvm-link37
     LLVM_OPT = opt37
-  else ifneq (,$(shell which llvm-config36 2> /dev/null))
-    LLVM_CONFIG = llvm-config36
-    LLVM_LINK = llvm-link36
-    LLVM_OPT = opt36
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
     LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
@@ -220,13 +216,12 @@ endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
-ifeq ($(llvm_version),3.6.2)
-else ifeq ($(llvm_version),3.7.1)
+ifeq ($(llvm_version),3.7.1)
 else ifeq ($(llvm_version),3.8.1)
 else ifeq ($(llvm_version),3.9.0)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
-  $(warning Please use LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0)
+  $(warning Please use LLVM 3.7.1, 3.8.1, or 3.9.0)
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"

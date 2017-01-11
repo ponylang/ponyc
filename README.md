@@ -142,7 +142,6 @@ First of all, you need a compiler with decent C11 support. The following compile
 
 Pony requires one of the following versions of LLVM:
 
-- 3.6.2
 - 3.7.1
 - 3.8.1
 - 3.9.0
@@ -229,7 +228,7 @@ $ sudo apt-get update
 $ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
 ```
 
-You should install LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
+You should install LLVM 3.7.1, 3.8.1, or 3.9.0 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
 
 To build ponyc, compile and run helloworld:
 
@@ -244,7 +243,7 @@ $ ./helloworld
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.6.2, 3.7.1, 3.8.1, or 3.9.0
+* LLVM 3.7.1, 3.8.1, or 3.9.0
 * zlib
 * ncurses
 * pcre2
@@ -288,7 +287,7 @@ $ gmake
 $ ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.6.2. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
+Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.9.1. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
 
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
