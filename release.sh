@@ -43,7 +43,7 @@ remove_empty_sections() {
 
 add_changelog_unreleased_section() {
   echo "Adding unreleased section to CHANGELOG"
-  local replace='## [unreleased] - unreleased\n\n### Fixed\n\n### Added\n\n### Changed\n\n'
+  local replace='## [unreleased] - unreleased\n\n### Fixed\n\n\n### Added\n\n\n### Changed\n\n\n'
   sed -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
 }
 
