@@ -25,9 +25,7 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 #if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
-#  if PONY_LLVM >= 307
 void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
-#  endif
 #  if PONY_LLVM >= 308
 void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst);
 void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
