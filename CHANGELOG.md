@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Deprecate LLVM 3.6.2 support (PR #1511)
 - Ensure TCPConnection is established before writing data to it (issue #1310)
 - Deprecate LLVM 3.6 OSX support (PR #1502)
 - Always allow writing to `_` (dontcare) (PR #1499)
