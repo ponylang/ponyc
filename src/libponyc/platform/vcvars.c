@@ -139,7 +139,7 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
         uint64_t num = atol(token);
         if (num > 0xffff) num = 0xffff;
         new_ver += (num << (place * 16));
-        
+
         place--;
 
         if (dot != NULL)
@@ -171,8 +171,8 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   }
 
   vcvars->ucrt[0] = '\0';
-  strcpy(vcvars->default_libs, 
-    "kernel32.lib msvcrt.lib Ws2_32.lib "
+  strcpy(vcvars->default_libs,
+    "kernel32.lib msvcrt.lib Ws2_32.lib advapi32.lib "
     "vcruntime.lib legacy_stdio_definitions.lib");
 
   strcpy(vcvars->kernel32, sdk.path);
@@ -198,7 +198,7 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
     // only append ".0" if it doesn't already have it
     size_t len = strlen(vcvars->kernel32);
     if (len > 2 &&
-      !(vcvars->kernel32[len - 2] == '.' 
+      !(vcvars->kernel32[len - 2] == '.'
         && vcvars->kernel32[len - 1] == '0'))
     {
       strcat(vcvars->kernel32, ".0");

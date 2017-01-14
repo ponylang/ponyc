@@ -10,6 +10,10 @@ tags
 *.sublime*
 .*.swp
 *.dSYM/
+waf-*
+waf3-*
+.lock-waf*
+tmp.eof
 build/
 work/
 output/
