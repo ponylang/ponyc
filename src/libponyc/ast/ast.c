@@ -1438,7 +1438,7 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "this");
       break;
 
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       printbuf(buffer, "_");
       break;
 

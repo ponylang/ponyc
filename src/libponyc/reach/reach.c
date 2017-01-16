@@ -735,11 +735,11 @@ static void reachable_pattern(reach_t* r, ast_t* ast, pass_opt_t* opt)
 {
   switch(ast_id(ast))
   {
-    case TK_DONTCARE:
     case TK_NONE:
       break;
 
     case TK_MATCH_CAPTURE:
+    case TK_MATCH_DONTCARE:
     {
       AST_GET_CHILDREN(ast, idseq, type);
       add_type(r, type, opt);
@@ -761,8 +761,11 @@ static void reachable_pattern(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
     default:
     {
-      reachable_method(r, ast_type(ast), stringtab("eq"), NULL, opt);
-      reachable_expr(r, ast, opt);
+      if(ast_id(ast_type(ast)) != TK_DONTCARETYPE)
+      {
+        reachable_method(r, ast_type(ast), stringtab("eq"), NULL, opt);
+        reachable_expr(r, ast, opt);
+      }
       break;
     }
   }

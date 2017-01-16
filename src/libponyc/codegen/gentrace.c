@@ -458,7 +458,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
   ast_t* dontcare = ast_from(type, TK_TUPLETYPE);
 
   for(size_t i = 0; i < cardinality; i++)
-    ast_append(dontcare, ast_from(type, TK_DONTCARE));
+    ast_append(dontcare, ast_from(type, TK_DONTCARETYPE));
 
   // Replace our type in the tuple type with the "don't care" type.
   bool in_tuple = (tuple != NULL);
@@ -588,7 +588,7 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   if(tuple != NULL)
   {
     // We are a tuple element. Our type is in the correct position in the
-    // tuple, everything else is TK_DONTCARE.
+    // tuple, everything else is TK_DONTCARETYPE.
     if(is_matchtype(orig, tuple, c->opt) != MATCHTYPE_ACCEPT)
       return;
   } else {

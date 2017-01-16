@@ -228,9 +228,9 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     scheduler_t* victim = choose_victim(sched);
 
     if(victim == NULL)
-      victim = sched;
-
-    actor = pop_global(victim);
+      actor = (pony_actor_t*)ponyint_mpmcq_pop_bailout_immediate(&inject);
+    else
+      actor = pop_global(victim);
 
     if(actor != NULL)
     {

@@ -57,12 +57,6 @@ DECL(thisliteral);
 
 // Parse rules
 
-// DONTCARE
-DEF(dontcare);
-  PRINT_INLINE();
-  TOKEN(NULL, TK_DONTCARE);
-  DONE();
-
 // type
 DEF(provides);
   PRINT_INLINE();
@@ -70,10 +64,10 @@ DEF(provides);
   RULE("provided type", type);
   DONE();
 
-// (postfix | dontcare) [COLON type] [ASSIGN infix]
+// postfix [COLON type] [ASSIGN infix]
 DEF(param);
   AST_NODE(TK_PARAM);
-  RULE("name", parampattern, dontcare);
+  RULE("name", parampattern);
   IF(TK_COLON,
     RULE("parameter type", type);
     UNWRAP(0, TK_REFERENCE);
@@ -196,20 +190,20 @@ DEF(infixtype);
   SEQ("type", uniontype, isecttype);
   DONE();
 
-// COMMA (infixtype | dontcare) {COMMA (infixtype | dontcare)}
+// COMMA infixtype {COMMA infixtype}
 DEF(tupletype);
   INFIX_BUILD();
   TOKEN(NULL, TK_COMMA);
   MAP_ID(TK_COMMA, TK_TUPLETYPE);
-  RULE("type", infixtype, dontcare);
-  WHILE(TK_COMMA, RULE("type", infixtype, dontcare));
+  RULE("type", infixtype);
+  WHILE(TK_COMMA, RULE("type", infixtype));
   DONE();
 
-// (LPAREN | LPAREN_NEW) (infixtype | dontcare) [tupletype] RPAREN
+// (LPAREN | LPAREN_NEW) infixtype [tupletype] RPAREN
 DEF(groupedtype);
   PRINT_INLINE();
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("type", infixtype, dontcare);
+  RULE("type", infixtype);
   OPT_NO_DFLT RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
   SET_FLAG(AST_FLAG_IN_PARENS);
@@ -413,30 +407,30 @@ DEF(nextarray);
   TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
-// COMMA (rawseq | dontcare) {COMMA (rawseq | dontcare)}
+// COMMA rawseq {COMMA rawseq}
 DEF(tuple);
   INFIX_BUILD();
   TOKEN(NULL, TK_COMMA);
   MAP_ID(TK_COMMA, TK_TUPLE);
-  RULE("value", rawseq, dontcare);
-  WHILE(TK_COMMA, RULE("value", rawseq, dontcare));
+  RULE("value", rawseq);
+  WHILE(TK_COMMA, RULE("value", rawseq));
   DONE();
 
-// (LPAREN | LPAREN_NEW) (rawseq | dontcare) [tuple] RPAREN
+// (LPAREN | LPAREN_NEW) rawseq [tuple] RPAREN
 DEF(groupedexpr);
   PRINT_INLINE();
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("value", rawseq, dontcare);
+  RULE("value", rawseq);
   OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
   SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
-// LPAREN_NEW (rawseq | dontcare) [tuple] RPAREN
+// LPAREN_NEW rawseq [tuple] RPAREN
 DEF(nextgroupedexpr);
   PRINT_INLINE();
   SKIP(NULL, TK_LPAREN_NEW);
-  RULE("value", rawseq, dontcare);
+  RULE("value", rawseq);
   OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
   SET_FLAG(AST_FLAG_IN_PARENS);
@@ -587,8 +581,8 @@ DEF(idseqmulti);
   PRINT_INLINE();
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("variable name", idseq_in_seq, dontcare);
-  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq, dontcare));
+  RULE("variable name", idseq_in_seq);
+  WHILE(TK_COMMA, RULE("variable name", idseq_in_seq));
   SKIP(NULL, TK_RPAREN);
   DONE();
 
@@ -606,9 +600,9 @@ DEF(idseq_in_seq);
   RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
-// ID | '_' | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
+// ID | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
-  RULE("variable name", idseqsingle, dontcare, idseqmulti);
+  RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
 // ELSE annotatedseq
@@ -721,7 +715,7 @@ DEF(whileloop);
   TERMINATE("while loop", TK_END);
   DONE();
 
-// REPEAT [annotations] seq UNTIL seq [ELSE annotatedseq] END
+// REPEAT [annotations] seq UNTIL annotatedrawseq [ELSE annotatedseq] END
 DEF(repeat);
   PRINT_INLINE();
   TOKEN(NULL, TK_REPEAT);
@@ -729,7 +723,7 @@ DEF(repeat);
   SCOPE();
   RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", rawseq);
+  RULE("condition expression", annotatedrawseq);
   IF(TK_ELSE, RULE("else clause", annotatedseq));
   TERMINATE("repeat loop", TK_END);
   DONE();

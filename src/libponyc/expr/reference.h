@@ -17,7 +17,6 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp);
 bool expr_local(pass_opt_t* opt, ast_t* ast);
 bool expr_addressof(pass_opt_t* opt, ast_t* ast);
 bool expr_digestof(pass_opt_t* opt, ast_t* ast);
-bool expr_dontcare(pass_opt_t* opt, ast_t* ast);
 bool expr_this(pass_opt_t* opt, ast_t* ast);
 bool expr_tuple(pass_opt_t* opt, ast_t* ast);
 bool expr_nominal(pass_opt_t* opt, ast_t** astp);

@@ -273,7 +273,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       return type;
 
     case TK_UNIONTYPE:

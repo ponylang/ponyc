@@ -234,6 +234,10 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
         return false;
       break;
 
+    case TK_DONTCAREREF:
+      // Ignore the element.
+      return true;
+
     default: {}
   }
 
@@ -287,24 +291,13 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
 
   for(int i = 0; pattern_child != NULL; i++)
   {
-    switch(ast_id(pattern_child))
-    {
-      case TK_SEQ:
-      {
-        // Skip over the SEQ node.
-        ast_t* pattern_expr = ast_child(pattern_child);
+    assert(ast_id(pattern_child) == TK_SEQ);
 
-        if(!dynamic_tuple_element(c, ptr, desc, pattern_expr, next_block, i))
-          return false;
-        break;
-      }
+    // Skip over the SEQ node.
+    ast_t* pattern_expr = ast_child(pattern_child);
 
-      case TK_DONTCARE:
-        // Ignore the element.
-        break;
-
-      default: assert(0);
-    }
+    if(!dynamic_tuple_element(c, ptr, desc, pattern_expr, next_block, i))
+      return false;
 
     pattern_child = ast_sibling(pattern_child);
   }
@@ -368,6 +361,7 @@ static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr,
       return true;
 
     case TK_MATCH_CAPTURE:
+    case TK_MATCH_DONTCARE:
       // Capture the match expression (or element thereof).
       return dynamic_capture_ptr(c, ptr, desc, pattern, next_block);
 
@@ -433,9 +427,11 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
   switch(ast_id(pattern))
   {
     case TK_NONE:
+    case TK_DONTCAREREF:
       return true;
 
     case TK_MATCH_CAPTURE:
+    case TK_MATCH_DONTCARE:
       // Capture the match expression (or element thereof).
       return dynamic_capture_object(c, object, desc, pattern, next_block);
 
@@ -477,26 +473,14 @@ static bool static_tuple_from_tuple(compile_t* c, LLVMValueRef value,
   // Destructure the tuple and continue pattern matching on each element.
   for(int i = 0; pattern_child != NULL; i++)
   {
-    switch(ast_id(pattern_child))
-    {
-      case TK_SEQ:
-      {
-        // Skip over the SEQ node.
-        ast_t* pattern_expr = ast_child(pattern_child);
-        LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
+    assert(ast_id(pattern_child) == TK_SEQ);
 
-        if(!static_match(c, elem, type_child, pattern_expr, next_block))
-          return false;
+    // Skip over the SEQ node.
+    ast_t* pattern_expr = ast_child(pattern_child);
+    LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
 
-        break;
-      }
-
-      case TK_DONTCARE:
-        // Ignore the element.
-        break;
-
-      default: assert(0);
-    }
+    if(!static_match(c, elem, type_child, pattern_expr, next_block))
+      return false;
 
     type_child = ast_sibling(type_child);
     pattern_child = ast_sibling(pattern_child);
@@ -558,9 +542,12 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   // The pattern is a capture. Make sure we are the right type, then assign.
   ast_t* pattern_type = ast_type(pattern);
 
-  // Generate the alloca
-  if(gen_localdecl(c, pattern) == NULL)
-    return false;
+  if(ast_id(pattern) == TK_MATCH_CAPTURE)
+  {
+    // Generate the alloca
+    if(gen_localdecl(c, pattern) == NULL)
+      return false;
+  }
 
   if(!is_subtype(type, pattern_type, NULL, c->opt))
   {
@@ -579,9 +566,11 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
   switch(ast_id(pattern))
   {
     case TK_NONE:
+    case TK_DONTCAREREF:
       return true;
 
     case TK_MATCH_CAPTURE:
+    case TK_MATCH_DONTCARE:
       // Capture the match expression (or element thereof).
       return static_capture(c, value, type, pattern, next_block);
 

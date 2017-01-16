@@ -14,8 +14,8 @@ environment:
   - llvm: 3.7.1
 
 configuration:
-  - Release
-  - Debug
+  - release
+  - debug
 
 clone_depth: 100
 
@@ -27,59 +27,21 @@ install:
       $package_version = (Get-Content "VERSION")
       $package_iteration = "$package_iteration${env:appveyor_build_number}.$package_commit"
       Update-AppveyorBuild -Version "ponyc-${env:appveyor_repo_branch}-$package_version-$package_iteration"
-  - ps: |
-      cd C:\
-      $premakeInstalled = Test-Path C:\premake5.exe
-      $llvmInstalled = Test-Path C:\LLVM-${env:llvm}-pony
-      if(-Not $premakeInstalled)
-      {
-        wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha9/premake-5.0.0-alpha9-windows.zip -OutFile C:\premake5.zip
-        7z x C:\premake5.zip
-        del C:\premake5.zip
-      }
-      if(-Not $llvmInstalled)
-      {
-        wget "https://github.com/ponylang/ponyc-windows-llvm/releases/download/LLVM-Release-VS2015/LLVM-${env:llvm}-Release-VS2015.7z" -OutFile C:\LLVM.7z
-        7z x C:\LLVM.7z
-        ren C:\LLVM-${env:llvm} C:\LLVM-${env:llvm}-pony
-        del C:\LLVM.7z
-      }
-      $env:path += ";C:\LLVM-${env:llvm}-pony\bin"
-  - ps: |
-      cd C:\
-      $libsInstalled = Test-Path C:\ponyc-windows-libs
-      if(-Not $libsInstalled)
-      {
-        md C:\ponyc-windows-libs
-        cd C:\ponyc-windows-libs
-        md lib
-        svn co svn://vcs.exim.org/pcre2/code/tags/pcre2-10.21 pcre2
-        md pcre2.build
-        cd pcre2.build
-        cmake ..\pcre2 -G "Visual Studio 14 2015 Win64"
-        msbuild PCRE2.sln /t:pcre2-8 /p:Configuration=Release
-        copy Release\pcre2-8.lib ..\lib
-        cd ..
-        wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-2.1.4-windows.zip -OutFile libressl-2.1.4-windows.zip
-        unzip -o libressl-2.1.4-windows.zip
-        copy libressl-2.1.4-windows\x64\libssl-32.* lib
-        copy libressl-2.1.4-windows\x64\libcrypto-32.* lib
-      }
-      $env:LIB = "C:\ponyc-windows-libs\lib;" + $env:LIB
-      $env:path += ";C:\ponyc-windows-libs\lib"
-      cd C:\projects\ponyc
-      C:\premake5.exe --with-tests --to=work/vs2015 vs2015
-
-after_build:
+  - cd C:\projects\ponyc
+  - python -x waf configure
+  - python -x waf build --config %configuration% --llvm %llvm%
   - ps: |
       $ponydir = "${env:appveyor_build_version}-win64"
+      cd C:\projects\ponyc
       md "$ponydir"
       md "${ponydir}\ponyc"
       md "${ponydir}\ponyc\bin"
-      copy build\$env:configuration\ponyc.*  "${ponydir}\ponyc\bin"
-      copy build\$env:configuration\ponyrt.* "${ponydir}\ponyc\bin"
+      $builddir = "C:\projects\ponyc\build\${env:configuration}-llvm-${env:llvm}"
+      Write-Output "Build dir is ${builddir}"
+      copy $builddir\ponyc.* "${ponydir}\ponyc\bin"
+      copy $builddir\ponyrt.* "${ponydir}\ponyc\bin"
+      copy $builddir\*.lib "${ponydir}\ponyc\bin"
       copy -recurse packages "${ponydir}\packages"
-
       7z a -tzip "C:\projects\ponyc\${ponydir}.zip" "${ponydir}"
 
 artifacts:
@@ -99,7 +61,7 @@ deploy:
     on:
         branch: master
         llvm: 3.9.1
-        configuration: Release
+        configuration: release
     publish: true
 
   - provider: BinTray
@@ -113,28 +75,13 @@ deploy:
     on:
         branch: release
         llvm: 3.9.1
-        configuration: Release
+        configuration: release
     publish: true
 
-# cache:
-#   - 'C:\LLVM-%llvm%-pony\ -> .appveyor.yml'
-#   - C:\premake5.exe -> .appveyor.yml
-#   - C:\ponyc-windows-libs\ -> .appveyor.yml
-
 build:
-  project: work\vs2015\ponyc.sln
-  verbosity: minimal
+  none
 
 test_script:
-  - C:\projects\ponyc\build\%CONFIGURATION%\testc.exe
-  - C:\projects\ponyc\build\%CONFIGURATION%\testrt.exe
-  - CALL "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\vcvars64.bat"
-  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify packages/stdlib
-  - stdlib.exe --sequential
-  - del stdlib.exe
-  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ --verify packages/stdlib
-  - stdlib.exe --sequential
-  - del stdlib.exe
-  - C:\projects\ponyc\build\%CONFIGURATION%\ponyc.exe -V 3 -o C:\projects\ponyc\ -d -s --verify examples
-  - examples.exe
-  - del examples.exe
+  - ps: |
+      cd C:\projects\ponyc
+      python -x waf test --config $env:configuration --llvm $env:llvm
