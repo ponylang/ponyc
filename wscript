@@ -150,6 +150,7 @@ def build(ctx):
 
     llvmIncludes = []
     llvmLibs = []
+    sslIncludes = []
 
     # download windows libraries needed for building
     if (os_is('win32')):
@@ -166,6 +167,8 @@ def build(ctx):
         else:
             llvmIncludes.append(os.path.join(llvmDir, 'include'))
             ctx.env.append_value('LIBPATH', os.path.join(llvmDir, 'lib'))
+
+            sslIncludes.append(os.path.join(libresslDir, 'include'))
 
             if not (os.path.exists(libsDir) \
                 and os.path.exists(libresslDir) \
@@ -226,7 +229,7 @@ def build(ctx):
         target   = 'libponyc',
         source   = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
-        includes = [ 'src/common' ] + llvmIncludes
+        includes = [ 'src/common' ] + llvmIncludes + sslIncludes
     )
 
     # libponyrt
@@ -234,7 +237,7 @@ def build(ctx):
         features = 'c cxx cxxstlib seq',
         target   = 'libponyrt',
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
-        includes = [ 'src/common', 'src/libponyrt' ]
+        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes
     )
 
     # ponyc
