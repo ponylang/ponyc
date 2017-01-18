@@ -417,6 +417,7 @@ actor TCPConnection
     Resume reading.
     """
     _pending_reads()
+    _resubscribe_event()
 
   fun ref write_final(data: ByteSeq) =>
     """
@@ -617,7 +618,6 @@ actor TCPConnection
           | 0 =>
             // Would block, try again later.
             _readable = false
-            _resubscribe_event()
             return
           | _next_size =>
             // Increase the read buffer size.
@@ -754,7 +754,6 @@ actor TCPConnection
   fun ref _apply_backpressure() =>
     ifdef not windows then
       _writeable = false
-      _resubscribe_event()
     end
 
     _notify.throttled(this)
