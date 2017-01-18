@@ -8,9 +8,8 @@ branches:
     - release
 
 environment:
-  matrix: # keep these in sync with the list in wscript
+  matrix:
   - llvm: 3.9.1
-  - llvm: 3.9.0
   - llvm: 3.8.1
   - llvm: 3.7.1
 
