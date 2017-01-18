@@ -734,8 +734,10 @@ int pony_os_socket_error(int fd)
 {
   int sockerr;
   socklen_t errlen = sizeof(sockerr);
-  if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen))
+
+  if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, (char*)&sockerr, &errlen))
     return errno;
+
   return sockerr;
 }
 
