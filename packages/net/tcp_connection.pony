@@ -358,7 +358,8 @@ actor TCPConnection
 
         if not _connected and not _closed then
           // We don't have a connection yet.
-          if @pony_os_connected[Bool](fd) then
+          let errnum = @pony_os_socket_error[U32](fd)
+          if errnum == 0 then
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
@@ -375,7 +376,7 @@ actor TCPConnection
             // The connection failed, unsubscribe the event and close.
             @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close[None](fd)
-            _notify_connecting()
+            _notify_connecting(errnum)
           end
         else
           // We're already connected, unsubscribe the event and close.
@@ -655,14 +656,16 @@ actor TCPConnection
       end
     end
 
-  fun ref _notify_connecting() =>
+  fun ref _notify_connecting(errnum: U32 = 0) =>
     """
     Inform the notifier that we're connecting.
+    `errnum` is equal to 0 if no connection attemps has been made.
+    Otherwise it has errno value of failed connection.
     """
     if _connect_count > 0 then
       _notify.connecting(this, _connect_count)
     else
-      _notify.connect_failed(this)
+      _notify.connect_error(this, errnum)
       _hard_close()
     end
 

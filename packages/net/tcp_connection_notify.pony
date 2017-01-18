@@ -33,6 +33,13 @@ interface TCPConnectionNotify
     """
     None
 
+  fun ref connect_error(conn: TCPConnection ref, errnum: U32) =>
+    """
+    Extended version of `connect_failed` which exposes connection error.
+    `errnum` indicated errno value of failed connection.
+    """
+    this.connect_failed(conn)
+
   fun ref auth_failed(conn: TCPConnection ref) =>
     """
     A raw TCPConnection has no authentication mechanism. However, when
