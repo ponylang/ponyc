@@ -8,9 +8,18 @@
 
 PONY_EXTERN_C_BEGIN
 
+/* Because of the way free memory is reused as its own linked list container,
+ * the minimum allocation size is 32 bytes.
+ */
+
 #define POOL_MIN_BITS 5
+#define POOL_MAX_BITS 20
 #define POOL_ALIGN_BITS 10
+
+#define POOL_MIN (1 << POOL_MIN_BITS)
+#define POOL_MAX (1 << POOL_MAX_BITS)
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
+#define POOL_COUNT (POOL_MAX_BITS - POOL_MIN_BITS + 1)
 
 __pony_spec_malloc__(void* ponyint_pool_alloc(size_t index));
 void ponyint_pool_free(size_t index, void* p);

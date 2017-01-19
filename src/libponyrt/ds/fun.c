@@ -127,7 +127,7 @@ size_t ponyint_next_pow2(size_t i)
     i = 32;
   else
 #  endif
-    i = __pony_clz(i);
+    i = __pony_clzl(i);
   return 1 << (i == 0 ? 0 : 32 - i);
 #else
   i--;
