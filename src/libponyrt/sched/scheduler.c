@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define SCHED_BATCH 100
-
 static DECLARE_THREAD_FN(run_thread);
 
 typedef enum
@@ -287,7 +285,7 @@ static void run(scheduler_t* sched)
     }
 
     // Run the current actor and get the next actor.
-    bool reschedule = ponyint_actor_run(&sched->ctx, actor, SCHED_BATCH);
+    bool reschedule = ponyint_actor_run(&sched->ctx, actor, actor->batch);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)

@@ -24,6 +24,7 @@ typedef struct pony_actor_t
   messageq_t q;
   pony_msg_t* continuation;
   uint8_t flags;
+  size_t batch;
 
   // keep things accessed by other actors on a separate cache line
   __pony_spec_align__(heap_t heap, 64); // 52/104 bytes

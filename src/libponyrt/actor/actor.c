@@ -15,6 +15,10 @@
 #include <valgrind/helgrind.h>
 #endif
 
+#define INITIAL_BATCH 100
+#define INCR_BATCH 50
+#define DECR_BATCH 25
+
 enum
 {
   FLAG_BLOCKED = 1 << 0,
@@ -150,6 +154,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     }
   }
 
+  size_t msgs = app;
+
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
@@ -160,21 +166,31 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       // If we handle an application message, try to gc.
       app++;
       try_gc(ctx, actor);
-
-      if(app == batch)
-        return !has_flag(actor, FLAG_UNSCHEDULED);
     }
 
+    msgs++;
+
     // Stop handling a batch if we reach the head we found when we were
-    // scheduled.
-    if(msg == head)
+    // scheduled or if we've hit our batch size
+    if(msgs == batch || msg == head)
       break;
+  }
+
+  // Make sure we gc at least once
+  try_gc(ctx, actor);
+
+  if(msgs == batch)
+  {
+    actor->batch += INCR_BATCH;
+    return !has_flag(actor, FLAG_UNSCHEDULED);
   }
 
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
-  assert(app < batch);
-  try_gc(ctx, actor);
+  assert(msgs < batch);
+
+  if(msgs < (batch - DECR_BATCH))
+    actor->batch -= DECR_BATCH;
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
   {
@@ -309,6 +325,8 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
     // no creator, so the actor isn't referenced by anything
     actor->gc.rc = 0;
   }
+
+  actor->batch = INITIAL_BATCH;
 
   return actor;
 }
