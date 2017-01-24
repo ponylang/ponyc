@@ -11,11 +11,11 @@ actor TCPListener
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
-    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
       conn.write(String.from_array(consume data))
+      true
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
-
 
   class MyTCPListenNotify is TCPListenNotify
     fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
@@ -40,7 +40,7 @@ actor TCPListener
   var _max_size: USize
 
   new create(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0,
+    host: String = "", service: String = "0", limit: USize = 0, 
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -56,7 +56,7 @@ actor TCPListener
     _notify_listening()
 
   new ip4(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0,
+    host: String = "", service: String = "0", limit: USize = 0, 
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -72,7 +72,7 @@ actor TCPListener
     _notify_listening()
 
   new ip6(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0,
+    host: String = "", service: String = "0", limit: USize = 0, 
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """

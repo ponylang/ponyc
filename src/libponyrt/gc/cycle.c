@@ -168,8 +168,9 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
 {
   view_t key;
   key.actor = actor;
+  size_t index = HASHMAP_UNKNOWN;
 
-  view_t* view = ponyint_viewmap_get(&d->views, &key);
+  view_t* view = ponyint_viewmap_get(&d->views, &key, &index);
 
   if((view == NULL) && create)
   {
@@ -178,7 +179,9 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->actor = actor;
     view->view_rc = 1;
 
-    ponyint_viewmap_put(&d->views, view);
+    // didn't find it in the map but index is where we can put the
+    // new one without another search
+    ponyint_viewmap_putindex(&d->views, view, index);
     d->created++;
   }
 
@@ -214,13 +217,17 @@ static void apply_delta(detector_t* d, view_t* view)
 
     if(rc > 0)
     {
-      viewref_t* ref = ponyint_viewrefmap_get(&view->map, &key);
+      size_t index = HASHMAP_UNKNOWN;
+      viewref_t* ref = ponyint_viewrefmap_get(&view->map, &key, &index);
 
       if(ref == NULL)
       {
         ref = (viewref_t*)POOL_ALLOC(viewref_t);
         ref->view = find;
-        ponyint_viewrefmap_put(&view->map, ref);
+
+        // didn't find it in the map but index is where we can put the
+        // new one without another search
+        ponyint_viewrefmap_putindex(&view->map, ref, index);
         find->view_rc++;
       }
 
@@ -615,9 +622,10 @@ static void unblock(detector_t* d, pony_actor_t* actor)
 {
   view_t key;
   key.actor = actor;
+  size_t index = HASHMAP_UNKNOWN;
 
   // we must be in the views, because we must have blocked in order to unblock
-  view_t* view = ponyint_viewmap_get(&d->views, &key);
+  view_t* view = ponyint_viewmap_get(&d->views, &key, &index);
   assert(view != NULL);
 
   // record that we're unblocked
@@ -638,8 +646,9 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
 {
   perceived_t key;
   key.token = token;
+  size_t index = HASHMAP_UNKNOWN;
 
-  perceived_t* per = ponyint_perceivedmap_get(&d->perceived, &key);
+  perceived_t* per = ponyint_perceivedmap_get(&d->perceived, &key, &index);
 
   if(per == NULL)
     return;
@@ -708,10 +717,11 @@ static void dump_view(view_t* view)
   size_t i = HASHMAP_BEGIN;
   viewref_t* p;
   actorref_t* aref;
+  size_t index = HASHMAP_UNKNOWN;
 
   while((p = ponyint_viewrefmap_next(&view->map, &i)) != NULL)
   {
-    aref = ponyint_actormap_getactor(&view->actor->gc.foreign, p->view->actor);
+    aref = ponyint_actormap_getactor(&view->actor->gc.foreign, p->view->actor, &index);
 
     if(aref != NULL)
     {

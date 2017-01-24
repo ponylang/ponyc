@@ -40,7 +40,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 {
-  gen(c, gen_data, TK_NONE);
+  gen(c, gen_data, TK_BOX);
   gen(c, gen_data, TK_REF);
   gen(c, gen_data, TK_VAL);
 }
@@ -119,9 +119,7 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(m->func, LLVMAttributeReturnIndex, align_attr);
 #else
   LLVMSetReturnNoAlias(m->func);
-#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(m->func, 0, size);
-#  endif
 #endif
 
   LLVMValueRef len = LLVMGetParam(m->func, 1);
@@ -160,9 +158,7 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(m->func, LLVMAttributeReturnIndex, align_attr);
 #else
   LLVMSetReturnNoAlias(m->func);
-#  if PONY_LLVM >= 307
   LLVMSetDereferenceableOrNull(m->func, 0, size);
-#  endif
 #endif
 
   LLVMValueRef args[3];

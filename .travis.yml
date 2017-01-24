@@ -18,32 +18,6 @@ matrix:
           packages:
             - g++-5
       env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=debug
-        - CC1=gcc-5
-        - CXX1=g++-5
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-      env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=release
-        - CC1=gcc-5
-        - CXX1=g++-5
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-      env:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
@@ -96,7 +70,7 @@ matrix:
           packages:
             - g++-5
       env:
-        - LLVM_VERSION="3.9.0"
+        - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
         - CC1=gcc-5
@@ -109,26 +83,11 @@ matrix:
           packages:
             - g++-5
       env:
-        - LLVM_VERSION="3.9.0"
+        - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
         - CC1=gcc-5
         - CXX1=g++-5
-    - os: osx
-      env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=debug
-        - CC1=clang-3.6
-        - CXX1=clang++-3.6
-    - os: osx
-      env:
-        - LLVM_VERSION="3.6.2"
-        - LLVM_CONFIG="llvm-config-3.6"
-        - config=release
-        - lto=no
-        - CC1=clang-3.6
-        - CXX1=clang++-3.6
     - os: osx
       env:
         - LLVM_VERSION="3.7.1"
@@ -161,14 +120,14 @@ matrix:
         - CXX1=clang++-3.8
     - os: osx
       env:
-        - LLVM_VERSION="3.9.0"
+        - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
         - CC1=clang-3.9
         - CXX1=clang++-3.9
     - os: osx
       env:
-        - LLVM_VERSION="3.9.0"
+        - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
         - lto=no
@@ -184,7 +143,7 @@ install:
   # prepare to deploy artifacts.
   - if [[
         "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.9.0" &&
+        "$LLVM_VERSION" == "3.9.1" &&
         "$config" == "release" &&
         "$TRAVIS_OS_NAME" == "linux" &&
         "$TRAVIS_PULL_REQUEST" == "false"
@@ -202,7 +161,12 @@ install:
 
   - if [ "${TRAVIS_OS_NAME}" = "linux" ];
     then
-      wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz";
+      if [ "${LLVM_VERSION}" = "3.6.2" ];
+      then
+        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz";
+      else
+        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz";
+      fi;
       tar -xvf clang+llvm*;
       cd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r * /tmp/llvm/;
       sudo ln -s /tmp/llvm/bin/llvm-config /usr/local/bin/${LLVM_CONFIG};
@@ -216,10 +180,6 @@ install:
     then
       brew update;
       brew install gmp; brew link --overwrite gmp;
-      if [ "${LLVM_VERSION}" = "3.6.2" ];
-      then
-        brew install llvm36;
-      fi;
       if [ "${LLVM_VERSION}" = "3.7.1" ];
       then
         brew install llvm37;
@@ -228,7 +188,7 @@ install:
       then
         brew install llvm38;
       fi;
-      if [ "${LLVM_VERSION}" = "3.9.0" ];
+      if [ "${LLVM_VERSION}" = "3.9.1" ];
       then
         brew install llvm;
         brew link --overwrite --force llvm;
@@ -276,7 +236,7 @@ after_success:
   # For a master release build with the latest stable LLVM, upload docs.
   - if [[
         "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.9.0" &&
+        "$LLVM_VERSION" == "3.9.1" &&
         "$config" == "release" &&
         "$TRAVIS_OS_NAME" == "linux" &&
         "$TRAVIS_PULL_REQUEST" == "false" &&
@@ -294,32 +254,32 @@ after_success:
     fi;
 
 deploy:
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
-    on:
-      branch: master
-      condition: "$UPLOAD = yes"
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+  # - provider: bintray
+  #   user: pony-buildbot-2
+  #   file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
+  #   on:
+  #     branch: master
+  #     condition: "$UPLOAD = yes"
+  #   key:
+  #     secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
-    on:
-      branch: master
-      condition: "$UPLOAD = yes"
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+  # - provider: bintray
+  #   user: pony-buildbot-2
+  #   file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
+  #   on:
+  #     branch: master
+  #     condition: "$UPLOAD = yes"
+  #   key:
+  #     secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_source.yml
-    on:
-      branch: master
-      condition: "$UPLOAD = yes"
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
+  # - provider: bintray
+  #   user: pony-buildbot-2
+  #   file: /home/travis/build/ponylang/ponyc/bintray_source.yml
+  #   on:
+  #     branch: master
+  #     condition: "$UPLOAD = yes"
+  #   key:
+  #     secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
   - provider: bintray
     user: pony-buildbot-2

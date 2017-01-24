@@ -45,6 +45,7 @@ enum
   AST_FLAG_ERROR_2      = 0x40000,
 };
 
+DECLARE_LIST(astlist, astlist_t, ast_t);
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -89,6 +90,10 @@ double ast_float(ast_t* ast);
 lexint_t* ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
 void ast_settype(ast_t* ast, ast_t* type);
+ast_t* ast_annotation(ast_t* ast);
+void ast_setannotation(ast_t* ast, ast_t* annotation);
+ast_t* ast_consumeannotation(ast_t* ast);
+bool ast_has_annotation(ast_t* ast, const char* name);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);

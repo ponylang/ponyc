@@ -295,7 +295,7 @@ class File
     Returns up to len bytes.
     """
     if not _handle.is_null() then
-      let result = recover Array[U8].undefined(len) end
+      let result = recover Array[U8].>undefined(len) end
 
       let r = ifdef linux then
         @fread_unlocked[USize](result.cpointer(), USize(1), len, _handle)
@@ -305,10 +305,9 @@ class File
 
       if r < len then
         _errno = get_stream_error() // EOF or error
-      end 
+      end
       
-      result.truncate(r)
-      result
+      (consume result).>truncate(r)
     else
       recover Array[U8] end
     end
@@ -330,7 +329,7 @@ class File
 
       if r < len then
         _errno = get_stream_error() // EOF or error
-      end 
+      end
       
       result.truncate(r)
       result
@@ -416,34 +415,31 @@ class File
     _seek(pos.isize(), 0)
     len
 
-  fun ref seek_start(offset: USize): File =>
+  fun ref seek_start(offset: USize) =>
     """
     Set the cursor position relative to the start of the file.
     """
     if path.caps(FileSeek) then
       _seek(offset.isize(), 0)
     end
-    this
 
-  fun ref seek_end(offset: USize): File =>
+  fun ref seek_end(offset: USize) =>
     """
     Set the cursor position relative to the end of the file.
     """
     if path.caps(FileSeek) then
       _seek(-offset.isize(), 2)
     end
-    this
 
-  fun ref seek(offset: ISize): File =>
+  fun ref seek(offset: ISize) =>
     """
     Move the cursor position.
     """
     if path.caps(FileSeek) then
       _seek(offset, 1)
     end
-    this
 
-  fun ref flush(): File =>
+  fun ref flush() =>
     """
     Flush the file.
     """
@@ -457,9 +453,8 @@ class File
         _errno = _get_error()
       end
     end
-    this
 
-  fun ref sync(): File =>
+  fun ref sync() =>
     """
     Sync the file contents to physical storage.
     """
@@ -474,7 +469,6 @@ class File
         end
       end
     end
-    this
 
   fun ref set_length(len: USize): Bool =>
     """

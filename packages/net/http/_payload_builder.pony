@@ -164,8 +164,8 @@ class _PayloadBuilder
         if line.size() > 0 then
           try
             let i = line.find(":")
-            let key = recover val line.substring(0, i).strip() end
-            let value = recover val line.substring(i + 1).strip() end
+            let key = recover val line.substring(0, i).>strip() end
+            let value = recover val line.substring(i + 1).>strip() end
             _payload(key) = value
 
             match key.lower()

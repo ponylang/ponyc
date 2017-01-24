@@ -174,8 +174,16 @@ class HashMap[K, V, H: HashFunction[K] val]
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
     """
-    try
-      apply(key)
+    (let i, let found) = _search(key)
+
+    if found then
+      try
+        _array(i) as (_, this->V)
+      else
+        // This should never happen as we have already
+        // proven that _array(i) exists
+        consume alt
+      end
     else
       consume alt
     end
@@ -187,14 +195,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     (_, let found) = _search(k)
     found
 
-  fun ref concat(iter: Iterator[(K^, V^)]): HashMap[K, V, H]^ =>
+  fun ref concat(iter: Iterator[(K^, V^)]) =>
     """
     Add K, V pairs from the iterator to the map.
     """
     for (k, v) in iter do
       this(consume k) = consume v
     end
-    this
 
   fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
     HashMap[this->K!, this->V!, H2]^
@@ -235,12 +242,11 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _array(i) as (this->K, this->V)
 
-  fun ref compact(): HashMap[K, V, H]^ =>
+  fun ref compact() =>
     """
     Minimise the memory used for the map.
     """
     _resize(((_size * 4) / 3).next_pow2().max(8))
-    this
 
   fun clone[H2: HashFunction[this->K!] val = H]():
     HashMap[this->K!, this->V!, H2]^
@@ -256,7 +262,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     r
 
-  fun ref clear(): HashMap[K, V, H]^ =>
+  fun ref clear() =>
     """
     Remove all entries.
     """
@@ -264,7 +270,6 @@ class HashMap[K, V, H: HashFunction[K] val]
     // Our default prealloc of 6 corresponds to an array alloc size of 8.
     let n: USize = 8
     _array = _array.init(_MapEmpty, n)
-    this
 
   fun _search(key: box->K!): (USize, Bool) =>
     """

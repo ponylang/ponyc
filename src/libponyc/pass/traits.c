@@ -2,6 +2,7 @@
 #include "sugar.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -954,7 +955,12 @@ static void local_types(ast_t* ast)
   assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
-    type = ast_from(id, TK_INFERTYPE);
+  {
+    if(is_name_dontcare(ast_name(id)))
+      type = ast_from(id, TK_DONTCARETYPE);
+    else
+      type = ast_from(id, TK_INFERTYPE);
+  }
 
   ast_settype(id, type);
   ast_settype(ast, type);

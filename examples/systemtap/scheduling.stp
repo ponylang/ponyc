@@ -1,0 +1,55 @@
+global actor_scheduled, actor_descheduled, messages_ran, cpu_sleep, steal_successful, steal_failure
+
+probe process.mark("cpu-nanosleep")
+{
+	cpu_sleep <<< $arg1
+}
+
+probe process.mark("actor-scheduled")
+{
+	actor_scheduled[$arg2]++
+}
+
+probe process.mark("actor-descheduled")
+{
+	actor_descheduled[$arg2]++
+}
+
+probe process.mark("actor-msg-run")
+{
+	messages_ran[$arg2]++
+}
+
+probe process.mark("work-steal-successful")
+{
+	scheduler = $arg1
+	steal_successful <<< scheduler
+}
+
+probe process.mark("work-steal-failure")
+{
+	scheduler = $arg1
+	steal_failure <<< scheduler
+}
+
+probe end
+{
+	println();
+	foreach (actor+ in messages_ran)
+		printf("Actor %d ran %d messages\n", actor, messages_ran[actor]);
+
+	println();
+	foreach (actor+ in actor_scheduled)
+		printf("Actor %d scheduled %d times\n", actor, actor_scheduled[actor]);
+
+	println();
+	foreach (actor+ in actor_descheduled)
+		printf("Actor %d descheduled %d times\n", actor, actor_descheduled[actor]);
+
+	println();
+	printf("Successful work theft: %d\n", @count(steal_successful));
+	printf("Failed work stealing attempts: %d\n", @count(steal_failure));
+
+	println();
+	printf("Total time spent in nanosleep: %d seconds\n", @sum(cpu_sleep)/1000000000);
+}

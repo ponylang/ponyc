@@ -22,7 +22,7 @@ actor Client
     _sslctx = try
       sslctx as SSLContext
     else
-      recover SSLContext.set_client_verify(false) end
+      recover SSLContext.>set_client_verify(false) end
     end
 
     _pipeline = pipeline

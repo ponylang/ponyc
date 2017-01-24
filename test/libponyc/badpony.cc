@@ -36,20 +36,6 @@ class BadPonyTest : public PassTest
 
 // Cases from reported issues
 
-TEST_F(BadPonyTest, DontCareInFieldType)
-{
-  // From issue #207
-  const char* src =
-    "class Abc\n"
-    "  var _test1: (_)";
-
-  TEST_ERRORS_3(src,
-    "the don't care token can only appear in",
-    "field left undefined in constructor",
-    "constructor with undefined fields");
-}
-
-
 TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
 {
   // From issue #218
@@ -82,20 +68,6 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
     "    None";
 
   TEST_ERRORS_1(src, "not enough type arguments");
-}
-
-
-TEST_F(BadPonyTest, DontCareInIntLiteralType)
-{
-  // From issue #222
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let crashme: (_, I32) = (4, 4)";
-
-  TEST_ERRORS_2(src,
-    "the don't care token can only appear in",
-    "could not infer literal type, no valid types found");
 }
 
 TEST_F(BadPonyTest, TupleIndexIsZero)
@@ -307,4 +279,62 @@ TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)
     "    Isect.create()";
 
   TEST_ERRORS_1(src, "can't call a constructor on a type intersection");
+}
+
+TEST_F(BadPonyTest, AssignToFieldOfIso)
+{
+  // From issue #1469
+  const char* src =
+    "class Foo\n"
+    "  var x: String ref = String\n"
+    "  fun iso bar(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    x = s\n"
+    "   consume s\n"
+
+    "  fun ref foo(): String iso^ =>\n"
+    "    let s = recover String end\n"
+    "    let y: Foo iso = Foo\n"
+    "    y.x = s\n"
+    "    consume s";
+
+  TEST_ERRORS_2(src,
+    "right side must be a subtype of left side",
+    "right side must be a subtype of left side"
+    );
+}
+
+TEST_F(BadPonyTest, IndexArrayWithBrackets)
+{
+  // From issue #1493
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let xs = [as I64: 1, 2, 3]\n"
+        "xs[1]";
+
+  TEST_ERRORS_1(src, "Value formal parameters not yet supported");
+}
+
+TEST_F(BadPonyTest, MatchUnionOfDifferentCaps)
+{
+  // From issue #1506
+  const char* src =
+    "interface box Foo\n"
+      "fun foo(): None\n"
+
+    "interface ref Bar\n"
+      "fun ref bar(): None\n"
+
+    "actor Main\n"
+      "new create(env: Env) => None\n"
+
+      "fun apply(x: (Foo | Bar)) =>\n"
+        "match x\n"
+        "| let f: Foo => f.foo()\n"
+        "| let b: Bar => b.bar()\n"
+        "end";
+
+  TEST_ERRORS_1(src,
+    "match type may not be a union of types with different capabilities");
 }

@@ -6,9 +6,174 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't double resubscribe to asio events in TCPConnection (PR #1509)
+- Improve Map.get_or_else performance (PR #1482)
+- Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
+- Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
+- Compiler assertion failure during type checking
+
 ### Added
 
+- Readline interpret C-d on empty line as EOF (PR #1504)
+- AST annotations (RFC 27) (PR #1485)
+
 ### Changed
+
+- Upgrade to LLVM 3.9.1 (PR #1498)
+- Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
+- Ensure TCPConnection is established before writing data to it (issue #1310)
+- Always allow writing to `_` (dontcare) (PR #1499)
+- Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
+  - builtin.Seq
+    - reserve
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - builtin.Array
+    - reserve
+    - compact
+    - undefined
+    - insert
+    - truncate
+    - trim_in_place
+    - copy_to
+    - remove
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - reverse_in_place
+  - builtin.String
+    - reserve
+    - compact
+    - recalc
+    - truncate
+    - trim_in_place
+    - delete
+    - lower_in_place
+    - upper_in_place
+    - reverse_in_place
+    - push
+    - unshift
+    - append
+    - concat
+    - clear
+    - insert_in_place
+    - insert_byte
+    - cut_in_place
+    - replace (returns the number of occurrences replaced)
+    - strip
+    - lstrip
+    - rstrip
+  - buffered.Reader
+    - clear
+    - append
+    - skip
+  - buffered.Writer
+    - reserve
+    - reserve_chunks
+    - number writing functions (e.g. u16_le)
+    - write
+    - writev
+  - capsicum.CapRights0
+    - set
+    - unset
+  - collections.Flag
+    - all
+    - clear
+    - set
+    - unset
+    - flip
+    - union
+    - intersect
+    - difference
+    - remove
+  - collections.ListNode
+    - prepend (returns whether the node was removed from another List)
+    - append (returns whether the node was removed from another List)
+    - remove
+  - collections.List
+    - reserve
+    - remove
+    - clear
+    - prepend_node
+    - append_node
+    - prepend_list
+    - append_list
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - collections.Map
+    - concat
+    - compact
+    - clear
+  - collections.RingBuffer
+    - push (returns whether the collection was full)
+    - clear
+  - collections.Set
+    - clear
+    - set
+    - unset
+    - union
+    - intersect
+    - difference
+    - remove
+  - files.FileMode
+    - exec
+    - shared
+    - group
+    - private
+  - files.File
+    - seek_start
+    - seek_end
+    - seek
+    - flush
+    - sync
+  - time.Date
+    - normal
+  - net.http.Payload
+    - update (returns the old value)
+  - net.ssl.SSLContext
+    - set_cert
+    - set_authority
+    - set_ciphers
+    - set_client_verify
+    - set_server_verify
+    - set_verify_depth
+    - allow_tls_v1
+    - allow_tls_v1_1
+    - allow_tls_v1_2
+- TCP sockets on Linux now use Epoll One Shot
+- Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
+- TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
+
+## [0.10.0] - 2016-12-12
+
+### Fixed
+
+- Don't violate reference capabilities when assigning via a field (PR #1471)
+- Check errors correctly for method chaining (PR #1463)
+- Fix compiler handling of type params in stacks (issue #918) (PR #1452)
+- Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
+- Make space() check if string is null terminated (issue #1426) (PR #1430)
+- Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
+- Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
+
+### Added
+
+- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
+- Extra DTrace/SystemTap probes concerning scheduling.
+
+### Changed
+
+- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
+- Update from_array to prevent a copy (issue #1097) (PR #1423)
 
 ## [0.9.0] - 2016-11-11
 

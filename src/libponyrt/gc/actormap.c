@@ -31,7 +31,8 @@ static actorref_t* actorref_alloc(pony_actor_t* actor, uint32_t mark)
 
 object_t* ponyint_actorref_getobject(actorref_t* aref, void* address)
 {
-  return ponyint_objectmap_getobject(&aref->map, address);
+  size_t index = HASHMAP_UNKNOWN;
+  return ponyint_objectmap_getobject(&aref->map, address, &index);
 }
 
 object_t* ponyint_actorref_getorput(actorref_t* aref, void* address,
@@ -97,24 +98,25 @@ static void send_release(pony_ctx_t* ctx, actorref_t* aref)
   pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
 }
 
-actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor)
+actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor, size_t* index)
 {
   actorref_t key;
   key.actor = actor;
 
-  return ponyint_actormap_get(map, &key);
+  return ponyint_actormap_get(map, &key, index);
 }
 
 actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark)
 {
-  actorref_t* aref = ponyint_actormap_getactor(map, actor);
+  size_t index = HASHMAP_UNKNOWN;
+  actorref_t* aref = ponyint_actormap_getactor(map, actor, &index);
 
   if(aref != NULL)
     return aref;
 
   aref = actorref_alloc(actor, mark);
-  ponyint_actormap_put(map, aref);
+  ponyint_actormap_putindex(map, aref, index);
   return aref;
 }
 

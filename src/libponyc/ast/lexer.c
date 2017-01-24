@@ -62,6 +62,8 @@ static const lextoken_t symbols[] =
 
   { ".>", TK_CHAIN },
 
+  { "\\", TK_BACKSLASH },
+
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
@@ -104,7 +106,6 @@ static const lextoken_t symbols[] =
 
 static const lextoken_t keywords[] =
 {
-  { "_", TK_DONTCARE },
   { "compile_intrinsic", TK_COMPILE_INTRINSIC },
 
   { "use", TK_USE },
@@ -209,6 +210,7 @@ static const lextoken_t abstract[] =
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
   { "flet", TK_FLET },
+  { "dontcare", TK_DONTCARE },
   { "ffidecl", TK_FFIDECL },
   { "fficall", TK_FFICALL },
 
@@ -220,6 +222,7 @@ static const lextoken_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
   { "lambdatype", TK_LAMBDATYPE },
+  { "dontcaretype", TK_DONTCARETYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 
@@ -277,6 +280,7 @@ static const lextoken_t abstract[] =
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
+  { "dontcareref", TK_DONTCAREREF },
   { "newapp", TK_NEWAPP },
   { "beapp", TK_BEAPP },
   { "funapp", TK_FUNAPP },

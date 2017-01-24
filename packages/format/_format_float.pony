@@ -11,10 +11,10 @@ primitive _FormatFloat
 
     recover
       var s = String((prec' + 8).max(width.max(31)))
-      var f = String(31).append("%")
+      var f = String(31).>append("%")
 
       if width > 0 then f.append(width.string()) end
-      f.append(".").append(prec'.string())
+      f.>append(".").>append(prec'.string())
 
       match fmt
       | FormatExp => f.append("e")
@@ -33,5 +33,5 @@ primitive _FormatFloat
         @snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
       end
 
-      s.recalc()
+      s.>recalc()
     end

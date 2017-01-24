@@ -101,15 +101,15 @@ class iso _TestWriter is UnitTest
     let b = Reader
     let wb: Writer ref = Writer
 
-    wb.u8(0x42)
-      .u16_be(0xDEAD)
-      .u16_le(0xDEAD)
-      .u32_be(0xDEADBEEF)
-      .u32_le(0xDEADBEEF)
-      .u64_be(0xDEADBEEFFEEDFACE)
-      .u64_le(0xDEADBEEFFEEDFACE)
-      .u128_be(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
-      .u128_le(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    wb.>u8(0x42)
+      .>u16_be(0xDEAD)
+      .>u16_le(0xDEAD)
+      .>u32_be(0xDEADBEEF)
+      .>u32_le(0xDEADBEEF)
+      .>u64_be(0xDEADBEEFFEEDFACE)
+      .>u64_le(0xDEADBEEFFEEDFACE)
+      .>u128_be(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+      .>u128_le(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
     wb.write(recover [as U8: 'h', 'i'] end)
     wb.writev(recover [as Array[U8]: [as U8: '\n', 't', 'h', 'e'],

@@ -6,6 +6,7 @@
 #include "../type/alias.h"
 #include "../type/lookup.h"
 #include "../ast/stringtab.h"
+#include "../ast/id.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
 #include <assert.h>
@@ -113,7 +114,7 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 {
   if(ast_id(pattern) == TK_NONE)
   {
-    ast_t* type = ast_from(pattern, TK_DONTCARE);
+    ast_t* type = ast_from(pattern, TK_DONTCARETYPE);
     ast_settype(pattern, type);
     return type;
   }
@@ -128,12 +129,10 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   switch(ast_id(pattern))
   {
-    case TK_DONTCARE:
+    case TK_DONTCAREREF:
     case TK_MATCH_CAPTURE:
-    {
-      // Return the capture type or don't care.
+    case TK_MATCH_DONTCARE:
       return ast_type(pattern);
-    }
 
     case TK_TUPLE:
     {
@@ -334,12 +333,26 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
     case MATCHTYPE_DENY:
     {
-      ast_error(opt->check.errors, pattern,
-        "this capture violates capabilities");
-      ast_error_continue(opt->check.errors, match_type, "match type: %s",
-        ast_print_type(operand_type));
-      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
-        ast_print_type(pattern_type));
+      if(ast_id(match_type) == TK_UNIONTYPE) {
+        token_id cap = ast_id(ast_childidx(ast_child(match_type), 3));
+        for(size_t i=1; i<ast_childcount(match_type); i++) {
+          if(ast_id(ast_childidx(ast_childidx(match_type, i), 3)) != cap) {
+            ast_error(opt->check.errors, match_expr, 
+              "match type may not be a union of types with different "
+              "capabilities");
+            ast_error_continue(opt->check.errors, match_type, "match type: %s",
+              ast_print_type(operand_type));
+          }
+        }
+      } else {
+        ast_error(opt->check.errors, pattern,
+          "this capture violates capabilities");
+        ast_error_continue(opt->check.errors, match_type, "match type: %s",
+          ast_print_type(operand_type));
+        ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+          ast_print_type(pattern_type));
+      }
+
       ok = false;
       break;
     }
@@ -368,7 +381,11 @@ bool expr_match_capture(pass_opt_t* opt, ast_t* ast)
   (void)opt;
   assert(ast != NULL);
 
-  ast_t* type = ast_childidx(ast, 1);
+  AST_GET_CHILDREN(ast, id, type);
+
+  if(is_name_dontcare(ast_name(id)))
+    ast_setid(ast, TK_MATCH_DONTCARE);
+
   assert(type != NULL);
 
   // Capture type is as specified.

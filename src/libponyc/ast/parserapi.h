@@ -119,7 +119,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   bool* out_found);
 
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set, bool* out_found);
+  const rule_t* rule_set, bool* out_found, bool annotate);
 
 void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
@@ -316,7 +316,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
 #define RULE(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    ast_t* r = parse_rule_set(parser, &state, desc, rule_set, NULL); \
+    ast_t* r = parse_rule_set(parser, &state, desc, rule_set, NULL, false); \
     if(r != PARSE_OK) return r; \
   }
 
@@ -400,7 +400,8 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     while(found) \
     { \
       state.deflt_id = TK_EOF; \
-      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found); \
+      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found, \
+        false); \
       if(r != PARSE_OK) return r; \
     } \
   }
@@ -470,6 +471,21 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     body; \
     state.ast = ast; \
     state.last_child = NULL; \
+  }
+
+
+/** Annotate the current AST with another AST node from an arbitrary rule.
+ *
+ * Example:
+ *    ANNOTATE(annotations)
+ */
+#define ANNOTATE(rule) \
+  { \
+    state.deflt_id = TK_EOF; \
+    static const rule_t rule_set[] = { rule, NULL }; \
+    ast_t* r = parse_rule_set(parser, &state, "annotations", rule_set, NULL, \
+      true); \
+    if(r != PARSE_OK) return r; \
   }
 
 

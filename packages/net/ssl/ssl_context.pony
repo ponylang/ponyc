@@ -53,7 +53,7 @@ class val SSLContext
     let verify = _server_verify
     recover SSL._create(ctx, true, verify) end
 
-  fun ref set_cert(cert: FilePath, key: FilePath): SSLContext ref^ ? =>
+  fun ref set_cert(cert: FilePath, key: FilePath) ? =>
     """
     The cert file is a PEM certificate chain. The key file is a private key.
     Servers must set this. For clients, it is optional.
@@ -70,10 +70,9 @@ class val SSLContext
     then
       error
     end
-    this
 
   fun ref set_authority(file: (FilePath | None),
-    path: (FilePath | None) = None): SSLContext ref^ ?
+    path: (FilePath | None) = None) ?
   =>
     """
     Use a PEM file and/or a directory of PEM files to specify certificate
@@ -94,9 +93,8 @@ class val SSLContext
     then
       error
     end
-    this
 
-  fun ref set_ciphers(ciphers: String): SSLContext ref^ ? =>
+  fun ref set_ciphers(ciphers: String) ? =>
     """
     Set the accepted ciphers. This replaces the existing list. Raises an error
     if the cipher list is invalid.
@@ -108,32 +106,28 @@ class val SSLContext
     then
       error
     end
-    this
 
-  fun ref set_client_verify(state: Bool): SSLContext ref^ =>
+  fun ref set_client_verify(state: Bool) =>
     """
     Set to true to require verification. Defaults to true.
     """
     _client_verify = state
-    this
 
-  fun ref set_server_verify(state: Bool): SSLContext ref^ =>
+  fun ref set_server_verify(state: Bool) =>
     """
     Set to true to require verification. Defaults to false.
     """
     _server_verify = state
-    this
 
-  fun ref set_verify_depth(depth: U32): SSLContext ref^ =>
+  fun ref set_verify_depth(depth: U32) =>
     """
     Set the verify depth. Defaults to 6.
     """
     if not _ctx.is_null() then
       @SSL_CTX_set_verify_depth[None](_ctx, depth)
     end
-    this
 
-  fun ref allow_tls_v1(state: Bool): SSLContext ref^ =>
+  fun ref allow_tls_v1(state: Bool) =>
     """
     Allow TLS v1. Defaults to false.
     """
@@ -146,9 +140,8 @@ class val SSLContext
         @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[None])
       end
     end
-    this
 
-  fun ref allow_tls_v1_1(state: Bool): SSLContext ref^ =>
+  fun ref allow_tls_v1_1(state: Bool) =>
     """
     Allow TLS v1.1. Defaults to false.
     """
@@ -161,9 +154,8 @@ class val SSLContext
         @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
       end
     end
-    this
 
-  fun ref allow_tls_v1_2(state: Bool): SSLContext ref^ =>
+  fun ref allow_tls_v1_2(state: Bool) =>
     """
     Allow TLS v1.2. Defaults to true.
     """
@@ -176,7 +168,6 @@ class val SSLContext
         @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[None])
       end
     end
-    this
 
   fun ref dispose() =>
     """

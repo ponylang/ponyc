@@ -120,7 +120,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   ast_t* type = ast_type(ast);
 
-  // If we contain TK_DONTCARE, we have no usable value.
+  // If we contain '_', we have no usable value.
   if(contains_dontcare(type))
     return GEN_NOTNEEDED;
 

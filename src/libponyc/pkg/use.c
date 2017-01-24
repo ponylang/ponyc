@@ -29,7 +29,7 @@ struct
   use_handler_t handler;
 } handlers[] =
 {
-  {"package:", 5, true, false, use_package},
+  {"package:", 8, true, false, use_package},
   {"lib:", 4, false, true, use_library},
   {"path:", 5, false, true, use_path},
 

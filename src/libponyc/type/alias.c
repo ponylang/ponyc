@@ -273,7 +273,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       return type;
 
     case TK_UNIONTYPE:
@@ -456,7 +456,13 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
         case TK_CAP_ALIAS:
           // If the receiver type aliases as itself, it stays the same after
           // chaining.
-          return type;
+          return ast_dup(type);
+
+        case TK_CAP_ANY:
+          // If the receiver is #any, the call is on a tag method and we can
+          // chain as #any.
+          assert(fun_cap == TK_TAG);
+          return ast_dup(type);
 
         default: {}
       }

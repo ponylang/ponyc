@@ -1363,7 +1363,7 @@ bool is_subtype(ast_t* sub, ast_t* super, errorframe_t* errorf,
   assert(sub != NULL);
   assert(super != NULL);
 
-  if(ast_id(super) == TK_DONTCARE)
+  if(ast_id(super) == TK_DONTCARETYPE)
     return true;
 
   switch(ast_id(sub))
@@ -1749,7 +1749,7 @@ bool contains_dontcare(ast_t* ast)
 {
   switch(ast_id(ast))
   {
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       return true;
 
     case TK_TUPLETYPE:

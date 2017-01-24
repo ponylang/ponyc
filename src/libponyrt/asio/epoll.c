@@ -243,6 +243,10 @@ void pony_asio_event_subscribe(asio_event_t* ev)
     }
   }
 
+  if(ev->flags & ASIO_ONESHOT) {
+    ep.events |= EPOLLONESHOT;
+  }
+
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
 }
 
@@ -306,6 +310,31 @@ void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   ev->flags = ASIO_DISPOSABLE;
   send_request(ev, ASIO_DISPOSABLE);
+}
+
+void pony_asio_event_resubscribe(asio_event_t* ev, uint32_t flags)
+{
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  struct epoll_event ep;
+  ep.data.ptr = ev;
+  ep.events = EPOLLRDHUP | EPOLLET;
+
+  if(flags & ASIO_ONESHOT)
+    ep.events |= EPOLLONESHOT;
+
+  if(flags & ASIO_READ)
+    ep.events |= EPOLLIN;
+
+  if(flags & ASIO_WRITE)
+    ep.events |= EPOLLOUT;
+
+  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
 }
 
 #endif

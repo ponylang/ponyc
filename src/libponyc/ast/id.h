@@ -47,6 +47,9 @@ bool is_name_ffi(const char* name);
 // Report whether the given id name is for an internal test
 bool is_name_internal_test(const char* name);
 
+// Report whether the given id name is '_'
+bool is_name_dontcare(const char* name);
+
 PONY_EXTERN_C_END
 
 #endif

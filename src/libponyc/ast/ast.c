@@ -53,14 +53,31 @@ struct ast_t
   struct ast_t* child;
   struct ast_t* sibling;
   struct ast_t* type;
+  struct ast_t* annotation;
   uint32_t flags;
 };
+
+static bool ast_cmp(ast_t* a, ast_t* b)
+{
+  return a == b;
+}
+
+DEFINE_LIST(astlist, astlist_t, ast_t, ast_cmp, NULL);
 
 static const char in[] = "  ";
 static const size_t in_len = 2;
 static size_t width = 80;
 
-static void print(FILE* fp, ast_t* ast, size_t indent, bool type);
+enum print_special
+{
+  NOT_SPECIAL,
+  SPECIAL_TYPE,
+  SPECIAL_ANNOTATION
+};
+
+static const char special_char[] = {'(', ')', '[', ']', '\\', '\\'};
+
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind);
 
 
 static void print_token(FILE* fp, token_t* token)
@@ -85,12 +102,13 @@ static void print_token(FILE* fp, token_t* token)
   }
 }
 
-static size_t length(ast_t* ast, size_t indent, bool type)
+static size_t length(ast_t* ast, size_t indent, enum print_special kind)
 {
   size_t len = (indent * in_len) + strlen(token_print(ast->t));
   ast_t* child = ast->child;
 
-  if(type || (child != NULL) || (ast->type != NULL))
+  if((kind != NOT_SPECIAL) || (child != NULL) || (ast->type != NULL) ||
+    (ast->annotation) != NULL)
     len += 2;
 
   switch(token_get_id(ast->t))
@@ -105,59 +123,72 @@ static size_t length(ast_t* ast, size_t indent, bool type)
 
   while(child != NULL)
   {
-    len += 1 + length(child, 0, false);
+    len += 1 + length(child, 0, NOT_SPECIAL);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    len += 1 + length(ast->type, 0, true);
+    len += 1 + length(ast->type, 0, SPECIAL_TYPE);
+
+  if(ast->annotation != NULL)
+    len += 1 + length(ast->annotation, 0, SPECIAL_ANNOTATION);
 
   return len;
 }
 
-static void print_compact(FILE* fp, ast_t* ast, size_t indent, bool type)
+static void print_compact(FILE* fp, ast_t* ast, size_t indent,
+  enum print_special kind)
 {
   for(size_t i = 0; i < indent; i++)
     fprintf(fp, in);
 
   ast_t* child = ast->child;
-  bool parens = type || (child != NULL) || (ast->type != NULL);
+  bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
+    (ast->type != NULL) || (ast->annotation != NULL);
 
   if(parens)
-    fprintf(fp, type ? "[" : "(");
+    fputc(special_char[kind * 2], fp);
 
   print_token(fp, ast->t);
 
   if(ast->symtab != NULL)
     fprintf(fp, ":scope");
 
+  if(ast->annotation != NULL)
+  {
+    fprintf(fp, " ");
+    print_compact(fp, ast->annotation, 0, SPECIAL_ANNOTATION);
+  }
+
   while(child != NULL)
   {
     fprintf(fp, " ");
-    print_compact(fp, child, 0, false);
+    print_compact(fp, child, 0, NOT_SPECIAL);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
   {
     fprintf(fp, " ");
-    print_compact(fp, ast->type, 0, true);
+    print_compact(fp, ast->type, 0, SPECIAL_TYPE);
   }
 
   if(parens)
-    fprintf(fp, type ? "]" : ")");
+    fputc(special_char[(kind * 2) + 1], fp);
 }
 
-static void print_extended(FILE* fp, ast_t* ast, size_t indent, bool type)
+static void print_extended(FILE* fp, ast_t* ast, size_t indent,
+  enum print_special kind)
 {
   for(size_t i = 0; i < indent; i++)
     fprintf(fp, in);
 
   ast_t* child = ast->child;
-  bool parens = type || (child != NULL) || (ast->type != NULL);
+  bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
+    (ast->type != NULL) || (ast->annotation != NULL);
 
   if(parens)
-    fprintf(fp, type ? "[" : "(");
+    fputc(special_char[kind * 2], fp);
 
   print_token(fp, ast->t);
 
@@ -166,34 +197,39 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent, bool type)
 
   fprintf(fp, "\n");
 
+  if(ast->annotation != NULL)
+    print(fp, ast->annotation, indent + 1, SPECIAL_ANNOTATION);
+
   while(child != NULL)
   {
-    print(fp, child, indent + 1, false);
+    print(fp, child, indent + 1, NOT_SPECIAL);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    print(fp, ast->type, indent + 1, true);
+    print(fp, ast->type, indent + 1, SPECIAL_TYPE);
 
-  if(parens || type)
+  if(parens)
   {
     for(size_t i = 0; i < indent; i++)
       fprintf(fp, in);
 
-    fprintf(fp, type ? "]" : ")");
+    fputc(special_char[(kind * 2) + 1], fp);
   }
 }
 
-static void print_verbose(FILE* fp, ast_t* ast, size_t indent, bool type)
+static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
+  enum print_special kind)
 {
   for(size_t i = 0; i < indent; i++)
     fprintf(fp, in);
 
   ast_t* child = ast->child;
-  bool parens = type || (child != NULL) || (ast->type != NULL);
+  bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
+    (ast->type != NULL) || (ast->annotation != NULL);
 
   if(parens)
-    fprintf(fp, type ? "[" : "(");
+    fputc(special_char[kind * 2], fp);
 
   print_token(fp, ast->t);
   fprintf(fp, ":%p,%0x", ast, ast->flags);
@@ -216,32 +252,35 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent, bool type)
 
   fprintf(fp, "\n");
 
+  if(ast->annotation != NULL)
+    print_verbose(fp, ast->annotation, indent + 1, SPECIAL_ANNOTATION);
+
   while(child != NULL)
   {
-    print_verbose(fp, child, indent + 1, false);
+    print_verbose(fp, child, indent + 1, NOT_SPECIAL);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    print_verbose(fp, ast->type, indent + 1, true);
+    print_verbose(fp, ast->type, indent + 1, SPECIAL_TYPE);
 
-  if(parens || type)
+  if(parens)
   {
     for(size_t i = 0; i < indent; i++)
       fprintf(fp, in);
 
-    fprintf(fp, type ? "]\n" : ")\n");
+    fprintf(fp, "%c\n", special_char[(kind * 2) + 1]);
   }
 }
 
-static void print(FILE* fp, ast_t* ast, size_t indent, bool type)
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind)
 {
-  size_t len = length(ast, indent, type);
+  size_t len = length(ast, indent, kind);
 
   if(len < width)
-    print_compact(fp, ast, indent, type);
+    print_compact(fp, ast, indent, kind);
   else
-    print_extended(fp, ast, indent, type);
+    print_extended(fp, ast, indent, kind);
 
   fprintf(fp, "\n");
 }
@@ -297,6 +336,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
 
   n->child = duplicate(n, ast->child);
   n->type = duplicate(n, ast->type);
+  n->annotation = duplicate(n, ast->annotation);
 
   if(ast->symtab != NULL)
     n->symtab = symtab_dup(ast->symtab);
@@ -611,6 +651,57 @@ void ast_settype(ast_t* ast, ast_t* type)
   }
 
   ast->type = type;
+}
+
+ast_t* ast_annotation(ast_t* ast)
+{
+  assert(ast != NULL);
+  return ast->annotation;
+}
+
+void ast_setannotation(ast_t* ast, ast_t* annotation)
+{
+  assert(ast != NULL);
+
+  if(ast->annotation == annotation)
+    return;
+
+  ast_free(ast->annotation);
+
+  assert((annotation == NULL) || !hasparent(annotation));
+
+  ast->annotation = annotation;
+}
+
+ast_t* ast_consumeannotation(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* annotation = ast->annotation;
+  ast->annotation = NULL;
+
+  return annotation;
+}
+
+bool ast_has_annotation(ast_t* ast, const char* name)
+{
+  assert(ast != NULL);
+
+  ast_t* annotation = ast->annotation;
+
+  if((annotation != NULL) && (ast_id(annotation) == TK_BACKSLASH))
+  {
+    const char* strtab_name = stringtab(name);
+    ast_t* elem = ast_child(annotation);
+    while(elem != NULL)
+    {
+      if(ast_name(elem) == strtab_name)
+        return true;
+      elem = ast_sibling(elem);
+    }
+  }
+
+  return false;
 }
 
 void ast_erase(ast_t* ast)
@@ -1191,6 +1282,7 @@ void ast_free(ast_t* ast)
   }
 
   ast_free(ast->type);
+  ast_free(ast->annotation);
 
   switch(token_get_id(ast->t))
   {
@@ -1236,7 +1328,7 @@ void ast_fprint(FILE* fp, ast_t* ast)
   if(ast == NULL)
     return;
 
-  print(fp, ast, 0, false);
+  print(fp, ast, 0, NOT_SPECIAL);
   fprintf(fp, "\n");
 }
 
@@ -1245,7 +1337,7 @@ void ast_fprintverbose(FILE* fp, ast_t* ast)
   if(ast == NULL)
     return;
 
-  print_verbose(fp, ast, 0, false);
+  print_verbose(fp, ast, 0, NOT_SPECIAL);
 }
 
 static void print_type(printbuf_t* buffer, ast_t* type);
@@ -1346,7 +1438,7 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "this");
       break;
 
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       printbuf(buffer, "_");
       break;
 
