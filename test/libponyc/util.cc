@@ -6,9 +6,8 @@
 #include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
-#include <codegen/codegen.h>
-#include <pass/pass.h>
 #include <pkg/package.h>
+#include <../libponyrt/mem/pool.h>
 
 #include "util.h"
 #include <string.h>
@@ -199,9 +198,13 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 
 void PassTest::SetUp()
 {
+  pass_opt_init(&opt);
+  codegen_init(&opt);
+  package_init(&opt);
   program = NULL;
   package = NULL;
   module = NULL;
+  compile = NULL;
   _builtin_src = _builtin;
   _first_pkg_path = "prog";
   package_clear_magic();
@@ -211,10 +214,19 @@ void PassTest::SetUp()
 
 void PassTest::TearDown()
 {
+  if(compile != NULL)
+  {
+    codegen_cleanup(compile);
+    POOL_FREE(compile_t, compile);
+    compile = NULL;
+  }
   ast_free(program);
   program = NULL;
   package = NULL;
   module = NULL;
+  package_done();
+  codegen_shutdown(&opt);
+  pass_opt_done(&opt);
 }
 
 
@@ -277,7 +289,7 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
 
 void PassTest::test_compile(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, true, NULL, &program));
+  DO(build_package(pass, src, _first_pkg_path, true, NULL));
 
   package = ast_child(program);
   module = ast_child(package);
@@ -286,7 +298,7 @@ void PassTest::test_compile(const char* src, const char* pass)
 
 void PassTest::test_error(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, NULL, &program));
+  DO(build_package(pass, src, _first_pkg_path, false, NULL));
 
   package = NULL;
   module = NULL;
@@ -297,7 +309,7 @@ void PassTest::test_error(const char* src, const char* pass)
 void PassTest::test_expected_errors(const char* src, const char* pass,
   const char** errors)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, errors, &program));
+  DO(build_package(pass, src, _first_pkg_path, false, errors));
 
   package = NULL;
   module = NULL;
@@ -311,11 +323,13 @@ void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   DO(test_compile(actual_src, actual_pass));
   ast_t* expect_ast;
 
-  DO(build_package(expect_pass, expect_src, "expect", true, NULL, &expect_ast));
+  DO(build_package(expect_pass, expect_src, "expect", true, NULL));
+  expect_ast = program;
   ast_t* expect_package = ast_child(expect_ast);
 
   DO(check_ast_same(expect_package, package));
   ast_free(expect_ast);
+  program = NULL;
 }
 
 
@@ -368,18 +382,11 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
-  const char* package_name, bool check_good, const char** expected_errors,
-  ast_t** out_package)
+  const char* package_name, bool check_good, const char** expected_errors)
 {
   ASSERT_NE((void*)NULL, pass);
   ASSERT_NE((void*)NULL, src);
   ASSERT_NE((void*)NULL, package_name);
-  ASSERT_NE((void*)NULL, out_package);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-  codegen_init(&opt);
-  package_init(&opt);
 
   lexer_allow_test_symbols();
 
@@ -390,7 +397,19 @@ void PassTest::build_package(const char* pass, const char* src,
   package_suppress_build_message();
 
   limit_passes(&opt, pass);
-  *out_package = program_load(stringtab(package_name), &opt);
+  program = program_load(stringtab(package_name), &opt);
+
+  if((program != NULL) && (opt.limit >= PASS_REACH))
+  {
+    compile = POOL_ALLOC(compile_t);
+
+    if(!codegen_gen_test(compile, program, &opt))
+    {
+      codegen_cleanup(compile);
+      POOL_FREE(compile_t, compile);
+      compile = NULL;
+    }
+  }
 
   if(expected_errors != NULL)
   {
@@ -418,18 +437,13 @@ void PassTest::build_package(const char* pass, const char* src,
     }
   }
 
-  package_done();
-  codegen_shutdown(&opt);
-
   if(check_good)
   {
-    if(*out_package == NULL)
+    if(program != NULL)
       errors_print(opt.check.errors);
 
-    ASSERT_NE((void*)NULL, *out_package);
+    ASSERT_NE((void*)NULL, program);
   }
-
-  pass_opt_done(&opt);
 }
 
 
