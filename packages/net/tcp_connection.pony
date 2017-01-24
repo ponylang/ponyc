@@ -32,6 +32,9 @@ actor TCPConnection
       _out.print("GOT:" + String.from_array(consume data))
       conn.close()
 
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
+
   actor Main
     new create(env: Env) =>
       try
@@ -77,6 +80,9 @@ actor TCPConnection
     fun ref unthrottled(connection: TCPConnection ref) =>
       _coordinator.unthrottled(this)
 
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
+
   actor Coordinator
     var _senders: List[Any tag] = _senders.create()
 
@@ -109,18 +115,21 @@ actor TCPConnection
         ""
       end
 
-  fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
-    if not _throttled then
-      data
-    else
-      Array[String]
-    end
+    fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
+      if not _throttled then
+        data
+      else
+        Array[String]
+      end
 
     fun ref throttled(connection: TCPConnection ref) =>
       _throttled = true
 
     fun ref unthrottled(connection: TCPConnection ref) =>
       _throttled = false
+
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
   ```
 
   In general, unless you have a very specific use case, we strongly advise that

@@ -19,7 +19,7 @@ interface UDPNotify
     ignoring errors, which can be implemented like this:
 
     ```
-    fun ref connect_failed(conn: TCPConnection ref) =>
+    fun ref not_listening(sock: UDPSocket ref) =>
       None
     ```
     """
