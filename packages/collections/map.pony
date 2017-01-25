@@ -150,6 +150,41 @@ class HashMap[K, V, H: HashFunction[K] val]
       error
     end
 
+  fun ref insert_if_absent(key: K, value: V): V ? =>
+    """
+    Set a value in the map if the key doesn't already exist in the Map.
+    Saves an extra lookup when doing a pattern like:
+
+    ```pony
+    if not my_map.contains(my_key) then
+      my_map(my_key) = my_value
+    end
+    ```
+
+    Returns the value, the same as `insert`, allowing 'insert_if_absent'
+    to be used as a drop-in replacement for `insert`.
+    """
+    try
+      (let i, let found) = _search(key)
+      let key' = key
+
+      if not found then
+        _array(i) = (consume key, consume value)
+
+        _size = _size + 1
+
+        if (_size * 4) > (_array.size() * 3) then
+          _resize(_array.size() * 2)
+          return this(key')
+        end
+      end
+
+      _array(i) as (_, V)
+    else
+      // This is unreachable, since index will never be out-of-bounds.
+      error
+    end
+
   fun ref remove(key: box->K!): (K^, V^) ? =>
     """
     Delete a value from the map and return it. Raises an error if there was no

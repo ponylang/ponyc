@@ -124,6 +124,14 @@ class iso _TestMap is UnitTest
     h.assert_eq[USize](0, b.size())
     h.assert_eq[USize](8, b.space())
 
+    let c = Map[String, U32]
+    c.insert_if_absent("a", 1)
+    h.assert_eq[U32](1, c("a"))
+    c.insert_if_absent("a", 2)
+    h.assert_eq[U32](1, c("a"))
+    h.assert_eq[U32](0, c.insert_if_absent("0", 0))
+    h.assert_eq[U32](0, c.insert_if_absent("0", 1))
+
 class iso _TestMapRemove is UnitTest
   fun name(): String => "collections/Map.remove"
 
