@@ -84,7 +84,7 @@ infix
   ;
 
 binop
-  : ('and' | 'or' | 'xor' | '+' | '-' | '*' | '/' | '%' | '<<' | '>>' | 'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>') term
+  : ('and' | 'or' | 'xor' | '+' | '-' | '*' | '/' | '%' | '+~' | '-~' | '*~' | '/~' | '%~' | '<<' | '>>' | '<<~' | '>>~' | 'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' | '==~' | '!=~' | '<~' | '<=~' | '>=~' | '>~') term
   ;
 
 nextterm
@@ -154,12 +154,12 @@ pattern
   ;
 
 nextparampattern
-  : ('not' | 'addressof' | MINUS_NEW | 'digestof') parampattern
+  : ('not' | 'addressof' | MINUS_NEW | '-~' | 'digestof') parampattern
   | nextpostfix
   ;
 
 parampattern
-  : ('not' | 'addressof' | '-' | MINUS_NEW | 'digestof') parampattern
+  : ('not' | 'addressof' | '-' | '-~' | MINUS_NEW | '-~' | 'digestof') parampattern
   | postfix
   ;
 

@@ -22,6 +22,9 @@ PONY_EXTERN_C_BEGIN
 // Missing from C API.
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
+void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
+void LLVMSetNoSignedWrap(LLVMValueRef inst);
+void LLVMSetIsExact(LLVMValueRef inst);
 #if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
@@ -33,6 +36,7 @@ void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
 #  endif
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
+LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 
@@ -120,18 +124,32 @@ typedef struct compile_t
   const char* str_div;
   const char* str_mod;
   const char* str_neg;
+  const char* str_add_unsafe;
+  const char* str_sub_unsafe;
+  const char* str_mul_unsafe;
+  const char* str_div_unsafe;
+  const char* str_mod_unsafe;
+  const char* str_neg_unsafe;
   const char* str_and;
   const char* str_or;
   const char* str_xor;
   const char* str_not;
   const char* str_shl;
   const char* str_shr;
+  const char* str_shl_unsafe;
+  const char* str_shr_unsafe;
   const char* str_eq;
   const char* str_ne;
   const char* str_lt;
   const char* str_le;
   const char* str_ge;
   const char* str_gt;
+  const char* str_eq_unsafe;
+  const char* str_ne_unsafe;
+  const char* str_lt_unsafe;
+  const char* str_le_unsafe;
+  const char* str_ge_unsafe;
+  const char* str_gt_unsafe;
 
   const char* str_this;
   const char* str_create;

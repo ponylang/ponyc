@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Branch prediction annotations (RFC 30) (PR #1528)
 - Readline interpret C-d on empty line as EOF (PR #1504)
 - AST annotations (RFC 27) (PR #1485)
+- Unsafe mathematic and logic operations. Can be faster but can have undefined results for some inputs (issue #993)
 
 ### Changed
 
@@ -155,6 +156,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - TCP sockets on Linux now use Epoll One Shot
 - Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
 - TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
+- All arithmetic and logic operations are now fully defined for every input by default (issue #993)
+- Removed compiler flag `--ieee-math`
 
 ## [0.10.0] - 2016-12-12
 

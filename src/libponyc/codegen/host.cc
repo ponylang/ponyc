@@ -38,6 +38,21 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
 }
 
+void LLVMSetNoUnsignedWrap(LLVMValueRef inst)
+{
+  unwrap<BinaryOperator>(inst)->setHasNoUnsignedWrap(true);
+}
+
+void LLVMSetNoSignedWrap(LLVMValueRef inst)
+{
+  unwrap<BinaryOperator>(inst)->setHasNoSignedWrap(true);
+}
+
+void LLVMSetIsExact(LLVMValueRef inst)
+{
+  unwrap<BinaryOperator>(inst)->setIsExact(true);
+}
+
 #if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun)
 {
@@ -104,6 +119,21 @@ LLVMValueRef LLVMConstNaN(LLVMTypeRef type)
 
   Value* nan = ConstantFP::getNaN(t);
   return wrap(nan);
+}
+
+LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative)
+{
+  Type* t = unwrap<Type>(type);
+
+#if PONY_LLVM >= 307
+  Value* inf = ConstantFP::getInfinity(t, negative);
+#else
+  fltSemantics const& sem = *float_semantics(t->getScalarType());
+  APFloat flt = APFloat::getInf(sem, negative);
+  Value* inf = ConstantFP::get(t->getContext(), flt);
+#endif
+
+  return wrap(inf);
 }
 
 #if PONY_LLVM < 308

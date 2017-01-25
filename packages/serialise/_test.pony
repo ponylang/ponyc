@@ -25,8 +25,8 @@ class _MachineWords
   var i32: I32 = 0x12345678
   var i64: I64 = 0x7EDCBA9876543210
   var i128: I128 = 0x7EDCBA9876543210123456789ABCDEFE
-  var ilong: ILong = 1 << (ILong.bitwidth() - 1)
-  var isize: ISize = 1 << (ISize.bitwidth() - 1)
+  var ilong: ILong = ILong(1) << (ILong.bitwidth() - 1)
+  var isize: ISize = ISize(1) << (ISize.bitwidth() - 1)
   var f32: F32 = 1.2345e-13
   var f64: F64 = 9.82643431e19
 
