@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Disallow type parameter names shadowing other types. (PR #1526)
 - Don't double resubscribe to asio events in TCPConnection (PR #1509)
 - Improve Map.get_or_else performance (PR #1482)
 - Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
