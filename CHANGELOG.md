@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add `insert_if_absent` method to Map (PR #1519)
 - Branch prediction annotations (RFC 30) (PR #1528)
 - Readline interpret C-d on empty line as EOF (PR #1504)
 - AST annotations (RFC 27) (PR #1485)
