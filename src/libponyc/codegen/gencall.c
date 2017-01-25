@@ -46,6 +46,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
 
   ast_t* right = ast_child(positional);
   const char* name = ast_name(method);
+  bool special_case = true;
   *value = NULL;
 
   codegen_debugloc(c, ast);
@@ -90,9 +91,11 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
     *value = gen_ge(c, left, right);
   else if(name == c->str_gt)
     *value = gen_gt(c, left, right);
+  else
+    special_case = false;
 
   codegen_debugloc(c, NULL);
-  return *value != NULL;
+  return special_case;
 }
 
 static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
