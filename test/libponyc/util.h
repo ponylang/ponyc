@@ -5,6 +5,8 @@
 #include <platform.h>
 
 #include <ast/ast.h>
+#include <pass/pass.h>
+#include <codegen/codegen.h>
 
 // Provide a short alias for ASSERT_NO_FATAL_FAILURE
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)
@@ -21,9 +23,11 @@
 class PassTest : public testing::Test
 {
 protected:
+  pass_opt_t opt;
   ast_t* program; // AST produced from given source
   ast_t* package; // AST of first package, cache of ast_child(program)
   ast_t* module;  // AST of first module in first package
+  compile_t* compile;
 
   virtual void SetUp();
   virtual void TearDown();
@@ -103,8 +107,7 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, const char** expected_errors,
-    ast_t** out_package);
+    const char* package_name, bool check_good, const char** expected_errors);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.

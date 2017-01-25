@@ -8,6 +8,9 @@
 #include "genopt.h"
 #include "gentype.h"
 #include "../pkg/package.h"
+#include "../reach/paint.h"
+#include "../type/assemble.h"
+#include "../type/lookup.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -805,7 +808,7 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   return true;
 }
 
-static void codegen_cleanup(compile_t* c)
+void codegen_cleanup(compile_t* c)
 {
   while(c->frame != NULL)
     pop_frame(c);
@@ -905,6 +908,43 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
   codegen_cleanup(&c);
   return ok;
+}
+
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
+{
+  memset(c, 0, sizeof(compile_t));
+
+  if(!init_module(c, program, opt))
+    return false;
+
+  init_runtime(c);
+
+  const char* main_actor = c->str_Main;
+  ast_t* package = ast_child(program);
+  ast_t* main_def = ast_get(package, main_actor, NULL);
+
+  if(main_def == NULL)
+    return false;
+
+  ast_t* main_ast = type_builtin(opt, main_def, main_actor);
+
+  if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+    return false;
+
+  reach(c->reach, main_ast, c->str_create, NULL, opt);
+
+  if(opt->limit == PASS_REACH)
+    return true;
+
+  paint(&c->reach->types);
+
+  if(opt->limit == PASS_PAINT)
+    return true;
+
+  if(!gentypes(c))
+    return false;
+
+  return true;
 }
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
