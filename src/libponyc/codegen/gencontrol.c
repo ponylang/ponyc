@@ -4,7 +4,9 @@
 #include "genname.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
+#include "../../libponyrt/mem/pool.h"
 #include <assert.h>
+
 
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
@@ -70,7 +72,9 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     post_block = codegen_block(c, "if_post");
 
   LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-  LLVMBuildCondBr(c->builder, test, then_block, else_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, then_block, else_block);
+
+  handle_branch_prediction_default(c->context, br, ast);
 
   // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -194,7 +198,9 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
-  LLVMBuildCondBr(c->builder, test, body_block, else_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, body_block, else_block);
+
+  handle_branch_prediction_default(c->context, br, ast);
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
@@ -221,7 +227,9 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
     body_from = LLVMGetInsertBlock(c->builder);
     LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-    LLVMBuildCondBr(c->builder, test, body_block, post_block);
+    br = LLVMBuildCondBr(c->builder, test, body_block, post_block);
+
+    handle_branch_prediction_default(c->context, br, ast);
   }
 
   // Don't need loop status for the else block.
@@ -327,7 +335,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
     body_from = LLVMGetInsertBlock(c->builder);
     LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-    LLVMBuildCondBr(c->builder, test, post_block, body_block);
+    LLVMValueRef br = LLVMBuildCondBr(c->builder, test, post_block, body_block);
+
+    handle_branch_prediction_default(c->context, br, cond);
   }
 
   // cond block
@@ -337,7 +347,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMValueRef i_value = gen_expr(c, cond);
 
   LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
-  LLVMBuildCondBr(c->builder, test, else_block, body_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, else_block, body_block);
+
+  handle_branch_prediction_default(c->context, br, cond);
 
   // Don't need loop status for the else block.
   codegen_poploop(c);
@@ -604,4 +616,39 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   codegen_debugloc(c, NULL);
 
   return GEN_NOVALUE;
+}
+
+void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
+   unsigned int weights[], unsigned int count)
+{
+  size_t alloc_index = ponyint_pool_index((count + 1) * sizeof(LLVMValueRef));
+
+  LLVMValueRef* params = (LLVMValueRef*)ponyint_pool_alloc(alloc_index);
+
+  const char str[] = "branch_weights";
+  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+
+  for(size_t i = 0; i < count; i++)
+    params[i+1] = LLVMConstInt(LLVMInt32TypeInContext(ctx), weights[i], false);
+
+  LLVMValueRef metadata = LLVMMDNodeInContext(ctx, params, count + 1);
+  const char id[] = "prof";
+  LLVMSetMetadata(branch, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
+  ponyint_pool_free(alloc_index, params);
+}
+
+void handle_branch_prediction_default(LLVMContextRef ctx, LLVMValueRef branch,
+  ast_t* ast)
+{
+  if(ast_has_annotation(ast, "likely"))
+  {
+    unsigned int weights[] =
+      {PONY_BRANCHWEIGHT_LIKELY, PONY_BRANCHWEIGHT_UNLIKELY};
+    attach_branchweights_metadata(ctx, branch, weights, 2);
+  } else if(ast_has_annotation(ast, "unlikely")) {
+    unsigned int weights[] =
+      {PONY_BRANCHWEIGHT_UNLIKELY, PONY_BRANCHWEIGHT_LIKELY};
+    attach_branchweights_metadata(ctx, branch, weights, 2);
+  }
 }
