@@ -297,7 +297,11 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
   else
     source = ast_source(t->ast);
 
-  t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
+  const char* file = source->file;
+  if(file == NULL)
+    file = "";
+
+  t->di_file = LLVMDIBuilderCreateFile(c->di, file);
 
   switch(t->underlying)
   {
