@@ -71,6 +71,7 @@ static const char* _builtin =
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
   "class val Env\n"
+  "  let none: None = None\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
@@ -209,6 +210,7 @@ void PassTest::SetUp()
   _first_pkg_path = "prog";
   package_clear_magic();
   package_suppress_build_message();
+  opt.verbosity = VERBOSITY_QUIET;
 }
 
 
