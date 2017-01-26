@@ -255,7 +255,7 @@ actor TCPConnection
     """
     if _connected and not _closed then
       _in_sent = true
-      write_final(_notify.sent(this, data))
+      _write_final(_notify.sent(this, data))
       _in_sent = false
     end
 
@@ -268,7 +268,7 @@ actor TCPConnection
       _in_sent = true
 
       for bytes in _notify.sentv(this, data).values() do
-        write_final(bytes)
+        _write_final(bytes)
       end
 
       _in_sent = false
@@ -419,7 +419,7 @@ actor TCPConnection
     _pending_reads()
     _resubscribe_event()
 
-  fun ref write_final(data: ByteSeq) =>
+  fun ref _write_final(data: ByteSeq) =>
     """
     Write as much as possible to the socket. Set `_writeable` to `false` if not
     everything was written. On an error, close the connection. This is for data
