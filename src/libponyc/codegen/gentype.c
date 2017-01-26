@@ -407,6 +407,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 {
   LLVMTypeRef type;
   int extra = 0;
+  bool packed = false;
 
   switch(t->underlying)
   {
@@ -421,12 +422,18 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       break;
 
     case TK_STRUCT:
+    {
       // Pointer and Maybe will have no structure.
       if(t->structure == NULL)
         return true;
 
       type = t->structure;
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      if(ast_has_annotation(def, "packed"))
+        packed = true;
+
       break;
+    }
 
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
@@ -481,7 +488,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     }
   }
 
-  LLVMStructSetBody(type, elements, t->field_count + extra, false);
+  LLVMStructSetBody(type, elements, t->field_count + extra, packed);
   ponyint_pool_free_size(buf_size, elements);
   return true;
 }
