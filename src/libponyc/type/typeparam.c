@@ -419,7 +419,7 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
   switch(ast_id(eph))
   {
     case TK_EPHEMERAL:
-      if(teph == TK_BORROWED)
+      if(teph == TK_ALIASED)
         ast_setid(eph, TK_NONE);
       break;
 
@@ -427,7 +427,7 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
       ast_setid(eph, teph);
       break;
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       if(teph == TK_EPHEMERAL)
         ast_setid(eph, TK_NONE);
       break;

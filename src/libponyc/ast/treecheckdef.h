@@ -179,7 +179,7 @@ RULE(tuple,
 
 RULE(consume,
   HAS_TYPE(type)
-  CHILD(cap, borrowed, none)
+  CHILD(cap, aliased, none)
   CHILD(expr),
   TK_CONSUME);
 
@@ -433,7 +433,7 @@ RULE(lambda_type,
   CHILD(type, none) // Return type
   CHILD(question, none)
   CHILD(cap, gencap, none)  // Type reference cap
-  CHILD(borrowed, ephemeral, none),
+  CHILD(aliased, ephemeral, none),
   TK_LAMBDATYPE);
 
 RULE(type_list, ONE_OR_MORE(type), TK_PARAMS);
@@ -444,7 +444,7 @@ RULE(nominal,
   CHILD(id)       // Type
   CHILD(type_args, none)
   CHILD(cap, gencap, none)
-  CHILD(borrowed, ephemeral, none)
+  CHILD(aliased, ephemeral, none)
   OPTIONAL(id, none), // Original package specifier (for error reporting)
   TK_NOMINAL);
 
@@ -452,12 +452,12 @@ RULE(type_param_ref,
   HAS_DATA  // Definition of referred type parameter
   CHILD(id)
   CHILD(cap, gencap, none)
-  CHILD(borrowed, ephemeral, none),
+  CHILD(aliased, ephemeral, none),
   TK_TYPEPARAMREF);
 
 RULE(at, LEAF, TK_AT);
 RULE(bool_literal, HAS_TYPE(type), TK_TRUE, TK_FALSE);
-RULE(borrowed, LEAF, TK_BORROWED);
+RULE(aliased, LEAF, TK_ALIASED);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
 RULE(control_type, LEAF, TK_IF, TK_CASES, TK_COMPILE_INTRINSIC,
   TK_COMPILE_ERROR, TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR);

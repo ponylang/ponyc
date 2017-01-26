@@ -363,7 +363,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
               a_with = consume_type(with, TK_NONE);
               break;
 
-            case TK_BORROWED:
+            case TK_ALIASED:
               a_with = alias(with);
               break;
 

@@ -1362,7 +1362,7 @@ TEST_F(SugarTest, As)
     "  var create: U32\n"
     "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | $let $1: Foo ref => consume $borrowed $1\n"
+    "    | $let $1: Foo ref => consume $aliased $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1386,7 +1386,7 @@ TEST_F(SugarTest, AsTuple)
     "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, $let $2: Bar ref) =>\n"
-    "      (consume $borrowed $1, consume $borrowed $2)\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1410,8 +1410,8 @@ TEST_F(SugarTest, AsNestedTuple)
     "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, ($let $2: Bar ref, $let $3: Baz ref)) =>\n"
-    "      (consume $borrowed $1,\n"
-    "        (consume $borrowed $2, consume $borrowed $3))\n"
+    "      (consume $aliased $1,\n"
+    "        (consume $aliased $2, consume $aliased $3))\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1446,7 +1446,7 @@ TEST_F(SugarTest, AsDontCare2Tuple)
     "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _) =>\n"
-    "      consume $borrowed $1\n"
+    "      consume $aliased $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1470,7 +1470,7 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
     "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _, $let $2: Baz ref) =>\n"
-    "      (consume $borrowed $1, consume $borrowed $2)\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
     "    else\n"
     "      error\n"
     "    end";

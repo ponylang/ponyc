@@ -30,7 +30,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     case TK_NONE:
       break;
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       typearg = alias(typearg);
       break;
 
