@@ -717,3 +717,76 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
 
   return true;
 }
+
+static bool need_primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->underlying != TK_PRIMITIVE)
+      continue;
+
+    reach_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    return true;
+  }
+
+  return false;
+}
+
+static void primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->underlying != TK_PRIMITIVE)
+      continue;
+
+    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
+
+    if(m == NULL)
+      continue;
+
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
+
+    if(c->str__final == method)
+      LLVMSetInstructionCallConv(value, LLVMCCallConv);
+  }
+}
+
+void genfun_primitive_calls(compile_t* c)
+{
+  LLVMTypeRef fn_type = NULL;
+
+  if(need_primitive_call(c, c->str__init))
+  {
+    fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
+    const char* fn_name = genname_program_fn(c->filename, "primitives_init");
+    c->primitives_init = LLVMAddFunction(c->module, fn_name, fn_type);
+
+    codegen_startfun(c, c->primitives_init, NULL, NULL);
+    primitive_call(c, c->str__init);
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+  }
+
+  if(need_primitive_call(c, c->str__final))
+  {
+    if(fn_type == NULL)
+      fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
+    const char* fn_name = genname_program_fn(c->filename, "primitives_final");
+    c->primitives_final = LLVMAddFunction(c->module, fn_name, fn_type);
+
+    codegen_startfun(c, c->primitives_final, NULL, NULL);
+    primitive_call(c, c->str__final);
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+  }
+}

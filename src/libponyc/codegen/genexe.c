@@ -18,49 +18,6 @@
 #  include <unistd.h>
 #endif
 
-static bool need_primitive_call(compile_t* c, const char* method)
-{
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* t;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    if(t->underlying != TK_PRIMITIVE)
-      continue;
-
-    reach_method_name_t* n = reach_method_name(t, method);
-
-    if(n == NULL)
-      continue;
-
-    return true;
-  }
-
-  return false;
-}
-
-static void primitive_call(compile_t* c, const char* method)
-{
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* t;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    if(t->underlying != TK_PRIMITIVE)
-      continue;
-
-    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
-
-    if(m == NULL)
-      continue;
-
-    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
-
-    if(c->str__final == method)
-      LLVMSetInstructionCallConv(value, LLVMCCallConv);
-  }
-}
-
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -120,7 +77,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
-  primitive_call(c, c->str__init);
+  if(c->primitives_init != NULL)
+    LLVMBuildCall(c->builder, c->primitives_init, NULL, 0, "");
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -169,10 +127,10 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  if(need_primitive_call(c, c->str__final))
+  if(c->primitives_final != NULL)
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
-    primitive_call(c, c->str__final);
+    LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
   }

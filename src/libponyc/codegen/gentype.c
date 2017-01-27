@@ -784,6 +784,8 @@ bool gentypes(compile_t* c)
       return false;
   }
 
+  genfun_primitive_calls(c);
+
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Descriptors\n");
 
