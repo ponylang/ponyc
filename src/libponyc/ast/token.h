@@ -109,7 +109,6 @@ typedef enum token_id
   TK_OBJECT,
   TK_LAMBDA,
 
-  TK_DELEGATE,
   TK_AS,
   TK_IS,
   TK_ISNT,

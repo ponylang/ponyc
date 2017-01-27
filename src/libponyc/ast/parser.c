@@ -1061,11 +1061,7 @@ DEF(field);
   TOKEN("field name", TK_ID);
   SKIP("mandatory type declaration on field", TK_COLON);
   RULE("field type", type);
-  IF(TK_DELEGATE, RULE("delegated type", provides));
   IF(TK_ASSIGN, RULE("field value", infix));
-  // Order should be:
-  // id type value delegate_type
-  REORDER(0, 1, 3, 2);
   DONE();
 
 // {field} {method}

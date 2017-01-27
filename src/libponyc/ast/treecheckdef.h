@@ -67,8 +67,7 @@ RULE(field,
   HAS_TYPE(type)
   CHILD(id)
   CHILD(type, none)  // Field type
-  CHILD(expr, none)
-  CHILD(provides, none), // Delegate
+  CHILD(expr, none),
   TK_FLET, TK_FVAR, TK_EMBED);
 
 RULE(method,

@@ -225,27 +225,10 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
 
 bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, type, init, delegates);
-  bool ok = true;
-
-  for(ast_t* del = ast_child(delegates); del != NULL; del = ast_sibling(del))
-  {
-    errorframe_t err = NULL;
-
-    if(!is_subtype(type, del, &err, opt))
-    {
-      errorframe_t err2 = NULL;
-      ast_error_frame(&err2, ast, "field not a subtype of delegate");
-      errorframe_append(&err2, &err);
-      errorframe_report(&err2, opt->check.errors);
-      ok = false;
-    }
-  }
-
-  if(ok)
-    ast_settype(ast, type);
-
-  return ok;
+  (void)opt;
+  AST_GET_CHILDREN(ast, id, type, init);
+  ast_settype(ast, type);
+  return true;
 }
 
 bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
