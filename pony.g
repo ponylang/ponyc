@@ -30,7 +30,7 @@ members
   ;
 
 field
-  : ('var' | 'let' | 'embed') ID ':' type ('delegate' type)? ('=' infix)?
+  : ('var' | 'let' | 'embed') ID ':' type ('=' infix)?
   ;
 
 method

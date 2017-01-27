@@ -14,7 +14,6 @@ use "ponytest"
 // then keep the tests green.
 use ex_circle = "circle"
 use ex_counter = "counter"
-use ex_delegates = "delegates"
 use ex_echo = "echo"
 // use ex_ffi_struct = "ffi-struct"
 use ex_files = "files"

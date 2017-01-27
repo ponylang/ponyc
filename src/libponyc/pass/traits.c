@@ -13,27 +13,20 @@
 
 /** The following defines how we determine the signature and body to use for
  * some method M in type T.
- * Note that the flatten pass will already have ensured that provides and
- * delegates types contain only traits and interfaces, and converted those to
- * lists.
+ * Note that the flatten pass will already have ensured that provides types
+ * contain only traits and interfaces, and converted those to lists.
  *
  * 1. Explicit.
  *    If T provides an explicit definition of M we use that, including the body
  *    defined. If T provides a signature and no body, then T.M has no body,
  *    even if a body is available from some other source.
- * 2. Delegation.
- *    If T does not define M explicitly then we look at delegation.
- *    If exactly one field delegates to M then T gets an M with the signature
- *    as used in the delegation type.
- *    More than one field delegating to M is an error.
- *    Note that we don't delegate constructors.
- * 3. Compatible inheritance.
+ * 2. Compatible inheritance.
  *    If T gets an M from either (1) or (2) then we use "compatible"
  *    inheritance.
  *    Each M from T's provides list must be a supertype of T.M.
  *    Any default bodies of M from the provides list are ignored, even if T.M
  *    has no body.
- * 4. Identical inheritance.
+ * 3. Identical inheritance.
  *    If T does NOT get an M from either (1) or (2) then we use "identical"
  *    inheritance.
  *    All Ms from T's provides list must have identical signatures.
@@ -41,7 +34,7 @@
  *    If multiple default bodies are provided for M then T.M is body ambiguous.
  *    If any types in T's provides list are body ambiguous for M then T.M is
  *    body ambiguous.
- * 5. Required body.
+ * 4. Required body.
  *    If T is a concrete type then M must have a body. It is an error if it has
  *    no body or is body ambiguous.
  *    If T is a trait or interface then it is fine for M to have no body or be
@@ -61,7 +54,6 @@
 typedef struct method_t
 {
   ast_t* body_donor;  // Type body was defined in. NULL if we have no body.
-  ast_t* delegated_field;
   ast_t* trait_ref;
   bool local_define;
   bool failed;
@@ -69,16 +61,6 @@ typedef struct method_t
 
 
 static bool trait_entity(ast_t* entity, pass_opt_t* options);
-
-
-// Report whether the given node is a field.
-static bool is_field(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  token_id variety = ast_id(ast);
-  return (variety == TK_FVAR) || (variety == TK_FLET) || (variety == TK_EMBED);
-}
 
 
 // Report whether the given node is a method.
@@ -98,7 +80,6 @@ static method_t* attach_method_t(ast_t* method)
 
   method_t* p = POOL_ALLOC(method_t);
   p->body_donor = NULL;
-  p->delegated_field = NULL;
   p->trait_ref = NULL;
   p->local_define = false;
   p->failed = false;
@@ -304,7 +285,7 @@ static ast_t* find_method(ast_t* entity, const char* name)
 
 // Add a new method to the given entity, based on the specified method from
 // the specified type.
-// The trait_ref is the entry in the provides / delegates list that causes this
+// The trait_ref is the entry in the provides list that causes this
 // method inclusion. Needed for error reporting.
 // The basis_method is the reified method in the trait to add.
 // The adjective parameter is used for error reporting and should be "provided"
@@ -350,7 +331,10 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
 
   if(existing != NULL)
   {
-    assert(is_field(existing)); // Should already have checked for methods.
+    // Should already have checked for methods.
+    token_id variety = ast_id(existing);
+    (void)variety;
+    assert((variety == TK_FVAR) || (variety == TK_FLET) || (variety == TK_EMBED));
 
     ast_error(opt->check.errors, trait_ref,
       "%s method '%s' clashes with field", adjective, name);
@@ -512,7 +496,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   if(info->failed)
     return false;
 
-  if(info->local_define || info->delegated_field != NULL)
+  if(info->local_define)
     return true;
 
   // Existing method is also provided, signatures must match exactly.
@@ -621,173 +605,6 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
 }
 
 
-// Convert the given method into a delegation indirection to the specified
-// field.
-static void make_delegation(ast_t* method, ast_t* field, ast_t* delegate_ref,
-  ast_t* body_donor)
-{
-  assert(method != NULL);
-  assert(field != NULL);
-  assert(delegate_ref != NULL);
-
-  // Make a redirection method body.
-  ast_t* args = ast_from(delegate_ref, TK_NONE);
-  ast_t* last_arg = NULL;
-
-  AST_GET_CHILDREN(method, cap, id, t_params, params, result, error, old_body);
-
-  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
-  {
-    const char* param_name = ast_name(ast_child(p));
-
-    BUILD(arg, delegate_ref,
-      NODE(TK_SEQ,
-        NODE(TK_CONSUME,
-          NONE
-          NODE(TK_REFERENCE, ID(param_name)))));
-
-    ast_list_append(args, &last_arg, arg);
-    ast_setid(args, TK_POSITIONALARGS);
-  }
-
-  BUILD(body, delegate_ref,
-    NODE(TK_SEQ,
-      NODE(TK_CALL,
-        TREE(args)    // Positional args.
-        NODE(TK_NONE) // Named args.
-        NODE(TK_DOT,  // Receiver.
-          NODE(TK_REFERENCE, ID(ast_name(ast_child(field))))
-          ID(ast_name(ast_childidx(method, 1)))))));
-
-  if(is_none(result))
-  {
-    // Add None to end of body. Whilst the call generated above will return
-    // None anyway in this case, without this extra None testing is very hard
-    // since a directly written version of this body will have the None.
-    BUILD(none, delegate_ref, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, none);
-  }
-
-  ast_replace(&old_body, body);
-
-  // Setup method info.
-  method_t* info = (method_t*)ast_data(method);
-  assert(info != NULL);
-  info->body_donor = body_donor;
-  info->delegated_field = field;
-}
-
-
-// Combine the given delegated method with the existing one, if any, in the
-// given entity.
-// The trait_ref is the entry in the delegates list that causes this method
-// inclusion. Needed for error reporting.
-// Returns true on success, false on failure in which case an error will have
-// been reported.
-static bool delegated_method(ast_t* entity, ast_t* method, ast_t* field,
-  ast_t* trait_ref, pass_opt_t* opt)
-{
-  assert(entity != NULL);
-  assert(method != NULL);
-  assert(is_method(method));
-  assert(field != NULL);
-  assert(trait_ref != NULL);
-
-  if(ast_id(method) == TK_NEW)  // Don't delegate constructors.
-    return true;
-
-  // Check for existing method of the same name.
-  const char* name = ast_name(ast_childidx(method, 1));
-  assert(name != NULL);
-
-  ast_t* existing = find_method(entity, name);
-
-  if(existing != NULL)
-  {
-    // We already have a method with this name.
-    method_t* info = (method_t*)ast_data(existing);
-    assert(info != NULL);
-
-    // Nothing new to add.
-    if(info->local_define || info->delegated_field == field)
-      return true;
-
-    assert(info->trait_ref != NULL);
-
-    ast_error(opt->check.errors, trait_ref,
-      "clashing delegates for method %s, local disambiguation required", name);
-    ast_error_continue(opt->check.errors, trait_ref,
-      "field %s delegates to %s here", ast_name(ast_child(field)), name);
-    ast_error_continue(opt->check.errors, info->trait_ref,
-      "field %s delegates to %s here",
-      ast_name(ast_child(info->delegated_field)), name);
-    info->failed = true;
-    info->delegated_field = NULL;
-    return false;
-  }
-
-  // This is a new method, reify and add it.
-  ast_t* reified = reify_provides_type(method, trait_ref, opt);
-
-  // Reification error, already reported
-  if(reified == NULL)
-    return false;
-
-  ast_t* new_method = add_method(entity, trait_ref, reified, "delegate", opt);
-
-  if(new_method == NULL)
-  {
-    ast_free_unattached(reified);
-    return false;
-  }
-
-  // Convert the newly added method into a delegation redirection.
-  make_delegation(new_method, field, trait_ref, entity);
-  return true;
-}
-
-
-// Process the methods required for delegation to all the fields in the given
-// entity.
-static bool delegated_methods(ast_t* entity, pass_opt_t* opt)
-{
-  assert(entity != NULL);
-
-  bool r = true;
-
-  // Check all fields.
-  for(ast_t* field = ast_child(ast_childidx(entity, 4)); field != NULL;
-    field = ast_sibling(field))
-  {
-    if(is_field(field))
-    {
-      AST_GET_CHILDREN(field, id, f_type, value, delegates);
-
-      // Check all delegates for field.
-      for(ast_t* trait_ref = ast_child(delegates); trait_ref != NULL;
-        trait_ref = ast_sibling(trait_ref))
-      {
-        ast_t* trait = (ast_t*)ast_data(trait_ref);
-        assert(trait != NULL);
-
-        if(!trait_entity(trait, opt))
-          return false;
-
-        // Run through the methods of each delegated type.
-        for(ast_t* method = ast_child(ast_childidx(trait, 4));
-          method != NULL; method = ast_sibling(method))
-        {
-          if(!delegated_method(entity, method, field, trait_ref, opt))
-            r = false;
-        }
-      }
-    }
-  }
-
-  return r;
-}
-
-
 // Check that the given entity, if concrete, has bodies for all methods.
 static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 {
@@ -836,7 +653,7 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 }
 
 
-// Add provided and delegated methods to the given entity.
+// Add provided methods to the given entity.
 static bool trait_entity(ast_t* entity, pass_opt_t* opt)
 {
   assert(entity != NULL);
@@ -872,7 +689,6 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
   setup_local_methods(entity);
 
   bool r =
-    delegated_methods(entity, opt) &&
     provided_methods(entity, opt) &&
     check_concrete_bodies(entity, opt);
 

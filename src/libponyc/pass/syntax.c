@@ -291,10 +291,6 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
         if(!check_id_field(opt, ast_child(member)))
           r = false;
 
-        ast_t* delegate_type = ast_childidx(member, 3);
-        if(ast_id(delegate_type) != TK_NONE &&
-          !check_provides_type(opt, delegate_type, "delegate"))
-          r = false;
         break;
       }
 
