@@ -1076,6 +1076,8 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
         default: {}
       }
+
+      ast_free_unattached(find);
     }
   }
 

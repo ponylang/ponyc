@@ -25,6 +25,8 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   if(can_error == TK_QUESTION)
     ast_seterror(ast);
 
+  ast_free_unattached(method_def);
+
   return true;
 }
 
