@@ -81,7 +81,7 @@ typedef enum token_id
   TK_PIPE,
   TK_ISECTTYPE,
   TK_EPHEMERAL,
-  TK_BORROWED,
+  TK_ALIASED,
 
   TK_QUESTION,
   TK_UNARY_MINUS,
@@ -267,7 +267,7 @@ typedef enum token_id
   TK_TEST_NO_SEQ,
   TK_TEST_SEQ_SCOPE,
   TK_TEST_TRY_NO_CHECK,
-  TK_TEST_BORROWED,
+  TK_TEST_ALIASED,
   TK_TEST_UPDATEARG,
   TK_TEST_EXTRA
 } token_id;

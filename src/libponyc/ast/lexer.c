@@ -109,7 +109,7 @@ static const lextoken_t symbols[] =
   { "|", TK_PIPE },
   { "&", TK_ISECTTYPE },
   { "^", TK_EPHEMERAL },
-  { "!", TK_BORROWED },
+  { "!", TK_ALIASED },
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
@@ -205,7 +205,7 @@ static const lextoken_t keywords[] =
   { "$noseq", TK_TEST_NO_SEQ },
   { "$scope", TK_TEST_SEQ_SCOPE },
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
-  { "$borrowed", TK_TEST_BORROWED },
+  { "$aliased", TK_TEST_ALIASED },
   { "$updatearg", TK_TEST_UPDATEARG },
   { "$extra", TK_TEST_EXTRA },
   { "$ifdefand", TK_IFDEFAND },

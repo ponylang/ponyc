@@ -23,7 +23,7 @@ static void cap_aliasing(token_id* cap, token_id* eph)
       }
       break;
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       switch(*cap)
       {
         case TK_ISO:

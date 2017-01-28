@@ -155,7 +155,7 @@ DEF(gencap);
     TK_CAP_ALIAS, TK_CAP_ANY);
   DONE();
 
-// ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
+// ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | ALIASED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
@@ -166,7 +166,7 @@ DEF(nominal);
   );
   OPT RULE("type arguments", typeargs);
   OPT RULE("capability", cap, gencap);
-  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
   DONE();
 
 // PIPE type
@@ -225,7 +225,7 @@ DEF(typelist);
   DONE();
 
 // LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
-// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | BORROWED]
+// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | ALIASED]
 DEF(lambdatype);
   AST_NODE(TK_LAMBDATYPE);
   SKIP(NULL, TK_LBRACE);
@@ -239,7 +239,7 @@ DEF(lambdatype);
   OPT TOKEN(NULL, TK_QUESTION);
   SKIP(NULL, TK_RBRACE);
   OPT RULE("capability", cap, gencap);
-  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
   DONE();
 
 // (thistype | cap | typeexpr | nominal | lambdatype)
@@ -824,18 +824,18 @@ DEF(recover);
   TERMINATE("recover expression", TK_END);
   DONE();
 
-// $BORROWED
-DEF(test_borrowed);
+// $ALIASED
+DEF(test_aliased);
   PRINT_INLINE();
-  TOKEN(NULL, TK_TEST_BORROWED);
-  MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
+  TOKEN(NULL, TK_TEST_ALIASED);
+  MAP_ID(TK_TEST_ALIASED, TK_ALIASED);
   DONE();
 
-// CONSUME [cap | test_borrowed] term
+// CONSUME [cap | test_aliased] term
 DEF(consume);
   PRINT_INLINE();
   TOKEN("consume", TK_CONSUME);
-  OPT RULE("capability", cap, test_borrowed);
+  OPT RULE("capability", cap, test_aliased);
   RULE("expression", term);
   DONE();
 
@@ -899,7 +899,7 @@ DEF(nextterm);
 //     (CASE
 //       (LET $1 type)
 //       NONE
-//       (SEQ (CONSUME BORROWED $1))))
+//       (SEQ (CONSUME ALIASED $1))))
 //   (SEQ ERROR))
 DEF(asop);
   PRINT_INLINE();
