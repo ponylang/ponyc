@@ -122,8 +122,9 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Start the runtime.
-  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
-  LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 1, false);
+  LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
@@ -198,7 +199,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                                               : "ld";
 
   snprintf(ld_cmd, ld_len,
-    "%s -execute -no_pie -dead_strip -arch %.*s "
+    "%s -execute -no_pie -arch %.*s "
     "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt
@@ -255,8 +256,11 @@ static bool link_exe(compile_t* c, ast_t* program,
       PONY_COMPILER);
   }
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
-  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold " : "";
-  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl  " : "";
+  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
+  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
+  const char* export = target_is_linux(c->opt->triple) ?
+    "-Wl,--export-dynamic-symbol=__DescTable "
+    "-Wl,--export-dynamic-symbol=__DescTableSize" : "-rdynamic";
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
@@ -269,9 +273,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s "
-    "-lm",
-    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl
+    "%s %s %s %s -lpthread %s -lm %s",
+    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl,
+    export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

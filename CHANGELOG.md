@@ -160,6 +160,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
 - All arithmetic and logic operations are now fully defined for every input by default (issue #993)
 - Removed compiler flag `--ieee-math`
+- The `pony_start` runtime function now takes a `language_features` boolean parameter indicating whether the Pony-specific runtime features (e.g. network or serialisation) should be initialised
 
 ## [0.10.0] - 2016-12-12
 

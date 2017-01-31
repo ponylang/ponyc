@@ -9,6 +9,8 @@ typedef struct serialise_t serialise_t;
 
 DECLARE_HASHMAP(ponyint_serialise, ponyint_serialise_t, serialise_t);
 
+bool ponyint_serialise_setup();
+
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 

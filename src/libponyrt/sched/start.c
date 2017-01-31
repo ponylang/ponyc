@@ -5,6 +5,7 @@
 #include "../mem/heap.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
+#include "../gc/serialise.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
 #include <dtrace.h>
@@ -28,6 +29,7 @@ typedef struct options_t
 
 // global data
 static PONY_ATOMIC(int) exit_code;
+static bool language_init;
 
 enum
 {
@@ -120,10 +122,18 @@ int pony_init(int argc, char** argv)
   return argc;
 }
 
-int pony_start(bool library)
+int pony_start(bool library, bool language_features)
 {
-  if(!ponyint_os_sockets_init())
-    return -1;
+  if(language_features)
+  {
+    if(!ponyint_os_sockets_init())
+      return -1;
+
+    if(!ponyint_serialise_setup())
+      return -1;
+
+    language_init = true;
+  }
 
   if(!ponyint_sched_start(library))
     return -1;
@@ -137,7 +147,11 @@ int pony_start(bool library)
 int pony_stop()
 {
   ponyint_sched_stop();
-  ponyint_os_sockets_final();
+  if(language_init)
+  {
+    ponyint_os_sockets_final();
+    language_init = false;
+  }
 
   return atomic_load_explicit(&exit_code, memory_order_relaxed);
 }

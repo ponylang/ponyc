@@ -468,11 +468,13 @@ void gendesc_table(compile_t* c)
   LLVMValueRef value = LLVMConstArray(c->descriptor_ptr, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
+  LLVMSetDLLStorageClass(table, LLVMDLLExportStorageClass);
 
   LLVMValueRef table_size = LLVMAddGlobal(c->module, c->intptr,
     "__DescTableSize");
   LLVMSetInitializer(table_size, LLVMConstInt(c->intptr, len, false));
   LLVMSetGlobalConstant(table_size, true);
+  LLVMSetDLLStorageClass(table_size, LLVMDLLExportStorageClass);
 
   ponyint_pool_free_size(size, args);
 }
