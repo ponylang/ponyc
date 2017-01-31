@@ -341,9 +341,12 @@ int pony_init(int argc, char** argv);
  * exit code of 0, and the runtime won't terminate until pony_stop() is
  * called. This allows further processing to be done on the current thread.
  *
+ * If language_features is false, the features of the runtime specific to the
+ * Pony language, such as network or serialisation, won't be initialised.
+ *
  * It is not safe to call this again before the runtime has terminated.
  */
-int pony_start(bool library);
+int pony_start(bool library, bool language_features);
 
 /**
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be

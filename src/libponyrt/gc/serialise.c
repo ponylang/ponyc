@@ -1,15 +1,25 @@
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #include "serialise.h"
 #include "../sched/scheduler.h"
 #include "../lang/lang.h"
 #include <string.h>
 #include <assert.h>
 
+#if defined(PLATFORM_IS_POSIX_BASED)
+#include <dlfcn.h>
+#else
+#include <Windows.h>
+#endif
+
 #define HIGH_BIT ((size_t)1 << ((sizeof(size_t) * 8) - 1))
 
 PONY_EXTERN_C_BEGIN
 
-extern size_t __DescTableSize;
-extern pony_type_t* __DescTable;
+static size_t desc_table_size = 0;
+static pony_type_t** desc_table = NULL;
 
 PONY_EXTERN_C_END
 
@@ -62,6 +72,29 @@ static void serialise_cleanup(pony_ctx_t* ctx)
   ponyint_gc_discardstack(ctx);
   ctx->serialise_size = 0;
   ponyint_serialise_destroy(&ctx->serialise);
+}
+
+bool ponyint_serialise_setup()
+{
+#if defined(PLATFORM_IS_POSIX_BASED)
+  void* tbl_size_sym = dlsym(RTLD_DEFAULT, "__DescTableSize");
+  void* tbl_sym = dlsym(RTLD_DEFAULT, "__DescTable");
+#else
+  HMODULE program = GetModuleHandle(NULL);
+
+  if(program == NULL)
+    return false;
+
+  void* tbl_size_sym = (void*)GetProcAddress(program, "__DescTableSize");
+  void* tbl_sym = (void*)GetProcAddress(program, "__DescTable");
+#endif
+  if((tbl_size_sym == NULL) || (tbl_sym == NULL))
+    return false;
+
+  desc_table_size = *(size_t*)tbl_size_sym;
+  desc_table = (pony_type_t**)tbl_sym;
+
+  return true;
 }
 
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -195,13 +228,13 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   {
     offset &= ~HIGH_BIT;
 
-    if(offset > __DescTableSize)
+    if(offset > desc_table_size)
       return NULL;
 
     // Return the global instance, if there is one. It's ok to return null if
     // there is no global instance, as this will then be an unserialised
     // field in an opaque object.
-    t = (&__DescTable)[offset];
+    t = desc_table[offset];
     return t->instance;
   }
 
@@ -226,7 +259,7 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
 
     // Turn the type id into a descriptor pointer.
     uintptr_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
-    t = (&__DescTable)[id];
+    t = desc_table[id];
   }
 
   // If it's a primitive, return the global instance.
