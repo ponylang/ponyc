@@ -356,6 +356,76 @@ static trace_t trace_type(ast_t* type)
   return TRACE_DYNAMIC;
 }
 
+static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace)
+{
+  // A trace method suitable for tracing src with the refcap of dst.
+  switch(src_trace)
+  {
+    case TRACE_NONE:
+    case TRACE_MACHINE_WORD:
+    case TRACE_MAYBE:
+    case TRACE_PRIMITIVE:
+    case TRACE_DYNAMIC:
+    case TRACE_TUPLE:
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return src_trace;
+
+    case TRACE_VAL_KNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_TAG_KNOWN:
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_KNOWN;
+
+        default:
+          return TRACE_VAL_KNOWN;
+      }
+
+    case TRACE_VAL_UNKNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_UNKNOWN;
+
+        default:
+          return TRACE_VAL_UNKNOWN;
+      }
+
+    case TRACE_MUT_KNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_TAG_KNOWN:
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_KNOWN;
+
+        case TRACE_VAL_KNOWN:
+        case TRACE_VAL_UNKNOWN:
+          return TRACE_VAL_KNOWN;
+
+        default:
+          return TRACE_MUT_KNOWN;
+      }
+
+    case TRACE_MUT_UNKNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_UNKNOWN;
+
+        case TRACE_VAL_UNKNOWN:
+          return TRACE_VAL_UNKNOWN;
+
+        default:
+          return TRACE_MUT_UNKNOWN;
+      }
+
+    default:
+      assert(0);
+      return src_trace;
+  }
+}
+
 static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type)
 {
@@ -755,7 +825,11 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
   ast_t* src_type, ast_t* dst_type)
 {
-  switch(trace_type(src_type))
+  trace_t trace_method = trace_type(src_type);
+  if(dst_type != NULL)
+    trace_method = trace_type_dst_cap(trace_method, trace_type(dst_type));
+
+  switch(trace_method)
   {
     case TRACE_NONE:
       assert(0);
