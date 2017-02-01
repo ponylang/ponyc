@@ -412,3 +412,18 @@ TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
+
+TEST_F(BadPonyTest, UnionTypeErrorWhichCausedAbortDueToMissingError)
+{
+  const char* src =
+    "class A\n"
+    "class B\n"
+    "type C is (A | B)\n"
+
+    "class D\n"
+      "fun apply(c: C val) =>\n"
+        "match c | let a:A => let b = a end";
+
+  TEST_ERRORS_1(src, "this capture type has a mismatch in reference "
+                "capabilities, which can't be differentiated at runtime");
+}
