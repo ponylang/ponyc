@@ -230,12 +230,21 @@ inline uint32_t __pony_ctz(uint32_t x)
   return i;
 }
 
+#  ifdef PLATFORM_IS_ILP32
+inline uint32_t __pony_ctzl(uint32_t x)
+{
+  DWORD i = 0;
+  _BitScanForward(&i, x);
+  return i;
+}
+#  else
 inline uint64_t __pony_ctzl(uint64_t x)
 {
   DWORD i = 0;
   _BitScanForward64(&i, x);
   return i;
 }
+#  endif
 
 inline uint32_t __pony_clz(uint32_t x)
 {
@@ -244,12 +253,21 @@ inline uint32_t __pony_clz(uint32_t x)
   return 31 - i;
 }
 
+#  ifdef PLATFORM_IS_ILP32
+inline uint32_t __pony_clzl(uint32_t x)
+{
+  DWORD i = 0;
+  _BitScanReverse(&i, x);
+  return 31 - i;
+}
+#  else
 inline uint64_t __pony_clzl(uint64_t x)
 {
   DWORD i = 0;
   _BitScanReverse64(&i, x);
   return 63 - i;
 }
+#  endif
 
 #endif
 
