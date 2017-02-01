@@ -199,6 +199,7 @@ typedef struct pass_opt_t
   bool library;
   bool runtimebc;
   bool pic;
+  bool nopie;
   bool print_stats;
   bool verify;
   bool extfun;

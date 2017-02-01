@@ -349,6 +349,11 @@ int main(int argc, char* argv[])
   opt.strip_debug = true;
 #endif
 
+#if defined(DEFAULT_PIE)
+  if(!opt.pic)
+    opt.nopie = true;
+#endif
+
   if(!ok)
   {
     errors_print(opt.check.errors);

@@ -166,7 +166,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 #if defined(PLATFORM_IS_WINDOWS)
     "libponyrt.lib";
 #elif defined(PLATFORM_IS_LINUX)
-    c->opt->pic ? "-lponyrt-pic" : "-lponyrt";
+    c->opt->pic ? "-lponyrt-pic" :
+      c->opt->nopie ? "-no-pie -lponyrt" : "-lponyrt";
 #else
     "-lponyrt";
 #endif
