@@ -168,7 +168,7 @@ endif
 
 default_pie := $(shell $(CC) -v 2>&1 >/dev/null | grep enable-default-pie)
 ifneq ($(default_pie),)
-	ALL_CFLAGS += -DDEFAULT_PIE
+  ALL_CFLAGS += -DDEFAULT_PIE
 endif
 
 ifndef LLVM_CONFIG
