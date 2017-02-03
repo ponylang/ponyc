@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Performance fix in the runtime actor schedule (PR #1521)
 - Disallow type parameter names shadowing other types. (PR #1526)
 - Don't double resubscribe to asio events in TCPConnection (PR #1509)
 - Improve Map.get_or_else performance (PR #1482)
