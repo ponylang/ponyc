@@ -476,7 +476,7 @@ static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
   int i = 0;
 
   // We're a tuple, determined statically.
-  if(dst_type != NULL)
+  if((dst_type != NULL) && (ast_id(dst_type) == TK_TUPLETYPE))
   {
     ast_t* src_child = ast_child(src_type);
     ast_t* dst_child = ast_child(dst_type);
