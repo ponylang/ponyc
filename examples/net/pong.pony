@@ -31,7 +31,7 @@ class Pong is UDPNotify
     _env.out.print("Pong: not listening")
     sock.dispose()
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     try
       (let host, let service) = from.name()

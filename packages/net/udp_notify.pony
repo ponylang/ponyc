@@ -17,7 +17,7 @@ interface UDPNotify
     """
     None
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     """
     Called when new data is received on the socket.

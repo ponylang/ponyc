@@ -2,9 +2,9 @@ use "net"
 
 class Ping is UDPNotify
   let _env: Env
-  let _ip: IPAddress
+  let _ip: NetAddress
 
-  new create(env: Env, ip: IPAddress) =>
+  new create(env: Env, ip: NetAddress) =>
     _env = env
     _ip = ip
 
@@ -22,7 +22,7 @@ class Ping is UDPNotify
     _env.out.print("Ping: not listening")
     sock.dispose()
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     try
       (let host, let service) = from.name()

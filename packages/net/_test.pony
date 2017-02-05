@@ -16,9 +16,9 @@ actor Main is TestList
 
 class _TestPing is UDPNotify
   let _h: TestHelper
-  let _ip: IPAddress
+  let _ip: NetAddress
 
-  new create(h: TestHelper, ip: IPAddress) =>
+  new create(h: TestHelper, ip: NetAddress) =>
     _h = h
 
     _ip = try
@@ -54,7 +54,7 @@ class _TestPing is UDPNotify
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress) =>
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress) =>
     _h.complete_action("ping receive")
 
     let s = String.>append(consume data)
@@ -90,7 +90,7 @@ class _TestPong is UDPNotify
       _h.fail_action("ping create")
     end
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     _h.complete_action("pong receive")
 
