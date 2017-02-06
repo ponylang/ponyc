@@ -232,8 +232,8 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(r, result, pframe, opt)) {
-            if(is_subtype(result, r, pframe, opt))
+          } else if(!is_subtype_fun(r, result, pframe, opt)) {
+            if(is_subtype_fun(result, r, pframe, opt))
             {
               // Use the supertype function. Require the most specific
               // arguments and return the least specific result.
@@ -302,8 +302,8 @@ static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype(result, r, NULL, opt)) {
-            if(is_subtype(r, result, NULL, opt))
+          } else if(!is_subtype_fun(result, r, NULL, opt)) {
+            if(is_subtype_fun(r, result, NULL, opt))
             {
               // Use the subtype function. Require the least specific
               // arguments and return the most specific result.
