@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly resubscribe TCPConnection to ASIO events after throttling (PR #1558)
 - Performance fix in the runtime actor schedule (PR #1521)
 - Disallow type parameter names shadowing other types. (PR #1526)
 - Don't double resubscribe to asio events in TCPConnection (PR #1509)
