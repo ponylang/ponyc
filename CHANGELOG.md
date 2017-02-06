@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Rename IPAddress to NetAddress (PR #1559)
 - Remove delegates (RFC 31) (PR #1534)
 - Upgrade to LLVM 3.9.1 (PR #1498)
 - Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
