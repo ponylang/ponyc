@@ -1,4 +1,4 @@
-class val IPAddress
+class val NetAddress
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address
   type. The addr field is either the IPv4 address or the IPv6 flow info. The

@@ -300,19 +300,19 @@ actor TCPConnection
     """
     close()
 
-  fun local_address(): IPAddress =>
+  fun local_address(): NetAddress =>
     """
     Return the local IP address.
     """
-    let ip = recover IPAddress end
+    let ip = recover NetAddress end
     @pony_os_sockname[Bool](_fd, ip)
     ip
 
-  fun remote_address(): IPAddress =>
+  fun remote_address(): NetAddress =>
     """
     Return the remote IP address.
     """
-    let ip = recover IPAddress end
+    let ip = recover NetAddress end
     @pony_os_peername[Bool](_fd, ip)
     ip
 

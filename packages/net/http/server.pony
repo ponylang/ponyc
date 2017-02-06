@@ -13,7 +13,7 @@ actor Server
   let _reversedns: (DNSLookupAuth | None)
   let _sslctx: (SSLContext | None)
   let _listen: TCPListener
-  var _address: IPAddress
+  var _address: NetAddress
   var _dirty_routes: Bool = false
 
   new create(auth: TCPListenerAuth, notify: ServerNotify iso,
@@ -33,7 +33,7 @@ actor Server
     _listen = TCPListener(auth,
       _ServerListener(this, sslctx, _handler, _logger, _reversedns),
       host, service, limit)
-    _address = recover IPAddress end
+    _address = recover NetAddress end
 
   be set_handler(handler: RequestHandler) =>
     """
@@ -57,13 +57,13 @@ actor Server
     """
     _listen.dispose()
 
-  fun local_address(): IPAddress =>
+  fun local_address(): NetAddress =>
     """
     Returns the locally bound address.
     """
     _address
 
-  be _listening(address: IPAddress) =>
+  be _listening(address: NetAddress) =>
     """
     Called when we are listening.
     """

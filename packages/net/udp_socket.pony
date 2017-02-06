@@ -18,7 +18,7 @@ actor UDPSocket
   use "net"
 
   class MyUDPNotify is UDPNotify
-    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
     =>
       sock.write(consume data, from)
 
@@ -37,13 +37,13 @@ actor UDPSocket
 
   class MyUDPNotify is UDPNotify
     let _out: OutStream
-    let _destination: IPAddress
-    new create(out: OutStream, destination: IPAddress) =>
+    let _destination: NetAddress
+    new create(out: OutStream, destination: NetAddress) =>
       _out = out
       _destination = destination
     fun ref listening(sock: UDPSocket ref) =>
       sock.write("hello world", _destination)
-    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
     =>
       _out.print("GOT:" + String.from_array(consume data))
       sock.dispose()
@@ -64,8 +64,8 @@ actor UDPSocket
   var _closed: Bool = false
   var _packet_size: USize
   var _read_buf: Array[U8] iso
-  var _read_from: IPAddress iso = IPAddress
-  embed _ip: IPAddress = IPAddress
+  var _read_from: NetAddress iso = NetAddress
+  embed _ip: NetAddress = NetAddress
 
   new create(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
     service: String = "0", size: USize = 1024)
@@ -115,13 +115,13 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  be write(data: ByteSeq, to: IPAddress) =>
+  be write(data: ByteSeq, to: NetAddress) =>
     """
     Write a single sequence of bytes.
     """
     _write(data, to)
 
-  be writev(data: ByteSeqIter, to: IPAddress) =>
+  be writev(data: ByteSeqIter, to: NetAddress) =>
     """
     Write a sequence of sequences of bytes.
     """
@@ -204,7 +204,7 @@ actor UDPSocket
       _close()
     end
 
-  fun local_address(): IPAddress =>
+  fun local_address(): NetAddress =>
     """
     Return the bound IP address.
     """
@@ -259,7 +259,7 @@ actor UDPSocket
         while _readable do
           let size = _packet_size
           let data = _read_buf = recover Array[U8].>undefined(size) end
-          let from = recover IPAddress end
+          let from = recover NetAddress end
           let len = @pony_os_recvfrom[USize](_event, data.cpointer(),
             data.space(), from) ?
 
@@ -303,7 +303,7 @@ actor UDPSocket
       // Hand back read data
       let size = _packet_size
       let data = _read_buf = recover Array[U8].>undefined(size) end
-      let from = _read_from = recover IPAddress end
+      let from = _read_from = recover NetAddress end
       data.truncate(len.usize())
       _notify.received(this, consume data, consume from)
 
@@ -325,7 +325,7 @@ actor UDPSocket
       end
     end
 
-  fun ref _write(data: ByteSeq, to: IPAddress) =>
+  fun ref _write(data: ByteSeq, to: NetAddress) =>
     """
     Write the datagram to the socket.
     """
