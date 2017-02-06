@@ -15,6 +15,9 @@ bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super);
 bool is_subtype(ast_t* sub, ast_t* super, errorframe_t* errorf,
   pass_opt_t* opt);
 
+bool is_subtype_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
+  pass_opt_t* opt);
+
 bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errorf, pass_opt_t* opt);
 
 bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
