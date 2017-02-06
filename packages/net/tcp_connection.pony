@@ -256,6 +256,7 @@ actor TCPConnection
     if _connected and not _closed then
       _in_sent = true
       write_final(_notify.sent(this, data))
+      _resubscribe_event()
       _in_sent = false
     end
 
@@ -270,6 +271,7 @@ actor TCPConnection
       for bytes in _notify.sentv(this, data).values() do
         write_final(bytes)
       end
+      _resubscribe_event()
 
       _in_sent = false
     end
