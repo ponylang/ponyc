@@ -1,4 +1,6 @@
 use "ponytest"
+use "collections"
+use "buffered"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -17,6 +19,16 @@ actor Main is TestList
     test(_TestPathExt)
     test(_TestPathVolume)
     test(_TestFileEOF)
+    test(_TestFileOpenError)
+    test(_TestFileCreate)
+    test(_TestFileOpen)
+    test(_TestFileLongLine)
+    test(_TestFileWrite)
+    test(_TestFileWritev)
+    test(_TestFileQueue)
+    test(_TestFileQueuev)
+    test(_TestFileMixedWriteQueue)
+    test(_TestFileWritevLarge)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
@@ -245,6 +257,7 @@ class iso _TestPathVolume is UnitTest
       h.assert_eq[String](res2, "")
     end
 
+
 class iso _TestFileEOF is UnitTest
   fun name(): String => "files/File.eof-error"
   fun apply(h: TestHelper) =>
@@ -264,4 +277,240 @@ class iso _TestFileEOF is UnitTest
         h.assert_true(file.errno() is FileEOF)
       end
       filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+
+class iso _TestFileOpenError is UnitTest
+  fun name(): String => "files/File.open-error"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.openerror"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = OpenFile(filepath)
+      h.assert_true(file is FileError)
+    else
+      h.fail("Unhandled error!")
+    end
+
+
+class iso _TestFileCreate is UnitTest
+  fun name(): String => "files/File.create"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.create"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.print("foobar")
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      let line1 = file2.line()
+      h.assert_eq[String]("foobar", consume line1 )
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+
+class iso _TestFileOpen is UnitTest
+  fun name(): String => "files/File.open"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.open"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.print("foobar")
+      file.dispose()
+      let file2 = OpenFile(filepath) as File
+      let line1 = file2.line()
+      h.assert_eq[String]("foobar", consume line1 )
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+
+class iso _TestFileLongLine is UnitTest
+  fun name(): String => "files/File.longline"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.longline"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = File(filepath)
+      var longline = "foobar"
+      for d in Range(0, 10) do
+        longline = longline + longline
+      end
+      file.print(longline)
+      file.sync()
+      file.seek_start(0)
+      let line1 = file.line()
+      h.assert_eq[String](longline, consume line1 )
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileWrite is UnitTest
+  fun name(): String => "files/File.write"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.write"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.write("foobar\n")
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      let line1 = file2.line()
+      h.assert_eq[String]("foobar", consume line1 )
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileWritev is UnitTest
+  fun name(): String => "files/File.writev"
+  fun apply(h: TestHelper) =>
+    try
+      let wb: Writer ref = Writer
+      let line1 = "foobar\n"
+      let line2 = "barfoo\n"
+      wb.write(line1)
+      wb.write(line2)
+      let path = "tmp.writev"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.writev(wb.done())
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      let fileline1 = file2.line()
+      let fileline2 = file2.line()
+      h.assert_eq[String](line1.split("\n")(0), consume fileline1)
+      h.assert_eq[String](line2.split("\n")(0), consume fileline2)
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileQueue is UnitTest
+  fun name(): String => "files/File.queue"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.queue"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.queue("foobar\n")
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      let line1 = file2.line()
+      h.assert_eq[String]("foobar", consume line1 )
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileQueuev is UnitTest
+  fun name(): String => "files/File.queuev"
+  fun apply(h: TestHelper) =>
+    try
+      let wb: Writer ref = Writer
+      let line1 = "foobar\n"
+      let line2 = "barfoo\n"
+      wb.write(line1)
+      wb.write(line2)
+      let path = "tmp.queuev"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.queuev(wb.done())
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      let fileline1 = file2.line()
+      let fileline2 = file2.line()
+      h.assert_eq[String](line1.split("\n")(0), consume fileline1)
+      h.assert_eq[String](line2.split("\n")(0), consume fileline2)
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileMixedWriteQueue is UnitTest
+  fun name(): String => "files/File.mixedwrite"
+  fun apply(h: TestHelper) =>
+    try
+      let wb: Writer ref = Writer
+      let line1 = "foobar\n"
+      let line2 = "barfoo\n"
+      let line3 = "foobar2"
+      let line4 = "barfoo2"
+      let line5 = "foobar3\n"
+      let line6 = "barfoo3\n"
+      wb.write(line1)
+      wb.write(line2)
+      let writev_data = wb.done()
+      wb.write(line3)
+      wb.write(line4)
+      let printv_data = wb.done()
+      wb.write(line5)
+      wb.write(line6)
+      let queuev_data = wb.done()
+      let path = "tmp.mixedwrite"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.print(line3)
+      file.queue(line5)
+      file.write(line1)
+      file.printv(consume printv_data)
+      file.queuev(consume queuev_data)
+      file.writev(consume writev_data)
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      h.assert_eq[String](line3, file2.line())
+      h.assert_eq[String](line5.split("\n")(0), file2.line())
+      h.assert_eq[String](line1.split("\n")(0), file2.line())
+      h.assert_eq[String](line3, file2.line())
+      h.assert_eq[String](line4, file2.line())
+      h.assert_eq[String](line5.split("\n")(0), file2.line())
+      h.assert_eq[String](line6.split("\n")(0), file2.line())
+      h.assert_eq[String](line1.split("\n")(0), file2.line())
+      h.assert_eq[String](line2.split("\n")(0), file2.line())
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileWritevLarge is UnitTest
+  fun name(): String => "files/File.writevlarge"
+  fun apply(h: TestHelper) =>
+    try
+      let wb: Writer ref = Writer
+      let writev_batch_size: USize = 10 + @pony_os_writev_max[I32]().usize()
+      var count: USize = 0
+      while count < writev_batch_size do
+        wb.write(count.string() + "\n")
+        count = count + 1
+      end
+      let path = "tmp.writevlarge"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let file = CreateFile(filepath) as File
+      file.writev(wb.done())
+      file.dispose()
+      let file2 = CreateFile(filepath) as File
+      count = 0
+      while count < writev_batch_size do
+        let fileline1 = file2.line()
+        h.assert_eq[String](count.string(), consume fileline1)
+        count = count + 1
+      end
+      file2.dispose()
+      filepath.remove()
+    else
+      h.fail("Unhandled error!")
     end

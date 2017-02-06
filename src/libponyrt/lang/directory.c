@@ -6,6 +6,7 @@
 #if defined(PLATFORM_IS_WINDOWS)
 #include <direct.h>
 #include <errno.h>
+#include <fcntl.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
@@ -79,8 +80,6 @@ PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 
 #endif
 
-#if defined(PLATFORM_IS_POSIX_BASED)
-
 PONY_API int ponyint_o_rdonly()
 {
   return O_RDONLY;
@@ -100,6 +99,8 @@ PONY_API int ponyint_o_trunc()
 {
   return O_TRUNC;
 }
+
+#if defined(PLATFORM_IS_POSIX_BASED)
 
 PONY_API int ponyint_o_directory()
 {
