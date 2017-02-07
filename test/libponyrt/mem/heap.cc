@@ -47,12 +47,26 @@ TEST(Heap, Init)
   void* p4 = ponyint_heap_alloc(actor, &heap, 67);
   ASSERT_EQ(p, p4);
 
-  size_t large_size = (1 << 15) - 7;
+  size_t large_size = (1 << 22) - 7;
   void* p5 = ponyint_heap_alloc(actor, &heap, large_size);
   chunk_t* chunk5 = (chunk_t*)ponyint_pagemap_get(p5);
   ASSERT_EQ(actor, ponyint_heap_owner(chunk5));
 
   size_t adjust_size = ponyint_pool_adjust_size(large_size);
+  ASSERT_NE(chunk5, (chunk_t*)NULL);
+
+  char* p5_end = (char*)p5 + adjust_size;
+  char* p5_curr = (char*)p5;
+  chunk_t* p5_chunk = NULL;
+
+  while(p5_curr < p5_end)
+  {
+    p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_curr);
+    p5_curr += POOL_ALIGN;
+    ASSERT_EQ(chunk5, p5_chunk);
+  }
+  p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_end);
+  ASSERT_NE(chunk5, p5_chunk);
 
   size_t size5 = ponyint_heap_size(chunk5);
   ASSERT_EQ(adjust_size, size5);

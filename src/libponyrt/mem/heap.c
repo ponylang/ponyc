@@ -62,13 +62,7 @@ static double heap_nextgc_factor = 2.0;
 
 static void large_pagemap(char* m, size_t size, chunk_t* chunk)
 {
-  char* end = m + size;
-
-  while(m < end)
-  {
-    ponyint_pagemap_set(m, chunk);
-    m += POOL_ALIGN;
-  }
+  ponyint_pagemap_set_bulk(m, chunk, size);
 }
 
 static void clear_chunk(chunk_t* chunk, uint32_t mark)
