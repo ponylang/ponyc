@@ -39,7 +39,7 @@ PONY_EXTERN_C_BEGIN
 
 void pony_os_socket_close(int fd);
 
-// This must match the pony IPAddress type in packages/net.
+// This must match the pony NetAddress type in packages/net.
 typedef struct
 {
   pony_type_t* type;
