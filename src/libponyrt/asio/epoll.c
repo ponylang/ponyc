@@ -113,6 +113,54 @@ void ponyint_asio_backend_final(asio_backend_t* b)
   eventfd_write(b->wakeup, 1);
 }
 
+void pony_asio_event_resubscribe_write(asio_event_t* ev)
+{
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  struct epoll_event ep;
+  ep.data.ptr = ev;
+  ep.events = 0;
+
+  if(ev->flags & ASIO_ONESHOT)
+    ep.events |= EPOLLONESHOT;
+
+  if((ev->flags & ASIO_WRITE) && !ev->writeable)
+    ep.events |= EPOLLOUT;
+  else
+    return;
+
+  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+}
+
+void pony_asio_event_resubscribe_read(asio_event_t* ev)
+{
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  struct epoll_event ep;
+  ep.data.ptr = ev;
+  ep.events = EPOLLRDHUP | EPOLLET;
+
+  if(ev->flags & ASIO_ONESHOT)
+    ep.events |= EPOLLONESHOT;
+
+  if((ev->flags & ASIO_READ) && !ev->readable)
+    ep.events |= EPOLLIN;
+  else
+    return;
+
+  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+}
+
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   pony_register_thread();
@@ -136,13 +184,19 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       if(ev->flags & ASIO_READ)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+        {
           flags |= ASIO_READ;
+          ev->readable = true;
+        }
       }
 
       if(ev->flags & ASIO_WRITE)
       {
         if(ep->events & EPOLLOUT)
+        {
           flags |= ASIO_WRITE;
+          ev->writeable = true;
+        }
       }
 
       if(ev->flags & ASIO_TIMER)
@@ -169,7 +223,13 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       }
 
       if(flags != 0)
+      {
+        if(ev->auto_resub && !(flags & ASIO_WRITE))
+          pony_asio_event_resubscribe_write(ev);
+        if(ev->auto_resub && !(flags & ASIO_READ))
+          pony_asio_event_resubscribe_read(ev);
         pony_asio_event_send(ev, flags, count);
+      }
     }
 
     handle_queue(b);
@@ -245,6 +305,7 @@ void pony_asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_ONESHOT) {
     ep.events |= EPOLLONESHOT;
+    ev->auto_resub = true;
   }
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
@@ -310,31 +371,6 @@ void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   ev->flags = ASIO_DISPOSABLE;
   send_request(ev, ASIO_DISPOSABLE);
-}
-
-void pony_asio_event_resubscribe(asio_event_t* ev, uint32_t flags)
-{
-  if((ev == NULL) ||
-    (ev->flags == ASIO_DISPOSABLE) ||
-    (ev->flags == ASIO_DESTROYED))
-    return;
-
-  asio_backend_t* b = ponyint_asio_get_backend();
-
-  struct epoll_event ep;
-  ep.data.ptr = ev;
-  ep.events = EPOLLRDHUP | EPOLLET;
-
-  if(flags & ASIO_ONESHOT)
-    ep.events |= EPOLLONESHOT;
-
-  if(flags & ASIO_READ)
-    ep.events |= EPOLLIN;
-
-  if(flags & ASIO_WRITE)
-    ep.events |= EPOLLOUT;
-
-  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
 }
 
 #endif
