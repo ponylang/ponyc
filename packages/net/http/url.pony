@@ -44,13 +44,6 @@ class val URL
       error
     end
 
-    user = URLEncode.decode(user)
-    password = URLEncode.decode(password)
-    host = URLEncode.decode(host)
-    path = URLEncode.decode(path)
-    query = URLEncode.decode(query)
-    fragment = URLEncode.decode(fragment)    
-
   fun is_valid(): Bool =>
     """
     Return true if all elements are correctly URL encoded.
@@ -141,7 +134,7 @@ class val URL
     Raises an error on invalid port number.
     """
     (var offset, scheme) = _parse_scheme(from)
-    (offset, let authority) = _parse_part(from, "//", "@/?#", offset)
+    (offset, let authority) = _parse_part(from, "//", "/?#", offset)
     (offset, path) = _parse_part(from, "", "?#", offset)
     (offset, query) = _parse_part(from, "?", "#", offset)
     (offset, fragment) = _parse_part(from, "#", "", offset)
