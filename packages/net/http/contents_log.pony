@@ -7,7 +7,7 @@ class ContentsLog
   new val create(out: OutStream) =>
     _out = out
 
-  fun val apply(ip: String, request: Payload val, response: Payload val) =>
+  fun val apply(ip: String, request: Payload val, response: Payload val) ? =>
     let list = recover Array[ByteSeq] end
 
     list.push("REQUEST\n")
