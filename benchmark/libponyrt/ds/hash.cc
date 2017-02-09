@@ -6,6 +6,7 @@
 
 #include <ds/fun.h>
 #include <ds/hash.h>
+#include <iostream>
 
 #define INITIAL_SIZE 8
 #define BELOW_HALF (INITIAL_SIZE + (2 - 1)) / 2
@@ -136,7 +137,8 @@ BENCHMARK_DEFINE_F(HashMapBench, HashResize)(benchmark::State& st) {
     st.PauseTiming();
     if(_map.contents.size == old_size)
     {
-      printf("Shouldn't happen b: count: %lu, size: %lu, old_size: %lu\n", testmap_size(&_map), _map.contents.size, old_size);
+      std::cout << "Shouldn't happen b: count: " << testmap_size(&_map) << ", size: "
+        << _map.contents.size << ", old_size: " << old_size << std::endl;
       st.SkipWithError("Map should have resized!");
       break; // Needed to skip the rest of the iteration.
     }
@@ -270,7 +272,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemove)(benchmark::State& st) {
         // exclude memory free time
         free_elem(n2);
       } else {
-        printf("%d not found\n", i);
+        std::cout << i << "not found" << std::endl;
         st.SkipWithError("Item shouldn't be NULL!");
         break; // Needed to skip the rest of the iteration.
       }
@@ -304,7 +306,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemoveIndex)(benchmark::State& st) {
         // exclude memory free time
         free_elem(n2);
       } else {
-        printf("%d not found\n", i);
+        std::cout << i << "not found" << std::endl;
         st.SkipWithError("Item shouldn't be NULL!");
         break; // Needed to skip the rest of the iteration.
       }
