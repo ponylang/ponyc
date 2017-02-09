@@ -26,6 +26,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Readline interpret C-d on empty line as EOF (PR #1504)
 - AST annotations (RFC 27) (PR #1485)
 - Unsafe mathematic and logic operations. Can be faster but can have undefined results for some inputs (issue #993)
+- Equality comparison for NetAddress (PR #1569)
+- Host address comparison for NetAddress (PR #1569)
 
 ### Changed
 
