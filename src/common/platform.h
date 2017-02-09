@@ -283,10 +283,10 @@ inline uint64_t __pony_clzl(uint64_t x)
 #endif
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
-#  define __pony_spec_malloc__(FUNC, ...) \
+#  define __pony_spec_malloc__(FUNC) \
             __declspec(restrict) FUNC
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)
-#  define __pony_spec_malloc__(FUNC, ...) \
+#  define __pony_spec_malloc__(FUNC) \
             FUNC __attribute__((malloc))
 #endif
 
