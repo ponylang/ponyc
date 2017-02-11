@@ -1,12 +1,12 @@
 use mut = "collections"
 
-type _MapCollisions[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+type _MapCollisions[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   is Array[_MapLeaf[K, V]] val
 
-type _MapEntry[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+type _MapEntry[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   is (_MapNode[K, V] | _MapCollisions[K, V] | _MapLeaf[K, V])
 
-class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   let _entries: Array[_MapEntry[K, V]] val
   let _nodemap: U32
   let _datamap: U32
@@ -30,7 +30,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     _datamap = dm
     _level = l
 
-  fun val apply(hash: U32, key: K): val->V ? =>
+  fun val apply(hash: U32, key: K): V ? =>
     let idx = _mask(hash, _level)
     let i = _array_index(_nodemap, _datamap, idx)
     if i == -1 then error end
@@ -169,7 +169,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun entries(): Array[_MapEntry[K, V]] val => _entries
 
-class val _MapLeaf[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class val _MapLeaf[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   let hash: U32
   let key: K
   let value: V
