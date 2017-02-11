@@ -252,7 +252,10 @@ actor TCPConnection
     _max_size = max_size
 
     _notify.accepted(this)
+
+    _readable = true
     _queue_read()
+    _pending_reads()
 
   be write(data: ByteSeq) =>
     """
@@ -370,9 +373,11 @@ actor TCPConnection
             _event = event
             _connected = true
             _writeable = true
+            _readable = true
 
             _notify.connected(this)
             _queue_read()
+            _pending_reads()
 
             // Don't call _complete_writes, as Windows will see this as a
             // closed connection.
