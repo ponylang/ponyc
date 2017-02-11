@@ -21,7 +21,7 @@ actor _TestRunner
   var _is_long_test: Bool = false
   var _completed: Bool = false
   var _tearing_down: Bool = false
-  var _timer: (Timer tag | None) = None
+  var _test_timers: Array[Timer tag] = Array[Timer tag]
 
   new create(ponytest: PonyTest, id: USize, test: UnitTest iso, group: _Group,
     verbose: Bool, env: Env, timers: Timers)
@@ -98,12 +98,11 @@ actor _TestRunner
       _log("Complete(true) called", true)
     end
 
-    try
+    for timer in _test_timers.values() do
       // Cancel timeout, if in operation.
-      let timer = _timer as Timer tag
       _timers.cancel(timer)
-      _timer = None
     end
+    _test_timers.clear()
 
     _completed = true
     _tear_down()
@@ -198,7 +197,7 @@ actor _TestRunner
       fun apply(timer: Timer, count: U64): Bool => _runner._timeout(); false
       fun cancel(timer: Timer) => None
       end, timeout)
-    _timer = timer
+    _test_timers.push(timer)
     _timers(consume timer)
 
   be _timeout() =>
