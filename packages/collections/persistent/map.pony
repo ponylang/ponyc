@@ -9,7 +9,7 @@ primitive Maps
     Map[K, V]._empty()
 
   fun val from[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  (pairs: Array[(K, V)]): Map[K, V] ? =>
+  (pairs: Array[(K, val->V)]): Map[K, V] ? =>
     """
     Return a map containing the provided key-value pairs.
     """
@@ -48,7 +48,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     _root = r
     _size = s
 
-  fun val apply(k: K): V ? =>
+  fun val apply(k: K): val->V ? =>
     """
     Attempt to get the value corresponding to k.
     """
@@ -60,7 +60,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     _size
 
-  fun val update(key: K, value: V): Map[K, V] ? =>
+  fun val update(key: K, value: val->V): Map[K, V] ? =>
     """
     Update the value associated with the provided key.
     """
@@ -75,7 +75,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     _create(_root.remove(k.hash().u32(), k), _size-1)
 
-  fun val get_or_else(k: K, alt: V): V =>
+  fun val get_or_else(k: K, alt: val->V): val->V =>
     """
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
@@ -122,7 +122,7 @@ class MapValues[K: (mut.Hashable val & Equatable[K]), V: Any #share]
 
   fun has_next(): Bool => _pairs.has_next()
 
-  fun ref next(): V ? => _pairs.next()._2
+  fun ref next(): val->V ? => _pairs.next()._2
 
 class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   embed _path: Array[_MapNode[K, V]]
@@ -140,7 +140,7 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
 
   fun has_next(): Bool => _i < _size
 
-  fun ref next(): (K, V) ? =>
+  fun ref next(): (K, val->V) ? =>
     (let n, let i) = _cur()
     if i >= n.entries().size() then
       _backup()
