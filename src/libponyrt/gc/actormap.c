@@ -61,13 +61,15 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
   actorref_t* to = NULL;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
+  bool needs_optimize = false;
 
   while((obj = ponyint_objectmap_next(&from->map, &i)) != NULL)
   {
     if(obj->mark == mark)
       continue;
 
-    ponyint_objectmap_removeindex(&from->map, i);
+    ponyint_objectmap_clearindex(&from->map, i);
+    needs_optimize = true;
 
     if(to == NULL)
     {
@@ -78,6 +80,9 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 
     ponyint_objectmap_put(&to->map, obj);
   }
+
+  if(needs_optimize)
+    ponyint_objectmap_optimize(&from->map);
 
   return to;
 }
@@ -125,6 +130,7 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
+  bool needs_optimize = false;
 
   while((aref = ponyint_actormap_next(map, &i)) != NULL)
   {
@@ -132,12 +138,16 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
     {
       aref = move_unmarked_objects(aref, mark);
     } else {
-      ponyint_actormap_removeindex(map, i);
+      ponyint_actormap_clearindex(map, i);
       delta = ponyint_deltamap_update(delta, aref->actor, 0);
+      needs_optimize = true;
     }
 
     send_release(ctx, aref);
   }
+
+  if(needs_optimize)
+    ponyint_actormap_optimize(map);
 
   return delta;
 }

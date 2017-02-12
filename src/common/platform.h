@@ -215,6 +215,8 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
 #  define __pony_popcount(X) __builtin_popcount((X))
+#  define __pony_ffs(X) __builtin_ffs((X))
+#  define __pony_ffsl(X) __builtin_ffsl((X))
 #  define __pony_ctz(X) __builtin_ctz((X))
 #  define __pony_ctzl(X) __builtin_ctzl((X))
 #  define __pony_clz(X) __builtin_clz((X))
@@ -222,6 +224,29 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
 #else
 #  include <intrin.h>
 #  define __pony_popcount(X) __popcnt((X))
+
+inline uint32_t __pony_ffs(uint32_t x)
+{
+  DWORD i = 0;
+  unsigned char non_zero = _BitScanForward(&i, x);
+  return non_zero ? i + 1 : 0;
+}
+  
+#  ifdef PLATFORM_IS_ILP32
+inline uint32_t __pony_ffsl(uint32_t x)
+{
+  DWORD i = 0;
+  unsigned char non_zero = _BitScanForward(&i, x);
+  return non_zero ? i + 1 : 0;
+}
+#  else
+inline uint64_t __pony_ffsl(uint64_t x)
+{
+  DWORD i = 0;
+  unsigned char non_zero = _BitScanForward64(&i, x);
+  return non_zero ? i + 1 : 0;
+}
+#  endif
 
 inline uint32_t __pony_ctz(uint32_t x)
 {
