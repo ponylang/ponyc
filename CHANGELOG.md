@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix TCP Connection data receive race condition (PR #1578)
 - Fix Linux epoll event resubscribe performance and race condition. (PR #1564)
 - Correctly resubscribe TCPConnection to ASIO events after throttling (PR #1558)
 - Performance fix in the runtime actor schedule (PR #1521)
