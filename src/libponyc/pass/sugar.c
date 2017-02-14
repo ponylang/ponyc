@@ -1227,7 +1227,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_FUN:              return sugar_fun(options, ast);
     case TK_RETURN:           return sugar_return(options, ast);
     case TK_IF:
-    case TK_MATCH:
     case TK_WHILE:
     case TK_REPEAT:           return sugar_else(ast, 2);
     case TK_IFTYPE:           return sugar_else(ast, 3);

@@ -10,6 +10,10 @@
 #define TEST_ERROR(src) DO(test_error(src, "expr"))
 #define TEST_EQUIV(src, expect) DO(test_equiv(src, "expr", expect, "expr"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 
 class SugarExprTest : public PassTest
 {};
@@ -601,4 +605,263 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "    None";
 
   TEST_EQUIV(short_form, full_form);
+}
+
+
+// Exhaustive Match
+
+TEST_F(SugarExprTest, MatchExhaustiveAllCasesOfUnion)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 => false\n"
+    "    | let t: T3 => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveSomeCasesMissing)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 => false\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveSomeCasesGuarded)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3 fun gt(u: U8): Bool\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 => false\n"
+    "    | let t: T3 if t > 0 => false\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveAllCasesPlusSomeCasesGuarded)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2 fun gt(u: U8): Bool\n"
+    "trait T3 fun gt(u: U8): Bool\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 if t > 0 => false\n"
+    "    | let t: T2 => true\n"
+    "    | let t: T3 if t > 0 => false\n"
+    "    | let t: T3 => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveSomeCasesEqMethod)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3 fun eq(other: T3): Bool\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3), t3: T3): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 => false\n"
+    "    | t3 => false\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveAllCasesPlusSomeCasesEqMethod)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2 fun eq(other: T3): Bool\n"
+    "trait T3 fun eq(other: T3): Bool\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3), t2: T2, t3: T3): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | t2 => false\n"
+    "    | let t: T2 => true\n"
+    "    | t3 => false\n"
+    "    | let t: T3 => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | (T3, Bool))): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let _: T2 => false\n"
+    "    | (let t: T3, let _: Bool) => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveSomeTupleCaseElementsMatchOnValue)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | (T3, Bool))): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let _: T2 => false\n"
+    "    | (let t: T3, true) => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveAllCasesPrimitiveValues)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t: (P1 | P2 | P3)): Bool =>\n"
+    "    match t\n"
+    "    | P1 | P2 => false\n"
+    "    | P3 => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesSomeCasesMissing)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+
+    "primitive Foo\n"
+    "  fun apply(p: (P1 | P2 | P3)): Bool =>\n"
+    "    match p\n"
+    "    | P1 => false\n"
+    "    | P3 => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesMachineWords)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(n: (U64 | U32 | U8)): Bool =>\n"
+    "    match n\n"
+    "    | U64(0) => false\n"
+    "    | U32(0) => true\n"
+    "    | U8(0) => false\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesCustomEqMethod)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3 fun eq(that: P3): Bool => this isnt that\n"
+
+    "primitive Foo\n"
+    "  fun apply(p: (P1 | P2 | P3)): Bool =>\n"
+    "    match p\n"
+    "    | P1 | P2 => false\n"
+    "    | P3 => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveClassValues)
+{
+  const char* src =
+    "class C1 fun eq(that: C1): Bool => this is that\n"
+    "class C2 fun eq(that: C2): Bool => this is that\n"
+    "class C3 fun eq(that: C3): Bool => this is that\n"
+
+    "primitive Foo\n"
+    "  fun apply(c: (C1 | C2 | C3)): Bool =>\n"
+    "    match c\n"
+    "    | C1 | C2 => false\n"
+    "    | C3 => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveTupleIncludesDontCareType)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(t: (U32, U32)): Bool =>\n"
+    "    match t\n"
+    "    | (0, 0) => true\n"
+    "    | (let c: U32, _) => c != 7\n"
+    "    end";
+
+  TEST_COMPILE(src);
 }
