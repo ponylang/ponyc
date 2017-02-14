@@ -861,6 +861,16 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeCodeGen(passreg);
   LLVMInitializeTarget(passreg);
 
+  if(opt->features != NULL)
+  {
+    opt->features = LLVMCreateMessage(opt->features);
+  } else {
+    if((opt->cpu == NULL) && (opt->triple == NULL))
+      opt->features = LLVMGetHostCPUFeatures();
+    else
+      opt->features = LLVMCreateMessage("");
+  }
+
   // Default triple, cpu and features.
   if(opt->triple != NULL)
   {
@@ -878,11 +888,6 @@ bool codegen_init(pass_opt_t* opt)
     opt->cpu = LLVMCreateMessage(opt->cpu);
   else
     opt->cpu = LLVMGetHostCPUName();
-
-  if(opt->features != NULL)
-    opt->features = LLVMCreateMessage(opt->features);
-  else
-    opt->features = LLVMCreateMessage("");
 
   return true;
 }

@@ -33,6 +33,39 @@ char* LLVMGetHostCPUName()
   return strdup(sys::getHostCPUName().str().c_str());
 }
 
+char* LLVMGetHostCPUFeatures()
+{
+  StringMap<bool> features;
+  bool got_features = sys::getHostCPUFeatures(features);
+  assert(got_features);
+  (void)got_features;
+
+  // Calculate the size of buffer that will be needed to return all features.
+  size_t buf_size = 0;
+  for(auto it = features.begin(); it != features.end(); it++)
+    buf_size += (*it).getKey().str().length() + 2; // plus +/- char and ,/null
+
+  char* buf = (char*)malloc(buf_size);
+  assert(buf != NULL);
+  buf[0] = 0;
+
+  for(auto it = features.begin(); it != features.end();)
+  {
+    if((*it).getValue())
+      strcat(buf, "+");
+    else
+      strcat(buf, "-");
+
+    strcat(buf, (*it).getKey().str().c_str());
+
+    it++;
+    if(it != features.end())
+      strcat(buf, ",");
+  }
+
+  return buf;
+}
+
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
