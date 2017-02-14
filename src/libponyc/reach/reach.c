@@ -962,6 +962,14 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 
   if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
+    if(name == stringtab("_final"))
+    {
+      // If the method is a finaliser, don't mark the ref and val versions as
+      // reachable.
+      assert(n->cap == TK_BOX);
+      return;
+    }
+
     // TODO: if it doesn't use this-> in a constructor, we could reuse the
     // function, which means always reuse in a fun tag
     bool subordinate = (n->cap == TK_TAG);
