@@ -2,6 +2,9 @@
 #define sched_mpmcq_h
 
 #include <stdint.h>
+#ifndef __cplusplus
+#  include <stdalign.h>
+#endif
 #include <platform.h>
 #include <pony/detail/atomics.h>
 
@@ -9,19 +12,19 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct mpmcq_node_t mpmcq_node_t;
 
-typedef struct mpmcq_dwcas_t
-{
-  uintptr_t aba;
-  mpmcq_node_t* node;
-} mpmcq_dwcas_t;
+PONY_ABA_PROTECTED_DECLARE(mpmcq_node_t*)
 
-__pony_spec_align__(
-  typedef struct mpmcq_t
-  {
-    PONY_ATOMIC(mpmcq_node_t*) head;
-    PONY_ATOMIC(mpmcq_dwcas_t) tail;
-  } mpmcq_t, 64
-);
+typedef struct mpmcq_t
+{
+  alignas(64) PONY_ATOMIC(mpmcq_node_t*) head;
+#ifdef PLATFORM_IS_X86
+  PONY_ATOMIC_ABA_PROTECTED(mpmcq_node_t*) tail;
+#else
+  // On ARM, the ABA problem is dealt with by the hardware with
+  // LoadLinked/StoreConditional instructions.
+  PONY_ATOMIC(mpmcq_node_t*) tail;
+#endif
+} mpmcq_t;
 
 void ponyint_mpmcq_init(mpmcq_t* q);
 

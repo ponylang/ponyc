@@ -275,14 +275,6 @@ inline uint64_t __pony_clzl(uint64_t x)
  *
  */
 #ifdef PLATFORM_IS_VISUAL_STUDIO
-#  define __pony_spec_align__(IDENT, BYTES) \
-              __declspec(align(BYTES)) IDENT
-#elif defined(PLATFORM_IS_CLANG_OR_GCC)
-#  define __pony_spec_align__(IDENT, BYTES) \
-              IDENT __attribute__((aligned (BYTES)))
-#endif
-
-#ifdef PLATFORM_IS_VISUAL_STUDIO
 #  define __pony_spec_malloc__(FUNC) \
             __declspec(restrict) FUNC
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)

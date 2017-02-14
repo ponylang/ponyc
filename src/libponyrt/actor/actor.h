@@ -7,6 +7,9 @@
 #include <pony.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifndef __cplusplus
+#  include <stdalign.h>
+#endif
 #include <platform.h>
 
 PONY_EXTERN_C_BEGIN
@@ -26,7 +29,7 @@ typedef struct pony_actor_t
   uint8_t flags;
 
   // keep things accessed by other actors on a separate cache line
-  __pony_spec_align__(heap_t heap, 64); // 52/104 bytes
+  alignas(64) heap_t heap; // 52/104 bytes
   gc_t gc; // 44/80 bytes
 } pony_actor_t;
 
