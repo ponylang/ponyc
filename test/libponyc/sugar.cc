@@ -946,8 +946,6 @@ TEST_F(SugarTest, MatchWithNoElse)
     "  fun box f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 2\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -1881,8 +1879,6 @@ TEST_F(SugarTest, CaseFunction)
     "    | 0 => 0\n"
     "    | 1 => 1\n"
     "    | $let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -1912,8 +1908,6 @@ TEST_F(SugarTest, CaseFunctionPlusOtherFun)
     "    | 0 => 0\n"
     "    | 1 => 1\n"
     "    | $let y: U64 => fib(y.sub(2)).add(fib(y.sub(1)))\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -1942,8 +1936,6 @@ TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let x: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end\n"
     "  fun box bar(y: U32): (None | U32 | U32) =>\n"
     "    $3(consume y)\n"
@@ -1951,8 +1943,6 @@ TEST_F(SugarTest, CaseFunction2InOneClassPlusOtherFun)
     "    match consume $4\n"
     "    | 0 => 0\n"
     "    | $let y: U32 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -1979,8 +1969,6 @@ TEST_F(SugarTest, CaseFunctionParamNamedTwice)
     "    | 0 => 0\n"
     "    | $let y: U64 => 1\n"
     "    | $let y: U64 => 2\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2005,8 +1993,6 @@ TEST_F(SugarTest, CaseFunction2Params)
     "    match (consume $2, consume $3)\n"
     "    | (0, 0) => 0\n"
     "    | ($let a: U64, $let b: U32) => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2031,8 +2017,6 @@ TEST_F(SugarTest, CaseFunctionParamTypeUnion)
     "    match consume $2\n"
     "    | $let a: U32 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2057,8 +2041,6 @@ TEST_F(SugarTest, CaseFunctionReturnUnion)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2083,8 +2065,6 @@ TEST_F(SugarTest, CaseFunctionCap)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2121,8 +2101,6 @@ TEST_F(SugarTest, CaseFunctionOneErrors)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2147,8 +2125,6 @@ TEST_F(SugarTest, CaseFunctionAllError)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2247,8 +2223,6 @@ TEST_F(SugarTest, CaseFunctionDontCare)
     "    | (0, _) => 0\n"
     "    | ($let a: U64, $let b: U32) => 1\n"
     "    | (_, _) => 2\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2273,8 +2247,6 @@ TEST_F(SugarTest, CaseFunctionGuard)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 if a.gt(3) => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2299,8 +2271,6 @@ TEST_F(SugarTest, CaseFunctionDefaultValue)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2337,8 +2307,6 @@ TEST_F(SugarTest, CaseBehaviour)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end\n"
     "    None";
 
@@ -2388,8 +2356,6 @@ TEST_F(SugarTest, CaseFunctionTypeParam)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2414,8 +2380,6 @@ TEST_F(SugarTest, CaseFunction2TypeParams)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2440,8 +2404,6 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraint)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2466,8 +2428,6 @@ TEST_F(SugarTest, CaseFunctionTypeParamConstraintIntersect)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
@@ -2517,8 +2477,6 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParam)
     "    match consume $2\n"
     "    | 0 => 0\n"
     "    | $let a: U64 => 1\n"
-    "    else\n"
-    "      None\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);

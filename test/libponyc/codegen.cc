@@ -153,3 +153,84 @@ TEST_F(CodegenTest, CCallback)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 6);
 }
+
+
+TEST_F(CodegenTest, MatchExhaustiveAllCasesOfUnion)
+{
+  const char* src =
+    "class C1 fun one(): I32 => 1\n"
+    "class C2 fun two(): I32 => 2\n"
+    "class C3 fun three(): I32 => 3\n"
+
+    "primitive Foo\n"
+    "  fun apply(c': (C1 | C2 | C3)): I32 =>\n"
+    "    match c'\n"
+    "    | let c: C1 => c.one()\n"
+    "    | let c: C2 => c.two()\n"
+    "    | let c: C3 => c.three()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @pony_exitcode[None](Foo(C3))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 3);
+}
+
+
+TEST_F(CodegenTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
+{
+  const char* src =
+    "class C1 fun one(): I32 => 1\n"
+    "class C2 fun two(): I32 => 2\n"
+    "class C3 fun three(): I32 => 3\n"
+
+    "primitive Foo\n"
+    "  fun apply(c': (C1 | C2 | (C3, Bool))): I32 =>\n"
+    "    match c'\n"
+    "    | let c: C1 => c.one()\n"
+    "    | let _: C2 => 2\n"
+    "    | (let c: C3, let _: Bool) => c.three()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @pony_exitcode[None](Foo((C3, true)))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 3);
+}
+
+
+TEST_F(CodegenTest, MatchExhaustiveAllCasesPrimitiveValues)
+{
+  const char* src =
+    "primitive P1 fun one(): I32 => 1\n"
+    "primitive P2 fun two(): I32 => 2\n"
+    "primitive P3 fun three(): I32 => 3\n"
+
+    "primitive Foo\n"
+    "  fun apply(p': (P1 | P2 | P3)): I32 =>\n"
+    "    match p'\n"
+    "    | let p: P1 => p.one()\n"
+    "    | let p: P2 => p.two()\n"
+    "    | let p: P3 => p.three()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @pony_exitcode[None](Foo(P3))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 3);
+}

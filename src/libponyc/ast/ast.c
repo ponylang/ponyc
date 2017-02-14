@@ -1044,6 +1044,9 @@ void ast_inheritstatus(ast_t* dst, ast_t* src)
 
 void ast_inheritbranch(ast_t* dst, ast_t* src)
 {
+  pony_assert(dst->symtab != NULL);
+  pony_assert(src->symtab != NULL);
+
   symtab_inherit_branch(dst->symtab, src->symtab);
 }
 

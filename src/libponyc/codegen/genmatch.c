@@ -52,6 +52,9 @@ static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
     return false;
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  if(next_block == NULL)
+    next_block = continue_block;
+
   LLVMValueRef br = LLVMBuildCondBr(c->builder, test, continue_block,
     next_block);
 
@@ -89,6 +92,9 @@ static void check_cardinality(compile_t* c, LLVMValueRef desc, size_t size,
     "");
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  if(next_block == NULL)
+    next_block = continue_block;
+
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
 }
@@ -250,6 +256,9 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
     return false;
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  if(next_block == NULL)
+    next_block = continue_block;
+
   LLVMValueRef test = LLVMBuildTrunc(c->builder, result, c->i1, "");
   LLVMValueRef br = LLVMBuildCondBr(c->builder, test, continue_block,
     next_block);
@@ -691,6 +700,9 @@ static bool guard_match(compile_t* c, ast_t* guard,
     return false;
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  if(next_block == NULL)
+    next_block = continue_block;
+
   LLVMValueRef test = LLVMBuildTrunc(c->builder, value, c->i1, "");
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
@@ -742,7 +754,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
   LLVMBasicBlockRef pattern_block = codegen_block(c, "case_pattern");
-  LLVMBasicBlockRef else_block = codegen_block(c, "match_else");
+  LLVMBasicBlockRef else_block = NULL;
   LLVMBasicBlockRef post_block = NULL;
   LLVMBasicBlockRef next_block = NULL;
 
@@ -762,6 +774,11 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     else
       phi = GEN_NOTNEEDED;
   }
+
+  // Create else block only if this isn't an exhaustive match
+  // (a match with no else expression).
+  if(ast_id(else_expr) != TK_NONE)
+    else_block = codegen_block(c, "match_else");
 
   // Iterate over the cases.
   ast_t* the_case = ast_child(cases);
@@ -812,14 +829,17 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_free_unattached(match_type);
 
   // Else body.
-  LLVMPositionBuilderAtEnd(c->builder, else_block);
-  codegen_pushscope(c, else_expr);
-  bool ok = case_body(c, else_expr, post_block, phi, phi_type);
-  codegen_scope_lifetime_end(c);
-  codegen_popscope(c);
+  if(else_block != NULL)
+  {
+    LLVMPositionBuilderAtEnd(c->builder, else_block);
+    codegen_pushscope(c, else_expr);
+    bool ok = case_body(c, else_expr, post_block, phi, phi_type);
+    codegen_scope_lifetime_end(c);
+    codegen_popscope(c);
 
-  if(!ok)
-    return NULL;
+    if(!ok)
+      return NULL;
+  }
 
   if(post_block != NULL)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
