@@ -1104,9 +1104,14 @@ actor Main
     end
 
   fun iso _append(s: String box): String iso^ =>
-    reserve(s._size + _size)
-    s._ptr._copy_to(_ptr._unsafe()._offset(_size), s._size + 1) // + 1 for null
-    _size = s._size + _size
+    let len = _size + s._size
+    reserve(len)
+    if s.is_null_terminated() then
+      s._copy_to(_ptr._unsafe(), s._size + 1, 0, _size)
+    else
+      s._copy_to(_ptr._unsafe(), s._size, 0, _size) 
+    end
+    _size = len
     consume this
 
   fun add(that: String box): String =>
