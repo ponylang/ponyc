@@ -981,8 +981,7 @@ static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
         ast_append(pattern, dontcare);
         break;
       }
-      // Fallthrough.
-    }
+    } // fallthrough
 
     default:
     {
