@@ -33,12 +33,22 @@ static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
 
+#ifdef PLATFORM_IS_ARM
+static mpmcq_node_t* inject_stub;
+#endif
+
 /**
  * Gets the next actor from the scheduler queue.
  */
-static pony_actor_t* pop(scheduler_t* sched)
+static pony_actor_t* pop(scheduler_t* sched, scheduler_t* current_sched)
 {
-  return (pony_actor_t*)ponyint_mpmcq_pop(&sched->q);
+#ifdef PLATFORM_IS_X86
+  uint32_t sched_id = (uint32_t)(sched - scheduler);
+  mpmcq_node_t** old_tail = &current_sched->sched_buffer_nodes[sched_id];
+#else
+  mpmcq_node_t** old_tail = &current_sched->sched_buffer_node;
+#endif
+  return (pony_actor_t*)ponyint_mpmcq_pop(&sched->q, old_tail);
 }
 
 /**
@@ -52,14 +62,19 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
 /**
  * Handles the global queue and then pops from the local queue
  */
-static pony_actor_t* pop_global(scheduler_t* sched)
+static pony_actor_t* pop_global(scheduler_t* sched, scheduler_t* current_sched)
 {
-  pony_actor_t* actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+#ifdef PLATFORM_IS_X86
+  mpmcq_node_t** old_tail = &current_sched->inject_buffer_node;
+#else
+  mpmcq_node_t** old_tail = &current_sched->sched_buffer_node;
+#endif
+  pony_actor_t* actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject, old_tail);
 
   if(actor != NULL)
     return actor;
 
-  return pop(sched);
+  return pop(sched, current_sched);
 }
 
 /**
@@ -225,9 +240,16 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     scheduler_t* victim = choose_victim(sched);
 
     if(victim == NULL)
-      actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
-    else
-      actor = pop_global(victim);
+    {
+#ifdef PLATFORM_IS_X86
+      mpmcq_node_t** old_tail = &sched->inject_buffer_node;
+#else
+      mpmcq_node_t** old_tail = &sched->sched_buffer_node;
+#endif
+      actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject, old_tail);
+    } else {
+      actor = pop_global(victim, sched);
+    }
 
     if(actor != NULL)
     {
@@ -262,7 +284,7 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
  */
 static void run(scheduler_t* sched)
 {
-  pony_actor_t* actor = pop_global(sched);
+  pony_actor_t* actor = pop_global(sched, sched);
   if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
     DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
   }
@@ -277,7 +299,7 @@ static void run(scheduler_t* sched)
       if(actor == NULL)
       {
         // Termination.
-        assert(pop(sched) == NULL);
+        assert(pop(sched, sched) == NULL);
         return;
       }
       DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
@@ -285,7 +307,7 @@ static void run(scheduler_t* sched)
 
     // Run the current actor and get the next actor.
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, SCHED_BATCH);
-    pony_actor_t* next = pop_global(sched);
+    pony_actor_t* next = pop_global(sched, sched);
 
     if(reschedule)
     {
@@ -340,6 +362,34 @@ static DECLARE_THREAD_FN(run_thread)
   return 0;
 }
 
+#ifdef PLATFORM_IS_X86
+static mpmcq_node_t** buffer_nodes_init(mpmcq_node_t* stub, uint32_t sched_id)
+{
+  mpmcq_node_t** buffer_nodes = (mpmcq_node_t**)ponyint_pool_alloc_size(
+    scheduler_count * sizeof(mpmcq_node_t*));
+
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    if(i == sched_id)
+    {
+      buffer_nodes[i] = stub;
+    } else {
+      buffer_nodes[i] = ponyint_mpmcq_node_alloc(NULL);
+    }
+  }
+
+  return buffer_nodes;
+}
+
+static void buffer_nodes_free(mpmcq_node_t** buffer_nodes)
+{
+  for(uint32_t i = 0; i < scheduler_count; i++)
+    ponyint_mpmcq_node_free(buffer_nodes[i]);
+
+  ponyint_pool_free_size(scheduler_count * sizeof(mpmcq_node_t*), buffer_nodes);
+}
+#endif
+
 static void ponyint_sched_shutdown()
 {
   uint32_t start;
@@ -354,6 +404,13 @@ static void ponyint_sched_shutdown()
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
+#ifdef PLATFORM_IS_X86
+    buffer_nodes_free(scheduler[i].sched_buffer_nodes);
+    ponyint_mpmcq_node_free(scheduler[i].inject_buffer_node);
+#else
+    ponyint_mpmcq_node_free(scheduler[i].sched_buffer_node);
+    ponyint_mpmcq_node_free(inject_stub);
+#endif
     while(ponyint_messageq_pop(&scheduler[i].mq) != NULL);
     ponyint_messageq_destroy(&scheduler[i].mq);
     ponyint_mpmcq_destroy(&scheduler[i].q);
@@ -388,11 +445,22 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
     scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
     ponyint_messageq_init(&scheduler[i].mq);
-    ponyint_mpmcq_init(&scheduler[i].q);
+    mpmcq_node_t* stub = ponyint_mpmcq_init(&scheduler[i].q);
+#ifdef PLATFORM_IS_X86
+    scheduler[i].sched_buffer_nodes = buffer_nodes_init(stub, i);
+    if(i > 0)
+      scheduler[i].inject_buffer_node = ponyint_mpmcq_node_alloc(NULL);
+#else
+    scheduler[i].sched_buffer_node = stub;
+#endif
   }
 
   this_scheduler = &scheduler[0];
-  ponyint_mpmcq_init(&inject);
+#ifdef PLATFORM_IS_X86
+  scheduler[0].inject_buffer_node = ponyint_mpmcq_init(&inject);
+#else
+  inject_stub = ponyint_mpmcq_init(&inject);
+#endif
   ponyint_asio_init(asio_cpu);
 
   return &scheduler[0].ctx;

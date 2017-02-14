@@ -43,6 +43,16 @@ struct scheduler_t
 
   // These are changed primarily by the owning scheduler thread.
   __pony_spec_align__(struct scheduler_t* last_victim, 64);
+  // Data used to mitigate the ABA problem when popping from the MPMC queues.
+  // We need less data on ARM because the ABA problem can't occur
+  // (compare_exchange is implemented with LoadLinked/StoreConditional
+  // instructions).
+#ifdef PLATFORM_IS_X86
+  mpmcq_node_t** sched_buffer_nodes;
+  mpmcq_node_t* inject_buffer_node;
+#else
+  mpmcq_node_t* sched_buffer_node;
+#endif
 
   pony_ctx_t ctx;
   uint32_t block_count;
