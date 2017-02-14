@@ -35,6 +35,7 @@ actor Main is TestList
     test(_TestStringReplace)
     test(_TestStringSplit)
     test(_TestStringSplitBy)
+    test(_TestStringAdd)
     test(_TestStringJoin)
     test(_TestStringCount)
     test(_TestStringCompare)
@@ -668,6 +669,26 @@ class iso _TestStringSplitBy is UnitTest
     h.assert_eq[USize](r.size(), 2)
     h.assert_eq[String](r(0), "try with trailing ")
     h.assert_eq[String](r(1), "patternpattern")
+
+
+class iso _TestStringAdd is UnitTest
+  """
+  Test String.add
+  """
+  fun name(): String => "builtin/String.add"
+
+  fun apply(h: TestHelper) =>
+    let empty = String.from_array(recover Array[U8] end)
+    h.assert_eq[String]("a" + "b", "ab")
+    h.assert_eq[String](empty + "a", "a")
+    h.assert_eq[String]("a" + empty, "a")
+    h.assert_eq[String](empty + empty, "")
+    h.assert_eq[String](empty + "", "")
+    h.assert_eq[String]("" + empty, "")
+    h.assert_eq[String]("a" + "abc".trim(1, 2), "ab")
+    h.assert_eq[String]("" + "abc".trim(1, 2), "b")
+    h.assert_eq[String]("a" + "".trim(1, 1), "a")
+
 
 class iso _TestStringJoin is UnitTest
   """
