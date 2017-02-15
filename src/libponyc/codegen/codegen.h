@@ -21,6 +21,7 @@ PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
+char* LLVMGetHostCPUFeatures();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
 void LLVMSetNoSignedWrap(LLVMValueRef inst);

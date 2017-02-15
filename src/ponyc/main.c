@@ -125,6 +125,7 @@ static void usage()
     "    =name         Default is the host CPU.\n"
     "  --features      CPU features to enable or disable.\n"
     "    =+this,-that  Use + to enable, - to disable.\n"
+    "                  Defaults to detecting all CPU features from the host.\n"
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
     "  --stats         Print some compiler stats.\n"
