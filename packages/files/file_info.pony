@@ -16,7 +16,7 @@ class val FileInfo
 
   let mode: FileMode val = recover FileMode end
   let hard_links: U32 = 0
-  let device: U32 = 0
+  let device: U64 = 0
   let inode: U64 = 0
   let uid: U32 = 0
   let gid: U32 = 0
