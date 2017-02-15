@@ -1,4 +1,4 @@
-class val NetAddress
+class val NetAddress is Equatable[NetAddress]
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address
   type. The addr field is either the IPv4 address or the IPv6 flow info. The
@@ -44,3 +44,20 @@ class val NetAddress
 
     (recover String.from_cstring(consume host) end,
       recover String.from_cstring(consume serv) end)
+
+  fun eq(that: NetAddress box): Bool =>
+    (this.length == that.length) and
+    (this.family == that.family) and
+    (this.port == that.port) and
+    (host_eq(that)) and
+    (this.scope == that.scope)
+
+  fun host_eq(that: NetAddress box): Bool =>
+    if ip4() then
+      this.addr == that.addr
+    else
+      (this.addr1 == that.addr1) and
+      (this.addr2 == that.addr2) and
+      (this.addr3 == that.addr3) and
+      (this.addr4 == that.addr4)
+    end
