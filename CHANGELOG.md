@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
 - Always call finalisers for embedded fields (PR #1586)
 - Check for null terminator in String._append (PR #1582)
 - Fix TCP Connection data receive race condition (PR #1578)
