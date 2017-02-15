@@ -4,6 +4,7 @@
 #include "gentrace.h"
 #include "gencontrol.h"
 #include "genexpr.h"
+#include "genreference.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -216,6 +217,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   {
     // Store the finaliser and use the C calling convention and an external
     // linkage.
+    assert(t->final_fn == NULL);
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
     LLVMSetLinkage(m->func, LLVMExternalLinkage);
@@ -285,6 +287,31 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
   ponyint_pool_free_size(buf_size, args);
 }
 
+static void call_embed_finalisers(compile_t* c, reach_type_t* t,
+  LLVMValueRef obj)
+{
+  uint32_t base = 0;
+  if(t->underlying != TK_STRUCT)
+    base++;
+
+  if(t->underlying == TK_ACTOR)
+    base++;
+
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    reach_field_t* field = &t->fields[i];
+    if(!field->embed)
+      continue;
+
+    LLVMValueRef final_fn = field->type->final_fn;
+    if(final_fn == NULL)
+      continue;
+
+    LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
+    LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
+  }
+}
+
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   assert(m->func != NULL);
@@ -294,6 +321,9 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, m->func, m->di_file, m->di_method);
   name_params(c, t, m, params, m->func);
+
+  if(m->func == t->final_fn)
+    call_embed_finalisers(c, t, gen_this(c, NULL));
 
   LLVMValueRef value = gen_expr(c, body);
 
