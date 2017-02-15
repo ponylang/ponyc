@@ -1,9 +1,13 @@
 use "net/http"
 
 actor Main
+  """
+  A simple HTTP server.
+  """
   new create(env: Env) =>
     let service = try env.args(1) else "50000" end
     let limit = try env.args(2).usize() else 100 end
+    let host = "localhost"
 
     let logger = CommonLog(env.out)
     // let logger = ContentsLog(env.out)
@@ -16,33 +20,61 @@ actor Main
       return
     end
 
-    Server(auth, Info(env), Handle, logger
-      where service=service, limit=limit, reversedns=auth
-    )
+    // Start the top server control actor.
+    HTTPServer(auth,
+        ListenHandler(env),
+        BackendMaker.create( env ),
+        logger
+        where service=service, host=host, limit=limit, reversedns=auth)
 
-class Info
+class ListenHandler
   let _env: Env
 
   new iso create(env: Env) =>
     _env = env
 
-  fun ref listening(server: Server ref) =>
+  fun ref listening(server: HTTPServer ref) =>
     try
       (let host, let service) = server.local_address().name()
-      _env.out.print("Listening on " + host + ":" + service)
     else
       _env.out.print("Couldn't get local address.")
       server.dispose()
     end
 
-  fun ref not_listening(server: Server ref) =>
+  fun ref not_listening(server: HTTPServer ref) =>
     _env.out.print("Failed to listen.")
 
-  fun ref closed(server: Server ref) =>
+  fun ref closed(server: HTTPServer ref) =>
     _env.out.print("Shutdown.")
 
-primitive Handle
-  fun val apply(request: Payload) =>
+class BackendMaker is HandlerFactory
+  let _env: Env
+
+  new val create( env: Env ) =>
+    _env = env
+
+  fun apply( session: HTTPSession tag ): HTTPHandler ref^ =>
+    BackendHandler.create( _env, session )
+
+class BackendHandler is HTTPHandler
+  """
+  Notification class for a single HTTP session.  A session can process
+  several requests, one at a time.
+  """
+  let _env: Env
+  let _session: HTTPSession tag
+
+  new ref create( env': Env, session: HTTPSession tag ) =>
+    """
+    Create a context for receiving HTTP requests for a session.
+    """
+    _env = env'
+    _session = session
+
+  fun ref apply( request: Payload val ) =>
+    """
+    Start processing a request.
+    """
     let response = Payload.response()
     response.add_chunk("You asked for ")
     response.add_chunk(request.url.path)
@@ -57,4 +89,4 @@ primitive Handle
       response.add_chunk(request.url.fragment)
     end
 
-    (consume request).respond(consume response)
+    _session( consume response)

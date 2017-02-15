@@ -3,24 +3,25 @@ use "net/ssl"
 
 class _ServerListener is TCPListenNotify
   """
-  Manages the listening socket for an HTTP server.
+  Manages the listening socket for an HTTP server.  Incoming requests
+  are assembled and dispatched.
   """
-  let _server: Server
+  let _server: HTTPServer
   let _sslctx: (SSLContext | None)
-  let _handler: RequestHandler
+  let _handlermaker: HandlerFactory val
   let _logger: Logger
   let _reversedns: (DNSLookupAuth | None)
 
-  new iso create(server: Server, sslctx: (SSLContext | None),
-    handler: RequestHandler, logger: Logger,
-    reversedns: (DNSLookupAuth | None))
+  new iso create(server: HTTPServer, sslctx: (SSLContext | None),
+    handler: HandlerFactory val,  // Makes a unique session handler
+    logger: Logger, reversedns: (DNSLookupAuth | None))
   =>
     """
     Creates a new listening socket manager.
     """
     _server = server
     _sslctx = sslctx
-    _handler = handler
+    _handlermaker = handler
     _logger = logger
     _reversedns = reversedns
 
@@ -44,13 +45,15 @@ class _ServerListener is TCPListenNotify
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     """
-    Create a notifier for a specific HTTP socket.
+    Create a notifier for a specific HTTP socket.  A new instance of the
+    back-end Handler is passed along so it can be used on each `Payload`.
     """
     try
       let ctx = _sslctx as SSLContext
       let ssl = ctx.server()
-      SSLConnection(_RequestBuilder(_handler, _logger, _reversedns),
+      SSLConnection(
+        _ServerConnHandler(_handlermaker, _logger, _reversedns, _server),
         consume ssl)
     else
-      _RequestBuilder(_handler, _logger, _reversedns)
+      _ServerConnHandler(_handlermaker, _logger, _reversedns, _server)
     end
