@@ -692,12 +692,11 @@ void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 
   while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
   {
-    ponyint_actormap_removeindex(&ctx->acquire, i);
+    ponyint_actormap_clearindex(&ctx->acquire, i);
     pony_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
   }
 
-  ponyint_actormap_destroy(&ctx->acquire);
-  memset(&ctx->acquire, 0, sizeof(actormap_t));
+  assert(ponyint_actormap_size(&ctx->acquire) == 0);
 }
 
 void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
@@ -712,12 +711,11 @@ void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
 
   while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
   {
-    ponyint_actormap_removeindex(&ctx->acquire, i);
+    ponyint_actormap_clearindex(&ctx->acquire, i);
     pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
   }
 
-  ponyint_actormap_destroy(&ctx->acquire);
-  memset(&ctx->acquire, 0, sizeof(actormap_t));
+  assert(ponyint_actormap_size(&ctx->acquire) == 0);
 }
 
 void ponyint_gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
