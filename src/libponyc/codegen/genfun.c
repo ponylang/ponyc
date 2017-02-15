@@ -257,7 +257,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 
   while(param != NULL)
   {
-    if(gentrace_needed(c, ast_type(param), NULL))
+    ast_t* param_type = ast_type(param);
+    if(gentrace_needed(c, param_type, param_type))
     {
       need_trace = true;
       break;
@@ -273,7 +274,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 
     for(int i = 1; i < count; i++)
     {
-      gentrace(c, ctx, args[i], ast_type(param), NULL);
+      ast_t* param_type = ast_type(param);
+      gentrace(c, ctx, args[i], args[i], param_type, param_type);
       param = ast_sibling(param);
     }
 
@@ -387,7 +389,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMGetParams(m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
-  gen_send_message(c, m, param_vals, params);
+  gen_send_message(c, m, param_vals, param_vals, params);
 
   // Return None.
   LLVMBuildRet(c->builder, c->none_instance);
@@ -462,7 +464,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMGetParams(m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
-  gen_send_message(c, m, param_vals, params);
+  gen_send_message(c, m, param_vals, param_vals, params);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, param_vals[0]);

@@ -665,7 +665,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
 
-  if(!gentrace_needed(c, typearg, NULL))
+  if(!gentrace_needed(c, typearg, typearg))
     return;
 
   reach_type_t* t_elem = reach_type(c->reach, typearg);
@@ -695,7 +695,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, pointer, &phi, 1,
     "");
   LLVMValueRef elem = LLVMBuildLoad(c->builder, elem_ptr, "");
-  gentrace(c, ctx, elem, typearg, NULL);
+  gentrace(c, ctx, elem, elem, typearg, typearg);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
