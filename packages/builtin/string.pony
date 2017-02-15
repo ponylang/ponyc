@@ -1109,7 +1109,7 @@ actor Main
     if s.is_null_terminated() then
       s._copy_to(_ptr._unsafe(), s._size + 1, 0, _size)
     else
-      s._copy_to(_ptr._unsafe(), s._size, 0, _size) 
+      s._copy_to(_ptr._unsafe(), s._size, 0, _size)
     end
     _size = len
     consume this

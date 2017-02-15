@@ -52,19 +52,20 @@ typedef struct asio_msg_t
  *  An event is noisy, if it should prevent the runtime system from terminating
  *  based on quiescence.
  */
-asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
+PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   uint32_t flags, uint64_t nsec, bool noisy);
 
 /** Deallocates an ASIO event.
  */
-void pony_asio_event_destroy(asio_event_t* ev);
+PONY_API void pony_asio_event_destroy(asio_event_t* ev);
 
-int pony_asio_event_fd(asio_event_t* ev);
+PONY_API int pony_asio_event_fd(asio_event_t* ev);
 
-uint64_t pony_asio_event_nsec(asio_event_t* ev);
+PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev);
 
 /// Send a triggered event.
-void pony_asio_event_send(asio_event_t* ev, uint32_t flags, uint32_t arg);
+PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
+  uint32_t arg);
 
 /* Subscribe and unsubscribe are implemented in the corresponding I/O
  * mechanism. Files epoll.c, kqueue.c, ...
@@ -75,36 +76,36 @@ void pony_asio_event_send(asio_event_t* ev, uint32_t flags, uint32_t arg);
  *  Subscriptions are not incremental. Registering an event multiple times will
  *  overwrite the previous event filter mask.
  */
-void pony_asio_event_subscribe(asio_event_t* ev);
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev);
 
 /** Update an event.
  *
  * Used for timers.
  */
-void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
+PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
 
 /** Unsubscribe an event.
  *
  *  After a call to unsubscribe, the caller will not receive any further event
  *  notifications for I/O events on the corresponding resource.
  */
-void pony_asio_event_unsubscribe(asio_event_t* ev);
+PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev);
 
 /** Get whether FD is writeable or not
  */
-bool pony_asio_event_get_writeable(asio_event_t* ev);
+PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev);
 
 /** Set whether FD is writeable or not
  */
-void pony_asio_event_set_writeable(asio_event_t* ev, bool writeable);
+PONY_API void pony_asio_event_set_writeable(asio_event_t* ev, bool writeable);
 
 /** Get whether FD is readable or not
  */
-bool pony_asio_event_get_readable(asio_event_t* ev);
+PONY_API bool pony_asio_event_get_readable(asio_event_t* ev);
 
 /** Get whether FD is readable or not
  */
-void pony_asio_event_set_readable(asio_event_t* ev, bool readable);
+PONY_API void pony_asio_event_set_readable(asio_event_t* ev, bool readable);
 
 PONY_EXTERN_C_END
 

@@ -64,7 +64,7 @@ static void retry_loop(asio_backend_t* b)
   write(b->wakeup[1], &c, 1);
 }
 
-void pony_asio_event_resubscribe_read(asio_event_t* ev)
+PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -91,7 +91,7 @@ void pony_asio_event_resubscribe_read(asio_event_t* ev)
     retry_loop(b);
 }
 
-void pony_asio_event_resubscribe_write(asio_event_t* ev)
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -190,7 +190,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   return NULL;
 }
 
-void pony_asio_event_subscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -246,7 +246,7 @@ void pony_asio_event_subscribe(asio_event_t* ev)
     retry_loop(b);
 }
 
-void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -279,7 +279,7 @@ void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   kevent(b->kq, event, i, NULL, 0, NULL);
 }
 
-void pony_asio_event_unsubscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||

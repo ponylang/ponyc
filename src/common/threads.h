@@ -41,13 +41,13 @@ uint32_t ponyint_numa_core_list(cpu_set_t* hw_cpus, cpu_set_t* ht_cpus,
 uint32_t ponyint_numa_node_of_cpu(uint32_t cpu);
 #endif
 
-bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
+bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   uint32_t cpu, void* arg);
 
-bool pony_thread_join(pony_thread_id_t thread);
+bool ponyint_thread_join(pony_thread_id_t thread);
 
-void pony_thread_detach(pony_thread_id_t thread);
+void ponyint_thread_detach(pony_thread_id_t thread);
 
-pony_thread_id_t pony_thread_self();
+pony_thread_id_t ponyint_thread_self();
 
 #endif

@@ -103,3 +103,20 @@ TEST_F(CodegenTest, ActorCannotBePacked)
   LLVMTypeRef type = foo->structure;
   ASSERT_TRUE(!LLVMIsPackedStruct(type));
 }
+
+
+TEST_F(CodegenTest, JitRun)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @pony_exitcode[None](I32(1))";
+
+  set_builtin(NULL);
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}

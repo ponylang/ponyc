@@ -74,7 +74,7 @@ def configure(ctx):
         ctx.env.PONYC_EXTRA_LIBS = [
             'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
             'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
-            'odbc32', 'odbccp32', 'vcruntime', 'ucrt'
+            'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32'
         ]
 
         ctx.env.MSVC_VERSIONS = ['msvc ' + MSVC_VERSION + '.0']
@@ -149,6 +149,7 @@ def build(ctx):
     import os
 
     buildDir = ctx.bldnode.abspath()
+    packagesDir = os.path.join(ctx.srcnode.abspath(), 'packages')
 
     llvmIncludes = []
     llvmLibs = []
@@ -253,13 +254,21 @@ def build(ctx):
     )
 
     # testc
+    testcUses = [ 'gtest', 'libponyc', 'libponyrt' ]
+    testcLibs = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
+    if os_is('win32'):
+        testcUses = [ 'gtest', 'libponyc' ]
+        testcLibs = [ '/WHOLEARCHIVE:libponyrt' ] + testcLibs
+
     ctx(
         features  = 'c cxx cxxprogram seq',
         target    = 'testc',
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'lib/gtest' ] + llvmIncludes,
-        use       = [ 'gtest', 'libponyc', 'libponyrt' ],
-        lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
+        defines   = [ 'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"'],
+        use       = testcUses,
+        lib       = testcLibs,
+        linkflags = [ '/INCREMENTAL:NO' ]
     )
 
     # testrt

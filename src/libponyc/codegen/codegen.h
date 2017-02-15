@@ -211,15 +211,19 @@ typedef struct compile_t
 
 bool codegen_merge_runtime_bitcode(compile_t* c);
 
-void codegen_cleanup(compile_t* c);
+bool codegen_llvm_init();
 
-bool codegen_init(pass_opt_t* opt);
+void codegen_llvm_shutdown();
 
-void codegen_shutdown(pass_opt_t* opt);
+bool codegen_pass_init(pass_opt_t* opt);
+
+void codegen_pass_cleanup(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
 
 bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt);
+
+void codegen_cleanup(compile_t* c);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 

@@ -16,6 +16,7 @@
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
+#include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Linker.h>
 #include <string.h>
 #include <assert.h>
@@ -823,22 +824,9 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   return true;
 }
 
-void codegen_cleanup(compile_t* c)
+bool codegen_llvm_init()
 {
-  while(c->frame != NULL)
-    pop_frame(c);
-
-  LLVMDIBuilderDestroy(c->di);
-  LLVMDisposeBuilder(c->builder);
-  LLVMDisposeModule(c->module);
-  LLVMContextDispose(c->context);
-  LLVMDisposeTargetMachine(c->machine);
-  tbaa_metadatas_free(c->tbaa_mds);
-  reach_free(c->reach);
-}
-
-bool codegen_init(pass_opt_t* opt)
-{
+  LLVMLinkInMCJIT();
   LLVMInitializeNativeTarget();
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
@@ -862,6 +850,17 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeCodeGen(passreg);
   LLVMInitializeTarget(passreg);
 
+  return true;
+}
+
+void codegen_llvm_shutdown()
+{
+  LLVMResetFatalErrorHandler();
+  LLVMShutdown();
+}
+
+bool codegen_pass_init(pass_opt_t* opt)
+{
   if(opt->features != NULL)
   {
     opt->features = LLVMCreateMessage(opt->features);
@@ -893,14 +892,14 @@ bool codegen_init(pass_opt_t* opt)
   return true;
 }
 
-void codegen_shutdown(pass_opt_t* opt)
+void codegen_pass_cleanup(pass_opt_t* opt)
 {
   LLVMDisposeMessage(opt->triple);
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);
-
-  LLVMResetFatalErrorHandler();
-  LLVMShutdown();
+  opt->triple = NULL;
+  opt->cpu = NULL;
+  opt->features = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)
@@ -938,8 +937,11 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
     return false;
 
   init_runtime(c);
+  genprim_reachable_init(c, program);
 
   const char* main_actor = c->str_Main;
+  const char* env_class = c->str_Env;
+
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
 
@@ -947,11 +949,13 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
     return false;
 
   ast_t* main_ast = type_builtin(opt, main_def, main_actor);
+  ast_t* env_ast = type_builtin(opt, main_def, env_class);
 
   if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
     return false;
 
   reach(c->reach, main_ast, c->str_create, NULL, opt);
+  reach(c->reach, env_ast, c->str__create, NULL, opt);
 
   if(opt->limit == PASS_REACH)
     return true;
@@ -965,6 +969,20 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
     return false;
 
   return true;
+}
+
+void codegen_cleanup(compile_t* c)
+{
+  while(c->frame != NULL)
+    pop_frame(c);
+
+  LLVMDIBuilderDestroy(c->di);
+  LLVMDisposeBuilder(c->builder);
+  LLVMDisposeModule(c->module);
+  LLVMContextDispose(c->context);
+  LLVMDisposeTargetMachine(c->machine);
+  tbaa_metadatas_free(c->tbaa_mds);
+  reach_free(c->reach);
 }
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)

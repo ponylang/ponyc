@@ -5,10 +5,13 @@
 
 bool ponyc_init(pass_opt_t* options)
 {
-  if (!codegen_init(options))
+  if(!codegen_llvm_init())
     return false;
 
-  if (!package_init(options))
+  if(!codegen_pass_init(options))
+    return false;
+
+  if(!package_init(options))
     return false;
 
   return true;
@@ -18,6 +21,7 @@ void ponyc_shutdown(pass_opt_t* options)
 {
   errors_print(options->check.errors);
   package_done();
-  codegen_shutdown(options);
+  codegen_pass_cleanup(options);
+  codegen_llvm_shutdown();
   stringtab_done();
 }

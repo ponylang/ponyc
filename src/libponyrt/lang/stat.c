@@ -166,7 +166,7 @@ static void unix_symlink(int r, pony_stat_t* p, struct stat* st)
 
 #endif
 
-bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
+PONY_API bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS) || defined(PLATFORM_IS_MACOSX)
   (void)fd;
@@ -189,7 +189,7 @@ bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
+PONY_API bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -219,7 +219,7 @@ bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool pony_os_stat(const char* path, pony_stat_t* p)
+PONY_API bool pony_os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   WIN32_FILE_ATTRIBUTE_DATA fa;
