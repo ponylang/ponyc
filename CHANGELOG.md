@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
 - Packed structures (RFC 32) (PR #1536)
 - Add `insert_if_absent` method to Map (PR #1519)
 - Branch prediction annotations (RFC 30) (PR #1528)
