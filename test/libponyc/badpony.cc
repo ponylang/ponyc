@@ -356,3 +356,21 @@ TEST_F(BadPonyTest, ShadowingTypeParameterInSameFile)
 
   TEST_ERRORS_1(src, "can't reuse name 'B'");
 }
+
+TEST_F(BadPonyTest, TupleToUnionGentrace)
+{
+  // From issue #1561
+  const char* src =
+    "primitive X\n"
+    "primitive Y\n"
+
+    "class iso T\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    this((T, Y))\n"
+
+    "  be apply(m: (X | (T, Y))) => None";
+
+  TEST_COMPILE(src);
+}

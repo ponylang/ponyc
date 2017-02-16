@@ -692,7 +692,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     {
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      gentrace(c, ctx, value, t->fields[i].ast, NULL);
+      ast_t* field_type = t->fields[i].ast;
+      gentrace(c, ctx, value, value, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = t->fields[i].type->trace_fn;

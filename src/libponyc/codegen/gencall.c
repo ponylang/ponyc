@@ -359,8 +359,8 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
-void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
-  ast_t* args_ast)
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
+  LLVMValueRef cast_args[], ast_t* args_ast)
 {
   // Allocate the message, setting its size and ID.
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, m->msg_type);
@@ -376,7 +376,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   for(unsigned int i = 0; i < m->param_count; i++)
   {
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i + 3, "");
-    LLVMBuildStore(c->builder, args[i+1], arg_ptr);
+    LLVMBuildStore(c->builder, cast_args[i+1], arg_ptr);
   }
 
   // Trace while populating the message contents.
@@ -407,7 +407,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
     for(size_t i = 0; i < m->param_count; i++)
     {
-      gentrace(c, ctx, args[i+1], ast_type(arg_ast), ast_type(param));
+      gentrace(c, ctx, orig_args[i+1], cast_args[i+1], ast_type(arg_ast),
+        ast_type(param));
       param = ast_sibling(param);
       arg_ast = ast_sibling(arg_ast);
     }
@@ -417,7 +418,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   // Send the message.
   msg_args[0] = ctx;
-  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
+  msg_args[1] = LLVMBuildBitCast(c->builder, cast_args[0], c->object_ptr, "");
   msg_args[2] = msg;
   gencall_runtime(c, "pony_sendv", msg_args, 3, "");
 }
@@ -688,9 +689,11 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   {
     // If we're sending a message, trace and send here instead of calling the
     // sender to trace the most specific types possible.
+    LLVMValueRef* cast_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+    cast_args[0] = args[0];
     while(arg != NULL)
     {
-      args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
+      cast_args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
       arg = ast_sibling(arg);
       i++;
     }
@@ -699,7 +702,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     reach_method_t* m = reach_method(t, cap, method_name, typeargs);
 
     codegen_debugloc(c, ast);
-    gen_send_message(c, m, args, positional);
+    gen_send_message(c, m, args, cast_args, positional);
     codegen_debugloc(c, NULL);
     switch(ast_id(postfix))
     {
@@ -712,6 +715,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         r = c->none_instance;
         break;
     }
+    ponyint_pool_free_size(buf_size, cast_args);
   } else {
     while(arg != NULL)
     {
