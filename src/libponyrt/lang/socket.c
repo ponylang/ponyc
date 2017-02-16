@@ -724,15 +724,16 @@ int pony_os_accept(asio_event_t* ev)
 }
 
 // Check this when a connection gets its first writeable event.
-bool pony_os_connected(int fd)
+// NOTE: error clears after the call
+int pony_os_socket_error(int fd)
 {
-  int val = 0;
-  socklen_t len = sizeof(int);
+  int sockerr;
+  socklen_t errlen = sizeof(sockerr);
 
-  if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, (char*)&val, &len) == -1)
-    return false;
+  if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, (char*)&sockerr, &errlen))
+    return errno;
 
-  return val == 0;
+  return sockerr;
 }
 
 static int address_family(int length)
