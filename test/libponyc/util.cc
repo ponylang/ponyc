@@ -441,7 +441,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
   if(check_good)
   {
-    if(program != NULL)
+    if(errors_get_count(opt.check.errors) > 0)
       errors_print(opt.check.errors);
 
     ASSERT_NE((void*)NULL, program);

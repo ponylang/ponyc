@@ -46,10 +46,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_TRN:
         case TK_REF:
         case TK_BOX:
-        case TK_ISO_BIND:
-        case TK_TRN_BIND:
-        case TK_REF_BIND:
-        case TK_BOX_BIND:
           // A known refcap on the right can be compacted.
           upper = VIEW_UPPER_YES;
           break;
@@ -57,9 +53,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_VAL:
         case TK_TAG:
         case TK_CAP_SHARE:
-        case TK_VAL_BIND:
-        case TK_TAG_BIND:
-        case TK_CAP_SHARE_BIND:
           // No refcap on the left modifies these.
           upper = VIEW_UPPER_FORCE;
           break;
@@ -87,7 +80,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       switch(ast_id(cap))
       {
         case TK_REF:
-        case TK_REF_BIND:
           // ref->T = T
           return ast_dup(r_type);
 
@@ -96,11 +88,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_CAP_READ:
         case TK_CAP_ALIAS:
         case TK_CAP_ANY:
-        case TK_CAP_SEND_BIND:
-        case TK_CAP_SHARE_BIND:
-        case TK_CAP_READ_BIND:
-        case TK_CAP_ALIAS_BIND:
-        case TK_CAP_ANY_BIND:
           // Don't compact through an unknown refcap.
           if(upper == VIEW_UPPER_YES)
             upper = VIEW_UPPER_NO;

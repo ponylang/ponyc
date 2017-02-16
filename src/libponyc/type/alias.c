@@ -230,45 +230,6 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* bind_type(ast_t* type)
-{
-  // A bind type is only ever used when checking constraints.
-  // We change the capabilities to a bind capability. For example:
-  // ref <: #read when binding, but not when assigning.
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    {
-      // Bind each element.
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_append(r_type, bind_type(child));
-        child = ast_sibling(child);
-      }
-
-      return r_type;
-    }
-
-    case TK_NOMINAL:
-    case TK_TYPEPARAMREF:
-    {
-      type = ast_dup(type);
-      ast_t* cap = cap_fetch(type);
-      ast_setid(cap, cap_bind(ast_id(cap)));
-      return type;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
 ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))

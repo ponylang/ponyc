@@ -247,28 +247,6 @@ TEST_F(LiteralTest, CantInfer_Let_InsufficientlySpecifiedGeneric)
 }
 
 
-TEST_F(LiteralTest, CantInfer_Let_GenericSubtype)
-{
-  const char* src =
-    " class Foo[A: U8, B: A]\n"
-    "  new create() =>\n"
-    "    let x: B = 17";   // FIXME feels like this should work - 'let x: A = 17' does
-
-  TEST_ERROR(src);
-}
-
-
-TEST_F(LiteralTest, CantInfer_Parameter_GenericSubtype)
-{
-  const char* src =
-    "class Foo6[A : U8, B: A]\n"
-    "  fun run() => test(8)\n"
-    "  fun test(a: B) => true\n";
-
-  TEST_ERROR(src);
-}
-
-
 TEST_F(LiteralTest, CantInfer_Parameter_AmbiguousUnion)
 {
   const char* src =
@@ -498,9 +476,22 @@ TEST_F(LiteralTest, Let_TupleOfGenericOfGeneric)
     "    (let x: A, let y: B) = (16, 32)";
 
   TEST_COMPILE(src);
-  
+
   DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(16)));
   DO(check_type("B", TK_TYPEPARAMREF, numeric_literal(32)));
+}
+
+
+TEST_F(LiteralTest, Let_GenericSubtype)
+{
+  const char* src =
+    " class Foo[A: U8, B: A]\n"
+    "  new create() =>\n"
+    "    let x: B = 17";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("B", TK_TYPEPARAMREF, numeric_literal(17)));
 }
 
 
@@ -609,6 +600,19 @@ TEST_F(LiteralTest, Parameter_TupleOfUnionOfGeneric)
 
   DO(check_type("U8", TK_NOMINAL, numeric_literal(79)));
   DO(check_type("A",  TK_TYPEPARAMREF, numeric_literal(1032)));
+}
+
+
+TEST_F(LiteralTest, Parameter_GenericSubtype)
+{
+  const char* src =
+    "class Foo6[A : U8, B: A]\n"
+    "  fun run() => test(8)\n"
+    "  fun test(a: B) => true\n";
+
+  TEST_COMPILE(src);
+
+  DO(check_type("B", TK_TYPEPARAMREF, numeric_literal(8)));
 }
 
 

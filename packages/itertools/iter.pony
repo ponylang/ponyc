@@ -84,7 +84,7 @@ class Iter[A] is Iterator[A]
     end
     false
 
-  fun ref collect[B: Seq[A!] = Array[A!]](coll: B): B^ =>
+  fun ref collect[B: Seq[A!] ref = Array[A!]](coll: B): B^ =>
     """
     Push each value from the iterator into the collection `coll`.
     
