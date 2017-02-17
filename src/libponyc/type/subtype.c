@@ -108,60 +108,73 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
 {
   (void)opt;
 
-  if(check_cap == CHECK_CAP_IGNORE)
-    return true;
-
   ast_t* sub_cap = cap_fetch(sub);
   ast_t* sub_eph = ast_sibling(sub_cap);
   ast_t* super_cap = cap_fetch(super);
   ast_t* super_eph = ast_sibling(super_cap);
 
-  if(check_cap == CHECK_CAP_SUB && !is_cap_sub_cap(ast_id(sub_cap),
-    ast_id(sub_eph), ast_id(super_cap), ast_id(super_eph)))
+  switch(check_cap)
   {
-    if(errorf != NULL)
+    case CHECK_CAP_IGNORE:
+      return true;
+
+    case CHECK_CAP_SUB:
     {
-      ast_error_frame(errorf, sub,
-        "%s is not a subtype of %s: %s%s is not a subtype of %s%s",
-        ast_print_type(sub), ast_print_type(super),
-        ast_print_type(sub_cap), ast_print_type(sub_eph),
-        ast_print_type(super_cap), ast_print_type(super_eph));
+      if(is_cap_sub_cap(ast_id(sub_cap), ast_id(sub_eph), ast_id(super_cap),
+        ast_id(super_eph)))
+        return true;
+
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, sub,
+          "%s is not a subtype of %s: %s%s is not a subcap of %s%s",
+          ast_print_type(sub), ast_print_type(super),
+          ast_print_type(sub_cap), ast_print_type(sub_eph),
+          ast_print_type(super_cap), ast_print_type(super_eph));
+      }
+
+      return false;
     }
 
-    return false;
-  }
-
-  if(check_cap == CHECK_CAP_EQ && !is_cap_sub_cap_constraint(ast_id(sub_cap),
-    ast_id(sub_eph), ast_id(super_cap), ast_id(super_eph)))
-  {
-    if(errorf != NULL)
+    case CHECK_CAP_EQ:
     {
-      ast_error_frame(errorf, sub,
-        "%s is not in constraint %s: %s%s is not in constraint %s%s",
-        ast_print_type(sub), ast_print_type(super),
-        ast_print_type(sub_cap), ast_print_type(sub_eph),
-        ast_print_type(super_cap), ast_print_type(super_eph));
+      if(is_cap_sub_cap_constraint(ast_id(sub_cap), ast_id(sub_eph),
+        ast_id(super_cap), ast_id(super_eph)))
+        return true;
+
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, sub,
+          "%s is not in constraint %s: %s%s is not in constraint %s%s",
+          ast_print_type(sub), ast_print_type(super),
+          ast_print_type(sub_cap), ast_print_type(sub_eph),
+          ast_print_type(super_cap), ast_print_type(super_eph));
+      }
+
+      return false;
     }
 
-    return false;
-  }
-
-  if(check_cap == CHECK_CAP_BOUND && !is_cap_sub_cap_bound(ast_id(sub_cap),
-    ast_id(sub_eph), ast_id(super_cap), ast_id(super_eph)))
-  {
-    if(errorf != NULL)
+    case CHECK_CAP_BOUND:
     {
-      ast_error_frame(errorf, sub,
-        "%s is not a bound subtype of %s: %s%s is not a bound suptype of %s%s",
-        ast_print_type(sub), ast_print_type(super),
-        ast_print_type(sub_cap), ast_print_type(sub_eph),
-        ast_print_type(super_cap), ast_print_type(super_eph));
-    }
+      if(is_cap_sub_cap_bound(ast_id(sub_cap), ast_id(sub_eph),
+        ast_id(super_cap), ast_id(super_eph)))
+        return true;
 
-    return false;
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, sub,
+          "%s is not a bound subtype of %s: %s%s is not a bound subcap of %s%s",
+          ast_print_type(sub), ast_print_type(super),
+          ast_print_type(sub_cap), ast_print_type(sub_eph),
+          ast_print_type(super_cap), ast_print_type(super_eph));
+      }
+
+      return false;
+    }
   }
 
-  return true;
+  assert(0);
+  return false;
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
