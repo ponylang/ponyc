@@ -270,7 +270,7 @@ void ponyint_cpu_affinity(uint32_t cpu)
   affinity.Mask = (uint64_t)1 << (cpu >> 6);
   affinity.Group = (cpu % 64);
 
-  SetThreadGroupAffinity(pony_thread_self(), &affinity, NULL);
+  SetThreadGroupAffinity(ponyint_thread_self(), &affinity, NULL);
 #endif
 }
 

@@ -7,6 +7,8 @@
 #include <ast/source.h>
 #include <ast/stringtab.h>
 #include <pkg/package.h>
+#include <codegen/genjit.h>
+#include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 
 #include "util.h"
@@ -15,6 +17,20 @@
 #include <assert.h>
 
 using std::string;
+
+
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#  define EXPORT_SYMBOL
+#endif
+
+// These will be set when running a JIT'ed program.
+extern "C"
+{
+  EXPORT_SYMBOL void* __DescTable;
+  EXPORT_SYMBOL void* __DescTableSize;
+}
 
 
 static const char* _builtin =
@@ -71,7 +87,7 @@ static const char* _builtin =
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
   "class val Env\n"
-  "  let none: None = None\n"
+  "  new _create() => None\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
@@ -200,7 +216,7 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 void PassTest::SetUp()
 {
   pass_opt_init(&opt);
-  codegen_init(&opt);
+  codegen_pass_init(&opt);
   package_init(&opt);
   program = NULL;
   package = NULL;
@@ -227,7 +243,7 @@ void PassTest::TearDown()
   package = NULL;
   module = NULL;
   package_done();
-  codegen_shutdown(&opt);
+  codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
 
@@ -240,7 +256,7 @@ void PassTest::set_builtin(const char* src)
 
 void PassTest::add_package(const char* path, const char* src)
 {
-  package_add_magic(path, src);
+  package_add_magic_src(path, src);
 }
 
 
@@ -322,16 +338,15 @@ void PassTest::test_expected_errors(const char* src, const char* pass,
 void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   const char* expect_src, const char* expect_pass)
 {
-  DO(test_compile(actual_src, actual_pass));
-  ast_t* expect_ast;
-
   DO(build_package(expect_pass, expect_src, "expect", true, NULL));
-  expect_ast = program;
+  ast_t* expect_ast = program;
   ast_t* expect_package = ast_child(expect_ast);
+  program = NULL;
+
+  DO(test_compile(actual_src, actual_pass));
 
   DO(check_ast_same(expect_package, package));
   ast_free(expect_ast);
-  program = NULL;
 }
 
 
@@ -381,6 +396,17 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 }
 
 
+bool PassTest::run_program(int* exit_code)
+{
+  assert(compile != NULL);
+
+  pony_exitcode(0);
+  jit_symbol_t symbols[] = {{"__DescTable", &__DescTable},
+    {"__DescTableSize", &__DescTableSize}};
+  return gen_jit_and_run(compile, exit_code, symbols, 2);
+}
+
+
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
@@ -390,11 +416,35 @@ void PassTest::build_package(const char* pass, const char* src,
   ASSERT_NE((void*)NULL, src);
   ASSERT_NE((void*)NULL, package_name);
 
+  if(compile != NULL)
+  {
+    codegen_cleanup(compile);
+    POOL_FREE(compile_t, compile);
+    compile = NULL;
+  }
+  ast_free(program);
+  program = NULL;
+  package = NULL;
+  module = NULL;
+
   lexer_allow_test_symbols();
 
-  package_add_magic("builtin", _builtin_src);
+  package_clear_magic();
 
-  package_add_magic(package_name, src);
+#ifndef PONY_PACKAGES_DIR
+#  error Packages directory undefined
+#else
+  if(_builtin_src != NULL)
+  {
+    package_add_magic_src("builtin", _builtin_src);
+  } else {
+    char path[FILENAME_MAX];
+    path_cat(PONY_PACKAGES_DIR, "builtin", path);
+    package_add_magic_path("builtin", path);
+  }
+#endif
+
+  package_add_magic_src(package_name, src);
 
   package_suppress_build_message();
 
@@ -509,4 +559,25 @@ ast_t* PassTest::numeric_literal_within(ast_t* ast, uint64_t num)
 
   // Not found.
   return NULL;
+}
+
+
+// Environment methods
+
+void Environment::SetUp()
+{
+  codegen_llvm_init();
+}
+
+void Environment::TearDown()
+{
+  codegen_llvm_shutdown();
+}
+
+
+int main(int argc, char** argv)
+{
+  testing::InitGoogleTest(&argc, argv);
+  testing::AddGlobalTestEnvironment(new Environment());
+  return RUN_ALL_TESTS();
 }

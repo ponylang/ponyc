@@ -113,7 +113,7 @@ void ponyint_asio_backend_final(asio_backend_t* b)
   eventfd_write(b->wakeup, 1);
 }
 
-void pony_asio_event_resubscribe_write(asio_event_t* ev)
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -137,7 +137,7 @@ void pony_asio_event_resubscribe_write(asio_event_t* ev)
   epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
 }
 
-void pony_asio_event_resubscribe_read(asio_event_t* ev)
+PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -254,7 +254,7 @@ static void timer_set_nsec(int fd, uint64_t nsec)
   timerfd_settime(fd, 0, &ts, NULL);
 }
 
-void pony_asio_event_subscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -311,7 +311,7 @@ void pony_asio_event_subscribe(asio_event_t* ev)
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
 }
 
-void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -325,7 +325,7 @@ void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   }
 }
 
-void pony_asio_event_unsubscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||

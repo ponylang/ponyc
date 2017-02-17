@@ -20,7 +20,7 @@ typedef void (*free_fn)(void* data);
 
 typedef void (*free_size_fn)(size_t size, void* data);
 
-uint64_t ponyint_hash_block(const void* p, size_t len);
+PONY_API uint64_t ponyint_hash_block(const void* p, size_t len);
 
 uint64_t ponyint_hash_str(const char* str);
 

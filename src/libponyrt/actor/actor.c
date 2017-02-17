@@ -282,7 +282,7 @@ void ponyint_actor_setnoblock(bool state)
   actor_noblock = state;
 }
 
-pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
+PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
   assert(type != NULL);
 
@@ -313,7 +313,7 @@ pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
   return actor;
 }
 
-void ponyint_destroy(pony_actor_t* actor)
+PONY_API void ponyint_destroy(pony_actor_t* actor)
 {
   // This destroys an actor immediately. If any other actor has a reference to
   // this actor, the program will likely crash. The finaliser is not called.
@@ -321,7 +321,7 @@ void ponyint_destroy(pony_actor_t* actor)
   ponyint_actor_destroy(actor);
 }
 
-pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
+PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
 {
   pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
   msg->index = index;
@@ -330,12 +330,12 @@ pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   return msg;
 }
 
-pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
+PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
 {
   return pony_alloc_msg((uint32_t)ponyint_pool_index(size), id);
 }
 
-void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
+PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
 {
   DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id);
 
@@ -346,13 +346,14 @@ void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
   }
 }
 
-void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
+PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
   pony_sendv(ctx, to, m);
 }
 
-void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, void* p)
+PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
+  void* p)
 {
   pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgp_t)), id);
@@ -361,7 +362,8 @@ void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, void* p)
   pony_sendv(ctx, to, &m->msg);
 }
 
-void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
+PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
+  intptr_t i)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), id);
@@ -370,41 +372,42 @@ void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
   pony_sendv(ctx, to, &m->msg);
 }
 
-void pony_continuation(pony_actor_t* self, pony_msg_t* m)
+PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m)
 {
   atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
   self->continuation = m;
 }
 
-void* pony_alloc(pony_ctx_t* ctx, size_t size)
+PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc(ctx->current, &ctx->current->heap, size);
 }
 
-void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
+PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small(ctx->current, &ctx->current->heap, sizeclass);
 }
 
-void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
+PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_large(ctx->current, &ctx->current->heap, size);
 }
 
-void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
+PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size);
 }
 
-void* pony_alloc_final(pony_ctx_t* ctx, size_t size, pony_final_fn final)
+PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size,
+  pony_final_fn final)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
@@ -413,12 +416,12 @@ void* pony_alloc_final(pony_ctx_t* ctx, size_t size, pony_final_fn final)
   return p;
 }
 
-void pony_triggergc(pony_actor_t* actor)
+PONY_API void pony_triggergc(pony_actor_t* actor)
 {
   actor->heap.next_gc = 0;
 }
 
-void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
+PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(!has_flag(actor, FLAG_UNSCHEDULED))
     return;
@@ -427,7 +430,7 @@ void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
   ponyint_sched_add(ctx, actor);
 }
 
-void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
+PONY_API void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(has_flag(actor, FLAG_BLOCKED))
   {
@@ -438,12 +441,12 @@ void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
   set_flag(actor, FLAG_UNSCHEDULED);
 }
 
-void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
+PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
 }
 
-void pony_poll(pony_ctx_t* ctx)
+PONY_API void pony_poll(pony_ctx_t* ctx)
 {
   assert(ctx->current != NULL);
   ponyint_actor_run(ctx, ctx->current, 1);

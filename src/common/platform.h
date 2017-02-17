@@ -307,6 +307,19 @@ inline uint64_t __pony_clzl(uint64_t x)
             FUNC __attribute__((malloc))
 #endif
 
+/** Symbol visibility for the LLVM JIT.
+ *
+ */
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  define PONY_API __declspec(dllexport)
+#elif defined(PLATFORM_IS_CLANG_OR_GCC)
+#  ifdef PLATFORM_IS_WINDOWS
+#    define PONY_API __attribute__((dllexport))
+#  elif defined(PLATFORM_IS_POSIX_BASED)
+#    define PONY_API  __attribute__((visibility("default")))
+#  endif
+#endif
+
 /** Compile time choose expression.
  *
  *  (void)0 will cause a compile-time error in non-cpp environments, as

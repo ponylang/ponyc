@@ -34,8 +34,7 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   return actor;
 }
 
-static void gen_main(compile_t* c, reach_type_t* t_main,
-  reach_type_t* t_env)
+LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
   params[0] = c->i32;
@@ -143,6 +142,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
 
   // External linkage for main().
   LLVMSetLinkage(func, LLVMExternalLinkage);
+
+  return func;
 }
 
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)

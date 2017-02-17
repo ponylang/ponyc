@@ -51,7 +51,13 @@ bool package_add_safe(const char* paths, pass_opt_t* opt);
  * The specified path is not expanded or normalised and must exactly match that
  * requested.
  */
-void package_add_magic(const char* path, const char* src);
+void package_add_magic_src(const char* path, const char* src);
+
+/**
+ * Add a magic package. Same as package_add_magic_src but uses an alternative
+ * path instead.
+ */
+void package_add_magic_path(const char* path, const char* mapped_path);
 
 /**
  * Clear any magic packages that have been added.

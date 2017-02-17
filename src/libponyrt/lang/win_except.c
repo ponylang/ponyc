@@ -9,7 +9,7 @@ PONY_EXTERN_C_BEGIN
 
 static __declspec(thread) uintptr_t landing_pad;
 
-void pony_throw()
+PONY_API void pony_throw()
 {
   //Continuable exception with no arguments. RaiseException involves a kernel
   //mode transition.
@@ -77,7 +77,7 @@ void pony_throw()
  *  RtlUnwindEx does not ever return to its caller (i.e. this personality
  *  function). If it does, the process will (most likely) be terminated.
  */
-EXCEPTION_DISPOSITION pony_personality_v0(EXCEPTION_RECORD *ExcRecord,
+PONY_API EXCEPTION_DISPOSITION pony_personality_v0(EXCEPTION_RECORD *ExcRecord,
   void* EstablisherFrame, _CONTEXT *ContextRecord, DISPATCHER_CONTEXT* DispatcherContext)
 {
   if(ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS || IS_UNWINDING(ExcRecord->ExceptionFlags))
