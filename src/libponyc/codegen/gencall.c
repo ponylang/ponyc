@@ -451,7 +451,8 @@ static size_t tuple_indices_pop(call_tuple_indices_t* ti)
   return ti->data[--ti->count];
 }
 
-static bool behaviour_in_every_subtype(reach_type_t* t, const char* method_name)
+static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
+  const char* method_name)
 {
   switch(t->underlying)
   {
@@ -466,39 +467,65 @@ static bool behaviour_in_every_subtype(reach_type_t* t, const char* method_name)
     default: {}
   }
 
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* sub = t;
-  do
+  size_t param_count = m->param_count;
+  size_t alloc_index = ponyint_pool_index(param_count * sizeof(bool));
+  bool* boxed_params = (bool*)ponyint_pool_alloc(alloc_index);
+  memset(boxed_params, 0, param_count * sizeof(bool));
+
+  for(size_t i = 0; i < param_count; i++)
   {
-    reach_method_name_t* n = reach_method_name(sub, method_name);
+    if(m->params[i].type->can_be_boxed)
+      boxed_params[i] = true;
+  }
 
-    if(n == NULL)
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub;
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    reach_method_t* m_sub = reach_method(sub, m->cap, method_name, m->typeargs);
+
+    if(m_sub == NULL)
       continue;
 
-    size_t j = HASHMAP_BEGIN;
-    // The kind of a method cannot vary within a type so we only need to check
-    // one reach method.
-    reach_method_t* m = reach_methods_next(&n->r_methods, &j);
-
-    if(m == NULL)
-      continue;
-
-    if(ast_id(m->r_fun) == TK_FUN)
-      return false;
-
-    if(ast_id(m->r_fun) == TK_NEW)
+    bool early_bailout = false;
+    switch(sub->underlying)
     {
-      switch(sub->underlying)
-      {
-        case TK_CLASS:
-        case TK_PRIMITIVE:
-          return false;
+      case TK_CLASS:
+      case TK_PRIMITIVE:
+        early_bailout = true;
+        break;
 
-        default: {}
+      case TK_ACTOR:
+        if(ast_id(m_sub->r_fun) == TK_FUN)
+          early_bailout = true;
+        break;
+
+      default: {}
+    }
+
+    if(early_bailout)
+    {
+      ponyint_pool_free(alloc_index, boxed_params);
+      return false;
+    }
+
+    assert(param_count == m_sub->param_count);
+    for(size_t i = 0; i < param_count; i++)
+    {
+      // If the param is a boxable type for us and an unboxable type for one of
+      // our subtypes, that subtype will take that param as boxed through an
+      // interface. In order to correctly box the value the actual function to
+      // call must be resolved through name mangling, therefore we can't inline
+      // the message send.
+      if(boxed_params[i] && !m_sub->params[i].type->can_be_boxed)
+      {
+        ponyint_pool_free(alloc_index, boxed_params);
+        return false;
       }
     }
-  } while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL);
+  }
 
+  ponyint_pool_free(alloc_index, boxed_params);
   return true;
 }
 
@@ -668,7 +695,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_ISECTTYPE:
       case TK_INTERFACE:
       case TK_TRAIT:
-        is_message = behaviour_in_every_subtype(t, method_name);
+        if(m->cap == TK_TAG)
+          is_message = can_inline_message_send(t, m, method_name);
         break;
 
       default: {}
