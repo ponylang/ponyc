@@ -868,10 +868,10 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
       if(ast_id(dst_type) == TK_NOMINAL)
       {
         ast_t* def = (ast_t*)ast_data(dst_type);
-        if(ast_id(def) != TK_PRIMITIVE)
-          return true;
+        if(ast_id(def) == TK_PRIMITIVE)
+          return false;
       }
-      return false;
+      return true;
     }
 
     case TRACE_PRIMITIVE:
@@ -954,12 +954,17 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
 
     case TRACE_MACHINE_WORD:
     {
+      bool boxed = true;
       if(ast_id(dst_type) == TK_NOMINAL)
       {
         ast_t* def = (ast_t*)ast_data(dst_type);
-        if(ast_id(def) != TK_PRIMITIVE)
-          trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+        if(ast_id(def) == TK_PRIMITIVE)
+          boxed = false;
       }
+
+      if(boxed)
+        trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+
       return;
     }
 
