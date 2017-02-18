@@ -165,7 +165,10 @@ actor TCPConnection
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
-  embed _pending: List[(ByteSeq, USize)] = _pending.create()
+  embed _pending: Array[ByteSeq] = _pending.create()
+  embed _pending_writev: Array[USize] = _pending_writev.create()
+  var _pending_sent: USize = 0
+  var _pending_writev_total: USize = 0
   var _read_buf: Array[U8] iso
 
   var _next_size: USize
@@ -276,8 +279,39 @@ actor TCPConnection
     if _connected and not _closed then
       _in_sent = true
 
-      for bytes in _notify.sentv(this, data).values() do
-        write_final(bytes)
+      ifdef windows then
+        try
+          var num_to_send: I32 = 0
+          for bytes in _notify.sentv(this, data).values() do
+            // Add an IOCP write.
+            _pending_writev.>push(bytes.size()).>push(bytes.cpointer().usize())
+            _pending_writev_total = _pending_writev_total + bytes.size()
+            _pending.push(bytes)
+            num_to_send = num_to_send + 1
+          end
+
+          // Write as much data as possible.
+          var len = @pony_os_writev[USize](_event,
+            _pending_writev.cpointer(_pending_sent * 2),
+            num_to_send) ?
+
+          _pending_sent = _pending_sent + num_to_send.usize()
+
+          if _pending_sent > 32 then
+            // If more than 32 asynchronous writes are scheduled, apply
+            // backpressure. The choice of 32 is rather arbitrary an
+            // probably needs tuning
+            _apply_backpressure()
+          end
+        end
+      else
+        for bytes in _notify.sentv(this, data).values() do
+          _pending_writev.>push(bytes.cpointer().usize()).>push(bytes.size())
+          _pending_writev_total = _pending_writev_total + bytes.size()
+          _pending.push(bytes)
+        end
+
+        _pending_writes()
       end
 
       _in_sent = false
@@ -381,7 +415,12 @@ actor TCPConnection
 
             // Don't call _complete_writes, as Windows will see this as a
             // closed connection.
-            _pending_writes()
+            ifdef not windows then
+              if _pending_writes() then
+                // Sent all data; release backpressure.
+                _release_backpressure()
+              end
+            end
           else
             // The connection failed, unsubscribe the event and close.
             @pony_asio_event_unsubscribe(event)
@@ -405,7 +444,12 @@ actor TCPConnection
       if AsioEvent.writeable(flags) then
         _writeable = true
         _complete_writes(arg)
-        _pending_writes()
+        ifdef not windows then
+          if _pending_writes() then
+            // Sent all data. Release backpressure.
+            _release_backpressure()
+          end
+        end
       end
 
       if AsioEvent.readable(flags) then
@@ -439,10 +483,16 @@ actor TCPConnection
       ifdef windows then
         try
           // Add an IOCP write.
-          @pony_os_send[USize](_event, data.cpointer(), data.size()) ?
-          _pending.push((data, 0))
+          _pending_writev.>push(data.size()).>push(data.cpointer().usize())
+          _pending_writev_total = _pending_writev_total + data.size()
+          _pending.push(data)
 
-          if _pending.size() > 32 then
+          @pony_os_writev[USize](_event,
+            _pending_writev.cpointer(_pending_sent * 2), I32(1)) ?
+
+          _pending_sent = _pending_sent + 1
+
+          if _pending_sent > 32 then
             // If more than 32 asynchronous writes are scheduled, apply
             // backpressure. The choice of 32 is rather arbitrary an
             // probably needs tuning
@@ -450,25 +500,10 @@ actor TCPConnection
           end
         end
       else
-        if _writeable then
-          try
-            // Send as much data as possible.
-            var len =
-              @pony_os_send[USize](_event, data.cpointer(), data.size()) ?
-
-            if len < data.size() then
-              // Send any remaining data later.
-              _pending.push((data, len))
-              _apply_backpressure()
-            end
-          else
-            // Non-graceful shutdown on error.
-            _hard_close()
-          end
-        else
-          // Send later, when the socket is available for writing.
-          _pending.push((data, 0))
-        end
+        _pending_writev.>push(data.cpointer().usize()).>push(data.size())
+        _pending_writev_total = _pending_writev_total + data.size()
+        _pending.push(data)
+        _pending_writes()
       end
     end
 
@@ -478,32 +513,17 @@ actor TCPConnection
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      var rem = len.usize()
-
-      if rem == 0 then
+      if len == 0 then
         // IOCP reported a failed write on this chunk. Non-graceful shutdown.
-        try _pending.shift() end
         _hard_close()
         return
       end
 
-      while rem > 0 do
-        try
-          let node = _pending.head()
-          (let data, let offset) = node()
-          let total = rem + offset
-
-          if total < data.size() then
-            node() = (data, total)
-            rem = 0
-          else
-            _pending.shift()
-            rem = total - data.size()
-          end
-        end
+      try
+        _manage_pending_buffer(len.usize(), _pending_writev_total, _pending.size())
       end
 
-      if _pending.size() < 16 then
+      if _pending_sent < 16 then
         // If fewer than 16 asynchronous writes are scheduled, remove
         // backpressure. The choice of 16 is rather arbitrary and probably
         // needs to be tuned.
@@ -511,32 +531,39 @@ actor TCPConnection
       end
     end
 
-  fun ref _pending_writes() =>
+  fun ref _pending_writes(): Bool =>
     """
     Send pending data. If any data can't be sent, keep it and mark as not
-    writeable. On an error, dispose of the connection.
+    writeable. On an error, dispose of the connection. Returns whether
+    it sent all pending data or not.
     """
     ifdef not windows then
-      while _writeable and (_pending.size() > 0) do
+      // TODO: Make writev_batch_size user configurable
+      let writev_batch_size: USize = @pony_os_writev_max[I32]().usize()
+      var num_to_send: USize = 0
+      var bytes_to_send: USize = 0
+      while _writeable and (_pending_writev_total > 0) do
         try
-          let node = _pending.head()
-          (let data, let offset) = node()
+          // Determine number of bytes and buffers to send.
+          if (_pending_writev.size() / 2) < writev_batch_size then
+            num_to_send = _pending_writev.size() / 2
+            bytes_to_send = _pending_writev_total
+          else
+            // Have more buffers than a single writev can handle.
+            // Iterate over buffers being sent to add up total.
+            num_to_send = writev_batch_size
+            bytes_to_send = 0
+            for d in Range[USize](1, num_to_send * 2, 2) do
+              bytes_to_send = bytes_to_send + _pending_writev(d)
+            end
+          end
 
           // Write as much data as possible.
-          let len = @pony_os_send[USize](_event,
-            data.cpointer().usize() + offset, data.size() - offset) ?
+          var len = @pony_os_writev[USize](_event,
+            _pending_writev.cpointer(), num_to_send.i32()) ?
 
-          if (len + offset) < data.size() then
-            // Send remaining data later.
-            node() = (data, offset + len)
-            _apply_backpressure()
-          else
-            // This chunk has been fully sent.
-            _pending.shift()
-
-            if _pending.size() == 0 then
-              _release_backpressure()
-            end
+          if _manage_pending_buffer(len, bytes_to_send, num_to_send) then
+            return true
           end
         else
           // Non-graceful shutdown on error.
@@ -544,6 +571,76 @@ actor TCPConnection
         end
       end
     end
+
+    false
+
+  fun ref _manage_pending_buffer(bytes_sent: USize, bytes_to_send: USize,
+    num_to_send: USize): Bool ?
+  =>
+    """
+    Manage pending buffer for data sent. Returns a boolean of whether
+    the pending buffer is empty or not.
+    """
+    var len = bytes_sent
+    if len < bytes_to_send then
+      while len > 0 do
+        let iov_p = ifdef windows then
+                      _pending_writev(1)
+                    else
+                      _pending_writev(0)
+                    end
+        let iov_s = ifdef windows then
+                      _pending_writev(0)
+                    else
+                      _pending_writev(1)
+                    end
+        if iov_s <= len then
+          len = len - iov_s
+          _pending_writev.shift()
+          _pending_writev.shift()
+          _pending.shift()
+          ifdef windows then
+            _pending_sent = _pending_sent - 1
+          end
+          _pending_writev_total = _pending_writev_total - iov_s
+        else
+          ifdef windows then
+            _pending_writev.update(1, iov_p+len)
+            _pending_writev.update(0, iov_s-len)
+          else
+            _pending_writev.update(0, iov_p+len)
+            _pending_writev.update(1, iov_s-len)
+          end
+          _pending_writev_total = _pending_writev_total - len
+          len = 0
+        end
+      end
+      ifdef not windows then
+        _apply_backpressure()
+      end
+    else
+      // sent all data we requested in this batch
+      _pending_writev_total = _pending_writev_total - bytes_to_send
+      if _pending_writev_total == 0 then
+        _pending_writev.clear()
+        _pending.clear()
+        ifdef windows then
+          _pending_sent = 0
+        end
+        return true
+      else
+        for d in Range[USize](0, num_to_send, 1) do
+          _pending_writev.shift()
+          _pending_writev.shift()
+          _pending.shift()
+          ifdef windows then
+            _pending_sent = _pending_sent - 1
+          end
+        end
+      end
+    end
+
+    false
 
   fun ref _complete_reads(len: U32) =>
     """
@@ -595,7 +692,7 @@ actor TCPConnection
       try
         @pony_os_recv[USize](
           _event,
-          _read_buf.cpointer().usize() + _read_len,
+          _read_buf.cpointer(_read_len),
           _read_buf.size() - _read_len) ?
       else
         _hard_close()
@@ -620,7 +717,7 @@ actor TCPConnection
           // Read as much data as possible.
           let len = @pony_os_recv[USize](
             _event,
-            _read_buf.cpointer().usize() + _read_len,
+            _read_buf.cpointer(_read_len),
             _read_buf.size() - _read_len) ?
 
           match len
@@ -712,7 +809,7 @@ actor TCPConnection
     if
       not _shutdown and
       (_connect_count == 0) and
-      (_pending.size() == 0)
+      (_pending_writev_total == 0)
     then
       _shutdown = true
 
@@ -730,7 +827,7 @@ actor TCPConnection
     ifdef windows then
       // On windows, wait until all outstanding IOCP operations have completed
       // or been cancelled.
-      if not _connected and not _readable and (_pending.size() == 0) then
+      if not _connected and not _readable and (_pending_sent == 0) then
         @pony_asio_event_unsubscribe(_event)
       end
     end
@@ -748,10 +845,16 @@ actor TCPConnection
     _shutdown = true
     _shutdown_peer = true
 
+    _pending.clear()
+    _pending_writev.clear()
+    _pending_writev_total = 0
+    ifdef windows then
+      _pending_sent = 0
+    end
+
     ifdef not windows then
       // Unsubscribe immediately and drop all pending writes.
       @pony_asio_event_unsubscribe(_event)
-      _pending.clear()
       _readable = false
       _writeable = false
       @pony_asio_event_set_readable(_event, false)
