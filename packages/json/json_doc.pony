@@ -55,7 +55,7 @@ class JsonDoc
 
   fun parse_report(): (USize /* line */, String /*message */) =>
     """
-    Give details of the error that occured last time we attempted to parse.
+    Give details of the error that occurred last time we attempted to parse.
     If parse was successful returns (0, "").
     """
     (_err_line, _err_msg)

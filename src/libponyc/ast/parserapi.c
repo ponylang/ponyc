@@ -275,7 +275,7 @@ static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
   if(state->restart == NULL)
   {
     if(trace_enable)
-      fprintf(stderr, "Rule %s: Propogate failure\n", state->fn_name);
+      fprintf(stderr, "Rule %s: Propagate failure\n", state->fn_name);
 
     return PARSE_ERROR;
   }
@@ -327,7 +327,7 @@ static ast_t* handle_found(parser_t* parser, rule_state_t* state,
 *
 * Returns:
  *    PARSE_OK if not error.
- *    PARSE_ERROR to propogate a lexer error.
+ *    PARSE_ERROR to propagate a lexer error.
  *    RULE_NOT_FOUND if current token is not is specified set.
 */
 static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
@@ -393,9 +393,9 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
  *
  * Returns:
  *    PARSE_OK on success.
- *    PARSE_ERROR to propogate a lexer error.
+ *    PARSE_ERROR to propagate a lexer error.
  *    RULE_NOT_FOUND if current token is not is specified set.
- *    NULL to propogate a restarted error.
+ *    NULL to propagate a restarted error.
  */
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   const char* terminating, const token_id* id_set, bool make_ast,
@@ -476,9 +476,9 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
  *
  * Returns:
  *    PARSE_OK on success.
- *    PARSE_ERROR to propogate an error.
+ *    PARSE_ERROR to propagate an error.
  *    RULE_NOT_FOUND if no rules in given set can be matched.
- *    NULL to propogate a restarted error.
+ *    NULL to propagate a restarted error.
  */
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found, bool annotate)

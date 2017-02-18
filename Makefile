@@ -64,7 +64,7 @@ else
   tag := $(shell cat VERSION)
 endif
 
-# package_name, _version, and _iteration can be overriden by Travis or AppVeyor
+# package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
 package_name ?= "ponyc-unknown"

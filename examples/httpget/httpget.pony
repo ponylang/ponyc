@@ -200,7 +200,7 @@ class HttpNotify is HTTPHandler
 
   fun ref chunk(data: ByteSeq val) =>
     """
-    Receive additional arbitary-length response body data.
+    Receive additional arbitrary-length response body data.
     """
     _main.have_body(data)
 

@@ -95,7 +95,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     // See if next child is suitable
     check_res_t r = check_from_list(state->child, rules, errors);
 
-    if(r == CHK_ERROR)  // Propogate error
+    if(r == CHK_ERROR)  // Propagate error
       return false;
 
     if(r == CHK_NOT_FOUND)  // End of list
@@ -168,7 +168,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 
     check_res_t r = state->type(type_field, errors);
 
-    if(r == CHK_ERROR)  // Propogate error
+    if(r == CHK_ERROR)  // Propagate error
       return CHK_ERROR;
 
     if(r == CHK_NOT_FOUND)

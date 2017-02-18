@@ -525,7 +525,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reduced memory pressure.
 - Scheduler steals when only the CD is on a scheduler thread queue.
 - use commands searches ../pony_packages recursively similar to Node.js
-- Readline uses a Promise to handle async reponses.
+- Readline uses a Promise to handle async responses.
 
 ### Fixed
 
