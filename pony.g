@@ -154,12 +154,12 @@ pattern
   ;
 
 nextparampattern
-  : ('not' | 'addressof' | MINUS_NEW | '-~' | 'digestof') parampattern
+  : ('not' | 'addressof' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') parampattern
   | nextpostfix
   ;
 
 parampattern
-  : ('not' | 'addressof' | '-' | '-~' | MINUS_NEW | '-~' | 'digestof') parampattern
+  : ('not' | 'addressof' | '-' | '-~' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') parampattern
   | postfix
   ;
 
@@ -407,6 +407,10 @@ LSQUARE_NEW
 
 MINUS_NEW
   : NEWLINE '-'
+  ;
+
+MINUS_TILDE_NEW
+  : NEWLINE '-~'
   ;
 
 LINECOMMENT
