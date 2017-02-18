@@ -85,6 +85,9 @@ static const char* antlr_post =
   "MINUS_NEW\n"
   "  : NEWLINE '-'\n"
   "  ;\n\n"
+  "MINUS_TILDE_NEW\n"
+  "  : NEWLINE '-~'\n"
+  "  ;\n\n"
   "LINECOMMENT\n"
   "  : '//' ~('\\n')* {$channel = HIDDEN;}\n"
   "  ;\n\n"
@@ -400,6 +403,7 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
       case TK_LPAREN_NEW: p->name = "LPAREN_NEW"; break;
       case TK_LSQUARE_NEW: p->name = "LSQUARE_NEW"; break;
       case TK_MINUS_NEW: p->name = "MINUS_NEW"; break;
+      case TK_MINUS_TILDE_NEW: p->name = "MINUS_TILDE_NEW"; break;
 
       default:
         // Fixed text tokens: keywords, symbols, etc
