@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Escape special characters in ANLTR strings. (#1600) (PR #1601)
 - Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
 - Always call finalisers for embedded fields (PR #1586)
 - Check for null terminator in String._append (PR #1582)
