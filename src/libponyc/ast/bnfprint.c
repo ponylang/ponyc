@@ -250,6 +250,27 @@ static bnf_t* bnf_add(bnf_t* bnf, bnf_t* parent)
   return bnf;
 }
 
+// Print out a quoted token, in ANTLR syntax.
+// Certain characters should be escaped before printing.
+static void bnf_print_quoted_token(const char* token)
+{
+  printf("'");
+  for(const char* c = token; *c != '\0'; c++) {
+    // See the definition of LITERAL_CHAR and ESC in
+    // http://www.antlr3.org/grammar/ANTLR/ANTLRv3.g
+    switch(*c) {
+      case '\'': printf("\\'"); break;
+      case '\\': printf("\\\\"); break;
+      case '\n': printf("\\n"); break;
+      case '\r': printf("\\r"); break;
+      case '\t': printf("\\t"); break;
+      case '\b': printf("\\b"); break;
+      case '\f': printf("\\f"); break;
+      default: putchar(*c); break;
+    }
+  }
+  printf("'");
+}
 
 // Print out the given node, in ANTLR syntax.
 // The top_format parameter indicates we should use top level node within rule
@@ -308,7 +329,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
       break;
 
     case BNF_QUOTED_TOKEN:
-      printf("'%s'", bnf->name);
+      bnf_print_quoted_token(bnf->name);
       break;
 
     case BNF_NEVER:
