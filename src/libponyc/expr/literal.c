@@ -309,7 +309,7 @@ static int uifset_union(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
   {
     int r = uifset(opt, p, chain);
 
-    if(r == UIF_ERROR)  // Propogate errors
+    if(r == UIF_ERROR)  // Propagate errors
       return UIF_ERROR;
 
     bool child_valid = (r != UIF_NO_TYPES);
@@ -344,7 +344,7 @@ static int uifset_intersect(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
   {
     int r = uifset(opt, p, chain);
 
-    if(r == UIF_ERROR)  // Propogate errors
+    if(r == UIF_ERROR)  // Propagate errors
       return UIF_ERROR;
 
     if((r & UIF_CONSTRAINED) != 0)

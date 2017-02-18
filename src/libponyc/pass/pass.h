@@ -109,7 +109,7 @@ TODO
 * Traits pass (AST)
 
 Adds methods inherited by entities from traits and interfaces, including
-handling default bodies. Only chnages AST by adding methods to types and bodies
+handling default bodies. Only changes AST by adding methods to types and bodies
 to previously bodiless methods.
 
 Uses the data field of various AST nodes:
@@ -150,7 +150,7 @@ Does not mutate the structure of the AST, but may set and use flags.
 
 * Finaliser pass (AST)
 
-Checks that any finalisers do not perfrom any restricted operations, such as
+Checks that any finalisers do not perform any restricted operations, such as
 creating actors or sending messages.
 
 Within finalisers uses the data field of the top body node and any TK_CALL
@@ -294,7 +294,7 @@ typedef ast_result_t(*ast_visit_t)(ast_t** astp, pass_opt_t* options);
 
 /** Perform the specified pass on the given AST.
  * The specified pass is stored in the AST and passes will not be repeated.
- * To surpress this check, and execute the given pass regardless, specify the
+ * To suppress this check, and execute the given pass regardless, specify the
  * pass as PASS_ALL. No pass will be recorded in the AST in this case.
  */
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,

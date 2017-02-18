@@ -725,7 +725,7 @@ public:
     while(alloc_size == 0)
     {
       // replace is a LLVM null pointer here. We have to handle any realloc
-      // chain before losing call use informations.
+      // chain before losing call use information.
 
       CallInst* next_realloc = findRealloc(*last_realloc);
       if(next_realloc == NULL)

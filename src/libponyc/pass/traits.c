@@ -301,7 +301,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
 
   const char* name = ast_name(ast_childidx(basis_method, 1));
 
-  // Check behaviour compatability.
+  // Check behaviour compatibility.
   if(ast_id(basis_method) == TK_BE)
   {
     switch(ast_id(entity))

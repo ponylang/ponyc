@@ -1047,7 +1047,7 @@ inline void FlushInfoLog() { fflush(NULL); }
 //
 // GTEST_CHECK_ is an all-mode assert. It aborts the program if the condition
 // is not satisfied.
-//  Synopsys:
+//  Synopsis:
 //    GTEST_CHECK_(boolean_condition);
 //     or
 //    GTEST_CHECK_(boolean_condition) << "Additional message";
