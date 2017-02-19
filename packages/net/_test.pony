@@ -340,8 +340,6 @@ class iso _TestTCPMute is UnitTest
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPMuteReceiveNotify(h))
 
-    h.long_test(2_000_000_000)
-
   fun timed_out(h: TestHelper) =>
     h.complete(true)
 
@@ -418,8 +416,6 @@ class iso _TestTCPUnmute is UnitTest
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPUnmuteReceiveNotify(h))
 
-    h.long_test(2_000_000_000)
-
 class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   """
   Notifier to test that after muting and unmuting a connection, we get data
@@ -468,8 +464,6 @@ class iso _TestTCPThrottle is UnitTest
 
     _TestTCP(h)(_TestTCPThrottleSendNotify(h),
       _TestTCPThrottleReceiveNotify(h))
-
-    h.long_test(10_000_000_000)
 
 class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   """
