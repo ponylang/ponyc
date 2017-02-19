@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add assert_no_error test condition to PonyTest (PR #1605)
 - Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
 - Packed structures (RFC 32) (PR #1536)
 - Add `insert_if_absent` method to Map (PR #1519)
