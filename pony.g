@@ -431,13 +431,13 @@ NEWLINE
 
 fragment
 CHAR_CHAR
-  : ESC
+  : '\\' '\'' | ESC
   | ~('\'' | '\\')
   ;
 
 fragment
 STRING_CHAR
-  : ESC
+  : '\\' '"' | ESC
   | ~('"' | '\\')
   ;
 
@@ -468,7 +468,7 @@ HEX
 
 fragment
 ESC
-  : '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
+  : '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\\' | '0')
   | HEX_ESC
   | UNICODE_ESC
   | UNICODE2_ESC
