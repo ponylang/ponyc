@@ -214,7 +214,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _send(conn, "hi there")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("client connect")
+    _h.fail_action("client connect failed")
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
@@ -293,7 +293,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     conn.writev(recover ["hello", ", hello"] end)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("client connect")
+    _h.fail_action("client connect failed")
 
 class _TestTCPWritevNotifyServer is TCPConnectionNotify
   let _h: TestHelper
@@ -315,7 +315,7 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
     true
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    None
+    _h.fail_action("sender connect failed")
 
 class iso _TestTCPMute is UnitTest
   """
@@ -370,7 +370,7 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     true
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    None
+    _h.fail_action("receiver connect failed")
 
 
 class _TestTCPMuteSendNotify is TCPConnectionNotify
@@ -391,7 +391,7 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
     _h.complete_action("sender connected")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("sender connected")
+    _h.fail_action("sender connect failed")
 
    fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
      conn.write("it's sad that you won't ever read this")
@@ -450,7 +450,7 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     true
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    None
+    _h.fail_action("receiver connect failed")
 
 
 class iso _TestTCPThrottle is UnitTest
@@ -501,7 +501,7 @@ class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
     _h.dispose_when_done(conn)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    None
+    _h.fail_action("receiver connect failed")
 
 class _TestTCPThrottleSendNotify is TCPConnectionNotify
   """
@@ -522,7 +522,7 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
     _h.complete_action("sender connected")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("sender connected")
+    _h.fail_action("sender connect failed")
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
     conn.write("it's sad that you won't ever read this")
