@@ -24,6 +24,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Runtime memory allocator bug
 - Compiler crash on tuple sending generation (issue #1546)
 - Compiler crash due to incorrect subtype assignment (issue #1474)
+- Incorrect code generation when sending certain types of messages (issue #1594)
 
 ### Added
 
