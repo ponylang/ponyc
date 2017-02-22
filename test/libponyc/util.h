@@ -19,6 +19,12 @@
     ASSERT_EQ(expected, ast_id(t)); \
   }
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#  define EXPORT_SYMBOL
+#endif
+
 
 class PassTest : public testing::Test
 {
