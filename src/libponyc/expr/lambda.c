@@ -8,7 +8,7 @@
 #include "../pass/syntax.h"
 #include "../type/alias.h"
 #include "../type/sanitise.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 // Process the given capture and create the AST for the corresponding field.
@@ -16,7 +16,7 @@
 // Returns NULL on error.
 static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 {
-  assert(capture != NULL);
+  pony_assert(capture != NULL);
 
   AST_GET_CHILDREN(capture, id_node, type, value);
   const char* name = ast_name(id_node);
@@ -29,7 +29,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
   if(ast_id(value) == TK_NONE)
   {
     // Variable capture
-    assert(ast_id(type) == TK_NONE);
+    pony_assert(ast_id(type) == TK_NONE);
 
     ast_t* def = ast_get(capture, name, NULL);
 
@@ -87,9 +87,9 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 
 bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
     ret_type, raises, body, reference_cap);

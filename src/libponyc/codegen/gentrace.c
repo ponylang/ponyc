@@ -6,7 +6,7 @@
 #include "../type/cap.h"
 #include "../type/matchtype.h"
 #include "../type/subtype.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 // Arranged from most specific to least specific.
 typedef enum
@@ -67,7 +67,7 @@ static trace_t trace_union_machine_word(trace_t a)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -98,7 +98,7 @@ static trace_t trace_union_primitive(trace_t a)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -123,7 +123,7 @@ static trace_t trace_union_val(trace_t a)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -148,7 +148,7 @@ static trace_t trace_union_mut(trace_t a)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -173,7 +173,7 @@ static trace_t trace_union_tag(trace_t a)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -195,7 +195,7 @@ static trace_t trace_type_union(ast_t* type)
 
       case TRACE_MAYBE:
         // Can't be in a union.
-        assert(0);
+        pony_assert(0);
         return TRACE_NONE;
 
       case TRACE_MACHINE_WORD:
@@ -227,7 +227,7 @@ static trace_t trace_type_union(ast_t* type)
 
       case TRACE_STATIC:
         // Can't happen here.
-        assert(0);
+        pony_assert(0);
         return TRACE_DYNAMIC;
     }
   }
@@ -250,7 +250,7 @@ static trace_t trace_type_isect(ast_t* type)
       case TRACE_NONE:
       case TRACE_MAYBE:
         // Can't be in an isect.
-        assert(0);
+        pony_assert(0);
         return TRACE_NONE;
 
       case TRACE_PRIMITIVE:
@@ -280,7 +280,7 @@ static trace_t trace_type_isect(ast_t* type)
 
       case TRACE_STATIC:
         // Can't happen here.
-        assert(0);
+        pony_assert(0);
         break;
     }
   }
@@ -339,7 +339,7 @@ static trace_t trace_type_nominal(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_NONE;
 }
 
@@ -362,7 +362,7 @@ static trace_t trace_type(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TRACE_DYNAMIC;
 }
 
@@ -453,11 +453,11 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
 
     case TRACE_STATIC:
       // Can't happen here.
-      assert(0);
+      pony_assert(0);
       return src_trace;
 
     default:
-      assert(0);
+      pony_assert(0);
       return src_trace;
   }
 }
@@ -509,7 +509,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
   ast_t* tuple)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
 
   ast_t* cap = cap_fetch(type);
 
@@ -559,7 +559,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     }
   }
 
-  assert(ast_id(cap) == TK_TAG);
+  pony_assert(ast_id(cap) == TK_TAG);
 
   int ret = -1;
   if(is_matchtype(orig, type, opt) == MATCHTYPE_ACCEPT)
@@ -572,10 +572,10 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
 static void trace_static(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* src_type, ast_t* dst_type)
 {
-  assert(ast_id(src_type) == TK_NOMINAL);
+  pony_assert(ast_id(src_type) == TK_NOMINAL);
 
   int mutability = trace_cap_nominal(c->opt, src_type, dst_type, NULL);
-  assert(mutability != -1);
+  pony_assert(mutability != -1);
 
   if(is_known(src_type))
     trace_known(c, ctx, object, src_type, mutability);
@@ -602,13 +602,13 @@ static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       src_child = ast_sibling(src_child);
       dst_child = ast_sibling(dst_child);
     }
-    assert(src_child == NULL && dst_child == NULL);
+    pony_assert(src_child == NULL && dst_child == NULL);
   } else {
     // This is a boxed tuple. Trace the box, then handle the elements.
     trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
 
     // Extract the elements from the original unboxed tuple.
-    assert(LLVMGetTypeKind(LLVMTypeOf(src_value)) == LLVMStructTypeKind);
+    pony_assert(LLVMGetTypeKind(LLVMTypeOf(src_value)) == LLVMStructTypeKind);
 
     ast_t* src_child = ast_child(src_type);
     while(src_child != NULL)
@@ -765,7 +765,7 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   LLVMValueRef object, ast_t* type, ast_t* orig, ast_t* tuple,
   LLVMBasicBlockRef next_block)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
 
   // Skip if a primitive.
   ast_t* def = (ast_t*)ast_data(type);
@@ -860,7 +860,7 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
   switch(trace_type(src_type))
   {
     case TRACE_NONE:
-      assert(0);
+      pony_assert(0);
       return false;
 
     case TRACE_MACHINE_WORD:
@@ -890,7 +890,7 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
           src_child = ast_sibling(src_child);
           dst_child = ast_sibling(dst_child);
         }
-        assert(src_child == NULL && dst_child == NULL);
+        pony_assert(src_child == NULL && dst_child == NULL);
       } else {
         // This is a boxed tuple. We'll have to trace the box anyway.
         return true;
@@ -949,7 +949,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
   switch(trace_method)
   {
     case TRACE_NONE:
-      assert(0);
+      pony_assert(0);
       return;
 
     case TRACE_MACHINE_WORD:

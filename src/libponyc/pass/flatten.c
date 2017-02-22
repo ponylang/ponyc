@@ -5,7 +5,7 @@
 #include "../type/compattype.h"
 #include "../type/subtype.h"
 #include "../type/typeparam.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
 {
@@ -167,10 +167,10 @@ static ast_result_t flatten_async(pass_opt_t* opt, ast_t* ast)
 static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
   ast_t* error_at, ast_t* list_parent, ast_t** list_end)
 {
-  assert(error_at != NULL);
-  assert(provides_type != NULL);
-  assert(list_parent != NULL);
-  assert(list_end != NULL);
+  pony_assert(error_at != NULL);
+  pony_assert(provides_type != NULL);
+  pony_assert(list_parent != NULL);
+  pony_assert(list_end != NULL);
 
   switch(ast_id(provides_type))
   {
@@ -189,7 +189,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
     {
       // Check type is a trait or interface
       ast_t* def = (ast_t*)ast_data(provides_type);
-      assert(def != NULL);
+      pony_assert(def != NULL);
 
       if(ast_id(def) != TK_TRAIT && ast_id(def) != TK_INTERFACE)
       {
@@ -220,7 +220,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
 static ast_result_t flatten_provides_list(pass_opt_t* opt, ast_t* provider,
   int index)
 {
-  assert(provider != NULL);
+  pony_assert(provider != NULL);
 
   ast_t* provides = ast_childidx(provider, index);
 

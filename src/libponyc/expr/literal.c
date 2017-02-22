@@ -8,8 +8,8 @@
 #include "../type/reify.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 
 #define UIF_ERROR       -1
@@ -145,7 +145,7 @@ static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors);
 
 static void chain_init_head(lit_chain_t* head)
 {
-  assert(head != NULL);
+  pony_assert(head != NULL);
 
   head->cardinality = CHAIN_CARD_BASE;
   head->formal = NULL;
@@ -159,7 +159,7 @@ static void chain_init_head(lit_chain_t* head)
 
 static void chain_clear_cache(lit_chain_t* chain)
 {
-  assert(chain != NULL);
+  pony_assert(chain != NULL);
 
   while(chain->cardinality != CHAIN_CARD_BASE)
     chain = chain->next;
@@ -175,14 +175,14 @@ static void chain_clear_cache(lit_chain_t* chain)
 static void chain_add(lit_chain_t* chain, lit_chain_t* new_link,
   size_t cardinality)
 {
-  assert(new_link != NULL);
-  assert(cardinality != CHAIN_CARD_BASE);
+  pony_assert(new_link != NULL);
+  pony_assert(cardinality != CHAIN_CARD_BASE);
 
   new_link->cardinality = cardinality;
   new_link->index = 0;
 
-  assert(chain != NULL);
-  assert(chain->next != NULL);
+  pony_assert(chain != NULL);
+  pony_assert(chain->next != NULL);
   new_link->next = chain->next;
   chain->next = new_link;
 
@@ -192,10 +192,10 @@ static void chain_add(lit_chain_t* chain, lit_chain_t* new_link,
 
 static void chain_remove(lit_chain_t* old_tail)
 {
-  assert(old_tail != NULL);
-  assert(old_tail->next != NULL);
-  assert(old_tail->next->next != NULL);
-  assert(old_tail->next->next->cardinality == CHAIN_CARD_BASE);
+  pony_assert(old_tail != NULL);
+  pony_assert(old_tail->next != NULL);
+  pony_assert(old_tail->next->next != NULL);
+  pony_assert(old_tail->next->next->cardinality == CHAIN_CARD_BASE);
 
   old_tail->next = old_tail->next->next;
   chain_clear_cache(old_tail);
@@ -207,7 +207,7 @@ static void chain_remove(lit_chain_t* old_tail)
 // any formal parameters.
 static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   int set = 0;
 
@@ -231,17 +231,17 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
 static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   lit_chain_t* chain)
 {
-  assert(type_param_ref != NULL);
-  assert(ast_id(type_param_ref) == TK_TYPEPARAMREF);
+  pony_assert(type_param_ref != NULL);
+  pony_assert(ast_id(type_param_ref) == TK_TYPEPARAMREF);
 
   ast_t* type_param = (ast_t*)ast_data(type_param_ref);
 
-  assert(type_param != NULL);
-  assert(ast_id(type_param) == TK_TYPEPARAM);
-  assert(chain != NULL);
+  pony_assert(type_param != NULL);
+  pony_assert(ast_id(type_param) == TK_TYPEPARAM);
+  pony_assert(chain != NULL);
 
   ast_t* constraint = ast_childidx(type_param, 1);
-  assert(constraint != NULL);
+  pony_assert(constraint != NULL);
 
   // If the constraint is not a subtype of (Real[A] & Number) then there are no
   // legal types in the set
@@ -299,8 +299,8 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
 // Determine the UIF types that the given non-tuple union type may be
 static int uifset_union(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
-  assert(type != NULL);
-  assert(ast_id(type) == TK_UNIONTYPE);
+  pony_assert(type != NULL);
+  pony_assert(ast_id(type) == TK_UNIONTYPE);
 
   int uif_set = 0;
 
@@ -334,8 +334,8 @@ static int uifset_union(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 // Determine the UIF types that the given non-tuple intersection type may be
 static int uifset_intersect(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
-  assert(type != NULL);
-  assert(ast_id(type) == TK_ISECTTYPE);
+  pony_assert(type != NULL);
+  pony_assert(ast_id(type) == TK_ISECTTYPE);
 
   int uif_set = UIF_ALL_TYPES;
   int constraint = 0;
@@ -377,7 +377,7 @@ static int uifset_intersect(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 // Determine the UIF types that the given type may be
 static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
-  assert(chain != NULL);
+  pony_assert(chain != NULL);
 
   if(is_typecheck_error(type))
     return UIF_NO_TYPES;
@@ -392,7 +392,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
-      assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
+      pony_assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
       return uifset(opt, ast_childidx(type, 1), chain);
 
     case TK_TYPEPARAMREF:
@@ -414,7 +414,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
           return UIF_NO_TYPES;
 
         ast_t* type_args = ast_childidx(type, 2);
-        assert(ast_childcount(type_args) == 1);
+        pony_assert(ast_childcount(type_args) == 1);
         return uifset(opt, ast_child(type_args), chain->next);
       }
 
@@ -429,7 +429,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
     default:
       ast_error(opt->check.errors, type, "Internal error: uif type, node %d", ast_id(type));
-      assert(0);
+      pony_assert(0);
       return UIF_ERROR;
   }
 }
@@ -439,8 +439,8 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
   lit_chain_t* chain_head, bool report_errors)
 {
-  assert(chain_head != NULL);
-  assert(chain_head->cardinality == CHAIN_CARD_BASE);
+  pony_assert(chain_head != NULL);
+  pony_assert(chain_head->cardinality == CHAIN_CARD_BASE);
 
   chain_head->formal = NULL;
   int r = uifset(opt, type, chain_head->next);
@@ -457,14 +457,14 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
     return false;
   }
 
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   if((r & UIF_CONSTRAINED) != 0)
   {
     // Type is a formal parameter
-    assert(chain_head->formal != NULL);
-    assert(chain_head->name != NULL);
-    assert(chain_head->cached_uif_index < 0);
+    pony_assert(chain_head->formal != NULL);
+    pony_assert(chain_head->name != NULL);
+    pony_assert(chain_head->cached_uif_index < 0);
 
     BUILD(uif_type, type,
       NODE(TK_TYPEPARAMREF, DATA(chain_head->formal)
@@ -500,8 +500,8 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
   ast_t* target_type, lit_chain_t* chain, bool require_float,
   bool report_errors)
 {
-  assert(literal != NULL);
-  assert(chain != NULL);
+  pony_assert(literal != NULL);
+  pony_assert(chain != NULL);
 
   lit_chain_t* chain_head = chain;
   while(chain_head->cardinality != CHAIN_CARD_BASE)
@@ -546,7 +546,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
         // looser test if the literal is immediately negated.
         // We do not do this if the negation is not immediate, eg "-(128)".
         ast_t* parent = ast_parent(literal);
-        assert(parent != NULL);
+        pony_assert(parent != NULL);
         ast_t* parent_type = ast_type(parent);
 
         if(parent_type != NULL && ast_id(parent_type) == TK_OPERATORLITERAL &&
@@ -577,12 +577,12 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
   size_t cardinality, pass_opt_t* options, bool report_errors)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* literal_expr = *astp;
-  assert(literal_expr != NULL);
-  assert(ast_id(literal_expr) == TK_TUPLE || ast_id(literal_expr) == TK_ARRAY);
-  assert(chain != NULL);
-  assert(cardinality != CHAIN_CARD_BASE);
+  pony_assert(literal_expr != NULL);
+  pony_assert(ast_id(literal_expr) == TK_TUPLE || ast_id(literal_expr) == TK_ARRAY);
+  pony_assert(chain != NULL);
+  pony_assert(cardinality != CHAIN_CARD_BASE);
 
   size_t i = 0;
   lit_chain_t link;
@@ -631,20 +631,20 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
 static bool coerce_control_block(ast_t** astp, ast_t* target_type,
   lit_chain_t* chain, pass_opt_t* opt, bool report_errors)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* literal_expr = *astp;
-  assert(literal_expr != NULL);
+  pony_assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
-  assert(lit_type != NULL);
-  assert(ast_id(lit_type) == TK_LITERAL);
+  pony_assert(lit_type != NULL);
+  pony_assert(ast_id(lit_type) == TK_LITERAL);
   ast_t* block_type = ast_type(lit_type);
 
   for(ast_t* p = ast_child(lit_type); p != NULL; p = ast_sibling(p))
   {
-    assert(ast_id(p) == TK_LITERALBRANCH);
+    pony_assert(ast_id(p) == TK_LITERALBRANCH);
     ast_t* branch = (ast_t*)ast_data(p);
-    assert(branch != NULL);
+    pony_assert(branch != NULL);
 
     if(!coerce_literal_to_type(&branch, target_type, chain, opt,
       report_errors))
@@ -675,9 +675,9 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
 static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
   lit_chain_t* chain, pass_opt_t* opt, bool report_errors)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* literal_expr = *astp;
-  assert(literal_expr != NULL);
+  pony_assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
 
@@ -776,7 +776,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     default:
       ast_error(opt->check.errors, literal_expr, "Internal error, coerce_literal_to_type node %s",
         ast_get_print(literal_expr));
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -789,9 +789,9 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
 bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* opt)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* literal_expr = *astp;
-  assert(literal_expr != NULL);
+  pony_assert(literal_expr != NULL);
 
   if(ast_id(literal_expr) == TK_NONE)
     return true;
@@ -814,7 +814,7 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* opt)
 // Unify all the branches of the given AST to the same type
 static bool unify(ast_t* ast, pass_opt_t* opt, bool report_errors)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* type = ast_type(ast);
 
   if(is_typecheck_error(type))
@@ -823,7 +823,7 @@ static bool unify(ast_t* ast, pass_opt_t* opt, bool report_errors)
   if(!is_type_literal(type)) // Not literal, nothing to unify
     return true;
 
-  assert(type != NULL);
+  pony_assert(type != NULL);
   ast_t* non_literal = ast_type(type);
 
   if(non_literal != NULL)
@@ -843,8 +843,8 @@ static bool unify(ast_t* ast, pass_opt_t* opt, bool report_errors)
 
 bool literal_member_access(ast_t* ast, pass_opt_t* opt)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE ||
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE ||
     ast_id(ast) == TK_CHAIN);
 
   AST_GET_CHILDREN(ast, receiver, name_node);
@@ -862,7 +862,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* opt)
 
   // Receiver is a pure literal expression
   // Look up member name
-  assert(ast_id(name_node) == TK_ID);
+  pony_assert(ast_id(name_node) == TK_ID);
   const char* name = ast_name(name_node);
   lit_op_info_t* op = lookup_literal_op(name);
 
@@ -882,8 +882,8 @@ bool literal_member_access(ast_t* ast, pass_opt_t* opt)
 
 bool literal_call(ast_t* ast, pass_opt_t* opt)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_CALL);
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_CALL);
 
   AST_GET_CHILDREN(ast, positional_args, named_args, receiver);
 
@@ -902,7 +902,7 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
     return true;
 
   lit_op_info_t* op = (lit_op_info_t*)ast_data(recv_type);
-  assert(op != NULL);
+  pony_assert(op != NULL);
 
   if(ast_childcount(named_args) != 0)
   {
@@ -947,8 +947,8 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
 
 bool literal_is(ast_t* ast, pass_opt_t* opt)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
 
   AST_GET_CHILDREN(ast, left, right);
 
@@ -975,8 +975,8 @@ bool literal_is(ast_t* ast, pass_opt_t* opt)
   }
 
   // Both sides are literals, that's a problem.
-  assert(is_type_literal(l_type));
-  assert(is_type_literal(r_type));
+  pony_assert(is_type_literal(l_type));
+  pony_assert(is_type_literal(r_type));
   ast_error(opt->check.errors, ast, "Cannot infer type of operands");
   return false;
 }

@@ -10,11 +10,11 @@
 #include <codegen/genjit.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
+#include <ponyassert.h>
 
 #include "util.h"
 #include <string.h>
 #include <string>
-#include <assert.h>
 
 using std::string;
 
@@ -108,8 +108,8 @@ static const char* _builtin =
 // Check whether the 2 given ASTs are identical
 static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 {
-  assert(expected != NULL);
-  assert(actual != NULL);
+  pony_assert(expected != NULL);
+  pony_assert(actual != NULL);
 
   token_id expected_id = ast_id(expected);
   token_id actual_id = ast_id(actual);
@@ -349,26 +349,26 @@ void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
 
 ast_t* PassTest::type_of(const char* name)
 {
-  assert(name != NULL);
-  assert(program != NULL);
+  pony_assert(name != NULL);
+  pony_assert(program != NULL);
   return type_of_within(program, name);
 }
 
 
 ast_t* PassTest::numeric_literal(uint64_t num)
 {
-  assert(program != NULL);
+  pony_assert(program != NULL);
   return numeric_literal_within(program, num);
 }
 
 
 ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
-  assert(name != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(name != NULL);
 
   symtab_t* symtab = ast_get_symtab(ast);
-  assert(symtab != NULL);
+  pony_assert(symtab != NULL);
 
   return symtab_find(symtab, stringtab(name), NULL);
 }
@@ -376,18 +376,18 @@ ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
 
 ast_t* PassTest::lookup_type(const char* name)
 {
-  assert(package != NULL);
+  pony_assert(package != NULL);
   return lookup_in(package, name);
 }
 
 
 ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 {
-  assert(type_name != NULL);
-  assert(member_name != NULL);
+  pony_assert(type_name != NULL);
+  pony_assert(member_name != NULL);
 
   ast_t* type = lookup_type(type_name);
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   return lookup_in(type, member_name);
 }
@@ -395,7 +395,7 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 
 bool PassTest::run_program(int* exit_code)
 {
-  assert(compile != NULL);
+  pony_assert(compile != NULL);
 
   pony_exitcode(0);
   jit_symbol_t symbols[] = {{"__DescTable", &__DescTable},
@@ -497,8 +497,8 @@ void PassTest::build_package(const char* pass, const char* src,
 
 ast_t* PassTest::type_of_within(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
-  assert(name != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(name != NULL);
 
   // Is this node the definition we're looking for?
   switch(ast_id(ast))
@@ -536,7 +536,7 @@ ast_t* PassTest::type_of_within(ast_t* ast, const char* name)
 
 ast_t* PassTest::numeric_literal_within(ast_t* ast, uint64_t num)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Is this node the definition we're looking for?
   if (ast_id(ast) == TK_INT && lexint_cmp64(ast_int(ast), num) == 0)

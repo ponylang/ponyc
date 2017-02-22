@@ -4,11 +4,11 @@
 #include "token.h"
 #include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <assert.h>
 
 
 struct lexer_t
@@ -384,7 +384,7 @@ static token_t* make_token_with_text(lexer_t* lexer, token_id id)
  */
 static void consume_chars(lexer_t* lexer, size_t count)
 {
-  assert(lexer->len >= count);
+  pony_assert(lexer->len >= count);
 
   if(count == 0)
     return;
@@ -754,7 +754,7 @@ static int escape(lexer_t* lexer, bool unicode_allowed, bool is_string)
 // Append the given value to the current token text, UTF-8 encoded
 static void append_utf8(lexer_t* lexer, int value)
 {
-  assert(value >= 0 && value <= 0x10FFFF);
+  pony_assert(value >= 0 && value <= 0x10FFFF);
 
   if(value <= 0x7F)
   {
@@ -955,7 +955,7 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
-  assert(c == '.' || c == 'e' || c == 'E');
+  pony_assert(c == '.' || c == 'e' || c == 'E');
 
   if(c == '.')
   {
@@ -1208,7 +1208,7 @@ static token_t* symbol(lexer_t* lexer)
 
 lexer_t* lexer_open(source_t* source, errors_t* errors)
 {
-  assert(source != NULL);
+  pony_assert(source != NULL);
 
   lexer_t* lexer = POOL_ALLOC(lexer_t);
   memset(lexer, 0, sizeof(lexer_t));
@@ -1238,7 +1238,7 @@ void lexer_close(lexer_t* lexer)
 
 token_t* lexer_next(lexer_t* lexer)
 {
-  assert(lexer != NULL);
+  pony_assert(lexer != NULL);
 
   token_t* t = NULL;
 
@@ -1297,7 +1297,7 @@ token_t* lexer_next(lexer_t* lexer)
         else if(isalpha(c) || (c == '_'))
         {
           t = keyword(lexer, true);
-          assert(t != NULL);
+          pony_assert(t != NULL);
         }
         else
         {

@@ -5,8 +5,8 @@
 #include "../ds/hash.h"
 #include "../ds/fun.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static size_t actorref_hash(actorref_t* aref)
 {

@@ -1,16 +1,16 @@
-#include <assert.h>
+#include "ponyassert.h"
 #include "id.h"
 #include "id_internal.h"
 
 
 bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
 {
-  assert(id_node != NULL);
-  assert(ast_id(id_node) == TK_ID);
-  assert(desc != NULL);
+  pony_assert(id_node != NULL);
+  pony_assert(ast_id(id_node) == TK_ID);
+  pony_assert(desc != NULL);
 
   const char* name = ast_name(id_node);
-  assert(name != NULL);
+  pony_assert(name != NULL);
   char prev = '\0';
 
   // Ignore leading $, handled by lexer
@@ -111,7 +111,7 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
     return true;
 
   // Should only be ticks left
-  assert(*name == '\'');
+  pony_assert(*name == '\'');
 
   if((spec & ALLOW_TICK) == 0)
   {

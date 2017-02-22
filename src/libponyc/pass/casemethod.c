@@ -4,7 +4,7 @@
 #include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 #include <string.h>
 
 /* The following sugar handles case methods.
@@ -55,7 +55,7 @@ class C
 // Returns: created method, NULL on error.
 static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
 {
-  assert(case_method != NULL);
+  pony_assert(case_method != NULL);
 
   if(ast_id(case_method) == TK_FUN)
     fun_defaults(case_method);
@@ -143,12 +143,12 @@ static ast_t* make_match_wrapper(ast_t* case_method, pass_opt_t* opt)
 static bool param_with_type(ast_t* case_param, ast_t* match_param,
   ast_t* pattern, pass_opt_t* opt)
 {
-  assert(case_param != NULL);
-  assert(match_param != NULL);
-  assert(pattern != NULL);
+  pony_assert(case_param != NULL);
+  pony_assert(match_param != NULL);
+  pony_assert(pattern != NULL);
 
   AST_GET_CHILDREN(case_param, case_id, case_type, case_def_arg);
-  assert(ast_id(case_type) != TK_NONE);
+  pony_assert(ast_id(case_type) != TK_NONE);
 
   if(ast_id(case_id) != TK_ID)
   {
@@ -159,7 +159,7 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
   }
 
   AST_GET_CHILDREN(match_param, match_id, match_type, match_def_arg);
-  assert(ast_id(match_id) == TK_ID || ast_id(match_id) == TK_NONE);
+  pony_assert(ast_id(match_id) == TK_ID || ast_id(match_id) == TK_NONE);
 
   if(ast_id(match_id) == TK_NONE)
   {
@@ -220,11 +220,11 @@ static bool param_with_type(ast_t* case_param, ast_t* match_param,
 static bool param_without_type(ast_t* case_param, ast_t* pattern,
   pass_opt_t* opt)
 {
-  assert(case_param != NULL);
-  assert(pattern != NULL);
+  pony_assert(case_param != NULL);
+  pony_assert(pattern != NULL);
 
   AST_GET_CHILDREN(case_param, value, type, def_arg);
-  assert(ast_id(type) == TK_NONE);
+  pony_assert(ast_id(type) == TK_NONE);
 
   if(ast_id(def_arg) != TK_NONE)
   {
@@ -251,8 +251,8 @@ static bool param_without_type(ast_t* case_param, ast_t* pattern,
 static ast_t* process_params(ast_t* match_params, ast_t* case_params,
   pass_opt_t* opt)
 {
-  assert(match_params != NULL);
-  assert(case_params != NULL);
+  pony_assert(match_params != NULL);
+  pony_assert(case_params != NULL);
 
   bool ok = true;
   size_t count = 0;
@@ -297,7 +297,7 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params,
     return NULL;
   }
 
-  assert(count > 0);
+  pony_assert(count > 0);
   if(count == 1)
   {
     // Only one parameter, don't need a tuple pattern.
@@ -317,14 +317,14 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params,
 static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
   ast_t* call_args, const char* name, pass_opt_t* opt)
 {
-  assert(match_params != NULL);
-  assert(worker_params != NULL);
-  assert(call_args != NULL);
-  assert(name != NULL);
-  assert(opt != NULL);
+  pony_assert(match_params != NULL);
+  pony_assert(worker_params != NULL);
+  pony_assert(call_args != NULL);
+  pony_assert(name != NULL);
+  pony_assert(opt != NULL);
 
   typecheck_t* t = &opt->check;
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   ast_t* match_operand = ast_from(match_params, TK_TUPLE);
   size_t count = 0;
@@ -337,7 +337,7 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
 
     if(ast_id(id) == TK_NONE)
     {
-      assert(ast_id(type) == TK_NONE);
+      pony_assert(ast_id(type) == TK_NONE);
       ast_error(opt->check.errors, p,
         "name and type not specified for parameter " __zu
         " of case function %s",
@@ -383,7 +383,7 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
     return NULL;
   }
 
-  assert(count > 0);
+  pony_assert(count > 0);
   if(count == 1)
   {
     // Only one parameter, don't need tuple in operand.
@@ -403,14 +403,14 @@ static ast_t* build_params(ast_t* match_params, ast_t* worker_params,
 static bool process_t_param(ast_t* case_param, ast_t* match_param,
   pass_opt_t* opt)
 {
-  assert(case_param != NULL);
-  assert(match_param != NULL);
+  pony_assert(case_param != NULL);
+  pony_assert(match_param != NULL);
 
   AST_GET_CHILDREN(case_param, case_id, case_constraint, case_def_type);
-  assert(ast_id(case_id) == TK_ID);
+  pony_assert(ast_id(case_id) == TK_ID);
 
   AST_GET_CHILDREN(match_param, match_id, match_constraint, match_def_type);
-  assert(ast_id(match_id) == TK_ID || ast_id(match_id) == TK_NONE);
+  pony_assert(ast_id(match_id) == TK_ID || ast_id(match_id) == TK_NONE);
 
   if(ast_id(match_id) == TK_NONE)
   {
@@ -476,8 +476,8 @@ static bool process_t_param(ast_t* case_param, ast_t* match_param,
 static bool process_t_params(ast_t* match_params, ast_t* case_params,
   pass_opt_t* opt)
 {
-  assert(match_params != NULL);
-  assert(case_params != NULL);
+  pony_assert(match_params != NULL);
+  pony_assert(case_params != NULL);
 
   bool ok = true;
   ast_t* case_param = ast_child(case_params);
@@ -511,13 +511,13 @@ static bool process_t_params(ast_t* match_params, ast_t* case_params,
 static void build_t_params(ast_t* match_t_params,
   ast_t* worker_t_params)
 {
-  assert(match_t_params != NULL);
-  assert(worker_t_params != NULL);
+  pony_assert(match_t_params != NULL);
+  pony_assert(worker_t_params != NULL);
 
   for(ast_t* p = ast_child(match_t_params); p != NULL; p = ast_sibling(p))
   {
     AST_GET_CHILDREN(p, id, constraint, def_type);
-    assert(ast_id(id) == TK_ID);
+    pony_assert(ast_id(id) == TK_ID);
 
     // Add type parameter name to worker call list.
     BUILD(type, p, NODE(TK_NOMINAL, NONE TREE(id) NONE NONE NONE));
@@ -641,8 +641,8 @@ static void add_docstring(ast_t* id, ast_t* match_docstring,
 static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
   pass_opt_t* opt)
 {
-  assert(match_method != NULL);
-  assert(case_method != NULL);
+  pony_assert(match_method != NULL);
+  pony_assert(case_method != NULL);
 
   // We need default capabality and return value if not provided explicitly.
   if(ast_id(case_method) == TK_FUN)
@@ -740,13 +740,13 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
 static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
   const char* name, pass_opt_t* opt)
 {
-  assert(first_case_method != NULL);
-  assert(members != NULL);
-  assert(name != NULL);
-  assert(opt != NULL);
+  pony_assert(first_case_method != NULL);
+  pony_assert(members != NULL);
+  pony_assert(name != NULL);
+  pony_assert(opt != NULL);
 
   typecheck_t* t = &opt->check;
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   ast_t* wrapper = make_match_wrapper(first_case_method, opt);
 
@@ -803,8 +803,8 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
   ast_t* wrapper_body = ast_childidx(wrapper, 6);
   ast_t* wrapper_call;
   ast_t* call_t_args = ast_from(wrapper, TK_NONE);
-  assert(ast_id(wrapper_body) == TK_SEQ);
-  assert(ast_childcount(wrapper_body) == 0);
+  pony_assert(ast_id(wrapper_body) == TK_SEQ);
+  pony_assert(ast_childcount(wrapper_body) == 0);
 
   build_t_params(ast_childidx(wrapper, 2), call_t_args);
 
@@ -873,8 +873,8 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
 // Sugar any case methods in the given entity.
 ast_result_t sugar_case_methods(pass_opt_t* opt, ast_t* entity)
 {
-  assert(opt != NULL);
-  assert(entity != NULL);
+  pony_assert(opt != NULL);
+  pony_assert(entity != NULL);
 
   ast_result_t result = AST_OK;
   ast_t* members = ast_childidx(entity, 4);

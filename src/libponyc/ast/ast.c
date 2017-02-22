@@ -8,11 +8,11 @@
 #include "../pkg/program.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 
 /* Every AST node has a parent field, which points to the parent node when
@@ -294,7 +294,7 @@ static bool hasparent(ast_t* ast)
 // Set both the parent and scope for the given node
 static void set_scope_and_parent(ast_t* ast, ast_t* parent)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast->parent = parent;
   ast_clearflag(ast, AST_ORPHAN);
@@ -303,7 +303,7 @@ static void set_scope_and_parent(ast_t* ast, ast_t* parent)
 // Set the scope for the given node, but set it no have no parent
 static void set_scope_no_parent(ast_t* ast, ast_t* scope)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast->parent = scope;
   ast_setflag(ast, AST_ORPHAN);
@@ -320,7 +320,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   if(ast == NULL)
     return NULL;
 
-  assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
+  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
     ast_id(ast) != TK_MODULE);
 
   ast_t* n = ast_token(token_dup(ast->t));
@@ -378,7 +378,7 @@ ast_t* ast_token(token_t* t)
 
 ast_t* ast_from(ast_t* ast, token_id id)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* new_ast = ast_token(token_dup_new_id(ast->t, id));
   set_scope_no_parent(new_ast, ast->parent);
   return new_ast;
@@ -400,7 +400,7 @@ ast_t* ast_from_string(ast_t* ast, const char* name)
 
 ast_t* ast_from_int(ast_t* ast, uint64_t value)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
 
@@ -414,7 +414,7 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
 
 ast_t* ast_from_float(ast_t* ast, double value)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_FLOAT);
   token_set_float(t, value);
@@ -431,56 +431,56 @@ ast_t* ast_dup(ast_t* ast)
 
 void ast_scope(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast->symtab = symtab_new();
 }
 
 bool ast_has_scope(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return ast->symtab != NULL;
 }
 
 symtab_t* ast_get_symtab(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return ast->symtab;
 }
 
 ast_t* ast_setid(ast_t* ast, token_id id)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   token_set_id(ast->t, id);
   return ast;
 }
 
 void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   token_set_pos(ast->t, source, line, pos);
 }
 
 token_id ast_id(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_get_id(ast->t);
 }
 
 size_t ast_line(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_line_number(ast->t);
 }
 
 size_t ast_pos(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_line_position(ast->t);
 }
 
 source_t* ast_source(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_source(ast->t);
 }
 
@@ -494,7 +494,7 @@ void* ast_data(ast_t* ast)
 
 ast_t* ast_setdata(ast_t* ast, void* data)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast->data = data;
   return ast;
 }
@@ -536,7 +536,7 @@ void ast_clearmightsend(ast_t* ast)
 
 void ast_inheritflags(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   for(ast_t* child = ast->child; child != NULL; child = ast_sibling(child))
     ast_setflag(ast, child->flags & AST_INHERIT_FLAGS);
@@ -544,24 +544,24 @@ void ast_inheritflags(ast_t* ast)
 
 int ast_checkflag(ast_t* ast, uint32_t flag)
 {
-  assert(ast != NULL);
-  assert((flag & AST_ALL_FLAGS) == flag);
+  pony_assert(ast != NULL);
+  pony_assert((flag & AST_ALL_FLAGS) == flag);
 
   return ast->flags & flag;
 }
 
 void ast_setflag(ast_t* ast, uint32_t flag)
 {
-  assert(ast != NULL);
-  assert((flag & AST_ALL_FLAGS) == flag);
+  pony_assert(ast != NULL);
+  pony_assert((flag & AST_ALL_FLAGS) == flag);
 
   ast->flags |= flag;
 }
 
 void ast_clearflag(ast_t* ast, uint32_t flag)
 {
-  assert(ast != NULL);
-  assert((flag & AST_ALL_FLAGS) == flag);
+  pony_assert(ast != NULL);
+  pony_assert((flag & AST_ALL_FLAGS) == flag);
 
   ast->flags &= ~flag;
 }
@@ -580,21 +580,21 @@ void ast_resetpass(ast_t* ast)
 
 const char* ast_get_print(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_print(ast->t);
 }
 
 const char* ast_name(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_string(ast->t);
 }
 
 
 const char* ast_nice_name(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_ID);
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_ID);
 
   if(ast->data != NULL)
     return (const char*)ast->data;
@@ -605,37 +605,37 @@ const char* ast_nice_name(ast_t* ast)
 
 size_t ast_name_len(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_string_len(ast->t);
 }
 
 void ast_set_name(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   token_set_string(ast->t, name, 0);
 }
 
 double ast_float(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_float(ast->t);
 }
 
 lexint_t* ast_int(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return token_int(ast->t);
 }
 
 ast_t* ast_type(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return ast->type;
 }
 
 void ast_settype(ast_t* ast, ast_t* type)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(ast->type == type)
     return;
@@ -655,27 +655,27 @@ void ast_settype(ast_t* ast, ast_t* type)
 
 ast_t* ast_annotation(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return ast->annotation;
 }
 
 void ast_setannotation(ast_t* ast, ast_t* annotation)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(ast->annotation == annotation)
     return;
 
   ast_free(ast->annotation);
 
-  assert((annotation == NULL) || !hasparent(annotation));
+  pony_assert((annotation == NULL) || !hasparent(annotation));
 
   ast->annotation = annotation;
 }
 
 ast_t* ast_consumeannotation(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* annotation = ast->annotation;
   ast->annotation = NULL;
@@ -685,7 +685,7 @@ ast_t* ast_consumeannotation(ast_t* ast)
 
 bool ast_has_annotation(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* annotation = ast->annotation;
 
@@ -706,7 +706,7 @@ bool ast_has_annotation(ast_t* ast, const char* name)
 
 void ast_erase(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* child = ast->child;
 
@@ -764,13 +764,13 @@ ast_t* ast_parent(ast_t* ast)
 
 ast_t* ast_child(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   return ast->child;
 }
 
 ast_t* ast_childidx(ast_t* ast, size_t idx)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* child = ast->child;
 
   while((child != NULL) && (idx > 0))
@@ -817,8 +817,8 @@ ast_t* ast_sibling(ast_t* ast)
 
 ast_t* ast_previous(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(hasparent(ast));
+  pony_assert(ast != NULL);
+  pony_assert(hasparent(ast));
 
   ast_t* last = NULL;
   ast_t* cur = ast->parent->child;
@@ -834,8 +834,8 @@ ast_t* ast_previous(ast_t* ast)
 
 size_t ast_index(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(hasparent(ast));
+  pony_assert(ast != NULL);
+  pony_assert(hasparent(ast));
 
   ast_t* child = ast->parent->child;
   size_t idx = 0;
@@ -950,7 +950,7 @@ void ast_inheritbranch(ast_t* dst, ast_t* src)
 
 void ast_consolidate_branches(ast_t* ast, size_t count)
 {
-  assert(hasparent(ast));
+  pony_assert(hasparent(ast));
 
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
@@ -962,7 +962,7 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
 
     if(sym->status == SYM_UNDEFINED)
     {
-      assert(sym->branch_count <= count);
+      pony_assert(sym->branch_count <= count);
 
       if((status == SYM_DEFINED) || (sym->branch_count == count))
       {
@@ -1086,9 +1086,9 @@ void ast_clear_local(ast_t* ast)
 
 ast_t* ast_add(ast_t* parent, ast_t* child)
 {
-  assert(parent != NULL);
-  assert(parent != child);
-  assert(parent->child != child);
+  pony_assert(parent != NULL);
+  pony_assert(parent != child);
+  pony_assert(parent->child != child);
 
   if(hasparent(child))
     child = ast_dup(child);
@@ -1101,15 +1101,15 @@ ast_t* ast_add(ast_t* parent, ast_t* child)
 
 ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
 {
-  assert(older_sibling != NULL);
-  assert(new_sibling != NULL);
-  assert(older_sibling != new_sibling);
-  assert(hasparent(older_sibling));
+  pony_assert(older_sibling != NULL);
+  pony_assert(new_sibling != NULL);
+  pony_assert(older_sibling != new_sibling);
+  pony_assert(hasparent(older_sibling));
 
   if(hasparent(new_sibling))
     new_sibling = ast_dup(new_sibling);
 
-  assert(new_sibling->sibling == NULL);
+  pony_assert(new_sibling->sibling == NULL);
 
   set_scope_and_parent(new_sibling, older_sibling->parent);
   new_sibling->sibling = older_sibling->sibling;
@@ -1133,9 +1133,9 @@ ast_t* ast_pop(ast_t* parent)
 
 ast_t* ast_append(ast_t* parent, ast_t* child)
 {
-  assert(parent != NULL);
-  assert(child != NULL);
-  assert(parent != child);
+  pony_assert(parent != NULL);
+  pony_assert(child != NULL);
+  pony_assert(parent != child);
 
   if(hasparent(child))
     child = ast_dup(child);
@@ -1159,21 +1159,21 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
 
 ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
 {
-  assert(parent != NULL);
-  assert(last_pointer != NULL);
-  assert(new_child != NULL);
+  pony_assert(parent != NULL);
+  pony_assert(last_pointer != NULL);
+  pony_assert(new_child != NULL);
 
   if(*last_pointer == NULL)
   {
     // This is the first child for the parent
-    assert(parent->child == NULL);
+    pony_assert(parent->child == NULL);
     *last_pointer = ast_add(parent, new_child);
   }
   else
   {
     // This is not the first child, append to list
-    assert(parent->child != NULL);
-    assert((*last_pointer)->sibling == NULL);
+    pony_assert(parent->child != NULL);
+    pony_assert((*last_pointer)->sibling == NULL);
     *last_pointer = ast_add_sibling(*last_pointer, new_child);
   }
 
@@ -1182,8 +1182,8 @@ ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
 
 void ast_remove(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(hasparent(ast));
+  pony_assert(ast != NULL);
+  pony_assert(hasparent(ast));
 
   ast_t* last = ast_previous(ast);
 
@@ -1199,11 +1199,11 @@ void ast_remove(ast_t* ast)
 
 void ast_swap(ast_t* prev, ast_t* next)
 {
-  assert(prev != NULL);
-  assert(prev != next);
+  pony_assert(prev != NULL);
+  pony_assert(prev != next);
 
   ast_t* parent = ast_parent(prev);
-  assert(parent != NULL);
+  pony_assert(parent != NULL);
 
   if(hasparent(next))
     next = ast_dup(next);
@@ -1246,9 +1246,9 @@ void ast_replace(ast_t** prev, ast_t* next)
 void ast_reorder_children(ast_t* ast, const size_t* new_order,
   ast_t** shuffle_space)
 {
-  assert(ast != NULL);
-  assert(new_order != NULL);
-  assert(shuffle_space != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(new_order != NULL);
+  pony_assert(shuffle_space != NULL);
 
   size_t count = ast_childcount(ast);
 
@@ -1258,9 +1258,9 @@ void ast_reorder_children(ast_t* ast, const size_t* new_order,
   for(size_t i = 0; i < count; i++)
   {
     size_t index = new_order[i];
-    assert(index < count);
+    pony_assert(index < count);
     ast_t* t = shuffle_space[index];
-    assert(t != NULL);
+    pony_assert(t != NULL);
     ast_append(ast, t);
     shuffle_space[index] = NULL;
   }
@@ -1498,9 +1498,9 @@ void ast_error_continue(errors_t* errors, ast_t* ast, const char* fmt, ...)
 
 void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
 {
-  assert(frame != NULL);
-  assert(ast != NULL);
-  assert(fmt != NULL);
+  pony_assert(frame != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(fmt != NULL);
 
   va_list ap;
   va_start(ap, fmt);
@@ -1512,15 +1512,15 @@ void ast_error_frame(errorframe_t* frame, ast_t* ast, const char* fmt, ...)
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children)
 {
-  assert(parent != NULL);
-  assert(child_count > 0);
-  assert(out_children != NULL);
+  pony_assert(parent != NULL);
+  pony_assert(child_count > 0);
+  pony_assert(out_children != NULL);
 
   ast_t* p = parent->child;
 
   for(size_t i = 0; i < child_count; i++)
   {
-    assert(p != NULL);
+    pony_assert(p != NULL);
 
     if(out_children[i] != NULL)
       *(out_children[i]) = p;
@@ -1532,16 +1532,16 @@ void ast_get_children(ast_t* parent, size_t child_count,
 void ast_extract_children(ast_t* parent, size_t child_count,
   ast_t*** out_children)
 {
-  assert(parent != NULL);
-  assert(child_count > 0);
-  assert(out_children != NULL);
+  pony_assert(parent != NULL);
+  pony_assert(child_count > 0);
+  pony_assert(out_children != NULL);
 
   ast_t* p = parent->child;
   ast_t* last_remaining_sibling = NULL;
 
   for(size_t i = 0; i < child_count; i++)
   {
-    assert(p != NULL);
+    pony_assert(p != NULL);
     ast_t* next = p->sibling;
 
     if(out_children[i] != NULL)

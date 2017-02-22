@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include "codegen.h"
+#include "ponyassert.h"
 
 using namespace llvm;
 
@@ -37,7 +38,7 @@ char* LLVMGetHostCPUFeatures()
 {
   StringMap<bool> features;
   bool got_features = sys::getHostCPUFeatures(features);
-  assert(got_features);
+  pony_assert(got_features);
   (void)got_features;
 
   // Calculate the size of buffer that will be needed to return all features.
@@ -46,7 +47,7 @@ char* LLVMGetHostCPUFeatures()
     buf_size += (*it).getKey().str().length() + 2; // plus +/- char and ,/null
 
   char* buf = (char*)malloc(buf_size);
-  assert(buf != NULL);
+  pony_assert(buf != NULL);
   buf[0] = 0;
 
   for(auto it = features.begin(); it != features.end();)
@@ -123,7 +124,7 @@ void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
     c->addAttribute(AttributeSet::FunctionIndex,
       Attribute::InaccessibleMemOnly);
   else
-    assert(0);
+    pony_assert(0);
 }
 
 void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
@@ -141,7 +142,7 @@ void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
     c->addAttribute(AttributeSet::FunctionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
   else
-    assert(0);
+    pony_assert(0);
 }
 #  endif
 #endif
@@ -187,7 +188,7 @@ LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
 static MDNode* extractMDNode(MetadataAsValue* mdv)
 {
   Metadata* md = mdv->getMetadata();
-  assert(isa<MDNode>(md) || isa<ConstantAsMetadata>(md));
+  pony_assert(isa<MDNode>(md) || isa<ConstantAsMetadata>(md));
 
   MDNode* n = dyn_cast<MDNode>(md);
   if(n != NULL)
@@ -198,7 +199,7 @@ static MDNode* extractMDNode(MetadataAsValue* mdv)
 
 void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
 {
-  assert(node != NULL);
+  pony_assert(node != NULL);
 
   MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
 

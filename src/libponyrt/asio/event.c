@@ -2,8 +2,8 @@
 #include "asio.h"
 #include "../actor/actor.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   uint32_t flags, uint64_t nsec, bool noisy)
@@ -43,7 +43,7 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
 {
   if((ev == NULL) || (ev->magic != ev) || (ev->flags != ASIO_DISPOSABLE))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 

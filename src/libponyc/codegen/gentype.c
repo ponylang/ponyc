@@ -12,9 +12,9 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
@@ -45,7 +45,7 @@ void tbaa_metadatas_free(tbaa_metadatas_t* tbaa_mds)
 
 LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
 
   const char* name = genname_type_and_cap(type);
   tbaa_metadata_t k;
@@ -250,7 +250,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -331,7 +331,7 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static void make_box_type(compile_t* c, reach_type_t* t)
@@ -459,7 +459,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -483,7 +483,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
     if(elements[i + extra] == NULL)
     {
-      assert(0);
+      pony_assert(0);
       return false;
     }
   }
@@ -619,7 +619,7 @@ static void make_debug_final(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
@@ -760,7 +760,7 @@ bool gentypes(compile_t* c)
   // Cache the instance of None, which is used as the return value for
   // behaviour calls.
   t = reach_type_name(c->reach, "None");
-  assert(t != NULL);
+  pony_assert(t != NULL);
   c->none_instance = t->instance;
 
   if(c->opt->verbosity >= VERBOSITY_INFO)

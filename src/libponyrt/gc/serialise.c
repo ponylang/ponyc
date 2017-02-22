@@ -5,8 +5,8 @@
 #include "serialise.h"
 #include "../sched/scheduler.h"
 #include "../lang/lang.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #if defined(PLATFORM_IS_POSIX_BASED)
 #include <dlfcn.h>
@@ -194,7 +194,7 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 {
   // This can raise an error.
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_serialise_object;
   ctx->trace_actor = ponyint_serialise_actor;
   ctx->serialise_size = 0;

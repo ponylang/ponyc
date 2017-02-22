@@ -2,7 +2,7 @@
 #include "../verify/call.h"
 #include "../verify/control.h"
 #include "../verify/fun.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 {
@@ -56,7 +56,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 
   if(!r)
   {
-    assert(errors_get_count(options->check.errors) > 0);
+    pony_assert(errors_get_count(options->check.errors) > 0);
     return AST_ERROR;
   }
 

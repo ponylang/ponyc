@@ -2,9 +2,9 @@
 #include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
+#include "ponyassert.h"
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 
 enum
 {
@@ -118,11 +118,11 @@ static int check_call_send(ast_t* ast, bool in_final)
     return FINAL_CAN_SEND;
 
   ast_t* def = receiver_def(type);
-  assert(def != NULL);
+  pony_assert(def != NULL);
 
   const char* method_name = ast_name(method);
   ast_t* fun = ast_get(def, method_name, NULL);
-  assert(fun != NULL);
+  pony_assert(fun != NULL);
 
   AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error, body);
   int r = check_body_send(body, false);

@@ -4,7 +4,7 @@
 #include "subtype.h"
 #include "typeparam.h"
 #include "viewpoint.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
   pass_opt_t* opt);
@@ -203,7 +203,7 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return MATCHTYPE_DENY;
 }
 
@@ -313,7 +313,7 @@ static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return MATCHTYPE_DENY;
 }
 
@@ -339,7 +339,7 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return MATCHTYPE_DENY;
 }
 
@@ -400,7 +400,7 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return MATCHTYPE_DENY;
 }
 
@@ -467,7 +467,7 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return MATCHTYPE_DENY;
 }
 

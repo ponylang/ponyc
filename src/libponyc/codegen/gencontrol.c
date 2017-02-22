@@ -5,7 +5,7 @@
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
@@ -549,7 +549,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // This backwards-incompatible API change to LLVMBuildLandingPad is only in
   // LLVM 3.7.0. In 3.7.1 and all later versions, backward-compatibility was
   // restored.
-  assert((c->frame->fun != NULL) && "No function in current frame!");
+  pony_assert((c->frame->fun != NULL) && "No function in current frame!");
   LLVMSetPersonalityFn(c->frame->fun, c->personality);
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type, 1, "");
 #else

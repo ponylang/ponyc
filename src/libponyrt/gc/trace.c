@@ -3,12 +3,12 @@
 #include "../sched/scheduler.h"
 #include "../sched/cpu.h"
 #include "../actor/actor.h"
-#include <assert.h>
+#include "ponyassert.h"
 #include <dtrace.h>
 
 PONY_API void pony_gc_send(pony_ctx_t* ctx)
 {
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_sendobject;
   ctx->trace_actor = ponyint_gc_sendactor;
 
@@ -17,7 +17,7 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx)
 
 PONY_API void pony_gc_recv(pony_ctx_t* ctx)
 {
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_recvobject;
   ctx->trace_actor = ponyint_gc_recvactor;
 
@@ -26,21 +26,21 @@ PONY_API void pony_gc_recv(pony_ctx_t* ctx)
 
 void ponyint_gc_mark(pony_ctx_t* ctx)
 {
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_markobject;
   ctx->trace_actor = ponyint_gc_markactor;
 }
 
 PONY_API void pony_gc_acquire(pony_ctx_t* ctx)
 {
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_acquireobject;
   ctx->trace_actor = ponyint_gc_acquireactor;
 }
 
 PONY_API void pony_gc_release(pony_ctx_t* ctx)
 {
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_releaseobject;
   ctx->trace_actor = ponyint_gc_releaseactor;
 }

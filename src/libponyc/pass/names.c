@@ -4,7 +4,7 @@
 #include "../type/reify.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
   ast_t* ephemeral)
@@ -63,7 +63,7 @@ static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -91,7 +91,7 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
       return false;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -169,7 +169,7 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
-  assert(ast_id(package) == TK_NONE);
+  pony_assert(ast_id(package) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
   {
@@ -240,7 +240,7 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
 static ast_t* get_package_scope(pass_opt_t* opt, ast_t* scope, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_NOMINAL);
+  pony_assert(ast_id(ast) == TK_NOMINAL);
   ast_t* package_id = ast_child(ast);
 
   // Find our actual package.

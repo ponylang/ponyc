@@ -8,7 +8,7 @@
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../../libponyrt/mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 /** The following defines how we determine the signature and body to use for
@@ -66,7 +66,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options);
 // Report whether the given node is a method.
 static bool is_method(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   token_id variety = ast_id(ast);
   return (variety == TK_BE) || (variety == TK_FUN) || (variety == TK_NEW);
@@ -76,7 +76,7 @@ static bool is_method(ast_t* ast)
 // Attach a new method_t structure to the given method.
 static method_t* attach_method_t(ast_t* method)
 {
-  assert(method != NULL);
+  pony_assert(method != NULL);
 
   method_t* p = POOL_ALLOC(method_t);
   p->body_donor = NULL;
@@ -92,10 +92,10 @@ static method_t* attach_method_t(ast_t* method)
 // Setup a method_t structure for each method in the given type.
 static void setup_local_methods(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* members = ast_childidx(ast, 4);
-  assert(members != NULL);
+  pony_assert(members != NULL);
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
@@ -114,17 +114,17 @@ static void setup_local_methods(ast_t* ast)
 // Tidy up the method_t structures in the given entity.
 static void tidy_up(ast_t* entity)
 {
-  assert(entity != NULL);
+  pony_assert(entity != NULL);
 
   ast_t* members = ast_childidx(entity, 4);
-  assert(members != NULL);
+  pony_assert(members != NULL);
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
     if(is_method(p))
     {
       method_t* info = (method_t*)ast_data(p);
-      assert(info != NULL);
+      pony_assert(info != NULL);
       ast_t* body_donor = info->body_donor;
       POOL_FREE(method_t, info);
 
@@ -238,13 +238,13 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
 static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
   pass_opt_t* opt)
 {
-  assert(method != NULL);
-  assert(trait_ref != NULL);
+  pony_assert(method != NULL);
+  pony_assert(trait_ref != NULL);
 
   // Apply the type args (if any) from the trait reference to the type
   // parameters from the trait definition.
   ast_t* trait_def = (ast_t*)ast_data(trait_ref);
-  assert(trait_def != NULL);
+  pony_assert(trait_def != NULL);
   ast_t* type_args = ast_childidx(trait_ref, 2);
   ast_t* type_params = ast_childidx(trait_def, 1);
 
@@ -268,8 +268,8 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
 // Return the method with the specified name or NULL if not found.
 static ast_t* find_method(ast_t* entity, const char* name)
 {
-  assert(entity != NULL);
-  assert(name != NULL);
+  pony_assert(entity != NULL);
+  pony_assert(name != NULL);
 
   ast_t* method = ast_get(entity, name, NULL);
 
@@ -294,10 +294,10 @@ static ast_t* find_method(ast_t* entity, const char* name)
 static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   const char* adjective, pass_opt_t* opt)
 {
-  assert(entity != NULL);
-  assert(trait_ref != NULL);
-  assert(basis_method != NULL);
-  assert(adjective != NULL);
+  pony_assert(entity != NULL);
+  pony_assert(trait_ref != NULL);
+  pony_assert(basis_method != NULL);
+  pony_assert(adjective != NULL);
 
   const char* name = ast_name(ast_childidx(basis_method, 1));
 
@@ -334,7 +334,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
     // Should already have checked for methods.
     token_id variety = ast_id(existing);
     (void)variety;
-    assert((variety == TK_FVAR) || (variety == TK_FLET) || (variety == TK_EMBED));
+    pony_assert((variety == TK_FVAR) || (variety == TK_FLET) || (variety == TK_EMBED));
 
     ast_error(opt->check.errors, trait_ref,
       "%s method '%s' clashes with field", adjective, name);
@@ -365,7 +365,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
         break;
 
       default:
-        assert(0);
+        pony_assert(0);
         break;
     }
 
@@ -417,7 +417,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_PARAM:
     case TK_TYPEPARAM:
     {
-      assert(ast_child(ast) != NULL);
+      pony_assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED, true);
       break;
     }
@@ -441,7 +441,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 
     case TK_TYPEPARAMREF:
     {
-      assert(ast_child(ast) != NULL);
+      pony_assert(ast_child(ast) != NULL);
       ast_t* def = ast_get(ast, ast_name(ast_child(ast)), NULL);
       ast_setdata(ast, def);
       break;
@@ -464,9 +464,9 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 static bool add_method_from_trait(ast_t* entity, ast_t* method,
   ast_t* trait_ref, pass_opt_t* opt)
 {
-  assert(entity != NULL);
-  assert(method != NULL);
-  assert(trait_ref != NULL);
+  pony_assert(entity != NULL);
+  pony_assert(method != NULL);
+  pony_assert(trait_ref != NULL);
 
   AST_GET_CHILDREN(method, cap, id, t_params, params, result, error,
     method_body);
@@ -490,7 +490,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 
   // A method with this name already exists.
   method_t* info = (method_t*)ast_data(existing_method);
-  assert(info != NULL);
+  pony_assert(info != NULL);
 
   // Method has already caused an error, do nothing.
   if(info->failed)
@@ -502,7 +502,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   // Existing method is also provided, signatures must match exactly.
   if(!compare_signatures(existing_method, method))
   {
-    assert(info->trait_ref != NULL);
+    pony_assert(info->trait_ref != NULL);
 
     ast_error(opt->check.errors, trait_ref,
       "clashing definitions for method '%s' provided, local disambiguation "
@@ -547,7 +547,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     return true;
 
   // Trait provides default body. Use it and patch up symbol tables.
-  assert(ast_id(existing_body) == TK_NONE);
+  pony_assert(ast_id(existing_body) == TK_NONE);
   ast_replace(&existing_body, method_body);
   ast_visit(&method_body, rescope, NULL, opt, PASS_ALL);
 
@@ -561,7 +561,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 // provides list.
 static bool provided_methods(ast_t* entity, pass_opt_t* opt)
 {
-  assert(entity != NULL);
+  pony_assert(entity != NULL);
 
   ast_t* provides = ast_childidx(entity, 3);
   bool r = true;
@@ -571,7 +571,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
     trait_ref = ast_sibling(trait_ref))
   {
     ast_t* trait = (ast_t*)ast_data(trait_ref);
-    assert(trait != NULL);
+    pony_assert(trait != NULL);
 
     if(!trait_entity(trait, opt))
       return false;
@@ -582,7 +582,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
     for(ast_t* method = ast_child(members); method != NULL;
       method = ast_sibling(method))
     {
-      assert(is_method(method));
+      pony_assert(is_method(method));
 
       ast_t* reified = reify_provides_type(method, trait_ref, opt);
 
@@ -608,7 +608,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
 // Check that the given entity, if concrete, has bodies for all methods.
 static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 {
-  assert(entity != NULL);
+  pony_assert(entity != NULL);
 
   token_id variety = ast_id(entity);
   if((variety != TK_PRIMITIVE) && (variety != TK_STRUCT) &&
@@ -617,14 +617,14 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 
   bool r = true;
   ast_t* members = ast_childidx(entity, 4);
-  assert(members != NULL);
+  pony_assert(members != NULL);
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
     if(is_method(p))
     {
       method_t* info = (method_t*)ast_data(p);
-      assert(info != NULL);
+      pony_assert(info != NULL);
 
       if(!info->failed)
       {
@@ -640,7 +640,7 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
         else if(info->body_donor == NULL)
         {
           // Concrete types must have method bodies.
-          assert(info->trait_ref != NULL);
+          pony_assert(info->trait_ref != NULL);
           ast_error(opt->check.errors, info->trait_ref,
             "no body found for method '%s'", name);
           r = false;
@@ -656,7 +656,7 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 // Add provided methods to the given entity.
 static bool trait_entity(ast_t* entity, pass_opt_t* opt)
 {
-  assert(entity != NULL);
+  pony_assert(entity != NULL);
 
   int state = ast_checkflag(entity,
     AST_FLAG_RECURSE_1 | AST_FLAG_DONE_1 | AST_FLAG_ERROR_1);
@@ -682,7 +682,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
       return false;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -703,7 +703,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
 // Check that embed fields are not recursive.
 static bool embed_fields(ast_t* entity, pass_opt_t* opt)
 {
-  assert(entity != NULL);
+  pony_assert(entity != NULL);
 
   int state = ast_checkflag(entity,
     AST_FLAG_RECURSE_2 | AST_FLAG_DONE_2 | AST_FLAG_ERROR_2);
@@ -729,7 +729,7 @@ static bool embed_fields(ast_t* entity, pass_opt_t* opt)
       return false;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -742,7 +742,7 @@ static bool embed_fields(ast_t* entity, pass_opt_t* opt)
     {
       AST_GET_CHILDREN(member, f_id, f_type);
       ast_t* def = (ast_t*)ast_data(f_type);
-      assert(def != NULL);
+      pony_assert(def != NULL);
 
       if(!embed_fields(def, opt))
         return false;
@@ -763,12 +763,12 @@ static bool embed_fields(ast_t* entity, pass_opt_t* opt)
 // after the name pass (to get temporal capabilities).
 static void local_types(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Setup type or mark as inferred now to allow calling create on a
   // non-inferred local to initialise itself
   AST_GET_CHILDREN(ast, id, type);
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
   {
@@ -786,7 +786,7 @@ static void local_types(ast_t* ast)
 // Add eq() and ne() functions to the given entity.
 static bool add_comparable(ast_t* ast, pass_opt_t* options)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
   ast_t* typeargs = ast_from(typeparams, TK_NONE);

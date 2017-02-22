@@ -7,10 +7,10 @@
 #include "../gc/cycle.h"
 #include "../asio/asio.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <dtrace.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 
 #define SCHED_BATCH 100
 
@@ -277,7 +277,7 @@ static void run(scheduler_t* sched)
       if(actor == NULL)
       {
         // Termination.
-        assert(pop(sched) == NULL);
+        pony_assert(pop(sched) == NULL);
         return;
       }
       DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);

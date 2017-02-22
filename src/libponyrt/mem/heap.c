@@ -1,8 +1,8 @@
 #include "heap.h"
 #include "pagemap.h"
 #include "../ds/fun.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #include <platform.h>
 #include <dtrace.h>

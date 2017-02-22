@@ -4,8 +4,8 @@
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #define DESC_ID 0
 #define DESC_SIZE 1
@@ -308,8 +308,8 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       uint32_t index = m->vtable_index;
-      assert(index != (uint32_t)-1);
-      assert(vtable[index] == NULL);
+      pony_assert(index != (uint32_t)-1);
+      pony_assert(vtable[index] == NULL);
 
       if(t->primitive != NULL)
         vtable[index] = make_unbox_function(c, t, m);
@@ -604,7 +604,7 @@ LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return GEN_NOVALUE;
 }
 
@@ -612,7 +612,7 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
   // Get the trait identifier.
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
   LLVMValueRef trait_id = LLVMConstInt(c->i32, t->type_id, false);
 
   // Read the count and the trait list from the descriptor.

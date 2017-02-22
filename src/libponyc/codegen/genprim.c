@@ -10,8 +10,8 @@
 #include "../type/assemble.h"
 #include "../type/cap.h"
 #include "../../libponyrt/mem/heap.h"
+#include "ponyassert.h"
 
-#include <assert.h>
 #include <string.h>
 
 #define FIND_METHOD(name, cap) \
@@ -1707,7 +1707,7 @@ static void number_conversions(compile_t* c)
   else if(target_is_llp64(c->opt->triple))
     conv = llp64_conv;
 
-  assert(conv != NULL);
+  pony_assert(conv != NULL);
 
   void* data[3];
   data[2] = (void*)target_is_native128(c->opt->triple);

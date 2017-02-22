@@ -11,8 +11,8 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>

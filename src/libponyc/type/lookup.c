@@ -9,8 +9,8 @@
 #include "../pass/pass.h"
 #include "../pass/expr.h"
 #include "../expr/literal.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors);
@@ -18,7 +18,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
   typecheck_t* t = &opt->check;
 
   ast_t* def = (ast_t*)ast_data(type);
@@ -135,7 +135,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
       }
 
       default:
-        assert(0);
+        pony_assert(0);
         return NULL;
     }
 
@@ -375,7 +375,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 

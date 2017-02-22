@@ -1,8 +1,8 @@
 #include "treecheck.h"
 #include "ast.h"
+#include "ponyassert.h"
 #include <stdbool.h>
 #include <stdio.h>
-#include <assert.h>
 
 
 // This define causes the tree checker to assert immediately on error, rather
@@ -36,7 +36,7 @@ typedef struct check_state_t
 // Print an error preamble for the given node.
 static void error_preamble(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   fprintf(stderr, "Internal error: AST node %d (%s), ", ast_id(ast),
     ast_get_print(ast));
@@ -47,7 +47,7 @@ static void error_preamble(ast_t* ast)
 // The id list must be TK_EOF terminated.
 static bool is_id_in_list(token_id id, const token_id* list)
 {
-  assert(list != NULL);
+  pony_assert(list != NULL);
 
   for(size_t i = 0; list[i] != TK_EOF; i++)
     if(list[i] == id)
@@ -62,8 +62,8 @@ static bool is_id_in_list(token_id id, const token_id* list)
 static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
   errors_t* errors)
 {
-  assert(ast != NULL);
-  assert(rules != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(rules != NULL);
 
   // Check rules in given list
   for(const check_fn_t* p = rules; *p != NULL; p++)
@@ -84,9 +84,9 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
 static bool check_children(ast_t* ast, check_state_t* state,
   const check_fn_t *rules, size_t min_count, size_t max_count, errors_t* errors)
 {
-  assert(ast != NULL);
-  assert(state != NULL);
-  assert(min_count <= max_count);
+  pony_assert(ast != NULL);
+  pony_assert(state != NULL);
+  pony_assert(min_count <= max_count);
 
   size_t found_count = 0;
 
@@ -120,7 +120,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
   }
   else
@@ -131,7 +131,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
   }
 
@@ -146,8 +146,8 @@ static bool check_children(ast_t* ast, check_state_t* state,
 static check_res_t check_extras(ast_t* ast, check_state_t* state,
   errors_t* errors)
 {
-  assert(ast != NULL);
-  assert(state != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(state != NULL);
 
 
   ast_t* type_field = ast_type(ast);
@@ -161,7 +161,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
       ast_error(state->errors, ast, "Here");
       ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-      assert(false);
+      pony_assert(false);
 #endif
       return CHK_ERROR;
     }
@@ -178,7 +178,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
       ast_error(state->errors, ast, "Here");
       ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-      assert(false);
+      pony_assert(false);
 #endif
       return CHK_ERROR;
     }
@@ -192,7 +192,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
     return CHK_ERROR;
   }
@@ -204,7 +204,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
     return CHK_ERROR;
   }
@@ -216,7 +216,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
     return CHK_ERROR;
   }
@@ -228,7 +228,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     ast_error(state->errors, ast, "Here");
     ast_fprint(stderr, ast);
 #ifdef IMMEDIATE_FAIL
-    assert(false);
+    pony_assert(false);
 #endif
     return CHK_ERROR;
   }
@@ -307,9 +307,9 @@ void check_tree(ast_t* tree, errors_t* errors)
   (void)errors;
 #else
   // Only check tree in debug builds.
-  assert(tree != NULL);
+  pony_assert(tree != NULL);
   check_res_t r = check_root(tree, errors);
-  assert(r != CHK_ERROR);
+  pony_assert(r != CHK_ERROR);
 
   // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.
 #endif

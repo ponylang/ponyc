@@ -13,8 +13,8 @@
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include "../../libponyrt/mem/heap.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret, bool setcc)
@@ -227,7 +227,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -303,7 +303,7 @@ static void set_method_external_interface(reach_type_t* t, const char* name)
 
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
 {
-  assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
+  pony_assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
   AST_GET_CHILDREN(ast, receiver, method);
   ast_t* typeargs = NULL;
 
@@ -325,7 +325,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   // Get the receiver type.
   ast_t* type = ast_type(receiver);
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   const char* name = ast_name(method);
   token_id cap = cap_dispatch(type);
@@ -351,7 +351,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
         set_method_external_interface(t, name);
         break;
       default:
-        assert(0);
+        pony_assert(0);
         break;
     }
   }
@@ -446,7 +446,7 @@ static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
 
 static size_t tuple_indices_pop(call_tuple_indices_t* ti)
 {
-  assert(ti->count > 0);
+  pony_assert(ti->count > 0);
 
   return ti->data[--ti->count];
 }
@@ -509,7 +509,7 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
       return false;
     }
 
-    assert(param_count == m_sub->param_count);
+    pony_assert(param_count == m_sub->param_count);
     for(size_t i = 0; i < param_count; i++)
     {
       // If the param is a boxable type for us and an unboxable type for one of
@@ -561,7 +561,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   const char* method_name = ast_name(method);
   ast_t* type = ast_type(receiver);
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   // Generate the arguments.
   size_t count = ast_childcount(positional) + 1;
@@ -667,7 +667,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         break;
 
       default:
-        assert(0);
+        pony_assert(0);
         return NULL;
     }
   } else {
@@ -828,7 +828,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   // Generate the receiver.
   LLVMValueRef l_value = gen_expr(c, pattern);
   reach_type_t* t = reach_type(c->reach, pattern_type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   // Static or virtual dispatch.
   token_id cap = cap_dispatch(pattern_type);
@@ -893,7 +893,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
       p_type = ast_childidx(arg, 1);
 
     reach_type_t* pt = reach_type(c->reach, p_type);
-    assert(pt != NULL);
+    pony_assert(pt != NULL);
 
     // An intrinsic that takes a Bool should be i1, not ibool.
     if(intrinsic && is_bool(pt->ast))
@@ -1007,7 +1007,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // Get the return type.
   ast_t* type = ast_type(ast);
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   // Get the function.
   LLVMValueRef func = LLVMGetNamedFunction(c->module, f_name);

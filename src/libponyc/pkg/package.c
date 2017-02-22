@@ -8,6 +8,7 @@
 #include "../ast/token.h"
 #include "../expr/literal.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -15,7 +16,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <assert.h>
 
 #if defined(PLATFORM_IS_LINUX)
 #include <unistd.h>
@@ -98,9 +98,9 @@ static magic_package_t* find_magic_package(const char* path)
 static bool parse_source_file(ast_t* package, const char* file_path,
   pass_opt_t* opt)
 {
-  assert(package != NULL);
-  assert(file_path != NULL);
-  assert(opt != NULL);
+  pony_assert(package != NULL);
+  pony_assert(file_path != NULL);
+  pony_assert(opt != NULL);
 
   if(opt->print_filenames)
     printf("Opening %s\n", file_path);
@@ -126,14 +126,14 @@ static bool parse_source_file(ast_t* package, const char* file_path,
 static bool parse_source_code(ast_t* package, const char* src,
   pass_opt_t* opt)
 {
-  assert(src != NULL);
-  assert(opt != NULL);
+  pony_assert(src != NULL);
+  pony_assert(opt != NULL);
 
   if(opt->print_filenames)
     printf("Opening magic source\n");
 
   source_t* source = source_open_string(src);
-  assert(source != NULL);
+  pony_assert(source != NULL);
 
   return module_passes(package, opt, source);
 }
@@ -245,11 +245,11 @@ static const char* try_path(const char* base, const char* path)
 
 static bool is_root(const char* path)
 {
-  assert(path != NULL);
+  pony_assert(path != NULL);
 
 #if defined(PLATFORM_IS_WINDOWS)
-  assert(path[0] != '\0');
-  assert(path[1] == ':');
+  pony_assert(path[0] != '\0');
+  pony_assert(path[1] == ':');
 
   if((path[2] == '\0'))
     return true;
@@ -842,7 +842,7 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
 
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 {
-  assert(from != NULL);
+  pony_assert(from != NULL);
 
   magic_package_t* magic = find_magic_package(path);
   const char* full_path = path;
@@ -955,8 +955,8 @@ ast_t* package_id(ast_t* ast)
 
 const char* package_path(ast_t* package)
 {
-  assert(package != NULL);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   package_t* pkg = (package_t*)ast_data(package);
 
   return pkg->path;
@@ -965,8 +965,8 @@ const char* package_path(ast_t* package)
 
 const char* package_qualified_name(ast_t* package)
 {
-  assert(package != NULL);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   package_t* pkg = (package_t*)ast_data(package);
 
   return pkg->qualified_name;
@@ -975,10 +975,10 @@ const char* package_qualified_name(ast_t* package)
 
 const char* package_filename(ast_t* package)
 {
-  assert(package != NULL);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   package_t* pkg = (package_t*)ast_data(package);
-  assert(pkg != NULL);
+  pony_assert(pkg != NULL);
 
   return pkg->filename;
 }
@@ -986,10 +986,10 @@ const char* package_filename(ast_t* package)
 
 const char* package_symbol(ast_t* package)
 {
-  assert(package != NULL);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   package_t* pkg = (package_t*)ast_data(package);
-  assert(pkg != NULL);
+  pony_assert(pkg != NULL);
 
   return pkg->symbol;
 }
@@ -997,7 +997,7 @@ const char* package_symbol(ast_t* package)
 
 const char* package_hygienic_id(typecheck_t* t)
 {
-  assert(t->frame->package != NULL);
+  pony_assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 
@@ -1007,7 +1007,7 @@ const char* package_hygienic_id(typecheck_t* t)
 
 bool package_allow_ffi(typecheck_t* t)
 {
-  assert(t->frame->package != NULL);
+  pony_assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   return pkg->allow_ffi;
 }

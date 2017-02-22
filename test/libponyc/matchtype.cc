@@ -3,6 +3,7 @@
 #include <type/matchtype.h>
 #include <ast/astbuild.h>
 #include "util.h"
+#include "ponyassert.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
 
@@ -343,8 +344,8 @@ TEST_F(MatchTypeTest, Tuples)
   // t1t2 instead.
   ast_t* t1t2 = type_of("t1t2");
   AST_GET_CHILDREN(t1t2, elem1, elem2);
-  assert(ast_id(elem1) == TK_NOMINAL);
-  assert(ast_id(elem2) == TK_NOMINAL);
+  pony_assert(ast_id(elem1) == TK_NOMINAL);
+  pony_assert(ast_id(elem2) == TK_NOMINAL);
 
   REPLACE(&elem2, NODE(TK_DONTCARETYPE));
 

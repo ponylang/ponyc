@@ -6,7 +6,7 @@
 #include "gentype.h"
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 typedef LLVMValueRef (*const_binop)(LLVMValueRef left, LLVMValueRef right);
 
@@ -396,7 +396,7 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
         break;
 
       default:
-        assert(0);
+        pony_assert(0);
     }
 
     if(expr != NULL)
@@ -415,7 +415,7 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
     rtype_child = ast_sibling(rtype_child);
   }
 
-  assert(rtype_child == NULL);
+  pony_assert(rtype_child == NULL);
   return true;
 }
 
@@ -428,7 +428,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       // The actual expression is inside a sequence node.
       while(ast_id(left) == TK_SEQ)
       {
-        assert(ast_childcount(left) == 1);
+        pony_assert(ast_childcount(left) == 1);
         left = ast_child(left);
       }
       return assign_rvalue(c, left, r_type, r_value);
@@ -509,7 +509,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -650,7 +650,7 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return NULL;
 
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
-  assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
+  pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
   if(LLVMIsConstant(r_value))
@@ -703,7 +703,7 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return NULL;
 
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
-  assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
+  pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
   if(LLVMIsConstant(r_value))

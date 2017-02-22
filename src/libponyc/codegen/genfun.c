@@ -13,8 +13,8 @@
 #include "../../libponyrt/ds/fun.h"
 #include "../../libponyrt/mem/pool.h"
 #include "../../libponyrt/mem/heap.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static void name_param(compile_t* c, reach_type_t* t,
   reach_method_t* m, LLVMValueRef func, const char* name, unsigned index,
@@ -169,7 +169,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return;
   }
 
@@ -221,7 +221,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   {
     // Store the finaliser and use the C calling convention and an external
     // linkage.
-    assert(t->final_fn == NULL);
+    pony_assert(t->final_fn == NULL);
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
     LLVMSetLinkage(m->func, LLVMExternalLinkage);
@@ -320,7 +320,7 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
 
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
-  assert(m->func != NULL);
+  pony_assert(m->func != NULL);
 
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
@@ -365,8 +365,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
 static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
-  assert(m->func != NULL);
-  assert(m->func_handler != NULL);
+  pony_assert(m->func != NULL);
+  pony_assert(m->func_handler != NULL);
 
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
@@ -411,7 +411,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
 
 static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
-  assert(m->func != NULL);
+  pony_assert(m->func != NULL);
 
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
@@ -442,8 +442,8 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
 
 static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
-  assert(m->func != NULL);
-  assert(m->func_handler != NULL);
+  pony_assert(m->func != NULL);
+  pony_assert(m->func_handler != NULL);
 
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
@@ -553,7 +553,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -565,11 +565,11 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
 static bool genfun_forward(compile_t* c, reach_type_t* t,
   reach_method_name_t* n,  reach_method_t* m)
 {
-  assert(m->func != NULL);
+  pony_assert(m->func != NULL);
 
   reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs);
-  assert(m2 != NULL);
-  assert(m2 != m);
+  pony_assert(m2 != NULL);
+  pony_assert(m2 != m);
 
   codegen_startfun(c, m->func, m->di_file, m->di_method);
 
@@ -656,7 +656,7 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
 #endif
             break;
           default:
-            assert(0);
+            pony_assert(0);
         }
       }
     }
@@ -744,7 +744,7 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
             break;
 
           default:
-            assert(0);
+            pony_assert(0);
             return false;
         }
       }

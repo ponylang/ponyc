@@ -74,7 +74,8 @@ def configure(ctx):
         ctx.env.PONYC_EXTRA_LIBS = [
             'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
             'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
-            'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32'
+            'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
+            'dbghelp'
         ]
 
         ctx.env.MSVC_VERSIONS = ['msvc ' + MSVC_VERSION + '.0']
@@ -240,7 +241,8 @@ def build(ctx):
         features = 'c cxx cxxstlib seq',
         target   = 'libponyrt',
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
-        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes
+        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
+        defines  = [ 'PONY_NO_ASSERT' ]
     )
 
     # ponyc

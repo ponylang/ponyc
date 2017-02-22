@@ -9,11 +9,11 @@
 #include "../ast/id.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 bool expr_match(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_MATCH);
+  pony_assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
 
   // A literal match expression should have been caught by the cases, but check
@@ -75,7 +75,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
 
 bool expr_cases(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_CASES);
+  pony_assert(ast_id(ast) == TK_CASES);
   ast_t* the_case = ast_child(ast);
 
   if(the_case == NULL)
@@ -268,8 +268,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
   pass_opt_t* opt)
 {
-  assert(pattern != NULL);
-  assert(match_expr_type != NULL);
+  pony_assert(pattern != NULL);
+  pony_assert(match_expr_type != NULL);
 
   if(is_type_literal(match_expr_type))
   {
@@ -283,8 +283,8 @@ static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
 
 bool expr_case(pass_opt_t* opt, ast_t* ast)
 {
-  assert(opt != NULL);
-  assert(ast_id(ast) == TK_CASE);
+  pony_assert(opt != NULL);
+  pony_assert(ast_id(ast) == TK_CASE);
   AST_GET_CHILDREN(ast, pattern, guard, body);
 
   if((ast_id(pattern) == TK_NONE) && (ast_id(guard) == TK_NONE))
@@ -379,14 +379,14 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 bool expr_match_capture(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, id, type);
 
   if(is_name_dontcare(ast_name(id)))
     ast_setid(ast, TK_MATCH_DONTCARE);
 
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   // Capture type is as specified.
   ast_settype(ast, type);

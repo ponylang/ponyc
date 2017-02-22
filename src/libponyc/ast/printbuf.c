@@ -1,8 +1,8 @@
 #include "printbuf.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 
 printbuf_t* printbuf_new()
 {
@@ -53,7 +53,7 @@ void printbuf(printbuf_t* buf, const char* fmt, ...)
     r = vsnprintf(buf->m + buf->offset, avail, fmt, ap);
     va_end(ap);
 
-    assert((r > 0) && ((size_t)r < buf->size));
+    pony_assert((r > 0) && ((size_t)r < buf->size));
   }
 
   buf->offset += r;

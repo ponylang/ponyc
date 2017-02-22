@@ -2,8 +2,8 @@
 #include "ast.h"
 #include "error.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static bool push_frame(typecheck_t* t)
 {
@@ -273,7 +273,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
 void frame_pop(typecheck_t* t)
 {
   typecheck_frame_t* f = t->frame;
-  assert(f != NULL);
+  pony_assert(f != NULL);
 
   t->frame = f->prev;
   POOL_FREE(typecheck_frame_t, f);
