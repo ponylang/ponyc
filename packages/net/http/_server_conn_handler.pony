@@ -15,7 +15,7 @@ class _ServerConnHandler is TCPConnectionNotify
   var _parser: (_HTTPParser | None) = None
   var _session: (_ServerConnection | None) = None
   let _registry: HTTPServer tag
-  
+
   new iso create(handlermaker: HandlerFactory val, logger: Logger,
     reversedns: (DNSLookupAuth | None), registry: HTTPServer)
     =>
@@ -90,3 +90,6 @@ class _ServerConnHandler is TCPConnectionNotify
     try
       (_session as _ServerConnection).cancel(Payload.request())
     end
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
