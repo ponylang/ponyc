@@ -118,3 +118,55 @@ void ponyint_pagemap_set(const void* m, void* v)
 
   atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
 }
+
+void ponyint_pagemap_set_bulk(const void* m, void* v, size_t size)
+{
+  PONY_ATOMIC(void**)* pv = NULL;
+  void* p;
+  void** pv_ld = NULL;
+  uintptr_t ix = 0;
+  uintptr_t m_ptr = (uintptr_t)m;
+  uintptr_t m_end = (uintptr_t)m + size;
+
+  while(m_ptr < m_end)
+  {
+    pv = &root;
+    for(int i = 0; i < PAGEMAP_LEVELS; i++)
+    {
+      pv_ld = atomic_load_explicit(pv, memory_order_acquire);
+      if(pv_ld == NULL)
+      {
+        p = ponyint_pool_alloc(level[i].size_index);
+        memset(p, 0, level[i].size);
+        void** prev = NULL;
+
+#ifdef USE_VALGRIND
+        ANNOTATE_HAPPENS_BEFORE(pv);
+#endif
+        if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
+          memory_order_release, memory_order_acquire))
+        {
+#ifdef USE_VALGRIND
+          ANNOTATE_HAPPENS_AFTER(pv);
+#endif
+          ponyint_pool_free(level[i].size_index, p);
+          pv_ld = prev;
+        } else {
+          pv_ld = (void**)p;
+        }
+      }
+
+      ix = (m_ptr >> level[i].shift) & level[i].mask;
+      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+    }
+
+    // store as many pagemap entries as would fit into this pagemap level segment
+    do {
+      atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
+      m_ptr += POOL_ALIGN;
+      ix++;
+      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+      // if ix is greater than mask we need to move to the next pagement level segment
+    } while((m_ptr < m_end) && (ix <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
+  }
+}

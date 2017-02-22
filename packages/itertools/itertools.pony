@@ -25,7 +25,7 @@ let xs = Iter[I64]([as I64: 1, 2, 3, 4, 5].values())
 ```
 
 This will result in an iterator that prints the numbers 2, 4, and 6. However,
-due to the lazy nature of the map and filter, no iteration has actually occured
+due to the lazy nature of the map and filter, no iteration has actually occurred
 and nothing will be printed. One solution to this would be to loop over the
 resulting Iter as so:
 

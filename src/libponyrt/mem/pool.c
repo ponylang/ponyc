@@ -19,15 +19,6 @@
 #include <valgrind/helgrind.h>
 #endif
 
-/* Because of the way free memory is reused as its own linked list container,
- * the minimum allocation size is 32 bytes.
- */
-
-#define POOL_MAX_BITS 20
-#define POOL_MAX (1 << POOL_MAX_BITS)
-#define POOL_MIN (1 << POOL_MIN_BITS)
-#define POOL_COUNT (POOL_MAX_BITS - POOL_MIN_BITS + 1)
-
 /// Allocations this size and above are aligned on this size. This is needed
 /// so that the pagemap for the heap is aligned.
 #define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
@@ -374,7 +365,7 @@ static void pool_block_insert(pool_block_t* block)
 
   while(next != NULL)
   {
-    if(block->size < next->size)
+    if(block->size <= next->size)
       break;
 
     prev = next;
@@ -700,7 +691,13 @@ size_t ponyint_pool_index(size_t size)
   if(size > POOL_MAX)
     return POOL_COUNT;
 
-  return ((size_t)64 - __pony_clzl(size)) - POOL_MIN_BITS;
+#ifdef PLATFORM_IS_ILP32
+#define BITS (32 - POOL_MIN_BITS)
+#else
+#define BITS (64 - POOL_MIN_BITS)
+#endif
+
+  return (size_t)(BITS - __pony_clzl(size) - (!(size & (size - 1))));
 }
 
 size_t ponyint_pool_size(size_t index)

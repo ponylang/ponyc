@@ -4,6 +4,7 @@ primitive F32 is FloatingPoint[F32]
   new e() => 2.71828182845904523536
 
   new _nan() => compile_intrinsic
+  new _inf(negative: Bool) => compile_intrinsic
 
   new from_bits(i: U32) => compile_intrinsic
   fun bits(): U32 => compile_intrinsic
@@ -138,6 +139,13 @@ primitive F32 is FloatingPoint[F32]
       @"llvm.sqrt.f32"[F32](this)
     end
 
+  fun sqrt_unsafe(): F32 =>
+    """
+    Unsafe operation.
+    If this is negative, the result is undefined.
+    """
+    @"llvm.sqrt.f32"[F32](this)
+
   fun cbrt(): F32 => @cbrtf[F32](this)
   fun exp(): F32 => @"llvm.exp.f32"[F32](this)
   fun exp2(): F32 => @"llvm.exp2.f32"[F32](this)
@@ -166,12 +174,27 @@ primitive F32 is FloatingPoint[F32]
   fun i128(): I128 => f64().i128()
   fun u128(): U128 => f64().u128()
 
+  fun i128_unsafe(): I128 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    f64_unsafe().i128_unsafe()
+
+  fun u128_unsafe(): U128 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    f64_unsafe().u128_unsafe()
+
 primitive F64 is FloatingPoint[F64]
   new create(value: F64 = 0) => value
   new pi() => 3.14159265358979323846
   new e() => 2.71828182845904523536
 
   new _nan() => compile_intrinsic
+  new _inf(negative: Bool) => compile_intrinsic
 
   new from_bits(i: U64) => compile_intrinsic
   fun bits(): U64 => compile_intrinsic
@@ -306,6 +329,13 @@ primitive F64 is FloatingPoint[F64]
       @"llvm.sqrt.f64"[F64](this)
     end
 
+  fun sqrt_unsafe(): F64 =>
+    """
+    Unsafe operation.
+    If this is negative, the result is undefined.
+    """
+    @"llvm.sqrt.f64"[F64](this)
+
   fun cbrt(): F64 => @cbrt[F64](this)
   fun exp(): F64 => @"llvm.exp.f64"[F64](this)
   fun exp2(): F64 => @"llvm.exp2.f64"[F64](this)
@@ -332,6 +362,12 @@ primitive F64 is FloatingPoint[F64]
   fun hash(): U64 => bits().hash()
 
   fun i128(): I128 =>
+    if this > I128.max_value().f64() then
+      return I128.max_value()
+    elseif this < I128.min_value().f64() then
+      return I128.min_value()
+    end
+
     let bit = bits()
     let high = (bit >> 32).u32()
     let ex = ((high and 0x7FF00000) >> 20) - 1023
@@ -342,7 +378,7 @@ primitive F64 is FloatingPoint[F64]
 
     let s = ((high and 0x80000000) >> 31).i128()
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).i128()
-    let ex' = ex.i128()
+    let ex' = ex.u128()
 
     if ex' > 52 then
       r = r << (ex' - 52)
@@ -353,6 +389,12 @@ primitive F64 is FloatingPoint[F64]
     (r xor s) - s
 
   fun u128(): U128 =>
+    if this > U128.max_value().f64() then
+      return U128.max_value()
+    elseif this < U128.min_value().f64() then
+      return U128.min_value()
+    end
+
     let bit = bits()
     let high = (bit >> 32).u32()
     let ex = ((high and 0x7FF00000) >> 20) - 1023
@@ -371,5 +413,19 @@ primitive F64 is FloatingPoint[F64]
     end
 
     r.u128()
+
+  fun i128_unsafe(): I128 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    i128()
+
+  fun u128_unsafe(): U128 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    u128()
 
 type Float is (F32 | F64)

@@ -56,7 +56,6 @@ TEST_F(ParseEntityTest, ActorMaximal)
     "  let f1:T1"
     "  let f2:T2 = 5"
     "  var f3:P3.T3"
-    //"  var f4:T4 delegate T5 = 9"
     "  var f4:T4 = 9"
     "  new m1() => 1"
     "  be m2() => 2"
@@ -116,7 +115,6 @@ TEST_F(ParseEntityTest, ClassMaximal)
     "  let f1:T1"
     "  let f2:T2 = 5"
     "  var f3:P3.T3"
-    //"  var f4:T4 delegate T5 = 9"
     "  var f4:T4 = 9"
     "  new m1() => 1"
     "  fun ref m2() => 2";
@@ -664,30 +662,6 @@ TEST_F(ParseEntityTest, LetFieldMustHaveType)
   const char* src = "class Foo let bar";
 
   TEST_ERROR(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegate)
-{
-  const char* src =
-    "class Foo\n"
-    "  var bar: T delegate T1";
-
-  TEST_COMPILE(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegateCanBeIntersect)
-{
-  const char* src =
-    "trait T\n"
-    "trait T1\n"
-    "trait T2\n"
-
-    "class Foo\n"
-    "  var bar: T delegate (T1 & T2)";
-
-  TEST_COMPILE(src);
 }
 
 

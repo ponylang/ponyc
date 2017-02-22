@@ -155,7 +155,7 @@ DEF(gencap);
     TK_CAP_ALIAS, TK_CAP_ANY);
   DONE();
 
-// ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
+// ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | ALIASED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
@@ -166,7 +166,7 @@ DEF(nominal);
   );
   OPT RULE("type arguments", typeargs);
   OPT RULE("capability", cap, gencap);
-  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
   DONE();
 
 // PIPE type
@@ -225,7 +225,7 @@ DEF(typelist);
   DONE();
 
 // LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
-// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | BORROWED]
+// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | ALIASED]
 DEF(lambdatype);
   AST_NODE(TK_LAMBDATYPE);
   SKIP(NULL, TK_LBRACE);
@@ -239,7 +239,7 @@ DEF(lambdatype);
   OPT TOKEN(NULL, TK_QUESTION);
   SKIP(NULL, TK_RBRACE);
   OPT RULE("capability", cap, gencap);
-  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
   DONE();
 
 // (thistype | cap | typeexpr | nominal | lambdatype)
@@ -539,20 +539,26 @@ DEF(local);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
 
-// (NOT | AMP | MINUS | MINUS_NEW | DIGESTOF) pattern
+// (NOT | AMP | MINUS | MINUS_TILDE | MINUS_NEW | MINUS_TILDE_NEW | DIGESTOF)
+// pattern
 DEF(prefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_DIGESTOF);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_TILDE, TK_MINUS_NEW,
+    TK_MINUS_TILDE_NEW, TK_DIGESTOF);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_TILDE, TK_UNARY_MINUS_TILDE);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_TILDE_NEW, TK_UNARY_MINUS_TILDE);
   RULE("expression", parampattern);
   DONE();
 
-// (NOT | AMP | MINUS_NEW | DIGESTOF) pattern
+// (NOT | AMP | MINUS_NEW | MINUS_TILDE_NEW | DIGESTOF) pattern
 DEF(nextprefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_DIGESTOF);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_MINUS_TILDE_NEW,
+    TK_DIGESTOF);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_TILDE_NEW, TK_UNARY_MINUS_TILDE);
   RULE("expression", parampattern);
   DONE();
 
@@ -818,18 +824,18 @@ DEF(recover);
   TERMINATE("recover expression", TK_END);
   DONE();
 
-// $BORROWED
-DEF(test_borrowed);
+// $ALIASED
+DEF(test_aliased);
   PRINT_INLINE();
-  TOKEN(NULL, TK_TEST_BORROWED);
-  MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
+  TOKEN(NULL, TK_TEST_ALIASED);
+  MAP_ID(TK_TEST_ALIASED, TK_ALIASED);
   DONE();
 
-// CONSUME [cap | test_borrowed] term
+// CONSUME [cap | test_aliased] term
 DEF(consume);
   PRINT_INLINE();
   TOKEN("consume", TK_CONSUME);
-  OPT RULE("capability", cap, test_borrowed);
+  OPT RULE("capability", cap, test_aliased);
   RULE("expression", term);
   DONE();
 
@@ -893,7 +899,7 @@ DEF(nextterm);
 //     (CASE
 //       (LET $1 type)
 //       NONE
-//       (SEQ (CONSUME BORROWED $1))))
+//       (SEQ (CONSUME ALIASED $1))))
 //   (SEQ ERROR))
 DEF(asop);
   PRINT_INLINE();
@@ -908,8 +914,11 @@ DEF(binop);
   TOKEN("binary operator",
     TK_AND, TK_OR, TK_XOR,
     TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
-    TK_LSHIFT, TK_RSHIFT,
-    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT
+    TK_PLUS_TILDE, TK_MINUS_TILDE, TK_MULTIPLY_TILDE, TK_DIVIDE_TILDE,
+    TK_MOD_TILDE,
+    TK_LSHIFT, TK_RSHIFT, TK_LSHIFT_TILDE, TK_RSHIFT_TILDE,
+    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
+    TK_EQ_TILDE, TK_NE_TILDE, TK_LT_TILDE, TK_LE_TILDE, TK_GE_TILDE, TK_GT_TILDE
     );
   RULE("value", term);
   DONE();
@@ -1052,11 +1061,7 @@ DEF(field);
   TOKEN("field name", TK_ID);
   SKIP("mandatory type declaration on field", TK_COLON);
   RULE("field type", type);
-  IF(TK_DELEGATE, RULE("delegated type", provides));
   IF(TK_ASSIGN, RULE("field value", infix));
-  // Order should be:
-  // id type value delegate_type
-  REORDER(0, 1, 3, 2);
   DONE();
 
 // {field} {method}

@@ -4,6 +4,7 @@
 #include "gentrace.h"
 #include "gencontrol.h"
 #include "genexpr.h"
+#include "genreference.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -216,6 +217,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   {
     // Store the finaliser and use the C calling convention and an external
     // linkage.
+    assert(t->final_fn == NULL);
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
     LLVMSetLinkage(m->func, LLVMExternalLinkage);
@@ -255,7 +257,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 
   while(param != NULL)
   {
-    if(gentrace_needed(c, ast_type(param), NULL))
+    ast_t* param_type = ast_type(param);
+    if(gentrace_needed(c, param_type, param_type))
     {
       need_trace = true;
       break;
@@ -271,7 +274,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 
     for(int i = 1; i < count; i++)
     {
-      gentrace(c, ctx, args[i], ast_type(param), NULL);
+      ast_t* param_type = ast_type(param);
+      gentrace(c, ctx, args[i], args[i], param_type, param_type);
       param = ast_sibling(param);
     }
 
@@ -285,6 +289,31 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
   ponyint_pool_free_size(buf_size, args);
 }
 
+static void call_embed_finalisers(compile_t* c, reach_type_t* t,
+  LLVMValueRef obj)
+{
+  uint32_t base = 0;
+  if(t->underlying != TK_STRUCT)
+    base++;
+
+  if(t->underlying == TK_ACTOR)
+    base++;
+
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    reach_field_t* field = &t->fields[i];
+    if(!field->embed)
+      continue;
+
+    LLVMValueRef final_fn = field->type->final_fn;
+    if(final_fn == NULL)
+      continue;
+
+    LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
+    LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
+  }
+}
+
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   assert(m->func != NULL);
@@ -294,6 +323,9 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, m->func, m->di_file, m->di_method);
   name_params(c, t, m, params, m->func);
+
+  if(m->func == t->final_fn)
+    call_embed_finalisers(c, t, gen_this(c, NULL));
 
   LLVMValueRef value = gen_expr(c, body);
 
@@ -357,7 +389,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMGetParams(m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
-  gen_send_message(c, m, param_vals, params);
+  gen_send_message(c, m, param_vals, param_vals, params);
 
   // Return None.
   LLVMBuildRet(c->builder, c->none_instance);
@@ -432,7 +464,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMGetParams(m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
-  gen_send_message(c, m, param_vals, params);
+  gen_send_message(c, m, param_vals, param_vals, params);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, param_vals[0]);
@@ -716,4 +748,77 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
   }
 
   return true;
+}
+
+static bool need_primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->underlying != TK_PRIMITIVE)
+      continue;
+
+    reach_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    return true;
+  }
+
+  return false;
+}
+
+static void primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->underlying != TK_PRIMITIVE)
+      continue;
+
+    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
+
+    if(m == NULL)
+      continue;
+
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
+
+    if(c->str__final == method)
+      LLVMSetInstructionCallConv(value, LLVMCCallConv);
+  }
+}
+
+void genfun_primitive_calls(compile_t* c)
+{
+  LLVMTypeRef fn_type = NULL;
+
+  if(need_primitive_call(c, c->str__init))
+  {
+    fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
+    const char* fn_name = genname_program_fn(c->filename, "primitives_init");
+    c->primitives_init = LLVMAddFunction(c->module, fn_name, fn_type);
+
+    codegen_startfun(c, c->primitives_init, NULL, NULL);
+    primitive_call(c, c->str__init);
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+  }
+
+  if(need_primitive_call(c, c->str__final))
+  {
+    if(fn_type == NULL)
+      fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
+    const char* fn_name = genname_program_fn(c->filename, "primitives_final");
+    c->primitives_final = LLVMAddFunction(c->module, fn_name, fn_type);
+
+    codegen_startfun(c, c->primitives_final, NULL, NULL);
+    primitive_call(c, c->str__final);
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+  }
 }

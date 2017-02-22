@@ -68,21 +68,15 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   }
 
   if(is_fp(l_value))
-  {
-    LLVMValueRef result = build_f(c->builder, l_value, r_value, "");
-
-    if(!c->opt->ieee_math)
-      LLVMSetUnsafeAlgebra(result);
-
-    return result;
-  }
+    return build_f(c->builder, l_value, r_value, "");
 
   return build_i(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
+static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   const_binop const_f, const_binop const_ui, const_binop const_si,
-  build_binop build_f, build_binop build_ui, build_binop build_si)
+  build_binop build_f, build_binop build_ui, build_binop build_si,
+  bool safe)
 {
   ast_t* type = ast_type(left);
   bool sign = is_signed(type);
@@ -93,15 +87,33 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  LLVMTypeRef r_type = LLVMTypeOf(r_value);
+
   // This doesn't pick up `x / 0` for 128 bit numbers on platforms without
   // native 128 bit support.
-  if(!is_fp(r_value) &&
-    LLVMIsConstant(r_value) &&
-    (LLVMConstIntGetSExtValue(r_value) == 0)
-    )
+  if(!is_fp(r_value) && LLVMIsConstant(r_value))
   {
-    ast_error(c->opt->check.errors, right, "constant divide or mod by zero");
-    return NULL;
+    long long r_const = LLVMConstIntGetSExtValue(r_value);
+    if (r_const == 0)
+    {
+      ast_error(c->opt->check.errors, right, "constant divide or mod by zero");
+      return NULL;
+    }
+
+    if((r_const == -1) && LLVMIsConstant(l_value) && sign)
+    {
+      uint64_t width = LLVMGetIntTypeWidth(r_type);
+      LLVMValueRef v_min = LLVMConstInt(r_type, 0, false);
+      v_min = LLVMConstNot(v_min);
+      v_min = LLVMConstShl(v_min, LLVMConstInt(r_type, width - 1, false));
+      long long min = LLVMConstIntGetSExtValue(v_min);
+      if(LLVMConstIntGetSExtValue(l_value) == min)
+      {
+        ast_error(c->opt->check.errors, ast_parent(left),
+          "constant divide or mod overflow");
+        return NULL;
+      }
+    }
   }
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
@@ -118,19 +130,49 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   if(is_fp(l_value))
     return build_f(c->builder, l_value, r_value, "");
 
-  // Setup additional blocks.
-  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = codegen_block(c, "div_then");
-  LLVMBasicBlockRef post_block = codegen_block(c, "div_post");
+  LLVMBasicBlockRef insert;
+  LLVMBasicBlockRef nonzero_block;
+  LLVMBasicBlockRef no_overflow_block;
+  LLVMBasicBlockRef post_block;
+  LLVMValueRef zero;
 
-  // Check for div by zero.
-  LLVMTypeRef r_type = LLVMTypeOf(r_value);
-  LLVMValueRef zero = LLVMConstInt(r_type, 0, false);
-  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
-  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
+  if(safe)
+  {
+    // Setup additional blocks.
+    insert = LLVMGetInsertBlock(c->builder);
+    nonzero_block = codegen_block(c, "div_nonzero");
+    if(sign)
+      no_overflow_block = codegen_block(c, "div_no_overflow");
+    post_block = codegen_block(c, "div_post");
 
-  // Divisor is not zero.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
+    // Check for div by zero.
+    zero = LLVMConstInt(r_type, 0, false);
+    LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
+    LLVMBuildCondBr(c->builder, cmp, nonzero_block, post_block);
+
+    // Divisor is not zero.
+    LLVMPositionBuilderAtEnd(c->builder, nonzero_block);
+
+    if(sign)
+    {
+      // Check for overflow, e.g. I8(-128) / -1
+      uint64_t width = LLVMGetIntTypeWidth(r_type);
+      LLVMValueRef v_min = LLVMConstInt(r_type, 0, false);
+      v_min = LLVMConstNot(v_min);
+      LLVMValueRef denom_good = LLVMBuildICmp(c->builder, LLVMIntNE, r_value,
+        v_min, "");
+      v_min = LLVMConstShl(v_min, LLVMConstInt(r_type, width - 1, false));
+      LLVMValueRef numer_good = LLVMBuildICmp(c->builder, LLVMIntNE, l_value,
+        v_min, "");
+      LLVMValueRef no_overflow = LLVMBuildOr(c->builder, numer_good, denom_good,
+        "");
+      LLVMBuildCondBr(c->builder, no_overflow, no_overflow_block, post_block);
+
+      // No overflow.
+      LLVMPositionBuilderAtEnd(c->builder, no_overflow_block);
+    }
+  }
+
   LLVMValueRef result;
 
   if(sign)
@@ -138,20 +180,31 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   else
     result = build_ui(c->builder, l_value, r_value, "");
 
-  LLVMBuildBr(c->builder, post_block);
+  if(safe)
+  {
+    LLVMBuildBr(c->builder, post_block);
 
-  // Phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, r_type, "");
-  LLVMAddIncoming(phi, &zero, &insert, 1);
-  LLVMAddIncoming(phi, &result, &then_block, 1);
+    // Phi node.
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, r_type, "");
+    LLVMAddIncoming(phi, &zero, &insert, 1);
+    if(sign)
+    {
+      LLVMAddIncoming(phi, &zero, &nonzero_block, 1);
+      LLVMAddIncoming(phi, &result, &no_overflow_block, 1);
+    } else {
+      LLVMAddIncoming(phi, &result, &nonzero_block, 1);
+    }
 
-  return phi;
+    return phi;
+  }
+
+  return result;
 }
 
 static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
   LLVMValueRef l_value, LLVMValueRef r_value, LLVMRealPredicate cmp_f,
-  LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
+  LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui, bool safe)
 {
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
@@ -168,7 +221,13 @@ static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
   }
 
   if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, cmp_f, l_value, r_value, "");
+  {
+    LLVMValueRef result = LLVMBuildFCmp(c->builder, cmp_f, l_value, r_value,
+      "");
+    if(!safe)
+      LLVMSetUnsafeAlgebra(result);
+    return result;
+  }
 
   if(sign)
     return LLVMBuildICmp(c->builder, cmp_si, l_value, r_value, "");
@@ -177,7 +236,8 @@ static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
 }
 
 static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
-  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
+  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui,
+  bool safe)
 {
   ast_t* type = ast_type(left);
   bool sign = is_signed(type);
@@ -186,12 +246,12 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef r_value = gen_expr(c, right);
 
   LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    cmp_f, cmp_si, cmp_ui);
+    cmp_f, cmp_si, cmp_ui, safe);
 
   return LLVMBuildZExt(c->builder, test, c->ibool, "");
 }
 
-LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
+static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   bool is_and)
 {
   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
@@ -453,37 +513,108 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   return NULL;
 }
 
-LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right)
+static LLVMValueRef make_unsafe_fadd(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name)
 {
+  LLVMValueRef result = LLVMBuildFAdd(builder, left, right, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+static LLVMValueRef make_unsafe_fsub(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name)
+{
+  LLVMValueRef result = LLVMBuildFSub(builder, left, right, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+static LLVMValueRef make_unsafe_fmul(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name)
+{
+  LLVMValueRef result = LLVMBuildFMul(builder, left, right, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+static LLVMValueRef make_unsafe_fdiv(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name)
+{
+  LLVMValueRef result = LLVMBuildFDiv(builder, left, right, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+static LLVMValueRef make_unsafe_frem(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name)
+{
+  LLVMValueRef result = LLVMBuildFRem(builder, left, right, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
+  const char *name)
+{
+  LLVMValueRef result = LLVMBuildFNeg(builder, op, name);
+  LLVMSetUnsafeAlgebra(result);
+  return result;
+}
+
+LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
+{
+  if(safe)
+    return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
+      LLVMBuildFAdd, LLVMBuildAdd);
+
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
   return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
-    LLVMBuildFAdd, LLVMBuildAdd);
+    make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
 }
 
-LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(safe)
+    return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
+      LLVMBuildFSub, LLVMBuildSub);
+
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
   return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
-    LLVMBuildFSub, LLVMBuildSub);
+    make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
 }
 
-LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(safe)
+    return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
+      LLVMBuildFMul, LLVMBuildMul);
+
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
   return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
-    LLVMBuildFMul, LLVMBuildMul);
+    make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 
-LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   return make_divmod(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
-    LLVMConstSDiv, LLVMBuildFDiv, LLVMBuildUDiv, LLVMBuildSDiv);
+    LLVMConstSDiv, safe ? LLVMBuildFDiv : make_unsafe_fdiv,
+    LLVMBuildUDiv, LLVMBuildSDiv, safe);
 }
 
-LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   return make_divmod(c, left, right, LLVMConstFRem, LLVMConstURem,
-    LLVMConstSRem, LLVMBuildFRem, LLVMBuildURem, LLVMBuildSRem);
+    LLVMConstSRem, safe ? LLVMBuildFRem : make_unsafe_frem,
+    LLVMBuildURem, LLVMBuildSRem, safe);
 }
 
-LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
+LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
 {
   LLVMValueRef value = gen_expr(c, ast);
 
@@ -497,12 +628,20 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
     return LLVMConstNeg(value);
 
   if(is_fp(value))
-    return LLVMBuildFNeg(c->builder, value, "");
+    return (safe ? LLVMBuildFNeg : make_unsafe_fneg)(c->builder, value, "");
 
-  return LLVMBuildNeg(c->builder, value, "");
+  if(safe)
+    return LLVMBuildNeg(c->builder, value, "");
+
+  ast_t* type = ast_type(ast);
+  bool sign = is_signed(type);
+
+  if(sign)
+    return LLVMBuildNSWNeg(c->builder, value, "");
+  return LLVMBuildNUWNeg(c->builder, value, "");
 }
 
-LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -510,14 +649,50 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstShl(l_value, r_value);
+  LLVMTypeRef l_type = LLVMTypeOf(l_value);
+  assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
+  unsigned width = LLVMGetIntTypeWidth(l_type);
 
-  return LLVMBuildShl(c->builder, l_value, r_value, "");
+  if(LLVMIsConstant(r_value))
+  {
+    if(LLVMConstIntGetZExtValue(r_value) >= width)
+    {
+      ast_error(c->opt->check.errors, right,
+        "shift amount greater than type width");
+      return NULL;
+    }
+
+    if(LLVMIsConstant(l_value))
+      return LLVMConstShl(l_value, r_value);
+  }
+
+  if(safe)
+  {
+    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
+    LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, r_value, clamp,
+      "");
+    LLVMValueRef select = LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
+
+    return LLVMBuildShl(c->builder, l_value, select, "");
+  }
+
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
+  LLVMValueRef result = LLVMBuildShl(c->builder, l_value, r_value, "");
+
+  if(sign)
+    LLVMSetNoSignedWrap(result);
+  else
+    LLVMSetNoUnsignedWrap(result);
+
+  return result;
 }
 
-LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  (void)safe;
   ast_t* type = ast_type(left);
   bool sign = is_signed(type);
 
@@ -527,18 +702,52 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(sign)
-      return LLVMConstAShr(l_value, r_value);
+  LLVMTypeRef l_type = LLVMTypeOf(l_value);
+  assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
+  unsigned width = LLVMGetIntTypeWidth(l_type);
 
-    return LLVMConstLShr(l_value, r_value);
+  if(LLVMIsConstant(r_value))
+  {
+    if(LLVMConstIntGetZExtValue(r_value) >= width)
+    {
+      ast_error(c->opt->check.errors, right,
+        "shift amount greater than type width");
+      return NULL;
+    }
+
+    if(LLVMIsConstant(l_value))
+    {
+      if(sign)
+        return LLVMConstAShr(l_value, r_value);
+
+      return LLVMConstLShr(l_value, r_value);
+    }
+  }
+
+  if(safe)
+  {
+    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
+    LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, r_value, clamp,
+      "");
+    LLVMValueRef select = LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
+
+    if(sign)
+      return LLVMBuildAShr(c->builder, l_value, select, "");
+
+    return LLVMBuildLShr(c->builder, l_value, select, "");
   }
 
   if(sign)
-    return LLVMBuildAShr(c->builder, l_value, r_value, "");
+  {
+    LLVMValueRef result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    LLVMSetIsExact(result);
+    return result;
+  }
 
-  return LLVMBuildLShr(c->builder, l_value, r_value, "");
+  LLVMValueRef result = LLVMBuildLShr(c->builder, l_value, r_value, "");
+  LLVMSetIsExact(result);
+  return result;
 }
 
 LLVMValueRef gen_and_sc(compile_t* c, ast_t* left, ast_t* right)
@@ -620,46 +829,47 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   return LLVMBuildNot(c->builder, value, "");
 }
 
-LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ);
+  return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 }
 
-LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value)
+LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
+  bool safe)
 {
   ast_t* type = ast_type(left);
   bool sign = is_signed(type);
   LLVMValueRef l_value = gen_expr(c, left);
 
   LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ);
+    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 
   return LLVMBuildZExt(c->builder, test, c->ibool, "");
 }
 
-LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealONE, LLVMIntNE, LLVMIntNE);
+  return make_cmp(c, left, right, LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
 }
 
-LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealOLT, LLVMIntSLT, LLVMIntULT);
+  return make_cmp(c, left, right, LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
 }
 
-LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealOLE, LLVMIntSLE, LLVMIntULE);
+  return make_cmp(c, left, right, LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
 }
 
-LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE);
+  return make_cmp(c, left, right, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
 }
 
-LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right)
+LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT);
+  return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
 }
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)

@@ -192,7 +192,7 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 }
 
 
-// Peform the AST passes on the given AST up to the speficied last pass
+// Peform the AST passes on the given AST up to the specified last pass
 static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 {
   assert(astp != NULL);

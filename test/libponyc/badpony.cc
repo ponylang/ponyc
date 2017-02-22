@@ -338,3 +338,39 @@ TEST_F(BadPonyTest, MatchUnionOfDifferentCaps)
   TEST_ERRORS_1(src,
     "match type may not be a union of types with different capabilities");
 }
+
+TEST_F(BadPonyTest, ShadowingBuiltinTypeParameter)
+{
+  const char* src =
+    "class A[I8]\n"
+      "let b: U8 = 0";
+
+  TEST_ERRORS_1(src, "type parameter shadows existing type");
+}
+
+TEST_F(BadPonyTest, ShadowingTypeParameterInSameFile)
+{
+  const char* src =
+    "trait B\n"
+    "class A[B]";
+
+  TEST_ERRORS_1(src, "can't reuse name 'B'");
+}
+
+TEST_F(BadPonyTest, TupleToUnionGentrace)
+{
+  // From issue #1561
+  const char* src =
+    "primitive X\n"
+    "primitive Y\n"
+
+    "class iso T\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    this((T, Y))\n"
+
+    "  be apply(m: (X | (T, Y))) => None";
+
+  TEST_COMPILE(src);
+}

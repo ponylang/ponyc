@@ -282,6 +282,24 @@ bool genheader(compile_t* c)
     c->filename
     );
 
+  if(c->primitives_init != NULL)
+  {
+    fprintf(fp,
+      "void %s_primitives_init();\n"
+      "\n",
+      c->filename
+      );
+  }
+
+  if(c->primitives_final != NULL)
+  {
+    fprintf(fp,
+      "void %s_primitives_final();\n"
+      "\n",
+      c->filename
+      );
+  }
+
   printbuf_t* buf = printbuf_new();
   print_types(c, fp, buf);
   fwrite(buf->m, 1, buf->offset, fp);

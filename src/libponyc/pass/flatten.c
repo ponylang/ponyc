@@ -277,10 +277,6 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(options, ast);
 
-    case TK_FVAR:
-    case TK_FLET:
-      return flatten_provides_list(options, ast, 3);
-
     case TK_EMBED:
     {
       // An embedded field must have a known, class type.
@@ -321,7 +317,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
         return AST_ERROR;
       }
 
-      return flatten_provides_list(options, ast, 3);
+      return AST_OK;
     }
 
     case TK_ACTOR:

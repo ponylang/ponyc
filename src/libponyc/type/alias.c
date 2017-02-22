@@ -30,7 +30,7 @@ static ast_t* alias_single(ast_t* type)
         case TK_NONE:
           type = ast_dup(type);
           ephemeral = ast_sibling(cap_fetch(type));
-          ast_setid(ephemeral, TK_BORROWED);
+          ast_setid(ephemeral, TK_ALIASED);
           break;
 
         default: {}
@@ -39,7 +39,7 @@ static ast_t* alias_single(ast_t* type)
       return type;
     }
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       return type;
 
     default: {}
@@ -150,8 +150,8 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
       ast_setid(eph, TK_EPHEMERAL);
       break;
 
-    case TK_BORROWED:
-      if(ccap == TK_BORROWED)
+    case TK_ALIASED:
+      if(ccap == TK_ALIASED)
         ast_setid(eph, TK_NONE);
       break;
 
@@ -161,7 +161,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
   switch(ccap)
   {
     case TK_NONE:
-    case TK_BORROWED:
+    case TK_ALIASED:
       ccap = tcap;
       break;
 

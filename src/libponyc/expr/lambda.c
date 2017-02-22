@@ -79,8 +79,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     NODE(TK_FVAR,
       TREE(id_node)
       TREE(type)
-      TREE(value)
-      NONE));  // Delegate type
+      TREE(value)));
 
   return field;
 }

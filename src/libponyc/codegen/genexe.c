@@ -18,49 +18,6 @@
 #  include <unistd.h>
 #endif
 
-static bool need_primitive_call(compile_t* c, const char* method)
-{
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* t;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    if(t->underlying != TK_PRIMITIVE)
-      continue;
-
-    reach_method_name_t* n = reach_method_name(t, method);
-
-    if(n == NULL)
-      continue;
-
-    return true;
-  }
-
-  return false;
-}
-
-static void primitive_call(compile_t* c, const char* method)
-{
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* t;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    if(t->underlying != TK_PRIMITIVE)
-      continue;
-
-    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
-
-    if(m == NULL)
-      continue;
-
-    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
-
-    if(c->str__final == method)
-      LLVMSetInstructionCallConv(value, LLVMCCallConv);
-  }
-}
-
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -77,8 +34,7 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   return actor;
 }
 
-static void gen_main(compile_t* c, reach_type_t* t_main,
-  reach_type_t* t_env)
+LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
   params[0] = c->i32;
@@ -120,7 +76,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
-  primitive_call(c, c->str__init);
+  if(c->primitives_init != NULL)
+    LLVMBuildCall(c->builder, c->primitives_init, NULL, 0, "");
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -164,15 +121,16 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
   gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Start the runtime.
-  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
-  LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 1, false);
+  LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  if(need_primitive_call(c, c->str__final))
+  if(c->primitives_final != NULL)
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
-    primitive_call(c, c->str__final);
+    LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
   }
@@ -184,6 +142,8 @@ static void gen_main(compile_t* c, reach_type_t* t_main,
 
   // External linkage for main().
   LLVMSetLinkage(func, LLVMExternalLinkage);
+
+  return func;
 }
 
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
@@ -240,7 +200,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                                               : "ld";
 
   snprintf(ld_cmd, ld_len,
-    "%s -execute -no_pie -dead_strip -arch %.*s "
+    "%s -execute -no_pie -arch %.*s "
     "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt
@@ -297,8 +257,11 @@ static bool link_exe(compile_t* c, ast_t* program,
       PONY_COMPILER);
   }
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
-  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold " : "";
-  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl  " : "";
+  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
+  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
+  const char* export = target_is_linux(c->opt->triple) ?
+    "-Wl,--export-dynamic-symbol=__DescTable "
+    "-Wl,--export-dynamic-symbol=__DescTableSize" : "-rdynamic";
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
@@ -311,9 +274,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s "
-    "-lm",
-    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl
+    "%s %s %s %s -lpthread %s -lm %s",
+    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl,
+    export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

@@ -21,7 +21,11 @@ PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
+char* LLVMGetHostCPUFeatures();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
+void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
+void LLVMSetNoSignedWrap(LLVMValueRef inst);
+void LLVMSetIsExact(LLVMValueRef inst);
 #if PONY_LLVM < 309
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
 void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
@@ -33,6 +37,7 @@ void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
 #  endif
 #endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
+LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 
@@ -120,18 +125,32 @@ typedef struct compile_t
   const char* str_div;
   const char* str_mod;
   const char* str_neg;
+  const char* str_add_unsafe;
+  const char* str_sub_unsafe;
+  const char* str_mul_unsafe;
+  const char* str_div_unsafe;
+  const char* str_mod_unsafe;
+  const char* str_neg_unsafe;
   const char* str_and;
   const char* str_or;
   const char* str_xor;
   const char* str_not;
   const char* str_shl;
   const char* str_shr;
+  const char* str_shl_unsafe;
+  const char* str_shr_unsafe;
   const char* str_eq;
   const char* str_ne;
   const char* str_lt;
   const char* str_le;
   const char* str_ge;
   const char* str_gt;
+  const char* str_eq_unsafe;
+  const char* str_ne_unsafe;
+  const char* str_lt_unsafe;
+  const char* str_le_unsafe;
+  const char* str_ge_unsafe;
+  const char* str_gt_unsafe;
 
   const char* str_this;
   const char* str_create;
@@ -153,6 +172,8 @@ typedef struct compile_t
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
   LLVMValueRef none_instance;
+  LLVMValueRef primitives_init;
+  LLVMValueRef primitives_final;
 
   LLVMTypeRef void_type;
   LLVMTypeRef ibool;
@@ -190,11 +211,19 @@ typedef struct compile_t
 
 bool codegen_merge_runtime_bitcode(compile_t* c);
 
-bool codegen_init(pass_opt_t* opt);
+bool codegen_llvm_init();
 
-void codegen_shutdown(pass_opt_t* opt);
+void codegen_llvm_shutdown();
+
+bool codegen_pass_init(pass_opt_t* opt);
+
+void codegen_pass_cleanup(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
+
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt);
+
+void codegen_cleanup(compile_t* c);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 

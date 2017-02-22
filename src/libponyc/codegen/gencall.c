@@ -46,22 +46,35 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
 
   ast_t* right = ast_child(positional);
   const char* name = ast_name(method);
+  bool special_case = true;
   *value = NULL;
 
   codegen_debugloc(c, ast);
 
   if(name == c->str_add)
-    *value = gen_add(c, left, right);
+    *value = gen_add(c, left, right, true);
   else if(name == c->str_sub)
-    *value = gen_sub(c, left, right);
+    *value = gen_sub(c, left, right, true);
   else if((name == c->str_mul) && native128)
-    *value = gen_mul(c, left, right);
+    *value = gen_mul(c, left, right, true);
   else if((name == c->str_div) && native128)
-    *value = gen_div(c, left, right);
+    *value = gen_div(c, left, right, true);
   else if((name == c->str_mod) && native128)
-    *value = gen_mod(c, left, right);
+    *value = gen_mod(c, left, right, true);
   else if(name == c->str_neg)
-    *value = gen_neg(c, left);
+    *value = gen_neg(c, left, true);
+  else if(name == c->str_add_unsafe)
+    *value = gen_add(c, left, right, false);
+  else if(name == c->str_sub_unsafe)
+    *value = gen_sub(c, left, right, false);
+  else if((name == c->str_mul_unsafe) && native128)
+    *value = gen_mul(c, left, right, false);
+  else if((name == c->str_div_unsafe) && native128)
+    *value = gen_div(c, left, right, false);
+  else if((name == c->str_mod_unsafe) && native128)
+    *value = gen_mod(c, left, right, false);
+  else if(name == c->str_neg_unsafe)
+    *value = gen_neg(c, left, false);
   else if((name == c->str_and) && short_circuit)
     *value = gen_and_sc(c, left, right);
   else if((name == c->str_or) && short_circuit)
@@ -75,24 +88,42 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   else if(name == c->str_not)
     *value = gen_not(c, left);
   else if(name == c->str_shl)
-    *value = gen_shl(c, left, right);
+    *value = gen_shl(c, left, right, true);
   else if(name == c->str_shr)
-    *value = gen_shr(c, left, right);
+    *value = gen_shr(c, left, right, true);
+  else if(name == c->str_shl_unsafe)
+    *value = gen_shl(c, left, right, false);
+  else if(name == c->str_shr_unsafe)
+    *value = gen_shr(c, left, right, false);
   else if(name == c->str_eq)
-    *value = gen_eq(c, left, right);
+    *value = gen_eq(c, left, right, true);
   else if(name == c->str_ne)
-    *value = gen_ne(c, left, right);
+    *value = gen_ne(c, left, right, true);
   else if(name == c->str_lt)
-    *value = gen_lt(c, left, right);
+    *value = gen_lt(c, left, right, true);
   else if(name == c->str_le)
-    *value = gen_le(c, left, right);
+    *value = gen_le(c, left, right, true);
   else if(name == c->str_ge)
-    *value = gen_ge(c, left, right);
+    *value = gen_ge(c, left, right, true);
   else if(name == c->str_gt)
-    *value = gen_gt(c, left, right);
+    *value = gen_gt(c, left, right, true);
+  else if(name == c->str_eq_unsafe)
+    *value = gen_eq(c, left, right, false);
+  else if(name == c->str_ne_unsafe)
+    *value = gen_ne(c, left, right, false);
+  else if(name == c->str_lt_unsafe)
+    *value = gen_lt(c, left, right, false);
+  else if(name == c->str_le_unsafe)
+    *value = gen_le(c, left, right, false);
+  else if(name == c->str_ge_unsafe)
+    *value = gen_ge(c, left, right, false);
+  else if(name == c->str_gt_unsafe)
+    *value = gen_gt(c, left, right, false);
+  else
+    special_case = false;
 
   codegen_debugloc(c, NULL);
-  return *value != NULL;
+  return special_case;
 }
 
 static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
@@ -328,8 +359,8 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
-void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
-  ast_t* args_ast)
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
+  LLVMValueRef cast_args[], ast_t* args_ast)
 {
   // Allocate the message, setting its size and ID.
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, m->msg_type);
@@ -345,7 +376,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   for(unsigned int i = 0; i < m->param_count; i++)
   {
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i + 3, "");
-    LLVMBuildStore(c->builder, args[i+1], arg_ptr);
+    LLVMBuildStore(c->builder, cast_args[i+1], arg_ptr);
   }
 
   // Trace while populating the message contents.
@@ -376,7 +407,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
     for(size_t i = 0; i < m->param_count; i++)
     {
-      gentrace(c, ctx, args[i+1], ast_type(arg_ast), ast_type(param));
+      gentrace(c, ctx, orig_args[i+1], cast_args[i+1], ast_type(arg_ast),
+        ast_type(param));
       param = ast_sibling(param);
       arg_ast = ast_sibling(arg_ast);
     }
@@ -386,7 +418,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   // Send the message.
   msg_args[0] = ctx;
-  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
+  msg_args[1] = LLVMBuildBitCast(c->builder, cast_args[0], c->object_ptr, "");
   msg_args[2] = msg;
   gencall_runtime(c, "pony_sendv", msg_args, 3, "");
 }
@@ -657,9 +689,11 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   {
     // If we're sending a message, trace and send here instead of calling the
     // sender to trace the most specific types possible.
+    LLVMValueRef* cast_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+    cast_args[0] = args[0];
     while(arg != NULL)
     {
-      args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
+      cast_args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
       arg = ast_sibling(arg);
       i++;
     }
@@ -668,7 +702,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     reach_method_t* m = reach_method(t, cap, method_name, typeargs);
 
     codegen_debugloc(c, ast);
-    gen_send_message(c, m, args, positional);
+    gen_send_message(c, m, args, cast_args, positional);
     codegen_debugloc(c, NULL);
     switch(ast_id(postfix))
     {
@@ -681,6 +715,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         r = c->none_instance;
         break;
     }
+    ponyint_pool_free_size(buf_size, cast_args);
   } else {
     while(arg != NULL)
     {
@@ -757,7 +792,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
         (name == c->str_F64)
         )
       {
-        return gen_eq_rvalue(c, pattern, r_value);
+        return gen_eq_rvalue(c, pattern, r_value, true);
       }
     }
   }

@@ -505,7 +505,7 @@ actor Main
   fun find(s: String box, offset: ISize = 0, nth: USize = 0): ISize ? =>
     """
     Return the index of the n-th instance of s in the string starting from the
-    beginning. Raise an error if there is no n-th occurence of s or s is empty.
+    beginning. Raise an error if there is no n-th occurrence of s or s is empty.
     """
     var i = offset_to_index(offset)
     var steps = nth + 1
@@ -535,7 +535,7 @@ actor Main
     """
     Return the index of n-th instance of `s` in the string starting from the
     end. The `offset` represents the highest index to included in the search.
-    Raise an error if there is no n-th occurence of `s` or `s` is empty.
+    Raise an error if there is no n-th occurrence of `s` or `s` is empty.
     """
     var i = (offset_to_index(offset) + 1) - s._size
 
@@ -1004,7 +1004,7 @@ actor Main
           (let c, let len) = utf32(i.isize())
 
           if chars.contains(c) then
-            // If we find a delimeter, add the current string to the array.
+            // If we find a delimiter, add the current string to the array.
             occur = occur + 1
 
             if (n > 0) and (occur >= n) then
@@ -1104,9 +1104,14 @@ actor Main
     end
 
   fun iso _append(s: String box): String iso^ =>
-    reserve(s._size + _size)
-    s._ptr._copy_to(_ptr._unsafe()._offset(_size), s._size + 1) // + 1 for null
-    _size = s._size + _size
+    let len = _size + s._size
+    reserve(len)
+    if s.is_null_terminated() then
+      s._copy_to(_ptr._unsafe(), s._size + 1, 0, _size)
+    else
+      s._copy_to(_ptr._unsafe(), s._size, 0, _size)
+    end
+    _size = len
     consume this
 
   fun add(that: String box): String =>

@@ -48,30 +48,44 @@ typedef enum token_id
   TK_ASSIGN,
 
   TK_PLUS,
+  TK_PLUS_TILDE,
   TK_MINUS,
+  TK_MINUS_TILDE,
   TK_MULTIPLY,
+  TK_MULTIPLY_TILDE,
   TK_DIVIDE,
+  TK_DIVIDE_TILDE,
   TK_MOD,
+  TK_MOD_TILDE,
   TK_AT,
 
   TK_LSHIFT,
+  TK_LSHIFT_TILDE,
   TK_RSHIFT,
+  TK_RSHIFT_TILDE,
 
   TK_LT,
+  TK_LT_TILDE,
   TK_LE,
+  TK_LE_TILDE,
   TK_GE,
+  TK_GE_TILDE,
   TK_GT,
+  TK_GT_TILDE,
 
   TK_EQ,
+  TK_EQ_TILDE,
   TK_NE,
+  TK_NE_TILDE,
 
   TK_PIPE,
   TK_ISECTTYPE,
   TK_EPHEMERAL,
-  TK_BORROWED,
+  TK_ALIASED,
 
   TK_QUESTION,
   TK_UNARY_MINUS,
+  TK_UNARY_MINUS_TILDE,
   TK_ELLIPSIS,
   TK_CONSTANT,
 
@@ -79,6 +93,7 @@ typedef enum token_id
   TK_LPAREN_NEW,
   TK_LSQUARE_NEW,
   TK_MINUS_NEW,
+  TK_MINUS_TILDE_NEW,
 
   // Keywords
   TK_COMPILE_INTRINSIC,
@@ -94,7 +109,6 @@ typedef enum token_id
   TK_OBJECT,
   TK_LAMBDA,
 
-  TK_DELEGATE,
   TK_AS,
   TK_IS,
   TK_ISNT,
@@ -253,7 +267,7 @@ typedef enum token_id
   TK_TEST_NO_SEQ,
   TK_TEST_SEQ_SCOPE,
   TK_TEST_TRY_NO_CHECK,
-  TK_TEST_BORROWED,
+  TK_TEST_ALIASED,
   TK_TEST_UPDATEARG,
   TK_TEST_EXTRA
 } token_id;
@@ -329,7 +343,7 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
-/// Report whether debug info should be genreated.
+/// Report whether debug info should be generated.
 bool token_debug(token_t* token);
 
 

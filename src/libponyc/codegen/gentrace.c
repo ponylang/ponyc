@@ -8,18 +8,6 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-/**
- * type: The type of the element being traced.
- *
- * orig: The original top level type being traced.
- *
- * tuple: This begins as NULL. If we trace through a tuple, this becomes a
- * tuple of "don't care" of the right cardinality, with the element of the
- * tuple being tested substituted into the right place. In other words, (A, B)
- * becomes the tuple (A, _) when tracing the first element, and (_, B) when
- * tracing the second element.
- */
-
 // Arranged from most specific to least specific.
 typedef enum
 {
@@ -33,10 +21,22 @@ typedef enum
   TRACE_MUT_UNKNOWN,
   TRACE_TAG_KNOWN,
   TRACE_TAG_UNKNOWN,
+  TRACE_STATIC,
   TRACE_DYNAMIC,
   TRACE_TUPLE
 } trace_t;
 
+/**
+ * type: The type of the element being traced.
+ *
+ * orig: The original top level type being traced.
+ *
+ * tuple: This begins as NULL. If we trace through a tuple, this becomes a
+ * tuple of "don't care" of the right cardinality, with the element of the
+ * tuple being tested substituted into the right place. In other words, (A, B)
+ * becomes the tuple (A, _) when tracing the first element, and (_, B) when
+ * tracing the second element.
+ */
 static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type, ast_t* orig, ast_t* tuple, LLVMBasicBlockRef next_block);
 
@@ -224,6 +224,11 @@ static trace_t trace_type_union(ast_t* type)
       case TRACE_DYNAMIC:
       case TRACE_TUPLE:
         return TRACE_DYNAMIC;
+
+      case TRACE_STATIC:
+        // Can't happen here.
+        assert(0);
+        return TRACE_DYNAMIC;
     }
   }
 
@@ -271,6 +276,11 @@ static trace_t trace_type_isect(ast_t* type)
 
       case TRACE_DYNAMIC:
       case TRACE_TUPLE:
+        break;
+
+      case TRACE_STATIC:
+        // Can't happen here.
+        assert(0);
         break;
     }
   }
@@ -356,6 +366,102 @@ static trace_t trace_type(ast_t* type)
   return TRACE_DYNAMIC;
 }
 
+static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
+  ast_t* src_type)
+{
+  // A trace method suitable for tracing src with the refcap of dst.
+  switch(src_trace)
+  {
+    case TRACE_NONE:
+    case TRACE_MACHINE_WORD:
+    case TRACE_MAYBE:
+    case TRACE_PRIMITIVE:
+    case TRACE_DYNAMIC:
+    case TRACE_TAG_KNOWN:
+    case TRACE_TAG_UNKNOWN:
+      return src_trace;
+
+    case TRACE_TUPLE:
+      if(dst_trace == TRACE_TUPLE)
+        return TRACE_TUPLE;
+      return TRACE_DYNAMIC;
+
+    case TRACE_VAL_KNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_DYNAMIC:
+          return TRACE_STATIC;
+
+        case TRACE_TAG_KNOWN:
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_KNOWN;
+
+        default:
+          return TRACE_VAL_KNOWN;
+      }
+
+    case TRACE_VAL_UNKNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_DYNAMIC:
+          if(ast_id(src_type) == TK_NOMINAL)
+            return TRACE_STATIC;
+          return TRACE_VAL_UNKNOWN;
+
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_UNKNOWN;
+
+        default:
+          return TRACE_VAL_UNKNOWN;
+      }
+
+    case TRACE_MUT_KNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_DYNAMIC:
+          return TRACE_STATIC;
+
+        case TRACE_TAG_KNOWN:
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_KNOWN;
+
+        case TRACE_VAL_KNOWN:
+        case TRACE_VAL_UNKNOWN:
+          return TRACE_VAL_KNOWN;
+
+        default:
+          return TRACE_MUT_KNOWN;
+      }
+
+    case TRACE_MUT_UNKNOWN:
+      switch(dst_trace)
+      {
+        case TRACE_DYNAMIC:
+          if(ast_id(src_type) == TK_NOMINAL)
+            return TRACE_STATIC;
+          return TRACE_MUT_UNKNOWN;
+
+        case TRACE_TAG_UNKNOWN:
+          return TRACE_TAG_UNKNOWN;
+
+        case TRACE_VAL_UNKNOWN:
+          return TRACE_VAL_UNKNOWN;
+
+        default:
+          return TRACE_MUT_UNKNOWN;
+      }
+
+    case TRACE_STATIC:
+      // Can't happen here.
+      assert(0);
+      return src_trace;
+
+    default:
+      assert(0);
+      return src_trace;
+  }
+}
+
 static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type)
 {
@@ -369,7 +475,7 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
   LLVMPositionBuilderAtEnd(c->builder, is_false);
-  gentrace(c, ctx, object, elem, NULL);
+  gentrace(c, ctx, object, object, elem, elem);
   LLVMBuildBr(c->builder, is_true);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
@@ -400,33 +506,115 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
 
-static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
+static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
+  ast_t* tuple)
+{
+  assert(ast_id(type) == TK_NOMINAL);
+
+  ast_t* cap = cap_fetch(type);
+
+  if(tuple != NULL)
+  {
+    // We are a tuple element. Our type is in the correct position in the
+    // tuple, everything else is TK_DONTCARETYPE.
+    type = tuple;
+  }
+
+  token_id orig_cap = ast_id(cap);
+
+  // We can have a non-sendable rcap if we're tracing a field in a type's trace
+  // function. In this case we must always recurse and we have to trace the
+  // field as mutable.
+  switch(orig_cap)
+  {
+    case TK_TRN:
+    case TK_REF:
+    case TK_BOX:
+      return PONY_TRACE_MUTABLE;
+
+    default: {}
+  }
+
+  // If it's possible to use match or to extract the source type from the
+  // destination type with a given cap, then we must trace as this cap. Try iso,
+  // val and tag in that order.
+  if(orig_cap == TK_ISO)
+  {
+    if(is_matchtype(orig, type, opt) == MATCHTYPE_ACCEPT)
+    {
+      return PONY_TRACE_MUTABLE;
+    } else {
+      ast_setid(cap, TK_VAL);
+    }
+  }
+
+  if(ast_id(cap) == TK_VAL)
+  {
+    if(is_matchtype(orig, type, opt) == MATCHTYPE_ACCEPT)
+    {
+      ast_setid(cap, orig_cap);
+      return PONY_TRACE_IMMUTABLE;
+    } else {
+      ast_setid(cap, TK_TAG);
+    }
+  }
+
+  assert(ast_id(cap) == TK_TAG);
+
+  int ret = -1;
+  if(is_matchtype(orig, type, opt) == MATCHTYPE_ACCEPT)
+    ret = PONY_TRACE_OPAQUE;
+
+  ast_setid(cap, orig_cap);
+  return ret;
+}
+
+static void trace_static(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* src_type, ast_t* dst_type)
+{
+  assert(ast_id(src_type) == TK_NOMINAL);
+
+  int mutability = trace_cap_nominal(c->opt, src_type, dst_type, NULL);
+  assert(mutability != -1);
+
+  if(is_known(src_type))
+    trace_known(c, ctx, object, src_type, mutability);
+  else
+    trace_unknown(c, ctx, object, mutability);
+}
+
+static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
+  LLVMValueRef dst_value, ast_t* src_type, ast_t* dst_type)
 {
   int i = 0;
 
   // We're a tuple, determined statically.
-  if(dst_type != NULL)
+  if(ast_id(dst_type) == TK_TUPLETYPE)
   {
     ast_t* src_child = ast_child(src_type);
     ast_t* dst_child = ast_child(dst_type);
     while((src_child != NULL) && (dst_child != NULL))
     {
       // Extract each element and trace it.
-      LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
-      gentrace(c, ctx, elem, src_child, dst_child);
+      LLVMValueRef elem = LLVMBuildExtractValue(c->builder, dst_value, i, "");
+      gentrace(c, ctx, elem, elem, src_child, dst_child);
       i++;
       src_child = ast_sibling(src_child);
       dst_child = ast_sibling(dst_child);
     }
     assert(src_child == NULL && dst_child == NULL);
   } else {
+    // This is a boxed tuple. Trace the box, then handle the elements.
+    trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
+
+    // Extract the elements from the original unboxed tuple.
+    assert(LLVMGetTypeKind(LLVMTypeOf(src_value)) == LLVMStructTypeKind);
+
     ast_t* src_child = ast_child(src_type);
     while(src_child != NULL)
     {
-      // Extract each element and trace it.
-      LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
-      gentrace(c, ctx, elem, src_child, NULL);
+      LLVMValueRef elem = LLVMBuildExtractValue(c->builder, src_value, i, "");
+      gentrace(c, ctx, elem, elem, src_child, src_child);
       i++;
       src_child = ast_sibling(src_child);
     }
@@ -577,25 +765,40 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
   LLVMValueRef object, ast_t* type, ast_t* orig, ast_t* tuple,
   LLVMBasicBlockRef next_block)
 {
+  assert(ast_id(type) == TK_NOMINAL);
+
   // Skip if a primitive.
   ast_t* def = (ast_t*)ast_data(type);
 
   if(ast_id(def) == TK_PRIMITIVE)
     return;
 
-  // If it's not possible to use match or to extract this type from the
-  // original type, there's no need to trace as this type.
-  if(tuple != NULL)
+  int mutability = trace_cap_nominal(c->opt, type, orig, tuple);
+  // If we can't extract the element from the original type, there is no need to
+  // trace the element.
+  if(mutability == -1)
+    return;
+
+  token_id dst_cap = TK_TAG;
+  switch(mutability)
   {
-    // We are a tuple element. Our type is in the correct position in the
-    // tuple, everything else is TK_DONTCARETYPE.
-    if(is_matchtype(orig, tuple, c->opt) != MATCHTYPE_ACCEPT)
-      return;
-  } else {
-    // We aren't a tuple element.
-    if(is_matchtype(orig, type, c->opt) != MATCHTYPE_ACCEPT)
-      return;
+    case PONY_TRACE_MUTABLE:
+      dst_cap = TK_ISO;
+      break;
+
+    case PONY_TRACE_IMMUTABLE:
+      dst_cap = TK_VAL;
+      break;
+
+    default: {}
   }
+
+  ast_t* dst_type = ast_dup(type);
+  ast_t* dst_cap_ast = cap_fetch(dst_type);
+  ast_setid(dst_cap_ast, dst_cap);
+  ast_t* dst_eph = ast_sibling(dst_cap_ast);
+  if(ast_id(dst_eph) == TK_EPHEMERAL)
+    ast_setid(dst_eph, TK_NONE);
 
   // We aren't always this type. We need to check dynamically.
   LLVMValueRef desc = gendesc_fetch(c, object);
@@ -607,23 +810,16 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
 
   // Trace as this type.
   LLVMPositionBuilderAtEnd(c->builder, is_true);
-  gentrace(c, ctx, object, type, NULL);
+  gentrace(c, ctx, object, object, type, dst_type);
+
+  ast_free_unattached(dst_type);
 
   // If we have traced as mut or val, we're done with this element. Otherwise,
   // continue tracing this as if the match had been unsuccessful.
-  switch(trace_type(type))
-  {
-    case TRACE_MUT_KNOWN:
-    case TRACE_MUT_UNKNOWN:
-    case TRACE_VAL_KNOWN:
-    case TRACE_VAL_UNKNOWN:
-      LLVMBuildBr(c->builder, next_block);
-      break;
-
-    default:
-      LLVMBuildBr(c->builder, is_false);
-      break;
-  }
+  if(mutability != PONY_TRACE_OPAQUE)
+    LLVMBuildBr(c->builder, next_block);
+  else
+    LLVMBuildBr(c->builder, is_false);
 
   // Carry on, whether we have traced or not.
   LLVMPositionBuilderAtEnd(c->builder, is_false);
@@ -669,21 +865,13 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 
     case TRACE_MACHINE_WORD:
     {
-      if(dst_type == NULL)
-        return false;
-
-      reach_type_t* dst_rtype = reach_type(c->reach, dst_type);
-      switch(dst_rtype->underlying)
+      if(ast_id(dst_type) == TK_NOMINAL)
       {
-        case TK_UNIONTYPE:
-        case TK_ISECTTYPE:
-        case TK_INTERFACE:
-        case TK_TRAIT:
-          return true;
-
-        default:
+        ast_t* def = (ast_t*)ast_data(dst_type);
+        if(ast_id(def) == TK_PRIMITIVE)
           return false;
       }
+      return true;
     }
 
     case TRACE_PRIMITIVE:
@@ -691,7 +879,7 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 
     case TRACE_TUPLE:
     {
-      if(dst_type != NULL)
+      if(ast_id(dst_type) == TK_TUPLETYPE)
       {
         ast_t* src_child = ast_child(src_type);
         ast_t* dst_child = ast_child(dst_type);
@@ -704,13 +892,8 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
         }
         assert(src_child == NULL && dst_child == NULL);
       } else {
-        ast_t* src_child = ast_child(src_type);
-        while(src_child != NULL)
-        {
-          if(gentrace_needed(c, src_child, NULL))
-            return true;
-          src_child = ast_sibling(src_child);
-        }
+        // This is a boxed tuple. We'll have to trace the box anyway.
+        return true;
       }
 
       return false;
@@ -739,7 +922,8 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
-    if(gentrace_needed(c, t->fields[i].ast, NULL))
+    ast_t* field_type = t->fields[i].ast;
+    if(gentrace_needed(c, field_type, field_type))
     {
       need_trace = true;
       break;
@@ -752,10 +936,17 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
   t->trace_fn = codegen_addfun(c, genname_trace(t->name), c->trace_type);
 }
 
-void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
-  ast_t* src_type, ast_t* dst_type)
+void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
+  LLVMValueRef dst_value, ast_t* src_type, ast_t* dst_type)
 {
-  switch(trace_type(src_type))
+  trace_t trace_method = trace_type(src_type);
+  if(src_type != dst_type)
+  {
+    trace_method = trace_type_dst_cap(trace_method, trace_type(dst_type),
+      src_type);
+  }
+
+  switch(trace_method)
   {
     case TRACE_NONE:
       assert(0);
@@ -763,69 +954,66 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef value,
 
     case TRACE_MACHINE_WORD:
     {
-      if(dst_type == NULL)
-        return;
-
-      reach_type_t* dst_rtype = reach_type(c->reach, dst_type);
-      switch(dst_rtype->underlying)
+      bool boxed = true;
+      if(ast_id(dst_type) == TK_NOMINAL)
       {
-        case TK_UNIONTYPE:
-        case TK_ISECTTYPE:
-        case TK_INTERFACE:
-        case TK_TRAIT:
-          trace_known(c, ctx, value, src_type, PONY_TRACE_IMMUTABLE);
-          return;
-
-        default:
-          return;
+        ast_t* def = (ast_t*)ast_data(dst_type);
+        if(ast_id(def) == TK_PRIMITIVE)
+          boxed = false;
       }
+
+      if(boxed)
+        trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+
+      return;
     }
 
     case TRACE_PRIMITIVE:
       return;
 
     case TRACE_MAYBE:
-      trace_maybe(c, ctx, value, src_type);
+      trace_maybe(c, ctx, dst_value, src_type);
       return;
 
     case TRACE_VAL_KNOWN:
-      trace_known(c, ctx, value, src_type, PONY_TRACE_IMMUTABLE);
+      trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
       return;
 
     case TRACE_VAL_UNKNOWN:
-      trace_unknown(c, ctx, value, PONY_TRACE_IMMUTABLE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_IMMUTABLE);
       return;
 
     case TRACE_MUT_KNOWN:
-      trace_known(c, ctx, value, src_type, PONY_TRACE_MUTABLE);
+      trace_known(c, ctx, dst_value, src_type, PONY_TRACE_MUTABLE);
       return;
 
     case TRACE_MUT_UNKNOWN:
-      trace_unknown(c, ctx, value, PONY_TRACE_MUTABLE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_MUTABLE);
       return;
 
     case TRACE_TAG_KNOWN:
-      trace_known(c, ctx, value, src_type, PONY_TRACE_OPAQUE);
+      trace_known(c, ctx, dst_value, src_type, PONY_TRACE_OPAQUE);
       return;
 
     case TRACE_TAG_UNKNOWN:
-      trace_unknown(c, ctx, value, PONY_TRACE_OPAQUE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
+      return;
+
+    case TRACE_STATIC:
+      trace_static(c, ctx, dst_value, src_type, dst_type);
       return;
 
     case TRACE_DYNAMIC:
     {
       LLVMBasicBlockRef next_block = codegen_block(c, "");
-      if(dst_type == NULL)
-        trace_dynamic(c, ctx, value, src_type, src_type, NULL, next_block);
-      else
-        trace_dynamic(c, ctx, value, dst_type, dst_type, NULL, next_block);
+      trace_dynamic(c, ctx, dst_value, src_type, dst_type, NULL, next_block);
       LLVMBuildBr(c->builder, next_block);
       LLVMPositionBuilderAtEnd(c->builder, next_block);
       return;
     }
 
     case TRACE_TUPLE:
-      trace_tuple(c, ctx, value, src_type, dst_type);
+      trace_tuple(c, ctx, src_value, dst_value, src_type, dst_type);
       return;
   }
 }

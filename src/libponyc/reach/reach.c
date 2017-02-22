@@ -370,8 +370,12 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t2;
 
-  ast_t* def = (ast_t*)ast_data(t->ast);
-  bool interface = ast_id(def) == TK_INTERFACE;
+  bool interface = false;
+  if(ast_id(t->ast) == TK_NOMINAL)
+  {
+    ast_t* def = (ast_t*)ast_data(t->ast);
+    interface = ast_id(def) == TK_INTERFACE;
+  }
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
@@ -397,7 +401,8 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
         {
           reach_type_cache_put(&t->subtypes, t2);
           reach_type_cache_put(&t2->subtypes, t);
-          add_methods_to_type(r, t, t2, opt);
+          if(ast_id(t->ast) == TK_NOMINAL)
+            add_methods_to_type(r, t, t2, opt);
         }
         break;
 
@@ -414,24 +419,38 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
-    if(ast_id(t2->ast) != TK_NOMINAL)
-      continue;
-
-    ast_t* def = (ast_t*)ast_data(t2->ast);
-
-    switch(ast_id(def))
+    if(ast_id(t2->ast) == TK_NOMINAL)
     {
-      case TK_INTERFACE:
-      case TK_TRAIT:
-        if(is_subtype(t->ast, t2->ast, NULL, opt))
-        {
-          reach_type_cache_put(&t->subtypes, t2);
-          reach_type_cache_put(&t2->subtypes, t);
-          add_methods_to_type(r, t2, t, opt);
-        }
-        break;
+      ast_t* def = (ast_t*)ast_data(t2->ast);
 
-      default: {}
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          if(is_subtype(t->ast, t2->ast, NULL, opt))
+          {
+            reach_type_cache_put(&t->subtypes, t2);
+            reach_type_cache_put(&t2->subtypes, t);
+            add_methods_to_type(r, t2, t, opt);
+          }
+          break;
+
+        default: {}
+      }
+    } else {
+      switch(ast_id(t2->ast))
+      {
+        case TK_UNIONTYPE:
+        case TK_ISECTTYPE:
+          if(is_subtype(t->ast, t2->ast, NULL, opt))
+          {
+            reach_type_cache_put(&t->subtypes, t2);
+            reach_type_cache_put(&t2->subtypes, t);
+          }
+          break;
+
+        default: {}
+      }
     }
   }
 }
@@ -555,6 +574,8 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
   t = add_reach_type(r, type);
   t->underlying = ast_id(t->ast);
   t->type_id = r->next_type_id++;
+
+  add_types_to_trait(r, t, opt);
 
   ast_t* child = ast_child(type);
 
@@ -962,6 +983,14 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 
   if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
+    if(name == stringtab("_final"))
+    {
+      // If the method is a finaliser, don't mark the ref and val versions as
+      // reachable.
+      assert(n->cap == TK_BOX);
+      return;
+    }
+
     // TODO: if it doesn't use this-> in a constructor, we could reuse the
     // function, which means always reuse in a fun tag
     bool subordinate = (n->cap == TK_TAG);

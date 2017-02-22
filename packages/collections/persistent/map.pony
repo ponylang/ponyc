@@ -1,14 +1,14 @@
 use mut = "collections"
 
 primitive Maps
-  fun val empty[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  fun val empty[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   (): Map[K, V] =>
     """
     Return an empty map.
     """
     Map[K, V]._empty()
 
-  fun val from[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+  fun val from[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   (pairs: Array[(K, val->V)]): Map[K, V] ? =>
     """
     Return a map containing the provided key-value pairs.
@@ -19,7 +19,7 @@ primitive Maps
     end
     m
 
-class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   """
   A persistent map based on the Compressed Hash Array Mapped Prefix-tree from
   'Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM
@@ -60,7 +60,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
     """
     _size
 
-  fun val update(key: K, value: V): Map[K, V] ? =>
+  fun val update(key: K, value: val->V): Map[K, V] ? =>
     """
     Update the value associated with the provided key.
     """
@@ -106,7 +106,7 @@ class val Map[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun _root_node(): _MapNode[K, V] => _root
 
-class MapKeys[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class MapKeys[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   embed _pairs: MapPairs[K, V]
 
   new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
@@ -115,16 +115,16 @@ class MapKeys[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun ref next(): K ? => _pairs.next()._1
 
-class MapValues[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class MapValues[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   embed _pairs: MapPairs[K, V]
 
   new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
 
   fun has_next(): Bool => _pairs.has_next()
 
-  fun ref next(): V ? => _pairs.next()._2
+  fun ref next(): val->V ? => _pairs.next()._2
 
-class MapPairs[K: (mut.Hashable val & Equatable[K] val), V: Any val]
+class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   embed _path: Array[_MapNode[K, V]]
   embed _idxs: Array[USize]
   var _i: USize = 0
@@ -140,7 +140,7 @@ class MapPairs[K: (mut.Hashable val & Equatable[K] val), V: Any val]
 
   fun has_next(): Bool => _i < _size
 
-  fun ref next(): (K, V) ? =>
+  fun ref next(): (K, val->V) ? =>
     (let n, let i) = _cur()
     if i >= n.entries().size() then
       _backup()

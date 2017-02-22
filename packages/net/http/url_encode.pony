@@ -76,6 +76,9 @@ primitive URLEncode
         let value = (_unhex(from(i + 1)) << 4) or _unhex(from(i + 2))
         out.push(value)
         i = i + 3
+      elseif c == '+' then
+        out.push(' ')
+        i = i + 1
       else
         out.push(c)
         i = i + 1

@@ -108,8 +108,15 @@ static bool is_expr_infix(token_id id)
     case TK_MULTIPLY:
     case TK_DIVIDE:
     case TK_MOD:
+    case TK_PLUS_TILDE:
+    case TK_MINUS_TILDE:
+    case TK_MULTIPLY_TILDE:
+    case TK_DIVIDE_TILDE:
+    case TK_MOD_TILDE:
     case TK_LSHIFT:
     case TK_RSHIFT:
+    case TK_LSHIFT_TILDE:
+    case TK_RSHIFT_TILDE:
     case TK_IS:
     case TK_ISNT:
     case TK_EQ:
@@ -118,6 +125,12 @@ static bool is_expr_infix(token_id id)
     case TK_LE:
     case TK_GE:
     case TK_GT:
+    case TK_EQ_TILDE:
+    case TK_NE_TILDE:
+    case TK_LT_TILDE:
+    case TK_LE_TILDE:
+    case TK_GE_TILDE:
+    case TK_GT_TILDE:
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
       return true;
@@ -291,10 +304,6 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
         if(!check_id_field(opt, ast_child(member)))
           r = false;
 
-        ast_t* delegate_type = ast_childidx(member, 3);
-        if(ast_id(delegate_type) != TK_NONE &&
-          !check_provides_type(opt, delegate_type, "delegate"))
-          r = false;
         break;
       }
 

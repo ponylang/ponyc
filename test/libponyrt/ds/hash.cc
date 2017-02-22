@@ -277,9 +277,8 @@ TEST_F(HashMapTest, RemoveByIndex)
     }
   }
 
-  hash_elem_t* n = testmap_removeindex(&_map, i);
+  testmap_removeindex(&_map, i);
 
-  ASSERT_EQ(n, p);
   ASSERT_EQ(NULL, testmap_get(&_map, p, &index));
 }
 

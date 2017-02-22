@@ -178,6 +178,15 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
     return false;
   }
 
+  if(ast_id(ast) == TK_NOMINAL) {
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    if(module && ast_get(module, ast_name(id), 0)) {
+      ast_error(opt->check.errors, def,
+                "type parameter shadows existing type");
+      return false;
+    }
+  }
+
   // Change to a typeparamref.
   REPLACE(astp,
     NODE(TK_TYPEPARAMREF,

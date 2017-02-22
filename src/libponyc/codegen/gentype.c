@@ -297,7 +297,11 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
   else
     source = ast_source(t->ast);
 
-  t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
+  const char* file = source->file;
+  if(file == NULL)
+    file = "";
+
+  t->di_file = LLVMDIBuilderCreateFile(c->di, file);
 
   switch(t->underlying)
   {
@@ -403,6 +407,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 {
   LLVMTypeRef type;
   int extra = 0;
+  bool packed = false;
 
   switch(t->underlying)
   {
@@ -417,12 +422,18 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       break;
 
     case TK_STRUCT:
+    {
       // Pointer and Maybe will have no structure.
       if(t->structure == NULL)
         return true;
 
       type = t->structure;
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      if(ast_has_annotation(def, "packed"))
+        packed = true;
+
       break;
+    }
 
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
@@ -477,7 +488,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     }
   }
 
-  LLVMStructSetBody(type, elements, t->field_count + extra, false);
+  LLVMStructSetBody(type, elements, t->field_count + extra, packed);
   ponyint_pool_free_size(buf_size, elements);
   return true;
 }
@@ -681,7 +692,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     {
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      gentrace(c, ctx, value, t->fields[i].ast, NULL);
+      ast_t* field_type = t->fields[i].ast;
+      gentrace(c, ctx, value, value, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = t->fields[i].type->trace_fn;
@@ -779,6 +791,8 @@ bool gentypes(compile_t* c)
     if(!genfun_method_bodies(c, t))
       return false;
   }
+
+  genfun_primitive_calls(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Descriptors\n");

@@ -6,19 +6,42 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
+- Escape special characters in ANLTR strings. (#1600) (PR #1601)
+- Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
+- Always call finalisers for embedded fields (PR #1586)
+- Check for null terminator in String._append (PR #1582)
+- Fix TCP Connection data receive race condition (PR #1578)
+- Fix Linux epoll event resubscribe performance and race condition. (PR #1564)
+- Correctly resubscribe TCPConnection to ASIO events after throttling (PR #1558)
+- Performance fix in the runtime actor schedule (PR #1521)
+- Disallow type parameter names shadowing other types. (PR #1526)
 - Don't double resubscribe to asio events in TCPConnection (PR #1509)
 - Improve Map.get_or_else performance (PR #1482)
 - Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
 - Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
 - Compiler assertion failure during type checking
+- Runtime memory allocator bug
+- Compiler crash on tuple sending generation (issue #1546)
+- Compiler crash due to incorrect subtype assignment (issue #1474)
 
 ### Added
 
+- Add assert_no_error test condition to PonyTest (PR #1605)
+- Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
+- Packed structures (RFC 32) (PR #1536)
+- Add `insert_if_absent` method to Map (PR #1519)
+- Branch prediction annotations (RFC 30) (PR #1528)
 - Readline interpret C-d on empty line as EOF (PR #1504)
 - AST annotations (RFC 27) (PR #1485)
+- Unsafe mathematic and logic operations. Can be faster but can have undefined results for some inputs (issue #993)
+- Equality comparison for NetAddress (PR #1569)
+- Host address comparison for NetAddress (PR #1569)
 
 ### Changed
 
+- Rename IPAddress to NetAddress (PR #1559)
+- Remove delegates (RFC 31) (PR #1534)
 - Upgrade to LLVM 3.9.1 (PR #1498)
 - Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
 - Ensure TCPConnection is established before writing data to it (issue #1310)
@@ -152,6 +175,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - TCP sockets on Linux now use Epoll One Shot
 - Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
 - TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
+- All arithmetic and logic operations are now fully defined for every input by default (issue #993)
+- Removed compiler flag `--ieee-math`
+- The `pony_start` runtime function now takes a `language_features` boolean parameter indicating whether the Pony-specific runtime features (e.g. network or serialisation) should be initialised
 
 ## [0.10.0] - 2016-12-12
 
@@ -502,7 +528,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reduced memory pressure.
 - Scheduler steals when only the CD is on a scheduler thread queue.
 - use commands searches ../pony_packages recursively similar to Node.js
-- Readline uses a Promise to handle async reponses.
+- Readline uses a Promise to handle async responses.
 
 ### Fixed
 

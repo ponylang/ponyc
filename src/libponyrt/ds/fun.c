@@ -43,12 +43,12 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
 
   switch(len & 7)
   {
-    case 7: b |= ((uint64_t)in[6]) << 48;
-    case 6: b |= ((uint64_t)in[5]) << 40;
-    case 5: b |= ((uint64_t)in[4]) << 32;
-    case 4: b |= ((uint64_t)in[3]) << 24;
-    case 3: b |= ((uint64_t)in[2]) << 16;
-    case 2: b |= ((uint64_t)in[1]) << 8;
+    case 7: b |= ((uint64_t)in[6]) << 48; // fallthrough
+    case 6: b |= ((uint64_t)in[5]) << 40; // fallthrough
+    case 5: b |= ((uint64_t)in[4]) << 32; // fallthrough
+    case 4: b |= ((uint64_t)in[3]) << 24; // fallthrough
+    case 3: b |= ((uint64_t)in[2]) << 16; // fallthrough
+    case 2: b |= ((uint64_t)in[1]) << 8;  // fallthrough
     case 1: b |= ((uint64_t)in[0]);
   }
 
@@ -65,7 +65,7 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
   return v0 ^ v1 ^ v2 ^ v3;
 }
 
-uint64_t ponyint_hash_block(const void* p, size_t len)
+PONY_API uint64_t ponyint_hash_block(const void* p, size_t len)
 {
   return siphash24(the_key, (const char*)p, len);
 }
@@ -127,7 +127,7 @@ size_t ponyint_next_pow2(size_t i)
     i = 32;
   else
 #  endif
-    i = __pony_clz(i);
+    i = __pony_clzl(i);
   return 1 << (i == 0 ? 0 : 32 - i);
 #else
   i--;

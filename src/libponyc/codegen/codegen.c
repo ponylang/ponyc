@@ -8,11 +8,15 @@
 #include "genopt.h"
 #include "gentype.h"
 #include "../pkg/package.h"
+#include "../reach/paint.h"
+#include "../type/assemble.h"
+#include "../type/lookup.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
+#include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Linker.h>
 #include <string.h>
 #include <assert.h>
@@ -135,18 +139,32 @@ static void init_runtime(compile_t* c)
   c->str_div = stringtab("div");
   c->str_mod = stringtab("mod");
   c->str_neg = stringtab("neg");
+  c->str_add_unsafe = stringtab("add_unsafe");
+  c->str_sub_unsafe = stringtab("sub_unsafe");
+  c->str_mul_unsafe = stringtab("mul_unsafe");
+  c->str_div_unsafe = stringtab("div_unsafe");
+  c->str_mod_unsafe = stringtab("mod_unsafe");
+  c->str_neg_unsafe = stringtab("neg_unsafe");
   c->str_and = stringtab("op_and");
   c->str_or = stringtab("op_or");
   c->str_xor = stringtab("op_xor");
   c->str_not = stringtab("op_not");
   c->str_shl = stringtab("shl");
   c->str_shr = stringtab("shr");
+  c->str_shl_unsafe = stringtab("shl_unsafe");
+  c->str_shr_unsafe = stringtab("shr_unsafe");
   c->str_eq = stringtab("eq");
   c->str_ne = stringtab("ne");
   c->str_lt = stringtab("lt");
   c->str_le = stringtab("le");
   c->str_ge = stringtab("ge");
   c->str_gt = stringtab("gt");
+  c->str_eq_unsafe = stringtab("eq_unsafe");
+  c->str_ne_unsafe = stringtab("ne_unsafe");
+  c->str_lt_unsafe = stringtab("lt_unsafe");
+  c->str_le_unsafe = stringtab("le_unsafe");
+  c->str_ge_unsafe = stringtab("ge_unsafe");
+  c->str_gt_unsafe = stringtab("gt_unsafe");
 
   c->str_this = stringtab("this");
   c->str_create = stringtab("create");
@@ -663,9 +681,10 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // i32 pony_start(i32)
+  // i32 pony_start(i32, i32)
   params[0] = c->i32;
-  type = LLVMFunctionType(c->i32, params, 1, false);
+  params[1] = c->i32;
+  type = LLVMFunctionType(c->i32, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -805,22 +824,9 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   return true;
 }
 
-static void codegen_cleanup(compile_t* c)
+bool codegen_llvm_init()
 {
-  while(c->frame != NULL)
-    pop_frame(c);
-
-  LLVMDIBuilderDestroy(c->di);
-  LLVMDisposeBuilder(c->builder);
-  LLVMDisposeModule(c->module);
-  LLVMContextDispose(c->context);
-  LLVMDisposeTargetMachine(c->machine);
-  tbaa_metadatas_free(c->tbaa_mds);
-  reach_free(c->reach);
-}
-
-bool codegen_init(pass_opt_t* opt)
-{
+  LLVMLinkInMCJIT();
   LLVMInitializeNativeTarget();
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
@@ -844,6 +850,27 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeCodeGen(passreg);
   LLVMInitializeTarget(passreg);
 
+  return true;
+}
+
+void codegen_llvm_shutdown()
+{
+  LLVMResetFatalErrorHandler();
+  LLVMShutdown();
+}
+
+bool codegen_pass_init(pass_opt_t* opt)
+{
+  if(opt->features != NULL)
+  {
+    opt->features = LLVMCreateMessage(opt->features);
+  } else {
+    if((opt->cpu == NULL) && (opt->triple == NULL))
+      opt->features = LLVMGetHostCPUFeatures();
+    else
+      opt->features = LLVMCreateMessage("");
+  }
+
   // Default triple, cpu and features.
   if(opt->triple != NULL)
   {
@@ -862,22 +889,17 @@ bool codegen_init(pass_opt_t* opt)
   else
     opt->cpu = LLVMGetHostCPUName();
 
-  if(opt->features != NULL)
-    opt->features = LLVMCreateMessage(opt->features);
-  else
-    opt->features = LLVMCreateMessage("");
-
   return true;
 }
 
-void codegen_shutdown(pass_opt_t* opt)
+void codegen_pass_cleanup(pass_opt_t* opt)
 {
   LLVMDisposeMessage(opt->triple);
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);
-
-  LLVMResetFatalErrorHandler();
-  LLVMShutdown();
+  opt->triple = NULL;
+  opt->cpu = NULL;
+  opt->features = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)
@@ -905,6 +927,62 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
   codegen_cleanup(&c);
   return ok;
+}
+
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
+{
+  memset(c, 0, sizeof(compile_t));
+
+  if(!init_module(c, program, opt))
+    return false;
+
+  init_runtime(c);
+  genprim_reachable_init(c, program);
+
+  const char* main_actor = c->str_Main;
+  const char* env_class = c->str_Env;
+
+  ast_t* package = ast_child(program);
+  ast_t* main_def = ast_get(package, main_actor, NULL);
+
+  if(main_def == NULL)
+    return false;
+
+  ast_t* main_ast = type_builtin(opt, main_def, main_actor);
+  ast_t* env_ast = type_builtin(opt, main_def, env_class);
+
+  if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+    return false;
+
+  reach(c->reach, main_ast, c->str_create, NULL, opt);
+  reach(c->reach, env_ast, c->str__create, NULL, opt);
+
+  if(opt->limit == PASS_REACH)
+    return true;
+
+  paint(&c->reach->types);
+
+  if(opt->limit == PASS_PAINT)
+    return true;
+
+  if(!gentypes(c))
+    return false;
+
+  return true;
+}
+
+void codegen_cleanup(compile_t* c)
+{
+  while(c->frame != NULL)
+    pop_frame(c);
+
+  LLVMDIBuilderDestroy(c->di);
+  LLVMDisposeBuilder(c->builder);
+  LLVMDisposeModule(c->module);
+  LLVMContextDispose(c->context);
+  LLVMDisposeTargetMachine(c->machine);
+  tbaa_metadatas_free(c->tbaa_mds);
+  reach_free(c->reach);
 }
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)

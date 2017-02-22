@@ -244,7 +244,7 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
         if(t == NULL)
         {
-          // Propogate error
+          // Propagate error
           ast_free_unattached(u_type);
           return NULL;
         }
@@ -266,7 +266,7 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
         if(t == NULL)
         {
-          // Propogate error
+          // Propagate error
           ast_free_unattached(i_type);
           return NULL;
         }

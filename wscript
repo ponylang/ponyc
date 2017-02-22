@@ -74,7 +74,7 @@ def configure(ctx):
         ctx.env.PONYC_EXTRA_LIBS = [
             'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
             'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
-            'odbc32', 'odbccp32', 'vcruntime', 'ucrt'
+            'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32'
         ]
 
         ctx.env.MSVC_VERSIONS = ['msvc ' + MSVC_VERSION + '.0']
@@ -88,10 +88,6 @@ def configure(ctx):
             'BUILD_COMPILER="msvc-' + MSVC_VERSION + '-x64"'
         ])
         ctx.env.append_value('LIBPATH', [ ctx.env.LLVM_DIR ])
-        ctx.env.TESTS_LINK_FLAGS = [
-            '/NXCOMPAT',
-            '/SUBSYSTEM:CONSOLE'
-        ]
 
         base_env = ctx.env.derive()
 
@@ -122,10 +118,13 @@ def configure(ctx):
             msvcDebugFlags = [
                 '/EHsc', '/MP', '/GS', '/W3', '/Zc:wchar_t', '/Zi',
                 '/Gm-', '/Od', '/Zc:inline', '/fp:precise', '/WX',
-                '/Zc:forScope', '/Gd', '/MD', '/FS'
+                '/Zc:forScope', '/Gd', '/MD', '/FS', '/DEBUG'
             ]
             ctx.env.append_value('CFLAGS', msvcDebugFlags)
             ctx.env.append_value('CXXFLAGS', msvcDebugFlags)
+            ctx.env.append_value('LINKFLAGS', [
+                '/NXCOMPAT', '/SUBSYSTEM:CONSOLE', '/DEBUG'
+            ])
 
             bldName = 'release-llvm-' + llvm_version
             ctx.setenv(bldName, env = bld_env)
@@ -140,6 +139,9 @@ def configure(ctx):
             ]
             ctx.env.append_value('CFLAGS', msvcReleaseFlags)
             ctx.env.append_value('CXXFLAGS', msvcReleaseFlags)
+            ctx.env.append_value('LINKFLAGS', [
+                '/NXCOMPAT', '/SUBSYSTEM:CONSOLE'
+            ])
 
 
 # specifies build targets
@@ -147,6 +149,7 @@ def build(ctx):
     import os
 
     buildDir = ctx.bldnode.abspath()
+    packagesDir = os.path.join(ctx.srcnode.abspath(), 'packages')
 
     llvmIncludes = []
     llvmLibs = []
@@ -225,11 +228,11 @@ def build(ctx):
 
     # libponyc
     ctx(
-        features = 'c cxx cxxstlib seq',
-        target   = 'libponyc',
-        source   = ctx.path.ant_glob('src/libponyc/**/*.c') + \
+        features  = 'c cxx cxxstlib seq',
+        target    = 'libponyc',
+        source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
-        includes = [ 'src/common' ] + llvmIncludes + sslIncludes
+        includes  = [ 'src/common' ] + llvmIncludes + sslIncludes
     )
 
     # libponyrt
@@ -242,23 +245,30 @@ def build(ctx):
 
     # ponyc
     ctx(
-        features = 'c cxx cxxprogram seq',
-        target   = 'ponyc',
-        source   = ctx.path.ant_glob('src/ponyc/**/*.c'),
-        includes = [ 'src/common' ],
-        use      = [ 'libponyc', 'libponyrt' ],
-        lib      = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
+        features  = 'c cxx cxxprogram seq',
+        target    = 'ponyc',
+        source    = ctx.path.ant_glob('src/ponyc/**/*.c'),
+        includes  = [ 'src/common' ],
+        use       = [ 'libponyc', 'libponyrt' ],
+        lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
     )
 
     # testc
+    testcUses = [ 'gtest', 'libponyc', 'libponyrt' ]
+    testcLibs = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
+    if os_is('win32'):
+        testcUses = [ 'gtest', 'libponyc' ]
+        testcLibs = [ '/WHOLEARCHIVE:libponyrt' ] + testcLibs
+
     ctx(
         features  = 'c cxx cxxprogram seq',
         target    = 'testc',
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'lib/gtest' ] + llvmIncludes,
-        use       = [ 'gtest', 'libponyc', 'libponyrt' ],
-        lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS,
-        linkflags = ctx.env.TESTS_LINK_FLAGS
+        defines   = [ 'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"'],
+        use       = testcUses,
+        lib       = testcLibs,
+        linkflags = [ '/INCREMENTAL:NO' ]
     )
 
     # testrt
@@ -268,8 +278,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('test/libponyrt/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest' ],
         use       = [ 'gtest', 'libponyrt' ],
-        lib       = ctx.env.PONYC_EXTRA_LIBS,
-        linkflags = ctx.env.TESTS_LINK_FLAGS
+        lib       = ctx.env.PONYC_EXTRA_LIBS
     )
 
     # stdlib tests

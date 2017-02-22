@@ -490,6 +490,11 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
   {
     assert(view->deferred == true);
     ponyint_viewmap_removeindex(&d->deferred, i);
+
+    // always scan again from same index because robin hood hashmap
+    // will shift delete items
+    i--;
+
     view->deferred = false;
 
     if(!detect(ctx, d, view))

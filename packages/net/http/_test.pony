@@ -205,7 +205,7 @@ class iso _Decode is UnitTest
 
     h.assert_eq[String]("F_12x", URLEncode.decode("F_1%32x"))
 
-    h.assert_eq[String]("!$&'()*+,;=!$&'()*+,;=",
+    h.assert_eq[String]("!$&'()* ,;=!$&'()*+,;=",
       URLEncode.decode("!$&'()*+,;=%21%24%26%27%28%29%2A%2B%2C%3B%3D"))
 
     h.assert_eq[String]("#<>[]{}|^ #<>[]{}|^ %",
