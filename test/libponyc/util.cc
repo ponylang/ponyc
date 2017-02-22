@@ -19,12 +19,6 @@
 using std::string;
 
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-#  define EXPORT_SYMBOL __declspec(dllexport)
-#else
-#  define EXPORT_SYMBOL
-#endif
-
 // These will be set when running a JIT'ed program.
 extern "C"
 {
@@ -35,63 +29,66 @@ extern "C"
 
 static const char* _builtin =
   "primitive U8 is Real[U8]\n"
-  "  new create() => 0\n"
-  "  fun mul(a: U8): U8 => 0\n"
+  "  new create(a: U8 = 0) => a\n"
+  "  fun mul(a: U8): U8 => this * a\n"
   "primitive I8 is Real[I8]"
-  "  new create() => 0\n"
+  "  new create(a: I8 = 0) => a\n"
   "  fun neg():I8 => -this\n"
   "primitive U16 is Real[U16]"
-  "  new create() => 0\n"
+  "  new create(a: U16 = 0) => a\n"
   "primitive I16 is Real[I16]"
-  "  new create() => 0\n"
+  "  new create(a: I16 = 0) => a\n"
   "  fun neg():I16 => -this\n"
-  "  fun mul(a: I16): I16 => 0\n"
+  "  fun mul(a: I16): I16 => this * a\n"
   "primitive U32 is Real[U32]"
-  "  new create() => 0\n"
+  "  new create(a: U32 = 0) => a\n"
   "primitive I32 is Real[I32]"
-  "  new create() => 0\n"
+  "  new create(a: I32 = 0) => a\n"
   "  fun neg():I32 => -this\n"
+  "  fun mul(a: I32): I32 => this * a\n"
   "primitive U64 is Real[U64]"
-  "  new create() => 0\n"
+  "  new create(a: U64 = 0) => a\n"
   "primitive I64 is Real[I64]"
-  "  new create() => 0\n"
+  "  new create(a: I64 = 0) => a\n"
   "  fun neg():I64 => -this\n"
-  "  fun mul(a: I64): I64 => 0\n"
-  "  fun op_or(a: I64): I64 => 0\n"
-  "  fun op_and(a: I64): I64 => 0\n"
-  "  fun op_xor(a: I64): I64 => 0\n"
+  "  fun mul(a: I64): I64 => this * a\n"
+  "  fun op_or(a: I64): I64 => this or a\n"
+  "  fun op_and(a: I64): I64 => this and a\n"
+  "  fun op_xor(a: I64): I64 => this xor a\n"
   "primitive U128 is Real[U128]"
-  "  new create() => 0\n"
-  "  fun mul(a: U128): U128 => 0\n"
-  "  fun div(a: U128): U128 => 0\n"
+  "  new create(a: U128 = 0) => a\n"
+  "  fun mul(a: U128): U128 => this * a\n"
+  "  fun div(a: U128): U128 => this / a\n"
   "primitive I128 is Real[I128]"
-  "  new create() => 0\n"
+  "  new create(a: I128 = 0) => a\n"
   "  fun neg():I128 => -this\n"
   "primitive ULong is Real[ULong]"
-  "  new create() => 0\n"
+  "  new create(a: ULong = 0) => a\n"
   "primitive ILong is Real[ILong]"
-  "  new create() => 0\n"
+  "  new create(a: ILong = 0) => a\n"
   "  fun neg():ILong => -this\n"
   "primitive USize is Real[USize]"
-  "  new create() => 0\n"
+  "  new create(a: USize = 0) => a\n"
   "primitive ISize is Real[ISize]"
-  "  new create() => 0\n"
+  "  new create(a: ISize = 0) => a\n"
   "  fun neg():ISize => -this\n"
   "primitive F32 is Real[F32]"
-  "  new create() => 0\n"
+  "  new create(a: F32 = 0) => a\n"
   "primitive F64 is Real[F64]"
-  "  new create() => 0\n"
+  "  new create(a: F64 = 0) => a\n"
   "type Number is (Signed | Unsigned | Float)\n"
   "type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)\n"
   "type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)\n"
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
   "class val Env\n"
-  "  new _create() => None\n"
+  "  new _create(argc: U32, argv: Pointer[Pointer[U8]] val,\n"
+  "    envp: Pointer[Pointer[U8]] val)\n"
+  "  => None\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
-  "class Pointer[A]\n"
+  "struct Pointer[A]\n"
   "interface Seq[A]\n"
   // Fake up arrays and iterators enough to allow tests to
   // - create array literals
@@ -491,8 +488,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
   if(check_good)
   {
-    if(program != NULL)
-      errors_print(opt.check.errors);
+    errors_print(opt.check.errors);
 
     ASSERT_NE((void*)NULL, program);
   }

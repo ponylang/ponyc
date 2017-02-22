@@ -32,11 +32,4 @@ PONY_API char* pony_os_realpath(const char* path)
   return cstring;
 }
 
-typedef int (*callback_fn)(void* self, int value);
-
-PONY_API int pony_test_callback(void* self, callback_fn cb, int value)
-{
-  return cb(self, value);
-}
-
 PONY_EXTERN_C_END
