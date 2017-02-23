@@ -187,14 +187,18 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       m->func = codegen_addfun(c, sender_name, m->func_type);
       genfun_param_attrs(c, t, m, m->func);
 
-      // Change the return type to void for the handler.
-      LLVMTypeRef handler_type = LLVMFunctionType(c->void_type, &tparams[2],
-        (int)count - 2, false);
+      // If the method is a forwarding mangling, we don't need the handler.
+      if(!m->forwarding)
+      {
+        // Change the return type to void for the handler.
+        LLVMTypeRef handler_type = LLVMFunctionType(c->void_type, &tparams[2],
+          (int)count - 2, false);
 
-      // Generate the handler prototype.
-      m->func_handler = codegen_addfun(c, m->full_name, handler_type);
-      genfun_param_attrs(c, t, m, m->func_handler);
-      make_function_debug(c, t, m, m->func_handler);
+        // Generate the handler prototype.
+        m->func_handler = codegen_addfun(c, m->full_name, handler_type);
+        genfun_param_attrs(c, t, m, m->func_handler);
+        make_function_debug(c, t, m, m->func_handler);
+      }
     }
 
     // Generate the message type.
