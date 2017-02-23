@@ -133,6 +133,9 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
+    // The exit code may have been set by one of the primitive finalisers.
+    // Reload it.
+    rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   }
 
   // Return the runtime exit code.
