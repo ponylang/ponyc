@@ -242,8 +242,15 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   if((sub == super) || (super == TK_TAG))
     return true;
 
-  // Sub and super share the same initial bounds. Every instantiation of the
-  // super rcap must be a supertype of some instantiation of the sub rcap.
+  // Sub and super share the same initial bounds.
+  //
+  // If either rcap is a specific/singular capability, use the same rule
+  // as in is_cap_sub_cap: every possible instantiation of sub must be a
+  // subtype of every possible instantiation of super.
+  //
+  // If both rcaps are generic/set capabilities, use the following rule:
+  // every instantiation of the super rcap must be a supertype of some
+  // instantiation of the sub rcap.
   switch(sub)
   {
     case TK_ISO:
@@ -312,20 +319,37 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
       }
       break;
 
-    case TK_CAP_ANY: // {iso, trn, ref, val, box, tag}
+    case TK_CAP_SEND: // {iso, val, tag}
       switch(super)
       {
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
         case TK_CAP_ALIAS: // {ref, val, box, tag}
+        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
           return true;
 
         default: {}
       }
       break;
 
-    case TK_CAP_SEND: // {iso, val, tag}
+    case TK_CAP_ALIAS: // {ref, val, box, tag}
       switch(super)
       {
+        case TK_CAP_READ:  // {ref, val, box}
         case TK_CAP_SHARE: // {val, tag}
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ANY: // {iso, trn, ref, val, box, tag}
+      switch(super)
+      {
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_SEND:  // {iso, val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
