@@ -2,6 +2,7 @@
 #include "sugar.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
+#include "../ast/printbuf.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 #include <assert.h>
@@ -544,7 +545,7 @@ static ast_t* get_docstring(ast_t* body, ast_t* doc)
 }
 
 
-static void print_params(ast_t* params, char* buf, size_t len)
+static void print_params(ast_t* params, printbuf_t* buf)
 {
   bool first = true;
   ast_t* param = ast_child(params);
@@ -553,12 +554,13 @@ static void print_params(ast_t* params, char* buf, size_t len)
     if (first)
       first = false;
     else
-      strncat(buf, ", ", len);
+      printbuf(buf, ", ");
 
     AST_GET_CHILDREN(param, param_id, param_type);
-    strncat(buf, ast_name(param_id), len);
-    strncat(buf, ": ", len);
-    strncat(buf, ast_print_type(param_type), len);
+
+    printbuf(buf, ast_name(param_id));
+    printbuf(buf, ": ");
+    printbuf(buf, ast_print_type(param_type));
 
     param = ast_sibling(param);
   }
@@ -568,70 +570,46 @@ static void print_params(ast_t* params, char* buf, size_t len)
 static void add_docstring(ast_t* id, ast_t* match_docstring,
   ast_t* case_docstring, ast_t* case_params, ast_t* case_ret)
 {
+  printbuf_t* buf = printbuf_new();
+
   const char* match_ds = ast_name(match_docstring);
   size_t m_ds_len = strlen(match_ds);
-  if (m_ds_len > 0) m_ds_len += 2;
 
   const char* case_ds = ast_name(case_docstring);
   const size_t c_ds_len = strlen(case_ds);
 
-  // get parameter text
-  char *params_ds = "";
-  size_t p_ds_len = 0;
-  size_t pidx = (size_t)-1;
-  if (case_params != NULL)
-  {
-    const size_t plen = 128;
-    pidx = ponyint_pool_index(plen);
-    params_ds = (char*)ponyint_pool_alloc(pidx);
-    params_ds[0] = 0;
-    print_params(case_params, params_ds, plen);
-    p_ds_len = strlen(params_ds);
-    if (p_ds_len > 0) p_ds_len += 2;
-  }
-
   const char* id_name = ast_name(id);
-  const size_t id_len = strlen(id_name);
 
-  const size_t len = id_len + 2 + m_ds_len + p_ds_len + c_ds_len + 2;
-
-  if (c_ds_len > 0 && len > 0)
+  if (c_ds_len > 0)
   {
-    size_t idx = ponyint_pool_index(len);
-    char *buf = (char*)ponyint_pool_alloc(idx);
-    buf[0] = 0;
-
     if (m_ds_len > 0)
     {
-      strncat(buf, match_ds, len);
-      strncat(buf, "\n\n", len);
+      printbuf(buf, match_ds);
+      printbuf(buf, "\n\n");
     }
 
-    strncat(buf, "`", len);
-    strncat(buf, id_name, len);
-    strncat(buf, "(", len);
 
-    if (p_ds_len > 0)
-    {
-      strncat(buf, params_ds, len);
-    }
+    printbuf(buf, "`");
+    printbuf(buf, id_name);
+    printbuf(buf, "(");
 
-    strncat(buf, ")", len);
+    if (case_params != NULL)
+      print_params(case_params, buf);
+
+    printbuf(buf, ")");
     if (ast_id(case_ret) != TK_NONE)
     {
-      strncat(buf, ": ", len);
-      strncat(buf, ast_print_type(case_ret), len);
+      printbuf(buf, ": ");
+      printbuf(buf, ast_print_type(case_ret));
     }
 
-    strncat(buf, "`: ", len);
-    strncat(buf, case_ds, len);
+    printbuf(buf, "`: ");
+    printbuf(buf, case_ds);
 
-    ast_set_name(match_docstring, buf);
-    ponyint_pool_free(idx, buf);
+    ast_set_name(match_docstring, buf->m);
   }
 
-  if (pidx != (size_t)-1)
-    ponyint_pool_free(pidx, params_ds);
+  printbuf_free(buf);
 }
 
 
