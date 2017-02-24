@@ -257,25 +257,25 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
     // Reify the constraint.
     ast_t* constraint = ast_childidx(typeparam, 1);
-    ast_t* bind_constraint = bind_type(constraint);
-    ast_t* r_constraint = reify(bind_constraint, typeparams, typeargs, opt,
+    ast_t* r_constraint = reify(constraint, typeparams, typeargs, opt,
       true);
-
-    if(bind_constraint != r_constraint)
-      ast_free_unattached(bind_constraint);
 
     // A bound type must be a subtype of the constraint.
     errorframe_t info = NULL;
-    if(!is_subtype(typearg, r_constraint, report_errors ? &info : NULL, opt))
+    errorframe_t* infop = (report_errors ? &info : NULL);
+    if(!is_subtype_constraint(typearg, r_constraint, infop, opt))
     {
       if(report_errors)
       {
-        ast_error(opt->check.errors, orig,
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, orig,
           "type argument is outside its constraint");
-        ast_error_continue(opt->check.errors, typearg,
+        ast_error_frame(&frame, typearg,
           "argument: %s", ast_print_type(typearg));
-        ast_error_continue(opt->check.errors, typeparam,
+        ast_error_frame(&frame, typeparam,
           "constraint: %s", ast_print_type(r_constraint));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
       }
 
       ast_free_unattached(r_constraint);

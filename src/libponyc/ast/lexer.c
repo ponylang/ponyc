@@ -244,19 +244,6 @@ static const lextoken_t abstract[] =
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 
-  { "iso (bind)", TK_ISO_BIND },
-  { "trn (bind)", TK_TRN_BIND },
-  { "ref (bind)", TK_REF_BIND },
-  { "val (bind)", TK_VAL_BIND },
-  { "box (bind)", TK_BOX_BIND },
-  { "tag (bind)", TK_TAG_BIND },
-
-  { "#read (bind)", TK_CAP_READ_BIND },
-  { "#send (bind)", TK_CAP_SEND_BIND },
-  { "#share (bind)", TK_CAP_SHARE_BIND },
-  { "#alias (bind)", TK_CAP_ALIAS_BIND },
-  { "#any (bind)", TK_CAP_ANY_BIND },
-
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },
   { "opliteral", TK_OPERATORLITERAL },

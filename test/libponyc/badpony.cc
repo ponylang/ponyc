@@ -374,3 +374,41 @@ TEST_F(BadPonyTest, TupleToUnionGentrace)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, RefCapViolationViaCapReadTypeParameter)
+{
+  // From issue #1328
+  const char* src =
+    "class Foo\n"
+      "var i: USize = 0\n"
+      "fun ref boom() => i = 3\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: Foo val = Foo\n"
+        "call_boom[Foo val](a)\n"
+
+      "fun call_boom[A: Foo #read](x: A) =>\n"
+        "x.boom()";
+
+  TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}
+
+TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
+{
+  // From issue #1328
+  const char* src =
+    "class Foo\n"
+      "var i: USize = 0\n"
+      "fun ref boom() => i = 3\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: Foo val = Foo\n"
+        "call_boom[Foo val](a)\n"
+
+      "fun call_boom[A: Foo #any](x: A) =>\n"
+        "x.boom()";
+
+  TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}

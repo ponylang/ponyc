@@ -46,22 +46,6 @@ static void cap_aliasing(token_id* cap, token_id* eph)
           *cap = TK_CAP_ALIAS;
           break;
 
-        case TK_ISO_BIND:
-          *cap = TK_TAG_BIND;
-          break;
-
-        case TK_TRN_BIND:
-          *cap = TK_BOX_BIND;
-          break;
-
-        case TK_CAP_SEND_BIND:
-          *cap = TK_CAP_SHARE_BIND;
-          break;
-
-        case TK_CAP_ANY_BIND:
-          *cap = TK_CAP_ALIAS_BIND;
-          break;
-
         default: {}
       }
 
@@ -86,29 +70,25 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       return false;
   }
 
-  if((sub == super) || (super == TK_TAG) || (super == TK_CAP_ANY_BIND))
+  if((sub == super) || (super == TK_TAG))
     return true;
 
-  // Every possible value of sub must be a subtype of every possible value of
-  // super.
+  // Every possible instantiation of sub must be a subtype of every possible
+  // instantiation of super.
   switch(sub)
   {
     case TK_ISO:
       switch(super)
       {
-        case TK_ISO:
         case TK_TRN:
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
-        case TK_CAP_READ:
-        case TK_CAP_SHARE:
-        case TK_CAP_SEND:
-        case TK_CAP_ALIAS:
-        case TK_CAP_ANY:
-
-        case TK_ISO_BIND:
-        case TK_CAP_SEND_BIND:
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_SEND:  // {iso, val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
+        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
           return true;
 
         default: {}
@@ -121,11 +101,9 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
-        case TK_CAP_READ:
-        case TK_CAP_SHARE:
-        case TK_CAP_ALIAS:
-
-        case TK_TRN_BIND:
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
@@ -136,10 +114,6 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       switch(super)
       {
         case TK_BOX:
-
-        case TK_REF_BIND:
-        case TK_CAP_READ_BIND:
-        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
@@ -150,81 +124,95 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       switch(super)
       {
         case TK_BOX:
-        case TK_CAP_SHARE:
-
-        case TK_VAL_BIND:
-        case TK_CAP_READ_BIND:
-        case TK_CAP_SEND_BIND:
-        case TK_CAP_SHARE_BIND:
-        case TK_CAP_ALIAS_BIND:
+        case TK_CAP_SHARE: // {val, tag}
           return true;
 
         default: {}
       }
       break;
 
-    case TK_BOX:
-      switch(super)
-      {
-        case TK_BOX_BIND:
-        case TK_CAP_READ_BIND:
-        case TK_CAP_ALIAS_BIND:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_TAG:
-      switch(super)
-      {
-        case TK_TAG_BIND:
-        case TK_CAP_SEND_BIND:
-        case TK_CAP_SHARE_BIND:
-        case TK_CAP_ALIAS_BIND:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_CAP_READ:
+    case TK_CAP_READ: // {ref, val, box}
       switch(super)
       {
         case TK_BOX:
-        case TK_CAP_READ_BIND:
-        case TK_CAP_ALIAS_BIND:
           return true;
 
         default: {}
       }
       break;
 
-    case TK_CAP_SEND:
-      switch(super)
+    default: {}
+  }
+
+  return false;
+}
+
+bool is_cap_sub_cap_constraint(token_id sub, token_id subalias, token_id super,
+  token_id supalias)
+{
+  // Transform the cap based on the aliasing info.
+  cap_aliasing(&sub, &subalias);
+  cap_aliasing(&super, &supalias);
+
+  if(supalias == TK_EPHEMERAL)
+  {
+    // Sub must be ephemeral.
+    if(subalias != TK_EPHEMERAL)
+      return false;
+  }
+
+  if((sub == super) || (super == TK_CAP_ANY))
+    return true;
+
+  // Every possible instantiation of sub must be a member of the set of every
+  // possible instantiation of super.
+  switch(super)
+  {
+    case TK_CAP_READ: // {ref, val, box}
+      switch(sub)
       {
-        case TK_CAP_SEND_BIND:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
           return true;
 
         default: {}
       }
       break;
 
-    case TK_CAP_SHARE:
-      switch(super)
+    case TK_CAP_SHARE: // {val, tag}
+      switch(sub)
       {
-        case TK_CAP_SHARE_BIND:
-        case TK_CAP_ALIAS_BIND:
+        case TK_VAL:
+        case TK_TAG:
           return true;
 
         default: {}
       }
       break;
 
-    case TK_CAP_ALIAS:
-      switch(super)
+    case TK_CAP_SEND: // {iso, val, tag}
+      switch(sub)
       {
-        case TK_CAP_ALIAS_BIND:
+        case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SHARE: // {val, tag}
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ALIAS: // {ref, val, box, tag}
+      switch(sub)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
           return true;
 
         default: {}
@@ -251,28 +239,32 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
       return false;
   }
 
-  if((sub == super) || (super == TK_TAG) || (super == TK_CAP_ANY_BIND))
+  if((sub == super) || (super == TK_TAG))
     return true;
 
-  // Sub and super share the same initial bounds. Some instantiation of the
-  // sub rcap must be a subtype of every instantiation of the super rcap.
+  // Sub and super share the same initial bounds.
+  //
+  // If either rcap is a specific/singular capability, use the same rule
+  // as in is_cap_sub_cap: every possible instantiation of sub must be a
+  // subtype of every possible instantiation of super.
+  //
+  // If both rcaps are generic/set capabilities, use the following rule:
+  // every instantiation of the super rcap must be a supertype of some
+  // instantiation of the sub rcap.
   switch(sub)
   {
     case TK_ISO:
-    case TK_CAP_SEND:
-    case TK_CAP_ANY:
       switch(super)
       {
-        case TK_ISO:
         case TK_TRN:
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-        case TK_CAP_READ:
-        case TK_CAP_ALIAS:
-        case TK_CAP_ANY:
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_SEND:  // {iso, val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
+        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
           return true;
 
         default: {}
@@ -285,9 +277,9 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
-        case TK_CAP_SHARE:
-        case TK_CAP_READ:
-        case TK_CAP_ALIAS:
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
@@ -305,26 +297,59 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
       break;
 
     case TK_VAL:
-    case TK_CAP_SHARE:
       switch(super)
       {
         case TK_BOX:
-        case TK_CAP_SHARE:
+        case TK_CAP_SHARE: // {val, tag}
           return true;
 
         default: {}
       }
       break;
 
-    case TK_CAP_READ:
-    case TK_CAP_ALIAS:
+    case TK_CAP_READ: // {ref, val, box}
       switch(super)
       {
-        case TK_REF:
-        case TK_VAL:
         case TK_BOX:
-        case TK_CAP_READ:
-        case TK_CAP_ALIAS:
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_SEND: // {iso, val, tag}
+      switch(super)
+      {
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
+        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ALIAS: // {ref, val, box, tag}
+      switch(super)
+      {
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_ANY: // {iso, trn, ref, val, box, tag}
+      switch(super)
+      {
+        case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_SHARE: // {val, tag}
+        case TK_CAP_SEND:  // {iso, val, tag}
+        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
@@ -350,9 +375,6 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
     if(operand_eph != TK_EPHEMERAL)
       return false;
   }
-
-  operand_cap = cap_unbind(operand_cap);
-  pattern_cap = cap_unbind(pattern_cap);
 
   if((operand_cap == pattern_cap) || (pattern_cap == TK_TAG))
     return true;
@@ -487,16 +509,11 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
   cap_aliasing(&left_cap, &left_eph);
   cap_aliasing(&right_cap, &right_eph);
 
-  // Ignore compatibility for bind caps.
-  if((cap_unbind(left_cap) != left_cap) ||
-    (cap_unbind(right_cap) != right_cap))
-    return true;
-
   if((left_cap == TK_TAG) || (right_cap == TK_TAG))
     return true;
 
-  // Every possible value of left must be compatible with every possible value
-  // of right.
+  // Every possible instantiation of the left cap must be compatible with every
+  // possible instantiation of right cap.
   switch(left_cap)
   {
     case TK_ISO:
@@ -706,57 +723,9 @@ token_id cap_for_this(typecheck_t* t)
   return TK_REF;
 }
 
-token_id cap_bind(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO: return TK_ISO_BIND;
-    case TK_TRN: return TK_TRN_BIND;
-    case TK_REF: return TK_REF_BIND;
-    case TK_VAL: return TK_VAL_BIND;
-    case TK_BOX: return TK_BOX_BIND;
-    case TK_TAG: return TK_TAG_BIND;
-    case TK_CAP_READ: return TK_CAP_READ_BIND;
-    case TK_CAP_SEND: return TK_CAP_SEND_BIND;
-    case TK_CAP_SHARE: return TK_CAP_SHARE_BIND;
-    case TK_CAP_ALIAS: return TK_CAP_ALIAS_BIND;
-    case TK_CAP_ANY: return TK_CAP_ANY_BIND;
-
-    default: {}
-  }
-
-  assert(0);
-  return cap;
-}
-
-token_id cap_unbind(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO_BIND: return TK_ISO;
-    case TK_TRN_BIND: return TK_TRN;
-    case TK_REF_BIND: return TK_REF;
-    case TK_VAL_BIND: return TK_VAL;
-    case TK_BOX_BIND: return TK_BOX;
-    case TK_TAG_BIND: return TK_TAG;
-    case TK_CAP_READ_BIND: return TK_CAP_READ;
-    case TK_CAP_SEND_BIND: return TK_CAP_SEND;
-    case TK_CAP_SHARE_BIND: return TK_CAP_SHARE;
-    case TK_CAP_ALIAS_BIND: return TK_CAP_ALIAS;
-    case TK_CAP_ANY_BIND: return TK_CAP_ANY;
-
-    default: {}
-  }
-
-  return cap;
-}
-
 bool cap_view_upper(token_id left_cap, token_id left_eph,
   token_id* right_cap, token_id* right_eph)
 {
-  left_cap = cap_unbind(left_cap);
-  *right_cap = cap_unbind(*right_cap);
-
   cap_aliasing(&left_cap, &left_eph);
   cap_aliasing(right_cap, right_eph);
 
@@ -888,9 +857,6 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
 bool cap_view_lower(token_id left_cap, token_id left_eph,
   token_id* right_cap, token_id* right_eph)
 {
-  left_cap = cap_unbind(left_cap);
-  *right_cap = cap_unbind(*right_cap);
-
   cap_aliasing(&left_cap, &left_eph);
   cap_aliasing(right_cap, right_eph);
 
