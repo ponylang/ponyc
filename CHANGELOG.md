@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix capability checking for gencap-constrained type parameters. (PR #1593)
 - Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
 - Escape special characters in ANLTR strings. (#1600) (PR #1601)
 - Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
