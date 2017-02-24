@@ -86,9 +86,15 @@ static const char* _builtin =
   "    envp: Pointer[Pointer[U8]] val)\n"
   "  => None\n"
   "primitive None\n"
+  "interface tag Any\n"
   "primitive Bool\n"
+  "  new create(a: Bool) => a\n"
+  "  fun op_and(a: Bool): Bool => this and a\n"
+  "  fun op_not(): Bool => not this\n"
   "class val String\n"
   "struct Pointer[A]\n"
+  "  new create() => compile_intrinsic\n"
+  "  fun tag is_null(): Bool => compile_intrinsic\n"
   "interface Seq[A]\n"
   // Fake up arrays and iterators enough to allow tests to
   // - create array literals

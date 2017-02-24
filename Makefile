@@ -363,8 +363,8 @@ libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include) \
-  -isystem lib/gtest/
+libponyc.tests.include := -I src/common/ -I src/libponyc/ -I src/libponyrt \
+  $(llvm.include) -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
 libponyc.benchmarks.include := -I src/common/ -I src/libponyc/ \
