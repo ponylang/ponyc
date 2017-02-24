@@ -1,9 +1,11 @@
 #ifndef LANG_H
 #define LANG_H
 
+#include <platform.h>
+
 PONY_EXTERN_C_BEGIN
 
-void pony_throw();
+PONY_API void pony_throw();
 
 PONY_EXTERN_C_END
 

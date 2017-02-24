@@ -129,7 +129,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // If both sides return, we return a sentinal value.
+  // If both sides return, we return a sentinel value.
   if(is_control_type(type))
     return GEN_NOVALUE;
 
@@ -578,7 +578,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // If both sides return, we return a sentinal value.
+  // If both sides return, we return a sentinel value.
   if(is_control_type(type))
     return GEN_NOVALUE;
 

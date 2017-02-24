@@ -152,7 +152,7 @@ class Reader
 
   fun ref read_until(separator: U8): Array[U8] iso^ ? =>
     """
-    Find the first occurence of the separator and return the block of bytes
+    Find the first occurrence of the separator and return the block of bytes
     before its position. The separator is not included in the returned array,
     but it is removed from the buffer. To read a line of text, prefer line()
     that handles \n and \r\n.
@@ -540,7 +540,7 @@ class Reader
 
   fun ref _distance_of(byte: U8): USize ? =>
     """
-    Get the distance to the first occurence of the given byte
+    Get the distance to the first occurrence of the given byte
     """
     if _chunks.size() == 0 then
       error

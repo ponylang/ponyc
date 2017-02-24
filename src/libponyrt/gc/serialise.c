@@ -148,7 +148,7 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_throw();
 }
 
-void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
+PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
 {
   // Reserve a block of memory to serialise into. This is only needed for
   // String and Array[A].
@@ -174,7 +174,7 @@ void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
   ctx->serialise_size += size;
 }
 
-size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
+PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 {
   serialise_t k;
   k.key = (uintptr_t)p;
@@ -191,7 +191,7 @@ size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   return (size_t)t->id | HIGH_BIT;
 }
 
-void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
+PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 {
   // This can raise an error.
   assert(ctx->stack == NULL);
@@ -219,7 +219,7 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   serialise_cleanup(ctx);
 }
 
-void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
+PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   uintptr_t offset)
 {
   // If the high bit of the offset is set, it is either an unserialised
@@ -290,7 +290,8 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   return object;
 }
 
-void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
+PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
+  size_t size)
 {
   // Allocate the block, memcpy to it.
   if((offset + size) > ctx->serialise_size)
@@ -304,7 +305,7 @@ void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
   return block;
 }
 
-void* pony_deserialise(pony_ctx_t* ctx, void* in)
+PONY_API void* pony_deserialise(pony_ctx_t* ctx, void* in)
 {
   // This can raise an error.
   ponyint_array_t* r = (ponyint_array_t*)in;

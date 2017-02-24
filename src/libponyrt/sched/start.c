@@ -90,7 +90,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   return argc;
 }
 
-int pony_init(int argc, char** argv)
+PONY_API int pony_init(int argc, char** argv)
 {
   DTRACE0(RT_INIT);
   options_t opt;
@@ -122,7 +122,7 @@ int pony_init(int argc, char** argv)
   return argc;
 }
 
-int pony_start(bool library, bool language_features)
+PONY_API int pony_start(bool library, bool language_features)
 {
   if(language_features)
   {
@@ -144,7 +144,7 @@ int pony_start(bool library, bool language_features)
   return atomic_load_explicit(&exit_code, memory_order_relaxed);
 }
 
-int pony_stop()
+PONY_API int pony_stop()
 {
   ponyint_sched_stop();
   if(language_init)
@@ -156,7 +156,7 @@ int pony_stop()
   return atomic_load_explicit(&exit_code, memory_order_relaxed);
 }
 
-void pony_exitcode(int code)
+PONY_API void pony_exitcode(int code)
 {
   atomic_store_explicit(&exit_code, code, memory_order_relaxed);
 }

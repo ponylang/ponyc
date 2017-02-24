@@ -347,7 +347,7 @@ static void ponyint_sched_shutdown()
   start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
-    pony_thread_join(scheduler[i].tid);
+    ponyint_thread_join(scheduler[i].tid);
 
   DTRACE0(RT_END);
   ponyint_cycle_terminate(&scheduler[0].ctx);
@@ -417,7 +417,7 @@ bool ponyint_sched_start(bool library)
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {
-    if(!pony_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
+    if(!ponyint_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
       &scheduler[i]))
       return false;
   }
@@ -461,10 +461,10 @@ void pony_register_thread()
   // Create a scheduler_t, even though we will only use the pony_ctx_t.
   this_scheduler = POOL_ALLOC(scheduler_t);
   memset(this_scheduler, 0, sizeof(scheduler_t));
-  this_scheduler->tid = pony_thread_self();
+  this_scheduler->tid = ponyint_thread_self();
 }
 
-pony_ctx_t* pony_ctx()
+PONY_API pony_ctx_t* pony_ctx()
 {
   return &this_scheduler->ctx;
 }

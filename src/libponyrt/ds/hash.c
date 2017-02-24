@@ -372,7 +372,7 @@ static void shift_delete(hashmap_t* map, size_t index)
     ni_hash = map->buckets[next_pos].hash;
   }
 
-  // done shifting all required elements; set current postion as empty
+  // done shifting all required elements; set current position as empty
   // and decrement count
   map->buckets[pos].ptr = NULL;
   map->count--;

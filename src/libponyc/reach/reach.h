@@ -90,6 +90,7 @@ struct reach_type_t
   uint32_t type_id;
   size_t abi_size;
   uint32_t vtable_size;
+  bool can_be_boxed;
 
   LLVMTypeRef structure;
   LLVMTypeRef structure_ptr;

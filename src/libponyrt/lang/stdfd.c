@@ -14,12 +14,12 @@
 
 PONY_EXTERN_C_BEGIN
 
-FILE* pony_os_stdout()
+PONY_API FILE* pony_os_stdout()
 {
   return stdout;
 }
 
-FILE* pony_os_stderr()
+PONY_API FILE* pony_os_stderr()
 {
   return stderr;
 }
@@ -367,7 +367,7 @@ char ansi_parse(const char* buffer, size_t* pos, size_t len,
   return code;
 }
 
-void pony_os_stdout_setup()
+PONY_API void pony_os_stdout_setup()
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle;
@@ -404,7 +404,7 @@ void pony_os_stdout_setup()
 #endif
 }
 
-bool pony_os_stdin_setup()
+PONY_API bool pony_os_stdin_setup()
 {
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
@@ -436,7 +436,7 @@ bool pony_os_stdin_setup()
 #endif
 }
 
-size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
+PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -507,7 +507,7 @@ size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 #endif
 }
 
-void pony_os_std_print(FILE* fp, char* buffer, size_t len)
+PONY_API void pony_os_std_print(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
     return;
@@ -515,7 +515,7 @@ void pony_os_std_print(FILE* fp, char* buffer, size_t len)
   fprintf(fp, "%s\n", buffer);
 }
 
-void pony_os_std_write(FILE* fp, char* buffer, size_t len)
+PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
     return;

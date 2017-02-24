@@ -19,6 +19,12 @@
     ASSERT_EQ(expected, ast_id(t)); \
   }
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#  define EXPORT_SYMBOL
+#endif
+
 
 class PassTest : public testing::Test
 {
@@ -32,7 +38,8 @@ protected:
   virtual void SetUp();
   virtual void TearDown();
 
-  // Override the default builtin source
+  // Override the default builtin source. If NULL, the real builtin package is
+  // used
   void set_builtin(const char* src);
 
   // Add an additional package source
@@ -100,6 +107,10 @@ protected:
   // the previously loaded package
   ast_t* numeric_literal(uint64_t num);
 
+  // Run the compiled program. The program must have been successfully compiled
+  // up to the ir pass before calling this function.
+  bool run_program(int* exit_code);
+
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
@@ -116,6 +127,14 @@ private:
   ast_t* type_of_within(ast_t* ast, const char* name);
 
   ast_t* numeric_literal_within(ast_t* ast, uint64_t num);
+};
+
+
+class Environment : public testing::Environment
+{
+private:
+  virtual void SetUp();
+  virtual void TearDown();
 };
 
 

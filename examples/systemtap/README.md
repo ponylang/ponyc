@@ -46,7 +46,7 @@ SystemTap documentation can be found
 
     You need the `dtrace` commandline tool to generate header and object files
     that are needed in the compilation and linking of PonyC compiler. This is
-    requred on Linux systems. At the time of writing this the version of
+    required on Linux systems. At the time of writing this the version of
     SystemTap that these probes have been implemented and tested with is 2.6, on
     Debian 8 Stable. Later versions should work. Earlier versions might not work
     and must be tested independently. In debian based systems, SystemTap can be

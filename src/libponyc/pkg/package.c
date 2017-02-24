@@ -66,6 +66,7 @@ typedef struct magic_package_t
 {
   const char* path;
   const char* src;
+  const char* mapped_path;
   struct magic_package_t* next;
 } magic_package_t;
 
@@ -80,12 +81,12 @@ static bool report_build = true;
 
 
 // Find the magic source code associated with the given path, if any
-static const char* find_magic_package(const char* path)
+static magic_package_t* find_magic_package(const char* path)
 {
   for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
   {
     if(path == p->path)
-      return p->src;
+      return p;
   }
 
   return NULL;
@@ -767,11 +768,23 @@ bool package_add_safe(const char* paths, pass_opt_t* opt)
 }
 
 
-void package_add_magic(const char* path, const char* src)
+void package_add_magic_src(const char* path, const char* src)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
   n->path = stringtab(path);
   n->src = src;
+  n->mapped_path = NULL;
+  n->next = magic_packages;
+  magic_packages = n;
+}
+
+
+void package_add_magic_path(const char* path, const char* mapped_path)
+{
+  magic_package_t* n = POOL_ALLOC(magic_package_t);
+  n->path = stringtab(path);
+  n->src = NULL;
+  n->mapped_path = mapped_path;
   n->next = magic_packages;
   magic_packages = n;
 }
@@ -831,7 +844,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 {
   assert(from != NULL);
 
-  const char* magic = find_magic_package(path);
+  magic_package_t* magic = find_magic_package(path);
   const char* full_path = path;
   const char* qualified_name = path;
   ast_t* program = ast_nearest(from, TK_PROGRAM);
@@ -885,8 +898,16 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 
   if(magic != NULL)
   {
-    if(!parse_source_code(package, magic, opt))
+    if(magic->src != NULL)
+    {
+      if(!parse_source_code(package, magic->src, opt))
+        return NULL;
+    } else if(magic->mapped_path != NULL) {
+      if(!parse_files_in_dir(package, magic->mapped_path, opt))
+        return NULL;
+    } else {
       return NULL;
+    }
   }
   else
   {

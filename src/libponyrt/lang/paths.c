@@ -5,7 +5,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-char* pony_os_realpath(const char* path)
+PONY_API char* pony_os_realpath(const char* path)
 {
 #ifdef PLATFORM_IS_WINDOWS
   char resolved[FILENAME_MAX];
@@ -30,13 +30,6 @@ char* pony_os_realpath(const char* path)
   char* cstring = (char*)pony_alloc(pony_ctx(), len);
   memcpy(cstring, resolved, len);
   return cstring;
-}
-
-typedef int (*callback_fn)(void* self, int value);
-
-int pony_test_callback(void* self, callback_fn cb, int value)
-{
-  return cb(self, value);
 }
 
 PONY_EXTERN_C_END

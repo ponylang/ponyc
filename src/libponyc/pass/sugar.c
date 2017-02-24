@@ -922,10 +922,10 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_append(class_members, create);
 
   // Replace object..end with $0.create(...)
+  ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_replace(astp, call);
 
   // Add new type to current module and bring it up to date with passes.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_append(module, def);
 
   if(!ast_passes_type(&def, opt))

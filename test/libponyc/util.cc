@@ -7,6 +7,8 @@
 #include <ast/source.h>
 #include <ast/stringtab.h>
 #include <pkg/package.h>
+#include <codegen/genjit.h>
+#include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 
 #include "util.h"
@@ -17,65 +19,76 @@
 using std::string;
 
 
+// These will be set when running a JIT'ed program.
+extern "C"
+{
+  EXPORT_SYMBOL void* __DescTable;
+  EXPORT_SYMBOL void* __DescTableSize;
+}
+
+
 static const char* _builtin =
   "primitive U8 is Real[U8]\n"
-  "  new create() => 0\n"
-  "  fun mul(a: U8): U8 => 0\n"
+  "  new create(a: U8 = 0) => a\n"
+  "  fun mul(a: U8): U8 => this * a\n"
   "primitive I8 is Real[I8]"
-  "  new create() => 0\n"
+  "  new create(a: I8 = 0) => a\n"
   "  fun neg():I8 => -this\n"
   "primitive U16 is Real[U16]"
-  "  new create() => 0\n"
+  "  new create(a: U16 = 0) => a\n"
   "primitive I16 is Real[I16]"
-  "  new create() => 0\n"
+  "  new create(a: I16 = 0) => a\n"
   "  fun neg():I16 => -this\n"
-  "  fun mul(a: I16): I16 => 0\n"
+  "  fun mul(a: I16): I16 => this * a\n"
   "primitive U32 is Real[U32]"
-  "  new create() => 0\n"
+  "  new create(a: U32 = 0) => a\n"
   "primitive I32 is Real[I32]"
-  "  new create() => 0\n"
+  "  new create(a: I32 = 0) => a\n"
   "  fun neg():I32 => -this\n"
+  "  fun mul(a: I32): I32 => this * a\n"
   "primitive U64 is Real[U64]"
-  "  new create() => 0\n"
+  "  new create(a: U64 = 0) => a\n"
   "primitive I64 is Real[I64]"
-  "  new create() => 0\n"
+  "  new create(a: I64 = 0) => a\n"
   "  fun neg():I64 => -this\n"
-  "  fun mul(a: I64): I64 => 0\n"
-  "  fun op_or(a: I64): I64 => 0\n"
-  "  fun op_and(a: I64): I64 => 0\n"
-  "  fun op_xor(a: I64): I64 => 0\n"
+  "  fun mul(a: I64): I64 => this * a\n"
+  "  fun op_or(a: I64): I64 => this or a\n"
+  "  fun op_and(a: I64): I64 => this and a\n"
+  "  fun op_xor(a: I64): I64 => this xor a\n"
   "primitive U128 is Real[U128]"
-  "  new create() => 0\n"
-  "  fun mul(a: U128): U128 => 0\n"
-  "  fun div(a: U128): U128 => 0\n"
+  "  new create(a: U128 = 0) => a\n"
+  "  fun mul(a: U128): U128 => this * a\n"
+  "  fun div(a: U128): U128 => this / a\n"
   "primitive I128 is Real[I128]"
-  "  new create() => 0\n"
+  "  new create(a: I128 = 0) => a\n"
   "  fun neg():I128 => -this\n"
   "primitive ULong is Real[ULong]"
-  "  new create() => 0\n"
+  "  new create(a: ULong = 0) => a\n"
   "primitive ILong is Real[ILong]"
-  "  new create() => 0\n"
+  "  new create(a: ILong = 0) => a\n"
   "  fun neg():ILong => -this\n"
   "primitive USize is Real[USize]"
-  "  new create() => 0\n"
+  "  new create(a: USize = 0) => a\n"
   "primitive ISize is Real[ISize]"
-  "  new create() => 0\n"
+  "  new create(a: ISize = 0) => a\n"
   "  fun neg():ISize => -this\n"
   "primitive F32 is Real[F32]"
-  "  new create() => 0\n"
+  "  new create(a: F32 = 0) => a\n"
   "primitive F64 is Real[F64]"
-  "  new create() => 0\n"
+  "  new create(a: F64 = 0) => a\n"
   "type Number is (Signed | Unsigned | Float)\n"
   "type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)\n"
   "type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)\n"
   "type Float is (F32 | F64)\n"
   "trait val Real[A: Real[A] val]\n"
   "class val Env\n"
-  "  let none: None = None\n"
+  "  new _create(argc: U32, argv: Pointer[Pointer[U8]] val,\n"
+  "    envp: Pointer[Pointer[U8]] val)\n"
+  "  => None\n"
   "primitive None\n"
   "primitive Bool\n"
   "class val String\n"
-  "class Pointer[A]\n"
+  "struct Pointer[A]\n"
   "interface Seq[A]\n"
   // Fake up arrays and iterators enough to allow tests to
   // - create array literals
@@ -200,7 +213,7 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 void PassTest::SetUp()
 {
   pass_opt_init(&opt);
-  codegen_init(&opt);
+  codegen_pass_init(&opt);
   package_init(&opt);
   program = NULL;
   package = NULL;
@@ -227,7 +240,7 @@ void PassTest::TearDown()
   package = NULL;
   module = NULL;
   package_done();
-  codegen_shutdown(&opt);
+  codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
 
@@ -240,7 +253,7 @@ void PassTest::set_builtin(const char* src)
 
 void PassTest::add_package(const char* path, const char* src)
 {
-  package_add_magic(path, src);
+  package_add_magic_src(path, src);
 }
 
 
@@ -322,16 +335,15 @@ void PassTest::test_expected_errors(const char* src, const char* pass,
 void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   const char* expect_src, const char* expect_pass)
 {
-  DO(test_compile(actual_src, actual_pass));
-  ast_t* expect_ast;
-
   DO(build_package(expect_pass, expect_src, "expect", true, NULL));
-  expect_ast = program;
+  ast_t* expect_ast = program;
   ast_t* expect_package = ast_child(expect_ast);
+  program = NULL;
+
+  DO(test_compile(actual_src, actual_pass));
 
   DO(check_ast_same(expect_package, package));
   ast_free(expect_ast);
-  program = NULL;
 }
 
 
@@ -381,6 +393,17 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 }
 
 
+bool PassTest::run_program(int* exit_code)
+{
+  assert(compile != NULL);
+
+  pony_exitcode(0);
+  jit_symbol_t symbols[] = {{"__DescTable", &__DescTable},
+    {"__DescTableSize", &__DescTableSize}};
+  return gen_jit_and_run(compile, exit_code, symbols, 2);
+}
+
+
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
@@ -390,11 +413,35 @@ void PassTest::build_package(const char* pass, const char* src,
   ASSERT_NE((void*)NULL, src);
   ASSERT_NE((void*)NULL, package_name);
 
+  if(compile != NULL)
+  {
+    codegen_cleanup(compile);
+    POOL_FREE(compile_t, compile);
+    compile = NULL;
+  }
+  ast_free(program);
+  program = NULL;
+  package = NULL;
+  module = NULL;
+
   lexer_allow_test_symbols();
 
-  package_add_magic("builtin", _builtin_src);
+  package_clear_magic();
 
-  package_add_magic(package_name, src);
+#ifndef PONY_PACKAGES_DIR
+#  error Packages directory undefined
+#else
+  if(_builtin_src != NULL)
+  {
+    package_add_magic_src("builtin", _builtin_src);
+  } else {
+    char path[FILENAME_MAX];
+    path_cat(PONY_PACKAGES_DIR, "builtin", path);
+    package_add_magic_path("builtin", path);
+  }
+#endif
+
+  package_add_magic_src(package_name, src);
 
   package_suppress_build_message();
 
@@ -441,8 +488,7 @@ void PassTest::build_package(const char* pass, const char* src,
 
   if(check_good)
   {
-    if(errors_get_count(opt.check.errors) > 0)
-      errors_print(opt.check.errors);
+    errors_print(opt.check.errors);
 
     ASSERT_NE((void*)NULL, program);
   }
@@ -509,4 +555,25 @@ ast_t* PassTest::numeric_literal_within(ast_t* ast, uint64_t num)
 
   // Not found.
   return NULL;
+}
+
+
+// Environment methods
+
+void Environment::SetUp()
+{
+  codegen_llvm_init();
+}
+
+void Environment::TearDown()
+{
+  codegen_llvm_shutdown();
+}
+
+
+int main(int argc, char** argv)
+{
+  testing::InitGoogleTest(&argc, argv);
+  testing::AddGlobalTestEnvironment(new Environment());
+  return RUN_ALL_TESTS();
 }

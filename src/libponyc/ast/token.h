@@ -330,7 +330,7 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
-/// Report whether debug info should be genreated.
+/// Report whether debug info should be generated.
 bool token_debug(token_t* token);
 
 

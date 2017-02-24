@@ -64,7 +64,7 @@ else
   tag := $(shell cat VERSION)
 endif
 
-# package_name, _version, and _iteration can be overriden by Travis or AppVeyor
+# package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
 package_name ?= "ponyc-unknown"
@@ -233,6 +233,9 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
+makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
+packages_abs_src := $(shell dirname $(makefile_abs_path))/packages
+
 $(shell mkdir -p $(PONY_BUILD_DIR))
 
 lib   := $(PONY_BUILD_DIR)
@@ -295,7 +298,7 @@ endif
 # (2) a list of the source files to be compiled.
 libgtest := $(lib)
 libgtest.dir := lib/gtest
-libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
+libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
 libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
@@ -383,6 +386,9 @@ libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 libponyc.tests.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.tests.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.tests.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
+
+libponyc.tests.linkoptions += -rdynamic
 
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
@@ -402,17 +408,18 @@ libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
 ponyc.links = libponyc libponyrt llvm
-libponyc.tests.links = libgtest libponyc libponyrt llvm
+libponyc.tests.links = libgtest libponyc llvm
+libponyc.tests.links.whole = libponyrt
 libponyrt.tests.links = libgtest libponyrt
 libponyc.benchmarks.links = libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ponyc.links += pthread dl
-  libponyc.tests.links += pthread dl
-  libponyrt.tests.links += pthread dl
-  libponyc.benchmarks.links += pthread dl
-  libponyrt.benchmarks.links += pthread dl
+  ponyc.links += libpthread libdl
+  libponyc.tests.links += libpthread libdl
+  libponyrt.tests.links += libpthread libdl
+  libponyc.benchmarks.links += libpthread libdl
+  libponyrt.benchmarks.links += libpthread libdl
 endif
 
 ifneq (, $(DTRACE))
@@ -512,7 +519,28 @@ define CONFIGURE_LIBS
     linkcmd += $($(1).ldflags)
     libs += $($(1).libs)
   else
-    libs += -l$(subst lib,,$(1))
+    libs += $(subst lib,-l,$(1))
+  endif
+endef
+
+define CONFIGURE_LIBS_WHOLE
+  ifeq ($(OSTYPE),osx)
+    wholelibs += -Wl,-force_load,$(PONY_BUILD_DIR)/$(1).a
+  else
+    wholelibs += $(subst lib,-l,$(1))
+  endif
+endef
+
+define CONFIGURE_LINKER_WHOLE
+  $(eval wholelibs :=)
+
+  ifneq ($($(1).links.whole),)
+    $(foreach lk,$($(1).links.whole),$(eval $(call CONFIGURE_LIBS_WHOLE,$(lk))))
+    ifeq ($(OSTYPE),osx)
+      libs += $(wholelibs)
+    else
+      libs += -Wl,--whole-archive $(wholelibs) -Wl,--no-whole-archive
+    endif
   endif
 endef
 
@@ -528,6 +556,7 @@ define CONFIGURE_LINKER
   endif
 
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
+  $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
   linkcmd += $(libs) $($(1).linkoptions)
 endef
 

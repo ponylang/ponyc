@@ -32,7 +32,7 @@ PONY_EXTERN_C_BEGIN
  *
  * Each rule returns one of 4 things:
  * 1. PARSE_ERROR - indicates that an error occurred. Parse errors are
- *    propogated up to the caller without re-reporting them.
+ *    propagated up to the caller without re-reporting them.
  * 2. RULE_NOT_FOUND - indicates that the rule was not found. It is up to the
  *    caller whether this constitutes an error.
  * 3. An AST tree - generated from a successful rule parse. It is the caller's
@@ -102,7 +102,7 @@ typedef ast_t* (*rule_t)(parser_t* parser, builder_fn_t *out_builder,
 
 
 #define PARSE_OK        ((ast_t*)1)   // Requested parse successful
-#define PARSE_ERROR     ((ast_t*)2)   // A parse error has occured
+#define PARSE_ERROR     ((ast_t*)2)   // A parse error has occurred
 #define RULE_NOT_FOUND  ((ast_t*)3)   // Sub item was not found
 
 

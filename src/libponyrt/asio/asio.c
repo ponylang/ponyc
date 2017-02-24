@@ -41,7 +41,7 @@ void ponyint_asio_init(uint32_t cpu)
 
 bool ponyint_asio_start()
 {
-  if(!pony_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
+  if(!ponyint_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
     asio_cpu, running_base.backend))
     return false;
 
@@ -56,7 +56,7 @@ bool ponyint_asio_stop()
   if(running_base.backend != NULL)
   {
     ponyint_asio_backend_final(running_base.backend);
-    pony_thread_join(running_base.tid);
+    ponyint_thread_join(running_base.tid);
 
     running_base.backend = NULL;
     running_base.tid = 0;

@@ -103,3 +103,53 @@ TEST_F(CodegenTest, ActorCannotBePacked)
   LLVMTypeRef type = foo->structure;
   ASSERT_TRUE(!LLVMIsPackedStruct(type));
 }
+
+
+TEST_F(CodegenTest, JitRun)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @pony_exitcode[None](I32(1))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+extern "C"
+{
+
+typedef int (*codegentest_ccallback_fn)(void* self, int value);
+
+EXPORT_SYMBOL int codegentest_ccallback(void* self, codegentest_ccallback_fn cb,
+  int value)
+{
+  return cb(self, value);
+}
+
+}
+
+
+TEST_F(CodegenTest, CCallback)
+{
+  const char* src =
+    "class Callback\n"
+    "  fun apply(value: I32): I32 =>\n"
+    "    value * 2\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let cb: Callback = Callback\n"
+    "    let r = @codegentest_ccallback[I32](cb, addressof cb.apply, I32(3))\n"
+    "    @pony_exitcode[None](r)";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 6);
+}

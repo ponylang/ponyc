@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
+- Escape special characters in ANLTR strings. (#1600) (PR #1601)
 - Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
 - Always call finalisers for embedded fields (PR #1586)
 - Check for null terminator in String._append (PR #1582)
@@ -22,9 +24,11 @@ All notable changes to the Pony compiler and standard library will be documented
 - Runtime memory allocator bug
 - Compiler crash on tuple sending generation (issue #1546)
 - Compiler crash due to incorrect subtype assignment (issue #1474)
+- Incorrect code generation when sending certain types of messages (issue #1594)
 
 ### Added
 
+- Add assert_no_error test condition to PonyTest (PR #1605)
 - Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
 - Packed structures (RFC 32) (PR #1536)
 - Add `insert_if_absent` method to Map (PR #1519)
@@ -525,7 +529,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reduced memory pressure.
 - Scheduler steals when only the CD is on a scheduler thread queue.
 - use commands searches ../pony_packages recursively similar to Node.js
-- Readline uses a Promise to handle async reponses.
+- Readline uses a Promise to handle async responses.
 
 ### Fixed
 
