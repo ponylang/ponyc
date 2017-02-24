@@ -377,10 +377,15 @@ PONY_API int pony_stop();
 /** Set the exit code.
  *
  * The value returned by pony_start() will be 0 unless set to something else
- * with this call. If called more than once, the value from the last call is
- * returned.
+ * with this call.
  */
 PONY_API void pony_exitcode(int code);
+
+/** Get the exit code.
+ *
+ * Get the value of the last pony_exitcode() call.
+ */
+PONY_API int pony_get_exitcode();
 
 /**
  * If an actor is currently unscheduled, this will reschedule it. This is not

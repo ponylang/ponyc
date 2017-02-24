@@ -141,7 +141,13 @@ PONY_API int pony_start(bool library, bool language_features)
   if(library)
     return 0;
 
-  return atomic_load_explicit(&exit_code, memory_order_relaxed);
+  if(language_init)
+  {
+    ponyint_os_sockets_final();
+    language_init = false;
+  }
+
+  return pony_get_exitcode();
 }
 
 PONY_API int pony_stop()
@@ -153,10 +159,15 @@ PONY_API int pony_stop()
     language_init = false;
   }
 
-  return atomic_load_explicit(&exit_code, memory_order_relaxed);
+  return pony_get_exitcode();
 }
 
 PONY_API void pony_exitcode(int code)
 {
   atomic_store_explicit(&exit_code, code, memory_order_relaxed);
+}
+
+PONY_API int pony_get_exitcode()
+{
+  return atomic_load_explicit(&exit_code, memory_order_relaxed);
 }

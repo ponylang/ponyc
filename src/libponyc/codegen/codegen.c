@@ -697,6 +697,17 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
+  // i32 pony_get_exitcode()
+  type = LLVMFunctionType(c->i32, NULL, 0, false);
+  value = LLVMAddFunction(c->module, "pony_get_exitcode", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
+#else
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMAddFunctionAttr(value, LLVMReadOnlyAttribute);
+#endif
+
   // void pony_throw()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_throw", type);
