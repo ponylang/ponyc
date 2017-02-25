@@ -1,7 +1,7 @@
 #include "cap.h"
 #include "../ast/token.h"
 #include "viewpoint.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 // The resulting eph will always be TK_EPHEMERAL or TK_NONE.
 static void cap_aliasing(token_id* cap, token_id* eph)
@@ -632,7 +632,7 @@ ast_t* cap_fetch(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -701,7 +701,7 @@ token_id cap_dispatch(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return TK_NONE;
 }
 
@@ -847,7 +847,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -1018,7 +1018,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 

@@ -15,7 +15,7 @@
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 {
@@ -84,7 +84,7 @@ static bool check_type_params(pass_opt_t* opt, ast_t** astp)
     return false;
 
   ast_t* typeparams = ast_childidx(type, 1);
-  assert(ast_id(type) == TK_FUNTYPE);
+  pony_assert(ast_id(type) == TK_FUNTYPE);
 
   if(ast_id(typeparams) == TK_NONE)
     return true;
@@ -302,7 +302,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       break;
   }
 
@@ -390,7 +390,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
   }
 
   if(can_recover && cap_recover)
@@ -655,7 +655,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // LHS must be an application, possibly wrapped in another application
   // if the method had type parameters for qualification.
-  assert(ast_id(lhs) == TK_FUNAPP || ast_id(lhs) == TK_BEAPP ||
+  pony_assert(ast_id(lhs) == TK_FUNAPP || ast_id(lhs) == TK_BEAPP ||
     ast_id(lhs) == TK_NEWAPP);
   AST_GET_CHILDREN(lhs, receiver, method);
   ast_t* type_args = NULL;
@@ -668,12 +668,12 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // Look up the original method definition for this method call.
   ast_t* method_def = lookup(opt, lhs, ast_type(receiver), ast_name(method));
-  assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
+  pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
     ast_id(method_def) == TK_NEW);
 
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
-  assert(ast_id(type) == TK_FUNTYPE);
+  pony_assert(ast_id(type) == TK_FUNTYPE);
 
   if(is_typecheck_error(type))
     return false;
@@ -702,7 +702,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   while(given_arg != NULL)
   {
-    assert(target_param != NULL);
+    pony_assert(target_param != NULL);
     const char* target_p_name = ast_name(ast_child(target_param));
 
     if(ast_id(given_arg) == TK_NONE)
@@ -760,7 +760,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     target_param = ast_sibling(target_param);
   }
 
-  assert(target_param == NULL);
+  pony_assert(target_param == NULL);
 
   // Build lambda expression.
   // `$0.f`

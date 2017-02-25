@@ -6,9 +6,9 @@
 #include "lang.h"
 #include "../asio/asio.h"
 #include "../asio/event.h"
+#include "ponyassert.h"
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 // Disable warnings about deprecated non-unicode WSA functions.
@@ -428,7 +428,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #elif defined(PLATFORM_IS_WINDOWS)
   UINT_PTR skt = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
     0, WSA_FLAG_OVERLAPPED);
-  assert((skt == INVALID_SOCKET) || ((skt >> 31) == 0));
+  pony_assert((skt == INVALID_SOCKET) || ((skt >> 31) == 0));
   int fd = (int)skt;
 #else
   int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);

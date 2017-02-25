@@ -31,6 +31,7 @@
 #include <llvm/ADT/SmallSet.h>
 
 #include "../../libponyrt/mem/heap.h"
+#include "ponyassert.h"
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -467,7 +468,7 @@ public:
     if(name.size() < 10 || name.rfind("_Dispatch") != name.size() - 9)
       return false;
 
-    assert(f.arg_size() > 0);
+    pony_assert(f.arg_size() > 0);
 
     Value* ctx = &(*f.arg_begin());
 

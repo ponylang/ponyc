@@ -8,8 +8,8 @@
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 
 typedef enum
@@ -173,15 +173,15 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
     }
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
   pass_opt_t* opt)
 {
-  assert(ast_id(a) == TK_NOMINAL);
-  assert(ast_id(b) == TK_NOMINAL);
+  pony_assert(ast_id(a) == TK_NOMINAL);
+  pony_assert(ast_id(b) == TK_NOMINAL);
 
   // Check typeargs are the same.
   ast_t* a_arg = ast_child(ast_childidx(a, 2));
@@ -375,7 +375,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -387,7 +387,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -724,7 +724,7 @@ static bool is_tuple_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -809,12 +809,12 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     // Reify the method on the subtype.
     ast_t* r_sub_member = reify_method_def(sub_member, sub_typeparams,
       sub_typeargs, opt);
-    assert(r_sub_member != NULL);
+    pony_assert(r_sub_member != NULL);
 
     // Reify the method on the supertype.
     ast_t* r_super_member = reify_method_def(super_member, super_typeparams,
       super_typeargs, opt);
-    assert(r_super_member != NULL);
+    pony_assert(r_super_member != NULL);
 
     // Check the reified methods.
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, errorf, opt);
@@ -885,7 +885,7 @@ static bool nominal_provides_trait(ast_t* type, ast_t* trait,
   {
     // Reify the child with our typeargs.
     ast_t* r_child = reify(child, typeparams, typeargs, opt, true);
-    assert(r_child != NULL);
+    pony_assert(r_child != NULL);
 
     // Use the cap and ephemerality of the trait.
     ast_t* rr_child = set_cap_and_ephemeral(r_child, tcap, teph);
@@ -1006,7 +1006,7 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1033,7 +1033,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1171,7 +1171,7 @@ static bool is_nominal_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1285,7 +1285,7 @@ static bool is_typeparam_base_sub_x(ast_t* sub, ast_t* super,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1511,15 +1511,15 @@ static bool is_arrow_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
 bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
-  assert(sub != NULL);
-  assert(super != NULL);
+  pony_assert(sub != NULL);
+  pony_assert(super != NULL);
 
   if(ast_id(super) == TK_DONTCARETYPE)
     return true;
@@ -1552,7 +1552,7 @@ bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1582,7 +1582,7 @@ bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errorf, pass_opt_t* opt)
 bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
   pass_opt_t* opt)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
   return is_nominal_sub_structural(type, provides, errorf, opt);
 }
 
@@ -1733,7 +1733,7 @@ bool is_constructable(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1793,7 +1793,7 @@ bool is_concrete(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1853,7 +1853,7 @@ bool is_known(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -1912,7 +1912,7 @@ bool is_entity(ast_t* type, token_id entity)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 

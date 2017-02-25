@@ -1,7 +1,7 @@
 #include "list.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
-#include <assert.h>
 
 typedef struct list_t
 {

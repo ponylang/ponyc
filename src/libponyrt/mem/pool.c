@@ -4,12 +4,12 @@
 #include "alloc.h"
 #include "../ds/fun.h"
 #include "../sched/cpu.h"
+#include "ponyassert.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 #include <platform.h>
 #include <pony/detail/atomics.h>
@@ -269,7 +269,7 @@ static void track_alloc(void* p, size_t size)
 static void track_free(void* p, size_t size)
 {
   track_init();
-  assert(!track.internal);
+  pony_assert(!track.internal);
 
   track.internal = true;
 
@@ -284,7 +284,7 @@ static void track_free(void* p, size_t size)
 static void track_push(pool_item_t* p, size_t length, size_t size)
 {
   track_init();
-  assert(!track.internal);
+  pony_assert(!track.internal);
 
   track.internal = true;
   uint64_t tsc = ponyint_cpu_tick();
@@ -309,7 +309,7 @@ static void track_push(pool_item_t* p, size_t length, size_t size)
 static void track_pull(pool_item_t* p, size_t length, size_t size)
 {
   track_init();
-  assert(!track.internal);
+  pony_assert(!track.internal);
 
   track.internal = true;
   uint64_t tsc = ponyint_cpu_tick();
@@ -466,7 +466,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   thread->pool = NULL;
   thread->length = 0;
 
-  assert(p->length == global->count);
+  pony_assert(p->length == global->count);
   TRACK_PUSH((pool_item_t*)p, p->length, global->size);
 
   size_t my_ticket = atomic_fetch_add_explicit(&global->ticket, 1,
@@ -533,7 +533,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
   pool_item_t* p = (pool_item_t*)top;
 
-  assert(top->length == global->count);
+  pony_assert(top->length == global->count);
   TRACK_PULL(p, top->length, global->size);
 
   thread->pool = p->next;
@@ -616,7 +616,7 @@ void ponyint_pool_free(size_t index, void* p)
 #endif
 
   TRACK_FREE(p, POOL_MIN << index);
-  assert(index < POOL_COUNT);
+  pony_assert(index < POOL_COUNT);
 
   pool_local_t* thread = &pool_local[index];
   pool_global_t* global = &pool_global[index];

@@ -6,8 +6,8 @@
 #include "../type/reify.h"
 #include "../ast/printbuf.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static const char* c_type_name(compile_t* c, const char* name)
 {

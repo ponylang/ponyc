@@ -5,10 +5,10 @@
 #include "../ds/stack.h"
 #include "../ds/hash.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <assert.h>
 
 typedef struct init_msg_t
 {
@@ -268,7 +268,7 @@ static bool mark_grey(detector_t* d, view_t* view, size_t rc)
   if(view->color == COLOR_GREY)
     return false;
 
-  assert(view->color == COLOR_BLACK);
+  pony_assert(view->color == COLOR_BLACK);
   view->color = COLOR_GREY;
   return true;
 }
@@ -298,7 +298,7 @@ static bool mark_black(view_t* view, size_t rc, int* count)
 {
   if(!view->blocked || (view->actor == NULL))
   {
-    assert(view->color == COLOR_BLACK);
+    pony_assert(view->color == COLOR_BLACK);
     return false;
   }
 
@@ -345,7 +345,7 @@ static bool mark_white(view_t* view, int* count)
   if(view->color != COLOR_GREY)
     return false;
 
-  assert(view->blocked);
+  pony_assert(view->blocked);
 
   if(view->rc > 0)
   {
@@ -354,7 +354,7 @@ static bool mark_white(view_t* view, int* count)
     return false;
   }
 
-  assert(view->perceived == NULL);
+  pony_assert(view->perceived == NULL);
 
   view->color = COLOR_WHITE;
   *count = *count + 1;
@@ -390,8 +390,8 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
 {
   if(view->color == COLOR_WHITE)
   {
-    assert(view->deferred == false);
-    assert(view->perceived == NULL);
+    pony_assert(view->deferred == false);
+    pony_assert(view->perceived == NULL);
 
     view->perceived = per;
     ponyint_viewmap_put(&per->map, view);
@@ -445,11 +445,11 @@ static void send_conf(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
 static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
 {
-  assert(view->perceived == NULL);
+  pony_assert(view->perceived == NULL);
 
   scan_grey(d, view, 0);
   int count = scan_white(view);
-  assert(count >= 0);
+  pony_assert(count >= 0);
 
   if(count == 0)
     return false;
@@ -466,8 +466,8 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   int count2 = collect_white(per, view, 0);
 
   (void)count2;
-  assert(count2 == count);
-  assert(ponyint_viewmap_size(&per->map) == (size_t)count);
+  pony_assert(count2 == count);
+  pony_assert(ponyint_viewmap_size(&per->map) == (size_t)count);
 
   send_conf(ctx, d, per);
   return true;
@@ -488,7 +488,7 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
 
   while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
   {
-    assert(view->deferred == true);
+    pony_assert(view->deferred == true);
     ponyint_viewmap_removeindex(&d->deferred, i);
 
     // always scan again from same index because robin hood hashmap
@@ -543,7 +543,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   // mark actors in the cycle as pending destruction
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    assert(view->perceived == per);
+    pony_assert(view->perceived == per);
 
     // remove from the deferred set
     if(view->deferred)
@@ -631,7 +631,7 @@ static void unblock(detector_t* d, pony_actor_t* actor)
 
   // we must be in the views, because we must have blocked in order to unblock
   view_t* view = ponyint_viewmap_get(&d->views, &key, &index);
-  assert(view != NULL);
+  pony_assert(view != NULL);
 
   // record that we're unblocked
   view->blocked = false;
@@ -775,7 +775,7 @@ static void check_view(detector_t* d, view_t* view)
 
   scan_grey(d, view, 0);
   int count = scan_white(view);
-  assert(count >= 0);
+  pony_assert(count >= 0);
 
   printf("%p: %s\n", view->actor, count > 0 ? "COLLECTABLE" : "uncollectable");
 }
@@ -880,8 +880,8 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
 
 void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
 {
-  assert(ctx->current == actor);
-  assert(&actor->gc == gc);
+  pony_assert(ctx->current == actor);
+  pony_assert(&actor->gc == gc);
 
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
@@ -889,7 +889,7 @@ void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
   m->actor = actor;
   m->rc = ponyint_gc_rc(gc);
   m->delta = ponyint_gc_delta(gc);
-  assert(gc->delta == NULL);
+  pony_assert(gc->delta == NULL);
 
   pony_sendv(ctx, cycle_detector, &m->msg);
 }

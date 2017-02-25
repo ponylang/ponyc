@@ -28,6 +28,9 @@ using std::atomic_compare_exchange_strong_explicit;
 using std::atomic_fetch_add_explicit;
 using std::atomic_fetch_sub_explicit;
 using std::atomic_thread_fence;
+using std::atomic_flag_test_and_set_explicit;
+
+using std::atomic_flag;
 #  endif
 #elif defined(__GNUC__) && !defined(__clang__)
 #  include <features.h>
@@ -46,6 +49,8 @@ using std::atomic_thread_fence;
 #  elif __GNUC_PREREQ(4, 7)
 // Valid on x86 and ARM given our uses of atomics.
 #    define PONY_ATOMIC(T) T
+#    define atomic_flag bool
+#    define ATOMIC_FLAG_INIT false
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use GCC >= 4.7"
@@ -59,6 +64,8 @@ using std::atomic_thread_fence;
 #  elif __clang_major__ >= 3 && __clang_minor__ >= 3
 // Valid on x86 and ARM given our uses of atomics.
 #    define PONY_ATOMIC(T) T
+#    define atomic_flag bool
+#    define ATOMIC_FLAG_INIT false
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use Clang >= 3.3"
@@ -204,6 +211,9 @@ namespace ponyint_atomics
 
 #    define atomic_thread_fence(MO) \
       __atomic_thread_fence(MO)
+
+#    define atomic_flag_test_and_set_explicit(PTR, MO) \
+      __atomic_test_and_set(PTR, MO)
 
 #    undef PONY_ATOMIC_BUILTINS
 #  endif

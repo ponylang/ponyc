@@ -1,12 +1,12 @@
 #include "call.h"
 #include "../pkg/package.h"
 #include "../type/lookup.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
 {
-  assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
+  pony_assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
     (ast_id(ast) == TK_NEWREF));
   AST_GET_CHILDREN(ast, receiver, method);
 
@@ -18,7 +18,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   // Look up the original method definition for this method call.
   ast_t* method_def = lookup(opt, receiver, ast_type(receiver),
     ast_name(method));
-  assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
+  pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
     ast_id(method_def) == TK_NEW);
 
   token_id can_error = ast_id(ast_childidx(method_def, 5));
@@ -32,7 +32,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
 
 static bool check_partial_ffi_call(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_FFICALL);
+  pony_assert(ast_id(ast) == TK_FFICALL);
   AST_GET_CHILDREN(ast, call_name, call_ret_typeargs, args, named_args,
     call_error);
 
@@ -43,7 +43,7 @@ static bool check_partial_ffi_call(pass_opt_t* opt, ast_t* ast)
     if(ast_id(call_error) == TK_QUESTION)
       ast_seterror(ast);
   } else {
-    assert(ast_id(decl) == TK_FFIDECL);
+    pony_assert(ast_id(decl) == TK_FFIDECL);
     AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
       decl_error);
 
@@ -66,7 +66,7 @@ static bool check_partial_ffi_call(pass_opt_t* opt, ast_t* ast)
 
 bool verify_function_call(pass_opt_t* opt, ast_t* ast)
 {
-  assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
+  pony_assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
     (ast_id(ast) == TK_NEWREF));
 
   ast_inheritflags(ast);
@@ -81,7 +81,7 @@ bool verify_function_call(pass_opt_t* opt, ast_t* ast)
 bool verify_behaviour_call(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
-  assert((ast_id(ast) == TK_BEREF) || (ast_id(ast) == TK_BECHAIN) ||
+  pony_assert((ast_id(ast) == TK_BEREF) || (ast_id(ast) == TK_BECHAIN) ||
     (ast_id(ast) == TK_NEWBEREF));
 
   ast_inheritflags(ast);
@@ -92,7 +92,7 @@ bool verify_behaviour_call(pass_opt_t* opt, ast_t* ast)
 
 bool verify_ffi_call(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_FFICALL);
+  pony_assert(ast_id(ast) == TK_FFICALL);
 
   if(!package_allow_ffi(&opt->check))
   {

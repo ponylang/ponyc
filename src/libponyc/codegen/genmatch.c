@@ -11,7 +11,7 @@
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 typedef enum
 {
@@ -231,7 +231,7 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -328,7 +328,7 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
 
   for(int i = 0; pattern_child != NULL; i++)
   {
-    assert(ast_id(pattern_child) == TK_SEQ);
+    pony_assert(ast_id(pattern_child) == TK_SEQ);
 
     // Skip over the SEQ node.
     ast_t* pattern_expr = ast_child(pattern_child);
@@ -537,7 +537,7 @@ static bool static_tuple_from_tuple(compile_t* c, LLVMValueRef value,
   // The match expression is a tuple. The type checker will have made sure
   // it's the right cardinality and each element has a useful type relation
   // with the pattern.
-  assert(LLVMGetTypeKind(LLVMTypeOf(value)) == LLVMStructTypeKind);
+  pony_assert(LLVMGetTypeKind(LLVMTypeOf(value)) == LLVMStructTypeKind);
 
   // We have a static type.
   ast_t* type_child = ast_child(type);
@@ -546,7 +546,7 @@ static bool static_tuple_from_tuple(compile_t* c, LLVMValueRef value,
   // Destructure the tuple and continue pattern matching on each element.
   for(int i = 0; pattern_child != NULL; i++)
   {
-    assert(ast_id(pattern_child) == TK_SEQ);
+    pony_assert(ast_id(pattern_child) == TK_SEQ);
 
     // Skip over the SEQ node.
     ast_t* pattern_expr = ast_child(pattern_child);
@@ -559,7 +559,7 @@ static bool static_tuple_from_tuple(compile_t* c, LLVMValueRef value,
     pattern_child = ast_sibling(pattern_child);
   }
 
-  assert(type_child == NULL);
+  pony_assert(type_child == NULL);
   return true;
 }
 
@@ -601,7 +601,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_subtype(type, param_type, NULL, c->opt))
   {
     // Switch to dynamic value checking.
-    assert(LLVMTypeOf(value) == c->object_ptr);
+    pony_assert(LLVMTypeOf(value) == c->object_ptr);
     LLVMValueRef desc = gendesc_fetch(c, value);
     return dynamic_value_object(c, value, desc, pattern, next_block);
   }
@@ -625,7 +625,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_subtype(type, pattern_type, NULL, c->opt))
   {
     // Switch to dynamic capture.
-    assert(LLVMTypeOf(value) == c->object_ptr);
+    pony_assert(LLVMTypeOf(value) == c->object_ptr);
     LLVMValueRef desc = gendesc_fetch(c, value);
     return dynamic_capture_object(c, value, desc, pattern, next_block);
   }
@@ -654,8 +654,8 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
       // during type checking.
       ast_t* child = ast_child(pattern);
 
-      assert(child != NULL);
-      assert(ast_sibling(child) == NULL);
+      pony_assert(child != NULL);
+      pony_assert(ast_sibling(child) == NULL);
 
       // Pass on the element in the seq instead of the seq.
       return static_match(c, value, type, child, next_block);
@@ -664,8 +664,8 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_TUPLE:
     {
       // Tuples must have multiple elements, or they aren't tuples.
-      assert(ast_child(pattern) != NULL);
-      assert(ast_sibling(ast_child(pattern)) != NULL);
+      pony_assert(ast_child(pattern) != NULL);
+      pony_assert(ast_sibling(ast_child(pattern)) != NULL);
 
       // Destructure the match expression (or element thereof).
       return static_tuple(c, value, type, pattern, next_block);

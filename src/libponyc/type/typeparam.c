@@ -2,7 +2,7 @@
 #include "cap.h"
 #include "subtype.h"
 #include "../ast/token.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static token_id cap_union_constraint(token_id a, token_id b)
 {
@@ -333,7 +333,7 @@ static token_id cap_from_constraint(ast_t* type)
   }
 
   // Tuples and arrows can't be used as constraints.
-  assert(0);
+  pony_assert(0);
   return TK_NONE;
 }
 
@@ -433,7 +433,7 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -469,7 +469,7 @@ static bool apply_cap(ast_t* type, token_id tcap, token_id teph)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -497,7 +497,7 @@ static ast_t* constraint_cap(ast_t* typeparamref)
 
 ast_t* typeparam_constraint(ast_t* typeparamref)
 {
-  assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   ast_t* def = (ast_t*)ast_data(typeparamref);
   ast_t* constraint = ast_childidx(def, 1);
   astlist_t* def_list = astlist_push(NULL, def);
@@ -522,13 +522,13 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
 
 ast_t* typeparam_upper(ast_t* typeparamref)
 {
-  assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   return constraint_cap(typeparamref);
 }
 
 ast_t* typeparam_lower(ast_t* typeparamref)
 {
-  assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   ast_t* constraint = typeparam_constraint(typeparamref);
 
   // A constraint must be a final type (primitive, struct, class, actor) in
@@ -541,7 +541,7 @@ ast_t* typeparam_lower(ast_t* typeparamref)
 
 void typeparam_set_cap(ast_t* typeparamref)
 {
-  assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   AST_GET_CHILDREN(typeparamref, id, cap, eph);
   ast_t* constraint = typeparam_constraint(typeparamref);
   token_id tcap = cap_from_constraint(constraint);

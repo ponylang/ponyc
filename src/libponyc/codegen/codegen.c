@@ -13,13 +13,13 @@
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Linker.h>
 #include <string.h>
-#include <assert.h>
 
 struct compile_local_t
 {

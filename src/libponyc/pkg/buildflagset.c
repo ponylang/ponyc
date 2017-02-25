@@ -3,8 +3,8 @@
 #include "../ast/stringtab.h"
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 #include <stdio.h>
 
 
@@ -71,21 +71,21 @@ typedef struct flag_t
 // Functions required for our hash table type.
 static size_t flag_hash(flag_t* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
   return ponyint_hash_ptr(flag->name);
 }
 
 static bool flag_cmp(flag_t* a, flag_t* b)
 {
-  assert(a != NULL);
-  assert(b != NULL);
+  pony_assert(a != NULL);
+  pony_assert(b != NULL);
 
   return a->name == b->name;
 }
 
 static flag_t* flag_dup(flag_t* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
 
   flag_t* f = POOL_ALLOC(flag_t);
   memcpy(f, flag, sizeof(flag_t));
@@ -94,7 +94,7 @@ static flag_t* flag_dup(flag_t* flag)
 
 static void flag_free(flag_t* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
   POOL_FREE(flag_t, flag);
 }
 
@@ -122,7 +122,7 @@ struct buildflagset_t
 buildflagset_t* buildflagset_create()
 {
   buildflagset_t* p = POOL_ALLOC(buildflagset_t);
-  assert(p != NULL);
+  pony_assert(p != NULL);
 
   p->have_os_flags = false;
   p->have_arch_flags = false;
@@ -156,7 +156,7 @@ void buildflagset_free(buildflagset_t* set)
 // Returns: index of flag into _os_flags array, or <0 if not an OS flag.
 static ssize_t os_index(const char* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
 
   stringtab_mutexgroups();
 
@@ -173,7 +173,7 @@ static ssize_t os_index(const char* flag)
 // Returns: index of flag into _arch_flags array, or <0 if not an arch flag.
 static ssize_t arch_index(const char* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
 
   stringtab_mutexgroups();
 
@@ -190,7 +190,7 @@ static ssize_t arch_index(const char* flag)
 // Returns: index of flag into _size_flags array, or <0 if not a size flag.
 static ssize_t size_index(const char* flag)
 {
-  assert(flag != NULL);
+  pony_assert(flag != NULL);
 
   stringtab_mutexgroups();
 
@@ -205,10 +205,10 @@ static ssize_t size_index(const char* flag)
 
 void buildflagset_add(buildflagset_t* set, const char* flag)
 {
-  assert(set != NULL);
-  assert(flag != NULL);
-  assert(set->flags != NULL);
-  assert(!set->started_enum);
+  pony_assert(set != NULL);
+  pony_assert(flag != NULL);
+  pony_assert(set->flags != NULL);
+  pony_assert(!set->started_enum);
 
   // First check for mutually exclusive groups.
   if(os_index(flag) >= 0)
@@ -249,8 +249,8 @@ void buildflagset_add(buildflagset_t* set, const char* flag)
 
 double buildflagset_configcount(buildflagset_t* set)
 {
-  assert(set != NULL);
-  assert(set->flags != NULL);
+  pony_assert(set != NULL);
+  pony_assert(set->flags != NULL);
 
   double r = 1.0;
 
@@ -294,8 +294,8 @@ double buildflagset_configcount(buildflagset_t* set)
 
 void buildflagset_startenum(buildflagset_t* set)
 {
-  assert(set != NULL);
-  assert(set->flags != NULL);
+  pony_assert(set != NULL);
+  pony_assert(set->flags != NULL);
 
   set->started_enum = true;
   set->first_config_ready = true;
@@ -315,9 +315,9 @@ void buildflagset_startenum(buildflagset_t* set)
 
 bool buildflagset_next(buildflagset_t* set)
 {
-  assert(set != NULL);
-  assert(set->flags != NULL);
-  assert(set->started_enum);
+  pony_assert(set != NULL);
+  pony_assert(set->flags != NULL);
+  pony_assert(set->started_enum);
 
   if(set->first_config_ready)
   {
@@ -383,10 +383,10 @@ bool buildflagset_next(buildflagset_t* set)
 
 bool buildflagset_get(buildflagset_t* set, const char* flag)
 {
-  assert(set != NULL);
-  assert(flag != NULL);
-  assert(set->flags != NULL);
-  assert(set->started_enum);
+  pony_assert(set != NULL);
+  pony_assert(flag != NULL);
+  pony_assert(set->flags != NULL);
+  pony_assert(set->started_enum);
 
   // First check mutually exclusive groups.
   ssize_t index = os_index(flag);
@@ -410,7 +410,7 @@ bool buildflagset_get(buildflagset_t* set, const char* flag)
   flag_t* f2 = flagtab_get(set->flags, &f1, &h_index);
 
   // Flag MUST have been added previously.
-  assert(f2 != NULL);
+  pony_assert(f2 != NULL);
 
   return f2->value;
 }
@@ -421,9 +421,9 @@ bool buildflagset_get(buildflagset_t* set, const char* flag)
 // Advance the location pointer whether the text is written or not.
 static void print_str(const char* s, buildflagset_t* set, char** pointer)
 {
-  assert(s != NULL);
-  assert(set != NULL);
-  assert(pointer != NULL);
+  pony_assert(s != NULL);
+  pony_assert(set != NULL);
+  pony_assert(pointer != NULL);
 
   size_t len = strlen(s);
 
@@ -443,8 +443,8 @@ static void print_str(const char* s, buildflagset_t* set, char** pointer)
 static void print_flag(const char* flag, bool sense, buildflagset_t* set,
   char** pointer)
 {
-  assert(flag != NULL);
-  assert(set != NULL);
+  pony_assert(flag != NULL);
+  pony_assert(set != NULL);
 
   if(*pointer != set->text_buffer)
     print_str(" ", set, pointer);
@@ -458,8 +458,8 @@ static void print_flag(const char* flag, bool sense, buildflagset_t* set,
 
 const char* buildflagset_print(buildflagset_t* set)
 {
-  assert(set != NULL);
-  assert(set->flags != NULL);
+  pony_assert(set != NULL);
+  pony_assert(set->flags != NULL);
 
   char* p = set->text_buffer;
 
@@ -499,7 +499,7 @@ const char* buildflagset_print(buildflagset_t* set)
   }
 
   // Add terminator.
-  assert(set->text_buffer != NULL);
+  pony_assert(set->text_buffer != NULL);
   set->text_buffer[size_needed - 1] = '\0';
   return set->text_buffer;
 }
@@ -509,7 +509,7 @@ static flagtab_t* _user_flags = NULL;
 
 bool define_build_flag(const char* name)
 {
-  assert(name != NULL);
+  pony_assert(name != NULL);
 
   if(_user_flags == NULL)
   {
@@ -535,7 +535,7 @@ bool define_build_flag(const char* name)
 
 bool is_build_flag_defined(const char* name)
 {
-  assert(name != NULL);
+  pony_assert(name != NULL);
 
   if(_user_flags == NULL)
     // Table is not initialised, so no flags are defined.

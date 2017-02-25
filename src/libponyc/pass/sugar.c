@@ -12,14 +12,14 @@
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 
 static ast_t* make_create(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Default constructors on classes can be iso, on actors they must be tag
   token_id cap = TK_NONE;
@@ -85,7 +85,7 @@ bool has_member(ast_t* members, const char* name)
 
 static void add_default_constructor(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* members = ast_childidx(ast, 4);
 
   // If we have no constructors and no "create" member, add a "create"
@@ -117,7 +117,7 @@ static ast_result_t sugar_module(pass_opt_t* opt, ast_t* ast)
   ast_t* docstring = ast_child(ast);
 
   ast_t* package = ast_parent(ast);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(package) == TK_PACKAGE);
 
   if(strcmp(package_name(package), "$0") != 0)
   {
@@ -213,7 +213,7 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
           AST_GET_CHILDREN(member, n_cap, n_id, n_typeparam, n_params,
             n_result, n_partial, n_body);
 
-          assert(ast_id(n_body) == TK_SEQ);
+          pony_assert(ast_id(n_body) == TK_SEQ);
 
           ast_t* init = ast_child(init_seq);
 
@@ -259,7 +259,7 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 
 static void sugar_docstring(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, docstring);
@@ -285,7 +285,7 @@ static void sugar_docstring(ast_t* ast)
 // something nasty let in by the case method value parsing.
 static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
 {
-  assert(params != NULL);
+  pony_assert(params != NULL);
   ast_result_t result = AST_OK;
 
   // Check each parameter.
@@ -320,7 +320,7 @@ static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
 // Check for leftover stuff from case methods.
 static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
 {
-  assert(method != NULL);
+  pony_assert(method != NULL);
 
   ast_result_t result = AST_OK;
   ast_t* params = ast_childidx(method, 3);
@@ -328,7 +328,7 @@ static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
 
   // Also check the guard expression doesn't exist.
   ast_t* guard = ast_childidx(method, 8);
-  assert(guard != NULL);
+  pony_assert(guard != NULL);
 
   if(ast_id(guard) != TK_NONE)
   {
@@ -390,7 +390,7 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 
 void fun_defaults(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
     docstring);
 
@@ -449,7 +449,7 @@ static ast_result_t sugar_return(pass_opt_t* opt, ast_t* ast)
 
   if((ast_id(ast) == TK_RETURN) && (ast_id(opt->check.frame->method) == TK_NEW))
   {
-    assert(ast_id(return_value) == TK_NONE);
+    pony_assert(ast_id(return_value) == TK_NONE);
     ast_setid(return_value, TK_THIS);
   } else {
     expand_none(return_value, false);
@@ -528,14 +528,14 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 
 static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 {
-  assert(dispose_clause != NULL);
-  assert(idseq != NULL);
+  pony_assert(dispose_clause != NULL);
+  pony_assert(idseq != NULL);
 
   if(ast_id(idseq) == TK_LET)
   {
     // Just a single variable
     ast_t* id = ast_child(idseq);
-    assert(id != NULL);
+    pony_assert(id != NULL);
 
     // Don't call dispose() on don't cares
     if(is_name_dontcare(ast_name(id)))
@@ -551,7 +551,7 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
   }
 
   // We have a list of variables
-  assert(ast_id(idseq) == TK_TUPLE);
+  pony_assert(ast_id(idseq) == TK_TUPLE);
 
   for(ast_t* p = ast_child(idseq); p != NULL; p = ast_sibling(p))
     build_with_dispose(dispose_clause, p);
@@ -590,7 +590,7 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   // Add the "with" variables from each with element
   for(ast_t* p = ast_child(withexpr); p != NULL; p = ast_sibling(p))
   {
-    assert(ast_id(p) == TK_SEQ);
+    pony_assert(ast_id(p) == TK_SEQ);
     AST_GET_CHILDREN(p, idseq, init);
     const char* init_name = package_hygienic_id(&opt->check);
 
@@ -702,8 +702,8 @@ static ast_result_t sugar_case(pass_opt_t* opt, ast_t* ast)
   while(ast_id(next_body) == TK_NONE)
   {
     next = ast_sibling(next);
-    assert(next != NULL);
-    assert(ast_id(next) == TK_CASE);
+    pony_assert(next != NULL);
+    pony_assert(ast_id(next) == TK_CASE);
     next_body = ast_childidx(next, 2);
   }
 
@@ -715,7 +715,7 @@ static ast_result_t sugar_case(pass_opt_t* opt, ast_t* ast)
 static ast_result_t sugar_update(ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_ASSIGN);
+  pony_assert(ast_id(ast) == TK_ASSIGN);
 
   AST_GET_CHILDREN(ast, value, call);
 
@@ -942,7 +942,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
   ast_t* body)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   switch(ast_id(type))
   {
@@ -1025,7 +1025,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
   }
 
   // Don't need top sequence in pattern
-  assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
+  pony_assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
   ast_t* pattern = ast_pop(ast_child(pattern_root));
   ast_free(pattern_root);
 
@@ -1123,8 +1123,8 @@ static ast_result_t sugar_ffi(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
 {
-  assert(opt != NULL);
-  assert(ast != NULL);
+  pony_assert(opt != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, cond, then_block, else_block, else_cond);
 
@@ -1134,7 +1134,7 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
   if(parent_ifdef_cond != NULL)
   {
     // We have a parent ifdef, combine its condition with ours.
-    assert(ast_id(ast_parent(parent_ifdef_cond)) == TK_IFDEF);
+    pony_assert(ast_id(ast_parent(parent_ifdef_cond)) == TK_IFDEF);
 
     REPLACE(&else_cond,
       NODE(TK_AND,
@@ -1172,7 +1172,7 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t sugar_use(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Normalise condition so and, or and not nodes aren't sugared to function
   // calls.
@@ -1191,10 +1191,10 @@ static ast_result_t sugar_use(pass_opt_t* opt, ast_t* ast)
 static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_SEMI);
+  pony_assert(ast_id(ast) == TK_SEMI);
 
   // Semis are pointless, discard them
-  assert(ast_child(ast) == NULL);
+  pony_assert(ast_child(ast) == NULL);
   *astp = ast_sibling(ast);
   ast_remove(ast);
 
@@ -1206,9 +1206,9 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_EXTRACT_CHILDREN(ast, apply_cap, apply_name, apply_t_params, params,
     ret_type, error, interface_cap, ephemeral);
@@ -1321,7 +1321,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
 ast_t* expand_location(ast_t* location)
 {
-  assert(location != NULL);
+  pony_assert(location != NULL);
 
   const char* file_name = ast_source(location)->file;
 
@@ -1378,9 +1378,9 @@ ast_t* expand_location(ast_t* location)
 
 static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(ast_id(ast_parent(ast)) == TK_PARAM)
     // Location is a default argument, do not expand yet.
@@ -1400,7 +1400,7 @@ static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   switch(ast_id(ast))
   {

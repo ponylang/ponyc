@@ -1,8 +1,8 @@
 #include "paint.h"
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 #include <stdio.h>
 
 /** We use a greedy algorithm that gives a reasonable trade-off between
@@ -127,7 +127,7 @@ typedef struct painter_t
 // Print out a type map, for debugging only
 static void print_typemap(size_t size, uint64_t* map)
 {
-  assert(map != NULL);
+  pony_assert(map != NULL);
 
   for(size_t i = 0; i < size; i++)
   {
@@ -144,7 +144,7 @@ static void print_typemap(size_t size, uint64_t* map)
 // This is not static so compiler doesn't complain about it not being used
 void painter_print(painter_t* painter)
 {
-  assert(painter != NULL);
+  pony_assert(painter != NULL);
 
   printf("Painter typemaps are " __zu " bits\n",
     painter->typemap_size * sizeof(uint64_t) * 8);
@@ -181,8 +181,8 @@ void painter_print(painter_t* painter)
 // Add a method name record
 static name_record_t* add_name(painter_t* painter, const char* name)
 {
-  assert(painter != NULL);
-  assert(name != NULL);
+  pony_assert(painter != NULL);
+  pony_assert(name != NULL);
 
   size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
 
@@ -201,7 +201,7 @@ static name_record_t* add_name(painter_t* painter, const char* name)
 // Add a colour record
 static colour_record_t* add_colour(painter_t* painter)
 {
-  assert(painter != NULL);
+  pony_assert(painter != NULL);
 
   size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
 
@@ -232,8 +232,8 @@ static name_record_t* find_name(painter_t* painter, const char* name)
 // are distinct, ie there is no overlap in their bitmaps.
 static bool is_name_compatible(colour_record_t* colour, name_record_t* name)
 {
-  assert(colour != NULL);
-  assert(name != NULL);
+  pony_assert(colour != NULL);
+  pony_assert(name != NULL);
 
   // Check for type bitmap intersection
   for(size_t i = 0; i < name->typemap_size; i++)
@@ -250,8 +250,8 @@ static bool is_name_compatible(colour_record_t* colour, name_record_t* name)
 // Assign the given name to the given colour
 static void assign_name_to_colour(colour_record_t* colour, name_record_t* name)
 {
-  assert(colour != NULL);
-  assert(name != NULL);
+  pony_assert(colour != NULL);
+  pony_assert(name != NULL);
 
   // Union the type bitmaps
   for(size_t i = 0; i < name->typemap_size; i++)
@@ -264,8 +264,8 @@ static void assign_name_to_colour(colour_record_t* colour, name_record_t* name)
 // Step 1
 static void find_names_types_use(painter_t* painter, reach_types_t* types)
 {
-  assert(painter != NULL);
-  assert(types != NULL);
+  pony_assert(painter != NULL);
+  pony_assert(types != NULL);
 
   size_t i = HASHMAP_BEGIN;
   size_t typemap_index = 0;
@@ -274,7 +274,7 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
   while((t = reach_types_next(types, &i)) != NULL)
   {
-    assert(typemap_index < painter->typemap_size);
+    pony_assert(typemap_index < painter->typemap_size);
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
 
@@ -343,8 +343,8 @@ static void assign_colours_to_names(painter_t* painter)
 // Step 5
 static void distribute_info(painter_t* painter, reach_types_t* types)
 {
-  assert(painter != NULL);
-  assert(types != NULL);
+  pony_assert(painter != NULL);
+  pony_assert(types != NULL);
 
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t;
@@ -370,7 +370,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
         // Store colour assigned to name in reachable types set
         const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
-        assert(name_rec != NULL);
+        pony_assert(name_rec != NULL);
 
         uint32_t colour = name_rec->colour;
         m->vtable_index = colour;
@@ -389,7 +389,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
 // Free everything we've allocated
 static void painter_tidy(painter_t* painter)
 {
-  assert(painter != NULL);
+  pony_assert(painter != NULL);
 
   size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
 
@@ -409,7 +409,7 @@ static void painter_tidy(painter_t* painter)
 
 void paint(reach_types_t* types)
 {
-  assert(types != NULL);
+  pony_assert(types != NULL);
 
   size_t type_count = reach_types_size(types);
 

@@ -10,7 +10,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 bool expr_seq(pass_opt_t* opt, ast_t* ast)
 {
@@ -80,7 +80,7 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
 // an if.
 static bool resolve_ifdef(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // We turn the ifdef node into an if so that codegen doesn't need to know
   // about ifdefs at all.
@@ -386,7 +386,7 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   }
 
   // break is always the last expression in a sequence
-  assert(ast_sibling(ast) == NULL);
+  pony_assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_BREAK));
 
@@ -431,7 +431,7 @@ bool expr_continue(pass_opt_t* opt, ast_t* ast)
   }
 
   // continue is always the last expression in a sequence
-  assert(ast_sibling(ast) == NULL);
+  pony_assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_CONTINUE));
   return true;
@@ -442,14 +442,14 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   typecheck_t* t = &opt->check;
 
   // return is always the last expression in a sequence
-  assert(ast_sibling(ast) == NULL);
+  pony_assert(ast_sibling(ast) == NULL);
 
   ast_t* parent = ast_parent(ast);
   ast_t* current = ast;
 
   while(ast_id(parent) == TK_SEQ)
   {
-    assert(ast_childlast(parent) == current);
+    pony_assert(ast_childlast(parent) == current);
     current = parent;
     parent = ast_parent(parent);
   }
@@ -493,7 +493,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       break;
 
     case TK_BE:
-      assert(is_none(body_type));
+      pony_assert(is_none(body_type));
       break;
 
     default:
@@ -532,7 +532,7 @@ bool expr_error(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
   // error is always the last expression in a sequence
-  assert(ast_sibling(ast) == NULL);
+  pony_assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_ERROR));
   return true;
@@ -542,7 +542,7 @@ bool expr_compile_error(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
   // compile_error is always the last expression in a sequence
-  assert(ast_sibling(ast) == NULL);
+  pony_assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_COMPILE_ERROR));
   return true;

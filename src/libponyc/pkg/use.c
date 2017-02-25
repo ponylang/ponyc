@@ -6,8 +6,8 @@
 #include "../pass/pass.h"
 #include "../pass/scope.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 
 /** Use commands are of the form:
@@ -57,9 +57,9 @@ void use_test_handler(use_handler_t handler, bool allow_alias,
 // Find the index of the handler for the given URI
 static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
 {
-  assert(uri != NULL);
-  assert(out_locator != NULL);
-  assert(ast_id(uri) == TK_STRING);
+  pony_assert(uri != NULL);
+  pony_assert(out_locator != NULL);
+  pony_assert(ast_id(uri) == TK_STRING);
 
   const char* text = ast_name(uri);
   const char* colon = strchr(text, ':');
@@ -109,9 +109,9 @@ static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
 static bool uri_command(pass_opt_t* opt, ast_t* ast, ast_t* uri, ast_t* alias,
   ast_t* guard)
 {
-  assert(uri != NULL);
-  assert(alias != NULL);
-  assert(guard != NULL);
+  pony_assert(uri != NULL);
+  pony_assert(alias != NULL);
+  pony_assert(guard != NULL);
 
   const char* locator;
   int index = find_handler(opt, uri, &locator);
@@ -136,7 +136,7 @@ static bool uri_command(pass_opt_t* opt, ast_t* ast, ast_t* uri, ast_t* alias,
   if(ifdef_cond_normalise(&guard, opt) && !ifdef_cond_eval(guard, opt))
     return true;
 
-  assert(handlers[index].handler != NULL);
+  pony_assert(handlers[index].handler != NULL);
   return handlers[index].handler(ast, locator, alias, opt);
 }
 
@@ -144,7 +144,7 @@ static bool uri_command(pass_opt_t* opt, ast_t* ast, ast_t* uri, ast_t* alias,
 // Handle an ffi command
 static bool ffi_command(pass_opt_t* opt, ast_t* alias)
 {
-  assert(alias != NULL);
+  pony_assert(alias != NULL);
 
   if(ast_id(alias) != TK_NONE)
   {
@@ -158,12 +158,12 @@ static bool ffi_command(pass_opt_t* opt, ast_t* alias)
 
 ast_result_t use_command(ast_t* ast, pass_opt_t* options)
 {
-  assert(ast != NULL);
-  assert(options != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(options != NULL);
 
   AST_GET_CHILDREN(ast, alias, spec, guard);
-  assert(spec != NULL);
-  assert(guard != NULL);
+  pony_assert(spec != NULL);
+  pony_assert(guard != NULL);
 
   switch(ast_id(spec))
   {
@@ -180,7 +180,7 @@ ast_result_t use_command(ast_t* ast, pass_opt_t* options)
     break;
 
   default:
-    assert(0);
+    pony_assert(0);
     return AST_ERROR;
   }
 

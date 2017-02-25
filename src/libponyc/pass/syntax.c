@@ -7,7 +7,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/assemble.h"
 #include "../../libponyrt/mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 #include <string.h>
 #include <ctype.h>
 
@@ -145,8 +145,8 @@ static bool is_expr_infix(token_id id)
 static bool check_provides_type(pass_opt_t* opt, ast_t* type,
   const char* description)
 {
-  assert(type != NULL);
-  assert(description != NULL);
+  pony_assert(type != NULL);
+  pony_assert(description != NULL);
 
   switch(ast_id(type))
   {
@@ -194,13 +194,13 @@ static bool check_provides_type(pass_opt_t* opt, ast_t* type,
 static bool check_permission(pass_opt_t* opt, const permission_def_t* def,
   int element, ast_t* actual, const char* context, ast_t* report_at)
 {
-  assert(def != NULL);
-  assert(actual != NULL);
-  assert(context != NULL);
+  pony_assert(def != NULL);
+  pony_assert(actual != NULL);
+  pony_assert(context != NULL);
 
   char permission = def->permissions[element];
 
-  assert(permission == 'Y' || permission == 'N' || permission == 'X');
+  pony_assert(permission == 'Y' || permission == 'N' || permission == 'X');
 
   if(permission == 'N' && ast_id(actual) != TK_NONE)
   {
@@ -223,8 +223,8 @@ static bool check_permission(pass_opt_t* opt, const permission_def_t* def,
 // Check whether the given method has any illegal parts
 static bool check_method(pass_opt_t* opt, ast_t* ast, int method_def_index)
 {
-  assert(ast != NULL);
-  assert(method_def_index >= 0 && method_def_index < DEF_METHOD_COUNT);
+  pony_assert(ast != NULL);
+  pony_assert(method_def_index >= 0 && method_def_index < DEF_METHOD_COUNT);
   bool r = true;
 
   const permission_def_t* def = &_method_def[method_def_index];
@@ -271,8 +271,8 @@ static bool check_method(pass_opt_t* opt, ast_t* ast, int method_def_index)
 // Check whether the given entity members are legal in their entity
 static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
 {
-  assert(members != NULL);
-  assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
+  pony_assert(members != NULL);
+  pony_assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
   bool r = true;
 
   const permission_def_t* def = &_entity_def[entity_def_index];
@@ -328,7 +328,7 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
 
       default:
         ast_print(members);
-        assert(0);
+        pony_assert(0);
         return false;
     }
 
@@ -343,8 +343,8 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
 static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   int entity_def_index)
 {
-  assert(ast != NULL);
-  assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
+  pony_assert(ast != NULL);
+  pony_assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
   ast_result_t r = AST_OK;
 
   const permission_def_t* def = &_entity_def[entity_def_index];
@@ -405,9 +405,9 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
 
 static ast_result_t syntax_thistype(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* parent = ast_parent(ast);
-  assert(parent != NULL);
+  pony_assert(parent != NULL);
   ast_result_t r = AST_OK;
 
   if(ast_id(parent) != TK_ARROW)
@@ -444,7 +444,7 @@ static ast_result_t syntax_thistype(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_arrowtype(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
 
   switch(ast_id(right))
@@ -473,7 +473,7 @@ static ast_result_t syntax_arrowtype(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_nominal(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
 
   if(!is_name_dontcare(ast_name(name)))
@@ -515,12 +515,12 @@ static ast_result_t syntax_nominal(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_match(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // The last case must have a body
   ast_t* cases = ast_childidx(ast, 1);
-  assert(cases != NULL);
-  assert(ast_id(cases) == TK_CASES);
+  pony_assert(cases != NULL);
+  pony_assert(ast_id(cases) == TK_CASES);
 
   ast_t* case_ast = ast_child(cases);
 
@@ -546,7 +546,7 @@ static ast_result_t syntax_match(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
   bool return_optional)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
   ast_result_t r = AST_OK;
 
@@ -565,7 +565,7 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
     if(ast_id(p) == TK_PARAM)
     {
       ast_t* def_val = ast_childidx(p, 2);
-      assert(def_val != NULL);
+      pony_assert(def_val != NULL);
 
       if(ast_id(def_val) != TK_NONE)
       {
@@ -588,11 +588,11 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
 
 static ast_result_t syntax_ellipsis(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_result_t r = AST_OK;
 
   ast_t* fn = ast_parent(ast_parent(ast));
-  assert(fn != NULL);
+  pony_assert(fn != NULL);
 
   if(ast_id(fn) != TK_FFIDECL)
   {
@@ -613,17 +613,17 @@ static ast_result_t syntax_ellipsis(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_infix_expr(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
 
   token_id op = ast_id(ast);
 
-  assert(left != NULL);
+  pony_assert(left != NULL);
   token_id left_op = ast_id(left);
   bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
     !ast_checkflag(left, AST_FLAG_IN_PARENS);
 
-  assert(right != NULL);
+  pony_assert(right != NULL);
   token_id right_op = ast_id(right);
   bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
     !ast_checkflag(right, AST_FLAG_IN_PARENS);
@@ -661,10 +661,10 @@ static ast_result_t syntax_consume(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
   size_t max_value_count)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* value_seq = ast_child(ast);
-  assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
+  pony_assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
   size_t value_count = ast_childcount(value_seq);
 
   if(value_count > max_value_count)
@@ -720,8 +720,8 @@ static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
 
 static ast_result_t syntax_semi(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_parent(ast) != NULL);
-  assert(ast_id(ast_parent(ast)) == TK_SEQ);
+  pony_assert(ast_parent(ast) != NULL);
+  pony_assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
   if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
@@ -779,8 +779,8 @@ static const char* _illegal_flags[] =
 // such as "ifdef condition" or "use guard".
 static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 {
-  assert(ast != NULL);
-  assert(context != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(context != NULL);
 
   switch(ast_id(ast))
   {
@@ -866,7 +866,7 @@ static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 
 static ast_result_t syntax_ifdef(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(!syntax_ifdef_cond(opt, ast_child(ast), "ifdef condition"))
     return AST_ERROR;
@@ -877,7 +877,7 @@ static ast_result_t syntax_ifdef(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_use(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, url, guard);
 
   if(ast_id(id) != TK_NONE && !check_id_package(opt, id))
@@ -908,7 +908,7 @@ static ast_result_t syntax_lambda_capture(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_compile_intrinsic(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
-  assert(ast_id(parent) == TK_SEQ);
+  pony_assert(ast_id(parent) == TK_SEQ);
 
   ast_t* method = ast_parent(parent);
 
@@ -949,7 +949,7 @@ static ast_result_t syntax_compile_intrinsic(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_compile_error(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
-  assert(ast_id(parent) == TK_SEQ);
+  pony_assert(ast_id(parent) == TK_SEQ);
 
   if(ast_id(ast_parent(parent)) != TK_IFDEF)
   {
@@ -985,7 +985,7 @@ static ast_result_t syntax_compile_error(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_LAMBDA);
+  pony_assert(ast_id(ast) == TK_LAMBDA);
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
     ret_type, raises, body, reference_cap);
   switch(ast_id(ret_type))
@@ -1031,7 +1031,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_OBJECT);
+  pony_assert(ast_id(ast) == TK_OBJECT);
   AST_GET_CHILDREN(ast, cap, provides, members);
 
   // Check for illegal members - even though object literals can be non-actors,
@@ -1045,7 +1045,7 @@ static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t syntax_fun(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_FUN);
+  pony_assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
   switch(ast_id(type))
   {
@@ -1116,9 +1116,9 @@ static ast_result_t syntax_cap_set(pass_opt_t* opt, ast_t* ast)
 
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   token_id id = ast_id(ast);
   ast_result_t r = AST_OK;

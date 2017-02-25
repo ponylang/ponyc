@@ -4,13 +4,13 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <sys/event.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
-#include <assert.h>
 
 struct asio_backend_t
 {
@@ -196,7 +196,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 
@@ -253,7 +253,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 
@@ -286,7 +286,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 

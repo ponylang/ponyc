@@ -4,7 +4,7 @@
 #include "../ds/fun.h"
 #include "../mem/pool.h"
 #include "../mem/pagemap.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static size_t object_hash(object_t* obj)
 {

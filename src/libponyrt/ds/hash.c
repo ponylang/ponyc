@@ -1,7 +1,7 @@
 #include "hash.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 // Minimum HASHMAP size allowed
 #define MIN_HASHMAP_SIZE 8
@@ -108,7 +108,7 @@ static void resize(hashmap_t* map, cmp_fn cmp, alloc_fn alloc,
       (s * sizeof(hashmap_entry_t)), old_item_bitmap);
   }
 
-  assert(map->count == c);
+  pony_assert(map->count == c);
 }
 
 static size_t optimize_item(hashmap_t* map, alloc_fn alloc,
@@ -231,11 +231,11 @@ static void shift_put(hashmap_t* map, void* entry, size_t hash, cmp_fn cmp,
   size_t ib_index = pos >> HASHMAP_BITMAP_TYPE_BITS;
   size_t ib_offset = pos & HASHMAP_BITMAP_TYPE_MASK;
 
-  assert(probe_length > oi_probe_length ||
+  pony_assert(probe_length > oi_probe_length ||
     (probe_length == oi_probe_length && probe_length == 0));
 
   while(true) {
-    assert(pos < map->size);
+    pony_assert(pos < map->size);
 
     // need to swap elements
     if(elem == NULL &&
@@ -318,7 +318,7 @@ void ponyint_hashmap_putindex(hashmap_t* map, void* entry, size_t hash,
   if(map->size == 0)
     ponyint_hashmap_init(map, 4, alloc);
 
-  assert(pos < map->size);
+  pony_assert(pos < map->size);
 
   size_t ib_index = pos >> HASHMAP_BITMAP_TYPE_BITS;
   size_t ib_offset = pos & HASHMAP_BITMAP_TYPE_MASK;
@@ -361,7 +361,7 @@ void ponyint_hashmap_putindex(hashmap_t* map, void* entry, size_t hash,
 
 static void shift_delete(hashmap_t* map, size_t index)
 {
-  assert(index < map->size);
+  pony_assert(index < map->size);
   size_t pos = index;
   size_t mask = map->size - 1;
   size_t next_pos = (pos + 1) & mask;
@@ -462,6 +462,8 @@ void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
       index += (ffs_offset - 1);
 
       // no need to check if valid element because item bitmap keeps track of it
+      pony_assert(buckets[index].ptr != NULL);
+
       *i = index;
       return buckets[index].ptr;
     }

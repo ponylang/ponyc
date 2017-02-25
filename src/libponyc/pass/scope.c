@@ -7,8 +7,8 @@
 #include "../ast/stringtab.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 /**
  * Insert a name->AST mapping into the specified scope.
@@ -16,7 +16,7 @@
 static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
   ast_t* name, ast_t* value)
 {
-  assert(ast_id(name) == TK_ID);
+  pony_assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
 
   if(is_name_dontcare(s))
@@ -61,7 +61,7 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -84,8 +84,8 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
 bool use_package(ast_t* ast, const char* path, ast_t* name,
   pass_opt_t* options)
 {
-  assert(ast != NULL);
-  assert(path != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(path != NULL);
 
   ast_t* package = package_load(ast, path, options);
 
@@ -106,7 +106,7 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
 
 static void set_fields_undefined(ast_t* ast)
 {
-  assert(ast_id(ast) == TK_NEW);
+  pony_assert(ast_id(ast) == TK_NEW);
 
   ast_t* members = ast_parent(ast);
   ast_t* member = ast_child(members);
@@ -175,7 +175,7 @@ static ast_result_t scope_entity(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
         break;
 
       default:
-        assert(0);
+        pony_assert(0);
         return AST_FATAL;
     }
 

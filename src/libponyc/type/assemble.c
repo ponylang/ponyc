@@ -7,7 +7,7 @@
 #include "../pass/names.h"
 #include "../pass/flatten.h"
 #include "../pass/expr.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static void append_one_to_union(pass_opt_t* opt, ast_t* ast, ast_t* append)
 {
@@ -199,7 +199,7 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
   ast_t* branch)
 {
-  assert(branch != NULL);
+  pony_assert(branch != NULL);
 
   ast_t* branch_type = ast_type(branch);
 
@@ -220,7 +220,7 @@ ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
       ast_settype(control_type, old_control);
     }
 
-    assert(ast_id(control_type) == TK_LITERAL);
+    pony_assert(ast_id(control_type) == TK_LITERAL);
 
     // Add a literal branch reference to the new branch
     ast_t* member = ast_from(branch, TK_LITERALBRANCH);
@@ -440,6 +440,6 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }

@@ -7,9 +7,9 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 DEFINE_STACK(reach_method_stack, reach_method_stack_t,
   reach_method_t);
@@ -298,7 +298,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
@@ -498,7 +498,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
       {
         ast_t* r_member = lookup(NULL, NULL, t->ast,
           ast_name(ast_child(member)));
-        assert(r_member != NULL);
+        pony_assert(r_member != NULL);
 
         AST_GET_CHILDREN(r_member, name, type, init);
 
@@ -750,7 +750,7 @@ static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt)
       return add_nominal(r, type, opt);
 
     default:
-      assert(0);
+      pony_assert(0);
   }
 
   return NULL;
@@ -930,7 +930,7 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
     case TK_IF:
     {
       AST_GET_CHILDREN(ast, cond, then_clause, else_clause);
-      assert(ast_id(cond) == TK_SEQ);
+      pony_assert(ast_id(cond) == TK_SEQ);
       cond = ast_child(cond);
 
       ast_t* type = ast_type(ast);
@@ -991,7 +991,7 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
     {
       // If the method is a finaliser, don't mark the ref and val versions as
       // reachable.
-      assert(n->cap == TK_BOX);
+      pony_assert(n->cap == TK_BOX);
       return;
     }
 

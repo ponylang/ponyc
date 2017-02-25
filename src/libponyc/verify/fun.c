@@ -1,7 +1,7 @@
 #include "fun.h"
 #include "../type/subtype.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 
 static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
@@ -216,7 +216,7 @@ static bool show_partiality(pass_opt_t* opt, ast_t* ast)
 
 bool verify_fun(pass_opt_t* opt, ast_t* ast)
 {
-  assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
+  pony_assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
     (ast_id(ast) == TK_NEW));
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
 

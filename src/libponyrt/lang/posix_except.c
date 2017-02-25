@@ -3,9 +3,9 @@
 #ifdef PLATFORM_IS_POSIX_BASED
 
 #include "lsda.h"
+#include "ponyassert.h"
 #include <unwind.h>
 #include <stdlib.h>
-#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 

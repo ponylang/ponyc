@@ -2,8 +2,8 @@
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #define GC_ACTOR_HEAP_EQUIV 1024
 #define GC_IMMUT_HEAP_EQUIV 1024
@@ -51,7 +51,7 @@ static void recv_local_actor(gc_t* gc)
   if(gc->rc_mark != gc->mark)
   {
     gc->rc_mark = gc->mark;
-    assert(gc->rc > 0);
+    pony_assert(gc->rc > 0);
     gc->rc--;
   }
 }
@@ -63,7 +63,7 @@ static void acquire_local_actor(gc_t* gc)
 
 static void release_local_actor(gc_t* gc)
 {
-  assert(gc->rc > 0);
+  pony_assert(gc->rc > 0);
   gc->rc--;
 }
 
@@ -157,7 +157,7 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   size_t index = HASHMAP_UNKNOWN;
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
-  assert(obj != NULL);
+  pony_assert(obj != NULL);
 
   if(obj->mark == gc->mark)
     return;
@@ -225,7 +225,7 @@ static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   size_t index = HASHMAP_UNKNOWN;
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
-  assert(obj != NULL);
+  pony_assert(obj != NULL);
 
   if(obj->mark == gc->mark)
     return;
@@ -652,7 +652,7 @@ bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)
 bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
 {
   size_t rc = aref->rc;
-  assert(gc->rc >= rc);
+  pony_assert(gc->rc >= rc);
   gc->rc -= rc;
 
   objectmap_t* map = &aref->map;
@@ -665,7 +665,7 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
     void* p = obj->address;
     object_t* obj_local = ponyint_objectmap_getobject(&gc->local, p, &index);
 
-    assert(obj_local->rc >= obj->rc);
+    pony_assert(obj_local->rc >= obj->rc);
     obj_local->rc -= obj->rc;
   }
 
@@ -696,7 +696,7 @@ void ponyint_gc_sendacquire(pony_ctx_t* ctx)
     pony_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
   }
 
-  assert(ponyint_actormap_size(&ctx->acquire) == 0);
+  pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
 }
 
 void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
@@ -715,7 +715,7 @@ void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
     pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
   }
 
-  assert(ponyint_actormap_size(&ctx->acquire) == 0);
+  pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
 }
 
 void ponyint_gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)

@@ -6,10 +6,10 @@
 #include "lexer.h"
 #include "ast.h"
 #include "token.h"
+#include "ponyassert.h"
 #include <stdbool.h>
 #include <limits.h>
 #include <stdio.h>
-#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -449,7 +449,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
 #define REORDER(...) \
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
-    assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
+    pony_assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
     static ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
     ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \

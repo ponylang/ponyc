@@ -6,9 +6,9 @@
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
 #include "../gc/trace.h"
+#include "ponyassert.h"
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 #include <dtrace.h>
 
 #ifdef USE_VALGRIND
@@ -173,7 +173,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
-  assert(app < batch);
+  pony_assert(app < batch);
   try_gc(ctx, actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
@@ -204,7 +204,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
 void ponyint_actor_destroy(pony_actor_t* actor)
 {
-  assert(has_flag(actor, FLAG_PENDINGDESTROY));
+  pony_assert(has_flag(actor, FLAG_PENDINGDESTROY));
 
   // Make sure the actor being destroyed has finished marking its queue
   // as empty. Otherwise, it may spuriously see that tail and head are not
@@ -284,7 +284,7 @@ void ponyint_actor_setnoblock(bool state)
 
 PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   DTRACE1(ACTOR_ALLOC, (uintptr_t)ctx->scheduler);
 
@@ -448,6 +448,6 @@ PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
 
 PONY_API void pony_poll(pony_ctx_t* ctx)
 {
-  assert(ctx->current != NULL);
+  pony_assert(ctx->current != NULL);
   ponyint_actor_run(ctx, ctx->current, 1);
 }

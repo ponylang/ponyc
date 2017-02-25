@@ -2,8 +2,8 @@
 
 #include "messageq.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
@@ -45,7 +45,7 @@ void ponyint_messageq_init(messageq_t* q)
 void ponyint_messageq_destroy(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
+  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
     ~(uintptr_t)1)) == (uintptr_t)tail);
 #ifdef USE_VALGRIND
 #  ifdef NDEBUG

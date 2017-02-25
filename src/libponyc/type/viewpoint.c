@@ -3,7 +3,7 @@
 #include "assemble.h"
 #include "cap.h"
 #include "../ast/astbuild.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 enum
 {
@@ -66,7 +66,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -120,7 +120,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -151,7 +151,7 @@ ast_t* viewpoint_upper(ast_t* type)
   // upper(s p'->T k p) = isect[k' in s](T (k'->k) eph(s, p', p))
   // eph(s, p', p) = { unalias(p) if p' = ^, forall k in s . k in {iso, trn}
   //                 { p          otherwise
-  assert(ast_id(type) == TK_ARROW);
+  pony_assert(ast_id(type) == TK_ARROW);
   AST_GET_CHILDREN(type, left, right);
   ast_t* r_right = right;
 
@@ -170,7 +170,7 @@ ast_t* viewpoint_upper(ast_t* type)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -204,7 +204,7 @@ ast_t* viewpoint_upper(ast_t* type)
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -233,7 +233,7 @@ ast_t* viewpoint_lower(ast_t* type)
   // upper(s p'->T k p) = union[k' in s](T (k'->k) eph(s, p', p))
   // eph(s, p', p) = { unalias(p) if p' = ^, exists k in s . k in {iso, trn}
   //                 { p          otherwise
-  assert(ast_id(type) == TK_ARROW);
+  pony_assert(ast_id(type) == TK_ARROW);
   AST_GET_CHILDREN(type, left, right);
   ast_t* r_right = right;
 
@@ -252,7 +252,7 @@ ast_t* viewpoint_lower(ast_t* type)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -286,7 +286,7 @@ ast_t* viewpoint_lower(ast_t* type)
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -366,7 +366,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
       }
 
       default:
-        assert(0);
+        pony_assert(0);
     }
   } else if(ast_id(ast) == TK_ARROW) {
     // Recalculate all arrow types.
@@ -381,7 +381,7 @@ ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with)
   // Target is thistype or a typeparamref. With is a type (when replacing
   // `this` in a reified method signature) or a single capability (when
   // typechecking arrow types).
-  assert(
+  pony_assert(
     (ast_id(target) == TK_THISTYPE) ||
     (ast_id(target) == TK_TYPEPARAMREF));
 
@@ -408,7 +408,7 @@ static void replace_typeparam(ast_t* tuple, ast_t* type, ast_t* typeparamref,
 
 ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
 {
-  assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   AST_GET_CHILDREN(typeparamref, id, cap, eph);
 
   switch(ast_id(cap))
@@ -472,7 +472,7 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -497,8 +497,8 @@ ast_t* viewpoint_reifythis(ast_t* type)
 
 bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
 {
-  assert(ast_id(a) == TK_ARROW);
-  assert(ast_id(b) == TK_ARROW);
+  pony_assert(ast_id(a) == TK_ARROW);
+  pony_assert(ast_id(b) == TK_ARROW);
 
   // Find the first left side that needs reification.
   ast_t* test = a;

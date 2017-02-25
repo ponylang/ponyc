@@ -380,6 +380,8 @@ ifneq (,$(filter $(OSTYPE), osx freebsd))
 endif
 
 # target specific build options
+libponyrt.buildoptions = -DPONY_NO_ASSERT
+
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
@@ -398,6 +400,8 @@ libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
 
 ponyc.buildoptions = $(libponyc.buildoptions)
+
+ponyc.linkoptions += -rdynamic
 
 ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic

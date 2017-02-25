@@ -9,7 +9,7 @@
 #include "gencall.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 {
@@ -97,7 +97,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
         case TK_PARAMREF:
           break;
         default:
-          assert(0);
+          pony_assert(0);
           break;
       }
       break;
@@ -209,7 +209,7 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, ast_t* type)
 {
   // Cast each component.
-  assert(ast_id(type) == TK_TUPLETYPE);
+  pony_assert(ast_id(type) == TK_TUPLETYPE);
 
   int count = LLVMCountStructElementTypes(l_type);
   size_t buf_size = count * sizeof(LLVMTypeRef);
@@ -265,7 +265,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       if((r_type == c->i1) && (l_type == c->ibool))
         return LLVMBuildZExt(c->builder, r_value, l_type, "");
 
-      assert(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind);
+      pony_assert(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind);
       return gen_unbox(c, type, r_value);
     }
 
@@ -284,7 +284,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
       {
         r_value = gen_unbox(c, type, r_value);
-        assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMStructTypeKind);
+        pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMStructTypeKind);
       }
 
       return assign_to_tuple(c, l_type, r_value, type);
@@ -293,6 +293,6 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }

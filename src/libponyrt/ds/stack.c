@@ -1,6 +1,6 @@
 #include "stack.h"
 #include "../mem/pool.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static Stack* stack_new(Stack* prev, void* data)
 {
@@ -14,8 +14,8 @@ static Stack* stack_new(Stack* prev, void* data)
 
 Stack* ponyint_stack_pop(Stack* stack, void** data)
 {
-  assert(stack != NULL);
-  assert(data != NULL);
+  pony_assert(stack != NULL);
+  pony_assert(data != NULL);
 
   stack->index--;
   *data = stack->data[stack->index];

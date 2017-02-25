@@ -15,8 +15,8 @@
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 /**
  * Make sure the definition of something occurs before its use. This is for
@@ -128,7 +128,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -161,7 +161,7 @@ static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -325,7 +325,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_TYPEREF);
+  pony_assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
   if(is_typecheck_error(type))
@@ -382,7 +382,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         if(is_typecheck_error(type))
           return false;
 
-        assert(ast_id(type) == TK_FUNTYPE);
+        pony_assert(ast_id(type) == TK_FUNTYPE);
         AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
         if(ast_id(params) == TK_NONE)
@@ -466,8 +466,8 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
 static const char* suggest_alt_name(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
-  assert(name != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(name != NULL);
 
   size_t name_len = strlen(name);
 
@@ -500,7 +500,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
     if(ast_id(id) != TK_ID)
       id = ast_child(id);
 
-    assert(ast_id(id) == TK_ID);
+    pony_assert(ast_id(id) == TK_ID);
     const char* try_name = ast_name(id);
 
     if(ast_get(ast, try_name, NULL) != NULL)
@@ -768,7 +768,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
           break;
 
         default:
-          assert(0);
+          pony_assert(0);
           return false;
       }
 
@@ -820,17 +820,17 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
 bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast_type(ast) != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(ast_type(ast) != NULL);
 
   AST_GET_CHILDREN(ast, id, type);
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   bool is_dontcare = is_name_dontcare(ast_name(id));
 
@@ -993,7 +993,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  assert(status == SYM_NONE);
+  pony_assert(status == SYM_NONE);
   token_id cap = cap_for_this(t);
 
   if(!cap_sendable(cap) && (t->frame->recover != NULL))
@@ -1061,7 +1061,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
   {
     ast_t* right = ast_sibling(ast);
-    assert(ast_id(right) == TK_ID);
+    pony_assert(ast_id(right) == TK_ID);
     ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
 
     if(find != NULL)
@@ -1177,7 +1177,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   if(is_maybe(ast))
   {
     // MaybePointer[A] must be bound to a struct.
-    assert(ast_childcount(typeargs) == 1);
+    pony_assert(ast_childcount(typeargs) == 1);
     ast_t* typeparam = ast_child(typeparams);
     ast_t* typearg = ast_child(typeargs);
     bool ok = false;
@@ -1219,7 +1219,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
 static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_NEW);
+  pony_assert(ast_id(ast) == TK_NEW);
 
   ast_t* members = ast_parent(ast);
   ast_t* member = ast_child(members);
