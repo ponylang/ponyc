@@ -185,9 +185,9 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
       if(getrlimit(RLIMIT_STACK, &limit) == 0)
       {
         int node = _numa_node_of_cpu(cpu);
-        void* stack = _numa_alloc_onnode(limit.rlim_cur, node);
+        void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
         if (stack != NULL) {
-          pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+          pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
         }
       }
     }

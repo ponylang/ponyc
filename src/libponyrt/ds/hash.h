@@ -15,11 +15,14 @@ PONY_EXTERN_C_BEGIN
 
 #ifdef PLATFORM_IS_ILP32
   typedef uint32_t bitmap_t;
-  #define HASHMAP_BITMAP_TYPE_SIZE 32
+  #define HASHMAP_BITMAP_TYPE_BITS 5 // 2^5 = 32
 #else
   typedef uint64_t bitmap_t;
-  #define HASHMAP_BITMAP_TYPE_SIZE 64
+  #define HASHMAP_BITMAP_TYPE_BITS 6 // 2^6 = 64
 #endif
+
+#define HASHMAP_BITMAP_TYPE_SIZE (1 << HASHMAP_BITMAP_TYPE_BITS)
+#define HASHMAP_BITMAP_TYPE_MASK (HASHMAP_BITMAP_TYPE_SIZE - 1)
 
 /** Definition of a hash map entry for uintptr_t.
  */

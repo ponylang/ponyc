@@ -99,7 +99,8 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
   -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
   -DBUILD_COMPILER=\"$(compiler_version)\" \
-  -DPONY_BUILD_CONFIG=\"$(config)\"
+  -DPONY_BUILD_CONFIG=\"$(config)\" \
+  -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
