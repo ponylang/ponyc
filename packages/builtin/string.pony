@@ -198,11 +198,11 @@ actor Main
     """
     _ptr._offset(from_offset)._copy_to(ptr._offset(to_offset), copy_len)
 
-  fun cpointer(): Pointer[U8] tag =>
+  fun cpointer(offset: USize = 0): Pointer[U8] tag =>
     """
     Returns a C compatible pointer to the underlying string allocation.
     """
-    _ptr
+    _ptr._offset(offset)
 
   fun cstring(): Pointer[U8] tag =>
     """
