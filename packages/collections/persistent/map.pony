@@ -6,14 +6,14 @@ primitive Maps
     """
     Return an empty map.
     """
-    Map[K, V]._empty()
+    Map[K, V]
 
   fun val from[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   (pairs: Array[(K, val->V)]): Map[K, V] ? =>
     """
     Return a map containing the provided key-value pairs.
     """
-    var m = Map[K, V]._empty()
+    var m = Map[K, V]
     for pair in pairs.values() do
       m = m(pair._1) = pair._2
     end
@@ -40,7 +40,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   let _root: _MapNode[K, V]
   let _size: USize
 
-  new val _empty() =>
+  new val create() =>
     _root = _MapNode[K, V].empty(0)
     _size = 0
 
