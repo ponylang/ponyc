@@ -152,13 +152,13 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       end
     end
 
-  fun _set_bit(bm: U32, i: U32): U32 => bm or (1 << i)
+  fun _set_bit(bm: U32, i: U32): U32 => bm or (U32(1) <<~ i)
 
-  fun _clear_bit(bm: U32, i: U32): U32 => bm and (not (1 << i))
+  fun _clear_bit(bm: U32, i: U32): U32 => bm and (not (U32(1) <<~ i))
 
-  fun _has_bit(bm: U32, i: U32): Bool => (bm and (1 << i)) != 0
+  fun _has_bit(bm: U32, i: U32): Bool => (bm and (U32(1) <<~ i)) != 0
 
-  fun _mask(hash: U32, l: U8): U32 => (hash >> (5 * l.u32())) and 0x01f
+  fun _mask(hash: U32, l: U8): U32 => (hash >> (U32(5) *~ l.u32())) and 0x01f
 
   fun _array_index(nm: U32, dm: U32, idx: U32): U32 =>
     let msk = not(0xffff_ffff << idx)
