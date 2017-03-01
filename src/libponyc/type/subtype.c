@@ -769,9 +769,10 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
 
-  // Add an assumption: sub <: super
-  if(push_assume(sub, super, opt))
-    return true;
+  // TODO:
+  // // Add an assumption: sub <: super
+  // if(push_assume(sub, super, opt))
+  //   return true;
 
   bool ret = true;
 
@@ -838,7 +839,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     super_member = ast_sibling(super_member);
   }
 
-  pop_assume();
+  // TODO:
+  // pop_assume();
   return ret;
 }
 
@@ -926,14 +928,8 @@ static bool is_entity_sub_trait(ast_t* sub, ast_t* super,
   return true;
 }
 
-static bool is_struct_sub_trait(ast_t* sub, ast_t* super, check_cap_t check_cap,
-  errorframe_t* errorf, pass_opt_t* opt)
+static bool is_struct_sub_trait(ast_t* sub, ast_t* super, errorframe_t* errorf)
 {
-  (void)check_cap;
-
-  if(check_assume(sub, super, opt))
-    return true;
-
   struct_cant_be_x(sub, super, errorf, "a trait");
   return false;
 }
@@ -995,7 +991,7 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
       return is_entity_sub_trait(sub, super, check_cap, errorf, opt);
 
     case TK_STRUCT:
-      return is_struct_sub_trait(sub, super, check_cap, errorf, opt);
+      return is_struct_sub_trait(sub, super, errorf);
 
     case TK_TRAIT:
       return is_trait_sub_trait(sub, super, check_cap, errorf, opt);
@@ -1013,8 +1009,13 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
+  // Add an assumption: sub <: super
+  if(push_assume(sub, super, opt))
+    return true;
+
   // N k <: N' k'
   ast_t* super_def = (ast_t*)ast_data(super);
+  bool ret = false;
 
   switch(ast_id(super_def))
   {
@@ -1022,19 +1023,23 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      return is_nominal_sub_entity(sub, super, check_cap, errorf, opt);
+      ret = is_nominal_sub_entity(sub, super, check_cap, errorf, opt);
+      break;
 
     case TK_INTERFACE:
-      return is_nominal_sub_interface(sub, super, check_cap, errorf, opt);
+      ret = is_nominal_sub_interface(sub, super, check_cap, errorf, opt);
+      break;
 
     case TK_TRAIT:
-      return is_nominal_sub_trait(sub, super, check_cap, errorf, opt);
+      ret = is_nominal_sub_trait(sub, super, check_cap, errorf, opt);
+      break;
 
-    default: {}
+    default:
+      pony_assert(0);
   }
 
-  pony_assert(0);
-  return false;
+  pop_assume();
+  return ret;
 }
 
 static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super,
@@ -1515,7 +1520,7 @@ static bool is_arrow_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   return false;
 }
 
-bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
+static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
   pony_assert(sub != NULL);
