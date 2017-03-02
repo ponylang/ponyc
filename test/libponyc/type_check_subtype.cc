@@ -1033,3 +1033,22 @@ TEST_F(SubTypeTest, IsBeSubFunTag)
 
   pass_opt_init(&opt);
 }
+
+
+TEST_F(SubTypeTest, IsTypeparamSubIntersect)
+{
+  const char* src =
+    "class B\n"
+    "  fun f[A: (I32 & Real[A])](a: A, b: (I32 & Real[A])) =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_TRUE(is_subtype(type_of("a"), type_of("b"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(type_of("b"), type_of("a"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
