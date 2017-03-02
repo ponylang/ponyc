@@ -675,22 +675,25 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   // Find block messages and invoke finalisers for those actors
   pony_msg_t* msg;
 
-  while((msg = ponyint_messageq_pop(&self->q)) != NULL)
+  do
   {
-    if(msg->id == ACTORMSG_BLOCK)
+    while((msg = ponyint_messageq_pop(&self->q)) != NULL)
     {
-      block_msg_t* m = (block_msg_t*)msg;
-
-      if(m->delta != NULL)
-        ponyint_deltamap_free(m->delta);
-
-      if(!ponyint_actor_pendingdestroy(m->actor))
+      if(msg->id == ACTORMSG_BLOCK)
       {
-        ponyint_actor_setpendingdestroy(m->actor);
-        ponyint_actor_final(ctx, m->actor);
+        block_msg_t* m = (block_msg_t*)msg;
+
+        if(m->delta != NULL)
+          ponyint_deltamap_free(m->delta);
+
+        if(!ponyint_actor_pendingdestroy(m->actor))
+        {
+          ponyint_actor_setpendingdestroy(m->actor);
+          ponyint_actor_final(ctx, m->actor);
+        }
       }
     }
-  }
+  } while(!ponyint_messageq_markempty(&self->q));
 
   detector_t* d = (detector_t*)self;
   size_t i = HASHMAP_BEGIN;
@@ -707,6 +710,14 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
       ponyint_actor_final(ctx, view->actor);
     }
   }
+
+  i = HASHMAP_BEGIN;
+  while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
+    ponyint_viewmap_remove(&d->deferred, view);
+
+  ponyint_viewmap_destroy(&d->deferred);
+  ponyint_viewmap_destroy(&d->views);
+  ponyint_perceivedmap_destroy(&d->perceived);
 }
 
 #ifndef NDEBUG
@@ -908,6 +919,8 @@ void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
   pony_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
+  ponyint_destroy(cycle_detector);
+  cycle_detector = NULL;
 }
 
 bool ponyint_is_cycle(pony_actor_t* actor)
