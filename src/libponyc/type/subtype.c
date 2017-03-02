@@ -769,11 +769,6 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
 
-  // TODO:
-  // // Add an assumption: sub <: super
-  // if(push_assume(sub, super, opt))
-  //   return true;
-
   bool ret = true;
 
   ast_t* sub_typeargs = ast_childidx(sub, 2);
@@ -839,8 +834,6 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     super_member = ast_sibling(super_member);
   }
 
-  // TODO:
-  // pop_assume();
   return ret;
 }
 
