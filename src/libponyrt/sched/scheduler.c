@@ -336,6 +336,7 @@ static DECLARE_THREAD_FN(run_thread)
   this_scheduler = sched;
   ponyint_cpu_affinity(sched->cpu);
   run(sched);
+  ponyint_pool_thread_cleanup();
 
   return 0;
 }
@@ -453,7 +454,7 @@ uint32_t ponyint_sched_cores()
   return scheduler_count;
 }
 
-void pony_register_thread()
+PONY_API void pony_register_thread()
 {
   if(this_scheduler != NULL)
     return;
@@ -462,6 +463,17 @@ void pony_register_thread()
   this_scheduler = POOL_ALLOC(scheduler_t);
   memset(this_scheduler, 0, sizeof(scheduler_t));
   this_scheduler->tid = ponyint_thread_self();
+}
+
+PONY_API void pony_unregister_thread()
+{
+  if(this_scheduler == NULL)
+    return;
+
+  POOL_FREE(scheduler_t, this_scheduler);
+  this_scheduler = NULL;
+
+  ponyint_pool_thread_cleanup();
 }
 
 PONY_API pony_ctx_t* pony_ctx()

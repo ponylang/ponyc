@@ -78,39 +78,41 @@ using std::atomic_flag;
 namespace ponyint_atomics
 {
   template <typename T>
-  struct aba_protected_t
+  struct aba_protected_ptr_t
   {
-    static_assert(sizeof(T) <= sizeof(void*), "");
-    T object;
-    uintptr_t counter;
+    // Nested struct for uniform initialisation with GCC/Clang.
+    struct
+    {
+      T* object;
+      uintptr_t counter;
+    };
   };
 }
-#  define PONY_ABA_PROTECTED_DECLARE(T)
-#  define PONY_ABA_PROTECTED(T) ponyint_atomics::aba_protected_t<T>
+#  define PONY_ABA_PROTECTED_PTR_DECLARE(T)
+#  define PONY_ABA_PROTECTED_PTR(T) ponyint_atomics::aba_protected_ptr_t<T>
 #else
 #  if defined(__LP64__) || defined(_WIN64)
 #    define PONY_DOUBLEWORD __int128_t
 #  else
 #    define PONY_DOUBLEWORD int64_t
 #  endif
-#  define PONY_ABA_PROTECTED_DECLARE(T) \
+#  define PONY_ABA_PROTECTED_PTR_DECLARE(T) \
     typedef union \
     { \
       struct \
       { \
-        _Static_assert(sizeof(T) <= sizeof(void*), ""); \
-        T object; \
+        T* object; \
         uintptr_t counter; \
       }; \
       PONY_DOUBLEWORD raw; \
-    } aba_protected_T;
-#  define PONY_ABA_PROTECTED(T) aba_protected_T
+    } aba_protected_##T;
+#  define PONY_ABA_PROTECTED_PTR(T) aba_protected_##T
 #endif
 
 // Big atomic objects (larger than machine word size) aren't consistently
 // implemented on the compilers we support. We add our own implementation to
 // make sure the objects are correctly defined and aligned.
-#define PONY_ATOMIC_ABA_PROTECTED(T) alignas(16) PONY_ABA_PROTECTED(T)
+#define PONY_ATOMIC_ABA_PROTECTED_PTR(T) alignas(16) PONY_ABA_PROTECTED_PTR(T)
 
 #ifdef PONY_WANT_ATOMIC_DEFS
 #  ifdef _MSC_VER
@@ -119,17 +121,18 @@ namespace ponyint_atomics
 namespace ponyint_atomics
 {
   template <typename T>
-  inline PONY_ABA_PROTECTED(T) big_load(PONY_ABA_PROTECTED(T)* ptr)
+  inline PONY_ABA_PROTECTED_PTR(T) big_load(PONY_ABA_PROTECTED_PTR(T)* ptr)
   {
-    PONY_ABA_PROTECTED(T) ret = {NULL, 0};
+    PONY_ABA_PROTECTED_PTR(T) ret = {NULL, 0};
     _InterlockedCompareExchange128((LONGLONG*)ptr, 0, 0, (LONGLONG*)&ret);
     return ret;
   }
 
   template <typename T>
-  inline void big_store(PONY_ABA_PROTECTED(T)* ptr, PONY_ABA_PROTECTED(T) val)
+  inline void big_store(PONY_ABA_PROTECTED_PTR(T)* ptr,
+    PONY_ABA_PROTECTED_PTR(T) val)
   {
-    PONY_ABA_PROTECTED(T) tmp;
+    PONY_ABA_PROTECTED_PTR(T) tmp;
     tmp.object = ptr->object;
     tmp.counter = ptr->counter;
     while(!_InterlockedCompareExchange128((LONGLONG*)ptr,
