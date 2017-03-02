@@ -80,15 +80,14 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
 pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&tail->next);
-#endif
+  pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
 
   if(next != NULL)
   {
     q->tail = next;
+    atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_AFTER(&tail->next);
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
     ponyint_pool_free(tail->index, tail);
