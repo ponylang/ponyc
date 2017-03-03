@@ -93,10 +93,14 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
 #ifdef PLATFORM_IS_X86
-  PONY_ABA_PROTECTED(mpmcq_node_t*) cmp = bigatomic_load_explicit(&q->tail,
-    memory_order_relaxed);
+  PONY_ABA_PROTECTED(mpmcq_node_t*) cmp;
   PONY_ABA_PROTECTED(mpmcq_node_t*) xchg;
   mpmcq_node_t* tail;
+  // Load the tail non-atomically. If object and counter are out of sync, we'll
+  // do an additional CAS iteration which isn't less efficient than doing an
+  // atomic initial load.
+  cmp.object = q->tail.object;
+  cmp.counter = q->tail.counter;
 #else
   mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
 #endif
