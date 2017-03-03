@@ -14,14 +14,14 @@
 
 #include <pony/detail/atomics.h>
 
-static atomic_flag assert_guard = ATOMIC_FLAG_INIT;
+static PONY_ATOMIC(bool) assert_guard = false;
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
 void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   const char* func)
 {
-  while(atomic_flag_test_and_set_explicit(&assert_guard, memory_order_acq_rel))
+  while(atomic_exchange_explicit(&assert_guard, true, memory_order_acq_rel))
   {
     // If the guard is already set, an assertion fired in another thread. The
     // things here aren't thread safe, so we just start an infinite loop.
@@ -59,7 +59,7 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
 void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   const char* func)
 {
-  while(atomic_flag_test_and_set_explicit(&assert_guard, memory_order_acq_rel))
+  while(atomic_exchange_explicit(&assert_guard, true, memory_order_acq_rel))
   {
     // If the guard is already set, an assertion fired in another thread. The
     // things here aren't thread safe, so we just start an infinite loop.
