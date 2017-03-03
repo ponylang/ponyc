@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- TCPListener: unsubscribe asio before socket close (PR #1626)
 - Fix buffer overlow in case method docstring (PR #1615)
 - Fix capability checking for gencap-constrained type parameters. (PR #1593)
 - Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
