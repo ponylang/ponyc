@@ -875,6 +875,41 @@ PONY_API bool pony_os_host_ip6(const char* host)
   return inet_pton(AF_INET6, host, &addr) == 1;
 }
 
+#ifdef PLATFORM_IS_WINDOWS
+PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
+{
+  SOCKET s = (SOCKET)ev->fd;
+  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
+  DWORD sent;
+  
+  if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
+  { 
+    if(GetLastError() != WSA_IO_PENDING)
+    { 
+      iocp_destroy(iocp);
+      pony_throw();
+    }
+  }
+  
+  return 0;
+}
+#else
+PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
+{
+  ssize_t sent = writev(ev->fd, iov, iovcnt);
+
+  if(sent < 0)
+  {
+    if(errno == EWOULDBLOCK)
+      return 0;
+
+    pony_throw();
+  }
+
+  return (size_t)sent;
+}
+#endif
+
 PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 {
 #ifdef PLATFORM_IS_WINDOWS
