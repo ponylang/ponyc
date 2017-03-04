@@ -60,7 +60,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   while(entity != NULL && ast_id(entity) != TK_INTERFACE &&
     ast_id(entity) != TK_TRAIT && ast_id(entity) != TK_PRIMITIVE &&
     ast_id(entity) != TK_STRUCT && ast_id(entity) != TK_CLASS &&
-    ast_id(entity) != TK_ACTOR)
+    ast_id(entity) != TK_ACTOR && ast_id(entity) != TK_TYPE)
   {
     entity = ast_parent(entity);
   }
