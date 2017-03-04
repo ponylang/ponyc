@@ -65,8 +65,8 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     Update the value associated with the provided key.
     """
     (let r, let insertion) =
-      _root.update(_MapLeaf[K, V](key.hash().u32(), key, value))
-    let s = if insertion then _size+1 else _size end
+      _root.update(key.hash().u32(), (key, value))
+    let s = if insertion then _size + 1 else _size end
     _create(r, s)
 
   fun val remove(k: K): Map[K, V] ? =>
@@ -150,7 +150,7 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     | let l: _MapLeaf[K, V] =>
       _inc_i()
       _i = _i + 1
-      (l.key, l.value)
+      l
     | let sn: _MapNode[K, V] =>
       _push(sn)
       next()
@@ -159,7 +159,7 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         let l = cs(_ci)
         _ci = _ci + 1
         _i = _i + 1
-        (l.key, l.value)
+        l
       else
         _ci = 0
         _inc_i()
