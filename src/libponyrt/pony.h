@@ -366,6 +366,14 @@ PONY_API int pony_start(bool library, bool language_features);
  */
 PONY_API void pony_register_thread();
 
+/** Unregisters a non-scheduler thread.
+ *
+ * Clean up the runtime context allocated when registering a thread with
+ * pony_register_thread(). This should never be called from a thread owned by
+ * the Pony runtime.
+ */
+PONY_API void pony_unregister_thread();
+
 /** Signals that the pony runtime may terminate.
  *
  * This only needs to be called if pony_start() was called with library set to

@@ -27,6 +27,8 @@ void ponyint_pool_free(size_t index, void* p);
 __pony_spec_malloc__(void* ponyint_pool_alloc_size(size_t size));
 void ponyint_pool_free_size(size_t size, void* p);
 
+void ponyint_pool_thread_cleanup();
+
 size_t ponyint_pool_index(size_t size);
 
 size_t ponyint_pool_size(size_t index);
