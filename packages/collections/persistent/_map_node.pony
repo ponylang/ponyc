@@ -38,7 +38,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     let i = _array_index(_nodemap, _datamap, idx)
     if i == -1 then error end
     match _entries(i.usize_unsafe())
-    | let l: _MapLeaf[K, V] => l._2
+    | (_, let v: V) => v
     | let sn: _MapNode[K, V] => sn(hash, key)
     else
       let cn = _entries(i.usize_unsafe()) as _MapCollisions[K, V]
@@ -145,7 +145,8 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
           for si in mut.Range[U32](0, 32) do
             if _has_bit(_datamap, si) then
               es(i.usize_unsafe()) = sn._entries(si.usize_unsafe())
-              return create(consume es, _clear_bit(_nodemap, idx), _set_bit(_datamap, idx), _level)
+              return create(consume es, _clear_bit(_nodemap, idx),
+                _set_bit(_datamap, idx), _level)
             end
           end
         end
