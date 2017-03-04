@@ -326,7 +326,7 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- [Visual Studio 2015](https://www.visualstudio.com/downloads/); make sure that a Windows 10 SDK is installed; otherwise install it from [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+- [Visual Studio 2015](https://www.visualstudio.com/downloads/) at least Update 2; make sure that a Windows 10 SDK is installed; otherwise install it from [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
 - [Python](https://www.python.org/downloads) (3.5 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
