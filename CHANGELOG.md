@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix type parameters not being visible to a lambda type in a type alias (PR #1633)
 - Remove the check for union types on match error (PR #1630)
 - TCPListener: unsubscribe asio before socket close (PR #1626)
 - Fix buffer overlow in case method docstring (PR #1615)
