@@ -335,6 +335,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     {
       if(ast_id(match_type) == TK_UNIONTYPE) {
         token_id cap = ast_id(ast_childidx(ast_child(match_type), 3));
+        bool has_specific_error = false;
         for(size_t i=1; i<ast_childcount(match_type); i++) {
           if(ast_id(ast_childidx(ast_childidx(match_type, i), 3)) != cap) {
             ast_error(opt->check.errors, match_expr, 
@@ -342,7 +343,14 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
               "capabilities");
             ast_error_continue(opt->check.errors, match_type, "match type: %s",
               ast_print_type(operand_type));
+            has_specific_error = true;
           }
+        }
+
+        if(!has_specific_error) {
+          ast_error(opt->check.errors, match_type,
+            "this capture type has a mismatch in reference capabilities, "
+            "which can't be differentiated at runtime");
         }
       } else {
         ast_error(opt->check.errors, pattern,
