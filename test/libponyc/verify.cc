@@ -492,3 +492,11 @@ TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
 
   TEST_ERRORS_1(src, "call is partial but the declaration is not");
 }
+
+TEST_F(VerifyTest, LambdaTypeGenericAliased)
+{
+  const char* src =
+    "type Foo[T] is {(T): T}";
+
+  TEST_COMPILE(src);
+}
