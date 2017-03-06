@@ -50,7 +50,7 @@ primitive Format
   *align. Specify whether fill characters should be added at the beginning or
   end of the generated string, or both.
   *fill: The character to pad a string with if is is shorter than width.
-z  """
+  """
   fun apply(str: String, fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
     align: Align = AlignLeft, fill: U32 = ' '
