@@ -103,9 +103,9 @@ void pass_opt_done(pass_opt_t* options)
   errors_free(options->check.errors);
   options->check.errors = NULL;
 
-  // Pop all the typechecker frames.
-  while(options->check.frame != NULL)
-    frame_pop(&options->check);
+  // Pop the initial typechecker frame.
+  frame_pop(&options->check);
+  pony_assert(options->check.frame == NULL);
 
   if(options->print_stats)
   {
@@ -341,6 +341,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       case AST_FATAL:
         record_ast_pass(*ast, pass);
+
+        if(pop)
+          frame_pop(t);
+
         return AST_FATAL;
     }
   }
@@ -367,6 +371,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
         case AST_FATAL:
           record_ast_pass(*ast, pass);
+
+          if(pop)
+            frame_pop(t);
+
           return AST_FATAL;
       }
 
@@ -388,6 +396,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       case AST_FATAL:
         record_ast_pass(*ast, pass);
+
+        if(pop)
+          frame_pop(t);
+
         return AST_FATAL;
     }
   }
