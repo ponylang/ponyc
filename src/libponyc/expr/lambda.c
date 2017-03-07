@@ -458,6 +458,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // Add new type to current module and bring it up to date with passes.
   ast_append(module, def);
 
+#if 0
   // Turn any free variables into fields.
   if(!ast_passes_subtree(&def, opt, PASS_SCOPE))
     return false;
@@ -482,6 +483,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // TODO: failing on a reused hygienic variable when recalcing scope
   ast_clear(def);
   ast_resetpass(def);
+#endif
 
   if(!ast_passes_type(&def, opt))
     return false;
