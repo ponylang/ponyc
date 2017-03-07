@@ -21,11 +21,12 @@ actor Main
     end
 
     // Start the top server control actor.
-    HTTPServer(auth,
-        ListenHandler(env),
-        BackendMaker.create( env ),
-        logger
-        where service=service, host=host, limit=limit, reversedns=auth)
+    HTTPServer(
+      auth,
+      ListenHandler(env),
+      BackendMaker.create(env),
+      logger
+      where service=service, host=host, limit=limit, reversedns=auth)
 
 class ListenHandler
   let _env: Env
@@ -50,11 +51,11 @@ class ListenHandler
 class BackendMaker is HandlerFactory
   let _env: Env
 
-  new val create( env: Env ) =>
+  new val create(env: Env) =>
     _env = env
 
-  fun apply( session: HTTPSession tag ): HTTPHandler ref^ =>
-    BackendHandler.create( _env, session )
+  fun apply(session: HTTPSession tag): HTTPHandler^ =>
+    BackendHandler.create(_env, session)
 
 class BackendHandler is HTTPHandler
   """
@@ -64,14 +65,14 @@ class BackendHandler is HTTPHandler
   let _env: Env
   let _session: HTTPSession tag
 
-  new ref create( env': Env, session: HTTPSession tag ) =>
+  new ref create(env: Env, session: HTTPSession tag) =>
     """
     Create a context for receiving HTTP requests for a session.
     """
-    _env = env'
+    _env = env
     _session = session
 
-  fun ref apply( request: Payload val ) =>
+  fun ref apply(request: Payload val) =>
     """
     Start processing a request.
     """
@@ -89,4 +90,4 @@ class BackendHandler is HTTPHandler
       response.add_chunk(request.url.fragment)
     end
 
-    _session( consume response)
+    _session(consume response)

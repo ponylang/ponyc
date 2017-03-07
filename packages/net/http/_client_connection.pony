@@ -62,7 +62,7 @@ actor _ClientConnection is HTTPSession
     _service = service
     _sslctx = sslctx
     _pipeline = pipeline
-    _app_handler = handlermaker( this )
+    _app_handler = handlermaker(this)
 
   be apply(request: Payload val) =>
     """
@@ -112,7 +112,7 @@ actor _ClientConnection is HTTPSession
     """
     try
       let request = _sent.shift()
-      _app_handler( response )
+      _app_handler(response)
 
       // If that request has no body data coming, we can go look
       // for more requests to send.
@@ -151,22 +151,22 @@ actor _ClientConnection is HTTPSession
       _conn = None
     end
 
-  be write( data: ByteSeq val ) =>
+  be write(data: ByteSeq val) =>
     """
     Write a low-level byte stream.  The `Payload` objects call this to
     generate their wire representation.
     """
     match _conn
-    | let c: TCPConnection => c.write( data )
+    | let c: TCPConnection => c.write(data)
     end
 
-  be _chunk( data: ByteSeq val ) =>
+  be _chunk(data: ByteSeq val) =>
     """
     Called when *inbound* body data has arrived for the currently
     inbound `Payload`.  This should be passed directly to the application's
     `HTTPHandler.chunk` method.
     """
-    _app_handler.chunk( data )
+    _app_handler.chunk(data)
 
   be _finish() =>
     """
@@ -230,7 +230,7 @@ actor _ClientConnection is HTTPSession
           let request = _unsent.shift()
           let safereq = request.is_safe()
           // Send all of the request that is possible for now.
-          request._write( true, conn )
+          request._write(true, conn)
 
           // If there is a folow-on body, tell client to send it now.
           if request.has_body() then
@@ -267,14 +267,15 @@ actor _ClientConnection is HTTPSession
     _conn = try
       let ctx = _sslctx as SSLContext
       let ssl = ctx.client(_host)
-      TCPConnection(_auth,
-                    SSLConnection(_ClientConnHandler(this),
-                                  consume ssl),
-                    _host, _service)
+      TCPConnection(
+        _auth,
+        SSLConnection(_ClientConnHandler(this), consume ssl),
+        _host, _service)
     else
-      TCPConnection(_auth,
-                    _ClientConnHandler(this),
-                    _host, _service)
+      TCPConnection(
+        _auth,
+        _ClientConnHandler(this),
+        _host, _service)
     end
 
   fun ref _cancel_all() =>

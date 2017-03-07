@@ -32,7 +32,7 @@ interface HTTPSession
   in the client or in the server 'back end') this interface provides a
   common view of how information is passed *into* the `net/http` package.
   """
-  be apply( payload: Payload val)
+  be apply(payload: Payload val)
     """
     Start sending a request or response.  The `Payload` must have all its
     essential fields filled in at this point, because ownership is being
