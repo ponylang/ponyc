@@ -128,15 +128,11 @@ $ brew install ponyc
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
-
-```powershell
-Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
-7z x .\ponyc-VERSION.zip
-.\ponyc-VERSION\ponyc\bin\ponyc.exe --version
-```
+For Windows, the `master` and `release` branches are packaged and available on Bintray from this page: https://dl.bintray.com/pony-language/ponyc-win/
 
 Windows users will need to install Visual Studio 2015 (or the Visual C++ Build Tools 2015) and the Windows 10 SDK in order to build programs with ponyc. It can be downloaded from Microsoft ([Visual Studio](https://www.visualstudio.com/vs/community/), [Visual C++ Build Tools 2015](http://landinghub.visualstudio.com/visual-cpp-build-tools), [SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+
+Bintray main page for pony windows packaging: ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
 
 # Building ponyc from source
 
