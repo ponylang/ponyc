@@ -1118,7 +1118,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_append(module, def);
 
-  if(!ast_passes_type(&def, opt))
+  if(!ast_passes_type(&def, opt, opt->program_pass))
     return AST_FATAL;
 
   // Sugar the call.

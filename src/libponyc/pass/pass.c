@@ -250,7 +250,7 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool ast_passes_type(ast_t** astp, pass_opt_t* options)
+bool ast_passes_type(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 {
   ast_t* ast = *astp;
 
@@ -267,7 +267,7 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options)
   frame_push(&options->check, package);
   frame_push(&options->check, module);
 
-  bool ok = ast_passes(astp, options, options->program_pass);
+  bool ok = ast_passes(astp, options, last_pass);
 
   frame_pop(&options->check);
   frame_pop(&options->check);

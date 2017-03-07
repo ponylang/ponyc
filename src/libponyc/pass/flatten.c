@@ -328,9 +328,6 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     case TK_INTERFACE:
       return flatten_provides_list(options, ast, 3);
 
-    case TK_OBJECT:
-      return flatten_provides_list(options, ast, 0);
-
     default: {}
   }
 

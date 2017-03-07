@@ -197,7 +197,6 @@ static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
   if(refdef != NULL)
     return true;
 
-  // TODO: capture
   refdef = ast_get(ctx, name, &status);
 
   if(refdef == NULL)
@@ -230,27 +229,31 @@ static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
     return false;
 
   type = sanitise_type(type);
+
   (void)def;
-  // ast_t* p_id = ast_from_string(ast, package_hygienic_id(&opt->check));
 
-  // BUILD(field, def,
-  //   NODE(TK_FVAR,
-  //     ID(name)
-  //     TREE(type)
-  //     NONE));
+  printf("CAPTURE %s\n", name);
 
-  // BUILD(param, def,
-  //   NODE(TK_PARAM,
-  //     TREE(p_id)
-  //     TREE(type)
-  //     NONE));
+  ast_t* p_id = ast_from_string(ast, package_hygienic_id(&opt->check));
 
-  // BUILD(arg, ctx, NODE(TK_REFERENCE, ID(name)));
+  BUILD(field, def,
+    NODE(TK_FVAR,
+      ID(name)
+      TREE(type)
+      NONE));
 
-  // BUILD(assign, def,
-  //   NODE(TK_ASSIGN,
-  //     NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-  //     NODE(TK_REFERENCE, ID(name))));
+  BUILD(param, def,
+    NODE(TK_PARAM,
+      TREE(p_id)
+      TREE(type)
+      NONE));
+
+  BUILD(arg, ctx, NODE(TK_REFERENCE, ID(name)));
+
+  BUILD(assign, def,
+    NODE(TK_ASSIGN,
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
+      NODE(TK_REFERENCE, ID(name))));
 
   return true;
 }
@@ -259,18 +262,24 @@ static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
 static bool capture_free_variables(pass_opt_t* opt, ast_t* ctx, ast_t* def,
   ast_t* ast)
 {
+  // Skip preserved ASTs.
+  if(ast_checkflag(ast, AST_FLAG_PRESERVE))
+    return true;
+
   bool ok = true;
 
   if(ast_id(ast) == TK_REFERENCE)
   {
+    // Try to capture references.
     if(!capture_free_variable(opt, ctx, def, ast))
       ok = false;
-  }
-
-  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-  {
-    if(!capture_free_variables(opt, ctx, def, p))
-      ok = false;
+  } else {
+    // Proceed down through all child ASTs.
+    for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    {
+      if(!capture_free_variables(opt, ctx, def, p))
+        ok = false;
+    }
   }
 
   return ok;
@@ -283,6 +292,8 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   bool ok = true;
 
   AST_GET_CHILDREN(ast, cap, provides, members);
+  ast_clearflag(cap, AST_FLAG_PRESERVE);
+  ast_clearflag(provides, AST_FLAG_PRESERVE);
   ast_clearflag(members, AST_FLAG_PRESERVE);
 
   ast_t* annotation = ast_consumeannotation(ast);
@@ -293,6 +304,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   collect_type_params(ast, &t_params, &t_args);
 
   const char* nice_id = (const char*)ast_data(ast);
+
   if(nice_id == NULL)
     nice_id = "object literal";
 
@@ -458,9 +470,8 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // Add new type to current module and bring it up to date with passes.
   ast_append(module, def);
 
-#if 0
   // Turn any free variables into fields.
-  if(!ast_passes_subtree(&def, opt, PASS_SCOPE))
+  if(!ast_passes_type(&def, opt, PASS_SCOPE))
     return false;
 
   members = ast_childidx(def, 4);
@@ -471,21 +482,25 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
     {
       case TK_FUN:
       case TK_BE:
+      {
         if(!capture_free_variables(opt, *astp, def, p))
           ok = false;
         break;
+      }
 
       default: {}
     }
   }
 
-  // Type check the anonymous type.
-  // TODO: failing on a reused hygienic variable when recalcing scope
+  // Reset the scope and rewind the pass.
   ast_clear(def);
-  ast_resetpass(def);
-#endif
+  ast_resetpass(def, PASS_SUGAR);
 
-  if(!ast_passes_type(&def, opt))
+  // TODO: something about parameterised type aliases goes wrong
+  // nothing to do with the scope stuff above
+
+  // Type check the anonymous type.
+  if(!ast_passes_type(&def, opt, PASS_EXPR))
     return false;
 
   // Catch up passes

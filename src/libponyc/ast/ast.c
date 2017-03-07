@@ -566,16 +566,22 @@ void ast_clearflag(ast_t* ast, uint32_t flag)
   ast->flags &= ~flag;
 }
 
-void ast_resetpass(ast_t* ast)
+void ast_resetpass(ast_t* ast, uint32_t flag)
 {
+  pony_assert((flag & AST_FLAG_PASS_MASK) == flag);
+
   if(ast == NULL)
     return;
 
+  if(ast_checkflag(ast, AST_FLAG_PRESERVE))
+    return;
+
   ast_clearflag(ast, AST_FLAG_PASS_MASK);
-  ast_resetpass(ast->type);
+  ast_setflag(ast, flag);
+  ast_resetpass(ast->type, flag);
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-    ast_resetpass(p);
+    ast_resetpass(p, flag);
 }
 
 const char* ast_get_print(ast_t* ast)
@@ -910,16 +916,23 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   while(ast->symtab == NULL)
     ast = ast->parent;
 
+  ast_t* find;
+
   if(allow_shadowing)
   {
     // Only check the local scope.
-    if(symtab_find_case(ast->symtab, name, NULL) != NULL)
-      return false;
+    find = symtab_find_case(ast->symtab, name, NULL);
   } else {
     // Check the local scope and all parent scopes.
-    if(ast_get_case(ast, name, NULL) != NULL)
-      return false;
+    find = ast_get_case(ast, name, NULL);
   }
+
+  // Pretend we succeeded if the mapping in the symbol table wouldn't change.
+  if(find == value)
+    return true;
+
+  if(find != NULL)
+    return false;
 
   return symtab_add(ast->symtab, name, value, status);
 }
