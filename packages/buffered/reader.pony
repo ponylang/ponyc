@@ -79,12 +79,20 @@ class Reader
     _chunks.clear()
     _available = 0
 
-  fun ref append(data: Array[U8] val) =>
+  fun ref append(data: ByteSeq) =>
     """
     Add a chunk of data.
     """
-    _available = _available + data.size()
-    _chunks.push((data, 0))
+    let data_array: Array[U8] val =
+      match data
+      | let data': Array[U8] val => data'
+      | let data': String        => data'.array()
+      else // unreachable
+        recover val Array[U8] end
+      end
+
+    _available = _available + data_array.size()
+    _chunks.push((data_array, 0))
 
   fun ref skip(n: USize) ? =>
     """
