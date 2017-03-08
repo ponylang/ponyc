@@ -31,5 +31,5 @@ actor Main
       env.out.print(reader.u32_be().string()) // prints 42
       env.out.print(reader.f32_be().string()) // prints 3.14
     end
-``
+```
 """
