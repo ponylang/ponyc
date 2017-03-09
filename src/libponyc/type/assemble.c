@@ -264,11 +264,10 @@ ast_t* type_isect(pass_opt_t* opt, ast_t* l_type, ast_t* r_type)
   return type_typeexpr(opt, TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
-  token_id ephemeral, bool defs)
+ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
+  token_id cap, token_id ephemeral, bool expr)
 {
-  typecheck_t* t = &opt->check;
-  AST_GET_CHILDREN(t->frame->type, id, typeparams);
+  AST_GET_CHILDREN(def, id, typeparams);
 
   BUILD(typeargs, ast, NODE(TK_NONE));
 
@@ -291,7 +290,7 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
       ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
-      if(defs)
+      if(expr)
       {
         names_nominal(opt, ast, &typearg, false);
 
@@ -303,10 +302,17 @@ ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
     }
   }
 
-  if(defs)
+  if(expr)
     names_nominal(opt, ast, &type, false);
 
   return type;
+}
+
+ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
+  token_id ephemeral)
+{
+  typecheck_t* t = &opt->check;
+  return type_for_class(opt, t->frame->type, ast, cap, ephemeral, false);
 }
 
 ast_t* type_for_fun(ast_t* ast)

@@ -363,7 +363,7 @@ static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
       ast_setid(cap, tcap);
     }
 
-    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL, false));
+    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL));
   }
 
   sugar_docstring(ast);

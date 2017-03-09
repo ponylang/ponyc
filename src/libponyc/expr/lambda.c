@@ -7,6 +7,7 @@
 #include "../pass/expr.h"
 #include "../pass/syntax.h"
 #include "../type/alias.h"
+#include "../type/assemble.h"
 #include "../type/sanitise.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
@@ -186,8 +187,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 }
 
 
-static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
-  ast_t* ast)
+static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
+  ast_t* captures, ast_t** last_capture)
 {
   const char* name = ast_name(ast_child(ast));
 
@@ -219,7 +220,14 @@ static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
     return false;
   }
 
-  // TODO: check if we've already captured it
+  // Check if we've already captured it
+  for(ast_t* p = ast_child(captures); p != NULL; p = ast_sibling(p))
+  {
+    AST_GET_CHILDREN(p, c_name, c_type);
+
+    if(name == ast_name(c_name))
+      return true;
+  }
 
   // TODO: add as a field, add as a constructor parameter, init field from
   // parameter in constructor, add at the call site
@@ -230,37 +238,19 @@ static bool capture_free_variable(pass_opt_t* opt, ast_t* ctx, ast_t* def,
 
   type = sanitise_type(type);
 
-  (void)def;
-
-  printf("CAPTURE %s\n", name);
-
-  ast_t* p_id = ast_from_string(ast, package_hygienic_id(&opt->check));
-
-  BUILD(field, def,
+  BUILD(field, ast,
     NODE(TK_FVAR,
       ID(name)
       TREE(type)
-      NONE));
-
-  BUILD(param, def,
-    NODE(TK_PARAM,
-      TREE(p_id)
-      TREE(type)
-      NONE));
-
-  BUILD(arg, ctx, NODE(TK_REFERENCE, ID(name)));
-
-  BUILD(assign, def,
-    NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
       NODE(TK_REFERENCE, ID(name))));
 
+  ast_list_append(captures, last_capture, field);
   return true;
 }
 
 
-static bool capture_free_variables(pass_opt_t* opt, ast_t* ctx, ast_t* def,
-  ast_t* ast)
+static bool capture_from_expr(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
+  ast_t* capture, ast_t** last_capture)
 {
   // Skip preserved ASTs.
   if(ast_checkflag(ast, AST_FLAG_PRESERVE))
@@ -271,18 +261,87 @@ static bool capture_free_variables(pass_opt_t* opt, ast_t* ctx, ast_t* def,
   if(ast_id(ast) == TK_REFERENCE)
   {
     // Try to capture references.
-    if(!capture_free_variable(opt, ctx, def, ast))
+    if(!capture_from_reference(opt, ctx, ast, capture, last_capture))
       ok = false;
   } else {
     // Proceed down through all child ASTs.
     for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
     {
-      if(!capture_free_variables(opt, ctx, def, p))
+      if(!capture_from_expr(opt, ctx, p, capture, last_capture))
         ok = false;
     }
   }
 
   return ok;
+}
+
+
+static bool capture_from_type(pass_opt_t* opt, ast_t* ctx, ast_t** def,
+  ast_t* capture, ast_t** last_capture)
+{
+  // Turn any free variables into fields.
+  if(!ast_passes_type(def, opt, PASS_SCOPE))
+    return false;
+
+  bool ok = true;
+  ast_t* members = ast_childidx(*def, 4);
+
+  for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
+  {
+    switch(ast_id(p))
+    {
+      case TK_FUN:
+      case TK_BE:
+      {
+        ast_t* body = ast_childidx(p, 6);
+
+        if(!capture_from_expr(opt, ctx, body, capture, last_capture))
+          ok = false;
+        break;
+      }
+
+      default: {}
+    }
+  }
+
+  // Reset the scope.
+  ast_clear(*def);
+  return ok;
+}
+
+
+static void add_field_to_object(pass_opt_t* opt, ast_t* field,
+  ast_t* class_members, ast_t* create_params, ast_t* create_body,
+  ast_t* call_args)
+{
+  AST_GET_CHILDREN(field, id, type, init);
+  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check));
+
+  // The param is: $0: type
+  BUILD(param, field,
+    NODE(TK_PARAM,
+      TREE(p_id)
+      TREE(type)
+      NONE));
+
+  // The arg is: $seq init
+  BUILD(arg, init,
+    NODE(TK_SEQ,
+      TREE(init)));
+
+  // The body of create contains: id = consume $0
+  BUILD(assign, init,
+    NODE(TK_ASSIGN,
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
+      NODE(TK_REFERENCE, TREE(id))));
+
+  // Remove the initialiser from the field
+  ast_replace(&init, ast_from(init, TK_NONE));
+
+  ast_add(class_members, field);
+  ast_append(create_params, param);
+  ast_append(create_body, assign);
+  ast_append(call_args, arg);
 }
 
 
@@ -326,10 +385,11 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NONE
       ID("create")
       NONE
+      NODE(TK_PARAMS)
       NONE
       NONE
-      NONE
-      NODE(TK_SEQ)
+      NODE(TK_SEQ,
+        NODE(TK_TRUE))
       NONE
       NONE));
 
@@ -347,7 +407,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
-      NONE
+      NODE(TK_POSITIONALARGS)
       NONE
       NODE(TK_DOT,
         TREE(type_ref)
@@ -370,41 +430,8 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       case TK_FLET:
       case TK_EMBED:
       {
-        AST_GET_CHILDREN(member, id, type, init);
-        ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check));
-
-        // The field is: var/let/embed id: type
-        BUILD(field, member,
-          NODE(ast_id(member),
-            TREE(id)
-            TREE(type)
-            NONE));
-
-        // The param is: $0: type
-        BUILD(param, member,
-          NODE(TK_PARAM,
-            TREE(p_id)
-            TREE(type)
-            NONE));
-
-        // The arg is: $seq init
-        BUILD(arg, init,
-          NODE(TK_SEQ,
-            TREE(init)));
-
-        // The body of create contains: id = consume $0
-        BUILD(assign, init,
-          NODE(TK_ASSIGN,
-            NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-            NODE(TK_REFERENCE, TREE(id))));
-
-        ast_setid(create_params, TK_PARAMS);
-        ast_setid(call_args, TK_POSITIONALARGS);
-
-        ast_append(class_members, field);
-        ast_append(create_params, param);
-        ast_append(create_body, assign);
-        ast_append(call_args, arg);
+        add_field_to_object(opt, member, class_members, create_params,
+          create_body, call_args);
 
         has_fields = true;
         break;
@@ -425,12 +452,29 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
     member = ast_sibling(member);
   }
 
-  if(!has_fields)
+  // Add the create function at the end.
+  ast_append(class_members, create);
+
+  // Add new type to current module and bring it up to date with passes.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  // Turn any free variables into fields.
+  ast_t* captures = ast_from(ast, TK_MEMBERS);
+  ast_t* last_capture = NULL;
+
+  if(!capture_from_type(opt, *astp, &def, captures, &last_capture))
+    ok = false;
+
+  for(ast_t* p = ast_child(captures); p != NULL; p = ast_sibling(p))
   {
-    // End the constructor with 'true', since it has no parameters.
-    BUILD(true_node, ast, NODE(TK_TRUE));
-    ast_append(create_body, true_node);
+    add_field_to_object(opt, p, class_members, create_params, create_body,
+      call_args);
+    has_fields = true;
   }
+
+  ast_free_unattached(captures);
+  ast_resetpass(def, PASS_SUGAR);
 
   // Handle capability and whether the anonymous type is a class, primitive or
   // actor.
@@ -447,63 +491,30 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
         "actors and so must have tag capability");
       ok = false;
     }
+
+    cap_id = TK_TAG;
   }
   else if(!has_fields && (cap_id == TK_NONE || cap_id == TK_TAG ||
     cap_id == TK_BOX || cap_id == TK_VAL))
   {
     // Change the type from a class to a primitive.
     ast_setid(def, TK_PRIMITIVE);
-  }
-  else
-  {
-    // Type is a class, set the create capability as specified
-    ast_setid(ast_child(create), cap_id);
+    cap_id = TK_VAL;
   }
 
-  // Add the create function at the end.
-  ast_append(class_members, create);
-
-  // Replace object..end with $0.create(...)
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_replace(astp, call);
-
-  // Add new type to current module and bring it up to date with passes.
-  ast_append(module, def);
-
-  // Turn any free variables into fields.
-  if(!ast_passes_type(&def, opt, PASS_SCOPE))
-    return false;
-
-  members = ast_childidx(def, 4);
-
-  for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
-  {
-    switch(ast_id(p))
-    {
-      case TK_FUN:
-      case TK_BE:
-      {
-        if(!capture_free_variables(opt, *astp, def, p))
-          ok = false;
-        break;
-      }
-
-      default: {}
-    }
-  }
-
-  // Reset the scope and rewind the pass.
-  ast_clear(def);
-  ast_resetpass(def, PASS_SUGAR);
-
-  // TODO: something about parameterised type aliases goes wrong
-  // nothing to do with the scope stuff above
+  // Reset constructor to pick up the correct defaults.
+  ast_setid(ast_child(create), cap_id);
+  ast_t* result = ast_childidx(create, 4);
+  ast_replace(&result,
+    type_for_class(opt, def, result, cap_id, TK_EPHEMERAL, false));
 
   // Type check the anonymous type.
   if(!ast_passes_type(&def, opt, PASS_EXPR))
     return false;
 
-  // Catch up passes
+  // Replace object..end with $0.create(...)
+  ast_replace(astp, call);
+
   if(ast_visit(astp, pass_syntax, NULL, opt, PASS_SYNTAX) != AST_OK)
     return false;
 
