@@ -18,7 +18,7 @@ void* ponyint_virt_alloc(size_t bytes)
   void* p;
 
 #if defined(PLATFORM_IS_WINDOWS)
-  p = VirtualAlloc(NULL, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  p = VirtualAlloc(NULL, bytes, MEM_RESERVE, PAGE_READWRITE);
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #if defined(PLATFORM_IS_LINUX)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
