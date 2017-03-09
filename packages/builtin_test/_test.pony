@@ -64,6 +64,7 @@ actor Main is TestList
     test(_TestNextPow2)
     test(_TestNumberConversionSaturation)
     test(_TestMaybePointer)
+    test(_TestLambdaCapture)
     test(_TestValtrace)
 
 
@@ -1544,3 +1545,15 @@ class iso _TestMaybePointer is UnitTest
 
     let from_b = b()
     h.assert_eq[U32](s.i, from_b.i)
+
+
+class iso _TestLambdaCapture is UnitTest
+  """
+  Test free variable capture in lambdas.
+  """
+  fun name(): String => "builtin/LambdaCapture"
+
+  fun apply(h: TestHelper) =>
+    let x = "hi"
+    let f = {(y: String): String => x + y}
+    h.assert_eq[String]("hi there", f(" there"))
