@@ -9,7 +9,7 @@
 #define REG_SDK_INSTALL_PATH \
   TEXT("SOFTWARE\\WOW6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
 #define REG_VS_INSTALL_PATH \
-  TEXT("SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\")
+  TEXT("SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
 
 #define MAX_VER_LEN 20
 
@@ -97,12 +97,58 @@ static bool find_registry_key(char* path, query_callback_fn query,
   return success;
 }
 
-static void pick_vc_tools(HKEY key, char* name, search_t* p)
+static bool find_registry_value(char *path, char *name, search_t* p)
 {
-  DWORD size = MAX_PATH;
+  bool success = false;
+  HKEY key;
 
-  RegGetValue(key, NULL, "ProductDir", RRF_RT_REG_SZ,
-    NULL, p->path, &size);
+  // Try global installations then user-only.
+  if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, path, 0,
+      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) == ERROR_SUCCESS ||
+    RegOpenKeyEx(HKEY_CURRENT_USER, path, 0,
+      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) == ERROR_SUCCESS)
+  {
+    DWORD size = MAX_PATH;
+    success = RegGetValue(key, NULL, name, RRF_RT_REG_SZ, 
+      NULL, p->path, &size) == ERROR_SUCCESS;
+  }
+
+  RegCloseKey(key);
+  return success;  
+}
+
+static uint64_t get_version(const char* str)
+{
+  char tokens[MAX_VER_LEN + 1];
+  strncpy(tokens, str, MAX_VER_LEN);
+  uint64_t version = 0;
+  char *token = tokens;
+
+  while (*token != NULL && !isdigit(*token))
+    token++;
+  
+  if (*token != NULL)
+  {
+    char *dot;
+    int place = 3;
+    while (place >= 0)
+    {
+      if ((dot = strchr(token, '.')) != NULL)
+        *dot = '\0';
+      uint64_t num = atol(token);
+      if (num > 0xffff) num = 0xffff;
+      version += (num << (place * 16));
+
+      place--;
+
+      if (dot != NULL)
+        token = dot + 1;
+      else
+        break;
+    }
+  }
+
+  return version;
 }
 
 static void pick_newest_sdk(HKEY key, char* name, search_t* p)
@@ -115,39 +161,13 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
   DWORD version_len = MAX_VER_LEN;
   char new_path[MAX_PATH];
   char new_version[MAX_VER_LEN];
-  char version_tokens[MAX_VER_LEN];
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ, NULL,
       new_path, &path_len) == ERROR_SUCCESS &&
     RegGetValue(key, NULL, "ProductVersion", RRF_RT_REG_SZ, NULL, new_version,
       &version_len) == ERROR_SUCCESS)
   {
-    strcpy(version_tokens, new_version);
-    uint64_t new_ver = 0;
-
-    char *token = version_tokens;
-    while (*token != NULL && !isdigit(*token))
-      token++;
-    if (*token != NULL)
-    {
-      char *dot;
-      int place = 3;
-      while (place >= 0)
-      {
-        if ((dot = strchr(token, '.')) != NULL)
-          *dot = '\0';
-        uint64_t num = atol(token);
-        if (num > 0xffff) num = 0xffff;
-        new_ver += (num << (place * 16));
-
-        place--;
-
-        if (dot != NULL)
-          token = dot + 1;
-        else
-          break;
-      }
-    }
+    uint64_t new_ver = get_version(new_version);
 
     if((strlen(p->version) == 0) || (new_ver > p->latest_ver))
     {
@@ -217,21 +237,61 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   return true;
 }
 
-static bool find_executable(const char* path, const char* name, char* dest,
-  errors_t* errors)
+static bool find_executable(const char* path, const char* name, 
+  char* dest, bool recurse, errors_t* errors)
 {
-  TCHAR exe[MAX_PATH + 1];
-  strcpy(exe, path);
-  strcat(exe, name);
+  TCHAR full_path[MAX_PATH + 1]; 
+  TCHAR best_path[MAX_PATH + 1];
+  strcpy(full_path, path);
+  strcat(full_path, name);
 
-  if((GetFileAttributes(exe) == INVALID_FILE_ATTRIBUTES))
+  if((GetFileAttributes(full_path) != INVALID_FILE_ATTRIBUTES))
   {
-    errorf(errors, NULL, "unable to locate %s", name);
-    return false;
+    strcpy(dest, full_path);
+    return true;
   }
 
-  strcpy(dest, exe);
-  return true;
+  if (recurse)
+  {
+    PONY_ERRNO err;
+    PONY_DIR* dir = pony_opendir(path, &err);
+    if (dir != NULL)
+    {
+      uint64_t best_version = 0;
+
+      // look for directories with versions
+      PONY_DIRINFO* result;
+      while ((result = pony_dir_entry_next(dir)) != NULL)
+      {
+        char *entry = pony_dir_info_name(result);
+        if (entry == NULL || entry[0] == NULL || entry[0] == '.')
+          continue;
+
+        strcpy(full_path, path);
+        strcat(full_path, entry);
+        if ((GetFileAttributes(full_path) != FILE_ATTRIBUTE_DIRECTORY))
+          continue;
+        
+        uint64_t ver = get_version(entry);
+        if (ver == 0)
+          continue;
+        
+        if (ver > best_version)
+        {
+          best_version = ver;
+          strcpy(best_path, full_path);
+          strcat(best_path, "\\");
+        }
+      }
+
+      pony_closedir(dir);
+
+      if (best_version > 0)
+        return find_executable(best_path, name, dest, true, errors);
+    }
+  }
+
+  return false;
 }
 
 static bool find_msvcrt_and_linker(vcvars_t* vcvars, errors_t* errors)
@@ -243,21 +303,39 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars, errors_t* errors)
     PLATFORM_TOOLS_VERSION % 10);
 
   TCHAR reg_vs_install_path[MAX_PATH+1];
-  snprintf(reg_vs_install_path, MAX_PATH, "%s%s\\Setup\\VC", REG_VS_INSTALL_PATH, vs.version);
+  snprintf(reg_vs_install_path, MAX_PATH, "%s", REG_VS_INSTALL_PATH);
 
-  if(!find_registry_key(reg_vs_install_path, pick_vc_tools, false, &vs))
+  if(!find_registry_value(reg_vs_install_path, vs.version, &vs))
   {
     errorf(errors, NULL, "unable to locate Visual Studio %s", vs.version);
     return false;
   }
 
-  strcpy(vcvars->msvcrt, vs.path);
-  strcat(vcvars->msvcrt, "lib\\amd64");
+  // Find the linker and lib archiver relative to vs.path (for VS2015 and earlier)
+  if (find_executable(vs.path, "VC\\bin\\amd64\\link.exe", vcvars->link, false, errors) &&
+      find_executable(vs.path, "VC\\bin\\amd64\\lib.exe", vcvars->ar, false, errors))
+  {
+    strcpy(vcvars->msvcrt, vs.path);
+    strcat(vcvars->msvcrt, "VC\\lib\\amd64");
+    return true;
+  }
 
-  // Find the linker and lib archiver relative to vs.path.
-  return
-    find_executable(vs.path, "bin\\link.exe", vcvars->link, errors) &&
-    find_executable(vs.path, "bin\\lib.exe", vcvars->ar, errors);
+  // Find the linker and lib archiver for VS2017
+  strcat(vs.path, "VC\\Tools\\MSVC\\");
+  if (find_executable(vs.path, "bin\\HostX64\\x64\\link.exe", vcvars->link, true, errors))
+  {
+    strcpy(vs.path, vcvars->link);
+    vs.path[strlen(vcvars->link)-24] = 0;
+    if (find_executable(vs.path, "bin\\HostX64\\x64\\lib.exe", vcvars->ar, false, errors))
+    {
+      strcpy(vcvars->msvcrt, vs.path);
+      strcat(vcvars->msvcrt, "lib\\x64");
+      return true;
+    }
+  }
+
+  errorf(errors, NULL, "unable to locate Visual Studio %s link.exe", vs.version);
+  return false;
 }
 
 bool vcvars_get(vcvars_t* vcvars, errors_t* errors)
