@@ -229,8 +229,6 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
       return true;
   }
 
-  // TODO: add as a field, add as a constructor parameter, init field from
-  // parameter in constructor, add at the call site
   ast_t* type = alias(ast_type(refdef));
 
   if(is_typecheck_error(type))
