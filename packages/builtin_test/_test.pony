@@ -1225,7 +1225,7 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](1, a.find(1))
     h.assert_eq[USize](5, a.find(1 where offset = 3))
     h.assert_eq[USize](5, a.find(1 where nth = 1))
-    h.assert_error({()(a)? => a.find(6) })
+    h.assert_error({()? => a.find(6) })
     h.assert_eq[USize](2, a.find(1 where
       predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](0, a.find(0 where
@@ -1240,14 +1240,14 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](5, a.rfind(1))
     h.assert_eq[USize](1, a.rfind(1 where offset = 3))
     h.assert_eq[USize](1, a.rfind(1 where nth = 1))
-    h.assert_error({()(a)? => a.rfind(6) })
+    h.assert_error({()? => a.rfind(6) })
     h.assert_eq[USize](4, a.rfind(1 where
       predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](3, a.rfind(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }))
     h.assert_eq[USize](0, a.rfind(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 1))
-    h.assert_error({()(a)? =>
+    h.assert_error({()? =>
       a.rfind(0 where
         predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
     })
@@ -1255,7 +1255,7 @@ class iso _TestArrayFind is UnitTest
     var b = Array[_FindTestCls]
     let c = _FindTestCls
     b.push(c)
-    h.assert_error({()(b)? => b.find(_FindTestCls) })
+    h.assert_error({()? => b.find(_FindTestCls) })
     h.assert_eq[USize](0, b.find(c))
     h.assert_eq[USize](0, b.find(_FindTestCls where
       predicate = {(l: _FindTestCls box, r: _FindTestCls box): Bool => l == r }
@@ -1535,7 +1535,7 @@ class iso _TestMaybePointer is UnitTest
     let a = MaybePointer[_TestStruct].none()
     h.assert_true(a.is_none())
 
-    h.assert_error({()(a)? => let from_a = a() })
+    h.assert_error({()? => let from_a = a() })
 
     let s = _TestStruct
     s.i = 7
