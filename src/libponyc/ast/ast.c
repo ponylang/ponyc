@@ -34,13 +34,35 @@
  *   ast_parent()
  */
 
+/* Every AST node has an annotation_type field, which points to the annotation
+ * node when there is one (when the AST_ANNOTATED flag is set). If there is a
+ * type node attached, it is in the annotation_type field of the annotation,
+ * when there is one. If there is no annotation (when AST_ANNOTATED is not set),
+ * the type will be stored in the annotation_type field.
+ *
+ * This works because an annotation cannot have an annotation attached.
+ *
+ * AST_ANNOTATED  annotation_type  annotation_type->annotation_type
+ * true           annotation       type (if any)
+ * false          type (if any)    NULL
+ *
+ * The annotation_type field and AST_ANNOTATED flag should always be considered
+ * as a unit. It is STRONGLY recommended to only access them through the
+ * provided functions:
+ *   ast_type()
+ *   settype()
+ *   ast_annotation()
+ *   setannotation()
+ */
+
 // The private bits of the flags values
 enum
 {
   AST_ORPHAN = 0x10,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0x7FFFF
+  AST_ANNOTATED = 0x80000,
+  AST_ALL_FLAGS = 0xFFFFF
 };
 
 
@@ -52,8 +74,7 @@ struct ast_t
   struct ast_t* parent;
   struct ast_t* child;
   struct ast_t* sibling;
-  struct ast_t* type;
-  struct ast_t* annotation;
+  struct ast_t* annotation_type;
   uint32_t flags;
 };
 
@@ -107,8 +128,8 @@ static size_t length(ast_t* ast, size_t indent, enum print_special kind)
   size_t len = (indent * in_len) + strlen(token_print(ast->t));
   ast_t* child = ast->child;
 
-  if((kind != NOT_SPECIAL) || (child != NULL) || (ast->type != NULL) ||
-    (ast->annotation) != NULL)
+  if((kind != NOT_SPECIAL) || (child != NULL) || (ast_type(ast) != NULL) ||
+    (ast_annotation(ast) != NULL))
     len += 2;
 
   switch(token_get_id(ast->t))
@@ -127,11 +148,11 @@ static size_t length(ast_t* ast, size_t indent, enum print_special kind)
     child = child->sibling;
   }
 
-  if(ast->type != NULL)
-    len += 1 + length(ast->type, 0, SPECIAL_TYPE);
+  if(ast_type(ast) != NULL)
+    len += 1 + length(ast_type(ast), 0, SPECIAL_TYPE);
 
-  if(ast->annotation != NULL)
-    len += 1 + length(ast->annotation, 0, SPECIAL_ANNOTATION);
+  if(ast_annotation(ast) != NULL)
+    len += 1 + length(ast_annotation(ast), 0, SPECIAL_ANNOTATION);
 
   return len;
 }
@@ -144,7 +165,7 @@ static void print_compact(FILE* fp, ast_t* ast, size_t indent,
 
   ast_t* child = ast->child;
   bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
-    (ast->type != NULL) || (ast->annotation != NULL);
+    (ast_type(ast) != NULL) || (ast_annotation(ast) != NULL);
 
   if(parens)
     fputc(special_char[kind * 2], fp);
@@ -154,10 +175,10 @@ static void print_compact(FILE* fp, ast_t* ast, size_t indent,
   if(ast->symtab != NULL)
     fprintf(fp, ":scope");
 
-  if(ast->annotation != NULL)
+  if(ast_annotation(ast) != NULL)
   {
     fprintf(fp, " ");
-    print_compact(fp, ast->annotation, 0, SPECIAL_ANNOTATION);
+    print_compact(fp, ast_annotation(ast), 0, SPECIAL_ANNOTATION);
   }
 
   while(child != NULL)
@@ -167,10 +188,10 @@ static void print_compact(FILE* fp, ast_t* ast, size_t indent,
     child = child->sibling;
   }
 
-  if(ast->type != NULL)
+  if(ast_type(ast) != NULL)
   {
     fprintf(fp, " ");
-    print_compact(fp, ast->type, 0, SPECIAL_TYPE);
+    print_compact(fp, ast_type(ast), 0, SPECIAL_TYPE);
   }
 
   if(parens)
@@ -185,7 +206,7 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent,
 
   ast_t* child = ast->child;
   bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
-    (ast->type != NULL) || (ast->annotation != NULL);
+    (ast_type(ast) != NULL) || (ast_annotation(ast) != NULL);
 
   if(parens)
     fputc(special_char[kind * 2], fp);
@@ -197,8 +218,8 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent,
 
   fprintf(fp, "\n");
 
-  if(ast->annotation != NULL)
-    print(fp, ast->annotation, indent + 1, SPECIAL_ANNOTATION);
+  if(ast_annotation(ast) != NULL)
+    print(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION);
 
   while(child != NULL)
   {
@@ -206,8 +227,8 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent,
     child = child->sibling;
   }
 
-  if(ast->type != NULL)
-    print(fp, ast->type, indent + 1, SPECIAL_TYPE);
+  if(ast_type(ast) != NULL)
+    print(fp, ast_type(ast), indent + 1, SPECIAL_TYPE);
 
   if(parens)
   {
@@ -226,7 +247,7 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
 
   ast_t* child = ast->child;
   bool parens = (kind != NOT_SPECIAL) || (child != NULL) ||
-    (ast->type != NULL) || (ast->annotation != NULL);
+    (ast_type(ast) != NULL) || (ast_annotation(ast) != NULL);
 
   if(parens)
     fputc(special_char[kind * 2], fp);
@@ -252,8 +273,8 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
 
   fprintf(fp, "\n");
 
-  if(ast->annotation != NULL)
-    print_verbose(fp, ast->annotation, indent + 1, SPECIAL_ANNOTATION);
+  if(ast_annotation(ast) != NULL)
+    print_verbose(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION);
 
   while(child != NULL)
   {
@@ -261,8 +282,8 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
     child = child->sibling;
   }
 
-  if(ast->type != NULL)
-    print_verbose(fp, ast->type, indent + 1, SPECIAL_TYPE);
+  if(ast_type(ast) != NULL)
+    print_verbose(fp, ast_type(ast), indent + 1, SPECIAL_TYPE);
 
   if(parens)
   {
@@ -326,6 +347,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
   n->flags = ast->flags & AST_ALL_FLAGS;
+  ast_clearflag(n, AST_ANNOTATED);
   // We don't actually want to copy the orphan flag, but the following if
   // always explicitly sets or clears it.
 
@@ -335,8 +357,9 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
     set_scope_and_parent(n, parent);
 
   n->child = duplicate(n, ast->child);
-  n->type = duplicate(n, ast->type);
-  n->annotation = duplicate(n, ast->annotation);
+
+  ast_setannotation(n, duplicate(NULL, ast_annotation(ast)));
+  ast_settype(n, duplicate(NULL, ast_type(ast)));
 
   if(ast->symtab != NULL)
     n->symtab = symtab_dup(ast->symtab);
@@ -572,7 +595,7 @@ void ast_resetpass(ast_t* ast)
     return;
 
   ast_clearflag(ast, AST_FLAG_PASS_MASK);
-  ast_resetpass(ast->type);
+  ast_resetpass(ast_type(ast));
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
     ast_resetpass(p);
@@ -630,17 +653,27 @@ lexint_t* ast_int(ast_t* ast)
 ast_t* ast_type(ast_t* ast)
 {
   pony_assert(ast != NULL);
-  return ast->type;
+
+  // If the node is AST_ANNOTATED, the type node is in the annotation_type field
+  // of the annotation node (ast->annotation_type->annotation_type).
+  if(ast_checkflag(ast, AST_ANNOTATED))
+  {
+    pony_assert(ast->annotation_type);
+    return ast->annotation_type->annotation_type;
+  }
+
+  // Otherwise (when there is no annotation), the type node is in the
+  // annotation_type field of the main node (ast->annotation_type).
+  return ast->annotation_type;
 }
 
-void ast_settype(ast_t* ast, ast_t* type)
+static void settype(ast_t* ast, ast_t* type, bool allow_free)
 {
   pony_assert(ast != NULL);
 
-  if(ast->type == type)
+  ast_t* prev_type = ast_type(ast);
+  if(prev_type == type)
     return;
-
-  ast_free(ast->type);
 
   if(type != NULL)
   {
@@ -650,44 +683,100 @@ void ast_settype(ast_t* ast, ast_t* type)
     set_scope_and_parent(type, ast);
   }
 
-  ast->type = type;
+  if(ast_checkflag(ast, AST_ANNOTATED))
+  {
+    pony_assert(ast->annotation_type);
+    ast->annotation_type->annotation_type = type;
+  } else {
+    ast->annotation_type = type;
+  }
+
+  if(allow_free)
+    ast_free(prev_type);
+}
+
+void ast_settype(ast_t* ast, ast_t* type)
+{
+  settype(ast, type, true);
 }
 
 ast_t* ast_annotation(ast_t* ast)
 {
   pony_assert(ast != NULL);
-  return ast->annotation;
+
+  // If the node is AST_ANNOTATED, the annotation node is in the annotation_type
+  // field of the main node (ast->annotation_type).
+  // If the main node has a type, it will be in the annotation_type field of the
+  // annotation node (ast->annotation_type->annotation->type)
+  if(ast_checkflag(ast, AST_ANNOTATED))
+  {
+    pony_assert(ast->annotation_type != NULL);
+    ast_t* annotation = ast->annotation_type;
+
+    // An annotation is not assigned a parent, and will never be annotated.
+    pony_assert(!hasparent(annotation) && !ast_annotation(annotation));
+    return annotation;
+  }
+
+  // If the AST_ANNOTATED flag is not set, this node has no annotation.
+  // If a node exists in the annotation_type field, it must be the type.
+  return NULL;
+}
+
+void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
+{
+  pony_assert(ast != NULL);
+
+  ast_t* prev_annotation = ast_annotation(ast);
+  if(prev_annotation == annotation)
+    return;
+
+  if(annotation != NULL)
+  {
+    pony_assert(!hasparent(annotation) &&
+      (annotation->annotation_type == NULL));
+
+    if(prev_annotation != NULL)
+    {
+      annotation->annotation_type = prev_annotation->annotation_type;
+      prev_annotation->annotation_type = NULL;
+    } else {
+      annotation->annotation_type = ast->annotation_type;
+    }
+
+    ast->annotation_type = annotation;
+    ast_setflag(ast, AST_ANNOTATED);
+  } else {
+    pony_assert(prev_annotation != NULL);
+
+    ast->annotation_type = prev_annotation->annotation_type;
+    prev_annotation->annotation_type = NULL;
+    ast_clearflag(ast, AST_ANNOTATED);
+  }
+
+  if(allow_free)
+    ast_free(prev_annotation);
 }
 
 void ast_setannotation(ast_t* ast, ast_t* annotation)
 {
-  pony_assert(ast != NULL);
-
-  if(ast->annotation == annotation)
-    return;
-
-  ast_free(ast->annotation);
-
-  pony_assert((annotation == NULL) || !hasparent(annotation));
-
-  ast->annotation = annotation;
+  setannotation(ast, annotation, true);
 }
 
 ast_t* ast_consumeannotation(ast_t* ast)
 {
-  pony_assert(ast != NULL);
+  ast_t* prev_annotation = ast_annotation(ast);
 
-  ast_t* annotation = ast->annotation;
-  ast->annotation = NULL;
+  setannotation(ast, NULL, false);
 
-  return annotation;
+  return prev_annotation;
 }
 
 bool ast_has_annotation(ast_t* ast, const char* name)
 {
   pony_assert(ast != NULL);
 
-  ast_t* annotation = ast->annotation;
+  ast_t* annotation = ast_annotation(ast);
 
   if((annotation != NULL) && (ast_id(annotation) == TK_BACKSLASH))
   {
@@ -1208,11 +1297,9 @@ void ast_swap(ast_t* prev, ast_t* next)
   if(hasparent(next))
     next = ast_dup(next);
 
-  set_scope_and_parent(next, parent);
-
-  if(parent->type == prev)
+  if(ast_type(parent) == prev)
   {
-    parent->type = next;
+    settype(parent, next, false);
   } else {
     ast_t* last = ast_previous(prev);
 
@@ -1223,6 +1310,8 @@ void ast_swap(ast_t* prev, ast_t* next)
 
     next->sibling = prev->sibling;
   }
+
+  set_scope_and_parent(next, parent);
 
   prev->sibling = NULL;
   make_orphan_leave_scope(prev);
@@ -1281,8 +1370,8 @@ void ast_free(ast_t* ast)
     child = next;
   }
 
-  ast_free(ast->type);
-  ast_free(ast->annotation);
+  ast_settype(ast, NULL);
+  ast_setannotation(ast, NULL);
 
   switch(token_get_id(ast->t))
   {
