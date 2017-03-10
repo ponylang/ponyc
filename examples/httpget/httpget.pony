@@ -176,7 +176,7 @@ class NotifyFactory is HandlerFactory
   new iso create(main': _GetWork) =>
     _main = main'
 
-  fun apply(session: HTTPSession tag): HTTPHandler ref^ =>
+  fun apply(session: HTTPSession): HTTPHandler ref^ =>
     HttpNotify.create(_main, session)
 
 class HttpNotify is HTTPHandler
@@ -185,9 +185,9 @@ class HttpNotify is HTTPHandler
   called within the context of the HTTPSession actor.
   """
   let _main: _GetWork
-  let _session: HTTPSession tag
+  let _session: HTTPSession
 
-  new ref create(main': _GetWork, session: HTTPSession tag) =>
+  new ref create(main': _GetWork, session: HTTPSession) =>
     _main = main'
     _session = session
 

@@ -23,7 +23,7 @@ If you are writing a server, you will need to deal with the
 
 """
 
-interface HTTPSession
+interface tag HTTPSession
   """
   An HTTP Session is the external API to the communication link
   between client and server.  A session can only transfer one message
@@ -100,7 +100,7 @@ interface HandlerFactory
   an instance of its own `HTTPHandler`.  This happens on both
   client and server ends.
   """
-  fun apply(session: HTTPSession tag): HTTPHandler ref^
+  fun apply(session: HTTPSession): HTTPHandler ref^
     """
     Called by the `HTTPSession` when it needs a new instance of the
     application's `HTTPHandler`.  It is suggested that the

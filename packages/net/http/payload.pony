@@ -76,7 +76,7 @@ simplified method can be used instead:
   var url: URL
   var _body_length: USize = 0
   var transfer_mode: TransferMode = OneshotTransfer
-  var session: (HTTPSession tag | None) = None
+  var session: (HTTPSession | None) = None
   
   embed _headers: Map[String, String] = _headers.create()
   embed _body: Array[ByteSeq val] = _body.create()
@@ -210,7 +210,7 @@ simplified method can be used instead:
     in `Oneshot` mode can be used instead.
     """
     match session
-      | let s: HTTPSession tag =>
+      | let s: HTTPSession =>
         match transfer_mode
           | ChunkedTransfer =>
             // Wrap some body data in the Chunked Transfer Encoding format,
@@ -235,7 +235,7 @@ simplified method can be used instead:
     and is unnecessary, in Oneshot mode.
     """
     match session
-      | let s: HTTPSession tag =>
+      | let s: HTTPSession =>
         match transfer_mode
           | ChunkedTransfer =>
              s.write("0\r\n\r\n")
@@ -250,7 +250,7 @@ simplified method can be used instead:
     Start sending a response from the server to the client.
     """
     try
-      (session as HTTPSession tag)(this)
+      (session as HTTPSession)(this)
     end
 
   fun val _client_fail() =>
@@ -260,7 +260,7 @@ simplified method can be used instead:
     None
     /* Not sure if we need this.  Nobody calls it.  But something like:
       try
-      (session as HTTPSession tag)(
+      (session as HTTPSession)(
          Payload.response(StatusInternalServerError))
     end */
 

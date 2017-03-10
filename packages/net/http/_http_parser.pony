@@ -35,7 +35,7 @@ class _HTTPParser
   representing either a Request or a Response from received chunks of data.
   """
   let _client: Bool
-  let _session: HTTPSession tag
+  let _session: HTTPSession
   var _state: _PayloadState  // Parser state
   var _payload: Payload iso  // The Payload under construction
   var _expected_length: USize = 0
@@ -43,7 +43,7 @@ class _HTTPParser
   var _chunk_end: Bool = false
   var _delivered: Bool = false
 
-  new request(session': HTTPSession tag) =>
+  new request(session': HTTPSession) =>
     """
     Expect HTTP requests to arrive on a session.
     """
@@ -55,7 +55,7 @@ class _HTTPParser
     _chunk_end = false
     _state = _ExpectRequest
 
-  new response(session': HTTPSession tag) =>
+  new response(session': HTTPSession) =>
     """
     Expect HTTP responses to arrive on a session.
     """
