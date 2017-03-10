@@ -95,12 +95,12 @@ class _SessionGuard
   HTTPSession.  A 'safe' request does not modify a resource state on
   the server, and such a request has no body.
   """
-  let _session: HTTPSession tag
+  let _session: HTTPSession
   let _sent: List[Payload val] = List[Payload val]
   var _lastreqsafe: Bool = true
   var current: (Payload val | None) = None
 
-  new iso create(session: HTTPSession tag) =>
+  new iso create(session: HTTPSession) =>
     _session = session
 
   fun ref submit(request: Payload val) ? =>

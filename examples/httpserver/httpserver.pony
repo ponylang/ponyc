@@ -54,7 +54,7 @@ class BackendMaker is HandlerFactory
   new val create(env: Env) =>
     _env = env
 
-  fun apply(session: HTTPSession tag): HTTPHandler^ =>
+  fun apply(session: HTTPSession): HTTPHandler^ =>
     BackendHandler.create(_env, session)
 
 class BackendHandler is HTTPHandler
@@ -63,9 +63,9 @@ class BackendHandler is HTTPHandler
   several requests, one at a time.
   """
   let _env: Env
-  let _session: HTTPSession tag
+  let _session: HTTPSession
 
-  new ref create(env: Env, session: HTTPSession tag) =>
+  new ref create(env: Env, session: HTTPSession) =>
     """
     Create a context for receiving HTTP requests for a session.
     """
