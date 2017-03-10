@@ -74,7 +74,7 @@ class _ServerConnHandler is TCPConnectionNotify
       (_session as _ServerConnection).throttled()
     end
 
-  fun ref unthrottled( conn: TCPConnection ref) =>
+  fun ref unthrottled(conn: TCPConnection ref) =>
     """
     Notification that the TCP connection can resume accepting data.
     """

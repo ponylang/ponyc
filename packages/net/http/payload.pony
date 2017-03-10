@@ -217,7 +217,7 @@ simplified method can be used instead:
             // which is the length in hex, the data, and a CRLF.  It is
             // important to never send a chunk of length zero, as that is
             // how the end of the body is signalled.
-            s.write(Format.int[USize](data.size(), FormatHexBare ))
+            s.write(Format.int[USize](data.size(), FormatHexBare))
             s.write("\r\n")
             s.write(data)
             s.write("\r\n")

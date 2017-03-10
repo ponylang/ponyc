@@ -269,7 +269,7 @@ class iso _TestFileEOF is UnitTest
       file.sync()
       file.seek_start(0)
       let line1 = file.line()
-      h.assert_eq[String]("foobar", consume line1 )
+      h.assert_eq[String]("foobar", consume line1)
       try
         let line2 = file.line()
         h.fail("Read beyond EOF without error!")
@@ -306,7 +306,7 @@ class iso _TestFileCreate is UnitTest
       file.dispose()
       let file2 = CreateFile(filepath) as File
       let line1 = file2.line()
-      h.assert_eq[String]("foobar", consume line1 )
+      h.assert_eq[String]("foobar", consume line1)
       file2.dispose()
       filepath.remove()
     else
@@ -325,7 +325,7 @@ class iso _TestFileOpen is UnitTest
       file.dispose()
       let file2 = OpenFile(filepath) as File
       let line1 = file2.line()
-      h.assert_eq[String]("foobar", consume line1 )
+      h.assert_eq[String]("foobar", consume line1)
       file2.dispose()
       filepath.remove()
     else
@@ -348,7 +348,7 @@ class iso _TestFileLongLine is UnitTest
       file.sync()
       file.seek_start(0)
       let line1 = file.line()
-      h.assert_eq[String](longline, consume line1 )
+      h.assert_eq[String](longline, consume line1)
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -365,7 +365,7 @@ class iso _TestFileWrite is UnitTest
       file.dispose()
       let file2 = CreateFile(filepath) as File
       let line1 = file2.line()
-      h.assert_eq[String]("foobar", consume line1 )
+      h.assert_eq[String]("foobar", consume line1)
       file2.dispose()
       filepath.remove()
     else
@@ -408,7 +408,7 @@ class iso _TestFileQueue is UnitTest
       file.dispose()
       let file2 = CreateFile(filepath) as File
       let line1 = file2.line()
-      h.assert_eq[String]("foobar", consume line1 )
+      h.assert_eq[String]("foobar", consume line1)
       file2.dispose()
       filepath.remove()
     else
