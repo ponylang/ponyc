@@ -560,8 +560,8 @@ define CONFIGURE_LINKER
     linker := $(CXX)
   endif
 
-  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
   $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
+  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
   linkcmd += $(libs) $($(1).linkoptions)
 endef
 
