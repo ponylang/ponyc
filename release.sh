@@ -43,7 +43,7 @@ remove_empty_sections() {
     local first_word=`echo $str_after | head -n1 | cut -d " " -f1`
     if [ $first_word != "-" ]; then
       echo "Removing empty CHANGELOG section: $section"
-      $SED -i "0,/### $section/{//d;}" CHANGELOG.md
+      $SED -i "/### $section/ {N; N; d;}" CHANGELOG.md
     fi
   done
 }
