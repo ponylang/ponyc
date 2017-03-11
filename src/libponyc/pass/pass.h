@@ -269,7 +269,7 @@ bool ast_passes_program(ast_t* program, pass_opt_t* options);
  * been through some passes and so may not be in a state that the current pass
  * expects.
  */
-bool ast_passes_type(ast_t** astp, pass_opt_t* options);
+bool ast_passes_type(ast_t** astp, pass_opt_t* options, pass_id last_pass);
 
 /** Catch up the given sub-AST to the specified pass.
  * Returns true on success, false on failure.

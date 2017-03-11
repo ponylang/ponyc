@@ -306,6 +306,9 @@ DEF(object);
   IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
   TERMINATE("object literal", TK_END);
+  SET_CHILD_FLAG(0, AST_FLAG_PRESERVE); // Cap
+  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Provides
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Members
   DONE();
 
 // ID [COLON type] [ASSIGN infix]

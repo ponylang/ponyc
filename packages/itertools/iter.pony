@@ -59,7 +59,7 @@ class Iter[A] is Iterator[A]
 
   fun ref any(f: {(A!): Bool ?} box): Bool =>
     """
-    Return true if at least one value of the iterator matches the predicate 
+    Return true if at least one value of the iterator matches the predicate
     `f`. This method short-circuits at the first value where the predicate
     returns true, otherwise false is returned.
 
@@ -87,7 +87,7 @@ class Iter[A] is Iterator[A]
   fun ref collect[B: Seq[A!] ref = Array[A!]](coll: B): B^ =>
     """
     Push each value from the iterator into the collection `coll`.
-    
+
     ## Example
 
     ```pony
@@ -190,7 +190,7 @@ class Iter[A] is Iterator[A]
   fun ref filter(f: {(A!): Bool ?} box): Iter[A]^ =>
     """
     Return an iterator that only returns items that match the predicate `f`.
-    
+
     ## Example
 
     ```pony
@@ -249,7 +249,7 @@ class Iter[A] is Iterator[A]
   fun ref find(f: {(A!): Bool ?} box, n: USize = 1): A ? =>
     """
     Return the nth value in the iterator that satisfies the predicate `f`.
-    
+
     ## Examples
 
     ```pony
@@ -279,7 +279,7 @@ class Iter[A] is Iterator[A]
   fun ref fold[B](f: {(B, A!): B^ ?} box, acc: B): B^ ? =>
     """
     Apply a function to every element, producing an accumulated value.
-    
+
     ## Example
 
     ```pony
@@ -315,7 +315,7 @@ class Iter[A] is Iterator[A]
     """
     Return an iterator where each item's value is the application of the given
     function to the value in the original iterator.
-    
+
     ## Example
 
     ```pony
@@ -372,7 +372,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .map[None]({(x: I64)(env) => env.out.print(x.string()) })
+      .map[None]({(x: I64) => env.out.print(x.string()) })
       .run()
     ```
     ```
@@ -382,8 +382,8 @@ class Iter[A] is Iterator[A]
     ```
     """
     if not _iter.has_next() then return end
-    try 
-      _iter.next() 
+    try
+      _iter.next()
       run(on_error)
     else
       on_error()
@@ -413,7 +413,7 @@ class Iter[A] is Iterator[A]
   fun ref skip_while(f: {(A!): Bool ?} box): Iter[A]^ =>
     """
     Skip values of the iterator while the predicate `f` returns true.
-    
+
     ## Example
 
     ```pony

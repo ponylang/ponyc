@@ -69,7 +69,7 @@
 #define TREE_CLEAR_PASS(tree) \
   { \
     if(ast_parent(tree) != NULL) tree = ast_dup(tree); \
-    ast_resetpass(tree); \
+    ast_resetpass(tree, 0); \
     TREE(tree); \
   }
 

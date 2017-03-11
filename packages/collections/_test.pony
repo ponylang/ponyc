@@ -210,15 +210,15 @@ class iso _TestRing is UnitTest
 
     a.>push(4).>push(5)
 
-    h.assert_error({()(a)? => a(0) }, "Read ring 0")
-    h.assert_error({()(a)? => a(1) }, "Read ring 1")
+    h.assert_error({()? => a(0) }, "Read ring 0")
+    h.assert_error({()? => a(1) }, "Read ring 1")
 
     h.assert_eq[U64](a(2), 2)
     h.assert_eq[U64](a(3), 3)
     h.assert_eq[U64](a(4), 4)
     h.assert_eq[U64](a(5), 5)
 
-    h.assert_error({()(a)? => a(6) }, "Read ring 6")
+    h.assert_error({()? => a(6) }, "Read ring 6")
 
 class iso _TestListsMap is UnitTest
   fun name(): String => "collections/Lists/map()"

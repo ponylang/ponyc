@@ -18,16 +18,16 @@ class iso _TestPromise is UnitTest
   fun _test_fulfilled(h: TestHelper) =>
     h.expect_action("fulfilled")
     let p = Promise[String]
-    p.next[None]({(s: String)(h) => h.complete_action(s) } iso)
+    p.next[None]({(s: String) => h.complete_action(s) } iso)
     p("fulfilled")
 
   fun _test_rejected(h: TestHelper) =>
     h.expect_action("rejected")
     let p = Promise[String]
     p.next[String](
-      {(s: String)(h): String ? => error } iso,
-      {()(h): String => "rejected" } iso
+      {(s: String): String ? => error } iso,
+      {(): String => "rejected" } iso
     ).next[None](
-      {(s: String)(h) => h.complete_action(s) } iso
+      {(s: String) => h.complete_action(s) } iso
     )
     p.reject()

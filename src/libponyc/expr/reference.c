@@ -172,7 +172,9 @@ bool expr_provides(pass_opt_t* opt, ast_t* ast)
   // happened. At this point, we need to check that the type is a structural
   // subtype of all traits and interfaces it declares as provided.
   AST_GET_CHILDREN(ast, id, typeparams, cap, provides);
-  ast_t* type = type_for_this(opt, ast, TK_REF, TK_NONE, true);
+
+  ast_t* def = opt->check.frame->type;
+  ast_t* type = type_for_class(opt, def, ast, TK_REF, TK_NONE, true);
   errorframe_t err = NULL;
 
   if(!check_provides(opt, type, provides, &err))
@@ -1011,7 +1013,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     make_arrow = true;
   }
 
-  ast_t* type = type_for_this(opt, ast, cap, TK_NONE, false);
+  ast_t* type = type_for_this(opt, ast, cap, TK_NONE);
 
   if(make_arrow)
   {

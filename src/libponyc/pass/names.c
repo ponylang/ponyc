@@ -162,6 +162,10 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 
   // Replace this with the alias.
   ast_replace(astp, r_alias);
+
+  if(!expr)
+    ast_resetpass(*astp, PASS_NAME_RESOLUTION);
+
   return true;
 }
 

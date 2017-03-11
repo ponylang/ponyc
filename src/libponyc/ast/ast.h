@@ -79,7 +79,7 @@ void ast_inheritflags(ast_t* ast);
 int ast_checkflag(ast_t* ast, uint32_t flag);
 void ast_setflag(ast_t* ast, uint32_t flag);
 void ast_clearflag(ast_t* ast, uint32_t flag);
-void ast_resetpass(ast_t* ast);
+void ast_resetpass(ast_t *ast, uint32_t flag);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);

@@ -23,7 +23,7 @@ TEST_F(AnnotationsTest, AnnotateTypes)
 }
 
 TEST_F(AnnotationsTest, AnnotateMethods)
-{   
+{
   const char* src =
     "actor A\n"
     "  new \\a, b\\ create() => None\n"
@@ -109,7 +109,7 @@ TEST_F(AnnotationsTest, AnnotationsArePresent)
   TEST_COMPILE(src, "scope");
 
   ast_t* ast = lookup_type("C");
-  
+
   ast = ast_annotation(ast);
 
   ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_BACKSLASH));
@@ -139,12 +139,7 @@ TEST_F(AnnotationsTest, AnnotateSugar)
     "      None\n"
     "    else \\b\\ \n"
     "      None\n"
-    "    end\n"
-
-    "  fun test_object() =>\n"
-    "    object \\a\\ \n"
-    "      fun \\b\\ apply() => None\n"
-    "    end";
+    "    end\n";
 
   TEST_COMPILE(src, "scope");
 
@@ -165,14 +160,6 @@ TEST_F(AnnotationsTest, AnnotateSugar)
   ASSERT_TRUE(ast_has_annotation(ast, "a"));
   ASSERT_FALSE(ast_has_annotation(ast, "b"));
   ASSERT_TRUE(ast_has_annotation(ast_childidx(ast, 1), "b"));
-
-  // Get the type of the object literal.
-  ast = lookup_type("$1$2");
-
-  ASSERT_TRUE(ast_has_annotation(ast, "a"));
-  ast = lookup_in(ast, "apply");
-
-  ASSERT_TRUE(ast_has_annotation(ast, "b"));
 }
 
 TEST_F(AnnotationsTest, AnnotateLambda)

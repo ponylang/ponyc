@@ -401,7 +401,7 @@ class iso _TestIterLast is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let input1 = Array[I64]
-    h.assert_error({()(input1) ? => Iter[I64](input1.values()).last() })
+    h.assert_error({()? => Iter[I64](input1.values()).last() })
     let input2 =[as I64: 1]
     h.assert_eq[I64](
       1,
@@ -423,7 +423,7 @@ class iso _TestIterMap is UnitTest
     let expected = ["ab", "bb", "cb"]
     let actual = Array[String]
 
-    let fn = { (x: String): String => x + "b" }
+    let fn = {(x: String): String => x + "b" }
     for x in Iter[String](input.values()).map[String](fn) do
       actual.push(x)
     end
@@ -444,7 +444,7 @@ class iso _TestIterNth is UnitTest
     h.assert_eq[USize](
       3,
       Iter[USize](input.values()).nth(3))
-    h.assert_error({()(input) ? => Iter[USize](input.values()).nth(4) })
+    h.assert_error({()? => Iter[USize](input.values()).nth(4) })
 
 class iso _TestIterRun is UnitTest
   fun name(): String => "itertools/Iter.run"
@@ -454,26 +454,26 @@ class iso _TestIterRun is UnitTest
     h.expect_action("2")
     h.expect_action("3")
     h.expect_action("error")
-    
+
     let xs = [as I64: 1, 2, 3]
 
     h.long_test(100_000_000)
-    
+
     Iter[I64](xs.values())
-      .map[None]({(x: I64)(h) => h.complete_action(x.string()) })
+      .map[None]({(x: I64) => h.complete_action(x.string()) })
       .run()
 
     Iter[I64](object ref is Iterator[I64]
       fun ref has_next(): Bool => true
       fun ref next(): I64 ? => error
-    end).run({()(h) => h.complete_action("error") })
+    end).run({() => h.complete_action("error") })
 
 class iso _TestIterSkip is UnitTest
   fun name(): String => "itertools/Iter.skip"
 
   fun apply(h: TestHelper) ? =>
     let input = [as I64: 1]
-    h.assert_error({()(input) ? =>
+    h.assert_error({()? =>
       Iter[I64](input.values()).skip(1).next()
     })
     input.push(2)
