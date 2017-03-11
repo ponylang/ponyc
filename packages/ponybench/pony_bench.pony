@@ -16,31 +16,30 @@ actor Main
     let bench = PonyBench(env)
 
     // benchmark Fib with different inputs
-    bench[USize]("fib 5", {(): USize => Fib(5) })
-    bench[USize]("fib 10", {(): USize => Fib(10) })
-    bench[USize]("fib 20", {(): USize => Fib(20) })
-    bench[USize]("fib 40", {(): USize => Fib(40) })
+    bench[USize]("fib 5", {(): USize => Fib(5)})
+    bench[USize]("fib 10", {(): USize => Fib(10)})
+    bench[USize]("fib 20", {(): USize => Fib(20)})
+    bench[USize]("fib 40", {(): USize => Fib(40)})
 
     // show what happens when a benchmark fails
-    bench[String]("fail", {(): String ? => error })
+    bench[String]("fail", {(): String ? => error})
 
     // async benchmark
-    bench.async[USize]("async", object iso
-      fun apply(): Promise[USize] =>
-        let p = Promise[USize]
-        p(0)
-    end)
+    bench.async[USize](
+      "async",
+      {(): Promise[USize] => Promise[USize].>apply(0)} iso
+    )
 
     // async benchmark timeout
-    bench.async[USize]("timeout", object iso
-      fun apply(): Promise[USize] =>
-        let p = Promise[USize]
-        if false then p(0) else p end
-    end, 1_000_000)
+    bench.async[USize](
+      "timeout",
+      {(): Promise[USize] => Promise[USize]} iso,
+      1_000_000
+    )
 
     // benchmarks with set ops
-    bench[USize]("add", {(): USize => 1 + 2 }, 10_000_000)
-    bench[USize]("sub", {(): USize => 2 - 1 }, 10_000_000)
+    bench[USize]("add", {(): USize => 1 + 2}, 10_000_000)
+    bench[USize]("sub", {(): USize => 2 - 1}, 10_000_000)
 
 primitive Fib
   fun apply(n: USize): USize =>
@@ -52,29 +51,28 @@ primitive Fib
 ```
 Output:
 ```
-fib 5	   50000000	        36 ns/op
-fib 10	   3000000	       448 ns/op
-fib 20	     30000	     58828 ns/op
-fib 40	         2	 865802018 ns/op
+fib 5       50000000            33 ns/op
+fib 10       5000000           371 ns/op
+fib 20         30000         45310 ns/op
+fib 40             2     684868666 ns/op
 **** FAILED Benchmark: fail
-async	     300000	     10166 ns/op
-**** FAILED Benchmark: timeout
-add	      10000000	         3 ns/op
-sub	      10000000	         3 ns/op
+async         200000         26512 ns/op
+**** FAILED Benchmark: timeout (timeout)
+add         10000000             2 ns/op
+sub         10000000             2 ns/op
 ```
 """
 use "collections"
 use "format"
 use "promises"
 use "term"
-use "time"
 
 actor PonyBench
-  embed _bs: Array[(String, {()} val, String)]
+  embed _bs: Array[(String, _Benchmark)] = Array[(String, _Benchmark)]
   let _env: Env
 
   new create(env: Env) =>
-    (_bs, _env) = (Array[(String, {()} val, String)], env)
+    _env = env
 
   be apply[A: Any #share](name: String, f: {(): A ?} val, ops: U64 = 0) =>
     """
@@ -84,15 +82,14 @@ actor PonyBench
     trigger the benchmark runner to increase the value of `ops` until it is
     satisfied with the stability of the benchmark.
     """
-    let bf = recover val
+    _add(
+      name,
       if ops == 0 then
-        {()(notify = this, name, f) => _AutoBench[A](notify, name, f)() }
+        _AutoBench[A](name, this, f)
       else
-        {()(notify = this, name, f, ops) => _Bench[A](notify)(name, f, ops) }
+        _Bench[A](name, this, f, ops)
       end
-    end
-    _bs.push((name, bf, ""))
-    if _bs.size() < 2 then bf() end
+    )
 
   be async[A: Any #share](
     name: String,
@@ -106,73 +103,54 @@ actor PonyBench
     not fulfilled within the time given. This check for timeout is done before
     the benchmarks are counted towards an average run time.
     """
-    if timeout > 0 then
-      let t = Timer(object iso is TimerNotify
-        let _bench: PonyBench = this
-        let _name: String = name
-        let _f: {(): Promise[A] ?} val = f
-        let _ops: U64 = ops
-        fun ref apply(timer: Timer ref, count: U64): Bool =>
-          _bench._failure(_name)
-          false
-        fun ref cancel(timer: Timer ref) =>
-          _bench.async[A](_name, _f, 0, _ops)
-      end, timeout)
-      let ts = Timers
-      let tt: Timer tag = t
-      ts(consume t)
-      try
-        let p = f()
-        p.next[A]({(a: A)(ts, tt): A => ts.cancel(tt); a } iso)
-      else
-        _failure(name)
-      end
-    end
-
-    let bf = recover val
+    _add(
+      name,
       if ops == 0 then
-        {()(notify = this, name, f) =>
-          _AutoBench[A](notify, name, f)()
-        }
+        _AutoBenchAsync[A](name, this, f, timeout)
       else
-        {()(notify = this, name, f, ops) =>
-          _BenchAsync[A](notify)(name, f, ops)
-        }
+        _BenchAsync[A](name, this, f, ops, timeout)
       end
-    end
-    _bs.push((name, bf, ""))
-    if _bs.size() < 2 then bf() end
+    )
 
   be _result(name: String, ops: U64, nspo: U64) =>
+    _remove(name)
     let sl = [name, "\t", Format.int[U64](ops where width=10), "\t",
       Format.int[U64](nspo where width=10), " ns/op"]
-    _update(name, String.join(sl))
+    _env.out.print(String.join(sl))
     _next()
 
-  be _failure(name: String) =>
-    let sl = [ANSI.red(), "**** FAILED Benchmark: ", name, ANSI.reset()]
-    _update(name, String.join(sl))
+  be _failure(name: String, timeout: Bool) =>
+    _remove(name)
+    let sl = [ANSI.red(), "**** FAILED Benchmark: ", name]
+    if timeout then
+      sl.push(" (timeout)")
+    end
+    sl.push(ANSI.reset())
+    _env.out.print(String.join(sl))
     _next()
 
-  fun ref _update(name: String, result: String) =>
-    try
-      for (i, (n, f, s)) in _bs.pairs() do
-        if n == name then
-          _bs(i) = (n, f, result)
-        end
+  fun ref _add(name: String, b: _Benchmark) =>
+    _bs.push((name, b))
+    if _bs.size() < 2 then
+      b.run()
+    end
+
+  fun ref _remove(name: String) =>
+    for (i, (n, _)) in _bs.pairs() do
+      if n == name then
+        try _bs.delete(i) end
+        return
       end
     end
 
   fun ref _next() =>
     try
-      while _bs(0)._3 != "" do
-        _env.out.print(_bs.shift()._3)
-      end
-      if _bs.size() > 0 then
-        _bs(0)._2()
-      end
+      _bs(0)._2.run()
     end
 
 interface tag _BenchNotify
   be _result(name: String, ops: U64, nspo: U64)
-  be _failure(name: String)
+  be _failure(name: String, timeout: Bool)
+
+trait tag _Benchmark
+  be run()

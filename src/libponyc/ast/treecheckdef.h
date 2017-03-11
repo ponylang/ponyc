@@ -67,8 +67,7 @@ RULE(field,
   HAS_TYPE(type)
   CHILD(id)
   CHILD(type, none)  // Field type
-  CHILD(expr, none)
-  CHILD(provides, none), // Delegate
+  CHILD(expr, none),
   TK_FLET, TK_FVAR, TK_EMBED);
 
 RULE(method,
@@ -160,7 +159,10 @@ RULE(infix,
   CHILD(expr)
   CHILD(expr),
   TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD, TK_LSHIFT, TK_RSHIFT,
+  TK_PLUS_TILDE, TK_MINUS_TILDE, TK_MULTIPLY_TILDE, TK_DIVIDE_TILDE,
+  TK_MOD_TILDE, TK_LSHIFT_TILDE, TK_RSHIFT_TILDE,
   TK_EQ, TK_NE, TK_LT, TK_LE, TK_GT, TK_GE, TK_IS, TK_ISNT,
+  TK_EQ_TILDE, TK_NE_TILDE, TK_LT_TILDE, TK_LE_TILDE, TK_GT_TILDE, TK_GE_TILDE,
   TK_AND, TK_OR, TK_XOR, TK_ASSIGN);
 
 RULE(asop,
@@ -171,12 +173,12 @@ RULE(asop,
 
 RULE(tuple,
   HAS_TYPE(type)
-  ONE_OR_MORE(rawseq, dont_care),
+  ONE_OR_MORE(rawseq),
   TK_TUPLE);
 
 RULE(consume,
   HAS_TYPE(type)
-  CHILD(cap, borrowed, none)
+  CHILD(cap, aliased, none)
   CHILD(expr),
   TK_CONSUME);
 
@@ -189,7 +191,7 @@ RULE(recover,
 RULE(prefix,
   HAS_TYPE(type)
   CHILD(expr),
-  TK_NOT, TK_UNARY_MINUS, TK_ADDRESS, TK_DIGESTOF);
+  TK_NOT, TK_UNARY_MINUS, TK_UNARY_MINUS_TILDE, TK_ADDRESS, TK_DIGESTOF);
 
 RULE(dot,
   HAS_TYPE(type)
@@ -319,7 +321,7 @@ RULE(match_case,
   CHILD(rawseq, none),  // Body
   TK_CASE);
 
-RULE(no_case_expr, HAS_TYPE(dont_care), TK_NONE);
+RULE(no_case_expr, HAS_TYPE(dontcare_type), TK_NONE);
 
 RULE(try_expr,
   HAS_TYPE(type)
@@ -403,8 +405,8 @@ RULE(local_ref,
 
 GROUP(type,
   type_infix, type_tuple, type_arrow, type_this, cap, nominal,
-  type_param_ref, dont_care, fun_type, error_type, lambda_type,
-  literal_type, opliteral_type, control_type, dont_care);
+  type_param_ref, dontcare_type, fun_type, error_type, lambda_type,
+  literal_type, opliteral_type, control_type);
 
 RULE(type_infix, ONE_OR_MORE(type), TK_UNIONTYPE, TK_ISECTTYPE);
 
@@ -430,7 +432,7 @@ RULE(lambda_type,
   CHILD(type, none) // Return type
   CHILD(question, none)
   CHILD(cap, gencap, none)  // Type reference cap
-  CHILD(borrowed, ephemeral, none),
+  CHILD(aliased, ephemeral, none),
   TK_LAMBDATYPE);
 
 RULE(type_list, ONE_OR_MORE(type), TK_PARAMS);
@@ -441,7 +443,7 @@ RULE(nominal,
   CHILD(id)       // Type
   CHILD(type_args, none)
   CHILD(cap, gencap, none)
-  CHILD(borrowed, ephemeral, none)
+  CHILD(aliased, ephemeral, none)
   OPTIONAL(id, none), // Original package specifier (for error reporting)
   TK_NOMINAL);
 
@@ -449,16 +451,16 @@ RULE(type_param_ref,
   HAS_DATA  // Definition of referred type parameter
   CHILD(id)
   CHILD(cap, gencap, none)
-  CHILD(borrowed, ephemeral, none),
+  CHILD(aliased, ephemeral, none),
   TK_TYPEPARAMREF);
 
 RULE(at, LEAF, TK_AT);
 RULE(bool_literal, HAS_TYPE(type), TK_TRUE, TK_FALSE);
-RULE(borrowed, LEAF, TK_BORROWED);
+RULE(aliased, LEAF, TK_ALIASED);
 RULE(cap, LEAF, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
 RULE(control_type, LEAF, TK_IF, TK_CASES, TK_COMPILE_INTRINSIC,
   TK_COMPILE_ERROR, TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR);
-RULE(dont_care, HAS_TYPE(type), TK_DONTCARE);
+RULE(dontcare_type, LEAF, TK_DONTCARETYPE);
 RULE(ellipsis, LEAF, TK_ELLIPSIS);
 RULE(ephemeral, LEAF, TK_EPHEMERAL);
 RULE(error_type, LEAF, TK_ERRORTYPE);

@@ -3,11 +3,11 @@
 #include "ast.h"
 #include "id.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
 
 static size_t sym_hash(symbol_t* sym)
 {

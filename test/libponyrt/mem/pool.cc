@@ -70,3 +70,36 @@ TEST(Pool, LargeAlloc)
   ASSERT_TRUE(p != NULL);
   ponyint_pool_free_size(1 << 20, p);
 }
+
+TEST(Pool, Index)
+{
+  size_t index = ponyint_pool_index(1);
+  ASSERT_TRUE(index == 0);
+
+  index = ponyint_pool_index(31);
+  ASSERT_TRUE(index == 0);
+
+  index = ponyint_pool_index(32);
+  ASSERT_TRUE(index == 0);
+
+  index = ponyint_pool_index(33);
+  ASSERT_TRUE(index == 1);
+
+  index = ponyint_pool_index(63);
+  ASSERT_TRUE(index == 1);
+
+  index = ponyint_pool_index(64);
+  ASSERT_TRUE(index == 1);
+
+  index = ponyint_pool_index(65);
+  ASSERT_TRUE(index == 2);
+
+  index = ponyint_pool_index(POOL_MAX - 1);
+  ASSERT_TRUE(index == POOL_COUNT - 1);
+
+  index = ponyint_pool_index(POOL_MAX);
+  ASSERT_TRUE(index == POOL_COUNT - 1);
+
+  index = ponyint_pool_index(POOL_MAX + 1);
+  ASSERT_TRUE(index == POOL_COUNT);
+}

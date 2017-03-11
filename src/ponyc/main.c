@@ -33,7 +33,6 @@ enum
   OPT_DOCS,
 
   OPT_SAFE,
-  OPT_IEEEMATH,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -72,7 +71,6 @@ static opt_arg_t args[] =
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
 
   {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
-  {"ieee-math", '\0', OPT_ARG_NONE, OPT_IEEEMATH},
   {"cpu", '\0', OPT_ARG_REQUIRED, OPT_CPU},
   {"features", '\0', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -123,11 +121,11 @@ static void usage()
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
     "    =package      With no packages listed, only builtin is allowed.\n"
-    "  --ieee-math     Force strict IEEE 754 compliance.\n"
     "  --cpu           Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
     "  --features      CPU features to enable or disable.\n"
     "    =+this,-that  Use + to enable, - to disable.\n"
+    "                  Defaults to detecting all CPU features from the host.\n"
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
     "  --stats         Print some compiler stats.\n"
@@ -294,7 +292,6 @@ int main(int argc, char* argv[])
           ok = false;
         break;
 
-      case OPT_IEEEMATH: opt.ieee_math = true; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;

@@ -14,10 +14,10 @@
 #include "docgen.h"
 #include "../codegen/codegen.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 
 #include <string.h>
 #include <stdbool.h>
-#include <assert.h>
 
 
 bool limit_passes(pass_opt_t* opt, const char* pass)
@@ -103,9 +103,9 @@ void pass_opt_done(pass_opt_t* options)
   errors_free(options->check.errors);
   options->check.errors = NULL;
 
-  // Pop all the typechecker frames.
-  while(options->check.frame != NULL)
-    frame_pop(&options->check);
+  // Pop the initial typechecker frame.
+  frame_pop(&options->check);
+  pony_assert(options->check.frame == NULL);
 
   if(options->print_stats)
   {
@@ -132,9 +132,9 @@ void pass_opt_done(pass_opt_t* options)
 static bool check_limit(ast_t** astp, pass_opt_t* options, pass_id pass,
   pass_id last_pass)
 {
-  assert(astp != NULL);
-  assert(*astp != NULL);
-  assert(options != NULL);
+  pony_assert(astp != NULL);
+  pony_assert(*astp != NULL);
+  pony_assert(options != NULL);
 
   if(last_pass < pass || options->limit < pass)
     return false;
@@ -152,7 +152,7 @@ static bool check_limit(ast_t** astp, pass_opt_t* options, pass_id pass,
 static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
   bool* out_r, pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
 {
-  assert(out_r != NULL);
+  pony_assert(out_r != NULL);
 
   if(!check_limit(astp, options, pass, last_pass))
   {
@@ -192,10 +192,10 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 }
 
 
-// Peform the AST passes on the given AST up to the speficied last pass
+// Peform the AST passes on the given AST up to the specified last pass
 static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   bool r;
 
   if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
@@ -250,11 +250,11 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 }
 
 
-bool ast_passes_type(ast_t** astp, pass_opt_t* options)
+bool ast_passes_type(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 {
   ast_t* ast = *astp;
 
-  assert(ast_id(ast) == TK_ACTOR || ast_id(ast) == TK_CLASS ||
+  pony_assert(ast_id(ast) == TK_ACTOR || ast_id(ast) == TK_CLASS ||
     ast_id(ast) == TK_STRUCT || ast_id(ast) == TK_PRIMITIVE ||
     ast_id(ast) == TK_TRAIT || ast_id(ast) == TK_INTERFACE);
 
@@ -267,7 +267,7 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options)
   frame_push(&options->check, package);
   frame_push(&options->check, module);
 
-  bool ok = ast_passes(astp, options, options->program_pass);
+  bool ok = ast_passes(astp, options, last_pass);
 
   frame_pop(&options->check);
   frame_pop(&options->check);
@@ -294,7 +294,7 @@ bool generate_passes(ast_t* program, pass_opt_t* options)
 
 static void record_ast_pass(ast_t* ast, pass_id pass)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(pass == PASS_ALL)
     return;
@@ -307,8 +307,8 @@ static void record_ast_pass(ast_t* ast, pass_id pass)
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass)
 {
-  assert(ast != NULL);
-  assert(*ast != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(*ast != NULL);
 
   pass_id ast_pass = (pass_id)ast_checkflag(*ast, AST_FLAG_PASS_MASK);
 
@@ -341,6 +341,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       case AST_FATAL:
         record_ast_pass(*ast, pass);
+
+        if(pop)
+          frame_pop(t);
+
         return AST_FATAL;
     }
   }
@@ -358,7 +362,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
         case AST_IGNORE:
           // Can never happen
-          assert(0);
+          pony_assert(0);
           break;
 
         case AST_ERROR:
@@ -367,6 +371,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
         case AST_FATAL:
           record_ast_pass(*ast, pass);
+
+          if(pop)
+            frame_pop(t);
+
           return AST_FATAL;
       }
 
@@ -388,6 +396,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       case AST_FATAL:
         record_ast_pass(*ast, pass);
+
+        if(pop)
+          frame_pop(t);
+
         return AST_FATAL;
     }
   }
@@ -406,8 +418,8 @@ ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   typecheck_t* t = &options->check;
   ast_t* module = ast_nearest(*ast, TK_MODULE);
   ast_t* package = ast_parent(module);
-  assert(module != NULL);
-  assert(package != NULL);
+  pony_assert(module != NULL);
+  pony_assert(package != NULL);
 
   frame_push(t, NULL);
   frame_push(t, package);

@@ -1,15 +1,25 @@
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #include "serialise.h"
 #include "../sched/scheduler.h"
 #include "../lang/lang.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
+
+#if defined(PLATFORM_IS_POSIX_BASED)
+#include <dlfcn.h>
+#else
+#include <Windows.h>
+#endif
 
 #define HIGH_BIT ((size_t)1 << ((sizeof(size_t) * 8) - 1))
 
 PONY_EXTERN_C_BEGIN
 
-extern size_t __DescTableSize;
-extern pony_type_t* __DescTable;
+static size_t desc_table_size = 0;
+static pony_type_t** desc_table = NULL;
 
 PONY_EXTERN_C_END
 
@@ -64,6 +74,29 @@ static void serialise_cleanup(pony_ctx_t* ctx)
   ponyint_serialise_destroy(&ctx->serialise);
 }
 
+bool ponyint_serialise_setup()
+{
+#if defined(PLATFORM_IS_POSIX_BASED)
+  void* tbl_size_sym = dlsym(RTLD_DEFAULT, "__DescTableSize");
+  void* tbl_sym = dlsym(RTLD_DEFAULT, "__DescTable");
+#else
+  HMODULE program = GetModuleHandle(NULL);
+
+  if(program == NULL)
+    return false;
+
+  void* tbl_size_sym = (void*)GetProcAddress(program, "__DescTableSize");
+  void* tbl_sym = (void*)GetProcAddress(program, "__DescTable");
+#endif
+  if((tbl_size_sym == NULL) || (tbl_sym == NULL))
+    return false;
+
+  desc_table_size = *(size_t*)tbl_size_sym;
+  desc_table = (pony_type_t**)tbl_sym;
+
+  return true;
+}
+
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
@@ -115,7 +148,7 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_throw();
 }
 
-void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
+PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
 {
   // Reserve a block of memory to serialise into. This is only needed for
   // String and Array[A].
@@ -141,7 +174,7 @@ void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
   ctx->serialise_size += size;
 }
 
-size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
+PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 {
   serialise_t k;
   k.key = (uintptr_t)p;
@@ -158,10 +191,10 @@ size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   return (size_t)t->id | HIGH_BIT;
 }
 
-void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
+PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 {
   // This can raise an error.
-  assert(ctx->stack == NULL);
+  pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_serialise_object;
   ctx->trace_actor = ponyint_serialise_actor;
   ctx->serialise_size = 0;
@@ -186,7 +219,7 @@ void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
   serialise_cleanup(ctx);
 }
 
-void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
+PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   uintptr_t offset)
 {
   // If the high bit of the offset is set, it is either an unserialised
@@ -195,13 +228,13 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   {
     offset &= ~HIGH_BIT;
 
-    if(offset > __DescTableSize)
+    if(offset > desc_table_size)
       return NULL;
 
     // Return the global instance, if there is one. It's ok to return null if
     // there is no global instance, as this will then be an unserialised
     // field in an opaque object.
-    t = (&__DescTable)[offset];
+    t = desc_table[offset];
     return t->instance;
   }
 
@@ -226,7 +259,7 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
 
     // Turn the type id into a descriptor pointer.
     uintptr_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
-    t = (&__DescTable)[id];
+    t = desc_table[id];
   }
 
   // If it's a primitive, return the global instance.
@@ -257,7 +290,8 @@ void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   return object;
 }
 
-void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
+PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
+  size_t size)
 {
   // Allocate the block, memcpy to it.
   if((offset + size) > ctx->serialise_size)
@@ -271,7 +305,7 @@ void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset, size_t size)
   return block;
 }
 
-void* pony_deserialise(pony_ctx_t* ctx, void* in)
+PONY_API void* pony_deserialise(pony_ctx_t* ctx, void* in)
 {
   // This can raise an error.
   ponyint_array_t* r = (ponyint_array_t*)in;

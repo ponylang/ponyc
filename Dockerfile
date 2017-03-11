@@ -5,9 +5,9 @@ RUN apt-get update \
                        zlib1g-dev libncurses5-dev libssl-dev \
                        libpcre2-dev \
  && rm -rf /var/lib/apt/lists/* \
- && wget http://llvm.org/releases/3.9.0/clang+llvm-3.9.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- && tar xf clang+llvm-3.9.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- && cp -r clang+llvm-3.9.0-x86_64-linux-gnu-ubuntu-16.04/* /usr/local \
+ && wget http://llvm.org/releases/3.9.1/clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+ && tar xf clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+ && cp -r clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04/* /usr/local \
  && rm -rf /clang*
 
 WORKDIR /src/ponyc

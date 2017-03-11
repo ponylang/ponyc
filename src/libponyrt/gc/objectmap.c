@@ -4,7 +4,7 @@
 #include "../ds/fun.h"
 #include "../mem/pool.h"
 #include "../mem/pagemap.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static size_t object_hash(object_t* obj)
 {
@@ -84,6 +84,8 @@ size_t ponyint_objectmap_sweep(objectmap_t* map)
   size_t count = 0;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
+  bool needs_optimize = false;
+
 
   while((obj = ponyint_objectmap_next(map, &i)) != NULL)
   {
@@ -107,10 +109,15 @@ size_t ponyint_objectmap_sweep(objectmap_t* map)
         count++;
       }
 
-      ponyint_objectmap_removeindex(map, i);
+      ponyint_objectmap_clearindex(map, i);
+      needs_optimize = true;
+
       object_free(obj);
     }
   }
+
+  if(needs_optimize)
+    ponyint_objectmap_optimize(map);
 
   return count;
 }

@@ -190,7 +190,7 @@ primitive Path
     Normalizes the case of path for the runtime platform.
     """
     if Platform.windows() then
-      recover val path.lower().replace("/", "\\") end
+      recover val path.lower().>replace("/", "\\") end
     elseif Platform.osx() then
       path.lower()
     else

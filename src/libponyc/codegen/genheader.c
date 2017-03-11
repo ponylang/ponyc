@@ -6,8 +6,8 @@
 #include "../type/reify.h"
 #include "../ast/printbuf.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 static const char* c_type_name(compile_t* c, const char* name)
 {
@@ -281,6 +281,24 @@ bool genheader(compile_t* c)
     c->filename,
     c->filename
     );
+
+  if(c->primitives_init != NULL)
+  {
+    fprintf(fp,
+      "void %s_primitives_init();\n"
+      "\n",
+      c->filename
+      );
+  }
+
+  if(c->primitives_final != NULL)
+  {
+    fprintf(fp,
+      "void %s_primitives_final();\n"
+      "\n",
+      c->filename
+      );
+  }
 
   printbuf_t* buf = printbuf_new();
   print_types(c, fp, buf);

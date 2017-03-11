@@ -4,7 +4,7 @@
 #include "cap.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static ast_t* alias_single(ast_t* type)
 {
@@ -30,7 +30,7 @@ static ast_t* alias_single(ast_t* type)
         case TK_NONE:
           type = ast_dup(type);
           ephemeral = ast_sibling(cap_fetch(type));
-          ast_setid(ephemeral, TK_BORROWED);
+          ast_setid(ephemeral, TK_ALIASED);
           break;
 
         default: {}
@@ -39,13 +39,13 @@ static ast_t* alias_single(ast_t* type)
       return type;
     }
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       return type;
 
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -106,7 +106,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
           break;
 
         default:
-          assert(0);
+          pony_assert(0);
           return NULL;
       }
       break;
@@ -125,7 +125,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return NULL;
   }
 
@@ -150,8 +150,8 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
       ast_setid(eph, TK_EPHEMERAL);
       break;
 
-    case TK_BORROWED:
-      if(ccap == TK_BORROWED)
+    case TK_ALIASED:
+      if(ccap == TK_ALIASED)
         ast_setid(eph, TK_NONE);
       break;
 
@@ -161,7 +161,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
   switch(ccap)
   {
     case TK_NONE:
-    case TK_BORROWED:
+    case TK_ALIASED:
       ccap = tcap;
       break;
 
@@ -226,46 +226,7 @@ ast_t* alias(ast_t* type)
     default: {}
   }
 
-  assert(0);
-  return NULL;
-}
-
-ast_t* bind_type(ast_t* type)
-{
-  // A bind type is only ever used when checking constraints.
-  // We change the capabilities to a bind capability. For example:
-  // ref <: #read when binding, but not when assigning.
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    {
-      // Bind each element.
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_append(r_type, bind_type(child));
-        child = ast_sibling(child);
-      }
-
-      return r_type;
-    }
-
-    case TK_NOMINAL:
-    case TK_TYPEPARAMREF:
-    {
-      type = ast_dup(type);
-      ast_t* cap = cap_fetch(type);
-      ast_setid(cap, cap_bind(ast_id(cap)));
-      return type;
-    }
-
-    default: {}
-  }
-
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -273,7 +234,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
-    case TK_DONTCARE:
+    case TK_DONTCARETYPE:
       return type;
 
     case TK_UNIONTYPE:
@@ -327,7 +288,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -341,7 +302,7 @@ static ast_t* recover_complex(ast_t* type, token_id cap)
       break;
 
     default:
-      assert(false);
+      pony_assert(false);
       break;
   }
 
@@ -415,7 +376,7 @@ ast_t* recover_type(ast_t* type, token_id cap)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -456,20 +417,26 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
         case TK_CAP_ALIAS:
           // If the receiver type aliases as itself, it stays the same after
           // chaining.
-          return type;
+          return ast_dup(type);
+
+        case TK_CAP_ANY:
+          // If the receiver is #any, the call is on a tag method and we can
+          // chain as #any.
+          pony_assert(fun_cap == TK_TAG);
+          return ast_dup(type);
 
         default: {}
       }
 
       if(ast_id(eph) == TK_NONE)
       {
-        assert(recovered_call || (fun_cap == TK_TAG));
+        pony_assert(recovered_call || (fun_cap == TK_TAG));
         // If the receiver isn't ephemeral, we recovered the call and the type
         // stays the same.
         return ast_dup(type);
       }
 
-      assert(ast_id(eph) == TK_EPHEMERAL);
+      pony_assert(ast_id(eph) == TK_EPHEMERAL);
 
       // If the call was auto-recovered, no alias can exist outside of the
       // object's isolation boundary.
@@ -507,7 +474,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
           break;
 
         default:
-          assert(false);
+          pony_assert(false);
           return NULL;
       }
 
@@ -535,7 +502,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -593,7 +560,7 @@ bool sendable(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -651,6 +618,6 @@ bool immutable_or_opaque(ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }

@@ -80,7 +80,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient("", "", 1, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/date",
-        recover val FileCaps.all().unset(FileExec) end)
+        recover val FileCaps.>all().>unset(FileExec) end)
       let args: Array[String] iso = recover Array[String](1) end
       args.push("date")
       let vars: Array[String] iso = recover Array[String](2) end

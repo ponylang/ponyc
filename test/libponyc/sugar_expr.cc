@@ -602,30 +602,3 @@ TEST_F(SugarExprTest, LocationDefaultArg)
 
   TEST_EQUIV(short_form, full_form);
 }
-
-
-// Early sugar that may cause errors in type checking
-
-TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)
-{
-  const char* short_form =
-    "trait T\n"
-
-    "class Foo[A: T]\n"
-    "  fun f(x: A) =>\n"
-    "    object let _x: A = consume x end";
-
-  const char* full_form =
-    "trait T\n"
-
-    "class Foo[A: T]\n"
-    "  fun f(x: A) =>\n"
-    "    $T[A].create(consume x)\n"
-
-    "class $T[A: T]\n"
-    "  let _x: A\n"
-    "  new create($1: A) =>\n"
-    "    _x = consume $1";
-
-  TEST_EQUIV(short_form, full_form);
-}

@@ -6,6 +6,7 @@
 #if defined(PLATFORM_IS_WINDOWS)
 #include <direct.h>
 #include <errno.h>
+#include <fcntl.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
@@ -15,12 +16,12 @@ PONY_EXTERN_C_BEGIN
 
 const char* cwd;
 
-int pony_os_eexist()
+PONY_API int pony_os_eexist()
 {
   return EEXIST;
 }
 
-int pony_os_errno()
+PONY_API int pony_os_errno()
 {
   return errno;
 }
@@ -36,7 +37,7 @@ static bool skip_entry(const char* entry, size_t len)
   return false;
 }
 
-char* pony_os_cwd()
+PONY_API char* pony_os_cwd()
 {
   if(cwd == NULL)
   {
@@ -59,12 +60,12 @@ char* pony_os_cwd()
 
 #if defined(PLATFORM_IS_WINDOWS)
 
-WIN32_FIND_DATA* ponyint_windows_find_data()
+PONY_API WIN32_FIND_DATA* ponyint_windows_find_data()
 {
   return (WIN32_FIND_DATA*)malloc(sizeof(WIN32_FIND_DATA));
 }
 
-const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
+PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 {
   size_t len = strlen(find->cFileName) + 1;
 
@@ -79,46 +80,46 @@ const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 
 #endif
 
-#if defined(PLATFORM_IS_POSIX_BASED)
-
-int ponyint_o_rdonly()
+PONY_API int ponyint_o_rdonly()
 {
   return O_RDONLY;
 }
 
-int ponyint_o_rdwr()
+PONY_API int ponyint_o_rdwr()
 {
   return O_RDWR;
 }
 
-int ponyint_o_creat()
+PONY_API int ponyint_o_creat()
 {
   return O_CREAT;
 }
 
-int ponyint_o_trunc()
+PONY_API int ponyint_o_trunc()
 {
   return O_TRUNC;
 }
 
-int ponyint_o_directory()
+#if defined(PLATFORM_IS_POSIX_BASED)
+
+PONY_API int ponyint_o_directory()
 {
   return O_DIRECTORY;
 }
 
-int ponyint_o_cloexec()
+PONY_API int ponyint_o_cloexec()
 {
   return O_CLOEXEC;
 }
 
 #if !defined(PLATFORM_IS_MACOSX)
-int ponyint_at_removedir()
+PONY_API int ponyint_at_removedir()
 {
   return AT_REMOVEDIR;
 }
 #endif
 
-const char* ponyint_unix_readdir(DIR* dir)
+PONY_API const char* ponyint_unix_readdir(DIR* dir)
 {
   struct dirent* d;
 

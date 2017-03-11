@@ -58,7 +58,7 @@ class Writer
   var _offset: USize = 0
   var _size: USize = 0
 
-  fun ref reserve_chunks(size': USize): Writer^ =>
+  fun ref reserve_chunks(size': USize) =>
     """
     Reserve space for size' chunks.
 
@@ -66,57 +66,52 @@ class Writer
     as `done` resets the chunks.
     """
     _chunks.reserve(size')
-    this
 
-  fun ref reserve(size': USize): Writer^ =>
+  fun ref reserve(size': USize) =>
     """
     Reserve space for size additional bytes.
     """
     _current.undefined(_current.size() + size')
-    this
 
   fun size(): USize =>
     _size
 
-  fun ref u8(data: U8): Writer^ =>
+  fun ref u8(data: U8) =>
     """
     Write a byte to the buffer.
     """
     _check(1)
     _byte(data)
-    this
 
-  fun ref u16_le(data: U16): Writer^ =>
+  fun ref u16_le(data: U16) =>
     """
     Write a U16 to the buffer in little-endian byte order.
     """
     _check(2)
     _byte(data.u8())
     _byte((data >> 8).u8())
-    this
 
-  fun ref u16_be(data: U16): Writer^ =>
+  fun ref u16_be(data: U16) =>
     """
     Write a U16 to the buffer in big-endian byte order.
     """
     _check(2)
     _byte((data >> 8).u8())
     _byte(data.u8())
-    this
 
-  fun ref i16_le(data: I16): Writer^ =>
+  fun ref i16_le(data: I16) =>
     """
     Write an I16 to the buffer in little-endian byte order.
     """
     u16_le(data.u16())
 
-  fun ref i16_be(data: I16): Writer^ =>
+  fun ref i16_be(data: I16) =>
     """
     Write an I16 to the buffer in big-endian byte order.
     """
     u16_be(data.u16())
 
-  fun ref u32_le(data: U32): Writer^ =>
+  fun ref u32_le(data: U32) =>
     """
     Write a U32 to the buffer in little-endian byte order.
     """
@@ -125,9 +120,8 @@ class Writer
     _byte((data >> 8).u8())
     _byte((data >> 16).u8())
     _byte((data >> 24).u8())
-    this
 
-  fun ref u32_be(data: U32): Writer^ =>
+  fun ref u32_be(data: U32) =>
     """
     Write a U32 to the buffer in big-endian byte order.
     """
@@ -136,33 +130,32 @@ class Writer
     _byte((data >> 16).u8())
     _byte((data >> 8).u8())
     _byte(data.u8())
-    this
 
-  fun ref i32_le(data: I32): Writer^ =>
+  fun ref i32_le(data: I32) =>
     """
     Write an I32 to the buffer in little-endian byte order.
     """
     u32_le(data.u32())
 
-  fun ref i32_be(data: I32): Writer^ =>
+  fun ref i32_be(data: I32) =>
     """
     Write an I32 to the buffer in big-endian byte order.
     """
     u32_be(data.u32())
 
-  fun ref f32_le(data: F32): Writer^ =>
+  fun ref f32_le(data: F32) =>
     """
     Write an F32 to the buffer in little-endian byte order.
     """
     u32_le(data.bits())
 
-  fun ref f32_be(data: F32): Writer^ =>
+  fun ref f32_be(data: F32) =>
     """
     Write an F32 to the buffer in big-endian byte order.
     """
     u32_be(data.bits())
 
-  fun ref u64_le(data: U64): Writer^ =>
+  fun ref u64_le(data: U64) =>
     """
     Write a U64 to the buffer in little-endian byte order.
     """
@@ -175,9 +168,8 @@ class Writer
     _byte((data >> 40).u8())
     _byte((data >> 48).u8())
     _byte((data >> 56).u8())
-    this
 
-  fun ref u64_be(data: U64): Writer^ =>
+  fun ref u64_be(data: U64) =>
     """
     Write a U64 to the buffer in big-endian byte order.
     """
@@ -190,33 +182,32 @@ class Writer
     _byte((data >> 16).u8())
     _byte((data >> 8).u8())
     _byte(data.u8())
-    this
 
-  fun ref i64_le(data: I64): Writer^ =>
+  fun ref i64_le(data: I64) =>
     """
     Write an I64 to the buffer in little-endian byte order.
     """
     u64_le(data.u64())
 
-  fun ref i64_be(data: I64): Writer^ =>
+  fun ref i64_be(data: I64) =>
     """
     Write an I64 to the buffer in big-endian byte order.
     """
     u64_be(data.u64())
 
-  fun ref f64_le(data: F64): Writer^ =>
+  fun ref f64_le(data: F64) =>
     """
     Write an F64 to the buffer in little-endian byte order.
     """
     u64_le(data.bits())
 
-  fun ref f64_be(data: F64): Writer^ =>
+  fun ref f64_be(data: F64) =>
     """
     Write an F64 to the buffer in big-endian byte order.
     """
     u64_be(data.bits())
 
-  fun ref u128_le(data: U128): Writer^ =>
+  fun ref u128_le(data: U128) =>
     """
     Write a U128 to the buffer in little-endian byte order.
     """
@@ -237,9 +228,8 @@ class Writer
     _byte((data >> 104).u8())
     _byte((data >> 112).u8())
     _byte((data >> 120).u8())
-    this
 
-  fun ref u128_be(data: U128): Writer^ =>
+  fun ref u128_be(data: U128) =>
     """
     Write a U128 to the buffer in big-endian byte order.
     """
@@ -260,30 +250,28 @@ class Writer
     _byte((data >> 16).u8())
     _byte((data >> 8).u8())
     _byte(data.u8())
-    this
 
-  fun ref i128_le(data: I128): Writer^ =>
+  fun ref i128_le(data: I128) =>
     """
     Write an I128 to the buffer in little-endian byte order.
     """
     u128_le(data.u128())
 
-  fun ref i128_be(data: I128): Writer^ =>
+  fun ref i128_be(data: I128) =>
     """
     Write an I128 to the buffer in big-endian byte order.
     """
     u128_be(data.u128())
 
-  fun ref write(data: ByteSeq): Writer^ =>
+  fun ref write(data: ByteSeq) =>
     """
     Write a ByteSeq to the buffer.
     """
     _append_current()
     _chunks.push(data)
     _size = _size + data.size()
-    this
 
-  fun ref writev(data: ByteSeqIter): Writer^ =>
+  fun ref writev(data: ByteSeqIter) =>
     """
     Write ByteSeqs to the buffer.
     """
@@ -292,7 +280,6 @@ class Writer
       _chunks.push(chunk)
       _size = _size + chunk.size()
     end
-    this
 
   fun ref done(): Array[ByteSeq] iso^ =>
     """

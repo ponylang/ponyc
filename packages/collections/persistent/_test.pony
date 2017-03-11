@@ -75,11 +75,11 @@ class iso _TestListApply is UnitTest
     h.assert_eq[U32](l1(0), 1)
     h.assert_eq[U32](l1(1), 2)
     h.assert_eq[U32](l1(2), 3)
-    h.assert_error({()(l1)? => l1(3) })
-    h.assert_error({()(l1)? => l1(4) })
+    h.assert_error({()? => l1(3) })
+    h.assert_error({()? => l1(4) })
 
     let l2 = Lists[U32].empty()
-    h.assert_error({()(l2)? => l2(0) })
+    h.assert_error({()? => l2(0) })
 
 class iso _TestListValues is UnitTest
   fun name(): String => "collections/persistent/List/values()"
@@ -253,7 +253,7 @@ class iso _TestMap is UnitTest
 
   fun apply(h: TestHelper) =>
     let m1: Map[String,U32] = Maps.empty[String,U32]()
-    h.assert_error({()(m1)? => m1("a") })
+    h.assert_error({()? => m1("a") })
     let s1 = m1.size()
     h.assert_eq[USize](s1, 0)
 
@@ -281,17 +281,17 @@ class iso _TestMap is UnitTest
       h.assert_eq[U32](m7("b"), 3)
       h.assert_eq[U32](m7("a"), 10)
       let m8 = m7.remove("a")
-      h.assert_error({()(m8 = m8)? => m8("a") })
+      h.assert_error({()? => m8("a") })
       h.assert_eq[U32](m8("b"), 3)
       h.assert_eq[U32](m8("d"), 4)
       h.assert_eq[U32](m8("e"), 5)
       let m9 = m7.remove("e")
-      h.assert_error({()(m9 = m9)? => m9("e") })
+      h.assert_error({()? => m9("e") })
       h.assert_eq[U32](m9("b"), 3)
       h.assert_eq[U32](m9("d"), 4)
       let m10 = m9.remove("b").remove("d")
-      h.assert_error({()(m10 = m10)? => m10("b") })
-      h.assert_error({()(m10 = m10)? => m10("d") })
+      h.assert_error({()? => m10("b") })
+      h.assert_error({()? => m10("d") })
     else
       h.complete(false)
     end

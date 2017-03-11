@@ -154,7 +154,7 @@ uint32_t ponyint_numa_node_of_cpu(uint32_t cpu)
 
 #endif
 
-bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
+bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   uint32_t cpu, void* arg)
 {
   (void)cpu;
@@ -185,9 +185,9 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
       if(getrlimit(RLIMIT_STACK, &limit) == 0)
       {
         int node = _numa_node_of_cpu(cpu);
-        void* stack = _numa_alloc_onnode(limit.rlim_cur, node);
+        void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
         if (stack != NULL) {
-          pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+          pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
         }
       }
     }
@@ -204,7 +204,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
   return true;
 }
 
-bool pony_thread_join(pony_thread_id_t thread)
+bool ponyint_thread_join(pony_thread_id_t thread)
 {
 #ifdef PLATFORM_IS_WINDOWS
   WaitForSingleObject(thread, INFINITE);
@@ -217,14 +217,14 @@ bool pony_thread_join(pony_thread_id_t thread)
   return true;
 }
 
-void pony_thread_detach(pony_thread_id_t thread)
+void ponyint_thread_detach(pony_thread_id_t thread)
 {
 #ifndef PLATFORM_IS_WINDOWS
   pthread_detach(thread);
 #endif
 }
 
-pony_thread_id_t pony_thread_self()
+pony_thread_id_t ponyint_thread_self()
 {
 #ifdef PLATFORM_IS_WINDOWS
   return GetCurrentThread();

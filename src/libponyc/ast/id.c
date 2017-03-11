@@ -1,16 +1,16 @@
-#include <assert.h>
+#include "ponyassert.h"
 #include "id.h"
 #include "id_internal.h"
 
 
 bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
 {
-  assert(id_node != NULL);
-  assert(ast_id(id_node) == TK_ID);
-  assert(desc != NULL);
+  pony_assert(id_node != NULL);
+  pony_assert(ast_id(id_node) == TK_ID);
+  pony_assert(desc != NULL);
 
   const char* name = ast_name(id_node);
-  assert(name != NULL);
+  pony_assert(name != NULL);
   char prev = '\0';
 
   // Ignore leading $, handled by lexer
@@ -26,6 +26,17 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
   {
     name++;
     prev = '_';
+
+    if(*name == '\0')
+    {
+      if((spec & ALLOW_DONTCARE) == 0)
+      {
+        ast_error(opt->check.errors, id_node,
+          "%s name cannot be \"%s\"", desc, ast_name(id_node));
+        return false;
+      }
+      return true;
+    }
 
     if((spec & ALLOW_LEADING_UNDERSCORE) == 0)
     {
@@ -100,7 +111,7 @@ bool check_id(pass_opt_t* opt, ast_t* id_node, const char* desc, int spec)
     return true;
 
   // Should only be ticks left
-  assert(*name == '\'');
+  pony_assert(*name == '\'');
 
   if((spec & ALLOW_TICK) == 0)
   {
@@ -168,9 +179,9 @@ bool check_id_param(pass_opt_t* opt, ast_t* id_node)
 
 bool check_id_local(pass_opt_t* opt, ast_t* id_node)
 {
-  // [a-z][A-Za-z0-9_]*'* (and no double or trailing underscores)
+  // (_|[a-z][A-Za-z0-9_]*'*) (and no double or trailing underscores)
   return check_id(opt, id_node, "local variable",
-    START_LOWER | ALLOW_UNDERSCORE | ALLOW_TICK);
+    START_LOWER | ALLOW_UNDERSCORE | ALLOW_TICK | ALLOW_DONTCARE);
 }
 
 bool is_name_type(const char* name)
@@ -186,7 +197,8 @@ bool is_name_type(const char* name)
 
 bool is_name_private(const char* name)
 {
-  return name[0] == '_' || (is_name_internal_test(name) && name[1] == '_');
+  return ((name[0] == '_') && (name[1] != '\0')) ||
+    (is_name_internal_test(name) && (name[1] == '_'));
 }
 
 bool is_name_ffi(const char* name)
@@ -197,4 +209,9 @@ bool is_name_ffi(const char* name)
 bool is_name_internal_test(const char* name)
 {
   return name[0] == '$';
+}
+
+bool is_name_dontcare(const char* name)
+{
+  return (name[0] == '_') && (name[1] == '\0');
 }

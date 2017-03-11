@@ -1,7 +1,7 @@
 #include "genident.h"
 #include "gendesc.h"
 #include "genexpr.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
   ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value);
@@ -9,9 +9,9 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
-  assert(ast_id(left_type) == TK_TUPLETYPE);
-  assert(ast_id(right_type) == TK_TUPLETYPE);
-  assert(ast_childcount(left_type) == ast_childcount(right_type));
+  pony_assert(ast_id(left_type) == TK_TUPLETYPE);
+  pony_assert(ast_id(right_type) == TK_TUPLETYPE);
+  pony_assert(ast_childcount(left_type) == ast_childcount(right_type));
 
   // Pairwise comparison.
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -115,7 +115,7 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 

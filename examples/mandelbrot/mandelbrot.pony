@@ -12,8 +12,8 @@ actor Worker
         Array[U8]((y - x) * (width >> 3))
       end
 
-    let group_r = Array[F32].undefined(8)
-    let group_i = Array[F32].undefined(8)
+    let group_r = Array[F32].>undefined(8)
+    let group_i = Array[F32].>undefined(8)
 
     var row = x
 

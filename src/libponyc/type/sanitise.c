@@ -1,19 +1,19 @@
 #include "sanitise.h"
 #include "../ast/astbuild.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 // Collect the given type parameter
 static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 {
-  assert(orig_param != NULL);
+  pony_assert(orig_param != NULL);
 
   // Get original type parameter info
   AST_GET_CHILDREN(orig_param, id, constraint, deflt);
   const char* name = ast_name(id);
 
   constraint = sanitise_type(constraint);
-  assert(constraint != NULL);
+  pony_assert(constraint != NULL);
 
   // New type parameter has the same constraint as the old one (sanitised)
   if(params != NULL)
@@ -47,7 +47,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 
 void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Create params and args as TK_NONE, we'll change them if we find any type
   // params
@@ -60,7 +60,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   while(entity != NULL && ast_id(entity) != TK_INTERFACE &&
     ast_id(entity) != TK_TRAIT && ast_id(entity) != TK_PRIMITIVE &&
     ast_id(entity) != TK_STRUCT && ast_id(entity) != TK_CLASS &&
-    ast_id(entity) != TK_ACTOR)
+    ast_id(entity) != TK_ACTOR && ast_id(entity) != TK_TYPE)
   {
     entity = ast_parent(entity);
   }
@@ -103,10 +103,10 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
 // Sanitise the given type (sub)AST, which has already been copied
 static void sanitise(ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
 
   ast_t* type = *astp;
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   ast_clearflag(*astp, AST_FLAG_PASS_MASK);
 
@@ -114,10 +114,10 @@ static void sanitise(ast_t** astp)
   {
     // We have a type param reference, convert to a nominal
     ast_t* def = (ast_t*)ast_data(type);
-    assert(def != NULL);
+    pony_assert(def != NULL);
 
     const char* name = ast_name(ast_child(def));
-    assert(name != NULL);
+    pony_assert(name != NULL);
 
     REPLACE(astp,
       NODE(TK_NOMINAL,
@@ -138,7 +138,7 @@ static void sanitise(ast_t** astp)
 
 ast_t* sanitise_type(ast_t* type)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   ast_t* new_type = ast_dup(type);
   sanitise(&new_type);

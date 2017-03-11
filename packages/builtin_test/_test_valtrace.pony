@@ -18,7 +18,7 @@ actor _Valtrace
     Create a String iso, send it to a new actor.
     """
     @pony_triggergc[None](this)
-    let s = recover String.append("test") end
+    let s = recover String.>append("test") end
     _Valtrace.two(this, h, consume s)
 
   be two(a1: _Valtrace, h: TestHelper, s: String iso) =>

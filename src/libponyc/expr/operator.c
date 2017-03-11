@@ -10,11 +10,11 @@
 #include "../type/matchtype.h"
 #include "../type/safeto.h"
 #include "../type/subtype.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
 {
-  assert(ast_id(ast) == TK_ID);
+  pony_assert(ast_id(ast) == TK_ID);
   const char* name = ast_name(ast);
 
   sym_status_t status;
@@ -77,7 +77,7 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -86,6 +86,9 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
   switch(ast_id(ast))
   {
     case TK_DONTCARE:
+      return true;
+
+    case TK_DONTCAREREF:
       // Can only assign to it if we don't need the value.
       return !need_value;
 
@@ -217,7 +220,7 @@ typedef enum infer_ret_t
 
 static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   switch(ast_id(type))
   {
@@ -241,7 +244,7 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
         if(t == NULL)
         {
-          // Propogate error
+          // Propagate error
           ast_free_unattached(u_type);
           return NULL;
         }
@@ -263,7 +266,7 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
         if(t == NULL)
         {
-          // Propogate error
+          // Propagate error
           ast_free_unattached(i_type);
           return NULL;
         }
@@ -286,10 +289,10 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
   ast_t* r_type, infer_path_t* path)
 {
-  assert(left != NULL);
-  assert(r_type != NULL);
-  assert(path != NULL);
-  assert(path->root != NULL);
+  pony_assert(left != NULL);
+  pony_assert(r_type != NULL);
+  pony_assert(path != NULL);
+  pony_assert(path->root != NULL);
 
   infer_ret_t ret_val = INFER_NOP;
 
@@ -297,7 +300,7 @@ static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
   {
     case TK_SEQ:
     {
-      assert(ast_childcount(left) == 1);
+      pony_assert(ast_childcount(left) == 1);
       infer_ret_t r = infer_local_inner(opt, ast_child(left), r_type, path);
 
       if(r == INFER_OK) // Update seq type
@@ -339,7 +342,7 @@ static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
     case TK_LET:
     {
       ast_t* var_type = ast_type(left);
-      assert(var_type != NULL);
+      pony_assert(var_type != NULL);
 
       if(ast_id(var_type) != TK_INFERTYPE)  // No inferring needed
         return INFER_NOP;
@@ -361,7 +364,7 @@ static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
       // Add the type to the var / let AST as if it had been specified by the
       // user. Not really needed, but makes testing easier
       ast_t* speced_type = ast_childidx(left, 1);
-      assert(ast_id(speced_type) == TK_NONE);
+      pony_assert(ast_id(speced_type) == TK_NONE);
       ast_replace(&speced_type, a_type);
 
       ast_free_unattached(infer_type);
@@ -382,14 +385,14 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
   if(infer_local_inner(opt, left, r_type, &path_root) == INFER_ERROR)
     return false;
 
-  assert(path_root.next == NULL);
-  assert(path_root.root = &path_root);
+  pony_assert(path_root.next == NULL);
+  pony_assert(path_root.root = &path_root);
   return true;
 }
 
 static bool is_expr_constructor(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   switch(ast_id(ast))
   {
     case TK_CALL:
@@ -433,21 +436,18 @@ static bool is_expr_constructor(ast_t* ast)
 
 static bool tuple_contains_embed(ast_t* ast)
 {
-  assert(ast_id(ast) == TK_TUPLE);
+  pony_assert(ast_id(ast) == TK_TUPLE);
   ast_t* child = ast_child(ast);
   while(child != NULL)
   {
-    if(ast_id(child) != TK_DONTCARE)
+    pony_assert(ast_id(child) == TK_SEQ);
+    ast_t* member = ast_childlast(child);
+    if(ast_id(member) == TK_EMBEDREF)
     {
-      assert(ast_id(child) == TK_SEQ);
-      ast_t* member = ast_childlast(child);
-      if(ast_id(member) == TK_EMBEDREF)
-      {
+      return true;
+    } else if(ast_id(member) == TK_TUPLE) {
+      if(tuple_contains_embed(member))
         return true;
-      } else if(ast_id(member) == TK_TUPLE) {
-        if(tuple_contains_embed(member))
-          return true;
-      }
     }
     child = ast_sibling(child);
   }
@@ -474,18 +474,16 @@ static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
       ast_t* r_child = ast_child(right);
       while(l_child != NULL)
       {
-        if(ast_id(l_child) != TK_DONTCARE)
-        {
-          assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
-          ast_t* l_member = ast_childlast(l_child);
-          ast_t* r_member = ast_childlast(r_child);
-          if(!check_embed_construction(opt, l_member, r_member))
-            result = false;
-        }
+        pony_assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
+        ast_t* l_member = ast_childlast(l_child);
+        ast_t* r_member = ast_childlast(r_child);
+        if(!check_embed_construction(opt, l_member, r_member))
+          result = false;
+
         l_child = ast_sibling(l_child);
         r_child = ast_sibling(r_child);
       }
-      assert(r_child == NULL);
+      pony_assert(r_child == NULL);
     } else if(tuple_contains_embed(left)) {
       ast_error(opt->check.errors, left,
         "an embedded field must be assigned using a constructor");
@@ -500,15 +498,21 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
   if(l_type == NULL || !is_lvalue(opt, left, is_result_needed(ast)))
   {
-    ast_error(opt->check.errors, ast,
-      "left side must be something that can be assigned to");
+    if(ast_id(left) == TK_DONTCAREREF)
+    {
+      ast_error(opt->check.errors, left,
+        "can't read from '_'");
+    } else {
+      ast_error(opt->check.errors, ast,
+        "left side must be something that can be assigned to");
+    }
     return false;
   }
 
@@ -579,7 +583,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         break;
 
       default:
-        assert(0);
+        pony_assert(0);
         break;
     }
 
@@ -600,7 +604,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
       if(fn != NULL)
       {
         ast_t* iso = ast_child(fn);
-        assert(iso != NULL);
+        pony_assert(iso != NULL);
         token_id iso_id = ast_id(iso);
 
         if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)

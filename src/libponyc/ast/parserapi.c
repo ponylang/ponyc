@@ -1,7 +1,7 @@
 #include "parserapi.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <stdio.h>
 
 
@@ -68,9 +68,9 @@ static void consume_token_no_ast(parser_t* parser)
 static void syntax_error(parser_t* parser, const char* expected,
   ast_t* ast, const char* terminating)
 {
-  assert(parser != NULL);
-  assert(expected != NULL);
-  assert(parser->token != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(expected != NULL);
+  pony_assert(parser->token != NULL);
 
   if(parser->last_matched == NULL)
   {
@@ -87,7 +87,7 @@ static void syntax_error(parser_t* parser, const char* expected,
     }
     else
     {
-      assert(ast != NULL);
+      pony_assert(ast != NULL);
       ast_error(parser->errors, ast, "syntax error: unterminated %s",
         terminating);
       error_continue(parser->errors, parser->source,
@@ -101,10 +101,10 @@ static void syntax_error(parser_t* parser, const char* expected,
 
 // Standard build functions
 
-void default_builder(rule_state_t* state, ast_t* new_ast)
+static void default_builder(rule_state_t* state, ast_t* new_ast)
 {
-  assert(state != NULL);
-  assert(new_ast != NULL);
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL);
 
   // Existing AST goes at the top
 
@@ -131,8 +131,8 @@ void default_builder(rule_state_t* state, ast_t* new_ast)
 
 void infix_builder(rule_state_t* state, ast_t* new_ast)
 {
-  assert(state != NULL);
-  assert(new_ast != NULL);
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL);
 
   // New AST goes at the top
   ast_add(new_ast, state->ast);
@@ -143,8 +143,8 @@ void infix_builder(rule_state_t* state, ast_t* new_ast)
 
 void infix_reverse_builder(rule_state_t* state, ast_t* new_ast)
 {
-  assert(state != NULL);
-  assert(new_ast != NULL);
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL);
 
   // New AST goes at the top, existing goes on the right
   ast_append(new_ast, state->ast);
@@ -154,13 +154,22 @@ void infix_reverse_builder(rule_state_t* state, ast_t* new_ast)
 }
 
 
+static void annotation_builder(rule_state_t* state, ast_t* new_ast)
+{
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL);
+
+  ast_setannotation(state->ast, new_ast);
+}
+
+
 // Functions called by macros
 
 // Process any deferred token we have
 static void process_deferred_ast(parser_t* parser, rule_state_t* state)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
 
   if(state->deferred)
   {
@@ -176,10 +185,10 @@ static void process_deferred_ast(parser_t* parser, rule_state_t* state)
 static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
   builder_fn_t build_fn)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
-  assert(new_ast != NULL && new_ast != PARSE_ERROR);
-  assert(build_fn != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL && new_ast != PARSE_ERROR);
+  pony_assert(build_fn != NULL);
 
   process_deferred_ast(parser, state);
 
@@ -200,7 +209,7 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 // Add an AST node for the specified token, which may be deferred
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 {
-  assert(parser->token != NULL);
+  pony_assert(parser->token != NULL);
 
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
@@ -220,9 +229,9 @@ void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 // The token set must be TK_NONE terminated
 static void ditch_restart(parser_t* parser, rule_state_t* state)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
-  assert(state->restart != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
+  pony_assert(state->restart != NULL);
 
   if(trace_enable)
     fprintf(stderr, "Rule %s: Attempting recovery:\n", state->fn_name);
@@ -256,8 +265,8 @@ static void ditch_restart(parser_t* parser, rule_state_t* state)
 // Propgate an error, handling AST tidy up and restart points
 static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
 
   ast_free(state->ast);
   state->ast = NULL;
@@ -266,7 +275,7 @@ static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
   if(state->restart == NULL)
   {
     if(trace_enable)
-      fprintf(stderr, "Rule %s: Propogate failure\n", state->fn_name);
+      fprintf(stderr, "Rule %s: Propagate failure\n", state->fn_name);
 
     return PARSE_ERROR;
   }
@@ -288,8 +297,8 @@ static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
 static ast_t* handle_found(parser_t* parser, rule_state_t* state,
   ast_t* new_ast, builder_fn_t build_fn, bool* out_found)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
 
   if(out_found != NULL)
     *out_found = true;
@@ -318,15 +327,15 @@ static ast_t* handle_found(parser_t* parser, rule_state_t* state,
 *
 * Returns:
  *    PARSE_OK if not error.
- *    PARSE_ERROR to propogate a lexer error.
+ *    PARSE_ERROR to propagate a lexer error.
  *    RULE_NOT_FOUND if current token is not is specified set.
 */
 static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   const char* desc, const char* terminating, bool* out_found)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
-  assert(desc != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
+  pony_assert(desc != NULL);
 
   if(out_found != NULL)
     *out_found = false;
@@ -384,17 +393,17 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
  *
  * Returns:
  *    PARSE_OK on success.
- *    PARSE_ERROR to propogate a lexer error.
+ *    PARSE_ERROR to propagate a lexer error.
  *    RULE_NOT_FOUND if current token is not is specified set.
- *    NULL to propogate a restarted error.
+ *    NULL to propagate a restarted error.
  */
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   const char* terminating, const token_id* id_set, bool make_ast,
   bool* out_found)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
-  assert(id_set != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
+  pony_assert(id_set != NULL);
 
   token_id id = current_token_id(parser);
 
@@ -418,7 +427,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     // Match new line if the next token is the first on a line
     if(*p == TK_NEWLINE)
     {
-      assert(parser->token != NULL);
+      pony_assert(parser->token != NULL);
       size_t last_token_line = parser->last_token_line;
       size_t next_token_line = token_line_number(parser->token);
       bool is_newline = (next_token_line != last_token_line);
@@ -467,17 +476,17 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
  *
  * Returns:
  *    PARSE_OK on success.
- *    PARSE_ERROR to propogate an error.
+ *    PARSE_ERROR to propagate an error.
  *    RULE_NOT_FOUND if no rules in given set can be matched.
- *    NULL to propogate a restarted error.
+ *    NULL to propagate a restarted error.
  */
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set, bool* out_found)
+  const rule_t* rule_set, bool* out_found, bool annotate)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
-  assert(desc != NULL);
-  assert(rule_set != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
+  pony_assert(desc != NULL);
+  pony_assert(rule_set != NULL);
 
   token_id id = current_token_id(parser);
 
@@ -492,9 +501,9 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
       (rule_set[1] == NULL) ? "" : "s", desc);
   }
 
+  builder_fn_t build_fn = annotate ? annotation_builder : default_builder;
   for(const rule_t* p = rule_set; *p != NULL; p++)
   {
-    builder_fn_t build_fn = default_builder;
     ast_t* rule_ast = (*p)(parser, &build_fn, desc);
 
     if(rule_ast == PARSE_ERROR)
@@ -516,7 +525,7 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
 // Set the data flags to use for the next token consumed from the source
 void parse_set_next_flags(parser_t* parser, uint32_t flags)
 {
-  assert(parser != NULL);
+  pony_assert(parser != NULL);
   parser->next_flags = flags;
 }
 
@@ -532,8 +541,8 @@ void parse_set_next_flags(parser_t* parser, uint32_t flags)
  */
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 {
-  assert(parser != NULL);
-  assert(state != NULL);
+  pony_assert(parser != NULL);
+  pony_assert(state != NULL);
 
   process_deferred_ast(parser, state);
 
@@ -569,7 +578,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   if(trace_enable)
     fprintf(stderr, "Rule %s: Restart check error\n", state->fn_name);
 
-  assert(parser->token != NULL);
+  pony_assert(parser->token != NULL);
   error(parser->errors, parser->source, token_line_number(parser->token),
     token_line_position(parser->token),
     "syntax error: unexpected token %s after %s", token_print(parser->token),
@@ -593,9 +602,9 @@ void parse_trace(bool enable)
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   errors_t* errors)
 {
-  assert(package != NULL);
-  assert(source != NULL);
-  assert(expected != NULL);
+  pony_assert(package != NULL);
+  pony_assert(source != NULL);
+  pony_assert(expected != NULL);
 
   // Open the lexer
   lexer_t* lexer = lexer_open(source, errors);
@@ -649,8 +658,8 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     return false;
   }
 
-  assert(ast_id(ast) == TK_MODULE);
-  assert(ast_data(ast) == NULL);
+  pony_assert(ast_id(ast) == TK_MODULE);
+  pony_assert(ast_data(ast) == NULL);
   ast_setdata(ast, source);
   ast_add(package, ast);
   return true;

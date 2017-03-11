@@ -1,15 +1,15 @@
 #include "platformfuns.h"
 #include "../codegen/genopt.h"
-#include <assert.h>
+#include "ponyassert.h"
 #include <string.h>
 
 
 // Report whether the named platform attribute is true
 bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass_opt_t* options)
 {
-  assert(attribute != NULL);
-  assert(out_is_target != NULL);
-  assert(options != NULL);
+  pony_assert(attribute != NULL);
+  pony_assert(out_is_target != NULL);
+  pony_assert(options != NULL);
 
   if(!strcmp(attribute, OS_FREEBSD_NAME))
   {

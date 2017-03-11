@@ -15,6 +15,7 @@ PONY_EXTERN_C_BEGIN
 #define ALLOW_LEADING_UNDERSCORE  0x04
 #define ALLOW_UNDERSCORE          0x08
 #define ALLOW_TICK                0x10
+#define ALLOW_DONTCARE            0x20
 
 
 /* Check that the name in the given ID node meets the given spec.

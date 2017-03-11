@@ -4,7 +4,7 @@
 #include "../type/reify.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
   ast_t* ephemeral)
@@ -63,7 +63,7 @@ static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -91,7 +91,7 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
       return false;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -162,6 +162,10 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 
   // Replace this with the alias.
   ast_replace(astp, r_alias);
+
+  if(!expr)
+    ast_resetpass(*astp, PASS_NAME_RESOLUTION);
+
   return true;
 }
 
@@ -169,13 +173,22 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
-  assert(ast_id(package) == TK_NONE);
+  pony_assert(ast_id(package) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
   {
     ast_error(opt->check.errors, typeargs,
       "can't qualify a type parameter with type arguments");
     return false;
+  }
+
+  if(ast_id(ast) == TK_NOMINAL) {
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    if(module && ast_get(module, ast_name(id), 0)) {
+      ast_error(opt->check.errors, def,
+                "type parameter shadows existing type");
+      return false;
+    }
   }
 
   // Change to a typeparamref.
@@ -231,7 +244,7 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
 static ast_t* get_package_scope(pass_opt_t* opt, ast_t* scope, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_NOMINAL);
+  pony_assert(ast_id(ast) == TK_NOMINAL);
   ast_t* package_id = ast_child(ast);
 
   // Find our actual package.
@@ -293,6 +306,14 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 
   // Find our definition.
   const char* name = ast_name(type_id);
+
+  if(is_name_dontcare(name))
+  {
+    ast_error(opt->check.errors, type_id,
+      "can't use '_' as a type name");
+    return false;
+  }
+
   ast_t* def = ast_get(r_scope, name, NULL);
   bool r = true;
 

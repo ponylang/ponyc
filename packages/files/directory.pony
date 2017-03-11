@@ -90,8 +90,7 @@ class Directory
 
         let h = ifdef linux or freebsd then
           let fd = @openat[I32](fd', ".".cstring(),
-            @ponyint_o_rdonly() or @ponyint_o_directory() or
-            @ponyint_o_cloexec())
+            @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
           @fdopendir[Pointer[_DirectoryHandle]](fd)
         else
           @opendir[Pointer[_DirectoryHandle]](path'.cstring())
@@ -433,8 +432,7 @@ class Directory
             end
           end
 
-          0 == @unlinkat(_fd, target.cstring(),
-            @ponyint_at_removedir())
+          0 == @unlinkat(_fd, target.cstring(), @ponyint_at_removedir())
         else
           0 == @unlinkat(_fd, target.cstring(), 0)
         end

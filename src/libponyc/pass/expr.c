@@ -9,7 +9,7 @@
 #include "../expr/array.h"
 #include "../expr/ffi.h"
 #include "../expr/lambda.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool is_numeric_primitive(const char* name)
 {
@@ -81,7 +81,7 @@ bool is_result_needed(ast_t* ast)
     {
       // Only if it is a numeric primitive constructor.
       ast_t* type = ast_childidx(parent, 4);
-      assert(ast_id(type) == TK_NOMINAL);
+      pony_assert(ast_id(type) == TK_NOMINAL);
       const char* pkg_name = ast_name(ast_child(type));
       const char* type_name = ast_name(ast_childidx(type, 1));
       if(pkg_name == stringtab("$0")) // Builtin package.
@@ -291,7 +291,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_LOCATION:   r = expr_location(options, ast); break;
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_DIGESTOF:   r = expr_digestof(options, ast); break;
-    case TK_DONTCARE:   r = expr_dontcare(options, ast); break;
+
+    case TK_OBJECT:
+      if(!expr_object(options, astp))
+        return AST_FATAL;
+      break;
 
     case TK_LAMBDA:
       if(!expr_lambda(options, astp))
@@ -322,7 +326,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
   if(!r)
   {
-    assert(errors_get_count(options->check.errors) > 0);
+    pony_assert(errors_get_count(options->check.errors) > 0);
     return AST_ERROR;
   }
 

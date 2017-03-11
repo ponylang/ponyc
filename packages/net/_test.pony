@@ -16,9 +16,9 @@ actor Main is TestList
 
 class _TestPing is UDPNotify
   let _h: TestHelper
-  let _ip: IPAddress
+  let _ip: NetAddress
 
-  new create(h: TestHelper, ip: IPAddress) =>
+  new create(h: TestHelper, ip: NetAddress) =>
     _h = h
 
     _ip = try
@@ -54,10 +54,10 @@ class _TestPing is UDPNotify
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress) =>
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress) =>
     _h.complete_action("ping receive")
 
-    let s = String.append(consume data)
+    let s = String.>append(consume data)
     _h.assert_eq[String box](s, "pong!")
     _h.complete(true)
 
@@ -90,11 +90,11 @@ class _TestPong is UDPNotify
       _h.fail_action("ping create")
     end
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
+  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     _h.complete_action("pong receive")
 
-    let s = String.append(consume data)
+    let s = String.>append(consume data)
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
       recover val [[U8('p'), U8('o'), U8('n'), U8('g'), U8('!')]] end,
@@ -286,7 +286,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     _h = h
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
-    recover Array[ByteSeq].concat(data.values()).push(" (from client)") end
+    recover Array[ByteSeq].>concat(data.values()).>push(" (from client)") end
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
@@ -339,8 +339,6 @@ class iso _TestTCPMute is UnitTest
 
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPMuteReceiveNotify(h))
-
-    h.long_test(2_000_000_000)
 
   fun timed_out(h: TestHelper) =>
     h.complete(true)
@@ -418,8 +416,6 @@ class iso _TestTCPUnmute is UnitTest
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPUnmuteReceiveNotify(h))
 
-    h.long_test(2_000_000_000)
-
 class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   """
   Notifier to test that after muting and unmuting a connection, we get data
@@ -468,8 +464,6 @@ class iso _TestTCPThrottle is UnitTest
 
     _TestTCP(h)(_TestTCPThrottleSendNotify(h),
       _TestTCPThrottleReceiveNotify(h))
-
-    h.long_test(10_000_000_000)
 
 class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   """

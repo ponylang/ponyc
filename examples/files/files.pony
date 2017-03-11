@@ -2,7 +2,7 @@ use "files"
 
 actor Main
   new create(env: Env) =>
-    let caps = recover val FileCaps.set(FileRead).set(FileStat) end
+    let caps = recover val FileCaps.>set(FileRead).>set(FileStat) end
 
     try
       with file = OpenFile(

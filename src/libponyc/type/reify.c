@@ -4,18 +4,18 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
 
   ast_t* ref_def = (ast_t*)ast_data(ast);
   ast_t* param_def = (ast_t*)ast_data(typeparam);
 
-  assert(ref_def != NULL);
-  assert(param_def != NULL);
+  pony_assert(ref_def != NULL);
+  pony_assert(param_def != NULL);
 
   if(ref_def != param_def)
     return;
@@ -30,12 +30,12 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     case TK_NONE:
       break;
 
-    case TK_BORROWED:
+    case TK_ALIASED:
       typearg = alias(typearg);
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
   }
 
   ast_replace(astp, typearg);
@@ -44,7 +44,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 static void reify_arrow(ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_ARROW);
+  pony_assert(ast_id(ast) == TK_ARROW);
   AST_GET_CHILDREN(ast, left, right);
 
   ast_t* r_left = left;
@@ -94,11 +94,11 @@ static void reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   pass_opt_t* opt)
 {
-  assert(
+  pony_assert(
     (ast_id(typeparams) == TK_TYPEPARAMS) ||
     (ast_id(typeparams) == TK_NONE)
     );
-  assert(
+  pony_assert(
     (ast_id(typeargs) == TK_TYPEARGS) ||
     (ast_id(typeargs) == TK_NONE)
     );
@@ -153,11 +153,11 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
   bool duplicate)
 {
   (void)opt;
-  assert(
+  pony_assert(
     (ast_id(typeparams) == TK_TYPEPARAMS) ||
     (ast_id(typeparams) == TK_NONE)
     );
-  assert(
+  pony_assert(
     (ast_id(typeargs) == TK_TYPEARGS) ||
     (ast_id(typeargs) == TK_NONE)
     );
@@ -179,8 +179,8 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
     typearg = ast_sibling(typearg);
   }
 
-  assert(typeparam == NULL);
-  assert(typearg == NULL);
+  pony_assert(typeparam == NULL);
+  pony_assert(typearg == NULL);
   return r_ast;
 }
 
@@ -196,7 +196,7 @@ ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
       break;
 
     default:
-      assert(false);
+      pony_assert(false);
   }
 
   // Remove the body AST to avoid duplicating it.
@@ -257,25 +257,25 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
     // Reify the constraint.
     ast_t* constraint = ast_childidx(typeparam, 1);
-    ast_t* bind_constraint = bind_type(constraint);
-    ast_t* r_constraint = reify(bind_constraint, typeparams, typeargs, opt,
+    ast_t* r_constraint = reify(constraint, typeparams, typeargs, opt,
       true);
-
-    if(bind_constraint != r_constraint)
-      ast_free_unattached(bind_constraint);
 
     // A bound type must be a subtype of the constraint.
     errorframe_t info = NULL;
-    if(!is_subtype(typearg, r_constraint, report_errors ? &info : NULL, opt))
+    errorframe_t* infop = (report_errors ? &info : NULL);
+    if(!is_subtype_constraint(typearg, r_constraint, infop, opt))
     {
       if(report_errors)
       {
-        ast_error(opt->check.errors, orig,
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, orig,
           "type argument is outside its constraint");
-        ast_error_continue(opt->check.errors, typearg,
+        ast_error_frame(&frame, typearg,
           "argument: %s", ast_print_type(typearg));
-        ast_error_continue(opt->check.errors, typeparam,
+        ast_error_frame(&frame, typeparam,
           "constraint: %s", ast_print_type(r_constraint));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
       }
 
       ast_free_unattached(r_constraint);
@@ -304,7 +304,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
     typearg = ast_sibling(typearg);
   }
 
-  assert(typeparam == NULL);
-  assert(typearg == NULL);
+  pony_assert(typeparam == NULL);
+  pony_assert(typearg == NULL);
   return true;
 }

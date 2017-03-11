@@ -114,17 +114,17 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   for(ast_t* ele = ast_childidx(ast, 1); ele != NULL; ele = ast_sibling(ele))
   {
-    BUILD(append_dot, ast, NODE(TK_DOT, TREE(*astp) ID("push")));
+    BUILD(append_chain, ast, NODE(TK_CHAIN, TREE(*astp) ID("push")));
 
     BUILD(append, ast,
       NODE(TK_CALL,
         NODE(TK_POSITIONALARGS, TREE(ele))
         NONE
-        TREE(append_dot)));
+        TREE(append_chain)));
 
     ast_replace(astp, append);
 
-    if(!expr_dot(opt, &append_dot) ||
+    if(!expr_chain(opt, &append_chain) ||
       !expr_call(opt, &append)
       )
       return false;

@@ -7,9 +7,9 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 DEFINE_STACK(reach_method_stack, reach_method_stack_t,
   reach_method_t);
@@ -298,7 +298,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
@@ -370,8 +370,12 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t2;
 
-  ast_t* def = (ast_t*)ast_data(t->ast);
-  bool interface = ast_id(def) == TK_INTERFACE;
+  bool interface = false;
+  if(ast_id(t->ast) == TK_NOMINAL)
+  {
+    ast_t* def = (ast_t*)ast_data(t->ast);
+    interface = ast_id(def) == TK_INTERFACE;
+  }
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
@@ -397,7 +401,8 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
         {
           reach_type_cache_put(&t->subtypes, t2);
           reach_type_cache_put(&t2->subtypes, t);
-          add_methods_to_type(r, t, t2, opt);
+          if(ast_id(t->ast) == TK_NOMINAL)
+            add_methods_to_type(r, t, t2, opt);
         }
         break;
 
@@ -414,24 +419,38 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
-    if(ast_id(t2->ast) != TK_NOMINAL)
-      continue;
-
-    ast_t* def = (ast_t*)ast_data(t2->ast);
-
-    switch(ast_id(def))
+    if(ast_id(t2->ast) == TK_NOMINAL)
     {
-      case TK_INTERFACE:
-      case TK_TRAIT:
-        if(is_subtype(t->ast, t2->ast, NULL, opt))
-        {
-          reach_type_cache_put(&t->subtypes, t2);
-          reach_type_cache_put(&t2->subtypes, t);
-          add_methods_to_type(r, t2, t, opt);
-        }
-        break;
+      ast_t* def = (ast_t*)ast_data(t2->ast);
 
-      default: {}
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          if(is_subtype(t->ast, t2->ast, NULL, opt))
+          {
+            reach_type_cache_put(&t->subtypes, t2);
+            reach_type_cache_put(&t2->subtypes, t);
+            add_methods_to_type(r, t2, t, opt);
+          }
+          break;
+
+        default: {}
+      }
+    } else {
+      switch(ast_id(t2->ast))
+      {
+        case TK_UNIONTYPE:
+        case TK_ISECTTYPE:
+          if(is_subtype(t->ast, t2->ast, NULL, opt))
+          {
+            reach_type_cache_put(&t->subtypes, t2);
+            reach_type_cache_put(&t2->subtypes, t);
+          }
+          break;
+
+        default: {}
+      }
     }
   }
 }
@@ -479,7 +498,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
       {
         ast_t* r_member = lookup(NULL, NULL, t->ast,
           ast_name(ast_child(member)));
-        assert(r_member != NULL);
+        pony_assert(r_member != NULL);
 
         AST_GET_CHILDREN(r_member, name, type, init);
 
@@ -556,6 +575,8 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
   t->underlying = ast_id(t->ast);
   t->type_id = r->next_type_id++;
 
+  add_types_to_trait(r, t, opt);
+
   ast_t* child = ast_child(type);
 
   while(child != NULL)
@@ -580,6 +601,7 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t = add_reach_type(r, type);
   t->underlying = TK_TUPLETYPE;
   t->type_id = r->next_type_id++;
+  t->can_be_boxed = true;
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reach_field_t*)calloc(t->field_count,
@@ -659,6 +681,9 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
   if(t->type_id == (uint32_t)-1)
     t->type_id = r->next_type_id++;
 
+  if(is_machine_word(type))
+    t->can_be_boxed = true;
+
   if(ast_id(def) != TK_PRIMITIVE)
     return t;
 
@@ -725,7 +750,7 @@ static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt)
       return add_nominal(r, type, opt);
 
     default:
-      assert(0);
+      pony_assert(0);
   }
 
   return NULL;
@@ -735,11 +760,11 @@ static void reachable_pattern(reach_t* r, ast_t* ast, pass_opt_t* opt)
 {
   switch(ast_id(ast))
   {
-    case TK_DONTCARE:
     case TK_NONE:
       break;
 
     case TK_MATCH_CAPTURE:
+    case TK_MATCH_DONTCARE:
     {
       AST_GET_CHILDREN(ast, idseq, type);
       add_type(r, type, opt);
@@ -761,8 +786,11 @@ static void reachable_pattern(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
     default:
     {
-      reachable_method(r, ast_type(ast), stringtab("eq"), NULL, opt);
-      reachable_expr(r, ast, opt);
+      if(ast_id(ast_type(ast)) != TK_DONTCARETYPE)
+      {
+        reachable_method(r, ast_type(ast), stringtab("eq"), NULL, opt);
+        reachable_expr(r, ast, opt);
+      }
       break;
     }
   }
@@ -902,7 +930,7 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
     case TK_IF:
     {
       AST_GET_CHILDREN(ast, cond, then_clause, else_clause);
-      assert(ast_id(cond) == TK_SEQ);
+      pony_assert(ast_id(cond) == TK_SEQ);
       cond = ast_child(cond);
 
       ast_t* type = ast_type(ast);
@@ -959,6 +987,14 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 
   if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
+    if(name == stringtab("_final"))
+    {
+      // If the method is a finaliser, don't mark the ref and val versions as
+      // reachable.
+      pony_assert(n->cap == TK_BOX);
+      return;
+    }
+
     // TODO: if it doesn't use this-> in a constructor, we could reuse the
     // function, which means always reuse in a fun tag
     bool subordinate = (n->cap == TK_TAG);

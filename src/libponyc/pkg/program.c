@@ -2,8 +2,8 @@
 #include "package.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 
 // Per program state.
@@ -21,8 +21,8 @@ typedef struct program_t
 // Append the given text to the program's lib args, handling reallocs.
 static void append_to_args(program_t* program, const char* text)
 {
-  assert(program != NULL);
-  assert(text != NULL);
+  pony_assert(program != NULL);
+  pony_assert(text != NULL);
 
   size_t text_len = strlen(text);
   size_t new_len = program->lib_args_size + text_len + 1; // +1 for terminator
@@ -32,7 +32,7 @@ static void append_to_args(program_t* program, const char* text)
     size_t new_alloc = 2 * new_len; // 2* so there's spare space for next arg
     program->lib_args = (char*)realloc(program->lib_args, new_alloc);
     program->lib_args_alloced = new_alloc;
-    assert(new_len <= program->lib_args_alloced);
+    pony_assert(new_len <= program->lib_args_alloced);
   }
 
   strcat(program->lib_args, text);
@@ -55,7 +55,7 @@ program_t* program_create()
 
 void program_free(program_t* program)
 {
-  assert(program != NULL);
+  pony_assert(program != NULL);
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
@@ -66,11 +66,11 @@ void program_free(program_t* program)
 
 uint32_t program_assign_pkg_id(ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_PROGRAM);
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_PROGRAM);
 
   program_t* data = (program_t*)ast_data(ast);
-  assert(data != NULL);
+  pony_assert(data != NULL);
 
   return data->next_package_id++;
 }
@@ -84,7 +84,7 @@ uint32_t program_assign_pkg_id(ast_t* ast)
 static const char* quoted_locator(pass_opt_t* opt, ast_t* use,
   const char* locator)
 {
-  assert(locator != NULL);
+  pony_assert(locator != NULL);
 
   if(strpbrk(locator, INVALID_LOCATOR_CHARS) != NULL)
   {
@@ -117,7 +117,7 @@ bool use_library(ast_t* use, const char* locator, ast_t* name,
 
   ast_t* p = ast_nearest(use, TK_PROGRAM);
   program_t* prog = (program_t*)ast_data(p);
-  assert(prog->lib_args == NULL); // Not yet built args
+  pony_assert(prog->lib_args == NULL); // Not yet built args
 
   if(strlist_find(prog->libs, libname) != NULL) // Ignore duplicate
     return true;
@@ -140,7 +140,7 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 
   ast_t* p = ast_nearest(use, TK_PROGRAM);
   program_t* prog = (program_t*)ast_data(p);
-  assert(prog->lib_args == NULL); // Not yet built args
+  pony_assert(prog->lib_args == NULL); // Not yet built args
 
   if(strlist_find(prog->libpaths, libpath) != NULL) // Ignore duplicate
     return true;
@@ -155,16 +155,16 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   const char* global_preamble, const char* global_postamble,
   const char* lib_premable, const char* lib_postamble)
 {
-  assert(program != NULL);
-  assert(ast_id(program) == TK_PROGRAM);
-  assert(global_preamble != NULL);
-  assert(global_postamble != NULL);
-  assert(lib_premable != NULL);
-  assert(lib_postamble != NULL);
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+  pony_assert(global_preamble != NULL);
+  pony_assert(global_postamble != NULL);
+  pony_assert(lib_premable != NULL);
+  pony_assert(lib_postamble != NULL);
 
   program_t* data = (program_t*)ast_data(program);
-  assert(data != NULL);
-  assert(data->lib_args == NULL); // Not yet built args
+  pony_assert(data != NULL);
+  pony_assert(data->lib_args == NULL); // Not yet built args
 
   // Start with an arbitrary amount of space
   data->lib_args_alloced = 256;
@@ -233,12 +233,12 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
 
 const char* program_lib_args(ast_t* program)
 {
-  assert(program != NULL);
-  assert(ast_id(program) == TK_PROGRAM);
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
 
   program_t* data = (program_t*)ast_data(program);
-  assert(data != NULL);
-  assert(data->lib_args != NULL); // Args have been built
+  pony_assert(data != NULL);
+  pony_assert(data->lib_args != NULL); // Args have been built
 
   return data->lib_args;
 }

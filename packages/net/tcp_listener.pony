@@ -11,8 +11,9 @@ actor TCPListener
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
-    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
       conn.write(String.from_array(consume data))
+      true
 
   class MyTCPListenNotify is TCPListenNotify
     fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
@@ -37,7 +38,7 @@ actor TCPListener
   var _max_size: USize
 
   new create(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -53,7 +54,7 @@ actor TCPListener
     _notify_listening()
 
   new ip4(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -69,7 +70,7 @@ actor TCPListener
     _notify_listening()
 
   new ip6(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -96,11 +97,11 @@ actor TCPListener
     """
     close()
 
-  fun local_address(): IPAddress =>
+  fun local_address(): NetAddress =>
     """
     Return the bound IP address.
     """
-    let ip = recover IPAddress end
+    let ip = recover NetAddress end
     @pony_os_sockname[Bool](_fd, ip)
     ip
 
@@ -215,13 +216,13 @@ actor TCPListener
     _closed = true
 
     if not _event.is_null() then
-      @pony_os_socket_close[None](_fd)
-      _fd = -1
-
       // When not on windows, the unsubscribe is done immediately.
       ifdef not windows then
         @pony_asio_event_unsubscribe(_event)
       end
+
+      @pony_os_socket_close[None](_fd)
+      _fd = -1
 
       _notify.closed(this)
     end

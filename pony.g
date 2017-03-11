@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'struct' | 'class' | 'actor') ('\\' ID (',' ID)* '\\')? '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members
@@ -30,11 +30,15 @@ members
   ;
 
 field
-  : ('var' | 'let' | 'embed') ID ':' type ('delegate' type)? ('=' infix)?
+  : ('var' | 'let' | 'embed') ID ':' type ('=' infix)?
   ;
 
 method
-  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') ('\\' ID (',' ID)* '\\')? cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
+  ;
+
+annotatedrawseq
+  : ('\\' ID (',' ID)* '\\')? (exprseq | jump)
   ;
 
 rawseq
@@ -80,34 +84,34 @@ infix
   ;
 
 binop
-  : ('and' | 'or' | 'xor' | '+' | '-' | '*' | '/' | '%' | '<<' | '>>' | 'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>') term
+  : ('and' | 'or' | 'xor' | '+' | '-' | '*' | '/' | '%' | '+~' | '-~' | '*~' | '/~' | '%~' | '<<' | '>>' | '<<~' | '>>~' | 'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' | '==~' | '!=~' | '<~' | '<=~' | '>=~' | '>~') term
   ;
 
 nextterm
-  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
-  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
-  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
-  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
-  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
-  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
-  | 'recover' cap? rawseq 'end'
+  : 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'ifdef' ('\\' ID (',' ID)* '\\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'match' ('\\' ID (',' ID)* '\\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
+  | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'repeat' ('\\' ID (',' ID)* '\\')? rawseq 'until' annotatedrawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\\' ID (',' ID)* '\\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'with' ('\\' ID (',' ID)* '\\')? (withelem (',' withelem)*) 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'try' ('\\' ID (',' ID)* '\\')? rawseq ('else' annotatedrawseq)? ('then' annotatedrawseq)? 'end'
+  | 'recover' ('\\' ID (',' ID)* '\\')? cap? rawseq 'end'
   | 'consume' cap? term
   | nextpattern
   | '#' postfix
   ;
 
 term
-  : 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
-  | 'ifdef' infix 'then' rawseq (elseifdef | ('else' rawseq))? 'end'
-  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
-  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
-  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
-  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
-  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
-  | 'recover' cap? rawseq 'end'
+  : 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'ifdef' ('\\' ID (',' ID)* '\\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'match' ('\\' ID (',' ID)* '\\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
+  | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'repeat' ('\\' ID (',' ID)* '\\')? rawseq 'until' annotatedrawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\\' ID (',' ID)* '\\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'with' ('\\' ID (',' ID)* '\\')? (withelem (',' withelem)*) 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'try' ('\\' ID (',' ID)* '\\')? rawseq ('else' annotatedrawseq)? ('then' annotatedrawseq)? 'end'
+  | 'recover' ('\\' ID (',' ID)* '\\')? cap? rawseq 'end'
   | 'consume' cap? term
   | pattern
   | '#' postfix
@@ -118,26 +122,25 @@ withelem
   ;
 
 caseexpr
-  : '|' pattern? ('if' rawseq)? ('=>' rawseq)?
+  : '|' ('\\' ID (',' ID)* '\\')? pattern? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 elseifdef
-  : 'elseif' infix 'then' rawseq (elseifdef | ('else' rawseq))?
+  : 'elseif' ('\\' ID (',' ID)* '\\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))?
   ;
 
 elseif
-  : 'elseif' rawseq 'then' rawseq (elseif | ('else' rawseq))?
+  : 'elseif' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))?
   ;
 
 idseq
   : ID
-  | '_'
-  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  | ('(' | LPAREN_NEW) idseq_in_seq (',' idseq_in_seq)* ')'
   ;
 
 idseq_in_seq
   : ID
-  | ('(' | LPAREN_NEW) (idseq_in_seq | '_') (',' (idseq_in_seq | '_'))* ')'
+  | ('(' | LPAREN_NEW) idseq_in_seq (',' idseq_in_seq)* ')'
   ;
 
 nextpattern
@@ -151,12 +154,12 @@ pattern
   ;
 
 nextparampattern
-  : ('not' | 'addressof' | MINUS_NEW | 'digestof') parampattern
+  : ('not' | 'addressof' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') parampattern
   | nextpostfix
   ;
 
 parampattern
-  : ('not' | 'addressof' | '-' | MINUS_NEW | 'digestof') parampattern
+  : ('not' | 'addressof' | '-' | '-~' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') parampattern
   | postfix
   ;
 
@@ -188,11 +191,11 @@ nextatom
   : ID
   | 'this'
   | literal
-  | LPAREN_NEW (rawseq | '_') tuple? ')'
+  | LPAREN_NEW rawseq tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' cap? ('is' type)? members 'end'
-  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
+  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | 'lambda' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
@@ -201,17 +204,17 @@ atom
   : ID
   | 'this'
   | literal
-  | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
+  | ('(' | LPAREN_NEW) rawseq tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' cap? ('is' type)? members 'end'
-  | '{' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | 'lambda' cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
+  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | 'lambda' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
 
 tuple
-  : ',' (rawseq | '_') (',' (rawseq | '_'))*
+  : ',' rawseq (',' rawseq)*
   ;
 
 lambdacaptures
@@ -241,7 +244,7 @@ type
 atomtype
   : 'this'
   | cap
-  | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
+  | ('(' | LPAREN_NEW) infixtype tupletype? ')'
   | nominal
   | lambdatype
   ;
@@ -251,7 +254,7 @@ lambdatype
   ;
 
 tupletype
-  : ',' (infixtype | '_') (',' (infixtype | '_'))*
+  : ',' infixtype (',' infixtype)*
   ;
 
 infixtype
@@ -318,7 +321,7 @@ literal
   ;
 
 param
-  : (parampattern | '_') (':' type)? ('=' infix)?
+  : parampattern (':' type)? ('=' infix)?
   ;
 
 antlr_0
@@ -375,7 +378,7 @@ Type:
 
 ID
   : LETTER (LETTER | DIGIT | '_' | '\'')*
-  | '_' (LETTER | DIGIT | '_' | '\'')+
+  | '_' (LETTER | DIGIT | '_' | '\'')*
   ;
 
 INT
@@ -406,6 +409,10 @@ MINUS_NEW
   : NEWLINE '-'
   ;
 
+MINUS_TILDE_NEW
+  : NEWLINE '-~'
+  ;
+
 LINECOMMENT
   : '//' ~('\n')* {$channel = HIDDEN;}
   ;
@@ -424,13 +431,13 @@ NEWLINE
 
 fragment
 CHAR_CHAR
-  : ESC
+  : '\\' '\'' | ESC
   | ~('\'' | '\\')
   ;
 
 fragment
 STRING_CHAR
-  : ESC
+  : '\\' '"' | ESC
   | ~('"' | '\\')
   ;
 
@@ -461,7 +468,7 @@ HEX
 
 fragment
 ESC
-  : '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
+  : '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\\' | '0')
   | HEX_ESC
   | UNICODE_ESC
   | UNICODE2_ESC

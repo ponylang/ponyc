@@ -1,10 +1,10 @@
 #include "control.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 
 bool verify_try(pass_opt_t* opt, ast_t* ast)
 {
-  assert((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK));
+  pony_assert((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK));
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
   // It has to be possible for the left side to result in an error.

@@ -5,7 +5,13 @@ primitive PrimitiveInitFinal
   fun _final() =>
     @printf[I32]("primitive final\n".cstring())
 
+class EmbedFinal
+  fun _final() =>
+    @printf[I32]("embed final\n".cstring())
+
 class ClassFinal
+  embed f: EmbedFinal = EmbedFinal
+
   fun _final() =>
     @printf[I32]("class final\n".cstring())
 

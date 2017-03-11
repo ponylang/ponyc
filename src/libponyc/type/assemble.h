@@ -48,10 +48,16 @@ ast_t* type_union(pass_opt_t* opt, ast_t* l_type, ast_t* r_type);
 ast_t* type_isect(pass_opt_t* opt, ast_t* l_type, ast_t* r_type);
 
 /**
+ * Build a type to describe a class/actor.
+ */
+ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
+  token_id cap, token_id ephemeral, bool expr);
+
+/**
  * Build a type to describe the current class/actor.
  */
 ast_t* type_for_this(pass_opt_t* opt, ast_t* ast, token_id cap,
-  token_id ephemeral, bool defs);
+  token_id ephemeral);
 
 /**
  * Build a type to describe a function signature.

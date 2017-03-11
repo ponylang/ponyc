@@ -15,8 +15,8 @@
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 /**
  * Make sure the definition of something occurs before its use. This is for
@@ -128,7 +128,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -161,7 +161,7 @@ static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -172,7 +172,9 @@ bool expr_provides(pass_opt_t* opt, ast_t* ast)
   // happened. At this point, we need to check that the type is a structural
   // subtype of all traits and interfaces it declares as provided.
   AST_GET_CHILDREN(ast, id, typeparams, cap, provides);
-  ast_t* type = type_for_this(opt, ast, TK_REF, TK_NONE, true);
+
+  ast_t* def = opt->check.frame->type;
+  ast_t* type = type_for_class(opt, def, ast, TK_REF, TK_NONE, true);
   errorframe_t err = NULL;
 
   if(!check_provides(opt, type, provides, &err))
@@ -225,27 +227,10 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
 
 bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, type, init, delegates);
-  bool ok = true;
-
-  for(ast_t* del = ast_child(delegates); del != NULL; del = ast_sibling(del))
-  {
-    errorframe_t err = NULL;
-
-    if(!is_subtype(type, del, &err, opt))
-    {
-      errorframe_t err2 = NULL;
-      ast_error_frame(&err2, ast, "field not a subtype of delegate");
-      errorframe_append(&err2, &err);
-      errorframe_report(&err2, opt->check.errors);
-      ok = false;
-    }
-  }
-
-  if(ok)
-    ast_settype(ast, type);
-
-  return ok;
+  (void)opt;
+  AST_GET_CHILDREN(ast, id, type, init);
+  ast_settype(ast, type);
+  return true;
 }
 
 bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
@@ -342,7 +327,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_TYPEREF);
+  pony_assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
   if(is_typecheck_error(type))
@@ -399,7 +384,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         if(is_typecheck_error(type))
           return false;
 
-        assert(ast_id(type) == TK_FUNTYPE);
+        pony_assert(ast_id(type) == TK_FUNTYPE);
         AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
         if(ast_id(params) == TK_NONE)
@@ -483,8 +468,8 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
 static const char* suggest_alt_name(ast_t* ast, const char* name)
 {
-  assert(ast != NULL);
-  assert(name != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(name != NULL);
 
   size_t name_len = strlen(name);
 
@@ -517,7 +502,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
     if(ast_id(id) != TK_ID)
       id = ast_child(id);
 
-    assert(ast_id(id) == TK_ID);
+    pony_assert(ast_id(id) == TK_ID);
     const char* try_name = ast_name(id);
 
     if(ast_get(ast, try_name, NULL) != NULL)
@@ -528,6 +513,72 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   return NULL;
 }
 
+static bool is_legal_dontcare(ast_t* ast)
+{
+  // We either are the LHS of an assignment or a tuple element. That tuple must
+  // either be a pattern or the LHS of an assignment. It can be embedded in
+  // other tuples, which may appear in sequences.
+
+  // '_' may be wrapped in a sequence.
+  ast_t* parent = ast_parent(ast);
+  if(ast_id(parent) == TK_SEQ)
+    parent = ast_parent(parent);
+
+  switch(ast_id(parent))
+  {
+    case TK_ASSIGN:
+    {
+      AST_GET_CHILDREN(parent, right, left);
+      if(ast == left)
+        return true;
+      return false;
+    }
+
+    case TK_TUPLE:
+    {
+      ast_t* grandparent = ast_parent(parent);
+
+      while((ast_id(grandparent) == TK_TUPLE) ||
+        (ast_id(grandparent) == TK_SEQ))
+      {
+        parent = grandparent;
+        grandparent = ast_parent(parent);
+      }
+
+      switch(ast_id(grandparent))
+      {
+        case TK_ASSIGN:
+        {
+          AST_GET_CHILDREN(grandparent, right, left);
+
+          if(parent == left)
+            return true;
+
+          break;
+        }
+
+        case TK_CASE:
+        {
+          AST_GET_CHILDREN(grandparent, pattern, guard, body);
+
+          if(parent == pattern)
+            return true;
+
+          break;
+        }
+
+        default: {}
+      }
+
+      break;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool expr_reference(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
@@ -535,6 +586,21 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
   // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
+
+  if(is_name_dontcare(name))
+  {
+    if(is_result_needed(ast) && !is_legal_dontcare(ast))
+    {
+      ast_error(opt->check.errors, ast, "can't read from '_'");
+      return false;
+    }
+
+    ast_t* type = ast_from(ast, TK_DONTCARETYPE);
+    ast_settype(ast, type);
+    ast_setid(ast, TK_DONTCAREREF);
+
+    return true;
+  }
 
   sym_status_t status;
   ast_t* def = ast_get(ast, name, &status);
@@ -632,9 +698,9 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       if(!sendable(type) && (t->frame->recover != NULL))
       {
-        ast_error(opt->check.errors, ast, "can't access a non-sendable "
-          "parameter from inside a recover expression");
-        return false;
+        ast_t* parent = ast_parent(ast);
+        if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
+          type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
       }
 
       // Get the type of the parameter and attach it to our reference.
@@ -704,7 +770,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
           break;
 
         default:
-          assert(0);
+          pony_assert(0);
           return false;
       }
 
@@ -716,10 +782,28 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
           if(t->frame->recover != def_recover)
           {
-            ast_error(opt->check.errors, ast, "can't access a non-sendable "
-              "local defined outside of a recover expression from within "
-              "that recover expression");
-            return false;
+            ast_t* parent = ast_parent(ast);
+            if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
+              type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
+
+            if(ast_id(ast) == TK_VARREF)
+            {
+              ast_t* current = ast;
+              while(ast_id(parent) != TK_RECOVER && ast_id(parent) != TK_ASSIGN)
+              {
+                current = parent;
+                parent = ast_parent(parent);
+              }
+              if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+              {
+                ast_error(opt->check.errors, ast, "can't access a non-sendable "
+                  "local defined outside of a recover expression from within "
+                  "that recover epression");
+                ast_error_continue(opt->check.errors, parent, "this would be "
+                  "possible if the local wasn't assigned to");
+                return false;
+              }
+            }
           }
         }
       }
@@ -738,22 +822,24 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
 bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
-  assert(ast_type(ast) != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(ast_type(ast) != NULL);
 
   AST_GET_CHILDREN(ast, id, type);
-  assert(type != NULL);
+  pony_assert(type != NULL);
+
+  bool is_dontcare = is_name_dontcare(ast_name(id));
 
   if(ast_id(type) == TK_NONE)
   {
     // No type specified, infer it later
-    if(!is_assigned_to(ast, false))
+    if(!is_dontcare && !is_assigned_to(ast, false))
     {
       ast_error(opt->check.errors, ast,
         "locals must specify a type or be assigned a value");
@@ -770,6 +856,9 @@ bool expr_local(pass_opt_t* opt, ast_t* ast)
       return false;
     }
   }
+
+  if(is_dontcare)
+    ast_setid(ast, TK_DONTCARE);
 
   return true;
 }
@@ -885,60 +974,6 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_dontcare(pass_opt_t* opt, ast_t* ast)
-{
-  // We are a tuple element. That tuple must either be a pattern or the LHS
-  // of an assignment. It can be embedded in other tuples, which may appear
-  // in sequences.
-  ast_t* tuple = ast_parent(ast);
-
-  if(ast_id(tuple) == TK_TUPLE)
-  {
-    ast_t* parent = ast_parent(tuple);
-
-    while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
-    {
-      tuple = parent;
-      parent = ast_parent(tuple);
-    }
-
-    switch(ast_id(parent))
-    {
-      case TK_ASSIGN:
-      {
-        AST_GET_CHILDREN(parent, right, left);
-
-        if(tuple == left)
-        {
-          ast_settype(ast, ast);
-          return true;
-        }
-
-        break;
-      }
-
-      case TK_CASE:
-      {
-        AST_GET_CHILDREN(parent, pattern, guard, body);
-
-        if(tuple == pattern)
-        {
-          ast_settype(ast, ast);
-          return true;
-        }
-
-        break;
-      }
-
-      default: {}
-    }
-  }
-
-  ast_error(opt->check.errors, ast, "the don't care token can only appear "
-    "in a tuple, either on the LHS of an assignment or in a pattern");
-  return false;
-}
-
 bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
@@ -960,13 +995,13 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  assert(status == SYM_NONE);
+  pony_assert(status == SYM_NONE);
   token_id cap = cap_for_this(t);
 
   if(!cap_sendable(cap) && (t->frame->recover != NULL))
   {
     ast_t* parent = ast_parent(ast);
-    if(ast_id(parent) != TK_DOT)
+    if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
       cap = TK_TAG;
   }
 
@@ -978,7 +1013,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     make_arrow = true;
   }
 
-  ast_t* type = type_for_this(opt, ast, cap, TK_NONE, false);
+  ast_t* type = type_for_this(opt, ast, cap, TK_NONE);
 
   if(make_arrow)
   {
@@ -1028,7 +1063,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
   {
     ast_t* right = ast_sibling(ast);
-    assert(ast_id(right) == TK_ID);
+    pony_assert(ast_id(right) == TK_ID);
     ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
 
     if(find != NULL)
@@ -1043,6 +1078,8 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
         default: {}
       }
+
+      ast_free_unattached(find);
     }
   }
 
@@ -1142,7 +1179,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   if(is_maybe(ast))
   {
     // MaybePointer[A] must be bound to a struct.
-    assert(ast_childcount(typeargs) == 1);
+    pony_assert(ast_childcount(typeargs) == 1);
     ast_t* typeparam = ast_child(typeparams);
     ast_t* typearg = ast_child(typeargs);
     bool ok = false;
@@ -1184,7 +1221,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
 static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast_id(ast) == TK_NEW);
+  pony_assert(ast_id(ast) == TK_NEW);
 
   ast_t* members = ast_parent(ast);
   ast_t* member = ast_child(members);

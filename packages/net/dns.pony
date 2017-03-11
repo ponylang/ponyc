@@ -5,7 +5,7 @@ primitive DNS
   Helper functions for resolving DNS queries.
   """
   fun apply(auth: DNSLookupAuth, host: String, service: String)
-    : Array[IPAddress] iso^
+    : Array[NetAddress] iso^
   =>
     """
     Gets all IPv4 and IPv6 addresses for a host and service.
@@ -13,7 +13,7 @@ primitive DNS
     _resolve(auth, 0, host, service)
 
   fun ip4(auth: DNSLookupAuth, host: String, service: String)
-    : Array[IPAddress] iso^
+    : Array[NetAddress] iso^
   =>
     """
     Gets all IPv4 addresses for a host and service.
@@ -21,7 +21,7 @@ primitive DNS
     _resolve(auth, 1, host, service)
 
   fun ip6(auth: DNSLookupAuth, host: String, service: String)
-    : Array[IPAddress] iso^
+    : Array[NetAddress] iso^
   =>
     """
     Gets all IPv6 addresses for a host and service.
@@ -29,7 +29,7 @@ primitive DNS
     _resolve(auth, 2, host, service)
 
   fun broadcast_ip4(auth: DNSLookupAuth, service: String)
-    : Array[IPAddress] iso^
+    : Array[NetAddress] iso^
   =>
     """
     Link-local IP4 broadcast address.
@@ -37,7 +37,7 @@ primitive DNS
     ip4(auth, "255.255.255.255", service)
 
   fun broadcast_ip6(auth: DNSLookupAuth, service: String)
-    : Array[IPAddress] iso^
+    : Array[NetAddress] iso^
   =>
     """
     Link-local IP6 broadcast address.
@@ -57,12 +57,12 @@ primitive DNS
     @pony_os_host_ip6[Bool](host.cstring())
 
   fun _resolve(auth: DNSLookupAuth, family: U32, host: String,
-    service: String): Array[IPAddress] iso^
+    service: String): Array[NetAddress] iso^
   =>
     """
     Turns an addrinfo pointer into an array of addresses.
     """
-    var list = recover Array[IPAddress] end
+    var list = recover Array[NetAddress] end
     var result = @pony_os_addrinfo[Pointer[U8]](family,
       host.cstring(), service.cstring())
 
@@ -70,7 +70,7 @@ primitive DNS
       var addr = result
 
       while not addr.is_null() do
-        let ip = recover IPAddress end
+        let ip = recover NetAddress end
         @pony_os_getaddr[None](addr, ip)
         list.push(consume ip)
         addr = @pony_os_nextaddr[Pointer[U8]](addr)

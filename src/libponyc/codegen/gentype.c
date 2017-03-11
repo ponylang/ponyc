@@ -12,9 +12,9 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
@@ -45,7 +45,7 @@ void tbaa_metadatas_free(tbaa_metadatas_t* tbaa_mds)
 
 LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
 {
-  assert(ast_id(type) == TK_NOMINAL);
+  pony_assert(ast_id(type) == TK_NOMINAL);
 
   const char* name = genname_type_and_cap(type);
   tbaa_metadata_t k;
@@ -250,7 +250,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -297,7 +297,11 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
   else
     source = ast_source(t->ast);
 
-  t->di_file = LLVMDIBuilderCreateFile(c->di, source->file);
+  const char* file = source->file;
+  if(file == NULL)
+    file = "";
+
+  t->di_file = LLVMDIBuilderCreateFile(c->di, file);
 
   switch(t->underlying)
   {
@@ -327,7 +331,7 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static void make_box_type(compile_t* c, reach_type_t* t)
@@ -403,6 +407,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 {
   LLVMTypeRef type;
   int extra = 0;
+  bool packed = false;
 
   switch(t->underlying)
   {
@@ -417,12 +422,18 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       break;
 
     case TK_STRUCT:
+    {
       // Pointer and Maybe will have no structure.
       if(t->structure == NULL)
         return true;
 
       type = t->structure;
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      if(ast_has_annotation(def, "packed"))
+        packed = true;
+
       break;
+    }
 
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
@@ -448,7 +459,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -472,12 +483,12 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
     if(elements[i + extra] == NULL)
     {
-      assert(0);
+      pony_assert(0);
       return false;
     }
   }
 
-  LLVMStructSetBody(type, elements, t->field_count + extra, false);
+  LLVMStructSetBody(type, elements, t->field_count + extra, packed);
   ponyint_pool_free_size(buf_size, elements);
   return true;
 }
@@ -608,7 +619,7 @@ static void make_debug_final(compile_t* c, reach_type_t* t)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
 }
 
 static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
@@ -681,7 +692,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     {
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      gentrace(c, ctx, value, t->fields[i].ast, NULL);
+      ast_t* field_type = t->fields[i].ast;
+      gentrace(c, ctx, value, value, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = t->fields[i].type->trace_fn;
@@ -748,7 +760,7 @@ bool gentypes(compile_t* c)
   // Cache the instance of None, which is used as the return value for
   // behaviour calls.
   t = reach_type_name(c->reach, "None");
-  assert(t != NULL);
+  pony_assert(t != NULL);
   c->none_instance = t->instance;
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
@@ -779,6 +791,8 @@ bool gentypes(compile_t* c)
     if(!genfun_method_bodies(c, t))
       return false;
   }
+
+  genfun_primitive_calls(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Descriptors\n");

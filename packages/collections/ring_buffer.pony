@@ -53,24 +53,26 @@ class RingBuffer[A]
 
     _array(i and _mod)
 
-  fun ref push(value: A): RingBuffer[A]^ =>
+  fun ref push(value: A): Bool =>
     """
     Add an element to the ring. If the ring is full, this will drop the oldest
-    element in the ring.
+    element in the ring. Returns true if an element was dropped.
     """
+    var full = false
+
     if _write < space() then
       _array.push(consume value)
     else
       try _array(_write and _mod) = consume value end
+      full = true
     end
 
     _write = _write + 1
-    this
+    full
 
-  fun ref clear(): RingBuffer[A]^ =>
+  fun ref clear() =>
     """
     Clear the queue.
     """
     _array.clear()
     _write = 0
-    this

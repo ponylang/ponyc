@@ -8,7 +8,7 @@ Elixir's Enum and Stream.
 ## Iter
 
 The Iter class wraps iterators so that additional methods may be applied to it.
-Some methods, such as fold and collect, run through the underlying iterator in 
+Some methods, such as fold and collect, run through the underlying iterator in
 order to return a result. Others, such as map and filter, are lazy. This means
 that they return another Iter so that the resulting values are computed one by
 one as needed. Lazy methods return Iter types.
@@ -21,11 +21,11 @@ any odd numbers, and prints the rest.
 let xs = Iter[I64]([as I64: 1, 2, 3, 4, 5].values())
   .map[I64]({(x: I64): I64 => x + 1 })
   .filter({(x: I64): Bool => (x % 2) == 0 })
-  .map[None]({(x: I64)(env) => env.out.print(x.string()) })
+  .map[None]({(x: I64) => env.out.print(x.string()) })
 ```
 
 This will result in an iterator that prints the numbers 2, 4, and 6. However,
-due to the lazy nature of the map and filter, no iteration has actually occured
+due to the lazy nature of the map and filter, no iteration has actually occurred
 and nothing will be printed. One solution to this would be to loop over the
 resulting Iter as so:
 
@@ -43,7 +43,7 @@ for a loop. So the final code would be as follows:
 Iter[I64]([as I64: 1, 2, 3, 4, 5].values())
   .map[I64]({(x: I64): I64 => x + 1 })
   .filter({(x: I64): Bool => (x % 2) == 0 })
-  .map[None]({(x: I64)(env) => env.out.print(x.string()) })
+  .map[None]({(x: I64) => env.out.print(x.string()) })
   .run()
 ```
 

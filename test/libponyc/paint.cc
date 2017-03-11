@@ -6,6 +6,7 @@
 #include <../libponyrt/mem/pool.h>
 
 #include "util.h"
+#include "ponyassert.h"
 
 class PaintTest: public testing::Test
 {
@@ -91,7 +92,7 @@ protected:
       m2.name = n->name;
       reach_method_t* method = reach_methods_get(&n->r_methods, &m2, &index);
 
-      assert(method != NULL);
+      pony_assert(method != NULL);
 
       if(method->vtable_index > max_colour)
         max_colour = method->vtable_index;

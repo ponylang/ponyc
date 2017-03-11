@@ -32,17 +32,21 @@ class ListNode[A]
     """
     (_item = None) as A^
 
-  fun ref prepend(that: ListNode[A]): ListNode[A]^ =>
+  fun ref prepend(that: ListNode[A]): Bool =>
     """
     Prepend a node to this one. If `that` is already in a list, it is removed
-    before it is prepended.
+    before it is prepended. Returns true if `that` was removed from another
+    list.
     """
     if (_prev is that) or (this is that) then
-      return this
+      return false
     end
+
+    var in_list = false
 
     match _list
     | let list': List[A] =>
+      in_list = that._list isnt None
       that.remove()
 
       match _prev
@@ -58,19 +62,23 @@ class ListNode[A]
       _prev = that
       list'._increment()
     end
-    this
+    in_list
 
-  fun ref append(that: ListNode[A]): ListNode[A]^ =>
+  fun ref append(that: ListNode[A]): Bool =>
     """
     Append a node to this one. If `that` is already in a list, it is removed
-    before it is appended.
+    before it is appended. Returns true if `that` was removed from another
+    list.
     """
     if (_next is that) or (this is that) then
-      return this
+      return false
     end
+
+    var in_list = false
 
     match _list
     | let list': List[A] =>
+      in_list = that._list isnt None
       that.remove()
 
       match _next
@@ -86,9 +94,9 @@ class ListNode[A]
       _next = that
       list'._increment()
     end
-    this
+    in_list
 
-  fun ref remove(): ListNode[A]^ =>
+  fun ref remove() =>
     """
     Remove a node from a list.
     """
@@ -120,7 +128,6 @@ class ListNode[A]
       list'._decrement()
       _list = None
     end
-    this
 
   fun has_prev(): Bool =>
     """

@@ -6,18 +6,18 @@
 #include "../ast/symtab.h"
 #include "platformfuns.h"
 #include "../pass/pass.h"
+#include "ponyassert.h"
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
 
 
 // Normalise the given ifdef condition.
 static void cond_normalise(ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
 
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   switch(ast_id(ast))
   {
@@ -82,9 +82,9 @@ static void cond_normalise(ast_t** astp)
     case TK_SEQ:
     {
       // Remove the sequence node.
-      assert(ast_childcount(ast) == 1);
+      pony_assert(ast_childcount(ast) == 1);
       ast_t* child = ast_pop(ast);
-      assert(child != NULL);
+      pony_assert(child != NULL);
 
       cond_normalise(&child);
       ast_replace(astp, child);
@@ -100,7 +100,7 @@ static void cond_normalise(ast_t** astp)
 
     default:
       ast_fprint(stderr, ast);
-      assert(0);
+      pony_assert(0);
       break;
   }
 }
@@ -111,7 +111,7 @@ static void cond_normalise(ast_t** astp)
 static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
   pass_opt_t* opt)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   switch(ast_id(ast))
   {
@@ -157,7 +157,7 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
 
     default:
       ast_fprint(stderr, ast);
-      assert(0);
+      pony_assert(0);
       return false;
   }
 }
@@ -166,8 +166,8 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
 // Find the build config flags used in the given ifdef condition.
 static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
 {
-  assert(ast != NULL);
-  assert(config != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(config != NULL);
 
   switch(ast_id(ast))
   {
@@ -197,7 +197,7 @@ static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
 
     default:
       ast_fprint(stderr, ast);
-      assert(0);
+      pony_assert(0);
       break;
   }
 }
@@ -208,9 +208,9 @@ static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
 static bool find_decl_flags(ast_t* package, const char* ffi_name,
   buildflagset_t* config)
 {
-  assert(package != NULL);
-  assert(ffi_name != NULL);
-  assert(config != NULL);
+  pony_assert(package != NULL);
+  pony_assert(ffi_name != NULL);
+  pony_assert(config != NULL);
 
   bool had_decl = false;
 
@@ -259,11 +259,11 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
   const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info,
   pass_opt_t* opt)
 {
-  assert(call != NULL);
-  assert(package != NULL);
-  assert(ffi_name != NULL);
-  assert(config != NULL);
-  assert(decl_info != NULL);
+  pony_assert(call != NULL);
+  pony_assert(package != NULL);
+  pony_assert(ffi_name != NULL);
+  pony_assert(config != NULL);
+  pony_assert(decl_info != NULL);
 
   bool had_valid_decl = false;
 
@@ -331,8 +331,8 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
 // lot.
 static void check_config_count(buildflagset_t* config, ast_t* location)
 {
-  assert(config != NULL);
-  assert(location != NULL);
+  pony_assert(config != NULL);
+  pony_assert(location != NULL);
 
   double config_count = buildflagset_configcount(config);
 
@@ -359,9 +359,9 @@ static void check_config_count(buildflagset_t* config, ast_t* location)
 static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
   ast_t** out_decl, pass_opt_t* opt)
 {
-  assert(ast != NULL);
-  assert(package != NULL);
-  assert(out_decl != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(package != NULL);
+  pony_assert(out_decl != NULL);
 
   const char* ffi_name = ast_name(ast_child(ast));
   buildflagset_t* config = buildflagset_create();
@@ -395,12 +395,12 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
         return false;
       }
 
-      assert(decl_info.decl != NULL);
+      pony_assert(decl_info.decl != NULL);
     }
   }
 
   buildflagset_free(config);
-  assert(decl_info.decl != NULL);
+  pony_assert(decl_info.decl != NULL);
   *out_decl = decl_info.decl;
   return true;
 }
@@ -408,8 +408,8 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
 
 bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
 {
-  assert(astp != NULL);
-  assert(*astp != NULL);
+  pony_assert(astp != NULL);
+  pony_assert(*astp != NULL);
 
   if(ast_id(*astp) == TK_NONE)  // No condition to normalise.
     return true;
@@ -436,7 +436,7 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
 
 bool ifdef_cond_eval(ast_t* ast, pass_opt_t* opt)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(ast_id(ast) == TK_NONE)  // No condition to evaluate
     return true;
@@ -448,9 +448,9 @@ bool ifdef_cond_eval(ast_t* ast, pass_opt_t* opt)
 bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
   pass_opt_t* opt)
 {
-  assert(t != NULL);
-  assert(ast != NULL);
-  assert(out_decl != NULL);
+  pony_assert(t != NULL);
+  pony_assert(ast != NULL);
+  pony_assert(out_decl != NULL);
 
   const char* ffi_name = ast_name(ast_child(ast));
 
@@ -458,7 +458,7 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
   // just search up through scopes as normal since FFI declarations in outer
   // scopes may not be valid within our ifdef.
   ast_t* ifdef = t->frame->ifdef_clause;
-  assert(ifdef != NULL);
+  pony_assert(ifdef != NULL);
 
   symtab_t* symtab = ast_get_symtab(ifdef);
   sym_status_t status;
@@ -471,7 +471,7 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
   if(status == SYM_NONE)
   {
     // We've not looked that up yet.
-    assert(decl == NULL);
+    pony_assert(decl == NULL);
     if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, opt))
     {
       // That went wrong. Record that so we don't try again.

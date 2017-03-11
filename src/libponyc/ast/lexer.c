@@ -4,11 +4,11 @@
 #include "token.h"
 #include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <assert.h>
 
 
 struct lexer_t
@@ -51,6 +51,24 @@ static const lextoken_t symbols[] =
   { "->", TK_ARROW },
   { "=>", TK_DBLARROW },
 
+  { "<<~", TK_LSHIFT_TILDE },
+  { ">>~", TK_RSHIFT_TILDE },
+
+  { "==~", TK_EQ_TILDE },
+  { "!=~", TK_NE_TILDE },
+
+  { "<=~", TK_LE_TILDE },
+  { ">=~", TK_GE_TILDE },
+
+  { "<~", TK_LT_TILDE },
+  { ">~", TK_GT_TILDE },
+
+  { "+~", TK_PLUS_TILDE },
+  { "-~", TK_MINUS_TILDE },
+  { "*~", TK_MULTIPLY_TILDE },
+  { "/~", TK_DIVIDE_TILDE },
+  { "%~", TK_MOD_TILDE },
+
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
 
@@ -61,6 +79,8 @@ static const lextoken_t symbols[] =
   { ">=", TK_GE },
 
   { ".>", TK_CHAIN },
+
+  { "\\", TK_BACKSLASH },
 
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
@@ -89,7 +109,7 @@ static const lextoken_t symbols[] =
   { "|", TK_PIPE },
   { "&", TK_ISECTTYPE },
   { "^", TK_EPHEMERAL },
-  { "!", TK_BORROWED },
+  { "!", TK_ALIASED },
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
@@ -97,6 +117,7 @@ static const lextoken_t symbols[] =
 
   { "(", TK_LPAREN_NEW },
   { "[", TK_LSQUARE_NEW },
+  { "-~", TK_MINUS_TILDE_NEW },
   { "-", TK_MINUS_NEW },
 
   { NULL, (token_id)0 }
@@ -104,7 +125,6 @@ static const lextoken_t symbols[] =
 
 static const lextoken_t keywords[] =
 {
-  { "_", TK_DONTCARE },
   { "compile_intrinsic", TK_COMPILE_INTRINSIC },
 
   { "use", TK_USE },
@@ -118,7 +138,6 @@ static const lextoken_t keywords[] =
   { "object", TK_OBJECT },
   { "lambda", TK_LAMBDA },
 
-  { "delegate", TK_DELEGATE },
   { "as", TK_AS },
   { "is", TK_IS },
   { "isnt", TK_ISNT },
@@ -186,7 +205,7 @@ static const lextoken_t keywords[] =
   { "$noseq", TK_TEST_NO_SEQ },
   { "$scope", TK_TEST_SEQ_SCOPE },
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
-  { "$borrowed", TK_TEST_BORROWED },
+  { "$aliased", TK_TEST_ALIASED },
   { "$updatearg", TK_TEST_UPDATEARG },
   { "$extra", TK_TEST_EXTRA },
   { "$ifdefand", TK_IFDEFAND },
@@ -209,6 +228,7 @@ static const lextoken_t abstract[] =
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
   { "flet", TK_FLET },
+  { "dontcare", TK_DONTCARE },
   { "ffidecl", TK_FFIDECL },
   { "fficall", TK_FFICALL },
 
@@ -220,21 +240,9 @@ static const lextoken_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
   { "lambdatype", TK_LAMBDATYPE },
+  { "dontcaretype", TK_DONTCARETYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
-
-  { "iso (bind)", TK_ISO_BIND },
-  { "trn (bind)", TK_TRN_BIND },
-  { "ref (bind)", TK_REF_BIND },
-  { "val (bind)", TK_VAL_BIND },
-  { "box (bind)", TK_BOX_BIND },
-  { "tag (bind)", TK_TAG_BIND },
-
-  { "#read (bind)", TK_CAP_READ_BIND },
-  { "#send (bind)", TK_CAP_SEND_BIND },
-  { "#share (bind)", TK_CAP_SHARE_BIND },
-  { "#alias (bind)", TK_CAP_ALIAS_BIND },
-  { "#any (bind)", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },
@@ -277,6 +285,7 @@ static const lextoken_t abstract[] =
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
+  { "dontcareref", TK_DONTCAREREF },
   { "newapp", TK_NEWAPP },
   { "beapp", TK_BEAPP },
   { "funapp", TK_FUNAPP },
@@ -375,7 +384,7 @@ static token_t* make_token_with_text(lexer_t* lexer, token_id id)
  */
 static void consume_chars(lexer_t* lexer, size_t count)
 {
-  assert(lexer->len >= count);
+  pony_assert(lexer->len >= count);
 
   if(count == 0)
     return;
@@ -483,6 +492,12 @@ static token_t* slash(lexer_t* lexer)
 
   if(lookn(lexer, 2) == '/')
     return line_comment(lexer);
+
+  if(lookn(lexer, 2) == '~')
+  {
+    consume_chars(lexer, 2);
+    return make_token(lexer, TK_DIVIDE_TILDE);
+  }
 
   consume_chars(lexer, 1);
   return make_token(lexer, TK_DIVIDE);
@@ -739,7 +754,7 @@ static int escape(lexer_t* lexer, bool unicode_allowed, bool is_string)
 // Append the given value to the current token text, UTF-8 encoded
 static void append_utf8(lexer_t* lexer, int value)
 {
-  assert(value >= 0 && value <= 0x10FFFF);
+  pony_assert(value >= 0 && value <= 0x10FFFF);
 
   if(value <= 0x7F)
   {
@@ -940,7 +955,7 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
-  assert(c == '.' || c == 'e' || c == 'E');
+  pony_assert(c == '.' || c == 'e' || c == 'E');
 
   if(c == '.')
   {
@@ -1153,10 +1168,11 @@ static token_id newline_symbols(token_id raw_token, bool newline)
 
   switch(raw_token)
   {
-    case TK_LPAREN:  return TK_LPAREN_NEW;
-    case TK_LSQUARE: return TK_LSQUARE_NEW;
-    case TK_MINUS:   return TK_MINUS_NEW;
-    default:         return raw_token;
+    case TK_LPAREN:      return TK_LPAREN_NEW;
+    case TK_LSQUARE:     return TK_LSQUARE_NEW;
+    case TK_MINUS:       return TK_MINUS_NEW;
+    case TK_MINUS_TILDE: return TK_MINUS_TILDE_NEW;
+    default:             return raw_token;
   }
 }
 
@@ -1192,7 +1208,7 @@ static token_t* symbol(lexer_t* lexer)
 
 lexer_t* lexer_open(source_t* source, errors_t* errors)
 {
-  assert(source != NULL);
+  pony_assert(source != NULL);
 
   lexer_t* lexer = POOL_ALLOC(lexer_t);
   memset(lexer, 0, sizeof(lexer_t));
@@ -1222,7 +1238,7 @@ void lexer_close(lexer_t* lexer)
 
 token_t* lexer_next(lexer_t* lexer)
 {
-  assert(lexer != NULL);
+  pony_assert(lexer != NULL);
 
   token_t* t = NULL;
 
@@ -1281,7 +1297,7 @@ token_t* lexer_next(lexer_t* lexer)
         else if(isalpha(c) || (c == '_'))
         {
           t = keyword(lexer, true);
-          assert(t != NULL);
+          pony_assert(t != NULL);
         }
         else
         {

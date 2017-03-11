@@ -1,7 +1,7 @@
 #include "compattype.h"
 #include "cap.h"
 #include "viewpoint.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool is_nominal_compat_nominal(ast_t* a, ast_t* b)
 {
@@ -200,7 +200,7 @@ static bool is_tuple_compat_x(ast_t* a, ast_t* b)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -229,7 +229,7 @@ static bool is_nominal_compat_x(ast_t* a, ast_t* b)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -258,7 +258,7 @@ static bool is_typeparam_compat_x(ast_t* a, ast_t* b)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -287,7 +287,7 @@ static bool is_arrow_compat_x(ast_t* a, ast_t* b)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -316,6 +316,6 @@ bool is_compat_type(ast_t* a, ast_t* b)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }

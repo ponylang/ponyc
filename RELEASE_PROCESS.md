@@ -14,38 +14,17 @@ While not strictly required, you life will be made much easier if you:
 * Have read and write access to the ponylang [travis-ci](https://travis-ci.org) account
 * Have read and write access to the ponylang [appveyor](https://www.appveyor.com) account
 
+Our release script requires that you have GNU Sed installed. If you are running on OSX, it will attempt to used `gsed` instead of `sed. If you are on another platform that has a different default `sed`, you will need to install t. On macOS, you can install GNU Sed by running:
+
+```bash
+brew install gnu-sed
+```
+
 ## Prerequisites for specific releases
 
 Before getting started, you will need a number for the version that you will be releasing as well as an agreed upon "golden commit" that will form the basis of the release.  Any commit is eligible to be a "golden commit" so long as:
 
 * It passed all CI checks
-* We were able to build "ponyc-master binaries" for it.
-
-### Validating "ponyc-master binaries"
-
-Currently, we validate binaries for RPM, Deb and Windows packaging. Follow the bintray links below to verify each of the package. You are looking under "Versions" for a successfully created package for the "golden commit". In the case of RPM and Deb, the versions look something like:
-
-`0.3.1-1885.8a8ee28`
-
-where the 
-
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-For windows, version look something like:
-
-`ponyc-master-0.3.1-1526.8a8ee28`
-
-where the 
-
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc-master)
-* [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc-master)
-* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc-master)
 
 ### Validate external services are functional
 
@@ -60,80 +39,11 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
-For the duration of this document, we will pretend the "golden commit" version is `8a8ee28`, the version is `0.3.1`, and our release date is 2016-01-15. Any place you see those values, please substitute your own version.
+For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
 
-### Update the GitHub issue
+With that in mind, run the release script:
 
-Leave a comment on the GitHub issue for this release to let everyone know that you are starting.
-
-### Update VERSION and CHANGELOG
-
-* git checkout master
-* git pull
-* git checkout -b release-0.3.1 8a8ee28
-
-#### Update the VERSION
-
-In the root of the ponyc repo is a file called `VERSION`. You should update the version number therein to your version number, for example: `0.3.1`.
-
-#### Update the CHANGELOG
-
-We maintain all changes in our CHANGELOG. At the time we do a release, we need to "roll" the CHANGELOG from one version to another. Open up CHANGELOG.md and you will see a series of changes that are in this commit under a section that says:
-
-`## [unreleased] - unreleased`
-
-This should be changed to:
-
-`## [0.3.1] - 2016-01-15`
-
-**If any of the sections, "Added", "Fixed" or "Changed" is empty, delete it.**
-
-### Commit your CHANGELOG and VERSION updates
-
-* git add CHANGELOG.md VERSION
-* git commit -m "Prep for 0.3.1 release"
-
-### Merge into release
-
-* git checkout release
-* git merge release-0.3.1
-
-### Tag the release
-
-* git tag 0.3.1
-
-### Push to the release branch
-
-* git push origin
-* git push origin 0.3.1
-
-### Update CHANGELOG for new entries
-
-We are in a slightly precarious state here, someone might have merged since we started and updated the CHANGELOG on master. Verify that hasn't happened then merge your change to CHANGELOG into master.
-
-* git checkout master
-* git merge release-0.3.1
-
-Now add a new "unreleased" section to the change log. Above the `## [0.3.1] - 2016-01-15` add the following:
-
-```
-## [unreleased] - unreleased
-
-### Fixed
-
-### Added
-
-### Changed
-
-```
-
-If anything was merged into the CHANGELOG since versioned it, move the new additions to the appropriate section of the new "unreleased" section. 
-
-### Commit CHANGELOG and push to master.
-
-* git add CHANGELOG.md
-* git commit -m "Add unreleased section to CHANGELOG post 0.3.1 release prep"
-* git push
+- bash release.sh 0.3.1 8a8ee28
 
 ### Update the GitHub issue
 

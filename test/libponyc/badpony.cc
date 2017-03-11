@@ -36,20 +36,6 @@ class BadPonyTest : public PassTest
 
 // Cases from reported issues
 
-TEST_F(BadPonyTest, DontCareInFieldType)
-{
-  // From issue #207
-  const char* src =
-    "class Abc\n"
-    "  var _test1: (_)";
-
-  TEST_ERRORS_3(src,
-    "the don't care token can only appear in",
-    "field left undefined in constructor",
-    "constructor with undefined fields");
-}
-
-
 TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
 {
   // From issue #218
@@ -82,20 +68,6 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
     "    None";
 
   TEST_ERRORS_1(src, "not enough type arguments");
-}
-
-
-TEST_F(BadPonyTest, DontCareInIntLiteralType)
-{
-  // From issue #222
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let crashme: (_, I32) = (4, 4)";
-
-  TEST_ERRORS_2(src,
-    "the don't care token can only appear in",
-    "could not infer literal type, no valid types found");
 }
 
 TEST_F(BadPonyTest, TupleIndexIsZero)
@@ -330,4 +302,90 @@ TEST_F(BadPonyTest, AssignToFieldOfIso)
     "right side must be a subtype of left side",
     "right side must be a subtype of left side"
     );
+}
+
+TEST_F(BadPonyTest, IndexArrayWithBrackets)
+{
+  // From issue #1493
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let xs = [as I64: 1, 2, 3]\n"
+        "xs[1]";
+
+  TEST_ERRORS_1(src, "Value formal parameters not yet supported");
+}
+
+TEST_F(BadPonyTest, ShadowingBuiltinTypeParameter)
+{
+  const char* src =
+    "class A[I8]\n"
+      "let b: U8 = 0";
+
+  TEST_ERRORS_1(src, "type parameter shadows existing type");
+}
+
+TEST_F(BadPonyTest, ShadowingTypeParameterInSameFile)
+{
+  const char* src =
+    "trait B\n"
+    "class A[B]";
+
+  TEST_ERRORS_1(src, "can't reuse name 'B'");
+}
+
+TEST_F(BadPonyTest, TupleToUnionGentrace)
+{
+  // From issue #1561
+  const char* src =
+    "primitive X\n"
+    "primitive Y\n"
+
+    "class iso T\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    this((T, Y))\n"
+
+    "  be apply(m: (X | (T, Y))) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RefCapViolationViaCapReadTypeParameter)
+{
+  // From issue #1328
+  const char* src =
+    "class Foo\n"
+      "var i: USize = 0\n"
+      "fun ref boom() => i = 3\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: Foo val = Foo\n"
+        "call_boom[Foo val](a)\n"
+
+      "fun call_boom[A: Foo #read](x: A) =>\n"
+        "x.boom()";
+
+  TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}
+
+TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
+{
+  // From issue #1328
+  const char* src =
+    "class Foo\n"
+      "var i: USize = 0\n"
+      "fun ref boom() => i = 3\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: Foo val = Foo\n"
+        "call_boom[Foo val](a)\n"
+
+      "fun call_boom[A: Foo #any](x: A) =>\n"
+        "x.boom()";
+
+  TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }

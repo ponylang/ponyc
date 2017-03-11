@@ -15,6 +15,13 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
   token_id supalias);
 
 /**
+ * Every possible instantiation of sub is a member of the set of every possible
+ * instantiation of super.
+ */
+bool is_cap_sub_cap_constraint(token_id sub, token_id subalias, token_id super,
+  token_id supalias);
+
+/**
  * Check subtyping with the knowledge that the original bound rcap was the
  * same. This is used when checking if a typeparamref is a subtype of itself,
  * possibly with an altered rcap due to aliasing or viewpoint adaptation.
@@ -58,10 +65,6 @@ token_id cap_dispatch(ast_t* type);
  * considered part of a constructor.
  */
 token_id cap_for_this(typecheck_t* t);
-
-token_id cap_bind(token_id cap);
-
-token_id cap_unbind(token_id cap);
 
 /**
  * Returns the upper bounds of left->right.

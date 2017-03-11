@@ -22,7 +22,7 @@ primitive _ToString
       end
 
       if neg then s.push('-') end
-      s.reverse_in_place()
+      s.>reverse_in_place()
     end
 
   fun _u128(x: U128, neg: Bool): String iso^ =>
@@ -45,13 +45,13 @@ primitive _ToString
       end
 
       if neg then s.push('-') end
-      s.reverse_in_place()
+      s.>reverse_in_place()
     end
 
   fun _f64(x: F64): String iso^ =>
     recover
       var s = String(31)
-      var f = String(31).append("%g")
+      var f = String(31).>append("%g")
 
       ifdef windows then
         @_snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
@@ -59,5 +59,5 @@ primitive _ToString
         @snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
       end
 
-      s.recalc()
+      s.>recalc()
     end

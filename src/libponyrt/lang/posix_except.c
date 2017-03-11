@@ -3,9 +3,9 @@
 #ifdef PLATFORM_IS_POSIX_BASED
 
 #include "lsda.h"
+#include "ponyassert.h"
 #include <unwind.h>
 #include <stdlib.h>
-#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -24,7 +24,7 @@ static void exception_cleanup(_Unwind_Reason_Code reason,
   (void)exception;
 }
 
-void pony_throw()
+PONY_API void pony_throw()
 {
 #ifdef PLATFORM_IS_ARM
   memcpy(exception.exception_class, "Pony\0\0\0\0", 8);
@@ -59,7 +59,7 @@ static _Unwind_Reason_Code continue_unwind(_Unwind_Exception* exception,
   return _URC_CONTINUE_UNWIND;
 }
 
-_Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
+PONY_API _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
   _Unwind_Exception* exception, _Unwind_Context* context)
 {
   if(exception == NULL || context == NULL)
@@ -116,9 +116,9 @@ _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
 
 #else
 
-_Unwind_Reason_Code pony_personality_v0(int version, _Unwind_Action actions,
-  uint64_t ex_class, struct _Unwind_Exception* exception,
-  struct _Unwind_Context* context)
+PONY_API _Unwind_Reason_Code pony_personality_v0(int version,
+  _Unwind_Action actions, uint64_t ex_class,
+  struct _Unwind_Exception* exception, struct _Unwind_Context* context)
 {
   (void)ex_class;
 

@@ -1,10 +1,10 @@
 #include "error.h"
 #include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 #define LINE_LEN 1024
 
@@ -146,7 +146,7 @@ static void errors_push(errors_t* errors, errormsg_t* e)
 
 static void append_to_frame(errorframe_t* frame, errormsg_t* e)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
 
   if(*frame == NULL)
   {
@@ -262,14 +262,14 @@ void error_continue(errors_t* errors, source_t* source, size_t line, size_t pos,
 void errorframev(errorframe_t* frame, source_t* source, size_t line,
   size_t pos, const char* fmt, va_list ap)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
   append_to_frame(frame, make_errorv(source, line, pos, fmt, ap));
 }
 
 void errorframe(errorframe_t* frame, source_t* source, size_t line, size_t pos,
   const char* fmt, ...)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
 
   va_list ap;
   va_start(ap, fmt);
@@ -304,8 +304,8 @@ void errorf(errors_t* errors, const char* file, const char* fmt, ...)
 
 void errorframe_append(errorframe_t* first, errorframe_t* second)
 {
-  assert(first != NULL);
-  assert(second != NULL);
+  pony_assert(first != NULL);
+  pony_assert(second != NULL);
 
   append_to_frame(first, *second);
   *second = NULL;
@@ -313,13 +313,13 @@ void errorframe_append(errorframe_t* first, errorframe_t* second)
 
 bool errorframe_has_errors(errorframe_t* frame)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
   return frame != NULL;
 }
 
 void errorframe_report(errorframe_t* frame, errors_t* errors)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
 
   if(*frame != NULL)
     errors_push(errors, *frame);
@@ -329,7 +329,7 @@ void errorframe_report(errorframe_t* frame, errors_t* errors)
 
 void errorframe_discard(errorframe_t* frame)
 {
-  assert(frame != NULL);
+  pony_assert(frame != NULL);
 
   error_free(*frame);
   *frame = NULL;

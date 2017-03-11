@@ -12,14 +12,14 @@
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 
 static ast_t* make_create(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Default constructors on classes can be iso, on actors they must be tag
   token_id cap = TK_NONE;
@@ -85,7 +85,7 @@ bool has_member(ast_t* members, const char* name)
 
 static void add_default_constructor(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   ast_t* members = ast_childidx(ast, 4);
 
   // If we have no constructors and no "create" member, add a "create"
@@ -117,7 +117,7 @@ static ast_result_t sugar_module(pass_opt_t* opt, ast_t* ast)
   ast_t* docstring = ast_child(ast);
 
   ast_t* package = ast_parent(ast);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(package) == TK_PACKAGE);
 
   if(strcmp(package_name(package), "$0") != 0)
   {
@@ -213,7 +213,7 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
           AST_GET_CHILDREN(member, n_cap, n_id, n_typeparam, n_params,
             n_result, n_partial, n_body);
 
-          assert(ast_id(n_body) == TK_SEQ);
+          pony_assert(ast_id(n_body) == TK_SEQ);
 
           ast_t* init = ast_child(init_seq);
 
@@ -259,7 +259,7 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 
 static void sugar_docstring(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, docstring);
@@ -285,7 +285,7 @@ static void sugar_docstring(ast_t* ast)
 // something nasty let in by the case method value parsing.
 static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
 {
-  assert(params != NULL);
+  pony_assert(params != NULL);
   ast_result_t result = AST_OK;
 
   // Check each parameter.
@@ -320,7 +320,7 @@ static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
 // Check for leftover stuff from case methods.
 static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
 {
-  assert(method != NULL);
+  pony_assert(method != NULL);
 
   ast_result_t result = AST_OK;
   ast_t* params = ast_childidx(method, 3);
@@ -328,7 +328,7 @@ static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
 
   // Also check the guard expression doesn't exist.
   ast_t* guard = ast_childidx(method, 8);
-  assert(guard != NULL);
+  pony_assert(guard != NULL);
 
   if(ast_id(guard) != TK_NONE)
   {
@@ -363,7 +363,7 @@ static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
       ast_setid(cap, tcap);
     }
 
-    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL, false));
+    ast_replace(&result, type_for_this(opt, ast, tcap, TK_EPHEMERAL));
   }
 
   sugar_docstring(ast);
@@ -390,7 +390,7 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 
 void fun_defaults(ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
     docstring);
 
@@ -449,7 +449,7 @@ static ast_result_t sugar_return(pass_opt_t* opt, ast_t* ast)
 
   if((ast_id(ast) == TK_RETURN) && (ast_id(opt->check.frame->method) == TK_NEW))
   {
-    assert(ast_id(return_value) == TK_NONE);
+    pony_assert(ast_id(return_value) == TK_NONE);
     ast_setid(return_value, TK_THIS);
   } else {
     expand_none(return_value, false);
@@ -485,6 +485,7 @@ static ast_result_t sugar_try(ast_t* ast)
 static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
+  ast_t* annotation = ast_consumeannotation(*astp);
 
   expand_none(for_else, true);
   const char* iter_name = package_hygienic_id(&opt->check);
@@ -508,6 +509,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         TREE(for_iter)
         NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
       NODE(TK_WHILE, AST_SCOPE
+        ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
             NONE
@@ -526,20 +528,19 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 
 static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 {
-  assert(dispose_clause != NULL);
-  assert(idseq != NULL);
+  pony_assert(dispose_clause != NULL);
+  pony_assert(idseq != NULL);
 
   if(ast_id(idseq) == TK_LET)
   {
     // Just a single variable
     ast_t* id = ast_child(idseq);
-    assert(id != NULL);
+    pony_assert(id != NULL);
 
     // Don't call dispose() on don't cares
-    if(ast_id(id) == TK_DONTCARE)
+    if(is_name_dontcare(ast_name(id)))
       return;
 
-    assert(ast_id(id) == TK_ID);
     BUILD(dispose, idseq,
       NODE(TK_CALL,
         NONE NONE
@@ -550,7 +551,7 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
   }
 
   // We have a list of variables
-  assert(ast_id(idseq) == TK_TUPLE);
+  pony_assert(ast_id(idseq) == TK_TUPLE);
 
   for(ast_t* p = ast_child(idseq); p != NULL; p = ast_sibling(p))
     build_with_dispose(dispose_clause, p);
@@ -560,6 +561,8 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
+  ast_t* main_annotation = ast_consumeannotation(*astp);
+  ast_t* else_annotation = ast_consumeannotation(else_clause);
   token_id try_token;
 
   if(ast_id(else_clause) == TK_NONE)
@@ -573,9 +576,11 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   BUILD(replace, *astp,
     NODE(TK_SEQ,
       NODE(try_token,
+        ANNOTATE(main_annotation)
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE
+          ANNOTATE(else_annotation)
           TREE(else_clause))
         NODE(TK_SEQ, AST_SCOPE))));
 
@@ -585,7 +590,7 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   // Add the "with" variables from each with element
   for(ast_t* p = ast_child(withexpr); p != NULL; p = ast_sibling(p))
   {
-    assert(ast_id(p) == TK_SEQ);
+    pony_assert(ast_id(p) == TK_SEQ);
     AST_GET_CHILDREN(p, idseq, init);
     const char* init_name = package_hygienic_id(&opt->check);
 
@@ -646,6 +651,7 @@ static bool sugar_match_capture(pass_opt_t* opt, ast_t* pattern)
 
       // Change this to a capture.
       ast_setid(pattern, TK_MATCH_CAPTURE);
+
       return true;
     }
 
@@ -696,8 +702,8 @@ static ast_result_t sugar_case(pass_opt_t* opt, ast_t* ast)
   while(ast_id(next_body) == TK_NONE)
   {
     next = ast_sibling(next);
-    assert(next != NULL);
-    assert(ast_id(next) == TK_CASE);
+    pony_assert(next != NULL);
+    pony_assert(ast_id(next) == TK_CASE);
     next_body = ast_childidx(next, 2);
   }
 
@@ -709,7 +715,7 @@ static ast_result_t sugar_case(pass_opt_t* opt, ast_t* ast)
 static ast_result_t sugar_update(ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_ASSIGN);
+  pony_assert(ast_id(ast) == TK_ASSIGN);
 
   AST_GET_CHILDREN(ast, value, call);
 
@@ -743,199 +749,10 @@ static ast_result_t sugar_update(ast_t** astp)
 }
 
 
-static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_result_t r = AST_OK;
-
-  AST_GET_CHILDREN(ast, cap, provides, members);
-  const char* c_id = package_hygienic_id(&opt->check);
-
-  ast_t* t_params;
-  ast_t* t_args;
-  collect_type_params(ast, &t_params, &t_args);
-
-  const char* nice_id = (const char*)ast_data(ast);
-  if(nice_id == NULL)
-    nice_id = "object literal";
-
-  // Create a new anonymous type.
-  BUILD(def, ast,
-    NODE(TK_CLASS, AST_SCOPE
-      NICE_ID(c_id, nice_id)
-      TREE(t_params)
-      NONE
-      TREE(provides)
-      NODE(TK_MEMBERS)
-      NONE
-      NONE));
-
-  // We will have a create method in the type.
-  BUILD(create, members,
-    NODE(TK_NEW, AST_SCOPE
-      NONE
-      ID("create")
-      NONE
-      NONE
-      NONE
-      NONE
-      NODE(TK_SEQ)
-      NONE
-      NONE));
-
-  BUILD(type_ref, ast, NODE(TK_REFERENCE, ID(c_id)));
-
-  if(ast_id(t_args) != TK_NONE)
-  {
-    // Need to add type args to our type reference
-    BUILD(t, ast, NODE(TK_QUALIFY, TREE(type_ref) TREE(t_args)));
-    type_ref = t;
-  }
-
-  ast_free_unattached(t_args);
-
-  // We will replace object..end with $0.create(...)
-  BUILD(call, ast,
-    NODE(TK_CALL,
-      NONE
-      NONE
-      NODE(TK_DOT,
-        TREE(type_ref)
-        ID("create"))));
-
-  ast_t* create_params = ast_childidx(create, 3);
-  ast_t* create_body = ast_childidx(create, 6);
-  ast_t* call_args = ast_child(call);
-  ast_t* class_members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  bool has_fields = false;
-  bool has_behaviours = false;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        AST_GET_CHILDREN(member, id, type, init);
-        ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check));
-
-        // The field is: var/let/embed id: type
-        BUILD(field, member,
-          NODE(ast_id(member),
-            TREE(id)
-            TREE(type)
-            NONE
-            NONE));
-
-        // The param is: $0: type
-        BUILD(param, member,
-          NODE(TK_PARAM,
-            TREE(p_id)
-            TREE(type)
-            NONE));
-
-        // The arg is: $seq init
-        BUILD(arg, init,
-          NODE(TK_SEQ,
-            TREE(init)));
-
-        // The body of create contains: id = consume $0
-        BUILD(assign, init,
-          NODE(TK_ASSIGN,
-            NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-            NODE(TK_REFERENCE, TREE(id))));
-
-        ast_setid(create_params, TK_PARAMS);
-        ast_setid(call_args, TK_POSITIONALARGS);
-
-        ast_append(class_members, field);
-        ast_append(create_params, param);
-        ast_append(create_body, assign);
-        ast_append(call_args, arg);
-
-        has_fields = true;
-        break;
-      }
-
-      case TK_BE:
-        // If we have behaviours, we must be an actor.
-        ast_append(class_members, member);
-        has_behaviours = true;
-        break;
-
-      default:
-        // Keep all the methods as they are.
-        ast_append(class_members, member);
-        break;
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(!has_fields)
-  {
-    // End the constructor with 'true', since it has no parameters.
-    BUILD(true_node, ast, NODE(TK_TRUE));
-    ast_append(create_body, true_node);
-  }
-
-  // Handle capability and whether the anonymous type is a class, primitive or
-  // actor.
-  token_id cap_id = ast_id(cap);
-
-  if(has_behaviours)
-  {
-    // Change the type to an actor.
-    ast_setid(def, TK_ACTOR);
-
-    if(cap_id != TK_NONE && cap_id != TK_TAG)
-    {
-      ast_error(opt->check.errors, cap, "object literals with behaviours are "
-        "actors and so must have tag capability");
-      r = AST_ERROR;
-    }
-  }
-  else if(!has_fields && (cap_id == TK_NONE || cap_id == TK_TAG ||
-    cap_id == TK_BOX || cap_id == TK_VAL))
-  {
-    // Change the type from a class to a primitive.
-    ast_setid(def, TK_PRIMITIVE);
-  }
-  else
-  {
-    // Type is a class, set the create capability as specified
-    ast_setid(ast_child(create), cap_id);
-  }
-
-  // Add the create function at the end.
-  ast_append(class_members, create);
-
-  // Replace object..end with $0.create(...)
-  ast_replace(astp, call);
-
-  // Add new type to current module and bring it up to date with passes.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
-
-  if(!ast_passes_type(&def, opt))
-    return AST_FATAL;
-
-  // Sugar the call.
-  if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
-    return AST_FATAL;
-
-  return r;
-}
-
-
 static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
   ast_t* body)
 {
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   switch(ast_id(type))
   {
@@ -963,9 +780,18 @@ static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
       break;
     }
 
-    case TK_DONTCARE:
-      ast_append(pattern, type);
-      break;
+    case TK_NOMINAL:
+    {
+      ast_t* id = ast_childidx(type, 1);
+      if(is_name_dontcare(ast_name(id)))
+      {
+        BUILD(dontcare, pattern,
+          NODE(TK_SEQ,
+            NODE(TK_REFERENCE, ID("_"))));
+        ast_append(pattern, dontcare);
+        break;
+      }
+    } // fallthrough
 
     default:
     {
@@ -978,7 +804,7 @@ static void add_as_type(pass_opt_t* opt, ast_t* type, ast_t* pattern,
 
       BUILD(body_elem, body,
         NODE(TK_SEQ,
-          NODE(TK_CONSUME, NODE(TK_BORROWED) NODE(TK_REFERENCE, ID(name)))));
+          NODE(TK_CONSUME, NODE(TK_ALIASED) NODE(TK_REFERENCE, ID(name)))));
 
       ast_append(pattern, pattern_elem);
       ast_append(body, body_elem);
@@ -1009,7 +835,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
   }
 
   // Don't need top sequence in pattern
-  assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
+  pony_assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
   ast_t* pattern = ast_pop(ast_child(pattern_root));
   ast_free(pattern_root);
 
@@ -1107,8 +933,8 @@ static ast_result_t sugar_ffi(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
 {
-  assert(opt != NULL);
-  assert(ast != NULL);
+  pony_assert(opt != NULL);
+  pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, cond, then_block, else_block, else_cond);
 
@@ -1118,7 +944,7 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
   if(parent_ifdef_cond != NULL)
   {
     // We have a parent ifdef, combine its condition with ours.
-    assert(ast_id(ast_parent(parent_ifdef_cond)) == TK_IFDEF);
+    pony_assert(ast_id(ast_parent(parent_ifdef_cond)) == TK_IFDEF);
 
     REPLACE(&else_cond,
       NODE(TK_AND,
@@ -1156,7 +982,7 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t sugar_use(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   // Normalise condition so and, or and not nodes aren't sugared to function
   // calls.
@@ -1175,10 +1001,10 @@ static ast_result_t sugar_use(pass_opt_t* opt, ast_t* ast)
 static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_SEMI);
+  pony_assert(ast_id(ast) == TK_SEMI);
 
   // Semis are pointless, discard them
-  assert(ast_child(ast) == NULL);
+  pony_assert(ast_child(ast) == NULL);
   *astp = ast_sibling(ast);
   ast_remove(ast);
 
@@ -1188,26 +1014,11 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 }
 
 
-static ast_result_t sugar_let(pass_opt_t* opt, ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-
-  if(ast_id(id) == TK_DONTCARE)
-  {
-    // Replace "_" with "$1" in with and for variable lists
-    ast_setid(id, TK_ID);
-    ast_set_name(id, package_hygienic_id(&opt->check));
-  }
-
-  return AST_OK;
-}
-
-
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   AST_EXTRACT_CHILDREN(ast, apply_cap, apply_name, apply_t_params, params,
     ret_type, error, interface_cap, ephemeral);
@@ -1307,7 +1118,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_append(module, def);
 
-  if(!ast_passes_type(&def, opt))
+  if(!ast_passes_type(&def, opt, opt->program_pass))
     return AST_FATAL;
 
   // Sugar the call.
@@ -1320,7 +1131,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 
 ast_t* expand_location(ast_t* location)
 {
-  assert(location != NULL);
+  pony_assert(location != NULL);
 
   const char* file_name = ast_source(location)->file;
 
@@ -1377,9 +1188,9 @@ ast_t* expand_location(ast_t* location)
 
 static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
 {
-  assert(astp != NULL);
+  pony_assert(astp != NULL);
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   if(ast_id(ast_parent(ast)) == TK_PARAM)
     // Location is a default argument, do not expand yet.
@@ -1399,59 +1210,71 @@ static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   switch(ast_id(ast))
   {
-    case TK_MODULE:     return sugar_module(options, ast);
-    case TK_PRIMITIVE:  return sugar_entity(options, ast, true, TK_VAL);
-    case TK_STRUCT:     return sugar_entity(options, ast, true, TK_REF);
-    case TK_CLASS:      return sugar_entity(options, ast, true, TK_REF);
-    case TK_ACTOR:      return sugar_entity(options, ast, true, TK_TAG);
+    case TK_MODULE:           return sugar_module(options, ast);
+    case TK_PRIMITIVE:        return sugar_entity(options, ast, true, TK_VAL);
+    case TK_STRUCT:           return sugar_entity(options, ast, true, TK_REF);
+    case TK_CLASS:            return sugar_entity(options, ast, true, TK_REF);
+    case TK_ACTOR:            return sugar_entity(options, ast, true, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:  return sugar_entity(options, ast, false, TK_REF);
-    case TK_TYPEPARAM:  return sugar_typeparam(ast);
-    case TK_NEW:        return sugar_new(options, ast);
-    case TK_BE:         return sugar_be(options, ast);
-    case TK_FUN:        return sugar_fun(options, ast);
-    case TK_RETURN:     return sugar_return(options, ast);
+    case TK_INTERFACE:        return sugar_entity(options, ast, false, TK_REF);
+    case TK_TYPEPARAM:        return sugar_typeparam(ast);
+    case TK_NEW:              return sugar_new(options, ast);
+    case TK_BE:               return sugar_be(options, ast);
+    case TK_FUN:              return sugar_fun(options, ast);
+    case TK_RETURN:           return sugar_return(options, ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:
-    case TK_REPEAT:     return sugar_else(ast);
-    case TK_TRY:        return sugar_try(ast);
-    case TK_FOR:        return sugar_for(options, astp);
-    case TK_WITH:       return sugar_with(options, astp);
-    case TK_CASE:       return sugar_case(options, ast);
-    case TK_ASSIGN:     return sugar_update(astp);
-    case TK_OBJECT:     return sugar_object(options, astp);
-    case TK_AS:         return sugar_as(options, astp);
-    case TK_PLUS:       return sugar_binop(astp, "add");
-    case TK_MINUS:      return sugar_binop(astp, "sub");
-    case TK_MULTIPLY:   return sugar_binop(astp, "mul");
-    case TK_DIVIDE:     return sugar_binop(astp, "div");
-    case TK_MOD:        return sugar_binop(astp, "mod");
-    case TK_LSHIFT:     return sugar_binop(astp, "shl");
-    case TK_RSHIFT:     return sugar_binop(astp, "shr");
-    case TK_AND:        return sugar_binop(astp, "op_and");
-    case TK_OR:         return sugar_binop(astp, "op_or");
-    case TK_XOR:        return sugar_binop(astp, "op_xor");
-    case TK_EQ:         return sugar_binop(astp, "eq");
-    case TK_NE:         return sugar_binop(astp, "ne");
-    case TK_LT:         return sugar_binop(astp, "lt");
-    case TK_LE:         return sugar_binop(astp, "le");
-    case TK_GE:         return sugar_binop(astp, "ge");
-    case TK_GT:         return sugar_binop(astp, "gt");
-    case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
-    case TK_NOT:        return sugar_unop(astp, "op_not");
+    case TK_REPEAT:           return sugar_else(ast);
+    case TK_TRY:              return sugar_try(ast);
+    case TK_FOR:              return sugar_for(options, astp);
+    case TK_WITH:             return sugar_with(options, astp);
+    case TK_CASE:             return sugar_case(options, ast);
+    case TK_ASSIGN:           return sugar_update(astp);
+    case TK_AS:               return sugar_as(options, astp);
+    case TK_PLUS:             return sugar_binop(astp, "add");
+    case TK_MINUS:            return sugar_binop(astp, "sub");
+    case TK_MULTIPLY:         return sugar_binop(astp, "mul");
+    case TK_DIVIDE:           return sugar_binop(astp, "div");
+    case TK_MOD:              return sugar_binop(astp, "mod");
+    case TK_PLUS_TILDE:       return sugar_binop(astp, "add_unsafe");
+    case TK_MINUS_TILDE:      return sugar_binop(astp, "sub_unsafe");
+    case TK_MULTIPLY_TILDE:   return sugar_binop(astp, "mul_unsafe");
+    case TK_DIVIDE_TILDE:     return sugar_binop(astp, "div_unsafe");
+    case TK_MOD_TILDE:        return sugar_binop(astp, "mod_unsafe");
+    case TK_LSHIFT:           return sugar_binop(astp, "shl");
+    case TK_RSHIFT:           return sugar_binop(astp, "shr");
+    case TK_LSHIFT_TILDE:     return sugar_binop(astp, "shl_unsafe");
+    case TK_RSHIFT_TILDE:     return sugar_binop(astp, "shr_unsafe");
+    case TK_AND:              return sugar_binop(astp, "op_and");
+    case TK_OR:               return sugar_binop(astp, "op_or");
+    case TK_XOR:              return sugar_binop(astp, "op_xor");
+    case TK_EQ:               return sugar_binop(astp, "eq");
+    case TK_NE:               return sugar_binop(astp, "ne");
+    case TK_LT:               return sugar_binop(astp, "lt");
+    case TK_LE:               return sugar_binop(astp, "le");
+    case TK_GE:               return sugar_binop(astp, "ge");
+    case TK_GT:               return sugar_binop(astp, "gt");
+    case TK_EQ_TILDE:         return sugar_binop(astp, "eq_unsafe");
+    case TK_NE_TILDE:         return sugar_binop(astp, "ne_unsafe");
+    case TK_LT_TILDE:         return sugar_binop(astp, "lt_unsafe");
+    case TK_LE_TILDE:         return sugar_binop(astp, "le_unsafe");
+    case TK_GE_TILDE:         return sugar_binop(astp, "ge_unsafe");
+    case TK_GT_TILDE:         return sugar_binop(astp, "gt_unsafe");
+    case TK_UNARY_MINUS:      return sugar_unop(astp, "neg");
+    case TK_UNARY_MINUS_TILDE:return sugar_unop(astp, "neg_unsafe");
+    case TK_NOT:              return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
-    case TK_FFICALL:    return sugar_ffi(options, ast);
-    case TK_IFDEF:      return sugar_ifdef(options, ast);
-    case TK_USE:        return sugar_use(options, ast);
-    case TK_SEMI:       return sugar_semi(options, astp);
-    case TK_LET:        return sugar_let(options, ast);
-    case TK_LAMBDATYPE: return sugar_lambdatype(options, astp);
-    case TK_LOCATION:   return sugar_location(options, astp);
-    default:            return AST_OK;
+    case TK_FFICALL:          return sugar_ffi(options, ast);
+    case TK_IFDEF:            return sugar_ifdef(options, ast);
+    case TK_USE:              return sugar_use(options, ast);
+    case TK_SEMI:             return sugar_semi(options, astp);
+    case TK_LAMBDATYPE:       return sugar_lambdatype(options, astp);
+    case TK_LOCATION:         return sugar_location(options, astp);
+    default:                  return AST_OK;
   }
 }

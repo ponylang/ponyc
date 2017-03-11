@@ -79,7 +79,7 @@ void ast_inheritflags(ast_t* ast);
 int ast_checkflag(ast_t* ast, uint32_t flag);
 void ast_setflag(ast_t* ast, uint32_t flag);
 void ast_clearflag(ast_t* ast, uint32_t flag);
-void ast_resetpass(ast_t* ast);
+void ast_resetpass(ast_t *ast, uint32_t flag);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
@@ -90,6 +90,10 @@ double ast_float(ast_t* ast);
 lexint_t* ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
 void ast_settype(ast_t* ast, ast_t* type);
+ast_t* ast_annotation(ast_t* ast);
+void ast_setannotation(ast_t* ast, ast_t* annotation);
+ast_t* ast_consumeannotation(ast_t* ast);
+bool ast_has_annotation(ast_t* ast, const char* name);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);

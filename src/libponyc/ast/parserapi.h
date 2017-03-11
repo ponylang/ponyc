@@ -6,10 +6,10 @@
 #include "lexer.h"
 #include "ast.h"
 #include "token.h"
+#include "ponyassert.h"
 #include <stdbool.h>
 #include <limits.h>
 #include <stdio.h>
-#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -32,7 +32,7 @@ PONY_EXTERN_C_BEGIN
  *
  * Each rule returns one of 4 things:
  * 1. PARSE_ERROR - indicates that an error occurred. Parse errors are
- *    propogated up to the caller without re-reporting them.
+ *    propagated up to the caller without re-reporting them.
  * 2. RULE_NOT_FOUND - indicates that the rule was not found. It is up to the
  *    caller whether this constitutes an error.
  * 3. An AST tree - generated from a successful rule parse. It is the caller's
@@ -102,7 +102,7 @@ typedef ast_t* (*rule_t)(parser_t* parser, builder_fn_t *out_builder,
 
 
 #define PARSE_OK        ((ast_t*)1)   // Requested parse successful
-#define PARSE_ERROR     ((ast_t*)2)   // A parse error has occured
+#define PARSE_ERROR     ((ast_t*)2)   // A parse error has occurred
 #define RULE_NOT_FOUND  ((ast_t*)3)   // Sub item was not found
 
 
@@ -119,7 +119,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   bool* out_found);
 
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set, bool* out_found);
+  const rule_t* rule_set, bool* out_found, bool annotate);
 
 void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
@@ -316,7 +316,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
 #define RULE(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    ast_t* r = parse_rule_set(parser, &state, desc, rule_set, NULL); \
+    ast_t* r = parse_rule_set(parser, &state, desc, rule_set, NULL, false); \
     if(r != PARSE_OK) return r; \
   }
 
@@ -400,7 +400,8 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     while(found) \
     { \
       state.deflt_id = TK_EOF; \
-      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found); \
+      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found, \
+        false); \
       if(r != PARSE_OK) return r; \
     } \
   }
@@ -448,7 +449,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
 #define REORDER(...) \
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
-    assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
+    pony_assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
     static ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
     ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \
@@ -470,6 +471,21 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     body; \
     state.ast = ast; \
     state.last_child = NULL; \
+  }
+
+
+/** Annotate the current AST with another AST node from an arbitrary rule.
+ *
+ * Example:
+ *    ANNOTATE(annotations)
+ */
+#define ANNOTATE(rule) \
+  { \
+    state.deflt_id = TK_EOF; \
+    static const rule_t rule_set[] = { rule, NULL }; \
+    ast_t* r = parse_rule_set(parser, &state, "annotations", rule_set, NULL, \
+      true); \
+    if(r != PARSE_OK) return r; \
   }
 
 

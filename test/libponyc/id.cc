@@ -95,6 +95,7 @@ TEST_F(IdTest, ContainUnderscore)
   DO(test_id("_foo_bar", false, ALLOW_UNDERSCORE));
   DO(test_id("foo_bar", true, ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE));
   DO(test_id("_foo_bar", true, ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE));
+  DO(test_id("_", false, ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE));
 }
 
 
@@ -168,6 +169,14 @@ TEST_F(IdTest, Prime)
 }
 
 
+TEST_F(IdTest, Dontcare)
+{
+  DO(test_id("_", true, ALLOW_DONTCARE));
+  DO(test_id("_", false, 0));
+  DO(test_id("__", false, ALLOW_DONTCARE));
+}
+
+
 TEST_F(IdTest, PrivateName)
 {
   ASSERT_TRUE(is_name_private("_foo"));
@@ -178,6 +187,7 @@ TEST_F(IdTest, PrivateName)
   ASSERT_FALSE(is_name_private("Foo"));
   ASSERT_FALSE(is_name_private("$foo"));
   ASSERT_FALSE(is_name_private("$Foo"));
+  ASSERT_FALSE(is_name_private("_"));
 }
 
 
@@ -191,6 +201,7 @@ TEST_F(IdTest, TypeName)
   ASSERT_FALSE(is_name_type("_foo"));
   ASSERT_FALSE(is_name_type("$foo"));
   ASSERT_FALSE(is_name_type("$_foo"));
+  ASSERT_FALSE(is_name_type("_"));
 }
 
 
@@ -211,4 +222,12 @@ TEST_F(IdTest, InternalTypeName)
   ASSERT_FALSE(is_name_internal_test("_foo"));
   ASSERT_FALSE(is_name_internal_test("Foo"));
   ASSERT_FALSE(is_name_internal_test("_Foo"));
+  ASSERT_FALSE(is_name_internal_test("_"));
+}
+
+
+TEST_F(IdTest, DontcareName)
+{
+  ASSERT_TRUE(is_name_dontcare("_"));
+  ASSERT_FALSE(is_name_dontcare("__"));
 }

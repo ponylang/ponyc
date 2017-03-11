@@ -2,6 +2,191 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.11.0] - 2017-03-11
+
+### Fixed
+
+- Make HTTPSession type tag by default (PR #1650)
+- Fix type parameters not being visible to a lambda type in a type alias (PR #1633)
+- Remove the check for union types on match error (PR #1630)
+- TCPListener: unsubscribe asio before socket close (PR #1626)
+- Fix buffer overlow in case method docstring (PR #1615)
+- Fix capability checking for gencap-constrained type parameters. (PR #1593)
+- Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
+- Escape special characters in ANLTR strings. (#1600) (PR #1601)
+- Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
+- Always call finalisers for embedded fields (PR #1586)
+- Check for null terminator in String._append (PR #1582)
+- Fix TCP Connection data receive race condition (PR #1578)
+- Fix Linux epoll event resubscribe performance and race condition. (PR #1564)
+- Correctly resubscribe TCPConnection to ASIO events after throttling (PR #1558)
+- Performance fix in the runtime actor schedule (PR #1521)
+- Disallow type parameter names shadowing other types. (PR #1526)
+- Don't double resubscribe to asio events in TCPConnection (PR #1509)
+- Improve Map.get_or_else performance (PR #1482)
+- Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
+- Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
+- Compiler assertion failure during type checking
+- Runtime memory allocator bug
+- Compiler crash on tuple sending generation (issue #1546)
+- Compiler crash due to incorrect subtype assignment (issue #1474)
+- Incorrect code generation when sending certain types of messages (issue #1594)
+
+### Added
+
+- Close over free variables in lambdas and object literals (PR #1648)
+- Add assert_no_error test condition to PonyTest (PR #1605)
+- Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
+- Packed structures (RFC 32) (PR #1536)
+- Add `insert_if_absent` method to Map (PR #1519)
+- Branch prediction annotations (RFC 30) (PR #1528)
+- Readline interpret C-d on empty line as EOF (PR #1504)
+- AST annotations (RFC 27) (PR #1485)
+- Unsafe mathematic and logic operations. Can be faster but can have undefined results for some inputs (issue #993)
+- Equality comparison for NetAddress (PR #1569)
+- Host address comparison for NetAddress (PR #1569)
+
+### Changed
+
+- Rename IPAddress to NetAddress (PR #1559)
+- Remove delegates (RFC 31) (PR #1534)
+- Upgrade to LLVM 3.9.1 (PR #1498)
+- Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
+- Ensure TCPConnection is established before writing data to it (issue #1310)
+- Always allow writing to `_` (dontcare) (PR #1499)
+- Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
+  - builtin.Seq
+    - reserve
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - builtin.Array
+    - reserve
+    - compact
+    - undefined
+    - insert
+    - truncate
+    - trim_in_place
+    - copy_to
+    - remove
+    - clear
+    - push
+    - unshift
+    - append
+    - concat
+    - reverse_in_place
+  - builtin.String
+    - reserve
+    - compact
+    - recalc
+    - truncate
+    - trim_in_place
+    - delete
+    - lower_in_place
+    - upper_in_place
+    - reverse_in_place
+    - push
+    - unshift
+    - append
+    - concat
+    - clear
+    - insert_in_place
+    - insert_byte
+    - cut_in_place
+    - replace (returns the number of occurrences replaced)
+    - strip
+    - lstrip
+    - rstrip
+  - buffered.Reader
+    - clear
+    - append
+    - skip
+  - buffered.Writer
+    - reserve
+    - reserve_chunks
+    - number writing functions (e.g. u16_le)
+    - write
+    - writev
+  - capsicum.CapRights0
+    - set
+    - unset
+  - collections.Flag
+    - all
+    - clear
+    - set
+    - unset
+    - flip
+    - union
+    - intersect
+    - difference
+    - remove
+  - collections.ListNode
+    - prepend (returns whether the node was removed from another List)
+    - append (returns whether the node was removed from another List)
+    - remove
+  - collections.List
+    - reserve
+    - remove
+    - clear
+    - prepend_node
+    - append_node
+    - prepend_list
+    - append_list
+    - push
+    - unshift
+    - append
+    - concat
+    - truncate
+  - collections.Map
+    - concat
+    - compact
+    - clear
+  - collections.RingBuffer
+    - push (returns whether the collection was full)
+    - clear
+  - collections.Set
+    - clear
+    - set
+    - unset
+    - union
+    - intersect
+    - difference
+    - remove
+  - files.FileMode
+    - exec
+    - shared
+    - group
+    - private
+  - files.File
+    - seek_start
+    - seek_end
+    - seek
+    - flush
+    - sync
+  - time.Date
+    - normal
+  - net.http.Payload
+    - update (returns the old value)
+  - net.ssl.SSLContext
+    - set_cert
+    - set_authority
+    - set_ciphers
+    - set_client_verify
+    - set_server_verify
+    - set_verify_depth
+    - allow_tls_v1
+    - allow_tls_v1_1
+    - allow_tls_v1_2
+- TCP sockets on Linux now use Epoll One Shot
+- Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
+- TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
+- All arithmetic and logic operations are now fully defined for every input by default (issue #993)
+- Removed compiler flag `--ieee-math`
+- The `pony_start` runtime function now takes a `language_features` boolean parameter indicating whether the Pony-specific runtime features (e.g. network or serialisation) should be initialised
+
 ## [0.10.0] - 2016-12-12
 
 ### Fixed
@@ -351,7 +536,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reduced memory pressure.
 - Scheduler steals when only the CD is on a scheduler thread queue.
 - use commands searches ../pony_packages recursively similar to Node.js
-- Readline uses a Promise to handle async reponses.
+- Readline uses a Promise to handle async responses.
 
 ### Fixed
 

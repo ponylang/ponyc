@@ -2,13 +2,13 @@
 #include "../ast/ast.h"
 #include "../ast/symtab.h"
 #include "../ast/id.h"
-#include <assert.h>
+#include "ponyassert.h"
 #include <string.h>
 
 
 static bool import_use(pass_opt_t* opt, ast_t* ast)
 {
-  assert(ast != NULL);
+  pony_assert(ast != NULL);
 
   ast_t* import = (ast_t*)ast_data(ast);
 
@@ -16,17 +16,17 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
     return true;
 
   ast_t* module = ast_parent(ast);
-  assert(ast_id(module) == TK_MODULE);
+  pony_assert(ast_id(module) == TK_MODULE);
   symtab_t* mod_symtab = ast_get_symtab(module);
 
   ast_t* package = ast_parent(module);
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   symtab_t* pkg_symtab = ast_get_symtab(package);
 
   ast_t* uri_child = ast_childidx(ast, 1);
-  assert(uri_child != NULL);
+  pony_assert(uri_child != NULL);
   const char* uri = ast_name(uri_child);
-  assert(uri != NULL);
+  pony_assert(uri != NULL);
 
   bool is_builtin = (strcmp(uri, "builtin") == 0);
   bool ok = true;
@@ -34,7 +34,7 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
   symtab_t* src_symtab = ast_get_symtab(import);
-  assert(src_symtab != NULL);
+  pony_assert(src_symtab != NULL);
 
   while((sym = symtab_next(src_symtab, &i)) != NULL)
   {

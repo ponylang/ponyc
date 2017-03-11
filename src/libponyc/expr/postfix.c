@@ -10,9 +10,9 @@
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 
 static bool is_method_called(pass_opt_t* opt, ast_t* ast)
 {
@@ -75,7 +75,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
           return false;
 
         default:
-          assert(0);
+          pony_assert(0);
           return false;
       }
       return true;
@@ -121,39 +121,8 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
-}
-
-static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
-{
-  switch(ast_id(ast))
-  {
-     case TK_THIS:
-     case TK_FLETREF:
-     case TK_FVARREF:
-     case TK_EMBEDREF:
-     case TK_PARAMREF:
-     {
-       ast_t* type = ast_type(ast);
-       return sendable(type);
-     };
-     case TK_LETREF:
-     case TK_VARREF:
-     {
-       const char* name = ast_name(ast_child(ast));
-       sym_status_t status;
-       ast_t* def = ast_get(ast, name, &status);
-       ast_t* def_recover = ast_nearest(def, TK_RECOVER);
-       if(t->frame->recover == def_recover)
-         return true;
-       ast_t* type = ast_type(ast);
-       return sendable(type);
-     }
-     default:
-       // Unsafe receivers inside expressions are catched before we get there.
-       return true;
-  }
 }
 
 static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
@@ -181,40 +150,11 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
       break;
 
     case TK_FUN:
-      if(opt->check.frame->recover != NULL)
-      {
-        AST_GET_CHILDREN(ast, left, right);
-        bool safe = is_receiver_safe(&opt->check, left);
-        if(!safe)
-        {
-          ast_t* param = ast_child(params);
-          bool params_sendable = true;
-          while(param != NULL)
-          {
-            if(!sendable(ast_childidx(param, 1)))
-            {
-              params_sendable = false;
-              break;
-            }
-            param = ast_sibling(param);
-          }
-          if(!params_sendable || !sendable(result))
-          {
-            errorframe_t frame = NULL;
-            ast_error_frame(&frame, ast, "can't call method on non-sendable "
-              "object inside of a recover expression");
-            ast_error_frame(&frame, method, "this would be possible if the "
-              "parameters and return value were all sendable");
-            errorframe_report(&frame, opt->check.errors);
-            return false;
-          }
-        }
-      }
       ast_setid(ast, TK_FUNREF);
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       return false;
   }
 
@@ -231,8 +171,8 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
 
-  assert(ast_id(left) == TK_PACKAGEREF);
-  assert(ast_id(right) == TK_ID);
+  pony_assert(ast_id(left) == TK_PACKAGEREF);
+  pony_assert(ast_id(right) == TK_ID);
 
   // Must be a type in a package.
   const char* package_name = ast_name(ast_child(left));
@@ -245,7 +185,7 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
   ast_t* type = ast_get(package, type_name, NULL);
 
@@ -274,8 +214,8 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   if(is_typecheck_error(type))
     return false;
 
-  assert(ast_id(left) == TK_TYPEREF);
-  assert(ast_id(right) == TK_ID);
+  pony_assert(ast_id(left) == TK_TYPEREF);
+  pony_assert(ast_id(right) == TK_ID);
 
   ast_t* find = lookup(opt, ast, type, ast_name(right));
 
@@ -333,7 +273,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
     }
 
     default:
-      assert(0);
+      pony_assert(0);
       ret = false;
       break;
   }
@@ -400,7 +340,7 @@ static bool tuple_access(pass_opt_t* opt, ast_t* ast)
   }
 
   type = ast_childidx(type, right_idx);
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
@@ -411,7 +351,7 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
 {
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
-  assert(ast_id(right) == TK_ID);
+  pony_assert(ast_id(right) == TK_ID);
   ast_t* type = ast_type(left);
 
   if(is_typecheck_error(type))
@@ -454,7 +394,7 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
       break;
 
     default:
-      assert(0);
+      pony_assert(0);
       ret = false;
       break;
   }
@@ -470,7 +410,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
-  assert(ast_id(right) == TK_TYPEARGS);
+  pony_assert(ast_id(right) == TK_TYPEARGS);
 
   if(is_typecheck_error(type))
     return false;
@@ -480,7 +420,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     case TK_TYPEREF:
     {
       // Qualify the type.
-      assert(ast_id(type) == TK_NOMINAL);
+      pony_assert(ast_id(type) == TK_NOMINAL);
 
       // If the type isn't polymorphic or the type is already qualified,
       // sugar .apply().
@@ -516,7 +456,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     case TK_FUNCHAIN:
     {
       // Qualify the function.
-      assert(ast_id(type) == TK_FUNTYPE);
+      pony_assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
       if(!reify_defaults(typeparams, right, true, opt))
@@ -580,7 +520,7 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
     return true;
 
   type = ast_type(left); // Literal handling may have changed lhs type
-  assert(type != NULL);
+  pony_assert(type != NULL);
 
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(opt, ast);
@@ -638,7 +578,7 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -680,6 +620,6 @@ bool expr_chain(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }

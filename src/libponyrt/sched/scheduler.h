@@ -1,6 +1,9 @@
 #ifndef sched_scheduler_h
 #define sched_scheduler_h
 
+#ifndef __cplusplus
+#  include <stdalign.h>
+#endif
 #include <pony.h>
 #include <platform.h>
 #include "actor/messageq.h"
@@ -42,7 +45,7 @@ struct scheduler_t
   bool asio_stopped;
 
   // These are changed primarily by the owning scheduler thread.
-  __pony_spec_align__(struct scheduler_t* last_victim, 64);
+  alignas(64) struct scheduler_t* last_victim;
 
   pony_ctx_t ctx;
   uint32_t block_count;

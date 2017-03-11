@@ -4,8 +4,8 @@
 #include "ast.h"
 #include "token.h"
 #include "../../libponyrt/mem/pool.h"
+#include "ponyassert.h"
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
 
 /** This file contains the BNF printer, which prints out the Pony BNF in human
@@ -61,7 +61,7 @@ static const char* antlr_post =
   "// Lexer\n\n"
   "ID\n"
   "  : LETTER (LETTER | DIGIT | '_' | '\\'')*\n"
-  "  | '_' (LETTER | DIGIT | '_' | '\\'')+\n"
+  "  | '_' (LETTER | DIGIT | '_' | '\\'')*\n"
   "  ;\n\n"
   "INT\n"
   "  : DIGIT (DIGIT | '_')*\n"
@@ -85,6 +85,9 @@ static const char* antlr_post =
   "MINUS_NEW\n"
   "  : NEWLINE '-'\n"
   "  ;\n\n"
+  "MINUS_TILDE_NEW\n"
+  "  : NEWLINE '-~'\n"
+  "  ;\n\n"
   "LINECOMMENT\n"
   "  : '//' ~('\\n')* {$channel = HIDDEN;}\n"
   "  ;\n\n"
@@ -100,12 +103,12 @@ static const char* antlr_post =
   "  ;\n\n"
   "fragment\n"
   "CHAR_CHAR\n"
-  "  : ESC\n"
+  "  : '\\\\' '\\'' | ESC\n"
   "  | ~('\\'' | '\\\\')\n"
   "  ;\n\n"
   "fragment\n"
   "STRING_CHAR\n"
-  "  : ESC\n"
+  "  : '\\\\' '\"' | ESC\n"
   "  | ~('\"' | '\\\\')\n"
   "  ;\n\n"
   "fragment\n"
@@ -130,7 +133,7 @@ static const char* antlr_post =
   "  ;\n\n"
   "fragment\n"
   "ESC\n"
-  "  : '\\\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\\\"' | "
+  "  : '\\\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | "
   "'\\\\' | '0')\n"
   "  | HEX_ESC\n"
   "  | UNICODE_ESC\n"
@@ -238,8 +241,8 @@ static bnf_t* bnf_copy(bnf_t* bnf, bnf_t** out_last_sibling)
 // New children go at the end of the child list.
 static bnf_t* bnf_add(bnf_t* bnf, bnf_t* parent)
 {
-  assert(bnf != NULL);
-  assert(parent != NULL);
+  pony_assert(bnf != NULL);
+  pony_assert(parent != NULL);
 
   if(parent->last_child == NULL)  // First node in list
     parent->child = bnf;
@@ -250,6 +253,27 @@ static bnf_t* bnf_add(bnf_t* bnf, bnf_t* parent)
   return bnf;
 }
 
+// Print out a quoted token, in ANTLR syntax.
+// Certain characters should be escaped before printing.
+static void bnf_print_quoted_token(const char* token)
+{
+  printf("'");
+  for(const char* c = token; *c != '\0'; c++) {
+    // See the definition of LITERAL_CHAR and ESC in
+    // http://www.antlr3.org/grammar/ANTLR/ANTLRv3.g
+    switch(*c) {
+      case '\'': printf("\\'"); break;
+      case '\\': printf("\\\\"); break;
+      case '\n': printf("\\n"); break;
+      case '\r': printf("\\r"); break;
+      case '\t': printf("\\t"); break;
+      case '\b': printf("\\b"); break;
+      case '\f': printf("\\f"); break;
+      default: putchar(*c); break;
+    }
+  }
+  printf("'");
+}
 
 // Print out the given node, in ANTLR syntax.
 // The top_format parameter indicates we should use top level node within rule
@@ -308,7 +332,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
       break;
 
     case BNF_QUOTED_TOKEN:
-      printf("'%s'", bnf->name);
+      bnf_print_quoted_token(bnf->name);
       break;
 
     case BNF_NEVER:
@@ -320,7 +344,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
       break;
 
     default:
-      assert(false);
+      pony_assert(false);
       break;
   }
 }
@@ -332,11 +356,11 @@ static void bnf_print(bnf_t* bnf, bool top_format)
 static void bnf_print_children(bnf_t* bnf, const char* separator,
   bool top_format, bool children_top_format)
 {
-  assert(bnf != NULL);
-  assert(separator != NULL);
+  pony_assert(bnf != NULL);
+  pony_assert(separator != NULL);
 
   bnf_t* child = bnf->child;
-  assert(child != NULL);
+  pony_assert(child != NULL);
 
   bool parens = !top_format && (child->sibling != NULL);
 
@@ -359,12 +383,12 @@ static void bnf_print_children(bnf_t* bnf, const char* separator,
 // Build a list of token references with the given node
 static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
 {
-  assert(bnf != NULL);
+  pony_assert(bnf != NULL);
 
   for(int i = 0; tokens[i] != TK_NONE; i++)
   {
     bnf_t* p = bnf_add(bnf_create(BNF_TOKEN), bnf);
-    assert(p != NULL);
+    pony_assert(p != NULL);
 
     //token_id next = tokens[i + 1];
 
@@ -379,13 +403,14 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
       case TK_LPAREN_NEW: p->name = "LPAREN_NEW"; break;
       case TK_LSQUARE_NEW: p->name = "LSQUARE_NEW"; break;
       case TK_MINUS_NEW: p->name = "MINUS_NEW"; break;
+      case TK_MINUS_TILDE_NEW: p->name = "MINUS_TILDE_NEW"; break;
 
       default:
         // Fixed text tokens: keywords, symbols, etc
         p->name = lexer_print(tokens[i]);
         p->id = BNF_QUOTED_TOKEN;
 
-        assert(p->name != NULL);
+        pony_assert(p->name != NULL);
 
         if((clean && p->name[0] == '$') || tokens[i] == TK_NEWLINE)
         {
@@ -402,12 +427,12 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
 // Build a list of rule references with the given node
 static void bnf_rule_set(bnf_t* bnf, const char** rules)
 {
-  assert(bnf != NULL);
+  pony_assert(bnf != NULL);
 
   for(int i = 0; rules[i] != NULL; i++)
   {
     bnf_t* p = bnf_add(bnf_create(BNF_RULE), bnf);
-    assert(p != NULL);
+    pony_assert(p != NULL);
     p->name = rules[i];
   }
 }
@@ -418,8 +443,8 @@ static void bnf_rule_set(bnf_t* bnf, const char** rules)
 // it and then free the child.
 static void bnf_use_child(bnf_t* bnf)
 {
-  assert(bnf != NULL);
-  assert(bnf->child != NULL);
+  pony_assert(bnf != NULL);
+  pony_assert(bnf->child != NULL);
 
   bnf_t* child = bnf->child;
 
@@ -437,8 +462,8 @@ static void bnf_use_child(bnf_t* bnf)
 // Find the rule with the specified name
 static bnf_t* bnf_find_def(bnf_t* tree, const char* name)
 {
-  assert(tree != NULL);
-  assert(name != NULL);
+  pony_assert(tree != NULL);
+  pony_assert(name != NULL);
 
   for(bnf_t* p = tree->child; p != NULL; p = p->sibling)
   {
@@ -447,7 +472,7 @@ static bnf_t* bnf_find_def(bnf_t* tree, const char* name)
   }
 
   // Not found, this is impossible if the parser compiles
-  assert(false);
+  pony_assert(false);
   return NULL;
 }
 
@@ -458,8 +483,8 @@ static bnf_t* bnf_find_def(bnf_t* tree, const char* name)
 // The out_changed variable is set to true when any simplifications occur.
 static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
 {
-  assert(bnf != NULL);
-  assert(out_changed != NULL);
+  pony_assert(bnf != NULL);
+  pony_assert(out_changed != NULL);
 
   switch(bnf->id)
   {
@@ -543,10 +568,10 @@ static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
         break;
 
       bnf_t* def = bnf_find_def(tree, bnf->name);
-      assert(def != NULL);
+      pony_assert(def != NULL);
 
       bnf_t* rule = def->child;
-      assert(rule != NULL);
+      pony_assert(rule != NULL);
 
       // We inline rules that are nevers, nops, single token / rule references
       // or have been explicitly marked to inline
@@ -563,7 +588,7 @@ static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
 
         // Child of def should only ever have one child, so don't need to worry
         // about copying siblings
-        assert(rule->sibling == NULL);
+        pony_assert(rule->sibling == NULL);
 
         // Don't worry about simplifying children now, leave that til the next
         // iteration
@@ -585,7 +610,7 @@ static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
 static void bnf_simplify_children(bnf_t* tree, bnf_t* parent, bool* out_never,
   bool* out_nop, bool *out_changed)
 {
-  assert(parent != NULL);
+  pony_assert(parent != NULL);
 
   if(out_never != NULL) *out_never = false;
   if(out_nop != NULL) *out_nop = false;
@@ -633,7 +658,7 @@ static void bnf_simplify_children(bnf_t* tree, bnf_t* parent, bool* out_never,
 // Simplify the given tree as far as possible
 static void bnf_simplify(bnf_t* tree)
 {
-  assert(tree != NULL);
+  pony_assert(tree != NULL);
 
   bool changed = true;
 
@@ -648,7 +673,7 @@ static void bnf_simplify(bnf_t* tree)
 // Add extra rules to get round the ANTLR interpreter bug
 static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
 {
-  assert(tree != NULL);
+  pony_assert(tree != NULL);
 
   if(bnf == NULL)
     return;
@@ -663,12 +688,12 @@ static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
     return;
 
   bnf_t* or_node = bnf->child;
-  assert(or_node != NULL);
+  pony_assert(or_node != NULL);
 
   if(or_node->id != BNF_OR)
     return;
 
-  assert(or_node->child != NULL);
+  pony_assert(or_node->child != NULL);
 
   bnf_t* second_child = or_node->child->sibling;
 
@@ -679,7 +704,7 @@ static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
   // This is the bug case. Move 'or' node into its own rule.
   int rule_no = tree->hack_count++;
 
-  assert(tree->last_child != NULL);
+  pony_assert(tree->last_child != NULL);
   bnf_t* new_rule = bnf_create(BNF_DEF);
   new_rule->hack_count = rule_no;
   new_rule->child = or_node;
@@ -697,8 +722,8 @@ static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
 // Mark rule definitions that are referenced from within the given subtree
 static void bnf_mark_refd_defs(bnf_t* tree, bnf_t* bnf)
 {
-  assert(tree != NULL);
-  assert(bnf != NULL);
+  pony_assert(tree != NULL);
+  pony_assert(bnf != NULL);
 
   for(bnf_t* p = bnf; p != NULL; p = p->sibling)
   {
@@ -708,7 +733,7 @@ static void bnf_mark_refd_defs(bnf_t* tree, bnf_t* bnf)
     if(p->id == BNF_RULE && p->name != NULL)
     {
       bnf_t* rule = bnf_find_def(tree, p->name);
-      assert(rule != NULL);
+      pony_assert(rule != NULL);
       rule->used = true;
     }
   }
@@ -814,6 +839,8 @@ static void bnf_mark_used_rules(bnf_t* tree)
     bnf_rule_set(p, tokens); \
   }
 
+#define ANNOTATE(rule) OPT RULE("annotations", rule)
+
 #define DONE()  }
 
 
@@ -844,7 +871,7 @@ static bnf_t* bnf_def(bool clean)
 void print_grammar(bool antlr, bool clean)
 {
   bnf_t* tree = bnf_def(clean);
-  assert(tree != NULL);
+  pony_assert(tree != NULL);
 
   bnf_simplify(tree);
 

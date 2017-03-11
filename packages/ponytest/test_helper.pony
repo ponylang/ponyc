@@ -90,6 +90,21 @@ class val TestHelper
       true
     end
 
+  fun assert_no_error(test: ITest box, msg: String = "", loc: SourceLoc = __loc)
+    : Bool
+  =>
+    """
+    Assert that the gived test function does not throw an error when run.
+    """
+    try
+      test()
+      log(_format_loc(loc) + "Assert no error passed. " + msg, true)
+      true
+    else
+      fail(_format_loc(loc) + "Assert no error failed. " + msg)
+      true
+    end
+
   fun assert_is[A](expect: A, actual: A, msg: String = "",
     loc: SourceLoc = __loc): Bool
   =>

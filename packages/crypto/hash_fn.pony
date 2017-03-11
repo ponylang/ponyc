@@ -1,6 +1,5 @@
 use "path:/usr/local/opt/libressl/lib" if osx
-use "lib:crypto" if not windows
-use "lib:libcrypto-32" if windows
+use "lib:crypto"
 
 use "format"
 

@@ -42,7 +42,14 @@ class Readline is ANSINotify
     match input
     | 0x01 => home() // ctrl-a
     | 0x02 => left() // ctrl-b
-    | 0x04 => delete() // ctrl-d
+    | 0x04 =>
+      // ctrl-d
+      if _edit.size() == 0 then
+        _out.write("\n")
+        term.dispose()
+      else
+        delete()
+      end
     | 0x05 => end_key() // ctrl-e
     | 0x06 => right() // ctrl-f
     | 0x08 => _backspace() // ctrl-h

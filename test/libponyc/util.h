@@ -5,6 +5,8 @@
 #include <platform.h>
 
 #include <ast/ast.h>
+#include <pass/pass.h>
+#include <codegen/codegen.h>
 
 // Provide a short alias for ASSERT_NO_FATAL_FAILURE
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)
@@ -17,18 +19,27 @@
     ASSERT_EQ(expected, ast_id(t)); \
   }
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  define EXPORT_SYMBOL __declspec(dllexport)
+#else
+#  define EXPORT_SYMBOL
+#endif
+
 
 class PassTest : public testing::Test
 {
 protected:
+  pass_opt_t opt;
   ast_t* program; // AST produced from given source
   ast_t* package; // AST of first package, cache of ast_child(program)
   ast_t* module;  // AST of first module in first package
+  compile_t* compile;
 
   virtual void SetUp();
   virtual void TearDown();
 
-  // Override the default builtin source
+  // Override the default builtin source. If NULL, the real builtin package is
+  // used
   void set_builtin(const char* src);
 
   // Add an additional package source
@@ -96,6 +107,10 @@ protected:
   // the previously loaded package
   ast_t* numeric_literal(uint64_t num);
 
+  // Run the compiled program. The program must have been successfully compiled
+  // up to the ir pass before calling this function.
+  bool run_program(int* exit_code);
+
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
@@ -103,8 +118,7 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, const char** expected_errors,
-    ast_t** out_package);
+    const char* package_name, bool check_good, const char** expected_errors);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.
@@ -113,6 +127,14 @@ private:
   ast_t* type_of_within(ast_t* ast, const char* name);
 
   ast_t* numeric_literal_within(ast_t* ast, uint64_t num);
+};
+
+
+class Environment : public testing::Environment
+{
+private:
+  virtual void SetUp();
+  virtual void TearDown();
 };
 
 

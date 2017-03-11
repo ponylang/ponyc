@@ -20,15 +20,9 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/DebugInfo.h>
 
-#if PONY_LLVM >= 307
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
-#else
-#include <llvm/ADT/Triple.h>
-#include <llvm/PassManager.h>
-#include <llvm/Target/TargetLibraryInfo.h>
-#endif
 
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO.h>
@@ -37,16 +31,14 @@
 #include <llvm/ADT/SmallSet.h>
 
 #include "../../libponyrt/mem/heap.h"
+#include "ponyassert.h"
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
 #endif
 
 using namespace llvm;
-
-#if PONY_LLVM >= 307
 using namespace llvm::legacy;
-#endif
 
 static __pony_thread_local compile_t* the_compiler;
 
@@ -62,11 +54,7 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
    * that have no direct source location, instead of returning 0
    * for getLine().
    */
-#if PONY_LLVM >= 307
   while(!i->getDebugLoc())
-#else
-  while(i->getDebugLoc().getLine() == 0)
-#endif
   {
     i = i->getNextNode();
 
@@ -76,18 +64,12 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
 
   DebugLoc loc = i->getDebugLoc();
 
-#if PONY_LLVM >= 307
   DILocation* location = loc.get();
   DIScope* scope = location->getScope();
   DILocation* at = location->getInlinedAt();
-#else
-  DIScope scope = DIScope(loc.getScope());
-  MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
-#endif
 
   if(at != NULL)
   {
-#if PONY_LLVM >= 307
     DIScope* scope_at = at->getScope();
 
     errorf(errors, NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
@@ -95,25 +77,11 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
       scope_at->getFilename().str().c_str(), at->getLine(),
       at->getColumn(), s);
-#else
-    DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
-
-    errorf(errors, NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
-      i->getParent()->getParent()->getName().str().c_str(),
-      scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(),
-      scope_at.getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
-#endif
   }
   else {
-#if PONY_LLVM >= 307
     errorf(errors, NULL, "[%s] %s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
-#else
-    errorf(errors, NULL, "[%s] %s:%u:%u: %s",
-      i->getParent()->getParent()->getName().str().c_str(),
-      scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
-#endif
   }
 }
 
@@ -500,7 +468,7 @@ public:
     if(name.size() < 10 || name.rfind("_Dispatch") != name.size() - 9)
       return false;
 
-    assert(f.arg_size() > 0);
+    pony_assert(f.arg_size() > 0);
 
     Value* ctx = &(*f.arg_begin());
 
@@ -758,7 +726,7 @@ public:
     while(alloc_size == 0)
     {
       // replace is a LLVM null pointer here. We have to handle any realloc
-      // chain before losing call use informations.
+      // chain before losing call use information.
 
       CallInst* next_realloc = findRealloc(*last_realloc);
       if(next_realloc == NULL)
@@ -864,17 +832,10 @@ static void optimise(compile_t* c, bool pony_specific)
   Module* m = unwrap(c->module);
   TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
 
-#if PONY_LLVM >= 307
   llvm::legacy::PassManager lpm;
   llvm::legacy::PassManager mpm;
   llvm::legacy::FunctionPassManager fpm(m);
-#else
-  PassManager lpm;
-  PassManager mpm;
-  FunctionPassManager fpm(m);
-#endif
 
-#if PONY_LLVM >= 307
   TargetLibraryInfoImpl *tl = new TargetLibraryInfoImpl(
     Triple(m->getTargetTriple()));
 
@@ -887,18 +848,6 @@ static void optimise(compile_t* c, bool pony_specific)
 
   fpm.add(createTargetTransformInfoWrapperPass(
     machine->getTargetIRAnalysis()));
-#else
-  lpm.add(new DataLayoutPass());
-  machine->addAnalysisPasses(lpm);
-
-  TargetLibraryInfo *tl = new TargetLibraryInfo(Triple(m->getTargetTriple()));
-  mpm.add(tl);
-  mpm.add(new DataLayoutPass());
-  machine->addAnalysisPasses(mpm);
-
-  fpm.add(new DataLayoutPass());
-  machine->addAnalysisPasses(fpm);
-#endif
 
   PassManagerBuilder pmb;
 

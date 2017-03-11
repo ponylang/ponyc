@@ -113,7 +113,7 @@ actor Stdin
 
       while true do
         let chunk_size = _chunk_size
-        var data = recover Array[U8].undefined(chunk_size) end
+        var data = recover Array[U8].>undefined(chunk_size) end
         var again: Bool = false
 
         let len = @pony_os_stdin_read[USize](data.cpointer(), data.space(),

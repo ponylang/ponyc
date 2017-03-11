@@ -5,6 +5,7 @@
 #include <ast/lexint.h>
 
 #include "util.h"
+#include "ponyassert.h"
 
 
 class LexIntTest : public testing::Test
@@ -13,7 +14,7 @@ class LexIntTest : public testing::Test
 
 static lexint_t* lexint(lexint_t* i, uint64_t high, uint64_t low)
 {
-  assert(i != NULL);
+  pony_assert(i != NULL);
   i->low = low;
   i->high = high;
   return i;

@@ -39,26 +39,23 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     _map.contains(value)
 
-  fun ref clear(): HashSet[A, H]^ =>
+  fun ref clear() =>
     """
     Remove all elements from the set.
     """
     _map.clear()
-    this
 
-  fun ref set(value: A): HashSet[A, H]^ =>
+  fun ref set(value: A) =>
     """
     Add a value to the set.
     """
     _map(value) = consume value
-    this
 
-  fun ref unset(value: box->A!): HashSet[A, H]^ =>
+  fun ref unset(value: box->A!) =>
     """
     Remove a value from the set.
     """
     try _map.remove(value) end
-    this
 
   fun ref extract(value: box->A!): A^ ? =>
     """
@@ -67,17 +64,16 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     _map.remove(value)._2
 
-  fun ref union(that: Iterator[A^]): HashSet[A, H]^ =>
+  fun ref union(that: Iterator[A^]) =>
     """
     Add everything in that to the set.
     """
     for value in that do
       set(consume value)
     end
-    this
 
   fun ref intersect[K: HashFunction[box->A!] val = H](
-    that: HashSet[box->A!, K]): HashSet[A, H]^
+    that: HashSet[box->A!, K])
   =>
     """
     Remove everything that isn't in that.
@@ -89,9 +85,8 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
         unset(value)
       end
     end
-    this
 
-  fun ref difference(that: Iterator[A^]): HashSet[A, H]^ =>
+  fun ref difference(that: Iterator[A^]) =>
     """
     Remove elements in this which are also in that. Add elements in that which
     are not in this.
@@ -103,16 +98,14 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
         set(consume value)
       end
     end
-    this
 
-  fun ref remove(that: Iterator[box->A!]): HashSet[A, H]^ =>
+  fun ref remove(that: Iterator[box->A!]) =>
     """
     Remove everything that is in that.
     """
     for value in that do
       unset(value)
     end
-    this
 
   fun add[K: HashFunction[this->A!] val = H](value: this->A!):
     HashSet[this->A!, K]^
@@ -120,7 +113,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     Add a value to the set.
     """
-    clone[K]().set(value)
+    clone[K]().>set(value)
 
   fun sub[K: HashFunction[this->A!] val = H](value: box->this->A!):
     HashSet[this->A!, K]^
@@ -128,7 +121,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     Remove a value from the set.
     """
-    clone[K]().unset(value)
+    clone[K]().>unset(value)
 
   fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^

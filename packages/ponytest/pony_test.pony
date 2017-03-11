@@ -283,7 +283,7 @@ actor PonyTest
     end
 
     // Group doesn't exist yet, make it.
-    // We only need one simultanous group, which we've already made. All new
+    // We only need one simultaneous group, which we've already made. All new
     // groups are exclusive.
     let g = _ExclusiveGroup
     _groups.push((name, g))

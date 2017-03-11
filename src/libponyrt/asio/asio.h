@@ -26,6 +26,7 @@ enum
   ASIO_WRITE = 1 << 1,
   ASIO_TIMER = 1 << 2,
   ASIO_SIGNAL = 1 << 3,
+  ASIO_ONESHOT = 1 << 8,
   ASIO_DESTROYED = (uint32_t)-1
 };
 
@@ -39,7 +40,7 @@ typedef struct asio_backend_t asio_backend_t;
 
 /** Opaque definition of an ASIO base.
  *
- * A base is a representation of the running instance of some I/O notifcation
+ * A base is a representation of the running instance of some I/O notification
  * mechanism.
  */
 typedef struct asio_base_t asio_base_t;

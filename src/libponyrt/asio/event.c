@@ -2,10 +2,10 @@
 #include "asio.h"
 #include "../actor/actor.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
-asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
+PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   uint32_t flags, uint64_t nsec, bool noisy)
 {
   if((flags == ASIO_DISPOSABLE) || (flags == ASIO_DESTROYED))
@@ -26,6 +26,8 @@ asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->flags = flags;
   ev->noisy = noisy;
   ev->nsec = nsec;
+  ev->writeable = false;
+  ev->readable = false;
 
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
@@ -37,11 +39,11 @@ asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   return ev;
 }
 
-void pony_asio_event_destroy(asio_event_t* ev)
+PONY_API void pony_asio_event_destroy(asio_event_t* ev)
 {
   if((ev == NULL) || (ev->magic != ev) || (ev->flags != ASIO_DISPOSABLE))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 
@@ -57,7 +59,7 @@ void pony_asio_event_destroy(asio_event_t* ev)
   POOL_FREE(asio_event_t, ev);
 }
 
-int pony_asio_event_fd(asio_event_t* ev)
+PONY_API int pony_asio_event_fd(asio_event_t* ev)
 {
   if(ev == NULL)
     return -1;
@@ -65,7 +67,35 @@ int pony_asio_event_fd(asio_event_t* ev)
   return ev->fd;
 }
 
-uint64_t pony_asio_event_nsec(asio_event_t* ev)
+PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return ev->writeable;
+}
+
+PONY_API void pony_asio_event_set_writeable(asio_event_t* ev, bool writeable)
+{
+  if(ev != NULL)
+    ev->writeable = writeable;
+}
+
+PONY_API bool pony_asio_event_get_readable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return ev->readable;
+}
+
+PONY_API void pony_asio_event_set_readable(asio_event_t* ev, bool readable)
+{
+  if(ev != NULL)
+    ev->readable = readable;
+}
+
+PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 {
   if(ev == NULL)
     return 0;
@@ -73,7 +103,8 @@ uint64_t pony_asio_event_nsec(asio_event_t* ev)
   return ev->nsec;
 }
 
-void pony_asio_event_send(asio_event_t* ev, uint32_t flags, uint32_t arg)
+PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
+  uint32_t arg)
 {
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);

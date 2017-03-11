@@ -14,6 +14,21 @@ primitive U8 is _UnsignedInteger[U8]
   fun popcount(): U8 => @"llvm.ctpop.i8"[U8](this)
   fun clz(): U8 => @"llvm.ctlz.i8"[U8](this, false)
   fun ctz(): U8 => @"llvm.cttz.i8"[U8](this, false)
+
+  fun clz_unsafe(): U8 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.ctlz.i8"[U8](this, true)
+
+  fun ctz_unsafe(): U8 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.cttz.i8"[U8](this, true)
+
   fun bitwidth(): U8 => 8
   fun min(y: U8): U8 => if this < y then this else y end
   fun max(y: U8): U8 => if this > y then this else y end
@@ -41,6 +56,21 @@ primitive U16 is _UnsignedInteger[U16]
   fun popcount(): U16 => @"llvm.ctpop.i16"[U16](this)
   fun clz(): U16 => @"llvm.ctlz.i16"[U16](this, false)
   fun ctz(): U16 => @"llvm.cttz.i16"[U16](this, false)
+
+  fun clz_unsafe(): U16 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.ctlz.i16"[U16](this, true)
+
+  fun ctz_unsafe(): U16 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.cttz.i16"[U16](this, true)
+
   fun bitwidth(): U16 => 16
   fun min(y: U16): U16 => if this < y then this else y end
   fun max(y: U16): U16 => if this > y then this else y end
@@ -68,6 +98,21 @@ primitive U32 is _UnsignedInteger[U32]
   fun popcount(): U32 => @"llvm.ctpop.i32"[U32](this)
   fun clz(): U32 => @"llvm.ctlz.i32"[U32](this, false)
   fun ctz(): U32 => @"llvm.cttz.i32"[U32](this, false)
+
+  fun clz_unsafe(): U32 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.ctlz.i32"[U32](this, true)
+
+  fun ctz_unsafe(): U32 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.cttz.i32"[U32](this, true)
+
   fun bitwidth(): U32 => 32
   fun min(y: U32): U32 => if this < y then this else y end
   fun max(y: U32): U32 => if this > y then this else y end
@@ -95,6 +140,21 @@ primitive U64 is _UnsignedInteger[U64]
   fun popcount(): U64 => @"llvm.ctpop.i64"[U64](this)
   fun clz(): U64 => @"llvm.ctlz.i64"[U64](this, false)
   fun ctz(): U64 => @"llvm.cttz.i64"[U64](this, false)
+
+  fun clz_unsafe(): U64 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.ctlz.i64"[U64](this, true)
+
+  fun ctz_unsafe(): U64 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.cttz.i64"[U64](this, true)
+
   fun bitwidth(): U64 => 64
   fun min(y: U64): U64 => if this < y then this else y end
   fun max(y: U64): U64 => if this > y then this else y end
@@ -151,6 +211,28 @@ primitive ULong is _UnsignedInteger[ULong]
       @"llvm.cttz.i32"[ULong](this, false)
     else
       @"llvm.cttz.i64"[ULong](this, false)
+    end
+
+  fun clz_unsafe(): ULong =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    ifdef ilp32 or llp64 then
+      @"llvm.ctlz.i32"[ULong](this, true)
+    else
+      @"llvm.ctlz.i64"[ULong](this, true)
+    end
+
+  fun ctz_unsafe(): ULong =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    ifdef ilp32 or llp64 then
+      @"llvm.cttz.i32"[ULong](this, false)
+    else
+      @"llvm.cttz.i64"[ULong](this, true)
     end
 
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
@@ -225,6 +307,28 @@ primitive USize is _UnsignedInteger[USize]
       @"llvm.cttz.i64"[USize](this, false)
     end
 
+  fun clz_unsafe(): USize =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    ifdef ilp32 then
+      @"llvm.ctlz.i32"[USize](this, true)
+    else
+      @"llvm.ctlz.i64"[USize](this, true)
+    end
+
+  fun ctz_unsafe(): USize =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    ifdef ilp32 then
+      @"llvm.cttz.i32"[USize](this, true)
+    else
+      @"llvm.cttz.i64"[USize](this, true)
+    end
+
   fun bitwidth(): USize => ifdef ilp32 then 32 else 64 end
   fun min(y: USize): USize => if this < y then this else y end
   fun max(y: USize): USize => if this > y then this else y end
@@ -266,6 +370,21 @@ primitive U128 is _UnsignedInteger[U128]
   fun popcount(): U128 => @"llvm.ctpop.i128"[U128](this)
   fun clz(): U128 => @"llvm.ctlz.i128"[U128](this, false)
   fun ctz(): U128 => @"llvm.cttz.i128"[U128](this, false)
+
+  fun clz_unsafe(): U128 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.ctlz.i128"[U128](this, true)
+
+  fun ctz_unsafe(): U128 =>
+    """
+    Unsafe operation.
+    If this is 0, the result is undefined.
+    """
+    @"llvm.cttz.i128"[U128](this, true)
+
   fun bitwidth(): U128 => 128
   fun min(y: U128): U128 => if this < y then this else y end
   fun max(y: U128): U128 => if this > y then this else y end
@@ -349,8 +468,60 @@ primitive U128 is _UnsignedInteger[U128]
       r
     end
 
+  fun mul_unsafe(y: U128): U128 =>
+    """
+    Unsafe operation.
+    If the operation overflows, the result is undefined.
+    """
+    ifdef native128 then
+      this *~ y
+    else
+      this * y
+    end
+
+  fun divmod_unsafe(y: U128): (U128, U128) =>
+    """
+    Unsafe operation.
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+    ifdef native128 then
+      (this *~ y, this /~ y)
+    else
+      divmod(y)
+    end
+
+  fun div_unsafe(y: U128): U128 =>
+    """
+    Unsafe operation.
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+    ifdef native128 then
+      this /~ y
+    else
+      this / y
+    end
+
+  fun mod_unsafe(y: U128): U128 =>
+    """
+    Unsafe operation.
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+    ifdef native128 then
+      this %~ y
+    else
+      this % y
+    end
+
   fun f32(): F32 =>
-    f64().f32()
+    let v = f64()
+    if v > F32.max_value().f64() then
+      F32._inf(false)
+    else
+      v.f32()
+    end
 
   fun f64(): F64 =>
     if this == 0 then
@@ -385,5 +556,19 @@ primitive U128 is _UnsignedInteger[U128]
     end
 
     F64.from_bits(((e + 1023) << 52) or (a.u64() and 0xF_FFFF_FFFF_FFFF))
+
+  fun f32_unsafe(): F32 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    f64_unsafe().f32_unsafe()
+
+  fun f64_unsafe(): F64 =>
+    """
+    Unsafe operation.
+    If the value doesn't fit in the destination type, the result is undefined.
+    """
+    f64()
 
 type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)

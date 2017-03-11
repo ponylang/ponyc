@@ -4,13 +4,13 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
+#include "ponyassert.h"
 #include <sys/event.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
-#include <assert.h>
 
 struct asio_backend_t
 {
@@ -64,6 +64,60 @@ static void retry_loop(asio_backend_t* b)
   write(b->wakeup[1], &c, 1);
 }
 
+PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
+{
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  struct kevent event[1];
+  int i = 0;
+
+  uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
+  if((ev->flags & ASIO_READ) && !ev->readable)
+  {
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
+    i++;
+  } else {
+    return;
+  }
+
+  kevent(b->kq, event, i, NULL, 0, NULL);
+
+  if(ev->fd == STDIN_FILENO)
+    retry_loop(b);
+}
+
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
+{
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  struct kevent event[2];
+  int i = 0;
+
+  uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
+  if((ev->flags & ASIO_WRITE) && !ev->writeable)
+  {
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
+    i++;
+  } else {
+    return;
+  }
+
+  kevent(b->kq, event, i, NULL, 0, NULL);
+
+  if(ev->fd == STDIN_FILENO)
+    retry_loop(b);
+}
+
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   pony_register_thread();
@@ -99,14 +153,18 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         switch(ep->filter)
         {
           case EVFILT_READ:
+            ev->readable = true;
             pony_asio_event_send(ev, ASIO_READ, 0);
             break;
 
           case EVFILT_WRITE:
             if(ep->flags & EV_EOF)
             {
+              ev->readable = true;
+              ev->writeable = true;
               pony_asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
             } else {
+              ev->writeable = true;
               pony_asio_event_send(ev, ASIO_WRITE, 0);
             }
             break;
@@ -129,17 +187,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   ponyint_messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
+  pony_unregister_thread();
   return NULL;
 }
 
-void pony_asio_event_subscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
-    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 
@@ -151,16 +209,16 @@ void pony_asio_event_subscribe(asio_event_t* ev)
   struct kevent event[4];
   int i = 0;
 
-  // EV_CLEAR enforces edge triggered behaviour.
+  uint32_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
     i++;
   }
 
@@ -189,14 +247,14 @@ void pony_asio_event_subscribe(asio_event_t* ev)
     retry_loop(b);
 }
 
-void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 
@@ -222,14 +280,14 @@ void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   kevent(b->kq, event, i, NULL, 0, NULL);
 }
 
-void pony_asio_event_unsubscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
-    assert(0);
+    pony_assert(0);
     return;
   }
 

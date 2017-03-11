@@ -1362,7 +1362,7 @@ TEST_F(SugarTest, As)
     "  var create: U32\n"
     "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | $let $1: Foo ref => consume $borrowed $1\n"
+    "    | $let $1: Foo ref => consume $aliased $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1386,7 +1386,7 @@ TEST_F(SugarTest, AsTuple)
     "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, $let $2: Bar ref) =>\n"
-    "      (consume $borrowed $1, consume $borrowed $2)\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1410,8 +1410,8 @@ TEST_F(SugarTest, AsNestedTuple)
     "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, ($let $2: Bar ref, $let $3: Baz ref)) =>\n"
-    "      (consume $borrowed $1,\n"
-    "        (consume $borrowed $2, consume $borrowed $3))\n"
+    "      (consume $aliased $1,\n"
+    "        (consume $aliased $2, consume $aliased $3))\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1446,7 +1446,7 @@ TEST_F(SugarTest, AsDontCare2Tuple)
     "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _) =>\n"
-    "      consume $borrowed $1\n"
+    "      consume $aliased $1\n"
     "    else\n"
     "      error\n"
     "    end";
@@ -1470,179 +1470,12 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
     "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _, $let $2: Baz ref) =>\n"
-    "      (consume $borrowed $1, consume $borrowed $2)\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
     "    else\n"
     "      error\n"
     "    end";
 
   TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectSimple)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object fun foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create()\n"
-    "    None\n"
-
-    "primitive val $T\n"
-    "  fun box foo(): None =>\n"
-    "    4\n"
-    "    None\n"
-    "  new val create(): $T val^ => true";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectWithField)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object let x: T = 3 fun foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create(3)\n"
-    "    None\n"
-
-    "class ref $T\n"
-    "  let x: T\n"
-    "  fun box foo(): None =>\n"
-    "    4\n"
-    "    None\n"
-    "  new ref create($1: T): $T ref^ => x = consume $1";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectWithBehaviour)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object be foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create()\n"
-    "    None\n"
-
-    "actor tag $T\n"
-    "  be tag foo(): None =>\n"
-    "    4\n"
-    "  new tag create(): $T tag^ => true";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectBox)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object box fun foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create()\n"
-    "    None\n"
-
-    "primitive val $T\n"
-    "  fun box foo(): None =>\n"
-    "    4\n"
-    "    None\n"
-    "  new val create(): $T val^ => true";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectRef)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object ref fun foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create()\n"
-    "    None\n"
-
-    "class ref $T\n"
-    "  fun box foo(): None =>\n"
-    "    4\n"
-    "    None\n"
-    "  new ref create(): $T ref^ => true";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectTagWithBehaviour)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object tag be foo() => 4 end";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class ref Foo\n"
-    "  var create: U32\n"
-    "  fun box f(): None =>\n"
-    "    $T.create()\n"
-    "    None\n"
-
-    "actor tag $T\n"
-    "  be tag foo(): None =>\n"
-    "    4\n"
-    "  new tag create(): $T tag^ => true";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ObjectRefWithBehaviour)
-{
-  const char* short_form =
-    "class Foo\n"
-    "  var create: U32\n"
-    "  fun f() =>\n"
-    "    object ref be foo() => 4 end";
-
-  TEST_ERROR(short_form);
 }
 
 

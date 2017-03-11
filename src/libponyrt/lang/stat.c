@@ -30,6 +30,8 @@ typedef struct pony_stat_t
   pony_mode_t* mode;
 
   uint32_t hard_links;
+  uint64_t device;
+  uint64_t inode;
   uint32_t uid;
   uint32_t gid;
   size_t size;
@@ -69,6 +71,8 @@ static void windows_stat(const char* path, pony_stat_t* p, struct __stat64* st,
   p->broken = false;
 
   p->hard_links = (uint32_t)st->st_nlink;
+  p->device = (uint64_t)st->st_dev;
+  p->inode = (uint64_t)st->st_ino;
   p->uid = st->st_uid;
   p->gid = st->st_gid;
   p->size = st->st_size;
@@ -113,6 +117,8 @@ static void unix_stat(pony_stat_t* p, struct stat* st)
 {
   // Report information other than size based on the symlink if there is one.
   p->hard_links = (uint32_t)st->st_nlink;
+  p->device = (uint64_t)st->st_dev;
+  p->inode = (uint64_t)st->st_ino;
   p->uid = st->st_uid;
   p->gid = st->st_gid;
 
@@ -166,7 +172,7 @@ static void unix_symlink(int r, pony_stat_t* p, struct stat* st)
 
 #endif
 
-bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
+PONY_API bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS) || defined(PLATFORM_IS_MACOSX)
   (void)fd;
@@ -189,7 +195,7 @@ bool pony_os_fstatat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
+PONY_API bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -219,7 +225,7 @@ bool pony_os_fstat(int fd, const char* path, pony_stat_t* p)
 #endif
 }
 
-bool pony_os_stat(const char* path, pony_stat_t* p)
+PONY_API bool pony_os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   WIN32_FILE_ATTRIBUTE_DATA fa;

@@ -229,6 +229,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   CloseHandle(b->wakeup);
   ponyint_messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
+  pony_unregister_thread();
   return NULL;
 }
 
@@ -240,7 +241,7 @@ void ponyint_iocp_resume_stdin()
 }
 
 
-void pony_asio_event_subscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -270,7 +271,7 @@ void pony_asio_event_subscribe(asio_event_t* ev)
 }
 
 
-void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -288,7 +289,7 @@ void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 }
 
 
-void pony_asio_event_unsubscribe(asio_event_t* ev)
+PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||

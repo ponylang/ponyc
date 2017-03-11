@@ -7,8 +7,8 @@
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
+#include "ponyassert.h"
 #include <string.h>
-#include <assert.h>
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
@@ -31,7 +31,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   {
     case TK_NOMINAL:
     {
-      assert(ast_id(right) == TK_ID);
+      pony_assert(ast_id(right) == TK_ID);
 
       ast_t* def = (ast_t*)ast_data(l_type);
       ast_t* field = ast_get(def, ast_name(right), NULL);
@@ -48,7 +48,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
 
     case TK_TUPLETYPE:
     {
-      assert(ast_id(right) == TK_INT);
+      pony_assert(ast_id(right) == TK_INT);
       int index = (int)ast_int(right)->low;
 
       return LLVMBuildExtractValue(c->builder, l_value, index, "");
@@ -60,7 +60,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -87,7 +87,7 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(field == NULL)
     return NULL;
 
-  assert((ast_id(l_type) == TK_NOMINAL) || (ast_id(l_type) == TK_TUPLETYPE));
+  pony_assert((ast_id(l_type) == TK_NOMINAL) || (ast_id(l_type) == TK_TUPLETYPE));
 
   // Don't load if we're reading from a tuple.
   if(ast_id(l_type) != TK_TUPLETYPE)
@@ -120,7 +120,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   ast_t* type = ast_type(ast);
 
-  // If we contain TK_DONTCARE, we have no usable value.
+  // If we contain '_', we have no usable value.
   if(contains_dontcare(type))
     return GEN_NOTNEEDED;
 
@@ -202,7 +202,7 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
   const char* name = ast_name(id);
 
   LLVMValueRef value = codegen_getlocal(c, name);
-  assert(value != NULL);
+  pony_assert(value != NULL);
 
   return value;
 }
@@ -236,7 +236,7 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 
@@ -292,7 +292,7 @@ static LLVMValueRef gen_digestof_value(compile_t* c, LLVMValueRef value)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return NULL;
 }
 

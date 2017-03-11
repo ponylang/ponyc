@@ -2,7 +2,7 @@
 #include "gencall.h"
 #include "genname.h"
 #include "gentype.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 {
@@ -12,7 +12,7 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
     return value;
 
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   if(l_type != t->primitive)
     return NULL;
@@ -40,7 +40,7 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
     return object;
 
   reach_type_t* t = reach_type(c->reach, type);
-  assert(t != NULL);
+  pony_assert(t != NULL);
 
   if(t->primitive == NULL)
     return object;

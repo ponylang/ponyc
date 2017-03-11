@@ -1,7 +1,7 @@
 #include "safeto.h"
 #include "cap.h"
 #include "viewpoint.h"
-#include <assert.h>
+#include "ponyassert.h"
 
 static bool safe_field_write(token_id cap, ast_t* type)
 {
@@ -48,7 +48,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -60,6 +60,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_LET:
     case TK_VARREF:
     case TK_DONTCARE:
+    case TK_DONTCAREREF:
       return true;
 
     case TK_FVARREF:
@@ -90,7 +91,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_TUPLE:
     {
       // At this point, we know these will be the same length.
-      assert(ast_id(type) == TK_TUPLETYPE);
+      pony_assert(ast_id(type) == TK_TUPLETYPE);
       ast_t* child = ast_child(ast);
       ast_t* type_child = ast_child(type);
 
@@ -103,7 +104,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
         type_child = ast_sibling(type_child);
       }
 
-      assert(type_child == NULL);
+      pony_assert(type_child == NULL);
       return true;
     }
 
@@ -118,7 +119,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
 
@@ -185,6 +186,6 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
     default: {}
   }
 
-  assert(0);
+  pony_assert(0);
   return false;
 }
