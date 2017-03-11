@@ -1,5 +1,12 @@
 #!/bin/bash
 
+case $OSTYPE in
+darwin*)
+  SED=gsed;;
+*)
+  SED=sed;;
+esac
+
 release_date=`date +%Y-%m-%d`
 
 verify_args() {
@@ -24,19 +31,19 @@ update_changelog() {
   # cut out empty "Fixed", "Added", or "Changed" sections
   remove_empty_sections
 
-  local match='## \[unreleased\] \- unreleased'
+  local match="## \[unreleased\] \- unreleased"
   local heading="## [$version] - $release_date"
-  sed -i "/$match/c $heading" CHANGELOG.md
+  $SED -i "/$match/c $heading" CHANGELOG.md
 }
 
 remove_empty_sections() {
   for section in "Fixed" "Added" "Changed"; do
     # check if first non-whitespace character after section heading is '-'
-    local str_after=`sed "1,/### $section/d" <CHANGELOG.md`
+    local str_after=`$SED "1,/### $section/d" <CHANGELOG.md`
     local first_word=`echo $str_after | head -n1 | cut -d " " -f1`
     if [ $first_word != "-" ]; then
       echo "Removing empty CHANGELOG section: $section"
-      sed -i "0,/### $section/{//d;}" CHANGELOG.md
+      $SED -i "0,/### $section/{//d;}" CHANGELOG.md
     fi
   done
 }
@@ -44,9 +51,8 @@ remove_empty_sections() {
 add_changelog_unreleased_section() {
   echo "Adding unreleased section to CHANGELOG"
   local replace='## [unreleased] - unreleased\n\n### Fixed\n\n\n### Added\n\n\n### Changed\n\n\n'
-  sed -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
+  $SED -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
 }
-
 
 if [ $# -le 2 ]; then
   echo "version and commit arguments required"

@@ -14,6 +14,12 @@ While not strictly required, you life will be made much easier if you:
 * Have read and write access to the ponylang [travis-ci](https://travis-ci.org) account
 * Have read and write access to the ponylang [appveyor](https://www.appveyor.com) account
 
+Our release script requires that you have GNU Sed installed. If you are running on OSX, it will attempt to used `gsed` instead of `sed. If you are on another platform that has a different default `sed`, you will need to install t. On macOS, you can install GNU Sed by running:
+
+```bash
+brew install gnu-sed
+```
+
 ## Prerequisites for specific releases
 
 Before getting started, you will need a number for the version that you will be releasing as well as an agreed upon "golden commit" that will form the basis of the release.  Any commit is eligible to be a "golden commit" so long as:
