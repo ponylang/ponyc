@@ -132,25 +132,25 @@ class iso _TestArrays is UnitTest
     let serialise = SerialiseAuth(ambient)
     let deserialise = DeserialiseAuth(ambient)
 
-    let x1: Array[U128] = [1, 2, 3]
+    let x1: Array[U128] = [1; 2; 3]
     var sx = Serialised(serialise, x1)
     let y1 = sx(deserialise) as Array[U128]
     h.assert_true(x1 isnt y1)
     h.assert_array_eq[U128](x1, y1)
 
-    let x2: Array[Bool] = [true, false, true]
+    let x2: Array[Bool] = [true; false; true]
     sx = Serialised(serialise, x2)
     let y2 = sx(deserialise) as Array[Bool]
     h.assert_true(x2 isnt y2)
     h.assert_array_eq[Bool](x2, y2)
 
-    let x3: Array[U32] = [1, 2, 3]
+    let x3: Array[U32] = [1; 2; 3]
     sx = Serialised(serialise, x3)
     let y3 = sx(deserialise) as Array[U32]
     h.assert_true(x3 isnt y3)
     h.assert_array_eq[U32](x3, y3)
 
-    let x4: Array[(U16, Bool)] = [(1, true), (2, false), (3, true)]
+    let x4: Array[(U16, Bool)] = [(1, true); (2, false); (3, true)]
     sx = Serialised(serialise, x4)
     let y4 = sx(deserialise) as Array[(U16, Bool)]
     h.assert_true(x4 isnt y4)
@@ -162,14 +162,14 @@ class iso _TestArrays is UnitTest
       i = i + 1
     end
 
-    let x5: Array[String] = ["hi", "there", "folks"]
+    let x5: Array[String] = ["hi"; "there"; "folks"]
     sx = Serialised(serialise, x5)
     let y5 = sx(deserialise) as Array[String]
     h.assert_true(x5 isnt y5)
     h.assert_array_eq[String](x5, y5)
 
     let x6: Array[_StructWords] =
-      [as _StructWords: _StructWords, _StructWords, _StructWords]
+      [as _StructWords: _StructWords; _StructWords; _StructWords]
     sx = Serialised(serialise, x6)
     let y6 = sx(deserialise) as Array[_StructWords]
     h.assert_true(x6 isnt y6)

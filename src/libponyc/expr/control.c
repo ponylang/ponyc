@@ -14,6 +14,12 @@
 
 bool expr_seq(pass_opt_t* opt, ast_t* ast)
 {
+  ast_t* parent = ast_parent(ast);
+
+  // This sequence will be handled when the array literal is handled.
+  if(ast_id(parent) == TK_ARRAY)
+    return true;
+
   bool ok = true;
 
   // Any expression other than the last that is still literal is an error
@@ -46,8 +52,6 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
 
   if(!ast_has_scope(ast))
     return ok;
-
-  ast_t* parent = ast_parent(ast);
 
   switch(ast_id(parent))
   {

@@ -67,18 +67,18 @@ class iso _TestWalk is UnitTest
   fun name(): String => "files/FilePath.walk"
   fun apply(h: TestHelper) ? =>
     let top = _FileHelper.make_files(
-      h, ["a/1", "a/2", "b", "c/3", "c/4", "d/5", "d/6"])
+      h, ["a/1"; "a/2"; "b"; "c/3"; "c/4"; "d/5"; "d/6"])
     try
       top.walk(
         {(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
           if dir.path == p then
-            h.assert_array_eq_unordered[String](["b", "c", "a", "d"], entries)
+            h.assert_array_eq_unordered[String](["b"; "c"; "a"; "d"], entries)
           elseif dir.path.at("a", -1) then
-            h.assert_array_eq_unordered[String](["1", "2"], entries)
+            h.assert_array_eq_unordered[String](["1"; "2"], entries)
           elseif dir.path.at("c", -1) then
-            h.assert_array_eq_unordered[String](["3", "4"], entries)
+            h.assert_array_eq_unordered[String](["3"; "4"], entries)
           elseif dir.path.at("d", -1) then
-            h.assert_array_eq_unordered[String](["5", "6"], entries)
+            h.assert_array_eq_unordered[String](["5"; "6"], entries)
           else
             h.fail("Unexpected dir: " + dir.path)
           end
@@ -160,10 +160,10 @@ class iso _TestPathSplit is UnitTest
     ifdef windows then
       var path = "\\foo\\bar\\dir\\"
       let expect = [
-        ("\\foo\\bar\\dir", ""),
-        ("\\foo\\bar", "dir"),
-        ("\\foo", "bar"),
-        (".", "foo"),
+        ("\\foo\\bar\\dir", "")
+        ("\\foo\\bar", "dir")
+        ("\\foo", "bar")
+        (".", "foo")
         ("", ".")
       ]
       for parts in expect.values() do
@@ -176,10 +176,10 @@ class iso _TestPathSplit is UnitTest
     else
       var path = "/foo/bar/dir/"
       let expect = [
-        ("/foo/bar/dir", ""),
-        ("/foo/bar", "dir"),
-        ("/foo", "bar"),
-        (".", "foo"),
+        ("/foo/bar/dir", "")
+        ("/foo/bar", "dir")
+        ("/foo", "bar")
+        (".", "foo")
         ("", ".")
       ]
       for parts in expect.values() do

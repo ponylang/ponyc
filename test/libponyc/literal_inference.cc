@@ -34,12 +34,12 @@ class LiteralTest : public PassTest
       }
     }
 
-    void check_type(const char* type_name, token_id tk_type, ast_t* ast) 
+    void check_type(const char* type_name, token_id tk_type, ast_t* ast)
     {
       ast_t* type = ast_type(ast);
       ASSERT_ID(tk_type, type);
 
-      switch(tk_type) 
+      switch(tk_type)
       {
         case TK_NOMINAL:
           ASSERT_STREQ(type_name, ast_name(ast_childidx(type, 1)));  // Child index 1 of a nominal is the type name
@@ -281,7 +281,7 @@ TEST_F(LiteralTest, CantInfer_Array_UnambiguousUnion )
 
 TEST_F(LiteralTest, CantInfer_Match_LiteralMatchValue )
 {
-  const char* src =    
+  const char* src =
     "class Foo10c\n"
     "  fun test(): Bool => \n"
     "    match 8\n"
@@ -294,7 +294,7 @@ TEST_F(LiteralTest, CantInfer_Match_LiteralMatchValue )
 
 TEST_F(LiteralTest, CantInfer_Match_InvalidElse)
 {
-  const char* src =    
+  const char* src =
     "class Foo11c\n"
     "  fun test(q: Bool): I16 => \n"
     "    match q\n"
@@ -310,13 +310,13 @@ TEST_F(LiteralTest, CantInfer_Match_InvalidElse)
 
 TEST_F(LiteralTest, CantInfer_Literal_Unused)
 {
-  const char* src =    
+  const char* src =
     "class Foo12c\n"
     "  fun test(q: Bool): F64 ? => 79; error\n";
 
   TEST_ERROR(src);
 }
-    
+
 
 TEST_F(LiteralTest, CantInfer_While_InvalidReturnValue)
 {
@@ -331,7 +331,7 @@ TEST_F(LiteralTest, CantInfer_While_InvalidReturnValue)
 
   TEST_ERROR(src);
 }
-    
+
 
 TEST_F(LiteralTest, CantInfer_While_InvalidElseValue )
 {
@@ -460,9 +460,9 @@ TEST_F(LiteralTest, Let_TupleOfGeneric)
     "class Foo[A: U8, B: U32]\n"
     "  new create() =>\n"
     "    (let x: A, let y: A) = (16, 32)";
-  
+
   TEST_COMPILE(src);
-  
+
   DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(16)));
   DO(check_type("A", TK_TYPEPARAMREF, numeric_literal(32)));
 }
@@ -734,7 +734,7 @@ TEST_F(LiteralTest, Array_ParameterOfArrayOfUnion)
 {
   const char* src =
     "class Foo4a\n"
-    "  fun run() => test([8, \"\"])\n"
+    "  fun run() => test([8; \"\"])\n"
     "  fun test(a: Array[ (String | I32) ] ): Bool => true\n";
 
   TEST_COMPILE(src);
