@@ -48,22 +48,8 @@ artifacts:
   - path: 'ponyc-*.zip'
 
 deploy:
-  # On branches `master` and `release`, deploy (and publish) artifacts
+  # On branche `release`, deploy (and publish) artifacts
   # to the ponyc-win projects on Bintray.
-  - provider: BinTray
-    username: pony-buildbot-2
-    api_key:
-        secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
-    subject: pony-language
-    repo: ponyc-win
-    package: ponyc-master
-    version: $(appveyor_build_version)
-    on:
-        branch: master
-        llvm: 3.9.1
-        configuration: release
-    publish: true
-
   - provider: BinTray
     username: pony-buildbot-2
     api_key:
