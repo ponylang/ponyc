@@ -332,7 +332,7 @@ endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 ifeq ($(OSTYPE), freebsd)
-  llvm.libs += -lpthread
+  llvm.libs += -lpthread -lexecinfo
 endif
 
 prebuilt := llvm
@@ -425,6 +425,11 @@ ifeq ($(OSTYPE),linux)
   libponyrt.tests.links += libpthread libdl
   libponyc.benchmarks.links += libpthread libdl
   libponyrt.benchmarks.links += libpthread libdl
+endif
+
+ifeq ($(OSTYPE),freebsd)
+  libponyc.benchmarks.links += libpthread
+  libponyrt.benchmarks.links += libpthread
 endif
 
 ifneq (, $(DTRACE))

@@ -33,12 +33,12 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
     func, expr);
 
   void* addrs[256];
-  int depth = backtrace(addrs, 256);
+  size_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
 
   fputs("Backtrace:\n", stderr);
 
-  for(int i = 0; i < depth; i++)
+  for(size_t i = 0; i < depth; i++)
     printf("  %s\n", strings[i]);
 
   free(strings);
