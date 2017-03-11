@@ -19,33 +19,6 @@ While not strictly required, you life will be made much easier if you:
 Before getting started, you will need a number for the version that you will be releasing as well as an agreed upon "golden commit" that will form the basis of the release.  Any commit is eligible to be a "golden commit" so long as:
 
 * It passed all CI checks
-* We were able to build "ponyc-master binaries" for it.
-
-### Validating "ponyc-master binaries"
-
-Currently, we validate binaries for RPM, Deb and Windows packaging. Follow the bintray links below to verify each of the package. You are looking under "Versions" for a successfully created package for the "golden commit". In the case of RPM and Deb, the versions look something like:
-
-`0.3.1-1885.8a8ee28`
-
-where the 
-
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-For windows, version look something like:
-
-`ponyc-master-0.3.1-1526.8a8ee28`
-
-where the 
-
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc-master)
-* [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc-master)
-* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc-master)
 
 ### Validate external services are functional
 
@@ -61,7 +34,6 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 ## Releasing
 
 For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
-
 
 With that in mind, run the release script:
 
