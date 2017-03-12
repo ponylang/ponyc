@@ -1,14 +1,21 @@
 FROM ubuntu:16.04
 
+ENV LLVM_VERSION 3.9.1
+
 RUN apt-get update \
- && apt-get install -y make g++ git wget xz-utils \
-                       zlib1g-dev libncurses5-dev libssl-dev \
-                       libpcre2-dev \
+ && apt-get install -y \
+  g++ \
+  git \
+  libncurses5-dev \
+  libpcre2-dev \
+  libssl-dev \
+  make \
+  wget \
+  xz-utils \
+  zlib1g-dev \
  && rm -rf /var/lib/apt/lists/* \
- && wget http://llvm.org/releases/3.9.1/clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- && tar xf clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- && cp -r clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04/* /usr/local \
- && rm -rf /clang*
+ && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+ | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/
@@ -21,7 +28,6 @@ RUN make \
  && make install \
  && rm -rf /src/ponyc/build
 
-RUN mkdir /src/main
 WORKDIR /src/main
 
 CMD ponyc
