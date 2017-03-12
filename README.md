@@ -61,6 +61,9 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 
 If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
 
+### Docker and AVX2 Support
+
+By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Linux using an RPM package (via Bintray)
 
@@ -79,6 +82,10 @@ Or, for master builds:
 yum install ponyc-master
 ```
 
+### RPM and AVX2 Support
+
+By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
 ## Linux using a DEB package (via Bintray)
 
 For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
@@ -96,6 +103,10 @@ Or, for master builds:
 ```
 sudo apt-get install ponyc-master
 ```
+
+### DEB and AVX2 Support
+
+By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Arch Linux
 
@@ -379,9 +390,8 @@ Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for a
 
 Use VirtualBox 5.x to avoid possible problems.
 
-## AVX2 Support
 
-The Pony prebuilt binaries trigger illegal instruction errors under CPUs without [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
+You can learn more about [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
 
 ## Building Pony on Non-x86 platforms
 
