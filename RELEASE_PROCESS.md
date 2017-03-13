@@ -89,19 +89,14 @@ The pattern for releases is similar as what we previously saw. In the case of RP
 
 `0.3.1-1885.8a8ee28`
 
-where the 
+where the `1885` is the Travis build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-For windows, version look something like:
+For windows, the versions look something like:
 
 `ponyc-release-0.3.1-1526.8a8ee28`
 
-where the 
+where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-`8a8ee28`
 
 ### Wait on Homebrew
 
@@ -111,20 +106,20 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 ### Update the GitHub issue as needed
 
-At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew"
+At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew".
 
 ### Inform #ponylang
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Inform pony-user
 
-Once Travis, Appveyor and Homebrew are all finished, send an email to the pony user mailing list letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Close the GitHub issue
 
-Close the GitHub issue for this release
+Close the GitHub issue for this release.
