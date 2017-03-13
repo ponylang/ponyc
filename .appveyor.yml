@@ -9,6 +9,7 @@ branches:
 
 environment:
   matrix:
+  - llvm: 4.0.0
   - llvm: 3.9.1
   - llvm: 3.8.1
   - llvm: 3.7.1
@@ -37,7 +38,7 @@ skip_commits:
 
 clone_folder: C:\projects\ponyc
 
-install:
+build_script:
   - ps: |
       $package_commit = git rev-parse --short --verify "HEAD^{commit}"
       $package_version = (Get-Content "VERSION")
@@ -79,9 +80,6 @@ deploy:
         llvm: 3.9.1
         configuration: release
     publish: true
-
-build:
-  none
 
 test_script:
   - ps: |

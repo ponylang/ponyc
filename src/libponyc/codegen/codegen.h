@@ -40,6 +40,8 @@ LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node);
 
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
@@ -179,8 +181,10 @@ typedef struct compile_t
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
   LLVMValueRef tbaa_root;
+#if LLVM_PONY < 400
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
+#endif  
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;

@@ -44,7 +44,6 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
-  const char* box_name = genname_box(t->name);
   const char* unbox_name = genname_unbox(m->full_name);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -70,9 +69,14 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
+  const char* box_name = genname_box(t->name);
   LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, primitive);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(primitive, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
@@ -414,7 +418,6 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   uint32_t event_notify_index = reach_vtable_index(t, c->str__event_notify);
 
   LLVMValueRef args[DESC_LENGTH];
-
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);

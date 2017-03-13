@@ -345,6 +345,9 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* p_type, ast_t* l_type, ast_t* r_type)
 {
+  (void)(s_type); // these are for unfinished TBAA work
+  (void)(index);
+
   reach_type_t* t = reach_type(c->reach, l_type);
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -359,11 +362,17 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
 
   // Store to the field.
   LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
-
   LLVMValueRef metadata = tbaa_metadata_for_type(c, p_type);
+
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, result);
+  tbaa_tag(c, metadata, store);
+#else
   const char id[] = "tbaa";
-  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  unsigned md_kind = LLVMGetMDKindID(id, sizeof(id) - 1);
+  LLVMSetMetadata(result, md_kind, metadata);
+  LLVMSetMetadata(store, md_kind, metadata);
+#endif
 
   return gen_assign_cast(c, c_t->use_type, result, l_type);
 }
@@ -462,7 +471,9 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     case TK_TUPLEELEMREF:
     {
       // The result is the previous value of the tuple element.
-      LLVMValueRef l_value = gen_tupleelemptr(c, left);
+      ast_t* s_type;
+      uint32_t index;
+      LLVMValueRef l_value = gen_tupleelemptr(c, left, &s_type, &index);
       ast_t* p_type = ast_type(ast_child(left));
       ast_t* l_type = ast_type(left);
       return assign_field(c, l_value, r_value, p_type, l_type, r_type);

@@ -34,21 +34,21 @@ out = 'build'
 
 # various configuration parameters
 CONFIGS = [
-    'debug',
-    'release'
+    'release',
+    'debug'
 ]
 
 MSVC_VERSIONS = [ '15', '14' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
+    '4.0.0',
     '3.9.1',
-    '3.9.0',
     '3.8.1',
     '3.7.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.2.0"
+WINDOWS_LIBS_TAG = "v1.4.0"
 LIBRESSL_VERSION = "2.5.0"
 PCRE2_VERSION = "10.21"
 
@@ -76,12 +76,6 @@ def configure(ctx):
 
     if os_is('win32'):
         import os
-        ctx.env.PONYC_EXTRA_LIBS = [
-            'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
-            'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
-            'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
-            'dbghelp', 'Shlwapi'
-        ]
 
         base_env = ctx.env
         base_env.MSVC_VERSIONS = [ 'msvc ' + v + '.0' for v in MSVC_VERSIONS ]
@@ -99,41 +93,57 @@ def configure(ctx):
 
         for llvm_version in LLVM_VERSIONS:
             bld_env = base_env.derive()
-            bld_env.PONYLIBS_NAME = 'PonyWindowsLibs' + \
-                '-LLVM-' + llvm_version + \
-                '-LibreSSL-' + LIBRESSL_VERSION + \
-                '-PCRE2-' + PCRE2_VERSION + '-' + \
-                WINDOWS_LIBS_TAG
-            bld_env.PONYLIBS_DIR = bld_env.PONYLIBS_NAME
+            bld_env.PONYLIBS_DIR = 'ThirdParty'
             bld_env.LIBRESSL_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
                 'lib', 'libressl-' + LIBRESSL_VERSION)
             bld_env.PCRE2_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
                 'lib', 'pcre2-' + PCRE2_VERSION)
-            bld_env.LLVM_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
-                'lib', 'LLVM-' + llvm_version)
             bld_env.append_value('DEFINES', [
                 'LLVM_VERSION="' + llvm_version + '"'
             ])
 
+            libs_name = 'PonyWinLibs' + \
+                '-LLVM-' + llvm_version + \
+                '-LibreSSL-' + LIBRESSL_VERSION + \
+                '-PCRE2-' + PCRE2_VERSION + '-' + \
+                WINDOWS_LIBS_TAG
+
+            # Debug configuration
             bldName = 'debug-llvm-' + llvm_version
             ctx.setenv(bldName, env = bld_env)
+            ctx.env.PONYLIBS_NAME = libs_name + '-Debug'
+            ctx.env.LLVM_DIR = os.path.join(ctx.env.PONYLIBS_DIR, \
+                'lib', 'LLVM-' + llvm_version + '-Debug')
+
             ctx.env.append_value('DEFINES', [
                 'DEBUG',
-                'PONY_BUILD_CONFIG="debug"'
+                'PONY_BUILD_CONFIG="debug"',
+                '_SCL_SECURE_NO_WARNINGS'
             ])
             msvcDebugFlags = [
                 '/EHsc', '/MP', '/GS', '/W3', '/Zc:wchar_t', '/Zi',
                 '/Gm-', '/Od', '/Zc:inline', '/fp:precise', '/WX',
-                '/Zc:forScope', '/Gd', '/MD', '/FS', '/DEBUG'
+                '/Zc:forScope', '/Gd', '/MDd', '/FS', '/DEBUG'
             ]
             ctx.env.append_value('CFLAGS', msvcDebugFlags)
             ctx.env.append_value('CXXFLAGS', msvcDebugFlags)
             ctx.env.append_value('LINKFLAGS', [
-                '/NXCOMPAT', '/SUBSYSTEM:CONSOLE', '/DEBUG'
+                '/NXCOMPAT', '/SUBSYSTEM:CONSOLE', '/DEBUG', '/ignore:4099'
             ])
+            ctx.env.PONYC_EXTRA_LIBS = [
+                'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
+                'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
+                'odbc32', 'odbccp32', 'vcruntimed', 'ucrtd', 'Ws2_32',
+                'dbghelp', 'Shlwapi'
+            ]
 
+            # Release configuration
             bldName = 'release-llvm-' + llvm_version
             ctx.setenv(bldName, env = bld_env)
+            ctx.env.PONYLIBS_NAME = libs_name + '-Release'
+            ctx.env.LLVM_DIR = os.path.join(ctx.env.PONYLIBS_DIR, \
+                'lib', 'LLVM-' + llvm_version + '-Release')
+
             ctx.env.append_value('DEFINES', [
                 'NDEBUG',
                 'PONY_BUILD_CONFIG="release"'
@@ -148,6 +158,12 @@ def configure(ctx):
             ctx.env.append_value('LINKFLAGS', [
                 '/NXCOMPAT', '/SUBSYSTEM:CONSOLE'
             ])
+            ctx.env.PONYC_EXTRA_LIBS = [
+                'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
+                'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
+                'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
+                'dbghelp', 'Shlwapi'
+            ]            
 
 
 # specifies build targets
@@ -184,7 +200,7 @@ def build(ctx):
                 and os.path.exists(pcre2Dir) \
                 and os.path.exists(llvmDir)):
                 libsZip = libsName + '.zip'
-                libsFname = os.path.join(buildDir, libsZip)
+                libsFname = os.path.join(buildDir, '..', libsZip)
                 if not os.path.isfile(libsFname):
                     libsUrl = 'https://github.com/kulibali/ponyc-windows-libs/releases/download/' \
                         + WINDOWS_LIBS_TAG + '/' + libsZip
@@ -210,7 +226,10 @@ def build(ctx):
                     zf.extractall(libsDir)
 
                 import shutil
-                shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
+                if (ctx.options.config == 'debug'):
+                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), buildDir)
+                else:
+                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'crypto.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'ssl.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'tls.lib'), buildDir)
@@ -318,6 +337,11 @@ def build(ctx):
         lib       = ctx.env.PONYC_EXTRA_LIBS
     )
 
+
+# this command builds and runs the test suites
+def test(ctx):
+    import os
+
     # stdlib tests
     stdlibTarget = 'stdlib'
     if os_is('win32'):
@@ -337,49 +361,47 @@ def build(ctx):
         target   = 'pony.g.new',
     )
 
+    def run_tests(ctx):
+        buildDir = ctx.bldnode.abspath()
+        sourceDir = ctx.srcnode.abspath()
 
-# this command runs the test suites
-def test(ctx):
-    import os
+        total = 0
+        passed = 0
 
-    buildDir = ctx.bldnode.abspath()
-    sourceDir = ctx.srcnode.abspath()
+        total = total + 1
+        testc = os.path.join(buildDir, 'testc')
+        returncode = subprocess.call([ testc ])
+        if returncode == 0:
+            passed = passed + 1
 
-    total = 0
-    passed = 0
+        total = total + 1
+        testrt = os.path.join(buildDir, 'testrt')
+        print(testrt)
+        returncode = subprocess.call([ testrt ])
+        if returncode == 0:
+            passed = passed + 1
 
-    total = total + 1
-    testc = os.path.join(buildDir, 'testc')
-    returncode = subprocess.call([ testc ])
-    if returncode == 0:
-        passed = passed + 1
+        total = total + 1
+        stdlib = os.path.join(buildDir, 'stdlib')
+        print(stdlib)
+        returncode = subprocess.call([ stdlib, '--sequential' ])
+        if returncode == 0:
+            passed = passed + 1
 
-    total = total + 1
-    testrt = os.path.join(buildDir, 'testrt')
-    print(testrt)
-    returncode = subprocess.call([ testrt ])
-    if returncode == 0:
-        passed = passed + 1
+        print('')
+        print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
+        if passed < total:
+            sys.exit(1)
 
-    total = total + 1
-    stdlib = os.path.join(buildDir, 'stdlib')
-    print(stdlib)
-    returncode = subprocess.call([ stdlib, '--sequential' ])
-    if returncode == 0:
-        passed = passed + 1
+        ponyg = os.path.join(sourceDir, 'pony.g')
+        ponygNew = os.path.join(buildDir, 'pony.g.new')
+        with open(ponyg, 'r') as pg:
+            with open(ponygNew, 'r') as pgn:
+                if pg.read() != pgn.read():
+                    print('Grammar files differ')
+                    sys.exit(1)
 
-    print('')
-    print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
-    if passed < total:
-        sys.exit(1)
-    
-    ponyg = os.path.join(sourceDir, 'pony.g')
-    ponygNew = os.path.join(buildDir, 'pony.g.new')
-    with open(ponyg, 'r') as pg:
-        with open(ponygNew, 'r') as pgn:
-            if pg.read() != pgn.read():
-                print('Grammar files differ')
-                sys.exit(1)
+    ctx.add_post_fun(run_tests)
 
 
 # subclass the build context for the test command,
