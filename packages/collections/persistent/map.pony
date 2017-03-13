@@ -73,7 +73,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(k.hash().u32(), k), _size-1)
+    _create(_root.remove(k.hash().u32(), k), _size - 1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """
