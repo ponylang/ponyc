@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
 - Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
 - Fix FreeBSD 11 compilation
 
