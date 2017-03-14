@@ -18,6 +18,12 @@ static PONY_ATOMIC(bool) assert_guard = false;
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
+#ifdef PLATFORM_IS_FREEBSD
+typedef size_t stack_depth_t;
+#else
+typedef int stack_depth_t;
+#endif
+
 void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   const char* func)
 {
@@ -33,12 +39,12 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
     func, expr);
 
   void* addrs[256];
-  int depth = backtrace(addrs, 256);
+  stack_depth_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
 
   fputs("Backtrace:\n", stderr);
 
-  for(int i = 0; i < depth; i++)
+  for(stack_depth_t i = 0; i < depth; i++)
     printf("  %s\n", strings[i]);
 
   free(strings);

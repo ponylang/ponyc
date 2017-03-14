@@ -18,6 +18,7 @@ configuration:
   - debug
 
 clone_depth: 100
+skip_tags: true
 
 clone_folder: C:\projects\ponyc
 

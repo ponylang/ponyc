@@ -61,6 +61,9 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 
 If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
 
+### Docker and AVX2 Support
+
+By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Linux using an RPM package (via Bintray)
 
@@ -79,6 +82,10 @@ Or, for master builds:
 yum install ponyc-master
 ```
 
+### RPM and AVX2 Support
+
+By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
 ## Linux using a DEB package (via Bintray)
 
 For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
@@ -96,6 +103,10 @@ Or, for master builds:
 ```
 sudo apt-get install ponyc-master
 ```
+
+### DEB and AVX2 Support
+
+By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Arch Linux
 
@@ -128,15 +139,12 @@ $ brew install ponyc
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+Windows users will need to install:
 
-```powershell
-Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
-7z x .\ponyc-VERSION.zip
-.\ponyc-VERSION\ponyc\bin\ponyc.exe --version
-```
+- Visual Studio 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+- Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
 
-Windows users will need to install Visual Studio 2015 (or the Visual C++ Build Tools 2015) and the Windows 10 SDK in order to build programs with ponyc. It can be downloaded from Microsoft ([Visual Studio](https://www.visualstudio.com/vs/community/), [Visual C++ Build Tools 2015](http://landinghub.visualstudio.com/visual-cpp-build-tools), [SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
 # Building ponyc from source
 
@@ -382,9 +390,8 @@ Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for a
 
 Use VirtualBox 5.x to avoid possible problems.
 
-## AVX2 Support
 
-The Pony prebuilt binaries trigger illegal instruction errors under CPUs without [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
+You can learn more about [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
 
 ## Building Pony on Non-x86 platforms
 

@@ -332,7 +332,7 @@ endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 ifeq ($(OSTYPE), freebsd)
-  llvm.libs += -lpthread
+  llvm.libs += -lpthread -lexecinfo
 endif
 
 prebuilt := llvm
@@ -425,6 +425,11 @@ ifeq ($(OSTYPE),linux)
   libponyrt.tests.links += libpthread libdl
   libponyc.benchmarks.links += libpthread libdl
   libponyrt.benchmarks.links += libpthread libdl
+endif
+
+ifeq ($(OSTYPE),freebsd)
+  libponyc.benchmarks.links += libpthread
+  libponyrt.benchmarks.links += libpthread
 endif
 
 ifneq (, $(DTRACE))
@@ -560,8 +565,8 @@ define CONFIGURE_LINKER
     linker := $(CXX)
   endif
 
-  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
   $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
+  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
   linkcmd += $(libs) $($(1).linkoptions)
 endef
 
