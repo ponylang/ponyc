@@ -45,6 +45,8 @@ With that in mind, run the release script:
 
 - bash release.sh 0.3.1 8a8ee28
 
+If the golden commit does not include the most recent CHANGELOG updates, you will have to answer `n` to the second prompt and merge the changes manually.
+
 ### Update the GitHub issue
 
 Leave a comment on the GitHub issue for this release to let everyone know you are done versioning the CHANGELOG and VERSION and that they are updated on `master`.

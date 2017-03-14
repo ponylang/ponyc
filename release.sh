@@ -1,10 +1,8 @@
 #!/bin/bash
 
 case $OSTYPE in
-darwin*)
-  SED=gsed;;
-*)
-  SED=sed;;
+darwin*) SED=gsed;;
+*) SED=sed;;
 esac
 
 release_date=`date +%Y-%m-%d`
@@ -14,9 +12,9 @@ verify_args() {
   while true; do
     read -p "Is this correct (y/n)?" yn
     case $yn in
-      [Yy]* ) break;;
-      [Nn]* ) exit;;
-      * ) echo "Please answer y or n.";;
+    [Yy]*) break;;
+    [Nn]*) exit;;
+    *) echo "Please answer y or n.";;
     esac
   done
 }
@@ -52,6 +50,18 @@ add_changelog_unreleased_section() {
   echo "Adding unreleased section to CHANGELOG"
   local replace='## [unreleased] - unreleased\n\n### Fixed\n\n\n### Added\n\n\n### Changed\n\n\n'
   $SED -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
+}
+
+check_for_commit_and_push() {
+  printf "Would you like to push CHANGELOG updates to master (y/n)? "
+  while true; do
+    read -r yn
+    case $yn in
+    [Yy]*) break;;
+    [Nn]*) exit;;
+    *) echo "Please answer y or n.";;
+    esac
+  done
 }
 
 if [ $# -le 2 ]; then
@@ -92,6 +102,9 @@ git push origin $version
 git checkout master
 git merge release-$version
 add_changelog_unreleased_section
+
+# check if user wants to continue
+check_for_commit_and_push
 
 # commit changelog and push to master
 git add CHANGELOG.md
