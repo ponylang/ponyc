@@ -380,8 +380,9 @@ RULE(fun_ref,
 
 RULE(type_ref,
   HAS_TYPE(type)
-  CHILD(expr)
-  OPTIONAL(id, type_args),
+  CHILD(package_ref, none)
+  CHILD(id, none)
+  CHILD(type_args, none),
   TK_TYPEREF);
 
 RULE(field_ref,

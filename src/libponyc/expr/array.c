@@ -105,7 +105,6 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   if(!refer_reference(opt, &ref) ||
     !refer_qualify(opt, qualify) ||
-    !expr_typeref(opt, &ref) ||
     !expr_typeref(opt, &qualify) ||
     !expr_dot(opt, &dot) ||
     !expr_call(opt, &call)

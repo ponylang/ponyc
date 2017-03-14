@@ -100,6 +100,7 @@ static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
 static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
   sym_status_t status)
 {
+  // TODO: move this whole function to the status pass.
   if(is_constructed_from(opt, ast, type))
     return true;
 
@@ -306,6 +307,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_setid(ast, tid);
   ast_settype(ast, type);
 
+  // TODO: move this to the status pass, if possible?
   if(ast_id(left) == TK_THIS)
   {
     // Handle symbol status if the left side is 'this'.
@@ -325,89 +327,34 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEREF);
+  AST_GET_CHILDREN(ast, package, id, typeargs);
 
-  // We expect the def to have been stored for us in the refer pass.
-  ast_t* def = (void*)ast_data(ast);
-  pony_assert(def != NULL);
-
-  if(ast_childcount(ast) == 1)
-  {
-    // If child count is 1, this is a simple type ref.
-    pony_assert(ast_id(ast_child(ast)) == TK_ID);
-
-    // Get the type from the def name and run through the type_sugar method.
-    // TODO: try getting the type from ast_name(ast_child(ast)).
-    ast_t* id = ast_child(def);
-    const char* name = ast_name(id);
-    ast_settype(ast, type_sugar(ast, NULL, name));
-  } else {
-    AST_GET_CHILDREN(ast, left, right);
-
-    if(ast_id(left) == TK_PACKAGEREF)
-    {
-      // This is a package-scoped type name.
-      pony_assert(ast_id(right) == TK_ID);
-
-      const char* package_name = ast_name(ast_child(left));
-
-      // Get the type from the def name and run through the type_sugar method.
-      // TODO: try getting the type from ast_name(ast_child(ast)).
-      ast_t* id = ast_child(def);
-      const char* name = ast_name(id);
-      ast_settype(ast, type_sugar(ast, package_name, name));
-    } else {
-      // Otherwise, we expect a qualified typeref with type arguments.
-      pony_assert(ast_id(left) == TK_TYPEREF);
-      pony_assert(ast_id(right) == TK_TYPEARGS);
-
-      // Get the type, and apply the type arguments to qualify it.
-      ast_t* qual_type = ast_dup(ast_type(left));
-      ast_t* typeargs = ast_childidx(qual_type, 2);
-      ast_replace(&typeargs, right);
-      ast_settype(ast, qual_type);
-    }
-  }
-
-  ast_t* type = ast_type(ast);
-  pony_assert(type != NULL);
+  // Assemble the type node from the package name and type name strings.
+  const char* name = ast_name(id);
+  const char* package_name =
+    (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
+  ast_t* type = type_sugar_args(ast, package_name, name, typeargs);
+  ast_settype(ast, type);
 
   if(is_typecheck_error(type))
     return false;
 
+  // Has to be valid.
+  if(!expr_nominal(opt, &type))
+  {
+    ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+    ast_free_unattached(type);
+    return false;
+  }
+
   switch(ast_id(ast_parent(ast)))
   {
-    case TK_TYPEREF:
-      // TODO: simplify this later
-      // Has to be valid, unless parent typeref is a qualifier (has typeargs).
-      if((ast_id(ast_sibling(ast)) != TK_TYPEARGS) && !expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
-      break;
-
     case TK_QUALIFY:
     case TK_DOT:
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
       break;
 
     case TK_CALL:
     {
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
-
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -472,14 +419,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     default:
     {
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
-
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -568,6 +507,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
 
   // We look up here locally to get the status, but assert that the found def
   // is the same as the one that was stored as data earlier in the refer pass.
+  // TODO: move this to the status pass.
   sym_status_t status;
   ast_t* def = ast_get(ast, ast_name(ast_child(ast)), &status);
   pony_assert((def != NULL) && (def == (ast_t*)ast_data(ast)));
@@ -640,6 +580,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
 
   // We look up here locally to get the status, but assert that the found def
   // is the same as the one that was stored as data earlier in the refer pass.
+  // TODO: move this to the status pass.
   sym_status_t status;
   ast_t* def = ast_get(ast, ast_name(ast_child(ast)), &status);
   pony_assert((def != NULL) && (def == (ast_t*)ast_data(ast)));
@@ -792,6 +733,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  // TODO: move this to the status pass.
   sym_status_t status;
   ast_get(ast, stringtab("this"), &status);
 
@@ -1028,6 +970,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
 static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
 {
+  // TODO: move this whole function to the status pass.
   pony_assert(ast_id(ast) == TK_NEW);
 
   ast_t* members = ast_parent(ast);

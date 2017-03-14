@@ -113,6 +113,10 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
     case TK_ACTOR:
     {
       ast_setid(ast, TK_TYPEREF);
+
+      ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+      ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
+
       return true;
     }
 
@@ -198,7 +202,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
   return false;
 }
 
-static bool package_access(pass_opt_t* opt, ast_t* ast)
+static bool package_scoped_typeref(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DOT);
 
@@ -222,26 +226,30 @@ static bool package_access(pass_opt_t* opt, ast_t* ast)
 
   pony_assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  ast_t* type = ast_get(package, type_name, NULL);
+  ast_t* def = ast_get(package, type_name, NULL);
 
-  if(type == NULL)
+  if(def == NULL)
   {
     ast_error(opt->check.errors, right, "can't find type '%s' in package '%s'",
       type_name, package_name);
     return false;
   }
 
-  ast_setdata(ast, (void*)type);
+  ast_setdata(ast, (void*)def);
   ast_setid(ast, TK_TYPEREF);
+
+  ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
+
   return true;
 }
 
 bool refer_dot(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DOT);
+  AST_GET_CHILDREN(ast, left, right);
 
-  if(ast_id(ast_child(ast)) == TK_PACKAGEREF)
-    return package_access(opt, ast);
+  if(ast_id(left) == TK_PACKAGEREF)
+    return package_scoped_typeref(opt, ast);
 
   return true;
 }
@@ -251,23 +259,33 @@ static bool qualify_typeref(pass_opt_t* opt, ast_t* ast)
   (void)opt;
   ast_t* typeref = ast_child(ast);
 
-  // If the typeref is already qualified, it can't be qualified again, so we'll
+  // If the typeref already has type args, it can't get any more, so we'll
   // leave as TK_QUALIFY, so expr pass will sugar as qualified call to apply.
-  if((ast_childcount(typeref) == 2) &&
-    (ast_id(ast_childidx(typeref, 1)) == TK_TYPEARGS))
+  if(ast_id(ast_childidx(typeref, 2)) == TK_TYPEARGS)
     return true;
 
   ast_t* def = (ast_t*)ast_data(typeref);
   pony_assert(def != NULL);
 
-  // If the type isn't polymorphic it can't be qualified at all, so we'll
+  // If the type isn't polymorphic it can't get type args at all, so we'll
   // leave as TK_QUALIFY, so expr pass will sugar as qualified call to apply.
   ast_t* typeparams = ast_childidx(def, 1);
   if(ast_id(typeparams) == TK_NONE)
     return true;
 
+  // Now, we want to get rid of the inner typeref, take its children, and
+  // convert this TK_QUALIFY node into a TK_TYPEREF node with type args.
   ast_setdata(ast, (void*)def);
   ast_setid(ast, TK_TYPEREF);
+
+  pony_assert(typeref == ast_pop(ast));
+  ast_t* package   = ast_pop(typeref);
+  ast_t* type_name = ast_pop(typeref);
+  ast_free(typeref);
+
+  ast_add(ast, type_name);
+  ast_add(ast, package);
+
   return true;
 }
 
