@@ -282,7 +282,6 @@ ast_t* names_def(pass_opt_t* opt, ast_t* ast)
 
 bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   if(ast_data(ast) != NULL)
@@ -291,10 +290,10 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
 
   // Keep some stats.
-  t->stats.names_count++;
+  opt->check.stats.names_count++;
 
   if(ast_id(cap) == TK_NONE)
-    t->stats.default_caps_count++;
+    opt->check.stats.default_caps_count++;
 
   ast_t* r_scope = get_package_scope(opt, scope, ast);
 

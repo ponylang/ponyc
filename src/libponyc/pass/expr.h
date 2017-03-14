@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool is_result_needed(ast_t* ast);
+bool is_result_needed(ast_t* ast); // TODO: move out of expr?
 
 bool is_method_result(typecheck_t* t, ast_t* ast);
 

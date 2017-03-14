@@ -7,6 +7,7 @@
 #include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../pass/expr.h"
+#include "../pass/refer.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -102,8 +103,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       NONE
       TREE(dot)));
 
-  if(!expr_reference(opt, &ref) ||
-    !expr_qualify(opt, &qualify) ||
+  if(!refer_reference(opt, &ref) ||
+    !refer_qualify(opt, qualify) ||
+    !expr_typeref(opt, &ref) ||
+    !expr_typeref(opt, &qualify) ||
     !expr_dot(opt, &dot) ||
     !expr_call(opt, &call)
     )

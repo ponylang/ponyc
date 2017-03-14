@@ -279,7 +279,14 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
                         r = expr_match_capture(options, ast); break;
     case TK_TUPLE:      r = expr_tuple(options, ast); break;
     case TK_ARRAY:      r = expr_array(options, astp); break;
-    case TK_REFERENCE:  r = expr_reference(options, astp); break;
+
+    case TK_DONTCAREREF:
+                        r = expr_dontcareref(options, ast); break;
+    case TK_TYPEREF:    r = expr_typeref(options, astp); break;
+    case TK_VARREF:
+    case TK_LETREF:     r = expr_localref(options, ast); break;
+    case TK_PARAMREF:   r = expr_paramref(options, ast); break;
+
     case TK_THIS:       r = expr_this(options, ast); break;
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;

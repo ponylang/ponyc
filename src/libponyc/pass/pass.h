@@ -131,6 +131,11 @@ otherwise does nothing.
 Does not alter the AST at all.
 
 
+* Reference resolution pass (AST)
+
+TODO
+
+
 * Expression type check pass (AST)
 
 Resolves types for all expressions and confirms type safety of the program.
@@ -177,6 +182,7 @@ typedef enum pass_id
   PASS_FLATTEN,
   PASS_TRAITS,
   PASS_DOCS,
+  PASS_REFER,
   PASS_EXPR,
   PASS_VERIFY,
   PASS_REACH,
