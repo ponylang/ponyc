@@ -2,19 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.11.1] - 2017-03-14
 
 ### Fixed
 
 - Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
 - Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
 - Fix FreeBSD 11 compilation
-
-### Added
-
-
-### Changed
-
 
 
 ## [0.11.0] - 2017-03-11
@@ -47,9 +41,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compiler crash due to incorrect subtype assignment (issue #1474)
 - Incorrect code generation when sending certain types of messages (issue #1594)
 
-### Added
-
-- Close over free variables in lambdas and object literals (PR #1648)
 - Add assert_no_error test condition to PonyTest (PR #1605)
 - Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
 - Packed structures (RFC 32) (PR #1536)
@@ -61,9 +52,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Equality comparison for NetAddress (PR #1569)
 - Host address comparison for NetAddress (PR #1569)
 
-### Changed
-
-- Rename IPAddress to NetAddress (PR #1559)
 - Remove delegates (RFC 31) (PR #1534)
 - Upgrade to LLVM 3.9.1 (PR #1498)
 - Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
@@ -214,14 +202,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
 - Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
 
-### Added
-
-- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
 - Extra DTrace/SystemTap probes concerning scheduling.
 
-### Changed
-
-- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
 - Update from_array to prevent a copy (issue #1097) (PR #1423)
 
 ## [0.9.0] - 2016-11-11
@@ -236,17 +218,11 @@ All notable changes to the Pony compiler and standard library will be documented
 - Performance problem in the scheduler queue when running with many threads (issue #1404)
 - Invalid name mangling in generated C headers (issue #1377)
 
-### Added
-
-- Method chaining (RFC #25) (PR #1411)
 - Iter class methods `all`, `any`, `collect`, `count`, `find`, `last`, `nth`, `run`, `skip`, `skip_while`, `take`, `take_while` (issue #1370)
 - Output of `ponyc --version` shows C compiler used to build pony (issue #1245)
 - Makefile detects `llvmconfig39` in addition to `llvm-config-3.9` (#1379)
 - LLVM 3.9 support
 
-### Changed
-
-- Changed lambda literal syntax to be more concise (issue #1391) (PR #1400)
 
 ## [0.8.0] - 2016-10-27
 
@@ -254,14 +230,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Link the correct version of `libponyrt` when compiling with `--pic` on Linux (issue #1359)
 
-### Added
-
-- Runtime function `pony_send_next`. This function can help optimise some message sending scenarios.
 - Floating point `min_normalised`. The function returns the smallest normalised positive number, as `min_value` used to do (issue #1351)
 
-### Changed
-
-- Floating point `min_value` now returns the smallest negative number instead of the smallest normalised positive number (issue #1351)
 
 ## [0.7.0] - 2016-10-22
 
@@ -269,14 +239,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Concatenate docstrings from case methods (issue #575).
 
-### Added
-
-- TCP read and write backpressure hooks in `TCPConnection` (issue #1311)
 - Allow TCP notifiers to cause connections to yield while receiving (issue #1343)
 
-### Changed
-
-- `break` without a value now generates its value from the `else` branch of a loop instead of being an implicit `break None`.
 - The `for` loop will now break out of the loop instead of continuing with the following iterations if `Iterator.next` errors.
 
 ## [0.6.0] - 2016-10-20
@@ -287,13 +251,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Restrict mutable tuple recovery to maintain reference capability security (issue #1123)
 - Crash in the runtime scheduler queues
 
-### Added
 
-- DTrace and SystemTap support - `use=dtrace`
-
-### Changed
-
-- Replaces `use=telemetry` by DTrace/SystemTap scripts
 - `String.cstring()` now always returns a null-terminated string
   (which may result in a copy) while `cpointer()` (also available on
   `Array` objects) returns a pointer to the underlying array as-is
@@ -314,15 +272,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Security issues in `ProcessMonitor` (issue #1180)
 - `SSLConnection` bugs due to missing `sentv` notify method (issue #1282)
 
-### Added
-
-- `Iter` class (issue #1267)
 - read_until method on buffered.Reader (RFC 0013)
 - `format` package (issue #1285)
 
-### Changed
-
-- `Stringable` interface no longer involves formatting (issue #1285)
 - Remove unused error types from ProcessError (issue #1293)
 - HTML documentation for expanded union types now adds line breaks to improve readability (issue #1263)
 
@@ -332,9 +284,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Unexpected message ordering in `ProcessManager` (issue #1265)
 
-### Added
-
-- TCP writev performance improvement by avoiding throwing errors
 
 ## [0.3.3] - 2016-09-23
 
@@ -344,16 +293,10 @@ All notable changes to the Pony compiler and standard library will be documented
 - Stop generating `llvm.invariant.load` for fields of `val` references.
 - Embedded fields construction through tuples.
 
-### Added
-
-- Improved error handling for `files` package.
 - ProcessMonitor.expect
 - ProcessNotify.created
 - ProcessNotify.expect
 
-### Changed
-
-- On Linux and FreeBSD, ponyc now uses $CC as the linker if the environment variable is defined.
 
 ## [0.3.2] - 2016-09-18
 
@@ -362,9 +305,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - The `ponyc` version is now consistently set from the VERSION file.
 - Stop generating `llvm.invariant.load` intrinsic for "let" references, as these don't necessarily match the semantics of that intrinsic.
 
-### Changed
-
-- The `setversion` and `release` commands have been removed from `Makefile`.
 - LTO is again enabled by default on OSX
 - make now builds a `release` rather than `debug` build by default
 
@@ -380,14 +320,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Race condition in scheduler queues on weakly-ordered architectures.
 - Issue #1212 by reverting commit e56075d46d7d9e1d8c5e8be7ed0506ad2de98734
 
-### Added
-
-- `--ponypinasio` runtime option for pinning asio thread to a cpu core.
 - `--ponynopin` runtime option for not pinning any threads at all.
 
-### Changed
-
-- Path.base now provides option to omit the file extension from the result.
 - Map.upsert returns value for upserted key rather than `this`.
 - `ponyc --version` now includes llvm version in its output.
 - LTO is now disabled by default on OSX.
@@ -444,9 +378,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Assertion failure from type-checking in invalid programs.
 - Make the offset parameter of String.rfind inclusive of the given index.
 
-### Added
-
-- 32-bit ARM port.
 - 32-bit X86 port.
 - Embedded fields.
 - C-style structs.
@@ -496,9 +427,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - `Sort` primitive
 - PonyBench package
 
-### Changed
-
-- Interfaces are invariant if they are structurally equivalent.
 - Improved type checking with configuration management.
 - Improved realloc behaviour after heap_alloc_large.
 - Set-based upper bounds for generic constraints.
@@ -529,9 +457,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.2.0] - 2015-10-05
 
-### Added
-
-- Platform indicators for LP64, LLP64, ILP32.
 - Compile and link with LTO.
 - Use Pointer[None] for void* in FFI.
 - Root authority capability in Env.
@@ -543,9 +468,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - collections/Ring
 - Promises package
 
-### Changed
-
-- Renamed some builtin types.
 - abs() now returns an unsigned integer.
 - Improved memory allocation speed.
 - Reduced memory pressure.
@@ -563,13 +485,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.1.7] - 2015-06-18
 
-### Added
 
-- Pass Pony function pointers to C FFI.
-
-### Changed
-
-- The pony runtime now uses the same option parser as ponyc. A pony program exits if bad runtime args are provided.
 - Output directory now created if it doesn't already exist.
 - Improvements to automatic documentation generator.
 - Union type for String.compare result.
@@ -580,9 +496,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.1.6] - 2015-06-15
 
-### Added
-
-- Automatic documentation generator in the compiler.
 - FreeBSD 10.1 support, thanks to Ben Laurie.
 - Allow method calls on union types when the signatures are compatible.
 - Subtyping of polymorphic methods.
@@ -590,9 +503,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - collections.Flags
 - lambda sugar.
 
-### Changed
-
-- Separated the FFI '&' operator from the identityof operator.
 - Operators on Set and Map are now persistent.
 - use "file:..." becomes use "package:..."
 - Allow "s at the end of triple-quoted strings.
@@ -615,14 +525,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.1.4] - 2015-05-14
 
-### Changed
-
-- When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
 
-### Added
-
-- ANSI terminal handling on all platforms, including Windows.
 - The lexer now allows underscore characters in numeric literals. This allows long numeric literals to be broken up for human readability.
 - "Did you mean?" support when the compiler doesn't recognise a name but something similar is in scope.
 - Garbage collection and cycle detection parameters can now be set from the command line.
