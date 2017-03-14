@@ -246,7 +246,9 @@ $ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-
 You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.  Then you can extract that LLVM to `/usr/local`, for example, like so:
 
 ```bash
-tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+    --strip-components 1 -C /usr/local/ \
+    clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
 ```
 where `${LLVM_VERSION}` is whatever version of LLVM you've downloaded the `.xz` file for.
 
