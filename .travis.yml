@@ -118,22 +118,6 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
-    - os: osx
-      env:
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
-    - os: osx
-      env:
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - lto=no
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
-
 
 rvm:
   - 2.2.3
