@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly pass `arch=` when building docker image (PR #1681)
 
 ### Added
 
