@@ -389,3 +389,15 @@ TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
+
+TEST_F(BadPonyTest, TypeParamArrowClass)
+{
+  // From issue #1687
+  const char* src =
+    "class C1\n"
+
+    "trait Test[A]\n"
+      "fun foo(a: A): A->C1";
+
+  TEST_COMPILE(src);
+}
