@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make buffered.Reader.append accept any ByteSeq. (PR #1644)
 
 
 ## [0.11.1] - 2017-03-14
