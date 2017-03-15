@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
 - Correctly pass `arch=` when building docker image (PR #1681)
 
 ### Added
