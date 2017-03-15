@@ -24,7 +24,7 @@ COPY lib      /src/ponyc/lib
 COPY test     /src/ponyc/test
 COPY packages /src/ponyc/packages
 
-RUN make arch= \
+RUN make arch=x86-64 \
  && make install \
  && rm -rf /src/ponyc/build
 
