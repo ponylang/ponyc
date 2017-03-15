@@ -798,7 +798,7 @@ endif
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides ponyc
 	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
