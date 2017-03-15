@@ -612,15 +612,17 @@ static void* pool_block_pull(size_t size)
 
   size_t rem = block->size - size;
   block->size = rem;
-  pool_block_header.total_size += rem;
   pool_block_insert(block);
+  pool_block_header.total_size += rem;
+  if(pool_block_header.largest_size < rem)
+    pool_block_header.largest_size = rem;
 
   return (char*)block + rem;
 }
 
 static void* pool_block_get(size_t size)
 {
-  if(pool_block_header.total_size >= size)
+  if(pool_block_header.largest_size >= size)
   {
     pool_block_t* block = pool_block_header.head;
 
@@ -634,20 +636,27 @@ static void* pool_block_get(size_t size)
         block->size = rem;
         pool_block_header.total_size -= size;
 
-        // TODO: can track largest size
-        // if we're the last element, it's either our new size or the previous
-        // block size, if that's larger.
-
         if((block->prev != NULL) && (block->prev->size > block->size))
         {
           // If we are now smaller than the previous block, move us forward in
           // the list.
+          if(block->next == NULL)
+            pool_block_header.largest_size = block->prev->size;
+
           pool_block_remove(block);
           pool_block_insert(block);
+        } else if(block->next == NULL) {
+          pool_block_header.largest_size = rem;
         }
 
         return (char*)block + rem;
       } else if(block->size == size) {
+        if(block->next == NULL)
+        {
+          pool_block_header.largest_size =
+            (block->prev == NULL) ? 0 : block->prev->size;
+        }
+
         // Remove the block from the list.
         pool_block_remove(block);
 
@@ -658,6 +667,9 @@ static void* pool_block_get(size_t size)
 
       block = block->next;
     }
+
+    // If we didn't find any suitable block, something has gone really wrong.
+    pony_assert(false);
   }
 
   return pool_block_pull(size);
@@ -680,8 +692,10 @@ static void* pool_alloc_pages(size_t size)
   block->size = rem;
   block->next = NULL;
   block->prev = NULL;
-  pool_block_header.total_size += rem;
   pool_block_insert(block);
+  pool_block_header.total_size += rem;
+  if(pool_block_header.largest_size < rem)
+    pool_block_header.largest_size = rem;
 
   return (char*)block + rem;
 }
@@ -700,6 +714,8 @@ static void pool_free_pages(void* p, size_t size)
 
   pool_block_insert(block);
   pool_block_header.total_size += size;
+  if(pool_block_header.largest_size < size)
+    pool_block_header.largest_size = size;
 }
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
