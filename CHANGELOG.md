@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Build Linux release binaries correctly (PR #1699)
 
 ### Added
 
