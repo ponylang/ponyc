@@ -261,7 +261,8 @@ void ponyint_actor_final(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->type->final(actor);
 
   // Run all outstanding object finalisers.
-  ponyint_gc_final(ctx, &actor->gc);
+  ponyint_heap_final(&actor->heap);
+
 
   // Restore the current actor.
   ctx->current = prev;
@@ -406,14 +407,27 @@ PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
   return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size);
 }
 
-PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size,
-  pony_final_fn final)
+PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 {
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
-  void* p = ponyint_heap_alloc(ctx->current, &ctx->current->heap, size);
-  ponyint_gc_register_final(ctx, p, final);
-  return p;
+  return ponyint_heap_alloc_final(ctx->current, &ctx->current->heap, size);
+}
+
+void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
+{
+  DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
+
+  return ponyint_heap_alloc_small_final(ctx->current, &ctx->current->heap,
+    sizeclass);
+}
+
+void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
+{
+  DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
+
+  return ponyint_heap_alloc_large_final(ctx->current, &ctx->current->heap,
+    size);
 }
 
 PONY_API void pony_triggergc(pony_actor_t* actor)

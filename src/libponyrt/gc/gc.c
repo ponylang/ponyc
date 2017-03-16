@@ -619,7 +619,7 @@ void ponyint_gc_discardstack(pony_ctx_t* ctx)
 
 void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
-  gc->finalisers -= ponyint_objectmap_sweep(&gc->local);
+  ponyint_objectmap_sweep(&gc->local);
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
@@ -716,45 +716,6 @@ void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
   }
 
   pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
-}
-
-void ponyint_gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
-{
-  if(!ctx->finalising)
-  {
-    // If we aren't finalising an actor, register the finaliser.
-    gc_t* gc = ponyint_actor_gc(ctx->current);
-    ponyint_objectmap_register_final(&gc->local, p, final, gc->mark);
-    gc->finalisers++;
-  } else {
-    // Otherwise, put the finaliser on the gc stack.
-    recurse(ctx, p, final);
-  }
-}
-
-void ponyint_gc_final(pony_ctx_t* ctx, gc_t* gc)
-{
-  if(gc->finalisers == 0)
-    return;
-
-  // Set the finalising flag.
-  ctx->finalising = true;
-
-  // Run all finalisers in the object map.
-  ponyint_objectmap_final(&gc->local);
-
-  // Finalise any objects that were created during finalisation.
-  pony_final_fn f;
-  void *p;
-
-  while(ctx->stack != NULL)
-  {
-    ctx->stack = ponyint_gcstack_pop(ctx->stack, (void**)&f);
-    ctx->stack = ponyint_gcstack_pop(ctx->stack, &p);
-    f(p);
-  }
-
-  ctx->finalising = false;
 }
 
 void ponyint_gc_done(gc_t* gc)
