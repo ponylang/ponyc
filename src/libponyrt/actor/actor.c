@@ -27,6 +27,7 @@ enum
   FLAG_SYSTEM = 1 << 2,
   FLAG_UNSCHEDULED = 1 << 3,
   FLAG_PENDINGDESTROY = 1 << 4,
+  FLAG_OVERLOADED = 1 << 5,
 };
 
 static bool actor_noblock = false;
@@ -602,4 +603,19 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
   ponyint_actor_run(ctx, ctx->current, 1);
+}
+
+void ponyint_actor_setoverloaded(pony_actor_t* actor)
+{
+  set_flag(actor, FLAG_OVERLOADED);
+}
+
+bool ponyint_actor_overloaded(pony_actor_t* actor)
+{
+  return has_flag(actor, FLAG_OVERLOADED);
+}
+
+void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
+{
+  unset_flag(actor, FLAG_OVERLOADED);
 }

@@ -14,6 +14,7 @@
 
 PONY_EXTERN_C_BEGIN
 
+#define ACTORMSG_APPLICATION_START (UINT32_MAX - 7)
 #define ACTORMSG_BLOCK (UINT32_MAX - 6)
 #define ACTORMSG_UNBLOCK (UINT32_MAX - 5)
 #define ACTORMSG_ACQUIRE (UINT32_MAX - 4)
@@ -29,6 +30,8 @@ typedef struct pony_actor_t
   pony_msg_t* continuation;
 #endif
   PONY_ATOMIC(uint8_t) flags;
+  size_t batch;
+  size_t muted;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
@@ -54,6 +57,10 @@ void ponyint_actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
 void ponyint_actor_setsystem(pony_actor_t* actor);
 
 void ponyint_actor_setnoblock(bool state);
+
+void ponyint_actor_setoverloaded(pony_actor_t* actor);
+
+void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_actor_t* actor);
 
