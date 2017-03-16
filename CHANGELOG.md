@@ -2,6 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.11.3] - 2017-03-16
+
+### Fixed
+
+- Build Linux release binaries correctly (PR #1699)
+
+
 ## [0.11.2] - 2017-03-16
 
 ### Fixed
@@ -9,9 +16,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
 - Correctly pass `arch=` when building docker image (PR #1681)
 
-### Changed
-
-- Make buffered.Reader.append accept any ByteSeq. (PR #1644)
 
 
 ## [0.11.1] - 2017-03-14
