@@ -50,6 +50,7 @@ endif
 # Default settings (silent release build).
 config ?= release
 arch ?= native
+tune ?= generic
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -91,9 +92,9 @@ prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
-BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
+BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch)
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune)
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
