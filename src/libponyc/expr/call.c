@@ -448,6 +448,7 @@ static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
      case TK_FVARREF:
      case TK_EMBEDREF:
      case TK_PARAMREF:
+     case TK_TUPLEELEMREF:
      {
        ast_t* type = ast_type(ast);
        return sendable(type);

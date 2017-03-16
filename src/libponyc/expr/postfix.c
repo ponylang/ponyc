@@ -303,7 +303,7 @@ static bool tuple_access(pass_opt_t* opt, ast_t* ast)
   type = ast_childidx(type, right_idx);
   pony_assert(type != NULL);
 
-  ast_setid(ast, TK_FLETREF);
+  ast_setid(ast, TK_TUPLEELEMREF);
   ast_settype(ast, type);
   return true;
 }
@@ -508,6 +508,11 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
         "can't do partial application of a field");
       return false;
 
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't do partial application of a tuple element");
+      return false;
+
     default: {}
   }
 
@@ -548,6 +553,11 @@ bool expr_chain(pass_opt_t* opt, ast_t** astp)
     case TK_EMBEDREF:
       ast_error(opt->check.errors, ast,
         "can't do method chaining on a field");
+      return false;
+
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't do method chaining on a tuple element");
       return false;
 
     default: {}

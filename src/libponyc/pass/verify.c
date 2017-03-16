@@ -110,6 +110,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_FLETREF:
     case TK_FVARREF:
     case TK_EMBEDREF:
+    case TK_TUPLEELEMREF:
     case TK_CALL:
     case TK_QUALIFY:
     case TK_TUPLE:

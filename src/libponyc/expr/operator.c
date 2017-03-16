@@ -124,13 +124,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 
       if(ast_id(left) != TK_THIS)
       {
-        if(ast_id(ast_type(left)) == TK_TUPLETYPE)
-        {
-          ast_error(opt->check.errors, ast,
-            "can't assign to an element of a tuple");
-        } else {
-          ast_error(opt->check.errors, ast, "can't assign to a let field");
-        }
+        ast_error(opt->check.errors, ast, "can't assign to a let field");
         return false;
       }
 
@@ -162,6 +156,13 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
       }
 
       return assign_id(opt, right, true, need_value);
+    }
+
+    case TK_TUPLEELEMREF:
+    {
+      ast_error(opt->check.errors, ast,
+        "can't assign to an element of a tuple");
+      return false;
     }
 
     case TK_TUPLE:

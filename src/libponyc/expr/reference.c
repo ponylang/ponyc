@@ -657,6 +657,11 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
         "can't take the address of an embed field");
       return false;
 
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't take the address of a tuple element");
+      return false;
+
     case TK_LETREF:
       ast_error(opt->check.errors, ast,
         "can't take the address of a let local");
@@ -704,6 +709,7 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
     case TK_FVARREF:
     case TK_FLETREF:
     case TK_EMBEDREF:
+    case TK_TUPLEELEMREF:
     case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:

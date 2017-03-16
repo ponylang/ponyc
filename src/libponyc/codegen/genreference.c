@@ -46,14 +46,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
       return LLVMBuildStructGEP(c->builder, l_value, index, "");
     }
 
-    case TK_TUPLETYPE:
-    {
-      pony_assert(ast_id(right) == TK_INT);
-      int index = (int)ast_int(right)->low;
-
-      return LLVMBuildExtractValue(c->builder, l_value, index, "");
-    }
-
+    // TODO: can this be removed (and make the whole switch case a single assert)?
     case TK_ARROW:
       return make_fieldptr(c, l_value, ast_childidx(l_type, 1), right);
 
@@ -87,19 +80,16 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   if(field == NULL)
     return NULL;
 
-  pony_assert((ast_id(l_type) == TK_NOMINAL) || (ast_id(l_type) == TK_TUPLETYPE));
+  pony_assert(ast_id(l_type) == TK_NOMINAL);
 
-  // Don't load if we're reading from a tuple.
-  if(ast_id(l_type) != TK_TUPLETYPE)
-  {
-    field = LLVMBuildLoad(c->builder, field, "");
-    LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
-    const char id[] = "tbaa";
-    LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  }
+  field = LLVMBuildLoad(c->builder, field, "");
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
+  const char id[] = "tbaa";
+  LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
   return field;
 }
+
 
 LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
 {
@@ -109,6 +99,28 @@ LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
     return NULL;
 
   return field;
+}
+
+static LLVMValueRef make_tupleelemptr(compile_t* c, LLVMValueRef l_value,
+  ast_t* l_type, ast_t* right)
+{
+  pony_assert(ast_id(l_type) == TK_TUPLETYPE);
+  int index = (int)ast_int(right)->low;
+
+  return LLVMBuildExtractValue(c->builder, l_value, index, "");
+}
+
+LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, left, right);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+
+  if(l_value == NULL)
+    return NULL;
+
+  ast_t* l_type = ast_type(left);
+  return make_tupleelemptr(c, l_value, l_type, right);
 }
 
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
