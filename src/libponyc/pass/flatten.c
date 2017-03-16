@@ -137,29 +137,9 @@ static ast_result_t flatten_async(pass_opt_t* opt, ast_t* ast)
   return flatten_sendable_params(opt, params);
 }
 
-static ast_result_t flatten_tupletype(pass_opt_t* opt, ast_t* ast)
-{
-  if(opt->check.frame->constraint != NULL)
-  {
-    ast_error(opt->check.errors, ast,
-      "tuple types can't be used as constraints");
-    return AST_ERROR;
-  }
-
-  return AST_OK;
-}
-
 static ast_result_t flatten_arrow(pass_opt_t* opt, ast_t** astp)
 {
   AST_GET_CHILDREN(*astp, left, right);
-
-  if((opt->check.frame->constraint != NULL) &&
-    (opt->check.frame->method == NULL))
-  {
-    ast_error(opt->check.errors, *astp,
-      "arrow types can't be used as type constraints");
-    return AST_ERROR;
-  }
 
   switch(ast_id(left))
   {
@@ -291,9 +271,6 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_BE:
       return flatten_async(options, ast);
-
-    case TK_TUPLETYPE:
-      return flatten_tupletype(options, ast);
 
     case TK_ARROW:
       return flatten_arrow(options, astp);

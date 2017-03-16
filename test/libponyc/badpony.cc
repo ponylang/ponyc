@@ -401,3 +401,15 @@ TEST_F(BadPonyTest, TypeParamArrowClass)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
+{
+  // From issue #1694
+  const char* src =
+    "trait T1[A: B->A, B]\n"
+    "trait T2[A: box->B, B]";
+
+  TEST_ERRORS_2(src,
+    "arrow types can't be used as type constraints",
+    "arrow types can't be used as type constraints");
+}
