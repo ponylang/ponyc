@@ -45,6 +45,8 @@ With that in mind, run the release script:
 
 - bash release.sh 0.3.1 8a8ee28
 
+If the golden commit does not include the most recent CHANGELOG updates, you will have to answer `n` to the second prompt and merge the changes manually.
+
 ### Update the GitHub issue
 
 Leave a comment on the GitHub issue for this release to let everyone know you are done versioning the CHANGELOG and VERSION and that they are updated on `master`.
@@ -102,7 +104,16 @@ where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviat
 
 Periodically check on your Homebrew PR. They have a CI process and everything should flow through smoothly. If it doesn't attempt to fix the problem. If you can't fix the problem, leave a comment on the GitHub issue for this release asking for assistance.
 
+Your PR will be closed once your change has been merged to master. Note, that your PR itself will not show as merged in GitHub- just closed. You can use the following command to verify that your change is on Homebrew master:
+
+```bash
+curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula/ponyc.rb | grep url
+```
+
+If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
+
 Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform IRC and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and IRC.
+
 
 ### Update the GitHub issue as needed
 

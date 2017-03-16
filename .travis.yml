@@ -118,22 +118,6 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
-    - os: osx
-      env:
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
-    - os: osx
-      env:
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - lto=no
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
-
 
 rvm:
   - 2.2.3
@@ -230,7 +214,7 @@ after_success:
           PACKAGE_CONFLICTS="ponyc-release";
       fi;
       PACKAGE_ITERATION="${PACKAGE_ITERATION}${TRAVIS_BUILD_NUMBER}.`git rev-parse --short --verify HEAD^{commit}`";
-      make verbose=1 arch= config=release package_name="$PACKAGE_NAME" package_conflicts="$PACKAGE_CONFLICTS" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
+      make verbose=1 arch=x86-64 config=release package_name="$PACKAGE_NAME" package_conflicts="$PACKAGE_CONFLICTS" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
     fi;
 
   # For a release release build with the latest stable LLVM, upload docs.

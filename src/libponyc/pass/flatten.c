@@ -5,6 +5,7 @@
 #include "../type/compattype.h"
 #include "../type/subtype.h"
 #include "../type/typeparam.h"
+#include "../type/viewpoint.h"
 #include "ponyassert.h"
 
 static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
@@ -88,33 +89,6 @@ ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
   return AST_OK;
 }
 
-static ast_result_t flatten_noconstraint(pass_opt_t* opt, ast_t* ast)
-{
-  if(opt->check.frame->constraint != NULL)
-  {
-    switch(ast_id(ast))
-    {
-      case TK_TUPLETYPE:
-        ast_error(opt->check.errors, ast,
-          "tuple types can't be used as constraints");
-        return AST_ERROR;
-
-      case TK_ARROW:
-        if(opt->check.frame->method == NULL)
-        {
-          ast_error(opt->check.errors, ast,
-            "arrow types can't be used as type constraints");
-          return AST_ERROR;
-        }
-        break;
-
-      default: {}
-    }
-  }
-
-  return AST_OK;
-}
-
 static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
 {
   ast_t* param = ast_child(params);
@@ -161,6 +135,54 @@ static ast_result_t flatten_async(pass_opt_t* opt, ast_t* ast)
     docstring);
 
   return flatten_sendable_params(opt, params);
+}
+
+static ast_result_t flatten_tupletype(pass_opt_t* opt, ast_t* ast)
+{
+  if(opt->check.frame->constraint != NULL)
+  {
+    ast_error(opt->check.errors, ast,
+      "tuple types can't be used as constraints");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+static ast_result_t flatten_arrow(pass_opt_t* opt, ast_t** astp)
+{
+  AST_GET_CHILDREN(*astp, left, right);
+
+  if((opt->check.frame->constraint != NULL) &&
+    (opt->check.frame->method == NULL))
+  {
+    ast_error(opt->check.errors, *astp,
+      "arrow types can't be used as type constraints");
+    return AST_ERROR;
+  }
+
+  switch(ast_id(left))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_THISTYPE:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* r_ast = viewpoint_type(left, right);
+      ast_replace(astp, r_ast);
+      return AST_OK;
+    }
+
+    default: {}
+  }
+
+  ast_error(opt->check.errors, left,
+    "only 'this', refcaps, and type parameters can be viewpoints");
+  return AST_ERROR;
 }
 
 // Process the given provides type
@@ -271,8 +293,10 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       return flatten_async(options, ast);
 
     case TK_TUPLETYPE:
+      return flatten_tupletype(options, ast);
+
     case TK_ARROW:
-      return flatten_noconstraint(options, ast);
+      return flatten_arrow(options, astp);
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(options, ast);

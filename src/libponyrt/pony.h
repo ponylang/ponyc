@@ -209,8 +209,14 @@ PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t si
  * Attach a finaliser that will be run on memory when it is collected. Such
  * memory cannot be safely realloc'd.
  */
-PONY_API ATTRIBUTE_MALLOC void* pony_alloc_final(pony_ctx_t* ctx, size_t size,
-  pony_final_fn final);
+PONY_API ATTRIBUTE_MALLOC void* pony_alloc_final(pony_ctx_t* ctx, size_t size);
+
+/// Allocate using a HEAP_INDEX instead of a size in bytes.
+PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_final(pony_ctx_t* ctx,
+  uint32_t sizeclass);
+
+/// Allocate when we know it's larger than HEAP_MAX.
+PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size);
 
 /// Trigger GC next time the current actor is scheduled
 PONY_API void pony_triggergc(pony_actor_t* actor);

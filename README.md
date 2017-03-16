@@ -243,7 +243,14 @@ $ sudo apt-get update
 $ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
 ```
 
-You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
+You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.  Then you can extract that LLVM to `/usr/local`, for example, like so:
+
+```bash
+tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+    --strip-components 1 -C /usr/local/ \
+    clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+```
+where `${LLVM_VERSION}` is whatever version of LLVM you've downloaded the `.xz` file for.
 
 To build ponyc, compile and run helloworld:
 
@@ -307,18 +314,18 @@ Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently p
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.7.1 or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
+You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies. Please note that llvm 3.9.1 is not available via homebrew. As such, the instructions below install 3.8.1
 
 Installation via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install homebrew/versions/llvm38 pcre2 libressl
+$ brew install llvm@3.8 pcre2 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-$ sudo port install llvm-3.8 pcre2 libressl
-$ sudo port select --set llvm mp-llvm-3.8
+$ sudo port install llvm-3.9 pcre2 libressl
+$ sudo port select --set llvm mp-llvm-3.9
 ```
 
 Launch the build with `make` after installing the dependencies:

@@ -119,9 +119,11 @@ void HashMapBench::free_buckets(size_t len, void* p)
   free(p);
 }
 
-BENCHMARK_DEFINE_F(HashMapBench, HashDestroy)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(HashMapBench, HashDestroy$)(benchmark::State& st) {
+  testmap_destroy(&_map);
   while (st.KeepRunning()) {
     st.PauseTiming();
+    testmap_init(&_map, st.range(0));
     // exclude time to fill map to exactly 50%
     size_t old_size = _map.contents.size;
     put_elements(old_size/2);
@@ -133,30 +135,16 @@ BENCHMARK_DEFINE_F(HashMapBench, HashDestroy)(benchmark::State& st) {
     st.ResumeTiming();
     // destroy map
     testmap_destroy(&_map);
-    st.PauseTiming();
-    testmap_init(&_map, st.range(0));
-    st.ResumeTiming();
   }
+  testmap_init(&_map, st.range(0));
   st.SetItemsProcessed(st.iterations());
 }
 
-BENCHMARK_REGISTER_F(HashMapBench, HashDestroy)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
+BENCHMARK_REGISTER_F(HashMapBench, HashDestroy$)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
 
-BENCHMARK_DEFINE_F(HashMapBench, HashResize)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(HashMapBench, HashResize$)(benchmark::State& st) {
+  size_t old_size = 0;
   while (st.KeepRunning()) {
-    st.PauseTiming();
-    // exclude time to fill map to exactly 50%
-    size_t old_size = _map.contents.size;
-    put_elements(old_size/2);
-    if(testmap_size(&_map) != (size_t)(old_size/2))
-    {
-      st.SkipWithError("Map should be exactly half filled!");
-      break; // Needed to skip the rest of the iteration.
-    }
-    hash_elem_t* curr = get_element();
-    curr->key = (old_size/2) + 1;
-    st.ResumeTiming();
-    testmap_put(&_map, curr);
     st.PauseTiming();
     if(_map.contents.size == old_size)
     {
@@ -167,12 +155,23 @@ BENCHMARK_DEFINE_F(HashMapBench, HashResize)(benchmark::State& st) {
     }
     testmap_destroy(&_map);
     testmap_init(&_map, st.range(0));
+    // exclude time to fill map to exactly 50%
+    old_size = _map.contents.size;
+    put_elements(old_size/2);
+    if(testmap_size(&_map) != (size_t)(old_size/2))
+    {
+      st.SkipWithError("Map should be exactly half filled!");
+      break; // Needed to skip the rest of the iteration.
+    }
+    hash_elem_t* curr = get_element();
+    curr->key = (old_size/2) + 1;
     st.ResumeTiming();
+    testmap_put(&_map, curr);
   }
   st.SetItemsProcessed(st.iterations());
 }
 
-BENCHMARK_REGISTER_F(HashMapBench, HashResize)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
+BENCHMARK_REGISTER_F(HashMapBench, HashResize$)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
 
 BENCHMARK_DEFINE_F(HashMapBench, HashNext)(benchmark::State& st) {
   while (st.KeepRunning()) {
@@ -200,140 +199,140 @@ BENCHMARK_REGISTER_F(HashMapBench, HashNext)->RangeMultiplier(2)->Ranges({{1, 1}
 
 BENCHMARK_DEFINE_F(HashMapBench, HashPut)(benchmark::State& st) {
   hash_elem_t* curr = get_element();
-  if(testmap_size(&_map) == (_map.contents.size/2))
-  {
-    // delete 1 element at random to ensure we don't cause a resize
-    curr->key = rand() % st.range(1);
-    hash_elem_t* n2 = testmap_remove(&_map, curr);
-    free_elem(n2);
-  }
+  size_t i = 0;
   while (st.KeepRunning()) {
-    st.PauseTiming();
-    // exclude random # time
-    curr->key = rand() + st.range(1);
-    st.ResumeTiming();
+    curr->key = i & st.range(0);
 
     // put item
     testmap_put(&_map, curr);
+    i++;
+  }
+  st.SetItemsProcessed(st.iterations());
+  for(i = 0; i < _map.contents.size; i++)
+    testmap_clearindex(&_map, i);
+  free_elem(curr);
+}
 
-    st.PauseTiming();
-    // remove item
-    testmap_remove(&_map, curr);
-    st.ResumeTiming();
+BENCHMARK_REGISTER_F(HashMapBench, HashPut)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}});
+
+BENCHMARK_DEFINE_F(HashMapBench, HashPutResize)(benchmark::State& st) {
+  hash_elem_t* curr = get_element();
+  size_t i = 1;
+  while (st.KeepRunning()) {
+    curr->key = i;
+
+    // put item
+    testmap_put(&_map, curr);
+    i++;
+  }
+  st.SetItemsProcessed(st.iterations());
+  for(i = 0; i < _map.contents.size; i++)
+    testmap_clearindex(&_map, i);
+  free_elem(curr);
+}
+
+BENCHMARK_REGISTER_F(HashMapBench, HashPutResize)->RangeMultiplier(2)->Ranges({{1, 1}, {0, 0}});
+
+BENCHMARK_DEFINE_F(HashMapBench, HashPutNew)(benchmark::State& st) {
+  hash_elem_t* curr = NULL;
+  size_t i = 0;
+  while (st.KeepRunning()) {
+    if(curr == NULL)
+      curr = get_element();
+    curr->key = i & st.range(0);
+
+    // put item
+    curr = testmap_put(&_map, curr);
+    i++;
+  }
+  if(curr != NULL)
+    free_elem(curr);
+  st.SetItemsProcessed(st.iterations());
+}
+
+BENCHMARK_REGISTER_F(HashMapBench, HashPutNew)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}});
+
+BENCHMARK_DEFINE_F(HashMapBench, HashPutNewResize)(benchmark::State& st) {
+  hash_elem_t* curr = NULL;
+  size_t i = 1;
+  while (st.KeepRunning()) {
+    curr = get_element();
+    curr->key = i;
+
+    // put item
+    testmap_put(&_map, curr);
+    i++;
   }
   st.SetItemsProcessed(st.iterations());
 }
 
-BENCHMARK_REGISTER_F(HashMapBench, HashPut)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {1<<10, 32<<10}});
+BENCHMARK_REGISTER_F(HashMapBench, HashPutNewResize)->RangeMultiplier(2)->Ranges({{1, 1}, {0, 0}});
 
-BENCHMARK_DEFINE_F(HashMapBench, HashPutIndex)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   hash_elem_t* curr = get_element();
-  if(testmap_size(&_map) == (_map.contents.size/2))
+  hash_elem_t **a = new hash_elem_t*[st.range(2)];
+  for(int i = 0; i < st.range(2); i++)
   {
-    // delete 1 element at random to ensure we don't cause a resize
-    curr->key = rand() % st.range(1);
-    hash_elem_t* n2 = testmap_remove(&_map, curr);
-    free_elem(n2);
+    a[i] = get_element();
+    a[i]->key = i;
   }
   while (st.KeepRunning()) {
     st.PauseTiming();
-    // exclude random # time
-    curr->key = rand() + st.range(1);
-    size_t i = HASHMAP_UNKNOWN;
-    hash_elem_t* n2 = testmap_get(&_map, curr, &i);
-    if(n2 != NULL)
-      st.SkipWithError("Item shouldn't be in map!");
+    for(int i = 0; i < st.range(2); i++)
+      testmap_put(&_map, a[i]);
     st.ResumeTiming();
-
-    // putindex item
-    testmap_putindex(&_map, curr, i);
-
-    st.PauseTiming();
-    // remove item
-    testmap_remove(&_map, curr);
-    st.ResumeTiming();
-  }
-  st.SetItemsProcessed(st.iterations());
-}
-
-BENCHMARK_REGISTER_F(HashMapBench, HashPutIndex)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {1<<10, 32<<10}});
-
-BENCHMARK_DEFINE_F(HashMapBench, HashRemove)(benchmark::State& st) {
-  hash_elem_t* curr = get_element();
-  while (st.KeepRunning()) {
-    st.PauseTiming();
-    // find an item at random to remove
-    curr->key = rand() % st.range(1);
-    st.ResumeTiming();
-
-    // remove item
-    hash_elem_t* n2 = testmap_remove(&_map, curr);
-
-    st.PauseTiming();
-    if(n2 != NULL) {
-      // put item back
-      testmap_put(&_map, n2);
-    } else {
-      std::cout << curr->key << " not found" << std::endl;
-      st.SkipWithError("Item shouldn't be NULL!");
+    for(int i = 0; i < st.range(2); i++)
+    {
+      curr->key = i;
+      // remove item
+      testmap_remove(&_map, curr);
     }
-    st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed(st.iterations() * st.range(2));
+  for(int i = 0; i < st.range(2); i++)
+    free_elem(a[i]);
   free_elem(curr);
+  delete[] a;
 }
 
-BENCHMARK_REGISTER_F(HashMapBench, HashRemove)->RangeMultiplier(2)->Ranges({{1, 1}, {1<<10, 32<<10}});
-
-BENCHMARK_DEFINE_F(HashMapBench, HashRemoveIndex)(benchmark::State& st) {
-  hash_elem_t* curr = get_element();
-  size_t ind = HASHMAP_UNKNOWN;
-  while (st.KeepRunning()) {
-    st.PauseTiming();
-    // find an item at random to remove
-    curr->key = rand() % st.range(1);
-    hash_elem_t* n2 = testmap_get(&_map, curr, &ind);
-    st.ResumeTiming();
-
-    // remove index
-    testmap_removeindex(&_map, ind);
-
-    st.PauseTiming();
-    if(n2 != NULL) {
-      // put item back
-      testmap_put(&_map, n2);
-    } else {
-      std::cout << curr->key << " not found" << std::endl;
-      st.SkipWithError("Item shouldn't be NULL!");
-    }
-    st.ResumeTiming();
-  }
-  st.SetItemsProcessed(st.iterations());
-  free_elem(curr);
-}
-
-BENCHMARK_REGISTER_F(HashMapBench, HashRemoveIndex)->RangeMultiplier(2)->Ranges({{1, 1}, {1<<10, 32<<10}});
+BENCHMARK_REGISTER_F(HashMapBench, HashRemove$_)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}, {1<<10, 64<<10}});
 
 BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
   hash_elem_t* e1 = get_element();
-  while (st.KeepRunning()) {
-    st.PauseTiming();
-    // exclude random # time
-    if(st.range(2) == 0)
-      e1->key = rand() % st.range(1);
-    else
-      e1->key = rand();
-    size_t index = HASHMAP_UNKNOWN;
-    st.ResumeTiming();
-    hash_elem_t* n2 = testmap_get(&_map, e1, &index);
-    st.PauseTiming();
-    if(st.range(2) == 0 && n2 == NULL)
-    {
-      st.SkipWithError("Item shouldn't be NULL!");
+  size_t map_count = testmap_size(&_map);
+  size_t map_count_mask = map_count - 1;
+  size_t *a = new size_t[map_count];
+  size_t index = HASHMAP_UNKNOWN;
+  if(st.range(2) == 0) {
+    for(size_t i = 0; i < map_count; i++) {
+      hash_elem_t* n = testmap_next(&_map, &index);
+      if(n != NULL) {
+        a[i] = n->key;
+      }
     }
-    st.ResumeTiming();
+    size_t t = 0;
+    size_t r = 0;
+    for(size_t i = 0; i < map_count; i++) {
+      r = rand() & map_count_mask;
+      t = a[r];
+      a[r] = a[i];
+      a[i] = t;
+    }
+  } else {
+    for(size_t i = 0; i < map_count; i++) {
+      a[i] = rand() + st.range(1);
+    }
+  }
+
+  index = HASHMAP_UNKNOWN;
+  size_t j = 0;
+  while (st.KeepRunning()) {
+    e1->key = a[j & map_count_mask];
+    testmap_get(&_map, e1, &index);
+    j++;
   }
   st.SetItemsProcessed(st.iterations());
+  delete[] a;
   free_elem(e1);
   e1 = nullptr;
 }
@@ -360,35 +359,46 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     }
     // put item so it's not empty
     hash_elem_t* e2 = get_element();
-    e2->key = rand();
+    e2->key = st.range(1) - 1;
     testmap_put(&_map, e2);
   }
-  a = new size_t[testmap_size(&_map)];
+  map_count = testmap_size(&_map);
+  size_t array_size = ponyint_next_pow2(map_count);
+  size_t array_size_mask = array_size - 1;
+  array_size = array_size < 128 ? 128 : array_size;
+  a = new size_t[array_size];
   size_t ind = HASHMAP_UNKNOWN;
-  for(size_t i = 0; i < testmap_size(&_map); i++) {
-    hash_elem_t* n = testmap_next(&_map, &ind);
-    if(n != NULL) {
-      a[i] = n->key;
-    } else {
-      st.SkipWithError("Item shouldn't be NULL!");
+  if(st.range(3) == 0) {
+    for(size_t i = 0; i < array_size; i++) {
+      if(i < map_count) {
+        hash_elem_t* n = testmap_next(&_map, &ind);
+        if(n != NULL) {
+          a[i] = n->key;
+        }
+      } else {
+        a[i] = a[rand() % map_count];
+      }
+    }
+    size_t t = 0;
+    size_t r = 0;
+    for(size_t i = 0; i < array_size; i++) {
+      r = rand() & array_size_mask;
+      t = a[r];
+      a[r] = a[i];
+      a[i] = t;
+    }
+  } else {
+    for(size_t i = 0; i < array_size; i++) {
+      a[i] = rand() + st.range(1);
     }
   }
+
+  ind = HASHMAP_UNKNOWN;
+  size_t j = 0;
   while (st.KeepRunning()) {
-    st.PauseTiming();
-    // exclude random # time
-    if(st.range(3) == 0)
-      e1->key = a[rand() % testmap_size(&_map)];
-    else
-      e1->key = rand();
-    size_t index = HASHMAP_UNKNOWN;
-    st.ResumeTiming();
-    hash_elem_t* n2 = testmap_get(&_map, e1, &index);
-    st.PauseTiming();
-    if(st.range(3) == 0 && n2 == NULL)
-    {
-      st.SkipWithError("Item shouldn't be NULL!");
-    }
-    st.ResumeTiming();
+    e1->key = a[j & array_size_mask];
+    testmap_get(&_map, e1, &ind);
+    j++;
   }
   st.SetItemsProcessed(st.iterations());
   delete[] a;
