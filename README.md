@@ -69,17 +69,20 @@ By default, the Pony Docker image is compiled without support for AVX CPU instru
 
 For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install release builds via Yum:
+To install release builds via DNF:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
-sudo yum install ponyc-release
+sudo dnf --refresh install ponyc-release
 ```
 
-Or, for master builds:
-```bash
-yum install ponyc-master
+Or via Yum:
+```
+wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
+sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
+
+sudo yum install ponyc-release
 ```
 
 ### RPM and AVX2 Support
@@ -98,11 +101,6 @@ sudo apt-get update
 sudo apt-get install ponyc-release
 ```
 
-
-Or, for master builds:
-```
-sudo apt-get install ponyc-master
-```
 
 ### DEB and AVX2 Support
 
