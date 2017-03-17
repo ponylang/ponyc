@@ -319,7 +319,7 @@ You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You 
 Installation via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install llvm@3.8 pcre2 libressl
+$ brew install llvm@3.9 pcre2 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):
