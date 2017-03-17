@@ -4,7 +4,10 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [unreleased] - unreleased
 
-{{hook}}- Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
+### Fixed
+
+- Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
+- Segmentation fault on runtime termination.
 
 ### Added
 

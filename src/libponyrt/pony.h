@@ -367,8 +367,8 @@ PONY_API int pony_start(bool library, bool language_features);
  * done before calling pony_ctx(), and before calling any Pony code from the
  * thread.
  *
- * The thread that calls pony_start() is automatically registered. It's safe,
- * but not necessary, to call this more than once.
+ * Threads that call pony_init() or pony_start() are automatically registered.
+ * It's safe, but not necessary, to call this more than once.
  */
 PONY_API void pony_register_thread();
 
