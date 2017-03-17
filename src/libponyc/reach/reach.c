@@ -935,7 +935,7 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
       ast_t* type = ast_type(ast);
 
-      if(is_result_needed(ast) && !is_control_type(type))
+      if(is_result_needed(ast) && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
         add_type(r, type, opt);
 
       if(ast_sibling(cond) == NULL)
@@ -959,7 +959,7 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
     {
       ast_t* type = ast_type(ast);
 
-      if(is_result_needed(ast) && !is_control_type(type))
+      if(is_result_needed(ast) && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
         add_type(r, type, opt);
 
       break;

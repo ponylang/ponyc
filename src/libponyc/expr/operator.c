@@ -525,7 +525,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(r_type))
     return false;
 
-  if(is_control_type(r_type))
+  if(ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
   {
     ast_error(opt->check.errors, ast,
       "the right hand side does not return a value");

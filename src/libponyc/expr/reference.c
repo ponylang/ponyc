@@ -846,17 +846,15 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
 
     while(child != NULL)
     {
-      ast_t* c_type = ast_type(child);
-
-      if(c_type == NULL)
-        return false;
-
-      if(is_control_type(c_type))
+      if(ast_checkflag(child, AST_FLAG_JUMPS_AWAY))
       {
         ast_error(opt->check.errors, child,
-          "a tuple can't contain a control flow expression");
+          "a tuple can't contain an expression that jumps away with no value");
         return false;
       }
+
+      ast_t* c_type = ast_type(child);
+      pony_assert(c_type != NULL); // maybe needs to be removed?
 
       if(is_type_literal(c_type))
       {
@@ -1001,15 +999,15 @@ static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
-  ast_t* body_type = ast_type(body);
-
-  if(is_typecheck_error(body_type))
-    return false;
 
   // The last statement is an error, and we've already checked any return
   // expressions in the method.
-  if(is_control_type(body_type))
+  if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
     return true;
+
+  ast_t* body_type = ast_type(body);
+  if(is_typecheck_error(body_type))
+    return false;
 
   // If it's a compiler intrinsic, ignore it.
   if(ast_id(body_type) == TK_COMPILE_INTRINSIC)

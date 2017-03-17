@@ -43,6 +43,7 @@ enum
   AST_FLAG_RECURSE_2    = 0x10000,
   AST_FLAG_DONE_2       = 0x20000,
   AST_FLAG_ERROR_2      = 0x40000,
+  AST_FLAG_JUMPS_AWAY   = 0x80000,
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);

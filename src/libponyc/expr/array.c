@@ -29,16 +29,15 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   for(ast_t* ele = first_child; ele != NULL; ele = ast_sibling(ele))
   {
-    ast_t* c_type = ast_type(ele);
-
-    if(is_control_type(c_type))
+    if(ast_checkflag(ele, AST_FLAG_JUMPS_AWAY))
     {
       ast_error(opt->check.errors, ele,
-        "can't use an expression without a value in an array constructor");
+          "an array can't contain an expression that jumps away with no value");
       ast_free_unattached(type);
       return false;
     }
 
+    ast_t* c_type = ast_type(ele);
     if(is_typecheck_error(c_type))
       return false;
 

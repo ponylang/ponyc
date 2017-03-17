@@ -42,6 +42,10 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
     // Type is unioned with the type of the last child.
     type = control_type_add_branch(opt, type, last);
     ast_settype(ast, type);
+
+    // If last expression jumps away with no value, then we do too.
+    if(ast_checkflag(last, AST_FLAG_JUMPS_AWAY))
+      ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   }
 
   if(!ast_has_scope(ast))
@@ -120,24 +124,24 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(is_typecheck_error(l_type) || is_typecheck_error(r_type))
-    return false;
-
   ast_t* type = NULL;
   size_t branch_count = 0;
 
-  if(!is_control_type(l_type))
+  if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY))
   {
+    if(is_typecheck_error(ast_type(left)))
+      return false;
+
     type = control_type_add_branch(opt, type, left);
     ast_inheritbranch(ast, left);
     branch_count++;
   }
 
-  if(!is_control_type(r_type))
+  if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
   {
+    if(is_typecheck_error(ast_type(right)))
+      return false;
+
     type = control_type_add_branch(opt, type, right);
     ast_inheritbranch(ast, right);
     branch_count++;
@@ -151,7 +155,7 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
       return false;
     }
 
-    type = ast_from(ast, TK_IF);
+    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   }
 
   ast_settype(ast, type);
@@ -172,8 +176,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   ast_t* cond_type = ast_type(cond);
-  ast_t* body_type = ast_type(body);
-  ast_t* else_type = ast_type(else_clause);
 
   if(is_typecheck_error(cond_type))
     return false;
@@ -183,9 +185,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, cond, "condition must be a Bool");
     return false;
   }
-
-  if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
-    return false;
 
   // All consumes have to be in scope when the loop body finishes.
   errorframe_t errorf = NULL;
@@ -200,11 +199,19 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
 
   // No symbol status is inherited from the loop body. Nothing from outside the
   // loop body can be consumed, and definitions in the body may not occur.
-  if(!is_control_type(body_type))
-    type = control_type_add_branch(opt, type, body);
-
-  if(!is_control_type(else_type))
+  if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
   {
+    if(is_typecheck_error(ast_type(body)))
+      return false;
+
+    type = control_type_add_branch(opt, type, body);
+  }
+
+  if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(else_clause)))
+      return false;
+
     type = control_type_add_branch(opt, type, else_clause);
     ast_inheritbranch(ast, body);
 
@@ -214,7 +221,7 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   }
 
   if(type == NULL)
-    type = ast_from(ast, TK_WHILE);
+    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   ast_settype(ast, type);
   literal_unify_control(ast, opt);
@@ -228,9 +235,7 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
-  ast_t* body_type = ast_type(body);
   ast_t* cond_type = ast_type(cond);
-  ast_t* else_type = ast_type(else_clause);
 
   if(is_typecheck_error(cond_type))
     return false;
@@ -240,9 +245,6 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, cond, "condition must be a Bool");
     return false;
   }
-
-  if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
-    return false;
 
   // All consumes have to be in scope when the loop body finishes.
   errorframe_t errorf = NULL;
@@ -257,11 +259,19 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 
   // No symbol status is inherited from the loop body or condition. Nothing
   // from outside can be consumed, and definitions inside may not occur.
-  if(!is_control_type(body_type))
-    type = control_type_add_branch(opt, type, body);
-
-  if(!is_control_type(else_type))
+  if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
   {
+    if(is_typecheck_error(ast_type(body)))
+      return false;
+
+    type = control_type_add_branch(opt, type, body);
+  }
+
+  if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(else_clause)))
+      return false;
+
     type = control_type_add_branch(opt, type, else_clause);
     ast_inheritbranch(ast, else_clause);
 
@@ -271,7 +281,7 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   }
 
   if(type == NULL)
-    type = ast_from(ast, TK_REPEAT);
+    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   ast_settype(ast, type);
   literal_unify_control(ast, opt);
@@ -285,22 +295,23 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
-  ast_t* body_type = ast_type(body);
-  ast_t* else_type = ast_type(else_clause);
-  ast_t* then_type = ast_type(then_clause);
-
-  if(is_typecheck_error(body_type) ||
-    is_typecheck_error(else_type) ||
-    is_typecheck_error(then_type))
-    return false;
-
   ast_t* type = NULL;
 
-  if(!is_control_type(body_type))
-    type = control_type_add_branch(opt, type, body);
+  if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(body)))
+      return false;
 
-  if(!is_control_type(else_type))
+    type = control_type_add_branch(opt, type, body);
+  }
+
+  if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(else_clause)))
+      return false;
+
     type = control_type_add_branch(opt, type, else_clause);
+  }
 
   if(type == NULL)
   {
@@ -310,16 +321,21 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
       return false;
     }
 
-    type = ast_from(ast, TK_TRY);
+    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   }
 
   // The then clause does not affect the type of the expression.
-  if(is_control_type(then_type))
+  if(ast_checkflag(then_clause, AST_FLAG_JUMPS_AWAY))
   {
     ast_error(opt->check.errors, then_clause,
       "then clause always terminates the function");
     return false;
   }
+
+  ast_t* then_type = ast_type(then_clause);
+
+  if(is_typecheck_error(then_type))
+    return false;
 
   if(is_type_literal(then_type))
   {
@@ -388,17 +404,17 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   // break is always the last expression in a sequence
   pony_assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_BREAK));
+  ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Add type to loop.
   ast_t* body = ast_child(ast);
 
   if(ast_id(body) != TK_NONE)
   {
-    if(is_control_type(ast_type(body)))
+    if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
     {
       ast_error(opt->check.errors, body,
-        "break value cannot be a control statement");
+        "break value cannot be an expression that jumps away with no value");
       return false;
     }
 
@@ -433,7 +449,7 @@ bool expr_continue(pass_opt_t* opt, ast_t* ast)
   // continue is always the last expression in a sequence
   pony_assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_CONTINUE));
+  ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   return true;
 }
 
@@ -469,11 +485,11 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   ast_t* body_type = ast_type(body);
 
-  if(is_typecheck_error(body_type))
-    return false;
-
-  if(is_control_type(body_type))
+  if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
   {
+    if(is_typecheck_error(body_type))
+      return false;
+
     ast_error(opt->check.errors, body,
       "return value cannot be a control statement");
     return false;
@@ -524,7 +540,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  ast_settype(ast, ast_from(ast, TK_RETURN));
+  ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   return ok;
 }
 
@@ -534,7 +550,7 @@ bool expr_error(pass_opt_t* opt, ast_t* ast)
   // error is always the last expression in a sequence
   pony_assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_ERROR));
+  ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   return true;
 }
 
@@ -544,7 +560,7 @@ bool expr_compile_error(pass_opt_t* opt, ast_t* ast)
   // compile_error is always the last expression in a sequence
   pony_assert(ast_sibling(ast) == NULL);
 
-  ast_settype(ast, ast_from(ast, TK_COMPILE_ERROR));
+  ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   return true;
 }
 

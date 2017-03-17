@@ -729,10 +729,10 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
-  // We will have no type if all case have control types.
+  // We will have no type if all cases jump away.
   LLVMTypeRef phi_type = NULL;
 
-  if(needed && !is_control_type(type))
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     reach_type_t* t_phi = reach_type(c->reach, type);
     phi_type = t_phi->use_type;
@@ -751,7 +751,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   LLVMValueRef phi = GEN_NOVALUE;
 
-  if(!is_control_type(type))
+  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     // Start the post block so that a case can modify the phi node.
     post_block = codegen_block(c, "match_post");

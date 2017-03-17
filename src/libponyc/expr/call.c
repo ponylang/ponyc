@@ -263,7 +263,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     if(is_typecheck_error(arg_type))
       return false;
 
-    if(is_control_type(arg_type))
+    if(ast_checkflag(arg, AST_FLAG_JUMPS_AWAY))
     {
       ast_error(opt->check.errors, arg,
         "can't use a control expression in an argument");
