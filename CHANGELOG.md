@@ -21,8 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.11.2] - 2017-03-16
 
-### Fixed
-
+{{hook}}- Improved persistent map api (RFC 36) (PR #1705)
 - Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
 - Correctly pass `arch=` when building docker image (PR #1681)
 
