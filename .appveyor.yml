@@ -19,6 +19,9 @@ configuration:
 
 clone_depth: 100
 skip_tags: true
+skip_commits:
+  files:
+    - .travis.yml
 
 clone_folder: C:\projects\ponyc
 
