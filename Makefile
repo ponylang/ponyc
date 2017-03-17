@@ -68,8 +68,7 @@ endif
 # package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
-package_name ?= "ponyc-unknown"
-package_conflicts ?= "ponyc-release"
+package_name ?= "ponyc"
 package_version = $(package_base_version)-$(package_iteration)
 archive = $(package_name)-$(package_version).tar
 package = build/$(package_name)-$(package_version)
@@ -799,8 +798,8 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides ponyc --depends ponydep-ncurses
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
