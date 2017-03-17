@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
 - Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
 - Segmentation fault on runtime termination.
 
