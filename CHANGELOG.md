@@ -7,6 +7,9 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
+- Fix compiling errors for 32-bit (PR #1709)
+- Improved persistent map api (RFC 36) (PR #1705)
+- Improve packaged Linux binary performance (PR #1706)
 - Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
 - Segmentation fault on runtime termination.
 
@@ -19,25 +22,24 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.11.3] - 2017-03-16
 
-{{hook}}- Improve packaged Linux binary performance (PR #1706)
-- Build Linux release binaries correctly (PR #1699)
+### Fixed
 
+- Build Linux release binaries correctly (PR #1699)
 
 ## [0.11.2] - 2017-03-16
 
-{{hook}}- Improved persistent map api (RFC 36) (PR #1705)
+### Fixed
+
 - Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
 - Correctly pass `arch=` when building docker image (PR #1681)
 
-
-
 ## [0.11.1] - 2017-03-14
 
-{{hook}}- Fix compiling errors for 32-bit (PR #1709)
+### Fixed
+
 - Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
 - Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
 - Fix FreeBSD 11 compilation
-
 
 ## [0.11.0] - 2017-03-11
 
