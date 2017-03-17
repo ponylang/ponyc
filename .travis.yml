@@ -118,6 +118,21 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+    - os: osx
+      env:
+        - LLVM_VERSION="3.9.1"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=debug
+        - CC1=clang-3.9
+        - CXX1=clang++-3.9
+    - os: osx
+      env:
+        - LLVM_VERSION="3.9.1"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=release
+        - lto=no
+        - CC1=clang-3.9
+        - CXX1=clang++-3.9
 
 rvm:
   - 2.2.3
@@ -174,8 +189,8 @@ install:
       fi;
       if [ "${LLVM_VERSION}" = "3.9.1" ];
       then
-        brew install llvm;
-        brew link --overwrite --force llvm;
+        brew install llvm@3.9;
+        brew link --overwrite --force llvm@3.9;
         mkdir llvmsym;
         ln -s `which llvm-config` llvmsym/llvm-config-3.9;
         ln -s `which clang++` llvmsym/clang++-3.9;
