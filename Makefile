@@ -383,6 +383,8 @@ endif
 # target specific build options
 libponyrt.buildoptions = -DPONY_NO_ASSERT
 
+libponyrt.tests.linkoptions += -rdynamic
+
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS

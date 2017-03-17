@@ -1,4 +1,5 @@
 #include "reach.h"
+#include "../ast/astbuild.h"
 #include "../codegen/genname.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
@@ -455,6 +456,89 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
   }
 }
 
+static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
+  const char* special, pass_opt_t* opt)
+{
+  special = stringtab(special);
+  ast_t* find = lookup_try(NULL, NULL, type, special);
+
+  if(find != NULL)
+  {
+    switch(ast_id(find))
+    {
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+      {
+        reachable_method(r, t->ast, special, NULL, opt);
+        ast_free_unattached(find);
+        break;
+      }
+
+      default: {}
+    }
+  }
+}
+
+static void add_final(reach_t* r, reach_type_t* t, pass_opt_t* opt)
+{
+  ast_t* def = (ast_t*)ast_data(t->ast);
+
+  BUILD(final_ast, def,
+    NODE(TK_FUN, AST_SCOPE
+      NODE(TK_BOX)
+      ID("_final")
+      NONE
+      NONE
+      NONE
+      NONE
+      NODE(TK_SEQ, NODE(TK_TRUE))
+      NONE
+      NONE));
+
+  ast_append(ast_childidx(def, 4), final_ast);
+  ast_set(def, stringtab("_final"), final_ast, SYM_NONE, false);
+  bool pop = frame_push(&opt->check, def);
+  bool ok = ast_passes_subtree(&final_ast, opt, PASS_FINALISER);
+  pony_assert(ok);
+  (void)ok;
+
+  if(pop)
+    frame_pop(&opt->check);
+
+  add_special(r, t, t->ast, "_final", opt);
+}
+
+static bool embed_has_finaliser(ast_t* ast, const char* str_final)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+      break;
+
+    default:
+      return false;
+  }
+
+  ast_t* def = (ast_t*)ast_data(ast);
+  if(ast_get(def, str_final, NULL) != NULL)
+    return true;
+
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    if((ast_id(member) == TK_EMBED) &&
+      embed_has_finaliser(ast_type(member), str_final))
+      return true;
+
+    member = ast_sibling(member);
+  }
+
+  return false;
+}
+
 static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 {
   ast_t* def = (ast_t*)ast_data(t->ast);
@@ -488,6 +572,10 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
   member = ast_child(members);
   size_t index = 0;
 
+  const char* str_final = stringtab("_final");
+  bool has_finaliser = ast_get(def, str_final, NULL) != NULL;
+  bool needs_finaliser = false;
+
   while(member != NULL)
   {
     switch(ast_id(member))
@@ -502,11 +590,14 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 
         AST_GET_CHILDREN(r_member, name, type, init);
 
-        t->fields[index].embed = ast_id(member) == TK_EMBED;
+        bool embed = t->fields[index].embed = ast_id(member) == TK_EMBED;
         t->fields[index].ast = reify(ast_type(member), typeparams, typeargs,
           opt, true);
         ast_setpos(t->fields[index].ast, NULL, ast_line(name), ast_pos(name));
         t->fields[index].type = add_type(r, type, opt);
+
+        if(embed && !has_finaliser && !needs_finaliser)
+          needs_finaliser = embed_has_finaliser(type, str_final);
 
         if(r_member != member)
           ast_free_unattached(r_member);
@@ -520,30 +611,9 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 
     member = ast_sibling(member);
   }
-}
 
-static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
-  const char* special, pass_opt_t* opt)
-{
-  special = stringtab(special);
-  ast_t* find = lookup_try(NULL, NULL, type, special);
-
-  if(find != NULL)
-  {
-    switch(ast_id(find))
-    {
-      case TK_NEW:
-      case TK_FUN:
-      case TK_BE:
-      {
-        reachable_method(r, t->ast, special, NULL, opt);
-        ast_free_unattached(find);
-        break;
-      }
-
-      default: {}
-    }
-  }
+  if(!has_finaliser && needs_finaliser)
+    add_final(r, t, opt);
 }
 
 static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
