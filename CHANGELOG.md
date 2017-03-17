@@ -29,8 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.11.1] - 2017-03-14
 
-### Fixed
-
+{{hook}}- Fix compiling errors for 32-bit (PR #1709)
 - Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
 - Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
 - Fix FreeBSD 11 compilation
