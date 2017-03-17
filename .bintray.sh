@@ -1,6 +1,6 @@
 REPO_TYPE=$1        # e.g., rpm | debian | source
 PACKAGE_VERSION=$2  # e.g., 0.2.1-234.master.abcdefa
-PACKAGE_NAME=$3     # e.g., ponyc-master | ponyc-release
+PACKAGE_NAME=$3     # e.g., ponyc
 
 # TODO: cut "ponyc" out of the repo names
 BINTRAY_REPO_NAME="ponyc-$REPO_TYPE"

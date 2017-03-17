@@ -30,7 +30,7 @@ install:
       $package_commit = git rev-parse --short --verify "HEAD^{commit}"
       $package_version = (Get-Content "VERSION")
       $package_iteration = "$package_iteration${env:appveyor_build_number}.$package_commit"
-      Update-AppveyorBuild -Version "ponyc-${env:appveyor_repo_branch}-$package_version-$package_iteration"
+      Update-AppveyorBuild -Version "ponyc-$package_version-$package_iteration"
   - cd C:\projects\ponyc
   - python -x waf configure
   - python -x waf build --config %configuration% --llvm %llvm%
@@ -60,7 +60,7 @@ deploy:
         secure: 4KgdDQLp2kX816XH27d5xdJBPlKGhYXN6ttdHTSt5qe1MVIF+/VResUstg0zuJ6m
     subject: pony-language
     repo: ponyc-win
-    package: ponyc-release
+    package: ponyc
     version: $(appveyor_build_version)
     on:
         branch: release

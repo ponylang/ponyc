@@ -74,7 +74,7 @@ To install release builds via DNF:
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
-sudo dnf --refresh install ponyc-release
+sudo dnf --refresh install ponyc
 ```
 
 Or via Yum:
@@ -82,7 +82,7 @@ Or via Yum:
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
-sudo yum install ponyc-release
+sudo yum install ponyc
 ```
 
 ### RPM and AVX2 Support
@@ -98,7 +98,7 @@ To install release builds via Apt:
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
-sudo apt-get install ponyc-release
+sudo apt-get install ponyc
 ```
 
 
