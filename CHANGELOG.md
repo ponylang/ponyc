@@ -15,8 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.11.3] - 2017-03-16
 
-### Fixed
-
+{{hook}}- Improve packaged Linux binary performance (PR #1706)
 - Build Linux release binaries correctly (PR #1699)
 
 
