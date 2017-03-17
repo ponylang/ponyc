@@ -5,6 +5,25 @@
 #include "ponyassert.h"
 #include <string.h>
 
+/**
+ * Make sure the definition of something occurs before its use. This is for
+ * both fields and local variable.
+ */
+bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
+{
+  if((ast_line(def) > ast_line(use)) ||
+     ((ast_line(def) == ast_line(use)) &&
+      (ast_pos(def) > ast_pos(use))))
+  {
+    ast_error(opt->check.errors, use,
+      "declaration of '%s' appears after use", name);
+    ast_error_continue(opt->check.errors, def,
+      "declaration of '%s' appears here", name);
+    return false;
+  }
+
+  return true;
+}
 
 static const char* suggest_alt_name(ast_t* ast, const char* name)
 {
@@ -166,7 +185,8 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
       ast_add(dot, self);
 
       ast_replace(astp, dot);
-      return true;
+      ast = *astp;
+      return refer_dot(opt, ast);
     }
 
     case TK_ID: // TODO: consider changing where ast_set is done, so that this can be case TK_VAR, TK_LET, & TK_MATCH_CAPTURE

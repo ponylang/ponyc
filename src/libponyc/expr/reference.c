@@ -3,8 +3,9 @@
 #include "postfix.h"
 #include "call.h"
 #include "../pass/expr.h"
-#include "../pass/names.h"
 #include "../pass/flatten.h"
+#include "../pass/names.h"
+#include "../pass/refer.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
@@ -15,27 +16,6 @@
 #include "../ast/astbuild.h"
 #include "../ast/id.h" // TODO: remove?
 #include "ponyassert.h"
-#include <string.h> // TODO: remove?
-
-/**
- * Make sure the definition of something occurs before its use. This is for
- * both fields and local variable.
- */
-bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
-{
-  if((ast_line(def) > ast_line(use)) ||
-     ((ast_line(def) == ast_line(use)) &&
-      (ast_pos(def) > ast_pos(use))))
-  {
-    ast_error(opt->check.errors, use,
-      "declaration of '%s' appears after use", name);
-    ast_error_continue(opt->check.errors, def,
-      "declaration of '%s' appears here", name);
-    return false;
-  }
-
-  return true;
-}
 
 static bool is_assigned_to(ast_t* ast, bool check_result_needed)
 {
