@@ -704,7 +704,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     xchg, memory_order_release, memory_order_relaxed));
 #else
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
-    memory_order_release, memory_order_relaxed);
+    memory_order_release, memory_order_relaxed));
 #endif
 }
 
