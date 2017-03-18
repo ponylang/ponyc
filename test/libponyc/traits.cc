@@ -668,3 +668,40 @@ TEST_F(TraitsTest, LetInFunction)
   // to belong here as fix is in traits.c.
   DO(test_compile(src, "expr"));
 }
+
+
+TEST_F(TraitsTest, TypeargInFunction)
+{
+  const char* src =
+    "trait T[A]\n"
+    " fun foo(x: A): A =>\n"
+    "   consume x\n"
+
+    "class Baz is T[U32]\n"
+    " fun bar(): U32 => foo(U32(0))\n";
+
+  // Tests typearg reification in methods inherited from parameterised traits.
+  DO(test_compile(src, "expr"));
+}
+
+
+TEST_F(TraitsTest, TypeargInFunction2)
+{
+  const char* src =
+    "trait T1\n"
+    " new val create()\n"
+
+    "trait T2\n"
+
+    "primitive P is (T1 & T2)\n"
+
+    "trait T3[A: T1 val]\n"
+    " fun foo(): A =>\n"
+    "   A\n"
+
+    "class Baz is T3[(T2 & P)]\n"
+    " fun bar(): P => foo()\n";
+
+  // Tests typearg reification in methods inherited from parameterised traits.
+  DO(test_compile(src, "expr"));
+}
