@@ -627,34 +627,35 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
 
   // Unless this is a field lookup, treat an incomplete `this` as a tag.
   ast_t* parent = ast_parent(ast);
-  bool incomplete_ok = false;
-
-  if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
-  {
-    ast_t* right = ast_sibling(ast);
-    pony_assert(ast_id(right) == TK_ID);
-    ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
-
-    if(find != NULL)
-    {
-      switch(ast_id(find))
-      {
-        case TK_FVAR:
-        case TK_FLET:
-        case TK_EMBED:
-          incomplete_ok = true;
-          break;
-
-        default: {}
-      }
-
-      ast_free_unattached(find);
-    }
-  }
 
   if(ast_id(ast) == TK_THISINCOMPLETE)
   {
     ast_setid(ast, TK_THIS); // TODO: consider removing this id reverting - it has idempotency issues - if removed, other downstream code will need to handle TK_THISINCOMPLETE
+
+    bool incomplete_ok = false;
+
+    if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
+    {
+      ast_t* right = ast_sibling(ast);
+      pony_assert(ast_id(right) == TK_ID);
+      ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
+
+      if(find != NULL)
+      {
+        switch(ast_id(find))
+        {
+          case TK_FVAR:
+          case TK_FLET:
+          case TK_EMBED:
+            incomplete_ok = true;
+            break;
+
+          default: {}
+        }
+
+        ast_free_unattached(find);
+      }
+    }
 
     if(!incomplete_ok)
     {
