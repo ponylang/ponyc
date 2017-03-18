@@ -18,7 +18,8 @@ LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)), NULL);
+  ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
   int index = (int)ast_index(def);
 
   return LLVMGetParam(codegen_fun(c), index + 1);

@@ -193,13 +193,12 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
 {
   const char* name = ast_name(ast_child(ast));
 
-  sym_status_t status;
-  ast_t* refdef = ast_get(ast, name, &status);
+  ast_t* refdef = ast_get(ast, name, NULL);
 
   if(refdef != NULL)
     return true;
 
-  refdef = ast_get(ctx, name, &status);
+  refdef = ast_get(ctx, name, NULL);
 
   if(refdef == NULL)
   {

@@ -31,7 +31,6 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_t* type = NULL;
-  size_t branch_count = 0;
 
   if(!ast_checkflag(cases, AST_FLAG_JUMPS_AWAY))
   {
@@ -39,8 +38,6 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       return false;
 
     type = control_type_add_branch(opt, type, cases);
-    ast_inheritbranch(ast, cases);
-    branch_count++;
   }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
@@ -49,27 +46,17 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       return false;
 
     type = control_type_add_branch(opt, type, else_clause);
-    ast_inheritbranch(ast, else_clause);
-    branch_count++;
   }
 
-  if(type == NULL)
+  if((type == NULL) && (ast_sibling(ast) != NULL))
   {
-    if(ast_sibling(ast) != NULL)
-    {
-      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-      return false;
-    }
-
-    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
+    ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+    return false;
   }
 
   ast_settype(ast, type);
-  ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -77,15 +64,9 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_CASES);
   ast_t* the_case = ast_child(ast);
-
-  if(the_case == NULL)
-  {
-    ast_error(opt->check.errors, ast, "match must have at least one case");
-    return false;
-  }
+  pony_assert(the_case != NULL);
 
   ast_t* type = NULL;
-  size_t branch_count = 0;
 
   while(the_case != NULL)
   {
@@ -94,20 +75,12 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
 
     if(!is_typecheck_error(body_type) &&
       !ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
-    {
       type = control_type_add_branch(opt, type, body);
-      ast_inheritbranch(ast, the_case);
-      branch_count++;
-    }
 
     the_case = ast_sibling(the_case);
   }
 
-  if(type == NULL)
-    ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
-
   ast_settype(ast, type);
-  ast_consolidate_branches(ast, branch_count);
   return true;
 }
 
@@ -122,7 +95,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   if(ast_checkflag(pattern, AST_FLAG_JUMPS_AWAY))
   {
-    ast_error(opt->check.errors, pattern, "not a matchable pattern");
+    ast_error(opt->check.errors, pattern,
+      "not a matchable pattern - the expression jumps away with no value");
     return NULL;
   }
 
@@ -299,7 +273,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_t* match_expr = ast_child(match);
   ast_t* match_type = ast_type(match_expr);
 
-  if(ast_checkflag(match, AST_FLAG_JUMPS_AWAY) ||
+  if(ast_checkflag(match_expr, AST_FLAG_JUMPS_AWAY) ||
     is_typecheck_error(match_type))
     return false;
 

@@ -219,8 +219,7 @@ TEST_F(BadPonyTest, TupleFieldReassign)
     "    var foo: (U64, String) = (42, \"foo\")\n"
     "    foo._2 = \"bar\"";
 
-  TEST_ERRORS_2(src, "can't assign to an element of a tuple",
-                     "left side must be something that can be assigned to");
+  TEST_ERRORS_1(src, "can't assign to an element of a tuple");
 }
 
 TEST_F(BadPonyTest, WithBlockTypeInference)
@@ -258,12 +257,13 @@ TEST_F(BadPonyTest, CircularTypeInfer)
   // From issue #1334
   const char* src =
     "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let x = x.create()\n"
-    "    let y = y.create()";
+      "new create(env: Env) =>\n"
+        "let x = x.create()\n"
+        "let y = y.create()";
 
-  TEST_ERRORS_2(src, "cannot infer type of x",
-                     "cannot infer type of y");
+  TEST_ERRORS_2(src,
+    "can't use an undefined variable in an expression",
+    "can't use an undefined variable in an expression");
 }
 
 TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)

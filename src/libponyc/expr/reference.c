@@ -17,101 +17,6 @@
 #include "../ast/id.h" // TODO: remove?
 #include "ponyassert.h"
 
-static bool is_assigned_to(ast_t* ast, bool check_result_needed)
-{
-  while(true)
-  {
-    ast_t* parent = ast_parent(ast);
-
-    switch(ast_id(parent))
-    {
-      case TK_ASSIGN:
-      {
-        // Has to be the left hand side of an assignment. Left and right sides
-        // are swapped, so we must be the second child.
-        if(ast_childidx(parent, 1) != ast)
-          return false;
-
-        if(!check_result_needed)
-          return true;
-
-        // The result of that assignment can't be used.
-        return !is_result_needed(parent);
-      }
-
-      case TK_SEQ:
-      {
-        // Might be in a tuple on the left hand side.
-        if(ast_childcount(parent) > 1)
-          return false;
-
-        break;
-      }
-
-      case TK_TUPLE:
-        break;
-
-      default:
-        return false;
-    }
-
-    ast = parent;
-  }
-}
-
-static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
-{
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(parent) != TK_DOT)
-    return false;
-
-  AST_GET_CHILDREN(parent, left, right);
-  ast_t* find = lookup_try(opt, parent, type, ast_name(right));
-
-  if(find == NULL)
-    return false;
-
-  bool ok = ast_id(find) == TK_NEW;
-  ast_free_unattached(find);
-  return ok;
-}
-
-static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
-  sym_status_t status)
-{
-  // TODO: move this whole function to the status pass.
-  if(is_constructed_from(opt, ast, type))
-    return true;
-
-  switch(status)
-  {
-    case SYM_DEFINED:
-      return true;
-
-    case SYM_CONSUMED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use a consumed local in an expression");
-      return false;
-
-    case SYM_UNDEFINED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use an undefined variable in an expression");
-      return false;
-
-    default: {}
-  }
-
-  pony_assert(0);
-  return false;
-}
-
 static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
   errorframe_t* errorf)
 {
@@ -287,19 +192,6 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_setid(ast, tid);
   ast_settype(ast, type);
 
-  // TODO: move this to the status pass, if possible?
-  if(ast_id(left) == TK_THIS)
-  {
-    // Handle symbol status if the left side is 'this'.
-    const char* name = ast_name(id);
-
-    sym_status_t status;
-    ast_get(ast, name, &status);
-
-    if(!valid_reference(opt, ast, type, status))
-      return false;
-  }
-
   return true;
 }
 
@@ -446,37 +338,8 @@ bool expr_dontcareref(pass_opt_t* opt, ast_t* ast)
 
 bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
-  pony_assert(ast != NULL);
+  (void)opt;
   pony_assert(ast_type(ast) != NULL);
-
-  AST_GET_CHILDREN(ast, id, type);
-  pony_assert(type != NULL);
-
-  bool is_dontcare = is_name_dontcare(ast_name(id));
-
-  if(ast_id(type) == TK_NONE)
-  {
-    // No type specified, infer it later
-    if(!is_dontcare && !is_assigned_to(ast, false))
-    {
-      ast_error(opt->check.errors, ast,
-        "locals must specify a type or be assigned a value");
-      return false;
-    }
-  }
-  else if(ast_id(ast) == TK_LET)
-  {
-    // Let, check we have a value assigned
-    if(!is_assigned_to(ast, false))
-    {
-      ast_error(opt->check.errors, ast,
-        "can't declare a let local without assigning to it");
-      return false;
-    }
-  }
-
-  if(is_dontcare)
-    ast_setid(ast, TK_DONTCARE);
 
   return true;
 }
@@ -485,12 +348,8 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_VARREF) || (ast_id(ast) == TK_LETREF));
 
-  // We look up here locally to get the status, but assert that the found def
-  // is the same as the one that was stored as data earlier in the refer pass.
-  // TODO: move this to the status pass.
-  sym_status_t status;
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)), &status);
-  pony_assert((def != NULL) && (def == (ast_t*)ast_data(ast)));
+  ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
 
   ast_t* type = ast_type(def);
 
@@ -504,9 +363,6 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   }
 
   if(is_typecheck_error(type))
-    return false;
-
-  if(!valid_reference(opt, ast, type, status))
     return false;
 
   if(!sendable(type))
@@ -558,19 +414,12 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_PARAMREF);
 
-  // We look up here locally to get the status, but assert that the found def
-  // is the same as the one that was stored as data earlier in the refer pass.
-  // TODO: move this to the status pass.
-  sym_status_t status;
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)), &status);
-  pony_assert((def != NULL) && (def == (ast_t*)ast_data(ast)));
+  ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
 
   ast_t* type = ast_type(def);
 
   if(is_typecheck_error(type))
-    return false;
-
-  if(!valid_reference(opt, ast, type, status))
     return false;
 
   if(!sendable(type) && (opt->check.frame->recover != NULL))
@@ -710,8 +559,6 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 
 bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
-
   if(opt->check.frame->def_arg != NULL)
   {
     ast_error(opt->check.errors, ast,
@@ -719,19 +566,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  // TODO: move this to the status pass.
-  sym_status_t status;
-  ast_get(ast, stringtab("this"), &status);
-
-  if(status == SYM_CONSUMED)
-  {
-    ast_error(opt->check.errors, ast,
-      "can't use a consumed 'this' in an expression");
-    return false;
-  }
-
-  pony_assert(status == SYM_NONE);
-  token_id cap = cap_for_this(t);
+  token_id cap = cap_for_this(&opt->check);
 
   if(!cap_sendable(cap) && (opt->check.frame->recover != NULL))
   {
@@ -818,10 +653,15 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(!incomplete_ok && is_this_incomplete(t, ast))
+  if(ast_id(ast) == TK_THISINCOMPLETE)
   {
-    ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
-    ast_replace(&nominal, tag_type);
+    ast_setid(ast, TK_THIS); // TODO: consider removing this id reverting - it has idempotency issues - if removed, other downstream code will need to handle TK_THISINCOMPLETE
+
+    if(!incomplete_ok)
+    {
+      ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+      ast_replace(&nominal, tag_type);
+    }
   }
 
   if(arrow)
@@ -895,6 +735,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
   // If still nominal, check constraints.
   ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
 
   // Special case: don't check the constraint of a Pointer or an Array. These
   // builtin types have no contraint on their type parameter, and it is safe
@@ -922,6 +763,8 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       case TK_NOMINAL:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
+        pony_assert(def != NULL);
+
         ok = ast_id(def) == TK_STRUCT;
         break;
       }
@@ -929,6 +772,8 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       case TK_TYPEPARAMREF:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
+        pony_assert(def != NULL);
+
         ok = def == typeparam;
         break;
       }
@@ -950,50 +795,6 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   }
 
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
-}
-
-static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
-{
-  // TODO: move this whole function to the status pass.
-  pony_assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-  bool result = true;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        sym_status_t status;
-        ast_t* id = ast_child(member);
-        ast_t* def = ast_get(ast, ast_name(id), &status);
-
-        if((def != member) || (status != SYM_DEFINED))
-        {
-          ast_error(opt->check.errors, def,
-            "field left undefined in constructor");
-          result = false;
-        }
-
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(!result)
-    ast_error(opt->check.errors, ast,
-      "constructor with undefined fields is here");
-
-  return result;
 }
 
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
@@ -1061,9 +862,6 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
         if(!check_return_type(opt, ast))
          ok = false;
       }
-
-      if(!check_fields_defined(opt, ast))
-        ok = false;
 
       return ok;
     }

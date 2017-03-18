@@ -477,5 +477,5 @@ RULE(opliteral_type, HAS_DATA, TK_OPERATORLITERAL);
 RULE(question, LEAF, TK_QUESTION);
 RULE(semi, LEAF, TK_SEMI);
 RULE(string, HAS_TYPE(type), TK_STRING);
-RULE(this_ref, HAS_TYPE(type), TK_THIS);
+RULE(this_ref, HAS_TYPE(type), TK_THIS, TK_THISINCOMPLETE);
 RULE(type_this, LEAF, TK_THISTYPE);

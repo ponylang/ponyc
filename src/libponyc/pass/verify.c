@@ -6,6 +6,104 @@
 #include "ponyassert.h"
 
 
+static bool verify_assign_lvalue(pass_opt_t* opt, ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_FLETREF:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) != TK_THIS)
+      {
+        ast_error(opt->check.errors, ast, "can't reassign to a let field");
+        return false;
+      }
+
+      if(opt->check.frame->loop_body != NULL)
+      {
+        ast_error(opt->check.errors, ast,
+          "can't assign to a let field in a loop");
+        return false;
+      }
+
+      break;
+    }
+
+    case TK_EMBEDREF:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) != TK_THIS)
+      {
+        ast_error(opt->check.errors, ast, "can't assign to an embed field");
+        return false;
+      }
+
+      if(opt->check.frame->loop_body != NULL)
+      {
+        ast_error(opt->check.errors, ast,
+          "can't assign to an embed field in a loop");
+        return false;
+      }
+
+      break;
+    }
+
+    case TK_TUPLEELEMREF:
+    {
+      ast_error(opt->check.errors, ast,
+        "can't assign to an element of a tuple");
+      return false;
+    }
+
+    case TK_TUPLE:
+    {
+      // Verify every lvalue in the tuple.
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(!verify_assign_lvalue(opt, child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      break;
+    }
+
+    case TK_SEQ:
+    {
+      // This is used because the elements of a tuple are sequences,
+      // each sequence containing a single child.
+      ast_t* child = ast_child(ast);
+      pony_assert(ast_sibling(child) == NULL);
+
+      return verify_assign_lvalue(opt, child);
+    }
+
+    default: {}
+  }
+
+  return true;
+}
+
+
+static bool verify_assign(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_ASSIGN);
+  AST_GET_CHILDREN(ast, right, left);
+
+  if(!verify_assign_lvalue(opt, left))
+    return false;
+
+  ast_inheritflags(ast);
+
+  return true;
+}
+
+
 static bool is_legal_dontcare_read(ast_t* ast)
 {
   // We either are the LHS of an assignment or a tuple element. That tuple must
@@ -73,8 +171,10 @@ static bool is_legal_dontcare_read(ast_t* ast)
 }
 
 
-bool verify_dontcareref(pass_opt_t* opt, ast_t* ast)
+static bool verify_dontcareref(pass_opt_t* opt, ast_t* ast)
 {
+  pony_assert(ast_id(ast) == TK_DONTCAREREF);
+
   if(is_result_needed(ast) && !is_legal_dontcare_read(ast))
   {
     ast_error(opt->check.errors, ast, "can't read from '_'");
@@ -92,6 +192,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_ASSIGN:       r = verify_assign(options, ast); break;
     case TK_FUN:
     case TK_NEW:
     case TK_BE:           r = verify_fun(options, ast); break;
@@ -114,7 +215,6 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_CALL:
     case TK_QUALIFY:
     case TK_TUPLE:
-    case TK_ASSIGN:
     case TK_MATCH:
     case TK_CASES:
     case TK_CASE:

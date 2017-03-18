@@ -157,6 +157,7 @@ static const lextoken_t keywords[] =
   { "tag", TK_TAG },
 
   { "this", TK_THIS },
+  { "thisincomplete", TK_THISINCOMPLETE },
   { "return", TK_RETURN },
   { "break", TK_BREAK },
   { "continue", TK_CONTINUE },
