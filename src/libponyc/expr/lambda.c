@@ -34,7 +34,6 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     // Variable capture
     pony_assert(ast_id(type) == TK_NONE);
 
-    // TODO: possible to use stored data from refer pass?
     ast_t* def = ast_get(capture, name, NULL);
 
     if(def == NULL)
