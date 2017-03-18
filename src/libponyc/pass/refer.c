@@ -727,7 +727,7 @@ static bool refer_this(pass_opt_t* opt, ast_t* ast)
 
   // Mark the this reference as incomplete if not all fields are defined yet.
   if(is_this_incomplete(opt, ast))
-    ast_setid(ast, TK_THISINCOMPLETE);
+    ast_setflag(ast, AST_FLAG_INCOMPLETE);
 
   return true;
 }

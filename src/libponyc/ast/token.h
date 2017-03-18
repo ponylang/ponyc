@@ -135,7 +135,6 @@ typedef enum token_id
   TK_CAP_ANY,
 
   TK_THIS,
-  TK_THISINCOMPLETE,
   TK_RETURN,
   TK_BREAK,
   TK_CONTINUE,

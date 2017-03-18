@@ -625,15 +625,17 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  // Unless this is a field lookup, treat an incomplete `this` as a tag.
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(ast) == TK_THISINCOMPLETE)
+  // Handle cases in constructors where the type is incomplete (not all fields
+  // have been defined yet); in these cases, we consider `this` to be a tag,
+  // But if we're using it for accessing a field, we can allow the normal refcap
+  // because if the field is defined, we're allowed to read it and if it's
+  // undefined we'll be allowed to write to it to finish defining it.
+  // The AST_FLAG_INCOMPLETE flag is set during the refer pass.
+  if(ast_checkflag(ast, AST_FLAG_INCOMPLETE))
   {
-    ast_setid(ast, TK_THIS); // TODO: consider removing this id reverting - it has idempotency issues - if removed, other downstream code will need to handle TK_THISINCOMPLETE
-
     bool incomplete_ok = false;
 
+    ast_t* parent = ast_parent(ast);
     if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
     {
       ast_t* right = ast_sibling(ast);

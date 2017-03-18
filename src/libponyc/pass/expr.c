@@ -260,7 +260,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_LETREF:     r = expr_localref(options, ast); break;
     case TK_PARAMREF:   r = expr_paramref(options, ast); break;
 
-    case TK_THISINCOMPLETE:
     case TK_THIS:       r = expr_this(options, ast); break;
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
