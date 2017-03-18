@@ -635,30 +635,24 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   {
     bool incomplete_ok = false;
 
+    // We consider it to be okay to be incomplete if on the left side of a dot,
+    // where the dot points to a field reference.
     ast_t* parent = ast_parent(ast);
     if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
     {
-      ast_t* right = ast_sibling(ast);
-      pony_assert(ast_id(right) == TK_ID);
-      ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(def != NULL);
 
-      if(find != NULL)
+      switch(ast_id(def))
       {
-        switch(ast_id(find))
-        {
-          case TK_FVAR:
-          case TK_FLET:
-          case TK_EMBED:
-            incomplete_ok = true;
-            break;
-
-          default: {}
-        }
-
-        ast_free_unattached(find);
+        case TK_FVAR:
+        case TK_FLET:
+        case TK_EMBED: incomplete_ok = true; break;
+        default: {}
       }
     }
 
+    // If it's not considered okay to be incomplete, set the refcap to TK_TAG.
     if(!incomplete_ok)
     {
       ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
