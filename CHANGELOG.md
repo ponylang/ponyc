@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compilation error on non-x86 systems (PR #1718)
 - Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
 - Fix compiling errors for 32-bit (PR #1709)
 - Improved persistent map api (RFC 36) (PR #1705)
