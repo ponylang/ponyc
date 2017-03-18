@@ -28,34 +28,20 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   ast_t* l_type, ast_t* right)
 {
-  switch(ast_id(l_type))
-  {
-    case TK_NOMINAL:
-    {
-      pony_assert(ast_id(right) == TK_ID);
+  pony_assert(ast_id(l_type) == TK_NOMINAL);
+  pony_assert(ast_id(right) == TK_ID);
 
-      ast_t* def = (ast_t*)ast_data(l_type);
-      ast_t* field = ast_get(def, ast_name(right), NULL);
-      int index = (int)ast_index(field);
+  ast_t* def = (ast_t*)ast_data(l_type);
+  ast_t* field = ast_get(def, ast_name(right), NULL);
+  int index = (int)ast_index(field);
 
-      if(ast_id(def) != TK_STRUCT)
-        index++;
+  if(ast_id(def) != TK_STRUCT)
+    index++;
 
-      if(ast_id(def) == TK_ACTOR)
-        index++;
+  if(ast_id(def) == TK_ACTOR)
+    index++;
 
-      return LLVMBuildStructGEP(c->builder, l_value, index, "");
-    }
-
-    // TODO: can this be removed (and make the whole switch case a single assert)?
-    case TK_ARROW:
-      return make_fieldptr(c, l_value, ast_childidx(l_type, 1), right);
-
-    default: {}
-  }
-
-  pony_assert(0);
-  return NULL;
+  return LLVMBuildStructGEP(c->builder, l_value, index, "");
 }
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
