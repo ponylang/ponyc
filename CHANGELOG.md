@@ -19,6 +19,11 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Arrays as sequences (PR #1741)
+- Add ability for ponytest to exclude tests based on name (PR #1717)
+
+### Changed
+
+- Renamed ponytest "filter" flag to "only" (PR #1717)
 
 
 ## [0.11.4] - 2017-03-23
