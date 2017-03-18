@@ -1,5 +1,4 @@
 #include "refer.h"
-#include "../expr/reference.h" // TODO: remove after moving def_before_use?
 #include "../ast/id.h"
 #include "../pass/expr.h"
 #include "../../libponyrt/mem/pool.h"
@@ -344,7 +343,9 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
       return true;
     }
 
-    case TK_ID: // TODO: consider changing where ast_set is done, so that this can be case TK_VAR, TK_LET, & TK_MATCH_CAPTURE
+    case TK_VAR:
+    case TK_LET:
+    case TK_MATCH_CAPTURE:
     {
       if(!def_before_use(opt, def, ast, name))
         return false;
@@ -352,23 +353,10 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
       if(!valid_reference(opt, ast, status))
         return false;
 
-      ast_t* var = ast_parent(def);
-
-      switch(ast_id(var))
-      {
-        case TK_VAR:
-          ast_setid(ast, TK_VARREF);
-          break;
-
-        case TK_LET:
-        case TK_MATCH_CAPTURE:
-          ast_setid(ast, TK_LETREF);
-          break;
-
-        default:
-          pony_assert(0);
-          return false;
-      }
+      if(ast_id(def) == TK_VAR)
+        ast_setid(ast, TK_VARREF);
+      else
+        ast_setid(ast, TK_LETREF);
 
       return true;
     }

@@ -2,7 +2,7 @@
 #include "../verify/call.h"
 #include "../verify/control.h"
 #include "../verify/fun.h"
-#include "expr.h" // TODO: remove when is_result_needed is moved?
+#include "expr.h"
 #include "ponyassert.h"
 
 

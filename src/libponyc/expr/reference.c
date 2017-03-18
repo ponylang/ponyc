@@ -14,7 +14,6 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ast/astbuild.h"
-#include "../ast/id.h" // TODO: remove?
 #include "ponyassert.h"
 
 static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
@@ -356,7 +355,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   if(type != NULL && ast_id(type) == TK_INFERTYPE)
   {
     ast_error(opt->check.errors, ast, "cannot infer type of %s\n",
-      ast_nice_name(def));
+      ast_nice_name(ast_child(def)));
     ast_settype(def, ast_from(def, TK_ERRORTYPE));
     ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
     return false;

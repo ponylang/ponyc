@@ -34,6 +34,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     // Variable capture
     pony_assert(ast_id(type) == TK_NONE);
 
+    // TODO: possible to use stored data from refer pass?
     ast_t* def = ast_get(capture, name, NULL);
 
     if(def == NULL)
@@ -48,14 +49,21 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     if(!def_before_use(opt, def, capture, name))
       return NULL;
 
-    token_id def_id = ast_id(def);
-
-    if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
-      def_id != TK_PARAM)
+    switch(ast_id(def))
     {
-      ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
-        "capture fields, parameters and local variables", name);
-      return NULL;
+      case TK_VAR:
+      case TK_LET:
+      case TK_PARAM:
+      case TK_MATCH_CAPTURE:
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+        break;
+
+      default:
+        ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
+          "capture fields, parameters and local variables", name);
+        return NULL;
     }
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
@@ -210,14 +218,21 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   if(!def_before_use(opt, refdef, ctx, name))
     return false;
 
-  token_id def_id = ast_id(refdef);
-
-  if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
-    def_id != TK_PARAM)
+  switch(ast_id(refdef))
   {
-    ast_error(opt->check.errors, ast, "cannot capture \"%s\", can only "
-      "capture fields, parameters and local variables", name);
-    return false;
+    case TK_VAR:
+    case TK_LET:
+    case TK_PARAM:
+    case TK_MATCH_CAPTURE:
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_EMBED:
+      break;
+
+    default:
+      ast_error(opt->check.errors, ast, "cannot capture \"%s\", can only "
+        "capture fields, parameters and local variables", name);
+      return NULL;
   }
 
   // Check if we've already captured it

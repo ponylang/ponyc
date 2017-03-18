@@ -10,6 +10,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparam) == TK_TYPEPARAM);
 
   ast_t* ref_def = (ast_t*)ast_data(ast);
   ast_t* param_def = (ast_t*)ast_data(typeparam);
