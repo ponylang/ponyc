@@ -10,6 +10,7 @@ sudo: required
 
 matrix:
   include:
+
     - os: linux
       addons:
         apt:
@@ -23,6 +24,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -36,6 +38,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -49,6 +52,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -62,6 +66,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -75,6 +80,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -88,6 +94,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: osx
       env:
         - LLVM_VERSION="3.7.1"
@@ -95,6 +102,7 @@ matrix:
         - config=debug
         - CC1=clang-3.7
         - CXX1=clang++-3.7
+
     - os: osx
       env:
         - LLVM_VERSION="3.7.1"
@@ -103,6 +111,7 @@ matrix:
         - lto=no
         - CC1=clang-3.7
         - CXX1=clang++-3.7
+
     - os: osx
       env:
         - LLVM_VERSION="3.8.1"
@@ -110,6 +119,7 @@ matrix:
         - config=debug
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+
     - os: osx
       env:
         - LLVM_VERSION="3.8.1"
@@ -118,6 +128,7 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+
     - os: osx
       env:
         - LLVM_VERSION="3.9.1"
@@ -125,6 +136,7 @@ matrix:
         - config=debug
         - CC1=clang-3.9
         - CXX1=clang++-3.9
+
     - os: osx
       env:
         - LLVM_VERSION="3.9.1"
@@ -138,69 +150,10 @@ rvm:
   - 2.2.3
 
 install:
-  # For a master or release release build with the latest stable LLVM,
-  # prepare to deploy artifacts.
-  - if [[
-        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.9.1" &&
-        "$config" == "release" &&
-        "$TRAVIS_OS_NAME" == "linux" &&
-        "$TRAVIS_PULL_REQUEST" == "false"
-    ]];
-    then
-        if [[ "$TRAVIS_BRANCH" == "master" || "$TRAVIS_BRANCH" == "release" ]];
-        then
-            export CREATE_PACKAGES=yes;
-
-            sudo apt-get install -y rpm;
-            rvm use 2.2.3 --default;
-            gem install fpm;
-        fi;
-    fi;
-
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ];
-    then
-      if [ "${LLVM_VERSION}" = "3.6.2" ];
-      then
-        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz";
-      else
-        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz";
-      fi;
-      tar -xvf clang+llvm*;
-      cd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r * /tmp/llvm/;
-      sudo ln -s /tmp/llvm/bin/llvm-config /usr/local/bin/${LLVM_CONFIG};
-      cd -;
-      wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2;
-      tar -xjvf pcre2-10.21.tar.bz2;
-      cd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install;
-      cd -;
-    fi;
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ];
-    then
-      brew update;
-      brew install gmp; brew link --overwrite gmp;
-      if [ "${LLVM_VERSION}" = "3.7.1" ];
-      then
-        brew install llvm37;
-      fi;
-      if [ "${LLVM_VERSION}" = "3.8.1" ];
-      then
-        brew install llvm38;
-      fi;
-      if [ "${LLVM_VERSION}" = "3.9.1" ];
-      then
-        brew install llvm@3.9;
-        brew link --overwrite --force llvm@3.9;
-        mkdir llvmsym;
-        ln -s `which llvm-config` llvmsym/llvm-config-3.9;
-        ln -s `which clang++` llvmsym/clang++-3.9;
-        export PATH=llvmsym/:$PATH;
-      fi;
-      brew install pcre2 libressl;
-    fi;
+  - bash .travis_install.bash
 
 script:
-  - make CC=$CC1 CXX=$CXX1 test-ci
+  - bash .travis_script.bash
 
 notifications:
   email:
@@ -209,48 +162,14 @@ notifications:
     recipients:
     - buildbot@lists.ponylang.org
 
-after_success:
-  # If successful, set $UPLOAD to "yes".
-  #
-  # The PACKAGE_ITERATION will be fed to the DEB and RPM systems by FPM
-  # as a suffix to the base version (DEB:debian_revision or RPM:release,
-  # used to disambiguate packages with the same version).
-  - if [[ "$CREATE_PACKAGES" == "yes" ]];
-    then
-      make clean config=release;
-      PACKAGE_ITERATION="${PACKAGE_ITERATION}${TRAVIS_BUILD_NUMBER}.`git rev-parse --short --verify HEAD^{commit}`";
-      make verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
-    fi;
-
-  # For a release release build with the latest stable LLVM, upload docs.
-  - if [[
-        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.9.1" &&
-        "$config" == "release" &&
-        "$TRAVIS_OS_NAME" == "linux" &&
-        "$TRAVIS_PULL_REQUEST" == "false" &&
-        "$TRAVIS_BRANCH" == "release"
-    ]];
-    then
-      git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}";
-      git fetch gh-token && git fetch gh-token gh-pages:gh-pages;
-      build/release/ponyc packages/stdlib --docs;
-      cd stdlib-docs;
-      sudo -H pip install mkdocs;
-      cp ../.docs/extra.js docs/;
-      sed -i '' 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml;
-      mkdocs gh-deploy -v --clean --remote-name gh-token;
-    fi;
-
 deploy:
-  # Although we build artifacts for master, only deploy them for release.
-
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
     on:
       branch: release
-      condition: "$UPLOAD = yes"
+      condition: "\"${TRAVIS_BRANCH}\" == release && \"${config}\" == release && \"${TRAVIS_OS_NAME}\" == linux && \"${LLVM_CONFIG}\" == llvm-config-3.9"
+
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
@@ -259,7 +178,7 @@ deploy:
     file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
     on:
       branch: release
-      condition: "$UPLOAD = yes"
+      condition: "\"${TRAVIS_BRANCH}\" == release && \"${config}\" == release && \"${TRAVIS_OS_NAME}\" == linux && \"${LLVM_CONFIG}\" == llvm-config-3.9"
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
@@ -268,7 +187,7 @@ deploy:
     file: /home/travis/build/ponylang/ponyc/bintray_source.yml
     on:
       branch: release
-      condition: "$UPLOAD = yes"
+      condition: "\"${TRAVIS_BRANCH}\" == release && \"${config}\" == release && \"${TRAVIS_OS_NAME}\" == linux && \"${LLVM_CONFIG}\" == llvm-config-3.9"
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
