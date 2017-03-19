@@ -21,7 +21,14 @@ clone_depth: 100
 skip_tags: true
 skip_commits:
   files:
+    - .bintray.sh
+    - .gitignore
     - .travis.yml
+    - .travis_install.bash
+    - .travis_script.bash
+
+    # top-level markdown files
+    - '*.md'
 
 clone_folder: C:\projects\ponyc
 

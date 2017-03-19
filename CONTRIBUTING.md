@@ -38,7 +38,6 @@ If possible, try to isolate the problem and provide just enough code to demonstr
 
 How to contribute
 -----------------
-
 We use a fairly standard GitHub pull request workflow. If you have already contributed to a project via GitHub pull request, you can skip this section and proceed to the [specific details of what we ask for in a pull request](#pull-request). If this is your first time contributing to a project via GitHub, read on.
 
 Here is the basic GitHub workflow:
