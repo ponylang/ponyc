@@ -149,11 +149,13 @@ matrix:
 rvm:
   - 2.2.3
 
-install:
-  - bash .travis_install.bash
-
 script:
-  - bash .travis_script.bash
+  - if [[ "${TRAVIS_BRANCH}" == release ]];
+    then
+        bash .travis_release.bash;
+    else
+        bash .travis_other.bash;
+    fi
 
 notifications:
   email:
