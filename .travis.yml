@@ -18,22 +18,25 @@ matrix:
           packages:
             - g++-6
       env:
-        # many builds for duplicate envvars
-        - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7"
-        - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8"
-        - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - config=release
-        - CC1=gcc-6 CXX1=g++-6
+        global:
+          - CC1=gcc-6 CXX1=g++-6
+        matrix:
+          - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7" config=debug
+          - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7" config=release
+          - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8" config=debug
+          - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8" config=release
+          - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9" config=debug
+          - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9" config=release
 
     - os: osx
       env:
-        # many builds for duplicate envvars
-        - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7" CC1=clang-3.7 CXX1=clang++-3.7
-        - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8" CC1=clang-3.8 CXX1=clang++-3.8
-        - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9" CC1=clang-3.9 CXX1=clang++-3.9
-        - config=debug
-        - config=release lto=no
+        matrix:
+          - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7" CC1=clang-3.7 CXX1=clang++-3.7 config=debug
+          - LLVM_VERSION="3.7.1" LLVM_CONFIG="llvm-config-3.7" CC1=clang-3.7 CXX1=clang++-3.7 config=release lto=no
+          - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8" CC1=clang-3.8 CXX1=clang++-3.8 config=debug
+          - LLVM_VERSION="3.8.1" LLVM_CONFIG="llvm-config-3.8" CC1=clang-3.8 CXX1=clang++-3.8 config=release lto=no
+          - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9" CC1=clang-3.9 CXX1=clang++-3.9 config=debug
+          - LLVM_VERSION="3.9.1" LLVM_CONFIG="llvm-config-3.9" CC1=clang-3.9 CXX1=clang++-3.9 config=release lto=no
 
 rvm:
   - 2.2.3
