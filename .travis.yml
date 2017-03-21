@@ -214,20 +214,12 @@ after_success:
   # used to disambiguate packages with the same version).
   - if [[ "$CREATE_PACKAGES" == "yes" ]];
     then
+      echo "Building packages to deploy...";
       make clean config=release;
       PACKAGE_ITERATION="${PACKAGE_ITERATION}${TRAVIS_BUILD_NUMBER}.`git rev-parse --short --verify HEAD^{commit}`";
       make verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
-    fi;
 
-  # For a release release build with the latest stable LLVM, upload docs.
-  - if [[
-        "$LLVM_VERSION" == "3.9.1" &&
-        "$config" == "release" &&
-        "$TRAVIS_OS_NAME" == "linux" &&
-        "$TRAVIS_PULL_REQUEST" == "false" &&
-        "$TRAVIS_BRANCH" == "release"
-    ]];
-    then
+      echo "Building and uploading docs...";
       git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}";
       git fetch gh-token && git fetch gh-token gh-pages:gh-pages;
       build/release/ponyc packages/stdlib --docs;
