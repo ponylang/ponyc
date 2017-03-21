@@ -198,7 +198,7 @@ script:
       echo "Building packages to deploy...";
       make clean config=release;
       make verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="`cat VERSION`" package_iteration="$PACKAGE_ITERATION" deploy && export UPLOAD=yes;
-      echo "If \$UPLOAD is yes (UPLOAD: $UPLOAD), packages will be deployed below.";
+      echo "If UPLOAD is yes, packages will be deployed below.";
 
       echo "Building and uploading docs...";
       git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}";
