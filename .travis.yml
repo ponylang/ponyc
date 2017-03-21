@@ -23,6 +23,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -36,6 +37,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -49,6 +51,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -62,6 +65,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -75,6 +79,7 @@ matrix:
         - config=debug
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: linux
       addons:
         apt:
@@ -88,6 +93,7 @@ matrix:
         - config=release
         - CC1=gcc-6
         - CXX1=g++-6
+
     - os: osx
       env:
         - LLVM_VERSION="3.7.1"
@@ -95,6 +101,7 @@ matrix:
         - config=debug
         - CC1=clang-3.7
         - CXX1=clang++-3.7
+
     - os: osx
       env:
         - LLVM_VERSION="3.7.1"
@@ -103,6 +110,7 @@ matrix:
         - lto=no
         - CC1=clang-3.7
         - CXX1=clang++-3.7
+
     - os: osx
       env:
         - LLVM_VERSION="3.8.1"
@@ -110,6 +118,7 @@ matrix:
         - config=debug
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+
     - os: osx
       env:
         - LLVM_VERSION="3.8.1"
@@ -118,6 +127,7 @@ matrix:
         - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
+
     - os: osx
       env:
         - LLVM_VERSION="3.9.1"
@@ -125,6 +135,7 @@ matrix:
         - config=debug
         - CC1=clang-3.9
         - CXX1=clang++-3.9
+
     - os: osx
       env:
         - LLVM_VERSION="3.9.1"
