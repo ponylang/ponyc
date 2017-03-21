@@ -141,7 +141,6 @@ install:
   # For a master or release release build with the latest stable LLVM,
   # prepare to deploy artifacts.
   - if [[
-      "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
       "$LLVM_VERSION" == "3.9.1" &&
       "$config" == "release" &&
       "$TRAVIS_OS_NAME" == "linux" &&
@@ -222,7 +221,6 @@ after_success:
 
   # For a release release build with the latest stable LLVM, upload docs.
   - if [[
-        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
         "$LLVM_VERSION" == "3.9.1" &&
         "$config" == "release" &&
         "$TRAVIS_OS_NAME" == "linux" &&
