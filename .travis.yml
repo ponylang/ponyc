@@ -138,8 +138,6 @@ rvm:
   - 2.2.3
 
 install:
-  # For a master or release release build with the latest stable LLVM,
-  # prepare to deploy artifacts.
   - if [[
       "$LLVM_VERSION" == "3.9.1" &&
       "$config" == "release" &&
@@ -148,6 +146,7 @@ install:
       "$TRAVIS_BRANCH" == "release"
     ]];
     then
+      echo "This build will create packages and docs."
       export CREATE_PACKAGES=yes;
 
       sudo apt-get install -y rpm;
