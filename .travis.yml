@@ -141,21 +141,19 @@ install:
   # For a master or release release build with the latest stable LLVM,
   # prepare to deploy artifacts.
   - if [[
-        "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
-        "$LLVM_VERSION" == "3.9.1" &&
-        "$config" == "release" &&
-        "$TRAVIS_OS_NAME" == "linux" &&
-        "$TRAVIS_PULL_REQUEST" == "false"
+      "$TRAVIS_REPO_SLUG" == "ponylang/ponyc" &&
+      "$LLVM_VERSION" == "3.9.1" &&
+      "$config" == "release" &&
+      "$TRAVIS_OS_NAME" == "linux" &&
+      "$TRAVIS_PULL_REQUEST" == "false" &&
+      "$TRAVIS_BRANCH" == "release"
     ]];
     then
-        if [[ "$TRAVIS_BRANCH" == "master" || "$TRAVIS_BRANCH" == "release" ]];
-        then
-            export CREATE_PACKAGES=yes;
+      export CREATE_PACKAGES=yes;
 
-            sudo apt-get install -y rpm;
-            rvm use 2.2.3 --default;
-            gem install fpm;
-        fi;
+      sudo apt-get install -y rpm;
+      rvm use 2.2.3 --default;
+      gem install fpm;
     fi;
 
   - if [ "${TRAVIS_OS_NAME}" = "linux" ];
