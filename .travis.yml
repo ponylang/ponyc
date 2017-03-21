@@ -157,12 +157,7 @@ install:
 
   - if [ "${TRAVIS_OS_NAME}" = "linux" ];
     then
-      if [ "${LLVM_VERSION}" = "3.6.2" ];
-      then
-        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz";
-      else
-        wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz";
-      fi;
+      wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz";
       tar -xvf clang+llvm*;
       cd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r * /tmp/llvm/;
       sudo ln -s /tmp/llvm/bin/llvm-config /usr/local/bin/${LLVM_CONFIG};
@@ -172,10 +167,10 @@ install:
       cd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install;
       cd -;
     fi;
+
   - if [ "${TRAVIS_OS_NAME}" = "osx" ];
     then
       brew update;
-      brew install gmp; brew link --overwrite gmp;
       if [ "${LLVM_VERSION}" = "3.7.1" ];
       then
         brew install llvm37;
