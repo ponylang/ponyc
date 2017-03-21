@@ -217,8 +217,13 @@ script:
       sed -i '' 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml;
       mkdocs gh-deploy -v --clean --remote-name gh-token;
     else
-      echo "Building and testing ponyc...";
-      make CC=$CC1 CXX=$CXX1 test-ci;
+      if [[ "$TRAVIS_BRANCH" == "release" ]];
+      then
+        echo "Finished already.  This matrix element is unneded in a release build.";
+      else
+        echo "Building and testing ponyc...";
+        make CC=$CC1 CXX=$CXX1 test-ci;
+      fi;
     fi;
 
 notifications:
