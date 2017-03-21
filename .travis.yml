@@ -219,7 +219,7 @@ script:
     else
       if [[ "$TRAVIS_BRANCH" == "release" ]];
       then
-        echo "Finished already.  This matrix element is unneded in a release build.";
+        echo "Finished already.  This matrix element is unneeded in a release build.";
       else
         echo "Building and testing ponyc...";
         make CC=$CC1 CXX=$CXX1 test-ci;
