@@ -88,6 +88,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=yes
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
@@ -149,12 +150,7 @@ rvm:
   - 2.2.3
 
 install:
-  - if [[
-      "$LLVM_VERSION" == "3.9.1" &&
-      "$config" == "release" &&
-      "$TRAVIS_OS_NAME" == "linux" &&
-      "$TRAVIS_BRANCH" == "release"
-    ]];
+  - if [[ "$FAVORITE_CONFIG" == "yes" && "$TRAVIS_BRANCH" == "release" ]];
     then
       echo "This build will create packages and docs."
       export CREATE_PACKAGES=yes;
