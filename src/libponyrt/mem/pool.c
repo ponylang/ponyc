@@ -655,6 +655,14 @@ static void* pool_alloc_pages(size_t size)
   pool_block_t* block = (pool_block_t*)ponyint_virt_alloc(POOL_MMAP);
   size_t rem = POOL_MMAP - size;
 
+#if defined(PLATFORM_IS_WINDOWS)
+  // Commit pages that have only been reserved so far
+  // so block information can be written.
+  // This is safe even if the same pages have already
+  // been commited previously.
+  VirtualAlloc(block, 1024, MEM_COMMIT, PAGE_READWRITE);
+#endif
+
   block->size = rem;
   block->next = NULL;
   block->prev = NULL;
@@ -856,6 +864,13 @@ void* ponyint_pool_alloc(size_t index)
   pool_local_t* pool = pool_local;
   void* p = pool_get(pool, index);
 
+#if defined(PLATFORM_IS_WINDOWS)
+  // Commit pages that have only been reserved so far.
+  // This is safe even if the same pages have already
+  // been commited previously.
+  VirtualAlloc(p, ponyint_pool_size(index), MEM_COMMIT, PAGE_READWRITE);
+#endif
+
   TRACK_ALLOC(p, POOL_MIN << index);
 
 #ifdef USE_VALGRIND
@@ -907,6 +922,13 @@ void* ponyint_pool_alloc_size(size_t size)
 
   size = ponyint_pool_adjust_size(size);
   void* p = pool_alloc_pages(size);
+
+#if defined(PLATFORM_IS_WINDOWS)
+  // Commit pages that have only been reserved so far.
+  // This is safe even if the same pages have already
+  // been commited previously.
+  VirtualAlloc(p, size, MEM_COMMIT, PAGE_READWRITE);
+#endif
 
   TRACK_ALLOC(p, size);
 
