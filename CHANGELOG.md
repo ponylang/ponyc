@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Identity comparison of boxed values (PR #1726)
 - Reify type refs in inherited method bodies (PR #1722)
 - Fix compilation error on non-x86 systems (PR #1718)
 - Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
