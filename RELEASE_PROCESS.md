@@ -39,6 +39,8 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
+Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. It is advised that you use a clone of this repo and not a fork.
+
 For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
 
 With that in mind, run the release script:
