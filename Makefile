@@ -764,9 +764,9 @@ test-ci: all
 # FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
 deploy: test
-	$(SILENT)sh .bintray.sh debian "$(package_version)" "$(package_name)"
-	$(SILENT)sh .bintray.sh rpm    "$(package_version)" "$(package_name)"
-	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
