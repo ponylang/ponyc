@@ -370,6 +370,8 @@ static void ponyint_sched_shutdown()
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   bool pinasio)
 {
+  pony_register_thread();
+
   use_yield = !noyield;
 
   // If no thread count is specified, use the available physical core count.
@@ -392,16 +394,15 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
     ponyint_mpmcq_init(&scheduler[i].q);
   }
 
-  this_scheduler = &scheduler[0];
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
 
-  return &scheduler[0].ctx;
+  return pony_ctx();
 }
 
 bool ponyint_sched_start(bool library)
 {
-  this_scheduler = NULL;
+  pony_register_thread();
 
   if(!ponyint_asio_start())
     return false;
@@ -410,11 +411,6 @@ bool ponyint_sched_start(bool library)
 
   DTRACE0(RT_START);
   uint32_t start = 0;
-
-  if(library)
-  {
-    pony_register_thread();
-  }
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {

@@ -43,7 +43,7 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
       return false;
     }
 
-    *symbols[i].address = (void*)address;
+    *symbols[i].address = (void*)(uintptr_t)address;
   }
 
   const char* argv[] = {"ponyjit", NULL};

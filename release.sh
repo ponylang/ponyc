@@ -85,7 +85,9 @@ update_changelog
 
 # commit VERSION and CHANGELOG updates
 git add CHANGELOG.md VERSION
-git commit -m "Prep for $version release"
+git commit -m "Prep for $version release
+
+[skip ci]"
 
 # merge into release
 git checkout release
@@ -108,5 +110,7 @@ check_for_commit_and_push
 
 # commit changelog and push to master
 git add CHANGELOG.md
-git commit -m "Add unreleased section to CHANGELOG post $version release prep"
+git commit -m "Add unreleased section to CHANGELOG post $version release prep
+
+[skip ci]"
 git push origin master

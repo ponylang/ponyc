@@ -50,6 +50,7 @@ endif
 # Default settings (silent release build).
 config ?= release
 arch ?= native
+tune ?= generic
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -67,8 +68,7 @@ endif
 # package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
-package_name ?= "ponyc-unknown"
-package_conflicts ?= "ponyc-release"
+package_name ?= "ponyc"
 package_version = $(package_base_version)-$(package_iteration)
 archive = $(package_name)-$(package_version).tar
 package = build/$(package_name)-$(package_version)
@@ -91,9 +91,9 @@ prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
-BUILD_FLAGS = -march=$(arch) -Werror -Wconversion \
+BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch)
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune)
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
@@ -362,8 +362,8 @@ libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
 
-libponyc.tests.include := -I src/common/ -I src/libponyc/ $(llvm.include) \
-  -isystem lib/gtest/
+libponyc.tests.include := -I src/common/ -I src/libponyc/ -I src/libponyrt \
+  $(llvm.include) -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
 libponyc.benchmarks.include := -I src/common/ -I src/libponyc/ \
@@ -381,6 +381,8 @@ endif
 
 # target specific build options
 libponyrt.buildoptions = -DPONY_NO_ASSERT
+
+libponyrt.tests.linkoptions += -rdynamic
 
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
@@ -762,9 +764,9 @@ test-ci: all
 # FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
 deploy: test
-	$(SILENT)sh .bintray.sh debian "$(package_version)" "$(package_name)"
-	$(SILENT)sh .bintray.sh rpm    "$(package_version)" "$(package_name)"
-	$(SILENT)sh .bintray.sh source "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
 	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
@@ -796,8 +798,8 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts $(package_conflicts) --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler"
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs

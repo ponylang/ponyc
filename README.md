@@ -69,17 +69,20 @@ By default, the Pony Docker image is compiled without support for AVX CPU instru
 
 For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install release builds via Yum:
+To install release builds via DNF:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
-sudo yum install ponyc-release
+sudo dnf --refresh install ponyc
 ```
 
-Or, for master builds:
-```bash
-yum install ponyc-master
+Or via Yum:
+```
+wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
+sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
+
+sudo yum install ponyc
 ```
 
 ### RPM and AVX2 Support
@@ -95,14 +98,9 @@ To install release builds via Apt:
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
-sudo apt-get install ponyc-release
+sudo apt-get install ponyc
 ```
 
-
-Or, for master builds:
-```
-sudo apt-get install ponyc-master
-```
 
 ### DEB and AVX2 Support
 
@@ -319,7 +317,7 @@ You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You 
 Installation via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install llvm@3.8 pcre2 libressl
+$ brew install llvm@3.9 pcre2 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):

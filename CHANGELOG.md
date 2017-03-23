@@ -2,36 +2,32 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.11.4] - 2017-03-23
+
+- Reify type refs in inherited method bodies (PR #1722)
+- Fix compilation error on non-x86 systems (PR #1718)
+- Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
+- Fix compiling errors for 32-bit (PR #1709)
+- Improved persistent map api (RFC 36) (PR #1705)
+- Improve packaged Linux binary performance (PR #1706)
+- Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
+- Segmentation fault on runtime termination.
+
+
 ## [0.11.3] - 2017-03-16
-
-### Fixed
-
-- Build Linux release binaries correctly (PR #1699)
 
 
 ## [0.11.2] - 2017-03-16
 
-### Fixed
-
-- Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
 - Correctly pass `arch=` when building docker image (PR #1681)
-
-
 
 ## [0.11.1] - 2017-03-14
 
-### Fixed
-
-- Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
 - Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
 - Fix FreeBSD 11 compilation
 
-
 ## [0.11.0] - 2017-03-11
 
-### Fixed
-
-- Make HTTPSession type tag by default (PR #1650)
 - Fix type parameters not being visible to a lambda type in a type alias (PR #1633)
 - Remove the check for union types on match error (PR #1630)
 - TCPListener: unsubscribe asio before socket close (PR #1626)
@@ -208,9 +204,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.10.0] - 2016-12-12
 
-### Fixed
-
-- Don't violate reference capabilities when assigning via a field (PR #1471)
 - Check errors correctly for method chaining (PR #1463)
 - Fix compiler handling of type params in stacks (issue #918) (PR #1452)
 - Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
@@ -224,9 +217,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.9.0] - 2016-11-11
 
-### Fixed
-
-- Stop leaking memory during serialization (issue #1413) (PR #1414)
 - Fixed compiler segmentation fault when given an invalid target triple. (PR #1406)
 - Fixed error message when no type arguments are given (issue #1396) (PR #1397)
 - Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
@@ -242,18 +232,12 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.8.0] - 2016-10-27
 
-### Fixed
-
-- Link the correct version of `libponyrt` when compiling with `--pic` on Linux (issue #1359)
 
 - Floating point `min_normalised`. The function returns the smallest normalised positive number, as `min_value` used to do (issue #1351)
 
 
 ## [0.7.0] - 2016-10-22
 
-### Fixed
-
-- Concatenate docstrings from case methods (issue #575).
 
 - Allow TCP notifiers to cause connections to yield while receiving (issue #1343)
 
@@ -261,9 +245,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.6.0] - 2016-10-20
 
-### Fixed
-
-- Compiling ponyrt with Clang versions >= 3.3, < 3.6.
 - Restrict mutable tuple recovery to maintain reference capability security (issue #1123)
 - Crash in the runtime scheduler queues
 
@@ -275,16 +256,10 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.5.1] - 2016-10-15
 
-### Fixed
-
-- `SSLConnection` ignoring the `sent` notifier method (issue #1268)
 - Runtime crash in the runtime scheduler queues (issue #1319)
 
 ## [0.5.0] - 2016-10-09
 
-### Fixed
-
-- Memory copy bounds for `String.clone` (issue #1289).
 - Security issues in `ProcessMonitor` (issue #1180)
 - `SSLConnection` bugs due to missing `sentv` notify method (issue #1282)
 
@@ -296,16 +271,10 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.4.0] - 2016-09-26
 
-### Fixed
-
-- Unexpected message ordering in `ProcessManager` (issue #1265)
 
 
 ## [0.3.3] - 2016-09-23
 
-### Fixed
-
-- Incorrect build number generated on Windows when building from non-git directory.
 - Stop generating `llvm.invariant.load` for fields of `val` references.
 - Embedded fields construction through tuples.
 
@@ -316,9 +285,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.3.2] - 2016-09-18
 
-### Fixed
-
-- The `ponyc` version is now consistently set from the VERSION file.
 - Stop generating `llvm.invariant.load` intrinsic for "let" references, as these don't necessarily match the semantics of that intrinsic.
 
 - LTO is again enabled by default on OSX
@@ -326,9 +292,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.3.1] - 2016-09-14
 
-### Fixed
-
-- Make sure all scheduler threads are pinned to CPU cores; on Linux/FreeBSD this wasn't the case for the main thread.
 - Account for both hyperthreading and NUMA locality when assigning scheduler threads to cores on Linux.
 - Stop generating `llvm.invariant.start` intrinsic. It was causing various problems in code generation.
 - Buffer overflow triggerable by very long `ponyc` filename (issue #1177).
@@ -344,9 +307,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.3.0] - 2016-08-26
 
-### Fixed
-
-- Check for Main.create before reachability analysis.
 - Interface subtyping need not be invariant on type args.
 - @fowles: handle regex empty match.
 - @praetonus: readline history handling.
@@ -467,9 +427,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.2.1] - 2015-10-06
 
-### Fixed
-
-- Check shallow marking in heap_ismarked.
 
 ## [0.2.0] - 2015-10-05
 
@@ -491,9 +448,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - use commands searches ../pony_packages recursively similar to Node.js
 - Readline uses a Promise to handle async responses.
 
-### Fixed
-
-- Handle internal pointers and recursion.
 - Allow recursing through non-pony alloc'd memory in GC.
 - Set an LLVM triple with no version stamp to prevent XCode 7 link warnings.
 - use "path:" adds link paths only for the current build.
@@ -506,9 +460,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improvements to automatic documentation generator.
 - Union type for String.compare result.
 
-### Fixed
-
-- Viewpoint adaptation with a type expression on the left-hand side.
 
 ## [0.1.6] - 2015-06-15
 
@@ -524,9 +475,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Allow "s at the end of triple-quoted strings.
 - Allow behaviours and functions to be subtypes of each other.
 
-### Fixed
-
-- ANSI stripping on zero length writes to stdout/stderr.
 - More OS X 10.8 compatibility.
 - SSL multithreading support.
 - Nested tuple code generation.
@@ -535,9 +483,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.1.5] - 2015-05-15
 
-### Fixed
-
-- OS X 10.8 compatibility.
 
 ## [0.1.4] - 2015-05-14
 
@@ -548,9 +493,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Garbage collection and cycle detection parameters can now be set from the command line.
 - Added a FileStream wrapper to the file package.
 
-### Fixed
-
-- Check whether parameters to behaviours, actor constructors and isolated constructors are sendable after flattening, to allow sendable type parameters to be used as parameters.
 - Eliminate spurious "control expression" errors when another compile error has occurred.
 - Handle circular package dependencies.
 - Fixed ponyc options issue related to named long options with no arguments

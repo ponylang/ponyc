@@ -1,4 +1,5 @@
 #include "reach.h"
+#include "../ast/astbuild.h"
 #include "../codegen/genname.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
@@ -15,7 +16,8 @@ DEFINE_STACK(reach_method_stack, reach_method_stack_t,
   reach_method_t);
 
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
-  reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt);
+  reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
+  bool internal);
 
 static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt);
 
@@ -131,7 +133,8 @@ static reach_method_t* reach_rmethod(reach_method_name_t* n, const char* name)
   return reach_methods_get(&n->r_methods, &k, &index);
 }
 
-static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
+static reach_method_name_t* add_method_name(reach_type_t* t, const char* name,
+  bool internal)
 {
   reach_method_name_t* n = reach_method_name(t, name);
 
@@ -143,10 +146,18 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name)
     reach_mangled_init(&n->r_mangled, 0);
     reach_method_names_put(&t->methods, n);
 
-    ast_t* fun = lookup(NULL, NULL, t->ast, name);
-    n->id = ast_id(fun);
-    n->cap = ast_id(ast_child(fun));
-    ast_free_unattached(fun);
+    if(internal)
+    {
+      n->id = TK_FUN;
+      n->cap = TK_BOX;
+      n->internal = true;
+    } else {
+      ast_t* fun = lookup(NULL, NULL, t->ast, name);
+      n->id = ast_id(fun);
+      n->cap = ast_id(ast_child(fun));
+      ast_free_unattached(fun);
+      n->internal = false;
+    }
   }
 
   return n;
@@ -190,7 +201,8 @@ static const char* make_mangled_name(reach_method_t* m)
   for(size_t i = 0; i < m->param_count; i++)
     printbuf(buf, "%s", m->params[i].type->mangle);
 
-  printbuf(buf, "%s", m->result->mangle);
+  if(!m->internal)
+    printbuf(buf, "%s", m->result->mangle);
   const char* name = stringtab(buf->m);
   printbuf_free(buf);
   return name;
@@ -211,8 +223,8 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
 {
   // Add the method to the type if it isn't already there.
-  reach_method_name_t* n2 = add_method_name(t, n->name);
-  add_rmethod(r, t, n2, m->cap, m->typeargs, opt);
+  reach_method_name_t* n2 = add_method_name(t, n->name, false);
+  add_rmethod(r, t, n2, m->cap, m->typeargs, opt, false);
 
   // Add this mangling to the type if it isn't already there.
   size_t index = HASHMAP_UNKNOWN;
@@ -302,7 +314,8 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 }
 
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
-  reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt)
+  reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
+  bool internal)
 {
   const char* name = genname_fun(cap, n->name, typeargs);
   reach_method_t* m = reach_rmethod(n, name);
@@ -316,22 +329,28 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   m->cap = cap;
   m->typeargs = ast_dup(typeargs);
   m->vtable_index = (uint32_t)-1;
+  m->internal = internal;
+  m->intrinsic = internal;
 
-  ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
-  ast_t* fun = lookup(NULL, NULL, r_ast, n->name);
-  ast_free_unattached(r_ast);
-
-  if(typeargs != NULL)
+  if(!internal)
   {
-    // Reify the method with its typeargs, if it has any.
-    AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
-      body);
+    ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
+    ast_t* fun = lookup(NULL, NULL, r_ast, n->name);
+    ast_free_unattached(r_ast);
 
-    fun = reify(fun, typeparams, typeargs, opt, false);
+    if(typeargs != NULL)
+    {
+      // Reify the method with its typeargs, if it has any.
+      AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
+        body);
+
+      fun = reify(fun, typeparams, typeargs, opt, false);
+    }
+
+    m->r_fun = fun;
+    set_method_types(r, m, opt);
   }
 
-  m->r_fun = fun;
-  set_method_types(r, m, opt);
   m->mangled_name = make_mangled_name(m);
   m->full_name = make_full_name(t, m);
 
@@ -339,11 +358,14 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_methods_put(&n->r_methods, m);
   reach_mangled_put(&n->r_mangled, m);
 
-  // Put on a stack of reachable methods to trace.
-  r->stack = reach_method_stack_push(r->stack, m);
+  if(!internal)
+  {
+    // Put on a stack of reachable methods to trace.
+    r->stack = reach_method_stack_push(r->stack, m);
 
-  // Add the method to any subtypes.
-  add_rmethod_to_subtypes(r, t, n, m, opt);
+    // Add the method to any subtypes.
+    add_rmethod_to_subtypes(r, t, n, m, opt);
+  }
 
   return m;
 }
@@ -356,6 +378,9 @@ static void add_methods_to_type(reach_t* r, reach_type_t* from,
 
   while((n = reach_method_names_next(&from->methods, &i)) != NULL)
   {
+    if(n->internal)
+      continue;
+
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
@@ -379,34 +404,40 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
-    if(ast_id(t2->ast) != TK_NOMINAL)
-      continue;
-
-    ast_t* def2 = (ast_t*)ast_data(t2->ast);
-
-    switch(ast_id(def2))
+    if(ast_id(t2->ast) == TK_NOMINAL)
     {
-      case TK_INTERFACE:
+      ast_t* def2 = (ast_t*)ast_data(t2->ast);
+
+      switch(ast_id(def2))
       {
-        // Use the same typeid.
-        if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
-          t->type_id = t2->type_id;
-        break;
-      }
-
-      case TK_PRIMITIVE:
-      case TK_CLASS:
-      case TK_ACTOR:
-        if(is_subtype(t2->ast, t->ast, NULL, opt))
+        case TK_INTERFACE:
         {
-          reach_type_cache_put(&t->subtypes, t2);
-          reach_type_cache_put(&t2->subtypes, t);
-          if(ast_id(t->ast) == TK_NOMINAL)
-            add_methods_to_type(r, t, t2, opt);
+          // Use the same typeid.
+          if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
+            t->type_id = t2->type_id;
+          break;
         }
-        break;
 
-      default: {}
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          if(is_subtype(t2->ast, t->ast, NULL, opt))
+          {
+            reach_type_cache_put(&t->subtypes, t2);
+            reach_type_cache_put(&t2->subtypes, t);
+            if(ast_id(t->ast) == TK_NOMINAL)
+              add_methods_to_type(r, t, t2, opt);
+          }
+          break;
+
+        default: {}
+      }
+    } else if(ast_id(t2->ast) == TK_TUPLETYPE) {
+      if(is_subtype(t2->ast, t->ast, NULL, opt))
+      {
+        reach_type_cache_put(&t->subtypes, t2);
+        reach_type_cache_put(&t2->subtypes, t);
+      }
     }
   }
 }
@@ -455,6 +486,89 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
   }
 }
 
+static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
+  const char* special, pass_opt_t* opt)
+{
+  special = stringtab(special);
+  ast_t* find = lookup_try(NULL, NULL, type, special);
+
+  if(find != NULL)
+  {
+    switch(ast_id(find))
+    {
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+      {
+        reachable_method(r, t->ast, special, NULL, opt);
+        ast_free_unattached(find);
+        break;
+      }
+
+      default: {}
+    }
+  }
+}
+
+static void add_final(reach_t* r, reach_type_t* t, pass_opt_t* opt)
+{
+  ast_t* def = (ast_t*)ast_data(t->ast);
+
+  BUILD(final_ast, def,
+    NODE(TK_FUN, AST_SCOPE
+      NODE(TK_BOX)
+      ID("_final")
+      NONE
+      NONE
+      NONE
+      NONE
+      NODE(TK_SEQ, NODE(TK_TRUE))
+      NONE
+      NONE));
+
+  ast_append(ast_childidx(def, 4), final_ast);
+  ast_set(def, stringtab("_final"), final_ast, SYM_NONE, false);
+  bool pop = frame_push(&opt->check, def);
+  bool ok = ast_passes_subtree(&final_ast, opt, PASS_FINALISER);
+  pony_assert(ok);
+  (void)ok;
+
+  if(pop)
+    frame_pop(&opt->check);
+
+  add_special(r, t, t->ast, "_final", opt);
+}
+
+static bool embed_has_finaliser(ast_t* ast, const char* str_final)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+      break;
+
+    default:
+      return false;
+  }
+
+  ast_t* def = (ast_t*)ast_data(ast);
+  if(ast_get(def, str_final, NULL) != NULL)
+    return true;
+
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    if((ast_id(member) == TK_EMBED) &&
+      embed_has_finaliser(ast_type(member), str_final))
+      return true;
+
+    member = ast_sibling(member);
+  }
+
+  return false;
+}
+
 static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 {
   ast_t* def = (ast_t*)ast_data(t->ast);
@@ -488,6 +602,10 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
   member = ast_child(members);
   size_t index = 0;
 
+  const char* str_final = stringtab("_final");
+  bool has_finaliser = ast_get(def, str_final, NULL) != NULL;
+  bool needs_finaliser = false;
+
   while(member != NULL)
   {
     switch(ast_id(member))
@@ -502,11 +620,14 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 
         AST_GET_CHILDREN(r_member, name, type, init);
 
-        t->fields[index].embed = ast_id(member) == TK_EMBED;
+        bool embed = t->fields[index].embed = ast_id(member) == TK_EMBED;
         t->fields[index].ast = reify(ast_type(member), typeparams, typeargs,
           opt, true);
         ast_setpos(t->fields[index].ast, NULL, ast_line(name), ast_pos(name));
         t->fields[index].type = add_type(r, type, opt);
+
+        if(embed && !has_finaliser && !needs_finaliser)
+          needs_finaliser = embed_has_finaliser(type, str_final);
 
         if(r_member != member)
           ast_free_unattached(r_member);
@@ -520,30 +641,9 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
 
     member = ast_sibling(member);
   }
-}
 
-static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
-  const char* special, pass_opt_t* opt)
-{
-  special = stringtab(special);
-  ast_t* find = lookup_try(NULL, NULL, type, special);
-
-  if(find != NULL)
-  {
-    switch(ast_id(find))
-    {
-      case TK_NEW:
-      case TK_FUN:
-      case TK_BE:
-      {
-        reachable_method(r, t->ast, special, NULL, opt);
-        ast_free_unattached(find);
-        break;
-      }
-
-      default: {}
-    }
-  }
+  if(!has_finaliser && needs_finaliser)
+    add_final(r, t, opt);
 }
 
 static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
@@ -554,6 +654,7 @@ static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
   t->name = genname_type(type);
   t->mangle = "o";
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
+  t->ast_cap = ast_dup(type);
   t->type_id = (uint32_t)-1;
 
   reach_method_names_init(&t->methods, 0);
@@ -573,7 +674,7 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
 
   t = add_reach_type(r, type);
   t->underlying = ast_id(t->ast);
-  t->type_id = r->next_type_id++;
+  t->type_id = (r->object_type_count++ * 2) + 1;
 
   add_types_to_trait(r, t, opt);
 
@@ -600,12 +701,20 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   t = add_reach_type(r, type);
   t->underlying = TK_TUPLETYPE;
-  t->type_id = r->next_type_id++;
+  t->type_id = (r->tuple_type_count++ * 4) + 2;
   t->can_be_boxed = true;
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reach_field_t*)calloc(t->field_count,
     sizeof(reach_field_t));
+
+  add_traits_to_type(r, t, opt);
+
+  reach_method_name_t* n = add_method_name(t, stringtab("__is"), true);
+  add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+
+  n = add_method_name(t, stringtab("__digestof"), true);
+  add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
 
   printbuf_t* mangle = printbuf_new();
   printbuf(mangle, "%d", t->field_count);
@@ -659,6 +768,13 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
       add_traits_to_type(r, t, opt);
       add_special(r, t, type, "_init", opt);
       add_special(r, t, type, "_final", opt);
+      if(is_machine_word(type))
+      {
+        reach_method_name_t* n = add_method_name(t, stringtab("__digestof"),
+          true);
+        add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+        t->can_be_boxed = true;
+      }
       break;
 
     case TK_STRUCT:
@@ -679,10 +795,12 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
   }
 
   if(t->type_id == (uint32_t)-1)
-    t->type_id = r->next_type_id++;
-
-  if(is_machine_word(type))
-    t->can_be_boxed = true;
+  {
+    if(t->can_be_boxed)
+      t->type_id = r->numeric_type_count++ * 4;
+    else
+      t->type_id = (r->object_type_count++ * 2) + 1;
+  }
 
   if(ast_id(def) != TK_PRIMITIVE)
     return t;
@@ -965,6 +1083,27 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
       break;
     }
 
+    case TK_IS:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      ast_t* l_type = ast_type(left);
+      ast_t* r_type = ast_type(right);
+
+      add_type(r, l_type, opt);
+      add_type(r, r_type, opt);
+      break;
+    }
+
+    case TK_DIGESTOF:
+    {
+      ast_t* expr = ast_child(ast);
+      ast_t* type = ast_type(expr);
+
+      add_type(r, type, opt);
+      break;
+    }
+
     default: {}
   }
 
@@ -982,8 +1121,8 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
   ast_t* typeargs, pass_opt_t* opt)
 {
   reach_type_t* t = add_type(r, type, opt);
-  reach_method_name_t* n = add_method_name(t, name);
-  reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt);
+  reach_method_name_t* n = add_method_name(t, name, false);
+  reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt, false);
 
   if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
   {
@@ -1002,7 +1141,7 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 
     if(t->underlying != TK_PRIMITIVE)
     {
-      m2 = add_rmethod(r, t, n, TK_REF, typeargs, opt);
+      m2 = add_rmethod(r, t, n, TK_REF, typeargs, opt, false);
 
       if(subordinate)
       {
@@ -1012,7 +1151,7 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
       }
     }
 
-    m2 = add_rmethod(r, t, n, TK_VAL, typeargs, opt);
+    m2 = add_rmethod(r, t, n, TK_VAL, typeargs, opt, false);
 
     if(subordinate)
     {
@@ -1023,7 +1162,7 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 
     if(n->cap == TK_TAG)
     {
-      m2 = add_rmethod(r, t, n, TK_BOX, typeargs, opt);
+      m2 = add_rmethod(r, t, n, TK_BOX, typeargs, opt, false);
       m2->intrinsic = true;
       m->subordinate = m2;
       m = m2;
@@ -1047,7 +1186,10 @@ reach_t* reach_new()
 {
   reach_t* r = POOL_ALLOC(reach_t);
   r->stack = NULL;
-  r->next_type_id = 0;
+  r->object_type_count = 0;
+  r->numeric_type_count = 0;
+  r->tuple_type_count = 0;
+  r->total_type_count = 0;
   reach_types_init(&r->types, 64);
   return r;
 }
@@ -1066,6 +1208,59 @@ void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
 {
   reachable_method(r, type, name, typeargs, opt);
   handle_stack(r, opt);
+}
+
+static void add_internal_rmethod_to_traits(reach_t* r, reach_type_t* t,
+  const char* name, pass_opt_t* opt)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* super;
+
+  // For concrete types, subtypes is a map of supertypes.
+  while((super = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    reach_method_name_t* n = add_method_name(super, name, true);
+    add_rmethod(r, super, n, TK_BOX, NULL, opt, true);
+  }
+}
+
+void reach_done(reach_t* r, pass_opt_t* opt)
+{
+  // Type IDs are assigned as:
+  // - Object type IDs:   1, 3, 5, 7, 9, ...
+  // - Numeric type IDs: 0, 4, 8, 12, 16, ...
+  // - Tuple type IDs:   2, 6, 10, 14, 18, ...
+  // This allows to quickly check whether a type is unboxed or not.
+
+  r->total_type_count = r->object_type_count + r->numeric_type_count +
+    r->tuple_type_count;
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+  while((t = reach_types_next(&r->types, &i)) != NULL)
+  {
+    switch(t->underlying)
+    {
+      case TK_UNIONTYPE:
+      case TK_ISECTTYPE:
+      case TK_INTERFACE:
+      case TK_TRAIT:
+        continue;
+
+      default: {}
+    }
+
+    // Add internal methods to supertypes.
+    size_t j = HASHMAP_BEGIN;
+    reach_method_name_t* n;
+    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
+    {
+      if(!n->internal)
+        continue;
+
+      add_internal_rmethod_to_traits(r, t, n->name, opt);
+    }
+  }
 }
 
 reach_type_t* reach_type(reach_t* r, ast_t* type)

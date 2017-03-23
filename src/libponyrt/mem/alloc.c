@@ -16,9 +16,12 @@
 void* ponyint_virt_alloc(size_t bytes)
 {
   void* p;
+  bool ok = true;
 
 #if defined(PLATFORM_IS_WINDOWS)
   p = VirtualAlloc(NULL, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if(p == NULL)
+    ok = false;
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #if defined(PLATFORM_IS_LINUX)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
@@ -30,13 +33,15 @@ void* ponyint_virt_alloc(size_t bytes)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANON | MAP_ALIGNED_SUPER, -1, 0);
 #endif
-
   if(p == MAP_FAILED)
+    ok = false;
+#endif
+
+  if(!ok)
   {
     perror("out of memory: ");
     abort();
   }
-#endif
 
   return p;
 }

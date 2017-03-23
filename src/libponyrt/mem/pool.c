@@ -26,9 +26,13 @@
 
 /// When we mmap, pull at least this many bytes.
 #ifdef PLATFORM_IS_ILP32
-#define POOL_MMAP (16 * 1024 * 1024) // 16 MB
+#  define POOL_MMAP (16 * 1024 * 1024) // 16 MB
 #else
-#define POOL_MMAP (128 * 1024 * 1024) // 128 MB
+#  ifdef PLATFORM_IS_WINDOWS
+#    define POOL_MMAP (16 * 1024 * 1024) // 16 MB
+#  else
+#    define POOL_MMAP (128 * 1024 * 1024) // 128 MB
+#  endif
 #endif
 
 /// An item on a per-size thread-local free list.
@@ -68,33 +72,18 @@ typedef struct pool_global_t
 #endif
 } pool_global_t;
 
-typedef struct pool_block_t pool_block_t;
-
-PONY_ABA_PROTECTED_PTR_DECLARE(pool_block_t)
-
 /// An item on an either thread-local or global list of free blocks.
-struct pool_block_t
+typedef struct pool_block_t
 {
-#ifdef PLATFORM_IS_X86
+  struct pool_block_t* prev;
   union
   {
-    struct
-    {
-      pool_block_t* prev;
-      pool_block_t* next;
-    };
-    PONY_ATOMIC_ABA_PROTECTED_PTR(pool_block_t) global;
+    struct pool_block_t* next;
+    PONY_ATOMIC(struct pool_block_t*) global;
   };
-#else
-  pool_block_t* prev;
-  union
-  {
-    pool_block_t* next;
-    PONY_ATOMIC(pool_block_t*) global;
-  };
-#endif
   size_t size;
-};
+  PONY_ATOMIC(bool) acquired;
+} pool_block_t;
 
 /// A thread local list of free blocks header.
 typedef struct pool_block_header_t
@@ -103,6 +92,13 @@ typedef struct pool_block_header_t
   size_t total_size;
   size_t largest_size;
 } pool_block_header_t;
+
+/// A global list of free blocks header.
+typedef struct pool_block_global_header_t
+{
+  pool_block_t head;
+  PONY_ATOMIC(size_t) in_counter;
+} pool_block_global_header_t;
 
 static pool_global_t pool_global[POOL_COUNT] =
 {
@@ -124,11 +120,9 @@ static pool_global_t pool_global[POOL_COUNT] =
   {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), {{NULL, 0}}},
 };
 
-#ifdef PLATFORM_IS_X86
-static PONY_ATOMIC_ABA_PROTECTED_PTR(pool_block_t) pool_block_global;
-#else
-static PONY_ATOMIC(pool_block_t*) pool_block_global;
-#endif
+// Indices 0..POOL_COUNT - 1 are blocks for each size class, index POOL_COUNT
+// is oversized blocks.
+static pool_block_global_header_t pool_block_global[POOL_COUNT + 1];
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 static __pony_thread_local pool_block_header_t pool_block_header;
@@ -271,7 +265,7 @@ static void track_init()
     return;
 
   track.init = true;
-  track.thread_id = atomic_fetch_add(&track_global_thread_id, 1,
+  track.thread_id = atomic_fetch_add_explicit(&track_global_thread_id, 1,
     memory_order_relaxed);
   track_global_info[track.thread_id] = &track;
 
@@ -414,166 +408,104 @@ static void pool_block_insert(pool_block_t* block)
     next->prev = block;
 }
 
-static void pool_block_push(pool_block_t* block)
+static void pool_block_push(pool_block_global_header_t* header,
+  pool_block_t* block)
 {
-#ifdef PLATFORM_IS_X86
-  PONY_ABA_PROTECTED_PTR(pool_block_t)* dst = NULL;
-  PONY_ABA_PROTECTED_PTR(pool_block_t) cmp;
-  PONY_ABA_PROTECTED_PTR(pool_block_t) xchg;
-  cmp.object = pool_block_global.object;
-  cmp.counter = pool_block_global.counter;
-#else
-  PONY_ATOMIC(pool_block_t*)* dst;
-  pool_block_t* next = NULL;
-#endif
-  pool_block_t* pos;
+  atomic_store_explicit(&block->acquired, false, memory_order_relaxed);
+  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_relaxed);
 
-  do
+  pool_block_t* base = &header->head;
+
+  while(true)
   {
-#ifdef PLATFORM_IS_X86
-    PONY_ABA_PROTECTED_PTR(pool_block_t) cmp_prev = {{NULL, 0}};
-
-    // If dst is &pool_block_global, we did a CAS iteration and failed to get
-    // pool_block_global. cmp already holds the right value, don't reload in
-    // that case.
-    if(dst != &pool_block_global)
-    {
-      cmp = bigatomic_load_explicit(&pool_block_global, memory_order_acquire);
-#  ifdef USE_VALGRIND
-      ANNOTATE_HAPPENS_AFTER(&pool_block_global);
-#  endif
-    }
-
-    pos = cmp.object;
-#else
-    pos = atomic_load_explicit(&pool_block_global, memory_order_acquire);
-#  ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_AFTER(&pool_block_global);
-#  endif
+    pool_block_t* pos = atomic_load_explicit(&base->global,
+      memory_order_acquire);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_AFTER(&base->global);
 #endif
 
     // Find an insertion position. The list is sorted and stays sorted after an
     // insertion.
-    pool_block_t* prev = NULL;
+    pool_block_t* prev = base;
     while((pos != NULL) && (block->size > pos->size))
     {
-#ifdef PLATFORM_IS_X86
-      cmp_prev = cmp;
-      cmp = bigatomic_load_explicit(&pos->global, memory_order_acquire);
-      prev = pos;
-      pos = cmp.object;
-#else
       prev = pos;
       pos = atomic_load_explicit(&pos->global, memory_order_acquire);
-#endif
 #ifdef USE_VALGRIND
       ANNOTATE_HAPPENS_AFTER(&pos->global);
 #endif
     }
 
-    if(prev == NULL)
-    {
-      // Insert at the beginning.
-#ifdef PLATFORM_IS_X86
-      PONY_ABA_PROTECTED_PTR(pool_block_t)* ptr = &block->global;
-      ptr->object = NULL;
-      ptr->counter = cmp_prev.counter + 1;
-#else
-      atomic_store_explicit(&block->global, NULL, memory_order_relaxed);
-#endif
-      dst = &pool_block_global;
-    } else if(pos == NULL) {
-      // Insert at the end.
-#ifdef PLATFORM_IS_X86
-      PONY_ABA_PROTECTED_PTR(pool_block_t)* ptr = &block->global;
-      ptr->object = NULL;
-      ptr->counter = cmp.counter + 1;
-#else
-      atomic_store_explicit(&block->global, NULL, memory_order_relaxed);
-#endif
-      dst = &prev->global;
-    } else {
-#ifdef PLATFORM_IS_X86
-      cmp = bigatomic_load_explicit(&pos->global, memory_order_relaxed);
-      PONY_ABA_PROTECTED_PTR(pool_block_t)* ptr = &block->global;
-      ptr->object = cmp.object;
-      ptr->counter = cmp.counter + 1;
-#else
-      next = atomic_load_explicit(&pos->global, memory_order_relaxed);
-      atomic_store_explicit(&block->global, next, memory_order_relaxed);
-#endif
-      dst = &pos->global;
-    }
-
-    // If the compare_exchange fails, somebody else got the node and we have to
-    // look for another position to insert the block.
+    if(atomic_exchange_explicit(&prev->acquired, true, memory_order_acquire))
+      continue;
 
 #ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_BEFORE(dst);
+    ANNOTATE_HAPPENS_AFTER(&prev->acquired);
 #endif
-#ifdef PLATFORM_IS_X86
-    xchg.object = block;
-    xchg.counter = cmp.counter + 1;
-  } while(!bigatomic_compare_exchange_weak_explicit(dst, &cmp, xchg,
-    memory_order_release, memory_order_relaxed));
-#else
-  } while(!atomic_compare_exchange_weak_explicit(dst, &next, block,
-    memory_order_release, memory_order_relaxed));
+
+    pool_block_t* check_pos = atomic_load_explicit(&prev->global,
+      memory_order_relaxed);
+
+    if(pos != check_pos)
+    {
+      atomic_store_explicit(&prev->acquired, false, memory_order_relaxed);
+      continue;
+    }
+
+    atomic_store_explicit(&block->global, pos, memory_order_relaxed);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE(&prev->global);
 #endif
+    atomic_store_explicit(&prev->global, block, memory_order_release);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE(&prev->acquired);
+#endif
+    atomic_store_explicit(&prev->acquired, false, memory_order_release);
+
+    break;
+  }
+
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&header->in_counter);
+#endif
+  atomic_fetch_sub_explicit(&header->in_counter, 1, memory_order_release);
 }
 
-static void* pool_block_pull(size_t size)
+static pool_block_t* pool_block_pull(pool_block_global_header_t* header,
+  size_t size)
 {
-  pool_block_t* block;
-#ifdef PLATFORM_IS_X86
-  PONY_ABA_PROTECTED_PTR(pool_block_t)* dst = NULL;
-  PONY_ABA_PROTECTED_PTR(pool_block_t) cmp;
-  PONY_ABA_PROTECTED_PTR(pool_block_t) xchg;
-  cmp.object = pool_block_global.object;
+  pool_block_t* base = &header->head;
 
-  // Fast bailout path without additional branching.
-  if(cmp.object == NULL)
+  pool_block_t* block = atomic_load_explicit(&base->global,
+    memory_order_relaxed);
+
+  if(block == NULL)
     return NULL;
 
-  cmp.counter = pool_block_global.counter;
-#else
-  PONY_ATOMIC(pool_block_t*)* dst;
-  pool_block_t* next;
-#endif
-  pool_block_t* prev = NULL;
+  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_relaxed);
 
-  do
+  while(true)
   {
-#ifdef PLATFORM_IS_X86
-    // If dst is &pool_block_global, we did a CAS iteration and failed to get
-    // pool_block_global. cmp already holds the right value, don't reload in
-    // that case.
-    if(dst != &pool_block_global)
-      cmp = bigatomic_load_explicit(&pool_block_global, memory_order_relaxed);
+    block = atomic_load_explicit(&base->global, memory_order_relaxed);
 
-    block = cmp.object;
-#else
-    block = atomic_load_explicit(&pool_block_global, memory_order_relaxed);
-#endif
     if(block == NULL)
+    {
+      atomic_fetch_sub_explicit(&header->in_counter, 1, memory_order_relaxed);
       return NULL;
+    }
 
     atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_AFTER(&pool_block_global);
+    ANNOTATE_HAPPENS_AFTER(&base->global);
 #endif
+
+    pool_block_t* prev = base;
 
     // Find a big enough block. The list is sorted.
     while((block != NULL) && (size > block->size))
     {
-#ifdef PLATFORM_IS_X86
-      prev = block;
-      cmp = bigatomic_load_explicit(&block->global, memory_order_acquire);
-      block = cmp.object;
-#else
       prev = block;
       block = atomic_load_explicit(&block->global, memory_order_acquire);
-#endif
 #ifdef USE_VALGRIND
       ANNOTATE_HAPPENS_AFTER(&block->global);
 #endif
@@ -581,46 +513,70 @@ static void* pool_block_pull(size_t size)
 
     // No suitable block.
     if(block == NULL)
+    {
+      atomic_fetch_sub_explicit(&header->in_counter, 1, memory_order_relaxed);
       return NULL;
+    }
 
-#ifdef PLATFORM_IS_X86
-    xchg = bigatomic_load_explicit(&block->global, memory_order_relaxed);
-    xchg.counter = cmp.counter + 1;
-#else
-    next = atomic_load_explicit(&block->global, memory_order_relaxed);
-#endif
-    dst = (prev == NULL) ? &pool_block_global : &prev->global;
-
-  // If the compare_exchange fails, somebody else got the node and we have to
-  // look for another block.
-#ifdef PLATFORM_IS_X86
-  } while(!bigatomic_compare_exchange_weak_explicit(dst, &cmp, xchg,
-    memory_order_acquire, memory_order_relaxed));
-#else
-  } while(!atomic_compare_exchange_weak_explicit(dst, &block, next,
-    memory_order_acquire, memory_order_relaxed));
-#endif
+    if(atomic_exchange_explicit(&prev->acquired, true, memory_order_acquire))
+      continue;
 
 #ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_AFTER(dst);
+    ANNOTATE_HAPPENS_AFTER(&prev->acquired);
+#endif
+
+    pool_block_t* check_block = atomic_load_explicit(&prev->global,
+      memory_order_relaxed);
+
+    if((block != check_block) ||
+      atomic_exchange_explicit(&block->acquired, true, memory_order_relaxed))
+    {
+      atomic_store_explicit(&prev->acquired, false, memory_order_relaxed);
+      continue;
+    }
+
+    pool_block_t* next = atomic_load_explicit(&block->global,
+      memory_order_relaxed);
+    atomic_store_explicit(&prev->global, next, memory_order_relaxed);
+
+    // Don't release block.
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE(&prev->acquired);
+#endif
+    atomic_store_explicit(&prev->acquired, false, memory_order_release);
+
+    break;
+  }
+
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&header->in_counter);
+#endif
+  atomic_fetch_sub_explicit(&header->in_counter, 1, memory_order_release);
+
+  // We can't modify block until we're sure no other thread will try to read
+  // from it (e.g. to check if it can be popped from the global list). To do
+  // this, we wait until nobody is trying to either push or pull.
+  while(atomic_load_explicit(&header->in_counter, memory_order_relaxed) != 0)
+    ponyint_cpu_relax();
+
+  atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&header->in_counter);
 #endif
 
   pony_assert(size <= block->size);
 
-  if(size == block->size)
-    return block;
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(&block->global);
+  ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(&block->acquired);
+#endif
 
-  size_t rem = block->size - size;
-  block->size = rem;
-  pool_block_header.total_size += rem;
-  pool_block_insert(block);
-
-  return (char*)block + rem;
+  return block;
 }
 
 static void* pool_block_get(size_t size)
 {
-  if(pool_block_header.total_size >= size)
+  if(pool_block_header.largest_size >= size)
   {
     pool_block_t* block = pool_block_header.head;
 
@@ -634,20 +590,27 @@ static void* pool_block_get(size_t size)
         block->size = rem;
         pool_block_header.total_size -= size;
 
-        // TODO: can track largest size
-        // if we're the last element, it's either our new size or the previous
-        // block size, if that's larger.
-
         if((block->prev != NULL) && (block->prev->size > block->size))
         {
           // If we are now smaller than the previous block, move us forward in
           // the list.
+          if(block->next == NULL)
+            pool_block_header.largest_size = block->prev->size;
+
           pool_block_remove(block);
           pool_block_insert(block);
+        } else if(block->next == NULL) {
+          pool_block_header.largest_size = rem;
         }
 
         return (char*)block + rem;
       } else if(block->size == size) {
+        if(block->next == NULL)
+        {
+          pool_block_header.largest_size =
+            (block->prev == NULL) ? 0 : block->prev->size;
+        }
+
         // Remove the block from the list.
         pool_block_remove(block);
 
@@ -658,9 +621,28 @@ static void* pool_block_get(size_t size)
 
       block = block->next;
     }
+
+    // If we didn't find any suitable block, something has gone really wrong.
+    pony_assert(false);
   }
 
-  return pool_block_pull(size);
+  pool_block_t* block = pool_block_pull(&pool_block_global[POOL_COUNT], size);
+
+  if(block == NULL)
+    return NULL;
+
+  if(size == block->size)
+    return block;
+
+  size_t rem = block->size - size;
+  block->size = rem;
+  pool_block_insert(block);
+  pool_block_header.total_size += rem;
+
+  if(pool_block_header.largest_size < rem)
+    pool_block_header.largest_size = rem;
+
+  return (char*)block + rem;
 }
 
 static void* pool_alloc_pages(size_t size)
@@ -680,8 +662,10 @@ static void* pool_alloc_pages(size_t size)
   block->size = rem;
   block->next = NULL;
   block->prev = NULL;
-  pool_block_header.total_size += rem;
   pool_block_insert(block);
+  pool_block_header.total_size += rem;
+  if(pool_block_header.largest_size < rem)
+    pool_block_header.largest_size = rem;
 
   return (char*)block + rem;
 }
@@ -700,6 +684,8 @@ static void pool_free_pages(void* p, size_t size)
 
   pool_block_insert(block);
   pool_block_header.total_size += size;
+  if(pool_block_header.largest_size < size)
+    pool_block_header.largest_size = size;
 }
 
 static void pool_push(pool_local_t* thread, pool_global_t* global)
@@ -741,7 +727,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     xchg, memory_order_release, memory_order_relaxed));
 #else
   } while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
-    memory_order_release, memory_order_relaxed);
+    memory_order_release, memory_order_relaxed));
 #endif
 }
 
@@ -831,12 +817,33 @@ static void* pool_get(pool_local_t* pool, size_t index)
       return p;
     }
 
+    // Try to get a free block from the global list for our size class.
+    pool_block_t* block = pool_block_pull(&pool_block_global[index], 0);
+    if(block != NULL)
+    {
+      size_t size = block->size;
+
+      pony_assert(size >= global->size);
+      pony_assert(size < POOL_ALIGN);
+
+      char* mem = (char*)block;
+
+      size -= global->size;
+
+      if(size == 0)
+        return mem;
+
+      thread->start = mem + global->size;
+      thread->end = mem + size;
+      return mem;
+    }
+
     // Use the pool allocator to get a block POOL_ALIGN bytes in size
     // and treat it as a free block.
-    char* block = (char*)pool_get(pool, POOL_ALIGN_INDEX);
-    thread->start = block + global->size;
-    thread->end = block + POOL_ALIGN;
-    return block;
+    char* mem = (char*)pool_get(pool, POOL_ALIGN_INDEX);
+    thread->start = mem + global->size;
+    thread->end = mem + POOL_ALIGN;
+    return mem;
   }
 
   // Pull size bytes from the list of free blocks. Don't use a size-specific
@@ -961,7 +968,7 @@ void ponyint_pool_thread_cleanup()
       block->prev = NULL;
       block->next = NULL;
       block->size = block_length;
-      pool_block_push(block);
+      pool_block_push(&pool_block_global[index], block);
     }
   }
 
@@ -970,7 +977,7 @@ void ponyint_pool_thread_cleanup()
   {
     pool_block_t* next = block->next;
     pool_block_remove(block);
-    pool_block_push(block);
+    pool_block_push(&pool_block_global[POOL_COUNT], block);
     block = next;
   }
 

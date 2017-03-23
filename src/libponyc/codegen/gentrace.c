@@ -406,7 +406,7 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
         case TRACE_DYNAMIC:
           if(ast_id(src_type) == TK_NOMINAL)
             return TRACE_STATIC;
-          return TRACE_VAL_UNKNOWN;
+          return TRACE_DYNAMIC;
 
         case TRACE_TAG_UNKNOWN:
           return TRACE_TAG_UNKNOWN;
@@ -439,7 +439,7 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
         case TRACE_DYNAMIC:
           if(ast_id(src_type) == TK_NOMINAL)
             return TRACE_STATIC;
-          return TRACE_MUT_UNKNOWN;
+          return TRACE_DYNAMIC;
 
         case TRACE_TAG_UNKNOWN:
           return TRACE_TAG_UNKNOWN;
