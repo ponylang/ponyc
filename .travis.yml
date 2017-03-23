@@ -166,7 +166,7 @@ notifications:
 deploy:
   - provider: bintray
     user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian.yml
+    file: /home/travis/build/ponylang/ponyc/bintray_debian.json
     on:
       branch: release
       condition: "$FAVORITE_CONFIG == yes"
@@ -176,7 +176,7 @@ deploy:
 
   - provider: bintray
     user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_rpm.yml
+    file: /home/travis/build/ponylang/ponyc/bintray_rpm.json
     on:
       branch: release
       condition: "$FAVORITE_CONFIG == yes"
@@ -185,7 +185,7 @@ deploy:
 
   - provider: bintray
     user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_source.yml
+    file: /home/travis/build/ponylang/ponyc/bintray_source.json
     on:
       branch: release
       condition: "$FAVORITE_CONFIG == yes"
