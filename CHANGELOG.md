@@ -15,7 +15,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 
 ## [0.11.4] - 2017-03-23
-## [unreleased] - unreleased
 
 ### Fixed
 
