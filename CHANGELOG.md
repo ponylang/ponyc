@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Arrays as sequences (PR #1741)
 
 
 ## [0.11.4] - 2017-03-23
