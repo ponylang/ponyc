@@ -24,7 +24,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
 - Fix compiling errors for 32-bit (PR #1709)
 - Improved persistent map api (RFC 36) (PR #1705)
-- Improve packaged Linux binary performance (PR #1706)
 - Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
 - Segmentation fault on runtime termination.
 
