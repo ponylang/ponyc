@@ -272,6 +272,9 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += (GC_INC_MORE - 1);
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
+
+    // Set the to PONY_TRACE_MUTABLE to force recursion.
+    mutability = PONY_TRACE_MUTABLE;
   } else if(obj->rc <= 1) {
     // If we haven't seen this object, it's an object that is reached from
     // another immutable object we received, or it's a pointer to an embedded
