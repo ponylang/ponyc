@@ -466,6 +466,9 @@ void gendesc_table(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    if(t->is_trait || (t->underlying == TK_STRUCT))
+      continue;
+
     LLVMValueRef desc;
 
     if(t->desc != NULL)
