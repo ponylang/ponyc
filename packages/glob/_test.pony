@@ -99,7 +99,7 @@ class iso _TestFilter is UnitTest
   fun name(): String => "files/Glob.filter"
 
   fun apply(h: TestHelper) ? =>
-    let m = Glob.filter([ "12/a/Bcd"; "12/q/abd"; "34/b/Befd"], "*/?/B*d")
+    let m = Glob.filter(["12/a/Bcd"; "12/q/abd"; "34/b/Befd"], "*/?/B*d")
     h.assert_eq[USize](2, m.size())
 
     h.assert_eq[String](m(0)._1, "12/a/Bcd")
