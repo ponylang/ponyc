@@ -674,7 +674,8 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
 
   t = add_reach_type(r, type);
   t->underlying = ast_id(t->ast);
-  t->type_id = (r->object_type_count++ * 2) + 1;
+  t->is_trait = true;
+  t->type_id = r->trait_type_count++;
 
   add_types_to_trait(r, t, opt);
 
@@ -762,6 +763,7 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     case TK_INTERFACE:
     case TK_TRAIT:
       add_types_to_trait(r, t, opt);
+      t->is_trait = true;
       break;
 
     case TK_PRIMITIVE:
@@ -796,9 +798,11 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   if(t->type_id == (uint32_t)-1)
   {
-    if(t->can_be_boxed)
+    if(t->is_trait)
+      t->type_id = r->trait_type_count++;
+    else if(t->can_be_boxed)
       t->type_id = r->numeric_type_count++ * 4;
-    else
+    else if(t->underlying != TK_STRUCT)
       t->type_id = (r->object_type_count++ * 2) + 1;
   }
 
@@ -1190,6 +1194,7 @@ reach_t* reach_new()
   r->numeric_type_count = 0;
   r->tuple_type_count = 0;
   r->total_type_count = 0;
+  r->trait_type_count = 0;
   reach_types_init(&r->types, 64);
   return r;
 }
@@ -1231,6 +1236,7 @@ void reach_done(reach_t* r, pass_opt_t* opt)
   // - Numeric type IDs: 0, 4, 8, 12, 16, ...
   // - Tuple type IDs:   2, 6, 10, 14, 18, ...
   // This allows to quickly check whether a type is unboxed or not.
+  // Trait IDs use their own incremental numbering.
 
   r->total_type_count = r->object_type_count + r->numeric_type_count +
     r->tuple_type_count;

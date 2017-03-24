@@ -98,6 +98,7 @@ struct reach_type_t
   size_t abi_size;
   uint32_t vtable_size;
   bool can_be_boxed;
+  bool is_trait;
 
   LLVMTypeRef structure;
   LLVMTypeRef structure_ptr;
@@ -131,6 +132,7 @@ typedef struct
   uint32_t numeric_type_count;
   uint32_t tuple_type_count;
   uint32_t total_type_count;
+  uint32_t trait_type_count;
 } reach_t;
 
 /// Allocate a new set of reachable types.
