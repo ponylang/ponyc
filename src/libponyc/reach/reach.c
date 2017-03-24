@@ -396,48 +396,74 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
   reach_type_t* t2;
 
   bool interface = false;
-  if(ast_id(t->ast) == TK_NOMINAL)
+  switch(ast_id(t->ast))
   {
-    ast_t* def = (ast_t*)ast_data(t->ast);
-    interface = ast_id(def) == TK_INTERFACE;
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      interface = ast_id(def) == TK_INTERFACE;
+      break;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      interface = true;
+      break;
+
+    default: {}
   }
 
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
-    if(ast_id(t2->ast) == TK_NOMINAL)
+    switch(ast_id(t2->ast))
     {
-      ast_t* def2 = (ast_t*)ast_data(t2->ast);
-
-      switch(ast_id(def2))
+      case TK_NOMINAL:
       {
-        case TK_INTERFACE:
+        ast_t* def2 = (ast_t*)ast_data(t2->ast);
+
+        switch(ast_id(def2))
         {
-          // Use the same typeid.
-          if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
-            t->type_id = t2->type_id;
-          break;
+          case TK_INTERFACE:
+            // Use the same typeid.
+            if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
+              t->type_id = t2->type_id;
+            break;
+
+          case TK_PRIMITIVE:
+          case TK_CLASS:
+          case TK_ACTOR:
+            if(is_subtype(t2->ast, t->ast, NULL, opt))
+            {
+              reach_type_cache_put(&t->subtypes, t2);
+              reach_type_cache_put(&t2->subtypes, t);
+              if(ast_id(t->ast) == TK_NOMINAL)
+                add_methods_to_type(r, t, t2, opt);
+            }
+            break;
+
+          default: {}
         }
 
-        case TK_PRIMITIVE:
-        case TK_CLASS:
-        case TK_ACTOR:
-          if(is_subtype(t2->ast, t->ast, NULL, opt))
-          {
-            reach_type_cache_put(&t->subtypes, t2);
-            reach_type_cache_put(&t2->subtypes, t);
-            if(ast_id(t->ast) == TK_NOMINAL)
-              add_methods_to_type(r, t, t2, opt);
-          }
-          break;
+        break;
+      }
 
-        default: {}
-      }
-    } else if(ast_id(t2->ast) == TK_TUPLETYPE) {
-      if(is_subtype(t2->ast, t->ast, NULL, opt))
-      {
-        reach_type_cache_put(&t->subtypes, t2);
-        reach_type_cache_put(&t2->subtypes, t);
-      }
+      case TK_UNIONTYPE:
+      case TK_ISECTTYPE:
+        // Use the same typeid.
+        if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
+          t->type_id = t2->type_id;
+        break;
+
+      case TK_TUPLETYPE:
+        if(is_subtype(t2->ast, t->ast, NULL, opt))
+        {
+          reach_type_cache_put(&t->subtypes, t2);
+          reach_type_cache_put(&t2->subtypes, t);
+        }
+
+        break;
+
+      default: {}
     }
   }
 }
@@ -675,9 +701,11 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
   t = add_reach_type(r, type);
   t->underlying = ast_id(t->ast);
   t->is_trait = true;
-  t->type_id = r->trait_type_count++;
 
   add_types_to_trait(r, t, opt);
+
+  if(t->type_id == (uint32_t)-1)
+    t->type_id = r->trait_type_count++;
 
   ast_t* child = ast_child(type);
 
