@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix false positive test failure on 32 bits (PR #1749)
 
 ### Added
 
