@@ -737,6 +737,11 @@ bool gentypes(compile_t* c)
   reach_type_t* t;
   size_t i;
 
+  if(target_is_ilp32(c->opt->triple))
+    c->trait_bitmap_size = ((c->reach->trait_type_count + 31) & ~31) >> 5;
+  else
+    c->trait_bitmap_size = ((c->reach->trait_type_count + 63) & ~63) >> 6;
+
   c->tbaa_root = make_tbaa_root(c->context);
   c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
   c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);

@@ -1,5 +1,6 @@
 #include "gendesc.h"
 #include "genname.h"
+#include "genopt.h"
 #include "gentype.h"
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
@@ -9,24 +10,23 @@
 
 #define DESC_ID 0
 #define DESC_SIZE 1
-#define DESC_TRAIT_COUNT 2
-#define DESC_FIELD_COUNT 3
-#define DESC_FIELD_OFFSET 4
-#define DESC_INSTANCE 5
-#define DESC_TRACE 6
-#define DESC_SERIALISE_TRACE 7
-#define DESC_SERIALISE 8
-#define DESC_DESERIALISE 9
-#define DESC_CUSTOM_SERIALISE_SPACE 10
-#define DESC_CUSTOM_DESERIALISE 11
-#define DESC_DISPATCH 12
-#define DESC_FINALISE 13
-#define DESC_EVENT_NOTIFY 14
-#define DESC_TRAITS 15
-#define DESC_FIELDS 16
-#define DESC_VTABLE 17
+#define DESC_FIELD_COUNT 2
+#define DESC_FIELD_OFFSET 3
+#define DESC_INSTANCE 4
+#define DESC_TRACE 5
+#define DESC_SERIALISE_TRACE 6
+#define DESC_SERIALISE 7
+#define DESC_DESERIALISE 8
+#define DESC_CUSTOM_SERIALISE_SPACE 9
+#define DESC_CUSTOM_DESERIALISE 10
+#define DESC_DISPATCH 11
+#define DESC_FINALISE 12
+#define DESC_EVENT_NOTIFY 13
+#define DESC_TRAITS 14
+#define DESC_FIELDS 15
+#define DESC_VTABLE 16
 
-#define DESC_LENGTH 18
+#define DESC_LENGTH 17
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -103,113 +103,92 @@ static LLVMValueRef make_desc_ptr(LLVMValueRef func, LLVMTypeRef type)
   return LLVMConstBitCast(func, type);
 }
 
-static int cmp_uint32(const void* elem1, const void* elem2)
+static LLVMValueRef* trait_bitmap32(compile_t* c, reach_type_t* t)
 {
-  uint32_t a = *((uint32_t*)elem1);
-  uint32_t b = *((uint32_t*)elem2);
+  size_t bm_size = c->trait_bitmap_size * sizeof(uint32_t);
 
-  if(a < b)
-    return -1;
+  uint32_t* bm = (uint32_t*)ponyint_pool_alloc_size(bm_size);
+  memset(bm, 0, bm_size);
 
-  if(a > b)
-    return 1;
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* provide;
 
-  return 0;
-}
-
-static size_t unique_uint32(uint32_t* list, size_t len)
-{
-  uint32_t* first = list;
-  uint32_t* last = list + len;
-  uint32_t* r = list;
-
-  while(++first != last)
+  while((provide = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
-    if(!(*r == *first))
-      *(++r) = *first;
+    pony_assert(provide->type_id != (uint32_t)-1);
+    uint32_t index = provide->type_id >> 5;
+    pony_assert(index < c->trait_bitmap_size);
+    uint32_t bit = provide->type_id & 31;
+    bm[index] |= 1 << bit;
   }
 
-  return (++r) - list;
+  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc_size(
+    c->trait_bitmap_size * sizeof(LLVMValueRef));
+
+  for(i = 0; i < c->trait_bitmap_size; i++)
+    bitmap[i] = LLVMConstInt(c->intptr, bm[i], false);
+
+  ponyint_pool_free_size(bm_size, bm);
+
+  return bitmap;
 }
 
-static uint32_t trait_count(reach_type_t* t, uint32_t** list,
-  size_t* list_size)
+static LLVMValueRef* trait_bitmap64(compile_t* c, reach_type_t* t)
 {
-  switch(t->underlying)
+  size_t bm_size = c->trait_bitmap_size * sizeof(uint64_t);
+
+  uint64_t* bm = (uint64_t*)ponyint_pool_alloc_size(bm_size);
+  memset(bm, 0, bm_size);
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* provide;
+
+  while((provide = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-    case TK_ACTOR:
-    {
-      uint32_t count = (uint32_t)reach_type_cache_size(&t->subtypes);
-
-      if(count == 0)
-        return 0;
-
-      // Sort the trait identifiers.
-      size_t tid_size = count * sizeof(uint32_t);
-      uint32_t* tid = (uint32_t*)ponyint_pool_alloc_size(tid_size);
-
-      size_t i = HASHMAP_BEGIN;
-      size_t index = 0;
-      reach_type_t* provide;
-
-      while((provide = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-        tid[index++] = provide->type_id;
-
-      qsort(tid, index, sizeof(uint32_t), cmp_uint32);
-      count = (uint32_t)unique_uint32(tid, index);
-
-      if(list != NULL)
-      {
-        *list = tid;
-        *list_size = tid_size;
-      } else {
-        ponyint_pool_free_size(tid_size, tid);
-      }
-
-      return count;
-    }
-
-    default: {}
+    pony_assert(provide->type_id != (uint32_t)-1);
+    uint64_t index = provide->type_id >> 6;
+    pony_assert(index < c->trait_bitmap_size);
+    uint64_t bit = provide->type_id & 63;
+    bm[index] |= (uint64_t)1 << bit;
   }
 
-  return 0;
+  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc_size(
+    c->trait_bitmap_size * sizeof(LLVMValueRef));
+
+  for(i = 0; i < c->trait_bitmap_size; i++)
+    bitmap[i] = LLVMConstInt(c->intptr, bm[i], false);
+
+  ponyint_pool_free_size(bm_size, bm);
+
+  return bitmap;
 }
 
-static LLVMValueRef make_trait_list(compile_t* c, reach_type_t* t,
-  uint32_t* final_count)
+static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
 {
-  // The list is an array of integers.
-  uint32_t* tid;
-  size_t tid_size;
-  uint32_t count = trait_count(t, &tid, &tid_size);
+  LLVMTypeRef map_type = LLVMArrayType(c->intptr, c->trait_bitmap_size);
 
-  // If we have no traits, return a null pointer to a list.
-  if(count == 0)
-    return LLVMConstNull(LLVMPointerType(LLVMArrayType(c->i32, 0), 0));
+  if(t->bare_method != NULL)
+    return LLVMConstNull(LLVMPointerType(map_type, 0));
 
-  // Create a constant array of trait identifiers.
-  size_t list_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc_size(list_size);
+  LLVMValueRef* bitmap;
+  if(target_is_ilp32(c->opt->triple))
+    bitmap = trait_bitmap32(c, t);
+  else
+    bitmap = trait_bitmap64(c, t);
 
-  for(uint32_t i = 0; i < count; i++)
-    list[i] = LLVMConstInt(c->i32, tid[i], false);
+  LLVMValueRef bitmap_array = LLVMConstArray(c->intptr, bitmap,
+    c->trait_bitmap_size);
 
-  LLVMValueRef trait_array = LLVMConstArray(c->i32, list, count);
+  ponyint_pool_free_size(c->trait_bitmap_size * sizeof(LLVMValueRef), bitmap);
 
   // Create a global to hold the array.
-  const char* name = genname_traitlist(t->name);
-  LLVMTypeRef list_type = LLVMArrayType(c->i32, count);
-  LLVMValueRef global = LLVMAddGlobal(c->module, list_type, name);
+  const char* name = genname_traitmap(t->name);
+  LLVMValueRef global = LLVMAddGlobal(c->module, map_type, name);
   LLVMSetGlobalConstant(global, true);
   LLVMSetLinkage(global, LLVMPrivateLinkage);
-  LLVMSetInitializer(global, trait_array);
+  LLVMSetInitializer(global, bitmap_array);
+  LLVMSetUnnamedAddr(global, true);
 
-  ponyint_pool_free_size(tid_size, tid);
-  ponyint_pool_free_size(list_size, list);
-
-  *final_count = count;
   return global;
 }
 
@@ -338,7 +317,6 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
 
   params[DESC_ID] = c->i32;
   params[DESC_SIZE] = c->i32;
-  params[DESC_TRAIT_COUNT] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->object_ptr;
@@ -351,7 +329,8 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
   params[DESC_EVENT_NOTIFY] = c->i32;
-  params[DESC_TRAITS] = LLVMPointerType(LLVMArrayType(c->i32, 0), 0);
+  params[DESC_TRAITS] = LLVMPointerType(
+    LLVMArrayType(c->intptr, 0), 0);
   params[DESC_FIELDS] = LLVMPointerType(
     LLVMArrayType(c->field_descriptor, 0), 0);
   params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, 0);
@@ -375,7 +354,6 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   }
 
   const char* desc_name = genname_descriptor(t->name);
-  uint32_t traits = trait_count(t, NULL, NULL);
   uint32_t fields = 0;
   uint32_t vtable_size = t->vtable_size;
 
@@ -389,7 +367,6 @@ void gendesc_type(compile_t* c, reach_type_t* t)
 
   params[DESC_ID] = c->i32;
   params[DESC_SIZE] = c->i32;
-  params[DESC_TRAIT_COUNT] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->object_ptr;
@@ -402,7 +379,8 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
   params[DESC_EVENT_NOTIFY] = c->i32;
-  params[DESC_TRAITS] = LLVMPointerType(LLVMArrayType(c->i32, traits), 0);
+  params[DESC_TRAITS] = LLVMPointerType(
+    LLVMArrayType(c->intptr, c->trait_bitmap_size), 0);
   params[DESC_FIELDS] = LLVMPointerType(
     LLVMArrayType(c->field_descriptor, fields), 0);
   params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, vtable_size);
@@ -421,14 +399,11 @@ void gendesc_init(compile_t* c, reach_type_t* t)
 
   // Initialise the global descriptor.
   uint32_t event_notify_index = reach_vtable_index(t, c->str__event_notify);
-  uint32_t trait_count = 0;
-  LLVMValueRef trait_list = make_trait_list(c, t, &trait_count);
 
   LLVMValueRef args[DESC_LENGTH];
 
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
   args[DESC_SIZE] = LLVMConstInt(c->i32, t->abi_size, false);
-  args[DESC_TRAIT_COUNT] = LLVMConstInt(c->i32, trait_count, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
   args[DESC_INSTANCE] = make_desc_ptr(t->instance, c->object_ptr);
@@ -444,7 +419,7 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_DISPATCH] = make_desc_ptr(t->dispatch_fn, c->dispatch_fn);
   args[DESC_FINALISE] = make_desc_ptr(t->final_fn, c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
-  args[DESC_TRAITS] = trait_list;
+  args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);
 
@@ -653,59 +628,43 @@ LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
-  // Get the trait identifier.
   reach_type_t* t = reach_type(c->reach, type);
   pony_assert(t != NULL);
-  LLVMValueRef trait_id = LLVMConstInt(c->i32, t->type_id, false);
+  LLVMValueRef trait_id = LLVMConstInt(c->intptr, t->type_id, false);
 
-  // Read the count and the trait list from the descriptor.
-  LLVMValueRef count = desc_field(c, desc, DESC_TRAIT_COUNT);
-  LLVMValueRef list = desc_field(c, desc, DESC_TRAITS);
+  LLVMValueRef shift;
+  LLVMValueRef mask;
+  if(target_is_ilp32(c->opt->triple))
+  {
+    shift = LLVMConstInt(c->intptr, 5, false);
+    mask = LLVMConstInt(c->intptr, 31, false);
+  } else {
+    shift = LLVMConstInt(c->intptr, 6, false);
+    mask = LLVMConstInt(c->intptr, 63, false);
+  }
 
-  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
-  LLVMBasicBlockRef body_block = codegen_block(c, "body");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-  LLVMBuildBr(c->builder, cond_block);
+  shift = LLVMConstLShr(trait_id, shift);
+  mask = LLVMConstAnd(trait_id, mask);
+  mask = LLVMConstShl(LLVMConstInt(c->intptr, 1, false), mask);
 
-  // While the index is less than the count, check an ID.
-  LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i32, "");
-  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
-  LLVMAddIncoming(phi, &zero, &entry_block, 1);
+  LLVMValueRef bitmap = desc_field(c, desc, DESC_TRAITS);
 
-  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
-  LLVMBuildCondBr(c->builder, test, body_block, post_block);
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(c->intptr, 0, false);
+  args[1] = shift;
 
-  // The phi node is the index. Get ID and compare it.
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
+  LLVMValueRef index = LLVMBuildInBoundsGEP(c->builder, bitmap, args, 2, "");
+  index = LLVMBuildLoad(c->builder, index, "");
 
-  LLVMValueRef gep[2];
-  gep[0] = LLVMConstInt(c->i32, 0, false);
-  gep[1] = phi;
-
-  LLVMValueRef id_ptr = LLVMBuildInBoundsGEP(c->builder, list, gep, 2, "");
-  LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "");
-  const char node_id[] = "tbaa";
-  LLVMSetMetadata(id, LLVMGetMDKindID(node_id, sizeof(node_id) - 1),
+  const char id[] = "tbaa";
+  LLVMSetMetadata(index, LLVMGetMDKindID(id, sizeof(id) - 1),
     c->tbaa_descriptor);
-  LLVMValueRef test_id = LLVMBuildICmp(c->builder, LLVMIntEQ, id, trait_id,
-    "");
 
-  // Add one to the phi node.
-  LLVMValueRef one = LLVMConstInt(c->i32, 1, false);
-  LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
-  LLVMAddIncoming(phi, &inc, &body_block, 1);
+  LLVMValueRef has_trait = LLVMBuildAnd(c->builder, index, mask, "");
+  has_trait = LLVMBuildICmp(c->builder, LLVMIntNE, has_trait,
+    LLVMConstInt(c->intptr, 0, false), "");
 
-  // Either to the post block or back to the condition.
-  LLVMBuildCondBr(c->builder, test_id, post_block, cond_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef result = LLVMBuildPhi(c->builder, c->i1, "");
-  LLVMAddIncoming(result, &test, &cond_block, 1);
-  LLVMAddIncoming(result, &test_id, &body_block, 1);
-
-  return result;
+  return has_trait;
 }
 
 LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)

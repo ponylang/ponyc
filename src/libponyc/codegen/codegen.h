@@ -167,6 +167,8 @@ typedef struct compile_t
   const char* str__serialise;
   const char* str__deserialise;
 
+  uint32_t trait_bitmap_size;
+
   LLVMCallConv callconv;
   LLVMLinkage linkage;
   LLVMContextRef context;

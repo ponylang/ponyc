@@ -114,7 +114,6 @@ typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
-  uint32_t trait_count;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -127,7 +126,7 @@ typedef const struct _pony_type_t
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
-  uint32_t** traits;
+  uintptr_t** traits;
   void* fields;
   void* vtable;
 } pony_type_t;
