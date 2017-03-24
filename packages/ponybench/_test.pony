@@ -12,11 +12,11 @@ class iso _TestAutoOps is UnitTest
   fun apply(h: TestHelper) =>
     let ao = _AutoOps(1_000_000_000, 100_000_000)
     let tests: Array[(U64, U64, U64)] = [
-      (10, 1000, 1000),
-      (20, 1000, 2000),
-      (30, 1000, 3000),
-      (40, 1000, 5000),
-      (50, 1000, 5000),
+      (10, 1000, 1000)
+      (20, 1000, 2000)
+      (30, 1000, 3000)
+      (40, 1000, 5000)
+      (50, 1000, 5000)
       (60, 1000, 10000)
     ]
     for (ops, time, expected) in tests.values() do

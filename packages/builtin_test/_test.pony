@@ -176,7 +176,7 @@ class iso _TestStringRunes is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let s = "\u16ddx\ufb04"
-    let expect = [as U32: 0x16dd, 'x', 0xfb04]
+    let expect = [as U32: 0x16dd; 'x'; 0xfb04]
     let result = Array[U32]
 
     for c in s.runes() do
@@ -503,10 +503,10 @@ class iso _TestStringIsNullTerminated is UnitTest
     h.assert_false("0123456".trim(2, 4).is_null_terminated())
 
     h.assert_true(String.from_iso_array(recover
-      ['a', 'b', 'c']
+      ['a'; 'b'; 'c']
     end).is_null_terminated())
     h.assert_false(String.from_iso_array(recover
-      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] // power of two sized array
+      ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] // power of two sized array
     end).is_null_terminated())
 
 
@@ -698,9 +698,9 @@ class iso _TestStringJoin is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String]("_".join(["zomg"]), "zomg")
-    h.assert_eq[String]("_".join(["hi", "there"]), "hi_there")
-    h.assert_eq[String](" ".join(["1", "", "2", ""]), "1  2 ")
-    h.assert_eq[String](" ".join([as Stringable: U32(1), U32(4)]), "1 4")
+    h.assert_eq[String]("_".join(["hi"; "there"]), "hi_there")
+    h.assert_eq[String](" ".join(["1"; ""; "2"; ""]), "1  2 ")
+    h.assert_eq[String](" ".join([as Stringable: U32(1); U32(4)]), "1 4")
     h.assert_eq[String](" ".join(Array[String]), "")
 
 
@@ -931,11 +931,11 @@ class iso _TestStringFromArray is UnitTest
   fun name(): String => "builtin/String.from_array"
 
   fun apply(h: TestHelper) =>
-    let s_null = String.from_array(recover ['f', 'o', 'o', 0] end)
+    let s_null = String.from_array(recover ['f'; 'o'; 'o'; 0] end)
     h.assert_eq[String](s_null, "foo\x00")
     h.assert_eq[USize](s_null.size(), 4)
 
-    let s_no_null = String.from_array(recover ['f', 'o', 'o'] end)
+    let s_no_null = String.from_array(recover ['f'; 'o'; 'o'] end)
     h.assert_eq[String](s_no_null, "foo")
     h.assert_eq[USize](s_no_null.size(), 3)
 
@@ -944,13 +944,13 @@ class iso _TestStringFromIsoArray is UnitTest
   fun name(): String => "builtin/String.from_iso_array"
 
   fun apply(h: TestHelper) =>
-    let s = recover val String.from_iso_array(recover ['f', 'o', 'o'] end) end
+    let s = recover val String.from_iso_array(recover ['f'; 'o'; 'o'] end) end
     h.assert_eq[String](s, "foo")
     h.assert_eq[USize](s.size(), 3)
     h.assert_true((s.space() == 3) xor s.is_null_terminated())
 
     let s2 = recover val String.from_iso_array(recover
-      ['1', '1', '1', '1', '1', '1', '1', '1']
+      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
     end) end
     h.assert_eq[String](s2, "11111111")
     h.assert_eq[USize](s2.size(), 8)
@@ -962,7 +962,7 @@ class iso _TestStringSpace is UnitTest
 
   fun apply(h: TestHelper) =>
     let s = String.from_iso_array(recover
-      ['1', '1', '1', '1', '1', '1', '1', '1']
+      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
     end)
 
     h.assert_eq[USize](s.size(), 8)
@@ -975,7 +975,7 @@ class iso _TestStringRecalc is UnitTest
 
   fun apply(h: TestHelper) =>
     let s: String ref = String.from_iso_array(recover
-      ['1', '1', '1', '1', '1', '1', '1', '1']
+      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
     end)
     s.recalc()
     h.assert_eq[USize](s.size(), 8)
@@ -989,7 +989,7 @@ class iso _TestStringRecalc is UnitTest
     h.assert_true(s2.is_null_terminated())
 
     let s3: String ref = String.from_iso_array(recover
-      ['1', 0, 0, 0, 0, 0, 0, '1']
+      ['1'; 0; 0; 0; 0; 0; 0; '1']
     end)
     s3.truncate(1)
     s3.recalc()
@@ -1003,7 +1003,7 @@ class iso _TestStringTruncate is UnitTest
 
   fun apply(h: TestHelper) =>
     let s = recover ref String.from_iso_array(recover
-      ['1', '1', '1', '1', '1', '1', '1', '1']
+      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
     end) end
     s.truncate(s.space())
     h.assert_true(s.is_null_terminated())
@@ -1027,8 +1027,8 @@ class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
 
   fun apply(h: TestHelper) ? =>
-    var a = ["one", "two", "three"]
-    var b = ["four", "five", "six"]
+    var a = ["one"; "two"; "three"]
+    var b = ["four"; "five"; "six"]
     a.append(b)
     h.assert_eq[USize](a.size(), 6)
     h.assert_eq[String]("one", a(0))
@@ -1038,8 +1038,8 @@ class iso _TestArrayAppend is UnitTest
     h.assert_eq[String]("five", a(4))
     h.assert_eq[String]("six", a(5))
 
-    a = ["one", "two", "three"]
-    b = ["four", "five", "six"]
+    a = ["one"; "two"; "three"]
+    b = ["four"; "five"; "six"]
     a.append(b, 1)
     h.assert_eq[USize](a.size(), 5)
     h.assert_eq[String]("one", a(0))
@@ -1048,8 +1048,8 @@ class iso _TestArrayAppend is UnitTest
     h.assert_eq[String]("five", a(3))
     h.assert_eq[String]("six", a(4))
 
-    a = ["one", "two", "three"]
-    b = ["four", "five", "six"]
+    a = ["one"; "two"; "three"]
+    b = ["four"; "five"; "six"]
     a.append(b, 1, 1)
     h.assert_eq[USize](a.size(), 4)
     h.assert_eq[String]("one", a(0))
@@ -1062,8 +1062,8 @@ class iso _TestArrayConcat is UnitTest
   fun name(): String => "builtin/Array.concat"
 
   fun apply(h: TestHelper) ? =>
-    var a = ["one", "two", "three"]
-    var b = ["four", "five", "six"]
+    var a = ["one"; "two"; "three"]
+    var b = ["four"; "five"; "six"]
     a.concat(b.values())
     h.assert_eq[USize](a.size(), 6)
     h.assert_eq[String]("one", a(0))
@@ -1073,8 +1073,8 @@ class iso _TestArrayConcat is UnitTest
     h.assert_eq[String]("five", a(4))
     h.assert_eq[String]("six", a(5))
 
-    a = ["one", "two", "three"]
-    b = ["four", "five", "six"]
+    a = ["one"; "two"; "three"]
+    b = ["four"; "five"; "six"]
     a.concat(b.values(), 1)
     h.assert_eq[USize](a.size(), 5)
     h.assert_eq[String]("one", a(0))
@@ -1083,8 +1083,8 @@ class iso _TestArrayConcat is UnitTest
     h.assert_eq[String]("five", a(3))
     h.assert_eq[String]("six", a(4))
 
-    a = ["one", "two", "three"]
-    b = ["four", "five", "six"]
+    a = ["one"; "two"; "three"]
+    b = ["four"; "five"; "six"]
     a.concat(b.values(), 1, 1)
     h.assert_eq[USize](a.size(), 4)
     h.assert_eq[String]("one", a(0))
@@ -1100,7 +1100,7 @@ class iso _TestArraySlice is UnitTest
   fun name(): String => "builtin/Array.slice"
 
   fun apply(h: TestHelper) ? =>
-    let a = ["one", "two", "three", "four", "five"]
+    let a = ["one"; "two"; "three"; "four"; "five"]
 
     let b = a.slice(1, 4)
     h.assert_eq[USize](b.size(), 3)
@@ -1136,10 +1136,10 @@ class iso _TestArrayTrim is UnitTest
   fun name(): String => "builtin/Array.trim"
 
   fun apply(h: TestHelper) =>
-    let orig: Array[U8] val = recover [0, 1, 2, 3, 4, 5, 6] end
-    h.assert_array_eq[U8]([as U8: 4, 5], orig.trim(4, 6))
-    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4, 7))
-    h.assert_array_eq[U8]([as U8: 4, 5, 6], orig.trim(4))
+    let orig = recover val [as U8: 0; 1; 2; 3; 4; 5; 6] end
+    h.assert_array_eq[U8]([as U8: 4; 5], orig.trim(4, 6))
+    h.assert_array_eq[U8]([as U8: 4; 5; 6], orig.trim(4, 7))
+    h.assert_array_eq[U8]([as U8: 4; 5; 6], orig.trim(4))
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
 
@@ -1151,11 +1151,11 @@ class iso _TestArrayTrimInPlace is UnitTest
   fun name(): String => "builtin/Array.trim_in_place"
 
   fun apply(h: TestHelper) =>
-    case(h, [4, 5], [0, 1, 2, 3, 4, 5, 6], 4, 6)
-    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4, 7)
-    case(h, [4, 5, 6], [0, 1, 2, 3, 4, 5, 6], 4)
-    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 4)
-    case(h, Array[U8], [0, 1, 2, 3, 4, 5, 6], 4, 1)
+    case(h, [4; 5], [0; 1; 2; 3; 4; 5; 6], 4, 6)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4, 7)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1)
 
   fun case(h: TestHelper, expected: Array[U8], orig: Array[U8], from: USize,
     to: USize = -1)
@@ -1171,19 +1171,19 @@ class iso _TestArrayInsert is UnitTest
   fun name(): String => "builtin/Array.insert"
 
   fun apply(h: TestHelper) ? =>
-    let a = ["one", "three"]
+    let a = ["one"; "three"]
     a.insert(0, "zero")
-    h.assert_array_eq[String](["zero", "one", "three"], a)
+    h.assert_array_eq[String](["zero"; "one"; "three"], a)
 
-    let b = ["one", "three"]
+    let b = ["one"; "three"]
     b.insert(1, "two")
-    h.assert_array_eq[String](["one", "two", "three"], b)
+    h.assert_array_eq[String](["one"; "two"; "three"], b)
 
-    let c = ["one", "three"]
+    let c = ["one"; "three"]
     c.insert(2, "four")
-    h.assert_array_eq[String](["one", "three", "four"], c)
+    h.assert_array_eq[String](["one"; "three"; "four"], c)
 
-    h.assert_error({()? => ["one", "three"].insert(3, "invalid") })
+    h.assert_error({()? => ["one"; "three"].insert(3, "invalid") })
 
 class iso _TestArrayValuesRewind is UnitTest
   """
@@ -1192,7 +1192,7 @@ class iso _TestArrayValuesRewind is UnitTest
   fun name(): String => "builtin/ArrayValues.rewind"
 
   fun apply(h: TestHelper) ? =>
-    let av = [as U32: 1, 2, 3, 4].values()
+    let av = [as U32: 1; 2; 3; 4].values()
 
     h.assert_eq[U32](1, av.next())
     h.assert_eq[U32](2, av.next())
@@ -1221,7 +1221,7 @@ class iso _TestArrayFind is UnitTest
   fun name(): String => "builtin/Array.find"
 
   fun apply(h: TestHelper) ? =>
-    let a: Array[ISize] = [0, 1, 2, 3, 4, 1]
+    let a = [as ISize: 0; 1; 2; 3; 4; 1]
     h.assert_eq[USize](1, a.find(1))
     h.assert_eq[USize](5, a.find(1 where offset = 3))
     h.assert_eq[USize](5, a.find(1 where nth = 1))

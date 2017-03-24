@@ -99,14 +99,14 @@ class iso _TestFilter is UnitTest
   fun name(): String => "files/Glob.filter"
 
   fun apply(h: TestHelper) ? =>
-    let m = Glob.filter([ "12/a/Bcd", "12/q/abd", "34/b/Befd"], "*/?/B*d")
+    let m = Glob.filter(["12/a/Bcd"; "12/q/abd"; "34/b/Befd"], "*/?/B*d")
     h.assert_eq[USize](2, m.size())
 
     h.assert_eq[String](m(0)._1, "12/a/Bcd")
-    h.assert_array_eq[String](["12", "a", "c"], m(0)._2)
+    h.assert_array_eq[String](["12"; "a"; "c"], m(0)._2)
 
     h.assert_eq[String](m(1)._1, "34/b/Befd")
-    h.assert_array_eq[String](["34", "b", "ef"], m(1)._2)
+    h.assert_array_eq[String](["34"; "b"; "ef"], m(1)._2)
 
 class iso _TestGlob is UnitTest
   fun name(): String => "files/FilePath.glob"
@@ -118,10 +118,10 @@ class iso _TestGlob is UnitTest
     res
 
   fun apply(h: TestHelper) ? =>
-    let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
+    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])
     try
       h.assert_array_eq_unordered[String](
-        ["a/1", "c/1"], _rel(top, Glob.glob(top, "*/1")))
+        ["a/1"; "c/1"], _rel(top, Glob.glob(top, "*/1")))
       h.assert_array_eq_unordered[String](
         Array[String], _rel(top, Glob.glob(top, "1")))
     then
@@ -138,7 +138,7 @@ class iso _TestIGlob is UnitTest
     res
 
   fun apply(h: TestHelper) ? =>
-    let top = _FileHelper.make_files(h, ["a/1", "a/2", "b", "c/1", "c/4"])
+    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])
     try
       Glob.iglob(top, "*/1", {(f: FilePath, matches: Array[String])(top, h) =>
         try

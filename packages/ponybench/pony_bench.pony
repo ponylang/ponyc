@@ -114,14 +114,20 @@ actor PonyBench
 
   be _result(name: String, ops: U64, nspo: U64) =>
     _remove(name)
-    let sl = [name, "\t", Format.int[U64](ops where width=10), "\t",
-      Format.int[U64](nspo where width=10), " ns/op"]
+    let sl =
+      [ name
+        "\t"
+        Format.int[U64](ops where width=10)
+        "\t"
+        Format.int[U64](nspo where width=10)
+        " ns/op"
+      ]
     _env.out.print(String.join(sl))
     _next()
 
   be _failure(name: String, timeout: Bool) =>
     _remove(name)
-    let sl = [ANSI.red(), "**** FAILED Benchmark: ", name]
+    let sl = [ANSI.red(); "**** FAILED Benchmark: "; name]
     if timeout then
       sl.push(" (timeout)")
     end

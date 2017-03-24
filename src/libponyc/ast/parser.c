@@ -394,8 +394,7 @@ DEF(array);
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
   OPT RULE("element type", arraytype);
-  RULE("array element", rawseq);
-  WHILE(TK_COMMA, RULE("array element", rawseq));
+  RULE("array elements", rawseq);
   TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
@@ -405,8 +404,7 @@ DEF(nextarray);
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE_NEW);
   OPT RULE("element type", arraytype);
-  RULE("array element", rawseq);
-  WHILE(TK_COMMA, RULE("array element", rawseq));
+  RULE("array elements", rawseq);
   TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
