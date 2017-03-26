@@ -520,6 +520,8 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_replace(&result,
     type_for_class(opt, def, result, cap_id, TK_EPHEMERAL, false));
 
+  // ast_print(def);
+
   // Type check the anonymous type.
   if(!ast_passes_type(&def, opt, PASS_EXPR))
     return false;
