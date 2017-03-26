@@ -413,3 +413,16 @@ TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
     "arrow types can't be used as type constraints",
     "arrow types can't be used as type constraints");
 }
+
+TEST_F(BadPonyTest, AnnotatedIfClause)
+{
+  // From issue #1751
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if \\likely\\ U32(1) == 1 then\n"
+    "      None\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+}

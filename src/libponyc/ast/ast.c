@@ -35,20 +35,14 @@
  */
 
 /* Every AST node has an annotation_type field, which points to the annotation
- * node when there is one (when the AST_ANNOTATED flag is set). If there is a
- * type node attached, it is in the annotation_type field of the annotation,
- * when there is one. If there is no annotation (when AST_ANNOTATED is not set),
- * the type will be stored in the annotation_type field.
+ * node when there is one. If there is a type node attached, it is in the
+ * annotation_type field of the annotation, when there is one. If there is
+ * no annotation, the type will be stored in the annotation_type field.
  *
- * This works because an annotation cannot have an annotation attached.
+ * These situations can be distinguished because an annotation must always be a
+ * TK_BACKSLASH, and the type may never be a TK_BACKSLASH.
  *
- * AST_ANNOTATED  annotation_type  annotation_type->annotation_type
- * true           annotation       type (if any)
- * false          type (if any)    NULL
- *
- * The annotation_type field and AST_ANNOTATED flag should always be considered
- * as a unit. It is STRONGLY recommended to only access them through the
- * provided functions:
+ * It is STRONGLY recommended to only access them through provided functions:
  *   ast_type()
  *   settype()
  *   ast_annotation()
@@ -61,8 +55,7 @@ enum
   AST_ORPHAN = 0x10,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ANNOTATED = 0x80000,
-  AST_ALL_FLAGS = 0xFFFFF
+  AST_ALL_FLAGS = 0x7FFFF
 };
 
 
@@ -347,7 +340,6 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
   n->flags = ast->flags & AST_ALL_FLAGS;
-  ast_clearflag(n, AST_ANNOTATED);
   // We don't actually want to copy the orphan flag, but the following if
   // always explicitly sets or clears it.
 
@@ -660,22 +652,30 @@ ast_t* ast_type(ast_t* ast)
 {
   pony_assert(ast != NULL);
 
-  // If the node is AST_ANNOTATED, the type node is in the annotation_type field
-  // of the annotation node (ast->annotation_type->annotation_type).
-  if(ast_checkflag(ast, AST_ANNOTATED))
-  {
-    pony_assert(ast->annotation_type);
-    return ast->annotation_type->annotation_type;
-  }
+  // An annotation may never have a type.
+  if(ast_id(ast) == TK_BACKSLASH)
+    return NULL;
 
-  // Otherwise (when there is no annotation), the type node is in the
-  // annotation_type field of the main node (ast->annotation_type).
-  return ast->annotation_type;
+  // If the annotation_type is an annotation, the type node (if any) is in the
+  // annotation_type field of the annotation node.
+  ast_t* type = ast->annotation_type;
+  if((type != NULL) && (ast_id(type) == TK_BACKSLASH))
+    type = type->annotation_type;
+
+  return type;
 }
 
 static void settype(ast_t* ast, ast_t* type, bool allow_free)
 {
   pony_assert(ast != NULL);
+
+  // An annotation may never have a type.
+  if(ast_id(ast) == TK_BACKSLASH)
+    pony_assert(type == NULL);
+
+  // A type can never be a TK_BACKSLASH (the annotation token).
+  if(type != NULL)
+    pony_assert(ast_id(type) != TK_BACKSLASH);
 
   ast_t* prev_type = ast_type(ast);
   if(prev_type == type)
@@ -689,13 +689,11 @@ static void settype(ast_t* ast, ast_t* type, bool allow_free)
     set_scope_and_parent(type, ast);
   }
 
-  if(ast_checkflag(ast, AST_ANNOTATED))
-  {
-    pony_assert(ast->annotation_type);
+  if((ast->annotation_type != NULL) &&
+    (ast_id(ast->annotation_type) == TK_BACKSLASH))
     ast->annotation_type->annotation_type = type;
-  } else {
+  else
     ast->annotation_type = type;
-  }
 
   if(allow_free)
     ast_free(prev_type);
@@ -710,28 +708,29 @@ ast_t* ast_annotation(ast_t* ast)
 {
   pony_assert(ast != NULL);
 
-  // If the node is AST_ANNOTATED, the annotation node is in the annotation_type
-  // field of the main node (ast->annotation_type).
-  // If the main node has a type, it will be in the annotation_type field of the
-  // annotation node (ast->annotation_type->annotation->type)
-  if(ast_checkflag(ast, AST_ANNOTATED))
-  {
-    pony_assert(ast->annotation_type != NULL);
-    ast_t* annotation = ast->annotation_type;
+  // An annotation may never be annotated.
+  if(ast_id(ast) == TK_BACKSLASH)
+    return NULL;
 
-    // An annotation is not assigned a parent, and will never be annotated.
-    pony_assert(!hasparent(annotation) && !ast_annotation(annotation));
+  // If annotation_type is an annotation, we return it.
+  ast_t* annotation = ast->annotation_type;
+  if((annotation != NULL) && (ast_id(annotation) == TK_BACKSLASH))
     return annotation;
-  }
 
-  // If the AST_ANNOTATED flag is not set, this node has no annotation.
-  // If a node exists in the annotation_type field, it must be the type.
   return NULL;
 }
 
 void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
 {
   pony_assert(ast != NULL);
+
+  // An annotation may never be annotated.
+  if(ast_id(ast) == TK_BACKSLASH)
+    pony_assert(annotation == NULL);
+
+  // An annotation must always be a TK_BACKSLASH (or NULL).
+  if(annotation != NULL)
+    pony_assert(ast_id(annotation) == TK_BACKSLASH);
 
   ast_t* prev_annotation = ast_annotation(ast);
   if(prev_annotation == annotation)
@@ -751,13 +750,11 @@ void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
     }
 
     ast->annotation_type = annotation;
-    ast_setflag(ast, AST_ANNOTATED);
   } else {
     pony_assert(prev_annotation != NULL);
 
     ast->annotation_type = prev_annotation->annotation_type;
     prev_annotation->annotation_type = NULL;
-    ast_clearflag(ast, AST_ANNOTATED);
   }
 
   if(allow_free)
