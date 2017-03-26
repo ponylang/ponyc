@@ -82,6 +82,8 @@ static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     return;
 
   ast_setid(ast, TK_TYPEREF);
+  ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+  ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
   ast_settype(ast, typearg);
 }
 

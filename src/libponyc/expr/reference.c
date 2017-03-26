@@ -200,22 +200,26 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast) == TK_TYPEREF);
   AST_GET_CHILDREN(ast, package, id, typeargs);
 
-  // Assemble the type node from the package name and type name strings.
-  const char* name = ast_name(id);
-  const char* package_name =
-    (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
-  ast_t* type = type_sugar_args(ast, package_name, name, typeargs);
-  ast_settype(ast, type);
-
-  if(is_typecheck_error(type))
-    return false;
-
-  // Has to be valid.
-  if(!expr_nominal(opt, &type))
+  ast_t* type = ast_type(ast);
+  if(type == NULL || (ast_id(type) == TK_INFERTYPE))
   {
-    ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-    ast_free_unattached(type);
-    return false;
+    // Assemble the type node from the package name and type name strings.
+    const char* name = ast_name(id);
+    const char* package_name =
+      (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
+    type = type_sugar_args(ast, package_name, name, typeargs);
+    ast_settype(ast, type);
+
+    if(is_typecheck_error(type))
+      return false;
+
+    // Has to be valid.
+    if(!expr_nominal(opt, &type))
+    {
+      ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+      ast_free_unattached(type);
+      return false;
+    }
   }
 
   switch(ast_id(ast_parent(ast)))

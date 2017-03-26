@@ -699,7 +699,7 @@ TEST_F(TraitsTest, TypeargInFunction2)
     " fun foo(): A =>\n"
     "   A\n"
 
-    "class Baz is T3[(T2 & P)]\n"
+    "class Baz is T3[P]\n"
     " fun bar(): P => foo()\n";
 
   // Tests typearg reification in methods inherited from parameterised traits.
