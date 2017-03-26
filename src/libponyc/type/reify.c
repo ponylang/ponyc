@@ -62,6 +62,29 @@ static void reify_arrow(ast_t** astp)
   ast_replace(astp, r_type);
 }
 
+static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+{
+  ast_t* ast = *astp;
+  pony_assert(ast_id(ast) == TK_REFERENCE);
+
+  const char* name = ast_name(ast_child(ast));
+
+  sym_status_t status;
+  ast_t* ref_def = ast_get(ast, name, &status);
+
+  if(ref_def == NULL)
+    return;
+
+  ast_t* param_def = (ast_t*)ast_data(typeparam);
+  pony_assert(param_def != NULL);
+
+  if(ref_def != param_def)
+    return;
+
+  ast_setid(ast, TK_TYPEREF);
+  ast_settype(ast, typearg);
+}
+
 static void reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
@@ -86,6 +109,10 @@ static void reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 
     case TK_ARROW:
       reify_arrow(astp);
+      break;
+
+    case TK_REFERENCE:
+      reify_reference(astp, typeparam, typearg);
       break;
 
     default: {}

@@ -6,15 +6,53 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
-- Fix FreeBSD 11 compilation
+- Fix false positive test failure on 32 bits (PR #1749)
 
 ### Added
 
 
 ### Changed
 
+- Arrays as sequences (PR #1741)
 
+
+## [0.11.4] - 2017-03-23
+
+### Fixed
+
+- Identity comparison of boxed values (PR #1726)
+- Reify type refs in inherited method bodies (PR #1722)
+- Fix compilation error on non-x86 systems (PR #1718)
+- Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
+- Fix compiling errors for 32-bit (PR #1709)
+- Improved persistent map api (RFC 36) (PR #1705)
+- Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
+- Segmentation fault on runtime termination.
+
+## [0.11.3] - 2017-03-16
+
+### Fixed
+
+- Build Linux release binaries correctly (PR #1699)
+
+## [0.11.2] - 2017-03-16
+
+### Fixed
+
+- Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
+- Correctly pass `arch=` when building docker image (PR #1681)
+
+### Changed
+
+- Make buffered.Reader.append accept any ByteSeq. (PR #1644)
+
+## [0.11.1] - 2017-03-14
+
+### Fixed
+
+- Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
+- Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
+- Fix FreeBSD 11 compilation
 
 ## [0.11.0] - 2017-03-11
 

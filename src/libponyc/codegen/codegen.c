@@ -428,11 +428,10 @@ static void init_runtime(compile_t* c)
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
 #endif
 
-  // i8* pony_alloc_final(i8*, intptr, c->final_fn)
+  // i8* pony_alloc_final(i8*, intptr)
   params[0] = c->void_ptr;
   params[1] = c->intptr;
-  params[2] = c->final_fn;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -449,6 +448,50 @@ static void init_runtime(compile_t* c)
 #  endif
   LLVMSetReturnNoAlias(value);
   LLVMSetDereferenceableOrNull(value, 0, HEAP_MIN);
+#endif
+
+  // i8* pony_alloc_small_final(i8*, i32)
+  params[0] = c->void_ptr;
+  params[1] = c->i32;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_alloc_small_final", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_alloc_small_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#  if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
+  LLVMSetReturnNoAlias(value);
+  LLVMSetDereferenceable(value, 0, HEAP_MIN);
+#endif
+
+  // i8* pony_alloc_large_final(i8*, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_alloc_large_final", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
+    inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
+    deref_alloc_large_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+#else
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#  if PONY_LLVM >= 308
+  LLVMSetInaccessibleMemOrArgMemOnly(value);
+#  endif
+  LLVMSetReturnNoAlias(value);
+  LLVMSetDereferenceable(value, 0, HEAP_MAX << 1);
 #endif
 
   // $message* pony_alloc_msg(i32, i32)
@@ -720,6 +763,26 @@ static void init_runtime(compile_t* c)
   // i32 pony_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
+
+  // i32 memcmp(i8*, i8*, intptr)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[2] = c->intptr;
+  type = LLVMFunctionType(c->i32, params, 3, false);
+  value = LLVMAddFunction(c->module, "memcmp", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
+  LLVMAddAttributeAtIndex(value, 1, readonly_attr);
+  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
+#else
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMAddFunctionAttr(value, LLVMReadOnlyAttribute);
+  LLVMValueRef param = LLVMGetParam(value, 0);
+  LLVMAddAttribute(param, LLVMReadOnlyAttribute);
+  param = LLVMGetParam(value, 1);
+  LLVMAddAttribute(param, LLVMReadOnlyAttribute);
+#endif
 }
 
 static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
@@ -967,6 +1030,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   reach(c->reach, main_ast, c->str_create, NULL, opt);
   reach(c->reach, env_ast, c->str__create, NULL, opt);
+  reach_done(c->reach, c->opt);
 
   if(opt->limit == PASS_REACH)
     return true;

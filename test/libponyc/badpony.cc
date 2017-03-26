@@ -310,7 +310,7 @@ TEST_F(BadPonyTest, IndexArrayWithBrackets)
   const char* src =
     "actor Main\n"
       "new create(env: Env) =>\n"
-        "let xs = [as I64: 1, 2, 3]\n"
+        "let xs = [as I64: 1; 2; 3]\n"
         "xs[1]";
 
   TEST_ERRORS_1(src, "Value formal parameters not yet supported");
@@ -388,4 +388,28 @@ TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
         "x.boom()";
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}
+
+TEST_F(BadPonyTest, TypeParamArrowClass)
+{
+  // From issue #1687
+  const char* src =
+    "class C1\n"
+
+    "trait Test[A]\n"
+      "fun foo(a: A): A->C1";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
+{
+  // From issue #1694
+  const char* src =
+    "trait T1[A: B->A, B]\n"
+    "trait T2[A: box->B, B]";
+
+  TEST_ERRORS_2(src,
+    "arrow types can't be used as type constraints",
+    "arrow types can't be used as type constraints");
 }

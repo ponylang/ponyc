@@ -34,8 +34,8 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     _level = l
 
   fun val apply(hash: U32, key: K): V ? =>
-    let idx = _mask(hash, _level)
-    let i = _array_index(_nodemap, _datamap, idx)
+    let idx = _Bits.mask(hash, _level)
+    let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then error end
     match _entries(i.usize_unsafe())
     | (_, let v: V) => v
@@ -49,15 +49,15 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     end
 
   fun val update(hash: U32, leaf: _MapLeaf[K, V]): (_MapNode[K, V], Bool) ? =>
-    let idx = _mask(hash, _level)
-    let i = _array_index(_nodemap, _datamap, idx)
+    let idx = _Bits.mask(hash, _level)
+    let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then
       let es = recover _entries.clone() end
-      let dm = _set_bit(_datamap, idx)
-      let i' = _array_index(_nodemap, dm, idx)
+      let dm = _Bits.set_bit(_datamap, idx)
+      let i' = _compressed_index(_nodemap, dm, idx)
       es.insert(i'.usize_unsafe(), leaf)
       (create(consume es, _nodemap, dm, _level), true)
-    elseif _has_bit(_nodemap, idx) then
+    elseif _Bits.has_bit(_nodemap, idx) then
       if _level == 6 then
         // insert into collision node
         let es = recover _entries.clone() end
@@ -95,9 +95,9 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         cn.push(old)
         cn.push(leaf)
         let es = recover _entries.clone() end
-        let dm = _clear_bit(_datamap, idx)
-        let nm = _set_bit(_nodemap, idx)
-        let i' = _array_index(nm, dm, idx)
+        let dm = _Bits.clear_bit(_datamap, idx)
+        let nm = _Bits.set_bit(_nodemap, idx)
+        let i' = _compressed_index(nm, dm, idx)
         es.delete(i.usize_unsafe())
         es.insert(i'.usize_unsafe(), consume cn)
         (create(consume es, nm, dm, _level), true)
@@ -107,9 +107,9 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         (sn, _) = sn.update(old._1.hash().u32(), old) as (_MapNode[K, V], Bool)
         (sn, _) = sn.update(hash, leaf) as (_MapNode[K, V], Bool)
         let es = recover _entries.clone() end
-        let nm = _set_bit(_nodemap, idx)
-        let dm = _clear_bit(_datamap, idx)
-        let i' = _array_index(nm, dm, idx)
+        let nm = _Bits.set_bit(_nodemap, idx)
+        let dm = _Bits.clear_bit(_datamap, idx)
+        let i' = _compressed_index(nm, dm, idx)
         es.delete(i.usize_unsafe())
         es.insert(i'.usize_unsafe(), sn)
         (create(consume es, nm, dm, _level), true)
@@ -117,13 +117,13 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     end
 
   fun val remove(hash: U32, key: K): _MapNode[K, V] ? =>
-    let idx = _mask(hash, _level)
-    let i = _array_index(_nodemap, _datamap, idx)
+    let idx = _Bits.mask(hash, _level)
+    let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then error end
-    if _has_bit(_datamap, idx) then
+    if _Bits.has_bit(_datamap, idx) then
       var es = recover _entries.clone() end
       es.delete(i.usize())
-      create(consume es, _nodemap, _clear_bit(_datamap, idx), _level)
+      create(consume es, _nodemap, _Bits.clear_bit(_datamap, idx), _level)
     else
       if _level == 6 then
         let es = recover _entries.clone() end
@@ -143,10 +143,10 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         let es = recover _entries.clone() end
         if (_nodemap.popcount() == 0) and (_datamap.popcount() == 1) then
           for si in mut.Range[U32](0, 32) do
-            if _has_bit(_datamap, si) then
+            if _Bits.has_bit(_datamap, si) then
               es(i.usize_unsafe()) = sn._entries(si.usize_unsafe())
-              return create(consume es, _clear_bit(_nodemap, idx),
-                _set_bit(_datamap, idx), _level)
+              return create(consume es, _Bits.clear_bit(_nodemap, idx),
+                _Bits.set_bit(_datamap, idx), _level)
             end
           end
         end
@@ -155,20 +155,11 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       end
     end
 
-  fun _set_bit(bm: U32, i: U32): U32 => bm or (U32(1) <<~ i)
-
-  fun _clear_bit(bm: U32, i: U32): U32 => bm and (not (U32(1) <<~ i))
-
-  fun _has_bit(bm: U32, i: U32): Bool => (bm and (U32(1) <<~ i)) != 0
-
-  fun _mask(hash: U32, l: U8): U32 =>
-    (hash >> (U32(5) *~ l.u32_unsafe())) and 0x01f
-
-  fun _array_index(nm: U32, dm: U32, idx: U32): U32 =>
+  fun _compressed_index(nm: U32, dm: U32, idx: U32): U32 =>
     let msk = not(0xffff_ffff << idx)
     let np = msk and nm
     let dp = msk and dm
     let i = (np + dp).popcount()
-    if _has_bit(nm, idx) or _has_bit(dm, idx) then i else -1 end
+    if _Bits.has_bit(nm, idx) or _Bits.has_bit(dm, idx) then i else -1 end
 
   fun entries(): Array[_MapEntry[K, V]] val => _entries

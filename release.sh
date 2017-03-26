@@ -1,10 +1,8 @@
 #!/bin/bash
 
 case $OSTYPE in
-darwin*)
-  SED=gsed;;
-*)
-  SED=sed;;
+darwin*) SED=gsed;;
+*) SED=sed;;
 esac
 
 release_date=`date +%Y-%m-%d`
@@ -14,9 +12,9 @@ verify_args() {
   while true; do
     read -p "Is this correct (y/n)?" yn
     case $yn in
-      [Yy]* ) break;;
-      [Nn]* ) exit;;
-      * ) echo "Please answer y or n.";;
+    [Yy]*) break;;
+    [Nn]*) exit;;
+    *) echo "Please answer y or n.";;
     esac
   done
 }
@@ -43,7 +41,8 @@ remove_empty_sections() {
     local first_word=`echo $str_after | head -n1 | cut -d " " -f1`
     if [ $first_word != "-" ]; then
       echo "Removing empty CHANGELOG section: $section"
-      $SED -i "/### $section/ {N; N; d;}" CHANGELOG.md
+      local line_num=`grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1`
+      $SED -i "$line_num{N;N;d}" CHANGELOG.md
     fi
   done
 }
@@ -52,6 +51,18 @@ add_changelog_unreleased_section() {
   echo "Adding unreleased section to CHANGELOG"
   local replace='## [unreleased] - unreleased\n\n### Fixed\n\n\n### Added\n\n\n### Changed\n\n\n'
   $SED -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
+}
+
+check_for_commit_and_push() {
+  printf "Would you like to push CHANGELOG updates to master (y/n)? "
+  while true; do
+    read -r yn
+    case $yn in
+    [Yy]*) break;;
+    [Nn]*) exit;;
+    *) echo "Please answer y or n.";;
+    esac
+  done
 }
 
 if [ $# -le 2 ]; then
@@ -75,7 +86,9 @@ update_changelog
 
 # commit VERSION and CHANGELOG updates
 git add CHANGELOG.md VERSION
-git commit -m "Prep for $version release"
+git commit -m "Prep for $version release
+
+[skip ci]"
 
 # merge into release
 git checkout release
@@ -93,7 +106,12 @@ git checkout master
 git merge release-$version
 add_changelog_unreleased_section
 
+# check if user wants to continue
+check_for_commit_and_push
+
 # commit changelog and push to master
 git add CHANGELOG.md
-git commit -m "Add unreleased section to CHANGELOG post $version release prep"
+git commit -m "Add unreleased section to CHANGELOG post $version release prep
+
+[skip ci]"
 git push origin master

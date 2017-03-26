@@ -97,7 +97,7 @@ class _TestPong is UDPNotify
     let s = String.>append(consume data)
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
-      recover val [[U8('p'), U8('o'), U8('n'), U8('g'), U8('!')]] end,
+      recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
       from)
 
 class iso _TestBroadcast is UnitTest
@@ -290,7 +290,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
-    conn.writev(recover ["hello", ", hello"] end)
+    conn.writev(recover ["hello"; ", hello"] end)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("client connect")

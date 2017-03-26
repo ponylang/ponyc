@@ -294,7 +294,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 }
 
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
-  LLVMValueRef obj)
+  ast_t* method_body, LLVMValueRef obj)
 {
   uint32_t base = 0;
   if(t->underlying != TK_STRUCT)
@@ -314,7 +314,9 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
       continue;
 
     LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
+    codegen_debugloc(c, method_body);
     LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
+    codegen_debugloc(c, NULL);
   }
 }
 
@@ -329,7 +331,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
   name_params(c, t, m, params, m->func);
 
   if(m->func == t->final_fn)
-    call_embed_finalisers(c, t, gen_this(c, NULL));
+    call_embed_finalisers(c, t, body, gen_this(c, NULL));
 
   LLVMValueRef value = gen_expr(c, body);
 

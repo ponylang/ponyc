@@ -15,6 +15,12 @@
 bool expr_seq(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_SEQ);
+  ast_t* parent = ast_parent(ast);
+
+  // This sequence will be handled when the array literal is handled.
+  if(ast_id(parent) == TK_ARRAY)
+    return true;
+
   bool ok = true;
 
   // Any expression other than the last that is still literal is an error

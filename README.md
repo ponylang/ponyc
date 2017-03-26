@@ -61,23 +61,33 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 
 If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
 
+### Docker and AVX2 Support
+
+By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Linux using an RPM package (via Bintray)
 
 For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install release builds via Yum:
+To install release builds via DNF:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
-sudo yum install ponyc-release
+sudo dnf --refresh install ponyc
 ```
 
-Or, for master builds:
-```bash
-yum install ponyc-master
+Or via Yum:
 ```
+wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
+sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
+
+sudo yum install ponyc
+```
+
+### RPM and AVX2 Support
+
+By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Linux using a DEB package (via Bintray)
 
@@ -88,14 +98,13 @@ To install release builds via Apt:
 ```bash
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
-sudo apt-get install ponyc-release
+sudo apt-get install ponyc
 ```
 
 
-Or, for master builds:
-```
-sudo apt-get install ponyc-master
-```
+### DEB and AVX2 Support
+
+By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
 ## Arch Linux
 
@@ -128,15 +137,12 @@ $ brew install ponyc
 
 ## Windows using ZIP (via Bintray)
 
-For Windows, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-win](https://bintray.com/pony-language/ponyc-win)):
+Windows users will need to install:
 
-```powershell
-Invoke-WebRequest -Uri https://dl.bintray.com/pony-language/ponyc-win/ponyc-VERSION.zip -UseBasicParsing -OutFile ponyc-VERSION.zip
-7z x .\ponyc-VERSION.zip
-.\ponyc-VERSION\ponyc\bin\ponyc.exe --version
-```
+- Visual Studio 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+- Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
 
-Windows users will need to install Visual Studio 2015 (or the Visual C++ Build Tools 2015) and the Windows 10 SDK in order to build programs with ponyc. It can be downloaded from Microsoft ([Visual Studio](https://www.visualstudio.com/vs/community/), [Visual C++ Build Tools 2015](http://landinghub.visualstudio.com/visual-cpp-build-tools), [SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
 # Building ponyc from source
 
@@ -235,7 +241,14 @@ $ sudo apt-get update
 $ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
 ```
 
-You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.
+You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.  Then you can extract that LLVM to `/usr/local`, for example, like so:
+
+```bash
+tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
+    --strip-components 1 -C /usr/local/ \
+    clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+```
+where `${LLVM_VERSION}` is whatever version of LLVM you've downloaded the `.xz` file for.
 
 To build ponyc, compile and run helloworld:
 
@@ -299,18 +312,18 @@ Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently p
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.7.1 or 3.8.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install these dependencies.
+You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies. Please note that llvm 3.9.1 is not available via homebrew. As such, the instructions below install 3.8.1
 
 Installation via [homebrew](http://brew.sh):
 ```
 $ brew update
-$ brew install homebrew/versions/llvm38 pcre2 libressl
+$ brew install llvm@3.9 pcre2 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-$ sudo port install llvm-3.8 pcre2 libressl
-$ sudo port select --set llvm mp-llvm-3.8
+$ sudo port install llvm-3.9 pcre2 libressl
+$ sudo port select --set llvm mp-llvm-3.9
 ```
 
 Launch the build with `make` after installing the dependencies:
@@ -382,9 +395,8 @@ Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for a
 
 Use VirtualBox 5.x to avoid possible problems.
 
-## AVX2 Support
 
-The Pony prebuilt binaries trigger illegal instruction errors under CPUs without [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
+You can learn more about [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#Advanced_Vector_Extensions_2) support.
 
 ## Building Pony on Non-x86 platforms
 

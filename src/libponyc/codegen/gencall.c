@@ -451,6 +451,37 @@ static size_t tuple_indices_pop(call_tuple_indices_t* ti)
   return ti->data[--ti->count];
 }
 
+static bool contains_boxable(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+      return true;
+
+    case TK_NOMINAL:
+      return is_machine_word(type);
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        if(contains_boxable(type))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
 static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
   const char* method_name)
 {
@@ -467,17 +498,6 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
     default: {}
   }
 
-  size_t param_count = m->param_count;
-  size_t alloc_index = ponyint_pool_index(param_count * sizeof(bool));
-  bool* boxed_params = (bool*)ponyint_pool_alloc(alloc_index);
-  memset(boxed_params, 0, param_count * sizeof(bool));
-
-  for(size_t i = 0; i < param_count; i++)
-  {
-    if(m->params[i].type->can_be_boxed)
-      boxed_params[i] = true;
-  }
-
   size_t i = HASHMAP_BEGIN;
   reach_type_t* sub;
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
@@ -487,45 +507,48 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
     if(m_sub == NULL)
       continue;
 
-    bool early_bailout = false;
     switch(sub->underlying)
     {
       case TK_CLASS:
       case TK_PRIMITIVE:
-        early_bailout = true;
-        break;
+        return false;
 
       case TK_ACTOR:
         if(ast_id(m_sub->r_fun) == TK_FUN)
-          early_bailout = true;
+          return false;
         break;
 
       default: {}
     }
 
-    if(early_bailout)
-    {
-      ponyint_pool_free(alloc_index, boxed_params);
-      return false;
-    }
-
-    pony_assert(param_count == m_sub->param_count);
-    for(size_t i = 0; i < param_count; i++)
+    pony_assert(m->param_count == m_sub->param_count);
+    for(size_t i = 0; i < m->param_count; i++)
     {
       // If the param is a boxable type for us and an unboxable type for one of
       // our subtypes, that subtype will take that param as boxed through an
       // interface. In order to correctly box the value the actual function to
       // call must be resolved through name mangling, therefore we can't inline
       // the message send.
-      if(boxed_params[i] && !m_sub->params[i].type->can_be_boxed)
+      reach_type_t* param = m->params[i].type;
+      reach_type_t* sub_param = m_sub->params[i].type;
+      if(param->can_be_boxed)
       {
-        ponyint_pool_free(alloc_index, boxed_params);
-        return false;
+        if(!sub_param->can_be_boxed)
+          return false;
+
+        if(param->underlying == TK_TUPLETYPE)
+        {
+          ast_t* child = ast_child(param->ast);
+          while(child != NULL)
+          {
+            if(contains_boxable(child))
+              return false;
+          }
+        }
       }
     }
   }
 
-  ponyint_pool_free(alloc_index, boxed_params);
   return true;
 }
 
@@ -1142,21 +1165,20 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   if(size == 0)
     size = 1;
 
-  if(t->final_fn == NULL)
+  if(size <= HEAP_MAX)
   {
-    if(size <= HEAP_MAX)
-    {
-      uint32_t index = ponyint_heap_index(size);
-      args[1] = LLVMConstInt(c->i32, index, false);
+    uint32_t index = ponyint_heap_index(size);
+    args[1] = LLVMConstInt(c->i32, index, false);
+    if(t->final_fn == NULL)
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
-    } else {
-      args[1] = LLVMConstInt(c->intptr, size, false);
-      result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
-    }
+    else
+      result = gencall_runtime(c, "pony_alloc_small_final", args, 2, "");
   } else {
     args[1] = LLVMConstInt(c->intptr, size, false);
-    args[2] = LLVMConstBitCast(t->final_fn, c->final_fn);
-    result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
+    if(t->final_fn == NULL)
+      result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
+    else
+      result = gencall_runtime(c, "pony_alloc_large_final", args, 2, "");
   }
 
   result = LLVMBuildBitCast(c->builder, result, t->structure_ptr, "");

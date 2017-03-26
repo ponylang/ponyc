@@ -17,6 +17,7 @@ typedef struct chunk_t
   // mutable
   uint32_t slots;
   uint32_t shallow;
+  uint32_t finalisers;
 
   struct chunk_t* next;
 } chunk_t;
@@ -71,9 +72,77 @@ static void clear_chunk(chunk_t* chunk, uint32_t mark)
   chunk->shallow = mark;
 }
 
+static void final_small(chunk_t* chunk, uint32_t mark)
+{
+  // run any finalisers that need to be run
+  void* p = NULL;
+
+  uint32_t finalisers = chunk->finalisers;
+  uint64_t bit = 0;
+
+  // if there's a finaliser to run for a used slot
+  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
+    p = chunk->m + (bit << HEAP_MINBITS);
+
+    // run finaliser
+    pony_assert((*(pony_type_t**)p)->final != NULL);
+    (*(pony_type_t**)p)->final(p);
+
+    // clear finaliser in chunk
+    chunk->finalisers &= ~(1 << bit);
+
+    // clear bit just found in our local finaliser map
+    finalisers &= (finalisers - 1);
+  }
+  (void)mark;
+}
+
+static void final_small_freed(chunk_t* chunk)
+{
+  // run any finalisers that need to be run for any newly freed slots
+  void* p = NULL;
+
+  uint32_t finalisers = chunk->finalisers;
+  uint64_t bit = 0;
+
+  // if there's a finaliser to run for a used slot
+  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
+    // nothing to do if the slot isn't empty
+    if((chunk->slots & (1 << bit)) == 0)
+      continue;
+
+    p = chunk->m + (bit << HEAP_MINBITS);
+
+    // run finaliser
+    pony_assert((*(pony_type_t**)p)->final != NULL);
+    (*(pony_type_t**)p)->final(p);
+
+    // clear finaliser in chunk
+    chunk->finalisers &= ~(1 << bit);
+
+    // clear bit just found in our local finaliser map
+    finalisers &= (finalisers - 1);
+  }
+}
+
+static void final_large(chunk_t* chunk, uint32_t mark)
+{
+  if(chunk->finalisers == 1)
+  {
+    // run finaliser
+    (*(pony_type_t**)chunk->m)->final(chunk->m);
+    chunk->finalisers = 0;
+  }
+  (void)mark;
+}
+
 static void destroy_small(chunk_t* chunk, uint32_t mark)
 {
   (void)mark;
+
+  // run any finalisers that need running
+  final_small(chunk, mark);
+
   ponyint_pagemap_set(chunk->m, NULL);
   POOL_FREE(block_t, chunk->m);
   POOL_FREE(chunk_t, chunk);
@@ -81,7 +150,12 @@ static void destroy_small(chunk_t* chunk, uint32_t mark)
 
 static void destroy_large(chunk_t* chunk, uint32_t mark)
 {
+
   (void)mark;
+
+  // run any finalisers that need running
+  final_large(chunk, mark);
+
   large_pagemap(chunk->m, chunk->size, NULL);
 
   if(chunk->m != NULL)
@@ -113,6 +187,9 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
         (__pony_popcount(chunk->slots) * size);
       chunk->next = *avail;
       *avail = chunk;
+
+      // run finalisers for freed slots
+      final_small_freed(chunk);
     }
 
     chunk = next;
@@ -196,6 +273,17 @@ void ponyint_heap_destroy(heap_t* heap)
   }
 }
 
+void ponyint_heap_final(heap_t* heap)
+{
+  chunk_list(final_large, heap->large, 0);
+
+  for(int i = 0; i < HEAP_SIZECLASSES; i++)
+  {
+    chunk_list(final_small, heap->small_free[i], 0);
+    chunk_list(final_small, heap->small_full[i], 0);
+  }
+}
+
 void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
 {
   if(size == 0)
@@ -205,6 +293,19 @@ void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
     return ponyint_heap_alloc_small(actor, heap, ponyint_heap_index(size));
   } else {
     return ponyint_heap_alloc_large(actor, heap, size);
+  }
+}
+
+void* ponyint_heap_alloc_final(pony_actor_t* actor, heap_t* heap, size_t size)
+{
+  if(size == 0)
+  {
+    return NULL;
+  } else if(size <= HEAP_MAX) {
+    return ponyint_heap_alloc_small_final(actor, heap,
+      ponyint_heap_index(size));
+  } else {
+    return ponyint_heap_alloc_large_final(actor, heap, size);
   }
 }
 
@@ -237,6 +338,61 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->m = (char*) POOL_ALLOC(block_t);
     n->size = sizeclass;
 
+    // note that no finaliser needs to run
+    n->finalisers = 0;
+
+    // Clear the first bit.
+    n->shallow = n->slots = sizeclass_init[sizeclass];
+    n->next = NULL;
+
+    ponyint_pagemap_set(n->m, n);
+
+    heap->small_free[sizeclass] = n;
+    chunk = n;
+
+    // Use the first slot.
+    m = chunk->m;
+  }
+
+  heap->used += SIZECLASS_SIZE(sizeclass);
+  return m;
+}
+
+void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
+  uint32_t sizeclass)
+{
+  chunk_t* chunk = heap->small_free[sizeclass];
+  void* m;
+
+  // If there are none in this size class, get a new one.
+  if(chunk != NULL)
+  {
+    // Clear and use the first available slot.
+    uint32_t slots = chunk->slots;
+    uint32_t bit = __pony_ctz(slots);
+    slots &= ~(1 << bit);
+
+    m = chunk->m + (bit << HEAP_MINBITS);
+    chunk->slots = slots;
+
+    // note that a finaliser needs to run
+    chunk->finalisers |= (1 << bit);
+
+    if(slots == 0)
+    {
+      heap->small_free[sizeclass] = chunk->next;
+      chunk->next = heap->small_full[sizeclass];
+      heap->small_full[sizeclass] = chunk;
+    }
+  } else {
+    chunk_t* n = (chunk_t*) POOL_ALLOC(chunk_t);
+    n->actor = actor;
+    n->m = (char*) POOL_ALLOC(block_t);
+    n->size = sizeclass;
+
+    // note that a finaliser needs to run
+    n->finalisers = 1;
+
     // Clear the first bit.
     n->shallow = n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
@@ -264,6 +420,33 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk->m = (char*) ponyint_pool_alloc_size(size);
   chunk->slots = 0;
   chunk->shallow = 0;
+
+  // note that no finaliser needs to run
+  chunk->finalisers = 0;
+
+  large_pagemap(chunk->m, size, chunk);
+
+  chunk->next = heap->large;
+  heap->large = chunk;
+  heap->used += chunk->size;
+
+  return chunk->m;
+}
+
+void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
+  size_t size)
+{
+  size = ponyint_pool_adjust_size(size);
+
+  chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
+  chunk->actor = actor;
+  chunk->size = size;
+  chunk->m = (char*) ponyint_pool_alloc_size(size);
+  chunk->slots = 0;
+  chunk->shallow = 0;
+
+  // note that a finaliser needs to run
+  chunk->finalisers = 1;
 
   large_pagemap(chunk->m, size, chunk);
 
@@ -429,6 +612,9 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
   {
     if(p == chunk->m)
     {
+      // run finaliser if needed
+      final_large(chunk, 0);
+
       ponyint_pool_free_size(chunk->size, chunk->m);
       chunk->m = NULL;
       chunk->slots = 1;
@@ -444,6 +630,17 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
     // Shift to account for smallest allocation size.
     uint32_t slot = FIND_SLOT(ext, chunk->m);
 
+    // check if there's a finaliser to run
+    if((chunk->finalisers & slot) != 0)
+    {
+      // run finaliser
+      (*(pony_type_t**)p)->final(p);
+
+      // clear finaliser
+      chunk->finalisers &= ~slot;
+    }
+
+    // free slot
     chunk->slots |= slot;
   }
 }

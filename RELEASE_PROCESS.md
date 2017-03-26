@@ -39,11 +39,15 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
+Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. It is advised that you use a clone of this repo and not a fork.
+
 For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
 
 With that in mind, run the release script:
 
 - bash release.sh 0.3.1 8a8ee28
+
+If the golden commit does not include the most recent CHANGELOG updates, you will have to answer `n` to the second prompt and merge the changes manually.
 
 ### Update the GitHub issue
 
@@ -89,42 +93,46 @@ The pattern for releases is similar as what we previously saw. In the case of RP
 
 `0.3.1-1885.8a8ee28`
 
-where the 
+where the `1885` is the Travis build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-`8a8ee28`
-
-is the sha for the commit we built from.
-
-For windows, version look something like:
+For windows, the versions look something like:
 
 `ponyc-release-0.3.1-1526.8a8ee28`
 
-where the 
+where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-`8a8ee28`
 
 ### Wait on Homebrew
 
 Periodically check on your Homebrew PR. They have a CI process and everything should flow through smoothly. If it doesn't attempt to fix the problem. If you can't fix the problem, leave a comment on the GitHub issue for this release asking for assistance.
 
+Your PR will be closed once your change has been merged to master. Note, that your PR itself will not show as merged in GitHub- just closed. You can use the following command to verify that your change is on Homebrew master:
+
+```bash
+curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula/ponyc.rb | grep url
+```
+
+If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
+
 Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform IRC and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and IRC.
+
 
 ### Update the GitHub issue as needed
 
-At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew"
+At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew".
 
 ### Inform #ponylang
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Inform pony-user
 
-Once Travis, Appveyor and Homebrew are all finished, send an email to the pony user mailing list letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Close the GitHub issue
 
-Close the GitHub issue for this release
+Close the GitHub issue for this release.

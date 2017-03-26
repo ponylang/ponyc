@@ -24,7 +24,7 @@ COPY lib      /src/ponyc/lib
 COPY test     /src/ponyc/test
 COPY packages /src/ponyc/packages
 
-RUN make \
+RUN make arch=x86-64 tune=intel \
  && make install \
  && rm -rf /src/ponyc/build
 

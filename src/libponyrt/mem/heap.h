@@ -37,6 +37,8 @@ void ponyint_heap_init(heap_t* heap);
 
 void ponyint_heap_destroy(heap_t* heap);
 
+void ponyint_heap_final(heap_t* heap);
+
 __pony_spec_malloc__(
   void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
   );
@@ -52,6 +54,20 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   size_t size);
+
+__pony_spec_malloc__(
+  void* ponyint_heap_alloc_final(pony_actor_t* actor, heap_t* heap, size_t size)
+  );
+
+__pony_spec_malloc__(
+void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
+  uint32_t sizeclass)
+  );
+
+__pony_spec_malloc__(
+void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
+  size_t size)
+  );
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects

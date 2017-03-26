@@ -1,24 +1,5 @@
 use mut = "collections"
 
-primitive Maps
-  fun val empty[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  (): Map[K, V] =>
-    """
-    Return an empty map.
-    """
-    Map[K, V]._empty()
-
-  fun val from[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  (pairs: Array[(K, val->V)]): Map[K, V] ? =>
-    """
-    Return a map containing the provided key-value pairs.
-    """
-    var m = Map[K, V]._empty()
-    for pair in pairs.values() do
-      m = m(pair._1) = pair._2
-    end
-    m
-
 class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   """
   A persistent map based on the Compressed Hash Array Mapped Prefix-tree from
@@ -40,7 +21,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   let _root: _MapNode[K, V]
   let _size: USize
 
-  new val _empty() =>
+  new val create() =>
     _root = _MapNode[K, V].empty(0)
     _size = 0
 
@@ -60,12 +41,16 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     _size
 
-  fun val update(key: K, value: val->V): Map[K, V] ? =>
+  fun val update(key: K, value: val->V): Map[K, V] =>
     """
     Update the value associated with the provided key.
     """
     (let r, let insertion) =
-      _root.update(key.hash().u32(), (key, value))
+      try
+        _root.update(key.hash().u32(), (key, value))
+      else
+        (_root, false) // should not occur
+      end
     let s = if insertion then _size + 1 else _size end
     _create(r, s)
 
@@ -73,7 +58,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(k.hash().u32(), k), _size-1)
+    _create(_root.remove(k.hash().u32(), k), _size - 1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """
@@ -97,12 +82,21 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       false
     end
 
+  fun val concat(iter: Iterator[(val->K, val->V)]): Map[K, V] =>
+    """
+    Add the K, V pairs from the given iterator to the map.
+    """
+    var m = this
+    for (k, v) in iter do
+      m = m.update(k, v)
+    end
+    m
+
   fun val keys(): MapKeys[K, V] => MapKeys[K, V](this)
 
   fun val values(): MapValues[K, V] => MapValues[K, V](this)
 
-  fun val pairs(): MapPairs[K, V] =>
-    MapPairs[K, V](this)
+  fun val pairs(): MapPairs[K, V] => MapPairs[K, V](this)
 
   fun _root_node(): _MapNode[K, V] => _root
 

@@ -38,19 +38,19 @@ class iso _TestChain is UnitTest
   fun apply(h: TestHelper) =>
     None
     let input0: Array[String] = Array[String]
-    let input1 = ["a", "b", "c"]
-    let input2 = ["d", "e", "f"]
-    let expected = ["a", "b", "c", "d", "e", "f"]
+    let input1 = ["a"; "b"; "c"]
+    let input2 = ["d"; "e"; "f"]
+    let expected = ["a"; "b"; "c"; "d"; "e"; "f"]
     var actual = Array[String]
 
-    for x in Chain[String]([input1.values(), input2.values()].values()) do
+    for x in Chain[String]([input1.values(); input2.values()].values()) do
       actual.push(x)
     end
 
     h.assert_array_eq[String](expected, actual)
     actual.clear()
 
-    for x in Chain[String]([input0.values(), input1.values(), input2.values()].
+    for x in Chain[String]([input0.values(); input1.values(); input2.values()].
       values()) do
       actual.push(x)
     end
@@ -58,7 +58,7 @@ class iso _TestChain is UnitTest
     h.assert_array_eq[String](expected, actual)
     actual.clear()
 
-    for x in Chain[String]([input1.values(), input2.values(), input0.values()].
+    for x in Chain[String]([input1.values(); input2.values(); input0.values()].
       values()) do
       actual.push(x)
     end
@@ -73,7 +73,7 @@ class iso _TestChain is UnitTest
     h.assert_array_eq[String](input0, actual)
     actual.clear()
 
-    for x in Chain[String]([input0.values(), input0.values()].values()) do
+    for x in Chain[String]([input0.values(); input0.values()].values()) do
       actual.push(x)
     end
 
@@ -89,7 +89,8 @@ class iso _TestChain is UnitTest
 
     h.assert_false(Chain[String](Array[Iterator[String]].values()).has_next())
 
-    let chain = Chain[String]([input0.values(), input1.values(), input0.values()].values())
+    let chain = Chain[String](
+      [input0.values(); input1.values(); input0.values()].values())
     h.assert_true(chain.has_next())
     try
       chain.next()
@@ -104,17 +105,17 @@ class iso _TestZip is UnitTest
   fun name(): String => "itertools/Zip"
 
   fun apply(h: TestHelper) =>
-    let input1 = ["a", "b", "c"]
-    let input2 = [as U32: 1, 2, 3, 4]
-    let input3 = [as F32: 75.8, 90.1, 82.7, 13.4, 17.9]
-    let input4 = [as I32: 51, 62, 73, 84]
-    let input5 = [as USize: 14, 27, 39]
+    let input1 = ["a"; "b"; "c"]
+    let input2 = [as U32: 1; 2; 3; 4]
+    let input3 = [as F32: 75.8; 90.1; 82.7; 13.4; 17.9]
+    let input4 = [as I32: 51; 62; 73; 84]
+    let input5 = [as USize: 14; 27; 39]
 
-    let expected1 = ["a", "b", "c"]
-    let expected2 = [as U32: 1, 2, 3]
-    let expected3 = [as F32: 75.8, 90.1, 82.7]
-    let expected4 = [as I32: 51, 62, 73]
-    let expected5 = [as USize: 14, 27, 39]
+    let expected1 = ["a"; "b"; "c"]
+    let expected2 = [as U32: 1; 2; 3]
+    let expected3 = [as F32: 75.8; 90.1; 82.7]
+    let expected4 = [as I32: 51; 62; 73]
+    let expected5 = [as USize: 14; 27; 39]
 
     let actual1 = Array[String]
     let actual2 = Array[U32]
@@ -144,7 +145,7 @@ class iso _TestRepeat is UnitTest
 
   fun apply(h: TestHelper) =>
     let input = "a"
-    let expected = ["a", "a", "a"]
+    let expected = ["a"; "a"; "a"]
     var actual = Array[String]
 
     let repeater = Repeat[String]("a")
@@ -160,8 +161,8 @@ class iso _TestTake is UnitTest
 
   fun apply(h: TestHelper) =>
     let take: USize = 3
-    let input = ["a", "b", "c", "d", "e"]
-    let expected = ["a", "b", "c"]
+    let input = ["a"; "b"; "c"; "d"; "e"]
+    let expected = ["a"; "b"; "c"]
     var actual = Array[String]
 
     for x in Take[String](input.values(), take) do
@@ -174,8 +175,8 @@ class iso _TestCycle is UnitTest
   fun name(): String => "itertools/Cycle"
 
   fun apply(h: TestHelper) =>
-    let input = ["a", "b", "c"]
-    let expected = ["a", "b", "c", "a", "b", "c", "a", "b", "c", "a"]
+    let input = ["a"; "b"; "c"]
+    let expected = ["a"; "b"; "c"; "a"; "b"; "c"; "a"; "b"; "c"; "a"]
     var actual: Array[String] = Array[String]
 
     let cycle = Cycle[String](input.values())
@@ -200,8 +201,8 @@ class iso _TestMapFn is UnitTest
   fun name(): String => "itertools/MapFn"
 
   fun apply(h: TestHelper) =>
-    let input = ["a", "b", "c"]
-    let expected = ["ab", "bb", "cb"]
+    let input = ["a"; "b"; "c"]
+    let expected = ["ab"; "bb"; "cb"]
     let actual = Array[String]
 
     let fn = {(x: String): String => x + "b" }
@@ -215,10 +216,10 @@ class iso _TestFilter is UnitTest
   fun name(): String => "itertools/Filter"
 
   fun apply(h: TestHelper) =>
-    let input1 = ["ax", "bxx", "c", "dx", "exx", "f", "g", "hx"]
-    let input2 = ["ax", "bxx", "c", "dx", "exx", "f", "g"]
-    let input3 = ["c", "dx", "exx", "f", "g"]
-    let expected = ["c", "f", "g"]
+    let input1 = ["ax"; "bxx"; "c"; "dx"; "exx"; "f"; "g"; "hx"]
+    let input2 = ["ax"; "bxx"; "c"; "dx"; "exx"; "f"; "g"]
+    let input3 = ["c"; "dx"; "exx"; "f"; "g"]
+    let expected = ["c"; "f"; "g"]
     let actual = Array[String]
 
     let fn1 = {(x: String): Bool => x.size() == 1 }
@@ -248,7 +249,7 @@ class iso _TestIterAll is UnitTest
   fun name(): String => "itertools/Iter.all"
 
   fun apply(h: TestHelper) ? =>
-    let input = [as I64: 1, 3, 6, 7, 9]
+    let input = [as I64: 1; 3; 6; 7; 9]
     let is_positive = {(n: I64): Bool => n > 0 }
     h.assert_true(Iter[I64](input.values()).all(is_positive))
     input(2) = -6
@@ -258,7 +259,7 @@ class iso _TestIterAny is UnitTest
   fun name(): String => "itertools/Iter.any"
 
   fun apply(h: TestHelper) ? =>
-    let input = [as I64: -1, -3, 6, -7, -9]
+    let input = [as I64: -1; -3; 6; -7; -9]
     let is_positive = {(n: I64): Bool => n > 0 }
     h.assert_true(Iter[I64](input.values()).any(is_positive))
     input(2) = -6
@@ -268,7 +269,7 @@ class iso _TestIterCollect is UnitTest
   fun name(): String => "itertools/Iter.collect"
 
   fun apply(h: TestHelper) =>
-    let input = [as I64: 1, 2, 3, 4, 5]
+    let input = [as I64: 1; 2; 3; 4; 5]
     h.assert_array_eq[I64](
       input,
       Iter[I64](input.values()).collect(Array[I64]))
@@ -277,7 +278,7 @@ class iso _TestIterCount is UnitTest
   fun name(): String => "itertools/Iter.count"
 
   fun apply(h: TestHelper) =>
-    let input1 = [as I64: 1, 2, 3, 4, 5]
+    let input1 = [as I64: 1; 2; 3; 4; 5]
     h.assert_eq[USize](
       input1.size(),
       Iter[I64](input1.values()).count())
@@ -291,8 +292,8 @@ class iso _TestIterCycle is UnitTest
   fun name(): String => "itertools/Iter.cycle"
 
   fun apply(h: TestHelper) =>
-    let input = ["a", "b", "c"]
-    let expected = ["a", "b", "c", "a", "b", "c", "a", "b", "c", "a"]
+    let input = ["a"; "b"; "c"]
+    let expected = ["a"; "b"; "c"; "a"; "b"; "c"; "a"; "b"; "c"; "a"]
     let actual: Array[String] = Array[String]
 
     let cycle = Iter[String](input.values()).cycle()
@@ -317,8 +318,8 @@ class iso _TestIterEnum is UnitTest
   fun name(): String => "itertools/Iter.enum"
 
   fun apply(h: TestHelper) ? =>
-    let input = ["a", "b", "c"]
-    let expected = [as (USize, String): (0, "a"), (1, "b"), (2, "c")]
+    let input = ["a"; "b"; "c"]
+    let expected = [as (USize, String): (0, "a"); (1, "b"); (2, "c")]
 
     let iter = Iter[String](input.values()).enum()
 
@@ -334,10 +335,10 @@ class iso _TestIterFilter is UnitTest
   fun name(): String => "itertools/Iter.filter"
 
   fun apply(h: TestHelper) =>
-    let input1 = ["ax", "bxx", "c", "dx", "exx", "f", "g", "hx"]
-    let input2 = ["ax", "bxx", "c", "dx", "exx", "f", "g"]
-    let input3 = ["c", "dx", "exx", "f", "g"]
-    let expected = ["c", "f", "g"]
+    let input1 = ["ax"; "bxx"; "c"; "dx"; "exx"; "f"; "g"; "hx"]
+    let input2 = ["ax"; "bxx"; "c"; "dx"; "exx"; "f"; "g"]
+    let input3 = ["c"; "dx"; "exx"; "f"; "g"]
+    let expected = ["c"; "f"; "g"]
     let actual = Array[String]
 
     let fn1 = {(x: String): Bool => x.size() == 1 }
@@ -367,7 +368,7 @@ class iso _TestIterFind is UnitTest
   fun name(): String => "itertools/Iter.find"
 
   fun apply(h: TestHelper) ? =>
-    let input = [as I64: 1, 2, 3, -4, 5]
+    let input = [as I64: 1; 2; 3; -4; 5]
     h.assert_error({()(input) ? =>
       Iter[I64](input.values()).find({(x: I64): Bool => x == 0 })
     })
@@ -386,7 +387,7 @@ class iso _TestIterFold is UnitTest
   fun name(): String => "itertools/Iter.fold"
 
   fun apply(h: TestHelper) ? =>
-    let ns = [as I64: 1, 2, 3, 4, 5, 6]
+    let ns = [as I64: 1; 2; 3; 4; 5; 6]
     let fn = {(sum: I64, n: I64): I64 => sum + n }
     let sum = Iter[I64](ns.values()).fold[I64](fn, 0)
     h.assert_eq[I64](sum, 21)
@@ -406,11 +407,11 @@ class iso _TestIterLast is UnitTest
     h.assert_eq[I64](
       1,
       Iter[I64](input2.values()).last())
-    let input3 = [as I64: 1, 2]
+    let input3 = [as I64: 1; 2]
     h.assert_eq[I64](
       2,
       Iter[I64](input3.values()).last())
-    let input4 = [as I64: 1, 2, 3]
+    let input4 = [as I64: 1; 2; 3]
     h.assert_eq[I64](
       3,
       Iter[I64](input4.values()).last())
@@ -419,8 +420,8 @@ class iso _TestIterMap is UnitTest
   fun name(): String => "itertools/Iter.map"
 
   fun apply(h: TestHelper) =>
-    let input = ["a", "b", "c"]
-    let expected = ["ab", "bb", "cb"]
+    let input = ["a"; "b"; "c"]
+    let expected = ["ab"; "bb"; "cb"]
     let actual = Array[String]
 
     let fn = {(x: String): String => x + "b" }
@@ -434,7 +435,7 @@ class iso _TestIterNth is UnitTest
   fun name(): String => "itertools/Iter.nth"
 
   fun apply(h: TestHelper) ? =>
-    let input = [as USize: 1, 2, 3]
+    let input = [as USize: 1; 2; 3]
     h.assert_eq[USize](
       1,
       Iter[USize](input.values()).nth(1))
@@ -455,7 +456,7 @@ class iso _TestIterRun is UnitTest
     h.expect_action("3")
     h.expect_action("error")
 
-    let xs = [as I64: 1, 2, 3]
+    let xs = [as I64: 1; 2; 3]
 
     h.long_test(100_000_000)
 
@@ -489,7 +490,7 @@ class iso _TestIterSkipWhile is UnitTest
   fun name(): String => "itertools/Iter.skip_while"
 
   fun apply(h: TestHelper) ? =>
-    let input = [as I64: -1, 0, 1, 2, 3]
+    let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_eq[I64](
       1,
       Iter[I64](input.values()).skip_while({(x: I64): Bool => x <= 0 }).next())
@@ -502,8 +503,8 @@ class iso _TestIterTake is UnitTest
 
   fun apply(h: TestHelper) =>
     let take: USize = 3
-    let input = ["a", "b", "c", "d", "e"]
-    let expected = ["a", "b", "c"]
+    let input = ["a"; "b"; "c"; "d"; "e"]
+    let expected = ["a"; "b"; "c"]
     var actual = Array[String]
 
     for x in Iter[String](input.values()).take(take) do
@@ -516,9 +517,9 @@ class iso _TestIterTakeWhile is UnitTest
   fun name(): String => "itertools/Iter.take_while"
 
   fun apply(h: TestHelper) =>
-    let input = [as I64: -1, 0, 1, 2, 3]
+    let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_array_eq[I64](
-      [as I64: -1, 0],
+      [as I64: -1; 0],
       Iter[I64](input.values()).take_while({(x: I64): Bool => x < 1 })
         .collect(Array[I64]))
     h.assert_array_eq[I64](
@@ -534,17 +535,17 @@ class iso _TestIterZip is UnitTest
   fun name(): String => "itertools/Iter.zip"
 
   fun apply(h: TestHelper) =>
-    let input1 = ["a", "b", "c"]
-    let input2 = [as U32: 1, 2, 3, 4]
-    let input3 = [as F32: 75.8, 90.1, 82.7, 13.4, 17.9]
-    let input4 = [as I32: 51, 62, 73, 84]
-    let input5 = [as USize: 14, 27, 39]
+    let input1 = ["a"; "b"; "c"]
+    let input2 = [as U32: 1; 2; 3; 4]
+    let input3 = [as F32: 75.8; 90.1; 82.7; 13.4; 17.9]
+    let input4 = [as I32: 51; 62; 73; 84]
+    let input5 = [as USize: 14; 27; 39]
 
-    let expected1 = ["a", "b", "c"]
-    let expected2 = [as U32: 1, 2, 3]
-    let expected3 = [as F32: 75.8, 90.1, 82.7]
-    let expected4 = [as I32: 51, 62, 73]
-    let expected5 = [as USize: 14, 27, 39]
+    let expected1 = ["a"; "b"; "c"]
+    let expected2 = [as U32: 1; 2; 3]
+    let expected3 = [as F32: 75.8; 90.1; 82.7]
+    let expected4 = [as I32: 51; 62; 73]
+    let expected5 = [as USize: 14; 27; 39]
 
     let actual1 = Array[String]
     let actual2 = Array[U32]

@@ -177,7 +177,7 @@ class iso _TestExpect is UnitTest
 
       fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
         _h.assert_eq[I32](child_exit_code, 0)
-        _h.assert_array_eq[String](_out, ["he", "llo ", "th", "ere!"])
+        _h.assert_array_eq[String](_out, ["he"; "llo "; "th"; "ere!"])
         _h.complete(true)
     end end
     try
