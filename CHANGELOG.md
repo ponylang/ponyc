@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix annotation-related compiler assertion failure (issue #1751) (PR #1757)
 - Improve packaged Linux binary performance (PR #1755)
 - Fix false positive test failure on 32 bits (PR #1749)
 
