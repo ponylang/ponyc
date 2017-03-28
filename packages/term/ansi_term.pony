@@ -66,7 +66,9 @@ actor ANSITerm
     _notify = consume notify
     _source = source
 
-    SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+    ifdef not windows then
+      SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+    end
 
     _size()
 
