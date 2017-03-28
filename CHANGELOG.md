@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Support XCode 8.3 and LLVM 3.9 (PR #1765)
 
 ### Changed
 
