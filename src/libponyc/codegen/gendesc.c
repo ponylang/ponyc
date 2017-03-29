@@ -283,6 +283,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   LLVMSetGlobalConstant(global, true);
   LLVMSetLinkage(global, LLVMPrivateLinkage);
   LLVMSetInitializer(global, field_array);
+  LLVMSetUnnamedAddr(global, true);
 
   ponyint_pool_free_size(buf_size, list);
   return global;

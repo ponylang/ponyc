@@ -16,18 +16,6 @@ else
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
-    ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
-      AR := llvm-ar-mp-3.8
-      AR_FLAGS := rcs
-    else
-      ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
-        AR := llvm-ar-3.8
-        AR_FLAGS := rcs
-      else
-        AR := /usr/bin/ar
-	AR_FLAGS := -rcs
-      endif
-    endif
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
@@ -169,7 +157,11 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
+	ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
+  else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
     LLVM_LINK = llvm-link-3.9
     LLVM_OPT = opt-3.9
@@ -217,6 +209,24 @@ ifndef LLVM_CONFIG
 endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
+
+ifeq ($(OSTYPE),osx)
+	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir)
+
+  ifneq (,$(shell which $(llvm_bindir)/llvm-ar 2> /dev/null))
+    AR = $(llvm_bindir)/llvm-ar
+    AR_FLAGS := rcs
+  else ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
+    AR = llvm-ar-mp-3.8
+    AR_FLAGS := rcs
+  else ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
+    AR = llvm-ar-3.8
+    AR_FLAGS := rcs
+  else
+    AR = /usr/bin/ar
+		AR_FLAGS := -rcs
+  endif
+endif
 
 ifeq ($(llvm_version),3.7.1)
 else ifeq ($(llvm_version),3.8.1)

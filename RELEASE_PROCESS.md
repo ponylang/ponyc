@@ -85,9 +85,9 @@ Leave a comment on the GitHub issue for this release letting @stefantalpalaru kn
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
-* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc-release)
-* [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc-release)
-* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc-release)
+* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc)
+* [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc)
+* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
 The pattern for releases is similar as what we previously saw. In the case of RPM and Deb, the versions look something like:
 

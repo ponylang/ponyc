@@ -450,7 +450,7 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
     uint32_t type_id = t->type_id;
     if((type_id % 4) == 0)
     {
-      size_t type_size = LLVMABISizeOfType(c->target_data, t->use_type);
+      size_t type_size = (size_t)LLVMABISizeOfType(c->target_data, t->use_type);
       args[type_id >> 2] = LLVMConstInt(c->i32, type_size, false);
       count++;
     }

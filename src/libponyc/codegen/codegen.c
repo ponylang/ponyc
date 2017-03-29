@@ -986,6 +986,8 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   compile_t c;
   memset(&c, 0, sizeof(compile_t));
 
+  genned_strings_init(&c.strings, 64);
+
   if(!init_module(&c, program, opt))
     return false;
 
@@ -1006,6 +1008,8 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   memset(c, 0, sizeof(compile_t));
+
+  genned_strings_init(&c->strings, 64);
 
   if(!init_module(c, program, opt))
     return false;
@@ -1057,6 +1061,7 @@ void codegen_cleanup(compile_t* c)
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
   tbaa_metadatas_free(c->tbaa_mds);
+  genned_strings_destroy(&c->strings);
   reach_free(c->reach);
 }
 

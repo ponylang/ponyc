@@ -6,10 +6,28 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+
+
+## [0.12.0] - 2017-03-29
+
+### Fixed
+
+- Don't ignore buffer length when printing (PR #1768)
+- Ifdef out ANSITerm signal handler for SIGWINCH (PR #1763)
+- Fix build error on 32 bits systems (PR #1762)
+- Fix annotation-related compiler assertion failure (issue #1751) (PR #1757)
+- Improve packaged Linux binary performance (PR #1755)
 - Fix false positive test failure on 32 bits (PR #1749)
 
 ### Added
 
+- Support XCode 8.3 and LLVM 3.9 (PR #1765)
 
 ### Changed
 

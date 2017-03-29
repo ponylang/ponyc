@@ -22,13 +22,18 @@ skip_tags: true
 skip_commits:
   files:
     - .bintray.sh
+    - .gitattributes
     - .gitignore
+    - .gitmodules
     - .travis.yml
     - .travis_install.bash
     - .travis_script.bash
-
-    # top-level markdown files
-    - '*.md'
+    - Dockerfile
+    - LICENSE
+    - Makefile
+    - release.sh
+    - '**/*.md'
+    - '**/*.txt'
 
 clone_folder: C:\projects\ponyc
 
