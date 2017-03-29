@@ -25,11 +25,16 @@ ponyc-build-packages(){
   # used to disambiguate packages with the same version).
   PACKAGE_ITERATION="${TRAVIS_BUILD_NUMBER}.$(git rev-parse --short --verify 'HEAD^{commit}')"
 
+  echo "Removing any existing ponyc installs before creating for deployment..."
+  make CC="$CC1" CXX="$CXX1" clean
   echo "Building ponyc packages for deployment..."
   make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
 }
 
 ponyc-build-docs(){
+  echo "Building ponyc for doc generation..."
+  make CC="$CC1" CXX="$CXX1"
+
   echo "Checking out the gh-pages branch..."
   git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}"
   git fetch gh-token && git fetch gh-token gh-pages:gh-pages
@@ -59,8 +64,8 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     # when FAVORITE_CONFIG stops matching part of this case, move this logic
     if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" == "yes" ]]
     then
-      ponyc-build-docs
       ponyc-build-packages
+      ponyc-build-docs
     else
       ponyc-test
     fi
