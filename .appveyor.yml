@@ -87,3 +87,4 @@ test_script:
   - ps: |
       cd C:\projects\ponyc
       python -x waf test --config $env:configuration --llvm $env:llvm
+
