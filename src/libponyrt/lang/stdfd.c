@@ -512,7 +512,7 @@ PONY_API void pony_os_std_print(FILE* fp, char* buffer, size_t len)
   if(len == 0)
     return;
 
-  fprintf(fp, "%s\n", buffer);
+  fprintf(fp, "%*.*s\n", (int)len, (int)len, buffer);
 }
 
 PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
