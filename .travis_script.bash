@@ -59,8 +59,8 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     # when FAVORITE_CONFIG stops matching part of this case, move this logic
     if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" == "yes" ]]
     then
-      ponyc-build-packages
       ponyc-build-docs
+      ponyc-build-packages
     else
       ponyc-test
     fi
