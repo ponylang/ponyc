@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't ignore buffer length when printing (PR #1768)
 - Ifdef out ANSITerm signal handler for SIGWINCH (PR #1763)
 - Fix build error on 32 bits systems (PR #1762)
 - Fix annotation-related compiler assertion failure (issue #1751) (PR #1757)
