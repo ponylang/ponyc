@@ -1,8 +1,7 @@
 #! /bin/bash
 
-set +o errexit
-set +o nounset
-set +o
+set -o errexit
+set -o nounset
 
 if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" != "yes" ]]
 then

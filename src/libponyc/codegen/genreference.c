@@ -9,8 +9,34 @@
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
+
+struct genned_string_t
+{
+  const char* string;
+  LLVMValueRef global;
+};
+
+static size_t genned_string_hash(genned_string_t* s)
+{
+  return ponyint_hash_ptr(s->string);
+}
+
+static bool genned_string_cmp(genned_string_t* a, genned_string_t* b)
+{
+  return a->string == b->string;
+}
+
+static void genned_string_free(genned_string_t* s)
+{
+  POOL_FREE(genned_string_t, s);
+}
+
+DEFINE_HASHMAP(genned_strings, genned_strings_t, genned_string_t,
+  genned_string_hash, genned_string_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, genned_string_free);
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
@@ -455,6 +481,15 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   const char* name = ast_name(ast);
+
+  genned_string_t k;
+  k.string = name;
+  size_t index = HASHMAP_UNKNOWN;
+  genned_string_t* string = genned_strings_get(&c->strings, &k, &index);
+
+  if(string != NULL)
+    return string->global;
+
   size_t len = ast_name_len(ast);
 
   LLVMValueRef args[4];
@@ -467,6 +502,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   LLVMSetLinkage(g_str, LLVMPrivateLinkage);
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
+  LLVMSetUnnamedAddr(g_str, true);
   LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
 
   reach_type_t* t = reach_type(c->reach, type);
@@ -481,6 +517,12 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
   LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
+  LLVMSetUnnamedAddr(g_inst, true);
+
+  string = POOL_ALLOC(genned_string_t);
+  string->string = name;
+  string->global = g_inst;
+  genned_strings_putindex(&c->strings, string, index);
 
   return g_inst;
 }

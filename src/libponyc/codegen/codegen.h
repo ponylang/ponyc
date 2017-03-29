@@ -61,6 +61,9 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
 
 #define GEN_NOTNEEDED (LLVMConstInt(c->ibool, 0, false))
 
+typedef struct genned_string_t genned_string_t;
+DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
+
 typedef struct compile_local_t compile_local_t;
 DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 
@@ -90,6 +93,7 @@ typedef struct compile_t
   pass_opt_t* opt;
   reach_t* reach;
   tbaa_metadatas_t* tbaa_mds;
+  genned_strings_t strings;
   const char* filename;
 
   const char* str_builtin;

@@ -192,7 +192,7 @@ nextatom
   | 'this'
   | literal
   | LPAREN_NEW rawseq tuple? ')'
-  | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
+  | LSQUARE_NEW ('as' type ':')? rawseq ']'
   | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
   | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | 'lambda' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
@@ -205,7 +205,7 @@ atom
   | 'this'
   | literal
   | ('(' | LPAREN_NEW) rawseq tuple? ')'
-  | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
+  | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq ']'
   | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
   | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | 'lambda' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'

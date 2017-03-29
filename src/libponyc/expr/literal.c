@@ -589,16 +589,15 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
 
   chain_add(chain, &link, cardinality);
 
-  // Process each group element separately
-  ast_t* p = ast_child(literal_expr);
-
   if(ast_id(literal_expr) == TK_ARRAY)
   {
-    // The first child of an array AST is the forced type, skip it
-    p = ast_sibling(p);
+    // The first child of an array AST is the forced type, the second child is
+    // the sequence of elements.
+    literal_expr = ast_childidx(literal_expr, 1);
   }
 
-  for(; p != NULL; p = ast_sibling(p))
+  // Process each group element separately
+  for(ast_t* p = ast_child(literal_expr); p != NULL; p = ast_sibling(p))
   {
     ast_t* p_type = ast_type(p);
 

@@ -13,9 +13,9 @@ class CodegenIdentityTest : public PassTest
 extern "C"
 {
 
-EXPORT_SYMBOL intptr_t ptr_to_int(void* p)
+EXPORT_SYMBOL uintptr_t ptr_to_int(void* p)
 {
-  return (intptr_t)p;
+  return (uintptr_t)p;
 }
 
 }
@@ -173,7 +173,7 @@ TEST_F(CodegenIdentityTest, DigestofObject)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let dg = digestof env\n"
-    "    if dg == @ptr_to_int[ISize](env).u64() then\n"
+    "    if dg == @ptr_to_int[USize](env).u64() then\n"
     "      @pony_exitcode[None](I32(1))\n"
     "    end";
 

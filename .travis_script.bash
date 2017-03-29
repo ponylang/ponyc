@@ -1,8 +1,7 @@
 #! /bin/bash
 
-set +o errexit
-set +o nounset
-set +o
+set -o errexit
+set -o nounset
 
 if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" != "yes" ]]
 then
@@ -27,7 +26,7 @@ ponyc-build-packages(){
   PACKAGE_ITERATION="${TRAVIS_BUILD_NUMBER}.$(git rev-parse --short --verify 'HEAD^{commit}')"
 
   echo "Building ponyc packages for deployment..."
-  make verbose=1 arch=x86-64 config=release package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
+  make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
 }
 
 ponyc-build-docs(){
