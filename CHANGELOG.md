@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix broken ponytest "only" filter (PR #1780)
 
 ### Added
 
