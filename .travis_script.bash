@@ -43,10 +43,12 @@ ponyc-build-docs(){
   build/release/ponyc packages/stdlib --docs
 
   echo "Uploading docs using mkdocs..."
+  ls -al
   cd stdlib-docs
   sudo -H pip install mkdocs
   cp ../.docs/extra.js docs/
-  sed -i '' 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml
+  ls -al
+  sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml
   mkdocs gh-deploy -v --clean --remote-name gh-token
 }
 
