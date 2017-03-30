@@ -242,6 +242,7 @@ actor PonyTest
     """
     Run the given test, subject to our filters and options.
     """
+    
     if _do_nothing then
       return
     end
@@ -249,12 +250,12 @@ actor PonyTest
     var name = test.name()
 
     // Ignore any tests that satisfy our "exclude" filter
-    if name.at(_exclude, 0) then
+    if (_exclude != "") and name.at(_exclude, 0) then
       return
     end
 
     // Ignore any tests that don't satisfy our "only" filter
-    if not name.at(_only, 0) then
+    if (_only != "") and (not name.at(_only, 0)) then
       return
     end
 
