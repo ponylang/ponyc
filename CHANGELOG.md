@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Bug in ponytest resulted in all tests being skipped (PR #1778)
 
 ### Added
 
