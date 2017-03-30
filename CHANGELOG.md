@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.12.1] - 2017-03-29
 
 ### Fixed
 
 - Bug in ponytest resulted in all tests being skipped (PR #1778)
-
-### Added
-
-
-### Changed
-
 
 
 ## [0.12.0] - 2017-03-29
