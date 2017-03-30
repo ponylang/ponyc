@@ -32,6 +32,8 @@ ponyc-build-packages(){
 }
 
 ponyc-build-docs(){
+  echo "Removing any existing ponyc installs before creating for doc generation..."
+  make clean
   echo "Building ponyc for doc generation..."
   make CC="$CC1" CXX="$CXX1"
 

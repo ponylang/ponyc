@@ -19,6 +19,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
@@ -33,6 +34,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
@@ -47,6 +49,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
@@ -61,6 +64,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
@@ -75,6 +79,7 @@ matrix:
           packages:
             - g++-6
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
@@ -98,6 +103,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
@@ -106,6 +112,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
@@ -115,6 +122,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
@@ -123,6 +131,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
@@ -132,6 +141,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
@@ -140,6 +150,7 @@ matrix:
 
     - os: osx
       env:
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release

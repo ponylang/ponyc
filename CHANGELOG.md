@@ -2,18 +2,6 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
-
-### Fixed
-
-
-### Added
-
-
-### Changed
-
-
-
 ## [0.12.0] - 2017-03-29
 
 ### Fixed
@@ -32,6 +20,11 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Arrays as sequences (PR #1741)
+- Add ability for ponytest to exclude tests based on name (PR #1717)
+
+### Changed
+
+- Renamed ponytest "filter" flag to "only" (PR #1717)
 
 
 ## [0.11.4] - 2017-03-23
