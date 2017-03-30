@@ -181,6 +181,14 @@ actor _ClientConnection is HTTPSession
     """
     None
 
+  be dispose() =>
+    """
+    Close the connection from the client end.
+    """
+    match _conn
+    | let c: TCPConnection => c.dispose()
+    end
+
   be throttled() =>
     """
     The connection to the server can not accept data for a while.

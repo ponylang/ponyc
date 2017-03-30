@@ -45,6 +45,11 @@ interface tag HTTPSession
     submission of the HTTP message is complete.
     """
 
+  be dispose()
+    """
+    Close the connection from this end.
+    """
+
   be write(data: ByteSeq val)
     """
     Write raw byte stream to the outbound TCP connection.
