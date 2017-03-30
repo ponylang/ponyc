@@ -11,6 +11,8 @@ tags
 .*.swp
 .*.swo
 *.dSYM/
+*.psess
+*.vspx
 waf-*
 waf3-*
 .lock-waf*
