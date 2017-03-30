@@ -186,7 +186,7 @@ actor _ClientConnection is HTTPSession
     Close the connection from the client end.
     """
     match _conn
-      | let c: TCPConnection => c.dispose()
+    | let c: TCPConnection => c.dispose()
     end
 
   be throttled() =>
