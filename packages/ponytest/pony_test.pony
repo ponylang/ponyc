@@ -242,7 +242,6 @@ actor PonyTest
     """
     Run the given test, subject to our filters and options.
     """
-    
     if _do_nothing then
       return
     end
