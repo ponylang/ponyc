@@ -394,8 +394,8 @@ actor PonyTest
         _exclude = arg.substring(10)
       elseif arg.compare_sub("--label=", 8) is Equal then
         _label = arg.substring(8)
-      elseif arg.compare_sub("--only=", 9) is Equal then
-        _only = arg.substring(8)
+      elseif arg.compare_sub("--only=", 7) is Equal then
+        _only = arg.substring(7)
       else
         _env.out.print("Unrecognised argument \"" + arg + "\"")
         _env.out.print("")

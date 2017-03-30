@@ -75,7 +75,7 @@ def configure(ctx):
             'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
             'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
             'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
-            'dbghelp'
+            'dbghelp', 'Shlwapi'
         ]
 
         base_env = ctx.env
@@ -227,6 +227,15 @@ def build(ctx):
         source   = ctx.path.ant_glob('lib/gtest/*.cc'),
     )
 
+    # gbenchmark
+    ctx(
+        features = 'cxx cxxstlib seq',
+        target   = 'gbenchmark',
+        source   = ctx.path.ant_glob('lib/gbenchmark/*.cc'),
+        includes = [ 'lib/gbenchmark/include' ],
+        defines  = [ 'HAVE_STD_REGEX' ]
+    )
+
     # libponyc
     ctx(
         features  = 'c cxx cxxstlib seq',
@@ -236,6 +245,16 @@ def build(ctx):
         includes  = [ 'src/common' ] + llvmIncludes + sslIncludes
     )
 
+    # libponyc.benchmarks
+    ctx(
+        features = 'cxx cxxprogram seq',
+        target   = 'libponyc.benchmarks',
+        source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
+        includes = [ 'lib/gbenchmark/include' ],
+        use      = [ 'libponyc', 'gbenchmark' ],
+        lib      = ctx.env.PONYC_EXTRA_LIBS
+    )
+
     # libponyrt
     ctx(
         features = 'c cxx cxxstlib seq',
@@ -243,6 +262,16 @@ def build(ctx):
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
         includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
         defines  = [ 'PONY_NO_ASSERT' ]
+    )
+
+    # libponyrt.benchmarks
+    ctx(
+        features = 'cxx cxxprogram seq',
+        target   = 'libponyrt.benchmarks',
+        source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
+        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        use      = [ 'libponyrt', 'gbenchmark' ],
+        lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
     # ponyc

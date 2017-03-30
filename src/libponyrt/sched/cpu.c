@@ -305,7 +305,7 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
   nanosleep(&ts, NULL);
 #else
-  Sleep(0);
+  Sleep(yield ? 1 : 0);
 #endif
 }
 

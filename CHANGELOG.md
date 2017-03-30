@@ -2,6 +2,14 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.12.2] - 2017-03-30
+
+### Fixed
+
+- Fix extreme CPU use in scheduler on Windows (PR #1785)
+- Fix broken ponytest "only" filter (PR #1780)
+
+
 ## [0.12.1] - 2017-03-29
 
 ### Fixed

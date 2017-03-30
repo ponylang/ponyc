@@ -77,6 +77,12 @@ actor _ServerConnection is HTTPSession
     """
     _backend.finished()
 
+  be dispose() =>
+    """
+    Close the connection from the server end.
+    """
+    _conn.dispose()
+
   be cancel(msg: Payload val) =>
     """
     Cancel the current response.  The connection has closed.

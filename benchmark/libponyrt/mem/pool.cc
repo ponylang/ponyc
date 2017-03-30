@@ -53,7 +53,7 @@ BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC$);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_multiple$_)(benchmark::State& st) {
   int num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     for(int i = 0; i < num_allocs; i++)
       p[i] = POOL_ALLOC(block_t);
@@ -91,7 +91,7 @@ BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC_FREE);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_FREE_multiple$_)(benchmark::State& st) {
   int num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     st.PauseTiming();
     for(int i = 0; i < num_allocs; i++)
@@ -107,7 +107,7 @@ BENCHMARK_REGISTER_F(PoolBench, POOL_FREE_multiple$_)->Arg(1<<10);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_FREE_multiple)(benchmark::State& st) {
   int num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     for(int i = 0; i < num_allocs; i++)
       p[i] = POOL_ALLOC(block_t);
@@ -133,7 +133,7 @@ BENCHMARK_REGISTER_F(PoolBench, pool_alloc_size$);
 
 BENCHMARK_DEFINE_F(PoolBench, pool_alloc_size_multiple$_)(benchmark::State& st) {
   size_t num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     for(size_t i = 0; i < num_allocs; i++)
       p[i] = ponyint_pool_alloc_size(LARGE_ALLOC);
@@ -171,7 +171,7 @@ BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size);
 
 BENCHMARK_DEFINE_F(PoolBench, pool_free_size_multiple$_)(benchmark::State& st) {
   int num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     st.PauseTiming();
     for(int i = 0; i < num_allocs; i++)
@@ -187,7 +187,7 @@ BENCHMARK_REGISTER_F(PoolBench, pool_free_size_multiple$_)->Arg((int)(POOL_MMAP/
 
 BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size_multiple)(benchmark::State& st) {
   int num_allocs = st.range(0);
-  void* p[num_allocs];
+  void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     for(int i = 0; i < num_allocs; i++)
       p[i] = ponyint_pool_alloc_size(LARGE_ALLOC);
