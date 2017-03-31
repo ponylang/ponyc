@@ -45,7 +45,7 @@ For the duration of this document, we will pretend the "golden commit" version i
 
 With that in mind, run the release script:
 
-- bash release.sh 0.3.1 8a8ee28
+- bash release.bash 0.3.1 8a8ee28
 
 If the golden commit does not include the most recent CHANGELOG updates, you will have to answer `n` to the second prompt and merge the changes manually.
 
