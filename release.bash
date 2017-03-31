@@ -1,16 +1,19 @@
 #!/bin/bash
 
+set -o errexit
+set -o nounset
+
 case $OSTYPE in
 darwin*) SED=gsed;;
 *) SED=sed;;
 esac
 
-release_date=`date +%Y-%m-%d`
+release_date="$(date +%Y-%m-%d)"
 
 verify_args() {
   echo "Cutting a release for version $version with commit $commit"
   while true; do
-    read -p "Is this correct (y/n)?" yn
+    read -rp "Is this correct (y/n)?" yn
     case $yn in
     [Yy]*) break;;
     [Nn]*) exit;;
@@ -20,8 +23,7 @@ verify_args() {
 }
 
 update_version() {
-  > VERSION
-  echo $version >> VERSION
+  echo "$version" > VERSION
   echo "VERSION set to $version"
 }
 
@@ -37,11 +39,14 @@ update_changelog() {
 remove_empty_sections() {
   for section in "Fixed" "Added" "Changed"; do
     # check if first non-whitespace character after section heading is '-'
-    local str_after=`$SED "1,/### $section/d" <CHANGELOG.md`
-    local first_word=`echo $str_after | head -n1 | cut -d " " -f1`
-    if [ $first_word != "-" ]; then
+    local str_after
+    local first_word
+    str_after="$(SED "1,/### $section/d" <CHANGELOG.md)"
+    first_word="$(echo "$str_after" | head -n1 | cut -d " " -f1)"
+    if [[ "$first_word" != "-" ]]; then
       echo "Removing empty CHANGELOG section: $section"
-      local line_num=`grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1`
+      local line_num
+      line_num="$(grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1)"
       $SED -i "$line_num{N;N;d}" CHANGELOG.md
     fi
   done
@@ -83,7 +88,7 @@ then
   echo "ERROR! There are local-only changes on branch 'master'!"
   exit 1
 fi
-git checkout -b release-$version $commit
+git checkout -b "release-$version" "$commit"
 
 # update VERSION and CHANGELOG
 update_version
@@ -102,18 +107,18 @@ then
   echo "ERROR! There are local-only changes on branch 'release'!"
   exit 1
 fi
-git merge release-$version -m "Release $version"
+git merge "release-$version" -m "Release $version"
 
 # tag release
-git tag $version
+git tag "$version"
 
 # push to release branch
 git push origin release
-git push origin $version
+git push origin "$version"
 
 # update CHANGELOG for new entries
 git checkout master
-git merge release-$version
+git merge "release-$version"
 add_changelog_unreleased_section
 
 # check if user wants to continue
