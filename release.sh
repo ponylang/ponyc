@@ -92,7 +92,7 @@ git commit -m "Prep for $version release
 
 # merge into release
 git checkout release
-git merge release-$version
+git merge release-$version -m "Release $version"
 
 # tag release
 git tag $version
