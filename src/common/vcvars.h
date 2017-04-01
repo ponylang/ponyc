@@ -1,6 +1,7 @@
 #ifndef PLATFORM_VCVARS_H
 #define PLATFORM_VCVARS_H
 
+typedef struct compile_t compile_t;
 typedef struct errors_t errors_t;
 
 typedef struct vcvars_t
@@ -13,6 +14,6 @@ typedef struct vcvars_t
   char default_libs[MAX_PATH];
 } vcvars_t;
 
-bool vcvars_get(vcvars_t* vcvars, errors_t* errors);
+bool vcvars_get(compile_t *c, vcvars_t* vcvars, errors_t* errors);
 
 #endif
