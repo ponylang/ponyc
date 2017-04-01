@@ -108,7 +108,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
+        - LLVM_VERSION="3.7.0"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
         - CC1=clang-3.7
@@ -117,7 +117,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
+        - LLVM_VERSION="3.7.0"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
         - lto=no
@@ -127,7 +127,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
+        - LLVM_VERSION="3.8.0"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
         - CC1=clang-3.8
@@ -136,7 +136,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
+        - LLVM_VERSION="3.8.0"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
         - lto=no
@@ -146,7 +146,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
+        - LLVM_VERSION="3.9.0"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
         - CC1=clang-3.9
@@ -155,7 +155,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
+        - LLVM_VERSION="3.9.0"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
         - lto=no
