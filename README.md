@@ -139,7 +139,7 @@ $ brew install ponyc
 
 Windows users will need to install:
 
-- Visual Studio 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
 - Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
@@ -339,8 +339,8 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- [Visual Studio 2015](https://www.visualstudio.com/downloads/) at least Update 2; make sure that a Windows 10 SDK is installed; otherwise install it from [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
-- [Python](https://www.python.org/downloads) (3.5 or 2.7) needs to be in your PATH.
+- [Visual Studio 2017 or 2015](https://www.visualstudio.com/downloads/) (for 2015, at least Update 2); make sure that a Windows 10 SDK is installed; otherwise install it from [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+- [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
 

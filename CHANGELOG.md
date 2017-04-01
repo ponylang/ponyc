@@ -2,6 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.12.3] - 2017-04-01
+
+### Fixed
+
+- Improve Visual Studio and Microsoft C++ Build Tools detection. (PR #1794)
+
+
 ## [0.12.2] - 2017-03-30
 
 ### Fixed

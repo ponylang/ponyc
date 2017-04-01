@@ -123,6 +123,8 @@ class Reader
   fun ref block(len: USize): Array[U8] iso^ ? =>
     """
     Return a block as a contiguous chunk of memory.
+    Will throw an error if you request a block larger than what is currently
+    stored in the `Reader`.
     """
     if _available < len then
       error

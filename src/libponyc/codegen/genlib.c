@@ -142,7 +142,7 @@ static bool link_lib(compile_t* c, const char* file_o)
 
   vcvars_t vcvars;
 
-  if(!vcvars_get(&vcvars, errors))
+  if(!vcvars_get(c, &vcvars, errors))
   {
     errorf(errors, NULL, "unable to link: no vcvars");
     return false;
