@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Improve Visual Studio and Microsoft C++ Build Tools detection. (PR #1794)
 
 ### Added
 
