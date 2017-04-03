@@ -9,8 +9,10 @@ else
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
 
-    ifneq (,$(shell which gcc-ar 2> /dev/null))
-      AR = gcc-ar
+    ifndef AR
+      ifneq (,$(shell which gcc-ar 2> /dev/null))
+        AR = gcc-ar
+      endif
     endif
   endif
 
@@ -329,7 +331,7 @@ endif
 # (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir)
-include.paths := $(shell echo | cc -v -E - 2>&1)
+include.paths := $(shell echo | $(CC) -v -E - 2>&1)
 ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
 # LLVM include directory is not in the existing paths;
 # put it at the top of the system list
