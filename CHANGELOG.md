@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Allow persistent map to use any hash function (PR #1799)
 
 ### Added
 
