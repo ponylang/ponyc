@@ -1,16 +1,16 @@
 use mut = "collections"
 
-type _MapCollisions[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  is Array[_MapLeaf[K, V]] val
+type _MapCollisions[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  is Array[_MapLeaf[K, V, H]] val
 
-type _MapLeaf[K: (mut.Hashable val & Equatable[K]), V: Any #share]
+type _MapLeaf[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   is (K, V)
 
-type _MapEntry[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  is (_MapNode[K, V] | _MapCollisions[K, V] | _MapLeaf[K, V])
+type _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  is (_MapNode[K, V, H] | _MapCollisions[K, V, H] | _MapLeaf[K, V, H])
 
-class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  let _entries: Array[_MapEntry[K, V]] val
+class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  let _entries: Array[_MapEntry[K, V, H]] val
   let _nodemap: U32
   let _datamap: U32
   let _level: U8
@@ -18,16 +18,16 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   new val empty(l: U8) =>
     _entries = recover val
       match l
-      | 6 => Array[_MapEntry[K, V]](4)
+      | 6 => Array[_MapEntry[K, V, H]](4)
       else
-        Array[_MapEntry[K, V]](32)
+        Array[_MapEntry[K, V, H]](32)
       end
     end
     _nodemap = 0
     _datamap = 0
     _level = l
 
-  new val create(es: Array[_MapEntry[K, V]] iso, nm: U32, dm: U32, l: U8) =>
+  new val create(es: Array[_MapEntry[K, V, H]] iso, nm: U32, dm: U32, l: U8) =>
     _entries = consume es
     _nodemap = nm
     _datamap = dm
@@ -39,16 +39,18 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     if i == -1 then error end
     match _entries(i.usize_unsafe())
     | (_, let v: V) => v
-    | let sn: _MapNode[K, V] => sn(hash, key)
+    | let sn: _MapNode[K, V, H] => sn(hash, key)
     else
-      let cn = _entries(i.usize_unsafe()) as _MapCollisions[K, V]
+      let cn = _entries(i.usize_unsafe()) as _MapCollisions[K, V, H]
       for l in cn.values() do
-        if l._1 == key then return l._2 end
+        if H.eq(l._1, key) then return l._2 end
       end
       error
     end
 
-  fun val update(hash: U32, leaf: _MapLeaf[K, V]): (_MapNode[K, V], Bool) ? =>
+  fun val update(hash: U32, leaf: _MapLeaf[K, V, H]):
+    (_MapNode[K, V, H], Bool) ?
+  =>
     let idx = _Bits.mask(hash, _level)
     let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then
@@ -61,10 +63,10 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       if _level == 6 then
         // insert into collision node
         let es = recover _entries.clone() end
-        let cs = _entries(i.usize_unsafe()) as _MapCollisions[K, V]
+        let cs = _entries(i.usize_unsafe()) as _MapCollisions[K, V, H]
         let cs' = recover cs.clone() end
         for (k, v) in cs.pairs() do
-          if v._1 == leaf._1 then
+          if H.eq(v._1, leaf._1) then
           // update collision
             cs'(k) = leaf
             es(i.usize_unsafe()) = consume cs'
@@ -76,22 +78,22 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         (create(consume es, _nodemap, _datamap, _level), true)
       else
         // insert into sub-node
-        let sn = _entries(i.usize_unsafe()) as _MapNode[K, V]
+        let sn = _entries(i.usize_unsafe()) as _MapNode[K, V, H]
         let es = recover _entries.clone() end
-        (let sn', _) = sn.update(hash, leaf) as (_MapNode[K, V], Bool)
+        (let sn', _) = sn.update(hash, leaf) as (_MapNode[K, V, H], Bool)
         es(i.usize_unsafe()) = sn'
         (create(consume es, _nodemap, _datamap, _level), true)
       end
     else
-      let old = _entries(i.usize_unsafe()) as _MapLeaf[K, V]
-      if old._1 == leaf._1 then
+      let old = _entries(i.usize_unsafe()) as _MapLeaf[K, V, H]
+      if H.eq(old._1, leaf._1) then
         // update leaf
         let es = recover _entries.clone() end
         es(i.usize()) = leaf
         (create(consume es, _nodemap, _datamap, _level), false)
       elseif _level == 6 then
         // create collision node
-        let cn = recover Array[_MapLeaf[K, V]](2) end
+        let cn = recover Array[_MapLeaf[K, V, H]](2) end
         cn.push(old)
         cn.push(leaf)
         let es = recover _entries.clone() end
@@ -104,8 +106,9 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       else
         // create new sub-node
         var sn = empty(_level + 1)
-        (sn, _) = sn.update(old._1.hash().u32(), old) as (_MapNode[K, V], Bool)
-        (sn, _) = sn.update(hash, leaf) as (_MapNode[K, V], Bool)
+        (sn, _) =
+          sn.update(H.hash(old._1).u32(), old) as (_MapNode[K, V, H], Bool)
+        (sn, _) = sn.update(hash, leaf) as (_MapNode[K, V, H], Bool)
         let es = recover _entries.clone() end
         let nm = _Bits.set_bit(_nodemap, idx)
         let dm = _Bits.clear_bit(_datamap, idx)
@@ -116,7 +119,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       end
     end
 
-  fun val remove(hash: U32, key: K): _MapNode[K, V] ? =>
+  fun val remove(hash: U32, key: K): _MapNode[K, V, H] ? =>
     let idx = _Bits.mask(hash, _level)
     let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then error end
@@ -127,10 +130,10 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     else
       if _level == 6 then
         let es = recover _entries.clone() end
-        let cs = _entries(i.usize_unsafe()) as _MapCollisions[K, V]
+        let cs = _entries(i.usize_unsafe()) as _MapCollisions[K, V, H]
         let cs' = recover cs.clone() end
         for (k, v) in cs.pairs() do
-          if v._1 == key then
+          if H.eq(v._1, key) then
             cs'.delete(k)
             es(i.usize_unsafe()) = consume cs'
             return create(consume es, _nodemap, _datamap, _level)
@@ -138,7 +141,7 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
         end
         error
       else
-        var sn = _entries(i.usize_unsafe()) as _MapNode[K, V]
+        var sn = _entries(i.usize_unsafe()) as _MapNode[K, V, H]
         sn = sn.remove(hash, key)
         let es = recover _entries.clone() end
         if (_nodemap.popcount() == 0) and (_datamap.popcount() == 1) then
@@ -162,4 +165,4 @@ class val _MapNode[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     let i = (np + dp).popcount()
     if _Bits.has_bit(nm, idx) or _Bits.has_bit(dm, idx) then i else -1 end
 
-  fun entries(): Array[_MapEntry[K, V]] val => _entries
+  fun entries(): Array[_MapEntry[K, V, H]] val => _entries
