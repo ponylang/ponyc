@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Pass # of times called to TCPConnectionNotify.received (PR #1777)
 
 
 ## [0.12.3] - 2017-04-01
