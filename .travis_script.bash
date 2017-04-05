@@ -28,7 +28,7 @@ ponyc-build-packages(){
   echo "Removing any existing ponyc installs before creating for deployment..."
   make CC="$CC1" CXX="$CXX1" clean
   echo "Building ponyc packages for deployment..."
-  make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel config=release package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
+  make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
 }
 
 ponyc-build-docs(){
