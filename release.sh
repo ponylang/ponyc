@@ -78,6 +78,11 @@ verify_args
 # create version release branch
 git checkout master
 git pull
+if ! git diff --exit-code master origin/master
+then
+  echo "ERROR! There are local-only changes on branch 'master'!"
+  exit 1
+fi
 git checkout -b release-$version $commit
 
 # update VERSION and CHANGELOG
@@ -92,6 +97,11 @@ git commit -m "Prep for $version release
 
 # merge into release
 git checkout release
+if ! git diff --exit-code release origin/release
+then
+  echo "ERROR! There are local-only changes on branch 'release'!"
+  exit 1
+fi
 git merge release-$version -m "Release $version"
 
 # tag release
