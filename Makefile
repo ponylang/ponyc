@@ -783,6 +783,7 @@ deploy: test docs
 	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
+	$(SILENT)rm -rf build/bin
 	@mkdir -p build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
@@ -801,17 +802,17 @@ endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
 ifeq ($(OSTYPE),linux)
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
 endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
 endif
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
