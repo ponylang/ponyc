@@ -26,6 +26,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 * Vim:
     - [vim-pony](https://github.com/jakwings/vim-pony)
     - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
+    - [currycomb: Syntastic support](https://github.com/killerswan/pony-currycomb.vim)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
