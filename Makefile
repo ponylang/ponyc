@@ -772,9 +772,14 @@ test-ci: all
 	@./examples1
 	@rm examples1
 
+docs: all
+	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
+	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
+	$(SILENT)sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
+
 # Note: linux only
 define EXPAND_DEPLOY
-deploy: test
+deploy: test docs
 	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
@@ -808,14 +813,12 @@ endif
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
-	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
-	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
-	$(SILENT)rm -rf $(package) build/bin/$(archive) stdlib-docs
+	$(SILENT)rm -rf $(package) build/bin/$(archive)
 endef
 
 $(eval $(call EXPAND_DEPLOY))

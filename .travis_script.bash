@@ -32,23 +32,20 @@ ponyc-build-packages(){
 }
 
 ponyc-build-docs(){
+  echo "Installing mkdocs..."
+  sudo -H pip install mkdocs
+
   echo "Removing any existing ponyc installs before creating for doc generation..."
   make clean
-  echo "Building ponyc for doc generation..."
-  make CC="$CC1" CXX="$CXX1"
+  echo "Building ponyc docs..."
+  make CC="$CC1" CXX="$CXX1" docs
 
-  echo "Checking out the gh-pages branch..."
+  echo "Fetching out the gh-pages branch..."
   git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}"
   git fetch gh-token && git fetch gh-token gh-pages:gh-pages
 
-  echo "Building docs..."
-  build/release/ponyc packages/stdlib --docs
-
   echo "Uploading docs using mkdocs..."
   cd stdlib-docs
-  sudo -H pip install mkdocs
-  cp ../.docs/extra.js docs/
-  sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' mkdocs.yml
   mkdocs gh-deploy -v --clean --remote-name gh-token
 }
 
