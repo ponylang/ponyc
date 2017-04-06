@@ -129,6 +129,20 @@ $ brew update
 $ brew install ponyc
 ```
 
+## "cannot find 'ld'" error
+
+If you get an error when trying to use `ponyc` to compile pony source
+that looks like this:
+
+```bash
+collect2: fatal error: cannot find 'ld'
+```
+
+you might have to install the `ld-gold` linker. It can typically be
+found by searching your distro's package repository for `binutils-gold`
+or just `ld-gold`.
+
+
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
