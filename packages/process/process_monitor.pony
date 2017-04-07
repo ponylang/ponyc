@@ -281,8 +281,10 @@ actor ProcessMonitor
     and close the file descriptors we don't need.
     """
     ifdef posix then
-      _stdout_event = _create_asio_event(_stdout_read)
-      _stderr_event = _create_asio_event(_stderr_read)
+      _stdout_event =
+        @pony_asio_event_create(this, _stdout_read, AsioEvent.read(), 0, true)
+      _stderr_event =
+        @pony_asio_event_create(this, _stderr_read, AsioEvent.read(), 0, true)
       _close_fd(_stdin_read)
       _close_fd(_stdout_write)
       _close_fd(_stderr_write)
@@ -309,9 +311,7 @@ actor ProcessMonitor
     """
     ifdef posix then
       while (@dup2[I32](oldfd, newfd) < 0) do
-        if @pony_os_errno() == _EINTR() then
-          continue
-        else
+        if @pony_os_errno() != _EINTR() then
           @_exit[None](I32(-1))
         end
       end
@@ -376,17 +376,7 @@ actor ProcessMonitor
     Write to STDIN of the child process.
     TODO: Signal back success/failure
     """
-    ifdef posix then
-      let d = data
-      if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cpointer(), d.size())
-        if res < 0 then
-          _notifier.failed(this, WriteError)
-        end
-      else
-        _notifier.failed(this, WriteError)
-      end
-    end
+   _write_final(data)
 
   be printv(data: ByteSeqIter) =>
     """
@@ -431,13 +421,11 @@ actor ProcessMonitor
     """
     Terminate child and close down everything.
     """
-    try
-      _kill_child()
-    else
+    if @kill[I32](_child_pid, _SIGTERM()) < 0 then
       _notifier.failed(this, KillError)
-      return
+    else
+      _close()
     end
-    _close()
 
   fun ref expect(qty: USize = 0) =>
     """
@@ -446,22 +434,6 @@ actor ProcessMonitor
     """
     _expect = _notifier.expect(this, qty)
     _read_buf_size()
-
-  fun _kill_child() ? =>
-    """
-    Terminate the child process.
-    """
-    if @kill[I32](_child_pid, _SIGTERM()) < 0 then error end
-
-  fun _create_asio_event(fd: U32): AsioEventID =>
-    """
-    Takes a file descriptor (one end of a pipe) and returns an AsioEvent.
-    """
-    ifdef posix then
-      @pony_asio_event_create(this, fd, AsioEvent.read(), 0, true)
-    else
-      AsioEvent.none()
-    end
 
   fun _event_flags(flags: U32): String box=>
     """
