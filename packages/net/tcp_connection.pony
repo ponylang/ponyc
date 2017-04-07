@@ -667,7 +667,7 @@ actor TCPConnection
         data.truncate(_read_len)
         _read_len = 0
 
-        _notify.received(this, consume data)
+        _notify.received(this, consume data, 1)
         _read_buf_size()
       end
 
@@ -708,6 +708,7 @@ actor TCPConnection
     ifdef not windows then
       try
         var sum: USize = 0
+        var received_called: USize = 0
 
         while _readable and not _shutdown_peer do
           if _muted then
@@ -741,7 +742,8 @@ actor TCPConnection
             data.truncate(_read_len)
             _read_len = 0
 
-            if not _notify.received(this, consume data) then
+            received_called = received_called + 1
+            if not _notify.received(this, consume data, received_called) then
               _read_buf_size()
               _read_again()
               return

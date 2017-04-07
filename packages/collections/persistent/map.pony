@@ -1,6 +1,17 @@
 use mut = "collections"
 
-class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
+type Map[K: (mut.Hashable val & Equatable[K]), V: Any #share] is
+  HashMap[K, V, mut.HashEq[K]]
+  """
+  A map that uses structural equality on the key.
+  """
+
+type MapIs[K: Any #share, V: Any #share] is mut.HashMap[K, V, mut.HashIs[K]]
+  """
+  A map that uses identity comparison on the key.
+  """
+
+class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   """
   A persistent map based on the Compressed Hash Array Mapped Prefix-tree from
   'Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM
@@ -18,14 +29,14 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
   let map = Maps.from[String,U32]([("a", 2), ("b", 3)]) // {a: 2, b: 3}
   ```
   """
-  let _root: _MapNode[K, V]
+  let _root: _MapNode[K, V, H]
   let _size: USize
 
   new val create() =>
-    _root = _MapNode[K, V].empty(0)
+    _root = _MapNode[K, V, H].empty(0)
     _size = 0
 
-  new val _create(r: _MapNode[K, V], s: USize) =>
+  new val _create(r: _MapNode[K, V, H], s: USize) =>
     _root = r
     _size = s
 
@@ -33,7 +44,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     Attempt to get the value corresponding to k.
     """
-    _root(k.hash().u32(), k)
+    _root(H.hash(k).u32(), k)
 
   fun val size(): USize =>
     """
@@ -41,24 +52,24 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     """
     _size
 
-  fun val update(key: K, value: val->V): Map[K, V] =>
+  fun val update(key: K, value: val->V): HashMap[K, V, H] =>
     """
     Update the value associated with the provided key.
     """
     (let r, let insertion) =
       try
-        _root.update(key.hash().u32(), (key, value))
+        _root.update(H.hash(key).u32(), (key, value))
       else
         (_root, false) // should not occur
       end
     let s = if insertion then _size + 1 else _size end
     _create(r, s)
 
-  fun val remove(k: K): Map[K, V] ? =>
+  fun val remove(k: K): HashMap[K, V, H] ? =>
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(k.hash().u32(), k), _size - 1)
+    _create(_root.remove(H.hash(k).u32(), k), _size - 1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """
@@ -82,7 +93,7 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       false
     end
 
-  fun val concat(iter: Iterator[(val->K, val->V)]): Map[K, V] =>
+  fun val concat(iter: Iterator[(val->K, val->V)]): HashMap[K, V, H] =>
     """
     Add the K, V pairs from the given iterator to the map.
     """
@@ -92,42 +103,42 @@ class val Map[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     end
     m
 
-  fun val keys(): MapKeys[K, V] => MapKeys[K, V](this)
+  fun val keys(): MapKeys[K, V, H] => MapKeys[K, V, H](this)
 
-  fun val values(): MapValues[K, V] => MapValues[K, V](this)
+  fun val values(): MapValues[K, V, H] => MapValues[K, V, H](this)
 
-  fun val pairs(): MapPairs[K, V] => MapPairs[K, V](this)
+  fun val pairs(): MapPairs[K, V, H] => MapPairs[K, V, H](this)
 
-  fun _root_node(): _MapNode[K, V] => _root
+  fun _root_node(): _MapNode[K, V, H] => _root
 
-class MapKeys[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  embed _pairs: MapPairs[K, V]
+class MapKeys[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  embed _pairs: MapPairs[K, V, H]
 
-  new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
+  new create(m: HashMap[K, V, H]) => _pairs = MapPairs[K, V, H](m)
 
   fun has_next(): Bool => _pairs.has_next()
 
   fun ref next(): K ? => _pairs.next()._1
 
-class MapValues[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  embed _pairs: MapPairs[K, V]
+class MapValues[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  embed _pairs: MapPairs[K, V, H]
 
-  new create(m: Map[K, V]) => _pairs = MapPairs[K, V](m)
+  new create(m: HashMap[K, V, H]) => _pairs = MapPairs[K, V, H](m)
 
   fun has_next(): Bool => _pairs.has_next()
 
   fun ref next(): val->V ? => _pairs.next()._2
 
-class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
-  embed _path: Array[_MapNode[K, V]]
+class MapPairs[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  embed _path: Array[_MapNode[K, V, H]]
   embed _idxs: Array[USize]
   var _i: USize = 0
   let _size: USize
   var _ci: USize = 0
 
-  new create(m: Map[K, V]) =>
+  new create(m: HashMap[K, V, H]) =>
     _size = m.size()
-    _path = Array[_MapNode[K, V]]
+    _path = Array[_MapNode[K, V, H]]
     _path.push(m._root_node())
     _idxs = Array[USize]
     _idxs.push(0)
@@ -141,14 +152,14 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
       return next()
     end
     match n.entries()(i)
-    | let l: _MapLeaf[K, V] =>
+    | let l: _MapLeaf[K, V, H] =>
       _inc_i()
       _i = _i + 1
       l
-    | let sn: _MapNode[K, V] =>
+    | let sn: _MapNode[K, V, H] =>
       _push(sn)
       next()
-    | let cs: _MapCollisions[K, V] =>
+    | let cs: _MapCollisions[K, V, H] =>
       if _ci < cs.size() then
         let l = cs(_ci)
         _ci = _ci + 1
@@ -162,7 +173,7 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     else error
     end
 
-  fun ref _push(n: _MapNode[K, V]) =>
+  fun ref _push(n: _MapNode[K, V, H]) =>
     _path.push(n)
     _idxs.push(0)
 
@@ -175,6 +186,6 @@ class MapPairs[K: (mut.Hashable val & Equatable[K]), V: Any #share]
     let i = _idxs.size() - 1
     _idxs(i) = _idxs(i) + 1
 
-  fun _cur(): (_MapNode[K, V], USize) ? =>
+  fun _cur(): (_MapNode[K, V, H], USize) ? =>
     let i = _idxs.size() - 1
     (_path(i), _idxs(i))

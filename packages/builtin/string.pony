@@ -642,6 +642,10 @@ actor Main
     """
     Returns a substring. Index range [`from` .. `to`) is half-open.
     Returns an empty string if nothing is in the range.
+
+    Note that this operation allocates a new string to be returned. For
+    similar operations that don't allocate a new string, see `trim` and
+    `trim_in_place`.
     """
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)

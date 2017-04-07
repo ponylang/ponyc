@@ -58,12 +58,17 @@ interface TCPConnectionNotify
     """
     data
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
     """
     Called when new data is received on the connection. Return true if you
     want to continue receiving messages without yielding until you read
     max_size on the TCPConnection. Return false to cause the TCPConnection
     to yield now.
+
+    Includes the number of times during the current behavior, that received has
+    been called. This allows the notifier to end reads on a regular basis.
     """
     true
 

@@ -13,7 +13,9 @@ class ServerSide is TCPConnectionNotify
       conn.write("server says hi")
     end
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
     _env.out.print(consume data)
     conn.dispose()
     true

@@ -26,6 +26,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 * Vim:
     - [vim-pony](https://github.com/jakwings/vim-pony)
     - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
+    - [currycomb: Syntastic support](https://github.com/killerswan/pony-currycomb.vim)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
@@ -60,6 +61,36 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
 
 If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
+
+### Docker for Windows
+
+Pull the latest image as above.
+
+```bash
+docker pull ponylang/ponyc:latest
+```
+
+Share a local drive (volume), such as `c:`, with Docker for Windows, so that they are available to your containers. (Refer to [shared drives](https://docs.docker.com/docker-for-windows/#shared-drives) in the Docker for Windows documentation for details.)
+
+Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
+
+```bash
+docker run -v c:/path/to/my-code:/src/main ponylang/ponyc
+```
+
+Note the inserted drive letter. Replace with your drive letter as appropriate.
+
+To run a program, run a command like this:
+
+```bash
+docker run -v c:/path/to/my-code:/src/main ponylang/ponyc ./main
+```
+
+To compile and run in one step run a command like this:
+
+```bash
+docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main"
+```
 
 ### Docker and AVX2 Support
 

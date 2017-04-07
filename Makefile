@@ -9,8 +9,10 @@ else
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
 
-    ifneq (,$(shell which gcc-ar 2> /dev/null))
-      AR = gcc-ar
+    ifndef AR
+      ifneq (,$(shell which gcc-ar 2> /dev/null))
+        AR = gcc-ar
+      endif
     endif
   endif
 
@@ -329,7 +331,7 @@ endif
 # (4) a list of the libraries to link against
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir)
-include.paths := $(shell echo | cc -v -E - 2>&1)
+include.paths := $(shell echo | $(CC) -v -E - 2>&1)
 ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
 # LLVM include directory is not in the existing paths;
 # put it at the top of the system list
@@ -770,51 +772,54 @@ test-ci: all
 	@./examples1
 	@rm examples1
 
+docs: all
+	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
+	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
+	$(SILENT)sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
+
 # Note: linux only
-# FIXME: why is $(branch) empty?
 define EXPAND_DEPLOY
-deploy: test
+deploy: test docs
 	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
-	@mkdir build/bin
+	$(SILENT)rm -rf build/bin
+	@mkdir -p build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
-	$(SILENT)cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
-	$(SILENT)cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
 ifeq ($(OSTYPE),linux)
-	$(SILENT)cp build/release/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
 endif
-ifneq ($(wildcard build/release/libponyrt.bc),)
-	$(SILENT)cp build/release/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
 endif
-	$(SILENT)cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
 ifeq ($(OSTYPE),linux)
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt-pic.a $(package)/usr/lib/libponyrt-pic.a
 endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
 endif
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
-	$(SILENT)ln -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
-	$(SILENT)build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
-	$(SILENT)cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
-	$(SILENT)rm -rf $(package) build/bin/$(archive) stdlib-docs
+	$(SILENT)rm -rf $(package) build/bin/$(archive)
 endef
 
 $(eval $(call EXPAND_DEPLOY))
@@ -835,6 +840,9 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
+	@rm -rf $(package)
+	@rm -rf build/bin
+	@rm -rf stdlib-docs
 	@rm -f src/common/dtrace_probes.h
 	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
