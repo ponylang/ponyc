@@ -432,10 +432,10 @@ TEST_F(BadPonyTest, CapSubtypeInConstrainSubtyping)
   // From PR #1816
   const char* src =
     "trait T\n"
-    "  fun alias[X: Any iso](x: X!) : X^\n"
+    "  fun alias[X: Any iso](x: X!): X^\n"
     "class C is T\n"
-    "  fun alias[X: Any tag](x: X!) : X^ => x\n";
+    "  fun alias[X: Any tag](x: X!): X^ => x\n";
 
   TEST_ERRORS_1(src,
-    "type parameter constraint Any tag is not a supertype of Any iso");
+    "type does not implement its provides list");
 }
