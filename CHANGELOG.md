@@ -2,6 +2,18 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [unreleased] - unreleased
+
+### Fixed
+
+
+### Added
+
+
+### Changed
+
+
+
 ## [0.13.0] - 2017-04-07
 
 - Allow persistent map to use any hash function (PR #1799)
