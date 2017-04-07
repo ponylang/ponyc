@@ -14,11 +14,16 @@ All notable changes to the Pony compiler and standard library will be documented
 
 
 
-## [0.13.0] - 2017-04-07
+[0.13.0] - 2017-04-07
 
+### Fixed
+
+- Do not allow capability subtyping when checking constraint subtyping. (PR #1816)
 - Allow persistent map to use any hash function (PR #1799)
 
+### Changed
 
+- Pass # of times called to TCPConnectionNotify.received (PR #1777)
 
 ## [0.12.3] - 2017-04-01
 
