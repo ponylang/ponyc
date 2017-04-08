@@ -37,20 +37,22 @@ update_changelog() {
 }
 
 remove_empty_sections() {
-  for section in "Fixed" "Added" "Changed"; do
-    # check if first non-whitespace character after section heading is '-'
-    local str_after
-    local first_word
-    str_after="$(SED "1,/### $section/d" <CHANGELOG.md)"
-    # Do not put quotes around $str_after!
-    first_word="$(echo $str_after | head -n1 | cut -d " " -f1)"
-    if [[ "$first_word" != "-" ]]; then
-      echo "Removing empty CHANGELOG section: $section"
-      local line_num
-      line_num="$(grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1)"
-      $SED -i "$line_num{N;N;d}" CHANGELOG.md
-    fi
-  done
+  local unreleased_section
+  unreleased_section="$($SED -n "/## \[unreleased\] - unreleased/,/## \[/p" < CHANGELOG.md)"
+  if [[ "$unreleased_section" != "" ]]; then
+    for section in "Fixed" "Added" "Changed"; do
+      local section_text
+      local first
+      section_text="$(echo "$unreleased_section" | $SED -n "/### $section/{:a;n;/##/b;p;ba}")"
+      first="$(echo "$section_text" | $SED "/^\s*$/d" | cut -c 1)"
+      if [[ "$first" == "" ]]; then
+        echo "Removing empty CHANGELOG section: $section"
+        local line_num
+        line_num="$(grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1)"
+        $SED -i "$line_num{N;N;d}" CHANGELOG.md
+      fi
+    done
+  fi
 }
 
 add_changelog_unreleased_section() {
