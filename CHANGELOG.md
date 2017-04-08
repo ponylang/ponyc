@@ -14,123 +14,123 @@ All notable changes to the Pony compiler and standard library will be documented
 
 
 
-[0.13.0] - 2017-04-07
+## [0.13.0] - 2017-04-07
 
 ### Fixed
 
-- Do not allow capability subtyping when checking constraint subtyping. (PR #1816)
-- Allow persistent map to use any hash function (PR #1799)
+- Do not allow capability subtyping when checking constraint subtyping. ([PR #1816](https://github.com/ponylang/ponyc/pull/1816))
+- Allow persistent map to use any hash function ([PR #1799](https://github.com/ponylang/ponyc/pull/1799))
 
 ### Changed
 
-- Pass # of times called to TCPConnectionNotify.received (PR #1777)
+- Pass # of times called to TCPConnectionNotify.received ([PR #1777](https://github.com/ponylang/ponyc/pull/1777))
 
 ## [0.12.3] - 2017-04-01
 
 ### Fixed
 
-- Improve Visual Studio and Microsoft C++ Build Tools detection. (PR #1794)
+- Improve Visual Studio and Microsoft C++ Build Tools detection. ([PR #1794](https://github.com/ponylang/ponyc/pull/1794))
 
 
 ## [0.12.2] - 2017-03-30
 
 ### Fixed
 
-- Fix extreme CPU use in scheduler on Windows (PR #1785)
-- Fix broken ponytest "only" filter (PR #1780)
+- Fix extreme CPU use in scheduler on Windows ([PR #1785](https://github.com/ponylang/ponyc/pull/1785))
+- Fix broken ponytest "only" filter ([PR #1780](https://github.com/ponylang/ponyc/pull/1780))
 
 
 ## [0.12.1] - 2017-03-29
 
 ### Fixed
 
-- Bug in ponytest resulted in all tests being skipped (PR #1778)
+- Bug in ponytest resulted in all tests being skipped ([PR #1778](https://github.com/ponylang/ponyc/pull/1778))
 
 
 ## [0.12.0] - 2017-03-29
 
 ### Fixed
 
-- Don't ignore buffer length when printing (PR #1768)
-- Ifdef out ANSITerm signal handler for SIGWINCH (PR #1763)
-- Fix build error on 32 bits systems (PR #1762)
-- Fix annotation-related compiler assertion failure (issue #1751) (PR #1757)
-- Improve packaged Linux binary performance (PR #1755)
-- Fix false positive test failure on 32 bits (PR #1749)
+- Don't ignore buffer length when printing ([PR #1768](https://github.com/ponylang/ponyc/pull/1768))
+- Ifdef out ANSITerm signal handler for SIGWINCH ([PR #1763](https://github.com/ponylang/ponyc/pull/1763))
+- Fix build error on 32 bits systems ([PR #1762](https://github.com/ponylang/ponyc/pull/1762))
+- Fix annotation-related compiler assertion failure (issue #1751) ([PR #1757](https://github.com/ponylang/ponyc/pull/1757))
+- Improve packaged Linux binary performance ([PR #1755](https://github.com/ponylang/ponyc/pull/1755))
+- Fix false positive test failure on 32 bits ([PR #1749](https://github.com/ponylang/ponyc/pull/1749))
 
 ### Added
 
-- Support XCode 8.3 and LLVM 3.9 (PR #1765)
+- Support XCode 8.3 and LLVM 3.9 ([PR #1765](https://github.com/ponylang/ponyc/pull/1765))
 
 ### Changed
 
-- Arrays as sequences (PR #1741)
-- Add ability for ponytest to exclude tests based on name (PR #1717)
-- Renamed ponytest "filter" flag to "only" (PR #1717)
+- Arrays as sequences ([PR #1741](https://github.com/ponylang/ponyc/pull/1741))
+- Add ability for ponytest to exclude tests based on name ([PR #1717](https://github.com/ponylang/ponyc/pull/1717))
+- Renamed ponytest "filter" flag to "only" ([PR #1717](https://github.com/ponylang/ponyc/pull/1717))
 
 
 ## [0.11.4] - 2017-03-23
 
 ### Fixed
 
-- Identity comparison of boxed values (PR #1726)
-- Reify type refs in inherited method bodies (PR #1722)
-- Fix compilation error on non-x86 systems (PR #1718)
-- Call finalisers for embedded fields when parent type has no finalizer. (PR #1629)
-- Fix compiling errors for 32-bit (PR #1709)
-- Improved persistent map api (RFC 36) (PR #1705)
-- Fix compiler assert on arrow to typeparam in constraint. (PR #1701)
+- Identity comparison of boxed values ([PR #1726](https://github.com/ponylang/ponyc/pull/1726))
+- Reify type refs in inherited method bodies ([PR #1722](https://github.com/ponylang/ponyc/pull/1722))
+- Fix compilation error on non-x86 systems ([PR #1718](https://github.com/ponylang/ponyc/pull/1718))
+- Call finalisers for embedded fields when parent type has no finalizer. ([PR #1629](https://github.com/ponylang/ponyc/pull/1629))
+- Fix compiling errors for 32-bit ([PR #1709](https://github.com/ponylang/ponyc/pull/1709))
+- Improved persistent map api (RFC 36) ([PR #1705](https://github.com/ponylang/ponyc/pull/1705))
+- Fix compiler assert on arrow to typeparam in constraint. ([PR #1701](https://github.com/ponylang/ponyc/pull/1701))
 - Segmentation fault on runtime termination.
 
 ## [0.11.3] - 2017-03-16
 
 ### Fixed
 
-- Build Linux release binaries correctly (PR #1699)
+- Build Linux release binaries correctly ([PR #1699](https://github.com/ponylang/ponyc/pull/1699))
 
 ## [0.11.2] - 2017-03-16
 
 ### Fixed
 
-- Fix illegal instruction errors on older cpus when using packaged Pony (PR #1686)
-- Correctly pass `arch=` when building docker image (PR #1681)
+- Fix illegal instruction errors on older cpus when using packaged Pony ([PR #1686](https://github.com/ponylang/ponyc/pull/1686))
+- Correctly pass `arch=` when building docker image ([PR #1681](https://github.com/ponylang/ponyc/pull/1681))
 
 ### Changed
 
-- Make buffered.Reader.append accept any ByteSeq. (PR #1644)
+- Make buffered.Reader.append accept any ByteSeq. ([PR #1644](https://github.com/ponylang/ponyc/pull/1644))
 
 ## [0.11.1] - 2017-03-14
 
 ### Fixed
 
-- Fix AVX/AVX2 issues with prebuilt ponyc (PR #1663)
-- Fix linking with '--as-needed' (sensitive to linking order) (PR #1654)
+- Fix AVX/AVX2 issues with prebuilt ponyc ([PR #1663](https://github.com/ponylang/ponyc/pull/1663))
+- Fix linking with '--as-needed' (sensitive to linking order) ([PR #1654](https://github.com/ponylang/ponyc/pull/1654))
 - Fix FreeBSD 11 compilation
 
 ## [0.11.0] - 2017-03-11
 
 ### Fixed
 
-- Make HTTPSession type tag by default (PR #1650)
-- Fix type parameters not being visible to a lambda type in a type alias (PR #1633)
-- Remove the check for union types on match error (PR #1630)
-- TCPListener: unsubscribe asio before socket close (PR #1626)
-- Fix buffer overflow in case method docstring (PR #1615)
-- Fix capability checking for gencap-constrained type parameters. (PR #1593)
-- Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) (PR #1604)
-- Escape special characters in ANLTR strings. (#1600) (PR #1601)
-- Use LLVM to detect CPU features by default if --features aren't specified. (PR #1580)
-- Always call finalisers for embedded fields (PR #1586)
-- Check for null terminator in String._append (PR #1582)
-- Fix TCP Connection data receive race condition (PR #1578)
-- Fix Linux epoll event resubscribe performance and race condition. (PR #1564)
-- Correctly resubscribe TCPConnection to ASIO events after throttling (PR #1558)
-- Performance fix in the runtime actor schedule (PR #1521)
-- Disallow type parameter names shadowing other types. (PR #1526)
-- Don't double resubscribe to asio events in TCPConnection (PR #1509)
-- Improve Map.get_or_else performance (PR #1482)
+- Make HTTPSession type tag by default ([PR #1650](https://github.com/ponylang/ponyc/pull/1650))
+- Fix type parameters not being visible to a lambda type in a type alias ([PR #1633](https://github.com/ponylang/ponyc/pull/1633))
+- Remove the check for union types on match error ([PR #1630](https://github.com/ponylang/ponyc/pull/1630))
+- TCPListener: unsubscribe asio before socket close ([PR #1626](https://github.com/ponylang/ponyc/pull/1626))
+- Fix buffer overflow in case method docstring ([PR #1615](https://github.com/ponylang/ponyc/pull/1615))
+- Fix capability checking for gencap-constrained type parameters. ([PR #1593](https://github.com/ponylang/ponyc/pull/1593))
+- Fix error in ANTLR grammar regarding duplicate '-~'. (#1602) ([PR #1604](https://github.com/ponylang/ponyc/pull/1604))
+- Escape special characters in ANLTR strings. (#1600) ([PR #1601](https://github.com/ponylang/ponyc/pull/1601))
+- Use LLVM to detect CPU features by default if --features aren't specified. ([PR #1580](https://github.com/ponylang/ponyc/pull/1580))
+- Always call finalisers for embedded fields ([PR #1586](https://github.com/ponylang/ponyc/pull/1586))
+- Check for null terminator in String._append ([PR #1582](https://github.com/ponylang/ponyc/pull/1582))
+- Fix TCP Connection data receive race condition ([PR #1578](https://github.com/ponylang/ponyc/pull/1578))
+- Fix Linux epoll event resubscribe performance and race condition. ([PR #1564](https://github.com/ponylang/ponyc/pull/1564))
+- Correctly resubscribe TCPConnection to ASIO events after throttling ([PR #1558](https://github.com/ponylang/ponyc/pull/1558))
+- Performance fix in the runtime actor schedule ([PR #1521](https://github.com/ponylang/ponyc/pull/1521))
+- Disallow type parameter names shadowing other types. ([PR #1526](https://github.com/ponylang/ponyc/pull/1526))
+- Don't double resubscribe to asio events in TCPConnection ([PR #1509](https://github.com/ponylang/ponyc/pull/1509))
+- Improve Map.get_or_else performance ([PR #1482](https://github.com/ponylang/ponyc/pull/1482))
 - Back pressure notifications now given when encountered while sending data during `TCPConnection` pending writes
-- Improve efficiency of muted TCPConnection on non Windows platforms (PR #1477)
+- Improve efficiency of muted TCPConnection on non Windows platforms ([PR #1477](https://github.com/ponylang/ponyc/pull/1477))
 - Compiler assertion failure during type checking
 - Runtime memory allocator bug
 - Compiler crash on tuple sending generation (issue #1546)
@@ -139,26 +139,26 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
-- Close over free variables in lambdas and object literals (PR #1648)
-- Add assert_no_error test condition to PonyTest (PR #1605)
-- Expose `st_dev` and `st_ino` fields of stat structure (PR #1589)
-- Packed structures (RFC 32) (PR #1536)
-- Add `insert_if_absent` method to Map (PR #1519)
-- Branch prediction annotations (RFC 30) (PR #1528)
-- Readline interpret C-d on empty line as EOF (PR #1504)
-- AST annotations (RFC 27) (PR #1485)
+- Close over free variables in lambdas and object literals ([PR #1648](https://github.com/ponylang/ponyc/pull/1648))
+- Add assert_no_error test condition to PonyTest ([PR #1605](https://github.com/ponylang/ponyc/pull/1605))
+- Expose `st_dev` and `st_ino` fields of stat structure ([PR #1589](https://github.com/ponylang/ponyc/pull/1589))
+- Packed structures (RFC 32) ([PR #1536](https://github.com/ponylang/ponyc/pull/1536))
+- Add `insert_if_absent` method to Map ([PR #1519](https://github.com/ponylang/ponyc/pull/1519))
+- Branch prediction annotations (RFC 30) ([PR #1528](https://github.com/ponylang/ponyc/pull/1528))
+- Readline interpret C-d on empty line as EOF ([PR #1504](https://github.com/ponylang/ponyc/pull/1504))
+- AST annotations (RFC 27) ([PR #1485](https://github.com/ponylang/ponyc/pull/1485))
 - Unsafe mathematic and logic operations. Can be faster but can have undefined results for some inputs (issue #993)
-- Equality comparison for NetAddress (PR #1569)
-- Host address comparison for NetAddress (PR #1569)
+- Equality comparison for NetAddress ([PR #1569](https://github.com/ponylang/ponyc/pull/1569))
+- Host address comparison for NetAddress ([PR #1569](https://github.com/ponylang/ponyc/pull/1569))
 
 ### Changed
 
-- Rename IPAddress to NetAddress (PR #1559)
-- Remove delegates (RFC 31) (PR #1534)
-- Upgrade to LLVM 3.9.1 (PR #1498)
-- Deprecate LLVM 3.6.2 support (PR #1511) (PR #1502) (PR ##1512)
+- Rename IPAddress to NetAddress ([PR #1559](https://github.com/ponylang/ponyc/pull/1559))
+- Remove delegates (RFC 31) ([PR #1534](https://github.com/ponylang/ponyc/pull/1534))
+- Upgrade to LLVM 3.9.1 ([PR #1498](https://github.com/ponylang/ponyc/pull/1498))
+- Deprecate LLVM 3.6.2 support ([PR #1511](https://github.com/ponylang/ponyc/pull/1511)) ([PR #1502](https://github.com/ponylang/ponyc/pull/1502)) (PR ##1512)
 - Ensure TCPConnection is established before writing data to it (issue #1310)
-- Always allow writing to `_` (dontcare) (PR #1499)
+- Always allow writing to `_` (dontcare) ([PR #1499](https://github.com/ponylang/ponyc/pull/1499))
 - Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
   - builtin.Seq
     - reserve
@@ -296,39 +296,39 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Don't violate reference capabilities when assigning via a field (PR #1471)
-- Check errors correctly for method chaining (PR #1463)
-- Fix compiler handling of type params in stacks (issue #918) (PR #1452)
-- Fix String.recalc method for cases where no null terminator is found (issue #1446) (PR #1450)
-- Make space() check if string is null terminated (issue #1426) (PR #1430)
-- Fix is_null_terminated reading arbitrary memory (issue #1425) (PR #1429)
-- Set null terminator in String.from_iso_array (issue #1435) (PR #1436)
+- Don't violate reference capabilities when assigning via a field ([PR #1471](https://github.com/ponylang/ponyc/pull/1471))
+- Check errors correctly for method chaining ([PR #1463](https://github.com/ponylang/ponyc/pull/1463))
+- Fix compiler handling of type params in stacks (issue #918) ([PR #1452](https://github.com/ponylang/ponyc/pull/1452))
+- Fix String.recalc method for cases where no null terminator is found (issue #1446) ([PR #1450](https://github.com/ponylang/ponyc/pull/1450))
+- Make space() check if string is null terminated (issue #1426) ([PR #1430](https://github.com/ponylang/ponyc/pull/1430))
+- Fix is_null_terminated reading arbitrary memory (issue #1425) ([PR #1429](https://github.com/ponylang/ponyc/pull/1429))
+- Set null terminator in String.from_iso_array (issue #1435) ([PR #1436](https://github.com/ponylang/ponyc/pull/1436))
 
 ### Added
 
-- Added String.split_by, which uses a string delimiter (issue #1399) (PR #1434)
+- Added String.split_by, which uses a string delimiter (issue #1399) ([PR #1434](https://github.com/ponylang/ponyc/pull/1434))
 - Extra DTrace/SystemTap probes concerning scheduling.
 
 ### Changed
 
-- Behaviour calls return None instead of their receiver (RFC 28) (PR #1460)
-- Update from_array to prevent a copy (issue #1097) (PR #1423)
+- Behaviour calls return None instead of their receiver (RFC 28) ([PR #1460](https://github.com/ponylang/ponyc/pull/1460))
+- Update from_array to prevent a copy (issue #1097) ([PR #1423](https://github.com/ponylang/ponyc/pull/1423))
 
 ## [0.9.0] - 2016-11-11
 
 ### Fixed
 
-- Stop leaking memory during serialization (issue #1413) (PR #1414)
-- Fixed compiler segmentation fault when given an invalid target triple. (PR #1406)
-- Fixed error message when no type arguments are given (issue #1396) (PR #1397)
-- Fixed compiler assert failure when constructor is called on type intersection (issue #1398) (PR #1401)
-- Fix compiler assert fail on circular type inference error (issue #1334) (PR #1339)
+- Stop leaking memory during serialization (issue #1413) ([PR #1414](https://github.com/ponylang/ponyc/pull/1414))
+- Fixed compiler segmentation fault when given an invalid target triple. ([PR #1406](https://github.com/ponylang/ponyc/pull/1406))
+- Fixed error message when no type arguments are given (issue #1396) ([PR #1397](https://github.com/ponylang/ponyc/pull/1397))
+- Fixed compiler assert failure when constructor is called on type intersection (issue #1398) ([PR #1401](https://github.com/ponylang/ponyc/pull/1401))
+- Fix compiler assert fail on circular type inference error (issue #1334) ([PR #1339](https://github.com/ponylang/ponyc/pull/1339))
 - Performance problem in the scheduler queue when running with many threads (issue #1404)
 - Invalid name mangling in generated C headers (issue #1377)
 
 ### Added
 
-- Method chaining (RFC #25) (PR #1411)
+- Method chaining (RFC #25) ([PR #1411](https://github.com/ponylang/ponyc/pull/1411))
 - Iter class methods `all`, `any`, `collect`, `count`, `find`, `last`, `nth`, `run`, `skip`, `skip_while`, `take`, `take_while` (issue #1370)
 - Output of `ponyc --version` shows C compiler used to build pony (issue #1245)
 - Makefile detects `llvmconfig39` in addition to `llvm-config-3.9` (#1379)
@@ -336,7 +336,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
-- Changed lambda literal syntax to be more concise (issue #1391) (PR #1400)
+- Changed lambda literal syntax to be more concise (issue #1391) ([PR #1400](https://github.com/ponylang/ponyc/pull/1400))
 
 ## [0.8.0] - 2016-10-27
 
