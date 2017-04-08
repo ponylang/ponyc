@@ -315,13 +315,52 @@ libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
 libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+librapidcheck := $(lib)
+librapidcheck.dir := lib/rapidcheck
+librapidcheck.files := \
+  $(librapidcheck.dir)/src/BeforeMinimalTestCase.cpp \
+  $(librapidcheck.dir)/src/Check.cpp \
+  $(librapidcheck.dir)/src/Classify.cpp \
+  $(librapidcheck.dir)/src/GenerationFailure.cpp \
+  $(librapidcheck.dir)/src/Log.cpp \
+  $(librapidcheck.dir)/src/Random.cpp \
+  $(librapidcheck.dir)/src/Show.cpp \
+  $(librapidcheck.dir)/src/detail/Any.cpp \
+  $(librapidcheck.dir)/src/detail/Assertions.cpp \
+  $(librapidcheck.dir)/src/detail/Base64.cpp \
+  $(librapidcheck.dir)/src/detail/Configuration.cpp \
+  $(librapidcheck.dir)/src/detail/DefaultTestListener.cpp \
+  $(librapidcheck.dir)/src/detail/FrequencyMap.cpp \
+  $(librapidcheck.dir)/src/detail/ImplicitParam.cpp \
+  $(librapidcheck.dir)/src/detail/LogTestListener.cpp \
+  $(librapidcheck.dir)/src/detail/MapParser.cpp \
+  $(librapidcheck.dir)/src/detail/MulticastTestListener.cpp \
+  $(librapidcheck.dir)/src/detail/ParseException.cpp \
+  $(librapidcheck.dir)/src/detail/Platform.cpp \
+  $(librapidcheck.dir)/src/detail/Property.cpp \
+  $(librapidcheck.dir)/src/detail/PropertyContext.cpp \
+  $(librapidcheck.dir)/src/detail/ReproduceListener.cpp \
+  $(librapidcheck.dir)/src/detail/Results.cpp \
+  $(librapidcheck.dir)/src/detail/Serialization.cpp \
+  $(librapidcheck.dir)/src/detail/StringSerialization.cpp \
+  $(librapidcheck.dir)/src/detail/TestMetadata.cpp \
+  $(librapidcheck.dir)/src/detail/TestParams.cpp \
+  $(librapidcheck.dir)/src/detail/Testing.cpp \
+  $(librapidcheck.dir)/src/gen/Numeric.cpp \
+  $(librapidcheck.dir)/src/gen/Text.cpp \
+  $(librapidcheck.dir)/src/gen/detail/ExecHandler.cpp \
+  $(librapidcheck.dir)/src/gen/detail/GenerationHandler.cpp \
+  $(librapidcheck.dir)/src/gen/detail/Recipe.cpp \
+  $(librapidcheck.dir)/src/gen/detail/ScaleInteger.cpp \
+  #
+
 
 # We don't add libponyrt here. It's a special case because it can be compiled
 # to LLVM bitcode.
 ifeq ($(OSTYPE), linux)
-  libraries := libponyc libponyrt-pic libgtest libgbenchmark
+  libraries := libponyc libponyrt-pic libgtest libgbenchmark librapidcheck
 else
-  libraries := libponyc libgtest libgbenchmark
+  libraries := libponyc libgtest libgbenchmark librapidcheck
 endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
@@ -376,7 +415,7 @@ libponyrt-pic.include := $(libponyrt.include)
 
 libponyc.tests.include := -I src/common/ -I src/libponyc/ -I src/libponyrt \
   $(llvm.include) -isystem lib/gtest/
-libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
+libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/ -isystem lib/rapidcheck/include/ -isystem lib/rapidcheck/extras/gtest/include/
 
 libponyc.benchmarks.include := -I src/common/ -I src/libponyc/ \
   $(llvm.include) -isystem lib/gbenchmark/include/
@@ -386,6 +425,7 @@ libponyrt.benchmarks.include := -I src/common/ -I src/libponyrt/ -isystem \
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 libgbenchmark.include := -isystem lib/gbenchmark/include/
+librapidcheck.include := -isystem lib/rapidcheck/include/
 
 ifneq (,$(filter $(OSTYPE), osx freebsd))
   libponyrt.include += -I /usr/local/include
@@ -413,6 +453,8 @@ libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
 libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
 
+librapidcheck.buildoptions := -Wall -Werror -Wno-missing-braces -std=c++11
+
 ponyc.buildoptions = $(libponyc.buildoptions)
 
 ponyc.linkoptions += -rdynamic
@@ -429,7 +471,7 @@ libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
 ponyc.links = libponyc libponyrt llvm
 libponyc.tests.links = libgtest libponyc llvm
 libponyc.tests.links.whole = libponyrt
-libponyrt.tests.links = libgtest libponyrt
+libponyrt.tests.links = libgtest libponyrt librapidcheck
 libponyc.benchmarks.links = libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
 
@@ -523,6 +565,11 @@ endef
 
 define CONFIGURE_COMPILER
   ifeq ($(suffix $(1)),.cc)
+    compiler := $(CXX)
+    flags := $(ALL_CXXFLAGS) $(CXXFLAGS)
+  endif
+
+  ifeq ($(suffix $(1)),.cpp)
     compiler := $(CXX)
     flags := $(ALL_CXXFLAGS) $(CXXFLAGS)
   endif
