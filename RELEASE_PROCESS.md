@@ -81,6 +81,10 @@ Leave a comment on the GitHub issue for this release letting everyone know that 
 
 Leave a comment on the GitHub issue for this release letting @stefantalpalaru know that a release is underway. He maintains the Gentoo release. We think it involves magic, but aren't really sure.
 
+### "Kick off" Pony Playpen update
+
+Leave a comment on the Github issue for this release letting @plietar know this release is underway. He maintains the online Pony Playpen instance.
+
 ### Wait on Travis and Appveyor
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
