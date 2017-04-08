@@ -42,7 +42,8 @@ remove_empty_sections() {
     local str_after
     local first_word
     str_after="$(SED "1,/### $section/d" <CHANGELOG.md)"
-    first_word="$(echo "$str_after" | head -n1 | cut -d " " -f1)"
+    # Do not put quotes around $str_after!
+    first_word="$(echo $str_after | head -n1 | cut -d " " -f1)"
     if [[ "$first_word" != "-" ]]; then
       echo "Removing empty CHANGELOG section: $section"
       local line_num
