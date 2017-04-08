@@ -783,6 +783,7 @@ deploy: test docs
 	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
 	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
+	$(SILENT)rm -rf build/bin
 	@mkdir -p build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
