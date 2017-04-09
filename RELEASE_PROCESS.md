@@ -81,6 +81,10 @@ Leave a comment on the GitHub issue for this release letting everyone know that 
 
 Leave a comment on the GitHub issue for this release letting @stefantalpalaru know that a release is underway. He maintains the Gentoo release. We think it involves magic, but aren't really sure.
 
+### "Kick off" the Nix release
+
+There's no real Nix release. However, @kamilchm is maintaining Nix Pony packages. Drop him a note on the GitHub issue so he is aware of the release.
+
 ### Wait on Travis and Appveyor
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
