@@ -81,6 +81,10 @@ Leave a comment on the GitHub issue for this release letting everyone know that 
 
 Leave a comment on the GitHub issue for this release letting @stefantalpalaru know that a release is underway. He maintains the Gentoo release. We think it involves magic, but aren't really sure.
 
+### "Kick off" the Nix release
+
+There's no real Nix release. However, @kamilchm is maintaining Nix Pony packages. Drop him a note on the GitHub issue so he is aware of the release.
+
 ### Wait on Travis and Appveyor
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
@@ -101,7 +105,6 @@ For windows, the versions look something like:
 
 where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-
 ### Wait on Homebrew
 
 Periodically check on your Homebrew PR. They have a CI process and everything should flow through smoothly. If it doesn't attempt to fix the problem. If you can't fix the problem, leave a comment on the GitHub issue for this release asking for assistance.
@@ -115,7 +118,6 @@ curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula
 If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
 
 Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform IRC and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and IRC.
-
 
 ### Update the GitHub issue as needed
 
