@@ -619,6 +619,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.2.0] - 2015-10-05
 
+### Fixed
+
+- Handle internal pointers and recursion.
+- Allow recursing through non-pony alloc'd memory in GC.
+- Set an LLVM triple with no version stamp to prevent XCode 7 link warnings.
+- use "path:" adds link paths only for the current build.
+- Handle null characters in Strings and string literals.
+
 ### Added
 
 - Platform indicators for LP64, LLP64, ILP32.
@@ -643,15 +651,11 @@ All notable changes to the Pony compiler and standard library will be documented
 - use commands searches ../pony_packages recursively similar to Node.js
 - Readline uses a Promise to handle async responses.
 
+## [0.1.7] - 2015-06-18
+
 ### Fixed
 
-- Handle internal pointers and recursion.
-- Allow recursing through non-pony alloc'd memory in GC.
-- Set an LLVM triple with no version stamp to prevent XCode 7 link warnings.
-- use "path:" adds link paths only for the current build.
-- Handle null characters in Strings and string literals.
-
-## [0.1.7] - 2015-06-18
+- Viewpoint adaptation with a type expression on the left-hand side.
 
 ### Added
 
@@ -664,11 +668,16 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improvements to automatic documentation generator.
 - Union type for String.compare result.
 
+## [0.1.6] - 2015-06-15
+
 ### Fixed
 
-- Viewpoint adaptation with a type expression on the left-hand side.
-
-## [0.1.6] - 2015-06-15
+- ANSI stripping on zero length writes to stdout/stderr.
+- More OS X 10.8 compatibility.
+- SSL multithreading support.
+- Nested tuple code generation.
+- Only finalise blocked actors when detecting quiescence.
+- URL parse error.
 
 ### Added
 
@@ -688,15 +697,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Allow "s at the end of triple-quoted strings.
 - Allow behaviours and functions to be subtypes of each other.
 
-### Fixed
-
-- ANSI stripping on zero length writes to stdout/stderr.
-- More OS X 10.8 compatibility.
-- SSL multithreading support.
-- Nested tuple code generation.
-- Only finalise blocked actors when detecting quiescence.
-- URL parse error.
-
 ## [0.1.5] - 2015-05-15
 
 ### Fixed
@@ -705,10 +705,13 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [0.1.4] - 2015-05-14
 
-### Changed
+### Fixed
 
-- When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
-- The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+- Check whether parameters to behaviours, actor constructors and isolated constructors are sendable after flattening, to allow sendable type parameters to be used as parameters.
+- Eliminate spurious "control expression" errors when another compile error has occurred.
+- Handle circular package dependencies.
+- Fixed ponyc options issue related to named long options with no arguments
+- Cycle detector view_t structures are now reference counted.
 
 ### Added
 
@@ -718,10 +721,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Garbage collection and cycle detection parameters can now be set from the command line.
 - Added a FileStream wrapper to the file package.
 
-### Fixed
+### Changed
 
-- Check whether parameters to behaviours, actor constructors and isolated constructors are sendable after flattening, to allow sendable type parameters to be used as parameters.
-- Eliminate spurious "control expression" errors when another compile error has occurred.
-- Handle circular package dependencies.
-- Fixed ponyc options issue related to named long options with no arguments
-- Cycle detector view_t structures are now reference counted.
+- When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
+- The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
