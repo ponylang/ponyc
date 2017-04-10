@@ -25,8 +25,6 @@ ponyc-build-packages(){
   # used to disambiguate packages with the same version).
   PACKAGE_ITERATION="${TRAVIS_BUILD_NUMBER}.$(git rev-parse --short --verify 'HEAD^{commit}')"
 
-  echo "Removing any existing ponyc installs before creating for deployment..."
-  make CC="$CC1" CXX="$CXX1" clean
   echo "Building ponyc packages for deployment..."
   make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
 }
@@ -35,8 +33,6 @@ ponyc-build-docs(){
   echo "Installing mkdocs..."
   sudo -H pip install mkdocs
 
-  echo "Removing any existing ponyc installs before creating for doc generation..."
-  make clean
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs
 
