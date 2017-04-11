@@ -421,8 +421,6 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
   pony_assert(def != NULL);
 
   ast_t* type = ast_type(def);
-  if(ast_name(ast_child(def)) == stringtab("qty"))
-    ast_print(def);
 
   if(is_typecheck_error(type))
     return false;

@@ -303,13 +303,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
   if(!r)
   {
-    if(errors_get_count(options->check.errors) == 0)
-    {
-      ast_print(*astp);
-      ast_print(ast_parent(*astp));
-      ast_print(ast_parent(ast_parent(*astp)));
-    }
-
     pony_assert(errors_get_count(options->check.errors) > 0);
     return AST_ERROR;
   }
