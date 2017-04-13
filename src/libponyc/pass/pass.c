@@ -228,7 +228,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(options->docs && ast_id(*astp) == TK_PROGRAM)
     generate_docs(*astp, options);
 
-  if(!visit_pass(astp, options, last, &r, PASS_REFER, NULL, pass_refer))
+  if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
+    pass_refer))
     return r;
 
   if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))

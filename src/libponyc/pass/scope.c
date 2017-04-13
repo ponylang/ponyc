@@ -97,43 +97,12 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   return true;
 }
 
-static void set_fields_undefined(ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        // Mark this field as SYM_UNDEFINED.
-        AST_GET_CHILDREN(member, id, type, expr);
-        ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-}
-
 static bool scope_method(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* id = ast_childidx(ast, 1);
 
   if(!set_scope(opt, ast_parent(ast), id, ast))
     return false;
-
-  if(ast_id(ast) == TK_NEW)
-    set_fields_undefined(ast);
 
   return true;
 }

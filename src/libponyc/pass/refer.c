@@ -732,6 +732,37 @@ static bool refer_this(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static bool refer_pre_new(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  pony_assert(ast_id(ast) == TK_NEW);
+
+  // Set all fields to undefined at the start of this scope.
+  ast_t* members = ast_parent(ast);
+  ast_t* member = ast_child(members);
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+      {
+        // Mark this field as SYM_UNDEFINED.
+        AST_GET_CHILDREN(member, id, type, expr);
+        ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static bool refer_new(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_NEW);
@@ -1161,6 +1192,27 @@ static bool refer_compile_error(pass_opt_t* opt, ast_t* ast)
 
   ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
   return true;
+}
+
+ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
+{
+  ast_t* ast = *astp;
+  bool r = true;
+
+  switch(ast_id(ast))
+  {
+    case TK_NEW: r = refer_pre_new(options, ast); break;
+
+    default: {}
+  }
+
+  if(!r)
+  {
+    pony_assert(errors_get_count(options->check.errors) > 0);
+    return AST_ERROR;
+  }
+
+  return AST_OK;
 }
 
 ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
