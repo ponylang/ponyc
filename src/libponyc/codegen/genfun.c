@@ -254,6 +254,19 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     t->final_fn = m->func;
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
     LLVMSetLinkage(m->func, LLVMExternalLinkage);
+  } else if(n->name == c->str__serialise_space)
+  {
+    t->custom_serialise_space_fn = m->func;
+    LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+    LLVMSetLinkage(m->func, LLVMExternalLinkage);
+  } else if(n->name == c->str__serialise)
+  {
+    t->custom_serialise_fn = m->func;
+  } else if(n->name == c->str__deserialise)
+  {
+    t->custom_deserialise_fn = m->func;
+    LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+    LLVMSetLinkage(m->func, LLVMExternalLinkage);
   }
 
   if((n->cap == TK_AT) && (m->func != NULL))

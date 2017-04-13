@@ -189,9 +189,6 @@ class iso _TestArrays is UnitTest
 
 actor _EmptyActor
 
-class _HasPointer
-  var x: Pointer[U8] = Pointer[U8]
-
 class _HasActor
   var x: _EmptyActor = _EmptyActor
 
@@ -204,10 +201,6 @@ class iso _TestFailures is UnitTest
   fun apply(h: TestHelper) ? =>
     let ambient = h.env.root as AmbientAuth
     let serialise = SerialiseAuth(ambient)
-
-    h.assert_error({()(serialise)? =>
-      Serialised(serialise, _HasPointer)
-    })
 
     h.assert_error({()(serialise)? =>
       Serialised(serialise, _HasActor)

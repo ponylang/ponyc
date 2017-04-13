@@ -17,14 +17,16 @@
 #define DESC_SERIALISE_TRACE 7
 #define DESC_SERIALISE 8
 #define DESC_DESERIALISE 9
-#define DESC_DISPATCH 10
-#define DESC_FINALISE 11
-#define DESC_EVENT_NOTIFY 12
-#define DESC_TRAITS 13
-#define DESC_FIELDS 14
-#define DESC_VTABLE 15
+#define DESC_CUSTOM_SERIALISE_SPACE 10
+#define DESC_CUSTOM_DESERIALISE 11
+#define DESC_DISPATCH 12
+#define DESC_FINALISE 13
+#define DESC_EVENT_NOTIFY 14
+#define DESC_TRAITS 15
+#define DESC_FIELDS 16
+#define DESC_VTABLE 17
 
-#define DESC_LENGTH 16
+#define DESC_LENGTH 18
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -344,6 +346,8 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
   params[DESC_DESERIALISE] = c->trace_fn;
+  params[DESC_CUSTOM_SERIALISE_SPACE] = c->custom_serialise_space_fn;
+  params[DESC_CUSTOM_DESERIALISE] = c->custom_deserialise_fn;
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
   params[DESC_EVENT_NOTIFY] = c->i32;
@@ -393,6 +397,8 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_SERIALISE_TRACE] = c->trace_fn;
   params[DESC_SERIALISE] = c->serialise_fn;
   params[DESC_DESERIALISE] = c->trace_fn;
+  params[DESC_CUSTOM_SERIALISE_SPACE] = c->custom_serialise_space_fn;
+  params[DESC_CUSTOM_DESERIALISE] = c->custom_deserialise_fn;
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
   params[DESC_EVENT_NOTIFY] = c->i32;
@@ -431,6 +437,10 @@ void gendesc_init(compile_t* c, reach_type_t* t)
     c->trace_fn);
   args[DESC_SERIALISE] = make_desc_ptr(t->serialise_fn, c->serialise_fn);
   args[DESC_DESERIALISE] = make_desc_ptr(t->deserialise_fn, c->trace_fn);
+  args[DESC_CUSTOM_SERIALISE_SPACE] =
+    make_desc_ptr(t->custom_serialise_space_fn, c->custom_serialise_space_fn);
+  args[DESC_CUSTOM_DESERIALISE] =
+    make_desc_ptr(t->custom_deserialise_fn, c->custom_deserialise_fn);
   args[DESC_DISPATCH] = make_desc_ptr(t->dispatch_fn, c->dispatch_fn);
   args[DESC_FINALISE] = make_desc_ptr(t->final_fn, c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);

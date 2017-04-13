@@ -78,6 +78,22 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
   size_t offset, int m);
 
+/** Serialise Space function.
+ *
+ * Each class may supply a group of custom serialisation function. This
+ * function returns the amount of extra space that the object needs for
+ * custom serialisation.
+ */
+typedef size_t (*pony_custom_serialise_space_fn)(void* p);
+
+/** Custom Deserialise function.
+ *
+ * Each class may supply a group of custom serialisation function. This
+ * function takes a pointer to a byte array and does whatever user-defined
+ * deserialization.
+ */
+typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
+
 /** Dispatch function.
  *
  * Each actor has a dispatch function that is invoked when the actor handles
@@ -106,6 +122,8 @@ typedef const struct _pony_type_t
   pony_trace_fn serialise_trace;
   pony_serialise_fn serialise;
   pony_trace_fn deserialise;
+  pony_custom_serialise_space_fn custom_serialise_space;
+  pony_custom_deserialise_fn custom_deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;

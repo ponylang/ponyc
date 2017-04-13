@@ -15,6 +15,7 @@
 #endif
 
 #define HIGH_BIT ((size_t)1 << ((sizeof(size_t) * 8) - 1))
+#define ALL_BITS ((size_t)(~0))
 
 PONY_EXTERN_C_BEGIN
 
@@ -37,6 +38,7 @@ struct serialise_t
   uintptr_t value;
   pony_type_t* t;
   int mutability;
+  bool block;
 };
 
 static size_t serialise_hash(serialise_t* p)
@@ -100,15 +102,6 @@ bool ponyint_serialise_setup()
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  if(t->serialise == NULL)
-  {
-    // A type without a serialisation function raises an error.
-    // This applies to Pointer[A] and MaybePointer[A].
-    serialise_cleanup(ctx);
-    pony_throw();
-    return;
-  }
-
   serialise_t k;
   k.key = (uintptr_t)p;
   size_t index = HASHMAP_UNKNOWN;
@@ -126,13 +119,18 @@ void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
     s->key = (uintptr_t)p;
     s->value = ctx->serialise_size;
     s->t = t;
+    s->block = false;
 
     // didn't find it in the map but index is where we can put the
     // new one without another search
     ponyint_serialise_putindex(&ctx->serialise, s, index);
     ctx->serialise_size += t->size;
-  }
 
+    if(t->custom_serialise_space)
+    {
+      ctx->serialise_size += t->custom_serialise_space(p);
+    }
+  }
   // Set (or update) mutability.
   s->mutability = mutability;
 
@@ -146,6 +144,21 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   (void)actor;
   serialise_cleanup(ctx);
   pony_throw();
+}
+
+void custom_deserialise(pony_ctx_t* ctx)
+{
+  size_t i = HASHMAP_BEGIN;
+  serialise_t* s;
+
+  while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
+  {
+    if (s->t != NULL && s->t->custom_deserialise != NULL)
+    {
+      s->t->custom_deserialise((void *)(s->value),
+        (void*)((uintptr_t)ctx->serialise_buffer + s->key + s->t->size));
+    }
+  }
 }
 
 PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
@@ -167,6 +180,7 @@ PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
   s->value = ctx->serialise_size;
   s->t = NULL;
   s->mutability = PONY_TRACE_OPAQUE;
+  s->block = true;
 
   // didn't find it in the map but index is where we can put the
   // new one without another search
@@ -183,7 +197,12 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 
   // If we are in the map, return the offset.
   if(s != NULL)
-    return s->value;
+  {
+    if(s->block || (s->t != NULL && s->t->serialise != NULL))
+      return s->value;
+    else
+      return ALL_BITS;
+  }
 
   // If we are not in the map, we are an untraced primitive. Return the type id
   // with the high bit set.
@@ -212,7 +231,7 @@ PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
   {
-    if(s->t != NULL)
+    if(!(s->block) && s->t != NULL && s->t->serialise != NULL)
       s->t->serialise(ctx, (void*)s->key, r->ptr, s->value, s->mutability);
   }
 
@@ -222,6 +241,11 @@ PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
 PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   uintptr_t offset)
 {
+  // if all the bits of the offset are set, it is either a Pointer[A] a or a
+  // MaybePointer[A].
+  if(offset == ALL_BITS)
+    return NULL;
+
   // If the high bit of the offset is set, it is either an unserialised
   // primitive, or an unserialised field in an opaque object.
   if((offset & HIGH_BIT) != 0)
@@ -274,13 +298,18 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   }
 
   // Allocate the object, memcpy to it.
-  void* object = pony_alloc(ctx, t->size);
+  void* object;
+  if(t->final == NULL)
+    object = pony_alloc(ctx, t->size);
+  else
+    object = pony_alloc_final(ctx, t->size);
   memcpy(object, (void*)((uintptr_t)ctx->serialise_buffer + offset), t->size);
 
   // Store a mapping of offset to object.
   s = POOL_ALLOC(serialise_t);
   s->key = offset;
   s->value = (uintptr_t)object;
+  s->t = t;
 
   // didn't find it in the map but index is where we can put the
   // new one without another search
@@ -305,6 +334,7 @@ PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
   return block;
 }
 
+
 PONY_API void* pony_deserialise(pony_ctx_t* ctx, void* in)
 {
   // This can raise an error.
@@ -314,6 +344,8 @@ PONY_API void* pony_deserialise(pony_ctx_t* ctx, void* in)
 
   void* object = pony_deserialise_offset(ctx, NULL, 0);
   ponyint_gc_handlestack(ctx);
+
+  custom_deserialise(ctx);
 
   serialise_cleanup(ctx);
   return object;

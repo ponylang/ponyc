@@ -12,6 +12,7 @@
 #include "expr.h"
 #include "verify.h"
 #include "finalisers.h"
+#include "serialisers.h"
 #include "docgen.h"
 #include "../codegen/codegen.h"
 #include "../../libponyrt/mem/pool.h"
@@ -242,6 +243,9 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
     return true;
 
   if(!pass_finalisers(*astp, options))
+    return false;
+
+  if (!pass_serialisers(*astp, options))
     return false;
 
   if(options->check_tree)

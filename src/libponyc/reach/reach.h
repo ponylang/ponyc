@@ -114,6 +114,9 @@ struct reach_type_t
   LLVMValueRef serialise_trace_fn;
   LLVMValueRef serialise_fn;
   LLVMValueRef deserialise_fn;
+  LLVMValueRef custom_serialise_space_fn;
+  LLVMValueRef custom_serialise_fn;
+  LLVMValueRef custom_deserialise_fn;
   LLVMValueRef final_fn;
   LLVMValueRef dispatch_fn;
   LLVMValueRef dispatch_switch;
