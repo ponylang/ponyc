@@ -420,15 +420,16 @@ class Array[A] is Seq[A]
 
     error
 
-  fun clone(): Array[this->A!]^ =>
+  fun clone(): Array[this->A!] iso^ =>
     """
     Clone the array.
     The new array contains references to the same elements that the old array
     contains, the elements themselves are not cloned.
     """
-    let out = Array[this->A!](_size)
-    _ptr._copy_to(out._ptr, _size)
-    out._size = _size
+    let len = _size
+    let out = recover Array[this->A!](len) end
+    _ptr._copy_to(out._ptr, len)
+    out._size = len
     out
 
   fun slice(from: USize = 0, to: USize = -1, step: USize = 1)
