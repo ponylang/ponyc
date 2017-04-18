@@ -6,6 +6,7 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
+#include "../sched/cpu.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
@@ -163,6 +164,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
+  ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = arg;
 

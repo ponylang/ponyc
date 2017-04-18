@@ -2,11 +2,12 @@
 #define PLATFORM_PONYASSERT_H
 
 #include "platform.h"
+#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 
-#if defined(NDEBUG) && defined(PONY_NO_ASSERT)
-#  define pony_assert(expr) ((void)0)
+#if defined(PONY_NO_ASSERT)
+#  define pony_assert(expr) assert(expr)
 #else
 #  define pony_assert(expr) \
     ((expr) ? (void)0 : \

@@ -1,6 +1,12 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#ifdef __linux__
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 

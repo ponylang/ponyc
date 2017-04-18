@@ -14,6 +14,8 @@ else
         AR = gcc-ar
       endif
     endif
+
+    ALPINE=$(wildcard /etc/alpine-release)
   endif
 
   ifeq ($(UNAME_S),Darwin)
@@ -396,8 +398,13 @@ endif
 
 # target specific build options
 libponyrt.buildoptions = -DPONY_NO_ASSERT
+libponyrt-pic.buildoptions = -DPONY_NO_ASSERT
 
 libponyrt.tests.linkoptions += -rdynamic
+
+ifneq ($(ALPINE),)
+  libponyrt.tests.linkoptions += -lexecinfo
+endif
 
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
@@ -410,15 +417,28 @@ libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
 
 libponyc.tests.linkoptions += -rdynamic
 
+ifneq ($(ALPINE),)
+  libponyc.tests.linkoptions += -lexecinfo
+endif
+
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
 libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
 
+ifneq ($(ALPINE),)
+  libponyc.benchmarks.linkoptions += -lexecinfo
+  libponyrt.benchmarks.linkoptions += -lexecinfo
+endif
+
 ponyc.buildoptions = $(libponyc.buildoptions)
 
 ponyc.linkoptions += -rdynamic
+
+ifneq ($(ALPINE),)
+  ponyc.linkoptions += -lexecinfo
+endif
 
 ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic

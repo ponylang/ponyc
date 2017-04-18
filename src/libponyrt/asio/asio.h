@@ -68,6 +68,11 @@ bool ponyint_asio_start();
  */
 asio_backend_t* ponyint_asio_get_backend();
 
+/** Returns the cpu assigned for the ASIO thread.
+ *
+ */
+uint32_t ponyint_asio_get_cpu();
+
 /** Attempts to stop an asynchronous event mechanism.
  *
  * Stopping an event mechanism is only possible if there are no pending "noisy"

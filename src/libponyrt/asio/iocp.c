@@ -7,6 +7,7 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
+#include "../sched/cpu.h"
 #include <string.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -101,6 +102,7 @@ void ponyint_asio_backend_final(asio_backend_t* b)
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
+  ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = (asio_backend_t*)arg;
   asio_event_t* stdin_event = NULL;

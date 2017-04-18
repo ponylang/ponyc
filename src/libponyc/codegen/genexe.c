@@ -261,6 +261,7 @@ static bool link_exe(compile_t* c, ast_t* program,
       "Warning: environment variable $CC undefined, using %s as the linker\n",
       PONY_COMPILER);
   }
+
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
