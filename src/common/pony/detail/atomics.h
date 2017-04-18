@@ -36,7 +36,7 @@ using std::atomic_thread_fence;
 #  endif
 #elif defined(__GNUC__) && !defined(__clang__)
 #  include <features.h>
-#  if __GNUC_PREREQ(4, 9)
+#  if ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((4) << 16) + (9))
 #    ifdef __cplusplus
 //     g++ doesn't like C11 atomics. We never need atomic ops in C++ files so
 //     we only define the atomic types.
@@ -50,7 +50,7 @@ using std::atomic_thread_fence;
 #      define PONY_ATOMIC(T) T _Atomic
 #      define PONY_ATOMIC_RVALUE(T) T _Atomic
 #    endif
-#  elif __GNUC_PREREQ(4, 7)
+#  elif ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((4) << 16) + (7))
 #    define PONY_ATOMIC(T) alignas(sizeof(T)) T
 #    define PONY_ATOMIC_RVALUE(T) T
 #    define PONY_ATOMIC_BUILTINS

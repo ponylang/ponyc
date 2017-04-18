@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define SCHED_BATCH 100
+#define PONY_SCHED_BATCH 100
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -284,7 +284,7 @@ static void run(scheduler_t* sched)
     }
 
     // Run the current actor and get the next actor.
-    bool reschedule = ponyint_actor_run(&sched->ctx, actor, SCHED_BATCH);
+    bool reschedule = ponyint_actor_run(&sched->ctx, actor, PONY_SCHED_BATCH);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -370,6 +370,7 @@ static void ponyint_sched_shutdown()
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   bool pinasio)
 {
+  this_scheduler = NULL;
   pony_register_thread();
   this_scheduler->ctx.current = NULL;
 
