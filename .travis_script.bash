@@ -53,13 +53,12 @@ ponyc-build-docs(){
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs
 
-  echo "Fetching out the gh-pages branch..."
-  git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}"
-  git fetch gh-token && git fetch gh-token gh-pages:gh-pages
-
   echo "Uploading docs using mkdocs..."
+  git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
+  git fetch gh-token
+  git reset gh-token/master
   cd stdlib-docs
-  mkdocs gh-deploy -v --clean --remote-name gh-token
+  mkdocs gh-deploy -v --clean --remote-name gh-token --remote-branch master
 }
 
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
