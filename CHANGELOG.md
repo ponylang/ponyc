@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Properly account for foreign objects in GC ([PR #1842](https://github.com/ponylang/ponyc/pull/1842))
 
 ### Added
 
