@@ -98,9 +98,9 @@ By default, the Pony Docker image is compiled without support for AVX CPU instru
 
 ## Linux using an RPM package (via Bintray)
 
-For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install release builds via DNF:
+To install builds via DNF:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
@@ -122,15 +122,18 @@ By default, the Pony RPM package is compiled without support for AVX CPU instruc
 
 ## Linux using a DEB package (via Bintray)
 
-For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
+For Ubuntu or Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
 
-To install release builds via Apt:
+To install builds via Apt (and install Bintray's public key):
 
 ```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "8756 C4F7 65C9 AC3C B6B8  5D62 379C E192 D401 AB61"
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
-sudo apt-get install ponyc
+sudo apt-get -V install ponyc
 ```
+
+You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated).  And if you have issues with package authentication you may need to comment out the `deb` line in `/etc/apt/sources.list`, do an update, and uncomment it again.  Feel free to ask for help if you have any problems!
 
 
 ### DEB and AVX2 Support
