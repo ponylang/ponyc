@@ -426,3 +426,18 @@ TEST_F(BadPonyTest, AnnotatedIfClause)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
+{
+  // From issue #1715
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    object is T end\n"
+
+    "trait T\n"
+    "  fun apply(n: I32): Bool =>\n"
+    "    n == 0\n";
+
+  TEST_COMPILE(src);
+}

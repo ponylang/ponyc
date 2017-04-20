@@ -357,6 +357,32 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
 }
 
 
+static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
+{
+  // Make sure all traits have been through the expr pass before proceeding.
+  // We run into dangling ast_data pointer problems when we inherit methods from
+  // traits that have only been through the refer pass, and not the expr pass.
+
+  ast_t* child = ast_child(provides);
+
+  while(child != NULL)
+  {
+    if(!ast_passes_subtree(&child, opt, PASS_EXPR))
+      return false;
+
+    ast_t* def = (ast_t*)ast_data(child);
+    pony_assert(def != NULL);
+
+    if(!ast_passes_type(&def, opt, PASS_EXPR))
+      return false;
+
+    child = ast_sibling(child);
+  }
+
+  return true;
+}
+
+
 bool expr_object(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
@@ -519,6 +545,10 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_t* result = ast_childidx(create, 4);
   ast_replace(&result,
     type_for_class(opt, def, result, cap_id, TK_EPHEMERAL, false));
+
+  // Catch up provides before catching up the entire type.
+  if(!catch_up_provides(opt, provides))
+    return false;
 
   // Type check the anonymous type.
   if(!ast_passes_type(&def, opt, PASS_EXPR))
