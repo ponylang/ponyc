@@ -73,7 +73,7 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "linux:llvm-config-3.9")
     # when FAVORITE_CONFIG stops matching part of this case, move this logic
-    if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" == "yes" ]]
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$FAVORITE_CONFIG" == "yes" ]]
     then
       ponyc-build-packages
       ponyc-build-docs
