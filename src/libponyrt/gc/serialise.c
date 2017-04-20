@@ -77,22 +77,22 @@ static void serialise_cleanup(pony_ctx_t* ctx)
 bool ponyint_serialise_setup()
 {
 #if defined(PLATFORM_IS_POSIX_BASED)
-  void* tbl_size_sym = dlsym(RTLD_DEFAULT, "__DescTableSize");
-  void* tbl_sym = dlsym(RTLD_DEFAULT, "__DescTable");
+  void* tbl_size_sym = dlsym(RTLD_DEFAULT, "__PonyDescTableSize");
+  void* tbl_ptr_sym = dlsym(RTLD_DEFAULT, "__PonyDescTablePtr");
 #else
   HMODULE program = GetModuleHandle(NULL);
 
   if(program == NULL)
     return false;
 
-  void* tbl_size_sym = (void*)GetProcAddress(program, "__DescTableSize");
-  void* tbl_sym = (void*)GetProcAddress(program, "__DescTable");
+  void* tbl_size_sym = (void*)GetProcAddress(program, "__PonyDescTableSize");
+  void* tbl_ptr_sym = (void*)GetProcAddress(program, "__PonyDescTablePtr");
 #endif
-  if((tbl_size_sym == NULL) || (tbl_sym == NULL))
+  if((tbl_size_sym == NULL) || (tbl_ptr_sym == NULL))
     return false;
 
   desc_table_size = *(size_t*)tbl_size_sym;
-  desc_table = (pony_type_t**)tbl_sym;
+  desc_table = *(pony_type_t***)tbl_ptr_sym;
 
   return true;
 }
