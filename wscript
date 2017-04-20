@@ -33,7 +33,7 @@ CONFIGS = [
     'release'
 ]
 
-MSVC_VERSION = '14'
+MSVC_VERSIONS = [ '15', '14' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
@@ -75,22 +75,22 @@ def configure(ctx):
             'kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32',
             'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid',
             'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
-            'dbghelp'
+            'dbghelp', 'Shlwapi'
         ]
 
-        ctx.env.MSVC_VERSIONS = ['msvc ' + MSVC_VERSION + '.0']
-        ctx.env.MSVC_TARGETS = ['x64']
+        base_env = ctx.env
+        base_env.MSVC_VERSIONS = [ 'msvc ' + v + '.0' for v in MSVC_VERSIONS ]
+        base_env.MSVC_TARGETS = [ 'x64' ]
         ctx.load('msvc')
-        ctx.env.CC_SRC_F = '/Tp' # force C++ for all files
-        ctx.env.CXX_SRC_F = '/Tp'
-        ctx.env.append_value('DEFINES', [
-            '_CRT_SECURE_NO_WARNINGS', '_MBCS',
-            'PLATFORM_TOOLS_VERSION=' + MSVC_VERSION + '0',
-            'BUILD_COMPILER="msvc-' + MSVC_VERSION + '-x64"'
-        ])
-        ctx.env.append_value('LIBPATH', [ ctx.env.LLVM_DIR ])
 
-        base_env = ctx.env.derive()
+        base_env.CC_SRC_F = '/Tp' # force C++ for all files
+        base_env.CXX_SRC_F = '/Tp'
+        base_env.append_value('DEFINES', [
+            '_CRT_SECURE_NO_WARNINGS', '_MBCS',
+            'PLATFORM_TOOLS_VERSION=%d0' % base_env.MSVC_VERSION,
+            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION
+        ])
+        base_env.append_value('LIBPATH', [ base_env.LLVM_DIR ])
 
         for llvm_version in LLVM_VERSIONS:
             bld_env = base_env.derive()
@@ -227,6 +227,15 @@ def build(ctx):
         source   = ctx.path.ant_glob('lib/gtest/*.cc'),
     )
 
+    # gbenchmark
+    ctx(
+        features = 'cxx cxxstlib seq',
+        target   = 'gbenchmark',
+        source   = ctx.path.ant_glob('lib/gbenchmark/*.cc'),
+        includes = [ 'lib/gbenchmark/include' ],
+        defines  = [ 'HAVE_STD_REGEX' ]
+    )
+
     # libponyc
     ctx(
         features  = 'c cxx cxxstlib seq',
@@ -236,6 +245,16 @@ def build(ctx):
         includes  = [ 'src/common' ] + llvmIncludes + sslIncludes
     )
 
+    # libponyc.benchmarks
+    ctx(
+        features = 'cxx cxxprogram seq',
+        target   = 'libponyc.benchmarks',
+        source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
+        includes = [ 'lib/gbenchmark/include' ],
+        use      = [ 'libponyc', 'gbenchmark' ],
+        lib      = ctx.env.PONYC_EXTRA_LIBS
+    )
+
     # libponyrt
     ctx(
         features = 'c cxx cxxstlib seq',
@@ -243,6 +262,16 @@ def build(ctx):
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
         includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
         defines  = [ 'PONY_NO_ASSERT' ]
+    )
+
+    # libponyrt.benchmarks
+    ctx(
+        features = 'cxx cxxprogram seq',
+        target   = 'libponyrt.benchmarks',
+        source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
+        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        use      = [ 'libponyrt', 'gbenchmark' ],
+        lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
     # ponyc

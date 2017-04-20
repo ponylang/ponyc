@@ -31,7 +31,7 @@ skip_commits:
     - Dockerfile
     - LICENSE
     - Makefile
-    - release.sh
+    - release.bash
     - '**/*.md'
     - '**/*.txt'
 

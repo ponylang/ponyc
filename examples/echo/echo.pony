@@ -41,7 +41,9 @@ class Server is TCPConnectionNotify
   fun ref accepted(conn: TCPConnection ref) =>
     _out.print("connection accepted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
     _out.print("data received, looping it back")
     conn.write("server says: ")
     conn.write(consume data)

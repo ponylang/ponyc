@@ -75,6 +75,12 @@ Arbitrary strings can be used for these names, but for large projects it is
 strongly recommended to use a hierarchical naming scheme to make it easier to
 select groups of tests.
 
+You can skip any tests whose names start with a given string by using the
+`--exclude=[prefix]` command line option.
+
+You can run only tests whose names start with a given string by using the
+`--only=[prefix]` command line option.
+
 ## Aggregation
 
 Often it is desirable to run a collection of unit tests from multiple different
@@ -207,7 +213,6 @@ actor PonyTest
   let _env: Env
   let _timers: Timers = Timers
   var _do_nothing: Bool = false
-  var _filter: String = ""
   var _verbose: Bool = false
   var _sequential: Bool = false
   var _no_prog: Bool = false
@@ -216,7 +221,11 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
+
+  // Filtering options
+  var _exclude: String = ""
   var _label: String = ""
+  var _only: String = ""
 
   new create(env: Env, list: TestList tag) =>
     """
@@ -231,7 +240,7 @@ actor PonyTest
 
   be apply(test: UnitTest iso) =>
     """
-    Run the given test, subject to our filter and options.
+    Run the given test, subject to our filters and options.
     """
     if _do_nothing then
       return
@@ -239,8 +248,13 @@ actor PonyTest
 
     var name = test.name()
 
-    // Ignore any tests that don't satisfy our filter
-    if not name.at(_filter, 0) then
+    // Ignore any tests that satisfy our "exclude" filter
+    if (_exclude != "") and name.at(_exclude, 0) then
+      return
+    end
+
+    // Ignore any tests that don't satisfy our "only" filter
+    if (_only != "") and (not name.at(_only, 0)) then
       return
     end
 
@@ -337,7 +351,7 @@ actor PonyTest
     end
 
     if not _any_found then
-      // No tests matched our filter, print special message.
+      // No tests left after applying our filters
       _env.out.print("No tests found")
       return
     end
@@ -376,10 +390,12 @@ actor PonyTest
         _no_prog = true
       elseif arg == "--list" then
         _list_only = true
-      elseif arg.compare_sub("--filter=", 9) is Equal then
-        _filter = arg.substring(9)
+      elseif arg.compare_sub("--exclude=", 10) is Equal then
+        _exclude = arg.substring(10)
       elseif arg.compare_sub("--label=", 8) is Equal then
         _label = arg.substring(8)
+      elseif arg.compare_sub("--only=", 7) is Equal then
+        _only = arg.substring(7)
       else
         _env.out.print("Unrecognised argument \"" + arg + "\"")
         _env.out.print("")
@@ -387,7 +403,9 @@ actor PonyTest
         _env.out.print("  " + exe_name + " [options]")
         _env.out.print("")
         _env.out.print("Options:")
-        _env.out.print("  --filter=prefix   - Only run tests whose names " +
+        _env.out.print("  --exclude=prefix  - Don't run tests whose names " +
+          "start with the given prefix.")
+        _env.out.print("  --only=prefix     - Only run tests whose names " +
           "start with the given prefix.")
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")

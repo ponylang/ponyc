@@ -481,14 +481,20 @@ void gendesc_table(compile_t* c)
   }
 
   LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, len);
-  LLVMValueRef table = LLVMAddGlobal(c->module, type, "__DescTable");
+  LLVMValueRef table = LLVMAddGlobal(c->module, type, "__PonyDescTable");
   LLVMValueRef value = LLVMConstArray(c->descriptor_ptr, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
-  LLVMSetDLLStorageClass(table, LLVMDLLExportStorageClass);
+  LLVMSetLinkage(table, LLVMPrivateLinkage);
+
+  type = LLVMPointerType(type, 0);
+  LLVMValueRef table_ptr = LLVMAddGlobal(c->module, type, "__PonyDescTablePtr");
+  LLVMSetInitializer(table_ptr, table);
+  LLVMSetGlobalConstant(table_ptr, true);
+  LLVMSetDLLStorageClass(table_ptr, LLVMDLLExportStorageClass);
 
   LLVMValueRef table_size = LLVMAddGlobal(c->module, c->intptr,
-    "__DescTableSize");
+    "__PonyDescTableSize");
   LLVMSetInitializer(table_size, LLVMConstInt(c->intptr, len, false));
   LLVMSetGlobalConstant(table_size, true);
   LLVMSetDLLStorageClass(table_size, LLVMDLLExportStorageClass);

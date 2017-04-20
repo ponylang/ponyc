@@ -225,7 +225,9 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _h.complete_action("expect received")
     qty
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
+    times: USize): Bool
+  =>
     if _frame then
       _frame = false
       _expect = 0
@@ -302,7 +304,9 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
   new iso create(h: TestHelper) =>
     _h = h
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
     _buffer.append(consume data)
 
     let expected = "hello, hello (from client)"
@@ -360,7 +364,9 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver asks for data")
     _h.dispose_when_done(conn)
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
+    times: USize): Bool
+  =>
     _h.complete(false)
     true
 
@@ -384,7 +390,9 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connected")
 
-   fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
+   fun ref received(conn: TCPConnection ref, data: Array[U8] val,
+    times: USize): Bool
+   =>
      conn.write("it's sad that you won't ever read this")
      _h.complete_action("sender sent data")
      true
@@ -434,7 +442,9 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     conn.unmute()
     _h.complete_action("receiver unmuted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
+    times: USize): Bool
+  =>
     _h.complete(true)
     true
 
@@ -504,7 +514,9 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connected")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
+    times: USize): Bool
+  =>
     conn.write("it's sad that you won't ever read this")
     _h.complete_action("sender sent data")
     true

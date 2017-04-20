@@ -109,6 +109,7 @@ namespace ponyint_atomics
 
 #ifdef PONY_WANT_ATOMIC_DEFS
 #  ifdef _MSC_VER
+#    pragma warning(disable:4164)
 #    pragma intrinsic(_InterlockedCompareExchange128)
 
 namespace ponyint_atomics
@@ -143,6 +144,8 @@ namespace ponyint_atomics
 #    define bigatomic_compare_exchange_weak_explicit(PTR, EXP, DES, SUCC, FAIL) \
       _InterlockedCompareExchange128((LONGLONG*)PTR, (LONGLONG)((DES).counter), \
         (LONGLONG)((DES).object), (LONGLONG*)EXP)
+
+#    pragma warning(default:4164)
 #  else
 #    define bigatomic_load_explicit(PTR, MO) \
       (__typeof__(*(PTR)))__atomic_load_n(&(PTR)->raw, MO)

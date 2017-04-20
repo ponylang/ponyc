@@ -109,6 +109,7 @@ actor _GetWork
 
         // Submit the request
         let sentreq = client(consume req, dumpMaker)
+
         // Could send body data via `sentreq`, if it was a POST
       else
         try env.out.print("Malformed URL: " + env.args(1)) end
@@ -206,9 +207,11 @@ class HttpNotify is HTTPHandler
 
   fun ref finished() =>
     """
-    This marks the end of the received body data.
+    This marks the end of the received body data.  We are done with the
+    session.
     """
     _main.finished()
+    _session.dispose()
     
   fun ref cancelled() =>
     _main.cancelled()

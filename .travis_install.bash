@@ -9,7 +9,7 @@ then
   exit 0
 fi
 
-download-llvm(){
+download_llvm(){
   echo "Downloading and installing the LLVM specified by envvars..."
 
   wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz"
@@ -19,10 +19,10 @@ download-llvm(){
   popd
 }
 
-download-pcre(){
+download_pcre(){
   echo "Downloading and building PCRE2..."
 
-  wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+  wget "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2"
   tar -xjvf pcre2-10.21.tar.bz2
   pushd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install
   popd
@@ -33,18 +33,30 @@ echo "Installing ponyc build dependencies..."
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "linux:llvm-config-3.7")
-    download-llvm
-    download-pcre
+    download_llvm
+    download_pcre
   ;;
 
   "linux:llvm-config-3.8")
-    download-llvm
-    download-pcre
+    download_llvm
+    download_pcre
   ;;
 
   "linux:llvm-config-3.9")
-    download-llvm
-    download-pcre
+    download_pcre
+
+    echo "Logging LLVM binary locations (installed via APT)..."
+    echo "llvm-config-3.9: $(which llvm-config-3.9)"
+    echo "clang++-3.9: $(which clang++-3.9)"
+    echo "clang-3.9: $(which clang-3.9)"
+
+    found_version="$(llvm-config-3.9 --version)"
+    echo "LLVM version: $found_version"
+
+    if [[ "$found_version" != "$LLVM_VERSION" ]]
+    then
+      echo "WARNING: the LLVM version expected ($LLVM_VERSION) does not match that installed ($found_version)!"
+    fi
   ;;
 
   "osx:llvm-config-3.7")
@@ -65,6 +77,9 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "osx:llvm-config-3.9")
     brew update
+    brew install shellcheck
+    shellcheck ./.*.bash ./*.bash
+
     brew install pcre2
     brew install libressl
 

@@ -15,7 +15,7 @@ class _ServerConnHandler is TCPConnectionNotify
   var _parser: (_HTTPParser | None) = None
   var _session: (_ServerConnection | None) = None
   let _registry: HTTPServer tag
-  
+
   new iso create(handlermaker: HandlerFactory val, logger: Logger,
     reversedns: (DNSLookupAuth | None), registry: HTTPServer)
     =>
@@ -44,7 +44,9 @@ class _ServerConnHandler is TCPConnectionNotify
       _parser = _HTTPParser.request(_session as _ServerConnection)
     end
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
     """
     Pass chunks of data to the `HTTPParser` for this session.  It will
     then pass completed information on the the `HTTPSession`.

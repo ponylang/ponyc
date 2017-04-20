@@ -284,7 +284,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([as I64: 1, 2, 3].values())
-      .fold[I64]({(x: I64, sum: I64): I64 => sum + x }, 0)
+      .fold[I64]({(sum: I64, x: I64): I64 => sum + x }, 0)
     ```
     `6`
     """
