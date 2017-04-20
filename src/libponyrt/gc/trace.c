@@ -108,7 +108,7 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 
 PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 {
-  pony_type_t* t = *(pony_type_t**)p;
+  pony_type_t* t = (pony_type_t*)p;
 
   if(t->dispatch != NULL)
   {
