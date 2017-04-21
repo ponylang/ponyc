@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Reify function references used as addressof operands correctly ([PR #1857](https://github.com/ponylang/ponyc/pull/1857))
 - Properly account for foreign objects in GC ([PR #1842](https://github.com/ponylang/ponyc/pull/1842))
 - Compiler crash when using the `addressof` operator on a function with an incorrect number of type arguments
 
