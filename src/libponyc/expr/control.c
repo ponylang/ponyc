@@ -10,6 +10,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
+#include "../type/typeparam.h"
 #include "ponyassert.h"
 
 bool expr_seq(pass_opt_t* opt, ast_t* ast)
@@ -129,6 +130,44 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   if(ast_id(ast) == TK_IFDEF)
     return resolve_ifdef(opt, ast);
+
+  return true;
+}
+
+bool expr_iftype(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_IFTYPE);
+  AST_GET_CHILDREN(ast, sub, super, left, right);
+
+  ast_t* type = NULL;
+
+  if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(left)))
+      return false;
+
+    type = control_type_add_branch(opt, type, left);
+  }
+
+  if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
+  {
+    if(is_typecheck_error(ast_type(right)))
+      return false;
+
+    type = control_type_add_branch(opt, type, right);
+  }
+
+  if(type == NULL)
+  {
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
+  }
+
+  ast_settype(ast, type);
+  literal_unify_control(ast, opt);
 
   return true;
 }

@@ -4,6 +4,7 @@
 #include <platform.h>
 #include "../ast/ast.h"
 #include "../ast/frame.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -28,6 +29,11 @@ ast_t* typeparam_lower(ast_t* typeparamref);
  * be bound.
  */
 void typeparam_set_cap(ast_t* typeparamref);
+
+/**
+ * The constraint of the typeparam in the current scope.
+ */
+ast_t* typeparam_current(pass_opt_t* opt, ast_t* typeparamref, ast_t* scope);
 
 PONY_EXTERN_C_END
 

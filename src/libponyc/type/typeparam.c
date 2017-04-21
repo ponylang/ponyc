@@ -1,8 +1,12 @@
 #include "typeparam.h"
+#include "assemble.h"
 #include "cap.h"
 #include "subtype.h"
+#include "matchtype.h"
 #include "../ast/token.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+#include <string.h>
 
 static token_id cap_union_constraint(token_id a, token_id b)
 {
@@ -546,4 +550,76 @@ void typeparam_set_cap(ast_t* typeparamref)
   ast_t* constraint = typeparam_constraint(typeparamref);
   token_id tcap = cap_from_constraint(constraint);
   ast_setid(cap, tcap);
+}
+
+static ast_t* typeparamref_current(ast_t* typeparamref, ast_t* scope)
+{
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+
+  ast_t* def = (ast_t*)ast_data(typeparamref);
+  ast_t* id = ast_child(typeparamref);
+
+  ast_t* current_def = ast_get(scope, ast_name(id), NULL);
+  ast_t* new_typeparamref = ast_dup(typeparamref);
+  ast_setdata(new_typeparamref, current_def);
+  if(def == current_def)
+    return new_typeparamref;
+
+  typeparam_set_cap(new_typeparamref);
+  return new_typeparamref;
+}
+
+static ast_t* typeparam_current_inner(ast_t* type, ast_t* scope)
+{
+  switch(ast_id(type))
+  {
+    case TK_TYPEPARAMREF:
+      return typeparamref_current(type, scope);
+
+    case TK_NOMINAL:
+      return ast_dup(type);
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* new_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_t* new_child = typeparam_current_inner(child, scope);
+        ast_append(new_type, new_child);
+        child = ast_sibling(child);
+      }
+
+      return new_type;
+    }
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+
+      ast_t* new_type = ast_from(type, TK_ARROW);
+      ast_t* new_left = typeparam_current_inner(left, scope);
+      ast_t* new_right = typeparam_current_inner(right, scope);
+
+      ast_add(type, new_right);
+      ast_add(type, new_left);
+
+      return new_type;
+    }
+
+    default:
+      pony_assert(0);
+      return NULL;
+  }
+}
+
+ast_t* typeparam_current(pass_opt_t* opt, ast_t* type, ast_t* scope)
+{
+  if(opt->check.frame->iftype_body == NULL)
+    return type;
+
+  return typeparam_current_inner(type, scope);
 }
