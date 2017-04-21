@@ -7,6 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+bool method_check_type_params(pass_opt_t* opt, ast_t** astp);
+
 bool expr_call(pass_opt_t* opt, ast_t** astp);
 
 PONY_EXTERN_C_END

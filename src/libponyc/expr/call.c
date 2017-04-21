@@ -34,7 +34,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
   return expr_call(opt, astp);
 }
 
-static bool check_type_params(pass_opt_t* opt, ast_t** astp)
+bool method_check_type_params(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* lhs = *astp;
   ast_t* type = ast_type(lhs);
@@ -488,7 +488,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
-  if(!check_type_params(opt, &lhs))
+  if(!method_check_type_params(opt, &lhs))
     return false;
 
   ast_t* type = ast_type(lhs);
