@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Iftype conditions (RFC 26) ([PR #1855](https://github.com/ponylang/ponyc/pull/1855))
 
 ### Changed
 
