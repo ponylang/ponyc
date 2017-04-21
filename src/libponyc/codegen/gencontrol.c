@@ -152,6 +152,16 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   return GEN_NOTNEEDED;
 }
 
+LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, subtype, supertype, left, right);
+
+  if(is_subtype_constraint(subtype, supertype, NULL, c->opt))
+    return gen_expr(c, left);
+
+  return gen_expr(c, right);
+}
+
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 {
   bool needed = is_result_needed(ast);

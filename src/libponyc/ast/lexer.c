@@ -80,6 +80,8 @@ static const lextoken_t symbols[] =
 
   { ".>", TK_CHAIN },
 
+  { "<:", TK_SUBTYPE },
+
   { "\\", TK_BACKSLASH },
 
   { "{", TK_LBRACE },
@@ -165,9 +167,11 @@ static const lextoken_t keywords[] =
 
   { "if", TK_IF },
   { "ifdef", TK_IFDEF },
+  { "iftype", TK_IFTYPE },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
+  { "elseiftype", TK_ELSEIFTYPE },
   { "end", TK_END },
   { "for", TK_FOR },
   { "in", TK_IN },

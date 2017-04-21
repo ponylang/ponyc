@@ -304,6 +304,10 @@ bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
  */
 bool generate_passes(ast_t* program, pass_opt_t* options);
 
+/** Record the specified pass as done for the given AST.
+ */
+void ast_pass_record(ast_t* ast, pass_id pass);
+
 
 typedef ast_result_t(*ast_visit_t)(ast_t** astp, pass_opt_t* options);
 

@@ -13,6 +13,7 @@
 #include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
+#include "../type/typeparam.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
 
@@ -126,6 +127,8 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
     return false;
 
   AST_GET_CHILDREN(find, id, f_type, init);
+
+  f_type = typeparam_current(opt, f_type, ast);
 
   // Viewpoint adapted type of the field.
   ast_t* type = viewpoint_type(l_type, f_type);
@@ -368,6 +371,8 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(type))
     return false;
 
+  type = typeparam_current(opt, type, ast);
+
   if(!sendable(type))
   {
     if(opt->check.frame->recover != NULL)
@@ -424,6 +429,8 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
 
   if(is_typecheck_error(type))
     return false;
+
+  type = typeparam_current(opt, type, ast);
 
   if(!sendable(type) && (opt->check.frame->recover != NULL))
   {

@@ -190,12 +190,17 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
     }
   }
 
+  const char* name = ast_name(id);
+
   // Change to a typeparamref.
   REPLACE(astp,
     NODE(TK_TYPEPARAMREF,
       TREE(id)
       TREE(cap)
       TREE(ephemeral)));
+
+  if(opt->check.frame->iftype_body != NULL)
+    def = ast_get(ast, name, NULL);
 
   ast_setdata(*astp, def);
   return true;
@@ -210,7 +215,8 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   if(tcap == TK_NONE)
   {
-    if(opt->check.frame->constraint != NULL)
+    if((opt->check.frame->constraint != NULL) ||
+      (opt->check.frame->iftype_constraint != NULL))
     {
       // A primitive constraint is a val, otherwise #any.
       if(ast_id(def) == TK_PRIMITIVE)

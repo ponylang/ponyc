@@ -459,9 +459,9 @@ static ast_result_t sugar_return(pass_opt_t* opt, ast_t* ast)
 }
 
 
-static ast_result_t sugar_else(ast_t* ast)
+static ast_result_t sugar_else(ast_t* ast, size_t index)
 {
-  ast_t* else_clause = ast_childidx(ast, 2);
+  ast_t* else_clause = ast_childidx(ast, index);
   expand_none(else_clause, true);
   return AST_OK;
 }
@@ -976,7 +976,7 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
     return AST_ERROR;
   }
 
-  return sugar_else(ast);
+  return sugar_else(ast, 2);
 }
 
 
@@ -1229,7 +1229,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:
-    case TK_REPEAT:           return sugar_else(ast);
+    case TK_REPEAT:           return sugar_else(ast, 2);
+    case TK_IFTYPE:           return sugar_else(ast, 3);
     case TK_TRY:              return sugar_try(ast);
     case TK_FOR:              return sugar_for(options, astp);
     case TK_WITH:             return sugar_with(options, astp);

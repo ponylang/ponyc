@@ -90,6 +90,7 @@ binop
 nextterm
   : 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
   | 'ifdef' ('\\' ID (',' ID)* '\\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'iftype' ('\\' ID (',' ID)* '\\')? type '<:' type 'then' rawseq (elseiftype | ('else' annotatedrawseq))? 'end'
   | 'match' ('\\' ID (',' ID)* '\\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
   | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
   | 'repeat' ('\\' ID (',' ID)* '\\')? rawseq 'until' annotatedrawseq ('else' annotatedrawseq)? 'end'
@@ -105,6 +106,7 @@ nextterm
 term
   : 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
   | 'ifdef' ('\\' ID (',' ID)* '\\')? infix 'then' rawseq (elseifdef | ('else' annotatedrawseq))? 'end'
+  | 'iftype' ('\\' ID (',' ID)* '\\')? type '<:' type 'then' rawseq (elseiftype | ('else' annotatedrawseq))? 'end'
   | 'match' ('\\' ID (',' ID)* '\\')? rawseq caseexpr* ('else' annotatedrawseq)? 'end'
   | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
   | 'repeat' ('\\' ID (',' ID)* '\\')? rawseq 'until' annotatedrawseq ('else' annotatedrawseq)? 'end'
@@ -123,6 +125,10 @@ withelem
 
 caseexpr
   : '|' ('\\' ID (',' ID)* '\\')? pattern? ('if' rawseq)? ('=>' rawseq)?
+  ;
+
+elseiftype
+  : 'elseiftype' ('\\' ID (',' ID)* '\\')? type '<:' type 'then' rawseq (elseiftype | ('else' annotatedrawseq))?
   ;
 
 elseifdef

@@ -298,7 +298,7 @@ bool generate_passes(ast_t* program, pass_opt_t* options)
 }
 
 
-static void record_ast_pass(ast_t* ast, pass_id pass)
+void ast_pass_record(ast_t* ast, pass_id pass)
 {
   pony_assert(ast != NULL);
 
@@ -346,7 +346,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
-        record_ast_pass(*ast, pass);
+        ast_pass_record(*ast, pass);
 
         if(pop)
           frame_pop(t);
@@ -376,7 +376,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           break;
 
         case AST_FATAL:
-          record_ast_pass(*ast, pass);
+          ast_pass_record(*ast, pass);
 
           if(pop)
             frame_pop(t);
@@ -401,7 +401,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
-        record_ast_pass(*ast, pass);
+        ast_pass_record(*ast, pass);
 
         if(pop)
           frame_pop(t);
@@ -413,7 +413,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   if(pop)
     frame_pop(t);
 
-  record_ast_pass(*ast, pass);
+  ast_pass_record(*ast, pass);
   return ret;
 }
 
