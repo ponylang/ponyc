@@ -454,3 +454,17 @@ TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(BadPonyTest, AddressofMissingTypearg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[None](addressof fn)\n"
+
+    "  fun fn[A]() => None";
+
+  TEST_ERRORS_1(src,
+    "not enough type arguments");
+}
