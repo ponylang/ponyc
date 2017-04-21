@@ -281,6 +281,7 @@ static const lextoken_t abstract[] =
   { "funref", TK_FUNREF },
   { "fvarref", TK_FVARREF },
   { "fletref", TK_FLETREF },
+  { "tupleelemref", TK_TUPLEELEMREF },
   { "embedref", TK_EMBEDREF },
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },

@@ -8,6 +8,7 @@
 #include "names.h"
 #include "flatten.h"
 #include "traits.h"
+#include "refer.h"
 #include "expr.h"
 #include "verify.h"
 #include "finalisers.h"
@@ -53,6 +54,7 @@ const char* pass_name(pass_id pass)
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
     case PASS_DOCS: return "docs";
+    case PASS_REFER: return "refer";
     case PASS_EXPR: return "expr";
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
@@ -225,6 +227,10 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(options->docs && ast_id(*astp) == TK_PROGRAM)
     generate_docs(*astp, options);
+
+  if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
+    pass_refer))
+    return r;
 
   if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
     return r;

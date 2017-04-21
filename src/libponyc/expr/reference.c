@@ -3,8 +3,9 @@
 #include "postfix.h"
 #include "call.h"
 #include "../pass/expr.h"
-#include "../pass/names.h"
 #include "../pass/flatten.h"
+#include "../pass/names.h"
+#include "../pass/refer.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
@@ -13,124 +14,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ast/astbuild.h"
-#include "../ast/id.h"
-#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
-#include <string.h>
-
-/**
- * Make sure the definition of something occurs before its use. This is for
- * both fields and local variable.
- */
-bool def_before_use(pass_opt_t* opt, ast_t* def, ast_t* use, const char* name)
-{
-  if((ast_line(def) > ast_line(use)) ||
-     ((ast_line(def) == ast_line(use)) &&
-      (ast_pos(def) > ast_pos(use))))
-  {
-    ast_error(opt->check.errors, use,
-      "declaration of '%s' appears after use", name);
-    ast_error_continue(opt->check.errors, def,
-      "declaration of '%s' appears here", name);
-    return false;
-  }
-
-  return true;
-}
-
-static bool is_assigned_to(ast_t* ast, bool check_result_needed)
-{
-  while(true)
-  {
-    ast_t* parent = ast_parent(ast);
-
-    switch(ast_id(parent))
-    {
-      case TK_ASSIGN:
-      {
-        // Has to be the left hand side of an assignment. Left and right sides
-        // are swapped, so we must be the second child.
-        if(ast_childidx(parent, 1) != ast)
-          return false;
-
-        if(!check_result_needed)
-          return true;
-
-        // The result of that assignment can't be used.
-        return !is_result_needed(parent);
-      }
-
-      case TK_SEQ:
-      {
-        // Might be in a tuple on the left hand side.
-        if(ast_childcount(parent) > 1)
-          return false;
-
-        break;
-      }
-
-      case TK_TUPLE:
-        break;
-
-      default:
-        return false;
-    }
-
-    ast = parent;
-  }
-}
-
-static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
-{
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(parent) != TK_DOT)
-    return false;
-
-  AST_GET_CHILDREN(parent, left, right);
-  ast_t* find = lookup_try(opt, parent, type, ast_name(right));
-
-  if(find == NULL)
-    return false;
-
-  bool ok = ast_id(find) == TK_NEW;
-  ast_free_unattached(find);
-  return ok;
-}
-
-static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
-  sym_status_t status)
-{
-  if(is_constructed_from(opt, ast, type))
-    return true;
-
-  switch(status)
-  {
-    case SYM_DEFINED:
-      return true;
-
-    case SYM_CONSUMED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use a consumed local in an expression");
-      return false;
-
-    case SYM_UNDEFINED:
-      if(is_assigned_to(ast, true))
-        return true;
-
-      ast_error(opt->check.errors, ast,
-        "can't use an undefined variable in an expression");
-      return false;
-
-    default: {}
-  }
-
-  pony_assert(0);
-  return false;
-}
 
 static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
   errorframe_t* errorf)
@@ -263,9 +147,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   // In a recover expression, we can access obj.field if field is sendable
   // and not being assigned to, even if obj isn't sendable.
 
-  typecheck_t* t = &opt->check;
-
-  if(t->frame->recover != NULL)
+  if(opt->check.frame->recover != NULL)
   {
     if(!sendable(type))
     {
@@ -309,18 +191,6 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_setid(ast, tid);
   ast_settype(ast, type);
 
-  if(ast_id(left) == TK_THIS)
-  {
-    // Handle symbol status if the left side is 'this'.
-    const char* name = ast_name(id);
-
-    sym_status_t status;
-    ast_get(ast, name, &status);
-
-    if(!valid_reference(opt, ast, type, status))
-      return false;
-  }
-
   return true;
 }
 
@@ -328,37 +198,38 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEREF);
-  ast_t* type = ast_type(ast);
+  AST_GET_CHILDREN(ast, package, id, typeargs);
 
-  if(is_typecheck_error(type))
-    return false;
+  ast_t* type = ast_type(ast);
+  if(type == NULL || (ast_id(type) == TK_INFERTYPE))
+  {
+    // Assemble the type node from the package name and type name strings.
+    const char* name = ast_name(id);
+    const char* package_name =
+      (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
+    type = type_sugar_args(ast, package_name, name, typeargs);
+    ast_settype(ast, type);
+
+    if(is_typecheck_error(type))
+      return false;
+
+    // Has to be valid.
+    if(!expr_nominal(opt, &type))
+    {
+      ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+      ast_free_unattached(type);
+      return false;
+    }
+  }
 
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
-      // Doesn't have to be valid yet.
-      break;
-
     case TK_DOT:
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
       break;
 
     case TK_CALL:
     {
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
-
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -423,14 +294,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     default:
     {
-      // Has to be valid.
-      if(!expr_nominal(opt, &type))
-      {
-        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
-        return false;
-      }
-
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -466,400 +329,117 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
   return true;
 }
 
-static const char* suggest_alt_name(ast_t* ast, const char* name)
+bool expr_dontcareref(pass_opt_t* opt, ast_t* ast)
 {
-  pony_assert(ast != NULL);
-  pony_assert(name != NULL);
+  (void)opt;
+  pony_assert(ast_id(ast) == TK_DONTCAREREF);
 
-  size_t name_len = strlen(name);
+  ast_settype(ast, ast_from(ast, TK_DONTCARETYPE));
 
-  if(is_name_private(name))
-  {
-    // Try without leading underscore
-    const char* try_name = stringtab(name + 1);
-
-    if(ast_get(ast, try_name, NULL) != NULL)
-      return try_name;
-  }
-  else
-  {
-    // Try with a leading underscore
-    char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
-    buf[0] = '_';
-    strncpy(buf + 1, name, name_len + 1);
-    const char* try_name = stringtab_consume(buf, name_len + 2);
-
-    if(ast_get(ast, try_name, NULL) != NULL)
-      return try_name;
-  }
-
-  // Try with a different case (without crossing type/value boundary)
-  ast_t* case_ast = ast_get_case(ast, name, NULL);
-  if(case_ast != NULL)
-  {
-    ast_t* id = case_ast;
-
-    if(ast_id(id) != TK_ID)
-      id = ast_child(id);
-
-    pony_assert(ast_id(id) == TK_ID);
-    const char* try_name = ast_name(id);
-
-    if(ast_get(ast, try_name, NULL) != NULL)
-      return try_name;
-  }
-
-  // Give up
-  return NULL;
-}
-
-static bool is_legal_dontcare(ast_t* ast)
-{
-  // We either are the LHS of an assignment or a tuple element. That tuple must
-  // either be a pattern or the LHS of an assignment. It can be embedded in
-  // other tuples, which may appear in sequences.
-
-  // '_' may be wrapped in a sequence.
-  ast_t* parent = ast_parent(ast);
-  if(ast_id(parent) == TK_SEQ)
-    parent = ast_parent(parent);
-
-  switch(ast_id(parent))
-  {
-    case TK_ASSIGN:
-    {
-      AST_GET_CHILDREN(parent, right, left);
-      if(ast == left)
-        return true;
-      return false;
-    }
-
-    case TK_TUPLE:
-    {
-      ast_t* grandparent = ast_parent(parent);
-
-      while((ast_id(grandparent) == TK_TUPLE) ||
-        (ast_id(grandparent) == TK_SEQ))
-      {
-        parent = grandparent;
-        grandparent = ast_parent(parent);
-      }
-
-      switch(ast_id(grandparent))
-      {
-        case TK_ASSIGN:
-        {
-          AST_GET_CHILDREN(grandparent, right, left);
-
-          if(parent == left)
-            return true;
-
-          break;
-        }
-
-        case TK_CASE:
-        {
-          AST_GET_CHILDREN(grandparent, pattern, guard, body);
-
-          if(parent == pattern)
-            return true;
-
-          break;
-        }
-
-        default: {}
-      }
-
-      break;
-    }
-
-    default: {}
-  }
-
-  return false;
-}
-
-bool expr_reference(pass_opt_t* opt, ast_t** astp)
-{
-  typecheck_t* t = &opt->check;
-  ast_t* ast = *astp;
-
-  // Everything we reference must be in scope.
-  const char* name = ast_name(ast_child(ast));
-
-  if(is_name_dontcare(name))
-  {
-    if(is_result_needed(ast) && !is_legal_dontcare(ast))
-    {
-      ast_error(opt->check.errors, ast, "can't read from '_'");
-      return false;
-    }
-
-    ast_t* type = ast_from(ast, TK_DONTCARETYPE);
-    ast_settype(ast, type);
-    ast_setid(ast, TK_DONTCAREREF);
-
-    return true;
-  }
-
-  sym_status_t status;
-  ast_t* def = ast_get(ast, name, &status);
-
-  if(def == NULL)
-  {
-    const char* alt_name = suggest_alt_name(ast, name);
-
-    if(alt_name == NULL)
-      ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
-    else
-      ast_error(opt->check.errors, ast,
-        "can't find declaration of '%s', did you mean '%s'?", name, alt_name);
-
-    return false;
-  }
-
-  switch(ast_id(def))
-  {
-    case TK_PACKAGE:
-    {
-      // Only allowed if in a TK_DOT with a type.
-      if(ast_id(ast_parent(ast)) != TK_DOT)
-      {
-        ast_error(opt->check.errors, ast,
-          "a package can only appear as a prefix to a type");
-        return false;
-      }
-
-      ast_setid(ast, TK_PACKAGEREF);
-      return true;
-    }
-
-    case TK_INTERFACE:
-    case TK_TRAIT:
-    case TK_TYPE:
-    case TK_TYPEPARAM:
-    case TK_PRIMITIVE:
-    case TK_STRUCT:
-    case TK_CLASS:
-    case TK_ACTOR:
-    {
-      // It's a type name. This may not be a valid type, since it may need
-      // type arguments.
-      ast_t* id = ast_child(def);
-      const char* name = ast_name(id);
-      ast_t* type = type_sugar(ast, NULL, name);
-      ast_settype(ast, type);
-      ast_setid(ast, TK_TYPEREF);
-
-      return expr_typeref(opt, astp);
-    }
-
-    case TK_FVAR:
-    case TK_FLET:
-    case TK_EMBED:
-    {
-      // Transform to "this.f".
-      if(!def_before_use(opt, def, ast, name))
-        return false;
-
-      ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_child(ast));
-
-      ast_t* self = ast_from(ast, TK_THIS);
-      ast_add(dot, self);
-
-      ast_replace(astp, dot);
-
-      if(!expr_this(opt, self))
-        return false;
-
-      return expr_dot(opt, astp);
-    }
-
-    case TK_PARAM:
-    {
-      if(t->frame->def_arg != NULL)
-      {
-        ast_error(opt->check.errors, ast,
-          "can't reference a parameter in a default argument");
-        return false;
-      }
-
-      if(!def_before_use(opt, def, ast, name))
-        return false;
-
-      ast_t* type = ast_type(def);
-
-      if(is_typecheck_error(type))
-        return false;
-
-      if(!valid_reference(opt, ast, type, status))
-        return false;
-
-      if(!sendable(type) && (t->frame->recover != NULL))
-      {
-        ast_t* parent = ast_parent(ast);
-        if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
-          type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
-      }
-
-      // Get the type of the parameter and attach it to our reference.
-      // Automatically consume a parameter if the function is done.
-      ast_t* r_type = type;
-
-      if(is_method_return(t, ast))
-        r_type = consume_type(type, TK_NONE);
-
-      ast_settype(ast, r_type);
-      ast_setid(ast, TK_PARAMREF);
-      return true;
-    }
-
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    {
-      // Transform to "this.f".
-      ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_child(ast));
-
-      ast_t* self = ast_from(ast, TK_THIS);
-      ast_add(dot, self);
-
-      ast_replace(astp, dot);
-
-      if(!expr_this(opt, self))
-        return false;
-
-      return expr_dot(opt, astp);
-    }
-
-    case TK_ID:
-    {
-      if(!def_before_use(opt, def, ast, name))
-        return false;
-
-      ast_t* type = ast_type(def);
-
-      if(type != NULL && ast_id(type) == TK_INFERTYPE)
-      {
-        ast_error(opt->check.errors, ast, "cannot infer type of %s\n",
-          ast_nice_name(def));
-        ast_settype(def, ast_from(def, TK_ERRORTYPE));
-        ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
-        return false;
-      }
-
-      if(is_typecheck_error(type))
-        return false;
-
-      if(!valid_reference(opt, ast, type, status))
-        return false;
-
-      ast_t* var = ast_parent(def);
-
-      switch(ast_id(var))
-      {
-        case TK_VAR:
-          ast_setid(ast, TK_VARREF);
-          break;
-
-        case TK_LET:
-        case TK_MATCH_CAPTURE:
-          ast_setid(ast, TK_LETREF);
-          break;
-
-        default:
-          pony_assert(0);
-          return false;
-      }
-
-      if(!sendable(type))
-      {
-        if(t->frame->recover != NULL)
-        {
-          ast_t* def_recover = ast_nearest(def, TK_RECOVER);
-
-          if(t->frame->recover != def_recover)
-          {
-            ast_t* parent = ast_parent(ast);
-            if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
-              type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
-
-            if(ast_id(ast) == TK_VARREF)
-            {
-              ast_t* current = ast;
-              while(ast_id(parent) != TK_RECOVER && ast_id(parent) != TK_ASSIGN)
-              {
-                current = parent;
-                parent = ast_parent(parent);
-              }
-              if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
-              {
-                ast_error(opt->check.errors, ast, "can't access a non-sendable "
-                  "local defined outside of a recover expression from within "
-                  "that recover epression");
-                ast_error_continue(opt->check.errors, parent, "this would be "
-                  "possible if the local wasn't assigned to");
-                return false;
-              }
-            }
-          }
-        }
-      }
-
-      // Get the type of the local and attach it to our reference.
-      // Automatically consume a local if the function is done.
-      ast_t* r_type = type;
-
-      if(is_method_return(t, ast))
-        r_type = consume_type(type, TK_NONE);
-
-      ast_settype(ast, r_type);
-      return true;
-    }
-
-    default: {}
-  }
-
-  pony_assert(0);
-  return false;
+  return true;
 }
 
 bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
-  pony_assert(ast != NULL);
+  (void)opt;
   pony_assert(ast_type(ast) != NULL);
 
-  AST_GET_CHILDREN(ast, id, type);
-  pony_assert(type != NULL);
+  return true;
+}
 
-  bool is_dontcare = is_name_dontcare(ast_name(id));
+bool expr_localref(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert((ast_id(ast) == TK_VARREF) || (ast_id(ast) == TK_LETREF));
 
-  if(ast_id(type) == TK_NONE)
+  ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
+
+  ast_t* type = ast_type(def);
+
+  if(type != NULL && ast_id(type) == TK_INFERTYPE)
   {
-    // No type specified, infer it later
-    if(!is_dontcare && !is_assigned_to(ast, false))
-    {
-      ast_error(opt->check.errors, ast,
-        "locals must specify a type or be assigned a value");
-      return false;
-    }
-  }
-  else if(ast_id(ast) == TK_LET)
-  {
-    // Let, check we have a value assigned
-    if(!is_assigned_to(ast, false))
-    {
-      ast_error(opt->check.errors, ast,
-        "can't declare a let local without assigning to it");
-      return false;
-    }
+    ast_error(opt->check.errors, ast, "cannot infer type of %s\n",
+      ast_nice_name(ast_child(def)));
+    ast_settype(def, ast_from(def, TK_ERRORTYPE));
+    ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+    return false;
   }
 
-  if(is_dontcare)
-    ast_setid(ast, TK_DONTCARE);
+  if(is_typecheck_error(type))
+    return false;
 
+  if(!sendable(type))
+  {
+    if(opt->check.frame->recover != NULL)
+    {
+      ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+
+      if(opt->check.frame->recover != def_recover)
+      {
+        ast_t* parent = ast_parent(ast);
+        if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
+          type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
+
+        if(ast_id(ast) == TK_VARREF)
+        {
+          ast_t* current = ast;
+          while(ast_id(parent) != TK_RECOVER && ast_id(parent) != TK_ASSIGN)
+          {
+            current = parent;
+            parent = ast_parent(parent);
+          }
+          if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+          {
+            ast_error(opt->check.errors, ast, "can't access a non-sendable "
+              "local defined outside of a recover expression from within "
+              "that recover epression");
+            ast_error_continue(opt->check.errors, parent, "this would be "
+              "possible if the local wasn't assigned to");
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  // Get the type of the local and attach it to our reference.
+  // Automatically consume a local if the function is done.
+  ast_t* r_type = type;
+
+  if(is_method_return(&opt->check, ast))
+    r_type = consume_type(type, TK_NONE);
+
+  ast_settype(ast, r_type);
+  return true;
+}
+
+bool expr_paramref(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_PARAMREF);
+
+  ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
+
+  ast_t* type = ast_type(def);
+
+  if(is_typecheck_error(type))
+    return false;
+
+  if(!sendable(type) && (opt->check.frame->recover != NULL))
+  {
+    ast_t* parent = ast_parent(ast);
+    if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
+      type = set_cap_and_ephemeral(type, TK_TAG, TK_NONE);
+  }
+
+  // Get the type of the parameter and attach it to our reference.
+  // Automatically consume a parameter if the function is done.
+  ast_t* r_type = type;
+
+  if(is_method_return(&opt->check, ast))
+    r_type = consume_type(type, TK_NONE);
+
+  ast_settype(ast, r_type);
   return true;
 }
 
@@ -909,6 +489,11 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
         "can't take the address of an embed field");
       return false;
 
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't take the address of a tuple element");
+      return false;
+
     case TK_LETREF:
       ast_error(opt->check.errors, ast,
         "can't take the address of a let local");
@@ -956,6 +541,7 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
     case TK_FVARREF:
     case TK_FLETREF:
     case TK_EMBEDREF:
+    case TK_TUPLEELEMREF:
     case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:
@@ -976,29 +562,16 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
 
 bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
-
-  if(t->frame->def_arg != NULL)
+  if(opt->check.frame->def_arg != NULL)
   {
     ast_error(opt->check.errors, ast,
       "can't reference 'this' in a default argument");
     return false;
   }
 
-  sym_status_t status;
-  ast_get(ast, stringtab("this"), &status);
+  token_id cap = cap_for_this(&opt->check);
 
-  if(status == SYM_CONSUMED)
-  {
-    ast_error(opt->check.errors, ast,
-      "can't use a consumed 'this' in an expression");
-    return false;
-  }
-
-  pony_assert(status == SYM_NONE);
-  token_id cap = cap_for_this(t);
-
-  if(!cap_sendable(cap) && (t->frame->recover != NULL))
+  if(!cap_sendable(cap) && (opt->check.frame->recover != NULL))
   {
     ast_t* parent = ast_parent(ast);
     if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
@@ -1056,37 +629,39 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  // Unless this is a field lookup, treat an incomplete `this` as a tag.
-  ast_t* parent = ast_parent(ast);
-  bool incomplete_ok = false;
-
-  if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
+  // Handle cases in constructors where the type is incomplete (not all fields
+  // have been defined yet); in these cases, we consider `this` to be a tag,
+  // But if we're using it for accessing a field, we can allow the normal refcap
+  // because if the field is defined, we're allowed to read it and if it's
+  // undefined we'll be allowed to write to it to finish defining it.
+  // The AST_FLAG_INCOMPLETE flag is set during the refer pass.
+  if(ast_checkflag(ast, AST_FLAG_INCOMPLETE))
   {
-    ast_t* right = ast_sibling(ast);
-    pony_assert(ast_id(right) == TK_ID);
-    ast_t* find = lookup_try(opt, ast, nominal, ast_name(right));
+    bool incomplete_ok = false;
 
-    if(find != NULL)
+    // We consider it to be okay to be incomplete if on the left side of a dot,
+    // where the dot points to a field reference.
+    ast_t* parent = ast_parent(ast);
+    if((ast_id(parent) == TK_DOT) && (ast_child(parent) == ast))
     {
-      switch(ast_id(find))
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(def != NULL);
+
+      switch(ast_id(def))
       {
         case TK_FVAR:
         case TK_FLET:
-        case TK_EMBED:
-          incomplete_ok = true;
-          break;
-
+        case TK_EMBED: incomplete_ok = true; break;
         default: {}
       }
-
-      ast_free_unattached(find);
     }
-  }
 
-  if(!incomplete_ok && is_this_incomplete(t, ast))
-  {
-    ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
-    ast_replace(&nominal, tag_type);
+    // If it's not considered okay to be incomplete, set the refcap to TK_TAG.
+    if(!incomplete_ok)
+    {
+      ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+      ast_replace(&nominal, tag_type);
+    }
   }
 
   if(arrow)
@@ -1111,17 +686,15 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
 
     while(child != NULL)
     {
-      ast_t* c_type = ast_type(child);
-
-      if(c_type == NULL)
-        return false;
-
-      if(is_control_type(c_type))
+      if(ast_checkflag(child, AST_FLAG_JUMPS_AWAY))
       {
         ast_error(opt->check.errors, child,
-          "a tuple can't contain a control flow expression");
+          "a tuple can't contain an expression that jumps away with no value");
         return false;
       }
+
+      ast_t* c_type = ast_type(child);
+      pony_assert(c_type != NULL); // maybe needs to be removed?
 
       if(is_type_literal(c_type))
       {
@@ -1162,6 +735,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
   // If still nominal, check constraints.
   ast_t* def = (ast_t*)ast_data(ast);
+  pony_assert(def != NULL);
 
   // Special case: don't check the constraint of a Pointer or an Array. These
   // builtin types have no contraint on their type parameter, and it is safe
@@ -1189,6 +763,8 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       case TK_NOMINAL:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
+        pony_assert(def != NULL);
+
         ok = ast_id(def) == TK_STRUCT;
         break;
       }
@@ -1196,6 +772,8 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       case TK_TYPEPARAMREF:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
+        pony_assert(def != NULL);
+
         ok = def == typeparam;
         break;
       }
@@ -1219,61 +797,18 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
 }
 
-static bool check_fields_defined(pass_opt_t* opt, ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-  bool result = true;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        sym_status_t status;
-        ast_t* id = ast_child(member);
-        ast_t* def = ast_get(ast, ast_name(id), &status);
-
-        if((def != member) || (status != SYM_DEFINED))
-        {
-          ast_error(opt->check.errors, def,
-            "field left undefined in constructor");
-          result = false;
-        }
-
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(!result)
-    ast_error(opt->check.errors, ast,
-      "constructor with undefined fields is here");
-
-  return result;
-}
-
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
-  ast_t* body_type = ast_type(body);
-
-  if(is_typecheck_error(body_type))
-    return false;
 
   // The last statement is an error, and we've already checked any return
   // expressions in the method.
-  if(is_control_type(body_type))
+  if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
     return true;
+
+  ast_t* body_type = ast_type(body);
+  if(is_typecheck_error(body_type))
+    return false;
 
   // If it's a compiler intrinsic, ignore it.
   if(ast_id(body_type) == TK_COMPILE_INTRINSIC)
@@ -1327,9 +862,6 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
         if(!check_return_type(opt, ast))
          ok = false;
       }
-
-      if(!check_fields_defined(opt, ast))
-        ok = false;
 
       return ok;
     }

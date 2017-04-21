@@ -10,6 +10,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparam) == TK_TYPEPARAM);
 
   ast_t* ref_def = (ast_t*)ast_data(ast);
   ast_t* param_def = (ast_t*)ast_data(typeparam);
@@ -81,6 +82,8 @@ static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     return;
 
   ast_setid(ast, TK_TYPEREF);
+  ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+  ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
   ast_settype(ast, typearg);
 }
 

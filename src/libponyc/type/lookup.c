@@ -351,6 +351,12 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
       return NULL;
 
+    case TK_DONTCARETYPE:
+      if(errors)
+        ast_error(opt->check.errors, from, "can't lookup by name on '_'");
+
+      return NULL;
+
     case TK_NOMINAL:
       return lookup_nominal(opt, from, orig, type, name, errors);
 

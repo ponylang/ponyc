@@ -138,7 +138,7 @@ GROUP(expr,
   if_expr, ifdef, whileloop, repeat, for_loop, with, match, try_expr, lambda,
   array_literal, object_literal, int_literal, float_literal, string,
   bool_literal, id, rawseq, package_ref, location,
-  this_ref, ref, fun_ref, type_ref, flet_ref, field_ref, local_ref);
+  this_ref, ref, fun_ref, type_ref, field_ref, tuple_elem_ref, local_ref);
 
 RULE(local,
   HAS_TYPE(type)
@@ -380,21 +380,22 @@ RULE(fun_ref,
 
 RULE(type_ref,
   HAS_TYPE(type)
-  CHILD(expr)
-  OPTIONAL(id, type_args),
+  CHILD(package_ref, none)
+  CHILD(id, none)
+  CHILD(type_args, none),
   TK_TYPEREF);
 
 RULE(field_ref,
   HAS_TYPE(type)
   CHILD(expr)
   CHILD(id),
-  TK_FVARREF, TK_EMBEDREF);
+  TK_FVARREF, TK_FLETREF, TK_EMBEDREF);
 
-RULE(flet_ref,
+RULE(tuple_elem_ref,
   HAS_TYPE(type)
   CHILD(expr)
-  CHILD(id, int_literal), // Int for tuple element access
-  TK_FLETREF);
+  CHILD(int_literal),
+  TK_TUPLEELEMREF);
 
 RULE(local_ref,
   HAS_TYPE(type)

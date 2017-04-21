@@ -32,6 +32,13 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to);
 ast_t* type_sugar(ast_t* from, const char* package, const char* name);
 
 /**
+ * Same as above, but with typeargs.
+ * Does not validate the type.
+ */
+ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
+  ast_t* typeargs);
+
+/**
 * Add a branch type to a control structure type.
 */
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,

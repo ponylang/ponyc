@@ -186,32 +186,6 @@ bool is_typecheck_error(ast_t* type)
   return false;
 }
 
-bool is_control_type(ast_t* type)
-{
-  if(type == NULL)
-    return true;
-
-  switch(ast_id(type))
-  {
-    case TK_IF:
-    case TK_TRY:
-    case TK_MATCH:
-    case TK_CASES:
-    case TK_WHILE:
-    case TK_REPEAT:
-    case TK_BREAK:
-    case TK_CONTINUE:
-    case TK_RETURN:
-    case TK_ERROR:
-    case TK_COMPILE_ERROR:
-      return true;
-
-    default: {}
-  }
-
-  return false;
-}
-
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 {
   (void)options;
@@ -254,7 +228,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_VAR:
     case TK_LET:        r = expr_local(options, ast); break;
     case TK_BREAK:      r = expr_break(options, ast); break;
-    case TK_CONTINUE:   r = expr_continue(options, ast); break;
     case TK_RETURN:     r = expr_return(options, ast); break;
     case TK_IS:
     case TK_ISNT:       r = expr_identity(options, ast); break;
@@ -279,13 +252,17 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
                         r = expr_match_capture(options, ast); break;
     case TK_TUPLE:      r = expr_tuple(options, ast); break;
     case TK_ARRAY:      r = expr_array(options, astp); break;
-    case TK_REFERENCE:  r = expr_reference(options, astp); break;
+
+    case TK_DONTCAREREF:
+                        r = expr_dontcareref(options, ast); break;
+    case TK_TYPEREF:    r = expr_typeref(options, astp); break;
+    case TK_VARREF:
+    case TK_LETREF:     r = expr_localref(options, ast); break;
+    case TK_PARAMREF:   r = expr_paramref(options, ast); break;
+
     case TK_THIS:       r = expr_this(options, ast); break;
     case TK_TRUE:
     case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
-    case TK_ERROR:      r = expr_error(options, ast); break;
-    case TK_COMPILE_ERROR:
-                        r = expr_compile_error(options, ast); break;
     case TK_COMPILE_INTRINSIC:
                         r = expr_compile_intrinsic(options, ast); break;
     case TK_LOCATION:   r = expr_location(options, ast); break;

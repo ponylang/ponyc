@@ -174,7 +174,7 @@ TEST_F(ScopeTest, Local)
 
   ast_t* foo = lookup_member("A", "foo");
   ASSERT_ID(TK_FUN, foo);
-  ASSERT_ID(TK_ID, lookup_in(foo, "bar"));
+  ASSERT_ID(TK_VAR, lookup_in(foo, "bar"));
   ASSERT_EQ(1, ref_count(package, "bar"));
 }
 
@@ -191,9 +191,9 @@ TEST_F(ScopeTest, MultipleLocals)
   ast_t* wombat = lookup_member("A", "wombat");
   ASSERT_ID(TK_FUN, wombat);
 
-  ASSERT_ID(TK_ID, lookup_in(wombat, "foo"));
-  ASSERT_ID(TK_ID, lookup_in(wombat, "bar"));
-  ASSERT_ID(TK_ID, lookup_in(wombat, "aardvark"));
+  ASSERT_ID(TK_VAR, lookup_in(wombat, "foo"));
+  ASSERT_ID(TK_VAR, lookup_in(wombat, "bar"));
+  ASSERT_ID(TK_LET, lookup_in(wombat, "aardvark"));
 
   ASSERT_EQ(1, ref_count(package, "foo"));
   ASSERT_EQ(1, ref_count(package, "bar"));
@@ -213,9 +213,9 @@ TEST_F(ScopeTest, NestedLocals)
   ast_t* wombat = lookup_member("A", "wombat");
   ASSERT_ID(TK_FUN, wombat);
 
-  ASSERT_ID(TK_ID, lookup_in(wombat, "foo"));
-  ASSERT_ID(TK_ID, lookup_in(wombat, "bar"));
-  ASSERT_ID(TK_ID, lookup_in(wombat, "aardvark"));
+  ASSERT_ID(TK_VAR, lookup_in(wombat, "foo"));
+  ASSERT_ID(TK_VAR, lookup_in(wombat, "bar"));
+  ASSERT_ID(TK_LET, lookup_in(wombat, "aardvark"));
 
   ASSERT_EQ(1, ref_count(package, "foo"));
   ASSERT_EQ(1, ref_count(package, "bar"));

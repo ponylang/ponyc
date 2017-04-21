@@ -415,6 +415,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_FLET:
     case TK_EMBED:
     case TK_PARAM:
+    case TK_MATCH_CAPTURE:
     case TK_TYPEPARAM:
     {
       pony_assert(ast_child(ast) != NULL);
@@ -425,17 +426,8 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_LET:
     case TK_VAR:
     {
-      ast_t* scope = ast_parent(ast);
-      ast_t* id = ast_child(ast);
-      ast_set(scope, ast_name(id), id, SYM_UNDEFINED, true);
-      break;
-    }
-
-    case TK_MATCH_CAPTURE:
-    {
-      ast_t* scope = ast_parent(ast);
-      ast_t* id = ast_child(ast);
-      ast_set(scope, ast_name(id), id, SYM_DEFINED, true);
+      pony_assert(ast_child(ast) != NULL);
+      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true);
       break;
     }
 

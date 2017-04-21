@@ -8,7 +8,7 @@
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
-    DO(test_expected_errors(src, "expr", errs)); }
+    DO(test_expected_errors(src, "verify", errs)); }
 
 
 class DontcareTest : public PassTest
@@ -97,7 +97,7 @@ TEST_F(DontcareTest, CannotCallMethodOnDontcare)
     "  fun f() =>\n"
     "    _.foo()";
 
-  TEST_ERRORS_1(src, "can't read from '_'");
+  TEST_ERRORS_1(src, "can't lookup by name on '_'");
 }
 
 

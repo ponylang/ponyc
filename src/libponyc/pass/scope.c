@@ -13,7 +13,7 @@
 /**
  * Insert a name->AST mapping into the specified scope.
  */
-static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
+static bool set_scope(pass_opt_t* opt, ast_t* scope,
   ast_t* name, ast_t* value)
 {
   pony_assert(ast_id(name) == TK_ID);
@@ -26,16 +26,6 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
 
   switch(ast_id(value))
   {
-    case TK_ID:
-    {
-      if((t != NULL) && (t->frame->pattern != NULL))
-        status = SYM_DEFINED;
-      else
-        status = SYM_UNDEFINED;
-
-      break;
-    }
-
     case TK_TYPE:
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -50,13 +40,16 @@ static bool set_scope(pass_opt_t* opt, typecheck_t* t, ast_t* scope,
     case TK_FUN:
       break;
 
+    case TK_VAR:
+    case TK_LET:
+      status = SYM_UNDEFINED;
+      break;
+
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:
-      status = SYM_DEFINED;
-      break;
-
     case TK_PARAM:
+    case TK_MATCH_CAPTURE:
       status = SYM_DEFINED;
       break;
 
@@ -96,7 +89,7 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   }
 
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(options, NULL, ast, name, package);
+    return set_scope(options, ast, name, package);
 
   // Store the package so we can import it later without having to look it up
   // again
@@ -104,52 +97,21 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   return true;
 }
 
-static void set_fields_undefined(ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        // Mark this field as SYM_UNDEFINED.
-        AST_GET_CHILDREN(member, id, type, expr);
-        ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-}
-
-static bool scope_method(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
+static bool scope_method(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* id = ast_childidx(ast, 1);
 
-  if(!set_scope(opt, t, ast_parent(ast), id, ast))
+  if(!set_scope(opt, ast_parent(ast), id, ast))
     return false;
-
-  if(ast_id(ast) == TK_NEW)
-    set_fields_undefined(ast);
 
   return true;
 }
 
-static ast_result_t scope_entity(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
+static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeparams, cap, provides, members);
 
-  if(!set_scope(opt, t, t->frame->package, id, ast))
+  if(!set_scope(opt, opt->check.frame->package, id, ast))
     return AST_ERROR;
 
   // Scope fields and methods immediately, so that the contents of method
@@ -163,14 +125,14 @@ static ast_result_t scope_entity(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
       case TK_FVAR:
       case TK_FLET:
       case TK_EMBED:
-        if(!set_scope(opt, t, member, ast_child(member), member))
+        if(!set_scope(opt, member, ast_child(member), member))
           return AST_ERROR;
         break;
 
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
-        if(!scope_method(opt, t, member))
+        if(!scope_method(opt, member))
           return AST_ERROR;
         break;
 
@@ -185,16 +147,8 @@ static ast_result_t scope_entity(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
   return AST_OK;
 }
 
-static bool scope_local(pass_opt_t* opt, typecheck_t* t, ast_t* ast)
-{
-  // Local resolves to itself
-  ast_t* id = ast_child(ast);
-  return set_scope(opt, t, ast_parent(ast), id, id);
-}
-
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
@@ -209,25 +163,23 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      return scope_entity(options, t, ast);
+      return scope_entity(options, ast);
 
+    case TK_VAR:
+    case TK_LET:
     case TK_PARAM:
-      if(!set_scope(options, t, ast, ast_child(ast), ast))
+    case TK_MATCH_CAPTURE:
+      if(!set_scope(options, ast, ast_child(ast), ast))
         return AST_ERROR;
       break;
 
     case TK_TYPEPARAM:
-      if(!set_scope(options, t, ast, ast_child(ast), ast))
+      if(!set_scope(options, ast, ast_child(ast), ast))
         return AST_ERROR;
 
+      // Store the original definition of the typeparam in the data field here.
+      // It will be retained later if the typeparam def is copied via ast_dup.
       ast_setdata(ast, ast);
-      break;
-
-    case TK_MATCH_CAPTURE:
-    case TK_LET:
-    case TK_VAR:
-      if(!scope_local(options, t, ast))
-        return AST_ERROR;
       break;
 
     default: {}

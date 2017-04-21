@@ -236,6 +236,7 @@ typedef enum token_id
   TK_FVARREF,
   TK_FLETREF,
   TK_EMBEDREF,
+  TK_TUPLEELEMREF,
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
