@@ -50,8 +50,14 @@ static void name_param(compile_t* c, reach_type_t* t,
 static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
   ast_t* params, LLVMValueRef func)
 {
-  // Name the receiver 'this'.
-  name_param(c, t, m, func, c->str_this, 0, ast_line(params), ast_pos(params));
+  unsigned offset = 0;
+
+  if(m->cap != TK_AT)
+  {
+    // Name the receiver 'this'.
+    name_param(c, t, m, func, c->str_this, 0, ast_line(params), ast_pos(params));
+    offset = 1;
+  }
 
   // Name each parameter.
   ast_t* param = ast_child(params);
@@ -59,28 +65,43 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
   for(size_t i = 0; i < m->param_count; i++)
   {
     name_param(c, m->params[i].type, m, func, ast_name(ast_child(param)),
-      (unsigned)i + 1, ast_line(param), ast_pos(param));
+      (unsigned)i + offset, ast_line(param), ast_pos(param));
     param = ast_sibling(param);
   }
 }
 
 static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
-  // Count the parameters, including the receiver.
-  size_t count = m->param_count + 1;
+  // Count the parameters, including the receiver if the method isn't bare.
+  size_t count = m->param_count;
+  size_t offset = 0;
+  if(m->cap != TK_AT)
+  {
+    count++;
+    offset++;
+  }
+
   size_t tparam_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(tparam_size);
 
-  // Get a type for the receiver.
-  tparams[0] = t->use_type;
+  bool bare_void = false;
+
+  if(m->cap == TK_AT)
+  {
+    bare_void = is_none(m->result->ast);
+  } else {
+    // Get a type for the receiver.
+    tparams[0] = t->use_type;
+  }
 
   // Get a type for each parameter.
   for(size_t i = 0; i < m->param_count; i++)
-    tparams[i + 1] = m->params[i].type->use_type;
+    tparams[i + offset] = m->params[i].type->use_type;
 
-  // Generate the function type. Class constructors return void to avoid
-  // clobbering nocapture information.
-  if((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS))
+  // Generate the function type.
+  // Bare methods returning None return void to maintain compatibility with C.
+  // Class constructors return void to avoid clobbering nocapture information.
+  if(bare_void || ((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS)))
     m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
   else
     m->func_type = LLVMFunctionType(m->result->use_type, tparams, (int)count,
@@ -96,15 +117,23 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
     body);
 
   // Count the parameters, including the receiver and the result.
-  size_t count = m->param_count + 2;
+  size_t count = m->param_count + 1;
+  size_t offset = 1;
+  if(m->cap != TK_AT)
+  {
+    count++;
+    offset++;
+  }
+
   size_t md_size = count * sizeof(reach_type_t*);
   LLVMMetadataRef* md = (LLVMMetadataRef*)ponyint_pool_alloc_size(md_size);
 
   md[0] = m->result->di_type;
-  md[1] = t->di_type;
+  if(m->cap != TK_AT)
+    md[1] = t->di_type;
 
   for(size_t i = 0; i < m->param_count; i++)
-    md[i + 2] = m->params[i].type->di_type;
+    md[i + offset] = m->params[i].type->di_type;
 
   m->di_file = t->di_file;
 
@@ -173,8 +202,13 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       return;
   }
 
-  if(handler || only_needs_msg_type)
+  if(!handler && !only_needs_msg_type)
   {
+    // Generate the function prototype.
+    m->func = codegen_addfun(c, m->full_name, m->func_type);
+    genfun_param_attrs(c, t, m, m->func);
+    make_function_debug(c, t, m, m->func);
+  } else if(handler) {
     size_t count = LLVMCountParamTypes(m->func_type) + 2;
     size_t buf_size = count * sizeof(LLVMTypeRef);
     LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
@@ -210,11 +244,6 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       false);
 
     ponyint_pool_free_size(buf_size, tparams);
-  } else if(!handler) {
-    // Generate the function prototype.
-    m->func = codegen_addfun(c, m->full_name, m->func_type);
-    genfun_param_attrs(c, t, m, m->func);
-    make_function_debug(c, t, m, m->func);
   }
 
   if(n->name == c->str__final)
@@ -226,13 +255,25 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
     LLVMSetLinkage(m->func, LLVMExternalLinkage);
   }
+
+  if((n->cap == TK_AT) && (m->func != NULL))
+  {
+    LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+    LLVMSetLinkage(m->func, LLVMExternalLinkage);
+
+    if(t->bare_method == m)
+    {
+      pony_assert(t->instance == NULL);
+      t->instance = LLVMConstBitCast(m->func, c->void_ptr);
+    }
+  }
 }
 
 static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
   uint32_t index, LLVMValueRef handler, LLVMTypeRef type)
 {
   // Add a case to the dispatch function to handle this message.
-  codegen_startfun(c, t->dispatch_fn, NULL, NULL);
+  codegen_startfun(c, t->dispatch_fn, NULL, NULL, false);
   LLVMBasicBlockRef block = codegen_block(c, "handler");
   LLVMValueRef id = LLVMConstInt(c->i32, index, false);
   LLVMAddCase(t->dispatch_switch, id, block);
@@ -287,7 +328,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
   }
 
   // Call the handler.
-  codegen_call(c, handler, args, count);
+  codegen_call(c, handler, args, count, true);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
@@ -327,7 +368,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
 
-  codegen_startfun(c, m->func, m->di_file, m->di_method);
+  codegen_startfun(c, m->func, m->di_file, m->di_method, ast_id(cap) == TK_AT);
   name_params(c, t, m, params, m->func);
 
   if(m->func == t->final_fn)
@@ -340,24 +381,32 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   if(value != GEN_NOVALUE)
   {
-    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(m->func));
-    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+    if((ast_id(cap) == TK_AT) && is_none(result))
+    {
+      codegen_scope_lifetime_end(c);
+      codegen_debugloc(c, ast_childlast(body));
+      LLVMBuildRetVoid(c->builder);
+    } else {
+      LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(m->func));
+      LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
-    // If the result type is known to be a tuple, do the correct assignment
-    // cast even if the body type is not a tuple.
-    ast_t* body_type = ast_type(body);
+      // If the result type is known to be a tuple, do the correct assignment
+      // cast even if the body type is not a tuple.
+      ast_t* body_type = ast_type(body);
 
-    if((ast_id(result) == TK_TUPLETYPE) && (ast_id(body_type) != TK_TUPLETYPE))
-      body_type = result;
+      if((ast_id(result) == TK_TUPLETYPE) && (ast_id(body_type) != TK_TUPLETYPE))
+        body_type = result;
 
-    LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
+      LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
 
-    if(ret == NULL)
-      return false;
+      if(ret == NULL)
+        return false;
 
-    codegen_scope_lifetime_end(c);
-    codegen_debugloc(c, ast_childlast(body));
-    LLVMBuildRet(c->builder, ret);
+      codegen_scope_lifetime_end(c);
+      codegen_debugloc(c, ast_childlast(body));
+      LLVMBuildRet(c->builder, ret);
+    }
+
     codegen_debugloc(c, NULL);
   }
 
@@ -374,7 +423,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
     body);
 
   // Generate the handler.
-  codegen_startfun(c, m->func_handler, m->di_file, m->di_method);
+  codegen_startfun(c, m->func_handler, m->di_file, m->di_method, false);
   name_params(c, t, m, params, m->func_handler);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -389,7 +438,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_finishfun(c);
 
   // Generate the sender.
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
   size_t buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
   LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParams(m->func, param_vals);
@@ -418,7 +467,7 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, result, can_error,
     body);
 
-  codegen_startfun(c, m->func, m->di_file, m->di_method);
+  codegen_startfun(c, m->func, m->di_file, m->di_method, false);
   name_params(c, t, m, params, m->func);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -451,7 +500,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
     body);
 
   // Generate the handler.
-  codegen_startfun(c, m->func_handler, m->di_file, m->di_method);
+  codegen_startfun(c, m->func_handler, m->di_file, m->di_method, false);
   name_params(c, t, m, params, m->func_handler);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -464,7 +513,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_finishfun(c);
 
     // Generate the sender.
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
   size_t buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
   LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParams(m->func, param_vals);
@@ -536,7 +585,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
     LLVMSetDereferenceable(fun, 0, size);
 #endif
   }
-  codegen_startfun(c, fun, NULL, NULL);
+  codegen_startfun(c, fun, NULL, NULL, false);
 
   LLVMValueRef result;
 
@@ -573,7 +622,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   pony_assert(m2 != NULL);
   pony_assert(m2 != m);
 
-  codegen_startfun(c, m->func, m->di_file, m->di_method);
+  codegen_startfun(c, m->func, m->di_file, m->di_method, m->cap == TK_AT);
 
   int count = LLVMCountParams(m->func);
   size_t buf_size = count * sizeof(LLVMValueRef);
@@ -589,7 +638,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   }
 
   codegen_debugloc(c, m2->r_fun);
-  LLVMValueRef ret = codegen_call(c, m2->func, args, count);
+  LLVMValueRef ret = codegen_call(c, m2->func, args, count, m->cap != TK_AT);
   codegen_debugloc(c, NULL);
   ret = gen_assign_cast(c, m->result->use_type, ret, m2->result->ast);
   LLVMBuildRet(c->builder, ret);
@@ -611,6 +660,13 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
   reach_type_t* type = t;
   token_id cap = m->cap;
   int i = 0;
+  int offset = 1;
+
+  if(cap == TK_AT)
+  {
+    i = 1;
+    offset = 0;
+  }
 
   while(param != NULL)
   {
@@ -621,21 +677,21 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
       {
         type = m->params[i-1].type;
         cap = m->params[i-1].cap;
-      }
-      else if(ast_id(m->r_fun) == TK_NEW)
-      {
+      } else if(ast_id(m->r_fun) == TK_NEW) {
         param = LLVMGetNextParam(param);
         ++i;
         continue;
       }
+
       if(type->underlying != TK_ACTOR)
       {
         switch(cap)
         {
           case TK_ISO:
 #if PONY_LLVM >= 309
-            LLVMAddAttributeAtIndex(fun, i + 1, noalias_attr);
+            LLVMAddAttributeAtIndex(fun, i + offset, noalias_attr);
 #else
+            (void)offset;
             LLVMAddAttribute(param, LLVMNoAliasAttribute);
 #endif
             break;
@@ -645,8 +701,8 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
           case TK_VAL:
           case TK_TAG:
 #if PONY_LLVM >= 309
-            LLVMAddAttributeAtIndex(fun, i + 1, noalias_attr);
-            LLVMAddAttributeAtIndex(fun, i + 1, readonly_attr);
+            LLVMAddAttributeAtIndex(fun, i + offset, noalias_attr);
+            LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
 #else
             LLVMAddAttribute(param, LLVMNoAliasAttribute);
             LLVMAddAttribute(param, LLVMReadOnlyAttribute);
@@ -654,7 +710,7 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
             break;
           case TK_BOX:
 #if PONY_LLVM >= 309
-            LLVMAddAttributeAtIndex(fun, i + 1, readonly_attr);
+            LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
 #else
             LLVMAddAttribute(param, LLVMReadOnlyAttribute);
 #endif
@@ -794,7 +850,7 @@ static void primitive_call(compile_t* c, const char* method)
     if(m == NULL)
       continue;
 
-    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1);
+    LLVMValueRef value = codegen_call(c, m->func, &t->instance, 1, true);
 
     if(c->str__final == method)
       LLVMSetInstructionCallConv(value, LLVMCCallConv);
@@ -811,7 +867,7 @@ void genfun_primitive_calls(compile_t* c)
     const char* fn_name = genname_program_fn(c->filename, "primitives_init");
     c->primitives_init = LLVMAddFunction(c->module, fn_name, fn_type);
 
-    codegen_startfun(c, c->primitives_init, NULL, NULL);
+    codegen_startfun(c, c->primitives_init, NULL, NULL, false);
     primitive_call(c, c->str__init);
     LLVMBuildRetVoid(c->builder);
     codegen_finishfun(c);
@@ -824,7 +880,7 @@ void genfun_primitive_calls(compile_t* c)
     const char* fn_name = genname_program_fn(c->filename, "primitives_final");
     c->primitives_final = LLVMAddFunction(c->module, fn_name, fn_type);
 
-    codegen_startfun(c, c->primitives_final, NULL, NULL);
+    codegen_startfun(c, c->primitives_final, NULL, NULL, false);
     primitive_call(c, c->str__final);
     LLVMBuildRetVoid(c->builder);
     codegen_finishfun(c);

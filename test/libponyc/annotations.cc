@@ -112,7 +112,7 @@ TEST_F(AnnotationsTest, AnnotationsArePresent)
 
   ast = ast_annotation(ast);
 
-  ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_BACKSLASH));
+  ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ANNOTATION));
   ast = ast_child(ast);
 
   ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ID) &&
@@ -178,4 +178,12 @@ TEST_F(AnnotationsTest, AnnotateLambda)
   ast = lookup_in(ast, "apply");
 
   ASSERT_TRUE(ast_has_annotation(ast, "a"));
+}
+
+TEST_F(AnnotationsTest, InternalAnnotation)
+{
+  const char* src =
+    "actor \\ponyint\\ A\n";
+
+  TEST_ERROR(src);
 }

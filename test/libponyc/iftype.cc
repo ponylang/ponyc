@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-#include <reach/reach.h>
-
 #include "util.h"
 
 

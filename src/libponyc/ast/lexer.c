@@ -84,6 +84,8 @@ static const lextoken_t symbols[] =
 
   { "\\", TK_BACKSLASH },
 
+  { "@{", TK_AT_LBRACE },
+
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
@@ -243,6 +245,7 @@ static const lextoken_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
   { "lambdatype", TK_LAMBDATYPE },
+  { "barelambdatype", TK_BARELAMBDATYPE },
   { "dontcaretype", TK_DONTCARETYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
@@ -264,6 +267,8 @@ static const lextoken_t abstract[] =
   { "updatearg", TK_UPDATEARG },
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
+
+  { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
@@ -295,6 +300,8 @@ static const lextoken_t abstract[] =
   { "funapp", TK_FUNAPP },
   { "bechain", TK_BECHAIN },
   { "funchain", TK_FUNCHAIN },
+
+  { "annotation", TK_ANNOTATION },
 
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}

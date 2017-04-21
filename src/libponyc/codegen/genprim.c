@@ -35,7 +35,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
   genfun_param_attrs(c, t, m, m->func);
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
 }
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
@@ -710,7 +710,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
 
 void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
-  codegen_startfun(c, t->trace_fn, NULL, NULL);
+  codegen_startfun(c, t->trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
   LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
@@ -737,7 +737,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -778,7 +778,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
@@ -903,7 +903,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
   t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->deserialise_fn, NULL, NULL);
+  codegen_startfun(c, t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
@@ -985,7 +985,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -1017,7 +1017,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
@@ -1086,7 +1086,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
   t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->deserialise_fn, NULL, NULL);
+  codegen_startfun(c, t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
@@ -1863,7 +1863,7 @@ static void make_cpuid(compile_t* c)
     LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL);
+    codegen_startfun(c, fun, NULL, NULL, false);
 
     LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
       "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
@@ -1892,7 +1892,7 @@ static void make_rdtscp(compile_t* c)
     f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL);
+    codegen_startfun(c, fun, NULL, NULL, false);
 
     // Cast i32* to i8* and call the intrinsic.
     LLVMValueRef arg = LLVMGetParam(fun, 0);

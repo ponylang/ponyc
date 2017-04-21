@@ -29,6 +29,10 @@
  */
 #define BUILD(var, existing, ...) \
   ast_t* var; \
+  BUILD_NO_DECL(var, existing, __VA_ARGS__)
+
+/// Builds an AST but without declaring a new variable.
+#define BUILD_NO_DECL(var, existing, ...) \
   { \
     ast_t* basis_ast = existing; \
     ast_t* parent = NULL; \
