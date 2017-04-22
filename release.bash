@@ -85,9 +85,4 @@ git merge "release-$version"
 # check if user wants to continue
 check_for_commit_and_push
 
-# commit changelog and push to master
-git add CHANGELOG.md
-git commit -m "Add unreleased section to CHANGELOG post $version release prep
-
-[skip ci]"
 git push origin master
