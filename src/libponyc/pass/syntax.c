@@ -447,7 +447,8 @@ static ast_result_t syntax_arrow(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
 
-  if((opt->check.frame->constraint != NULL) &&
+  if(((opt->check.frame->constraint != NULL) ||
+    (opt->check.frame->iftype_constraint != NULL)) &&
     (opt->check.frame->method == NULL))
   {
     ast_error(opt->check.errors, ast,
@@ -1124,7 +1125,8 @@ static ast_result_t syntax_cap(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_cap_set(pass_opt_t* opt, ast_t* ast)
 {
   // Cap sets can only appear in type parameter constraints.
-  if(opt->check.frame->constraint == NULL)
+  if((opt->check.frame->constraint == NULL) &&
+    (opt->check.frame->iftype_constraint == NULL))
   {
     ast_error(opt->check.errors, ast,
       "a capability set can only appear in a type constraint");

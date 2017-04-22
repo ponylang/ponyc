@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool is_this_incomplete(typecheck_t* t, ast_t* ast);
+bool method_check_type_params(pass_opt_t* opt, ast_t** astp);
 
 bool expr_call(pass_opt_t* opt, ast_t** astp);
 

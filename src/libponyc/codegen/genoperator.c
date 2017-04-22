@@ -456,6 +456,14 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       return assign_field(c, l_value, r_value, p_type, r_type);
     }
 
+    case TK_TUPLEELEMREF:
+    {
+      // The result is the previous value of the tuple element.
+      LLVMValueRef l_value = gen_tupleelemptr(c, left);
+      ast_t* p_type = ast_type(ast_child(left));
+      return assign_field(c, l_value, r_value, p_type, r_type);
+    }
+
     case TK_EMBEDREF:
     {
       // Do nothing. The embed field was already passed as the receiver.

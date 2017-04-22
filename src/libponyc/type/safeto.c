@@ -63,6 +63,9 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_DONTCAREREF:
       return true;
 
+    case TK_TUPLEELEMREF:
+      return true; // this isn't actually allowed, but it will be caught later.
+
     case TK_FVARREF:
     case TK_FLETREF:
     case TK_EMBEDREF:

@@ -3,8 +3,9 @@
 #include "reference.h"
 #include "../ast/astbuild.h"
 #include "../ast/printbuf.h"
-#include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../pass/pass.h"
+#include "../pass/refer.h"
 #include "../pass/syntax.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
@@ -47,14 +48,21 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     if(!def_before_use(opt, def, capture, name))
       return NULL;
 
-    token_id def_id = ast_id(def);
-
-    if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
-      def_id != TK_PARAM)
+    switch(ast_id(def))
     {
-      ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
-        "capture fields, parameters and local variables", name);
-      return NULL;
+      case TK_VAR:
+      case TK_LET:
+      case TK_PARAM:
+      case TK_MATCH_CAPTURE:
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+        break;
+
+      default:
+        ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
+          "capture fields, parameters and local variables", name);
+        return NULL;
     }
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
@@ -192,13 +200,12 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
 {
   const char* name = ast_name(ast_child(ast));
 
-  sym_status_t status;
-  ast_t* refdef = ast_get(ast, name, &status);
+  ast_t* refdef = ast_get(ast, name, NULL);
 
   if(refdef != NULL)
     return true;
 
-  refdef = ast_get(ctx, name, &status);
+  refdef = ast_get(ctx, name, NULL);
 
   if(refdef == NULL)
   {
@@ -210,14 +217,21 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   if(!def_before_use(opt, refdef, ctx, name))
     return false;
 
-  token_id def_id = ast_id(refdef);
-
-  if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
-    def_id != TK_PARAM)
+  switch(ast_id(refdef))
   {
-    ast_error(opt->check.errors, ast, "cannot capture \"%s\", can only "
-      "capture fields, parameters and local variables", name);
-    return false;
+    case TK_VAR:
+    case TK_LET:
+    case TK_PARAM:
+    case TK_MATCH_CAPTURE:
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_EMBED:
+      break;
+
+    default:
+      ast_error(opt->check.errors, ast, "cannot capture \"%s\", can only "
+        "capture fields, parameters and local variables", name);
+      return NULL;
   }
 
   // Check if we've already captured it
@@ -340,6 +354,32 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   ast_append(create_params, param);
   ast_append(create_body, assign);
   ast_append(call_args, arg);
+}
+
+
+static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
+{
+  // Make sure all traits have been through the expr pass before proceeding.
+  // We run into dangling ast_data pointer problems when we inherit methods from
+  // traits that have only been through the refer pass, and not the expr pass.
+
+  ast_t* child = ast_child(provides);
+
+  while(child != NULL)
+  {
+    if(!ast_passes_subtree(&child, opt, PASS_EXPR))
+      return false;
+
+    ast_t* def = (ast_t*)ast_data(child);
+    pony_assert(def != NULL);
+
+    if(!ast_passes_type(&def, opt, PASS_EXPR))
+      return false;
+
+    child = ast_sibling(child);
+  }
+
+  return true;
 }
 
 
@@ -505,6 +545,10 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_t* result = ast_childidx(create, 4);
   ast_replace(&result,
     type_for_class(opt, def, result, cap_id, TK_EPHEMERAL, false));
+
+  // Catch up provides before catching up the entire type.
+  if(!catch_up_provides(opt, provides))
+    return false;
 
   // Type check the anonymous type.
   if(!ast_passes_type(&def, opt, PASS_EXPR))

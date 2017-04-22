@@ -6,7 +6,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
-* [Standard library docs](http://ponylang.github.io/ponyc/).
+* [Standard library docs](http://stdlib.ponylang.org/).
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
@@ -98,9 +98,9 @@ By default, the Pony Docker image is compiled without support for AVX CPU instru
 
 ## Linux using an RPM package (via Bintray)
 
-For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
 
-To install release builds via DNF:
+To install builds via DNF:
 ```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
@@ -122,15 +122,18 @@ By default, the Pony RPM package is compiled without support for AVX CPU instruc
 
 ## Linux using a DEB package (via Bintray)
 
-For Ubuntu or Debian Linux, the `master` and `release` branches are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
+For Ubuntu or Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
 
-To install release builds via Apt:
+To install builds via Apt (and install Bintray's public key):
 
 ```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "8756 C4F7 65C9 AC3C B6B8  5D62 379C E192 D401 AB61"
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
-sudo apt-get install ponyc
+sudo apt-get -V install ponyc
 ```
+
+You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated).  And if you have issues with package authentication you may need to comment out the `deb` line in `/etc/apt/sources.list`, do an update, and uncomment it again.  Feel free to ask for help if you have any problems!
 
 
 ### DEB and AVX2 Support
@@ -159,6 +162,20 @@ $ brew update
 $ brew install ponyc
 ```
 
+## "cannot find 'ld'" error
+
+If you get an error when trying to use `ponyc` to compile pony source
+that looks like this:
+
+```bash
+collect2: fatal error: cannot find 'ld'
+```
+
+you might have to install the `ld-gold` linker. It can typically be
+found by searching your distro's package repository for `binutils-gold`
+or just `ld-gold`.
+
+
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
@@ -171,7 +188,8 @@ $ brew install ponyc
 Windows users will need to install:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
-- Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+  - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -370,7 +388,9 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- [Visual Studio 2017 or 2015](https://www.visualstudio.com/downloads/) (for 2015, at least Update 2); make sure that a Windows 10 SDK is installed; otherwise install it from [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk).
+- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+  - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
+  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:

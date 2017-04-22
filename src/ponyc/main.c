@@ -151,6 +151,7 @@ static void usage()
     "    =flatten\n"
     "    =traits\n"
     "    =docs\n"
+    "    =refer\n"
     "    =expr\n"
     "    =verify\n"
     "    =final\n"

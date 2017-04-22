@@ -30,6 +30,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_fieldload(c, ast);
       break;
 
+    case TK_TUPLEELEMREF:
+      ret = gen_tupleelemptr(c, ast);
+      break;
+
     case TK_EMBEDREF:
       ret = gen_fieldembed(c, ast);
       break;
@@ -57,6 +61,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_IF:
       ret = gen_if(c, ast);
+      break;
+
+    case TK_IFTYPE:
+      ret = gen_iftype(c, ast);
       break;
 
     case TK_WHILE:

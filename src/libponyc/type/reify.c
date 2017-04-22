@@ -6,19 +6,30 @@
 #include "../ast/token.h"
 #include "ponyassert.h"
 
-static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(typeparam) == TK_TYPEPARAM);
 
   ast_t* ref_def = (ast_t*)ast_data(ast);
   ast_t* param_def = (ast_t*)ast_data(typeparam);
 
   pony_assert(ref_def != NULL);
   pony_assert(param_def != NULL);
+  AST_GET_CHILDREN(ref_def, ref_name, ref_constraint);
+  AST_GET_CHILDREN(param_def, param_name, param_constraint);
 
   if(ref_def != param_def)
-    return;
+  {
+    if(ast_name(ref_name) == ast_name(param_name))
+    {
+      if(!is_subtype(ref_constraint, param_constraint, NULL, opt))
+        return;
+    } else {
+      return;
+    }
+  }
 
   // Keep ephemerality.
   switch(ast_id(ast_childidx(ast, 2)))
@@ -81,29 +92,31 @@ static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     return;
 
   ast_setid(ast, TK_TYPEREF);
+  ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+  ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
   ast_settype(ast, typearg);
 }
 
-static void reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_one(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    reify_one(&child, typeparam, typearg);
+    reify_one(opt, &child, typeparam, typearg);
     child = ast_sibling(child);
   }
 
   ast_t* type = ast_type(ast);
 
   if(type != NULL)
-    reify_one(&type, typeparam, typearg);
+    reify_one(opt, &type, typeparam, typearg);
 
   switch(ast_id(ast))
   {
     case TK_TYPEPARAMREF:
-      reify_typeparamref(astp, typeparam, typearg);
+      reify_typeparamref(opt, astp, typeparam, typearg);
       break;
 
     case TK_ARROW:
@@ -201,7 +214,7 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
 
   while((typeparam != NULL) && (typearg != NULL))
   {
-    reify_one(&r_ast, typeparam, typearg);
+    reify_one(opt, &r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }

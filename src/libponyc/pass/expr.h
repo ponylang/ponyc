@@ -15,8 +15,6 @@ bool is_method_return(typecheck_t* t, ast_t* ast);
 
 bool is_typecheck_error(ast_t* type);
 
-bool is_control_type(ast_t* type);
-
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options);
 
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options);

@@ -14,6 +14,23 @@ ponyc-test(){
   make CC="$CC1" CXX="$CXX1" test-ci
 }
 
+verify-changelog(){
+  echo "Building changelog tool..."
+  make CC="$CC1" CXX="$CXX1" && sudo make install
+
+  pushd /tmp
+
+  git clone "https://github.com/jemc/pony-stable"
+  cd pony-stable && make && sudo make install && cd -
+
+  git clone "https://github.com/ponylang/changelog-tool"
+  cd changelog-tool && git checkout tags/0.1.2 && make && sudo make install && cd -
+
+  popd
+
+  changelog-tool verify CHANGELOG.md
+}
+
 ponyc-build-packages(){
   echo "Installing ruby, rpm, and fpm..."
   rvm use 2.2.3 --default
@@ -36,13 +53,12 @@ ponyc-build-docs(){
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs
 
-  echo "Fetching out the gh-pages branch..."
-  git remote add gh-token "https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}"
-  git fetch gh-token && git fetch gh-token gh-pages:gh-pages
-
   echo "Uploading docs using mkdocs..."
+  git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
+  git fetch gh-token
+  git reset gh-token/master
   cd stdlib-docs
-  mkdocs gh-deploy -v --clean --remote-name gh-token
+  mkdocs gh-deploy -v --clean --remote-name gh-token --remote-branch master
 }
 
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
@@ -63,6 +79,7 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
       ponyc-build-docs
     else
       ponyc-test
+      verify-changelog
     fi
   ;;
 

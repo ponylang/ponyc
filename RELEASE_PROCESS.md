@@ -7,6 +7,7 @@ This document is aimed at members of the Pony team who might be cutting a releas
 In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
+* The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 
 While not strictly required, you life will be made much easier if you:
 
