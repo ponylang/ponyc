@@ -158,6 +158,11 @@ ifeq ($(OSTYPE),osx)
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
+default_pie := $(shell $(CC) -v 2>&1 >/dev/null | grep enable-default-pie)
+ifneq ($(default_pie),)
+  ALL_CFLAGS += -DDEFAULT_PIE
+endif
+
 ifndef LLVM_CONFIG
 	ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
