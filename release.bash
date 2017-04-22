@@ -81,6 +81,7 @@ git push origin "$version"
 # update CHANGELOG for new entries
 git checkout master
 git merge "release-$version"
+changelog-tool unreleased CHANGELOG.md -e
 
 # check if user wants to continue
 check_for_commit_and_push
