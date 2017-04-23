@@ -38,6 +38,16 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
     func, expr);
 
+#ifdef PLATFORM_IS_FREEBSD
+  void* addrs[256];
+  size_t depth = backtrace(addrs, 256);
+  char** strings = backtrace_symbols(addrs, depth);
+
+  fputs("Backtrace:\n", stderr);
+
+  for(size_t i = 0; i < depth; i++)
+    printf("  %s\n", strings[i]);
+#else
   void* addrs[256];
   stack_depth_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
@@ -46,6 +56,8 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
 
   for(stack_depth_t i = 0; i < depth; i++)
     printf("  %s\n", strings[i]);
+#endif
+
 
   free(strings);
 
