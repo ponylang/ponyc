@@ -50,7 +50,6 @@ TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
   TEST_ERRORS_1(src, "can only provide traits and interfaces");
 }
 
-
 TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
 {
   // From issue #219
@@ -455,7 +454,6 @@ TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
   TEST_COMPILE(src);
 }
 
-
 TEST_F(BadPonyTest, AddressofMissingTypearg)
 {
   const char* src =
@@ -467,4 +465,16 @@ TEST_F(BadPonyTest, AddressofMissingTypearg)
 
   TEST_ERRORS_1(src,
     "not enough type arguments");
+}
+
+TEST_F(BadPonyTest, ThisDotFieldRef)
+{
+  // From issue #1865
+  const char* src =
+    "actor Main\n"
+    "  let f: U8\n"
+    "  new create(env: Env) =>\n"
+    "    this.f = 1\n";
+
+  TEST_COMPILE(src);
 }
