@@ -401,7 +401,7 @@ TEST_F(BadPonyTest, TypeParamArrowClass)
   TEST_COMPILE(src);
 }
 
-TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
+TEST_F(BadPonyTest, ArrowTypeParamInTypeConstraint)
 {
   // From issue #1694
   const char* src =
@@ -410,6 +410,17 @@ TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
 
   TEST_ERRORS_2(src,
     "arrow types can't be used as type constraints",
+    "arrow types can't be used as type constraints");
+}
+
+TEST_F(BadPonyTest, ArrowTypeParamInMethodConstraint)
+{
+  // From issue #1809
+  const char* src =
+    "class Foo\n"
+    "  fun foo[X: box->Y, Y](x: X) => None";
+
+  TEST_ERRORS_1(src,
     "arrow types can't be used as type constraints");
 }
 
@@ -477,4 +488,14 @@ TEST_F(BadPonyTest, ThisDotFieldRef)
     "    this.f = 1\n";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, CapSetInConstraintTypeParam)
+{
+  const char* src =
+    "class A[X]\n"
+    "class B[X: A[Any #read]]\n";
+
+  TEST_ERRORS_1(src,
+    "a capability set can only appear in a type constraint");
 }
