@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Disable mcx16 on aarch64 ([PR #1856](https://github.com/ponylang/ponyc/pull/1856))
 - Fix assert failure on explicit reference to `this` in constructor. (issue #1865) ([PR #1867](https://github.com/ponylang/ponyc/pull/1867))
+- Compiler crash when using unconstrained type parameters in an `iftype` condition (issue #1689)
 
 
 ### Added

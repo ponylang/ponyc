@@ -229,3 +229,22 @@ TEST_F(IftypeTest, Codegen_False)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 1);
 }
+
+
+TEST_F(IftypeTest, UnconstrainedTypeparam)
+{
+  const char* src =
+    "class C\n"
+    "  fun tag c() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x: A) =>\n"
+    "    iftype A <: C then\n"
+    "      x.c()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
