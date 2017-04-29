@@ -237,6 +237,29 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   return NULL;
 }
 
+static bool refer_this(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_THIS);
+
+  // Can only use a this reference if it hasn't been consumed yet.
+  sym_status_t status;
+  ast_get(ast, stringtab("this"), &status);
+
+  if(status == SYM_CONSUMED)
+  {
+    ast_error(opt->check.errors, ast,
+      "can't use a consumed 'this' in an expression");
+    return false;
+  }
+  pony_assert(status == SYM_NONE);
+
+  // Mark the this reference as incomplete if not all fields are defined yet.
+  if(is_this_incomplete(opt, ast))
+    ast_setflag(ast, AST_FLAG_INCOMPLETE);
+
+  return true;
+}
+
 bool refer_reference(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
@@ -321,7 +344,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_replace(astp, dot);
       ast = *astp;
-      return refer_dot(opt, ast);
+      return refer_this(opt, self) && refer_dot(opt, ast);
     }
 
     case TK_PARAM:
@@ -705,29 +728,6 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_setstatus(ast, name, SYM_CONSUMED);
-
-  return true;
-}
-
-static bool refer_this(pass_opt_t* opt, ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_THIS);
-
-  // Can only use a this reference if it hasn't been consumed yet.
-  sym_status_t status;
-  ast_get(ast, stringtab("this"), &status);
-
-  if(status == SYM_CONSUMED)
-  {
-    ast_error(opt->check.errors, ast,
-      "can't use a consumed 'this' in an expression");
-    return false;
-  }
-  pony_assert(status == SYM_NONE);
-
-  // Mark the this reference as incomplete if not all fields are defined yet.
-  if(is_this_incomplete(opt, ast))
-    ast_setflag(ast, AST_FLAG_INCOMPLETE);
 
   return true;
 }

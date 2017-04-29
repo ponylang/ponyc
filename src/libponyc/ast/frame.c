@@ -84,6 +84,8 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       t->frame->method_type = NULL;
       t->frame->ffi_type = NULL;
       t->frame->local_type = NULL;
+      t->frame->constraint = NULL;
+      t->frame->iftype_constraint = NULL;
       break;
 
     case TK_CASE:

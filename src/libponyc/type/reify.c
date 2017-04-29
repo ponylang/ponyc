@@ -24,7 +24,8 @@ static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, 
   {
     if(ast_name(ref_name) == ast_name(param_name))
     {
-      if(!is_subtype(ref_constraint, param_constraint, NULL, opt))
+      if((ast_id(param_constraint) != TK_TYPEPARAMREF) &&
+        !is_subtype(ref_constraint, param_constraint, NULL, opt))
         return;
     } else {
       return;

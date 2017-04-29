@@ -50,7 +50,6 @@ TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
   TEST_ERRORS_1(src, "can only provide traits and interfaces");
 }
 
-
 TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
 {
   // From issue #219
@@ -402,7 +401,7 @@ TEST_F(BadPonyTest, TypeParamArrowClass)
   TEST_COMPILE(src);
 }
 
-TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
+TEST_F(BadPonyTest, ArrowTypeParamInTypeConstraint)
 {
   // From issue #1694
   const char* src =
@@ -411,6 +410,17 @@ TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
 
   TEST_ERRORS_2(src,
     "arrow types can't be used as type constraints",
+    "arrow types can't be used as type constraints");
+}
+
+TEST_F(BadPonyTest, ArrowTypeParamInMethodConstraint)
+{
+  // From issue #1809
+  const char* src =
+    "class Foo\n"
+    "  fun foo[X: box->Y, Y](x: X) => None";
+
+  TEST_ERRORS_1(src,
     "arrow types can't be used as type constraints");
 }
 
@@ -455,7 +465,6 @@ TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
   TEST_COMPILE(src);
 }
 
-
 TEST_F(BadPonyTest, AddressofMissingTypearg)
 {
   const char* src =
@@ -467,4 +476,26 @@ TEST_F(BadPonyTest, AddressofMissingTypearg)
 
   TEST_ERRORS_1(src,
     "not enough type arguments");
+}
+
+TEST_F(BadPonyTest, ThisDotFieldRef)
+{
+  // From issue #1865
+  const char* src =
+    "actor Main\n"
+    "  let f: U8\n"
+    "  new create(env: Env) =>\n"
+    "    this.f = 1\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, CapSetInConstraintTypeParam)
+{
+  const char* src =
+    "class A[X]\n"
+    "class B[X: A[Any #read]]\n";
+
+  TEST_ERRORS_1(src,
+    "a capability set can only appear in a type constraint");
 }
