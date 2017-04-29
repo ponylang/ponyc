@@ -447,9 +447,8 @@ static ast_result_t syntax_arrow(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
 
-  if(((opt->check.frame->constraint != NULL) ||
-    (opt->check.frame->iftype_constraint != NULL)) &&
-    (opt->check.frame->method == NULL))
+  if((opt->check.frame->constraint != NULL) ||
+    (opt->check.frame->iftype_constraint != NULL))
   {
     ast_error(opt->check.errors, ast,
       "arrow types can't be used as type constraints");
