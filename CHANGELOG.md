@@ -6,10 +6,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Don’t consider type arguments inside a constraint as constraints. ([PR #1870](https://github.com/ponylang/ponyc/pull/1870))
-- Disable mcx16 on aarch64 ([PR #1856](https://github.com/ponylang/ponyc/pull/1856))
-- Fix assert failure on explicit reference to `this` in constructor. (issue #1865) ([PR #1867](https://github.com/ponylang/ponyc/pull/1867))
-- Compiler crash when using unconstrained type parameters in an `iftype` condition (issue #1689)
 
 
 ### Added
@@ -19,6 +15,15 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 
+
+## [0.13.2] - 2017-04-29
+
+### Fixed
+
+- Don’t consider type arguments inside a constraint as constraints. ([PR #1870](https://github.com/ponylang/ponyc/pull/1870))
+- Disable mcx16 on aarch64 ([PR #1856](https://github.com/ponylang/ponyc/pull/1856))
+- Fix assert failure on explicit reference to `this` in constructor. (issue #1865) ([PR #1867](https://github.com/ponylang/ponyc/pull/1867))
+- Compiler crash when using unconstrained type parameters in an `iftype` condition (issue #1689)
 
 ## [0.13.1] - 2017-04-22
 
