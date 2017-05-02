@@ -499,3 +499,18 @@ TEST_F(BadPonyTest, CapSetInConstraintTypeParam)
   TEST_ERRORS_1(src,
     "a capability set can only appear in a type constraint");
 }
+
+TEST_F(BadPonyTest, MatchCasePatternConstructorTooFewArguments)
+{
+  const char* src =
+    "class C\n"
+    "  new create(key: String) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply(c: (C | None)) =>\n"
+    "    match c\n"
+    "    | C => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "not enough arguments");
+}
