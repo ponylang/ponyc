@@ -441,6 +441,20 @@ static bool refer_this_dot(pass_opt_t* opt, ast_t* ast)
   ast_t* def = ast_get(ast, name, &status);
   ast_setdata(ast, (void*)def);
 
+  // If nothing was found, we fail, but also try to suggest an alternate name.
+  if(def == NULL)
+  {
+    const char* alt_name = suggest_alt_name(ast, name);
+
+    if(alt_name == NULL)
+      ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
+    else
+      ast_error(opt->check.errors, ast,
+        "can't find declaration of '%s', did you mean '%s'?", name, alt_name);
+
+    return false;
+  }
+
   switch(ast_id(def))
   {
     case TK_FVAR:

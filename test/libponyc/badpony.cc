@@ -514,3 +514,17 @@ TEST_F(BadPonyTest, MatchCasePatternConstructorTooFewArguments)
 
   TEST_ERRORS_1(src, "not enough arguments");
 }
+
+TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
+{
+  // From issue #1878
+  const char* src =
+    "trait T\n"
+    "  fun foo(): USize => this.u\n"
+
+    "class C is T\n"
+    "  var u: USize = 0\n";
+
+  TEST_ERRORS_1(src,
+    "can't find declaration of 'u'");
+}
