@@ -48,10 +48,11 @@ static void set_registers(struct _Unwind_Exception* exception,
 
 #ifdef PLATFORM_IS_ARM
 
-_Unwind_Reason_Code __gnu_unwind_frame(_Unwind_Exception*, _Unwind_Context*);
+_Unwind_Reason_Code __gnu_unwind_frame(struct _Unwind_Exception*,
+  struct _Unwind_Context*);
 
-static _Unwind_Reason_Code continue_unwind(_Unwind_Exception* exception,
-  _Unwind_Context* context)
+static _Unwind_Reason_Code continue_unwind(struct _Unwind_Exception* exception,
+  struct _Unwind_Context* context)
 {
   if(__gnu_unwind_frame(exception, context) != _URC_OK)
     return _URC_FAILURE;
@@ -59,8 +60,8 @@ static _Unwind_Reason_Code continue_unwind(_Unwind_Exception* exception,
   return _URC_CONTINUE_UNWIND;
 }
 
-PONY_API _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
-  _Unwind_Exception* exception, _Unwind_Context* context)
+PONY_API _Unwind_Reason_Code pony_personality_v0(struct _Unwind_State state,
+  struct _Unwind_Exception* exception, struct _Unwind_Context* context)
 {
   if(exception == NULL || context == NULL)
     return _URC_FAILURE;
