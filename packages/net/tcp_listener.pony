@@ -41,7 +41,7 @@ actor TCPListener
   var _max_size: USize
 
   new create(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -57,7 +57,7 @@ actor TCPListener
     _notify_listening()
 
   new ip4(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """
@@ -73,7 +73,7 @@ actor TCPListener
     _notify_listening()
 
   new ip6(auth: TCPListenerAuth, notify: TCPListenNotify iso,
-    host: String = "", service: String = "0", limit: USize = 0, 
+    host: String = "", service: String = "0", limit: USize = 0,
     init_size: USize = 64, max_size: USize = 16384)
   =>
     """

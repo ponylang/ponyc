@@ -458,7 +458,6 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
 
-
 class iso _TestTCPThrottle is UnitTest
   """
   Test that when we experience backpressure when sending that the `throttled`
