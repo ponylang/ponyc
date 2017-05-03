@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Compiler error instead of crash for invalid this-dot reference in a trait. ([PR #1879](https://github.com/ponylang/ponyc/pull/1879))
 - Compiler error instead of crash for too few args to constructor in case pattern. ([PR #1880](https://github.com/ponylang/ponyc/pull/1880))
 
 
