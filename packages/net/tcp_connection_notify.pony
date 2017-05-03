@@ -26,12 +26,19 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref connect_failed(conn: TCPConnection ref) =>
+  fun ref connect_failed(conn: TCPConnection ref)
     """
     Called when we have failed to connect to all possible addresses for the
     server. At this point, the connection will never be established.
+
+    It is expected to implement proper error handling. You need to opt in to
+    ignoring errors, which can be implemented like this:
+
+    ```
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
+    ```
     """
-    None
 
   fun ref auth_failed(conn: TCPConnection ref) =>
     """

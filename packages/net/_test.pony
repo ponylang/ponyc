@@ -214,7 +214,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _send(conn, "hi there")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("client connect")
+    _h.fail_action("client connect failed")
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
@@ -295,7 +295,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     conn.writev(recover ["hello"; ", hello"] end)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("client connect")
+    _h.fail_action("client connect failed")
 
 class _TestTCPWritevNotifyServer is TCPConnectionNotify
   let _h: TestHelper
@@ -317,6 +317,9 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
       _h.complete_action("server receive")
     end
     true
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("sender connect failed")
 
 class iso _TestTCPMute is UnitTest
   """
@@ -370,6 +373,10 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h.complete(false)
     true
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("receiver connect failed")
+
+
 class _TestTCPMuteSendNotify is TCPConnectionNotify
   """
   Notifier that sends data back when it receives any. Used in conjunction with
@@ -388,7 +395,7 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
     _h.complete_action("sender connected")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("sender connected")
+    _h.fail_action("sender connect failed")
 
    fun ref received(conn: TCPConnection ref, data: Array[U8] val,
     times: USize): Bool
@@ -448,6 +455,10 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     _h.complete(true)
     true
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("receiver connect failed")
+
+
 class iso _TestTCPThrottle is UnitTest
   """
   Test that when we experience backpressure when sending that the `throttled`
@@ -493,6 +504,9 @@ class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver asks for data")
     _h.dispose_when_done(conn)
 
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("receiver connect failed")
+
 class _TestTCPThrottleSendNotify is TCPConnectionNotify
   """
   Notifier that sends data back when it receives any. Used in conjunction with
@@ -512,7 +526,7 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
     _h.complete_action("sender connected")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
-    _h.fail_action("sender connected")
+    _h.fail_action("sender connect failed")
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] val,
     times: USize): Bool
