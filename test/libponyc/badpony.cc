@@ -50,7 +50,6 @@ TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
   TEST_ERRORS_1(src, "can only provide traits and interfaces");
 }
 
-
 TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
 {
   // From issue #219
@@ -219,8 +218,7 @@ TEST_F(BadPonyTest, TupleFieldReassign)
     "    var foo: (U64, String) = (42, \"foo\")\n"
     "    foo._2 = \"bar\"";
 
-  TEST_ERRORS_2(src, "can't assign to an element of a tuple",
-                     "left side must be something that can be assigned to");
+  TEST_ERRORS_1(src, "can't assign to an element of a tuple");
 }
 
 TEST_F(BadPonyTest, WithBlockTypeInference)
@@ -258,12 +256,13 @@ TEST_F(BadPonyTest, CircularTypeInfer)
   // From issue #1334
   const char* src =
     "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let x = x.create()\n"
-    "    let y = y.create()";
+      "new create(env: Env) =>\n"
+        "let x = x.create()\n"
+        "let y = y.create()";
 
-  TEST_ERRORS_2(src, "cannot infer type of x",
-                     "cannot infer type of y");
+  TEST_ERRORS_2(src,
+    "can't use an undefined variable in an expression",
+    "can't use an undefined variable in an expression");
 }
 
 TEST_F(BadPonyTest, CallConstructorOnTypeIntersection)
@@ -402,7 +401,7 @@ TEST_F(BadPonyTest, TypeParamArrowClass)
   TEST_COMPILE(src);
 }
 
-TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
+TEST_F(BadPonyTest, ArrowTypeParamInTypeConstraint)
 {
   // From issue #1694
   const char* src =
@@ -411,6 +410,17 @@ TEST_F(BadPonyTest, ArrowTypeParamInConstraint)
 
   TEST_ERRORS_2(src,
     "arrow types can't be used as type constraints",
+    "arrow types can't be used as type constraints");
+}
+
+TEST_F(BadPonyTest, ArrowTypeParamInMethodConstraint)
+{
+  // From issue #1809
+  const char* src =
+    "class Foo\n"
+    "  fun foo[X: box->Y, Y](x: X) => None";
+
+  TEST_ERRORS_1(src,
     "arrow types can't be used as type constraints");
 }
 
@@ -438,4 +448,83 @@ TEST_F(BadPonyTest, CapSubtypeInConstrainSubtyping)
 
   TEST_ERRORS_1(src,
     "type does not implement its provides list");
+}
+
+TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
+{
+  // From issue #1715
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    object is T end\n"
+
+    "trait T\n"
+    "  fun apply(n: I32): Bool =>\n"
+    "    n == 0\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, AddressofMissingTypearg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[None](addressof fn)\n"
+
+    "  fun fn[A]() => None";
+
+  TEST_ERRORS_1(src,
+    "not enough type arguments");
+}
+
+TEST_F(BadPonyTest, ThisDotFieldRef)
+{
+  // From issue #1865
+  const char* src =
+    "actor Main\n"
+    "  let f: U8\n"
+    "  new create(env: Env) =>\n"
+    "    this.f = 1\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, CapSetInConstraintTypeParam)
+{
+  const char* src =
+    "class A[X]\n"
+    "class B[X: A[Any #read]]\n";
+
+  TEST_ERRORS_1(src,
+    "a capability set can only appear in a type constraint");
+}
+
+TEST_F(BadPonyTest, MatchCasePatternConstructorTooFewArguments)
+{
+  const char* src =
+    "class C\n"
+    "  new create(key: String) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply(c: (C | None)) =>\n"
+    "    match c\n"
+    "    | C => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "not enough arguments");
+}
+
+TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
+{
+  // From issue #1878
+  const char* src =
+    "trait T\n"
+    "  fun foo(): USize => this.u\n"
+
+    "class C is T\n"
+    "  var u: USize = 0\n";
+
+  TEST_ERRORS_1(src,
+    "can't find declaration of 'u'");
 }

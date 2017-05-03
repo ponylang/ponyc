@@ -131,6 +131,20 @@ otherwise does nothing.
 Does not alter the AST at all.
 
 
+* Reference resolution pass (AST)
+
+Resolves all instances of TK_REFERENCE by finding the relevant definition in
+the symbol table and converting to an appropriate node type.
+
+Attaches a link to the definition (as ast_data) for all resolved nodes.
+
+Tracks symbol status for every reference through the AST to ensure that
+definitions and consumes of references are respected across time/space.
+
+Mutates the AST extensively, including setting AST_FLAG_JUMPS_AWAY and
+AST_FLAG_INCOMPLETE flags on AST nodes, as appropriate.
+
+
 * Expression type check pass (AST)
 
 Resolves types for all expressions and confirms type safety of the program.
@@ -177,6 +191,7 @@ typedef enum pass_id
   PASS_FLATTEN,
   PASS_TRAITS,
   PASS_DOCS,
+  PASS_REFER,
   PASS_EXPR,
   PASS_VERIFY,
   PASS_REACH,
@@ -288,6 +303,10 @@ bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
  * Returns true on success, false on failure.
  */
 bool generate_passes(ast_t* program, pass_opt_t* options);
+
+/** Record the specified pass as done for the given AST.
+ */
+void ast_pass_record(ast_t* ast, pass_id pass);
 
 
 typedef ast_result_t(*ast_visit_t)(ast_t** astp, pass_opt_t* options);

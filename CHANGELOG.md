@@ -6,13 +6,38 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Compiler error instead of crash for invalid this-dot reference in a trait. ([PR #1879](https://github.com/ponylang/ponyc/pull/1879))
+- Compiler error instead of crash for too few args to constructor in case pattern. ([PR #1880](https://github.com/ponylang/ponyc/pull/1880))
+
 
 ### Added
+
 
 
 ### Changed
 
 
+
+## [0.13.2] - 2017-04-29
+
+### Fixed
+
+- Don’t consider type arguments inside a constraint as constraints. ([PR #1870](https://github.com/ponylang/ponyc/pull/1870))
+- Disable mcx16 on aarch64 ([PR #1856](https://github.com/ponylang/ponyc/pull/1856))
+- Fix assert failure on explicit reference to `this` in constructor. (issue #1865) ([PR #1867](https://github.com/ponylang/ponyc/pull/1867))
+- Compiler crash when using unconstrained type parameters in an `iftype` condition (issue #1689)
+
+## [0.13.1] - 2017-04-22
+
+### Fixed
+
+- Reify function references used as addressof operands correctly ([PR #1857](https://github.com/ponylang/ponyc/pull/1857))
+- Properly account for foreign objects in GC ([PR #1842](https://github.com/ponylang/ponyc/pull/1842))
+- Compiler crash when using the `addressof` operator on a function with an incorrect number of type arguments
+
+### Added
+
+- Iftype conditions (RFC 26) ([PR #1855](https://github.com/ponylang/ponyc/pull/1855))
 
 ## [0.13.0] - 2017-04-07
 
@@ -31,7 +56,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Improve Visual Studio and Microsoft C++ Build Tools detection. ([PR #1794](https://github.com/ponylang/ponyc/pull/1794))
 
-
 ## [0.12.2] - 2017-03-30
 
 ### Fixed
@@ -39,13 +63,11 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix extreme CPU use in scheduler on Windows ([PR #1785](https://github.com/ponylang/ponyc/pull/1785))
 - Fix broken ponytest "only" filter ([PR #1780](https://github.com/ponylang/ponyc/pull/1780))
 
-
 ## [0.12.1] - 2017-03-29
 
 ### Fixed
 
 - Bug in ponytest resulted in all tests being skipped ([PR #1778](https://github.com/ponylang/ponyc/pull/1778))
-
 
 ## [0.12.0] - 2017-03-29
 
@@ -67,7 +89,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Arrays as sequences ([PR #1741](https://github.com/ponylang/ponyc/pull/1741))
 - Add ability for ponytest to exclude tests based on name ([PR #1717](https://github.com/ponylang/ponyc/pull/1717))
 - Renamed ponytest "filter" flag to "only" ([PR #1717](https://github.com/ponylang/ponyc/pull/1717))
-
 
 ## [0.11.4] - 2017-03-23
 
@@ -725,3 +746,4 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+

@@ -196,6 +196,12 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
   return type_base(from, package, name, NULL);
 }
 
+ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
+  ast_t* typeargs)
+{
+  return type_base(from, package, name, typeargs);
+}
+
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
   ast_t* branch)
 {

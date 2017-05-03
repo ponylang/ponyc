@@ -95,10 +95,13 @@ ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 # Determine pointer size in bits.
 BITS := $(bits)
+UNAME_M := $(shell uname -m)
 
 ifeq ($(BITS),64)
-  BUILD_FLAGS += -mcx16
-  LINKER_FLAGS += -mcx16
+  ifneq ($(UNAME_M),aarch64)
+    BUILD_FLAGS += -mcx16
+    LINKER_FLAGS += -mcx16
+  endif
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)

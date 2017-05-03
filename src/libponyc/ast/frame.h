@@ -32,6 +32,8 @@ typedef struct typecheck_frame_t
   ast_t* recover;
   ast_t* ifdef_cond;
   ast_t* ifdef_clause;
+  ast_t* iftype_constraint;
+  ast_t* iftype_body;
 
   struct typecheck_frame_t* prev;
 } typecheck_frame_t;

@@ -107,6 +107,9 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   if(aref->mark == gc->mark)
     return;
 
+  // Increase apparent used memory to provoke GC.
+  ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+
   aref->mark = gc->mark;
 
   if(aref->rc == 0)
@@ -335,7 +338,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 }
 
 static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_type_t* t, int mutability)
+  void* p, pony_type_t* t, int mutability, chunk_t* chunk)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
@@ -343,6 +346,15 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if(obj->mark == gc->mark)
     return;
+
+  // Increase apparent used memory to provoke GC.
+  ponyint_heap_used(ponyint_actor_heap(ctx->current),
+    ponyint_heap_size(chunk));
+
+  // Increase apparent used memory further if the object is immutable, to
+  // account for memory that is reachable but not traced by this actor.
+  if(mutability == PONY_TRACE_IMMUTABLE)
+    ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
 
   // Implicitly mark the owner.
   mark_remote_actor(ctx, gc, aref);
@@ -465,7 +477,7 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(actor == ctx->current)
     mark_local_object(ctx, chunk, p, t, mutability);
   else
-    mark_remote_object(ctx, actor, p, t, mutability);
+    mark_remote_object(ctx, actor, p, t, mutability, chunk);
 }
 
 void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,

@@ -163,45 +163,6 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
   return is_method_called(opt, ast);
 }
 
-static bool package_access(pass_opt_t* opt, ast_t** astp)
-{
-  ast_t* ast = *astp;
-
-  // Left is a packageref, right is an id.
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-
-  pony_assert(ast_id(left) == TK_PACKAGEREF);
-  pony_assert(ast_id(right) == TK_ID);
-
-  // Must be a type in a package.
-  const char* package_name = ast_name(ast_child(left));
-  ast_t* package = ast_get(left, package_name, NULL);
-
-  if(package == NULL)
-  {
-    ast_error(opt->check.errors, right, "can't access package '%s'",
-      package_name);
-    return false;
-  }
-
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  const char* type_name = ast_name(right);
-  ast_t* type = ast_get(package, type_name, NULL);
-
-  if(type == NULL)
-  {
-    ast_error(opt->check.errors, right, "can't find type '%s' in package '%s'",
-      type_name, package_name);
-    return false;
-  }
-
-  ast_settype(ast, type_sugar(ast, package_name, type_name));
-  ast_setid(ast, TK_TYPEREF);
-
-  return expr_typeref(opt, astp);
-}
-
 static bool type_access(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
@@ -342,7 +303,7 @@ static bool tuple_access(pass_opt_t* opt, ast_t* ast)
   type = ast_childidx(type, right_idx);
   pony_assert(type != NULL);
 
-  ast_setid(ast, TK_FLETREF);
+  ast_setid(ast, TK_TUPLEELEMREF);
   ast_settype(ast, type);
   return true;
 }
@@ -407,7 +368,10 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
 bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 {
   // Left is a postfix expression, right is a typeargs.
+  // Qualified type references have already been handled in the refer pass,
+  // so we know that this node should be treated like a qualified method call.
   ast_t* ast = *astp;
+  pony_assert(ast_id(ast) == TK_QUALIFY);
   AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
   pony_assert(ast_id(right) == TK_TYPEARGS);
@@ -417,34 +381,6 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
   switch(ast_id(left))
   {
-    case TK_TYPEREF:
-    {
-      // Qualify the type.
-      pony_assert(ast_id(type) == TK_NOMINAL);
-
-      // If the type isn't polymorphic or the type is already qualified,
-      // sugar .apply().
-      ast_t* def = names_def(opt, type);
-      ast_t* typeparams = ast_childidx(def, 1);
-
-      if((ast_id(typeparams) == TK_NONE) ||
-        (ast_id(ast_childidx(type, 2)) != TK_NONE))
-      {
-        if(!expr_nominal(opt, &type))
-          return false;
-
-        break;
-      }
-
-      type = ast_dup(type);
-      ast_t* typeargs = ast_childidx(type, 2);
-      ast_replace(&typeargs, right);
-      ast_settype(ast, type);
-      ast_setid(ast, TK_TYPEREF);
-
-      return expr_typeref(opt, astp);
-    }
-
     case TK_NEWREF:
     case TK_NEWBEREF:
     case TK_BEREF:
@@ -477,7 +413,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  // Sugar .apply()
+  // Otherwise, sugar as qualified call to .apply()
   ast_t* dot = ast_from(left, TK_DOT);
   ast_add(dot, ast_from_string(left, "apply"));
   ast_swap(left, dot);
@@ -498,9 +434,6 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
 
   switch(ast_id(left))
   {
-    case TK_PACKAGEREF:
-      return package_access(opt, astp);
-
     case TK_TYPEREF:
       return type_access(opt, astp);
 
@@ -575,6 +508,11 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
         "can't do partial application of a field");
       return false;
 
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't do partial application of a tuple element");
+      return false;
+
     default: {}
   }
 
@@ -615,6 +553,11 @@ bool expr_chain(pass_opt_t* opt, ast_t** astp)
     case TK_EMBEDREF:
       ast_error(opt->check.errors, ast,
         "can't do method chaining on a field");
+      return false;
+
+    case TK_TUPLEELEMREF:
+      ast_error(opt->check.errors, ast,
+        "can't do method chaining on a tuple element");
       return false;
 
     default: {}

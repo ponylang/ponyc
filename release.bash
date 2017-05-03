@@ -3,13 +3,6 @@
 set -o errexit
 set -o nounset
 
-case $OSTYPE in
-darwin*) SED=gsed;;
-*) SED=sed;;
-esac
-
-release_date="$(date +%Y-%m-%d)"
-
 verify_args() {
   echo "Cutting a release for version $version with commit $commit"
   while true; do
@@ -25,40 +18,6 @@ verify_args() {
 update_version() {
   echo "$version" > VERSION
   echo "VERSION set to $version"
-}
-
-update_changelog() {
-  # cut out empty "Fixed", "Added", or "Changed" sections
-  remove_empty_sections
-
-  local match="## \[unreleased\] \- unreleased"
-  local heading="## [$version] - $release_date"
-  $SED -i "/$match/c $heading" CHANGELOG.md
-}
-
-remove_empty_sections() {
-  local unreleased_section
-  unreleased_section="$($SED -n "/## \[unreleased\] - unreleased/,/## \[/p" < CHANGELOG.md)"
-  if [[ "$unreleased_section" != "" ]]; then
-    for section in "Fixed" "Added" "Changed"; do
-      local section_text
-      local first
-      section_text="$(echo "$unreleased_section" | $SED -n "/### $section/{:a;n;/##/b;p;ba}")"
-      first="$(echo "$section_text" | $SED "/^\s*$/d" | cut -c 1)"
-      if [[ "$first" == "" ]]; then
-        echo "Removing empty CHANGELOG section: $section"
-        local line_num
-        line_num="$(grep -n -m1 "$section" CHANGELOG.md | cut -d : -f 1)"
-        $SED -i "$line_num{N;N;d}" CHANGELOG.md
-      fi
-    done
-  fi
-}
-
-add_changelog_unreleased_section() {
-  echo "Adding unreleased section to CHANGELOG"
-  local replace='## [unreleased] - unreleased\n\n### Fixed\n\n\n### Added\n\n\n### Changed\n\n\n'
-  $SED -i "/## \[$version\] \- $release_date/i $replace" CHANGELOG.md
 }
 
 check_for_commit_and_push() {
@@ -95,7 +54,7 @@ git checkout -b "release-$version" "$commit"
 
 # update VERSION and CHANGELOG
 update_version
-update_changelog
+changelog-tool release CHANGELOG.md "$version" -e
 
 # commit VERSION and CHANGELOG updates
 git add CHANGELOG.md VERSION
@@ -122,7 +81,7 @@ git push origin "$version"
 # update CHANGELOG for new entries
 git checkout master
 git merge "release-$version"
-add_changelog_unreleased_section
+changelog-tool unreleased CHANGELOG.md -e
 
 # check if user wants to continue
 check_for_commit_and_push

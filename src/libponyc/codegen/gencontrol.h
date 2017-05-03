@@ -10,6 +10,8 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_iftype(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_while(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast);

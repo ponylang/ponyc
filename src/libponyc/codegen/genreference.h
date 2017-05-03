@@ -16,6 +16,8 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast);

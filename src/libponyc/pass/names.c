@@ -190,12 +190,17 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
     }
   }
 
+  const char* name = ast_name(id);
+
   // Change to a typeparamref.
   REPLACE(astp,
     NODE(TK_TYPEPARAMREF,
       TREE(id)
       TREE(cap)
       TREE(ephemeral)));
+
+  if(opt->check.frame->iftype_body != NULL)
+    def = ast_get(ast, name, NULL);
 
   ast_setdata(*astp, def);
   return true;
@@ -210,7 +215,8 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   if(tcap == TK_NONE)
   {
-    if(opt->check.frame->constraint != NULL)
+    if((opt->check.frame->constraint != NULL) ||
+      (opt->check.frame->iftype_constraint != NULL))
     {
       // A primitive constraint is a val, otherwise #any.
       if(ast_id(def) == TK_PRIMITIVE)
@@ -281,7 +287,6 @@ ast_t* names_def(pass_opt_t* opt, ast_t* ast)
 
 bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   if(ast_data(ast) != NULL)
@@ -290,10 +295,10 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
 
   // Keep some stats.
-  t->stats.names_count++;
+  opt->check.stats.names_count++;
 
   if(ast_id(cap) == TK_NONE)
-    t->stats.default_caps_count++;
+    opt->check.stats.default_caps_count++;
 
   ast_t* r_scope = get_package_scope(opt, scope, ast);
 

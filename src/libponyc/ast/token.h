@@ -82,6 +82,7 @@ typedef enum token_id
   TK_ISECTTYPE,
   TK_EPHEMERAL,
   TK_ALIASED,
+  TK_SUBTYPE,
 
   TK_QUESTION,
   TK_UNARY_MINUS,
@@ -143,9 +144,11 @@ typedef enum token_id
 
   TK_IF,
   TK_IFDEF,
+  TK_IFTYPE,
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
+  TK_ELSEIFTYPE,
   TK_END,
   TK_WHILE,
   TK_DO,
@@ -236,6 +239,7 @@ typedef enum token_id
   TK_FVARREF,
   TK_FLETREF,
   TK_EMBEDREF,
+  TK_TUPLEELEMREF,
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
