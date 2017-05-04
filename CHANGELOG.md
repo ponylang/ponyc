@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- TCPConnection.connect_failed, UDPNotify.not_listening, TCPListenNotify.not_listening no longer have default implementation. The programmer is now required to implement error handling or consciously choose to ignore. ([PR #1853](https://github.com/ponylang/ponyc/pull/1853) 
 
 
 ## [0.13.2] - 2017-04-29
