@@ -123,8 +123,12 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
 
 static bool emit_fun(ast_t* fun)
 {
-  // No signature for any function with a tuple argument or return value, or
-  // any function that might raise an error.
+  // No signature for any internal function (i.e. functions without an AST), or
+  // any function with a tuple argument or return value, or any function that
+  // might raise an error.
+  if(fun == NULL)
+    return false;
+
   AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error);
 
   if(ast_id(can_error) == TK_QUESTION)
