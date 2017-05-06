@@ -14,6 +14,9 @@ actor TCPListener
     fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
       conn.write(String.from_array(consume data))
       true
+    fun ref connect_failed(conn: TCPConnection ref) =>
+      None
+
 
   class MyTCPListenNotify is TCPListenNotify
     fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>

@@ -499,3 +499,32 @@ TEST_F(BadPonyTest, CapSetInConstraintTypeParam)
   TEST_ERRORS_1(src,
     "a capability set can only appear in a type constraint");
 }
+
+TEST_F(BadPonyTest, MatchCasePatternConstructorTooFewArguments)
+{
+  const char* src =
+    "class C\n"
+    "  new create(key: String) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply(c: (C | None)) =>\n"
+    "    match c\n"
+    "    | C => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "not enough arguments");
+}
+
+TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
+{
+  // From issue #1878
+  const char* src =
+    "trait T\n"
+    "  fun foo(): USize => this.u\n"
+
+    "class C is T\n"
+    "  var u: USize = 0\n";
+
+  TEST_ERRORS_1(src,
+    "can't find declaration of 'u'");
+}
