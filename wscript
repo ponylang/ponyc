@@ -220,6 +220,14 @@ def build(ctx):
 
     # build targets:
 
+    # rapidcheck
+    ctx(
+        features = 'cxx cxxstlib seq',
+        target   = 'rapidcheck',
+        source   = ctx.path.ant_glob('lib/rapidcheck/src/**/*.cpp'),
+        includes = [ 'lib/rapidcheck/include' ],
+    )
+
     # gtest
     ctx(
         features = 'cxx cxxstlib seq',
@@ -308,8 +316,8 @@ def build(ctx):
         features  = 'c cxx cxxprogram seq',
         target    = 'testrt',
         source    = ctx.path.ant_glob('test/libponyrt/**/*.cc'),
-        includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest' ],
-        use       = [ 'gtest', 'libponyrt' ],
+        includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest', 'lib/rapidcheck/include', 'lib/rapidcheck/extras/gtest/include' ],
+        use       = [ 'gtest', 'libponyrt', 'rapidcheck' ],
         lib       = ctx.env.PONYC_EXTRA_LIBS
     )
 
