@@ -467,8 +467,10 @@ ifeq ($(OSTYPE), linux)
 endif
 
 # target specific disabling of build options
-libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
+libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra -fno-rtti
 libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+librapidcheck.disable = -fno-rtti
+libponyrt.tests.disable = -fno-rtti
 
 # Link relationships.
 ponyc.links = libponyc libponyrt llvm
@@ -667,7 +669,7 @@ $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
 	$(SILENT)$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) \
-    $(flags) $($(2).buildoptions) -c -o $$@ $$<  $($(2).include)
+    $(filter-out $($(2).disable),$(flags)) $($(2).buildoptions) -c -o $$@ $$<  $($(2).include)
 endif
 endef
 

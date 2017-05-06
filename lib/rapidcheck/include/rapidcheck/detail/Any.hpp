@@ -15,7 +15,7 @@ public:
   virtual void *get() = 0;
   virtual void showType(std::ostream &os) const = 0;
   virtual void showValue(std::ostream &os) const = 0;
-//  virtual const std::type_info &typeInfo() const = 0;
+  virtual const std::type_info &typeInfo() const = 0;
   virtual ~IAnyImpl() = default;
 };
 
@@ -32,7 +32,7 @@ public:
 
   void showValue(std::ostream &os) const override { show(m_value, os); }
 
-//  const std::type_info &typeInfo() const override { return typeid(T); }
+  const std::type_info &typeInfo() const override { return typeid(T); }
 
 private:
   T m_value;

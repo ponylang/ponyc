@@ -44,7 +44,7 @@ struct ShowMultipleTypes<Type, Types...> {
 template <typename T>
 struct ShowType {
   static void showType(std::ostream &os) {
-    //os << detail::demangle(typeid(T).name());
+    os << detail::demangle(typeid(T).name());
   }
 };
 
