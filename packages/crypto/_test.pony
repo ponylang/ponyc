@@ -15,6 +15,7 @@ actor Main is TestList
     test(_TestSHA384)
     test(_TestSHA512)
     test(_TestDigest)
+    test(_TestHMAC)
 
 class iso _TestConstantTimeCompare is UnitTest
   fun name(): String => "crypto/ConstantTimeCompare"
@@ -119,3 +120,14 @@ class iso _TestDigest is UnitTest
     h.assert_eq[String](
       "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",
       ToHexString(d'.final()))
+
+class iso _TestHMAC is UnitTest
+  fun name(): String => "crypto/Hmac"
+
+  fun apply(h: TestHelper) ? =>
+    let data = "Lücíllé: Bût... yøü sáîd hé wås âlrîght.\nDr. Físhmån: Yés. Hé's løst hîs léft hånd, sø hé's gøîng tø bé åll rîght"
+    let hmac = HMAC("SHA256", "qShkcwN92rsM9nHfdnP4ugcVU2iI7iM/trovs01ZWok", data)
+    h.assert_eq[String](
+      "a13984b929a07912e4e21c5720876a8e150d6f67f854437206e7f86547248396",
+      ToHexString(hmac)
+    )
