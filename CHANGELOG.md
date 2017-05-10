@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Exhaustive match (RFC 40) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 
 
 ### Changed
