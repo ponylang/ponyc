@@ -22,6 +22,7 @@
 enum
 {
   OPT_VERSION,
+  OPT_HELP,
   OPT_DEBUG,
   OPT_BUILDFLAG,
   OPT_STRIP,
@@ -60,6 +61,7 @@ enum
 static opt_arg_t args[] =
 {
   {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
+  {"help", 'h', OPT_ARG_NONE, OPT_HELP},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
   {"define", 'D', OPT_ARG_REQUIRED, OPT_BUILDFLAG},
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
@@ -105,6 +107,7 @@ static void usage()
     "\n"
     "Options:\n"
     "  --version, -v   Print the version of the compiler and exit.\n"
+    "  --help, -h      Print this help text and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
     "  --define, -D    Define the specified build flag.\n"
     "    =name\n"
@@ -278,6 +281,9 @@ int main(int argc, char* argv[])
           LLVM_VERSION, BUILD_COMPILER);
         return 0;
 
+      case OPT_HELP:
+        usage();
+        return 0;
       case OPT_DEBUG: opt.release = false; break;
       case OPT_BUILDFLAG: define_build_flag(s.arg_val); break;
       case OPT_STRIP: opt.strip_debug = true; break;
