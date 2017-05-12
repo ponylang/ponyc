@@ -19,7 +19,7 @@ The general EBNF of the command line looks like:
 Some Examples:
   usage: chat [<options>] <command> [<options>] [<args> ...]
 """
-use col = "collections"
+use "collections"
 
 class CommandSpec
   """
@@ -36,14 +36,16 @@ class CommandSpec
   """
   let name: String
   let descr: String
-  let options: col.Map[String, OptionSpec] = options.create()
-  var help_name: String = "xxx" // TODO: make this nice.
+  let options: Map[String, OptionSpec] = options.create()
+  var help_name: String = ""
 
   // A parent commands can have sub-commands; leaf commands can have args.
-  let commands: col.Map[String, CommandSpec box] = commands.create()
+  let commands: Map[String, CommandSpec box] = commands.create()
   let args: Array[ArgSpec] = args.create()
 
-  new parent(name': String, descr': String = "",
+  new parent(
+    name': String,
+    descr': String = "",
     options': Array[OptionSpec] box = Array[OptionSpec](),
     commands': Array[CommandSpec] box = Array[CommandSpec]()) ?
   =>
@@ -60,7 +62,9 @@ class CommandSpec
       commands.update(c.name, c)
     end
 
-  new leaf(name': String, descr': String = "",
+  new leaf(
+    name': String,
+    descr': String = "",
     options': Array[OptionSpec] box = Array[OptionSpec](),
     args': Array[ArgSpec] box = Array[ArgSpec]()) ?
   =>
@@ -77,16 +81,16 @@ class CommandSpec
       args.push(a)
     end
 
-    fun tag _assertName(nm: String): String ? =>
-      for b in nm.values() do
-        if (b != '-') and (b != '_') and
-          not ((b >= '0') and (b <= '9')) and
-          not ((b >= 'A') and (b <= 'Z')) and
-          not ((b >= 'a') and (b <= 'z')) then
-          error
-        end
+  fun tag _assertName(nm: String): String ? =>
+    for b in nm.values() do
+      if (b != '-') and (b != '_') and
+        not ((b >= '0') and (b <= '9')) and
+        not ((b >= 'A') and (b <= 'Z')) and
+        not ((b >= 'a') and (b <= 'z')) then
+        error
       end
-      nm
+    end
+    nm
 
   fun ref add_command(cmd: CommandSpec) ? =>
     """
@@ -102,10 +106,10 @@ class CommandSpec
     if args.size() > 0 then error end
     help_name = hname
     let help_cmd = CommandSpec.leaf(help_name, "", Array[OptionSpec](), [
-      ArgSpec.string("command" where default'="")
+      ArgSpec.string("command" where default' = "")
     ])
     commands.update(help_cmd.name, help_cmd)
-    let help_option = OptionSpec.bool(help_name, "", 'h')
+    let help_option = OptionSpec.bool(help_name, "", 'h', false)
     options.update(help_option.name, help_option)
 
   fun help_string(): String =>
@@ -115,7 +119,6 @@ class CommandSpec
       s.append(a.help_string())
     end
     s
-
 
 class val OptionSpec
   """
@@ -131,42 +134,52 @@ class val OptionSpec
   let default: Value
   let required: Bool
 
-  fun tag _init(typ': ValueType, default': (Value | None)) :
-    (ValueType, Value, Bool) ?
+  fun tag _init(typ': ValueType, default': (Value | None))
+    : (ValueType, Value, Bool) ?
   =>
     match default'
-      | None =>
-        (typ', false, true)
+    | None =>
+      (typ', false, true)
     else
       (typ', default' as Value, false)
     end
 
-  new val bool(name': String, descr': String = "",
-    short': (U8 | None) = None, default': (Bool | None) = None) ?
+  new val bool(
+    name': String,
+    descr': String = "",
+    short': (U8 | None) = None,
+    default': (Bool | None) = None) ?
   =>
     name = name'
     descr = descr'
     short = short'
     (typ, default, required) = _init(BoolType, default')
 
-  new val string(name': String, descr': String = "",
-    short': (U8 | None) = None, default': (String | None) = None) ?
+  new val string(
+    name': String,
+    descr': String = "",
+    short': (U8 | None) = None,
+    default': (String | None) = None) ?
   =>
     name = name'
     descr = descr'
     short = short'
     (typ, default, required) = _init(StringType, default')
 
-  new val i64(name': String, descr': String = "",
-    short': (U8 | None) = None, default': (I64 | None) = None) ?
+  new val i64(name': String,
+    descr': String = "",
+    short': (U8 | None) = None,
+    default': (I64 | None) = None) ?
   =>
     name = name'
     descr = descr'
     short = short'
     (typ, default, required) = _init(I64Type, default')
 
-  new val f64(name': String, descr': String = "",
-    short': (U8 | None) = None, default': (F64 | None) = None) ?
+  new val f64(name': String,
+    descr': String = "",
+    short': (U8 | None) = None,
+    default': (F64 | None) = None) ?
   =>
     name = name'
     descr = descr'
@@ -175,12 +188,19 @@ class val OptionSpec
 
   // Other than bools, all options require args.
   fun _requires_arg(): Bool =>
-    match typ |(let b: BoolType) => false else true end
-    // TODO: why can't Pony match on just type? |BoolType=>...
+    match typ
+    | let _: BoolType => false
+    else
+      true
+    end
 
   // Used for bool options to get the true arg when option is present w/o arg
   fun _default_arg(): Value =>
-    match typ |(let b: BoolType) => true else false end
+    match typ
+    | let _: BoolType => true
+    else
+      false
+    end
 
   fun _has_short(sh: U8): Bool =>
     match short
@@ -194,14 +214,13 @@ class val OptionSpec
       if not required then "(=" + default.string() + ")" else "" end
 
   fun help_string(): String =>
-    let s = match short
+    let s =
+      match short
       | let ss: U8 => "-" + String.from_utf32(ss.u32()) + ", "
       else
         "    "
       end
-    let l = "--" + name
-    s + l
-
+    s + "--" + name
 
 class val ArgSpec
   """
@@ -215,35 +234,46 @@ class val ArgSpec
   let required: Bool
 
   fun tag _init(typ': ValueType, default': (Value | None))
-  :
-    (ValueType, Value, Bool) ?
+    : (ValueType, Value, Bool) ?
   =>
     match default'
-      | None =>
-        (typ', false, true)
+    | None =>
+      (typ', false, true)
     else
       (typ', default' as Value, false)
     end
 
-  new val bool(name': String, descr': String="", default': (Bool|None)=None) ?
+  new val bool(
+    name': String,
+    descr': String = "",
+    default': (Bool|None) = None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(BoolType, default')
 
-  new val string(name': String, descr': String="", default': (String|None)=None) ?
+  new val string(
+    name': String,
+    descr': String = "",
+    default': (String|None) = None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(StringType, default')
 
-  new val i64(name': String, descr': String="", default': (I64|None)=None) ?
+  new val i64(
+    name': String,
+    descr': String = "",
+    default': (I64|None) = None) ?
   =>
     name = name'
     descr = descr'
     (typ, default, required) = _init(I64Type, default')
 
-  new val f64(name': String, descr': String="", default': (F64|None)=None) ?
+  new val f64(
+    name': String,
+    descr': String = "",
+    default': (F64|None) = None) ?
   =>
     name = name'
     descr = descr'
@@ -255,7 +285,6 @@ class val ArgSpec
 
   fun help_string(): String =>
     "<" + name + ">"
-
 
 type Value is (Bool | String | I64 | F64)
 
@@ -275,4 +304,4 @@ type ValueType is
   ( BoolType
   | StringType
   | I64Type
-  | F64Type)
+  | F64Type )

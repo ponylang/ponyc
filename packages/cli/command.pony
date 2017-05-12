@@ -9,12 +9,14 @@ class box Command
   let options: col.Map[String, Option]
   let args: col.Map[String, Arg]
 
-  new create(spec': CommandSpec box, options': col.Map[String, Option],
-      args': col.Map[String, Arg])
-    =>
-      spec = spec'
-      options = options'
-      args = args'
+  new create(
+    spec': CommandSpec box,
+    options': col.Map[String, Option],
+    args': col.Map[String, Arg])
+  =>
+    spec = spec'
+    options = options'
+    args = args'
 
   fun string(): String =>
     let s: String iso = spec.name.clone()
@@ -27,7 +29,6 @@ class box Command
       s.append(a.string())
     end
     s
-
 
 class val Option
   """
@@ -43,7 +44,6 @@ class val Option
   fun string(): String =>
     spec.deb_string() + "=" + value.string()
 
-
 class val Arg
   """
   Arg contains a spec and an effective value for a given arg.
@@ -57,7 +57,6 @@ class val Arg
 
   fun string(): String =>
     "(" + spec.deb_string() + "=)" + value.string()
-
 
 class val SyntaxError
   """

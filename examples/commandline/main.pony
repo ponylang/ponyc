@@ -3,17 +3,17 @@ use "cli"
 actor Main
   new create(env: Env) =>
     try
-      let cs = cli_spec()
-      let cmd = match CommandParser(cs).parse(env.args)
+      let cmd =
+        match CommandParser(cli_spec()).parse(env.args, env.vars())
         | let c: Command => c
         | let ch: CommandHelp =>
             ch.print_help(OutWriter(env.out))
+            env.exitcode(0)
             return
         | let se: SyntaxError =>
             env.out.print(se.string())
+            env.exitcode(1)
             return
-        else
-          error  // can't happen
         end
 
         // cmd is a valid Command, now use it.
@@ -45,4 +45,3 @@ actor Main
     ])
     cs.add_help()
     cs
-

@@ -5,25 +5,25 @@ primitive Help
   =>
     CommandHelp._create(None, cs)
 
-  fun for_command(cs: CommandSpec box, argv: Array[String] box):
-    (CommandHelp | SyntaxError)
+  fun for_command(cs: CommandSpec box, argv: Array[String] box)
+    : (CommandHelp | SyntaxError)
   =>
-    let ch = CommandHelp._create(None, cs)
-    _parse(cs, ch, argv)
+    _parse(cs, CommandHelp._create(None, cs), argv)
 
-  fun _parse(cs: CommandSpec box, ch: CommandHelp, argv: Array[String] box):
-    (CommandHelp | SyntaxError)
+  fun _parse(cs: CommandSpec box, ch: CommandHelp, argv: Array[String] box)
+    : (CommandHelp | SyntaxError)
   =>
     if argv.size() > 0 then
       try
         let cname = argv(0)
         if cs.commands.contains(cname) then
-          try
-            match cs.commands(cname)
-            | let ccs: CommandSpec box =>
-              let cch = CommandHelp._create(ch, ccs)
-              return _parse(ccs, cch, argv.slice(1))
-            end
+          match cs.commands(cname)
+          | let ccs: CommandSpec box =>
+            let cch = CommandHelp._create(ch, ccs)
+            return _parse(ccs, cch, argv.slice(1))
+          else
+            // TODO https://github.com/ponylang/ponyc/issues/1898
+            return SyntaxError("issue", "1898")
           end
         end
         return SyntaxError(cname, "unknown command")
@@ -102,16 +102,20 @@ class box CommandHelp
     for o in options.values() do
       cols.push(("  " + o.help_string(), o.descr))
     end
-    Columns.print(w, cols)
+    _Columns.print(w, cols)
 
   fun print_commands(w: Writer) =>
     let cols = Array[(String,String)]()
     _list_commands(spec, cols, 1)
-    Columns.print(w, cols)
+    _Columns.print(w, cols)
 
-  fun _list_commands(cs: CommandSpec box, cols: Array[(String,String)], level: USize) =>
+  fun _list_commands(
+    cs: CommandSpec box,
+    cols: Array[(String,String)],
+    level: USize)
+  =>
     for c in cs.commands.values() do
-      cols.push((Columns.indent(level*2) + c.help_string(), c.descr))
+      cols.push((_Columns.indent(level*2) + c.help_string(), c.descr))
       _list_commands(c, cols, level + 1)
     end
 
@@ -120,7 +124,7 @@ class box CommandHelp
     for a in args.values() do
       cols.push(("  " + a.help_string(), a.descr))
     end
-    Columns.print(w, cols)
+    _Columns.print(w, cols)
 
   fun any_options(): Bool =>
     if spec.options.size() > 0 then
@@ -146,12 +150,13 @@ class box CommandHelp
       options.push(o)
     end
 
-"""
-This interface and two classes allow the help output to go to a general Writer
-that can be implemented for string creation or to an OutStream. Or other
-targets. This could be polished up and moved into a more central package.
-"""
 interface Writer
+  """
+  This interface and two classes allow the help output to go to a general
+  Writer that can be implemented for string creation or to an OutStream. Or
+  other targets. This could be polished up and moved into a more central
+  package.
+  """
   fun ref write(data: ByteSeq)
 
 class StringWriter
@@ -172,8 +177,7 @@ class OutWriter
   fun ref write(data: ByteSeq) =>
     _os.write(data)
 
-
-primitive Columns
+primitive _Columns
   fun indent(n: USize): String =>
     let spaces = "                                "
     spaces.substring(0, n.isize())

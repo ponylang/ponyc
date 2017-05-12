@@ -1,4 +1,4 @@
-use col = "collections"
+use "collections"
 
 class CommandParser
   let _spec: CommandSpec box
@@ -15,7 +15,7 @@ class CommandParser
   fun box parse(
     argv: Array[String] box,
     envs: (Array[String] box | None) = None)
-  : (Command | CommandHelp | SyntaxError)
+    : (Command | CommandHelp | SyntaxError)
   =>
     """
     Parses all of the command line tokens and env vars and returns a Command,
@@ -23,8 +23,8 @@ class CommandParser
     """
     let tokens = argv.clone()
     try tokens.shift() end  // argv[0] is the program name, so skip it
-    let options: col.Map[String,Option] ref = options.create()
-    let args: col.Map[String,Arg] ref = args.create()
+    let options: Map[String,Option] ref = options.create()
+    let args: Map[String,Arg] ref = args.create()
     _parse_command(tokens, options, args, env_map(envs), false)
 
   fun box _root_spec(): CommandSpec box =>
@@ -34,7 +34,7 @@ class CommandParser
       _spec
     end
 
-  fun env_map(envs: (Array[String] box | None)): col.Map[String, String] val =>
+  fun env_map(envs: (Array[String] box | None)): Map[String, String] val =>
     """
     Turns env array into a k,v map, filtering for only vars that begin with the
     command name uppercased, and then stripping that off. So:
@@ -42,28 +42,29 @@ class CommandParser
     becomes:
       {key, VALUE}
     """
-    let envsmap = recover col.Map[String, String]() end
+    let envsmap = recover Map[String, String]() end
     let prefix = _spec.name.upper() + "_"
     let prelen = prefix.size().isize()
     match envs
-      | let envsarr: Array[String] box =>
-        for e in envsarr.values() do
-          let eqpos = try e.find("=") else 0 end // should find 1 =
-          let ek: String val = e.substring(0, eqpos)
-          let ev: String val = e.substring(eqpos+1)
-          if ek.at(prefix, 0) then
-            envsmap.update(ek.substring(prelen).lower(), ev)
-          end
+    | let envsarr: Array[String] box =>
+      for e in envsarr.values() do
+        let eqpos = try e.find("=") else 0 end // should find 1 =
+        let ek: String val = e.substring(0, eqpos)
+        let ev: String val = e.substring(eqpos+1)
+        if ek.at(prefix, 0) then
+          envsmap.update(ek.substring(prelen).lower(), ev)
         end
+      end
     end
-    consume envsmap
+    envsmap
 
   fun box _parse_command(
     tokens: Array[String] ref,
-    options: col.Map[String,Option] ref,
-    args: col.Map[String,Arg] ref,
-    envsmap: col.Map[String, String] box,
-    ostop: Bool): (Command | CommandHelp | SyntaxError)
+    options: Map[String,Option] ref,
+    args: Map[String,Arg] ref,
+    envsmap: Map[String, String] box,
+    ostop: Bool)
+    : (Command | CommandHelp | SyntaxError)
   =>
     """
     Parses all of the command line tokens and env vars into the given options
@@ -86,8 +87,10 @@ class CommandParser
       elseif not opt_stop and
         ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
         match _parse_short_options(token.substring(1), tokens)
-        | let fs: Array[Option] =>
-          for f in fs.values() do options.update(f.spec.name, f) end
+        | let os: Array[Option] =>
+          for o in os.values() do
+            options.update(o.spec.name, o)
+          end
         | let se: SyntaxError =>
           return se
         end
@@ -99,6 +102,8 @@ class CommandParser
             | let cs: CommandSpec box =>
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
+            else
+              None // TODO https://github.com/ponylang/ponyc/issues/1898
             end
           end
         else
@@ -111,21 +116,25 @@ class CommandParser
     end
 
     // Fill in option values from env or from coded defaults.
-    for fs in _spec.options.values() do
-      if not options.contains(fs.name) then
+    for os in _spec.options.values() do
+      if not options.contains(os.name) then
         // Lookup and use env vars before code defaults
-        if envsmap.contains(fs.name) then
-          let vs = try envsmap(fs.name) else "" end // else? we know it's in there
-          let v: Value = match ValueParser.parse(fs.typ, vs)
-            | let v: Value => v
-            | let e: SyntaxError => return e
-            else
-              false // Pony should know e,v above covers all match types
+        if envsmap.contains(os.name) then
+          let vs =
+            try
+              envsmap(os.name)
+            else  // TODO(cq) why else needed? we just checked
+              ""
             end
-          options.update(fs.name, Option(fs, v))
+          let v: Value =
+            match ValueParser.parse(os.typ, vs)
+            | let v: Value => v
+            | let se: SyntaxError => return se
+            end
+          options.update(os.name, Option(os, v))
         else
-          if not fs.required then
-            options.update(fs.name, Option(fs, fs.default))
+          if not os.required then
+            options.update(os.name, Option(os, os.default))
           end
         end
       end
@@ -133,11 +142,12 @@ class CommandParser
 
     // If it's a help option, return a general or specific CommandHelp.
     if options.contains(_help_name()) then
-      if _spec is _root_spec() then
-        return Help.general(_root_spec())
-      else
-        return Help.for_command(_root_spec(), [_spec.name])
-      end
+      return
+        if _spec is _root_spec() then
+          Help.general(_root_spec())
+        else
+          Help.for_command(_root_spec(), [_spec.name])
+        end
     end
 
     // If it's a help command, return a general or specific CommandHelp.
@@ -145,8 +155,10 @@ class CommandParser
       try
         let arg = args("command").value as String
         match arg
-          | "" => return Help.general(_root_spec())
-          | let c: String => return Help.for_command(_root_spec(), [c])
+        | "" => return Help.general(_root_spec())
+        | let c: String => return Help.for_command(_root_spec(), [c])
+        else
+          None // TODO https://github.com/ponylang/ponyc/issues/1898
         end
       end
       return Help.general(_root_spec())
@@ -178,7 +190,8 @@ class CommandParser
 
   fun box _parse_long_option(
     token: String,
-    args: Array[String] ref): (Option | SyntaxError)
+    args: Array[String] ref)
+    : (Option | SyntaxError)
   =>
     """
     --opt=foo => --opt has argument foo
@@ -188,16 +201,14 @@ class CommandParser
     let name = try parts(0) else "???" end
     let targ = try parts(1) else None end
     match _option_with_name(name)
-    | let fs: OptionSpec => OptionParser.parse(fs, targ, args)
+    | let os: OptionSpec => OptionParser.parse(os, targ, args)
     | None => SyntaxError(name, "unknown long option")
-    else
-      // TODO: Ponyc should know we've covered all match cases above
-      SyntaxError(name, "Pony shouldn't allow this")
     end
 
   fun box _parse_short_options(
     token: String,
-    args: Array[String] ref): (Array[Option] | SyntaxError)
+    args: Array[String] ref)
+    : (Array[Option] | SyntaxError)
   =>
     """
     if 'O' requires an argument
@@ -217,7 +228,12 @@ class CommandParser
 
     let options: Array[Option] ref = options.create()
     while shorts.size() > 0 do
-      let c = try shorts.shift() else 0 end  // Should never error since checked
+      let c =
+        try
+          shorts.shift()
+        else
+          0  // TODO(cq) Should never error since checked
+        end
       match _option_with_short(c)
       | let fs: OptionSpec =>
         if fs._requires_arg() and (shorts.size() > 0) then
@@ -235,9 +251,6 @@ class CommandParser
         | let se: SyntaxError => return se
         end
       | None => SyntaxError(short_string(c), "unknown short option")
-      else
-        // TODO: Ponyc should know we've covered all match cases above
-        return SyntaxError(token, "Pony shouldn't allow this")
       end
     end
     options
@@ -278,12 +291,12 @@ class CommandParser
   fun box _help_name(): String =>
     _root_spec().help_name
 
-
 primitive OptionParser
   fun parse(
     spec: OptionSpec,
     targ: (String|None),
-    args: Array[String] ref): (Option | SyntaxError)
+    args: Array[String] ref)
+    : (Option | SyntaxError)
   =>
     // Grab the token-arg if provided, else consume an arg if one is required.
     let arg = match targ
@@ -298,9 +311,6 @@ primitive OptionParser
       match ValueParser.parse(spec.typ, a)
       | let v: Value => Option(spec, v)
       | let se: SyntaxError => se
-      else
-          // TODO: Ponyc should know we've covered all match cases above
-          SyntaxError(a, "Pony shouldn't allow this")
       end
     else
       if not spec._requires_arg() then
@@ -310,17 +320,12 @@ primitive OptionParser
       end
     end
 
-
 primitive ArgParser
   fun parse(spec: ArgSpec, arg: String): (Arg | SyntaxError) =>
     match ValueParser.parse(spec.typ, arg)
     | let v: Value => Arg(spec, v)
     | let se: SyntaxError => se
-    else
-        // TODO: Ponyc should know we've covered all match cases above
-        SyntaxError(arg, "Pony shouldn't allow this")
     end
-
 
 primitive ValueParser
   fun box parse(typ: ValueType, arg: String): (Value | SyntaxError) =>
@@ -330,10 +335,6 @@ primitive ValueParser
       | let s: StringType => arg
       | let f: F64Type => arg.f64()
       | let i: I64Type => arg.i64()
-      else
-        // TODO: Ponyc should know we've covered all match cases above
-        SyntaxError(arg,
-          "Pony shouldn't allow this: unknown value type " + typ.string())
       end
     else
       SyntaxError(arg, "unable to convert '" + arg + "' to " + typ.string())
