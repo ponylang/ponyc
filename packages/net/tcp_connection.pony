@@ -170,6 +170,7 @@ actor TCPConnection
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
+  var _throttled: Bool = false
   var _closed: Bool = false
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
@@ -881,16 +882,22 @@ actor TCPConnection
     try (_listen as TCPListener)._conn_closed() end
 
   fun ref _apply_backpressure() =>
-    ifdef not windows then
-      _writeable = false
+    if not _throttled then
+      _throttled = true
+      ifdef not windows then
+        _writeable = false
 
-      // this is safe because asio thread isn't currently subscribed
-      // for a write event so will not be writing to the readable flag
-      @pony_asio_event_set_writeable(_event, false)
-      @pony_asio_event_resubscribe_write(_event)
+        // this is safe because asio thread isn't currently subscribed
+        // for a write event so will not be writing to the readable flag
+        @pony_asio_event_set_writeable(_event, false)
+        @pony_asio_event_resubscribe_write(_event)
+      end
+
+      _notify.throttled(this)
     end
 
-    _notify.throttled(this)
-
   fun ref _release_backpressure() =>
-    _notify.unthrottled(this)
+    if _throttled then
+      _throttled = false
+      _notify.unthrottled(this)
+    end
