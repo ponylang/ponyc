@@ -22,7 +22,6 @@ actor Main is TestList
     test(_TestChatAll)
     test(_TestHelp)
 
-
 class iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
 
@@ -41,7 +40,6 @@ class iso _TestMinimal is UnitTest
 
     h.assert_eq[Bool](true, cmd.options("aflag").value as Bool)
 
-
 class iso _TestBadName is UnitTest
   fun name(): String => "ponycli/badname"
 
@@ -52,7 +50,6 @@ class iso _TestBadName is UnitTest
         return // error was expected
     end
     error  // lack of error is bad
-
 
 class iso _TestHyphenArg is UnitTest
   fun name(): String => "ponycli/hyphen"
@@ -69,7 +66,6 @@ class iso _TestHyphenArg is UnitTest
     let cmd = match cmdErr | let c: Command => c else error end
 
     h.assert_eq[String]("-", cmd.args("name").value as String)
-
 
 class iso _TestBools is UnitTest
   fun name(): String => "ponycli/bools"
@@ -89,7 +85,6 @@ class iso _TestBools is UnitTest
     h.assert_eq[Bool](true, cmd.options("ccc").value as Bool)
     h.assert_eq[Bool](false, cmd.options("ddd").value as Bool)
 
-
 class iso _TestDefaults is UnitTest
   fun name(): String => "ponycli/defaults"
 
@@ -107,7 +102,6 @@ class iso _TestDefaults is UnitTest
     h.assert_eq[String]("astring", cmd.options("stringo").value as String)
     h.assert_eq[I64](42, cmd.options("into").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
-
 
 class iso _TestShortsAdj is UnitTest
   fun name(): String => "ponycli/shorts_adjacent"
@@ -127,7 +121,6 @@ class iso _TestShortsAdj is UnitTest
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
-
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
 
@@ -145,7 +138,6 @@ class iso _TestShortsEq is UnitTest
     h.assert_eq[String]("astring", cmd.options("stringr").value as String)
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
-
 
 class iso _TestShortsNext is UnitTest
   fun name(): String => "ponycli/shorts_next"
@@ -166,7 +158,6 @@ class iso _TestShortsNext is UnitTest
     h.assert_eq[String]("--", cmd.options("stringr").value as String)
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
-
 
 class iso _TestLongsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
@@ -189,7 +180,6 @@ class iso _TestLongsEq is UnitTest
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
-
 class iso _TestLongsNext is UnitTest
   fun name(): String => "ponycli/longs_next"
 
@@ -209,7 +199,6 @@ class iso _TestLongsNext is UnitTest
     h.assert_eq[String]("--", cmd.options("stringr").value as String)
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
-
 
 class iso _TestEnvs is UnitTest
   fun name(): String => "ponycli/envs"
@@ -237,7 +226,6 @@ class iso _TestEnvs is UnitTest
     h.assert_eq[I64](42, cmd.options("intr").value as I64)
     h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
 
-
 class iso _TestOptionStop is UnitTest
   fun name(): String => "ponycli/option_stop"
 
@@ -258,7 +246,6 @@ class iso _TestOptionStop is UnitTest
     h.assert_eq[String]("-f=1.0", cmd.args("words").value as String)
     h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
 
-
 class iso _TestDuplicate is UnitTest
   fun name(): String => "ponycli/duplicate"
 
@@ -278,7 +265,6 @@ class iso _TestDuplicate is UnitTest
 
     h.assert_eq[String]("newstring", cmd.options("stringr").value as String)
 
-
 class iso _TestChatMin is UnitTest
   fun name(): String => "ponycli/chat_min"
 
@@ -292,7 +278,6 @@ class iso _TestChatMin is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
     h.assert_eq[String]("chat", cs.name)
-
 
 class iso _TestChatAll is UnitTest
   fun name(): String => "ponycli/chat_all"
@@ -328,7 +313,6 @@ class iso _TestChatAll is UnitTest
     h.assert_eq[String]("words", a1.spec.name)
     h.assert_eq[String]("hello", a1.value as String)
 
-
 class iso _TestHelp is UnitTest
   fun name(): String => "ponycli/help"
 
@@ -342,9 +326,7 @@ class iso _TestHelp is UnitTest
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
 
-
 primitive _Fixtures
-
   fun bools_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with four bool options.
