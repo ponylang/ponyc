@@ -1056,11 +1056,14 @@ static bool refer_match(pass_opt_t* opt, ast_t* ast)
     ast_inheritbranch(ast, cases);
   }
 
-  if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  if(ast_id(else_clause) == TK_NONE)
   {
     branch_count++;
-    if(ast_id(else_clause) != TK_NONE)
-      ast_inheritbranch(ast, else_clause);
+  }
+  else if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  {
+    branch_count++;
+    ast_inheritbranch(ast, else_clause);
   }
 
   // If all branches jump away with no value, then we do too.

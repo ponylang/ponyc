@@ -91,6 +91,11 @@ static bool is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type, ast_t* cases)
   pony_assert(expr_type != NULL);
   pony_assert(ast_id(cases) == TK_CASES);
 
+  // Exhaustive match not yet supported for matches where all cases "jump away".
+  // The return/error/break/continue should be moved to outside the match.
+  if(ast_checkflag(cases, AST_FLAG_JUMPS_AWAY))
+    return false;
+
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
 

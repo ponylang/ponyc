@@ -865,3 +865,41 @@ TEST_F(SugarExprTest, MatchExhaustiveTupleIncludesDontCareType)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveAllCasesJumpAway)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => return true\n"
+    "    | let t: T2 => return false\n"
+    "    | let t: T3 => return true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveSomeCasesJumpAway)
+{
+  const char* src =
+    "trait T1\n"
+    "trait T2\n"
+    "trait T3\n"
+
+    "primitive Foo\n"
+    "  fun apply(t': (T1 | T2 | T3)): Bool =>\n"
+    "    match t'\n"
+    "    | let t: T1 => true\n"
+    "    | let t: T2 => return false\n"
+    "    | let t: T3 => return true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

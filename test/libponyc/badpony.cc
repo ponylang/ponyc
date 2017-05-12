@@ -528,3 +528,18 @@ TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
   TEST_ERRORS_1(src,
     "can't find declaration of 'u'");
 }
+
+TEST_F(BadPonyTest, ExhaustiveMatchCasesJumpAway)
+{
+  // From issue #1898
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool) =>\n"
+    "    if true then\n"
+    "      match b\n"
+    "      | let b': Bool => return\n"
+    "      end\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
