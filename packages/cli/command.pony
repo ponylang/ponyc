@@ -1,4 +1,4 @@
-use col = "collections"
+use "collections"
 
 class box Command
   """
@@ -6,13 +6,13 @@ class box Command
   and effective options and arguments, ready to use.
   """
   let spec: CommandSpec box
-  let options: col.Map[String, Option]
-  let args: col.Map[String, Arg]
+  let options: Map[String, Option]
+  let args: Map[String, Arg]
 
   new create(
     spec': CommandSpec box,
-    options': col.Map[String, Option],
-    args': col.Map[String, Arg])
+    options': Map[String, Option],
+    args': Map[String, Arg])
   =>
     spec = spec'
     options = options'
