@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't call TCPConnection backpressure notifies incorrectly ([PR #1904](https://github.com/ponylang/ponyc/pull/1904))
 - Fix outdated methods in persistent.Map docstring. ([PR #1901](https://github.com/ponylang/ponyc/pull/1901))
 
 
