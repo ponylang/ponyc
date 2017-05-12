@@ -102,8 +102,6 @@ class CommandParser
             | let cs: CommandSpec box =>
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
-            else
-              None // TODO https://github.com/ponylang/ponyc/issues/1898
             end
           end
         else
@@ -157,8 +155,6 @@ class CommandParser
         match arg
         | "" => return Help.general(_root_spec())
         | let c: String => return Help.for_command(_root_spec(), [c])
-        else
-          None // TODO https://github.com/ponylang/ponyc/issues/1898
         end
       end
       return Help.general(_root_spec())

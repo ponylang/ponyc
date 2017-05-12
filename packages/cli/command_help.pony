@@ -21,9 +21,6 @@ primitive Help
           | let ccs: CommandSpec box =>
             let cch = CommandHelp._create(ch, ccs)
             return _parse(ccs, cch, argv.slice(1))
-          else
-            // TODO https://github.com/ponylang/ponyc/issues/1898
-            return SyntaxError("issue", "1898")
           end
         end
         return SyntaxError(cname, "unknown command")
