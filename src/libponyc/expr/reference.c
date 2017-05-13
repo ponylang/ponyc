@@ -704,7 +704,9 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
       }
 
       ast_t* c_type = ast_type(child);
-      pony_assert(c_type != NULL); // maybe needs to be removed?
+
+      if((c_type == NULL) || (ast_id(c_type) == TK_ERRORTYPE))
+        return false;
 
       if(is_type_literal(c_type))
       {

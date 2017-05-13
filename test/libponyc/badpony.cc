@@ -543,3 +543,15 @@ TEST_F(BadPonyTest, ExhaustiveMatchCasesJumpAway)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, CallArgTypeErrorInsideTuple)
+{
+  // From issue #1895
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    (\"\", foo([\"\"]))\n"
+    "  fun foo(x: Array[USize]) => None";
+
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+}
