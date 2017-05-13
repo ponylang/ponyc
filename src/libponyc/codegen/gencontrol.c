@@ -41,7 +41,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // We will have no type if both branches have return statements.
   reach_type_t* phi_type = NULL;
 
-  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     phi_type = reach_type(c->reach, type);
 
   LLVMValueRef c_value = gen_expr(c, cond);
@@ -508,7 +508,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   reach_type_t* phi_type = NULL;
 
   // We will have no type if both branches have return statements.
-  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     phi_type = reach_type(c->reach, type);
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);

@@ -529,6 +529,21 @@ TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
     "can't find declaration of 'u'");
 }
 
+TEST_F(BadPonyTest, DontCareTypeInTupleTypeOfIfBlockValueUnused)
+{
+  // From issue #1896
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then\n"
+    "      (var a, let _) = test()\n"
+    "    end\n"
+    "  fun test(): (U32, U32) =>\n"
+    "    (1, 2)\n";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(BadPonyTest, ExhaustiveMatchCasesJumpAway)
 {
   // From issue #1898
