@@ -148,7 +148,6 @@ typedef enum token_id
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
-  TK_ELSEIFTYPE,
   TK_END,
   TK_WHILE,
   TK_DO,

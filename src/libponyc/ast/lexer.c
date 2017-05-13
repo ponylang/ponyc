@@ -171,7 +171,6 @@ static const lextoken_t keywords[] =
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
-  { "elseiftype", TK_ELSEIFTYPE },
   { "end", TK_END },
   { "for", TK_FOR },
   { "in", TK_IN },

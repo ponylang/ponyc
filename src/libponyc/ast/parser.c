@@ -678,11 +678,11 @@ DEF(ifdef);
   REORDER(0, 2, 3, 1);
   DONE();
 
-// ELSEIFTYPE [annotations] type <: type THEN seq [elseiftype | (ELSE seq)]
+// ELSEIF [annotations] type <: type THEN seq [elseiftype | (ELSE seq)]
 DEF(elseiftype);
   AST_NODE(TK_IFTYPE);
   SCOPE();
-  SKIP(NULL, TK_ELSEIFTYPE);
+  SKIP(NULL, TK_ELSEIF);
   ANNOTATE(annotations);
   RULE("type", type);
   SKIP(NULL, TK_SUBTYPE);
