@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change iftype to use elseif instead of elseiftype as next keyword. ([PR #1905](https://github.com/ponylang/ponyc/pull/1905))
 
 
 ## [0.14.0] - 2017-05-06
