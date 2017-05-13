@@ -231,6 +231,33 @@ TEST_F(IftypeTest, Codegen_False)
 }
 
 
+
+TEST_F(IftypeTest, Codegen_ElseIfTrue)
+{
+  const char* src =
+    "trait T\n"
+    "class C1 is T\n"
+    "class C2 is T\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C2](C2)\n"
+
+    "  fun foo[A: T](x: A) =>\n"
+    "    iftype A <: C1 then\n"
+    "      None\n"
+    "    elseif A <: C2 then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(IftypeTest, UnconstrainedTypeparam)
 {
   const char* src =

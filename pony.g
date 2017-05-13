@@ -128,7 +128,7 @@ caseexpr
   ;
 
 elseiftype
-  : 'elseiftype' ('\\' ID (',' ID)* '\\')? type '<:' type 'then' rawseq (elseiftype | ('else' annotatedrawseq))?
+  : 'elseif' ('\\' ID (',' ID)* '\\')? type '<:' type 'then' rawseq (elseiftype | ('else' annotatedrawseq))?
   ;
 
 elseifdef
