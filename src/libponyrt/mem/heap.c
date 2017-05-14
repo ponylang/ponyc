@@ -81,7 +81,8 @@ static void final_small(chunk_t* chunk, uint32_t mark)
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
+  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers))))
+  {
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
@@ -102,23 +103,18 @@ static void final_small_freed(chunk_t* chunk)
   // run any finalisers that need to be run for any newly freed slots
   void* p = NULL;
 
-  uint32_t finalisers = chunk->finalisers;
+  uint32_t finalisers = chunk->finalisers & chunk->slots;
+  chunk->finalisers = chunk->finalisers & ~chunk->slots;
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
-    // nothing to do if the slot isn't empty
-    if((chunk->slots & (1 << bit)) == 0)
-      continue;
-
+  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers))))
+  {
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
     pony_assert((*(pony_type_t**)p)->final != NULL);
     (*(pony_type_t**)p)->final(p);
-
-    // clear finaliser in chunk
-    chunk->finalisers &= ~(1 << bit);
 
     // clear bit just found in our local finaliser map
     finalisers &= (finalisers - 1);
