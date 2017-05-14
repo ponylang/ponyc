@@ -449,8 +449,10 @@ static RegisterPass<HeapToStack>
 static void addHeapToStackPass(const PassManagerBuilder& pmb,
   PassManagerBase& pm)
 {
-  if(pmb.OptLevel >= 2)
+  if(pmb.OptLevel >= 2) {
+    pm.add(new DominatorTreeWrapperPass());
     pm.add(new HeapToStack());
+  }
 }
 
 class DispatchPonyCtx : public FunctionPass
