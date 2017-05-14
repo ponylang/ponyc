@@ -17,7 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - xoroshiro128+ implementation ([PR #1909](https://github.com/ponylang/ponyc/pull/1909))
-- Exhaustive match (RFC 40) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
+- Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 - Command line options for printing help ([PR #1899](https://github.com/ponylang/ponyc/pull/1899))
 
 
