@@ -4,7 +4,20 @@
 The Random package provides support generating random numbers. The package
 provides random number generators you can use in your code, a dice roller and
 a trait for implementing your own random number generator.
+
+If your application does not require a specific generator, use Rand.
+
+Seed values can contain up to 128 bits of randomness in the form of two U64s.
+A common non-cryptographically secure way to seed a generator is with
+`Time.now`.
+
+```
+let rand = Rand
+let n = rand.next()
+```
 """
+type Rand is XorOshiro128Plus
+
 trait Random
   """
   The `Random` trait should be implemented by all random number generators. The
@@ -12,6 +25,12 @@ trait Random
   has been implemented, the `Random` trait provides default implementations of
   conversions to other number types.
   """
+  new create(x: U64 = 5489, y: U64 = 0)
+    """
+    Create with the specified seed. Returned values are deterministic for a
+    given seed.
+    """
+
   fun tag has_next(): Bool =>
     """
     If used as an iterator, this always has another value.

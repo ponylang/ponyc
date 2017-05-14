@@ -1,11 +1,13 @@
 class MT is Random
   """
-  A Mersenne Twister. This is a non-cryptographic random number generator.
+  A Mersenne Twister. This is a non-cryptographic random number generator. This
+  should only be used for legacy applications that require a Mersenne Twister,
+  otherwise use Rand.
   """
   embed _state: Array[U64]
   var _index: USize
 
-  new create(seed: U64 = 5489) =>
+  new create(x: U64 = 5489, y: U64 = 0) =>
     """
     Create with the specified seed. Returned values are deterministic for a
     given seed.
@@ -13,14 +15,14 @@ class MT is Random
     _state = Array[U64](_n())
     _index = _n()
 
-    var x = seed
+    var seed = x xor y
 
-    _state.push(x)
+    _state.push(seed)
     var i: USize = 1
 
     while i < _n() do
-      x = ((x xor (x >> 62)) * 6364136223846793005) + i.u64()
-      _state.push(x)
+      seed = ((seed xor (seed >> 62)) * 6364136223846793005) + i.u64()
+      _state.push(seed)
       i = i + 1
     end
 
