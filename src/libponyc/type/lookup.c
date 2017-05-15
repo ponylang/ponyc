@@ -15,6 +15,44 @@
 static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors);
 
+// If a box method is being called with an iso/trn receiver, we mustn't replace
+// this-> by iso/trn as this would be unsound, but by ref. See #1887
+//
+// This method (recursively) replaces occurences of iso and trn in `receiver` by
+// ref. If a modification was required then a copy is returned, otherwise the
+// original pointer is.
+static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
+  switch (ast_id(receiver))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      switch (cap_single(receiver))
+      {
+        case TK_TRN:
+        case TK_ISO:
+          return set_cap_and_ephemeral(receiver, TK_REF, TK_NONE);
+
+        default:
+          return receiver;
+      }
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(receiver, left, right);
+
+      ast_t* downcasted_right = downcast_iso_trn_receiver_to_ref(right);
+      if(right != downcasted_right)
+        return viewpoint_type(left, downcasted_right);
+      else
+        return receiver;
+    }
+
+    default:
+      pony_assert(0);
+      return NULL;
+  }
+}
+
 static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors)
 {
@@ -178,6 +216,10 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   }
 
   ast_t* typeargs = ast_childidx(type, 2);
+
+  if(ast_id(find) == TK_FUN && ast_id(ast_child(find)) == TK_BOX)
+    orig = downcast_iso_trn_receiver_to_ref(orig);
+
   return deferred_reify_new(find, typeparams, typeargs, orig);
 }
 

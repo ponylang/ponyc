@@ -1014,3 +1014,20 @@ TEST_F(BadPonyTest, NosupertypeAnnotationProvides)
 
   TEST_ERRORS_1(src, "a 'nosupertype' type cannot specify a provides list");
 }
+
+TEST_F(BadPonyTest, ThisViewpointWithIsoReceiver)
+{
+  // From issue #1887
+  const char* src =
+    "class A\n"
+    "class Revealer\n"
+    "  fun box reveal(x: this->A ref): A box => x\n"
+
+    "actor Main\n"
+    "new create(env: Env) =>\n"
+    "  let revealer : Revealer iso = Revealer.create()\n"
+    "  let opaque : A tag = A.create()\n"
+    "  let not_opaque : A box = (consume revealer).reveal(opaque)\n";
+
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+}

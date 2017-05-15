@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `files/Path.clean()` not correctly handling multiple `..` ([PR #2862](https://github.com/ponylang/ponyc/pull/2862))
 - Fix skipped try-then clauses on return, break and continue statements ([PR #2853](https://github.com/ponylang/ponyc/pull/2853))
 - Fix performance and memory consumption issues with `files.FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
+- Fix unsoundness when replacing `this` viewpoint in method calls. ([PR #2503](https://github.com/ponylang/ponyc/pull/2503))
 
 ### Added
 
