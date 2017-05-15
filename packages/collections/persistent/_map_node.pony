@@ -40,8 +40,7 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     match _entries(i.usize_unsafe())
     | (_, let v: V) => v
     | let sn: _MapNode[K, V, H] => sn(hash, key)
-    else
-      let cn = _entries(i.usize_unsafe()) as _MapCollisions[K, V, H]
+    | let cn: _MapCollisions[K, V, H] =>
       for l in cn.values() do
         if H.eq(l._1, key) then return l._2 end
       end
