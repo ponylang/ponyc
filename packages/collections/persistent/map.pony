@@ -170,7 +170,6 @@ class MapPairs[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         _inc_i()
         next()
       end
-    else error
     end
 
   fun ref _push(n: _MapNode[K, V, H]) =>
