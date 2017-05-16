@@ -897,7 +897,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 {
   // Generate the deserisalise function.
-  t->deserialise_fn = codegen_addfun(c, genname_serialise(t->name),
+  t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
@@ -1079,7 +1079,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 {
   // Generate the deserisalise function.
-  t->deserialise_fn = codegen_addfun(c, genname_serialise(t->name),
+  t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
   codegen_startfun(c, t->deserialise_fn, NULL, NULL);
