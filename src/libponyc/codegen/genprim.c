@@ -704,6 +704,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   LLVMAddIncoming(phi, &inc, &body_block, 1);
   LLVMBuildBr(c->builder, cond_block);
 
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 }
 
@@ -850,26 +851,26 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
       LLVMPointerType(t_elem->use_type, 0), "");
 
     LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-    LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
-    LLVMBasicBlockRef body_block = codegen_block(c, "body");
-    LLVMBasicBlockRef post_block = codegen_block(c, "post");
+    LLVMBasicBlockRef cond_elem_block = codegen_block(c, "cond");
+    LLVMBasicBlockRef body_elem_block = codegen_block(c, "body");
+    LLVMBasicBlockRef post_elem_block = codegen_block(c, "post");
 
     LLVMValueRef offset_var = LLVMBuildAlloca(c->builder, c->void_ptr, "");
     LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
 
-    LLVMBuildBr(c->builder, cond_block);
+    LLVMBuildBr(c->builder, cond_elem_block);
 
     // While the index is less than the size, serialise an element. The
     // initial index when coming from the entry block is zero.
-    LLVMPositionBuilderAtEnd(c->builder, cond_block);
+    LLVMPositionBuilderAtEnd(c->builder, cond_elem_block);
     LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
     LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
     LLVMAddIncoming(phi, &zero, &entry_block, 1);
     LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, size, "");
-    LLVMBuildCondBr(c->builder, test, body_block, post_block);
+    LLVMBuildCondBr(c->builder, test, body_elem_block, post_elem_block);
 
     // The phi node is the index. Get the element and serialise it.
-    LLVMPositionBuilderAtEnd(c->builder, body_block);
+    LLVMPositionBuilderAtEnd(c->builder, body_elem_block);
     LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, ptr, &phi, 1, "");
 
     ptr_offset_addr = LLVMBuildLoad(c->builder, offset_var, "");
@@ -883,12 +884,14 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
     LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
     body_block = LLVMGetInsertBlock(c->builder);
     LLVMAddIncoming(phi, &inc, &body_block, 1);
-    LLVMBuildBr(c->builder, cond_block);
+    LLVMBuildBr(c->builder, cond_elem_block);
 
-    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMMoveBasicBlockAfter(post_elem_block, LLVMGetInsertBlock(c->builder));
+    LLVMPositionBuilderAtEnd(c->builder, post_elem_block);
   }
 
   LLVMBuildBr(c->builder, post_block);
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
@@ -968,6 +971,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
     LLVMAddIncoming(phi, &inc, &body_block, 1);
     LLVMBuildBr(c->builder, cond_block);
 
+    LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, post_block);
   }
 

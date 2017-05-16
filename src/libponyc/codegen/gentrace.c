@@ -478,6 +478,7 @@ static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   gentrace(c, ctx, object, object, elem, elem);
   LLVMBuildBr(c->builder, is_true);
 
+  LLVMMoveBasicBlockAfter(is_true, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, is_true);
 }
 
@@ -758,6 +759,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
 
   // Continue with other possible tracings.
   LLVMBuildBr(c->builder, is_false);
+  LLVMMoveBasicBlockAfter(is_false, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, is_false);
 }
 
@@ -822,6 +824,7 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
     LLVMBuildBr(c->builder, is_false);
 
   // Carry on, whether we have traced or not.
+  LLVMMoveBasicBlockAfter(is_false, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, is_false);
 }
 
@@ -1008,6 +1011,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       LLVMBasicBlockRef next_block = codegen_block(c, "");
       trace_dynamic(c, ctx, dst_value, src_type, dst_type, NULL, next_block);
       LLVMBuildBr(c->builder, next_block);
+      LLVMMoveBasicBlockAfter(next_block, LLVMGetInsertBlock(c->builder));
       LLVMPositionBuilderAtEnd(c->builder, next_block);
       return;
     }

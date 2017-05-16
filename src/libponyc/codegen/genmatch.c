@@ -139,6 +139,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     LLVMBuildBr(c->builder, continue_block);
 
     // Continue with the pointer and descriptor.
+    LLVMMoveBasicBlockAfter(nonnull_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
 
     if(!check_type(c, field_ptr, field_desc, pattern_child, next_block,
@@ -148,6 +149,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     LLVMBuildBr(c->builder, continue_block);
 
     // Merge the two branches.
+    LLVMMoveBasicBlockAfter(continue_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, continue_block);
     pattern_child = ast_sibling(pattern_child);
   }
@@ -181,11 +183,13 @@ static bool check_union(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     LLVMBuildBr(c->builder, continue_block);
 
     // Put the next union check, if there is one, in the nomatch block.
+    LLVMMoveBasicBlockAfter(nomatch_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, nomatch_block);
     child = next_type;
   }
 
   // Continue codegen in the continue block, not in the next block.
+  LLVMMoveBasicBlockAfter(continue_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
 }
@@ -313,6 +317,7 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   LLVMBuildBr(c->builder, continue_block);
 
   // Continue with the pointer and descriptor.
+  LLVMMoveBasicBlockAfter(nonnull_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
 
   if(!dynamic_match_ptr(c, field_ptr, field_desc, pattern, next_block))
@@ -321,6 +326,7 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   LLVMBuildBr(c->builder, continue_block);
 
   // Merge the two branches.
+  LLVMMoveBasicBlockAfter(continue_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
 }
@@ -812,6 +818,9 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
       // Case body.
       ok = ok && case_body(c, body, post_block, phi, phi_type);
+
+      if(next_block != NULL)
+        LLVMMoveBasicBlockAfter(next_block, LLVMGetInsertBlock(c->builder));
     }
 
     codegen_popscope(c);
@@ -831,6 +840,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   // Else body.
   if(else_block != NULL)
   {
+    LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, else_block);
     codegen_pushscope(c, else_expr);
     bool ok = case_body(c, else_expr, post_block, phi, phi_type);
@@ -842,7 +852,10 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   }
 
   if(post_block != NULL)
+  {
+    LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, post_block);
+  }
 
   return phi;
 }
