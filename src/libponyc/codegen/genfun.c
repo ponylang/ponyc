@@ -588,7 +588,9 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
       m->params[i - 1].type->ast);
   }
 
+  codegen_debugloc(c, m2->r_fun);
   LLVMValueRef ret = codegen_call(c, m2->func, args, count);
+  codegen_debugloc(c, NULL);
   ret = gen_assign_cast(c, m->result->use_type, ret, m2->result->ast);
   LLVMBuildRet(c->builder, ret);
   codegen_finishfun(c);
