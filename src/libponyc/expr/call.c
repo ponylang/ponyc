@@ -82,6 +82,7 @@ static bool extend_positional_args(pass_opt_t* opt, ast_t* params,
   if(arg_len > param_len)
   {
     ast_error(opt->check.errors, positional, "too many arguments");
+    ast_error_continue(opt->check.errors, params, "definition is here");
     return false;
   }
 
@@ -162,6 +163,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   if(ast_id(def_arg) == TK_NONE)
   {
     ast_error(opt->check.errors, arg, "not enough arguments");
+    ast_error_continue(opt->check.errors, param, "definition is here");
     return false;
   }
 
