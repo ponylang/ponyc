@@ -103,6 +103,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   }
 
   // Right branch.
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value;
 
@@ -134,6 +135,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   // Continue in the post block.
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(needed)
@@ -248,6 +250,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // else
   // If the loop doesn't generate a value (doesn't execute, or continues on the
   // last iteration), the else clause generates the value.
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value = gen_expr(c, else_clause);
   LLVMBasicBlockRef else_from = NULL;
@@ -268,6 +271,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   // post
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(needed)
@@ -353,6 +357,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   // cond block
   // This is only evaluated from a continue, jumping either back to the body
   // or to the else block.
+  LLVMMoveBasicBlockAfter(cond_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef i_value = gen_expr(c, cond);
 
@@ -366,6 +371,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   // else
   // Only happens for a continue in the last iteration.
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef else_value = gen_expr(c, else_clause);
   LLVMBasicBlockRef else_from = NULL;
@@ -386,6 +392,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   // post
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(needed)
@@ -545,6 +552,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   codegen_poptry(c);
 
   // Else block.
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
 
   // The landing pad is marked as a cleanup, since exceptions are typeless and
@@ -593,6 +601,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   // Continue in the post block.
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(needed)
