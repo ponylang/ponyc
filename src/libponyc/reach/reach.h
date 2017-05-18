@@ -34,6 +34,7 @@ struct reach_method_t
   ast_t* typeargs;
   ast_t* r_fun;
   uint32_t vtable_index;
+  bool needs_vtable_index;
 
   LLVMTypeRef func_type;
   LLVMTypeRef msg_type;
@@ -100,6 +101,7 @@ struct reach_type_t
   uint32_t vtable_size;
   bool can_be_boxed;
   bool is_trait;
+  uint32_t behaviour_index;
 
   LLVMTypeRef structure;
   LLVMTypeRef structure_ptr;

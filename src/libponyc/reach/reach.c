@@ -230,31 +230,33 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   size_t index = HASHMAP_UNKNOWN;
   reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m, &index);
 
-  if(mangled != NULL)
-    return;
+  if(mangled == NULL)
+  {
+    mangled = POOL_ALLOC(reach_method_t);
+    memset(mangled, 0, sizeof(reach_method_t));
 
-  mangled = POOL_ALLOC(reach_method_t);
-  memset(mangled, 0, sizeof(reach_method_t));
+    mangled->name = m->name;
+    mangled->mangled_name = m->mangled_name;
+    mangled->full_name = make_full_name(t, mangled);
 
-  mangled->name = m->name;
-  mangled->mangled_name = m->mangled_name;
-  mangled->full_name = make_full_name(t, mangled);
+    mangled->cap = m->cap;
+    mangled->r_fun = ast_dup(m->r_fun);
+    mangled->typeargs = ast_dup(m->typeargs);
+    mangled->forwarding = true;
 
-  mangled->cap = m->cap;
-  mangled->r_fun = ast_dup(m->r_fun);
-  mangled->typeargs = ast_dup(m->typeargs);
-  mangled->forwarding = true;
+    mangled->param_count = m->param_count;
+    mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
+      mangled->param_count * sizeof(reach_param_t));
+    memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
+    mangled->result = m->result;
 
-  mangled->param_count = m->param_count;
-  mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
-    mangled->param_count * sizeof(reach_param_t));
-  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
-  mangled->result = m->result;
+    // Add to the mangled table only.
+    // didn't find it in the map but index is where we can put the
+    // new one without another search
+    reach_mangled_putindex(&n2->r_mangled, mangled, index);
+  }
 
-  // Add to the mangled table only.
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  reach_mangled_putindex(&n2->r_mangled, mangled, index);
+  mangled->needs_vtable_index = true;
 }
 
 static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
@@ -272,6 +274,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
         case TK_TRAIT:
         {
           // Add to subtypes if we're an interface or trait.
+          m->needs_vtable_index = true;
           size_t i = HASHMAP_BEGIN;
           reach_type_t* t2;
 
@@ -297,6 +300,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 
         if(find != NULL)
         {
+          m->needs_vtable_index = true;
           reach_type_t* t2 = add_type(r, child, opt);
           add_rmethod_to_subtype(r, t2, n, m, opt);
           ast_free_unattached(find);
@@ -740,10 +744,12 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   add_traits_to_type(r, t, opt);
 
   reach_method_name_t* n = add_method_name(t, stringtab("__is"), true);
-  add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  reach_method_t* m = add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  m->needs_vtable_index = true;
 
   n = add_method_name(t, stringtab("__digestof"), true);
-  add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  m = add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  m->needs_vtable_index = true;
 
   printbuf_t* mangle = printbuf_new();
   printbuf(mangle, "%d", t->field_count);
@@ -802,7 +808,8 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
       {
         reach_method_name_t* n = add_method_name(t, stringtab("__digestof"),
           true);
-        add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+        reach_method_t* m = add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+        m->needs_vtable_index = true;
         t->can_be_boxed = true;
       }
       break;
@@ -1299,7 +1306,8 @@ static void add_internal_rmethod_to_traits(reach_t* r, reach_type_t* t,
   while((super = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
     reach_method_name_t* n = add_method_name(super, name, true);
-    add_rmethod(r, super, n, TK_BOX, NULL, opt, true);
+    reach_method_t* m = add_rmethod(r, super, n, TK_BOX, NULL, opt, true);
+    m->needs_vtable_index = true;
   }
 }
 

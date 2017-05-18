@@ -285,6 +285,9 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
+        if(!m->needs_vtable_index)
+          continue;
+
         const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
 
@@ -367,6 +370,9 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
+        if(!m->needs_vtable_index)
+          continue;
+
         // Store colour assigned to name in reachable types set
         const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
@@ -381,7 +387,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
     }
 
     // Store vtable size for type
-    t->vtable_size = max_colour + 1;
+    t->vtable_size = t->behaviour_index = max_colour + 1;
   }
 }
 
