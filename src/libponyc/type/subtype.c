@@ -437,6 +437,21 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
     return false;
   }
 
+  bool sub_bare = ast_id(sub_cap) == TK_AT;
+  bool super_bare = ast_id(super_cap) == TK_AT;
+
+  if(sub_bare != super_bare)
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, sub,
+        "method %s is not a subtype of method %s: their bareness differ",
+        ast_name(sub_id), ast_name(super_id));
+    }
+
+    return false;
+  }
+
   ast_t* r_sub = sub;
 
   if(ast_id(super_typeparams) != TK_NONE)
@@ -739,6 +754,16 @@ static bool is_nominal_sub_entity(ast_t* sub, ast_t* super,
   ast_t* super_def = (ast_t*)ast_data(super);
   bool ret = true;
 
+  if(is_bare(sub) && is_pointer(super))
+  {
+    ast_t* super_typeargs = ast_childidx(super, 2);
+    ast_t* super_typearg = ast_child(super_typeargs);
+
+    // A bare type is a subtype of Pointer[None].
+    if(is_none(super_typearg))
+      return true;
+  }
+
   if(sub_def != super_def)
   {
     if(errorf != NULL)
@@ -768,6 +793,18 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   // N k <: I k
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
+
+  if(is_bare(sub) != is_bare(super))
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, sub,
+        "%s is not a subtype of %s: their bareness differ",
+        ast_print_type(sub), ast_print_type(super));
+    }
+
+    return false;
+  }
 
   bool ret = true;
 
@@ -863,6 +900,19 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super,
 static bool nominal_provides_trait(ast_t* type, ast_t* trait,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
+  pony_assert(!is_bare(trait));
+  if(is_bare(type))
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, type,
+        "%s is not a subtype of %s: their bareness differ",
+        ast_print_type(type), ast_print_type(trait));
+    }
+
+    return false;
+  }
+
   // Get our typeparams and typeargs.
   ast_t* def = (ast_t*)ast_data(type);
   AST_GET_CHILDREN(def, id, typeparams, defcap, traits);
@@ -1133,6 +1183,15 @@ static bool is_nominal_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
         return false;
       }
 
+      if(is_bare(sub))
+      {
+        if(errorf != NULL)
+        {
+          ast_error_frame(errorf, sub, "a bare type cannot be in a union type");
+          return false;
+        }
+      }
+
       return is_x_sub_union(sub, super, check_cap, errorf, opt);
     }
 
@@ -1144,6 +1203,16 @@ static bool is_nominal_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
       {
         struct_cant_be_x(sub, super, errorf, "an intersection type");
         return false;
+      }
+
+      if(is_bare(sub))
+      {
+        if(errorf != NULL)
+        {
+          ast_error_frame(errorf, sub, "a bare type cannot be in an "
+            "intersection type");
+          return false;
+        }
       }
 
       return is_x_sub_isect(sub, super, check_cap, errorf, opt);
@@ -1849,6 +1918,52 @@ bool is_known(ast_t* type)
       return is_known(typeparam_constraint(type));
 
     default: {}
+  }
+
+  pony_assert(0);
+  return false;
+}
+
+bool is_bare(ast_t* type)
+{
+  if(type == NULL)
+    return false;
+
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        if(is_bare(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      return ast_has_annotation(def, "ponyint_bare");
+    }
+
+    case TK_ARROW:
+      return is_bare(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_DONTCARETYPE:
+      return false;
+
+    default : {}
   }
 
   pony_assert(0);
