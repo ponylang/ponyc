@@ -12,11 +12,11 @@ class Chain[A] is Iterator[A]
 
   actor Main
     new create(env: Env) =>
-      let i1 = [as I32: 1, 2, 3, 4]
-      let i2 = [as I32: 5, 6, 7, 8, 9]
-      let i3 = [as I32: 10, 11, 12, 13, 14]
+      let i1 = [as I32: 1; 2; 3; 4]
+      let i2 = [as I32: 5; 6; 7; 8; 9]
+      let i3 = [as I32: 10; 11; 12; 13; 14]
     
-      for x in Chain[I32]([i1.values(), i2.values(), i3.values()].values()) do
+      for x in Chain[I32]([i1.values(); i2.values(); i3.values()].values()) do
         env.out.print(x.string())
       end
   ```
