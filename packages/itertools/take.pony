@@ -12,7 +12,7 @@ class Take[A] is Iterator[A]
 
   actor Main
     new create(env: Env) =>
-      let i1 = [as I32: 10, 11, 12, 13, 14]
+      let i1 = [as I32: 10; 11; 12; 13; 14]
     
       for x in Take[I32](i1.values(), 3) do
         env.out.print(x.string())
