@@ -147,3 +147,21 @@ TEST_F(DontcareTest, CannotUseDontcareInTupleRHS)
 
   TEST_ERRORS_1(src, "can't read from '_'");
 }
+
+
+TEST_F(DontcareTest, CannotUseDontcareAsArgumentInCaseExpression)
+{
+  // From issue #1922
+  const char* src =
+    "class C\n"
+    "  new create(i: U32) => None\n"
+    "  fun eq(that: C): Bool => false\n"
+
+    "primitive Foo\n"
+    "  fun apply(c: (C | None)) =>\n"
+    "    match c\n"
+    "    | C(_) => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "can't read from '_'");
+}
