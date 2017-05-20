@@ -1588,7 +1588,7 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   pony_assert(sub != NULL);
   pony_assert(super != NULL);
 
-  if(ast_id(super) == TK_DONTCARETYPE)
+  if((ast_id(super) == TK_DONTCARETYPE) || (ast_id(sub) == TK_DONTCARETYPE))
     return true;
 
   switch(ast_id(sub))
