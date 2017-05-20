@@ -570,3 +570,18 @@ TEST_F(BadPonyTest, CallArgTypeErrorInsideTuple)
 
   TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
+
+TEST_F(BadPonyTest, TypeArgErrorInsideReturn)
+{
+  const char* src =
+    "primitive P[A]\n"
+
+    "primitive Foo\n"
+    "  fun apply(): (P[None], U8) =>\n"
+    "    if true then\n"
+    "      return (P, 0)\n"
+    "    end\n"
+    "    (P[None], 1)";
+
+  TEST_ERRORS_1(src, "not enough type arguments");
+}

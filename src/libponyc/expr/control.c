@@ -388,11 +388,11 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   ast_t* body_type = ast_type(body);
 
+  if(is_typecheck_error(body_type))
+    return false;
+
   if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
   {
-    if(is_typecheck_error(body_type))
-      return false;
-
     ast_error(opt->check.errors, body,
       "return value cannot be a control statement");
     return false;
