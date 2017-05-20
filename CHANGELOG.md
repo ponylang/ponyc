@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler crash on type argument error inside an early return. ([PR #1923](https://github.com/ponylang/ponyc/pull/1923))
 - Correctly generate debug information in forwarding methods ([PR #1914](https://github.com/ponylang/ponyc/pull/1914))
 - Resolved compiler segfault on optimization pass (issue #1225) ([PR #1910](https://github.com/ponylang/ponyc/pull/1910))
 - Fix a bug in finaliser handling ([PR #1908](https://github.com/ponylang/ponyc/pull/1908))
