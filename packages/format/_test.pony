@@ -24,6 +24,30 @@ class iso _TestInt is UnitTest
   fun name(): String => "format/int"
 
   fun apply(h: TestHelper) =>
+    ifdef ilp32 or llp64 then
+      h.assert_eq[String]("-2147483648",
+        Format.int[ILong](ILong.min_value()))
+    else
+      h.assert_eq[String]("-9223372036854775808",
+        Format.int[ILong](ILong.min_value()))
+    end
+    ifdef ilp32 then
+      h.assert_eq[String]("-2147483648",
+        Format.int[ISize](ISize.min_value()))
+    else
+      h.assert_eq[String]("-9223372036854775808",
+        Format.int[ISize](ISize.min_value()))
+    end
+    h.assert_eq[String]("-9223372036854775808",
+      Format.int[I64](I64.min_value()))
+    h.assert_eq[String]("0",
+      Format.int[U32](U32.min_value()))
+    h.assert_eq[String]("-2147483648",
+      Format.int[I32](I32.min_value()))
+    h.assert_eq[String]("-32768",
+      Format.int[I16](I16.min_value()))
+    h.assert_eq[String]("-128",
+      Format.int[I8](I8.min_value()))
     h.assert_eq[String]("00010",
       Format.int[U64](10, FormatDefault, PrefixDefault, 5))
     h.assert_eq[String]("0x0000A",
