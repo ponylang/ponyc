@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add persistent set (RFC 42) ([PR #1925](https://github.com/ponylang/ponyc/pull/1925))
 - Bare methods and bare lambdas (RFC 34) ([PR #1858](https://github.com/ponylang/ponyc/pull/1858))
 - xoroshiro128+ implementation ([PR #1909](https://github.com/ponylang/ponyc/pull/1909))
 - Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
