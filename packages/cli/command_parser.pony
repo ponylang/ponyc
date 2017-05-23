@@ -96,13 +96,15 @@ class CommandParser
         end
 
       else // no dashes, must be a command or an arg
-        if _spec.commands.contains(token) then
+        if _spec.commands.size() > 0 then
           try
             match _spec.commands(token)
             | let cs: CommandSpec box =>
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
             end
+          else
+            return SyntaxError(token, "unknown command")
           end
         else
           match _parse_arg(token, arg_pos)
@@ -125,7 +127,7 @@ class CommandParser
               ""
             end
           let v: Value =
-            match ValueParser.parse(os.typ, vs)
+            match _ValueParser.parse(os.typ, vs)
             | let v: Value => v
             | let se: SyntaxError => return se
             end
@@ -151,8 +153,7 @@ class CommandParser
     // If it's a help command, return a general or specific CommandHelp.
     if _spec.name == _help_name() then
       try
-        let arg = args("command").value as String
-        match arg
+        match args("command").value
         | "" => return Help.general(_root_spec())
         | let c: String => return Help.for_command(_root_spec(), [c])
         end
@@ -197,7 +198,7 @@ class CommandParser
     let name = try parts(0) else "???" end
     let targ = try parts(1) else None end
     match _option_with_name(name)
-    | let os: OptionSpec => OptionParser.parse(os, targ, args)
+    | let os: OptionSpec => _OptionParser.parse(os, targ, args)
     | None => SyntaxError(name, "unknown long option")
     end
 
@@ -242,7 +243,7 @@ class CommandParser
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
-        match OptionParser.parse(fs, arg, args)
+        match _OptionParser.parse(fs, arg, args)
         | let f: Option => options.push(f)
         | let se: SyntaxError => return se
         end
@@ -254,7 +255,7 @@ class CommandParser
   fun box _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
       let arg_spec = _spec.args(arg_pos)
-      ArgParser.parse(arg_spec, token)
+      _ArgParser.parse(arg_spec, token)
     else
       return SyntaxError(token, "too many positional arguments")
     end
@@ -287,7 +288,7 @@ class CommandParser
   fun box _help_name(): String =>
     _root_spec().help_name
 
-primitive OptionParser
+primitive _OptionParser
   fun parse(
     spec: OptionSpec,
     targ: (String|None),
@@ -304,7 +305,7 @@ primitive OptionParser
     // Now convert the arg to Type, detecting missing or mis-typed args
     match arg
     | let a: String =>
-      match ValueParser.parse(spec.typ, a)
+      match _ValueParser.parse(spec.typ, a)
       | let v: Value => Option(spec, v)
       | let se: SyntaxError => se
       end
@@ -316,14 +317,14 @@ primitive OptionParser
       end
     end
 
-primitive ArgParser
+primitive _ArgParser
   fun parse(spec: ArgSpec, arg: String): (Arg | SyntaxError) =>
-    match ValueParser.parse(spec.typ, arg)
+    match _ValueParser.parse(spec.typ, arg)
     | let v: Value => Arg(spec, v)
     | let se: SyntaxError => se
     end
 
-primitive ValueParser
+primitive _ValueParser
   fun box parse(typ: ValueType, arg: String): (Value | SyntaxError) =>
     try
       match typ

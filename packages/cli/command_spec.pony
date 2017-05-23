@@ -125,7 +125,7 @@ class val OptionSpec
   OptionSpec describes the specification of an option. Options have a name,
   descr(iption), a short-name, a typ(e), and a default value when they are not
   required. Options can be placed anywhere before or after commands, and can be
-  thought of like named arguments.
+  thought of as named (vs positional) arguments.
   """
   let name: String
   let descr: String

@@ -13,6 +13,7 @@ use "ponytest"
 // Commented packages are broken at the moment. We have to fix them and
 // then keep the tests green.
 use ex_circle = "circle"
+use ex_commandline = "commandline"
 use ex_counter = "counter"
 use ex_echo = "echo"
 // use ex_ffi_struct = "ffi-struct"

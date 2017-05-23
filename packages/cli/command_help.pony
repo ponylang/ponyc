@@ -58,13 +58,14 @@ class box CommandHelp
 
   fun print_help(w: Writer) =>
     print_usage(w)
-    w.write("\n")
-    w.write(spec.descr + "\n")
-    w.write("\n")
+    if spec.descr.size() > 0 then
+      w.write("\n")
+      w.write(spec.descr + "\n")
+    end
 
     let options = all_options()
     if options.size() > 0 then
-      w.write("Options:\n")
+      w.write("\nOptions:\n")
       print_options(w, options)
     end
     if spec.commands.size() > 0 then
