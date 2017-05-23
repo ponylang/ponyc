@@ -27,6 +27,7 @@ actor Main is TestList
     test(_TestListTakeWhile)
     test(_TestMap)
     test(_TestMapVsMap)
+    test(_TestSet)
 
 class iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List/prepend()"
@@ -299,3 +300,28 @@ class iso _TestMapVsMap is UnitTest
     end
     h.assert_eq[USize](p_map.size(), c)
     h.assert_eq[USize](m_map.size(), 0)
+
+class iso _TestSet is UnitTest
+  fun name(): String => "collections/persistent/Set"
+
+  fun apply(h: TestHelper) =>
+    let a = Set[USize] + 1 + 2 + 3
+    let b = Set[USize] + 2 + 3 + 4
+
+    h.assert_false(a == b)
+    h.assert_true(a != b)
+
+    h.assert_false(a.contains(4))
+    h.assert_true((a + 4).contains(4))
+
+    h.assert_true(a.contains(3))
+    h.assert_false((a - 3).contains(3))
+
+    h.assert_true((a or b) == (Set[USize] + 1 + 2 + 3 + 4))
+    h.assert_true((b or a) == (Set[USize] + 1 + 2 + 3 + 4))
+    h.assert_true((a and b) == (Set[USize] + 2 + 3))
+    h.assert_true((b and a) == (Set[USize] + 2 + 3))
+    h.assert_true((a xor b) == (Set[USize] + 1 + 4))
+    h.assert_true((b xor a) == (Set[USize] + 1 + 4))
+    h.assert_true(a.without(b) == (Set[USize] + 1))
+    h.assert_true(b.without(a) == (Set[USize] + 4))
