@@ -115,6 +115,27 @@ class CommandParser
       end
     end
 
+    // If it's a help option, return a general or specific CommandHelp.
+    if options.contains(_help_name()) then
+      return
+        if _spec is _root_spec() then
+          Help.general(_root_spec())
+        else
+          Help.for_command(_root_spec(), [_spec.name])
+        end
+    end
+
+    // If it's a help command, return a general or specific CommandHelp.
+    if _spec.name == _help_name() then
+      try
+        match args("command").value
+        | "" => return Help.general(_root_spec())
+        | let c: String => return Help.for_command(_root_spec(), [c])
+        end
+      end
+      return Help.general(_root_spec())
+    end
+
     // Fill in option values from env or from coded defaults.
     for os in _spec.options.values() do
       if not options.contains(os.name) then
@@ -138,27 +159,6 @@ class CommandParser
           end
         end
       end
-    end
-
-    // If it's a help option, return a general or specific CommandHelp.
-    if options.contains(_help_name()) then
-      return
-        if _spec is _root_spec() then
-          Help.general(_root_spec())
-        else
-          Help.for_command(_root_spec(), [_spec.name])
-        end
-    end
-
-    // If it's a help command, return a general or specific CommandHelp.
-    if _spec.name == _help_name() then
-      try
-        match args("command").value
-        | "" => return Help.general(_root_spec())
-        | let c: String => return Help.for_command(_root_spec(), [c])
-        end
-      end
-      return Help.general(_root_spec())
     end
 
     // Check for missing options and error if any exist.

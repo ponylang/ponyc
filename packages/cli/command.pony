@@ -22,11 +22,11 @@ class box Command
     let s: String iso = spec.name.clone()
     for o in options.values() do
       s.append(" ")
-      s.append(o.string())
+      s.append(o.deb_string())
     end
     for a in args.values() do
       s.append(" ")
-      s.append(a.string())
+      s.append(a.deb_string())
     end
     s
 
@@ -41,7 +41,19 @@ class val Option
     spec = spec'
     value = value'
 
+  fun bool(): Bool =>
+    try return value as Bool else false end
+
   fun string(): String =>
+    try return value as String else "" end
+
+  fun i64(): I64 =>
+    try return value as I64 else I64(0) end
+
+  fun f64(): F64 =>
+    try return value as F64 else F64(0) end
+
+  fun deb_string(): String =>
     spec.deb_string() + "=" + value.string()
 
 class val Arg
@@ -55,7 +67,19 @@ class val Arg
     spec = spec'
     value = value'
 
+  fun bool(): Bool =>
+    try return value as Bool else false end
+
   fun string(): String =>
+    try return value as String else "" end
+
+  fun i64(): I64 =>
+    try return value as I64 else I64(0) end
+
+  fun f64(): F64 =>
+    try return value as F64 else F64(0) end
+
+  fun deb_string(): String =>
     "(" + spec.deb_string() + "=)" + value.string()
 
 class val SyntaxError
