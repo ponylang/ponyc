@@ -17,14 +17,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: linux
       addons:
@@ -32,14 +32,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: linux
       addons:
@@ -47,14 +47,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: linux
       addons:
@@ -62,14 +62,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: linux
       addons:
@@ -78,15 +78,15 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-3.9
           packages:
-            - g++-6
+            - g++-7
             - llvm-3.9-dev
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: linux
       addons:
@@ -95,15 +95,15 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-3.9
           packages:
-            - g++-6
+            - g++-7
             - llvm-3.9-dev
       env:
         - FAVORITE_CONFIG=yes
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc-7
+        - CXX1=g++-7
 
     - os: osx
       env:
