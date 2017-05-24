@@ -149,19 +149,6 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   return func;
 }
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
-{
-  const char* cc = getenv("CC");
-  if(cc == NULL)
-  {
-    *out_fallback_linker = true;
-    return PONY_COMPILER;
-  }
-  return cc;
-}
-#endif
-
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
@@ -249,16 +236,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* lib_args = program_lib_args(program);
 
   const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
-  bool fallback_linker = false;
-  const char* linker = c->opt->linker != NULL ? c->opt->linker :
-    env_cc_or_pony_compiler(&fallback_linker);
 
-  if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-  {
-    fprintf(stderr,
-      "Warning: environment variable $CC undefined, using %s as the linker\n",
-      PONY_COMPILER);
-  }
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
@@ -278,7 +256,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-flto -fuse-linker-plugin "
 #endif
     "%s %s %s %s -lpthread %s -lm %s",
-    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl,
+    c->opt->linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl,
     export
     );
 

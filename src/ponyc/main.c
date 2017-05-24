@@ -357,6 +357,30 @@ int main(int argc, char* argv[])
   opt.strip_debug = true;
 #endif
 
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  if(opt.linker == NULL)
+  {
+    char* cc = getenv("CC");
+    if(cc == NULL)
+    {
+      if(opt.verbosity >= VERBOSITY_MINIMAL)
+      {
+        fprintf(stderr,
+          "\nWarning: environment variable $CC undefined, "
+          "using %s as the linker\n\n",
+          PONY_COMPILER);
+      }
+
+      opt.linker = PONY_COMPILER;
+    } else {
+      opt.linker = cc;
+    }
+  }
+
+  if(strcmp(opt.linker, "gcc") == 0 || strcmp(opt.linker, "cc") == 0)
+    opt.pic = true;
+#endif
+
   if(!ok)
   {
     errors_print(opt.check.errors);
