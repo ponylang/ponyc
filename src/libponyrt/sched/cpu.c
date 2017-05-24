@@ -299,6 +299,10 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
     } else if((tsc2 - tsc) > 1000000000) {
       // If it has been 1 billion cycles, pause 1 ms.
       ts.tv_nsec = 1000000;
+    } else {
+      // Sleeping for 0 ns is a no-op on certain platforms.
+      // Sleep for at least 1 ns to avoid this.
+      ts.tv_nsec = 1;
     }
   }
 
