@@ -58,6 +58,7 @@ actor Main is TestList
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
+    test(_TestArrayClone)
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestAddc)
@@ -1261,6 +1262,39 @@ class iso _TestArrayFind is UnitTest
       predicate = {(l: _FindTestCls box, r: _FindTestCls box): Bool => l == r }
     ))
 
+class iso _TestArrayClone is UnitTest
+  """
+  Test iso cloning of arrays.
+  """
+  fun name(): String => "builtin/Array.clone"
+
+  fun apply(h: TestHelper) =>
+    // clone from ref
+    let refa: Array[String] ref = ["one"; "two"; "three"; "four"; "five"]
+    let refbval: Array[String] val = refa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], refbval)
+    let refbref: Array[String] ref = refa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], refbref)
+    let refbiso: Array[String] iso = refa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], consume refbiso)
+
+    // clone from iso
+    let isoa: Array[String] iso = recover iso ["one"; "two"; "three"; "four"; "five"] end
+    let isobval: Array[String] val = isoa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], isobval)
+    let isobref: Array[String] ref = isoa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], isobref)
+    let isobiso: Array[String] iso = isoa.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], consume isobiso)
+
+    // clone from val
+    let vala: Array[String] val = recover val ["one"; "two"; "three"; "four"; "five"] end
+    let valbval: Array[String] val = vala.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], valbval)
+    let valbref: Array[String] ref = vala.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], valbref)
+    let valbiso: Array[String] iso = vala.clone()
+    h.assert_array_eq[String](["one"; "two"; "three"; "four"; "five"], consume valbiso)
 
 class iso _TestMath128 is UnitTest
   """
