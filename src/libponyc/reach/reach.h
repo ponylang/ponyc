@@ -17,6 +17,7 @@ typedef struct reach_field_t reach_field_t;
 typedef struct reach_param_t reach_param_t;
 typedef struct reach_type_t reach_type_t;
 
+DECLARE_STACK(reachable_expr_stack, reachable_expr_stack_t, ast_t);
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
 DECLARE_HASHMAP(reach_methods, reach_methods_t, reach_method_t);
 DECLARE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t);
@@ -128,7 +129,8 @@ struct reach_type_t
 typedef struct
 {
   reach_types_t types;
-  reach_method_stack_t* stack;
+  reachable_expr_stack_t* expr_stack;
+  reach_method_stack_t* method_stack;
   uint32_t object_type_count;
   uint32_t numeric_type_count;
   uint32_t tuple_type_count;
