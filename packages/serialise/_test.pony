@@ -25,8 +25,8 @@ class _MachineWords
   var i32: I32 = 0x12345678
   var i64: I64 = 0x7EDCBA9876543210
   var i128: I128 = 0x7EDCBA9876543210123456789ABCDEFE
-  var ilong: ILong = ILong(1) << (ILong.bitwidth() - 1)
-  var isize: ISize = ISize(1) << (ISize.bitwidth() - 1)
+  var ilong: ILong = ILong(1) << (ILong(0).bitwidth() - 1)
+  var isize: ISize = ISize(1) << (ISize(0).bitwidth() - 1)
   var f32: F32 = 1.2345e-13
   var f64: F64 = 9.82643431e19
 
@@ -49,8 +49,8 @@ class _StructWords
   var u32: U32 = 0x12345678
   var u64: U64 = 0xFEDCBA9876543210
   var u128: U128 = 0xFEDCBA9876543210123456789ABCDEFE
-  var ulong: ULong = 1 << (ULong.bitwidth() - 1)
-  var usize: USize = 1 << (USize.bitwidth() - 1)
+  var ulong: ULong = 1 << (ULong(0).bitwidth() - 1)
+  var usize: USize = 1 << (USize(0).bitwidth() - 1)
 
   fun eq(that: _StructWords box): Bool =>
     (u8 == that.u8) and
