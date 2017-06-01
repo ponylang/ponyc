@@ -43,20 +43,8 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   ;;
 
   "linux:llvm-config-3.9")
+    download_llvm
     download_pcre
-
-    echo "Logging LLVM binary locations (installed via APT)..."
-    echo "llvm-config-3.9: $(which llvm-config-3.9)"
-    echo "clang++-3.9: $(which clang++-3.9)"
-    echo "clang-3.9: $(which clang-3.9)"
-
-    found_version="$(llvm-config-3.9 --version)"
-    echo "LLVM version: $found_version"
-
-    if [[ "$found_version" != "$LLVM_VERSION" ]]
-    then
-      echo "WARNING: the LLVM version expected ($LLVM_VERSION) does not match that installed ($found_version)!"
-    fi
   ;;
 
   "osx:llvm-config-3.7")

@@ -76,10 +76,8 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
           packages:
             - g++-6
-            - llvm-3.9-dev
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
@@ -93,10 +91,8 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
           packages:
             - g++-6
-            - llvm-3.9-dev
       env:
         - FAVORITE_CONFIG=yes
         - LLVM_VERSION="3.9.1"
