@@ -92,12 +92,32 @@ primitive Format
     let zero = x.from[USize](0)
     (let abs, let neg) = if x < zero then (-x, true) else (x, false) end
 
-    if x is U128 then
+    iftype A <: U128 then
       _FormatInt.u128(x.u128(), false, fmt, prefix, prec, width, align, fill)
-    elseif x is I128 then
+    elseif A <: I128 then
       _FormatInt.u128(abs.u128(), neg, fmt, prefix, prec, width, align, fill)
-    else
+    elseif A <: (U64 | I64) then
       _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U32 | I32) then
+      _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U16 | I16) then
+      _FormatInt.u16(abs.u16(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U8 | I8) then
+      _FormatInt.u8(abs.u8(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (USize | ISize) then
+      ifdef ilp32 then
+        _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+      else
+        _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+      end
+    elseif A <: (ULong | ILong) then
+      ifdef ilp32 or llp64 then
+        _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+      else
+        _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+      end
+    else
+      _FormatInt.u128(x.u128(), false, fmt, prefix, prec, width, align, fill)
     end
 
   fun float[A: (Float & FloatingPoint[A])](x: A,
