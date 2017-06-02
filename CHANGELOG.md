@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash involving "dont care" symbol in an if or try block. ([PR #1907](https://github.com/ponylang/ponyc/pull/1907))
 - Don't call TCPConnection backpressure notifies incorrectly ([PR #1904](https://github.com/ponylang/ponyc/pull/1904))
 - Fix outdated methods in persistent.Map docstring. ([PR #1901](https://github.com/ponylang/ponyc/pull/1901))
+- Fix format for number types (issue #1920) ([PR #1927](https://github.com/ponylang/ponyc/pull/1927))
 
 
 ### Added
