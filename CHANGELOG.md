@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler crash when a field is used in a default argument. ([PR #1940](https://github.com/ponylang/ponyc/pull/1940))
 - Fix compiler crash on non-existent field reference in constructor. ([PR #1941](https://github.com/ponylang/ponyc/pull/1941))
 - Fix compiler crash on "_" as argument in a case expression. ([PR #1924](https://github.com/ponylang/ponyc/pull/1924))
 - Fix compiler crash on type argument error inside an early return. ([PR #1923](https://github.com/ponylang/ponyc/pull/1923))
