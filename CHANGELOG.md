@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change machine word constructors to have no default argument. ([PR #1938](https://github.com/ponylang/ponyc/pull/1938))
 - Change iftype to use elseif instead of elseiftype as next keyword. ([PR #1905](https://github.com/ponylang/ponyc/pull/1905))
 
 
