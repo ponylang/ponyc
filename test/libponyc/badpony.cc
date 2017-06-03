@@ -571,6 +571,19 @@ TEST_F(BadPonyTest, CallArgTypeErrorInsideTuple)
   TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
+TEST_F(BadPonyTest, NonExistFieldReferenceInConstructor)
+{
+  // From issue #1932
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    this.x = None";
+
+  TEST_ERRORS_2(src,
+    "can't find declaration of 'x'",
+    "left side must be something that can be assigned to");
+}
+
 TEST_F(BadPonyTest, TypeArgErrorInsideReturn)
 {
   const char* src =
