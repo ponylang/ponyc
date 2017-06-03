@@ -633,7 +633,9 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
       if(ast_id(left) == TK_THIS)
       {
         ast_t* def = (ast_t*)ast_data(ast);
-        pony_assert(def != NULL);
+
+        if(def == NULL)
+          return false;
 
         switch(ast_id(def))
         {
