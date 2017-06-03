@@ -585,3 +585,17 @@ TEST_F(BadPonyTest, TypeArgErrorInsideReturn)
 
   TEST_ERRORS_1(src, "not enough type arguments");
 }
+
+TEST_F(BadPonyTest, FieldReferenceInDefaultArgument)
+{
+  const char* src =
+    "actor Main\n"
+    "  let _env: Env\n"
+    "  new create(env: Env) =>\n"
+    "    _env = env\n"
+    "    foo()\n"
+    "  fun foo(env: Env = _env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't reference 'this' in a default argument");
+}
