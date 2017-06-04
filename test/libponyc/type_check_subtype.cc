@@ -1097,6 +1097,20 @@ TEST_F(SubTypeTest, TupleTagTagNotSubAnyVal)
 }
 
 
+TEST_F(SubTypeTest, TupleRefValOrValSubAnyBox)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C ref, (C val | D val))) =>\n"
+    "    let x': Any box = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(SubTypeTest, TupleValTagSubAnyShare)
 {
   const char* src =

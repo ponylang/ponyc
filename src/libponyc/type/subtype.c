@@ -713,25 +713,19 @@ static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super,
     if(ast_childcount(super_members) == 0)
     {
       // This is an empty interface, so we let the tuple be a subtype if the
-      // caps of the elements of the tuple are subcaps of the supertype cap.
+      // caps of the elements of the tuple are subcaps of the interface cap.
       for(ast_t* child = ast_child(sub);
         child != NULL;
         child = ast_sibling(child))
       {
-        if(!is_sub_cap_and_eph(child, super, check_cap, errorf, opt))
+        if(!is_x_sub_x(child, super, check_cap, errorf, opt))
         {
           if(errorf != NULL)
           {
-            ast_t* child_cap = cap_fetch(child);
-            ast_t* child_eph = ast_sibling(child_cap);
-            ast_t* super_cap = cap_fetch(super);
-            ast_t* super_eph = ast_sibling(super_cap);
-
             ast_error_frame(errorf, child,
-              "%s is not a subtype of %s: %s%s is not a subcap of %s%s",
+              "%s is not a subtype of %s: %s is not a subtype of %s",
               ast_print_type(sub), ast_print_type(super),
-              ast_print_type(child_cap), ast_print_type(child_eph),
-              ast_print_type(super_cap), ast_print_type(super_eph));
+              ast_print_type(child), ast_print_type(super));
           }
           return false;
         }
