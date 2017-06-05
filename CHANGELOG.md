@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add support for custom serialisation (RFC 21) ([PR #1839](https://github.com/ponylang/ponyc/pull/1839))
 - Add persistent set (RFC 42) ([PR #1925](https://github.com/ponylang/ponyc/pull/1925))
 - Bare methods and bare lambdas (RFC 34) ([PR #1858](https://github.com/ponylang/ponyc/pull/1858))
 - xoroshiro128+ implementation ([PR #1909](https://github.com/ponylang/ponyc/pull/1909))
