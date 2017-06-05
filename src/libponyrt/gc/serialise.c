@@ -143,7 +143,8 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   (void)ctx;
   (void)actor;
   serialise_cleanup(ctx);
-  pony_throw();
+  ctx->serialise_throw();
+  abort();
 }
 
 void custom_deserialise(pony_ctx_t* ctx)
@@ -210,21 +211,28 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   return (size_t)t->id | HIGH_BIT;
 }
 
-PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, void* out)
+PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
+  void* out, serialise_alloc_fn alloc_fn, serialise_throw_fn throw_fn)
 {
   // This can raise an error.
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_serialise_object;
   ctx->trace_actor = ponyint_serialise_actor;
   ctx->serialise_size = 0;
+  ctx->serialise_alloc = alloc_fn;
+  ctx->serialise_throw = throw_fn;
 
-  pony_traceunknown(ctx, p, PONY_TRACE_MUTABLE);
+  if(t != NULL)
+    pony_traceknown(ctx, p, t, PONY_TRACE_MUTABLE);
+  else
+    pony_traceunknown(ctx, p, PONY_TRACE_MUTABLE);
+
   ponyint_gc_handlestack(ctx);
 
   ponyint_array_t* r = (ponyint_array_t*)out;
   r->size = ctx->serialise_size;
   r->alloc = r->size;
-  r->ptr = (char*)pony_alloc(ctx, r->size);
+  r->ptr = (char*)alloc_fn(ctx, r->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
@@ -278,7 +286,8 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
     if((offset + sizeof(uintptr_t)) > ctx->serialise_size)
     {
       serialise_cleanup(ctx);
-      pony_throw();
+      ctx->serialise_throw();
+      abort();
     }
 
     // Turn the type id into a descriptor pointer.
@@ -294,15 +303,17 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   if((offset + t->size) > ctx->serialise_size)
   {
     serialise_cleanup(ctx);
-    pony_throw();
+    ctx->serialise_throw();
+    abort();
   }
 
   // Allocate the object, memcpy to it.
   void* object;
   if(t->final == NULL)
-    object = pony_alloc(ctx, t->size);
+    object = ctx->serialise_alloc(ctx, t->size);
   else
-    object = pony_alloc_final(ctx, t->size);
+    object = ctx->serialise_alloc_final(ctx, t->size);
+
   memcpy(object, (void*)((uintptr_t)ctx->serialise_buffer + offset), t->size);
 
   // Store a mapping of offset to object.
@@ -326,23 +337,28 @@ PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
   if((offset + size) > ctx->serialise_size)
   {
     serialise_cleanup(ctx);
-    pony_throw();
+    ctx->serialise_throw();
+    abort();
   }
 
-  void* block = pony_alloc(ctx, size);
+  void* block = ctx->serialise_alloc(ctx, size);
   memcpy(block, (void*)((uintptr_t)ctx->serialise_buffer + offset), size);
   return block;
 }
 
-
-PONY_API void* pony_deserialise(pony_ctx_t* ctx, void* in)
+PONY_API void* pony_deserialise(pony_ctx_t* ctx, pony_type_t* t, void* in,
+  serialise_alloc_fn alloc_fn, serialise_alloc_fn alloc_final_fn,
+  serialise_throw_fn throw_fn)
 {
   // This can raise an error.
   ponyint_array_t* r = (ponyint_array_t*)in;
   ctx->serialise_buffer = r->ptr;
   ctx->serialise_size = r->size;
+  ctx->serialise_alloc = alloc_fn;
+  ctx->serialise_alloc_final = alloc_final_fn;
+  ctx->serialise_throw = throw_fn;
 
-  void* object = pony_deserialise_offset(ctx, NULL, 0);
+  void* object = pony_deserialise_offset(ctx, t, 0);
   ponyint_gc_handlestack(ctx);
 
   custom_deserialise(ctx);

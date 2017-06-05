@@ -32,6 +32,9 @@ typedef struct pony_ctx_t
   void* serialise_buffer;
   size_t serialise_size;
   ponyint_serialise_t serialise;
+  serialise_alloc_fn serialise_alloc;
+  serialise_alloc_fn serialise_alloc_final;
+  serialise_throw_fn serialise_throw;
 } pony_ctx_t;
 
 struct scheduler_t
