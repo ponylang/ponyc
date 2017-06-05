@@ -795,6 +795,9 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     case TK_CLASS:
       add_traits_to_type(r, t, opt);
       add_special(r, t, type, "_final", opt);
+      add_special(r, t, type, "_serialise_space", opt);
+      add_special(r, t, type, "_serialise", opt);
+      add_special(r, t, type, "_deserialise", opt);
       add_fields(r, t, opt);
       break;
 

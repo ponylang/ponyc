@@ -4,6 +4,8 @@
 #include "gencall.h"
 #include "gendesc.h"
 #include "ponyassert.h"
+#include "../../libponyrt/mem/pool.h"
+#include "../../libponyrt/mem/heap.h"
 
 static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   LLVMValueRef object, LLVMValueRef offset)
@@ -37,7 +39,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
       break;
     }
 
-    case TK_ACTOR:
+  case TK_ACTOR:
     {
       // Skip the actor pad.
       genserialise_typeid(c, t, offset);
@@ -74,6 +76,26 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     genserialise_element(c, t->fields[i].type, t->fields[i].embed,
       ctx, field, f_offset);
+  }
+
+  if(t->custom_serialise_fn != NULL)
+  {
+    LLVMValueRef f_size = LLVMConstInt(c->intptr,
+      LLVMStoreSizeOfType(c->target_data, structure), false);
+    LLVMValueRef f_offset = LLVMBuildInBoundsGEP(c->builder, offset, &f_size,
+      1, "");
+
+    LLVMValueRef args[2];
+
+    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(t->custom_serialise_fn));
+    size_t buf_size = 2 * sizeof(void *);
+    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMGetParamTypes(f_type, params);
+    args[0] = LLVMBuildBitCast(c->builder, object, params[0], "");
+    args[1] = LLVMBuildBitCast(c->builder, f_offset, params[1], "");
+    codegen_call(c, t->custom_serialise_fn, args, 2, true);
+
+    ponyint_pool_free_size(buf_size, params);
   }
 }
 

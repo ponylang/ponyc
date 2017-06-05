@@ -172,6 +172,9 @@ static void init_runtime(compile_t* c)
   c->str__init = stringtab("_init");
   c->str__final = stringtab("_final");
   c->str__event_notify = stringtab("_event_notify");
+  c->str__serialise_space = stringtab("_serialise_space");
+  c->str__serialise = stringtab("_serialise");
+  c->str__deserialise = stringtab("_deserialise");
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -222,6 +225,19 @@ static void init_runtime(compile_t* c)
   params[4] = c->i32;
   c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
   c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
+
+  // serialise_space
+  // i64 (__object*)
+  params[0] = c->object_ptr;
+  c->custom_serialise_space_fn = LLVMPointerType(
+    LLVMFunctionType(c->i64, params, 1, false), 0);
+
+  // custom_deserialise
+  // void (*)(__object*, void*)
+  params[0] = c->object_ptr;
+  params[1] = c->void_ptr;
+  c->custom_deserialise_fn = LLVMPointerType(
+  LLVMFunctionType(c->void_type, params, 2, false), 0);
 
   // dispatch
   // void (*)(i8*, __object*, $message*)
