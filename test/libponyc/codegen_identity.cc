@@ -184,6 +184,25 @@ TEST_F(CodegenIdentityTest, TupleCardinality)
 }
 
 
+TEST_F(CodegenIdentityTest, AbstractTypeNoSubtyping)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: (Env | None) = None\n"
+    "    let b: (Main | None) = None\n"
+    "    if a is b then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(CodegenIdentityTest, DigestofObject)
 {
   const char* src =
