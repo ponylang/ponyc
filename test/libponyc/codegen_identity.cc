@@ -167,6 +167,23 @@ TEST_F(CodegenIdentityTest, BoxedTupleIsBoxedTuple)
 }
 
 
+TEST_F(CodegenIdentityTest, TupleCardinality)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if (env, this, this) isnt (env, this) then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(CodegenIdentityTest, DigestofObject)
 {
   const char* src =

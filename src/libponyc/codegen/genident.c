@@ -263,14 +263,16 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 
     case LLVMStructTypeKind:
     {
-      // Pairwise comparison.
       if(LLVMGetTypeKind(r_type) == LLVMStructTypeKind)
-        return tuple_is(c, left_type, right_type, l_value, r_value);
-
-      // If left_type is a subtype of right_type, check if r_value is a boxed
-      // tuple.
-      if(is_subtype(left_type, right_type, NULL, c->opt))
+      {
+        // Pairwise comparison.
+        if(ast_childcount(left_type) == ast_childcount(right_type))
+          return tuple_is(c, left_type, right_type, l_value, r_value);
+      } else if(is_subtype(left_type, right_type, NULL, c->opt)) {
+        // If left_type is a subtype of right_type, check if r_value is a boxed
+        // tuple.
         return raw_is_box(c, left_type, l_value, r_value);
+      }
 
       // It can't have the same identity.
       return LLVMConstInt(c->i1, 0, false);
