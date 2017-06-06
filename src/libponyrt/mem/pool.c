@@ -412,7 +412,10 @@ static void pool_block_push(pool_block_global_header_t* header,
   pool_block_t* block)
 {
   atomic_store_explicit(&block->acquired, false, memory_order_relaxed);
-  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_relaxed);
+  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&header->in_counter);
+#endif
 
   pool_block_t* base = &header->head;
 
@@ -482,7 +485,10 @@ static pool_block_t* pool_block_pull(pool_block_global_header_t* header,
   if(block == NULL)
     return NULL;
 
-  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_relaxed);
+  atomic_fetch_add_explicit(&header->in_counter, 1, memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&header->in_counter);
+#endif
 
   while(true)
   {
@@ -534,6 +540,11 @@ static pool_block_t* pool_block_pull(pool_block_global_header_t* header,
       atomic_store_explicit(&prev->acquired, false, memory_order_relaxed);
       continue;
     }
+
+    atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_AFTER(&block->acquired);
+#endif
 
     pool_block_t* next = atomic_load_explicit(&block->global,
       memory_order_relaxed);
