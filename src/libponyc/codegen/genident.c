@@ -101,7 +101,7 @@ static LLVMValueRef raw_is_box(compile_t* c, ast_t* left_type,
 }
 
 static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
-  LLVMValueRef l_value, LLVMValueRef r_value, int possible_boxes)
+  LLVMValueRef l_value, LLVMValueRef r_value, int sub_kind)
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(l_value)) == LLVMPointerTypeKind);
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMPointerTypeKind);
@@ -110,10 +110,10 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
   LLVMBasicBlockRef checkbox_block = codegen_block(c, "is_checkbox");
   LLVMBasicBlockRef box_block = codegen_block(c, "is_box");
   LLVMBasicBlockRef num_block = NULL;
-  if((possible_boxes & SUBTYPE_KIND_NUMERIC) != 0)
+  if((sub_kind & SUBTYPE_KIND_NUMERIC) != 0)
     num_block = codegen_block(c, "is_num");
   LLVMBasicBlockRef tuple_block = NULL;
-  if((possible_boxes & SUBTYPE_KIND_TUPLE) != 0)
+  if((sub_kind & SUBTYPE_KIND_TUPLE) != 0)
     tuple_block = codegen_block(c, "is_tuple");
   LLVMBasicBlockRef post_block = codegen_block(c, "is_post");
 
@@ -128,7 +128,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
   LLVMValueRef same_type = LLVMBuildICmp(c->builder, LLVMIntEQ, l_desc, r_desc,
     "");
   LLVMValueRef l_typeid = NULL;
-  if((possible_boxes & SUBTYPE_KIND_UNBOXED) != 0)
+  if((sub_kind & SUBTYPE_KIND_UNBOXED) != 0)
   {
     l_typeid = gendesc_typeid(c, l_desc);
     LLVMValueRef boxed_mask = LLVMConstInt(c->i32, 1, false);
@@ -145,7 +145,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
 
   // Check whether it's a numeric primitive or a tuple.
   LLVMPositionBuilderAtEnd(c->builder, box_block);
-  if((possible_boxes & SUBTYPE_KIND_BOXED) == SUBTYPE_KIND_BOXED)
+  if((sub_kind & SUBTYPE_KIND_BOXED) == SUBTYPE_KIND_BOXED)
   {
     if(l_typeid == NULL)
       l_typeid = gendesc_typeid(c, l_desc);
@@ -154,10 +154,10 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
     boxed_num = LLVMBuildICmp(c->builder, LLVMIntEQ, boxed_num, zero, "");
     LLVMBuildCondBr(c->builder, boxed_num, num_block, tuple_block);
-  } else if((possible_boxes & SUBTYPE_KIND_NUMERIC) != 0) {
+  } else if((sub_kind & SUBTYPE_KIND_NUMERIC) != 0) {
     LLVMBuildBr(c->builder, num_block);
   } else {
-    pony_assert((possible_boxes & SUBTYPE_KIND_TUPLE) != 0);
+    pony_assert((sub_kind & SUBTYPE_KIND_TUPLE) != 0);
     LLVMBuildBr(c->builder, tuple_block);
   }
 
@@ -286,20 +286,42 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
       l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "");
       r_value = LLVMBuildBitCast(c->builder, r_value, c->object_ptr, "");
 
-      if(!is_known(left_type) && !is_known(right_type))
+      bool left_known = is_known(left_type);
+      bool right_known = is_known(right_type);
+      reach_type_t* r_left = reach_type(c->reach, left_type);
+      reach_type_t* r_right = reach_type(c->reach, right_type);
+
+      if(!left_known && !right_known)
       {
-        reach_type_t* r_left = reach_type(c->reach, left_type);
-        reach_type_t* r_right = reach_type(c->reach, right_type);
-        int possible_boxes = subtype_kind_overlap(r_left, r_right);
+        int sub_kind = subtype_kind_overlap(r_left, r_right);
 
-        if((possible_boxes & SUBTYPE_KIND_BOXED) != 0)
-          return box_is_box(c, r_left, l_value, r_value, possible_boxes);
+        if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
+          return box_is_box(c, r_left, l_value, r_value, sub_kind);
+
+        // If the types can be the same, check the address.
+        if(sub_kind != SUBTYPE_KIND_NONE)
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      } else if(left_known && right_known) {
+        // If the types are the same, check the address.
+        if(r_left == r_right)
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      } else {
+        ast_t* known;
+        ast_t* unknown;
+
+        if(left_known)
+        {
+          known = left_type;
+          unknown = right_type;
+        } else {
+          known = right_type;
+          unknown = left_type;
+        }
+
+        // If the types can be the same, check the address.
+        if(is_subtype(known, unknown, NULL, c->opt))
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
       }
-
-      // If the types can be the same, check the address.
-      if(is_subtype(left_type, right_type, NULL, c->opt) ||
-        is_subtype(right_type, left_type, NULL, c->opt))
-        return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
 
       // It can't have the same identity.
       return LLVMConstInt(c->i1, 0, false);
