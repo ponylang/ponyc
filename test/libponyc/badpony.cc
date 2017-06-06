@@ -612,3 +612,14 @@ TEST_F(BadPonyTest, FieldReferenceInDefaultArgument)
 
   TEST_ERRORS_1(src, "can't reference 'this' in a default argument");
 }
+
+
+TEST_F(BadPonyTest, DefaultArgScope)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo(x: None = (let y = None; y)) =>\n"
+    "    y";
+
+  TEST_ERRORS_1(src, "can't find declaration of 'y'");
+}

@@ -64,7 +64,14 @@ DEF(provides);
   RULE("provided type", type);
   DONE();
 
-// postfix [COLON type] [ASSIGN infix]
+// infix
+DEF(defaultarg);
+  PRINT_INLINE();
+  SCOPE();
+  RULE("default value", infix);
+  DONE();
+
+// postfix [COLON type] [ASSIGN defaultarg]
 DEF(param);
   AST_NODE(TK_PARAM);
   RULE("name", parampattern);
@@ -72,7 +79,7 @@ DEF(param);
     RULE("parameter type", type);
     UNWRAP(0, TK_REFERENCE);
   );
-  IF(TK_ASSIGN, RULE("default value", infix));
+  IF(TK_ASSIGN, RULE("default value", defaultarg));
   DONE();
 
 // ELLIPSIS
