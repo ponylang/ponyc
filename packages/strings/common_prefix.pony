@@ -1,6 +1,7 @@
 primitive CommonPrefix
   """
-  Creates a string that is the common prefix of the supplied strings, possibly empty.
+  Creates a string that is the common prefix of the supplied strings, possibly
+  empty.
   """
 
   fun apply(data: ReadSeq[Stringable]): String iso^ =>

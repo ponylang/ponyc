@@ -24,10 +24,10 @@ class iso _TestPromise is UnitTest
   fun _test_rejected(h: TestHelper) =>
     h.expect_action("rejected")
     let p = Promise[String]
-    p.next[String](
-      {(s: String): String ? => error } iso,
-      {(): String => "rejected" } iso
-    ).next[None](
-      {(s: String) => h.complete_action(s) } iso
-    )
+    p
+      .next[String](
+        {(s: String): String ? => error } iso,
+        {(): String => "rejected" } iso)
+      .next[None](
+        {(s: String) => h.complete_action(s) } iso)
     p.reject()

@@ -36,8 +36,10 @@ primitive Base64
     """
     encode(data, '+', '/', '=', 76)
 
-  fun encode_url[A: Seq[U8] iso = String iso](data: ReadSeq[U8],
-    pad: Bool = false): A^
+  fun encode_url[A: Seq[U8] iso = String iso](
+    data: ReadSeq[U8],
+    pad: Bool = false)
+    : A^
   =>
     """
     Encode for URLs (RFC 4648). Padding characters are stripped by default.
@@ -45,9 +47,14 @@ primitive Base64
     let c: U8 = if pad then '=' else 0 end
     encode[A](data, '-', '_', c)
 
-  fun encode[A: Seq[U8] iso = String iso](data: ReadSeq[U8], at62: U8 = '+',
-    at63: U8 = '/', pad: U8 = '=', linelen: USize = 0,
-    linesep: String = "\r\n"): A^
+  fun encode[A: Seq[U8] iso = String iso](
+    data: ReadSeq[U8],
+    at62: U8 = '+',
+    at63: U8 = '/',
+    pad: U8 = '=',
+    linelen: USize = 0,
+    linesep: String = "\r\n")
+    : A^
   =>
     """
     Configurable encoding. The defaults are for RFC 4648.
@@ -121,8 +128,12 @@ primitive Base64
     """
     decode[A](data, '-', '_')
 
-  fun decode[A: Seq[U8] iso = Array[U8] iso](data: ReadSeq[U8], at62: U8 = '+',
-    at63: U8 = '/', pad: U8 = '='): A^ ?
+  fun decode[A: Seq[U8] iso = Array[U8] iso](
+    data: ReadSeq[U8],
+    at62: U8 = '+',
+    at63: U8 = '/',
+    pad: U8 = '=')
+    : A^ ?
   =>
     """
     Configurable decoding. The defaults are for RFC 4648. Missing padding is
@@ -139,20 +150,21 @@ primitive Base64
     for i in Range(0, data.size()) do
       input = data(i)
 
-      let value = match input
-      | ' ' | '\t' | '\r' | '\n' => continue
-      | pad => break
-      | at62 => 62
-      | at63 => 63
-      | if (input >= 'A') and (input <= 'Z') =>
-        (input - 'A')
-      | if (input >= 'a') and (input <= 'z') =>
-        ((input - 'a') + 26)
-      | if (input >= '0') and (input <= '9') =>
-        ((input - '0') + 52)
-      else
-        error
-      end
+      let value =
+        match input
+        | ' ' | '\t' | '\r' | '\n' => continue
+        | pad => break
+        | at62 => 62
+        | at63 => 63
+        | if (input >= 'A') and (input <= 'Z') =>
+          (input - 'A')
+        | if (input >= 'a') and (input <= 'z') =>
+          ((input - 'a') + 26)
+        | if (input >= '0') and (input <= '9') =>
+          ((input - '0') + 52)
+        else
+          error
+        end
 
       match state
       | 0 =>

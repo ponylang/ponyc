@@ -1,8 +1,8 @@
 primitive _Color
   """
-  Strings to embedded in text to specify colours.
-  These are copies of the strings defined in packages/term. They are duplicated
-  here to avoid a dependency.
+  Strings to embedded in text to specify colours. These are copies of the
+  strings defined in packages/term. They are duplicated here to avoid a
+  dependency.
   """
   fun reset(): String =>
     """

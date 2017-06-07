@@ -88,6 +88,10 @@ actor Main
   (let a, let b) = ("a", "b")
 
   let ns = [as USize: 1; 2; 3]
+
+  fun foo(i: USize, bar: USize = 0)
+
+  foo(x where bar = y)
   ```
 
 - The `not` operator is surrounded by spaces, but the `-` operator is not followed by a space.
@@ -226,13 +230,13 @@ let ns = [ as USize:
 
   ```pony
   if cond1 then e1
-  elif cond2 then e2
+  elseif cond2 then e2
   else e3
   end
 
   if cond1 then
     e1
-  elif cond2 then
+  elseif cond2 then
     e2
   else
     e3
@@ -315,7 +319,7 @@ else
 end
 ```
 
-### Function Declarations
+### Method Declarations
 
 - Partial functions are denoted with a `?` separated from other symbols by one space.
 
@@ -348,6 +352,12 @@ end
     predicate: {(box->A!, box->A!): Bool} val =
       {(l: box->A!, r: box->A!): Bool => l is r })
     : USize ?
+  =>
+    // ...
+
+  // OK
+  fun tag _init(typ': ValueType, default': (Value | None))
+    : (ValueType, Value, Bool) ?
   =>
     // ...
 

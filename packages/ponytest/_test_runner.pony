@@ -23,8 +23,14 @@ actor _TestRunner
   var _tearing_down: Bool = false
   var _test_timers: Array[Timer tag] = Array[Timer tag]
 
-  new create(ponytest: PonyTest, id: USize, test: UnitTest iso, group: _Group,
-    verbose: Bool, env: Env, timers: Timers)
+  new create(
+    ponytest: PonyTest,
+    id: USize,
+    test: UnitTest iso,
+    group: _Group,
+    verbose: Bool,
+    env: Env,
+    timers: Timers)
   =>
     """
     Create a new TestHelper.
@@ -192,11 +198,18 @@ actor _TestRunner
       return
     end
 
-    let timer = Timer(object iso
-      let _runner: _TestRunner = this
-      fun apply(timer: Timer, count: U64): Bool => _runner._timeout(); false
-      fun cancel(timer: Timer) => None
-      end, timeout)
+    let timer =
+      Timer(
+        object iso
+          let _runner: _TestRunner = this
+          
+          fun apply(timer: Timer, count: U64): Bool =>
+            _runner._timeout()
+            false
+          
+          fun cancel(timer: Timer) => None
+        end,
+        timeout)
     _test_timers.push(timer)
     _timers(consume timer)
 

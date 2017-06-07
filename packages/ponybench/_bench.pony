@@ -18,7 +18,7 @@ actor _Bench[A: Any #share] is _Benchmark
         DoNotOptimise[A](_f())
       end
       let t = Time.nanos() - start
-      _notify._result(_name, _ops, t/_ops)
+      _notify._result(_name, _ops, t / _ops)
     else
       _notify._failure(_name, false)
     end

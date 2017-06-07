@@ -47,8 +47,10 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       error
     end
 
-  fun val update(hash: U32, leaf: _MapLeaf[K, V, H]):
-    (_MapNode[K, V, H], Bool) ?
+  fun val update(
+    hash: U32,
+    leaf: _MapLeaf[K, V, H])
+    : (_MapNode[K, V, H], Bool) ?
   =>
     let idx = _Bits.mask(hash, _level)
     let i = _compressed_index(_nodemap, _datamap, idx)

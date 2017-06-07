@@ -1,6 +1,9 @@
 use "net"
 
-use @SSL_ctrl[ILong](ssl: Pointer[_SSL], op: I32, arg: ILong,
+use @SSL_ctrl[ILong](
+  ssl: Pointer[_SSL],
+  op: I32,
+  arg: ILong,
   parg: Pointer[None])
 
 primitive _SSL
@@ -25,8 +28,12 @@ class SSL
   var _state: SSLState = SSLHandshake
   var _read_buf: Array[U8] iso = recover Array[U8] end
 
-  new _create(ctx: Pointer[_SSLContext] tag, server: Bool, verify: Bool,
-    hostname: String = "") ?
+  new _create(
+    ctx: Pointer[_SSLContext] tag,
+    server: Bool,
+    verify: Bool,
+    hostname: String = "")
+    ?
   =>
     """
     Create a client or server SSL session from a context.
@@ -48,9 +55,10 @@ class SSL
 
     @SSL_set_bio[None](_ssl, _input, _output)
 
-    if (_hostname.size() > 0) and
-      not DNS.is_ip4(_hostname) and
-      not DNS.is_ip6(_hostname)
+    if
+      (_hostname.size() > 0)
+        and not DNS.is_ip4(_hostname)
+        and not DNS.is_ip6(_hostname)
     then
       // SSL_set_tlsext_host_name
       @SSL_ctrl(_ssl, 55, 0, _hostname.cstring())
@@ -101,8 +109,8 @@ class SSL
       @SSL_read[I32](_ssl, _read_buf.cpointer().usize() + offset, len.i32())
     else
       _read_buf.undefined(offset + len)
-      let r = @SSL_read[I32](_ssl, _read_buf.cpointer().usize() + offset,
-        len.i32())
+      let r =
+        @SSL_read[I32](_ssl, _read_buf.cpointer().usize() + offset, len.i32())
 
       if r <= 0 then
         match @SSL_get_error[I32](_ssl, r)
@@ -171,7 +179,7 @@ class SSL
     let len = @BIO_ctrl_pending[USize](_output)
     if len == 0 then error end
 
-    let buf = recover Array[U8].>undefined(len) end
+    let buf = recover Array[U8] .> undefined(len) end
     @BIO_read[I32](_output, buf.cpointer(), buf.size().u32())
     buf
 

@@ -75,7 +75,7 @@ class List[A] is Seq[A]
     Remove the i-th node, raising an error if the index is out of bounds.
     The removed node is returned.
     """
-    index(i).>remove()
+    index(i) .> remove()
 
   fun ref clear() =>
     """
@@ -149,7 +149,7 @@ class List[A] is Seq[A]
     """
     Removes a value from the tail of the list.
     """
-    tail().>remove().pop()
+    tail() .> remove().pop()
 
   fun ref unshift(a: A) =>
     """
@@ -161,9 +161,11 @@ class List[A] is Seq[A]
     """
     Removes a value from the head of the list.
     """
-    head().>remove().pop()
+    head() .> remove().pop()
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
   =>
     """
@@ -241,7 +243,10 @@ class List[A] is Seq[A]
       List[B]
     end
 
-  fun _map[B](ln: this->ListNode[A], f: {(this->A!): B^} box, acc: List[B])
+  fun _map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): B^} box,
+    acc: List[B])
     : List[B]^
   =>
     """
@@ -266,7 +271,9 @@ class List[A] is Seq[A]
       List[B]
     end
 
-  fun _flat_map[B](ln: this->ListNode[A], f: {(this->A!): List[B]} box,
+  fun _flat_map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): List[B]} box,
     acc: List[B]): List[B]^
   =>
     """
@@ -290,7 +297,9 @@ class List[A] is Seq[A]
       List[this->A!]
     end
 
-  fun _filter(ln: this->ListNode[A], f: {(this->A!): Bool} box,
+  fun _filter(
+    ln: this->ListNode[A],
+    f: {(this->A!): Bool} box,
     acc: List[this->A!]): List[this->A!]
   =>
     """
@@ -319,7 +328,11 @@ class List[A] is Seq[A]
 
     _fold[B](h, f, consume acc)
 
-  fun _fold[B](ln: this->ListNode[A], f: {(B!, this->A!): B^} box, acc: B): B
+  fun _fold[B](
+    ln: this->ListNode[A],
+    f: {(B!, this->A!): B^} box,
+    acc: B)
+    : B
   =>
     """
     Private helper for fold, recursively working with ListNodes.
@@ -383,7 +396,9 @@ class List[A] is Seq[A]
       false
     end
 
-  fun partition(f: {(this->A!): Bool} box): (List[this->A!]^, List[this->A!]^)
+  fun partition(
+    f: {(this->A!): Bool} box)
+    : (List[this->A!]^, List[this->A!]^)
   =>
     """
     Builds a pair of lists, the first of which is made up of the elements
@@ -485,8 +500,10 @@ class List[A] is Seq[A]
       false
     end
 
-  fun _contains[B: (A & HasEq[A!] #read) = A](ln: this->ListNode[A],
-    a: box->B): Bool
+  fun _contains[B: (A & HasEq[A!] #read) = A](
+    ln: this->ListNode[A],
+    a: box->B)
+    : Bool
   =>
     """
     Private helper for contains, recursively working with ListNodes.

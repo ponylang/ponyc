@@ -122,9 +122,9 @@ primitive Time
     nanoseconds.
     """
     let wall_now = now()
-    nanos() +
-      (((wall._1 * 1000000000) + wall._2) -
-      ((wall_now._1 * 1000000000) + wall_now._2)).u64()
+    nanos()
+      + (((wall._1 * 1000000000) + wall._2)
+      - ((wall_now._1 * 1000000000) + wall_now._2)).u64()
 
   fun cycles(): U64 =>
     """

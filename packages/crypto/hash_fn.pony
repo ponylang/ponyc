@@ -16,10 +16,8 @@ primitive MD4 is HashFn
     """
     recover
       let size: USize = 16
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @MD4[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -31,10 +29,8 @@ primitive MD5 is HashFn
     """
     recover
       let size: USize = 16
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @MD5[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -46,10 +42,8 @@ primitive RIPEMD160 is HashFn
     """
     recover
       let size: USize = 20
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @RIPEMD160[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -62,10 +56,8 @@ primitive SHA1 is HashFn
     """
     recover
       let size: USize = 20
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @SHA1[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -78,10 +70,8 @@ primitive SHA224 is HashFn
     """
     recover
       let size: USize = 28
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @SHA224[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -94,10 +84,8 @@ primitive SHA256 is HashFn
     """
     recover
       let size: USize = 32
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @SHA256[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -110,10 +98,8 @@ primitive SHA384 is HashFn
     """
     recover
       let size: USize = 48
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @SHA384[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -126,10 +112,8 @@ primitive SHA512 is HashFn
     """
     recover
       let size: USize = 64
-      let digest = @pony_alloc[Pointer[U8]](
-        @pony_ctx[Pointer[None] iso](),
-        size
-      )
+      let digest =
+        @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size)
       @SHA512[Pointer[U8]](input.cpointer(), input.size(), digest)
       Array[U8].from_cpointer(digest, size)
     end
@@ -143,6 +127,6 @@ primitive ToHexString
     let out = recover String(bs.size() * 2) end
     for c in bs.values() do
       out.append(Format.int[U8](c where
-        fmt=FormatHexSmallBare, width=2, fill='0'))
+        fmt = FormatHexSmallBare, width = 2, fill = '0'))
     end
     consume out

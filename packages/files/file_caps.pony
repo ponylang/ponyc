@@ -65,4 +65,5 @@ type FileCaps is Flags[
   | FileTruncate
   | FileWrite
   | FileExec
-  ), U32]
+  ),
+  U32 ]

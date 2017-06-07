@@ -72,13 +72,15 @@ type ArgumentType is
   ( None
   | StringArgument
   | I64Argument
-  | F64Argument)
+  | F64Argument
+  )
 
 type ErrorReason is
   ( UnrecognisedOption
   | MissingArgument
   | InvalidArgument
-  | AmbiguousMatch)
+  | AmbiguousMatch
+  )
 
 type ParsedOption is (String, (None | String | I64 | F64))
 
@@ -101,8 +103,12 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       _arguments.push(arg.clone())
     end
 
-  fun ref add(long: String, short: (None | String) = None,
-    arg: ArgumentType = None, mode: (Required | Optional) = Required): Options
+  fun ref add(
+    long: String,
+    short: (None | String) = None,
+    arg: ArgumentType = None,
+    mode: (Required | Optional) = Required)
+    : Options
   =>
     """
     Adds a new named option to the parser configuration.
@@ -118,8 +124,11 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     """
     _arguments
 
-  fun ref _strip(opt: _Option, matched: String ref,
-    start: ISize, finish: ISize)
+  fun ref _strip(
+    opt: _Option,
+    matched: String ref,
+    start: ISize,
+    finish: ISize)
   =>
     """
     Strips accepted options from the copied array of command line arguments.
@@ -129,7 +138,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     if opt.has_argument() then
       // If 'matched' is non-empty, then the rest (without - or =) must be the
       // argument.
-      matched.>lstrip("-").>remove("=")
+      matched .> lstrip("-") .> remove("=")
     end
 
     try
@@ -141,8 +150,12 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
       end
     end
 
-  fun ref _select(candidate: String ref, start: ISize, offset: ISize,
-    finish: ISize): (_Option | ParseError)
+  fun ref _select(
+    candidate: String ref,
+    start: ISize,
+    offset: ISize,
+    finish: ISize)
+    : (_Option | ParseError)
   =>
     """
     Selects an option from the configuration depending on the current command
@@ -160,8 +173,11 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     end
 
     match (selected, matches.size())
-    | (let opt: _Option, 1) => _strip(opt, candidate, offset, finish) ; opt
-    | (let opt: _Option, _) => _ErrorPrinter._ambiguous(matches)
+    | (let opt: _Option, 1) =>
+      _strip(opt, candidate, offset, finish)
+      opt
+    | (let opt: _Option, _) =>
+      _ErrorPrinter._ambiguous(matches)
     else
       _ErrorPrinter._unrecognised(candidate.substring(0, finish + 1))
     end
@@ -240,8 +256,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
           match (candidate(0), candidate(1))
           | ('-', '-') => (2, 0)
           | ('-', let char: U8) => (1, 1)
-          else
-            (0, 0) // unreachable
+          else (0, 0) // unreachable
           end
 
         let last = candidate.size().isize()
@@ -253,7 +268,10 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
           end
 
         match _select(candidate, start, offset, finish)
-        | let err: ParseError => _error = true ; _index = _index + 1 ; err
+        | let err: ParseError =>
+          _error = true
+          _index = _index + 1
+          err
         | let opt: _Option => _verify(opt, combined)
         end
       end
@@ -266,7 +284,10 @@ class _Option
   let arg: ArgumentType
   let mode: (Required | Optional)
 
-  new create(long': String, short': (String | None), arg': ArgumentType,
+  new create(
+    long': String,
+    short': (String | None),
+    arg': ArgumentType,
     mode': (Required | Optional))
   =>
     long = long'

@@ -3,9 +3,9 @@
 
 The Process package provides support for handling Unix style processes.
 For each external process that you want to handle, you need to create a
-`ProcessMonitor` and a corresponding `ProcessNotify` object. Each ProcessMonitor
-runs as it own actor and upon receiving data will call its corresponding
-`ProcessNotify`'s method.
+`ProcessMonitor` and a corresponding `ProcessNotify` object. Each
+ProcessMonitor runs as it own actor and upon receiving data will call its
+corresponding `ProcessNotify`'s method.
 
 ## Example program
 
@@ -60,16 +60,15 @@ class ProcessClient is ProcessNotify
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     match err
-    | ExecveError   => _env.out.print("ProcessError: ExecveError")
-    | PipeError     => _env.out.print("ProcessError: PipeError")
-    | ForkError     => _env.out.print("ProcessError: ForkError")
-    | WaitpidError  => _env.out.print("ProcessError: WaitpidError")
-    | WriteError    => _env.out.print("ProcessError: WriteError")
-    | KillError     => _env.out.print("ProcessError: KillError")
-    | CapError      => _env.out.print("ProcessError: CapError")
-    | Unsupported   => _env.out.print("ProcessError: Unsupported")
-    else
-      _env.out.print("Unknown ProcessError!")
+    | ExecveError => _env.out.print("ProcessError: ExecveError")
+    | PipeError => _env.out.print("ProcessError: PipeError")
+    | ForkError => _env.out.print("ProcessError: ForkError")
+    | WaitpidError => _env.out.print("ProcessError: WaitpidError")
+    | WriteError => _env.out.print("ProcessError: WriteError")
+    | KillError => _env.out.print("ProcessError: KillError")
+    | CapError => _env.out.print("ProcessError: CapError")
+    | Unsupported => _env.out.print("ProcessError: Unsupported")
+    else _env.out.print("Unknown ProcessError!")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
@@ -170,15 +169,15 @@ actor ProcessMonitor
   var _stderr_event: AsioEventID = AsioEvent.none()
 
   let _max_size: USize = 4096
-  var _read_buf: Array[U8] iso = recover Array[U8].>undefined(_max_size) end
+  var _read_buf: Array[U8] iso = recover Array[U8] .> undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
 
-  var _stdin_read:   U32 = -1
-  var _stdin_write:  U32 = -1
-  var _stdout_read:  U32 = -1
+  var _stdin_read: U32 = -1
+  var _stdin_write: U32 = -1
+  var _stdout_read: U32 = -1
   var _stdout_write: U32 = -1
-  var _stderr_read:  U32 = -1
+  var _stderr_read: U32 = -1
   var _stderr_write: U32 = -1
 
   var _stdout_open: Bool = true
@@ -186,8 +185,12 @@ actor ProcessMonitor
 
   var _closed: Bool = false
 
-  new create(auth: ProcessMonitorAuth, notifier: ProcessNotify iso,
-    filepath: FilePath, args: Array[String] val, vars: Array[String] val)
+  new create(
+    auth: ProcessMonitorAuth,
+    notifier: ProcessNotify iso,
+    filepath: FilePath,
+    args: Array[String] val,
+    vars: Array[String] val)
   =>
     """
     Create infrastructure to communicate with a forked child process
@@ -216,7 +219,7 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC())
+        (_stdin_read, _stdin_write) = _make_pipe(_FDCLOEXEC())
         (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
         (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
         // Set O_NONBLOCK only for parent-side file descriptors, as many
@@ -241,8 +244,8 @@ actor ProcessMonitor
       // fork child process
       _child_pid = @fork[I32]()
       match _child_pid
-      | -1  => _notifier.failed(this, ForkError)
-      | 0   => _child(filepath.path, argp, envp)
+      | -1 => _notifier.failed(this, ForkError)
+      | 0 => _child(filepath.path, argp, envp)
       else
         _parent()
       end
@@ -253,9 +256,11 @@ actor ProcessMonitor
     end
     _notifier.created(this)
 
-  fun _child(path: String, argp: Array[Pointer[U8] tag],
+  fun _child(
+    path: String,
+    argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag])
-    =>
+  =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
     to their pipes and execute the command. The command is executed via
@@ -501,11 +506,11 @@ actor ProcessMonitor
     """
     @close[I32](fd)
     match fd
-    | _stdin_read   => _stdin_read   = -1
-    | _stdin_write  => _stdin_write  = -1
-    | _stdout_read  => _stdout_read  = -1
+    | _stdin_read => _stdin_read = -1
+    | _stdin_write => _stdin_write = -1
+    | _stdout_read => _stdout_read = -1
     | _stdout_write => _stdout_write = -1
-    | _stderr_read  => _stderr_read  = -1
+    | _stderr_read => _stderr_read = -1
     | _stderr_write => _stderr_write = -1
     end
 
@@ -557,8 +562,9 @@ actor ProcessMonitor
       if fd == -1 then return false end
       var sum: USize = 0
       while true do
-        let len = @read[ISize](fd, _read_buf.cpointer().usize() + _read_len,
-          _read_buf.size() - _read_len)
+        let len =
+          @read[ISize](fd, _read_buf.cpointer().usize() + _read_len,
+            _read_buf.size() - _read_len)
         let errno = @pony_os_errno()
         let next = _read_buf.space()
         match len
@@ -575,7 +581,7 @@ actor ProcessMonitor
 
         _read_len = _read_len + len.usize()
 
-        let data = _read_buf = recover Array[U8].>undefined(next) end
+        let data = _read_buf = recover Array[U8] .> undefined(next) end
         data.truncate(_read_len)
 
         match fd

@@ -79,7 +79,6 @@ class HashMap[K, V, H: HashFunction[K] val]
         end
       end
     end
-    None
 
   fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V ? =>
     """
@@ -238,8 +237,10 @@ class HashMap[K, V, H: HashFunction[K] val]
       this(consume k) = consume v
     end
 
-  fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
-    HashMap[this->K!, this->V!, H2]^
+  fun add[H2: HashFunction[this->K!] val = H](
+    key: this->K!,
+    value: this->V!)
+    : HashMap[this->K!, this->V!, H2]^
   =>
     """
     This with the new (key, value) mapping.
@@ -248,8 +249,10 @@ class HashMap[K, V, H: HashFunction[K] val]
     r(key) = value
     r
 
-  fun sub[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
-    HashMap[this->K!, this->V!, H2]^
+  fun sub[H2: HashFunction[this->K!] val = H](
+    key: this->K!,
+    value: this->V!)
+    : HashMap[this->K!, this->V!, H2]^
   =>
     """
     This without the given key.
@@ -283,8 +286,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _resize(((_size * 4) / 3).next_pow2().max(8))
 
-  fun clone[H2: HashFunction[this->K!] val = H]():
-    HashMap[this->K!, this->V!, H2]^
+  fun clone[H2: HashFunction[this->K!] val = H]()
+    : HashMap[this->K!, this->V!, H2]^
   =>
     """
     Create a clone. The key and value types may be different due to aliasing

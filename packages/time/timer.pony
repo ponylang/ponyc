@@ -36,7 +36,10 @@ class Timer
   let _notify: TimerNotify
   embed _node: ListNode[Timer]
 
-  new iso create(notify: TimerNotify iso, expiration: U64, interval: U64 = 0)
+  new iso create(
+    notify: TimerNotify iso,
+    expiration: U64,
+    interval: U64 = 0)
   =>
     """
     Create a new timer. The expiration time should be a nanosecond count

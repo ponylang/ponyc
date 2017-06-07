@@ -72,11 +72,11 @@ class _HTTPParser
     Analyze new data based on the parser's current internal state.
     """
     match _state
-    | _ExpectRequest       => _parse_request(buffer)
-    | _ExpectResponse      => _parse_response(buffer)
-    | _ExpectHeaders       => _parse_headers(buffer)
+    | _ExpectRequest => _parse_request(buffer)
+    | _ExpectResponse => _parse_response(buffer)
+    | _ExpectHeaders => _parse_headers(buffer)
     | _ExpectBody =>
-        // We are expecting a message body.  Now we decide exactly
+        // We are expecting a message body. Now we decide exactly
         // which encoding to look for.
         if _chunked then
           _state = _ExpectChunkStart
@@ -85,16 +85,16 @@ class _HTTPParser
           _state = _ExpectContentLength
           _parse_content_length(buffer)
         end
-    | _ExpectChunkStart    => _parse_chunk_start(buffer)
-    | _ExpectChunk         => _parse_chunk(buffer)
-    | _ExpectChunkEnd      => _parse_chunk_end(buffer)
+    | _ExpectChunkStart => _parse_chunk_start(buffer)
+    | _ExpectChunk => _parse_chunk(buffer)
+    | _ExpectChunkEnd => _parse_chunk_end(buffer)
     | _ExpectContentLength => _parse_content_length(buffer)
     end
 
   fun ref _deliver() =>
     """
     The parser is finished with the message headers so we can push it
-    to the `HTTPSession`.  The body may come later.
+    to the `HTTPSession`. The body may come later.
     """
     let body_follows = match _payload.transfer_mode
       | ChunkedTransfer => true
@@ -111,7 +111,7 @@ class _HTTPParser
 
   fun ref _restart() =>
     """
-    Restart parser state for the next message.  It will be of the same
+    Restart parser state for the next message. It will be of the same
     kind as the last one.
     """
     _expected_length = 0
@@ -206,13 +206,13 @@ class _HTTPParser
       try
         let line = buffer.line()
         if line.size() == 0 then
-          // An empty line marks the end of the headers.  Set state
+          // An empty line marks the end of the headers. Set state
           // appropriately.
           _set_header_end()
           _deliver()
           parse(buffer)
         else
-          // A non-empty line *must* be a header.  Error if not.
+          // A non-empty line *must* be a header. Error if not.
           try
             _process_header(line)
           else
@@ -221,17 +221,17 @@ class _HTTPParser
           end
         end // line-size check
       else
-        // Failed to get a line.  We stay in _ExpectHeader state.
+        // Failed to get a line. We stay in _ExpectHeader state.
         return
       end // try 
     end // looping over all headers in this buffer
 
-    // Breaking out of that loop means an error.  
+    // Breaking out of that loop means an error. 
     if _state is _ExpectError then error end
 
   fun ref _process_header(line: String) ? =>
     """
-    Save a header value.  Raise an error on not finding the colon
+    Save a header value. Raise an error on not finding the colon
     or can't interpret the value.
     """
     let i = line.find(":")
@@ -248,7 +248,7 @@ class _HTTPParser
       _expected_length = value2.read_int[USize]()._1
       // On the receiving end, there is no difference
       // between Oneshot and Stream transfers except how
-      // we store it.  TODO eliminate this?
+      // we store it. TODO eliminate this?
       _payload.transfer_mode =
       if _expected_length > 10_000 then
         StreamTransfer
@@ -284,11 +284,11 @@ class _HTTPParser
       let authscheme = parts(0)
       match authscheme.lower()
       | "basic" =>
-          let autharg = parts(1)
-          let userpass = Base64.decode[String iso](autharg)
-          let uparts = userpass.split(":")
-          _payload.username = uparts(0)
-          _payload.password = uparts(1)
+        let autharg = parts(1)
+        let userpass = Base64.decode[String iso](autharg)
+        let uparts = userpass.split(":")
+        _payload.username = uparts(0)
+        _payload.password = uparts(1)
       end
     end
 
@@ -298,9 +298,9 @@ class _HTTPParser
     Certain status codes mean there is no body.
     """
     if
-      (_payload.status == 204) or // no content
-      (_payload.status == 304) or // not modified
-      ((_payload.status > 0) and (_payload.status < 200))
+      (_payload.status == 204) // no content
+        or (_payload.status == 304) // not modified
+        or ((_payload.status > 0) and (_payload.status < 200))
     then
       _state = _ExpectReady
     else
@@ -321,7 +321,7 @@ class _HTTPParser
   fun ref _parse_content_length(buffer: Reader) =>
     """
     Look for `_expected_length` bytes set by having seen a `Content-Length`
-    header.  We may not see it all at once but we process the lesser of
+    header. We may not see it all at once but we process the lesser of
     what we need and what is available in the buffer.
     """
     let available = buffer.size()
@@ -342,7 +342,7 @@ class _HTTPParser
   fun ref _parse_chunk_start(buffer: Reader) ? =>
     """
     Look for the beginning of a chunk, which is a length in hex on a line
-    terminated by CRLF.  An explicit length of zero marks the end of
+    terminated by CRLF. An explicit length of zero marks the end of
     the entire chunked message body.
     """
     let line = buffer.line()
@@ -370,9 +370,9 @@ class _HTTPParser
 
   fun ref _parse_chunk(buffer: Reader) =>
     """
-    Look for a chunk of the size set by `_parse_chunk_start`.  We may
+    Look for a chunk of the size set by `_parse_chunk_start`. We may
     not see it all at once but we process the lesser of what we need
-    and what is available in the buffer.  ChunkedTransfer mode always
+    and what is available in the buffer. ChunkedTransfer mode always
     delivers directly to the HTTPSession handler.
     """
     let available = buffer.size()
@@ -392,7 +392,7 @@ class _HTTPParser
 
   fun ref _parse_chunk_end(buffer: Reader) =>
     """
-    Look for the CRLF that ends every chunk.  AFter that we look for
+    Look for the CRLF that ends every chunk. AFter that we look for
     the next chunk, or that was the special ending chunk.
     """
     try
@@ -410,15 +410,17 @@ class _HTTPParser
 /* Saved for debugging.
   fun ref _say() =>
     match _state
-  | _ExpectRequest => Debug.out("-Request method and URL")
-  | _ExpectResponse      => Debug.out("-Response status")
-  | _ExpectHeaders       => Debug.out("-More headers")
-  | _ExpectContentLength => Debug.out("-Body text, limited by Content-Length")
-  | _ExpectChunkStart    => Debug.out("-The start of a 'chunked' piece of body text")
-  | _ExpectChunk         => Debug.out("-More of a continuing body 'chunk'")
-  | _ExpectChunkEnd      => Debug.out("-The CRLF at the end of a 'chunk'")
-  | _ExpectBody          => Debug.out("-Any body, which might not be there")
-  | _ExpectReady         => Debug.out("-All done with the message")
-  | _ExpectError         => Debug.out("-Not valid HTTP format")
-end
+    | _ExpectRequest => Debug.out("-Request method and URL")
+    | _ExpectResponse => Debug.out("-Response status")
+    | _ExpectHeaders => Debug.out("-More headers")
+    | _ExpectContentLength =>
+      Debug.out("-Body text, limited by Content-Length")
+    | _ExpectChunkStart =>
+      Debug.out("-The start of a 'chunked' piece of body text")
+    | _ExpectChunk => Debug.out("-More of a continuing body 'chunk'")
+    | _ExpectChunkEnd => Debug.out("-The CRLF at the end of a 'chunk'")
+    | _ExpectBody => Debug.out("-Any body, which might not be there")
+    | _ExpectReady => Debug.out("-All done with the message")
+    | _ExpectError => Debug.out("-Not valid HTTP format")
+    end
 */

@@ -45,8 +45,11 @@ class Directory
     path = from
 
     ifdef posix then
-      _fd = @open[I32](from.path.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
+      _fd =
+        @open[I32](from.path.cstring(),
+          @ponyint_o_rdonly()
+            or @ponyint_o_directory()
+            or @ponyint_o_cloexec())
 
       if _fd == -1 then
         error
@@ -88,13 +91,17 @@ class Directory
           error
         end
 
-        let h = ifdef linux or freebsd then
-          let fd = @openat[I32](fd', ".".cstring(),
-            @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
-          @fdopendir[Pointer[_DirectoryHandle]](fd)
-        else
-          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
-        end
+        let h =
+          ifdef linux or freebsd then
+            let fd =
+              @openat[I32](fd', ".".cstring(),
+                @ponyint_o_rdonly()
+                  or @ponyint_o_directory()
+                  or @ponyint_o_cloexec())
+            @fdopendir[Pointer[_DirectoryHandle]](fd)
+          else
+            @opendir[Pointer[_DirectoryHandle]](path'.cstring())
+          end
 
         if h.is_null() then
           error
@@ -146,8 +153,11 @@ class Directory
     let path' = FilePath(path, target, path.caps)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdonly()
+            or @ponyint_o_directory()
+            or @ponyint_o_cloexec())
       _relative(path', fd')
     else
       recover create(path') end
@@ -198,10 +208,10 @@ class Directory
     if it does exist.
     """
     if
-      not path.caps(FileCreate) or
-      not path.caps(FileRead) or
-      not path.caps(FileWrite) or
-      (_fd == -1)
+      not path.caps(FileCreate)
+        or not path.caps(FileRead)
+        or not path.caps(FileWrite)
+        or (_fd == -1)
     then
       error
     end
@@ -209,9 +219,12 @@ class Directory
     let path' = FilePath(path, target, path.caps)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdwr() or @ponyint_o_creat() or @ponyint_o_cloexec(),
-        I32(0x1B6))
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdwr()
+            or @ponyint_o_creat()
+            or @ponyint_o_cloexec(),
+          I32(0x1B6))
       recover File._descriptor(fd', path') end
     else
       recover File(path') end
@@ -222,8 +235,8 @@ class Directory
     Open for read only, failing if it doesn't exist.
     """
     if
-      not path.caps(FileRead) or
-      (_fd == -1)
+      not path.caps(FileRead)
+        or (_fd == -1)
     then
       error
     end
@@ -231,8 +244,10 @@ class Directory
     let path' = FilePath(path, target, path.caps - FileWrite)
 
     ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_cloexec(), I32(0x1B6))
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdonly() or @ponyint_o_cloexec(),
+          I32(0x1B6))
       recover File._descriptor(fd', path') end
     else
       recover File(path') end
@@ -275,9 +290,9 @@ class Directory
     Return a FileInfo for some path relative to this directory.
     """
     if
-      not path.caps(FileStat) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileStat)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       error
     end
@@ -295,9 +310,9 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChmod) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChmod)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
@@ -306,8 +321,7 @@ class Directory
       let path' = FilePath(path, target, path.caps)
 
       ifdef linux or freebsd then
-        0 == @fchmodat[I32](_fd, target.cstring(), mode._os(),
-          I32(0))
+        0 == @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0))
       else
         path'.chmod(mode)
       end
@@ -320,9 +334,9 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChown) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChown)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
@@ -331,8 +345,7 @@ class Directory
       let path' = FilePath(path, target, path.caps)
 
       ifdef linux or freebsd then
-        0 == @fchownat[I32](_fd, target.cstring(), uid, gid,
-          I32(0))
+        0 == @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0))
       else
         path'.chown(uid, gid)
       end
@@ -346,16 +359,20 @@ class Directory
     """
     set_time_at(target, Time.now(), Time.now())
 
-  fun set_time_at(target: String, atime: (I64, I64), mtime: (I64, I64)): Bool
+  fun set_time_at(
+    target: String,
+    atime: (I64, I64),
+    mtime: (I64, I64))
+    : Bool
   =>
     """
     Set the last access and modification times of the directory to the given
     values.
     """
     if
-      not path.caps(FileChown) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChown)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
@@ -365,10 +382,10 @@ class Directory
 
       ifdef linux or freebsd then
         var tv: (ILong, ILong, ILong, ILong) =
-          (atime._1.ilong(), atime._2.ilong() / 1000,
-            mtime._1.ilong(), mtime._2.ilong() / 1000)
-        0 == @futimesat[I32](_fd, target.cstring(),
-          addressof tv)
+          ( atime._1.ilong(), atime._2.ilong() / 1000,
+            mtime._1.ilong(), mtime._2.ilong() / 1000 )
+
+        0 == @futimesat[I32](_fd, target.cstring(), addressof tv)
       else
         path'.set_time(atime, mtime)
       end
@@ -382,11 +399,11 @@ class Directory
     this directory.
     """
     if
-      not path.caps(FileLink) or
-      not path.caps(FileLookup) or
-      not path.caps(FileCreate) or
-      not source.caps(FileLink) or
-      (_fd == -1)
+      not path.caps(FileLink)
+        or not path.caps(FileLookup)
+        or not path.caps(FileCreate)
+        or not source.caps(FileLink)
+        or (_fd == -1)
     then
       return false
     end
@@ -395,8 +412,7 @@ class Directory
       let path' = FilePath(path, link_name, path.caps)
 
       ifdef linux or freebsd then
-        0 == @symlinkat[I32](source.path.cstring(), _fd,
-          link_name.cstring())
+        0 == @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring())
       else
         source.symlink(path')
       end
@@ -410,9 +426,9 @@ class Directory
     well, recursively. Symlinks will be removed but not traversed.
     """
     if
-      not path.caps(FileLookup) or
-      not path.caps(FileRemove) or
-      (_fd == -1)
+      not path.caps(FileLookup)
+        or not path.caps(FileRemove)
+        or (_fd == -1)
     then
       return false
     end
@@ -449,11 +465,12 @@ class Directory
     relative to the `to` directory).
     """
     if
-      not path.caps(FileLookup) or
-      not path.caps(FileRename) or
-      not to.path.caps(FileLookup) or
-      not to.path.caps(FileCreate) or
-      (_fd == -1) or (to._fd == -1)
+      not path.caps(FileLookup)
+       or not path.caps(FileRename)
+       or not to.path.caps(FileLookup)
+       or not to.path.caps(FileCreate)
+       or (_fd == -1)
+       or (to._fd == -1)
     then
       return false
     end
@@ -463,8 +480,7 @@ class Directory
       let path'' = FilePath(to.path, target, to.path.caps)
 
       ifdef linux or freebsd then
-        0 == @renameat[I32](_fd, source.cstring(), to._fd,
-          target.cstring())
+        0 == @renameat[I32](_fd, source.cstring(), to._fd, target.cstring())
       else
         path'.rename(path'')
       end

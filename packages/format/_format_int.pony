@@ -15,19 +15,16 @@ primitive _FormatInt
     | FormatHexBare => (16, "", _large())
     | FormatHexSmall => (16, "x0", _small())
     | FormatHexSmallBare => (16, "", _small())
-    else
-      (10, "", _large())
+    else (10, "", _large())
     end
 
   fun _prefix(neg: Bool, prefix: PrefixNumber): String =>
-    if neg then
-      "-"
+    if neg then "-"
     else
       match prefix
       | PrefixSpace => " "
       | PrefixSign => "+"
-      else
-        ""
+      else ""
       end
     end
 
