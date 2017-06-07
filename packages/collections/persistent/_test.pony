@@ -28,9 +28,11 @@ actor Main is TestList
     test(_TestMap)
     test(_TestMapVsMap)
     test(_TestSet)
+    test(_TestVec)
+    test(_TestVecIterators)
 
 class iso _TestListPrepend is UnitTest
-  fun name(): String => "collections/persistent/List/prepend()"
+  fun name(): String => "collections/persistent/List (prepend)"
 
   fun apply(h: TestHelper) ? =>
     let a = Lists[U32].empty()
@@ -55,7 +57,7 @@ class iso _TestListPrepend is UnitTest
     h.assert_eq[USize](e.tail().size(), 0)
 
 class iso _TestListFrom is UnitTest
-  fun name(): String => "collections/persistent/Lists/from()"
+  fun name(): String => "collections/persistent/Lists (from)"
 
   fun apply(h: TestHelper) ? =>
     let l1 = Lists[U32]([1; 2; 3])
@@ -63,7 +65,7 @@ class iso _TestListFrom is UnitTest
     h.assert_eq[U32](l1.head(), 1)
 
 class iso _TestListApply is UnitTest
-  fun name(): String => "collections/persistent/List/apply()"
+  fun name(): String => "collections/persistent/List (apply)"
 
   fun apply(h: TestHelper) ? =>
     let l1 = Lists[U32]([1; 2; 3])
@@ -77,7 +79,7 @@ class iso _TestListApply is UnitTest
     h.assert_error({()? => l2(0) })
 
 class iso _TestListValues is UnitTest
-  fun name(): String => "collections/persistent/List/values()"
+  fun name(): String => "collections/persistent/List (values)"
 
   fun apply(h: TestHelper) ? =>
     let iter = Lists[U32]([1; 2; 3]).values()
@@ -93,7 +95,7 @@ class iso _TestListValues is UnitTest
     h.assert_false(try iter.next(); true else false end)
 
 class iso _TestListConcat is UnitTest
-  fun name(): String => "collections/persistent/List/concat()"
+  fun name(): String => "collections/persistent/List (concat)"
 
   fun apply(h: TestHelper) ? =>
     let l1 = Lists[U32]([1; 2; 3])
@@ -115,14 +117,14 @@ class iso _TestListConcat is UnitTest
     h.assert_true(Lists[U32].eq(l9, Lists[U32]([1])))
 
 class iso _TestListMap is UnitTest
-  fun name(): String => "collections/persistent/Lists/map()"
+  fun name(): String => "collections/persistent/Lists (map)"
 
   fun apply(h: TestHelper) ? =>
     let l5 = Lists[U32]([1; 2; 3]).map[U32]({(x: U32): U32 => x * 2 })
     h.assert_true(Lists[U32].eq(l5, Lists[U32]([2; 4; 6])))
 
 class iso _TestListFlatMap is UnitTest
-  fun name(): String => "collections/persistent/Lists/flat_map()"
+  fun name(): String => "collections/persistent/Lists (flat_map)"
 
   fun apply(h: TestHelper) ? =>
     let f = {(x: U32): List[U32] => Lists[U32]([x - 1; x; x + 1]) }
@@ -130,7 +132,7 @@ class iso _TestListFlatMap is UnitTest
     h.assert_true(Lists[U32].eq(l6, Lists[U32]([1; 2; 3; 4; 5; 6; 7; 8; 9])))
 
 class iso _TestListFilter is UnitTest
-  fun name(): String => "collections/persistent/Lists/filter()"
+  fun name(): String => "collections/persistent/Lists (filter)"
 
   fun apply(h: TestHelper) ? =>
     let is_even = {(x: U32): Bool => (x % 2) == 0 }
@@ -138,7 +140,7 @@ class iso _TestListFilter is UnitTest
     h.assert_true(Lists[U32].eq(l7, Lists[U32]([2; 4; 6; 8])))
 
 class iso _TestListFold is UnitTest
-  fun name(): String => "collections/persistent/Lists/fold()"
+  fun name(): String => "collections/persistent/Lists (fold)"
 
   fun apply(h: TestHelper) ? =>
     let add = {(acc: U32, x: U32): U32 => acc + x }
@@ -153,7 +155,7 @@ class iso _TestListFold is UnitTest
     h.assert_true(Lists[U32].eq(l8, Lists[U32]([6; 4; 2])))
 
 class iso _TestListEveryExists is UnitTest
-  fun name(): String => "collections/persistent/Lists/every()exists()"
+  fun name(): String => "collections/persistent/Lists (every, exists)"
 
   fun apply(h: TestHelper) =>
     let is_even = {(x: U32): Bool => (x % 2) == 0 }
@@ -174,7 +176,7 @@ class iso _TestListEveryExists is UnitTest
     h.assert_eq[Bool](l13.exists(is_even), false)
 
 class iso _TestListPartition is UnitTest
-  fun name(): String => "collections/persistent/Lists/partition()"
+  fun name(): String => "collections/persistent/Lists (partition)"
 
   fun apply(h: TestHelper) ? =>
     let is_even = {(x: U32): Bool => (x % 2) == 0 }
@@ -184,7 +186,7 @@ class iso _TestListPartition is UnitTest
     h.assert_true(Lists[U32].eq(misses, Lists[U32]([1; 3; 5])))
 
 class iso _TestListDrop is UnitTest
-  fun name(): String => "collections/persistent/List/drop()"
+  fun name(): String => "collections/persistent/List (drop)"
 
   fun apply(h: TestHelper) ? =>
     let l = Lists[String](["a"; "b"; "c"; "d"; "e"])
@@ -195,7 +197,7 @@ class iso _TestListDrop is UnitTest
     h.assert_true(Lists[String].eq(empty.drop(3), Lists[String].empty()))
 
 class iso _TestListDropWhile is UnitTest
-  fun name(): String => "collections/persistent/List/drop_while()"
+  fun name(): String => "collections/persistent/List (drop_while)"
 
   fun apply(h: TestHelper) ? =>
     let is_even = {(x: U32): Bool => (x % 2) == 0 }
@@ -206,7 +208,7 @@ class iso _TestListDropWhile is UnitTest
     h.assert_true(Lists[U32].eq(empty.drop_while(is_even), Lists[U32].empty()))
 
 class iso _TestListTake is UnitTest
-  fun name(): String => "collections/persistent/List/take()"
+  fun name(): String => "collections/persistent/List (take)"
 
   fun apply(h: TestHelper) ? =>
     let l = Lists[String](["a"; "b"; "c"; "d"; "e"])
@@ -217,7 +219,7 @@ class iso _TestListTake is UnitTest
     h.assert_true(Lists[String].eq(empty.take(3), Lists[String].empty()))
 
 class iso _TestListTakeWhile is UnitTest
-  fun name(): String => "collections/persistent/List/take_while()"
+  fun name(): String => "collections/persistent/List (take_while)"
 
   fun apply(h: TestHelper) ? =>
     let is_even = {(x: U32): Bool => (x % 2) == 0 }
@@ -227,7 +229,7 @@ class iso _TestListTakeWhile is UnitTest
     h.assert_true(Lists[U32].eq(empty.take_while(is_even), Lists[U32].empty()))
 
 class iso _TestMap is UnitTest
-  fun name(): String => "collections/persistent/Map"
+  fun name(): String => "collections/persistent/Map (update, remove, concat)"
 
   fun apply(h: TestHelper) ? =>
     let m1 = Map[String,U32]
@@ -268,7 +270,7 @@ class iso _TestMap is UnitTest
     h.assert_error({()? => m10("d") })
 
 class iso _TestMapVsMap is UnitTest
-  fun name(): String => "collections/persistent/mapvsmap"
+  fun name(): String => "collections/persistent/Map (persistent vs mutable)"
 
   fun apply(h: TestHelper) ? =>
     let keys: USize = 300
@@ -325,3 +327,86 @@ class iso _TestSet is UnitTest
     h.assert_true((b xor a) == (Set[USize] + 1 + 4))
     h.assert_true(a.without(b) == (Set[USize] + 1))
     h.assert_true(b.without(a) == (Set[USize] + 4))
+
+class iso _TestVec is UnitTest
+  fun name(): String => "collections/persistent/Vec"
+
+  fun apply(h: TestHelper) ? =>
+    var v = Vec[USize]
+    let n: USize = 33_000 // resize up to 4 levels in depth
+
+    // push
+    for i in mut.Range(0, n) do
+      v = v.push(i)
+      h.assert_eq[USize](v(i), i)
+    end
+
+    // update
+    for i in mut.Range(0, n) do
+      v = v.update(i, -i)
+      h.assert_eq[USize](v(i), -i)
+    end
+
+    var idx: USize = 0
+    for num in v.values() do
+      h.assert_eq[USize](num, -idx)
+      idx = idx + 1
+    end
+    h.assert_eq[USize](v.size(), idx)
+
+    // pop
+    for i in mut.Range(0, n) do
+      v = v.pop()
+      h.assert_error({() ? => v(n - i) })
+      h.assert_eq[USize](v.size(), n - i - 1)
+    end
+
+    // concat
+    v = Vec[USize].concat(mut.Range(0, n))
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](v(i), i)
+    end
+
+    // insert
+    let insert_idx: USize = 14
+    v = v.insert(insert_idx, 9999)
+    h.assert_eq[USize](v(insert_idx - 1), insert_idx - 1)
+    h.assert_eq[USize](v(insert_idx), 9999)
+    h.assert_eq[USize](v(insert_idx + 1), insert_idx)
+    h.assert_eq[USize](v.size(), n + 1)
+    h.assert_error({() ? => v.insert(v.size(), 0) })
+    h.assert_error({() ? => v.insert(-1, 0) })
+
+    // delete
+    v = v.delete(insert_idx)
+    h.assert_eq[USize](v(insert_idx - 1), insert_idx - 1)
+    h.assert_eq[USize](v(insert_idx), insert_idx)
+    h.assert_eq[USize](v.size(), n)
+    h.assert_error({() ? => v.delete(v.size()) })
+    h.assert_error({() ? => v.delete(-1) })
+
+    // remove
+    v = v.remove(0, 1)
+    h.assert_eq[USize](v(0), 1)
+    h.assert_eq[USize](v(1), 2)
+    h.assert_eq[USize](v.size(), n - 1)
+
+    v = v.remove(10, 10)
+    h.assert_eq[USize](v(9), 10)
+    h.assert_eq[USize](v(10), 21)
+    h.assert_eq[USize](v(n - 12), n - 1)
+    h.assert_eq[USize](v.size(), n - 11)
+
+class iso _TestVecIterators is UnitTest
+  fun name(): String => "collections/persistent/Vec (iterators)"
+
+  fun apply(h: TestHelper) ? =>
+    let n: USize = 33_000 // resize up to 4 levels in depth
+    var vec = Vec[USize]
+    for i in mut.Range(0, n) do vec = vec.push(i) end
+    var c = vec.size()
+    for (i, v) in vec.pairs() do
+      c = c - 1
+      h.assert_eq[USize](v, vec(i))
+    end
+    h.assert_eq[USize](c, 0)
