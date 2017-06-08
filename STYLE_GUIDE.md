@@ -33,37 +33,37 @@ actor Main
   ```pony
   // OK
   class Foo
-  let bar: Bar
-  let baz: Baz
+    let bar: Bar
+    let baz: Baz
 
-  fun foo() =>
-  // ...
+    fun foo() =>
+      // ...
 
-  fun bar() =>
-  // ...
-
-  // OK
-  class Foo
-  """
-  Some documentation
-  """
-  let bar: Bar
-
-  fun foo() =>
-  // ...
+    fun bar() =>
+      // ...
 
   // OK
   class Foo
-  fun foo() =>
-  // ...
+    """
+    Some documentation
+    """
+    let bar: Bar
+
+    fun foo() =>
+      // ...
+
+  // OK
+  class Foo
+    fun foo() =>
+      // ...
 
   // Not OK
   class Foo
 
-  let bar: Bar
-  let baz: Baz
-  fun foo() =>
-  // ...
+    let bar: Bar
+    let baz: Baz
+    fun foo() =>
+      // ...
   ```
 
 - Blank lines between __one-line__ functions or primitives may be omitted if they are related.
