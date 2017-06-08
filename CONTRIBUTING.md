@@ -14,6 +14,7 @@ Additional notes regarding formatting:
 
 * [Documentation formatting](#documentation-formatting)
 * [Code formatting](#code-formatting)
+* [Standard Library File Naming](#standard-library-file-naming)
 
 Feature request
 ---------------
@@ -93,3 +94,7 @@ When contributing to documentation, try to keep the following style guidelines i
 Code Formatting
 ---------------
 For code formatting guidelines please see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md).
+
+Standard Library File Naming
+----------------
+For standard library file naming guidelines see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md#naming).
