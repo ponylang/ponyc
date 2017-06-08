@@ -54,7 +54,9 @@ interface Seq[A]
     Removes an element from the beginning of the sequence.
     """
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
     """
     Add len elements to the end of the list, starting from the given

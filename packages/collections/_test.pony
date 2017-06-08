@@ -31,7 +31,7 @@ class iso _TestList is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2)
+    a .> push(0) .> push(1) .> push(2)
 
     let b = a.clone()
     h.assert_eq[USize](b.size(), 3)
@@ -83,8 +83,10 @@ class iso _TestMap is UnitTest
     (a("5") = 5) as None
     (a("6") = 6) as None
 
-    h.assert_true(a.contains("0"), "contains did not find expected element in HashMap")
-    h.assert_false(a.contains("7"), "contains found unexpected element in HashMap")
+    h.assert_true(a.contains("0"),
+      "contains did not find expected element in HashMap")
+    h.assert_false(a.contains("7"),
+      "contains found unexpected element in HashMap")
 
     h.assert_eq[U32](1, (a("1") = 11) as U32)
     h.assert_eq[U32](11, (a("1") = 1) as U32)
@@ -201,31 +203,31 @@ class iso _TestRing is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = RingBuffer[U64](4)
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     h.assert_eq[U64](a(0), 0)
     h.assert_eq[U64](a(1), 1)
     h.assert_eq[U64](a(2), 2)
     h.assert_eq[U64](a(3), 3)
 
-    a.>push(4).>push(5)
+    a .> push(4) .> push(5)
 
-    h.assert_error({()? => a(0) }, "Read ring 0")
-    h.assert_error({()? => a(1) }, "Read ring 1")
+    h.assert_error({() ? => a(0) }, "Read ring 0")
+    h.assert_error({() ? => a(1) }, "Read ring 1")
 
     h.assert_eq[U64](a(2), 2)
     h.assert_eq[U64](a(3), 3)
     h.assert_eq[U64](a(4), 4)
     h.assert_eq[U64](a(5), 5)
 
-    h.assert_error({()? => a(6) }, "Read ring 6")
+    h.assert_error({() ? => a(6) }, "Read ring 6")
 
 class iso _TestListsMap is UnitTest
   fun name(): String => "collections/Lists/map()"
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2)
+    a .> push(0) .> push(1) .> push(2)
 
     let f = {(a: U32): U32 => a * 2 }
     let c = a.map[U32](f)
@@ -240,9 +242,9 @@ class iso _TestListsFlatMap is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2)
+    a .> push(0) .> push(1) .> push(2)
 
-    let f = {(a: U32): List[U32] => List[U32].>push(a).>push(a * 2) }
+    let f = {(a: U32): List[U32] => List[U32] .> push(a) .> push(a * 2) }
     let c = a.flat_map[U32](f)
 
     h.assert_eq[USize](c.size(), 6)
@@ -258,7 +260,7 @@ class iso _TestListsFilter is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(a: U32): Bool => a > 1 }
     let b = a.filter(f)
@@ -272,14 +274,14 @@ class iso _TestListsFold is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(acc: U32, x: U32): U32 => acc + x }
     let value = a.fold[U32](f, 0)
 
     h.assert_eq[U32](value, 6)
 
-    let g = {(acc: List[U32], x: U32): List[U32] => acc.>push(x * 2) }
+    let g = {(acc: List[U32], x: U32): List[U32] => acc .> push(x * 2) }
     let resList = a.fold[List[U32]](g, List[U32])
 
     h.assert_eq[USize](resList.size(), 4)
@@ -293,7 +295,7 @@ class iso _TestListsEvery is UnitTest
 
   fun apply(h: TestHelper) =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(x: U32): Bool => x < 4 }
     let g = {(x: U32): Bool => x < 3 }
@@ -315,7 +317,7 @@ class iso _TestListsExists is UnitTest
 
   fun apply(h: TestHelper) =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(x: U32): Bool => x > 2 }
     let g = {(x: U32): Bool => x >= 0 }
@@ -337,7 +339,7 @@ class iso _TestListsPartition is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3)
+    a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let isEven = {(x: U32): Bool => (x % 2) == 0 }
     (let evens, let odds) = a.partition(isEven)
@@ -360,7 +362,7 @@ class iso _TestListsDrop is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3).>push(4)
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
 
     let b = a.drop(2)
     let c = a.drop(4)
@@ -384,7 +386,7 @@ class iso _TestListsTake is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3).>push(4)
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
 
     let b = a.take(2)
     let c = a.take(4)
@@ -423,7 +425,7 @@ class iso _TestListsTakeWhile is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2).>push(3).>push(4)
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
 
     let f = {(x: U32): Bool => x < 5 }
     let g = {(x: U32): Bool => x < 4 }
@@ -458,7 +460,7 @@ class iso _TestListsContains is UnitTest
 
   fun apply(h: TestHelper) =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2)
+    a .> push(0) .> push(1) .> push(2)
 
     h.assert_eq[Bool](a.contains(0), true)
     h.assert_eq[Bool](a.contains(1), true)
@@ -470,7 +472,7 @@ class iso _TestListsReverse is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
-    a.>push(0).>push(1).>push(2)
+    a .> push(0) .> push(1) .> push(2)
 
     let b = a.reverse()
 
@@ -489,7 +491,7 @@ class iso _TestHashSetContains is UnitTest
 
   fun apply(h: TestHelper) =>
     let a = Set[U32]
-    a.>set(0).>set(1)
+    a .> set(0) .> set(1)
 
     let not_found_fail = "contains did not find expected element in HashSet"
     let found_fail = "contains found unexpected element in HashSet"
@@ -529,6 +531,6 @@ class iso _TestSort is UnitTest
   fun test_sort[A: (Comparable[A] val & Stringable)](
     h: TestHelper,
     sorted: Array[A],
-    unsorted: Array[A]
-  ) =>
+    unsorted: Array[A])
+  =>
     h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))

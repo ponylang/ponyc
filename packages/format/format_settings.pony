@@ -4,7 +4,8 @@ trait val PrefixSpec
 interface Creatable
   new box create()
 
-interface box FormatSettings[F: FormatSpec val = FormatDefault,
+interface box FormatSettings[
+  F: FormatSpec val = FormatDefault,
   P: PrefixSpec val = PrefixDefault]
   """
   Settings used when converting objects to strings.
@@ -36,7 +37,7 @@ primitive AlignCenter
 type Align is
   ( AlignLeft
   | AlignRight
-  | AlignCenter)
+  | AlignCenter )
 
 primitive FormatUTF32 is FormatSpec
 primitive FormatBinary is FormatSpec
@@ -58,7 +59,7 @@ type FormatInt is
   | FormatHex
   | FormatHexBare
   | FormatHexSmall
-  | FormatHexSmallBare)
+  | FormatHexSmallBare )
 
 primitive FormatDefaultNumber
   """
@@ -77,7 +78,7 @@ primitive PrefixSign is PrefixSpec
 type PrefixNumber is
   ( PrefixDefault
   | PrefixSpace
-  | PrefixSign)
+  | PrefixSign )
 
 primitive FormatExp is FormatSpec
 primitive FormatExpLarge is FormatSpec
@@ -93,4 +94,4 @@ type FormatFloat is
   | FormatFix
   | FormatFixLarge
   | FormatGeneral
-  | FormatGeneralLarge)
+  | FormatGeneralLarge )

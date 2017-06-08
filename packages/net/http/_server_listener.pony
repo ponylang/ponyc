@@ -3,7 +3,7 @@ use "net/ssl"
 
 class _ServerListener is TCPListenNotify
   """
-  Manages the listening socket for an HTTP server.  Incoming requests
+  Manages the listening socket for an HTTP server. Incoming requests
   are assembled and dispatched.
   """
   let _server: HTTPServer
@@ -12,9 +12,12 @@ class _ServerListener is TCPListenNotify
   let _logger: Logger
   let _reversedns: (DNSLookupAuth | None)
 
-  new iso create(server: HTTPServer, sslctx: (SSLContext | None),
+  new iso create(
+    server: HTTPServer,
+    sslctx: (SSLContext | None),
     handler: HandlerFactory val,  // Makes a unique session handler
-    logger: Logger, reversedns: (DNSLookupAuth | None))
+    logger: Logger,
+    reversedns: (DNSLookupAuth | None))
   =>
     """
     Creates a new listening socket manager.
@@ -45,7 +48,7 @@ class _ServerListener is TCPListenNotify
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     """
-    Create a notifier for a specific HTTP socket.  A new instance of the
+    Create a notifier for a specific HTTP socket. A new instance of the
     back-end Handler is passed along so it can be used on each `Payload`.
     """
     try

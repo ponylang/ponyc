@@ -29,7 +29,7 @@ actor _ClientConnection is HTTPSession
 
   ## The HandlerFactory
 
-  The `Client` class will try to re-use sessions.  If it needs to create
+  The `Client` class will try to re-use sessions. If it needs to create
   a new session, based on the request URL, it will do that, and then it
   will need a new instance of the caller's `HTTPHandler` class.
   Since the client application code does not know in advance when this
@@ -49,12 +49,16 @@ actor _ClientConnection is HTTPSession
   var _conn: (TCPConnection | None) = None
   var _nobackpressure: Bool = true   // TCP backpressure indicator
   
-  new create(auth: TCPConnectionAuth, host: String, service: String,
-    sslctx: (SSLContext | None) = None, pipeline: Bool = true,
+  new create(
+    auth: TCPConnectionAuth,
+    host: String,
+    service: String,
+    sslctx: (SSLContext | None) = None,
+    pipeline: Bool = true,
     handlermaker: HandlerFactory val)
-    =>
+  =>
     """
-    Create a connection for the given host and service.  We also create
+    Create a connection for the given host and service. We also create
     an instance of the client application's HTTPHandler.
     """
     _auth = auth
@@ -76,7 +80,7 @@ actor _ClientConnection is HTTPSession
     """
     Cancel a request.
     """
-    // We look for it first in the unsent queue.  If it is there,
+    // We look for it first in the unsent queue. If it is there,
     // we just remove it.
     try
       for node in _unsent.nodes() do
@@ -88,7 +92,7 @@ actor _ClientConnection is HTTPSession
       end
 
       // It might have been sent already, but no response received
-      // yet.  In that case we have to close the connection so that
+      // yet. In that case we have to close the connection so that
       // the server finds out.
       for node in _sent.nodes() do
         if node() is request then
@@ -105,8 +109,8 @@ actor _ClientConnection is HTTPSession
     Deal with a new Response coming back from the server.
 
     Since the session operates in a FIFO manner, the Request corresponding
-    to this Response is the oldest one on the `_sent` list.  We take it
-    off that list and call its handler.  It becomes the 'currently being
+    to this Response is the oldest one on the `_sent` list. We take it
+    off that list and call its handler. It becomes the 'currently being
     delivered' response and subsequent body data has to go there as well,
     if there is any.
     """
@@ -153,7 +157,7 @@ actor _ClientConnection is HTTPSession
 
   be write(data: ByteSeq val) =>
     """
-    Write a low-level byte stream.  The `Payload` objects call this to
+    Write a low-level byte stream. The `Payload` objects call this to
     generate their wire representation.
     """
     match _conn
@@ -163,7 +167,7 @@ actor _ClientConnection is HTTPSession
   be _chunk(data: ByteSeq val) =>
     """
     Called when *inbound* body data has arrived for the currently
-    inbound `Payload`.  This should be passed directly to the application's
+    inbound `Payload`. This should be passed directly to the application's
     `HTTPHandler.chunk` method.
     """
     _app_handler.chunk(data)
@@ -171,7 +175,7 @@ actor _ClientConnection is HTTPSession
   be _finish() =>
     """
     Inidcates that the last *inbound* body chunk has been sent to
-    `_chunk`.  This is passed on to the front end.
+    `_chunk`. This is passed on to the front end.
     """
     _app_handler.finished()
 
@@ -262,14 +266,14 @@ actor _ClientConnection is HTTPSession
         end
       end
     else
-      // Oops, the connection is closed.  Open it and try sending
+      // Oops, the connection is closed. Open it and try sending
       // again when it becomes active.
       _new_conn()
     end
 
   fun ref _new_conn() =>
     """
-    Creates a new connection.  `ResponseBuilder` is the notification class
+    Creates a new connection. `ResponseBuilder` is the notification class
     that will send back a `_connected` call when the connection has been made.
     """
     _conn = try

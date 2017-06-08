@@ -34,7 +34,9 @@ primitive Debug
       _print(msg.string(), stream)
     end
 
-  fun apply(msg: ReadSeq[Stringable], sep: String = ", ",
+  fun apply(
+    msg: ReadSeq[Stringable],
+    sep: String = ", ",
     stream: DebugStream)
   =>
     """
@@ -59,16 +61,11 @@ primitive Debug
 
   fun _print(msg: String, stream: DebugStream) =>
     ifdef debug then
-      try
-        @fprintf[I32](_stream(stream), "%s\n".cstring(),
-          msg.cstring())
-      end
+      @fprintf[I32](_stream(stream), "%s\n".cstring(), msg.cstring())
     end
 
-  fun _stream(stream: DebugStream): Pointer[U8] ? =>
+  fun _stream(stream: DebugStream): Pointer[U8] =>
     match stream
     | DebugOut => @pony_os_stdout[Pointer[U8]]()
     | DebugErr => @pony_os_stderr[Pointer[U8]]()
-    else
-      error
     end

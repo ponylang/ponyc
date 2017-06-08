@@ -31,17 +31,17 @@ class _MachineWords
   var f64: F64 = 9.82643431e19
 
   fun eq(that: _MachineWords box): Bool =>
-    (bool1 == that.bool1) and
-    (bool2 == that.bool2) and
-    (i8 == that.i8) and
-    (i16 == that.i16) and
-    (i32 == that.i32) and
-    (i64 == that.i64) and
-    (i128 == that.i128) and
-    (ilong == that.ilong) and
-    (isize == that.isize) and
-    (f32 == that.f32) and
-    (f64 == that.f64)
+    (bool1 == that.bool1)
+      and (bool2 == that.bool2)
+      and (i8 == that.i8)
+      and (i16 == that.i16)
+      and (i32 == that.i32)
+      and (i64 == that.i64)
+      and (i128 == that.i128)
+      and (ilong == that.ilong)
+      and (isize == that.isize)
+      and (f32 == that.f32)
+      and (f64 == that.f64)
 
 class _StructWords
   var u8: U8 = 0x3
@@ -53,13 +53,13 @@ class _StructWords
   var usize: USize = 1 << (USize(0).bitwidth() - 1)
 
   fun eq(that: _StructWords box): Bool =>
-    (u8 == that.u8) and
-    (u16 == that.u16) and
-    (u32 == that.u32) and
-    (u64 == that.u64) and
-    (u128 == that.u128) and
-    (ulong == that.ulong) and
-    (usize == that.usize)
+    (u8 == that.u8) 
+      and (u16 == that.u16)
+      and (u32 == that.u32)
+      and (u64 == that.u64)
+      and (u128 == that.u128)
+      and (ulong == that.ulong)
+      and (usize == that.usize)
 
 class _Simple
   var words1: _MachineWords = _MachineWords
@@ -76,33 +76,35 @@ class _Simple
   var a_ref: _MachineWords = words1
 
   fun eq(that: _Simple): Bool =>
-    (words1 == that.words1) and
-    (words2 == that.words2) and
-    (words3 == that.words3) and
-    (words4 == that.words4) and
-    try
-      (words5 as _MachineWords box) == (that.words5 as _MachineWords box)
-    else
-      false
-    end and
-    (words6 is that.words6) and
-    (string == that.string) and
-    (none is that.none) and
-    (tuple._1 == that.tuple._1) and
-    (tuple._2 == that.tuple._2) and
-    try
-      let x = tuple2 as (U64, String)
-      let y = that.tuple2 as (U64, String)
-      (x._1 == y._1) and (x._2 == y._2)
-    else
-      false
-    end and
-    (a_tag isnt that.a_tag) and
-    (a_tag is words1) and
-    (that.a_tag is that.words1) and
-    (a_ref == that.a_ref) and
-    (a_ref is words1) and
-    (that.a_ref is that.words1)
+    (words1 == that.words1)
+      and (words2 == that.words2)
+      and (words3 == that.words3)
+      and (words4 == that.words4)
+      and
+        try
+          (words5 as _MachineWords box) == (that.words5 as _MachineWords box)
+        else
+          false
+        end
+      and (words6 is that.words6)
+      and (string == that.string)
+      and (none is that.none)
+      and (tuple._1 == that.tuple._1)
+      and (tuple._2 == that.tuple._2)
+      and
+        try
+          let x = tuple2 as (U64, String)
+          let y = that.tuple2 as (U64, String)
+          (x._1 == y._1) and (x._2 == y._2)
+        else
+          false
+        end
+      and (a_tag isnt that.a_tag)
+      and (a_tag is words1)
+      and (that.a_tag is that.words1)
+      and (a_ref == that.a_ref)
+      and (a_ref is words1)
+      and (that.a_ref is that.words1)
 
 class iso _TestSimple is UnitTest
   """
@@ -202,9 +204,7 @@ class iso _TestFailures is UnitTest
     let ambient = h.env.root as AmbientAuth
     let serialise = SerialiseAuth(ambient)
 
-    h.assert_error({()(serialise)? =>
-      Serialised(serialise, _HasActor)
-    })
+    h.assert_error({() ? => Serialised(serialise, _HasActor) })
 
 class _BoxedWord
   var f: Any val = U32(3)

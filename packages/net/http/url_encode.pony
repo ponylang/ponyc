@@ -5,8 +5,14 @@ primitive URLPartPath
 primitive URLPartQuery
 primitive URLPartFragment
 
-type URLPart is (URLPartUser | URLPartPassword | URLPartHost |
-  URLPartPath | URLPartQuery | URLPartFragment)
+type URLPart is
+  ( URLPartUser
+  | URLPartPassword
+  | URLPartHost
+  | URLPartPath
+  | URLPartQuery
+  | URLPartFragment
+  )
 
 
 primitive URLEncode
@@ -97,10 +103,14 @@ primitive URLEncode
       while i < scheme.size() do
         let c = scheme(i)
         
-        if ((c < 'a') or (c > 'z')) and
-          ((c < 'A') or (c > 'Z')) and
-          ((c < '0') or (c > '9')) and
-          (c != '-') and (c != '+') and (c != '.') then
+        if
+          ((c < 'a') or (c > 'z'))
+            and ((c < 'A') or (c > 'Z'))
+            and ((c < '0') or (c > '9'))
+            and (c != '-')
+            and (c != '+')
+            and (c != '.')
+        then
           return false
         end
         
@@ -113,8 +123,7 @@ primitive URLEncode
   fun check(from: String, part: URLPart): Bool =>
     """
     Check that the given string is valid to be the given URL part without
-    further encoding.
-    Canonical form is not checked for, merely validity.
+    further encoding. Canonical form is not checked for, merely validity.
     """
     try
       if _is_host_ipv6(from, part) then
@@ -178,16 +187,20 @@ primitive URLEncode
   fun _normal_decode(value: U8, part: URLPart): Bool =>
     """
     Determine whether the given character should be decoded to give normal
-    form.
-    Some characters, such as sub-delims, are valid to have either in encoded or
-    unencoded form. These should be left as they are when normalising. This
-    will return false for such characters.
+    form. Some characters, such as sub-delims, are valid to have either in
+    encoded or unencoded form. These should be left as they are when
+    normalising. This will return false for such characters.
     """
     // The unreserved characters should always be decoded.
-    if ((value >= 'a') and (value <= 'z')) or
-      ((value >= 'A') and (value <= 'Z')) or
-      ((value >= '0') and (value <= '9')) or
-      (value == '-') or (value == '_') or (value == '.') or (value == '~') then
+    if
+      ((value >= 'a') and (value <= 'z'))
+        or ((value >= 'A') and (value <= 'Z'))
+        or ((value >= '0') and (value <= '9'))
+        or (value == '-')
+        or (value == '_')
+        or (value == '.')
+        or (value == '~')
+    then
       return true
     end
 
@@ -224,10 +237,13 @@ primitive URLEncode
       let c = host(i)
 
       // Only hex digits, ':' and '.' and allowed.
-      if ((c < 'a') or (c > 'f')) and
-        ((c < 'A') or (c > 'F')) and
-        ((c < '0') or (c > '9')) and
-        (c != ':') and (c != '.') then
+      if
+        ((c < 'a') or (c > 'f'))
+          and ((c < 'A') or (c > 'F'))
+          and ((c < '0') or (c > '9'))
+          and (c != ':')
+          and (c != '.')
+      then
         error
       end
         

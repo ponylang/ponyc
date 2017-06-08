@@ -15,8 +15,11 @@ class val FilePath
   let path: String
   let caps: FileCaps = FileCaps
 
-  new val create(base: (FilePath | AmbientAuth), path': String,
-    caps': FileCaps val = recover val FileCaps.>all() end) ?
+  new val create(
+    base: (FilePath | AmbientAuth),
+    path': String,
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    ?
   =>
     """
     Create a new path. The caller must either provide the root capability or an
@@ -49,8 +52,11 @@ class val FilePath
       error
     end
 
-  new val mkdtemp(base: (FilePath | AmbientAuth), prefix: String = "",
-    caps': FileCaps val = recover val FileCaps.>all() end) ?
+  new val mkdtemp(
+    base: (FilePath | AmbientAuth),
+    prefix: String = "",
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    ?
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
@@ -88,8 +94,11 @@ class val FilePath
     path = path'
     caps.union(caps')
 
-  fun val join(path': String,
-    caps': FileCaps val = recover val FileCaps.>all() end): FilePath ? =>
+  fun val join(
+    path': String,
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    : FilePath ?
+  =>
     """
     Return a new path relative to this one.
     """
@@ -100,7 +109,7 @@ class val FilePath
     Walks a directory structure starting at this.
 
     `handler(dir_path, dir_entries)` will be called for each directory
-    starting with this one.  The handler can control which subdirectories are
+    starting with this one. The handler can control which subdirectories are
     expanded by removing them from the `dir_entries` list.
     """
     try
@@ -228,8 +237,7 @@ class val FilePath
       return false
     end
 
-    0 == @rename[I32](path.cstring(),
-      new_path.path.cstring())
+    0 == @rename[I32](path.cstring(), new_path.path.cstring())
 
   fun symlink(link_name: FilePath): Bool =>
     """
@@ -240,11 +248,9 @@ class val FilePath
     end
 
     ifdef windows then
-      0 != @CreateSymbolicLink[U8](link_name.path.cstring(),
-        path.cstring())
+      0 != @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring())
     else
-      0 == @symlink[I32](path.cstring(),
-        link_name.path.cstring())
+      0 == @symlink[I32](path.cstring(), link_name.path.cstring())
     end
 
   fun chmod(mode: FileMode box): Bool =>
@@ -296,7 +302,8 @@ class val FilePath
       0 == @_utime64[I32](path.cstring(), addressof tv)
     else
       var tv: (ILong, ILong, ILong, ILong) =
-        (atime._1.ilong(), atime._2.ilong() / 1000,
-          mtime._1.ilong(), mtime._2.ilong() / 1000)
+        ( atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000 )
+
       0 == @utimes[I32](path.cstring(), addressof tv)
     end

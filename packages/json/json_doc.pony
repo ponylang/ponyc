@@ -26,8 +26,9 @@ class JsonDoc
     """
     Generate string representation of this document.
     """
-    let buf = _JsonPrint._string(data, recover String(256) end, indent, 0,
-      pretty_print)
+    let buf =
+      _JsonPrint._string(data, recover String(256) end, indent, 0,
+        pretty_print)
     buf.compact()
     buf
 
@@ -147,8 +148,9 @@ class JsonDoc
     end
 
     // We have fractional part and/or exponent, make a float
-    var f = (int.f64() + (frac.f64() / F64(10).pow(frac_digits.f64()))) *
-      (F64(10).pow(exp.f64()))
+    var f =
+      (int.f64() + (frac.f64() / F64(10).pow(frac_digits.f64())))
+        * (F64(10).pow(exp.f64()))
 
     if minus then -f else f end
 

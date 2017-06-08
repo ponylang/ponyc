@@ -69,8 +69,11 @@ class SSLConnection is TCPConnectionNotify
 
   recover val Array[ByteSeq] end
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     """
     Pass the data to the SSL session and check for both new application data

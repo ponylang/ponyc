@@ -28,8 +28,8 @@ class Zip2[A, B] is Iterator[(A, B)]
       end
   ```
   """
-  let _i1: Iterator[A] ref
-  let _i2: Iterator[B] ref
+  let _i1: Iterator[A]
+  let _i2: Iterator[B]
 
   new create(i1: Iterator[A] ref, i2: Iterator[B] ref) =>
     _i1 = consume i1
@@ -78,9 +78,9 @@ class Zip3[A, B, C] is Iterator[(A, B, C)]
       end
   ```
   """
-  let _i1: Iterator[A] ref
-  let _i2: Iterator[B] ref
-  let _i3: Iterator[C] ref
+  let _i1: Iterator[A]
+  let _i2: Iterator[B]
+  let _i3: Iterator[C]
 
   new create(i1: Iterator[A] ref, i2: Iterator[B] ref, i3: Iterator[C]) =>
     _i1 = i1
@@ -131,12 +131,15 @@ class Zip4[A, B, C, D] is Iterator[(A, B, C, D)]
       end
   ```
   """
-  let _i1: Iterator[A] ref
-  let _i2: Iterator[B] ref
-  let _i3: Iterator[C] ref
-  let _i4: Iterator[D] ref
+  let _i1: Iterator[A]
+  let _i2: Iterator[B]
+  let _i3: Iterator[C]
+  let _i4: Iterator[D]
 
-  new create(i1: Iterator[A] ref, i2: Iterator[B] ref, i3: Iterator[C],
+  new create(
+    i1: Iterator[A],
+    i2: Iterator[B],
+    i3: Iterator[C],
     i4: Iterator[D])
   =>
     _i1 = i1
@@ -190,14 +193,18 @@ class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
       end
   ```
   """
-  let _i1: Iterator[A] ref
-  let _i2: Iterator[B] ref
-  let _i3: Iterator[C] ref
-  let _i4: Iterator[D] ref
-  let _i5: Iterator[E] ref
+  let _i1: Iterator[A]
+  let _i2: Iterator[B]
+  let _i3: Iterator[C]
+  let _i4: Iterator[D]
+  let _i5: Iterator[E]
 
-  new create(i1: Iterator[A] ref, i2: Iterator[B] ref, i3: Iterator[C],
-    i4: Iterator[D], i5: Iterator[E])
+  new create(
+    i1: Iterator[A],
+    i2: Iterator[B],
+    i3: Iterator[C],
+    i4: Iterator[D],
+    i5: Iterator[E])
   =>
     _i1 = i1
     _i2 = i2
@@ -206,8 +213,11 @@ class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
     _i5 = i5
 
   fun ref has_next(): Bool =>
-    _i1.has_next() and _i2.has_next() and _i3.has_next() and _i4.has_next() and
-      _i5.has_next()
+    _i1.has_next()
+      and _i2.has_next()
+      and _i3.has_next()
+      and _i4.has_next()
+      and _i5.has_next()
 
   fun ref next(): (A, B, C, D, E) ? =>
     (_i1.next(), _i2.next(), _i3.next(), _i4.next(), _i5.next())

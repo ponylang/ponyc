@@ -107,24 +107,27 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
       unset(value)
     end
 
-  fun add[K: HashFunction[this->A!] val = H](value: this->A!):
-    HashSet[this->A!, K]^
+  fun add[K: HashFunction[this->A!] val = H](
+    value: this->A!)
+    : HashSet[this->A!, K]^
   =>
     """
     Add a value to the set.
     """
-    clone[K]().>set(value)
+    clone[K]() .> set(value)
 
-  fun sub[K: HashFunction[this->A!] val = H](value: box->this->A!):
-    HashSet[this->A!, K]^
+  fun sub[K: HashFunction[this->A!] val = H](
+    value: box->this->A!)
+    : HashSet[this->A!, K]^
   =>
     """
     Remove a value from the set.
     """
-    clone[K]().>unset(value)
+    clone[K]() .> unset(value)
 
-  fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
-    HashSet[this->A!, K]^
+  fun op_or[K: HashFunction[this->A!] val = H](
+    that: this->HashSet[A, H])
+    : HashSet[this->A!, K]^
   =>
     """
     Create a set with the elements of both this and that.
@@ -136,8 +139,9 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_and[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
-    HashSet[this->A!, K]^
+  fun op_and[K: HashFunction[this->A!] val = H](
+    that: this->HashSet[A, H])
+    : HashSet[this->A!, K]^
   =>
     """
     Create a set with the elements that are in both this and that.
@@ -152,8 +156,9 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_xor[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
-    HashSet[this->A!, K]^
+  fun op_xor[K: HashFunction[this->A!] val = H](
+    that: this->HashSet[A, H])
+    : HashSet[this->A!, K]^
   =>
     """
     Create a set with the elements that are in either set but not both.
@@ -177,8 +182,9 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun without[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
-    HashSet[this->A!, K]^
+  fun without[K: HashFunction[this->A!] val = H](
+    that: this->HashSet[A, H])
+    : HashSet[this->A!, K]^
   =>
     """
     Create a set with the elements of this that are not in that.

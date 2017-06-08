@@ -51,10 +51,16 @@ primitive Format
   end of the generated string, or both.
   *fill: The character to pad a string with if is is shorter than width.
   """
-  fun apply(str: String, fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignLeft, fill: U32 = ' '
-  ): String iso^ =>
+  fun apply(
+    str: String,
+    fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault,
+    prec: USize = -1,
+    width: USize = 0,
+    align: Align = AlignLeft,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     let copy_len = str.size().min(prec.usize())
     let len = copy_len.max(width.usize())
     recover
@@ -82,13 +88,19 @@ primitive Format
         end
       end
 
-      s.>recalc()
+      s .> recalc()
     end
 
-  fun int[A: (Int & Integer[A])](x: A, fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '
-  ): String iso^ =>
+  fun int[A: (Int & Integer[A])](
+    x: A,
+    fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault,
+    prec: USize = -1,
+    width: USize = 0,
+    align: Align = AlignRight,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     let zero = x.from[USize](0)
     (let abs, let neg) = if x < zero then (-x, true) else (x, false) end
 
@@ -120,9 +132,14 @@ primitive Format
       _FormatInt.u128(x.u128(), false, fmt, prefix, prec, width, align, fill)
     end
 
-  fun float[A: (Float & FloatingPoint[A])](x: A,
+  fun float[A: (Float & FloatingPoint[A])](
+    x: A,
     fmt: FormatFloat = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = 6, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '
-  ): String iso^ =>
+    prefix: PrefixNumber = PrefixDefault,
+    prec: USize = 6,
+    width: USize = 0,
+    align: Align = AlignRight,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     _FormatFloat.f64(x.f64(), fmt, prefix, prec, width, align, fill)

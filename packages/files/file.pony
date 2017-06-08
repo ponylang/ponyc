@@ -1,7 +1,9 @@
 use @_read[I32](fd: I32, buffer: Pointer[None], bytes_to_read: I32) if windows
-use @read[ISize](fd: I32, buffer: Pointer[None], bytes_to_read: USize) if not windows
+use @read[ISize](fd: I32, buffer: Pointer[None], bytes_to_read: USize)
+  if not windows
 use @_write[I32](fd: I32, buffer: Pointer[None], bytes_to_send: I32) if windows
-use @writev[ISize](fd: I32, buffer: Pointer[None], num_to_send: I32) if not windows
+use @writev[ISize](fd: I32, buffer: Pointer[None], num_to_send: I32)
+  if not windows
 use @_lseeki64[I64](fd: I32, offset: I64, base: I32) if windows
 use @lseek64[I64](fd: I32, offset: I64, base: I32) if linux
 use @lseek[I64](fd: I32, offset: I64, base: I32) if not windows and not linux
@@ -231,19 +233,22 @@ class File
     while not done do
       result.reserve(len)
 
-      let r = (ifdef windows then
-        @_read(_fd, result.cpointer(offset), bytes_to_read.i32())
-      else
-        @read(_fd, result.cpointer(offset), bytes_to_read)
-      end).isize()
+      let r =
+        (ifdef windows then
+          @_read(_fd, result.cpointer(offset), bytes_to_read.i32())
+        else
+          @read(_fd, result.cpointer(offset), bytes_to_read)
+        end)
+          .isize()
 
       if r < bytes_to_read.isize() then
-        _errno = if r == 0 then
-                   FileEOF
-                 else
-                   _get_error() // error
-                   error
-                 end
+        _errno =
+          if r == 0 then
+             FileEOF
+           else
+             _get_error() // error
+             error
+           end
       else
         // truncate at offset in order to adjust size of string after ffi call
         // and to avoid scanning full array via recalc
@@ -288,20 +293,23 @@ class File
     Returns up to len bytes.
     """
     if _fd != -1 then
-      let result = recover Array[U8].>undefined(len) end
+      let result = recover Array[U8] .> undefined(len) end
 
-      let r = (ifdef windows then
-        @_read(_fd, result.cpointer(), len.i32())
-      else
-        @read(_fd, result.cpointer(), len)
-      end).isize()
+      let r =
+        (ifdef windows then
+          @_read(_fd, result.cpointer(), len.i32())
+        else
+          @read(_fd, result.cpointer(), len)
+        end)
+          .isize()
 
       if r < len.isize() then
-        _errno = if r == 0 then
-                   FileEOF
-                 else
-                   _get_error() // error
-                 end
+        _errno =
+          if r == 0 then
+             FileEOF
+           else
+             _get_error() // error
+           end
       end
 
       result.truncate(r.usize())
@@ -325,11 +333,12 @@ class File
       end).isize()
 
       if r < len.isize() then
-        _errno = if r == 0 then
-                   FileEOF
-                 else
-                   _get_error() // error
-                 end
+        _errno =
+          if r == 0 then
+             FileEOF
+           else
+             _get_error() // error
+           end
       end
 
       result.truncate(r.usize())
@@ -383,7 +392,7 @@ class File
     NOTE: Queue'd data will always be written before normal print/write
     requested data
     """
-    _pending_writev.>push(data.cpointer().usize()).>push(data.size())
+    _pending_writev .> push(data.cpointer().usize()) .> push(data.size())
     _pending_writev_total = _pending_writev_total + data.size()
 
   fun ref queuev(data: ByteSeqIter box) =>
@@ -453,8 +462,9 @@ class File
     var num_sent: USize = 0
     var bytes_to_send: USize = 0
     var pending_total = _pending_writev_total
-    while writeable and (pending_total > 0)
-      and (_fd != -1) do
+    while
+      writeable and (pending_total > 0) and (_fd != -1)
+    do
       //determine number of bytes and buffers to send
       if (_pending_writev.size().i32()/2) < writev_batch_size then
         num_to_send = _pending_writev.size().i32()/2

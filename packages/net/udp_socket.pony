@@ -18,7 +18,10 @@ actor UDPSocket
   use "net"
 
   class MyUDPNotify is UDPNotify
-    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
+    fun ref received(
+      sock: UDPSocket ref,
+      data: Array[U8] iso,
+      from: NetAddress)
     =>
       sock.write(consume data, from)
 
@@ -41,22 +44,33 @@ actor UDPSocket
   class MyUDPNotify is UDPNotify
     let _out: OutStream
     let _destination: NetAddress
-    new create(out: OutStream, destination: NetAddress) =>
+
+    new create(
+      out: OutStream,
+      destination: NetAddress)
+    =>
       _out = out
       _destination = destination
+
     fun ref listening(sock: UDPSocket ref) =>
       sock.write("hello world", _destination)
-    fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
+
+    fun ref received(
+      sock: UDPSocket ref,
+      data: Array[U8] iso,
+      from: NetAddress)
     =>
       _out.print("GOT:" + String.from_array(consume data))
       sock.dispose()
+
     fun ref not_listening(sock: UDPSocket ref) =>
       None
 
   actor Main
     new create(env: Env) =>
       try
-        let destination = DNS.ip4(env.root as AmbientAuth, "localhost", "8989")(0)
+        let destination =
+          DNS.ip4(env.root as AmbientAuth, "localhost", "8989")(0)
         UDPSocket(env.root as AmbientAuth,
           recover MyUDPNotify(env.out, consume destination) end)
       end
@@ -72,51 +86,66 @@ actor UDPSocket
   var _read_from: NetAddress iso = NetAddress
   embed _ip: NetAddress = NetAddress
 
-  new create(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
-    service: String = "0", size: USize = 1024)
+  new create(
+    auth: UDPSocketAuth,
+    notify: UDPNotify iso,
+    host: String = "",
+    service: String = "0",
+    size: USize = 1024)
   =>
     """
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp[AsioEventID](this,
-      host.cstring(), service.cstring())
+    _event =
+      @pony_os_listen_udp[AsioEventID](this,
+        host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].>undefined(size) end
+    _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
     _start_next_read()
 
-  new ip4(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
-    service: String = "0", size: USize = 1024)
+  new ip4(
+    auth: UDPSocketAuth,
+    notify: UDPNotify iso,
+    host: String = "",
+    service: String = "0",
+    size: USize = 1024)
   =>
     """
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp4[AsioEventID](this,
-      host.cstring(), service.cstring())
+    _event =
+      @pony_os_listen_udp4[AsioEventID](this,
+        host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].>undefined(size) end
+    _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
     _start_next_read()
 
-  new ip6(auth: UDPSocketAuth, notify: UDPNotify iso, host: String = "",
-    service: String = "0", size: USize = 1024)
+  new ip6(
+    auth: UDPSocketAuth,
+    notify: UDPNotify iso,
+    host: String = "",
+    service: String = "0",
+    size: USize = 1024)
   =>
     """
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @pony_os_listen_udp6[AsioEventID](this,
-      host.cstring(), service.cstring())
+    _event =
+      @pony_os_listen_udp6[AsioEventID](this,
+        host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname[Bool](_fd, _ip)
     _packet_size = size
-    _read_buf = recover Array[U8].>undefined(size) end
+    _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
     _start_next_read()
 
@@ -186,8 +215,7 @@ actor UDPSocket
     specific interface.
     """
     if not _closed then
-      @pony_os_multicast_join[None](_fd, group.cstring(),
-        to.cstring())
+      @pony_os_multicast_join[None](_fd, group.cstring(), to.cstring())
     end
 
   be multicast_leave(group: String, to: String = "") =>
@@ -197,8 +225,7 @@ actor UDPSocket
     previously added this group.
     """
     if not _closed then
-      @pony_os_multicast_leave[None](_fd, group.cstring(),
-        to.cstring())
+      @pony_os_multicast_leave[None](_fd, group.cstring(), to.cstring())
     end
 
   be dispose() =>
@@ -263,10 +290,11 @@ actor UDPSocket
 
         while _readable do
           let size = _packet_size
-          let data = _read_buf = recover Array[U8].>undefined(size) end
+          let data = _read_buf = recover Array[U8] .> undefined(size) end
           let from = recover NetAddress end
-          let len = @pony_os_recvfrom[USize](_event, data.cpointer(),
-            data.space(), from) ?
+          let len =
+            @pony_os_recvfrom[USize](_event, data.cpointer(), data.space(),
+              from) ?
 
           if len == 0 then
             _readable = false
@@ -307,7 +335,7 @@ actor UDPSocket
 
       // Hand back read data
       let size = _packet_size
-      let data = _read_buf = recover Array[U8].>undefined(size) end
+      let data = _read_buf = recover Array[U8] .> undefined(size) end
       let from = _read_from = recover NetAddress end
       data.truncate(len.usize())
       _notify.received(this, consume data, consume from)

@@ -13,12 +13,12 @@ class iso _TestApply is UnitTest
   fun name(): String => "format/apply"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("fmt      ", Format("fmt", FormatDefault, PrefixDefault,
-      -1, 9))
-    h.assert_eq[String]("      fmt", Format("fmt", FormatDefault, PrefixDefault,
-      -1, 9, AlignRight))
-    h.assert_eq[String]("   fmt   ", Format("fmt", FormatDefault, PrefixDefault,
-      -1, 9, AlignCenter))
+    h.assert_eq[String]("fmt      ",
+      Format("fmt", FormatDefault, PrefixDefault, -1, 9))
+    h.assert_eq[String]("      fmt",
+      Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignRight))
+    h.assert_eq[String]("   fmt   ",
+      Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignCenter))
 
 class iso _TestInt is UnitTest
   fun name(): String => "format/int"
@@ -122,4 +122,5 @@ class iso _TestInt is UnitTest
     h.assert_eq[String]("  -0000a",
       Format.int[I128](-10, FormatHexSmallBare, PrefixDefault, 5, 8))
     h.assert_eq[String]("-0000a  ",
-      Format.int[I128](-10, FormatHexSmallBare, PrefixDefault, 5, 8, AlignLeft))
+      Format.int[I128](-10, FormatHexSmallBare, PrefixDefault, 5, 8,
+        AlignLeft))

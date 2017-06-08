@@ -115,7 +115,8 @@ class val Logger[A]
   let _f: {(A): String} val
   let _formatter: LogFormatter
 
-  new val create(level: LogLevel,
+  new val create(
+    level: LogLevel,
     out: OutStream,
     f: {(A): String} val,
     formatter: LogFormatter = DefaultLogFormatter)
@@ -133,9 +134,11 @@ class val Logger[A]
     true
 
 primitive StringLogger
-  fun apply(level: LogLevel,
+  fun apply(
+    level: LogLevel,
     out: OutStream,
-    formatter: LogFormatter = DefaultLogFormatter): Logger[String]
+    formatter: LogFormatter = DefaultLogFormatter)
+    : Logger[String]
   =>
     Logger[String](level, out, {(s: String): String => s }, formatter)
 
@@ -156,17 +159,16 @@ primitive DefaultLogFormatter is LogFormatter
     let file_linenum: String  = loc.line().string()
     let file_linepos: String  = loc.pos().string()
 
-    let output = recover String(file_name.size()
-    + file_linenum.size()
-    + file_linepos.size()
-    + msg.size()
-    + 4) end
-
-    output.append(file_name)
-    output.append(":")
-    output.append(file_linenum)
-    output.append(":")
-    output.append(file_linepos)
-    output.append(": ")
-    output.append(msg)
-    output
+    (recover String(file_name.size()
+      + file_linenum.size()
+      + file_linepos.size()
+      + msg.size()
+      + 4)
+    end)
+     .> append(file_name)
+     .> append(":")
+     .> append(file_linenum)
+     .> append(":")
+     .> append(file_linepos)
+     .> append(": ")
+     .> append(msg)

@@ -67,8 +67,8 @@ primitive Ini
   fun apply(lines: Iterator[String box], f: IniNotify): Bool =>
     """
     This accepts a string iterator and calls the IniNotify for each new entry.
-    If any errors are encountered, this will return false. Otherwise, it returns
-    true.
+    If any errors are encountered, this will return false. Otherwise, it
+    returns true.
     """
     var section = ""
     var lineno = USize(0)

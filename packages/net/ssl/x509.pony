@@ -27,8 +27,8 @@ primitive X509
     end
 
     let subject = @X509_get_subject_name[Pointer[_X509Name]](cert)
-    let len = @X509_NAME_get_text_by_NID[I32](subject, I32(13), Pointer[U8],
-      I32(0))
+    let len =
+      @X509_NAME_get_text_by_NID[I32](subject, I32(13), Pointer[U8], I32(0))
 
     if len < 0 then
       error
@@ -61,8 +61,9 @@ primitive X509
       array.push(common_name(cert))
     end
 
-    let stack = @X509_get_ext_d2i[Pointer[_GeneralNameStack]](cert, I32(85),
-      Pointer[U8], Pointer[U8])
+    let stack =
+      @X509_get_ext_d2i[Pointer[_GeneralNameStack]](cert, I32(85),
+        Pointer[U8], Pointer[U8])
 
     if stack.is_null() then
       return array
@@ -72,8 +73,8 @@ primitive X509
 
     while not name.is_null() do
       var ptype = I32(0)
-      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name,
-        addressof ptype)
+      let value =
+        @GENERAL_NAME_get0_value[Pointer[U8] tag](name, addressof ptype)
 
       match ptype
       | 2 => // GEN_DNS

@@ -17,12 +17,15 @@ actor _ServerConnection is HTTPSession
   var _keepalive: Bool = true
   var _body_bytes_sent: USize = 0
 
-  new create(handlermaker: HandlerFactory val, logger: Logger,
-    conn: TCPConnection, client_ip: String)
+  new create(
+    handlermaker: HandlerFactory val,
+    logger: Logger,
+    conn: TCPConnection,
+    client_ip: String)
   =>
     """
     Create a connection actor to manage communication with to a new
-    client.  We also create an instance of the application's back-end
+    client. We also create an instance of the application's back-end
     handler that will process incoming requests.
     """
     _backend = handlermaker(this)
@@ -38,7 +41,7 @@ actor _ServerConnection is HTTPSession
     quite large in POST methods, is up to the chosen application handler.
 
     The client can send several requests without waiting for a response,
-    but they are only passed to the back end one at a time.  Only when all
+    but they are only passed to the back end one at a time. Only when all
     of the response to a processed request has been sent is the next request
     processed.
     """
@@ -73,7 +76,7 @@ actor _ServerConnection is HTTPSession
   be _finish() =>
     """
     Inidcates that the last *inbound* body chunk has been sent to
-    `_chunk`.  This is passed on to the back end.
+    `_chunk`. This is passed on to the back end.
     """
     _backend.finished()
 
@@ -85,12 +88,12 @@ actor _ServerConnection is HTTPSession
 
   be cancel(msg: Payload val) =>
     """
-    Cancel the current response.  The connection has closed.
+    Cancel the current response. The connection has closed.
     """
     match _active_response
-      | let p: Payload val =>
-          finish()
-          _backend.cancelled()
+    | let p: Payload val =>
+      finish()
+      _backend.cancelled()
     end
 
   be _closed() =>
@@ -107,11 +110,10 @@ actor _ServerConnection is HTTPSession
     _send(response)
 
     // Clear all pending after an error response.
-    if (response.status == 0) or
-      (response.status >= 300)
+    if (response.status == 0) or (response.status >= 300)
     then
       _pending.clear()
-      end
+    end
 
   fun ref _dispatch_pending() =>
     """
@@ -135,7 +137,7 @@ actor _ServerConnection is HTTPSession
     if response.has_body()
     then
       match response.transfer_mode
-        | OneshotTransfer => finish() // Already sent
+      | OneshotTransfer => finish() // Already sent
       else
         _backend.need_body()  // To be sent later
       end
@@ -152,13 +154,13 @@ actor _ServerConnection is HTTPSession
 
   be finish() =>
     """
-    We are done sending a response.  We can close the connection if
+    We are done sending a response. We can close the connection if
     `keepalive` was not requested.
     """
     try
       _logger(_client_ip, _body_bytes_sent,
-         (_active_request as Payload val),
-         (_active_response as Payload val))
+        (_active_request as Payload val),
+        (_active_response as Payload val))
     end
 
     _active_request = None

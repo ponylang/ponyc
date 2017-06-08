@@ -60,8 +60,9 @@ class val URL
     """
     Combine the components into a string.
     """
-    let len = scheme.size() + 3 + user.size() + 1 + password.size() + 1 +
-      host.size() + 6 + path.size() + 1 + query.size() + 1 + fragment.size()
+    let len =
+      scheme.size() + 3 + user.size() + 1 + password.size() + 1 + host.size()
+        + 6 + path.size() + 1 + query.size() + 1 + fragment.size()
     let s = recover String(len) end
 
     if scheme.size() > 0 then
@@ -124,8 +125,7 @@ class val URL
     match scheme
     | "http" => 80
     | "https" => 443
-    else
-      0
+    else 0
     end
 
   fun ref _parse(from: String) ? =>
@@ -190,16 +190,19 @@ class val URL
     // End of string reached without finding any relevant terminators.
     (0, "")
 
-  fun _parse_part(from: String, prefix: String, terminators: String,
-    offset: ISize): (/*offset*/ISize, /*part*/String)
+  fun _parse_part(
+    from: String,
+    prefix: String,
+    terminators: String,
+    offset: ISize)
+    : (/*offset*/ISize, /*part*/String)
   =>
     """
-    Attempt to parse the specified part out of the given string.
-    Only attempt the parse if the given prefix is found first. Pass "" if no
-    prefix is needed.
-    The part ends when any one of the given terminator characters is found, or
-    the end of the input is reached.
-    The offset of the terminator is returned, if one is found.
+    Attempt to parse the specified part out of the given string. Only attempt
+    the parse if the given prefix is found first. Pass "" if no prefix is
+    needed. The part ends when any one of the given terminator characters is
+    found, or the end of the input is reached. The offset of the terminator is
+    returned, if one is found.
     """
     if (prefix.size() > 0) and (not from.at(prefix, offset)) then
       // Prefix not found.
@@ -234,9 +237,8 @@ class val URL
   fun _split(src: String, separator: U8): (String, String) =>
     """
     Split the given string in 2 around the first instance of the specified
-    separator.
-    If the string does not contain the separator then the first resulting
-    string is the whole src and the second is empty.
+    separator. If the string does not contain the separator then the first
+    resulting string is the whole src and the second is empty.
     """
     try
       var i = USize(0)

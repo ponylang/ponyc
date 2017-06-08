@@ -1,7 +1,11 @@
 use "collections"
 
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_create[AsioEventID](
+  owner: AsioEventNotify,
+  fd: U32,
+  flags: U32,
+  nsec: U64,
+  noisy: Bool)
 use @pony_asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
@@ -107,7 +111,8 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @pony_asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
+        _event =
+          @pony_asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
       end
     else
       if nsec != -1 then

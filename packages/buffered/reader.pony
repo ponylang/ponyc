@@ -83,12 +83,10 @@ class Reader
     """
     Add a chunk of data.
     """
-    let data_array: Array[U8] val =
+    let data_array =
       match data
       | let data': Array[U8] val => data'
-      | let data': String        => data'.array()
-      else // unreachable
-        recover val Array[U8] end
+      | let data': String => data'.array()
       end
 
     _available = _available + data_array.size()
@@ -131,7 +129,7 @@ class Reader
     end
 
     _available = _available - len
-    var out = recover Array[U8].>undefined(len) end
+    var out = recover Array[U8] .> undefined(len) end
     var i = USize(0)
 
     while i < len do
@@ -157,7 +155,7 @@ class Reader
       _chunks.shift()
     end
 
-    consume out
+    out
 
 
   fun ref read_until(separator: U8): Array[U8] iso^ ? =>
@@ -169,7 +167,7 @@ class Reader
     """
     let b = block(_distance_of(separator) - 1)
     u8()
-    consume b
+    b
 
   fun ref line(): String ? =>
     """
@@ -204,7 +202,7 @@ class Reader
     out.truncate(len -
       if (len >= 2) and (out.at_offset(-2) == '\r') then 2 else 1 end)
 
-    consume out
+    out
 
   fun ref u8(): U8 ? =>
     """

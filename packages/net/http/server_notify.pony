@@ -2,9 +2,13 @@ interface val Logger
   """
   Handles logging request/response pairs.
   """
-  fun val apply(ip: String, transfer: USize,
-    request: Payload val, response: Payload val): Any
-    =>
+  fun val apply(
+    ip: String,
+    transfer: USize,
+    request: Payload val,
+    response: Payload val)
+    : Any
+  =>
     """
     Called after the server has handled a request.
     """

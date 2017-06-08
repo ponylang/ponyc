@@ -27,8 +27,10 @@ class val NetAddress is Equatable[NetAddress]
     """
     @pony_os_ipv6[Bool](this)
 
-  fun name(reversedns: (DNSLookupAuth | None) = None,
-    servicename: Bool = false): (String, String) ?
+  fun name(
+    reversedns: (DNSLookupAuth | None) = None,
+    servicename: Bool = false)
+    : (String, String) ?
   =>
     """
     Return the host and service name.
@@ -37,8 +39,10 @@ class val NetAddress is Equatable[NetAddress]
     var serv: Pointer[U8] iso = recover Pointer[U8] end
     let reverse = reversedns isnt None
 
-    if not @pony_os_nameinfo[Bool](this, addressof host, addressof serv,
-      reverse, servicename) then
+    if not
+      @pony_os_nameinfo[Bool](this, addressof host, addressof serv, reverse,
+        servicename)
+    then
       error
     end
 
@@ -46,18 +50,18 @@ class val NetAddress is Equatable[NetAddress]
       recover String.from_cstring(consume serv) end)
 
   fun eq(that: NetAddress box): Bool =>
-    (this.length == that.length) and
-    (this.family == that.family) and
-    (this.port == that.port) and
-    (host_eq(that)) and
-    (this.scope == that.scope)
+    (this.length == that.length)
+      and (this.family == that.family)
+      and (this.port == that.port)
+      and (host_eq(that))
+      and (this.scope == that.scope)
 
   fun host_eq(that: NetAddress box): Bool =>
     if ip4() then
       this.addr == that.addr
     else
-      (this.addr1 == that.addr1) and
-      (this.addr2 == that.addr2) and
-      (this.addr3 == that.addr3) and
-      (this.addr4 == that.addr4)
+      (this.addr1 == that.addr1)
+        and (this.addr2 == that.addr2)
+        and (this.addr3 == that.addr3)
+        and (this.addr4 == that.addr4)
     end

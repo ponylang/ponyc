@@ -12,7 +12,7 @@ use "regex"
 
 interface GlobHandler
   """
-  A handler for `Glob.iglob`.  Each path which matches the glob will be called
+  A handler for `Glob.iglob`. Each path which matches the glob will be called
   with the groups that matched the various wildcards supplies in the
   `match_groups` array.
   """
@@ -23,7 +23,7 @@ primitive Glob
   Filename matching and globbing with shell patterns.
 
   `fnmatch(file_name, pattern)` matches according to the local convention.
-  `fnmatchcase(file_name, pattern)` always takes case into account.  The
+  `fnmatchcase(file_name, pattern)` always takes case into account. The
   functions operate by translating the pattern into a regular expression.
 
   The function translate(PATTERN) returns a regular expression corresponding to
@@ -44,7 +44,7 @@ primitive Glob
     An initial period in `name` is not special.
 
     Both `name` and `pattern` are first case-normalized if the operating system
-    requires it.  If you don't want this, use `fnmatchcase`.
+    requires it. If you don't want this, use `fnmatchcase`.
     """
     fnmatchcase(Path.normcase(name), Path.normcase(pattern))
 
@@ -56,8 +56,8 @@ primitive Glob
       false
     end
 
-  fun filter(names: Array[String], pattern: String):
-    Array[(String, Array[String])] val
+  fun filter(names: Array[String], pattern: String)
+    : Array[(String, Array[String])] val
   =>
     """
     Returns `name` and the matching subgroups for `names` that match `pattern`.
@@ -89,7 +89,7 @@ primitive Glob
       var i: USize = 0
       while i < n do
         let c = pat(i)
-        i = i+1
+        i = i + 1
         if c == '*' then
           if (i < n) and (pat(i) == '*') then
             res.append("(.*)")
@@ -123,18 +123,19 @@ primitive Glob
               i = i + 1
             end
             let sub = recover ref pat.substring(i.isize(), j.isize()) end
-            res.append(sub.>replace("\\","\\\\"))
+            res.append(sub .> replace("\\","\\\\"))
             res.append("])")
             i = j + 1
           end
         else
-          if alpha_num_regex != String(1).>push(c) then
+          if alpha_num_regex != String(1) .> push(c) then
             res.append("\\")
           end
           res.push(c)
         end
       end
-      res.append("\\Z(?ms)")  // end of string + (?ms) multiline and dotall flags
+      // end of string + (?ms) multiline and dotall flags
+      res.append("\\Z(?ms)")
     end
     res
 
@@ -143,20 +144,23 @@ primitive Glob
     Returns an Array[FilePath] for each path below `root_path` that matches
     `pattern`.
 
-    The pattern may contain shell-style wildcards.  See the type documentation
+    The pattern may contain shell-style wildcards. See the type documentation
     on `Glob` for details.
     """
-    let res = recover ref Array[FilePath] end
+    let res = Array[FilePath]
     iglob(
-      root_path, pattern,
-      {ref(path: FilePath, match_groups: Array[String])(res) =>
-        res.push(path)
-      })
+      root_path,
+      pattern,
+      {ref(path: FilePath, match_groups: Array[String]) => res.push(path)})
     res
 
   fun _apply_glob_to_walk(
-    pattern: String, compiled_pattern: Regex, root: FilePath,
-    glob_handler: GlobHandler ref, dir: FilePath, entries: Array[String] ref)
+    pattern: String,
+    compiled_pattern: Regex,
+    root: FilePath,
+    glob_handler: GlobHandler ref,
+    dir: FilePath,
+    entries: Array[String] ref)
   =>
     for e in entries.values() do
       try
@@ -173,14 +177,15 @@ primitive Glob
 
   fun iglob(root: FilePath, pattern: String, glob_handler: GlobHandler ref) =>
     """
-    Calls `GlobHandler.apply` for each path below `root` that matches `pattern`.
+    Calls `GlobHandler.apply` for each path below `root` that matches
+    `pattern`.
 
-    The pattern may contain shell-style wildcards.  See the type documentation
+    The pattern may contain shell-style wildcards. See the type documentation
     on `Glob` for details.
     """
     // TODO: do something efficient by looking at parts of the pattern that do
     // not contain wildcards and expanding them before walking.
     try
       root.walk(this~_apply_glob_to_walk(
-        pattern , Regex(translate(Path.normcase(pattern))), root, glob_handler))
+        pattern, Regex(translate(Path.normcase(pattern))), root, glob_handler))
     end

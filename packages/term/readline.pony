@@ -20,8 +20,11 @@ class Readline is ANSINotify
   var _cur_pos: ISize = 0
   var _blocked: Bool = true
 
-  new iso create(notify: ReadlineNotify iso, out: OutStream,
-    path: (FilePath | None) = None, maxlen: USize = 0)
+  new iso create(
+    notify: ReadlineNotify iso,
+    out: OutStream,
+    path: (FilePath | None) = None,
+    maxlen: USize = 0)
   =>
     """
     Create a readline handler to be passed to stdin. It begins blocked. Set an
@@ -172,7 +175,10 @@ class Readline is ANSINotify
     _cur_pos = 0
     _refresh_line()
 
-  fun ref end_key(ctrl: Bool = false, alt: Bool = false, shift: Bool = false)
+  fun ref end_key(
+    ctrl: Bool = false,
+    alt: Bool = false,
+    shift: Bool = false)
   =>
     """
     End of the line.
@@ -311,8 +317,7 @@ class Readline is ANSINotify
 
     promise.next[Any tag](
       recover term~prompt() end,
-      recover term~dispose() end
-      )
+      recover term~dispose() end)
 
     _notify(line, promise)
     _cur_pos = 0
