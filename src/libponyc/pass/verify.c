@@ -206,35 +206,9 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_TRY:
     case TK_TRY_NO_CHECK: r = verify_try(options, ast); break;
     case TK_DONTCAREREF:  r = verify_dontcareref(options, ast); break;
-    case TK_LETREF:
-    case TK_VARREF:
-    case TK_FLETREF:
-    case TK_FVARREF:
-    case TK_EMBEDREF:
-    case TK_TUPLEELEMREF:
-    case TK_CALL:
-    case TK_QUALIFY:
-    case TK_TUPLE:
-    case TK_MATCH:
-    case TK_CASES:
-    case TK_CASE:
-    case TK_IS:
-    case TK_ISNT:
-    case TK_SEQ:
-    case TK_BREAK:
-    case TK_RETURN:
-    case TK_IF:
-    case TK_IFDEF:
-    case TK_WHILE:
-    case TK_REPEAT:
-    case TK_RECOVER:
-    case TK_POSITIONALARGS:
-    case TK_NAMEDARGS:
-    case TK_NAMEDARG:
-    case TK_UPDATEARG:    ast_inheritflags(ast); break;
     case TK_ERROR:        ast_seterror(ast); break;
 
-    default: {}
+    default:              ast_inheritflags(ast); break;
   }
 
   if(!r)
