@@ -447,6 +447,22 @@ TEST_F(VerifyTest, InterfaceNonPartialFunctionError)
     "function body can raise an error");
 }
 
+TEST_F(VerifyTest, IfTypeError)
+{
+  const char* src =
+    "primitive A\n"
+    "primitive B\n"
+
+    "primitive Foo\n"
+    "  fun apply[X: (A|B)]() =>\n"
+    "    iftype X <: A then\n"
+    "      error\n"
+    "    end\n";
+
+  TEST_ERRORS_1(src, "function signature is not marked as partial but the "
+    "function body can raise an error");
+}
+
 TEST_F(VerifyTest, FFICallPartial)
 {
   const char* src =
