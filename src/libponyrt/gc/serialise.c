@@ -76,6 +76,21 @@ static void serialise_cleanup(pony_ctx_t* ctx)
   ponyint_serialise_destroy(&ctx->serialise);
 }
 
+static void custom_deserialise(pony_ctx_t* ctx)
+{
+  size_t i = HASHMAP_BEGIN;
+  serialise_t* s;
+
+  while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
+  {
+    if (s->t != NULL && s->t->custom_deserialise != NULL)
+    {
+      s->t->custom_deserialise((void *)(s->value),
+        (void*)((uintptr_t)ctx->serialise_buffer + s->key + s->t->size));
+    }
+  }
+}
+
 bool ponyint_serialise_setup()
 {
 #if defined(PLATFORM_IS_POSIX_BASED)
@@ -145,21 +160,6 @@ void ponyint_serialise_actor(pony_ctx_t* ctx, pony_actor_t* actor)
   serialise_cleanup(ctx);
   ctx->serialise_throw();
   abort();
-}
-
-void custom_deserialise(pony_ctx_t* ctx)
-{
-  size_t i = HASHMAP_BEGIN;
-  serialise_t* s;
-
-  while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
-  {
-    if (s->t != NULL && s->t->custom_deserialise != NULL)
-    {
-      s->t->custom_deserialise((void *)(s->value),
-        (void*)((uintptr_t)ctx->serialise_buffer + s->key + s->t->size));
-    }
-  }
 }
 
 PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
