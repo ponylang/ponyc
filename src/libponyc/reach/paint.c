@@ -274,6 +274,9 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
   while((t = reach_types_next(types, &i)) != NULL)
   {
+    if(t->bare_method != NULL)
+      continue;
+
     pony_assert(typemap_index < painter->typemap_size);
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
@@ -352,7 +355,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
   // Iterate over all types
   while((t = reach_types_next(types, &i)) != NULL)
   {
-    if(reach_method_names_size(&t->methods) == 0)
+    if((reach_method_names_size(&t->methods) == 0) || (t->bare_method != NULL))
       continue;
 
     size_t j = HASHMAP_BEGIN;

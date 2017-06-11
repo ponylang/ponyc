@@ -118,7 +118,7 @@ const char* genname_alloc(const char* type)
   return stringtab_two(type, "Alloc");
 }
 
-const char* genname_traitlist(const char* type)
+const char* genname_traitmap(const char* type)
 {
   return stringtab_two(type, "Traits");
 }
