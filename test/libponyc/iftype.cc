@@ -273,3 +273,24 @@ TEST_F(IftypeTest, UnconstrainedTypeparam)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(IftypeTest, NestedCond)
+{
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+    "  fun tag c() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x: A) =>\n"
+    "    iftype A <: T then\n"
+    "      iftype A <: C then\n"
+    "        x.c()\n"
+    "      end\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

@@ -193,7 +193,8 @@ static ast_t* make_iftype_typeparam(pass_opt_t* opt, ast_t* subtype,
       TREE(new_constraint)
       NONE));
 
-  ast_setdata(typeparam, typeparam);
+  // keep data pointing to the original def
+  ast_setdata(typeparam, ast_data(def));
 
   return typeparam;
 }

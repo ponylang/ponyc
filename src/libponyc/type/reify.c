@@ -6,31 +6,25 @@
 #include "../ast/token.h"
 #include "ponyassert.h"
 
-static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
   pony_assert(ast_id(typeparam) == TK_TYPEPARAM);
 
   ast_t* ref_def = (ast_t*)ast_data(ast);
-  ast_t* param_def = (ast_t*)ast_data(typeparam);
+
+  // We can't compare ref_def and typeparam, as they could be a copy or
+  // a iftype shadowing. However, their data points back to the original
+  // typeparam definition, which can be compared.
+  ref_def = (ast_t*)ast_data(ref_def);
+  typeparam = (ast_t*)ast_data(typeparam);
 
   pony_assert(ref_def != NULL);
-  pony_assert(param_def != NULL);
-  AST_GET_CHILDREN(ref_def, ref_name, ref_constraint);
-  AST_GET_CHILDREN(param_def, param_name, param_constraint);
+  pony_assert(typeparam != NULL);
 
-  if(ref_def != param_def)
-  {
-    if(ast_name(ref_name) == ast_name(param_name))
-    {
-      if((ast_id(param_constraint) != TK_TYPEPARAMREF) &&
-        !is_subtype(ref_constraint, param_constraint, NULL, opt))
-        return;
-    } else {
-      return;
-    }
-  }
+  if(ref_def != typeparam)
+    return;
 
   // Keep ephemerality.
   switch(ast_id(ast_childidx(ast, 2)))
@@ -117,7 +111,7 @@ static void reify_one(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, ast_t* ty
   switch(ast_id(ast))
   {
     case TK_TYPEPARAMREF:
-      reify_typeparamref(opt, astp, typeparam, typearg);
+      reify_typeparamref(astp, typeparam, typearg);
       break;
 
     case TK_ARROW:
