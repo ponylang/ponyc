@@ -264,7 +264,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           break;
         }
 
-        case TK_IFTYPE:
+        case TK_IFTYPE_CLAUSE:
         {
           AST_GET_CHILDREN(parent, l_type, r_type, body);
 

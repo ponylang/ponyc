@@ -137,7 +137,8 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 bool expr_iftype(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_IFTYPE);
-  AST_GET_CHILDREN(ast, sub, super, left, right);
+  AST_GET_CHILDREN(ast, left_control, right);
+  AST_GET_CHILDREN(left_control, sub, super, left);
 
   ast_t* type = NULL;
 

@@ -936,7 +936,9 @@ static bool refer_iftype(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
   pony_assert(ast_id(ast) == TK_IFTYPE);
-  AST_GET_CHILDREN(ast, sub, super, left, right);
+
+  AST_GET_CHILDREN(ast, left_clause, right);
+  AST_GET_CHILDREN(left_clause, sub, super, left);
 
   size_t branch_count = 0;
 

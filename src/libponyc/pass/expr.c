@@ -56,8 +56,8 @@ bool is_result_needed(ast_t* ast)
 
       return is_result_needed(parent);
 
-    case TK_IFTYPE:
-      // Sub/supertype not needed, body/else needed only if parent needed.
+    case TK_IFTYPE_CLAUSE:
+      // Sub/supertype not needed, body needed only if parent needed.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
 
@@ -78,6 +78,7 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_CASES:
+    case TK_IFTYPE:
     case TK_TRY:
     case TK_TRY_NO_CHECK:
     case TK_RECOVER:
@@ -135,7 +136,7 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
         return false;
       break;
 
-    case TK_IFTYPE:
+    case TK_IFTYPE_CLAUSE:
       // The subtype and the supertype are not the result.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
@@ -154,6 +155,7 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
       break;
 
     case TK_CASES:
+    case TK_IFTYPE:
     case TK_RECOVER:
       // These can be results.
       break;

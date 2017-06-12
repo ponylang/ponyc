@@ -1242,7 +1242,8 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
     case TK_IFTYPE:
     {
-      AST_GET_CHILDREN(ast, sub, super, left, right);
+      AST_GET_CHILDREN(ast, left_clause, right);
+      AST_GET_CHILDREN(left_clause, sub, super, left);
 
       ast_t* type = ast_type(ast);
 

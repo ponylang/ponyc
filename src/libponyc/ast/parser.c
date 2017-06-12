@@ -738,31 +738,34 @@ DEF(ifdef);
   REORDER(0, 2, 3, 1);
   DONE();
 
-// ELSEIF [annotations] type <: type THEN seq [elseiftype | (ELSE seq)]
-DEF(elseiftype);
-  AST_NODE(TK_IFTYPE);
+// type <: type THEN seq
+DEF(iftypeclause);
+  AST_NODE(TK_IFTYPE_CLAUSE);
   SCOPE();
-  SKIP(NULL, TK_ELSEIF);
-  ANNOTATE(annotations);
   RULE("type", type);
   SKIP(NULL, TK_SUBTYPE);
   RULE("type", type);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
+  DONE();
+
+// ELSEIF [annotations] iftypeclause [elseiftype | (ELSE seq)]
+DEF(elseiftype);
+  AST_NODE(TK_IFTYPE);
+  SKIP(NULL, TK_ELSEIF);
+  ANNOTATE(annotations);
+  SCOPE();
+  RULE("iftype clause", iftypeclause);
   OPT RULE("else clause", elseiftype, elseclause);
   DONE();
 
-// IFTYPE [annotations] type <: type THEN seq [elseiftype | (ELSE seq)] END
+// IFTYPE [annotations] iftypeclause [elseiftype | (ELSE seq)] END
 DEF(iftype);
   PRINT_INLINE();
   TOKEN(NULL, TK_IFTYPE);
-  ANNOTATE(annotations);
   SCOPE();
-  RULE("type", type);
-  SKIP(NULL, TK_SUBTYPE);
-  RULE("type", type);
-  SKIP(NULL, TK_THEN);
-  RULE("then value", seq);
+  ANNOTATE(annotations);
+  RULE("iftype clause", iftypeclause);
   OPT RULE("else clause", elseiftype, elseclause);
   TERMINATE("iftype expression", TK_END);
   DONE();

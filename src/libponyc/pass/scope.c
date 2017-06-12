@@ -199,9 +199,11 @@ static ast_t* make_iftype_typeparam(pass_opt_t* opt, ast_t* subtype,
   return typeparam;
 }
 
-static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
+static ast_result_t scope_iftype_clause(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, subtype, supertype, then_clause);
+  pony_assert(ast_id(ast) == TK_IFTYPE_CLAUSE);
+
+  AST_GET_CHILDREN(ast, subtype, supertype, body);
 
   ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
 
@@ -209,15 +211,14 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   {
     case TK_NOMINAL:
     {
-      ast_t* typeparam = make_iftype_typeparam(opt, subtype, supertype,
-        then_clause);
+      ast_t* typeparam = make_iftype_typeparam(opt, subtype, supertype, body);
       if(typeparam == NULL)
       {
         ast_free_unattached(typeparams);
         return AST_ERROR;
       }
 
-      if(!set_scope(opt, then_clause, ast_child(typeparam), typeparam, true))
+      if(!set_scope(opt, body, ast_child(typeparam), typeparam, true))
       {
         ast_free_unattached(typeparams);
         return AST_ERROR;
@@ -252,14 +253,14 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
       while(sub_child != NULL)
       {
         ast_t* typeparam = make_iftype_typeparam(opt, sub_child, super_child,
-          then_clause);
+          body);
         if(typeparam == NULL)
         {
           ast_free_unattached(typeparams);
           return AST_ERROR;
         }
 
-        if(!set_scope(opt, then_clause, ast_child(typeparam), typeparam, true))
+        if(!set_scope(opt, body, ast_child(typeparam), typeparam, true))
         {
           ast_free_unattached(typeparams);
           return AST_ERROR;
@@ -322,8 +323,8 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
       ast_setdata(ast, ast);
       break;
 
-    case TK_IFTYPE:
-      return scope_iftype(options, ast);
+    case TK_IFTYPE_CLAUSE:
+      return scope_iftype_clause(options, ast);
 
     default: {}
   }
