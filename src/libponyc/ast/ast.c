@@ -32,6 +32,7 @@
  *   set_scope_no_parent()
  *   make_orphan_leave_scope()
  *   ast_parent()
+ *   ast_set_scope()
  */
 
 /* Every AST node has an annotation_type field, which points to the annotation
@@ -454,6 +455,13 @@ bool ast_has_scope(ast_t* ast)
 {
   pony_assert(ast != NULL);
   return ast->symtab != NULL;
+}
+
+void ast_set_scope(ast_t* ast, ast_t* scope)
+{
+  pony_assert(ast != NULL);
+  pony_assert(!hasparent(ast));
+  set_scope_no_parent(ast, scope);
 }
 
 symtab_t* ast_get_symtab(ast_t* ast)
