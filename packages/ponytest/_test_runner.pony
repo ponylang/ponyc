@@ -190,28 +190,32 @@ actor _TestRunner
     """
     The test has been flagged as a long test.
     """
-    _is_long_test = true
-    _log("Long test, timeout " + timeout.string(), true)
+    if not _is_long_test then
+      _is_long_test = true
+      _log("Long test, timeout " + timeout.string(), true)
 
-    if _completed then
-      // We've already completed, don't start the timer
-      return
+      if _completed then
+        // We've already completed, don't start the timer
+        return
+      end
+
+      let timer =
+        Timer(
+          object iso
+            let _runner: _TestRunner = this
+
+            fun apply(timer: Timer, count: U64): Bool =>
+              _runner._timeout()
+              false
+
+            fun cancel(timer: Timer) => None
+          end,
+          timeout)
+      _test_timers.push(timer)
+      _timers(consume timer)
+    else
+      _log("Attempt to register duplicate long test for " + _test.name(), true)
     end
-
-    let timer =
-      Timer(
-        object iso
-          let _runner: _TestRunner = this
-          
-          fun apply(timer: Timer, count: U64): Bool =>
-            _runner._timeout()
-            false
-          
-          fun cancel(timer: Timer) => None
-        end,
-        timeout)
-    _test_timers.push(timer)
-    _timers(consume timer)
 
   be _timeout() =>
     """
