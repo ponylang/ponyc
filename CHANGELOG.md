@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Prevent duplicate long_tests from being registered ([PR #1962](https://github.com/ponylang/ponyc/pull/1962))
 - Assertion failure on identity comparison of tuples with different cardinalities ([PR #1946](https://github.com/ponylang/ponyc/pull/1946))
 - Stop default arguments from using the function scope ([PR #1948](https://github.com/ponylang/ponyc/pull/1948))
 - Fix compiler crash when a field is used in a default argument. ([PR #1940](https://github.com/ponylang/ponyc/pull/1940))
