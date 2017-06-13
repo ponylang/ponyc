@@ -745,8 +745,16 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
 
-  // Read the size.
   LLVMValueRef size = field_value(c, object, 1);
+
+  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
+    LLVMConstInt(c->intptr, 0, false), "");
+  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, trace_block);
 
   // Calculate the size of the element type.
   ast_t* typeargs = ast_childidx(t->ast, 2);
@@ -767,6 +775,10 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
 
   // Trace the array elements.
   trace_array_elements(c, t, ctx, object, pointer);
+
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
@@ -993,8 +1005,17 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
 
-  // Read the size.
   LLVMValueRef size = field_value(c, object, 1);
+
+  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
+    LLVMConstInt(c->intptr, 0, false), "");
+  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, trace_block);
+
   LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
     LLVMConstInt(c->intptr, 1, false), "");
 
@@ -1006,6 +1027,10 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   args[1] = ptr;
   args[2] = alloc;
   gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
+
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);

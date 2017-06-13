@@ -2,13 +2,18 @@
 #define ds_list_h
 
 #include "fun.h"
+#include "../pony.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct list_t list_t;
+typedef struct list_t
+{
+  void* data;
+  struct list_t* next;
+} list_t;
 
 list_t* ponyint_list_pop(list_t* list, void** data);
 
@@ -59,7 +64,7 @@ void ponyint_list_free(list_t* list, free_fn f);
   void name##_free(name_t* list); \
 
 #define DEFINE_LIST(name, name_t, elem, cmpf, freef) \
-  struct name_t {}; \
+  struct name_t {list_t contents;}; \
   \
   name_t* name##_pop(name_t* list, elem** data) \
   { \

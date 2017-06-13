@@ -1,7 +1,7 @@
 #ifndef messageq_h
 #define messageq_h
 
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 
 PONY_EXTERN_C_BEGIN

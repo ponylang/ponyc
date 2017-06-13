@@ -19,11 +19,12 @@ typedef struct reach_type_t reach_type_t;
 
 DECLARE_STACK(reachable_expr_stack, reachable_expr_stack_t, ast_t);
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
-DECLARE_HASHMAP(reach_methods, reach_methods_t, reach_method_t);
-DECLARE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t);
-DECLARE_HASHMAP(reach_method_names, reach_method_names_t, reach_method_name_t);
-DECLARE_HASHMAP(reach_types, reach_types_t, reach_type_t);
-DECLARE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t);
+DECLARE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t);
+DECLARE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t);
+DECLARE_HASHMAP_SERIALISE(reach_method_names, reach_method_names_t,
+  reach_method_name_t);
+DECLARE_HASHMAP_SERIALISE(reach_types, reach_types_t, reach_type_t);
+DECLARE_HASHMAP_SERIALISE(reach_type_cache, reach_type_cache_t, reach_type_t);
 
 struct reach_method_t
 {
@@ -175,6 +176,18 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
 uint32_t reach_vtable_index(reach_type_t* t, const char* name);
 
 void reach_dump(reach_t* r);
+
+pony_type_t* reach_method_pony_type();
+
+pony_type_t* reach_method_name_pony_type();
+
+pony_type_t* reach_field_pony_type();
+
+pony_type_t* reach_param_pony_type();
+
+pony_type_t* reach_type_pony_type();
+
+pony_type_t* reach_pony_type();
 
 PONY_EXTERN_C_END
 

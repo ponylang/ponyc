@@ -28,7 +28,7 @@ typedef struct symbol_t
   size_t branch_count;
 } symbol_t;
 
-DECLARE_HASHMAP(symtab, symtab_t, symbol_t);
+DECLARE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t);
 
 bool is_type_name(const char* name);
 
@@ -60,6 +60,8 @@ bool symtab_can_merge_public(symtab_t* dst, symtab_t* src);
 bool symtab_merge_public(symtab_t* dst, symtab_t* src);
 
 bool symtab_check_all_defined(symtab_t* symtab, errors_t* errors);
+
+pony_type_t* symbol_pony_type();
 
 PONY_EXTERN_C_END
 

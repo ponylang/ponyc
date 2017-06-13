@@ -1,4 +1,5 @@
 #include "hash.h"
+#include "../gc/serialise.h"
 #include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
@@ -545,4 +546,80 @@ void ponyint_hashmap_optimize(hashmap_t* map, alloc_fn alloc,
     }
     num_iters++;
   } while(count > 0);
+}
+
+void ponyint_hashmap_serialise_trace(pony_ctx_t* ctx, void* object,
+  pony_type_t* elem_type)
+{
+  hashmap_t* map = (hashmap_t*)object;
+
+  size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
+    ((map->size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
+  pony_serialise_reserve(ctx, map->item_bitmap,
+    (bitmap_size * sizeof(bitmap_t)) + (map->size * sizeof(hashmap_entry_t)));
+
+  size_t i = HASHMAP_BEGIN;
+  void* elem;
+
+  while((elem = ponyint_hashmap_next(&i, map->count, map->item_bitmap,
+    map->size, map->buckets)) != NULL)
+  {
+    pony_traceknown(ctx, elem, elem_type, PONY_TRACE_MUTABLE);
+  }
+}
+
+void ponyint_hashmap_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset)
+{
+  hashmap_t* map = (hashmap_t*)object;
+  hashmap_t* dst = (hashmap_t*)((uintptr_t)buf + offset);
+
+  uintptr_t bitmap_offset = pony_serialise_offset(ctx, map->item_bitmap);
+
+  dst->count = map->count;
+  dst->size = map->size;
+  dst->item_bitmap = (bitmap_t*)bitmap_offset;
+  dst->buckets = NULL;
+
+  size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
+    ((map->size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
+  memcpy((void*)((uintptr_t)buf + bitmap_offset), map->item_bitmap,
+    (bitmap_size * sizeof(bitmap_t)) + (map->size * sizeof(hashmap_entry_t)));
+
+  hashmap_entry_t* dst_buckets = (hashmap_entry_t*)
+    ((uintptr_t)buf + bitmap_offset + (bitmap_size * sizeof(bitmap_t)));
+
+  size_t i = HASHMAP_BEGIN;
+  void* elem;
+
+  while((elem = ponyint_hashmap_next(&i, map->count, map->item_bitmap,
+    map->size, map->buckets)) != NULL)
+  {
+    dst_buckets[i].ptr = (void*)pony_serialise_offset(ctx, elem);
+    dst_buckets[i].hash = map->buckets[i].hash;
+  }
+}
+
+void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
+  pony_type_t* elem_type)
+{
+  hashmap_t* map = (hashmap_t*)object;
+
+  size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
+    ((map->size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
+  map->item_bitmap =
+    (bitmap_t*)pony_deserialise_block(ctx, (uintptr_t)map->item_bitmap,
+      (bitmap_size * sizeof(bitmap_t)) + (map->size * sizeof(hashmap_entry_t)));
+  map->buckets = (hashmap_entry_t*)((char*)map->item_bitmap +
+    (bitmap_size * sizeof(bitmap_t)));
+
+  size_t i = HASHMAP_BEGIN;
+  void* elem;
+
+  while((elem = ponyint_hashmap_next(&i, map->count, map->item_bitmap,
+    map->size, map->buckets)) != NULL)
+  {
+    map->buckets[i].ptr = pony_deserialise_offset(ctx, elem_type,
+      (uintptr_t)elem);
+  }
 }

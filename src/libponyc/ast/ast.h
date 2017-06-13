@@ -205,6 +205,8 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       children); \
   }
 
+pony_type_t* ast_pony_type();
+
 typedef struct unattached_asts_t
 {
   ast_t** storage;

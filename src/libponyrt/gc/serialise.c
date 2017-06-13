@@ -191,6 +191,9 @@ PONY_API void pony_serialise_reserve(pony_ctx_t* ctx, void* p, size_t size)
 
 PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 {
+  if(p == NULL)
+    return ALL_BITS;
+
   serialise_t k;
   k.key = (uintptr_t)p;
   size_t index = HASHMAP_UNKNOWN;
@@ -333,6 +336,9 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
 PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
   size_t size)
 {
+  if(offset == ALL_BITS)
+    return NULL;
+
   // Allocate the block, memcpy to it.
   if((offset + size) > ctx->serialise_size)
   {
@@ -344,6 +350,43 @@ PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
   void* block = ctx->serialise_alloc(ctx, size);
   memcpy(block, (void*)((uintptr_t)ctx->serialise_buffer + offset), size);
   return block;
+}
+
+PONY_API void* pony_deserialise_raw(pony_ctx_t* ctx, uintptr_t offset,
+  deserialise_raw_fn ds_fn)
+{
+  if(offset == ALL_BITS)
+    return NULL;
+
+  // Lookup the offset, return the associated object if there is one.
+  serialise_t k;
+  k.key = offset;
+  size_t index = HASHMAP_UNKNOWN;
+  serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k, &index);
+
+  if(s != NULL)
+    return (void*)s->value;
+
+  void* object = ds_fn((void*)((uintptr_t)ctx->serialise_buffer + offset),
+    ctx->serialise_size - offset);
+
+  if(object == NULL)
+  {
+    serialise_cleanup(ctx);
+    ctx->serialise_throw();
+    abort();
+  }
+
+  // Store a mapping of offset to object.
+  s = POOL_ALLOC(serialise_t);
+  s->key = offset;
+  s->value = (uintptr_t)object;
+  s->t = NULL;
+
+  // didn't find it in the map but index is where we can put the
+  // new one without another search
+  ponyint_serialise_putindex(&ctx->serialise, s, index);
+  return object;
 }
 
 PONY_API void* pony_deserialise(pony_ctx_t* ctx, pony_type_t* t, void* in,

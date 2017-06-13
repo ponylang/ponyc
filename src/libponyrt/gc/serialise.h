@@ -9,6 +9,8 @@ typedef void* (*serialise_alloc_fn)(pony_ctx_t* ctx, size_t size);
 
 typedef void (*serialise_throw_fn)();
 
+typedef void* (*deserialise_raw_fn)(void* buf, size_t remaining_size);
+
 typedef struct serialise_t serialise_t;
 
 DECLARE_HASHMAP(ponyint_serialise, ponyint_serialise_t, serialise_t);
@@ -32,6 +34,8 @@ PONY_API void* pony_deserialise_block(pony_ctx_t* ctx, uintptr_t offset,
   size_t size);
 PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   uintptr_t offset);
+PONY_API void* pony_deserialise_raw(pony_ctx_t* ctx, uintptr_t offset,
+  deserialise_raw_fn ds_fn);
 
 PONY_EXTERN_C_END
 

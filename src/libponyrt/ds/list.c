@@ -1,13 +1,8 @@
 #include "list.h"
+#include "../gc/serialise.h"
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <stdlib.h>
-
-typedef struct list_t
-{
-  void* data;
-  struct list_t* next;
-} list_t;
 
 list_t* ponyint_list_pop(list_t* list, void** data)
 {

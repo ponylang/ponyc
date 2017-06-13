@@ -235,7 +235,8 @@ void codegen_pass_cleanup(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
 
-bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt);
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
+  pass_id last_pass);
 
 void codegen_cleanup(compile_t* c);
 

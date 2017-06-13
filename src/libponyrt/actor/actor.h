@@ -1,10 +1,10 @@
 #ifndef actor_h
 #define actor_h
 
+#include "messageq.h"
 #include "../gc/gc.h"
 #include "../mem/heap.h"
-#include "messageq.h"
-#include <pony.h>
+#include "../pony.h"
 #include <stdint.h>
 #include <stdbool.h>
 #ifndef __cplusplus

@@ -2,7 +2,7 @@
 #define cycle_h
 
 #include "gc.h"
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include <stdint.h>
 #include <stdbool.h>

@@ -42,6 +42,8 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
  */
 const char* program_lib_args(ast_t* program);
 
+pony_type_t* program_pony_type();
+
 PONY_EXTERN_C_END
 
 #endif
