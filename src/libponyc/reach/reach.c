@@ -639,7 +639,10 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
           ast_name(ast_child(member)));
         pony_assert(r_member != NULL);
 
-        AST_GET_CHILDREN(r_member, name, type, init);
+        ast_t* name = ast_pop(r_member);
+        ast_t* type = ast_pop(r_member);
+        ast_add(r_member, name);
+        ast_set_scope(type, member);
 
         bool embed = t->fields[index].embed = ast_id(member) == TK_EMBED;
         t->fields[index].ast = reify(ast_type(member), typeparams, typeargs,
@@ -650,8 +653,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
         if(embed && !has_finaliser && !needs_finaliser)
           needs_finaliser = embed_has_finaliser(type, str_final);
 
-        if(r_member != member)
-          ast_free_unattached(r_member);
+        ast_free_unattached(r_member);
 
         index++;
         break;
