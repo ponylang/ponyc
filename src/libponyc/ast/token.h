@@ -5,6 +5,7 @@
 
 #include "lexint.h"
 #include "source.h"
+#include "../libponyrt/pony.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -288,6 +289,9 @@ token_t* token_dup_new_id(token_t* token, token_id id);
   * The token argument may be NULL.
   */
 void token_free(token_t* token);
+
+/// Get a pony_type_t for token_t. Should only be used for serialisation.
+pony_type_t* token_pony_type();
 
 
 // Read accessors

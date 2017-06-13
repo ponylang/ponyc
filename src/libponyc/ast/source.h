@@ -6,6 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef const struct _pony_type_t pony_type_t;
+
 typedef struct source_t
 {
   const char* file;  // NULL => from string, not file
@@ -31,6 +33,8 @@ source_t* source_open_string(const char* source_code);
  * May be called on sources that failed to open.
  */
 void source_close(source_t* source);
+
+pony_type_t* source_pony_type();
 
 PONY_EXTERN_C_END
 

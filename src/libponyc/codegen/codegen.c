@@ -1021,41 +1021,46 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   return ok;
 }
 
-bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
+  pass_id last_pass)
 {
-  memset(c, 0, sizeof(compile_t));
+  if(last_pass < PASS_REACH)
+  {
+    memset(c, 0, sizeof(compile_t));
 
-  genned_strings_init(&c->strings, 64);
+    genned_strings_init(&c->strings, 64);
 
-  if(!init_module(c, program, opt))
-    return false;
+    if(!init_module(c, program, opt))
+      return false;
 
-  init_runtime(c);
-  genprim_reachable_init(c, program);
+    init_runtime(c);
+    genprim_reachable_init(c, program);
 
-  const char* main_actor = c->str_Main;
-  const char* env_class = c->str_Env;
+    const char* main_actor = c->str_Main;
+    const char* env_class = c->str_Env;
 
-  ast_t* package = ast_child(program);
-  ast_t* main_def = ast_get(package, main_actor, NULL);
+    ast_t* package = ast_child(program);
+    ast_t* main_def = ast_get(package, main_actor, NULL);
 
-  if(main_def == NULL)
-    return false;
+    if(main_def == NULL)
+      return false;
 
-  ast_t* main_ast = type_builtin(opt, main_def, main_actor);
-  ast_t* env_ast = type_builtin(opt, main_def, env_class);
+    ast_t* main_ast = type_builtin(opt, main_def, main_actor);
+    ast_t* env_ast = type_builtin(opt, main_def, env_class);
 
-  if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
-    return false;
+    if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+      return false;
 
-  reach(c->reach, main_ast, c->str_create, NULL, opt);
-  reach(c->reach, env_ast, c->str__create, NULL, opt);
-  reach_done(c->reach, c->opt);
+    reach(c->reach, main_ast, c->str_create, NULL, opt);
+    reach(c->reach, env_ast, c->str__create, NULL, opt);
+    reach_done(c->reach, c->opt);
+  }
 
   if(opt->limit == PASS_REACH)
     return true;
 
-  paint(&c->reach->types);
+  if(last_pass < PASS_PAINT)
+    paint(&c->reach->types);
 
   if(opt->limit == PASS_PAINT)
     return true;

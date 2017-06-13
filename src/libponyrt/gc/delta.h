@@ -2,7 +2,7 @@
 #define gc_delta_h
 
 #include "../ds/hash.h"
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 
 PONY_EXTERN_C_BEGIN

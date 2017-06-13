@@ -144,6 +144,8 @@ const char* package_alias_from_id(ast_t* module, const char* id);
  */
 void package_done();
 
+pony_type_t* package_pony_type();
+
 bool is_path_absolute(const char* path);
 
 bool is_path_relative(const char* path);

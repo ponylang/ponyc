@@ -4,9 +4,11 @@
 #include "token.h"
 #include "stringtab.h"
 #include "printbuf.h"
+#include "../expr/literal.h"
 #include "../pass/pass.h"
 #include "../pkg/program.h"
 #include "../pkg/package.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdbool.h>
@@ -1672,6 +1674,265 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
     p = next;
   }
+}
+
+static void ast_serialise_trace_data(pony_ctx_t* ctx, ast_t* ast)
+{
+  if(ast->data == NULL)
+    return;
+
+  switch(ast_id(ast))
+  {
+    case TK_USE:
+    case TK_NOMINAL:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    case TK_TYPEPARAM:
+    case TK_TYPEPARAMREF:
+    case TK_REFERENCE:
+    case TK_PACKAGEREF:
+    case TK_TYPEREF:
+    case TK_PARAMREF:
+    case TK_VARREF:
+    case TK_LETREF:
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_EMBEDREF:
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+    case TK_BEREF:
+    case TK_FUNREF:
+    case TK_NEWAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
+    case TK_DOT:
+    case TK_FFICALL:
+    case TK_LITERALBRANCH:
+      pony_traceknown(ctx, ast->data, ast_pony_type(), PONY_TRACE_MUTABLE);
+      break;
+
+    case TK_ID:
+    case TK_OBJECT:
+      string_trace(ctx, (const char*)ast->data);
+      break;
+
+    case TK_PROGRAM:
+      pony_traceknown(ctx, ast->data, program_pony_type(), PONY_TRACE_MUTABLE);
+      break;
+
+    case TK_PACKAGE:
+      pony_traceknown(ctx, ast->data, package_pony_type(), PONY_TRACE_MUTABLE);
+      break;
+
+    case TK_MODULE:
+      pony_traceknown(ctx, ast->data, source_pony_type(), PONY_TRACE_MUTABLE);
+      break;
+
+    default: {}
+  }
+}
+
+static void ast_serialise_data(pony_ctx_t* ctx, ast_t* ast, ast_t* dst)
+{
+  switch(ast_id(ast))
+  {
+    case TK_USE:
+    case TK_NOMINAL:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    case TK_TYPEPARAM:
+    case TK_TYPEPARAMREF:
+    case TK_REFERENCE:
+    case TK_PACKAGEREF:
+    case TK_TYPEREF:
+    case TK_PARAMREF:
+    case TK_VARREF:
+    case TK_LETREF:
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_EMBEDREF:
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+    case TK_BEREF:
+    case TK_FUNREF:
+    case TK_NEWAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
+    case TK_DOT:
+    case TK_FFICALL:
+    case TK_LITERALBRANCH:
+    case TK_ID:
+    case TK_OBJECT:
+    case TK_PROGRAM:
+    case TK_PACKAGE:
+    case TK_MODULE:
+      dst->data = (void*)pony_serialise_offset(ctx, ast->data);
+      break;
+
+    case TK_OPERATORLITERAL:
+      operatorliteral_serialise_data(ast, dst);
+      break;
+
+    default:
+      dst->data = NULL;
+      break;
+  }
+}
+
+static void ast_deserialise_data(pony_ctx_t* ctx, ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_USE:
+    case TK_NOMINAL:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    case TK_TYPEPARAM:
+    case TK_TYPEPARAMREF:
+    case TK_REFERENCE:
+    case TK_PACKAGEREF:
+    case TK_TYPEREF:
+    case TK_PARAMREF:
+    case TK_VARREF:
+    case TK_LETREF:
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_EMBEDREF:
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+    case TK_BEREF:
+    case TK_FUNREF:
+    case TK_NEWAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
+    case TK_BECHAIN:
+    case TK_FUNCHAIN:
+    case TK_DOT:
+    case TK_FFICALL:
+    case TK_LITERALBRANCH:
+      ast->data = pony_deserialise_offset(ctx, ast_pony_type(),
+        (uintptr_t)ast->data);
+      break;
+
+    case TK_ID:
+    case TK_OBJECT:
+      ast->data = (void*)string_deserialise_offset(ctx, (uintptr_t)ast->data);
+      break;
+
+    case TK_PROGRAM:
+      ast->data = pony_deserialise_offset(ctx, program_pony_type(),
+        (uintptr_t)ast->data);
+      break;
+
+    case TK_PACKAGE:
+      ast->data = pony_deserialise_offset(ctx, package_pony_type(),
+        (uintptr_t)ast->data);
+      break;
+
+    case TK_MODULE:
+      ast->data = pony_deserialise_offset(ctx, source_pony_type(),
+        (uintptr_t)ast->data);
+      break;
+
+    case TK_OPERATORLITERAL:
+      operatorliteral_deserialise_data(ast);
+      break;
+
+    default: {}
+  }
+}
+
+static void ast_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  pony_traceknown(ctx, ast->t, token_pony_type(), PONY_TRACE_MUTABLE);
+  ast_serialise_trace_data(ctx, ast);
+
+  if(ast->symtab != NULL)
+    pony_traceknown(ctx, ast->symtab, symtab_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(ast->parent != NULL)
+    pony_traceknown(ctx, ast->parent, ast_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(ast->child != NULL)
+    pony_traceknown(ctx, ast->child, ast_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(ast->sibling != NULL)
+    pony_traceknown(ctx, ast->sibling, ast_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(ast->annotation_type != NULL)
+    pony_traceknown(ctx, ast->annotation_type, ast_pony_type(), PONY_TRACE_MUTABLE);
+}
+
+static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  ast_t* ast = (ast_t*)object;
+  ast_t* dst = (ast_t*)((uintptr_t)buf + offset);
+
+  dst->t = (token_t*)pony_serialise_offset(ctx, ast->t);
+  ast_serialise_data(ctx, ast, dst);
+  dst->symtab = (symtab_t*)pony_serialise_offset(ctx, ast->symtab);
+  dst->parent = (ast_t*)pony_serialise_offset(ctx, ast->parent);
+  dst->child = (ast_t*)pony_serialise_offset(ctx, ast->child);
+  dst->sibling = (ast_t*)pony_serialise_offset(ctx, ast->sibling);
+  dst->annotation_type = (ast_t*)pony_serialise_offset(ctx, ast->annotation_type);
+  dst->flags = ast->flags;
+}
+
+static void ast_deserialise(pony_ctx_t* ctx, void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  ast->t = (token_t*)pony_deserialise_offset(ctx, token_pony_type(),
+    (uintptr_t)ast->t);
+  ast_deserialise_data(ctx, ast);
+  ast->symtab = (symtab_t*)pony_deserialise_offset(ctx, symtab_pony_type(),
+    (uintptr_t)ast->symtab);
+  ast->parent = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)ast->parent);
+  ast->child = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)ast->child);
+  ast->sibling = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)ast->sibling);
+  ast->annotation_type = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)ast->annotation_type);
+}
+
+static pony_type_t ast_pony =
+{
+  0,
+  sizeof(ast_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  ast_serialise_trace,
+  ast_serialise,
+  ast_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* ast_pony_type()
+{
+  return &ast_pony;
 }
 
 void unattached_asts_init(unattached_asts_t* asts)

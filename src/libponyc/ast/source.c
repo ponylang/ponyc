@@ -1,6 +1,7 @@
 #include "source.h"
 #include "error.h"
 #include "stringtab.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
@@ -71,4 +72,63 @@ void source_close(source_t* source)
     ponyint_pool_free_size(source->len, source->m);
 
   POOL_FREE(source_t, source);
+}
+
+
+static void source_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  source_t* source = (source_t*)object;
+
+  if(source->file != NULL)
+    string_trace(ctx, source->file);
+
+  pony_serialise_reserve(ctx, source->m, source->len);
+}
+
+static void source_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  source_t* source = (source_t*)object;
+  source_t* dst = (source_t*)((uintptr_t)buf + offset);
+
+  dst->file = (const char*)pony_serialise_offset(ctx, (char*)source->file);
+  dst->m = (char*)pony_serialise_offset(ctx, source->m);
+  dst->len = source->len;
+}
+
+static void source_deserialise(pony_ctx_t* ctx, void* object)
+{
+  source_t* source = (source_t*)object;
+
+  source->file = string_deserialise_offset(ctx, (uintptr_t)source->file);
+  source->m = (char*)pony_deserialise_block(ctx, (uintptr_t)source->m,
+    source->len);
+}
+
+static pony_type_t source_pony =
+{
+  0,
+  sizeof(source_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  source_serialise_trace,
+  source_serialise,
+  source_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* source_pony_type()
+{
+  return &source_pony;
 }

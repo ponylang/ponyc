@@ -4,12 +4,12 @@
 #ifndef __cplusplus
 #  include <stdalign.h>
 #endif
-#include <pony.h>
-#include <platform.h>
-#include "actor/messageq.h"
-#include "gc/gc.h"
-#include "gc/serialise.h"
 #include "mpmcq.h"
+#include "../actor/messageq.h"
+#include "../gc/gc.h"
+#include "../gc/serialise.h"
+#include "../pony.h"
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 
