@@ -33,13 +33,14 @@ All notable changes to the Pony compiler and standard library will be documented
 - xoroshiro128+ implementation ([PR #1909](https://github.com/ponylang/ponyc/pull/1909))
 - Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 - Command line options for printing help ([PR #1899](https://github.com/ponylang/ponyc/pull/1899))
+- `Nanos.from_wall_clock` function to convert from a wall clock as obtained from `Time.now()` into number of nanoseconds since "the beginning of time". ([PR #1967](https://github.com/ponylang/ponyc/pull/1967))
 
 
 ### Changed
 
 - Change machine word constructors to have no default argument. ([PR #1938](https://github.com/ponylang/ponyc/pull/1938))
 - Change iftype to use elseif instead of elseiftype as next keyword. ([PR #1905](https://github.com/ponylang/ponyc/pull/1905))
-
+- Removed misleading `Time.wall_to_nanos`. ([PR #1967](https://github.com/ponylang/ponyc/pull/1967))
 
 ## [0.14.0] - 2017-05-06
 
