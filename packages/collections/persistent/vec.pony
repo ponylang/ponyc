@@ -137,7 +137,7 @@ class val Vec[A: Any #share]
     """
     Return a vector with the value at the end removed.
     """
-    if (_tail.size() > 1) or (_size == 1) then
+    if (_tail.size() > 0) or (_size == 1) then
       let tail = recover val _tail.clone() .> pop() end
       _create(_root, tail, _size - 1, _depth, _tail_offset)
     else
