@@ -69,7 +69,10 @@ class val _VecNode[A: Any #share]
       (let sn', let tail) = sns(idx).pop(i)
       let entries = recover val sns.clone() .> update(idx, sn') end
       (create(entries, _level), tail)
-    | let lns: _VecLeafNodes[A] => (this, lns(idx))
+    | let lns: _VecLeafNodes[A] =>
+      let ln = recover val lns(idx).clone() .> pop() end
+      let lns' = recover val lns.clone() .> pop() end
+      (create(lns', _level), ln)
     end
 
   fun val leaf_nodes(lns: Array[Array[A] val]): Array[Array[A] val]^ =>
