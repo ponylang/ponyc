@@ -613,7 +613,6 @@ TEST_F(BadPonyTest, FieldReferenceInDefaultArgument)
   TEST_ERRORS_1(src, "can't reference 'this' in a default argument");
 }
 
-
 TEST_F(BadPonyTest, DefaultArgScope)
 {
   const char* src =
@@ -622,4 +621,13 @@ TEST_F(BadPonyTest, DefaultArgScope)
     "    y";
 
   TEST_ERRORS_1(src, "can't find declaration of 'y'");
+}
+
+TEST_F(BadPonyTest, GenericMain)
+{
+  const char* src =
+    "actor Main[X]"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "the Main actor cannot have type parameters");
 }
