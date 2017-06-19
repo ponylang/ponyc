@@ -16,8 +16,8 @@ primitive Help
     if argv.size() > 0 then
       try
         let cname = argv(0)
-        if cs.commands.contains(cname) then
-          match cs.commands(cname)
+        if cs.commands().contains(cname) then
+          match cs.commands()(cname)
           | let ccs: CommandSpec box =>
             let cch = CommandHelp._create(ch, ccs)
             return _parse(ccs, cch, argv.slice(1))
@@ -35,32 +35,32 @@ class box CommandHelp
   identified to get help on. Use `Help.general()` or `Help.for_command()` to
   create a CommandHelp instance.
   """
-  let parent: (CommandHelp box | None)
-  let spec: CommandSpec box
+  let _parent: (CommandHelp box | None)
+  let _spec: CommandSpec box
 
   new _create(parent': (CommandHelp box | None), spec': CommandSpec box) =>
-    parent = parent'
-    spec = spec'
+    _parent = parent'
+    _spec = spec'
 
-  fun fullname(): String =>
-    match parent
-    | let p: CommandHelp => p.fullname() + " " + spec.name
+  fun box fullname(): String =>
+    match _parent
+    | let p: CommandHelp => p.fullname() + " " + _spec.name()
     else
-      spec.name
+     _spec.name()
     end
 
-  fun string(): String => fullname()
+  fun box string(): String => fullname()
 
-  fun help_string(): String =>
+  fun box help_string(): String =>
     let w: StringWriter ref = StringWriter
     print_help(w)
     w.string()
 
-  fun print_help(w: Writer) =>
+  fun box print_help(w: Writer) =>
     print_usage(w)
-    if spec.descr.size() > 0 then
+    if _spec.descr().size() > 0 then
       w.write("\n")
-      w.write(spec.descr + "\n")
+      w.write(_spec.descr() + "\n")
     end
 
     let options = all_options()
@@ -68,26 +68,26 @@ class box CommandHelp
       w.write("\nOptions:\n")
       print_options(w, options)
     end
-    if spec.commands.size() > 0 then
+    if _spec.commands().size() > 0 then
       w.write("\nCommands:\n")
       print_commands(w)
     end
-    let args = spec.args
+    let args = _spec.args()
     if args.size() > 0 then
       w.write("\nArgs:\n")
       print_args(w, args)
     end
 
-  fun print_usage(w: Writer) =>
+  fun box print_usage(w: Writer) =>
     w.write("usage: " + fullname())
     if any_options() then
       w.write(" [<options>]")
     end
-    if spec.commands.size() > 0 then
+    if _spec.commands().size() > 0 then
       w.write(" <command>")
     end
-    if spec.args.size() > 0 then
-      for a in spec.args.values() do
+    if _spec.args().size() > 0 then
+      for a in _spec.args().values() do
         w.write(" " + a.help_string())
       end
     else
@@ -95,56 +95,56 @@ class box CommandHelp
     end
     w.write("\n")
 
-  fun print_options(w: Writer, options: Array[OptionSpec box] box) =>
+  fun box print_options(w: Writer, options: Array[OptionSpec box] box) =>
     let cols = Array[(String,String)]()
     for o in options.values() do
-      cols.push(("  " + o.help_string(), o.descr))
+      cols.push(("  " + o.help_string(), o.descr()))
     end
     _Columns.print(w, cols)
 
-  fun print_commands(w: Writer) =>
+  fun box print_commands(w: Writer) =>
     let cols = Array[(String,String)]()
-    _list_commands(spec, cols, 1)
+    _list_commands(_spec, cols, 1)
     _Columns.print(w, cols)
 
-  fun _list_commands(
+  fun box _list_commands(
     cs: CommandSpec box,
     cols: Array[(String,String)],
     level: USize)
   =>
-    for c in cs.commands.values() do
-      cols.push((_Columns.indent(level*2) + c.help_string(), c.descr))
+    for c in cs.commands().values() do
+      cols.push((_Columns.indent(level*2) + c.help_string(), c.descr()))
       _list_commands(c, cols, level + 1)
     end
 
-  fun print_args(w: Writer, args: Array[ArgSpec] box) =>
+  fun box print_args(w: Writer, args: Array[ArgSpec] box) =>
     let cols = Array[(String,String)]()
     for a in args.values() do
-      cols.push(("  " + a.help_string(), a.descr))
+      cols.push(("  " + a.help_string(), a.descr()))
     end
     _Columns.print(w, cols)
 
-  fun any_options(): Bool =>
-    if spec.options.size() > 0 then
+  fun box any_options(): Bool =>
+    if _spec.options().size() > 0 then
       true
     else
-      match parent
+      match _parent
       | let p: CommandHelp => p.any_options()
       else
         false
       end
     end
 
-  fun all_options(): Array[OptionSpec box] =>
+  fun box all_options(): Array[OptionSpec box] =>
     let options = Array[OptionSpec box]()
     _all_options(options)
     options
 
-  fun _all_options(options: Array[OptionSpec box]) =>
-    match parent
+  fun box _all_options(options: Array[OptionSpec box]) =>
+    match _parent
     | let p: CommandHelp => p._all_options(options)
     end
-    for o in spec.options.values() do
+    for o in _spec.options().values() do
       options.push(o)
     end
 

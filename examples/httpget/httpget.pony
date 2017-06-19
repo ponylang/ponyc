@@ -1,60 +1,62 @@
 use "assert"
+use "cli"
 use "collections"
+use "encode/base64"
+use "files"
 use "net/http"
 use "net/ssl"
-use "files"
-use "encode/base64"
-use "options"
+
+class val Config
+  let user: String
+  let pass: String
+  let output: String
+  let url: String
+
+  new val create(env: Env) ? =>
+    let cs = CommandSpec.leaf("httpget", "", [
+      OptionSpec.string("user", "Username for authenticated queries."
+        where short' = 'u', default' = "")
+      OptionSpec.string("pass", "Password for authenticated queries."
+        where short' = 'p', default' = "")
+      OptionSpec.string("output", "Name of file to write response body."
+        where short' = 'o', default' = "")
+    ],[
+      ArgSpec.string("url", "Url to query." where default' = None)
+    ]).>add_help()
+    let cmd =
+      match CommandParser(cs).parse(env.args, env.vars())
+      | let c: Command => c
+      | let ch: CommandHelp =>
+          ch.print_help(OutWriter(env.out))
+          env.exitcode(0)
+          error
+      | let se: SyntaxError =>
+          env.out.print(se.string())
+          env.exitcode(1)
+          error
+      end
+    user = cmd.option("user").string()
+    pass = cmd.option("pass").string()
+    output = cmd.option("output").string()
+    url = cmd.arg("url").string()
 
 actor Main
   """
   Fetch data from URLs on the command line.
   """
-  var user: String = ""
-  var pass: String = ""
-  var output: String = ""
-
   new create(env: Env) =>
     // Get common command line options.
-    let opts = Options(env.args)
-    opts
-      .add("user", "u", StringArgument)
-      .add("pass", "p", StringArgument)
-      .add("output", "o", StringArgument)
+    let c = try Config(env) else return end
 
-    for option in opts do
-      match option
-      | ("user", let u: String) => user = u
-      | ("pass", let p: String) => pass = p
-      | ("output", let o: String) => output = o
-      | let err: ParseError =>
-         err.report(env.out)
-         _usage(env.out)
-         return
-      end
-    end
-
-    // The positional parameter is the URL to be fetched.
-    let urlref = try env.args(env.args.size() - 1) else "" end
     let url = try
-      URL.valid(urlref)
+      URL.valid(c.url)
     else
-      env.out.print("Invalid URL")
+      env.out.print("Invalid URL: " + c.url)
       return
     end
 
     // Start the actor that does the real work.
-    _GetWork.create(env, url, user, pass, output)
-
-  fun tag _usage(out: StdStream) =>
-    """
-    Print command error message.
-    """
-    out.print(
-      "httpget [OPTIONS] URL\n" +
-      "  --user (-u)  Username for authenticated queries\n" +
-      "  --pass (-p)  Password for authenticated queries\n" +
-      "  --output (-o) Name of file to write response body\n")
+    _GetWork.create(env, url, c.user, c.pass, c.output)
 
 actor _GetWork
   """
@@ -212,6 +214,6 @@ class HttpNotify is HTTPHandler
     """
     _main.finished()
     _session.dispose()
-    
+
   fun ref cancelled() =>
     _main.cancelled()

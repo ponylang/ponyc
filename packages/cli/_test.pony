@@ -30,7 +30,7 @@ class iso _TestMinimal is UnitTest
         OptionSpec.bool("aflag", "")
     ])
 
-    h.assert_eq[String]("minimal", cs.name)
+    h.assert_eq[String]("minimal", cs.name())
 
     let args: Array[String] = ["ignored"; "--aflag=true"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -38,7 +38,7 @@ class iso _TestMinimal is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("aflag").value as Bool)
+    h.assert_eq[Bool](true, cmd.option("aflag").bool())
 
 class iso _TestBadName is UnitTest
   fun name(): String => "ponycli/badname"
@@ -65,7 +65,7 @@ class iso _TestHyphenArg is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("-", cmd.args("name").value as String)
+    h.assert_eq[String]("-", cmd.arg("name").string())
 
 class iso _TestBools is UnitTest
   fun name(): String => "ponycli/bools"
@@ -80,10 +80,10 @@ class iso _TestBools is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("aaa").value as Bool)
-    h.assert_eq[Bool](true, cmd.options("bbb").value as Bool)
-    h.assert_eq[Bool](true, cmd.options("ccc").value as Bool)
-    h.assert_eq[Bool](false, cmd.options("ddd").value as Bool)
+    h.assert_eq[Bool](true, cmd.option("aaa").bool())
+    h.assert_eq[Bool](true, cmd.option("bbb").bool())
+    h.assert_eq[Bool](true, cmd.option("ccc").bool())
+    h.assert_eq[Bool](false, cmd.option("ddd").bool())
 
 class iso _TestDefaults is UnitTest
   fun name(): String => "ponycli/defaults"
@@ -98,10 +98,10 @@ class iso _TestDefaults is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolo").value as Bool)
-    h.assert_eq[String]("astring", cmd.options("stringo").value as String)
-    h.assert_eq[I64](42, cmd.options("into").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolo").bool())
+    h.assert_eq[String]("astring", cmd.option("stringo").string())
+    h.assert_eq[I64](42, cmd.option("into").i64())
+    h.assert_eq[F64](42.0, cmd.option("floato").f64())
 
 class iso _TestShortsAdj is UnitTest
   fun name(): String => "ponycli/shorts_adjacent"
@@ -116,10 +116,10 @@ class iso _TestShortsAdj is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
-    h.assert_eq[String]("--", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolr").bool())
+    h.assert_eq[String]("--", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
@@ -134,10 +134,10 @@ class iso _TestShortsEq is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolr").bool())
+    h.assert_eq[String]("astring", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestShortsNext is UnitTest
   fun name(): String => "ponycli/shorts_next"
@@ -154,10 +154,10 @@ class iso _TestShortsNext is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
-    h.assert_eq[String]("--", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolr").bool())
+    h.assert_eq[String]("--", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestLongsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
@@ -175,10 +175,10 @@ class iso _TestLongsEq is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolr").bool())
+    h.assert_eq[String]("astring", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestLongsNext is UnitTest
   fun name(): String => "ponycli/longs_next"
@@ -196,9 +196,9 @@ class iso _TestLongsNext is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("--", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[String]("--", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestEnvs is UnitTest
   fun name(): String => "ponycli/envs"
@@ -221,10 +221,10 @@ class iso _TestEnvs is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[Bool](true, cmd.options("boolr").value as Bool)
-    h.assert_eq[String]("astring", cmd.options("stringr").value as String)
-    h.assert_eq[I64](42, cmd.options("intr").value as I64)
-    h.assert_eq[F64](42.0, cmd.options("floatr").value as F64)
+    h.assert_eq[Bool](true, cmd.option("boolr").bool())
+    h.assert_eq[String]("astring", cmd.option("stringr").string())
+    h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestOptionStop is UnitTest
   fun name(): String => "ponycli/option_stop"
@@ -243,8 +243,8 @@ class iso _TestOptionStop is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("-f=1.0", cmd.args("words").value as String)
-    h.assert_eq[F64](42.0, cmd.options("floato").value as F64)
+    h.assert_eq[String]("-f=1.0", cmd.arg("words").string())
+    h.assert_eq[F64](42.0, cmd.option("floato").f64())
 
 class iso _TestDuplicate is UnitTest
   fun name(): String => "ponycli/duplicate"
@@ -263,7 +263,7 @@ class iso _TestDuplicate is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("newstring", cmd.options("stringr").value as String)
+    h.assert_eq[String]("newstring", cmd.option("stringr").string())
 
 class iso _TestChatMin is UnitTest
   fun name(): String => "ponycli/chat_min"
@@ -277,7 +277,7 @@ class iso _TestChatMin is UnitTest
     h.log("Parsed: " + cmdErr.string())
 
     let cmd = match cmdErr | let c: Command => c else error end
-    h.assert_eq[String]("chat", cs.name)
+    h.assert_eq[String]("chat", cs.name())
 
 class iso _TestChatAll is UnitTest
   fun name(): String => "ponycli/chat_all"
@@ -295,23 +295,23 @@ class iso _TestChatAll is UnitTest
 
     let cmd = match cmdErr | let c: Command => c else error end
 
-    h.assert_eq[String]("say", cmd.spec.name)
+    h.assert_eq[String]("say", cmd.spec().name())
 
-    let f1 = cmd.options("admin")
-    h.assert_eq[String]("admin", f1.spec.name)
-    h.assert_eq[Bool](true, f1.value as Bool)
+    let f1 = cmd.option("admin")
+    h.assert_eq[String]("admin", f1.spec().name())
+    h.assert_eq[Bool](true, f1.bool())
 
-    let f2 = cmd.options("name")
-    h.assert_eq[String]("name", f2.spec.name)
-    h.assert_eq[String]("carl", f2.value as String)
+    let f2 = cmd.option("name")
+    h.assert_eq[String]("name", f2.spec().name())
+    h.assert_eq[String]("carl", f2.string())
 
-    let f3 = cmd.options("volume")
-    h.assert_eq[String]("volume", f3.spec.name)
-    h.assert_eq[F64](80.0, f3.value as F64)
+    let f3 = cmd.option("volume")
+    h.assert_eq[String]("volume", f3.spec().name())
+    h.assert_eq[F64](80.0, f3.f64())
 
-    let a1 = cmd.args("words")
-    h.assert_eq[String]("words", a1.spec.name)
-    h.assert_eq[String]("hello", a1.value as String)
+    let a1 = cmd.arg("words")
+    h.assert_eq[String]("words", a1.spec().name())
+    h.assert_eq[String]("hello", a1.string())
 
 class iso _TestHelp is UnitTest
   fun name(): String => "ponycli/help"
@@ -352,7 +352,7 @@ primitive _Fixtures
       OptionSpec.i64("into" where short' = 'i', default' = I64(42))
       OptionSpec.f64("floatr" where short' = 'F')
       OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
-    ],[
+    ], [
       ArgSpec.string("words" where default' = "hello")
     ])
 
@@ -364,13 +364,13 @@ primitive _Fixtures
       OptionSpec.bool("admin", "Chat as admin" where default' = false)
       OptionSpec.string("name", "Your name" where short' = 'n')
       OptionSpec.f64("volume", "Chat volume" where short' = 'v')
-    ],[
+    ], [
       CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
         ArgSpec.string("words", "The words to say")
       ])
       CommandSpec.leaf("emote", "Send an emotion", [
         OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
-      ],[
+      ], [
         ArgSpec.string("emotion", "Emote to send")
       ])
       CommandSpec.parent("config", "Configuration commands", Array[OptionSpec](), [

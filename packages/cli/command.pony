@@ -5,93 +5,106 @@ class box Command
   Command contains all of the information describing a command with its spec
   and effective options and arguments, ready to use.
   """
-  let spec: CommandSpec box
-  let options: Map[String, Option]
-  let args: Map[String, Arg]
+  let _spec: CommandSpec box
+  let _options: Map[String, Option] box
+  let _args: Map[String, Arg] box
 
   new create(
     spec': CommandSpec box,
-    options': Map[String, Option],
-    args': Map[String, Arg])
+    options': Map[String, Option] box,
+    args': Map[String, Arg] box)
   =>
-    spec = spec'
-    options = options'
-    args = args'
+    _spec = spec'
+    _options = options'
+    _args = args'
 
   fun string(): String =>
-    let s: String iso = spec.name.clone()
-    for o in options.values() do
+    let s: String iso = _spec.name().clone()
+    for o in _options.values() do
       s.append(" ")
       s.append(o.deb_string())
     end
-    for a in args.values() do
+    for a in _args.values() do
       s.append(" ")
       s.append(a.deb_string())
     end
     s
 
+  fun box spec() : CommandSpec box => _spec
+
+  fun box option(name: String): Option =>
+    try _options(name) else Option(OptionSpec.bool(name), false) end
+
+  fun box arg(name: String): Arg =>
+    try _args(name) else Arg(ArgSpec.bool(name), false) end
+
 class val Option
   """
   Option contains a spec and an effective value for a given option.
   """
-  let spec: OptionSpec
-  let value: Value
+  let _spec: OptionSpec
+  let _value: Value
 
   new val create(spec': OptionSpec, value': Value) =>
-    spec = spec'
-    value = value'
+    _spec = spec'
+    _value = value'
+
+  fun spec() : OptionSpec => _spec
 
   fun bool(): Bool =>
-    try return value as Bool else false end
+    try _value as Bool else false end
 
   fun string(): String =>
-    try return value as String else "" end
+    try _value as String else "" end
 
   fun i64(): I64 =>
-    try return value as I64 else I64(0) end
+    try _value as I64 else I64(0) end
 
   fun f64(): F64 =>
-    try return value as F64 else F64(0) end
+    try _value as F64 else F64(0) end
 
   fun deb_string(): String =>
-    spec.deb_string() + "=" + value.string()
+    _spec.deb_string() + "=" + _value.string()
 
 class val Arg
   """
   Arg contains a spec and an effective value for a given arg.
   """
-  let spec: ArgSpec
-  let value: Value
+  let _spec: ArgSpec
+  let _value: Value
 
   new val create(spec': ArgSpec, value': Value) =>
-    spec = spec'
-    value = value'
+    _spec = spec'
+    _value = value'
+
+  fun spec(): ArgSpec => _spec
 
   fun bool(): Bool =>
-    try return value as Bool else false end
+    try _value as Bool else false end
 
   fun string(): String =>
-    try return value as String else "" end
+    try _value as String else "" end
 
   fun i64(): I64 =>
-    try return value as I64 else I64(0) end
+    try _value as I64 else I64(0) end
 
   fun f64(): F64 =>
-    try return value as F64 else F64(0) end
+    try _value as F64 else F64(0) end
 
   fun deb_string(): String =>
-    "(" + spec.deb_string() + "=)" + value.string()
+    "(" + _spec.deb_string() + "=)" + _value.string()
 
 class val SyntaxError
   """
   SyntaxError summarizes a syntax error in a given parsed command line.
   """
-  let token: String
-  let msg: String
+  let _token: String
+  let _msg: String
 
   new val create(token': String, msg': String) =>
-    token = token'
-    msg = msg'
+    _token = token'
+    _msg = msg'
 
-  fun string(): String =>
-    "Error: " + msg + " at: '" + token + "'"
+  fun token(): String => _token
+
+  fun string(): String => "Error: " + _msg + " at: '" + _token + "'"

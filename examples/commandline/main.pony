@@ -27,7 +27,7 @@ actor Main
     let cs = CommandSpec.parent("chat", "A sample chat program", [
       OptionSpec.bool("admin", "Chat as admin" where default' = false)
       OptionSpec.string("name", "Your name" where short' = 'n')
-      OptionSpec.f64("volume", "Chat volume" where short' = 'v')
+      OptionSpec.i64("volume", "Chat volume" where short' = 'v')
     ], [
       CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
         ArgSpec.string("words", "The words to say")

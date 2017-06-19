@@ -25,7 +25,10 @@ class CommandParser
     try tokens.shift() end  // argv[0] is the program name, so skip it
     let options: Map[String,Option] ref = options.create()
     let args: Map[String,Arg] ref = args.create()
-    _parse_command(tokens, options, args, env_map(envs), false)
+    _parse_command(
+      tokens, options, args,
+      EnvVars(envs, _spec.name().upper() + "_", true),
+      false)
 
   fun box _root_spec(): CommandSpec box =>
     match _parent
@@ -33,30 +36,6 @@ class CommandParser
     else
       _spec
     end
-
-  fun env_map(envs: (Array[String] box | None)): Map[String, String] val =>
-    """
-    Turns env array into a k,v map, filtering for only vars that begin with the
-    command name uppercased, and then stripping that off. So:
-      <COMMAND>_<KEY>=<VALUE>
-    becomes:
-      {key, VALUE}
-    """
-    let envsmap = recover Map[String, String]() end
-    let prefix = _spec.name.upper() + "_"
-    let prelen = prefix.size().isize()
-    match envs
-    | let envsarr: Array[String] box =>
-      for e in envsarr.values() do
-        let eqpos = try e.find("=") else 0 end // should find 1 =
-        let ek: String val = e.substring(0, eqpos)
-        let ev: String val = e.substring(eqpos+1)
-        if ek.at(prefix, 0) then
-          envsmap.update(ek.substring(prelen).lower(), ev)
-        end
-      end
-    end
-    envsmap
 
   fun box _parse_command(
     tokens: Array[String] ref,
@@ -80,7 +59,7 @@ class CommandParser
 
       elseif not opt_stop and (token.compare_sub("--", 2, 0) == Equal) then
         match _parse_long_option(token.substring(2), tokens)
-        | let f: Option => options.update(f.spec.name, f)
+        | let o: Option => options.update(o.spec().name(), o)
         | let se: SyntaxError => return se
         end
 
@@ -89,16 +68,16 @@ class CommandParser
         match _parse_short_options(token.substring(1), tokens)
         | let os: Array[Option] =>
           for o in os.values() do
-            options.update(o.spec.name, o)
+            options.update(o.spec().name(), o)
           end
         | let se: SyntaxError =>
           return se
         end
 
       else // no dashes, must be a command or an arg
-        if _spec.commands.size() > 0 then
+        if _spec.commands().size() > 0 then
           try
-            match _spec.commands(token)
+            match _spec.commands()(token)
             | let cs: CommandSpec box =>
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
@@ -108,7 +87,7 @@ class CommandParser
           end
         else
           match _parse_arg(token, arg_pos)
-          | let a: Arg => args.update(a.spec.name, a); arg_pos = arg_pos + 1
+          | let a: Arg => args.update(a.spec().name(), a); arg_pos = arg_pos + 1
           | let se: SyntaxError => return se
           end
         end
@@ -121,14 +100,14 @@ class CommandParser
         if _spec is _root_spec() then
           Help.general(_root_spec())
         else
-          Help.for_command(_root_spec(), [_spec.name])
+          Help.for_command(_root_spec(), [_spec.name()])
         end
     end
 
     // If it's a help command, return a general or specific CommandHelp.
-    if _spec.name == _help_name() then
+    if _spec.name() == _help_name() then
       try
-        match args("command").value
+        match args("command").string()
         | "" => return Help.general(_root_spec())
         | let c: String => return Help.for_command(_root_spec(), [c])
         end
@@ -137,53 +116,53 @@ class CommandParser
     end
 
     // Fill in option values from env or from coded defaults.
-    for os in _spec.options.values() do
-      if not options.contains(os.name) then
+    for os in _spec.options().values() do
+      if not options.contains(os.name()) then
         // Lookup and use env vars before code defaults
-        if envsmap.contains(os.name) then
+        if envsmap.contains(os.name()) then
           let vs =
             try
-              envsmap(os.name)
-            else  // TODO(cq) why else needed? we just checked
+              envsmap(os.name())
+            else  // TODO(cq) why is else needed? we just checked
               ""
             end
           let v: Value =
-            match _ValueParser.parse(os.typ, vs)
+            match _ValueParser.parse(os.typ(), vs)
             | let v: Value => v
             | let se: SyntaxError => return se
             end
-          options.update(os.name, Option(os, v))
+          options.update(os.name(), Option(os, v))
         else
-          if not os.required then
-            options.update(os.name, Option(os, os.default))
+          if not os.required() then
+            options.update(os.name(), Option(os, os.default()))
           end
         end
       end
     end
 
     // Check for missing options and error if any exist.
-    for os in _spec.options.values() do
-      if not options.contains(os.name) then
-        if os.required then
-          return SyntaxError(os.name, "missing value for required option")
+    for os in _spec.options().values() do
+      if not options.contains(os.name()) then
+        if os.required() then
+          return SyntaxError(os.name(), "missing value for required option")
         end
       end
     end
 
     // Check for missing args and error if found.
-    while arg_pos < _spec.args.size() do
+    while arg_pos < _spec.args().size() do
       try
-        let ars = _spec.args(arg_pos)
-        if ars.required then
-          return SyntaxError(ars.name, "missing value for required argument")
+        let ars = _spec.args()(arg_pos)
+        if ars.required() then
+          return SyntaxError(ars.name(), "missing value for required argument")
         end
-        args.update(ars.name, Arg(ars, ars.default))
+        args.update(ars.name(), Arg(ars, ars.default()))
       end
       arg_pos = arg_pos + 1
     end
 
     // A successfully parsed and populated leaf Command
-    Command(_spec, options, args)
+    Command(_spec, consume options, args)
 
   fun box _parse_long_option(
     token: String,
@@ -239,7 +218,7 @@ class CommandParser
             targ = shorts.clone()
             shorts.truncate(0)
           else
-            return SyntaxError(short_string(c), "ambiguous args for short option")
+            return SyntaxError(_short_string(c), "ambiguous args for short option")
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
@@ -247,14 +226,14 @@ class CommandParser
         | let f: Option => options.push(f)
         | let se: SyntaxError => return se
         end
-      | None => SyntaxError(short_string(c), "unknown short option")
+      | None => SyntaxError(_short_string(c), "unknown short option")
       end
     end
     options
 
   fun box _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
-      let arg_spec = _spec.args(arg_pos)
+      let arg_spec = _spec.args()(arg_pos)
       _ArgParser.parse(arg_spec, token)
     else
       return SyntaxError(token, "too many positional arguments")
@@ -262,7 +241,7 @@ class CommandParser
 
   fun box _option_with_name(name: String): (OptionSpec | None) =>
     try
-      return _spec.options(name)
+      return _spec.options()(name)
     end
     match _parent
     | let p: CommandParser box => p._option_with_name(name)
@@ -271,7 +250,7 @@ class CommandParser
     end
 
   fun box _option_with_short(short: U8): (OptionSpec | None) =>
-    for f in _spec.options.values() do
+    for f in _spec.options().values() do
       if f._has_short(short) then
         return f
       end
@@ -282,11 +261,11 @@ class CommandParser
       None
     end
 
-  fun short_string(c: U8): String =>
+  fun tag _short_string(c: U8): String =>
     recover String.from_utf32(c.u32()) end
 
   fun box _help_name(): String =>
-    _root_spec().help_name
+    _root_spec().help_name()
 
 primitive _OptionParser
   fun parse(
@@ -305,7 +284,7 @@ primitive _OptionParser
     // Now convert the arg to Type, detecting missing or mis-typed args
     match arg
     | let a: String =>
-      match _ValueParser.parse(spec.typ, a)
+      match _ValueParser.parse(spec.typ(), a)
       | let v: Value => Option(spec, v)
       | let se: SyntaxError => se
       end
@@ -313,13 +292,13 @@ primitive _OptionParser
       if not spec._requires_arg() then
         Option(spec, spec._default_arg())
       else
-        SyntaxError(spec.name, "missing arg for option")
+        SyntaxError(spec.name(), "missing arg for option")
       end
     end
 
 primitive _ArgParser
   fun parse(spec: ArgSpec, arg: String): (Arg | SyntaxError) =>
-    match _ValueParser.parse(spec.typ, arg)
+    match _ValueParser.parse(spec.typ(), arg)
     | let v: Value => Arg(spec, v)
     | let se: SyntaxError => se
     end

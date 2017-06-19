@@ -1,14 +1,44 @@
+use "cli"
 use "collections"
-use "options"
 use "time"
+
+class val Config
+  let logtable: USize
+  let iterate: USize
+  let chunk: USize
+  let streamer_count: USize
+  let updater_count: USize
+
+  new val create(env: Env) ? =>
+    let cs = CommandSpec.parent("gups_basic", "", [
+      OptionSpec.i64("table", "Log2 of the total table size." where default' = 20)
+      OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
+      OptionSpec.i64("chunk", "Chunk size." where default' = 1024)
+      OptionSpec.i64("streamers", "Number of streamers." where default' = 4)
+      OptionSpec.i64("updaters", "Number of updaters." where default' = 8)
+    ]).>add_help()
+    let cmd =
+      match CommandParser(cs).parse(env.args, env.vars())
+      | let c: Command => c
+      | let ch: CommandHelp =>
+          ch.print_help(OutWriter(env.out))
+          env.exitcode(0)
+          error
+      | let se: SyntaxError =>
+          env.out.print(se.string())
+          env.exitcode(1)
+          error
+      end
+    logtable = cmd.option("table").i64().usize()
+    iterate = cmd.option("iterate").i64().usize()
+    chunk = cmd.option("chunk").i64().usize()
+    streamer_count = cmd.option("streamers").i64().usize()
+    updater_count = cmd.option("updaters").i64().usize()
 
 actor Main
   let _env: Env
-  var _logtable: USize = 20
-  var _iterate: USize = 10000
-  var _chunk: USize = 1024
-  var _streamer_count: USize = 4
-  var _updater_count: USize = 8
+  var _streamer_count: USize = 0
+  var _updater_count: USize = 0
   var _updates: USize = 0
   var _to: Array[Updater] val
   var _start: U64
@@ -19,10 +49,12 @@ actor Main
     _start = Time.nanos()
 
     try
-      arguments()
+      let c = Config(env)
+      _streamer_count = c.streamer_count
+      _updater_count = c.updater_count
 
-      var size = (1 << _logtable) / _updater_count
-      _updates = _chunk * _iterate * _streamer_count
+      var size = (1 << c.logtable) / _updater_count
+      _updates = c.chunk * c.iterate * _streamer_count
 
       let count = _updater_count
 
@@ -37,7 +69,7 @@ actor Main
       end
 
       for i in Range(0, _streamer_count) do
-        Streamer(this, _to, size, _chunk, _chunk * _iterate * i)(_iterate)
+        Streamer(this, _to, size, c.chunk, c.chunk * c.iterate * i)(c.iterate)
       end
     end
 
@@ -57,38 +89,6 @@ actor Main
         )
     end
 
-  fun ref arguments() ? =>
-    var options = Options(_env.args)
-
-    options
-      .add("table", "t", I64Argument)
-      .add("iterate", "i", I64Argument)
-      .add("chunk", "c", I64Argument)
-      .add("streamers", "s", I64Argument)
-      .add("updaters", "u", I64Argument)
-
-    for option in options do
-      match option
-      | ("table", let arg: I64) => _logtable = arg.usize()
-      | ("iterate", let arg: I64) => _iterate = arg.usize()
-      | ("chunk", let arg: I64) => _chunk = arg.usize()
-      | ("streamers", let arg: I64) => _streamer_count = arg.usize()
-      | ("updaters", let arg: I64) => _updater_count = arg.usize()
-      | let err: ParseError => err.report(_env.out) ; usage() ; error
-      end
-    end
-
-  fun ref usage() =>
-    _env.out.print(
-      """
-      gups_basic [OPTIONS]
-        --table     N   log2 of the total table size. Defaults to 20.
-        --iterate   N   number of iterations. Defaults to 10000.
-        --chunk     N   chunk size. Defaults to 1024.
-        --streamers N   number of streamers. Defaults to 4.
-        --updaters  N   number of updaters. Defaults to 8.
-      """
-      )
 
 actor Streamer
   let main: Main
