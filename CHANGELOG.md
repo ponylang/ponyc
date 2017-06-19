@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Add compile error for generic Main ([PR #1970](https://github.com/ponylang/ponyc/pull/1970))
 - Prevent duplicate long_tests from being registered ([PR #1962](https://github.com/ponylang/ponyc/pull/1962))
 - Assertion failure on identity comparison of tuples with different cardinalities ([PR #1946](https://github.com/ponylang/ponyc/pull/1946))
 - Stop default arguments from using the function scope ([PR #1948](https://github.com/ponylang/ponyc/pull/1948))
