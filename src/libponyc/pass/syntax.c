@@ -360,10 +360,20 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
 
   // Check if we're called Main
-  if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
+  if(ast_name(id) == stringtab("Main"))
   {
-    ast_error(opt->check.errors, ast, "Main must be an actor");
-    r = AST_ERROR;
+    if(ast_id(typeparams) != TK_NONE)
+    {
+      ast_error(opt->check.errors, typeparams,
+        "the Main actor cannot have type parameters");
+      r = AST_ERROR;
+    }
+
+    if(def->permissions[ENTITY_MAIN] == 'N')
+    {
+      ast_error(opt->check.errors, ast, "Main must be an actor");
+      r = AST_ERROR;
+    }
   }
 
   if(!check_id_type(opt, id, def->desc))

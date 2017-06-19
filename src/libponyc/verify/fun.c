@@ -14,22 +14,13 @@ static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
   if(strcmp(ast_name(type_id), "Main"))
     return true;
 
-  bool ok = true;
-
-  ast_t* type_params = ast_childidx(opt->check.frame->type, 1);
-
-  if (ast_id(type_params) == TK_TYPEPARAMS)
-  {
-    ast_error(opt->check.errors, type_params,
-      "the Main actor cannot have type parameters");
-    ok = false;
-  }
-
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
   ast_t* type = ast_parent(ast_parent(ast));
 
   if(strcmp(ast_name(id), "create"))
     return true;
+
+  bool ok = true;
 
   if(ast_id(ast) != TK_NEW)
   {
