@@ -87,7 +87,8 @@ class CommandParser
           end
         else
           match _parse_arg(token, arg_pos)
-          | let a: Arg => args.update(a.spec().name(), a); arg_pos = arg_pos + 1
+          | let a: Arg => args.update(a.spec().name(), a)
+            arg_pos = arg_pos + 1
           | let se: SyntaxError => return se
           end
         end

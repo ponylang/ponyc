@@ -7,7 +7,7 @@ actor Main
         match CommandParser(cli_spec()).parse(env.args, env.vars())
         | let c: Command => c
         | let ch: CommandHelp =>
-            ch.print_help(OutWriter(env.out))
+            ch.print_help(env.out)
             env.exitcode(0)
             return
         | let se: SyntaxError =>

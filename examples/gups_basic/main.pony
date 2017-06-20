@@ -21,13 +21,13 @@ class val Config
       match CommandParser(cs).parse(env.args, env.vars())
       | let c: Command => c
       | let ch: CommandHelp =>
-          ch.print_help(OutWriter(env.out))
-          env.exitcode(0)
-          error
+        ch.print_help(env.out)
+        env.exitcode(0)
+        error
       | let se: SyntaxError =>
-          env.out.print(se.string())
-          env.exitcode(1)
-          error
+        env.out.print(se.string())
+        env.exitcode(1)
+        error
       end
     logtable = cmd.option("table").i64().usize()
     iterate = cmd.option("iterate").i64().usize()

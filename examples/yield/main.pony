@@ -212,16 +212,16 @@ actor Main
 
     let cmd =
       match CommandParser(cs).parse(_env.args, _env.vars())
-        | let c: Command => c
-        | let ch: CommandHelp =>
-            ch.print_help(OutWriter(_env.out))
-            _env.exitcode(0)
-            return
-        | let se: SyntaxError =>
-            _env.out.print(se.string())
-            _env.exitcode(1)
-            return
-        end
+      | let c: Command => c
+      | let ch: CommandHelp =>
+        ch.print_help(_env.out)
+        _env.exitcode(0)
+        return
+      | let se: SyntaxError =>
+        _env.out.print(se.string())
+        _env.exitcode(1)
+        return
+      end
 
     var punk: Bool = cmd.option("punk").bool()
     var perf: U64 = cmd.option("bench").i64().u64()
