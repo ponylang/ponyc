@@ -78,12 +78,12 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         es(i.usize_unsafe()) = consume cs'
         (create(consume es, _nodemap, _datamap, _level), true)
       else
-        // insert into sub-node
+        // update sub-node
         let sn = _entries(i.usize_unsafe()) as _MapNode[K, V, H]
         let es = recover _entries.clone() end
-        (let sn', _) = sn.update(hash, leaf) as (_MapNode[K, V, H], Bool)
+        (let sn', let u) = sn.update(hash, leaf) as (_MapNode[K, V, H], Bool)
         es(i.usize_unsafe()) = sn'
-        (create(consume es, _nodemap, _datamap, _level), true)
+        (create(consume es, _nodemap, _datamap, _level), u)
       end
     else
       let old = _entries(i.usize_unsafe()) as _MapLeaf[K, V, H]
