@@ -127,15 +127,15 @@ class CommandParser
             else  // TODO(cq) why is else needed? we just checked
               ""
             end
-          let v: Value =
-            match _ValueParser.parse(os.typ(), vs)
-            | let v: Value => v
+          let v: _Value =
+            match _ValueParser.parse(os._typ_p(), vs)
+            | let v: _Value => v
             | let se: SyntaxError => return se
             end
           options.update(os.name(), Option(os, v))
         else
           if not os.required() then
-            options.update(os.name(), Option(os, os.default()))
+            options.update(os.name(), Option(os, os._default_p()))
           end
         end
       end
@@ -157,7 +157,7 @@ class CommandParser
         if ars.required() then
           return SyntaxError(ars.name(), "missing value for required argument")
         end
-        args.update(ars.name(), Arg(ars, ars.default()))
+        args.update(ars.name(), Arg(ars, ars._default_p()))
       end
       arg_pos = arg_pos + 1
     end
@@ -251,9 +251,9 @@ class CommandParser
     end
 
   fun box _option_with_short(short: U8): (OptionSpec | None) =>
-    for f in _spec.options().values() do
-      if f._has_short(short) then
-        return f
+    for o in _spec.options().values() do
+      if o._has_short(short) then
+        return o
       end
     end
     match _parent
@@ -285,8 +285,8 @@ primitive _OptionParser
     // Now convert the arg to Type, detecting missing or mis-typed args
     match arg
     | let a: String =>
-      match _ValueParser.parse(spec.typ(), a)
-      | let v: Value => Option(spec, v)
+      match _ValueParser.parse(spec._typ_p(), a)
+      | let v: _Value => Option(spec, v)
       | let se: SyntaxError => se
       end
     else
@@ -299,19 +299,19 @@ primitive _OptionParser
 
 primitive _ArgParser
   fun parse(spec: ArgSpec, arg: String): (Arg | SyntaxError) =>
-    match _ValueParser.parse(spec.typ(), arg)
-    | let v: Value => Arg(spec, v)
+    match _ValueParser.parse(spec._typ_p(), arg)
+    | let v: _Value => Arg(spec, v)
     | let se: SyntaxError => se
     end
 
 primitive _ValueParser
-  fun box parse(typ: ValueType, arg: String): (Value | SyntaxError) =>
+  fun box parse(typ: _ValueType, arg: String): (_Value | SyntaxError) =>
     try
       match typ
-      | let b: BoolType => arg.bool()
-      | let s: StringType => arg
-      | let f: F64Type => arg.f64()
-      | let i: I64Type => arg.i64()
+      | let b: _BoolType => arg.bool()
+      | let s: _StringType => arg
+      | let f: _F64Type => arg.f64()
+      | let i: _I64Type => arg.i64()
       end
     else
       SyntaxError(arg, "unable to convert '" + arg + "' to " + typ.string())

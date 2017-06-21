@@ -43,9 +43,9 @@ class val Option
   Option contains a spec and an effective value for a given option.
   """
   let _spec: OptionSpec
-  let _value: Value
+  let _value: _Value
 
-  new val create(spec': OptionSpec, value': Value) =>
+  new val create(spec': OptionSpec, value': _Value) =>
     _spec = spec'
     _value = value'
 
@@ -71,9 +71,9 @@ class val Arg
   Arg contains a spec and an effective value for a given arg.
   """
   let _spec: ArgSpec
-  let _value: Value
+  let _value: _Value
 
-  new val create(spec': ArgSpec, value': Value) =>
+  new val create(spec': ArgSpec, value': _Value) =>
     _spec = spec'
     _value = value'
 

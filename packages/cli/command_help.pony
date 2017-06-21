@@ -1,9 +1,7 @@
 use "buffered"
 
 primitive Help
-
-  fun general(cs: CommandSpec box): CommandHelp
-  =>
+  fun general(cs: CommandSpec box): CommandHelp =>
     CommandHelp._create(None, cs)
 
   fun for_command(cs: CommandSpec box, argv: Array[String] box)

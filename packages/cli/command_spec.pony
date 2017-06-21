@@ -145,19 +145,19 @@ class val OptionSpec
   let _name: String
   let _descr: String
   let _short: (U8 | None)
-  let _typ: ValueType
-  let _default: Value
+  let _typ: _ValueType
+  let _default: _Value
   let _required: Bool
 
-  fun tag _init(typ': ValueType, default': (Value | None))
-    : (ValueType, Value, Bool)
+  fun tag _init(typ': _ValueType, default': (_Value | None))
+    : (_ValueType, _Value, Bool)
   =>
     match default'
     | None => (typ', false, true)
-    | let d: Value => (typ', d, false)
+    | let d: _Value => (typ', d, false)
     else
       // Ponyc limitation: else can't happen, but segfaults without it
-      (BoolType, false, false)
+      (_BoolType, false, false)
     end
 
   new val bool(
@@ -169,7 +169,7 @@ class val OptionSpec
     _name = name'
     _descr = descr'
     _short = short'
-    (_typ, _default, _required) = _init(BoolType, default')
+    (_typ, _default, _required) = _init(_BoolType, default')
 
   new val string(
     name': String,
@@ -180,7 +180,7 @@ class val OptionSpec
     _name = name'
     _descr = descr'
     _short = short'
-    (_typ, _default, _required) = _init(StringType, default')
+    (_typ, _default, _required) = _init(_StringType, default')
 
   new val i64(name': String,
     descr': String = "",
@@ -190,7 +190,7 @@ class val OptionSpec
     _name = name'
     _descr = descr'
     _short = short'
-    (_typ, _default, _required) = _init(I64Type, default')
+    (_typ, _default, _required) = _init(_I64Type, default')
 
   new val f64(name': String,
     descr': String = "",
@@ -200,30 +200,30 @@ class val OptionSpec
     _name = name'
     _descr = descr'
     _short = short'
-    (_typ, _default, _required) = _init(F64Type, default')
+    (_typ, _default, _required) = _init(_F64Type, default')
 
   fun name(): String => _name
 
   fun descr(): String => _descr
 
-  fun typ(): ValueType => _typ
+  fun _typ_p(): _ValueType => _typ
 
-  fun default(): Value => _default
+  fun _default_p(): _Value => _default
 
   fun required(): Bool => _required
 
   // Other than bools, all options require args.
   fun _requires_arg(): Bool =>
     match _typ
-    | let _: BoolType => false
+    | let _: _BoolType => false
     else
       true
     end
 
   // Used for bool options to get the true arg when option is present w/o arg
-  fun _default_arg(): Value =>
+  fun _default_arg(): _Value =>
     match _typ
-    | let _: BoolType => true
+    | let _: _BoolType => true
     else
       false
     end
@@ -259,19 +259,19 @@ class val ArgSpec
   """
   let _name: String
   let _descr: String
-  let _typ: ValueType
-  let _default: Value
+  let _typ: _ValueType
+  let _default: _Value
   let _required: Bool
 
-  fun tag _init(typ': ValueType, default': (Value | None))
-    : (ValueType, Value, Bool)
+  fun tag _init(typ': _ValueType, default': (_Value | None))
+    : (_ValueType, _Value, Bool)
   =>
     match default'
     | None => (typ', false, true)
-    | let d: Value => (typ', d, false)
+    | let d: _Value => (typ', d, false)
     else
       // Ponyc limitation: else can't happen, but segfaults without it
-      (BoolType, false, false)
+      (_BoolType, false, false)
     end
 
   new val bool(
@@ -281,7 +281,7 @@ class val ArgSpec
   =>
     _name = name'
     _descr = descr'
-    (_typ, _default, _required) = _init(BoolType, default')
+    (_typ, _default, _required) = _init(_BoolType, default')
 
   new val string(
     name': String,
@@ -290,7 +290,7 @@ class val ArgSpec
   =>
     _name = name'
     _descr = descr'
-    (_typ, _default, _required) = _init(StringType, default')
+    (_typ, _default, _required) = _init(_StringType, default')
 
   new val i64(name': String,
     descr': String = "",
@@ -298,7 +298,7 @@ class val ArgSpec
   =>
     _name = name'
     _descr = descr'
-    (_typ, _default, _required) = _init(I64Type, default')
+    (_typ, _default, _required) = _init(_I64Type, default')
 
   new val f64(name': String,
     descr': String = "",
@@ -306,15 +306,15 @@ class val ArgSpec
   =>
     _name = name'
     _descr = descr'
-    (_typ, _default, _required) = _init(F64Type, default')
+    (_typ, _default, _required) = _init(_F64Type, default')
 
   fun name(): String => _name
 
   fun descr(): String => _descr
 
-  fun typ(): ValueType => _typ
+  fun _typ_p(): _ValueType => _typ
 
-  fun default(): Value => _default
+  fun _default_p(): _Value => _default
 
   fun required(): Bool => _required
 
@@ -325,22 +325,22 @@ class val ArgSpec
     _name + "[" + _typ.string() + "]" +
       if not _required then "(=" + _default.string() + ")" else "" end
 
-type Value is (Bool | String | I64 | F64)
+type _Value is (Bool | String | I64 | F64)
 
-primitive BoolType
+primitive _BoolType
   fun string(): String => "Bool"
 
-primitive StringType
+primitive _StringType
   fun string(): String => "String"
 
-primitive I64Type
+primitive _I64Type
   fun string(): String => "I64"
 
-primitive F64Type
+primitive _F64Type
   fun string(): String => "F64"
 
-type ValueType is
-  ( BoolType
-  | StringType
-  | I64Type
-  | F64Type )
+type _ValueType is
+  ( _BoolType
+  | _StringType
+  | _I64Type
+  | _F64Type )
