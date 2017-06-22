@@ -1055,6 +1055,63 @@ static void reachable_ffi(reach_t* r, ast_t* ast, pass_opt_t* opt)
   }
 }
 
+static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
+  pass_opt_t* opt)
+{
+  if((ast_id(l_type) == TK_TUPLETYPE) && (ast_id(r_type) == TK_TUPLETYPE))
+  {
+    if(ast_childcount(l_type) != ast_childcount(r_type))
+      return;
+
+    ast_t* l_child = ast_child(l_type);
+    ast_t* r_child = ast_child(r_type);
+
+    while(l_child != NULL)
+    {
+      reachable_identity_type(r, l_child, r_child, opt);
+      l_child = ast_sibling(l_child);
+      r_child = ast_sibling(r_child);
+    }
+  } else if(!is_known(l_type) && !is_known(r_type)) {
+    reach_type_t* r_left = reach_type(r, l_type);
+    reach_type_t* r_right = reach_type(r, r_type);
+
+    int sub_kind = subtype_kind_overlap(r_left, r_right);
+
+    if((sub_kind & SUBTYPE_KIND_TUPLE) != 0)
+    {
+      const char* name = stringtab("__is");
+
+      if((reach_method_name(r_left, name) != NULL) &&
+        (reach_method_name(r_right, name) != NULL))
+        return;
+
+      reach_method_name_t* n = add_method_name(r_left, name, true);
+      add_rmethod(r, r_left, n, TK_BOX, NULL, opt, true);
+
+      reach_type_t* l_sub;
+      size_t i = HASHMAP_BEGIN;
+
+      while((l_sub = reach_type_cache_next(&r_left->subtypes, &i)) != NULL)
+      {
+        if(l_sub->underlying != TK_TUPLETYPE)
+          continue;
+
+        reach_type_t k;
+        k.name = l_sub->name;
+        size_t j = HASHMAP_UNKNOWN;
+        reach_type_t* r_sub = reach_type_cache_get(&r_right->subtypes, &k, &j);
+
+        if(r_sub != NULL)
+        {
+          pony_assert(l_sub == r_sub);
+          reachable_identity_type(r, l_sub->ast_cap, r_sub->ast_cap, opt);
+        }
+      }
+    }
+  }
+}
+
 static void reachable_identity(reach_t* r, ast_t* ast, pass_opt_t* opt)
 {
   AST_GET_CHILDREN(ast, left, right);
@@ -1062,21 +1119,42 @@ static void reachable_identity(reach_t* r, ast_t* ast, pass_opt_t* opt)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(!is_known(l_type) && !is_known(r_type))
+  reachable_identity_type(r, l_type, r_type, opt);
+}
+
+static void reachable_digestof_type(reach_t* r, ast_t* type, pass_opt_t* opt)
+{
+  if(ast_id(type) == TK_TUPLETYPE)
   {
-    reach_type_t* r_left = reach_type(r, l_type);
-    reach_type_t* r_right = reach_type(r, r_type);
-    int sub_kind = subtype_kind_overlap(r_left, r_right);
+    ast_t* child = ast_child(type);
 
-    if((sub_kind & SUBTYPE_KIND_TUPLE) != 0)
+    while(child != NULL)
     {
-      const char* name = stringtab("__is");
+      reachable_digestof_type(r, child, opt);
+      child = ast_sibling(child);
+    }
+  } else if(!is_known(type)) {
+    reach_type_t* t = reach_type(r, type);
+    int sub_kind = subtype_kind(t);
 
-      reach_method_name_t* n = add_method_name(r_left, name, true);
-      add_rmethod(r, r_left, n, TK_BOX, NULL, opt, true);
+    if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
+    {
+      const char* name = stringtab("__digestof");
 
-      n = add_method_name(r_right, name, true);
-      add_rmethod(r, r_right, n, TK_BOX, NULL, opt, true);
+      if(reach_method_name(t, name) != NULL)
+        return;
+
+      reach_method_name_t* n = add_method_name(t, name, true);
+      add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+
+      reach_type_t* sub;
+      size_t i = HASHMAP_BEGIN;
+
+      while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+      {
+        if(sub->can_be_boxed)
+          reachable_digestof_type(r, sub->ast_cap, opt);
+      }
     }
   }
 }
@@ -1086,18 +1164,7 @@ static void reachable_digestof(reach_t* r, ast_t* ast, pass_opt_t* opt)
   ast_t* expr = ast_child(ast);
   ast_t* type = ast_type(expr);
 
-  if(!is_known(type))
-  {
-    reach_type_t* t = reach_type(r, type);
-    int sub_kind = subtype_kind(t);
-
-    if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
-    {
-      const char* name = stringtab("__digestof");
-      reach_method_name_t* n = add_method_name(t, name, true);
-      add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
-    }
-  }
+  reachable_digestof_type(r, type, opt);
 }
 
 static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
