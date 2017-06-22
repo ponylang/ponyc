@@ -118,15 +118,23 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew".
 
+### Work on the release notes
+
+We do a blog post announcing each release. The release notes blog post should include highlights of any particularly interesting changes that we want the community to be aware of. 
+
+Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
+
+[Examples of prior release posts](https://www.ponylang.org/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included.
+
 ### Inform #ponylang
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Inform pony-user
 
-Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release notes so everyone can see the CHANGELOG.
+Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
