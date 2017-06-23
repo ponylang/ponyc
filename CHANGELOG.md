@@ -26,6 +26,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Make tuples be subtypes of empty interfaces (like Any). ([PR #1937](https://github.com/ponylang/ponyc/pull/1937))
 - Add Persistent Vec (RFC 42) ([PR #1949](https://github.com/ponylang/ponyc/pull/1949))
 - Add support for custom serialisation (RFC 21) ([PR #1839](https://github.com/ponylang/ponyc/pull/1839))
 - Add persistent set (RFC 42) ([PR #1925](https://github.com/ponylang/ponyc/pull/1925))
