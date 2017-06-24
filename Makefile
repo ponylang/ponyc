@@ -458,10 +458,12 @@ ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 libponyc.benchmarks.linker = $(CXX)
 libponyrt.benchmarks.linker = $(CXX)
 
+minimals=$(filter-out minimal-cases/issue-629, $(wildcard minimal-cases/*))
+
 # make targets
 targets := $(libraries) libponyrt $(binaries) $(tests) $(benchmarks)
 
-.PHONY: all $(targets) install uninstall clean stats deploy prerelease
+.PHONY: all $(targets) install uninstall clean stats deploy prerelease $(minimals)
 all: $(targets)
 	@:
 
@@ -774,6 +776,12 @@ test-ci: all
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
 	@rm examples1
+
+$(minimals):
+	$(PONY_BUILD_DIR)/ponyc $@ --output build/$@
+	build/$@/$(notdir $@)
+
+test-minimals: $(minimals)
 
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
