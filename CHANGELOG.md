@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Assertion failure with directly recursive trait ([PR #1989](https://github.com/ponylang/ponyc/pull/1989))
 - Add compile error for generic Main ([PR #1970](https://github.com/ponylang/ponyc/pull/1970))
 - Prevent duplicate long_tests from being registered ([PR #1962](https://github.com/ponylang/ponyc/pull/1962))
 - Assertion failure on identity comparison of tuples with different cardinalities ([PR #1946](https://github.com/ponylang/ponyc/pull/1946))
