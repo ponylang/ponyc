@@ -9,8 +9,8 @@ class val _VecNode[A: Any #share]
 
   new val empty(level: U8) =>
     _entries =
-      if level == 1 then recover Array[Array[A] val](32) end
-      else recover Array[_VecNode[A]](32) end
+      if level == 1 then recover Array[Array[A] val] end
+      else recover Array[_VecNode[A]] end
       end
     _level = level
 
@@ -18,7 +18,7 @@ class val _VecNode[A: Any #share]
     (_entries, _level) = (consume entries, level)
 
   fun val new_root(): _VecNode[A] =>
-    let entries = recover val Array[_VecNode[A]](32) .> push(this) end
+    let entries = recover val Array[_VecNode[A]](1) .> push(this) end
     create(entries, _level + 1)
 
   fun apply(i: USize): A ? =>

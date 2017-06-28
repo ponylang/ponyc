@@ -20,7 +20,7 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       match l
       | 6 => Array[_MapEntry[K, V, H]](4)
       else
-        Array[_MapEntry[K, V, H]](32)
+        Array[_MapEntry[K, V, H]]
       end
     end
     _nodemap = 0

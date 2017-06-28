@@ -14,7 +14,7 @@ class val Vec[A: Any #share]
 
   new val create() =>
     _root = None
-    _tail = recover Array[A](32) end
+    _tail = recover Array[A] end
     _size = 0
     _depth = 1
     _tail_offset = 0
@@ -117,7 +117,7 @@ class val Vec[A: Any #share]
         try (_root as _VecNode[A]).new_root().push(_tail_offset, _tail)
         else _root
         end
-      let tail = recover val Array[A](32) .> push(value) end
+      let tail = recover val Array[A](1) .> push(value) end
       _create(root, tail, _size + 1, _depth + 1, _tail_offset + 32)
     else
       // push tail into root
@@ -129,7 +129,7 @@ class val Vec[A: Any #share]
           let r = _VecNode[A].empty(1)
           try r.push(0, _tail) else r end
         end
-      let tail = recover val Array[A](32) .> push(value) end
+      let tail = recover val Array[A](1) .> push(value) end
       _create(root, tail, _size + 1, _depth, _tail_offset + 32)
     end
 
