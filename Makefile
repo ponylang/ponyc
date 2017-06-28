@@ -458,7 +458,7 @@ ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 libponyc.benchmarks.linker = $(CXX)
 libponyrt.benchmarks.linker = $(CXX)
 
-minimals=$(wildcard minimal-cases/*)
+minimals=$(filter-out minimal-cases/outputcheck, $(wildcard minimal-cases/*))
 
 # make targets
 targets := $(libraries) libponyrt $(binaries) $(tests) $(benchmarks)
