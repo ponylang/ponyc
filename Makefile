@@ -458,10 +458,12 @@ ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 libponyc.benchmarks.linker = $(CXX)
 libponyrt.benchmarks.linker = $(CXX)
 
+integration-tests=$(filter-out test/integration/outputcheck, $(wildcard test/integration/*))
+
 # make targets
 targets := $(libraries) libponyrt $(binaries) $(tests) $(benchmarks)
 
-.PHONY: all $(targets) install uninstall clean stats deploy prerelease
+.PHONY: all $(targets) install uninstall clean stats deploy prerelease $(integration-tests)
 all: $(targets)
 	@:
 
@@ -756,24 +758,26 @@ test: all
 	@./stdlib --sequential
 	@rm stdlib
 
+test-stdlib-release:
+	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@./stdlib --sequential
+	@rm stdlib	
+
 test-examples: all
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
 	@rm examples1
 
-test-ci: all
-	@$(PONY_BUILD_DIR)/ponyc --version
-	@$(PONY_BUILD_DIR)/libponyc.tests
-	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
-	@./stdlib --sequential
-	@rm stdlib
-	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
-	@./stdlib --sequential
-	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
-	@./examples1
-	@rm examples1
+$(integration-tests):
+	@$(PONY_BUILD_DIR)/ponyc $@ --output build/$@
+	@build/$@/$(notdir $@)
+
+test-integration: $(integration-tests)
+
+output-version:
+	$(PONY_BUILD_DIR)/ponyc --version
+
+test-ci: all output-version test test-stdlib-release test-examples test-integration
 
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr

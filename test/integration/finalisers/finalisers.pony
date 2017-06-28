@@ -1,3 +1,5 @@
+use "../outputcheck"
+
 primitive PrimitiveInitFinal
   fun _init() =>
     @printf[I32]("primitive init\n".cstring())
@@ -15,9 +17,20 @@ class ClassFinal
   fun _final() =>
     @printf[I32]("class final\n".cstring())
 
+
 actor Main
   new create(env: Env) =>
-    ClassFinal
+    if env.args.size() > 1
+    then
+      // we're the child/test process
+      ClassFinal
+    else
+      // we're the parent driver/assert process
+      let expected = recover val
+        ["primitive init"; "primitive final"; "actor final"; "embed final"; "class final"]
+      end
+      OutputCheck(expected).run(env)
+    end
 
   fun _final() =>
     @printf[I32]("actor final\n".cstring())
