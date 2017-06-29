@@ -285,6 +285,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_DIGESTOF:   r = expr_digestof(options, ast); break;
 
+    case TK_AS:
+      if(!expr_as(options, astp))
+        return AST_FATAL;
+      break;
+
     case TK_OBJECT:
       if(!expr_object(options, astp))
         return AST_FATAL;
