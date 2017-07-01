@@ -342,7 +342,7 @@ actor Main
 
     _size = last - offset
     _alloc = _alloc - offset
-    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+    _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """
