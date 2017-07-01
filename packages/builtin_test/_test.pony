@@ -56,6 +56,7 @@ actor Main is TestList
     test(_TestArraySlice)
     test(_TestArrayTrim)
     test(_TestArrayTrimInPlace)
+    test(_TestArrayTrimInPlaceWithAppend)
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
@@ -1168,6 +1169,26 @@ class iso _TestArrayTrimInPlace is UnitTest
     let copy: Array[U8] ref = orig.clone()
     copy.trim_in_place(from, to)
     h.assert_array_eq[U8](expected, copy)
+
+class iso _TestArrayTrimInPlaceWithAppend is UnitTest
+  """
+  Test trimming part of a array in place then append and trim again
+
+  Verifies we don't get a segfault similar to String and...
+  https://github.com/ponylang/ponyc/issues/1996
+  """
+  fun name(): String => "builtin/Array.trim_in_place_with_append"
+
+  fun apply(h: TestHelper) =>
+    let a: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    let big: Array[U8] val = recover val Array[U8].init(U8(1), 12_000) end
+    a.trim_in_place(a.size())
+    h.assert_array_eq[U8](Array[U8], a)
+    a.append(big)
+    a.trim_in_place(a.size())
+    h.assert_array_eq[U8](Array[U8], a)
+    a.append([as U8: 0; 10])
+    h.assert_array_eq[U8]([as U8: 0; 10], a)
 
 class iso _TestArrayInsert is UnitTest
   """
