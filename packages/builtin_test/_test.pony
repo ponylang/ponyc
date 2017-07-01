@@ -31,6 +31,7 @@ actor Main is TestList
     test(_TestStringCut)
     test(_TestStringTrim)
     test(_TestStringTrimInPlace)
+    test(_TestStringTrimInPlaceWithAppend)
     test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
@@ -476,6 +477,26 @@ class iso _TestStringTrimInPlace is UnitTest
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
+
+class iso _TestStringTrimInPlaceWithAppend is UnitTest
+  """
+  Test trimming part of a string in place then append and trim again
+
+  Verifies we don't get a regression for:
+  https://github.com/ponylang/ponyc/issues/1996
+  """
+  fun name(): String => "builtin/String.trim_in_place_with_append"
+
+  fun apply(h: TestHelper) =>
+    let a: String ref = "Hello".clone()
+    let big: Array[U8] val = recover val Array[U8].init(U8(1), 12_000) end
+    a.trim_in_place(a.size())
+    h.assert_eq[String box]("", a)
+    a.append(big)
+    a.trim_in_place(a.size())
+    h.assert_eq[String box]("", a)
+    a.append("Hello")
+    h.assert_eq[String box]("Hello", a)
 
 class iso _TestStringIsNullTerminated is UnitTest
   """
