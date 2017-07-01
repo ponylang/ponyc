@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix segfault in Array.trim_in_place ([PR #1999](https://github.com/ponylang/ponyc/pull/1999))
 - Fix segfault in String.trim_in_place ([PR #1997](https://github.com/ponylang/ponyc/pull/1997))
 - Assertion failure with directly recursive trait ([PR #1989](https://github.com/ponylang/ponyc/pull/1989))
 - Add compile error for generic Main ([PR #1970](https://github.com/ponylang/ponyc/pull/1970))
