@@ -169,7 +169,7 @@ static const lextoken_t keywords[] =
 
   { "if", TK_IF },
   { "ifdef", TK_IFDEF },
-  { "iftype", TK_IFTYPE },
+  { "iftype", TK_IFTYPE_SET },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },

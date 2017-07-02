@@ -199,9 +199,9 @@ static ast_t* make_iftype_typeparam(pass_opt_t* opt, ast_t* subtype,
   return typeparam;
 }
 
-static ast_result_t scope_iftype_clause(pass_opt_t* opt, ast_t* ast)
+static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
 {
-  pony_assert(ast_id(ast) == TK_IFTYPE_CLAUSE);
+  pony_assert(ast_id(ast) == TK_IFTYPE);
 
   AST_GET_CHILDREN(ast, subtype, supertype);
 
@@ -323,8 +323,8 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
       ast_setdata(ast, ast);
       break;
 
-    case TK_IFTYPE_CLAUSE:
-      return scope_iftype_clause(options, ast);
+    case TK_IFTYPE:
+      return scope_iftype(options, ast);
 
     default: {}
   }

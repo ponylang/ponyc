@@ -64,7 +64,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_if(c, ast);
       break;
 
-    case TK_IFTYPE:
+    case TK_IFTYPE_SET:
       ret = gen_iftype(c, ast);
       break;
 
