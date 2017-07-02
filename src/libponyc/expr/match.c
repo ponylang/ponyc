@@ -32,9 +32,13 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     // so we only return true if *all* elements return true.
     case TK_TUPLE:
       for(ast_t* e = ast_child(case_expr); e != NULL; e = ast_sibling(e))
-        if(!case_expr_matches_type_alone(opt, ast_childlast(e)))
+        if(!case_expr_matches_type_alone(opt, e))
           return false;
       return true;
+
+    // This pattern form matches on type alone if the final child returns true.
+    case TK_SEQ:
+      return case_expr_matches_type_alone(opt, ast_childlast(case_expr));
 
     default: {}
   }
