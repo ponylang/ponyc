@@ -368,6 +368,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
     errorframe_append(&frame, &info);
+
+    if(ast_checkflag(ast_type(right), AST_FLAG_INCOMPLETE))
+      ast_error_frame(&frame, right,
+        "this might be possible if all fields were already defined");
+
     errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(a_type);
     return false;
