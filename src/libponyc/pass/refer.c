@@ -935,8 +935,10 @@ static bool refer_if(pass_opt_t* opt, ast_t* ast)
 static bool refer_iftype(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
-  pony_assert(ast_id(ast) == TK_IFTYPE);
-  AST_GET_CHILDREN(ast, sub, super, left, right);
+  pony_assert(ast_id(ast) == TK_IFTYPE_SET);
+
+  AST_GET_CHILDREN(ast, left_clause, right);
+  AST_GET_CHILDREN(left_clause, sub, super, left);
 
   size_t branch_count = 0;
 
@@ -1289,7 +1291,8 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_SEQ:       r = refer_seq(options, ast); break;
     case TK_IFDEF:
     case TK_IF:        r = refer_if(options, ast); break;
-    case TK_IFTYPE:    r = refer_iftype(options, ast); break;
+    case TK_IFTYPE_SET:
+                       r = refer_iftype(options, ast); break;
     case TK_WHILE:     r = refer_while(options, ast); break;
     case TK_REPEAT:    r = refer_repeat(options, ast); break;
     case TK_MATCH:     r = refer_match(options, ast); break;

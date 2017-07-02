@@ -738,31 +738,34 @@ DEF(ifdef);
   REORDER(0, 2, 3, 1);
   DONE();
 
-// ELSEIF [annotations] type <: type THEN seq [elseiftype | (ELSE seq)]
-DEF(elseiftype);
+// type <: type THEN seq
+DEF(iftype);
   AST_NODE(TK_IFTYPE);
   SCOPE();
-  SKIP(NULL, TK_ELSEIF);
-  ANNOTATE(annotations);
   RULE("type", type);
   SKIP(NULL, TK_SUBTYPE);
   RULE("type", type);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
+  DONE();
+
+// ELSEIF [annotations] iftype [elseiftype | (ELSE seq)]
+DEF(elseiftype);
+  AST_NODE(TK_IFTYPE_SET);
+  SKIP(NULL, TK_ELSEIF);
+  ANNOTATE(annotations);
+  SCOPE();
+  RULE("iftype clause", iftype);
   OPT RULE("else clause", elseiftype, elseclause);
   DONE();
 
-// IFTYPE [annotations] type <: type THEN seq [elseiftype | (ELSE seq)] END
-DEF(iftype);
+// IFTYPE_SET [annotations] iftype [elseiftype | (ELSE seq)] END
+DEF(iftypeset);
   PRINT_INLINE();
-  TOKEN(NULL, TK_IFTYPE);
-  ANNOTATE(annotations);
+  TOKEN(NULL, TK_IFTYPE_SET);
   SCOPE();
-  RULE("type", type);
-  SKIP(NULL, TK_SUBTYPE);
-  RULE("type", type);
-  SKIP(NULL, TK_THEN);
-  RULE("then value", seq);
+  ANNOTATE(annotations);
+  RULE("iftype clause", iftype);
   OPT RULE("else clause", elseiftype, elseclause);
   TERMINATE("iftype expression", TK_END);
   DONE();
@@ -965,18 +968,18 @@ DEF(test_ifdef_flag);
   TOKEN(NULL, TK_ID);
   DONE();
 
-// cond | ifdef | iftype | match | whileloop | repeat | forloop | with | try |
+// cond | ifdef | iftypeset | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | const_expr | test_<various>
 DEF(term);
-  RULE("value", cond, ifdef, iftype, match, whileloop, repeat, forloop, with,
+  RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, pattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
-// cond | ifdef | iftype | match | whileloop | repeat | forloop | with | try |
+// cond | ifdef | iftypeset | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | const_expr | test_<various>
 DEF(nextterm);
-  RULE("value", cond, ifdef, iftype, match, whileloop, repeat, forloop, with,
+  RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, nextpattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();

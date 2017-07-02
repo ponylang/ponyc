@@ -273,3 +273,75 @@ TEST_F(IftypeTest, UnconstrainedTypeparam)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(IftypeTest, RecursiveConstraint)
+{
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x': A) =>\n"
+    "    var x = x'\n"
+    "    iftype A <: T[A] then\n"
+    "      x = x.m()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, Tuple_MutuallyRecursiveConstraint)
+{
+  const char* src =
+    "trait T[X]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[D]\n"
+    "  fun tag m(): D => D.create()\n"
+
+    "class val D is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C,D](C, D)\n"
+
+    "  fun foo[A, B](x': A, y': B) =>\n"
+    "    var x = x'\n"
+    "    var y = y'\n"
+    "    iftype (A, B) <: (T[B], T[A]) then\n"
+    "      x = y.m()\n"
+    "      y = x.m()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, NestedCond)
+{
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+    "  fun tag c() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x: A) =>\n"
+    "    iftype A <: T then\n"
+    "      iftype A <: C then\n"
+    "        x.c()\n"
+    "      end\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

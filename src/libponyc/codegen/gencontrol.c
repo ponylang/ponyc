@@ -156,10 +156,11 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, subtype, supertype, left, right);
+  AST_GET_CHILDREN(ast, left, right);
+  AST_GET_CHILDREN(left, subtype, supertype, body);
 
   if(is_subtype_constraint(subtype, supertype, NULL, c->opt))
-    return gen_expr(c, left);
+    return gen_expr(c, body);
 
   return gen_expr(c, right);
 }
