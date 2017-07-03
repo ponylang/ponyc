@@ -345,3 +345,21 @@ TEST_F(IftypeTest, NestedCond)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(IftypeTest, ReplaceTypeargs)
+{
+  const char* src =
+    "class A\n"
+    "  fun m() => None\n"
+    "trait Cell[X]\n"
+    "  fun get(): X\n"
+
+    "actor Main\n"
+    "  fun foo[X: Any #read](cell: Cell[X]) =>\n"
+    "    iftype X <: A #read\n"
+    "    then cell.get().m()\n"
+    "    end\n"
+    "  new create(env: Env) => None";
+  TEST_COMPILE(src);
+}
