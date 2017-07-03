@@ -61,6 +61,9 @@ struct reach_method_t
   size_t param_count;
   reach_param_t* params;
   reach_type_t* result;
+
+  // Used when reaching and generating __is for tuples.
+  reach_type_cache_t* tuple_is_types;
 };
 
 struct reach_method_name_t
