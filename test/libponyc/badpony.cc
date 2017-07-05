@@ -631,3 +631,14 @@ TEST_F(BadPonyTest, GenericMain)
 
   TEST_ERRORS_1(src, "the Main actor cannot have type parameters");
 }
+
+TEST_F(BadPonyTest, LambdaParamNoType)
+{
+  // From issue #2010
+  const char* src =
+    "actor Main\n"
+    "  new create(e: Env) =>\n"
+    "    {(x: USize, y): USize => x }";
+
+  TEST_ERRORS_1(src, "a lambda parameter must specify a type");
+}
