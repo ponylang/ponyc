@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix assert failure on lambda parameter missing type. ([PR #2011](https://github.com/ponylang/ponyc/pull/2011))
 - Fix iftype where the type variable appears as a type parameter. ([PR #2007](https://github.com/ponylang/ponyc/pull/2007))
 - Fix support for recursive constraints in iftype conditions. ([PR #1961](https://github.com/ponylang/ponyc/pull/1961))
 - Fix segfault in Array.trim_in_place ([PR #1999](https://github.com/ponylang/ponyc/pull/1999))
