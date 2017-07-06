@@ -13,6 +13,7 @@ static void cap_aliasing(token_id* cap, token_id* eph)
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_CAP_WRITE:
         case TK_CAP_SEND:
         case TK_CAP_ANY:
           break;
@@ -34,6 +35,11 @@ static void cap_aliasing(token_id* cap, token_id* eph)
         case TK_TRN:
           // Alias as box.
           *cap = TK_BOX;
+          break;
+
+        case TK_CAP_WRITE:
+          // Alias as ref.
+          *cap = TK_REF; // TODO: is this correct???
           break;
 
         case TK_CAP_SEND:
@@ -85,6 +91,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:  // {ref, val, box}
+        case TK_CAP_WRITE: // {iso, trn, ref}
         case TK_CAP_SHARE: // {val, tag}
         case TK_CAP_SEND:  // {iso, val, tag}
         case TK_CAP_ALIAS: // {ref, val, box, tag}
@@ -141,6 +148,17 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       }
       break;
 
+    case TK_CAP_WRITE: // {iso, trn, ref}
+      switch(super)
+      {
+        case TK_REF:
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
     default: {}
   }
 
@@ -174,6 +192,18 @@ bool is_cap_sub_cap_constraint(token_id sub, token_id subalias, token_id super,
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_WRITE: // {iso, trn, ref}
+      switch(sub)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
           return true;
 
         default: {}
@@ -385,6 +415,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
   {
     case TK_ISO:
     case TK_CAP_SEND:
+    case TK_CAP_WRITE:
     case TK_CAP_ANY:
       switch(pattern_cap)
       {
@@ -394,6 +425,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
         case TK_CAP_ALIAS:
@@ -411,6 +443,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
         case TK_CAP_ALIAS:
@@ -426,6 +459,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
       {
         case TK_BOX:
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
         case TK_CAP_ALIAS:
@@ -486,6 +520,7 @@ bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
+        case TK_CAP_WRITE:
         case TK_CAP_SHARE:
         case TK_CAP_SEND:
         case TK_CAP_ALIAS:
@@ -584,6 +619,9 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
 
         default: {}
       }
+      break;
+
+    case TK_CAP_WRITE:
       break;
 
     case TK_CAP_ALIAS:
@@ -734,6 +772,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
   {
     case TK_TAG:
     case TK_CAP_SEND:
+    case TK_CAP_WRITE:
     case TK_CAP_SHARE:
     case TK_CAP_ALIAS:
     case TK_CAP_ANY:
@@ -753,6 +792,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
       switch(*right_cap)
       {
         case TK_ISO:
+        case TK_CAP_WRITE: // TODO: is this correct???
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;
@@ -775,6 +815,7 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_CAP_WRITE: // TODO: is this correct???
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;
@@ -884,6 +925,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
       switch(*right_cap)
       {
         case TK_ISO:
+        case TK_CAP_WRITE:// TODO: is this correct???
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;
@@ -915,6 +957,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_CAP_WRITE:// TODO: is this correct???
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;
@@ -1063,6 +1106,7 @@ bool cap_safetowrite(token_id into, token_id cap)
   switch(into)
   {
     case TK_ISO:
+    case TK_CAP_WRITE:
       switch(cap)
       {
         case TK_ISO:

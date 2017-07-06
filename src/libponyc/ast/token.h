@@ -133,6 +133,7 @@ typedef enum token_id
   TK_TAG,
 
   TK_CAP_READ,
+  TK_CAP_WRITE,
   TK_CAP_SEND,
   TK_CAP_SHARE,
   TK_CAP_ALIAS,

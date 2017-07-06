@@ -26,6 +26,23 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SHARE:
           return TK_CAP_SEND;
 
+        case TK_TRN:
+        case TK_REF:
+        case TK_CAP_WRITE:
+          return TK_CAP_WRITE;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(b)
+      {
+        case TK_ISO:
+        case TK_REF:
+        case TK_CAP_WRITE:
+          return TK_CAP_WRITE;
+
         default: {}
       }
       break;
@@ -37,6 +54,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_BOX:
         case TK_CAP_READ:
           return TK_CAP_READ;
+
+        case TK_ISO:
+        case TK_TRN:
+        case TK_CAP_WRITE:
+          return TK_CAP_WRITE;
 
         default: {}
       }
@@ -95,6 +117,18 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_BOX:
           return TK_CAP_READ;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_WRITE:
+      switch(b)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+          return TK_CAP_WRITE;
 
         default: {}
       }
@@ -167,9 +201,20 @@ static token_id cap_isect_constraint(token_id a, token_id b)
     case TK_ISO:
       switch(b)
       {
+        case TK_CAP_WRITE:
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
           return TK_ISO;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(b)
+      {
+        case TK_CAP_WRITE:
+          return TK_TRN;
 
         default: {}
       }
@@ -179,6 +224,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
       switch(b)
       {
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_ALIAS:
           return TK_REF;
 
@@ -221,9 +267,31 @@ static token_id cap_isect_constraint(token_id a, token_id b)
         case TK_CAP_ALIAS:
           return TK_CAP_READ;
 
+        case TK_CAP_WRITE:
+          return TK_REF;
+
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
           return TK_VAL;
+
+        default: {}
+      }
+      break;
+
+    case TK_CAP_WRITE:
+      switch(b)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+          return b;
+
+        case TK_CAP_SEND:
+          return TK_ISO;
+
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return TK_REF;
 
         default: {}
       }
@@ -239,6 +307,9 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         case TK_CAP_READ:
           return TK_VAL;
+
+        case TK_CAP_SEND:
+          return TK_ISO;
 
         case TK_CAP_SHARE:
         case TK_CAP_ALIAS:
@@ -280,6 +351,9 @@ static token_id cap_isect_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
           return TK_CAP_SHARE;
+
+        case TK_CAP_WRITE:
+          return TK_REF;
 
         default: {}
       }
@@ -384,6 +458,20 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+          break;
+
+        default:
+          return false;
+      }
+      break;
+
+    case TK_CAP_WRITE:
+      switch(tcap)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+        case TK_CAP_WRITE:
           break;
 
         default:

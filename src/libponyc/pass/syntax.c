@@ -1326,6 +1326,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_FUN:        r = syntax_fun(options, ast); break;
 
     case TK_CAP_READ:
+    case TK_CAP_WRITE:
     case TK_CAP_SEND:
     case TK_CAP_SHARE:
     case TK_CAP_ALIAS:

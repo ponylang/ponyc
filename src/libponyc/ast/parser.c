@@ -158,8 +158,8 @@ DEF(cap);
 
 // GENCAP
 DEF(gencap);
-  TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
-    TK_CAP_ALIAS, TK_CAP_ANY);
+  TOKEN("generic capability", TK_CAP_READ, TK_CAP_WRITE, TK_CAP_SEND,
+    TK_CAP_SHARE, TK_CAP_ALIAS, TK_CAP_ANY);
   DONE();
 
 // AT

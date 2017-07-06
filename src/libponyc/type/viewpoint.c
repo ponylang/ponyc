@@ -86,6 +86,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_ALIAS:
         case TK_CAP_ANY:
           // Don't compact through an unknown refcap.
@@ -444,6 +445,15 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
       replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
       replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
       replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
+      return tuple;
+    }
+
+    case TK_CAP_WRITE:
+    {
+      ast_t* tuple = ast_from(type, TK_TUPLETYPE);
+      replace_typeparam(tuple, type, typeparamref, TK_ISO, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, TK_TRN, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
       return tuple;
     }
 

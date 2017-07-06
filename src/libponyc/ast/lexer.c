@@ -201,6 +201,7 @@ static const lextoken_t keywords[] =
 
   // #keywords.
   { "#read", TK_CAP_READ },
+  { "#write", TK_CAP_WRITE },
   { "#send", TK_CAP_SEND },
   { "#share", TK_CAP_SHARE },
   { "#alias", TK_CAP_ALIAS },

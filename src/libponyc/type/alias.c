@@ -74,6 +74,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
 
     case TK_TRN:
     case TK_REF:
+    case TK_CAP_WRITE:
       // These recover as iso, so any rcap is acceptable. We also set the rcap
       // as ephemeral to allow direct recovery to iso or trn.
       if(rcap == TK_NONE)
@@ -94,6 +95,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
         case TK_TRN:
         case TK_REF:
         case TK_CAP_READ:
+        case TK_CAP_WRITE:
         case TK_CAP_SEND:
         case TK_CAP_ALIAS:
         case TK_CAP_ANY:
@@ -449,6 +451,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
       {
         case TK_ISO:
         case TK_CAP_SEND:
+        case TK_CAP_WRITE:
           switch(fun_cap)
           {
             case TK_TAG:
