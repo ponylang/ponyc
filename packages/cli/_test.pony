@@ -48,7 +48,7 @@ class iso _TestBadName is UnitTest
   fun apply(h: TestHelper) =>
     try
       let cs = CommandSpec.leaf("min imal", "")
-      h.fail("expected error on bad command name" + cs.name())
+      h.fail("expected error on bad command name: " + cs.name())
     end
 
 class iso _TestHyphenArg is UnitTest
@@ -355,7 +355,7 @@ class iso _TestMustBeLeaf is UnitTest
     match cmdErr
     | let se: SyntaxError => None
     else
-      h.fail("expected syntax error for non-leaf cmd " + cmdErr.string())
+      h.fail("expected syntax error for non-leaf cmd: " + cmdErr.string())
     end
 
 class iso _TestHelp is UnitTest

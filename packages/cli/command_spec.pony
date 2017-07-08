@@ -357,14 +357,14 @@ class _StringSeq is ReadSeq[String]
     ss.append(ss1.strings)
     strings = ss
 
-  fun string(): String =>
-    let str = recover trn String() end
-    str.append("[")
+  fun string(): String iso^ =>
+    let str = recover String() end
+    str.push('[')
     for s in strings.values() do
-      if str.size() > 1 then str.append(",") end
+      if str.size() > 1 then str.push(',') end
       str.append(s)
     end
-    str.append("]")
+    str.push(']')
     str
 
   fun size(): USize => strings.size()
