@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.15.0] - 2017-07-08
 
 ### Fixed
 
@@ -30,7 +30,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix outdated methods in persistent.Map docstring. ([PR #1901](https://github.com/ponylang/ponyc/pull/1901))
 - Fix format for number types (issue #1920) ([PR #1927](https://github.com/ponylang/ponyc/pull/1927))
 
-
 ### Added
 
 - Make tuples be subtypes of empty interfaces (like Any). ([PR #1937](https://github.com/ponylang/ponyc/pull/1937))
@@ -42,7 +41,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 - Command line options for printing help ([PR #1899](https://github.com/ponylang/ponyc/pull/1899))
 - `Nanos.from_wall_clock` function to convert from a wall clock as obtained from `Time.now()` into number of nanoseconds since "the beginning of time". ([PR #1967](https://github.com/ponylang/ponyc/pull/1967))
-
 
 ### Changed
 
@@ -791,4 +789,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+
+sed.
 
