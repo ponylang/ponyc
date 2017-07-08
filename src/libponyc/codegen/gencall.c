@@ -443,12 +443,10 @@ static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
 {
   if(ti->count == ti->alloc)
   {
-    size_t* tmp_data =
-      (size_t*)ponyint_pool_alloc_size(2 * ti->alloc * sizeof(size_t));
-    memcpy(tmp_data, ti->data, ti->count * sizeof(size_t));
-    ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+    size_t old_alloc = ti->alloc * sizeof(size_t);
+    ti->data =
+      (size_t*)ponyint_pool_realloc_size(old_alloc, old_alloc * 2, ti->data);
     ti->alloc *= 2;
-    ti->data = tmp_data;
   }
   ti->data[ti->count++] = idx;
 }
