@@ -55,7 +55,7 @@ class box CommandHelp
     _write_help(w)
     let str = recover trn String(w.size()) end
     for bytes in w.done().values() do str.append(bytes) end
-    consume str
+    str
 
   fun box print_help(os: OutStream) =>
     let w: Writer = Writer

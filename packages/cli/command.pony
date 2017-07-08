@@ -6,20 +6,23 @@ class box Command
   and effective options and arguments, ready to use.
   """
   let _spec: CommandSpec box
+  let _fullname: String
   let _options: Map[String, Option] box
   let _args: Map[String, Arg] box
 
   new create(
     spec': CommandSpec box,
+    fullname': String,
     options': Map[String, Option] box,
     args': Map[String, Arg] box)
   =>
     _spec = spec'
+    _fullname = fullname'
     _options = options'
     _args = args'
 
   fun string(): String =>
-    let s: String iso = _spec.name().clone()
+    let s: String iso = fullname().clone()
     for o in _options.values() do
       s.append(" ")
       s.append(o.deb_string())
@@ -30,7 +33,9 @@ class box Command
     end
     s
 
-  fun box spec() : CommandSpec box => _spec
+  fun spec() : CommandSpec box => _spec
+
+  fun fullname() : String => _fullname
 
   fun box option(name: String): Option =>
     try _options(name) else Option(OptionSpec.bool(name), false) end
@@ -49,6 +54,9 @@ class val Option
     _spec = spec'
     _value = value'
 
+  fun _append(next: Option): Option =>
+    Option(_spec, _spec._typ_p().append(_value, next._value))
+
   fun spec() : OptionSpec => _spec
 
   fun bool(): Bool =>
@@ -62,6 +70,13 @@ class val Option
 
   fun f64(): F64 =>
     try _value as F64 else F64(0) end
+
+  fun string_seq(): ReadSeq[String] val =>
+    try
+      _value as _StringSeq val
+    else
+      recover val Array[String]() end
+    end
 
   fun deb_string(): String =>
     _spec.deb_string() + "=" + _value.string()
@@ -77,6 +92,9 @@ class val Arg
     _spec = spec'
     _value = value'
 
+  fun _append(next: Arg): Arg =>
+    Arg(_spec, _spec._typ_p().append(_value, next._value))
+
   fun spec(): ArgSpec => _spec
 
   fun bool(): Bool =>
@@ -90,6 +108,13 @@ class val Arg
 
   fun f64(): F64 =>
     try _value as F64 else F64(0) end
+
+  fun string_seq(): ReadSeq[String] val =>
+    try
+      _value as _StringSeq val
+    else
+      recover val Array[String]() end
+    end
 
   fun deb_string(): String =>
     "(" + _spec.deb_string() + "=)" + _value.string()

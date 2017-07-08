@@ -113,19 +113,19 @@ class CommandSpec
       _commands.update(_help_name, help_cmd)
     end
 
-  fun box name(): String => _name
+  fun name(): String => _name
 
-  fun box descr(): String => _descr
+  fun descr(): String => _descr
 
-  fun box options(): Map[String, OptionSpec] box => _options
+  fun options(): Map[String, OptionSpec] box => _options
 
-  fun box commands(): Map[String, CommandSpec box] box => _commands
+  fun commands(): Map[String, CommandSpec box] box => _commands
 
-  fun box args(): Array[ArgSpec] box => _args
+  fun args(): Array[ArgSpec] box => _args
 
-  fun box help_name(): String => _help_name
+  fun help_name(): String => _help_name
 
-  fun box help_string(): String =>
+  fun help_string(): String =>
     let s = _name.clone()
     s.append(" ")
     for a in _args.values() do
@@ -201,6 +201,16 @@ class val OptionSpec
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_F64Type, default')
+
+  new val string_seq(
+    name': String,
+    descr': String = "",
+    short': (U8 | None) = None)
+  =>
+    _name = name'
+    _descr = descr'
+    _short = short'
+    (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
 
   fun name(): String => _name
 
@@ -308,6 +318,14 @@ class val ArgSpec
     _descr = descr'
     (_typ, _default, _required) = _init(_F64Type, default')
 
+  new val string_seq(
+    name': String,
+    descr': String = "")
+  =>
+    _name = name'
+    _descr = descr'
+    (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
+
   fun name(): String => _name
 
   fun descr(): String => _descr
@@ -325,22 +343,66 @@ class val ArgSpec
     _name + "[" + _typ.string() + "]" +
       if not _required then "(=" + _default.string() + ")" else "" end
 
-type _Value is (Bool | String | I64 | F64)
+class _StringSeq is ReadSeq[String]
+  let strings: Array[String]
 
-primitive _BoolType
+  new val empty() =>
+    strings = Array[String]
+
+  new val from(s: String) =>
+    strings = Array[String].init(s, 1)
+
+  new val combined(ss0: _StringSeq val, ss1: _StringSeq val) =>
+    let ss = ss0.strings.clone()
+    ss.append(ss1.strings)
+    strings = ss
+
+  fun string(): String =>
+    let str = recover trn String() end
+    str.append("[")
+    for s in strings.values() do
+      if str.size() > 1 then str.append(",") end
+      str.append(s)
+    end
+    str.append("]")
+    str
+
+  fun size(): USize => strings.size()
+  fun apply(i: USize): this->String ? => strings(i)
+  fun values(): Iterator[this->String]^ => strings.values()
+
+type _Value is (Bool | String | I64 | F64 | _StringSeq val)
+
+trait val _ValueType
+  fun string(): String
+  fun value_of(s: String): _Value ?
+  fun is_seq(): Bool => false
+  fun append(v1: _Value, v2: _Value): _Value => v1
+
+primitive _BoolType is _ValueType
   fun string(): String => "Bool"
+  fun value_of(s: String): _Value ? => s.bool()
 
-primitive _StringType
+primitive _StringType is _ValueType
   fun string(): String => "String"
+  fun value_of(s: String): _Value => s
 
-primitive _I64Type
+primitive _I64Type is _ValueType
   fun string(): String => "I64"
+  fun value_of(s: String): _Value ? => s.i64()
 
-primitive _F64Type
+primitive _F64Type is _ValueType
   fun string(): String => "F64"
+  fun value_of(s: String): _Value => s.f64()
 
-type _ValueType is
-  ( _BoolType
-  | _StringType
-  | _I64Type
-  | _F64Type )
+primitive _StringSeqType is _ValueType
+  fun string(): String => "ReadSeq[String]"
+  fun value_of(s: String): _Value => _StringSeq.from(s)
+  fun is_seq(): Bool => true
+  fun append(v1: _Value, v2: _Value): _Value =>
+    try
+      let co = _StringSeq.combined(v1 as _StringSeq val, v2 as _StringSeq val)
+      co
+    else
+      v1
+    end
