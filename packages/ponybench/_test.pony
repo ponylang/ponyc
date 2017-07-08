@@ -9,6 +9,7 @@ actor Main is TestList
 
 class iso _TestAutoOps is UnitTest
   fun name(): String => "ponybench/_AutoOps"
+
   fun apply(h: TestHelper) =>
     let ao = _AutoOps(1_000_000_000, 100_000_000)
     let tests: Array[(U64, U64, U64)] = [

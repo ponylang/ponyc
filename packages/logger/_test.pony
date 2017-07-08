@@ -71,11 +71,14 @@ class iso _TestFine is _StringLoggerTest
 class _TestObjectLogging is _LoggerTest[U64]
   fun name(): String => "logger/object"
 
-  fun logger(level': LogLevel,
+  fun logger(
+    level': LogLevel,
     stream': OutStream,
-    formatter': LogFormatter): Logger[U64]
+    formatter': LogFormatter)
+    : Logger[U64]
   =>
-    Logger[U64](level',
+    Logger[U64](
+      level',
       stream',
       {(a: U64): String => a.string() },
       formatter')
@@ -153,8 +156,10 @@ trait _LoggerTest[A] is UnitTest
   fun log(logger': Logger[A])
 
 trait _StringLoggerTest is _LoggerTest[String]
-  fun logger(level': LogLevel,
+  fun logger(
+    level': LogLevel,
     stream': OutStream,
-    formatter': LogFormatter): Logger[String]
+    formatter': LogFormatter)
+    : Logger[String]
   =>
     StringLogger(level', stream', formatter')

@@ -226,13 +226,20 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
         }
       }
 
-      t->structure = LLVMStructCreateNamed(c->context, t->name);
-      t->structure_ptr = LLVMPointerType(t->structure, 0);
+      if(t->bare_method == NULL)
+      {
+        t->structure = LLVMStructCreateNamed(c->context, t->name);
+        t->structure_ptr = LLVMPointerType(t->structure, 0);
 
-      if(t->primitive != NULL)
-        t->use_type = t->primitive;
-      else
-        t->use_type = t->structure_ptr;
+        if(t->primitive != NULL)
+          t->use_type = t->primitive;
+        else
+          t->use_type = t->structure_ptr;
+      } else {
+        t->structure = c->void_ptr;
+        t->structure_ptr = c->void_ptr;
+        t->use_type = c->void_ptr;
+      }
 
       return true;
     }
@@ -362,13 +369,12 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   if(t->primitive != NULL)
     return;
 
+  if(t->bare_method != NULL)
+    return;
+
   // Create a unique global instance.
   const char* inst_name = genname_instance(t->name);
-
-  LLVMValueRef args[1];
-  args[0] = t->desc;
-  LLVMValueRef value = LLVMConstNamedStruct(t->structure, args, 1);
-
+  LLVMValueRef value = LLVMConstNamedStruct(t->structure, &t->desc, 1);
   t->instance = LLVMAddGlobal(c->module, t->structure, inst_name);
   LLVMSetInitializer(t->instance, value);
   LLVMSetGlobalConstant(t->instance, true);
@@ -386,7 +392,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   LLVMSetFunctionCallConv(t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(t->dispatch_fn, LLVMExternalLinkage);
-  codegen_startfun(c, t->dispatch_fn, NULL, NULL);
+  codegen_startfun(c, t->dispatch_fn, NULL, NULL, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
 
@@ -410,6 +416,9 @@ static bool make_struct(compile_t* c, reach_type_t* t)
   LLVMTypeRef type;
   int extra = 0;
   bool packed = false;
+
+  if(t->bare_method != NULL)
+    return true;
 
   switch(t->underlying)
   {
@@ -674,7 +683,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   }
 
   // Generate the trace function.
-  codegen_startfun(c, t->trace_fn, NULL, NULL);
+  codegen_startfun(c, t->trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
 
@@ -727,6 +736,11 @@ bool gentypes(compile_t* c)
 {
   reach_type_t* t;
   size_t i;
+
+  if(target_is_ilp32(c->opt->triple))
+    c->trait_bitmap_size = ((c->reach->trait_type_count + 31) & ~31) >> 5;
+  else
+    c->trait_bitmap_size = ((c->reach->trait_type_count + 63) & ~63) >> 6;
 
   c->tbaa_root = make_tbaa_root(c->context);
   c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);

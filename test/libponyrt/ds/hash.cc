@@ -6,13 +6,16 @@
 
 #include <ds/fun.h>
 #include <ds/hash.h>
+#include <sched/scheduler.h>
+
+#include <memory>
 
 #define INITIAL_SIZE 8
 #define BELOW_HALF (INITIAL_SIZE + (2 - 1)) / 2
 
 typedef struct hash_elem_t hash_elem_t;
 
-DECLARE_HASHMAP(testmap, testmap_t, hash_elem_t);
+DECLARE_HASHMAP_SERIALISE(testmap, testmap_t, hash_elem_t);
 
 class HashMapTest: public testing::Test
 {
@@ -32,15 +35,61 @@ class HashMapTest: public testing::Test
     static void free_buckets(size_t size, void* p);
 };
 
-DEFINE_HASHMAP(testmap, testmap_t, hash_elem_t, HashMapTest::hash_tst,
-  HashMapTest::cmp_tst, malloc, HashMapTest::free_buckets,
-  HashMapTest::free_elem);
-
 struct hash_elem_t
 {
   size_t key;
   size_t val;
 };
+
+static void hash_elem_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  (void)ctx;
+  (void)object;
+}
+
+static void hash_elem_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)ctx;
+  (void)mutability;
+
+  hash_elem_t* elem = (hash_elem_t*)object;
+  hash_elem_t* dst = (hash_elem_t*)((uintptr_t)buf + offset);
+
+  dst->key = elem->key;
+  dst->val = elem->val;
+}
+
+static void hash_elem_deserialise(pony_ctx_t* ctx, void* object)
+{
+  (void)ctx;
+  (void)object;
+}
+
+static pony_type_t hash_elem_pony =
+{
+  0,
+  sizeof(hash_elem_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  hash_elem_serialise_trace,
+  hash_elem_serialise,
+  hash_elem_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+DEFINE_HASHMAP_SERIALISE(testmap, testmap_t, hash_elem_t, HashMapTest::hash_tst,
+  HashMapTest::cmp_tst, malloc, HashMapTest::free_buckets,
+  HashMapTest::free_elem, &hash_elem_pony);
 
 void HashMapTest::SetUp()
 {
@@ -67,7 +116,7 @@ void HashMapTest::put_elements(size_t count)
 
 hash_elem_t* HashMapTest::get_element()
 {
-  return (hash_elem_t*) malloc(sizeof(hash_elem_t));
+  return (hash_elem_t*)malloc(sizeof(hash_elem_t));
 }
 
 size_t HashMapTest::hash_tst(hash_elem_t* p)
@@ -90,6 +139,14 @@ void HashMapTest::free_buckets(size_t len, void* p)
   (void)len;
   free(p);
 }
+
+struct free_deleter
+{
+  void operator()(void* ptr)
+  {
+    free(ptr);
+  }
+};
 
 /** The default size of a map is 0 or at least 8,
  *  i.e. a full cache line of void* on 64-bit systems.
@@ -154,6 +211,7 @@ TEST_F(HashMapTest, TryGetNonExistent)
 {
   hash_elem_t* e1 = get_element();
   hash_elem_t* e2 = get_element();
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{e2};
   size_t index = HASHMAP_UNKNOWN;
 
   e1->key = 1;
@@ -181,6 +239,7 @@ TEST_F(HashMapTest, ReplacingElementReturnsReplaced)
   testmap_put(&_map, e1);
 
   hash_elem_t* n = testmap_put(&_map, e2);
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{n};
   ASSERT_EQ(n, e1);
 
   hash_elem_t* m = testmap_get(&_map, e2, &index);
@@ -209,6 +268,7 @@ TEST_F(HashMapTest, DeleteElement)
   ASSERT_EQ(l, (size_t)2);
 
   hash_elem_t* n1 = testmap_remove(&_map, e1);
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{n1};
 
   l = testmap_size(&_map);
 
@@ -278,6 +338,7 @@ TEST_F(HashMapTest, RemoveByIndex)
   }
 
   testmap_removeindex(&_map, i);
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{p};
 
   ASSERT_EQ(NULL, testmap_get(&_map, p, &index));
 }
@@ -290,6 +351,7 @@ TEST_F(HashMapTest, EmptyPutByIndex)
   hash_elem_t* e = get_element();
   e->key = 1000;
   e->val = 42;
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{e};
   size_t index = HASHMAP_UNKNOWN;
 
   hash_elem_t* n = testmap_get(&_map, e, &index);
@@ -297,6 +359,7 @@ TEST_F(HashMapTest, EmptyPutByIndex)
   ASSERT_EQ(NULL, n);
   ASSERT_EQ(HASHMAP_UNKNOWN, index);
 
+  elem_guard.release();
   testmap_putindex(&_map, e, index);
 
   hash_elem_t* m = testmap_get(&_map, e, &index);
@@ -314,12 +377,14 @@ TEST_F(HashMapTest, NotEmptyPutByIndex)
   hash_elem_t* e = get_element();
   e->key = 1000;
   e->val = 42;
+  std::unique_ptr<hash_elem_t, free_deleter> elem_guard{e};
   size_t index = HASHMAP_UNKNOWN;
 
   hash_elem_t* n = testmap_get(&_map, e, &index);
 
   ASSERT_EQ(NULL, n);
 
+  elem_guard.release();
   testmap_putindex(&_map, e, index);
 
   hash_elem_t* m = testmap_get(&_map, e, &index);
@@ -327,3 +392,78 @@ TEST_F(HashMapTest, NotEmptyPutByIndex)
   ASSERT_EQ(e->val, m->val);
 }
 
+typedef struct ponyint_array_t
+{
+  void* desc;
+  size_t size;
+  size_t alloc;
+  char* ptr;
+} ponyint_array_t;
+
+struct testmap_deleter
+{
+  void operator()(testmap_t* ptr)
+  {
+    testmap_destroy(ptr);
+    free(ptr);
+  }
+};
+
+TEST_F(HashMapTest, Serialisation)
+{
+  for(uint32_t i = 0; i < 100; i++)
+  {
+    hash_elem_t* curr = get_element();
+
+    curr->key = i;
+    curr->val = i;
+
+    testmap_put(&_map, curr);
+  }
+
+  auto alloc_fn = [](pony_ctx_t* ctx, size_t size)
+    {
+      (void)ctx;
+      return malloc(size);
+    };
+  auto throw_fn = [](){throw std::exception{}; };
+
+  pony_ctx_t ctx;
+  memset(&ctx, 0, sizeof(pony_ctx_t));
+  ponyint_array_t array;
+  memset(&array, 0, sizeof(ponyint_array_t));
+
+  pony_serialise(&ctx, &_map, testmap_pony_type(), &array, alloc_fn, throw_fn);
+  std::unique_ptr<char, free_deleter> array_guard{array.ptr};
+  std::unique_ptr<testmap_t, testmap_deleter> out_guard{
+    (testmap_t*)pony_deserialise(&ctx, testmap_pony_type(), &array, alloc_fn,
+      alloc_fn, throw_fn)};
+
+  testmap_t* out = out_guard.get();
+
+  ASSERT_NE(out, (void*)NULL);
+
+  size_t i = HASHMAP_BEGIN;
+  size_t j = i;
+
+  hash_elem_t* orig_elem;
+  hash_elem_t* out_elem;
+
+  while((orig_elem = testmap_next(&_map, &i)) != NULL)
+  {
+    out_elem = testmap_get(out, orig_elem, &j);
+    ASSERT_NE(out_elem, (void*)NULL);
+    ASSERT_EQ(i, j);
+    ASSERT_EQ(orig_elem->val, out_elem->val);
+  }
+
+  i = j = HASHMAP_BEGIN;
+
+  while((out_elem = testmap_next(out, &j)) != NULL)
+  {
+    orig_elem = testmap_get(&_map, out_elem, &i);
+    ASSERT_NE(orig_elem, (void*)NULL);
+    ASSERT_EQ(j, i);
+    ASSERT_EQ(out_elem->val, orig_elem->val);
+  }
+}

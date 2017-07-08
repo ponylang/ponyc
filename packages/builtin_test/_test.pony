@@ -31,6 +31,7 @@ actor Main is TestList
     test(_TestStringCut)
     test(_TestStringTrim)
     test(_TestStringTrimInPlace)
+    test(_TestStringTrimInPlaceWithAppend)
     test(_TestStringIsNullTerminated)
     test(_TestStringReplace)
     test(_TestStringSplit)
@@ -55,6 +56,7 @@ actor Main is TestList
     test(_TestArraySlice)
     test(_TestArrayTrim)
     test(_TestArrayTrimInPlace)
+    test(_TestArrayTrimInPlaceWithAppend)
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
@@ -67,7 +69,6 @@ actor Main is TestList
     test(_TestLambdaCapture)
     test(_TestValtrace)
 
-
 class iso _TestAbs is UnitTest
   """
   Test abs function
@@ -76,39 +77,38 @@ class iso _TestAbs is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_eq[U8](128, I8(-128).abs())
-    h.assert_eq[U8](3,   I8(-3).abs())
-    h.assert_eq[U8](14,  I8(14).abs())
-    h.assert_eq[U8](0,   I8(0).abs())
+    h.assert_eq[U8](3, I8(-3).abs())
+    h.assert_eq[U8](14, I8(14).abs())
+    h.assert_eq[U8](0, I8(0).abs())
 
-    h.assert_eq[U16](128,   I16(-128).abs())
+    h.assert_eq[U16](128, I16(-128).abs())
     h.assert_eq[U16](32768, I16(-32768).abs())
-    h.assert_eq[U16](3,     I16(-3).abs())
-    h.assert_eq[U16](27,    I16(-27).abs())
-    h.assert_eq[U16](0,     I16(0).abs())
+    h.assert_eq[U16](3, I16(-3).abs())
+    h.assert_eq[U16](27, I16(-27).abs())
+    h.assert_eq[U16](0, I16(0).abs())
 
-    h.assert_eq[U32](128,        I32(-128).abs())
-    h.assert_eq[U32](32768,      I32(-32768).abs())
+    h.assert_eq[U32](128, I32(-128).abs())
+    h.assert_eq[U32](32768, I32(-32768).abs())
     h.assert_eq[U32](2147483648, I32(-2147483648).abs())
-    h.assert_eq[U32](3,          I32(-3).abs())
-    h.assert_eq[U32](124,        I32(-124).abs())
-    h.assert_eq[U32](0,          I32(0).abs())
+    h.assert_eq[U32](3, I32(-3).abs())
+    h.assert_eq[U32](124, I32(-124).abs())
+    h.assert_eq[U32](0, I32(0).abs())
 
-    h.assert_eq[U64](128,        I64(-128).abs())
-    h.assert_eq[U64](32768,      I64(-32768).abs())
+    h.assert_eq[U64](128, I64(-128).abs())
+    h.assert_eq[U64](32768, I64(-32768).abs())
     h.assert_eq[U64](2147483648, I64(-2147483648).abs())
-    h.assert_eq[U64](128,        I64(-128).abs())
-    h.assert_eq[U64](3,          I64(-3).abs())
-    h.assert_eq[U64](124,        I64(-124).abs())
-    h.assert_eq[U64](0,          I64(0).abs())
+    h.assert_eq[U64](128, I64(-128).abs())
+    h.assert_eq[U64](3, I64(-3).abs())
+    h.assert_eq[U64](124, I64(-124).abs())
+    h.assert_eq[U64](0, I64(0).abs())
 
-    h.assert_eq[U128](128,        I128(-128).abs())
-    h.assert_eq[U128](32768,      I128(-32768).abs())
+    h.assert_eq[U128](128, I128(-128).abs())
+    h.assert_eq[U128](32768, I128(-32768).abs())
     h.assert_eq[U128](2147483648, I128(-2147483648).abs())
-    h.assert_eq[U128](128,        I128(-128).abs())
-    h.assert_eq[U128](3,          I128(-3).abs())
-    h.assert_eq[U128](124,        I128(-124).abs())
-    h.assert_eq[U128](0,          I128(0).abs())
-
+    h.assert_eq[U128](128, I128(-128).abs())
+    h.assert_eq[U128](3, I128(-3).abs())
+    h.assert_eq[U128](124, I128(-124).abs())
+    h.assert_eq[U128](0, I128(0).abs())
 
 class iso _TestRotate is UnitTest
   """
@@ -167,7 +167,6 @@ class iso _TestRotate is UnitTest
     h.assert_eq[U128](0x0F00, U128(0x0F00).rotr(128))
     h.assert_eq[U128](0x00F0, U128(0x0F00).rotr(132))
 
-
 class iso _TestStringRunes is UnitTest
   """
   Test iterating over the unicode codepoints in a string.
@@ -189,7 +188,6 @@ class iso _TestStringRunes is UnitTest
       h.assert_eq[U32](expect(i), result(i))
     end
 
-
 class iso _TestIntToString is UnitTest
   """
   Test converting integers to strings.
@@ -200,7 +198,6 @@ class iso _TestIntToString is UnitTest
     h.assert_eq[String]("0", U32(0).string())
     h.assert_eq[String]("3", U32(3).string())
     h.assert_eq[String]("1234", U32(1234).string())
-
 
 class iso _TestFloatToString is UnitTest
   """
@@ -216,7 +213,6 @@ class iso _TestFloatToString is UnitTest
     h.assert_eq[String]("-0.35", F64(-3.5e-1).string())
     h.assert_eq[String]("123.125", F64(123.125).string())
 
-
 class iso _TestStringToBool is UnitTest
   """
   Test converting strings to Bools.
@@ -229,8 +225,7 @@ class iso _TestStringToBool is UnitTest
     h.assert_eq[Bool](true, "true".bool())
     h.assert_eq[Bool](true, "TRUE".bool())
 
-    h.assert_error({()? => "bogus".bool() })
-
+    h.assert_error({() ? => "bogus".bool() })
 
 class iso _TestStringToFloat is UnitTest
   """
@@ -245,7 +240,6 @@ class iso _TestStringToFloat is UnitTest
     h.assert_eq[F32](-4.125e-3, "-4.125e-3".f32())
     h.assert_eq[F64](-4.125e-3, "-4.125e-3".f64())
 
-
 class iso _TestStringToU8 is UnitTest
   """
   Test converting strings to U8s.
@@ -258,9 +252,9 @@ class iso _TestStringToU8 is UnitTest
     h.assert_eq[U8](123, "0123".u8())
     h.assert_eq[U8](89, "089".u8())
 
-    h.assert_error({()? => "300".u8() }, "U8 300")
-    h.assert_error({()? => "30L".u8() }, "U8 30L")
-    h.assert_error({()? => "-10".u8() }, "U8 -10")
+    h.assert_error({() ? => "300".u8() }, "U8 300")
+    h.assert_error({() ? => "30L".u8() }, "U8 30L")
+    h.assert_error({() ? => "-10".u8() }, "U8 -10")
 
     h.assert_eq[U8](16, "0x10".u8())
     h.assert_eq[U8](31, "0x1F".u8())
@@ -270,11 +264,10 @@ class iso _TestStringToU8 is UnitTest
     h.assert_eq[U8](2, "0B10".u8())
     h.assert_eq[U8](0x8A, "0b1000_1010".u8())
 
-    h.assert_error({()? => "1F".u8() }, "U8 1F")
-    h.assert_error({()? => "0x".u8() }, "U8 0x")
-    h.assert_error({()? => "0b3".u8() }, "U8 0b3")
-    h.assert_error({()? => "0d4".u8() }, "U8 0d4")
-
+    h.assert_error({() ? => "1F".u8() }, "U8 1F")
+    h.assert_error({() ? => "0x".u8() }, "U8 0x")
+    h.assert_error({() ? => "0b3".u8() }, "U8 0b3")
+    h.assert_error({() ? => "0d4".u8() }, "U8 0d4")
 
 class iso _TestStringToI8 is UnitTest
   """
@@ -289,8 +282,8 @@ class iso _TestStringToI8 is UnitTest
     h.assert_eq[I8](89, "089".i8())
     h.assert_eq[I8](-10, "-10".i8())
 
-    h.assert_error({()? => "200".i8() }, "I8 200")
-    h.assert_error({()? => "30L".i8() }, "I8 30L")
+    h.assert_error({() ? => "200".i8() }, "I8 200")
+    h.assert_error({() ? => "30L".i8() }, "I8 30L")
 
     h.assert_eq[I8](16, "0x10".i8())
     h.assert_eq[I8](31, "0x1F".i8())
@@ -301,11 +294,10 @@ class iso _TestStringToI8 is UnitTest
     h.assert_eq[I8](0x4A, "0b100_1010".i8())
     h.assert_eq[I8](-0x4A, "-0b100_1010".i8())
 
-    h.assert_error({()? => "1F".i8() }, "U8 1F")
-    h.assert_error({()? => "0x".i8() }, "U8 0x")
-    h.assert_error({()? => "0b3".i8() }, "U8 0b3")
-    h.assert_error({()? => "0d4".i8() }, "U8 0d4")
-
+    h.assert_error({() ? => "1F".i8() }, "U8 1F")
+    h.assert_error({() ? => "0x".i8() }, "U8 0x")
+    h.assert_error({() ? => "0b3".i8() }, "U8 0b3")
+    h.assert_error({() ? => "0d4".i8() }, "U8 0d4")
 
 class iso _TestStringToIntLarge is UnitTest
   """
@@ -316,46 +308,45 @@ class iso _TestStringToIntLarge is UnitTest
   fun apply(h: TestHelper) ? =>
     h.assert_eq[U16](0, "0".u16())
     h.assert_eq[U16](123, "123".u16())
-    h.assert_error({()? => "-10".u16() }, "U16 -10")
-    h.assert_error({()? => "65536".u16() }, "U16 65536")
-    h.assert_error({()? => "30L".u16() }, "U16 30L")
+    h.assert_error({() ? => "-10".u16() }, "U16 -10")
+    h.assert_error({() ? => "65536".u16() }, "U16 65536")
+    h.assert_error({() ? => "30L".u16() }, "U16 30L")
 
     h.assert_eq[I16](0, "0".i16())
     h.assert_eq[I16](123, "123".i16())
     h.assert_eq[I16](-10, "-10".i16())
-    h.assert_error({()? => "65536".i16() }, "I16 65536")
-    h.assert_error({()? => "30L".i16() }, "I16 30L")
+    h.assert_error({() ? => "65536".i16() }, "I16 65536")
+    h.assert_error({() ? => "30L".i16() }, "I16 30L")
 
     h.assert_eq[U32](0, "0".u32())
     h.assert_eq[U32](123, "123".u32())
-    h.assert_error({()? => "-10".u32() }, "U32 -10")
-    h.assert_error({()? => "30L".u32() }, "U32 30L")
+    h.assert_error({() ? => "-10".u32() }, "U32 -10")
+    h.assert_error({() ? => "30L".u32() }, "U32 30L")
 
     h.assert_eq[I32](0, "0".i32())
     h.assert_eq[I32](123, "123".i32())
     h.assert_eq[I32](-10, "-10".i32())
-    h.assert_error({()? => "30L".i32() }, "I32 30L")
+    h.assert_error({() ? => "30L".i32() }, "I32 30L")
 
     h.assert_eq[U64](0, "0".u64())
     h.assert_eq[U64](123, "123".u64())
-    h.assert_error({()? => "-10".u64() }, "U64 -10")
-    h.assert_error({()? => "30L".u64() }, "U64 30L")
+    h.assert_error({() ? => "-10".u64() }, "U64 -10")
+    h.assert_error({() ? => "30L".u64() }, "U64 30L")
 
     h.assert_eq[I64](0, "0".i64())
     h.assert_eq[I64](123, "123".i64())
     h.assert_eq[I64](-10, "-10".i64())
-    h.assert_error({()? => "30L".i64() }, "I64 30L")
+    h.assert_error({() ? => "30L".i64() }, "I64 30L")
 
     h.assert_eq[U128](0, "0".u128())
     h.assert_eq[U128](123, "123".u128())
-    h.assert_error({()? => "-10".u128() }, "U128 -10")
-    h.assert_error({()? => "30L".u128() }, "U128 30L")
+    h.assert_error({() ? => "-10".u128() }, "U128 -10")
+    h.assert_error({() ? => "30L".u128() }, "U128 30L")
 
     h.assert_eq[I128](0, "0".i128())
     h.assert_eq[I128](123, "123".i128())
     h.assert_eq[I128](-10, "-10".i128())
-    h.assert_error({()? => "30L".i128() }, "I128 30L")
-
+    h.assert_error({() ? => "30L".i128() }, "I128 30L")
 
 class iso _TestStringLstrip is UnitTest
   """
@@ -364,11 +355,12 @@ class iso _TestStringLstrip is UnitTest
   fun name(): String => "builtin/String.lstrip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "foobar".clone().>lstrip("foo") end, "bar")
-    h.assert_eq[String](recover "fooooooobar".clone().>lstrip("foo") end, "bar")
-    h.assert_eq[String](recover "   foobar".clone().>lstrip() end, "foobar")
-    h.assert_eq[String](recover "  foobar  ".clone().>lstrip() end, "foobar  ")
-
+    h.assert_eq[String](recover "foobar".clone() .> lstrip("foo") end, "bar")
+    h.assert_eq[String](recover "fooooooobar".clone() .> lstrip("foo") end,
+      "bar")
+    h.assert_eq[String](recover "   foobar".clone() .> lstrip() end, "foobar")
+    h.assert_eq[String](recover "  foobar  ".clone() .> lstrip() end,
+      "foobar  ")
 
 class iso _TestStringRstrip is UnitTest
   """
@@ -377,11 +369,12 @@ class iso _TestStringRstrip is UnitTest
   fun name(): String => "builtin/String.rstrip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "foobar".clone().>rstrip("bar") end, "foo")
-    h.assert_eq[String](recover "foobaaaaaar".clone().>rstrip("bar") end, "foo")
-    h.assert_eq[String](recover "foobar  ".clone().>rstrip() end, "foobar")
-    h.assert_eq[String](recover "  foobar  ".clone().>rstrip() end, "  foobar")
-
+    h.assert_eq[String](recover "foobar".clone() .> rstrip("bar") end, "foo")
+    h.assert_eq[String](recover "foobaaaaaar".clone() .> rstrip("bar") end,
+      "foo")
+    h.assert_eq[String](recover "foobar  ".clone() .> rstrip() end, "foobar")
+    h.assert_eq[String](recover "  foobar  ".clone() .> rstrip() end,
+      "  foobar")
 
 class iso _TestStringStrip is UnitTest
   """
@@ -390,12 +383,11 @@ class iso _TestStringStrip is UnitTest
   fun name(): String => "builtin/String.strip"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover "  foobar  ".clone().>strip() end, "foobar")
-    h.assert_eq[String](recover "barfoobar".clone().>strip("bar") end, "foo")
-    h.assert_eq[String](recover "foobarfoo".clone().>strip("foo") end, "bar")
-    h.assert_eq[String](recover "foobarfoo".clone().>strip("bar") end,
+    h.assert_eq[String](recover "  foobar  ".clone() .> strip() end, "foobar")
+    h.assert_eq[String](recover "barfoobar".clone() .> strip("bar") end, "foo")
+    h.assert_eq[String](recover "foobarfoo".clone() .> strip("foo") end, "bar")
+    h.assert_eq[String](recover "foobarfoo".clone() .> strip("bar") end,
       "foobarfoo")
-
 
 class iso _TestStringRemove is UnitTest
   """
@@ -424,7 +416,6 @@ class iso _TestStringRemove is UnitTest
     h.assert_eq[String](consume s3, "foobar!")
     h.assert_eq[String](consume s4, "f-o-o-b-a-r!")
 
-
 class iso _TestStringSubstring is UnitTest
   """
   Test copying range of characters.
@@ -439,7 +430,6 @@ class iso _TestStringSubstring is UnitTest
     h.assert_eq[String]("3456", "0123456".substring(3))
     h.assert_eq[String]("345", "0123456".substring(3, -1))
 
-
 class iso _TestStringCut is UnitTest
   """
   Test cutting part of a string
@@ -450,7 +440,6 @@ class iso _TestStringCut is UnitTest
     h.assert_eq[String]("01236", "0123456".cut(4, 6))
     h.assert_eq[String]("0123", "0123456".cut(4, 7))
     h.assert_eq[String]("0123", "0123456".cut(4))
-
 
 class iso _TestStringTrim is UnitTest
   """
@@ -465,7 +454,6 @@ class iso _TestStringTrim is UnitTest
     h.assert_eq[String]("", "0123456".trim(4, 4))
     h.assert_eq[String]("", "0123456".trim(4, 1))
 
-
 class iso _TestStringTrimInPlace is UnitTest
   """
   Test trimming part of a string in place.
@@ -479,7 +467,11 @@ class iso _TestStringTrimInPlace is UnitTest
     case(h, "", "0123456", 4, 4)
     case(h, "", "0123456", 4, 1)
 
-  fun case(h: TestHelper, expected: String, orig: String, from: USize,
+  fun case(
+    h: TestHelper,
+    expected: String,
+    orig: String,
+    from: USize,
     to: USize = -1)
   =>
     let copy: String ref = orig.clone()
@@ -487,6 +479,25 @@ class iso _TestStringTrimInPlace is UnitTest
     h.assert_eq[String box](expected, copy)
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
 
+class iso _TestStringTrimInPlaceWithAppend is UnitTest
+  """
+  Test trimming part of a string in place then append and trim again
+
+  Verifies we don't get a regression for:
+  https://github.com/ponylang/ponyc/issues/1996
+  """
+  fun name(): String => "builtin/String.trim_in_place_with_append"
+
+  fun apply(h: TestHelper) =>
+    let a: String ref = "Hello".clone()
+    let big: Array[U8] val = recover val Array[U8].init(U8(1), 12_000) end
+    a.trim_in_place(a.size())
+    h.assert_eq[String box]("", a)
+    a.append(big)
+    a.trim_in_place(a.size())
+    h.assert_eq[String box]("", a)
+    a.append("Hello")
+    h.assert_eq[String box]("Hello", a)
 
 class iso _TestStringIsNullTerminated is UnitTest
   """
@@ -502,13 +513,14 @@ class iso _TestStringIsNullTerminated is UnitTest
     h.assert_true("0123456".trim(2, 4).clone().is_null_terminated())
     h.assert_false("0123456".trim(2, 4).is_null_terminated())
 
-    h.assert_true(String.from_iso_array(recover
-      ['a'; 'b'; 'c']
-    end).is_null_terminated())
-    h.assert_false(String.from_iso_array(recover
-      ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] // power of two sized array
-    end).is_null_terminated())
-
+    h.assert_true(
+      String.from_iso_array(recover
+        ['a'; 'b'; 'c']
+      end).is_null_terminated())
+    h.assert_false(
+      String.from_iso_array(recover
+        ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] // power of two sized array
+      end).is_null_terminated())
 
 class iso _TestSpecialValuesF32 is UnitTest
   """
@@ -542,7 +554,6 @@ class iso _TestSpecialValuesF32 is UnitTest
     h.assert_false(F32(0.0 / 0.0).infinite())
     h.assert_true(F32(0.0 / 0.0).nan())
 
-
 class iso _TestSpecialValuesF64 is UnitTest
   """
   Test whether a F64 is infinite or NaN.
@@ -575,7 +586,6 @@ class iso _TestSpecialValuesF64 is UnitTest
     h.assert_false(F64(0.0 / 0.0).infinite())
     h.assert_true(F64(0.0 / 0.0).nan())
 
-
 class iso _TestStringReplace is UnitTest
   """
   Test String.replace
@@ -583,10 +593,9 @@ class iso _TestStringReplace is UnitTest
   fun name(): String => "builtin/String.replace"
 
   fun apply(h: TestHelper) =>
-    let s = String.>append("this is a robbery, this is a stickup")
+    let s = String .> append("this is a robbery, this is a stickup")
     s.replace("is a", "is not a")
     h.assert_eq[String box](s, "this is not a robbery, this is not a stickup")
-
 
 class iso _TestStringSplit is UnitTest
   """
@@ -670,7 +679,6 @@ class iso _TestStringSplitBy is UnitTest
     h.assert_eq[String](r(0), "try with trailing ")
     h.assert_eq[String](r(1), "patternpattern")
 
-
 class iso _TestStringAdd is UnitTest
   """
   Test String.add
@@ -689,7 +697,6 @@ class iso _TestStringAdd is UnitTest
     h.assert_eq[String]("" + "abc".trim(1, 2), "b")
     h.assert_eq[String]("a" + "".trim(1, 1), "a")
 
-
 class iso _TestStringJoin is UnitTest
   """
   Test String.join
@@ -702,7 +709,6 @@ class iso _TestStringJoin is UnitTest
     h.assert_eq[String](" ".join(["1"; ""; "2"; ""]), "1  2 ")
     h.assert_eq[String](" ".join([as Stringable: U32(1); U32(4)]), "1 4")
     h.assert_eq[String](" ".join(Array[String]), "")
-
 
 class iso _TestStringCount is UnitTest
   """
@@ -775,24 +781,24 @@ class iso _TestStringCompare is UnitTest
 
     h.assert_eq[Compare](Equal, "foobar".compare_sub("bar", 2, -2, -2))
 
-    h.assert_eq[Compare](
-      Greater, "one".compare("four"), "\"one\" > \"four\"")
-    h.assert_eq[Compare](
-      Less,    "four".compare("one"), "\"four\" < \"one\"")
-    h.assert_eq[Compare](
-      Equal,   "one".compare("one"), "\"one\" == \"one\"")
-    h.assert_eq[Compare](
-      Less,    "abc".compare("abcd"), "\"abc\" < \"abcd\"")
-    h.assert_eq[Compare](
-      Greater, "abcd".compare("abc"), "\"abcd\" > \"abc\"")
-    h.assert_eq[Compare](
-      Equal,   "abcd".compare_sub("abc", 3), "\"abcx\" == \"abc\"")
-    h.assert_eq[Compare](
-      Equal,   "abc".compare_sub("abcd", 3), "\"abc\" == \"abcx\"")
-    h.assert_eq[Compare](
-      Equal,   "abc".compare_sub("abc", 4), "\"abc\" == \"abc\"")
-    h.assert_eq[Compare](
-      Equal,   "abc".compare_sub("babc", 4, 1, 2), "\"xbc\" == \"xxbc\"")
+    h.assert_eq[Compare](Greater, "one".compare("four"),
+      "\"one\" > \"four\"")
+    h.assert_eq[Compare](Less, "four".compare("one"),
+      "\"four\" < \"one\"")
+    h.assert_eq[Compare](Equal, "one".compare("one"),
+      "\"one\" == \"one\"")
+    h.assert_eq[Compare](Less, "abc".compare("abcd"),
+      "\"abc\" < \"abcd\"")
+    h.assert_eq[Compare](Greater, "abcd".compare("abc"),
+      "\"abcd\" > \"abc\"")
+    h.assert_eq[Compare](Equal, "abcd".compare_sub("abc", 3),
+      "\"abcx\" == \"abc\"")
+    h.assert_eq[Compare](Equal, "abc".compare_sub("abcd", 3),
+      "\"abc\" == \"abcx\"")
+    h.assert_eq[Compare](Equal, "abc".compare_sub("abc", 4),
+      "\"abc\" == \"abc\"")
+    h.assert_eq[Compare](Equal, "abc".compare_sub("babc", 4, 1, 2),
+      "\"xbc\" == \"xxbc\"")
 
 class iso _TestStringContains is UnitTest
   fun name(): String => "builtin/String.contains"
@@ -916,7 +922,6 @@ class iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x8E, s(3))
     h.assert_eq[U32](0x2070E, s.utf32(0)._1)
 
-
 class iso _TestStringRFind is UnitTest
   fun name(): String => "builtin/String.rfind"
 
@@ -925,7 +930,6 @@ class iso _TestStringRFind is UnitTest
     h.assert_eq[ISize](s.rfind("-"), 12)
     h.assert_eq[ISize](s.rfind("-", -2), 8)
     h.assert_eq[ISize](s.rfind("-bar", 7), 4)
-
 
 class iso _TestStringFromArray is UnitTest
   fun name(): String => "builtin/String.from_array"
@@ -939,7 +943,6 @@ class iso _TestStringFromArray is UnitTest
     h.assert_eq[String](s_no_null, "foo")
     h.assert_eq[USize](s_no_null.size(), 3)
 
-
 class iso _TestStringFromIsoArray is UnitTest
   fun name(): String => "builtin/String.from_iso_array"
 
@@ -949,34 +952,37 @@ class iso _TestStringFromIsoArray is UnitTest
     h.assert_eq[USize](s.size(), 3)
     h.assert_true((s.space() == 3) xor s.is_null_terminated())
 
-    let s2 = recover val String.from_iso_array(recover
-      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
-    end) end
+    let s2 =
+      recover val
+        String.from_iso_array(recover
+          ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+        end)
+      end
     h.assert_eq[String](s2, "11111111")
     h.assert_eq[USize](s2.size(), 8)
     h.assert_true((s2.space() == 8) xor s2.is_null_terminated())
-
 
 class iso _TestStringSpace is UnitTest
   fun name(): String => "builtin/String.space"
 
   fun apply(h: TestHelper) =>
-    let s = String.from_iso_array(recover
-      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
-    end)
+    let s =
+      String.from_iso_array(recover
+        ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+      end)
 
     h.assert_eq[USize](s.size(), 8)
     h.assert_eq[USize](s.space(), 8)
     h.assert_false(s.is_null_terminated())
 
-
 class iso _TestStringRecalc is UnitTest
   fun name(): String => "builtin/String.recalc"
 
   fun apply(h: TestHelper) =>
-    let s: String ref = String.from_iso_array(recover
-      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
-    end)
+    let s: String ref =
+      String.from_iso_array(recover
+        ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+      end)
     s.recalc()
     h.assert_eq[USize](s.size(), 8)
     h.assert_eq[USize](s.space(), 8)
@@ -988,23 +994,24 @@ class iso _TestStringRecalc is UnitTest
     h.assert_eq[USize](s2.space(), 6)
     h.assert_true(s2.is_null_terminated())
 
-    let s3: String ref = String.from_iso_array(recover
-      ['1'; 0; 0; 0; 0; 0; 0; '1']
-    end)
+    let s3: String ref =
+      String.from_iso_array(recover ['1'; 0; 0; 0; 0; 0; 0; '1'] end)
     s3.truncate(1)
     s3.recalc()
     h.assert_eq[USize](s3.size(), 1)
     h.assert_eq[USize](s3.space(), 7)
     h.assert_true(s3.is_null_terminated())
 
-
 class iso _TestStringTruncate is UnitTest
   fun name(): String => "builtin/String.truncate"
 
   fun apply(h: TestHelper) =>
-    let s = recover ref String.from_iso_array(recover
-      ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
-    end) end
+    let s =
+      recover ref
+        String.from_iso_array(recover
+          ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+        end)
+      end
     s.truncate(s.space())
     h.assert_true(s.is_null_terminated())
     h.assert_eq[String](s.clone(), "11111111")
@@ -1021,7 +1028,6 @@ class iso _TestStringTruncate is UnitTest
     h.assert_eq[String](s.clone(), "111")
     h.assert_eq[USize](s.size(), 3)
     h.assert_eq[USize](s.space(), 31)
-
 
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
@@ -1057,7 +1063,6 @@ class iso _TestArrayAppend is UnitTest
     h.assert_eq[String]("three", a(2))
     h.assert_eq[String]("five", a(3))
 
-
 class iso _TestArrayConcat is UnitTest
   fun name(): String => "builtin/Array.concat"
 
@@ -1091,7 +1096,6 @@ class iso _TestArrayConcat is UnitTest
     h.assert_eq[String]("two", a(1))
     h.assert_eq[String]("three", a(2))
     h.assert_eq[String]("five", a(3))
-
 
 class iso _TestArraySlice is UnitTest
   """
@@ -1128,7 +1132,6 @@ class iso _TestArraySlice is UnitTest
     h.assert_eq[String]("three", e(1))
     h.assert_eq[String]("one", e(2))
 
-
 class iso _TestArrayTrim is UnitTest
   """
   Test trimming part of a string.
@@ -1143,7 +1146,6 @@ class iso _TestArrayTrim is UnitTest
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
 
-
 class iso _TestArrayTrimInPlace is UnitTest
   """
   Test trimming part of a string in place.
@@ -1157,12 +1159,36 @@ class iso _TestArrayTrimInPlace is UnitTest
     case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4)
     case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1)
 
-  fun case(h: TestHelper, expected: Array[U8], orig: Array[U8], from: USize,
+  fun case(
+    h: TestHelper,
+    expected: Array[U8],
+    orig: Array[U8],
+    from: USize,
     to: USize = -1)
   =>
     let copy: Array[U8] ref = orig.clone()
     copy.trim_in_place(from, to)
     h.assert_array_eq[U8](expected, copy)
+
+class iso _TestArrayTrimInPlaceWithAppend is UnitTest
+  """
+  Test trimming part of a array in place then append and trim again
+
+  Verifies we don't get a segfault similar to String and...
+  https://github.com/ponylang/ponyc/issues/1996
+  """
+  fun name(): String => "builtin/Array.trim_in_place_with_append"
+
+  fun apply(h: TestHelper) =>
+    let a: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    let big: Array[U8] val = recover val Array[U8].init(U8(1), 12_000) end
+    a.trim_in_place(a.size())
+    h.assert_array_eq[U8](Array[U8], a)
+    a.append(big)
+    a.trim_in_place(a.size())
+    h.assert_array_eq[U8](Array[U8], a)
+    a.append([as U8: 0; 10])
+    h.assert_array_eq[U8]([as U8: 0; 10], a)
 
 class iso _TestArrayInsert is UnitTest
   """
@@ -1183,7 +1209,7 @@ class iso _TestArrayInsert is UnitTest
     c.insert(2, "four")
     h.assert_array_eq[String](["one"; "three"; "four"], c)
 
-    h.assert_error({()? => ["one"; "three"].insert(3, "invalid") })
+    h.assert_error({() ? => ["one"; "three"].insert(3, "invalid") })
 
 class iso _TestArrayValuesRewind is UnitTest
   """
@@ -1225,42 +1251,44 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](1, a.find(1))
     h.assert_eq[USize](5, a.find(1 where offset = 3))
     h.assert_eq[USize](5, a.find(1 where nth = 1))
-    h.assert_error({()? => a.find(6) })
+    h.assert_error({() ? => a.find(6) })
     h.assert_eq[USize](2, a.find(1 where
       predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](0, a.find(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }))
     h.assert_eq[USize](3, a.find(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 1))
-    h.assert_error({()(a)? =>
-      a.find(0 where
-        predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
-    })
+    h.assert_error(
+      {() ? =>
+        a.find(0 where
+          predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
+      })
 
     h.assert_eq[USize](5, a.rfind(1))
     h.assert_eq[USize](1, a.rfind(1 where offset = 3))
     h.assert_eq[USize](1, a.rfind(1 where nth = 1))
-    h.assert_error({()? => a.rfind(6) })
+    h.assert_error({() ? => a.rfind(6) })
     h.assert_eq[USize](4, a.rfind(1 where
       predicate = {(l: ISize, r: ISize): Bool => l > r }))
     h.assert_eq[USize](3, a.rfind(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }))
     h.assert_eq[USize](0, a.rfind(0 where
       predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 1))
-    h.assert_error({()? =>
-      a.rfind(0 where
-        predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r }, nth = 2)
-    })
+    h.assert_error(
+      {() ? =>
+        a.rfind(0 where
+          predicate = {(l: ISize, r: ISize): Bool => (l % 3) == r },
+          nth = 2)
+      })
 
     var b = Array[_FindTestCls]
     let c = _FindTestCls
     b.push(c)
-    h.assert_error({()? => b.find(_FindTestCls) })
+    h.assert_error({() ? => b.find(_FindTestCls) })
     h.assert_eq[USize](0, b.find(c))
     h.assert_eq[USize](0, b.find(_FindTestCls where
-      predicate = {(l: _FindTestCls box, r: _FindTestCls box): Bool => l == r }
-    ))
-
+      predicate =
+        {(l: _FindTestCls box, r: _FindTestCls box): Bool => l == r }))
 
 class iso _TestMath128 is UnitTest
   """
@@ -1344,7 +1372,6 @@ class iso _TestMath128 is UnitTest
     h.assert_eq[I128](-5, -13 % -8)
     h.assert_eq[I128](-28, -40_000_000_028 % -10_000_000_000)
 
-
 class iso _TestDivMod is UnitTest
   """
   Test divmod on various bit widths.
@@ -1372,7 +1399,6 @@ class iso _TestDivMod is UnitTest
     h.assert_eq[I64](5, 13 % -8)
     h.assert_eq[I64](-5, -13 % -8)
 
-
 class iso _TestAddc is UnitTest
   """
   Test addc on various bit widths.
@@ -1393,42 +1419,43 @@ class iso _TestAddc is UnitTest
     test[U32](h, (0xffff_fffe, true), U32(0xffff_ffff).addc(0xffff_ffff))
 
     test[U64](h, (0xffff_ffff_ffff_ffff, false),
-                    U64(0xffff_ffff_ffff_fffe).addc(1))
+      U64(0xffff_ffff_ffff_fffe).addc(1))
     test[U64](h, (0, true),
-                    U64(0xffff_ffff_ffff_ffff).addc(1))
+      U64(0xffff_ffff_ffff_ffff).addc(1))
     test[U64](h, (0xffff_ffff_ffff_fffe, true),
-                    U64(0xffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff))
+      U64(0xffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff))
 
-    test[I8](h, ( 0x7f, false), I8( 0x7e).addc( 1))
+    test[I8](h, (0x7f, false), I8( 0x7e).addc( 1))
     test[I8](h, (-0x80, false), I8(-0x7f).addc(-1))
-    test[I8](h, (-0x80, true),  I8( 0x7f).addc( 1))
-    test[I8](h, ( 0x7f, true),  I8(-0x80).addc(-1))
+    test[I8](h, (-0x80, true), I8( 0x7f).addc( 1))
+    test[I8](h, (0x7f, true), I8(-0x80).addc(-1))
 
-    test[I16](h, ( 0x7fff, false), I16( 0x7ffe).addc( 1))
+    test[I16](h, (0x7fff, false), I16( 0x7ffe).addc( 1))
     test[I16](h, (-0x8000, false), I16(-0x7fff).addc(-1))
-    test[I16](h, (-0x8000, true),  I16( 0x7fff).addc( 1))
-    test[I16](h, ( 0x7fff, true),  I16(-0x8000).addc(-1))
+    test[I16](h, (-0x8000, true), I16( 0x7fff).addc( 1))
+    test[I16](h, (0x7fff, true), I16(-0x8000).addc(-1))
 
-    test[I32](h, ( 0x7fff_ffff, false), I32( 0x7fff_fffe).addc( 1))
+    test[I32](h, (0x7fff_ffff, false), I32( 0x7fff_fffe).addc( 1))
     test[I32](h, (-0x8000_0000, false), I32(-0x7fff_ffff).addc(-1))
-    test[I32](h, (-0x8000_0000, true),  I32( 0x7fff_ffff).addc( 1))
-    test[I32](h, ( 0x7fff_ffff, true),  I32(-0x8000_0000).addc(-1))
+    test[I32](h, (-0x8000_0000, true), I32( 0x7fff_ffff).addc( 1))
+    test[I32](h, (0x7fff_ffff, true), I32(-0x8000_0000).addc(-1))
 
-    test[I64](h, ( 0x7fff_ffff_ffff_ffff, false),
-                    I64( 0x7fff_ffff_ffff_fffe).addc( 1))
+    test[I64](h, (0x7fff_ffff_ffff_ffff, false),
+      I64( 0x7fff_ffff_ffff_fffe).addc( 1))
     test[I64](h, (-0x8000_0000_0000_0000, false),
-                    I64(-0x7fff_ffff_ffff_ffff).addc(-1))
+      I64(-0x7fff_ffff_ffff_ffff).addc(-1))
     test[I64](h, (-0x8000_0000_0000_0000, true),
-                    I64( 0x7fff_ffff_ffff_ffff).addc( 1))
-    test[I64](h, ( 0x7fff_ffff_ffff_ffff, true),
-                    I64(-0x8000_0000_0000_0000).addc(-1))
+      I64( 0x7fff_ffff_ffff_ffff).addc( 1))
+    test[I64](h, (0x7fff_ffff_ffff_ffff, true),
+      I64(-0x8000_0000_0000_0000).addc(-1))
 
-
-  fun test[A: (Equatable[A] #read & Stringable #read)]
-    (h: TestHelper, expected: (A, Bool), actual: (A, Bool)) =>
+  fun test[A: (Equatable[A] #read & Stringable #read)](
+    h: TestHelper,
+    expected: (A, Bool),
+    actual: (A, Bool))
+  =>
     h.assert_eq[A](expected._1, actual._1)
     h.assert_eq[Bool](expected._2, actual._2)
-
 
 class iso _TestNextPow2 is UnitTest
   """
@@ -1472,7 +1499,6 @@ class iso _TestNextPow2 is UnitTest
     h.assert_eq[U128](1, U128(0).next_pow2())
     h.assert_eq[U128](1, U128.max_value().next_pow2())
 
-
 class iso _TestNumberConversionSaturation is UnitTest
   """
   Test saturation semantics for floating point/integer conversions.
@@ -1511,15 +1537,15 @@ class iso _TestNumberConversionSaturation is UnitTest
     float_to_int[A, ULong](h)
     float_to_int[A, USize](h)
 
-  fun float_to_int[A: (Float & Real[A]), B: (Number & Real[B])](h: TestHelper)
-    =>
+  fun float_to_int[A: (Float & Real[A]), B: (Number & Real[B])](
+    h: TestHelper)
+  =>
     h.assert_eq[B](B.max_value(), B.from[A](A.max_value()))
     h.assert_eq[B](B.min_value(), B.from[A](A.min_value()))
 
     let inf = A.from[I8](1) / A.from[I8](0)
     h.assert_eq[B](B.max_value(), B.from[A](inf))
     h.assert_eq[B](B.min_value(), B.from[A](-inf))
-
 
 struct _TestStruct
   var i: U32 = 0
@@ -1535,7 +1561,7 @@ class iso _TestMaybePointer is UnitTest
     let a = MaybePointer[_TestStruct].none()
     h.assert_true(a.is_none())
 
-    h.assert_error({()? => let from_a = a() })
+    h.assert_error({() ? => let from_a = a() })
 
     let s = _TestStruct
     s.i = 7
@@ -1545,7 +1571,6 @@ class iso _TestMaybePointer is UnitTest
 
     let from_b = b()
     h.assert_eq[U32](s.i, from_b.i)
-
 
 class iso _TestLambdaCapture is UnitTest
   """

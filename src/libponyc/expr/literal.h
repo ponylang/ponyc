@@ -7,6 +7,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+void operatorliteral_serialise_data(ast_t* ast, ast_t* dst);
+
+void operatorliteral_deserialise_data(ast_t* ast);
 
 bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name);
 

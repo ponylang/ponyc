@@ -84,6 +84,8 @@ static const lextoken_t symbols[] =
 
   { "\\", TK_BACKSLASH },
 
+  { "@{", TK_AT_LBRACE },
+
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
@@ -167,11 +169,10 @@ static const lextoken_t keywords[] =
 
   { "if", TK_IF },
   { "ifdef", TK_IFDEF },
-  { "iftype", TK_IFTYPE },
+  { "iftype", TK_IFTYPE_SET },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
-  { "elseiftype", TK_ELSEIFTYPE },
   { "end", TK_END },
   { "for", TK_FOR },
   { "in", TK_IN },
@@ -244,6 +245,7 @@ static const lextoken_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
   { "lambdatype", TK_LAMBDATYPE },
+  { "barelambdatype", TK_BARELAMBDATYPE },
   { "dontcaretype", TK_DONTCARETYPE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
@@ -265,6 +267,8 @@ static const lextoken_t abstract[] =
   { "updatearg", TK_UPDATEARG },
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
+
+  { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
@@ -296,6 +300,8 @@ static const lextoken_t abstract[] =
   { "funapp", TK_FUNAPP },
   { "bechain", TK_BECHAIN },
   { "funchain", TK_FUNCHAIN },
+
+  { "annotation", TK_ANNOTATION },
 
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}
@@ -345,13 +351,8 @@ static void append_to_token(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = (char*)ponyint_pool_alloc_size(new_len);
-    memcpy(new_buf, lexer->buffer, lexer->alloc);
-
-    if(lexer->alloc > 0)
-      ponyint_pool_free_size(lexer->alloc, lexer->buffer);
-
-    lexer->buffer = new_buf;
+    lexer->buffer =
+      (char*)ponyint_pool_realloc_size(lexer->alloc, new_len, lexer->buffer);
     lexer->alloc = new_len;
   }
 

@@ -256,7 +256,7 @@ class val Cons[A] is ReadSeq[val->A]
     """
     match i
     | 0 => _head
-    else   _tail(i - 1)
+    else _tail(i - 1)
     end
 
   fun values(): Iterator[val->A]^ =>
@@ -490,7 +490,7 @@ class val Cons[A] is ReadSeq[val->A]
     var hits: List[A] = Nil[A]
     var misses: List[A] = Nil[A]
     var cur: List[A] = this
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         let next = cons.head()
@@ -513,7 +513,7 @@ class val Cons[A] is ReadSeq[val->A]
     var cur: List[A] = this
     if cur.size() <= n then return Nil[A] end
     var count = n
-    while(count > 0) do
+    while count > 0 do
       match cur
       | let cons: Cons[A] =>
         cur = cons.tail()
@@ -528,7 +528,7 @@ class val Cons[A] is ReadSeq[val->A]
     fails to satisfy the provided predicate.
     """
     var cur: List[A] = this
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         if f(cons.head()) then cur = cons.tail() else break end
@@ -546,7 +546,7 @@ class val Cons[A] is ReadSeq[val->A]
     if cur.size() <= n then return cur end
     var count = n
     var res: List[A] = Nil[A]
-    while(count > 0) do
+    while count > 0 do
       match cur
       | let cons: Cons[A] =>
         res = res.prepend(cons.head())
@@ -565,7 +565,7 @@ class val Cons[A] is ReadSeq[val->A]
     """
     var cur: List[A] = this
     var res: List[A] = Nil[A]
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         if f(cons.head()) then

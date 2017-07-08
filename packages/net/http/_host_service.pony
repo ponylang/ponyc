@@ -14,6 +14,6 @@ class val _HostService is (Hashable & Equatable[_HostService])
     scheme.hash() xor host.hash() xor service.hash()
 
   fun eq(that: _HostService box): Bool =>
-    (scheme == that.scheme) and
-      (host == that.host) and
-      (service == that.service)
+    (scheme == that.scheme)
+      and (host == that.host)
+      and (service == that.service)

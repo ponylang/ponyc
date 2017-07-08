@@ -110,6 +110,7 @@ class iso _TestFilter is UnitTest
 
 class iso _TestGlob is UnitTest
   fun name(): String => "files/FilePath.glob"
+
   fun _rel(top: FilePath, files: Array[FilePath]): Array[String]? =>
     let res = recover ref Array[String] end
     for fp in files.values() do
@@ -130,7 +131,8 @@ class iso _TestGlob is UnitTest
 
 class iso _TestIGlob is UnitTest
   fun name(): String => "files/FilePath.iglob"
-  fun _rel(top: FilePath, files: Array[FilePath]): Array[String]? =>
+
+  fun _rel(top: FilePath, files: Array[FilePath]): Array[String] ? =>
     let res = recover ref Array[String] end
     for fp in files.values() do
       res.push(Path.rel(top.path, fp.path))
@@ -140,18 +142,18 @@ class iso _TestIGlob is UnitTest
   fun apply(h: TestHelper) ? =>
     let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])
     try
-      Glob.iglob(top, "*/1", {(f: FilePath, matches: Array[String])(top, h) =>
-        try
-          match matches(0)
-          | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
-          | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
+      Glob.iglob(top, "*/1",
+        {(f: FilePath, matches: Array[String]) =>
+          try
+            match matches(0)
+            | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
+            | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
+            else error
+            end
           else
-            error
-          end
-        else
             h.fail("Unexpected match: " + f.path)
-        end
-      })
+          end
+        })
     then
       h.assert_true(top.remove())
     end

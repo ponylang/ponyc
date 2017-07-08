@@ -1,7 +1,7 @@
 #ifndef asio_asio_h
 #define asio_asio_h
 
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include <stdbool.h>
 

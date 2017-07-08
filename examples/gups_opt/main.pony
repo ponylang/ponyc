@@ -1,88 +1,81 @@
-use "options"
-use "time"
+use "cli"
 use "collections"
+use "time"
 
-class Config
-  var logtable: USize = 20
-  var iterate: USize = 10000
-  var logchunk: USize = 10
-  var logactors: USize = 2
+class val Config
+  let logtable: USize
+  let iterate: USize
+  let logchunk: USize
+  let logactors: USize
 
-  fun ref apply(env: Env): Bool =>
-    var options = Options(env.args)
-
-    options
-      .add("table", "t", I64Argument)
-      .add("iterate", "i", I64Argument)
-      .add("chunk", "c", I64Argument)
-      .add("actors", "a", I64Argument)
-
-    for option in options do
-      match option
-      | ("table", let arg: I64) => logtable = arg.usize()
-      | ("iterate", let arg: I64) => iterate = arg.usize()
-      | ("chunk", let arg: I64) => logchunk = arg.usize()
-      | ("actors", let arg: I64) => logactors = arg.usize()
-      | let err: ParseError =>
-        err.report(env.out)
-        env.out.print(
-          """
-          gups_opt [OPTIONS]
-            --table     N   log2 of the total table size. Defaults to 20.
-            --iterate   N   number of iterations. Defaults to 10000.
-            --chunk     N   log2 of the chunk size. Defaults to 10.
-            --actors    N   log2 of the actor count. Defaults to 2.
-          """
-          )
-        return false
+  new val create(env: Env) ? =>
+    let cs = CommandSpec.parent("gups_opt", "", [
+      OptionSpec.i64("table", "Log2 of the total table size."
+        where default' = 20)
+      OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
+      OptionSpec.i64("chunk", "Log2 of the chunk size." where default' = 10)
+      OptionSpec.i64("actors", "Log2 of the actor count." where default' = 2)
+    ]).>add_help()
+    let cmd =
+      match CommandParser(cs).parse(env.args, env.vars())
+      | let c: Command => c
+      | let ch: CommandHelp =>
+        ch.print_help(env.out)
+        env.exitcode(0)
+        error
+      | let se: SyntaxError =>
+        env.out.print(se.string())
+        env.exitcode(1)
+        error
       end
-    end
+    logtable = cmd.option("table").i64().usize()
+    iterate = cmd.option("iterate").i64().usize()
+    logchunk = cmd.option("chunk").i64().usize()
+    logactors = cmd.option("actors").i64().usize()
 
     env.out.print(
       "logtable: " + logtable.string() +
       "\niterate: " + iterate.string() +
       "\nlogchunk: " + logchunk.string() +
-      "\nlogactors: " + logactors.string()
-      )
-    true
+      "\nlogactors: " + logactors.string())
 
 actor Main
   let _env: Env
-  let _config: Config = Config
-
   var _updates: USize = 0
   var _confirm: USize = 0
-  let _start: U64
+  var _start: U64 = 0
   var _actors: Array[Updater] val
 
   new create(env: Env) =>
     _env = env
 
-    if _config(env) then
-      let actor_count = 1 << _config.logactors
-      let loglocal = _config.logtable - _config.logactors
-      let chunk_size = 1 << _config.logchunk
-      let chunk_iterate = chunk_size * _config.iterate
-
-      _updates = chunk_iterate * actor_count
-      _confirm = actor_count
-
-      var updaters = recover Array[Updater](actor_count) end
-
-      for i in Range(0, actor_count) do
-        updaters.push(Updater(this, actor_count, i, loglocal, chunk_size,
-          chunk_iterate * i))
-      end
-
-      _actors = consume updaters
-      _start = Time.nanos()
-
-      for a in _actors.values() do
-        a.start(_actors, _config.iterate)
-      end
+    let c = try
+      Config(env)
     else
-      _start = 0
       _actors = recover Array[Updater] end
+      return
+    end
+
+    let actor_count = 1 << c.logactors
+    let loglocal = c.logtable - c.logactors
+    let chunk_size = 1 << c.logchunk
+    let chunk_iterate = chunk_size * c.iterate
+
+    _updates = chunk_iterate * actor_count
+    _confirm = actor_count
+
+    var updaters = recover Array[Updater](actor_count) end
+
+    for i in Range(0, actor_count) do
+      updaters.push(Updater(this, actor_count, i, loglocal, chunk_size,
+        chunk_iterate * i))
+    end
+
+    _actors = consume updaters
+    _start = Time.nanos()
+
+    for a in _actors.values() do
+      a.start(_actors, c.iterate)
     end
 
   be done() =>

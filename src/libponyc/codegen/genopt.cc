@@ -449,8 +449,10 @@ static RegisterPass<HeapToStack>
 static void addHeapToStackPass(const PassManagerBuilder& pmb,
   PassManagerBase& pm)
 {
-  if(pmb.OptLevel >= 2)
+  if(pmb.OptLevel >= 2) {
+    pm.add(new DominatorTreeWrapperPass());
     pm.add(new HeapToStack());
+  }
 }
 
 class DispatchPonyCtx : public FunctionPass
@@ -759,6 +761,9 @@ public:
   Value* mergeNoOp(IRBuilder<>& builder, Value* ctx, Value* size)
   {
     Function* alloc_fn = module->getFunction("pony_alloc");
+    if(alloc_fn == NULL)
+      alloc_fn = declareAllocFunction("pony_alloc", unwrap(c->intptr));
+
     Value* args[2];
     args[0] = ctx;
     args[1] = size;
@@ -777,17 +782,25 @@ public:
     {
       return ConstantPointerNull::get(builder.getInt8PtrTy());
     } else if(size <= HEAP_MAX) {
+      IntegerType* int_type = unwrap<IntegerType>(c->i32);
       alloc_fn = module->getFunction("pony_alloc_small");
+      if(alloc_fn == NULL)
+        alloc_fn = declareAllocFunction("pony_alloc_small", int_type);
+
       size = ponyint_heap_index(size);
-      int_size = ConstantInt::get(builder.getInt32Ty(), size);
+      int_size = ConstantInt::get(int_type, size);
     } else {
-      alloc_fn = module->getFunction("pony_alloc_large");
+      IntegerType* int_type;
       if(target_is_ilp32(c->opt->triple))
-      {
-        int_size = ConstantInt::get(builder.getInt32Ty(), size);
-      } else {
-        int_size = ConstantInt::get(builder.getInt64Ty(), size);
-      }
+        int_type = unwrap<IntegerType>(c->i32);
+      else
+        int_type = unwrap<IntegerType>(c->i64);
+
+      alloc_fn = module->getFunction("pony_alloc_large");
+      if(alloc_fn == NULL)
+        alloc_fn = declareAllocFunction("pony_alloc_large", int_type);
+
+      int_size = ConstantInt::get(int_type, size);
     }
 
     Value* args[2];
@@ -797,6 +810,17 @@ public:
     CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
     inst->setTailCall();
     return inst;
+  }
+
+  Function* declareAllocFunction(std::string const& name, Type* size_type)
+  {
+    Type* params[2];
+    params[0] = unwrap(c->void_ptr);
+    params[1] = size_type;
+
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_ptr),
+      ArrayRef<Type*>(params, 2), false);
+    return Function::Create(fn_type, Function::ExternalLinkage, name, module);
   }
 
   bool isZeroRealloc(CallInst* realloc)

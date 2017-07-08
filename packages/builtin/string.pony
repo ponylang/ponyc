@@ -208,7 +208,7 @@ actor Main
     """
     Returns a C compatible pointer to a null-terminated version of the
     string, safe to pass to an FFI function that doesn't accept a size
-    argument, expecting a null-terminator.  If the underlying string
+    argument, expecting a null-terminator. If the underlying string
     is already null terminated, this is returned; otherwise the string
     is copied into a new, null-terminated allocation.
     """
@@ -334,14 +334,15 @@ actor Main
   fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """
     Trim the string to a portion of itself, covering `from` until `to`.
-    Unlike slice, the operation does not allocate a new string nor copy elements.
+    Unlike slice, the operation does not allocate a new string nor copy
+    elements.
     """
     let last = _size.min(to)
     let offset = last.min(from)
 
     _size = last - offset
     _alloc = _alloc - offset
-    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+    _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """
@@ -954,7 +955,11 @@ actor Main
     end
     occur
 
-  fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
+  fun split_by(
+    delim: String,
+    n: USize = USize.max_value())
+    : Array[String] iso^
+  =>
     """
     Split the string into an array of strings that are delimited by `delim` in
     the original string. If `n > 0`, then the split count is limited to n.
@@ -1045,7 +1050,7 @@ actor Main
     """
     Remove all leading and trailing characters from the string that are in s.
     """
-    this.>lstrip(s).>rstrip(s)
+    this .> lstrip(s) .> rstrip(s)
 
   fun ref rstrip(s: String box = " \t\v\f\r\n") =>
     """
@@ -1149,8 +1154,13 @@ actor Main
     """
     compare_sub(that, _size.max(that._size))
 
-  fun compare_sub(that: String box, n: USize, offset: ISize = 0,
-    that_offset: ISize = 0, ignore_case: Bool = false): Compare
+  fun compare_sub(
+    that: String box,
+    n: USize,
+    offset: ISize = 0,
+    that_offset: ISize = 0,
+    ignore_case: Bool = false)
+    : Compare
   =>
     """
     Lexically compare at most `n` bytes of the substring of `this` starting at
@@ -1284,8 +1294,10 @@ actor Main
     if (d == 0) or (d.usize() != _size) then error end
     v
 
-  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: ISize = 0,
-    base: U8 = 0): (A, USize /* chars used */) ?
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](
+    offset: ISize = 0,
+    base: U8 = 0)
+    : (A, USize /* chars used */) ?
   =>
     """
     Read an integer from the specified location in this string. The integer
@@ -1365,8 +1377,10 @@ actor Main
     // Success
     (value, index - start_index)
 
-  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)]
-    (base: U8, index: USize): (A, USize /* chars used */)
+  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)](
+    base: U8,
+    index: USize)
+    : (A, USize /* chars used */)
   =>
     """
     Determine the base of an integer starting at the specified index.
@@ -1475,21 +1489,20 @@ class StringRunes is Iterator[U32]
 primitive _UTF32Encoder
   fun encode(value: U32): (USize, U8, U8, U8, U8) =>
     """
-    Encode the code point into UTF-8. It returns a tuple with the size of the encoded data and then the data
+    Encode the code point into UTF-8. It returns a tuple with the size of the
+    encoded data and then the data.
     """
     if value < 0x80 then
       (1, value.u8(), 0, 0, 0)
     elseif value < 0x800 then
-      (
-        2,
+      ( 2,
         ((value >> 6) or 0xC0).u8(),
         ((value and 0x3F) or 0x80).u8(),
         0,
         0
       )
     elseif value < 0xD800 then
-      (
-        3,
+      ( 3,
         ((value >> 12) or 0xE0).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),
         ((value and 0x3F) or 0x80).u8(),
@@ -1499,16 +1512,14 @@ primitive _UTF32Encoder
       // UTF-16 surrogate pairs are not allowed.
       (3, 0xEF, 0xBF, 0xBD, 0)
     elseif value < 0x10000 then
-      (
-        3,
+      ( 3,
         ((value >> 12) or 0xE0).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),
         ((value and 0x3F) or 0x80).u8(),
         0
       )
     elseif value < 0x110000 then
-      (
-        4,
+      ( 4,
         ((value >> 18) or 0xF0).u8(),
         (((value >> 12) and 0x3F) or 0x80).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),

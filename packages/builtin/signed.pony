@@ -1,5 +1,5 @@
 primitive I8 is _SignedInteger[I8, U8]
-  new create(value: I8 = 0) => value
+  new create(value: I8) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i8()
 
   new min_value() => -0x80
@@ -32,13 +32,15 @@ primitive I8 is _SignedInteger[I8, U8]
 
   fun addc(y: I8): (I8, Bool) =>
     @"llvm.sadd.with.overflow.i8"[(I8, Bool)](this, y)
+
   fun subc(y: I8): (I8, Bool) =>
     @"llvm.ssub.with.overflow.i8"[(I8, Bool)](this, y)
+
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
 primitive I16 is _SignedInteger[I16, U16]
-  new create(value: I16 = 0) => value
+  new create(value: I16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i16()
 
   new min_value() => -0x8000
@@ -71,13 +73,15 @@ primitive I16 is _SignedInteger[I16, U16]
 
   fun addc(y: I16): (I16, Bool) =>
     @"llvm.sadd.with.overflow.i16"[(I16, Bool)](this, y)
+
   fun subc(y: I16): (I16, Bool) =>
     @"llvm.ssub.with.overflow.i16"[(I16, Bool)](this, y)
+
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
 primitive I32 is _SignedInteger[I32, U32]
-  new create(value: I32 = 0) => value
+  new create(value: I32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i32()
 
   new min_value() => -0x8000_0000
@@ -110,13 +114,15 @@ primitive I32 is _SignedInteger[I32, U32]
 
   fun addc(y: I32): (I32, Bool) =>
     @"llvm.sadd.with.overflow.i32"[(I32, Bool)](this, y)
+
   fun subc(y: I32): (I32, Bool) =>
     @"llvm.ssub.with.overflow.i32"[(I32, Bool)](this, y)
+
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
 primitive I64 is _SignedInteger[I64, U64]
-  new create(value: I64 = 0) => value
+  new create(value: I64) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i64()
 
   new min_value() => -0x8000_0000_0000_0000
@@ -149,13 +155,15 @@ primitive I64 is _SignedInteger[I64, U64]
 
   fun addc(y: I64): (I64, Bool) =>
     @"llvm.sadd.with.overflow.i64"[(I64, Bool)](this, y)
+
   fun subc(y: I64): (I64, Bool) =>
     @"llvm.ssub.with.overflow.i64"[(I64, Bool)](this, y)
+
   fun mulc(y: I64): (I64, Bool) =>
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
 primitive ILong is _SignedInteger[ILong, ULong]
-  new create(value: ILong = 0) => value
+  new create(value: ILong) => value
   new from[A: (Number & Real[A] val)](a: A) => a.ilong()
 
   new min_value() =>
@@ -242,7 +250,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
     end
 
 primitive ISize is _SignedInteger[ISize, USize]
-  new create(value: ISize = 0) => value
+  new create(value: ISize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.isize()
 
   new min_value() =>
@@ -329,7 +337,7 @@ primitive ISize is _SignedInteger[ISize, USize]
     end
 
 primitive I128 is _SignedInteger[I128, U128]
-  new create(value: I128 = 0) => value
+  new create(value: I128) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i128()
 
   new min_value() => -0x8000_0000_0000_0000_0000_0000_0000_0000

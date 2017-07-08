@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-#include <reach/reach.h>
-
 #include "util.h"
 
 
@@ -231,6 +229,33 @@ TEST_F(IftypeTest, Codegen_False)
 }
 
 
+
+TEST_F(IftypeTest, Codegen_ElseIfTrue)
+{
+  const char* src =
+    "trait T\n"
+    "class C1 is T\n"
+    "class C2 is T\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C2](C2)\n"
+
+    "  fun foo[A: T](x: A) =>\n"
+    "    iftype A <: C1 then\n"
+    "      None\n"
+    "    elseif A <: C2 then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(IftypeTest, UnconstrainedTypeparam)
 {
   const char* src =
@@ -246,5 +271,95 @@ TEST_F(IftypeTest, UnconstrainedTypeparam)
     "      x.c()\n"
     "    end";
 
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, RecursiveConstraint)
+{
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x': A) =>\n"
+    "    var x = x'\n"
+    "    iftype A <: T[A] then\n"
+    "      x = x.m()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, Tuple_MutuallyRecursiveConstraint)
+{
+  const char* src =
+    "trait T[X]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[D]\n"
+    "  fun tag m(): D => D.create()\n"
+
+    "class val D is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C,D](C, D)\n"
+
+    "  fun foo[A, B](x': A, y': B) =>\n"
+    "    var x = x'\n"
+    "    var y = y'\n"
+    "    iftype (A, B) <: (T[B], T[A]) then\n"
+    "      x = y.m()\n"
+    "      y = x.m()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, NestedCond)
+{
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+    "  fun tag c() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[C](C)\n"
+
+    "  fun foo[A](x: A) =>\n"
+    "    iftype A <: T then\n"
+    "      iftype A <: C then\n"
+    "        x.c()\n"
+    "      end\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReplaceTypeargs)
+{
+  const char* src =
+    "class A\n"
+    "  fun m() => None\n"
+    "trait Cell[X]\n"
+    "  fun get(): X\n"
+
+    "actor Main\n"
+    "  fun foo[X: Any #read](cell: Cell[X]) =>\n"
+    "    iftype X <: A #read\n"
+    "    then cell.get().m()\n"
+    "    end\n"
+    "  new create(env: Env) => None";
   TEST_COMPILE(src);
 }

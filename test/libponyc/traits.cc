@@ -75,7 +75,8 @@ TEST_F(TraitsTest, CannotProvideClass)
 TEST_F(TraitsTest, SingleTraitLoop)
 {
   const char* src =
-    "trait T is T";
+    "trait T is T\n"
+    "class C is T";
 
   TEST_ERROR(src);
 }

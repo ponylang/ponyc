@@ -63,7 +63,8 @@ class Regex
     var err: I32 = 0
     var erroffset: USize = 0
 
-    _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cpointer(), from.size(),
+    _pattern =
+      @pcre2_compile_8[Pointer[_Pattern]](from.cpointer(), from.size(),
         _PCRE2.utf(), addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
@@ -99,8 +100,12 @@ class Regex
     let m = _match(subject, offset, U32(0))
     Match._create(subject, m)
 
-  fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
-    value: ByteSeq box, offset: USize = 0, global: Bool = false): A^ ?
+  fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](
+    subject: ByteSeq,
+    value: ByteSeq box,
+    offset: USize = 0,
+    global: Bool = false)
+    : A^ ?
   =>
     """
     Perform a match on the subject, starting at the given offset, and create
@@ -123,10 +128,11 @@ class Regex
     var rc = I32(0)
 
     repeat
-      rc = @pcre2_substitute_8[I32](_pattern,
-        subject.cpointer(), subject.size(), offset, opt, Pointer[U8],
-        Pointer[U8], value.cpointer(), value.size(), out.cpointer(),
-        addressof len)
+      rc =
+        @pcre2_substitute_8[I32](_pattern,
+          subject.cpointer(), subject.size(), offset, opt, Pointer[U8],
+          Pointer[U8], value.cpointer(), value.size(), out.cpointer(),
+          addressof len)
 
       if rc == -48 then
         len = out.space() * 2
@@ -173,8 +179,8 @@ class Regex
     Returns the index of a named capture. Raises an error if the named capture
     does not exist.
     """
-    let rc = @pcre2_substring_number_from_name[I32](_pattern,
-      name.cstring())
+    let rc =
+      @pcre2_substring_number_from_name[I32](_pattern, name.cstring())
 
     if rc < 0 then
       error
@@ -191,8 +197,8 @@ class Regex
       _pattern = Pointer[_Pattern]
     end
 
-  fun _match(subject: ByteSeq box, offset: USize, options: U32):
-    Pointer[_Match]?
+  fun _match(subject: ByteSeq box, offset: USize, options: U32)
+    : Pointer[_Match]?
   =>
     """
     Match the subject and keep the capture results. Raises an error if there
@@ -202,8 +208,9 @@ class Regex
       error
     end
 
-    let m = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
-      Pointer[U8])
+    let m =
+      @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
+        Pointer[U8])
 
     let rc = if _jit then
       @pcre2_jit_match_8[I32](_pattern, subject.cpointer(), subject.size(),

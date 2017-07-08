@@ -1,5 +1,10 @@
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_create[AsioEventID](
+  owner: AsioEventNotify,
+  fd: U32,
+  flags: U32,
+  nsec: U64,
+  noisy: Bool)
+
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
@@ -113,11 +118,12 @@ actor Stdin
 
       while true do
         let chunk_size = _chunk_size
-        var data = recover Array[U8].>undefined(chunk_size) end
+        var data = recover Array[U8] .> undefined(chunk_size) end
         var again: Bool = false
 
-        let len = @pony_os_stdin_read[USize](data.cpointer(), data.space(),
-          addressof again)
+        let len =
+          @pony_os_stdin_read[USize](data.cpointer(), data.space(),
+            addressof again)
 
         match len
         | -1 =>

@@ -1,5 +1,5 @@
 primitive U8 is _UnsignedInteger[U8]
-  new create(value: U8 = 0) => value
+  new create(value: U8) => value
   new from[B: (Number & Real[B] val)](a: B) => a.u8()
 
   new min_value() => 0
@@ -35,13 +35,15 @@ primitive U8 is _UnsignedInteger[U8]
 
   fun addc(y: U8): (U8, Bool) =>
     @"llvm.uadd.with.overflow.i8"[(U8, Bool)](this, y)
+
   fun subc(y: U8): (U8, Bool) =>
     @"llvm.usub.with.overflow.i8"[(U8, Bool)](this, y)
+
   fun mulc(y: U8): (U8, Bool) =>
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
 primitive U16 is _UnsignedInteger[U16]
-  new create(value: U16 = 0) => value
+  new create(value: U16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u16()
 
   new min_value() => 0
@@ -77,13 +79,15 @@ primitive U16 is _UnsignedInteger[U16]
 
   fun addc(y: U16): (U16, Bool) =>
     @"llvm.uadd.with.overflow.i16"[(U16, Bool)](this, y)
+
   fun subc(y: U16): (U16, Bool) =>
     @"llvm.usub.with.overflow.i16"[(U16, Bool)](this, y)
+
   fun mulc(y: U16): (U16, Bool) =>
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
 primitive U32 is _UnsignedInteger[U32]
-  new create(value: U32 = 0) => value
+  new create(value: U32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u32()
 
   new min_value() => 0
@@ -119,13 +123,15 @@ primitive U32 is _UnsignedInteger[U32]
 
   fun addc(y: U32): (U32, Bool) =>
     @"llvm.uadd.with.overflow.i32"[(U32, Bool)](this, y)
+
   fun subc(y: U32): (U32, Bool) =>
     @"llvm.usub.with.overflow.i32"[(U32, Bool)](this, y)
+
   fun mulc(y: U32): (U32, Bool) =>
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
 primitive U64 is _UnsignedInteger[U64]
-  new create(value: U64 = 0) => value
+  new create(value: U64) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u64()
 
   new min_value() => 0
@@ -161,13 +167,15 @@ primitive U64 is _UnsignedInteger[U64]
 
   fun addc(y: U64): (U64, Bool) =>
     @"llvm.uadd.with.overflow.i64"[(U64, Bool)](this, y)
+
   fun subc(y: U64): (U64, Bool) =>
     @"llvm.usub.with.overflow.i64"[(U64, Bool)](this, y)
+
   fun mulc(y: U64): (U64, Bool) =>
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
 
 primitive ULong is _UnsignedInteger[ULong]
-  new create(value: ULong = 0) => value
+  new create(value: ULong) => value
   new from[A: (Number & Real[A] val)](a: A) => a.ulong()
 
   new min_value() => 0
@@ -261,7 +269,7 @@ primitive ULong is _UnsignedInteger[ULong]
     end
 
 primitive USize is _UnsignedInteger[USize]
-  new create(value: USize = 0) => value
+  new create(value: USize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.usize()
 
   new min_value() => 0
@@ -355,7 +363,7 @@ primitive USize is _UnsignedInteger[USize]
     end
 
 primitive U128 is _UnsignedInteger[U128]
-  new create(value: U128 = 0) => value
+  new create(value: U128) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u128()
 
   new min_value() => 0

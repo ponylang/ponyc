@@ -11,7 +11,9 @@ class val Env
   let _envp: Pointer[Pointer[U8]] val
   let _vars: (Array[String] val | None)
 
-  new _create(argc: U32, argv: Pointer[Pointer[U8]] val,
+  new _create(
+    argc: U32,
+    argv: Pointer[Pointer[U8]] val,
     envp: Pointer[Pointer[U8]] val)
   =>
     """
@@ -29,7 +31,9 @@ class val Env
     _envp = envp
     _vars = None
 
-  new create(root': (AmbientAuth | None), input': Stdin, out': StdStream,
+  new create(
+    root': (AmbientAuth | None),
+    input': Stdin, out': StdStream,
     err': StdStream, args': Array[String] val,
     vars': (Array[String] val | None))
   =>
@@ -50,7 +54,7 @@ class val Env
     "key=value".
     """
     match _vars
-      | let v: Array[String] val => v
+    | let v: Array[String] val => v
     else
       if not _envp.is_null() then
         _strings_from_pointers(_envp, _count_strings(_envp))
@@ -77,8 +81,10 @@ class val Env
     end
     i
 
-  fun tag _strings_from_pointers(data: Pointer[Pointer[U8]] val, len: USize):
-    Array[String] iso^
+  fun tag _strings_from_pointers(
+    data: Pointer[Pointer[U8]] val,
+    len: USize)
+    : Array[String] iso^
   =>
     let array = recover Array[String](len) end
     var i: USize = 0

@@ -56,8 +56,12 @@ class Array[A] is Seq[A]
 
     _ptr = ptr
 
-  fun _copy_to(ptr: Pointer[this->A!], copy_len: USize,
-    from_offset: USize = 0, to_offset: USize = 0) =>
+  fun _copy_to(
+    ptr: Pointer[this->A!],
+    copy_len: USize,
+    from_offset: USize = 0,
+    to_offset: USize = 0)
+  =>
     """
     Copy copy_len elements from this to that at specified offsets.
     """
@@ -182,7 +186,7 @@ class Array[A] is Seq[A]
 
     _size = last - offset
     _alloc = _alloc - offset
-    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+    _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
     """
@@ -204,7 +208,10 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
+  fun copy_to(
+    dst: Array[this->A!],
+    src_idx: USize,
+    dst_idx: USize,
     len: USize)
   =>
     """
@@ -263,7 +270,9 @@ class Array[A] is Seq[A]
     """
     delete(0)
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
   =>
     """
@@ -344,9 +353,13 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun find(value: A!, offset: USize = 0, nth: USize = 0,
+  fun find(
+    value: A!,
+    offset: USize = 0,
+    nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r })
+    : USize ?
   =>
     """
     Find the `nth` appearance of `value` from the beginning of the array,
@@ -354,8 +367,9 @@ class Array[A] is Seq[A]
     `predicate` for comparisons. Returns the index of the value, or raise an
     error if the value isn't present.
 
-    By default, the search starts at the first element of the array, returns the
-    first instance of `value` found, and uses object identity for comparison.
+    By default, the search starts at the first element of the array, returns
+    the first instance of `value` found, and uses object identity for
+    comparison.
     """
     var i = offset
     var n = USize(0)
@@ -374,8 +388,12 @@ class Array[A] is Seq[A]
 
     error
 
-  fun contains(value: A!, predicate: {(box->A!, box->A!): Bool} val =
-    {(l: box->A!, r: box->A!): Bool => l is r }): Bool =>
+  fun contains(
+    value: A!,
+    predicate: {(box->A!, box->A!): Bool} val =
+      {(l: box->A!, r: box->A!): Bool => l is r })
+    : Bool
+  =>
     """
     Returns true if the array contains `value`, false otherwise.
     """
@@ -390,9 +408,13 @@ class Array[A] is Seq[A]
     end
     false
 
-  fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
+  fun rfind(
+    value: A!,
+    offset: USize = -1,
+    nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r })
+    : USize ?
   =>
     """
     Find the `nth` appearance of `value` from the end of the array, starting at
@@ -415,7 +437,8 @@ class Array[A] is Seq[A]
 
           n = n + 1
         end
-      until (i = i - 1) == 0 end
+      until (i = i - 1) == 0
+      end
     end
 
     error
@@ -431,7 +454,10 @@ class Array[A] is Seq[A]
     out._size = _size
     out
 
-  fun slice(from: USize = 0, to: USize = -1, step: USize = 1)
+  fun slice(
+    from: USize = 0,
+    to: USize = -1,
+    step: USize = 1)
     : Array[this->A!]^
   =>
     """
@@ -483,7 +509,7 @@ class Array[A] is Seq[A]
     The new array contains references to the same elements that the old array
     contains, the elements themselves are not copied.
     """
-    clone().>reverse_in_place()
+    clone() .> reverse_in_place()
 
   fun ref reverse_in_place() =>
     """

@@ -31,7 +31,7 @@ actor Main is TestList
     test(_TestFileWritevLarge)
 
 primitive _FileHelper
-  fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
+  fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
     let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
       "tmp._FileHelper."))
     for f in files.values() do
@@ -66,11 +66,12 @@ class iso _TestMkdtemp is UnitTest
 class iso _TestWalk is UnitTest
   fun name(): String => "files/FilePath.walk"
   fun apply(h: TestHelper) ? =>
-    let top = _FileHelper.make_files(
-      h, ["a/1"; "a/2"; "b"; "c/3"; "c/4"; "d/5"; "d/6"])
+    let top =
+      _FileHelper.make_files(h,
+        ["a/1"; "a/2"; "b"; "c/3"; "c/4"; "d/5"; "d/6"])
     try
       top.walk(
-        {(dir: FilePath, entries: Array[String] ref)(p = top.path, h) =>
+        {(dir: FilePath, entries: Array[String] ref)(p = top.path) =>
           if dir.path == p then
             h.assert_array_eq_unordered[String](["b"; "c"; "a"; "d"], entries)
           elseif dir.path.at("a", -1) then
@@ -159,13 +160,14 @@ class iso _TestPathSplit is UnitTest
   fun apply(h: TestHelper) =>
     ifdef windows then
       var path = "\\foo\\bar\\dir\\"
-      let expect = [
-        ("\\foo\\bar\\dir", "")
-        ("\\foo\\bar", "dir")
-        ("\\foo", "bar")
-        (".", "foo")
-        ("", ".")
-      ]
+      let expect =
+        [
+          ("\\foo\\bar\\dir", "")
+          ("\\foo\\bar", "dir")
+          ("\\foo", "bar")
+          (".", "foo")
+          ("", ".")
+        ]
       for parts in expect.values() do
         let res = Path.split(path)
         h.assert_eq[String](res._1, parts._1)
@@ -175,13 +177,14 @@ class iso _TestPathSplit is UnitTest
 
     else
       var path = "/foo/bar/dir/"
-      let expect = [
-        ("/foo/bar/dir", "")
-        ("/foo/bar", "dir")
-        ("/foo", "bar")
-        (".", "foo")
-        ("", ".")
-      ]
+      let expect =
+        [
+          ("/foo/bar/dir", "")
+          ("/foo/bar", "dir")
+          ("/foo", "bar")
+          (".", "foo")
+          ("", ".")
+        ]
       for parts in expect.values() do
         let res = Path.split(path)
         h.assert_eq[String](res._1, parts._1)

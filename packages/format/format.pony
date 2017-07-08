@@ -51,10 +51,16 @@ primitive Format
   end of the generated string, or both.
   *fill: The character to pad a string with if is is shorter than width.
   """
-  fun apply(str: String, fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignLeft, fill: U32 = ' '
-  ): String iso^ =>
+  fun apply(
+    str: String,
+    fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault,
+    prec: USize = -1,
+    width: USize = 0,
+    align: Align = AlignLeft,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     let copy_len = str.size().min(prec.usize())
     let len = copy_len.max(width.usize())
     recover
@@ -82,27 +88,58 @@ primitive Format
         end
       end
 
-      s.>recalc()
+      s .> recalc()
     end
 
-  fun int[A: (Int & Integer[A])](x: A, fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '
-  ): String iso^ =>
+  fun int[A: (Int & Integer[A])](
+    x: A,
+    fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault,
+    prec: USize = -1,
+    width: USize = 0,
+    align: Align = AlignRight,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     let zero = x.from[USize](0)
     (let abs, let neg) = if x < zero then (-x, true) else (x, false) end
 
-    if x is U128 then
+    iftype A <: U128 then
       _FormatInt.u128(x.u128(), false, fmt, prefix, prec, width, align, fill)
-    elseif x is I128 then
+    elseif A <: I128 then
       _FormatInt.u128(abs.u128(), neg, fmt, prefix, prec, width, align, fill)
-    else
+    elseif A <: (U64 | I64) then
       _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U32 | I32) then
+      _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U16 | I16) then
+      _FormatInt.u16(abs.u16(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (U8 | I8) then
+      _FormatInt.u8(abs.u8(), neg, fmt, prefix, prec, width, align, fill)
+    elseif A <: (USize | ISize) then
+      ifdef ilp32 then
+        _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+      else
+        _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+      end
+    elseif A <: (ULong | ILong) then
+      ifdef ilp32 or llp64 then
+        _FormatInt.u32(abs.u32(), neg, fmt, prefix, prec, width, align, fill)
+      else
+        _FormatInt.u64(abs.u64(), neg, fmt, prefix, prec, width, align, fill)
+      end
+    else
+      _FormatInt.u128(x.u128(), false, fmt, prefix, prec, width, align, fill)
     end
 
-  fun float[A: (Float & FloatingPoint[A])](x: A,
+  fun float[A: (Float & FloatingPoint[A])](
+    x: A,
     fmt: FormatFloat = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = 6, width: USize = 0,
-    align: Align = AlignRight, fill: U32 = ' '
-  ): String iso^ =>
+    prefix: PrefixNumber = PrefixDefault,
+    prec: USize = 6,
+    width: USize = 0,
+    align: Align = AlignRight,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     _FormatFloat.f64(x.f64(), fmt, prefix, prec, width, align, fill)

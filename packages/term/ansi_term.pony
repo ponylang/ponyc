@@ -56,7 +56,9 @@ actor ANSITerm
   embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
-  new create(notify: ANSINotify iso, source: DisposableActor,
+  new create(
+    notify: ANSINotify iso,
+    source: DisposableActor,
     timers: Timers = Timers)
   =>
     """
@@ -233,8 +235,7 @@ actor ANSITerm
     | 6 => (true, false, true)
     | 7 => (true, true, false)
     | 8 => (true, true, true)
-    else
-      (false, false, false)
+    else (false, false, false)
     end
 
     _esc_mod = 0

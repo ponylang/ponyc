@@ -172,6 +172,9 @@ static void init_runtime(compile_t* c)
   c->str__init = stringtab("_init");
   c->str__final = stringtab("_final");
   c->str__event_notify = stringtab("_event_notify");
+  c->str__serialise_space = stringtab("_serialise_space");
+  c->str__serialise = stringtab("_serialise");
+  c->str__deserialise = stringtab("_deserialise");
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -222,6 +225,19 @@ static void init_runtime(compile_t* c)
   params[4] = c->i32;
   c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
   c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
+
+  // serialise_space
+  // i64 (__object*)
+  params[0] = c->object_ptr;
+  c->custom_serialise_space_fn = LLVMPointerType(
+    LLVMFunctionType(c->i64, params, 1, false), 0);
+
+  // custom_deserialise
+  // void (*)(__object*, void*)
+  params[0] = c->object_ptr;
+  params[1] = c->void_ptr;
+  c->custom_deserialise_fn = LLVMPointerType(
+  LLVMFunctionType(c->void_type, params, 2, false), 0);
 
   // dispatch
   // void (*)(i8*, __object*, $message*)
@@ -1005,41 +1021,46 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   return ok;
 }
 
-bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt)
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
+  pass_id last_pass)
 {
-  memset(c, 0, sizeof(compile_t));
+  if(last_pass < PASS_REACH)
+  {
+    memset(c, 0, sizeof(compile_t));
 
-  genned_strings_init(&c->strings, 64);
+    genned_strings_init(&c->strings, 64);
 
-  if(!init_module(c, program, opt))
-    return false;
+    if(!init_module(c, program, opt))
+      return false;
 
-  init_runtime(c);
-  genprim_reachable_init(c, program);
+    init_runtime(c);
+    genprim_reachable_init(c, program);
 
-  const char* main_actor = c->str_Main;
-  const char* env_class = c->str_Env;
+    const char* main_actor = c->str_Main;
+    const char* env_class = c->str_Env;
 
-  ast_t* package = ast_child(program);
-  ast_t* main_def = ast_get(package, main_actor, NULL);
+    ast_t* package = ast_child(program);
+    ast_t* main_def = ast_get(package, main_actor, NULL);
 
-  if(main_def == NULL)
-    return false;
+    if(main_def == NULL)
+      return false;
 
-  ast_t* main_ast = type_builtin(opt, main_def, main_actor);
-  ast_t* env_ast = type_builtin(opt, main_def, env_class);
+    ast_t* main_ast = type_builtin(opt, main_def, main_actor);
+    ast_t* env_ast = type_builtin(opt, main_def, env_class);
 
-  if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
-    return false;
+    if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+      return false;
 
-  reach(c->reach, main_ast, c->str_create, NULL, opt);
-  reach(c->reach, env_ast, c->str__create, NULL, opt);
-  reach_done(c->reach, c->opt);
+    reach(c->reach, main_ast, c->str_create, NULL, opt);
+    reach(c->reach, env_ast, c->str__create, NULL, opt);
+    reach_done(c->reach, c->opt);
+  }
 
   if(opt->limit == PASS_REACH)
     return true;
 
-  paint(&c->reach->types);
+  if(last_pass < PASS_PAINT)
+    paint(&c->reach->types);
 
   if(opt->limit == PASS_PAINT)
     return true;
@@ -1103,12 +1124,13 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
 }
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
-  LLVMMetadataRef scope)
+  LLVMMetadataRef scope, bool bare)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;
   frame->is_function = true;
+  frame->bare_function = bare;
   frame->di_file = file;
   frame->di_scope = scope;
 
@@ -1131,6 +1153,7 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
+  frame->bare_function = frame->prev->bare_function;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
@@ -1235,6 +1258,7 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
+  frame->bare_function = frame->prev->bare_function;
   frame->break_target = break_target;
   frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
@@ -1253,6 +1277,7 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
+  frame->bare_function = frame->prev->bare_function;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
@@ -1357,10 +1382,13 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
 }
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  size_t count)
+  size_t count, bool setcc)
 {
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
-  LLVMSetInstructionCallConv(result, c->callconv);
+
+  if(setcc)
+    LLVMSetInstructionCallConv(result, c->callconv);
+
   return result;
 }
 

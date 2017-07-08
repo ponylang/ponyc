@@ -87,6 +87,30 @@ static lit_op_info_t* lookup_literal_op(const char* name)
 }
 
 
+void operatorliteral_serialise_data(ast_t* ast, ast_t* dst)
+{
+  lit_op_info_t* data = (lit_op_info_t*)ast_data(ast);
+  if(data != NULL)
+  {
+    size_t index = (size_t)(data - _operator_fns);
+    ast_setdata(dst, (void*)index);
+  } else {
+    ast_setdata(dst, (void*)((size_t)(~0)));
+  }
+}
+
+
+void operatorliteral_deserialise_data(ast_t* ast)
+{
+  size_t index = (size_t)ast_data(ast);
+
+  if(index > 17)
+    ast_setdata(ast, (void*)NULL);
+  else
+    ast_setdata(ast, &_operator_fns[index]);
+}
+
+
 bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name)
 {
   ast_t* type = type_builtin(opt, ast, name);

@@ -4,6 +4,7 @@
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genopt.h"
+#include "../reach/subtype.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -11,60 +12,6 @@
 
 static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
   ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value);
-
-enum boxed_subtypes_t
-{
-  BOXED_SUBTYPES_NONE,
-  BOXED_SUBTYPES_NUMERIC = 1 << 0,
-  BOXED_SUBTYPES_TUPLE = 1 << 1,
-  BOXED_SUBTYPES_UNBOXED = 1 << 2,
-
-  BOXED_SUBTYPES_BOXED = BOXED_SUBTYPES_NUMERIC | BOXED_SUBTYPES_TUPLE,
-  BOXED_SUBTYPES_ALL = BOXED_SUBTYPES_BOXED | BOXED_SUBTYPES_UNBOXED
-};
-
-static int boxed_subtypes_overlap(reach_t* reach, ast_t* left_type,
-  ast_t* right_type)
-{
-  reach_type_t* r_left = reach_type(reach, left_type);
-  reach_type_t* r_right = reach_type(reach, right_type);
-
-  int subtypes = BOXED_SUBTYPES_NONE;
-
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* sub_left;
-
-  while((sub_left = reach_type_cache_next(&r_left->subtypes, &i)) != NULL)
-  {
-    if(!sub_left->can_be_boxed)
-    {
-      subtypes |= BOXED_SUBTYPES_UNBOXED;
-      if(subtypes == BOXED_SUBTYPES_ALL)
-        return subtypes;
-
-      continue;
-    }
-
-    size_t j = HASHMAP_BEGIN;
-    reach_type_t* sub_right;
-
-    while((sub_right = reach_type_cache_next(&r_right->subtypes, &j)) != NULL)
-    {
-      if(sub_left == sub_right)
-      {
-        if(sub_left->underlying == TK_PRIMITIVE)
-          subtypes |= BOXED_SUBTYPES_NUMERIC;
-        else
-          subtypes |= BOXED_SUBTYPES_TUPLE;
-
-        if(subtypes == BOXED_SUBTYPES_ALL)
-          return subtypes;
-      }
-    }
-  }
-
-  return subtypes;
-}
 
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
@@ -115,6 +62,7 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMPositionBuilderAtEnd(c->builder, this_block);
   LLVMBuildBr(c->builder, post_block);
 
+  LLVMMoveBasicBlockAfter(post_block, this_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef one = LLVMConstInt(c->i1, 1, false);
   LLVMAddIncoming(phi, &one, &this_block, 1);
@@ -143,6 +91,7 @@ static LLVMValueRef raw_is_box(compile_t* c, ast_t* left_type,
   LLVMBuildBr(c->builder, post_block);
   value_block = LLVMGetInsertBlock(c->builder);
 
+  LLVMMoveBasicBlockAfter(post_block, value_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
   LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
@@ -151,8 +100,8 @@ static LLVMValueRef raw_is_box(compile_t* c, ast_t* left_type,
   return phi;
 }
 
-static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
-  LLVMValueRef l_value, LLVMValueRef r_value, int possible_boxes)
+static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
+  LLVMValueRef l_value, LLVMValueRef r_value, int sub_kind)
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(l_value)) == LLVMPointerTypeKind);
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMPointerTypeKind);
@@ -161,10 +110,10 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
   LLVMBasicBlockRef checkbox_block = codegen_block(c, "is_checkbox");
   LLVMBasicBlockRef box_block = codegen_block(c, "is_box");
   LLVMBasicBlockRef num_block = NULL;
-  if((possible_boxes & BOXED_SUBTYPES_NUMERIC) != 0)
+  if((sub_kind & SUBTYPE_KIND_NUMERIC) != 0)
     num_block = codegen_block(c, "is_num");
   LLVMBasicBlockRef tuple_block = NULL;
-  if((possible_boxes & BOXED_SUBTYPES_TUPLE) != 0)
+  if((sub_kind & SUBTYPE_KIND_TUPLE) != 0)
     tuple_block = codegen_block(c, "is_tuple");
   LLVMBasicBlockRef post_block = codegen_block(c, "is_post");
 
@@ -179,9 +128,9 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
   LLVMValueRef same_type = LLVMBuildICmp(c->builder, LLVMIntEQ, l_desc, r_desc,
     "");
   LLVMValueRef l_typeid = NULL;
-  if((possible_boxes & BOXED_SUBTYPES_UNBOXED) != 0)
+  if((sub_kind & SUBTYPE_KIND_UNBOXED) != 0)
   {
-    l_typeid = gendesc_typeid(c, l_value);
+    l_typeid = gendesc_typeid(c, l_desc);
     LLVMValueRef boxed_mask = LLVMConstInt(c->i32, 1, false);
     LLVMValueRef left_boxed = LLVMBuildAnd(c->builder, l_typeid, boxed_mask,
       "");
@@ -196,19 +145,19 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
 
   // Check whether it's a numeric primitive or a tuple.
   LLVMPositionBuilderAtEnd(c->builder, box_block);
-  if((possible_boxes & BOXED_SUBTYPES_BOXED) == BOXED_SUBTYPES_BOXED)
+  if((sub_kind & SUBTYPE_KIND_BOXED) == SUBTYPE_KIND_BOXED)
   {
     if(l_typeid == NULL)
-      l_typeid = gendesc_typeid(c, l_value);
+      l_typeid = gendesc_typeid(c, l_desc);
     LLVMValueRef num_mask = LLVMConstInt(c->i32, 2, false);
     LLVMValueRef boxed_num = LLVMBuildAnd(c->builder, l_typeid, num_mask, "");
     LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
     boxed_num = LLVMBuildICmp(c->builder, LLVMIntEQ, boxed_num, zero, "");
     LLVMBuildCondBr(c->builder, boxed_num, num_block, tuple_block);
-  } else if((possible_boxes & BOXED_SUBTYPES_NUMERIC) != 0) {
+  } else if((sub_kind & SUBTYPE_KIND_NUMERIC) != 0) {
     LLVMBuildBr(c->builder, num_block);
   } else {
-    pony_assert((possible_boxes & BOXED_SUBTYPES_TUPLE) != 0);
+    pony_assert((sub_kind & SUBTYPE_KIND_TUPLE) != 0);
     LLVMBuildBr(c->builder, tuple_block);
   }
 
@@ -219,7 +168,7 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
     // Get the machine word size and memcmp without unboxing.
     LLVMPositionBuilderAtEnd(c->builder, num_block);
     if(l_typeid == NULL)
-      l_typeid = gendesc_typeid(c, l_value);
+      l_typeid = gendesc_typeid(c, l_desc);
     LLVMValueRef num_sizes = LLVMBuildBitCast(c->builder, c->numeric_sizes,
       c->void_ptr, "");
     args[0] = LLVMBuildZExt(c->builder, l_typeid, c->intptr, "");
@@ -245,11 +194,10 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
   {
     // Call the type-specific __is function, which will unbox the tuples.
     LLVMPositionBuilderAtEnd(c->builder, tuple_block);
-    reach_type_t* r_left = reach_type(c->reach, left_type);
-    reach_method_t* is_fn = reach_method(r_left, TK_BOX, stringtab("__is"),
+    reach_method_t* is_fn = reach_method(left_type, TK_BOX, stringtab("__is"),
       NULL);
     pony_assert(is_fn != NULL);
-    LLVMValueRef func = gendesc_vtable(c, l_value, is_fn->vtable_index);
+    LLVMValueRef func = gendesc_vtable(c, l_desc, is_fn->vtable_index);
     LLVMTypeRef params[2];
     params[0] = c->object_ptr;
     params[1] = c->object_ptr;
@@ -257,7 +205,7 @@ static LLVMValueRef box_is_box(compile_t* c, ast_t* left_type,
     func = LLVMBuildBitCast(c->builder, func, LLVMPointerType(type, 0), "");
     args[0] = l_value;
     args[1] = r_value;
-    is_tuple = codegen_call(c, func, args, 2);
+    is_tuple = codegen_call(c, func, args, 2, true);
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -315,14 +263,16 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 
     case LLVMStructTypeKind:
     {
-      // Pairwise comparison.
       if(LLVMGetTypeKind(r_type) == LLVMStructTypeKind)
-        return tuple_is(c, left_type, right_type, l_value, r_value);
-
-      // If left_type is a subtype of right_type, check if r_value is a boxed
-      // tuple.
-      if(is_subtype(left_type, right_type, NULL, c->opt))
+      {
+        // Pairwise comparison.
+        if(ast_childcount(left_type) == ast_childcount(right_type))
+          return tuple_is(c, left_type, right_type, l_value, r_value);
+      } else if(is_subtype(left_type, right_type, NULL, c->opt)) {
+        // If left_type is a subtype of right_type, check if r_value is a boxed
+        // tuple.
         return raw_is_box(c, left_type, l_value, r_value);
+      }
 
       // It can't have the same identity.
       return LLVMConstInt(c->i1, 0, false);
@@ -336,18 +286,42 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
       l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "");
       r_value = LLVMBuildBitCast(c->builder, r_value, c->object_ptr, "");
 
-      if(!is_known(left_type) && !is_known(right_type))
-      {
-        int possible_boxes = boxed_subtypes_overlap(c->reach, left_type,
-          right_type);
-        if((possible_boxes & BOXED_SUBTYPES_BOXED) != 0)
-          return box_is_box(c, left_type, l_value, r_value, possible_boxes);
-      }
+      bool left_known = is_known(left_type);
+      bool right_known = is_known(right_type);
+      reach_type_t* r_left = reach_type(c->reach, left_type);
+      reach_type_t* r_right = reach_type(c->reach, right_type);
 
-      // If the types can be the same, check the address.
-      if(is_subtype(left_type, right_type, NULL, c->opt) ||
-        is_subtype(right_type, left_type, NULL, c->opt))
-        return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      if(!left_known && !right_known)
+      {
+        int sub_kind = subtype_kind_overlap(r_left, r_right);
+
+        if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
+          return box_is_box(c, r_left, l_value, r_value, sub_kind);
+
+        // If the types can be the same, check the address.
+        if(sub_kind != SUBTYPE_KIND_NONE)
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      } else if(left_known && right_known) {
+        // If the types are the same, check the address.
+        if(r_left == r_right)
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      } else {
+        ast_t* known;
+        ast_t* unknown;
+
+        if(left_known)
+        {
+          known = left_type;
+          unknown = right_type;
+        } else {
+          known = right_type;
+          unknown = left_type;
+        }
+
+        // If the types can be the same, check the address.
+        if(is_subtype(known, unknown, NULL, c->opt))
+          return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+      }
 
       // It can't have the same identity.
       return LLVMConstInt(c->i1, 0, false);
@@ -406,7 +380,9 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
   pony_assert(t->underlying == TK_TUPLETYPE);
 
   reach_method_t* m = reach_method(t, TK_BOX, stringtab("__is"), NULL);
-  pony_assert(m != NULL);
+
+  if(m == NULL)
+    return;
 
   LLVMTypeRef params[2];
   params[0] = t->structure_ptr;
@@ -414,7 +390,7 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
   m->func_type = LLVMFunctionType(c->i1, params, 2, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
 
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
   LLVMValueRef l_value = LLVMGetParam(codegen_fun(c), 0);
   LLVMValueRef r_value = LLVMGetParam(codegen_fun(c), 1);
 

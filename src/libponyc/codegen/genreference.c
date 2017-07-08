@@ -6,6 +6,7 @@
 #include "gencall.h"
 #include "gentype.h"
 #include "../expr/literal.h"
+#include "../reach/subtype.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
@@ -50,7 +51,10 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
   pony_assert(def != NULL);
   int index = (int)ast_index(def);
 
-  return LLVMGetParam(codegen_fun(c), index + 1);
+  if(!c->frame->bare_function)
+    index++;
+
+  return LLVMGetParam(codegen_fun(c), index);
 }
 
 static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
@@ -267,38 +271,7 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-enum subtype_kind_t
-{
-  SUBTYPE_KIND_NONE,
-  SUBTYPE_KIND_BOXED = 1 << 0,
-  SUBTYPE_KIND_UNBOXED = 1 << 1,
-  SUBTYPE_KIND_BOTH = SUBTYPE_KIND_BOXED | SUBTYPE_KIND_UNBOXED
-};
-
-static int has_boxed_subtype(reach_t* reach, ast_t* type)
-{
-  reach_type_t* t = reach_type(reach, type);
-
-  int subtypes = SUBTYPE_KIND_NONE;
-
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* sub;
-
-  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-  {
-    if(sub->can_be_boxed)
-      subtypes |= SUBTYPE_KIND_BOXED;
-    else
-      subtypes |= SUBTYPE_KIND_UNBOXED;
-
-    if(subtypes == SUBTYPE_KIND_BOTH)
-      return subtypes;
-  }
-
-  return subtypes;
-}
-
-static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
+static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
   LLVMValueRef value, int boxed_subtype)
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(value)) == LLVMPointerTypeKind);
@@ -307,14 +280,16 @@ static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
   LLVMBasicBlockRef nonbox_block = NULL;
   LLVMBasicBlockRef post_block = NULL;
 
-  if(boxed_subtype == SUBTYPE_KIND_BOTH)
+  LLVMValueRef desc = gendesc_fetch(c, value);
+
+  if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {
     box_block = codegen_block(c, "digestof_box");
     nonbox_block = codegen_block(c, "digestof_nonbox");
     post_block = codegen_block(c, "digestof_post");
 
     // Check if it's a boxed value.
-    LLVMValueRef type_id = gendesc_typeid(c, value);
+    LLVMValueRef type_id = gendesc_typeid(c, desc);
     LLVMValueRef boxed_mask = LLVMConstInt(c->i32, 1, false);
     LLVMValueRef is_boxed = LLVMBuildAnd(c->builder, type_id, boxed_mask, "");
     LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
@@ -324,16 +299,15 @@ static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
   }
 
   // Call the type-specific __digestof function, which will unbox the value.
-  reach_type_t* t = reach_type(c->reach, type);
-  reach_method_t* digest_fn = reach_method(t, TK_BOX, stringtab("__digestof"),
-    NULL);
+  reach_method_t* digest_fn = reach_method(type, TK_BOX,
+    stringtab("__digestof"), NULL);
   pony_assert(digest_fn != NULL);
-  LLVMValueRef func = gendesc_vtable(c, value, digest_fn->vtable_index);
+  LLVMValueRef func = gendesc_vtable(c, desc, digest_fn->vtable_index);
   LLVMTypeRef fn_type = LLVMFunctionType(c->i64, &c->object_ptr, 1, false);
   func = LLVMBuildBitCast(c->builder, func, LLVMPointerType(fn_type, 0), "");
-  LLVMValueRef box_digest = codegen_call(c, func, &value, 1);
+  LLVMValueRef box_digest = codegen_call(c, func, &value, 1, true);
 
-  if(boxed_subtype == SUBTYPE_KIND_BOTH)
+  if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {
     LLVMBuildBr(c->builder, post_block);
 
@@ -407,9 +381,11 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
     case LLVMPointerTypeKind:
       if(!is_known(type))
       {
-        int sub_kind = has_boxed_subtype(c->reach, type);
+        reach_type_t* t = reach_type(c->reach, type);
+        int sub_kind = subtype_kind(t);
+
         if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
-          return gen_digestof_box(c, type, value, sub_kind);
+          return gen_digestof_box(c, t, value, sub_kind);
       }
 
       return LLVMBuildPtrToInt(c->builder, value, c->i64, "");
@@ -433,12 +409,14 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   pony_assert(t->can_be_boxed);
 
   reach_method_t* m = reach_method(t, TK_BOX, stringtab("__digestof"), NULL);
-  pony_assert(m != NULL);
+
+  if(m == NULL)
+    return;
 
   m->func_type = LLVMFunctionType(c->i64, &t->structure_ptr, 1, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
 
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);
 
   value = gen_unbox(c, t->ast_cap, value);

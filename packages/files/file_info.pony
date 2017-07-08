@@ -3,7 +3,7 @@ class val FileInfo
   This contains file system metadata for a path. The times are in the same
   format as Time.now(), i.e. seconds and nanoseconds since the epoch.
 
-  The INODE is UNIX specific.  It will be zero on Windows.
+  The INODE is UNIX specific. It will be zero on Windows.
 
   The UID and GID are UNIX-style user and group IDs. These will be zero on
   Windows. The change_time will actually be the file creation time on Windows.

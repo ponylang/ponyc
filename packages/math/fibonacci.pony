@@ -11,6 +11,7 @@ important to programming, we call upon that particular class of engineer friends
 to help us fill out this package with more maths than you can shake a stick at.
 Btw, in case you are wondering, yes we can shake a stick at a lot of maths.
 """
+
 class Fibonacci[A: (Integer[A] val & Unsigned) = U64] is Iterator[A]
   """
   Useful for microbenchmarks to impress your friends. Look y'all, Pony goes
@@ -22,10 +23,8 @@ class Fibonacci[A: (Integer[A] val & Unsigned) = U64] is Iterator[A]
   var _uber_next: A = 1
 
   fun apply(n: U8): A =>
-    if n == 0 then
-      0
-    elseif n == 1 then
-      1
+    if n == 0 then 0
+    elseif n == 1 then 1
     else
       let j = n / 2
       let fib_j = apply(j)
@@ -43,4 +42,6 @@ class Fibonacci[A: (Integer[A] val & Unsigned) = U64] is Iterator[A]
   //The generator stops on overflow.
   fun has_next(): Bool => _last <= _next
 
-  fun ref next(): A => _last = _next = _uber_next = _next + _uber_next ; _last
+  fun ref next(): A =>
+    _last = _next = _uber_next = _next + _uber_next
+    _last

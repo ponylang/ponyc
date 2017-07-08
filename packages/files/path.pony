@@ -190,7 +190,7 @@ primitive Path
     Normalizes the case of path for the runtime platform.
     """
     if Platform.windows() then
-      recover val path.lower().>replace("/", "\\") end
+      recover val path.lower() .> replace("/", "\\") end
     elseif Platform.osx() then
       path.lower()
     else
@@ -279,8 +279,8 @@ primitive Path
     end
 
     if
-      ((to_i - to_0) == 2) and
-      (to_clean.compare_sub("..", 2, to_0) is Equal)
+      ((to_i - to_0) == 2)
+        and (to_clean.compare_sub("..", 2, to_0) is Equal)
     then
       error
     end
@@ -415,8 +415,8 @@ primitive Path
     try
       let c = path.at_offset(offset)
 
-      (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))) and
-        (path.at_offset(offset + 1) == ':')
+      (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z')))
+        and (path.at_offset(offset + 1) == ':')
     else
       false
     end

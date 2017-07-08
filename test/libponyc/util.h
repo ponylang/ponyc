@@ -34,6 +34,7 @@ protected:
   ast_t* package; // AST of first package, cache of ast_child(program)
   ast_t* module;  // AST of first module in first package
   compile_t* compile;
+  pass_id last_pass;
 
   virtual void SetUp();
   virtual void TearDown();
@@ -67,6 +68,10 @@ protected:
 
   // Check that the given source compiles to the specified pass without error
   void test_compile(const char* src, const char* pass);
+
+  // Check that the given source compiles to the specified pass without error.
+  // Starts from an AST built in a previous call to test_compile
+  void test_compile_resume(const char* src);
 
   // Check that the given source fails when compiled to the specified pass
   void test_error(const char* src, const char* pass);
@@ -118,7 +123,8 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, const char** expected_errors);
+    const char* package_name, bool check_good, const char** expected_errors,
+    bool resume);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.

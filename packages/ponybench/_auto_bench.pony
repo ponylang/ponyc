@@ -13,8 +13,8 @@ actor _AutoBench[A: Any #share] is _Benchmark
     notify: _BenchNotify,
     f: {(): A ?} val,
     bench_time: U64 = 1_000_000_000,
-    max_ops: U64 = 100_000_000
-  ) =>
+    max_ops: U64 = 100_000_000)
+  =>
     _name = name
     _notify = notify
     _f = f
@@ -48,8 +48,8 @@ actor _AutoBenchAsync[A: Any #share] is _Benchmark
       f: {(): Promise[A] ?} val,
       timeout: U64,
       bench_time: U64 = 1_000_000_000,
-      max_ops: U64 = 100_000_000
-    ) =>
+      max_ops: U64 = 100_000_000)
+    =>
       _name = name
       _notify = notify
       _f = f

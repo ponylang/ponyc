@@ -21,8 +21,6 @@ class Repeat[A] is Iterator[A]
   new create(v: A) =>
     _v = consume v
 
-  fun ref has_next(): Bool =>
-    true
+  fun ref has_next(): Bool => true
 
-  fun ref next(): A =>
-    _v
+  fun ref next(): A => _v

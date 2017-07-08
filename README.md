@@ -236,7 +236,8 @@ $ ./build/release/ponyc examples/helloworld
 If you get errors like
 
 ```bash
-/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
+/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
+ 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
 ```
 
 try running `ponyc` with the `--pic` flag.

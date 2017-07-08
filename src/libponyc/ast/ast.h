@@ -45,6 +45,7 @@ enum
   AST_FLAG_ERROR_2      = 0x40000,
   AST_FLAG_JUMPS_AWAY   = 0x80000, // Jumps away (control flow) without a value.
   AST_FLAG_INCOMPLETE   = 0x100000, // Not all fields of `this` are defined yet.
+  AST_FLAG_IMPORT       = 0x200000, // Import the referenced package.
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);
@@ -59,6 +60,7 @@ ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
+void ast_set_scope(ast_t* ast, ast_t* scope);
 symtab_t* ast_get_symtab(ast_t* ast);
 ast_t* ast_setid(ast_t* ast, token_id id);
 void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
@@ -203,20 +205,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       children); \
   }
 
-typedef struct unattached_asts_t
-{
-  ast_t** storage;
-  size_t count;
-  size_t alloc;
-} unattached_asts_t;
-
-void unattached_asts_init(unattached_asts_t* asts);
-
-void unattached_asts_put(unattached_asts_t* asts, ast_t* ast);
-
-void unattached_asts_clear(unattached_asts_t* asts);
-
-void unattached_asts_destroy(unattached_asts_t* asts);
+pony_type_t* ast_pony_type();
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

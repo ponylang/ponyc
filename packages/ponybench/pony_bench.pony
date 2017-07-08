@@ -16,37 +16,35 @@ actor Main
     let bench = PonyBench(env)
 
     // benchmark Fib with different inputs
-    bench[USize]("fib 5", {(): USize => Fib(5)})
-    bench[USize]("fib 10", {(): USize => Fib(10)})
-    bench[USize]("fib 20", {(): USize => Fib(20)})
-    bench[USize]("fib 40", {(): USize => Fib(40)})
+    bench[USize]("fib 5", {(): USize => Fib(5) })
+    bench[USize]("fib 10", {(): USize => Fib(10) })
+    bench[USize]("fib 20", {(): USize => Fib(20) })
+    bench[USize]("fib 40", {(): USize => Fib(40) })
 
     // show what happens when a benchmark fails
-    bench[String]("fail", {(): String ? => error})
+    bench[String]("fail", {(): String ? => error })
 
     // async benchmark
     bench.async[USize](
       "async",
-      {(): Promise[USize] => Promise[USize].>apply(0)} iso
-    )
+      {(): Promise[USize] => Promise[USize] .> apply(0) } iso)
 
     // async benchmark timeout
     bench.async[USize](
       "timeout",
-      {(): Promise[USize] => Promise[USize]} iso,
-      1_000_000
-    )
+      {(): Promise[USize] => Promise[USize] } iso,
+      1_000_000)
 
     // benchmarks with set ops
-    bench[USize]("add", {(): USize => 1 + 2}, 10_000_000)
-    bench[USize]("sub", {(): USize => 2 - 1}, 10_000_000)
+    bench[USize]("add", {(): USize => 1 + 2 }, 10_000_000)
+    bench[USize]("sub", {(): USize => 2 - 1 }, 10_000_000)
 
 primitive Fib
   fun apply(n: USize): USize =>
     if n < 2 then
       n
     else
-      apply(n-1) + apply(n-2)
+      apply(n - 1) + apply(n - 2)
     end
 ```
 Output:
@@ -88,15 +86,14 @@ actor PonyBench
         _AutoBench[A](name, this, f)
       else
         _Bench[A](name, this, f, ops)
-      end
-    )
+      end)
 
   be async[A: Any #share](
     name: String,
     f: {(): Promise[A] ?} val,
     timeout: U64 = 0,
-    ops: U64 = 0
-  ) =>
+    ops: U64 = 0)
+  =>
     """
     Benchmark the time taken for the promise returned by `f` to be fulfilled.
     If `timeout` is greater than 0, the benchmark will fail if the promise is
@@ -109,17 +106,16 @@ actor PonyBench
         _AutoBenchAsync[A](name, this, f, timeout)
       else
         _BenchAsync[A](name, this, f, ops, timeout)
-      end
-    )
+      end)
 
   be _result(name: String, ops: U64, nspo: U64) =>
     _remove(name)
     let sl =
       [ name
         "\t"
-        Format.int[U64](ops where width=10)
+        Format.int[U64](ops where width = 10)
         "\t"
-        Format.int[U64](nspo where width=10)
+        Format.int[U64](nspo where width = 10)
         " ns/op"
       ]
     _env.out.print(String.join(sl))
@@ -137,9 +133,7 @@ actor PonyBench
 
   fun ref _add(name: String, b: _Benchmark) =>
     _bs.push((name, b))
-    if _bs.size() < 2 then
-      b.run()
-    end
+    if _bs.size() < 2 then b.run() end
 
   fun ref _remove(name: String) =>
     for (i, (n, _)) in _bs.pairs() do
@@ -150,9 +144,7 @@ actor PonyBench
     end
 
   fun ref _next() =>
-    try
-      _bs(0)._2.run()
-    end
+    try _bs(0)._2.run() end
 
 interface tag _BenchNotify
   be _result(name: String, ops: U64, nspo: U64)

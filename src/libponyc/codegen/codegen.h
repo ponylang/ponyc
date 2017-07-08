@@ -84,6 +84,7 @@ typedef struct compile_frame_t
   LLVMMetadataRef di_scope;
   bool is_function;
   bool early_termination;
+  bool bare_function;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -162,6 +163,11 @@ typedef struct compile_t
   const char* str__init;
   const char* str__final;
   const char* str__event_notify;
+  const char* str__serialise_space;
+  const char* str__serialise;
+  const char* str__deserialise;
+
+  uint32_t trait_bitmap_size;
 
   LLVMCallConv callconv;
   LLVMLinkage linkage;
@@ -178,6 +184,7 @@ typedef struct compile_t
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;
+  LLVMValueRef desc_table;
   LLVMValueRef numeric_sizes;
 
   LLVMTypeRef void_type;
@@ -208,6 +215,8 @@ typedef struct compile_t
   LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
+  LLVMTypeRef custom_serialise_space_fn;
+  LLVMTypeRef custom_deserialise_fn;
 
   LLVMValueRef personality;
 
@@ -226,14 +235,15 @@ void codegen_pass_cleanup(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
 
-bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt);
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
+  pass_id last_pass);
 
 void codegen_cleanup(compile_t* c);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
-  LLVMMetadataRef scope);
+  LLVMMetadataRef scope, bool bare);
 
 void codegen_finishfun(compile_t* c);
 
@@ -275,7 +285,7 @@ LLVMValueRef codegen_fun(compile_t* c);
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  size_t count);
+  size_t count, bool setcc);
 
 const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   const char* file, const char* extension);

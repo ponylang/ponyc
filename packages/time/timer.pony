@@ -36,7 +36,10 @@ class Timer
   let _notify: TimerNotify
   embed _node: ListNode[Timer]
 
-  new iso create(notify: TimerNotify iso, expiration: U64, interval: U64 = 0)
+  new iso create(
+    notify: TimerNotify iso,
+    expiration: U64,
+    interval: U64 = 0)
   =>
     """
     Create a new timer. The expiration time should be a nanosecond count
@@ -53,7 +56,7 @@ class Timer
     Creates a new timer with an absolute expiration time rather than a relative
     time. The expiration time is wall-clock adjusted system time.
     """
-    _expiration = Time.wall_to_nanos(expiration)
+    _expiration = _abs_expiration_time(expiration)
     _interval = interval
     _notify = notify
     _node = ListNode[Timer]
@@ -110,3 +113,13 @@ class Timer
     Returns the next expiration time.
     """
     _expiration
+
+  fun tag _abs_expiration_time(wall: (I64, I64)): U64 =>
+    """
+    Converts a wall-clock adjusted system time to absolute expiration time
+    """
+    let wall_now = Time.now()
+    Time.nanos()
+      + (((wall._1 * 1000000000) + wall._2)
+      - ((wall_now._1 * 1000000000) + wall_now._2)).u64()
+

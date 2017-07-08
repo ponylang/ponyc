@@ -22,6 +22,7 @@
 enum
 {
   OPT_VERSION,
+  OPT_HELP,
   OPT_DEBUG,
   OPT_BUILDFLAG,
   OPT_STRIP,
@@ -60,6 +61,7 @@ enum
 static opt_arg_t args[] =
 {
   {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
+  {"help", 'h', OPT_ARG_NONE, OPT_HELP},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
   {"define", 'D', OPT_ARG_REQUIRED, OPT_BUILDFLAG},
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
@@ -98,13 +100,14 @@ static opt_arg_t args[] =
 
 static void usage()
 {
-  printf(
+  printf("%s\n%s\n%s\n%s\n%s\n%s", // for complying with -Woverlength-strings
     "ponyc [OPTIONS] <package directory>\n"
-    "\n"
+    ,
     "The package directory defaults to the current directory.\n"
-    "\n"
+    ,
     "Options:\n"
     "  --version, -v   Print the version of the compiler and exit.\n"
+    "  --help, -h      Print this help text and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
     "  --define, -D    Define the specified build flag.\n"
     "    =name\n"
@@ -117,7 +120,7 @@ static void usage()
     "  --runtimebc     Compile with the LLVM bitcode file for the runtime.\n"
     "  --pic           Compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
-    "\n"
+    ,
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
     "    =package      With no packages listed, only builtin is allowed.\n"
@@ -133,7 +136,7 @@ static void usage()
     "    =name         Default is the host architecture.\n"
     "  --linker        Set the linker command to use.\n"
     "    =name         Default is the compiler used to compile ponyc.\n"
-    "\n"
+    ,
     "Debugging options:\n"
     "  --verbose, -V   Verbosity level.\n"
     "    =0            Only print errors.\n"
@@ -173,7 +176,7 @@ static void usage()
     "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
-    "\n"
+    ,
     "Runtime options for Pony programs (not for use with ponyc):\n"
     "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
     "                  cores (not hyperthreads) available.\n"
@@ -278,6 +281,9 @@ int main(int argc, char* argv[])
           LLVM_VERSION, BUILD_COMPILER);
         return 0;
 
+      case OPT_HELP:
+        usage();
+        return 0;
       case OPT_DEBUG: opt.release = false; break;
       case OPT_BUILDFLAG: define_build_flag(s.arg_val); break;
       case OPT_STRIP: opt.strip_debug = true; break;

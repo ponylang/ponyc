@@ -64,7 +64,14 @@ DEF(provides);
   RULE("provided type", type);
   DONE();
 
-// postfix [COLON type] [ASSIGN infix]
+// infix
+DEF(defaultarg);
+  PRINT_INLINE();
+  SCOPE();
+  RULE("default value", infix);
+  DONE();
+
+// postfix [COLON type] [ASSIGN defaultarg]
 DEF(param);
   AST_NODE(TK_PARAM);
   RULE("name", parampattern);
@@ -72,7 +79,7 @@ DEF(param);
     RULE("parameter type", type);
     UNWRAP(0, TK_REFERENCE);
   );
-  IF(TK_ASSIGN, RULE("default value", infix));
+  IF(TK_ASSIGN, RULE("default value", defaultarg));
   DONE();
 
 // ELLIPSIS
@@ -149,10 +156,15 @@ DEF(cap);
   TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
-  // GENCAP
+// GENCAP
 DEF(gencap);
   TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
     TK_CAP_ALIAS, TK_CAP_ANY);
+  DONE();
+
+// AT
+DEF(bare);
+  TOKEN("@", TK_AT);
   DONE();
 
 // ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | ALIASED]
@@ -242,9 +254,27 @@ DEF(lambdatype);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
   DONE();
 
-// (thistype | cap | typeexpr | nominal | lambdatype)
+// AT_LBRACE [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [typelist] RPAREN
+// [COLON type] [QUESTION] RBRACE [CAP] [EPHEMERAL | ALIASED]
+DEF(barelambdatype);
+  AST_NODE(TK_BARELAMBDATYPE);
+  SKIP(NULL, TK_AT_LBRACE);
+  OPT RULE("capability", cap);
+  OPT TOKEN("function name", TK_ID);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", typelist);
+  SKIP(NULL, TK_RPAREN);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_RBRACE);
+  OPT RULE("capability", cap, gencap);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_ALIASED);
+  DONE();
+
+// (thistype | cap | typeexpr | nominal | lambdatype | barelambdatype)
 DEF(atomtype);
-  RULE("type", thistype, cap, groupedtype, nominal, lambdatype);
+  RULE("type", thistype, cap, groupedtype, nominal, lambdatype, barelambdatype);
   DONE();
 
 // ARROW type
@@ -292,6 +322,7 @@ DEF(positional);
 DEF(annotations);
   PRINT_INLINE();
   TOKEN(NULL, TK_BACKSLASH);
+  MAP_ID(TK_BACKSLASH, TK_ANNOTATION);
   TOKEN("annotation", TK_ID);
   WHILE(TK_COMMA, TOKEN("annotation", TK_ID));
   TERMINATE("annotations", TK_BACKSLASH);
@@ -360,6 +391,33 @@ DEF(lambda);
   PRINT_INLINE();
   AST_NODE(TK_LAMBDA);
   SKIP(NULL, TK_LBRACE);
+  ANNOTATE(annotations);
+  OPT RULE("receiver capability", cap);
+  OPT TOKEN("function name", TK_ID);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", params);
+  SKIP(NULL, TK_RPAREN);
+  OPT RULE("captures", lambdacaptures);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_DBLARROW);
+  RULE("lambda body", rawseq);
+  TERMINATE("lambda expression", TK_RBRACE);
+  OPT RULE("reference capability", cap);
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(7, AST_FLAG_PRESERVE); // Body
+  DONE();
+
+// AT_LBRACE [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW)
+// [params] RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE
+// [CAP]
+DEF(barelambda);
+  PRINT_INLINE();
+  AST_NODE(TK_BARELAMBDA);
+  SKIP(NULL, TK_AT_LBRACE);
   ANNOTATE(annotations);
   OPT RULE("receiver capability", cap);
   OPT TOKEN("function name", TK_ID);
@@ -470,16 +528,18 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi | location
+// ref | this | literal | tuple | array | object | lambda | barelambda | ffi |
+// location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    oldlambda, ffi, location);
+    oldlambda, barelambda, ffi, location);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | ffi | location
+// ref | this | literal | tuple | array | object | lambda | barelambda| ffi |
+// location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, oldlambda, ffi, location);
+    lambda, oldlambda, barelambda, ffi, location);
   DONE();
 
 // DOT ID
@@ -678,31 +738,34 @@ DEF(ifdef);
   REORDER(0, 2, 3, 1);
   DONE();
 
-// ELSEIFTYPE [annotations] type <: type THEN seq [elseiftype | (ELSE seq)]
-DEF(elseiftype);
+// type <: type THEN seq
+DEF(iftype);
   AST_NODE(TK_IFTYPE);
   SCOPE();
-  SKIP(NULL, TK_ELSEIFTYPE);
-  ANNOTATE(annotations);
   RULE("type", type);
   SKIP(NULL, TK_SUBTYPE);
   RULE("type", type);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
+  DONE();
+
+// ELSEIF [annotations] iftype [elseiftype | (ELSE seq)]
+DEF(elseiftype);
+  AST_NODE(TK_IFTYPE_SET);
+  SKIP(NULL, TK_ELSEIF);
+  ANNOTATE(annotations);
+  SCOPE();
+  RULE("iftype clause", iftype);
   OPT RULE("else clause", elseiftype, elseclause);
   DONE();
 
-// IFTYPE [annotations] type <: type THEN seq [elseiftype | (ELSE seq)] END
-DEF(iftype);
+// IFTYPE_SET [annotations] iftype [elseiftype | (ELSE seq)] END
+DEF(iftypeset);
   PRINT_INLINE();
-  TOKEN(NULL, TK_IFTYPE);
-  ANNOTATE(annotations);
+  TOKEN(NULL, TK_IFTYPE_SET);
   SCOPE();
-  RULE("type", type);
-  SKIP(NULL, TK_SUBTYPE);
-  RULE("type", type);
-  SKIP(NULL, TK_THEN);
-  RULE("then value", seq);
+  ANNOTATE(annotations);
+  RULE("iftype clause", iftype);
   OPT RULE("else clause", elseiftype, elseclause);
   TERMINATE("iftype expression", TK_END);
   DONE();
@@ -905,18 +968,18 @@ DEF(test_ifdef_flag);
   TOKEN(NULL, TK_ID);
   DONE();
 
-// cond | ifdef | iftype | match | whileloop | repeat | forloop | with | try |
+// cond | ifdef | iftypeset | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | const_expr | test_<various>
 DEF(term);
-  RULE("value", cond, ifdef, iftype, match, whileloop, repeat, forloop, with,
+  RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, pattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
-// cond | ifdef | iftype | match | whileloop | repeat | forloop | with | try |
+// cond | ifdef | iftypeset | match | whileloop | repeat | forloop | with | try |
 // recover | consume | pattern | const_expr | test_<various>
 DEF(nextterm);
-  RULE("value", cond, ifdef, iftype, match, whileloop, repeat, forloop, with,
+  RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, nextpattern, const_expr, test_noseq,
     test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
@@ -1061,13 +1124,13 @@ DEF(annotatedseq);
   SCOPE();
   DONE();
 
-// (FUN | BE | NEW) [annotations] [CAP] ID [typeparams] (LPAREN | LPAREN_NEW)
-// [params] RPAREN [COLON type] [QUESTION] [ARROW rawseq]
+// (FUN | BE | NEW) [annotations] [CAP | AT] ID [typeparams]
+// (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type] [QUESTION] [ARROW rawseq]
 DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   ANNOTATE(annotations);
   SCOPE();
-  OPT RULE("capability", cap);
+  OPT RULE("capability", cap, bare);
   TOKEN("method name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);

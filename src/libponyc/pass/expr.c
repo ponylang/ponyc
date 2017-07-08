@@ -57,7 +57,7 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_IFTYPE:
-      // Sub/supertype not needed, body/else needed only if parent needed.
+      // Sub/supertype not needed, body needed only if parent needed.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
 
@@ -78,6 +78,7 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_CASES:
+    case TK_IFTYPE_SET:
     case TK_TRY:
     case TK_TRY_NO_CHECK:
     case TK_RECOVER:
@@ -154,6 +155,7 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
       break;
 
     case TK_CASES:
+    case TK_IFTYPE_SET:
     case TK_RECOVER:
       // These can be results.
       break;
@@ -254,7 +256,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_CALL:       r = expr_call(options, astp); break;
     case TK_IFDEF:
     case TK_IF:         r = expr_if(options, ast); break;
-    case TK_IFTYPE:     r = expr_iftype(options, ast); break;
+    case TK_IFTYPE_SET: r = expr_iftype(options, ast); break;
     case TK_WHILE:      r = expr_while(options, ast); break;
     case TK_REPEAT:     r = expr_repeat(options, ast); break;
     case TK_TRY_NO_CHECK:
@@ -283,12 +285,18 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_ADDRESS:    r = expr_addressof(options, ast); break;
     case TK_DIGESTOF:   r = expr_digestof(options, ast); break;
 
+    case TK_AS:
+      if(!expr_as(options, astp))
+        return AST_FATAL;
+      break;
+
     case TK_OBJECT:
       if(!expr_object(options, astp))
         return AST_FATAL;
       break;
 
     case TK_LAMBDA:
+    case TK_BARELAMBDA:
       if(!expr_lambda(options, astp))
         return AST_FATAL;
       break;

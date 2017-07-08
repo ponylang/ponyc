@@ -16,8 +16,13 @@ primitive _JsonPrint
 
     buf
 
-  fun _string(d: box->JsonType, buf': String iso, indent: String, level: USize,
-    pretty: Bool): String iso^
+  fun _string(
+    d: box->JsonType,
+    buf': String iso,
+    indent: String,
+    level: USize,
+    pretty: Bool)
+    : String iso^
   =>
     """
     Generate string representation of the given data.
@@ -75,9 +80,6 @@ primitive _JsonPrint
       else
         buf.append(consume basic)
       end
-    else
-      // Can never happen
-      ""
     end
 
     buf
@@ -115,14 +117,15 @@ primitive _JsonPrint
         elseif c < 0x10000 then
           buf.append("\\u")
           buf.append(Format.int[U32](c where
-            fmt=FormatHexBare, width=4, fill='0'))
+            fmt = FormatHexBare, width = 4, fill = '0'))
         else
           let high = (((c - 0x10000) >> 10) and 0x3FF) + 0xD800
           let low = ((c - 0x10000) and 0x3FF) + 0xDC00
           buf.append("\\u")
-          buf.append(Format.int[U32](high where fmt=FormatHexBare, width=4))
+          buf.append(Format.int[U32](high where
+            fmt = FormatHexBare, width = 4))
           buf.append("\\u")
-          buf.append(Format.int[U32](low where fmt=FormatHexBare, width=4))
+          buf.append(Format.int[U32](low where fmt = FormatHexBare, width = 4))
         end
       end
     end

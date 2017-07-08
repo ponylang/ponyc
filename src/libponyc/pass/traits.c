@@ -671,6 +671,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
       return true;
 
     case AST_FLAG_ERROR_1:
+    case AST_FLAG_ERROR_1 | AST_FLAG_DONE_1:
       return false;
 
     default:

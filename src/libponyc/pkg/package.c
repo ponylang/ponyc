@@ -7,6 +7,7 @@
 #include "../ast/ast.h"
 #include "../ast/token.h"
 #include "../expr/literal.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdlib.h>
@@ -1013,6 +1014,38 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
+const char* package_alias_from_id(ast_t* module, const char* id)
+{
+  pony_assert(ast_id(module) == TK_MODULE);
+
+  const char* strtab_id = stringtab(id);
+
+  ast_t* use = ast_child(module);
+  while(ast_id(use) == TK_USE)
+  {
+    ast_t* imported = (ast_t*)ast_data(use);
+    pony_assert((imported != NULL) && (ast_id(imported) == TK_PACKAGE));
+
+    package_t* pkg = (package_t*)ast_data(imported);
+    pony_assert(pkg != NULL);
+
+    if(pkg->id == strtab_id)
+    {
+      ast_t* alias = ast_child(use);
+      if(ast_id(alias) == TK_NONE)
+        return NULL;
+
+      return ast_name(alias);
+    }
+
+    use = ast_sibling(use);
+  }
+
+  pony_assert(false);
+  return NULL;
+}
+
+
 void package_done()
 {
   strlist_free(search);
@@ -1022,6 +1055,83 @@ void package_done()
   safe = NULL;
 
   package_clear_magic();
+}
+
+
+static void package_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  package_t* package = (package_t*)object;
+
+  string_trace(ctx, package->path);
+  string_trace(ctx, package->qualified_name);
+  string_trace(ctx, package->id);
+  string_trace(ctx, package->filename);
+
+  if(package->symbol != NULL)
+    string_trace(ctx, package->symbol);
+}
+
+
+static void package_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  package_t* package = (package_t*)object;
+  package_t* dst = (package_t*)((uintptr_t)buf + offset);
+
+  dst->path = (const char*)pony_serialise_offset(ctx, (char*)package->path);
+  dst->qualified_name = (const char*)pony_serialise_offset(ctx,
+    (char*)package->qualified_name);
+  dst->id = (const char*)pony_serialise_offset(ctx, (char*)package->id);
+  dst->filename = (const char*)pony_serialise_offset(ctx,
+    (char*)package->filename);
+  dst->symbol = (const char*)pony_serialise_offset(ctx, (char*)package->symbol);
+
+  dst->next_hygienic_id = package->next_hygienic_id;
+  dst->allow_ffi = package->allow_ffi;
+}
+
+
+static void package_deserialise(pony_ctx_t* ctx, void* object)
+{
+  package_t* package = (package_t*)object;
+
+  package->path = string_deserialise_offset(ctx, (uintptr_t)package->path);
+  package->qualified_name = string_deserialise_offset(ctx,
+    (uintptr_t)package->qualified_name);
+  package->id = string_deserialise_offset(ctx, (uintptr_t)package->id);
+  package->filename = string_deserialise_offset(ctx,
+    (uintptr_t)package->filename);
+  package->symbol = string_deserialise_offset(ctx, (uintptr_t)package->symbol);
+}
+
+
+static pony_type_t package_pony =
+{
+  0,
+  sizeof(package_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  package_serialise_trace,
+  package_serialise,
+  package_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_pony_type()
+{
+  return &package_pony;
 }
 
 

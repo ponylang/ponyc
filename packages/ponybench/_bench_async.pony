@@ -15,8 +15,8 @@ actor _BenchAsync[A: Any #share] is _Benchmark
     notify: _BenchNotify,
     f: {(): Promise[A] ?} val,
     ops: U64,
-    timeout: U64 = 0
-  ) =>
+    timeout: U64 = 0)
+  =>
     (_name, _notify, _f, _ops, _timeout) = (name, notify, f, ops, timeout)
 
   be run() =>
@@ -29,10 +29,8 @@ actor _BenchAsync[A: Any #share] is _Benchmark
           fun apply(timer: Timer ref, count: U64): Bool =>
             b.cancel()
             false
-
         end,
-        _timeout
-      ))
+        _timeout))
     end
     _start = Time.nanos()
     _run(0)

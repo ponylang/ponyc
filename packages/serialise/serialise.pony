@@ -72,7 +72,13 @@ class val Serialised
     A caller with SerialiseAuth can create serialised data from any object.
     """
     let r = recover Array[U8] end
-    @pony_serialise[None](@pony_ctx[Pointer[None]](), data, r) ?
+    let alloc_fn =
+      @{(ctx: Pointer[None], size: USize): Pointer[None] =>
+        @pony_alloc[Pointer[None]](ctx, size)
+      }
+    let throw_fn = @{() ? => error }
+    @pony_serialise[None](@pony_ctx[Pointer[None]](), data, Pointer[None], r,
+      alloc_fn, throw_fn) ?
     _data = consume r
 
   new input(auth: InputSerialisedAuth, data: Array[U8] val) =>
@@ -90,7 +96,17 @@ class val Serialised
     A caller with DeserialiseAuth can create an object graph from serialised
     data.
     """
-    @pony_deserialise[Any iso^](@pony_ctx[Pointer[None]](), _data) ?
+    let alloc_fn =
+      @{(ctx: Pointer[None], size: USize): Pointer[None] =>
+        @pony_alloc[Pointer[None]](ctx, size)
+      }
+    let alloc_final_fn =
+      @{(ctx: Pointer[None], size: USize): Pointer[None] =>
+        @pony_alloc_final[Pointer[None]](ctx, size)
+      }
+    let throw_fn = @{() ? => error }
+    @pony_deserialise[Any iso^](@pony_ctx[Pointer[None]](), Pointer[None], _data,
+      alloc_fn, alloc_final_fn, throw_fn) ?
 
   fun output(auth: OutputSerialisedAuth): Array[U8] val =>
     """

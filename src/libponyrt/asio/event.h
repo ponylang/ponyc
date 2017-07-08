@@ -1,7 +1,7 @@
 #ifndef asio_event_h
 #define asio_event_h
 
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include <stdbool.h>
 #include <stdint.h>

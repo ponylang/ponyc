@@ -35,7 +35,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   m->func_type = LLVMFunctionType(result, params, count, false);
   m->func = codegen_addfun(c, m->full_name, m->func_type);
   genfun_param_attrs(c, t, m, m->func);
-  codegen_startfun(c, m->func, NULL, NULL);
+  codegen_startfun(c, m->func, NULL, NULL, false);
 }
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
@@ -704,12 +704,13 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   LLVMAddIncoming(phi, &inc, &body_block, 1);
   LLVMBuildBr(c->builder, cond_block);
 
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 }
 
 void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
-  codegen_startfun(c, t->trace_fn, NULL, NULL);
+  codegen_startfun(c, t->trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
   LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
@@ -736,7 +737,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -744,8 +745,16 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
 
-  // Read the size.
   LLVMValueRef size = field_value(c, object, 1);
+
+  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
+    LLVMConstInt(c->intptr, 0, false), "");
+  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, trace_block);
 
   // Calculate the size of the element type.
   ast_t* typeargs = ast_childidx(t->ast, 2);
@@ -767,6 +776,10 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   // Trace the array elements.
   trace_array_elements(c, t, ctx, object, pointer);
 
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
@@ -777,7 +790,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
@@ -850,26 +863,26 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
       LLVMPointerType(t_elem->use_type, 0), "");
 
     LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-    LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
-    LLVMBasicBlockRef body_block = codegen_block(c, "body");
-    LLVMBasicBlockRef post_block = codegen_block(c, "post");
+    LLVMBasicBlockRef cond_elem_block = codegen_block(c, "cond");
+    LLVMBasicBlockRef body_elem_block = codegen_block(c, "body");
+    LLVMBasicBlockRef post_elem_block = codegen_block(c, "post");
 
     LLVMValueRef offset_var = LLVMBuildAlloca(c->builder, c->void_ptr, "");
     LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
 
-    LLVMBuildBr(c->builder, cond_block);
+    LLVMBuildBr(c->builder, cond_elem_block);
 
     // While the index is less than the size, serialise an element. The
     // initial index when coming from the entry block is zero.
-    LLVMPositionBuilderAtEnd(c->builder, cond_block);
+    LLVMPositionBuilderAtEnd(c->builder, cond_elem_block);
     LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
     LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
     LLVMAddIncoming(phi, &zero, &entry_block, 1);
     LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, size, "");
-    LLVMBuildCondBr(c->builder, test, body_block, post_block);
+    LLVMBuildCondBr(c->builder, test, body_elem_block, post_elem_block);
 
     // The phi node is the index. Get the element and serialise it.
-    LLVMPositionBuilderAtEnd(c->builder, body_block);
+    LLVMPositionBuilderAtEnd(c->builder, body_elem_block);
     LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP(c->builder, ptr, &phi, 1, "");
 
     ptr_offset_addr = LLVMBuildLoad(c->builder, offset_var, "");
@@ -883,12 +896,14 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
     LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
     body_block = LLVMGetInsertBlock(c->builder);
     LLVMAddIncoming(phi, &inc, &body_block, 1);
-    LLVMBuildBr(c->builder, cond_block);
+    LLVMBuildBr(c->builder, cond_elem_block);
 
-    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMMoveBasicBlockAfter(post_elem_block, LLVMGetInsertBlock(c->builder));
+    LLVMPositionBuilderAtEnd(c->builder, post_elem_block);
   }
 
   LLVMBuildBr(c->builder, post_block);
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
@@ -897,10 +912,10 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 {
   // Generate the deserisalise function.
-  t->deserialise_fn = codegen_addfun(c, genname_serialise(t->name),
+  t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->deserialise_fn, NULL, NULL);
+  codegen_startfun(c, t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
@@ -968,6 +983,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
     LLVMAddIncoming(phi, &inc, &body_block, 1);
     LLVMBuildBr(c->builder, cond_block);
 
+    LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, post_block);
   }
 
@@ -981,7 +997,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -989,8 +1005,17 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMValueRef arg = LLVMGetParam(t->serialise_trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->use_type, "");
 
-  // Read the size.
   LLVMValueRef size = field_value(c, object, 1);
+
+  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
+    LLVMConstInt(c->intptr, 0, false), "");
+  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, trace_block);
+
   LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
     LLVMConstInt(c->intptr, 1, false), "");
 
@@ -1003,6 +1028,10 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   args[2] = alloc;
   gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
 
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
@@ -1013,7 +1042,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type);
 
-  codegen_startfun(c, t->serialise_fn, NULL, NULL);
+  codegen_startfun(c, t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->serialise_fn, LLVMExternalLinkage);
 
@@ -1079,10 +1108,10 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 {
   // Generate the deserisalise function.
-  t->deserialise_fn = codegen_addfun(c, genname_serialise(t->name),
+  t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type);
 
-  codegen_startfun(c, t->deserialise_fn, NULL, NULL);
+  codegen_startfun(c, t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(t->deserialise_fn, LLVMExternalLinkage);
 
@@ -1859,7 +1888,7 @@ static void make_cpuid(compile_t* c)
     LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL);
+    codegen_startfun(c, fun, NULL, NULL, false);
 
     LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
       "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
@@ -1888,7 +1917,7 @@ static void make_rdtscp(compile_t* c)
     f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL);
+    codegen_startfun(c, fun, NULL, NULL, false);
 
     // Cast i32* to i8* and call the intrinsic.
     LLVMValueRef arg = LLVMGetParam(fun, 0);

@@ -25,6 +25,7 @@ use collections_persistent = "collections/persistent"
 use crypto = "crypto"
 use debug = "debug"
 use files = "files"
+use format = "format"
 use glob = "glob"
 use http = "net/http"
 use ini = "ini"
@@ -60,6 +61,7 @@ actor Main is TestList
     collections_persistent.Main.make().tests(test)
     crypto.Main.make().tests(test)
     files.Main.make().tests(test)
+    format.Main.make().tests(test)
 
     ifdef not windows then
       // The glob tests are currently very broken on Windows, so ignore them.

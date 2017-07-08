@@ -528,3 +528,144 @@ TEST_F(BadPonyTest, ThisDotWhereDefIsntInTheTrait)
   TEST_ERRORS_1(src,
     "can't find declaration of 'u'");
 }
+
+TEST_F(BadPonyTest, DontCareTypeInTupleTypeOfIfBlockValueUnused)
+{
+  // From issue #1896
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then\n"
+    "      (var a, let _) = test()\n"
+    "    end\n"
+    "  fun test(): (U32, U32) =>\n"
+    "    (1, 2)\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, ExhaustiveMatchCasesJumpAway)
+{
+  // From issue #1898
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool) =>\n"
+    "    if true then\n"
+    "      match b\n"
+    "      | let b': Bool => return\n"
+    "      end\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, CallArgTypeErrorInsideTuple)
+{
+  // From issue #1895
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    (\"\", foo([\"\"]))\n"
+    "  fun foo(x: Array[USize]) => None";
+
+  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+}
+
+TEST_F(BadPonyTest, NonExistFieldReferenceInConstructor)
+{
+  // From issue #1932
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    this.x = None";
+
+  TEST_ERRORS_2(src,
+    "can't find declaration of 'x'",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(BadPonyTest, TypeArgErrorInsideReturn)
+{
+  const char* src =
+    "primitive P[A]\n"
+
+    "primitive Foo\n"
+    "  fun apply(): (P[None], U8) =>\n"
+    "    if true then\n"
+    "      return (P, 0)\n"
+    "    end\n"
+    "    (P[None], 1)";
+
+  TEST_ERRORS_1(src, "not enough type arguments");
+}
+
+TEST_F(BadPonyTest, FieldReferenceInDefaultArgument)
+{
+  const char* src =
+    "actor Main\n"
+    "  let _env: Env\n"
+    "  new create(env: Env) =>\n"
+    "    _env = env\n"
+    "    foo()\n"
+    "  fun foo(env: Env = _env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't reference 'this' in a default argument");
+}
+
+TEST_F(BadPonyTest, DefaultArgScope)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo(x: None = (let y = None; y)) =>\n"
+    "    y";
+
+  TEST_ERRORS_1(src, "can't find declaration of 'y'");
+}
+
+TEST_F(BadPonyTest, GenericMain)
+{
+  const char* src =
+    "actor Main[X]\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "the Main actor cannot have type parameters");
+}
+
+TEST_F(BadPonyTest, LambdaParamNoType)
+{
+  // From issue #2010
+  const char* src =
+    "actor Main\n"
+    "  new create(e: Env) =>\n"
+    "    {(x: USize, y): USize => x }";
+
+  TEST_ERRORS_1(src, "a lambda parameter must specify a type");
+}
+
+TEST_F(BadPonyTest, AsBadCap)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let v: I64 = 3\n"
+    "    try (v as I64 iso) end";
+
+  TEST_ERRORS_1(src, "this capture violates capabilities");
+}
+
+TEST_F(BadPonyTest, AsUnaliased)
+{
+  const char* src =
+    "class trn Foo\n"
+
+    "actor Main\n"
+    "  let foo: Foo = Foo\n"
+
+    "  new create(env: Env) => None\n"
+
+    "  fun ref apply() ? =>\n"
+    "    (foo as Foo trn)";
+
+  TEST_COMPILE(src);
+}
