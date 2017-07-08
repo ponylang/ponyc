@@ -20,6 +20,7 @@ Some Examples:
   usage: chat [<options>] <command> [<options>] [<args> ...]
 """
 use "collections"
+use pc = "collections/persistent"
 
 class CommandSpec
   """
@@ -344,18 +345,16 @@ class val ArgSpec
       if not _required then "(=" + _default.string() + ")" else "" end
 
 class _StringSeq is ReadSeq[String]
-  let strings: Array[String]
+  let strings: pc.Vec[String]
 
   new val empty() =>
-    strings = Array[String]
+    strings = pc.Vec[String]
 
-  new val from(s: String) =>
-    strings = Array[String].init(s, 1)
+  new val from_string(s: String) =>
+    strings = (pc.Vec[String]).push(s)
 
-  new val combined(ss0: _StringSeq val, ss1: _StringSeq val) =>
-    let ss = ss0.strings.clone()
-    ss.append(ss1.strings)
-    strings = ss
+  new val from_concat(ss0: _StringSeq val, ss1: _StringSeq val) =>
+    strings = ss0.strings.concat(ss1.strings.values())
 
   fun string(): String iso^ =>
     let str = recover String() end
@@ -397,12 +396,11 @@ primitive _F64Type is _ValueType
 
 primitive _StringSeqType is _ValueType
   fun string(): String => "ReadSeq[String]"
-  fun value_of(s: String): _Value => _StringSeq.from(s)
+  fun value_of(s: String): _Value => _StringSeq.from_string(s)
   fun is_seq(): Bool => true
   fun append(v1: _Value, v2: _Value): _Value =>
     try
-      let co = _StringSeq.combined(v1 as _StringSeq val, v2 as _StringSeq val)
-      co
+      _StringSeq.from_concat(v1 as _StringSeq val, v2 as _StringSeq val)
     else
       v1
     end
