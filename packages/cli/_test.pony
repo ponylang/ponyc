@@ -164,7 +164,7 @@ class iso _TestShortsNext is UnitTest
     let cs = _Fixtures.simple_cli_spec()
 
     let args: Array[String] = [
-      "ignored";
+      "ignored"
       "-BS"; "--"; "-I"; "42"; "-F"; "42.0"; "-z"; "aaa"; "-z"; "bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
