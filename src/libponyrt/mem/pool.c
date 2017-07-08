@@ -733,11 +733,12 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_BEFORE(&global->central);
 #endif
+  }
 #ifdef PLATFORM_IS_X86
-  } while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
+  while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
     xchg, memory_order_release, memory_order_relaxed));
 #else
-  } while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
+  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
     memory_order_release, memory_order_relaxed));
 #endif
 }
@@ -771,10 +772,13 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 #ifdef PLATFORM_IS_X86
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
-  } while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
+#endif
+  }
+#ifdef PLATFORM_IS_X86
+  while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
     xchg, memory_order_acquire, memory_order_relaxed));
 #else
-  } while(!atomic_compare_exchange_weak_explicit(&global->central, &top, next,
+  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, next,
     memory_order_acquire, memory_order_relaxed));
 #endif
 

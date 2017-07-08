@@ -116,10 +116,13 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
 #ifdef PLATFORM_IS_X86
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
-  } while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
+#endif
+  }
+#ifdef PLATFORM_IS_X86
+  while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
     memory_order_relaxed, memory_order_relaxed));
 #else
-  } while(!atomic_compare_exchange_weak_explicit(&q->tail, &tail, next,
+  while(!atomic_compare_exchange_weak_explicit(&q->tail, &tail, next,
     memory_order_relaxed, memory_order_relaxed));
 #endif
 
