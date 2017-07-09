@@ -15,19 +15,52 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   if(ast_id(receiver) == ast_id(ast))
     AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
 
+  // Look up the TK_CALL parent (or grandparent).
+  ast_t* call = ast_parent(ast);
+  if(ast_id(call) == TK_ADDRESS) // for bare method references.
+    return true;
+  if(ast_id(call) != TK_CALL)
+    call = ast_parent(call);
+  pony_assert(ast_id(call) == TK_CALL);
+  ast_t* call_error = ast_childidx(call, 2);
+  pony_assert(ast_id(call_error) == TK_QUESTION ||
+    ast_id(call_error) == TK_NONE || ast_id(call_error) == TK_DONTCARE);
+
   // Look up the original method definition for this method call.
   ast_t* method_def = lookup(opt, receiver, ast_type(receiver),
     ast_name(method));
   pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
     ast_id(method_def) == TK_NEW);
 
-  token_id can_error = ast_id(ast_childidx(method_def, 5));
-  if(can_error == TK_QUESTION)
+  // Verify that the call partiality matches that of the method.
+  bool r = true;
+  ast_t* method_error = ast_childidx(method_def, 5);
+  if(ast_id(method_error) == TK_QUESTION)
+  {
     ast_seterror(ast);
+
+    if(ast_id(call_error) == TK_NONE) {
+      ast_error(opt->check.errors, call_error,
+        "call is not partial but the method is - " \
+        "a question mark is required after this call");
+      ast_error_continue(opt->check.errors, method_error,
+        "method is here");
+      r = false;
+    }
+  } else {
+    if(ast_id(call_error) == TK_QUESTION) {
+      ast_error(opt->check.errors, call_error,
+        "call is partial but the method is not - " \
+        "this question mark should be removed");
+      ast_error_continue(opt->check.errors, method_error,
+        "method is here");
+      r = false;
+    }
+  }
 
   ast_free_unattached(method_def);
 
-  return true;
+  return r;
 }
 
 static bool check_partial_ffi_call(pass_opt_t* opt, ast_t* ast)
@@ -47,17 +80,28 @@ static bool check_partial_ffi_call(pass_opt_t* opt, ast_t* ast)
     AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
       decl_error);
 
-    if((ast_id(decl_error) == TK_QUESTION) ||
-      (ast_id(call_error) == TK_QUESTION))
+    // Verify that the call partiality matches that of the declaration.
+    if(ast_id(decl_error) == TK_QUESTION)
+    {
       ast_seterror(ast);
 
-    if((ast_id(decl_error) == TK_NONE) && (ast_id(call_error) != TK_NONE))
-    {
-      ast_error(opt->check.errors, call_error,
-        "call is partial but the declaration is not");
-      ast_error_continue(opt->check.errors, decl_error,
-        "declaration is here");
-      return false;
+      if(ast_id(call_error) != TK_QUESTION) {
+        ast_error(opt->check.errors, call_error,
+          "call is not partial but the declaration is - " \
+          "a question mark is required after this call");
+        ast_error_continue(opt->check.errors, decl_error,
+          "declaration is here");
+        return false;
+      }
+    } else {
+      if(ast_id(call_error) == TK_QUESTION) {
+        ast_error(opt->check.errors, call_error,
+          "call is partial but the declaration is not - " \
+          "this question mark should be removed");
+        ast_error_continue(opt->check.errors, decl_error,
+          "declaration is here");
+        return false;
+      }
     }
   }
 

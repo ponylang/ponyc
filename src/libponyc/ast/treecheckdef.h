@@ -214,6 +214,7 @@ RULE(call,
   HAS_TYPE(type)
   CHILD(positional_args, none)
   CHILD(named_args, none)
+  CHILD(question, none)
   CHILD(expr),  // Note that receiver comes last
   TK_CALL);
 

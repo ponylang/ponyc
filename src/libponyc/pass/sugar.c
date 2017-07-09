@@ -497,6 +497,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         NODE(TK_CALL,
           NONE
           NONE
+          NODE(TK_DONTCARE) // indicates that partial call should not be checked
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_BREAK, NONE))
@@ -513,6 +514,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
+            NONE
             NONE
             NONE
             NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
@@ -544,7 +546,9 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 
     BUILD(dispose, idseq,
       NODE(TK_CALL,
-        NONE NONE
+        NONE
+        NONE
+        NONE
         NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
 
     ast_add(dispose_clause, dispose);
@@ -725,7 +729,7 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // We are of the form:  x(y) = z
   // Replace us with:     x.update(y where value = z)
-  AST_EXTRACT_CHILDREN(call, positional, named, expr);
+  AST_EXTRACT_CHILDREN(call, positional, named, question, expr);
 
   // If there are no named arguments yet, named will be a TK_NONE.
   ast_setid(named, TK_NAMEDARGS);
@@ -744,6 +748,7 @@ static ast_result_t sugar_update(ast_t** astp)
     NODE(TK_CALL,
       TREE(positional)
       TREE(named)
+      TREE(question)
       NODE(TK_DOT, TREE(expr) ID("update"))));
 
   return AST_OK;
@@ -806,6 +811,7 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
     NODE(TK_CALL,
       TREE(positional)
       NONE
+      NONE
       NODE(TK_DOT, TREE(left) ID(fn_name))
       ));
 
@@ -819,6 +825,7 @@ static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
+      NONE
       NONE
       NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))

@@ -235,6 +235,8 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     case TK_CALL:
     {
+      ast_t* call = ast_parent(ast);
+
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -263,10 +265,12 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         pony_assert(ast_id(type) == TK_FUNTYPE);
         AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-        if(ast_id(params) == TK_NONE)
+        if((ast_id(params) == TK_NONE) &&
+          !ast_checkflag(call, AST_FLAG_INCOMPLETE))
         {
           // Add a call node.
           ast_t* call = ast_from(ast, TK_CALL);
+          ast_add(call, ast_from(call, TK_NONE)); // Call partiality
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
           ast_swap(ast, call);
@@ -309,6 +313,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // Receiver comes last.
+      ast_add(call, ast_from(ast, TK_NONE)); // Call partiality.
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
 

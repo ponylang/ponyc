@@ -182,7 +182,7 @@ postfix
   ;
 
 call
-  : '(' positional? named? ')'
+  : '(' positional? named? ')' '?'?
   ;
 
 chain

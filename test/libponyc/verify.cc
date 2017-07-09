@@ -292,7 +292,7 @@ TEST_F(VerifyTest, TryCallPartialFunction)
     "primitive Foo\n"
     "  fun partial() ? => error\n"
     "  fun apply() =>\n"
-    "    try partial() end";
+    "    try partial()? end";
 
   TEST_COMPILE(src);
 }
@@ -304,7 +304,7 @@ TEST_F(VerifyTest, TryCallCurriedPartialFunction)
     "  fun partial() ? => error\n"
     "  fun apply() =>\n"
     "    let fn = this~partial()\n"
-    "    try fn() end";
+    "    try fn()? end";
 
   TEST_COMPILE(src);
 }
@@ -315,7 +315,7 @@ TEST_F(VerifyTest, TryCallChainedPartialFunction)
     "primitive Foo\n"
     "  fun partial() ? => error\n"
     "  fun apply() =>\n"
-    "    try this.>partial() end";
+    "    try this.>partial()? end";
 
   TEST_COMPILE(src);
 }
@@ -357,7 +357,7 @@ TEST_F(VerifyTest, PartialFunctionCallPartialFunction)
     "primitive Foo\n"
     "  fun partial() ? => error\n"
     "  fun apply() ? =>\n"
-    "    partial()";
+    "    partial()?";
 
   TEST_COMPILE(src);
 }
@@ -369,9 +369,31 @@ TEST_F(VerifyTest, PartialFunctionCallCurriedPartialFunction)
     "  fun partial() ? => error\n"
     "  fun apply() ? =>\n"
     "    let fn = this~partial()\n"
-    "    fn()";
+    "    fn()?";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionCallNonPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun non_partial() => None\n"
+    "  fun apply() =>\n"
+    "    non_partial()?";
+
+  TEST_ERRORS_1(src, "call is partial but the method is not");
+}
+
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunction)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun partial() ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
 }
 
 TEST_F(VerifyTest, NonPartialFunctionError)
@@ -463,12 +485,96 @@ TEST_F(VerifyTest, IfTypeError)
     "function body can raise an error");
 }
 
+TEST_F(VerifyTest, NonPartialSugaredConstructorCall)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() => None\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Bar =>\n"
+    "    Bar";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialSugaredConstructorCall)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() ? => error\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Bar ? =>\n"
+    "    Bar?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, NonPartialSugaredApplyCall)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() => None\n"
+    "  fun apply() => None\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let bar = Bar\n"
+    "    bar()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialSugaredApplyCall)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() => None\n"
+    "  fun apply() ? => error\n"
+
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    let bar = Bar\n"
+    "    bar()?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, NonPartialSugaredApplyCallAfterSugaredConstructor)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() => None\n"
+    "  fun apply() => None\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    Bar()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialSugaredApplyCallAfterSugaredConstructor)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  new create() => None\n"
+    "  fun apply() ? => error\n"
+
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    Bar()?";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, FFICallPartial)
 {
   const char* src =
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]() ?";
+    "    @foo[U64]()?";
 
   TEST_COMPILE(src);
 }
@@ -480,7 +586,7 @@ TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]() ?";
+    "    @foo[U64]()?";
 
   TEST_COMPILE(src);
 }
@@ -492,7 +598,7 @@ TEST_F(VerifyTest, FFICallWithPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]()";
+    "    @foo[U64]()?";
 
   TEST_COMPILE(src);
 }
@@ -503,10 +609,22 @@ TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
     "use @foo[U64]()\n"
 
     "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
+    "  fun apply(): U64 =>\n"
     "    @foo[U64]() ?";
 
   TEST_ERRORS_1(src, "call is partial but the declaration is not");
+}
+
+TEST_F(VerifyTest, FFICallNonPartialWithPartialDeclaration)
+{
+  const char* src =
+    "use @foo[U64]() ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 ? =>\n"
+    "    @foo[U64]()";
+
+  TEST_ERRORS_1(src, "call is not partial but the declaration is");
 }
 
 TEST_F(VerifyTest, LambdaTypeGenericAliased)
