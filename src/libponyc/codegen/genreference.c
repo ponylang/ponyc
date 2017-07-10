@@ -1,9 +1,10 @@
 #include "genreference.h"
 #include "genbox.h"
+#include "gencall.h"
 #include "gendesc.h"
 #include "genexpr.h"
+#include "genfun.h"
 #include "genname.h"
-#include "gencall.h"
 #include "gentype.h"
 #include "../expr/literal.h"
 #include "../reach/subtype.h"
@@ -156,7 +157,8 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     return GEN_NOTNEEDED;
 
   reach_type_t* t = reach_type(c->reach, type);
-  LLVMValueRef tuple = LLVMGetUndef(t->primitive);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  LLVMValueRef tuple = LLVMGetUndef(c_t->primitive);
   int i = 0;
 
   while(child != NULL)
@@ -194,6 +196,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   // All alloca should happen in the entry block of a function.
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -205,7 +208,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   else
     LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
-  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, t->use_type, name);
+  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, c_t->use_type, name);
 
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, alloc);
@@ -214,7 +217,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   LLVMMetadataRef scope = codegen_discope(c);
 
   LLVMMetadataRef info = LLVMDIBuilderCreateAutoVariable(c->di, scope, name,
-    file, (unsigned)ast_line(ast), t->di_type);
+    file, (unsigned)ast_line(ast), c_t->di_type);
 
   LLVMMetadataRef expr = LLVMDIBuilderCreateExpression(c->di, NULL, 0);
 
@@ -413,10 +416,12 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   if(m == NULL)
     return;
 
-  m->func_type = LLVMFunctionType(c->i64, &t->structure_ptr, 1, false);
-  m->func = codegen_addfun(c, m->full_name, m->func_type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+  c_m->func_type = LLVMFunctionType(c->i64, &c_t->structure_ptr, 1, false);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type);
 
-  codegen_startfun(c, m->func, NULL, NULL, false);
+  codegen_startfun(c, c_m->func, NULL, NULL, false);
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);
 
   value = gen_unbox(c, t->ast_cap, value);
@@ -429,6 +434,7 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   lexint_t* value = ast_int(ast);
   LLVMValueRef vlow = LLVMConstInt(c->i128, value->low, false);
@@ -437,21 +443,22 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   vhigh = LLVMConstShl(vhigh, shift);
   vhigh = LLVMConstAdd(vhigh, vlow);
 
-  if(t->primitive == c->i128)
+  if(c_t->primitive == c->i128)
     return vhigh;
 
-  if((t->primitive == c->f32) || (t->primitive == c->f64))
-    return LLVMConstUIToFP(vhigh, t->primitive);
+  if((c_t->primitive == c->f32) || (c_t->primitive == c->f64))
+    return LLVMConstUIToFP(vhigh, c_t->primitive);
 
-  return LLVMConstTrunc(vhigh, t->primitive);
+  return LLVMConstTrunc(vhigh, c_t->primitive);
 }
 
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  return LLVMConstReal(t->primitive, ast_float(ast));
+  return LLVMConstReal(c_t->primitive, ast_float(ast));
 }
 
 LLVMValueRef gen_string(compile_t* c, ast_t* ast)
@@ -483,14 +490,15 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
 
   reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  args[0] = t->desc;
+  args[0] = c_t->desc;
   args[1] = LLVMConstInt(c->intptr, len, false);
   args[2] = LLVMConstInt(c->intptr, len + 1, false);
   args[3] = str_ptr;
 
-  LLVMValueRef inst = LLVMConstNamedStruct(t->structure, args, 4);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, t->structure, "");
+  LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
   LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
