@@ -67,6 +67,9 @@ static void reach_mangled_free(reach_method_t* m)
     POOL_FREE(reach_type_cache_t, m->tuple_is_types);
   }
 
+  if(m->c_method != NULL)
+    m->c_method->free_fn(m->c_method);
+
   POOL_FREE(reach_method_t, m);
 }
 
@@ -123,6 +126,9 @@ static void reach_type_free(reach_type_t* t)
     t->field_count = 0;
     t->fields = NULL;
   }
+
+  if(t->c_type != NULL)
+    t->c_type->free_fn(t->c_type);
 
   POOL_FREE(reach_type_t, t);
 }
@@ -1636,7 +1642,6 @@ void reach_dump(reach_t* r)
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
 
-    printf("    size: " __zu "\n", t->abi_size);
     printf("    vtable: %d\n", t->vtable_size);
 
     while((n = reach_method_names_next(&t->methods, &j)) != NULL)
@@ -1764,13 +1769,6 @@ static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->r_fun = (ast_t*)pony_serialise_offset(ctx, m->r_fun);
   dst->vtable_index = m->vtable_index;
 
-  dst->func_type = NULL;
-  dst->msg_type = NULL;
-  dst->func = NULL;
-  dst->func_handler = NULL;
-  dst->di_method = NULL;
-  dst->di_file = NULL;
-
   dst->intrinsic = m->intrinsic;
   dst->internal = m->internal;
   dst->forwarding = m->forwarding;
@@ -1797,6 +1795,8 @@ static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
 
   dst->tuple_is_types = (reach_type_cache_t*)pony_serialise_offset(ctx,
     m->tuple_is_types);
+
+  dst->c_method = NULL;
 }
 
 static void reach_method_deserialise(pony_ctx_t* ctx, void* object)
@@ -2025,33 +2025,9 @@ static void reach_type_serialise(pony_ctx_t* ctx, void* object, void* buf,
   reach_type_cache_serialise(ctx, &t->subtypes, buf,
     offset + offsetof(reach_type_t, subtypes), PONY_TRACE_MUTABLE);
   dst->type_id = t->type_id;
-  dst->abi_size = t->abi_size;
   dst->vtable_size = t->vtable_size;
   dst->can_be_boxed = t->can_be_boxed;
   dst->is_trait = t->is_trait;
-
-  dst->structure = NULL;
-  dst->structure_ptr = NULL;
-  dst->primitive = NULL;
-  dst->use_type = NULL;
-
-  dst->desc_type = NULL;
-  dst->desc = NULL;
-  dst->instance = NULL;
-  dst->trace_fn = NULL;
-  dst->serialise_trace_fn = NULL;
-  dst->serialise_fn = NULL;
-  dst->deserialise_fn = NULL;
-  dst->custom_serialise_space_fn = NULL;
-  dst->custom_serialise_fn = NULL;
-  dst->custom_deserialise_fn = NULL;
-  dst->final_fn = NULL;
-  dst->dispatch_fn = NULL;
-  dst->dispatch_switch = NULL;
-
-  dst->di_file = NULL;
-  dst->di_type = NULL;
-  dst->di_type_embed = NULL;
 
   dst->field_count = t->field_count;
   dst->fields = (reach_field_t*)pony_serialise_offset(ctx, t->fields);
@@ -2067,6 +2043,8 @@ static void reach_type_serialise(pony_ctx_t* ctx, void* object, void* buf,
       field_offset += sizeof(reach_field_t);
     }
   }
+
+  dst->c_type = NULL;
 }
 
 static void reach_type_deserialise(pony_ctx_t* ctx, void* object)

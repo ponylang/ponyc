@@ -1,6 +1,7 @@
 #include "gencontrol.h"
-#include "genexpr.h"
 #include "gencall.h"
+#include "genexpr.h"
+#include "genfun.h"
 #include "genname.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
@@ -39,10 +40,10 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* right_type = ast_type(right);
 
   // We will have no type if both branches have return statements.
-  reach_type_t* phi_type = NULL;
+  compile_type_t* phi_type = NULL;
 
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
-    phi_type = reach_type(c->reach, type);
+    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
 
   LLVMValueRef c_value = gen_expr(c, cond);
 
@@ -174,10 +175,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reach_type_t* phi_type = NULL;
+  compile_type_t* phi_type = NULL;
 
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
-    phi_type = reach_type(c->reach, type);
+    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
 
   LLVMBasicBlockRef init_block = codegen_block(c, "while_init");
   LLVMBasicBlockRef body_block = codegen_block(c, "while_body");
@@ -298,10 +299,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reach_type_t* phi_type = NULL;
+  compile_type_t* phi_type = NULL;
 
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
-    phi_type = reach_type(c->reach, type);
+    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
 
   LLVMBasicBlockRef body_block = codegen_block(c, "repeat_body");
   LLVMBasicBlockRef cond_block = codegen_block(c, "repeat_cond");
@@ -513,11 +514,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  reach_type_t* phi_type = NULL;
+  compile_type_t* phi_type = NULL;
 
   // We will have no type if both branches have return statements.
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
-    phi_type = reach_type(c->reach, type);
+    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef else_block = codegen_block(c, "try_else");

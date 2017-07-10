@@ -1,10 +1,11 @@
 #include "genmatch.h"
+#include "gencall.h"
+#include "gencontrol.h"
 #include "gendesc.h"
+#include "genfun.h"
 #include "genexpr.h"
 #include "genoperator.h"
 #include "genreference.h"
-#include "gencall.h"
-#include "gencontrol.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/matchtype.h"
@@ -252,7 +253,8 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   LLVMValueRef value, LLVMBasicBlockRef next_block)
 {
   reach_type_t* t = reach_type(c->reach, param_type);
-  LLVMValueRef r_value = gen_assign_cast(c, t->use_type, value, param_type);
+  LLVMValueRef r_value = gen_assign_cast(c,
+    ((compile_type_t*)t->c_type)->use_type, value, param_type);
 
   if(r_value == NULL)
     return false;
@@ -385,7 +387,8 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   // dynamic_match_object(). We also know it isn't an unboxed tuple. We can
   // load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, param_type);
-  LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
+  LLVMTypeRef ptr_type = LLVMPointerType(((compile_type_t*)t->c_type)->use_type,
+    0);
   ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
@@ -418,7 +421,8 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // path, ie dynamic_match_object(). We also know it isn't an unboxed tuple.
   // We can load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, pattern_type);
-  LLVMTypeRef ptr_type = LLVMPointerType(t->use_type, 0);
+  LLVMTypeRef ptr_type = LLVMPointerType(((compile_type_t*)t->c_type)->use_type,
+    0);
   ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
@@ -756,7 +760,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     reach_type_t* t_phi = reach_type(c->reach, type);
-    phi_type = t_phi->use_type;
+    phi_type = ((compile_type_t*)t_phi->c_type)->use_type;
   }
 
   ast_t* match_type = alias(ast_type(match_expr));

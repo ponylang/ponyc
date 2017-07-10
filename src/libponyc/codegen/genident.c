@@ -3,6 +3,7 @@
 #include "gencall.h"
 #include "gendesc.h"
 #include "genexpr.h"
+#include "genfun.h"
 #include "genopt.h"
 #include "../reach/subtype.h"
 #include "../type/subtype.h"
@@ -481,14 +482,16 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
   if(m == NULL)
     return;
 
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
   LLVMTypeRef params[3];
   params[0] = c->object_ptr;
   params[1] = c->object_ptr;
   params[2] = c->i32;
-  m->func_type = LLVMFunctionType(c->i1, params, 3, false);
-  m->func = codegen_addfun(c, m->full_name, m->func_type);
+  c_m->func_type = LLVMFunctionType(c->i1, params, 3, false);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type);
 
-  codegen_startfun(c, m->func, NULL, NULL, false);
+  codegen_startfun(c, c_m->func, NULL, NULL, false);
   LLVMValueRef l_value = LLVMGetParam(codegen_fun(c), 0);
   LLVMValueRef r_value = LLVMGetParam(codegen_fun(c), 1);
   LLVMValueRef r_id = LLVMGetParam(codegen_fun(c), 2);
@@ -545,7 +548,8 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
     uint32_t type_id = t->type_id;
     if((type_id % 4) == 0)
     {
-      size_t type_size = (size_t)LLVMABISizeOfType(c->target_data, t->use_type);
+      size_t type_size = (size_t)LLVMABISizeOfType(c->target_data,
+        ((compile_type_t*)t->c_type)->use_type);
       args[type_id >> 2] = LLVMConstInt(c->i32, type_size, false);
       count++;
     }

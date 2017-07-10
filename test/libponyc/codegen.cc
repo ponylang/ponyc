@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-#include <reach/reach.h>
+#include <codegen/gentype.h>
 
 #include "util.h"
 
@@ -35,7 +35,7 @@ TEST_F(CodegenTest, PackedStructIsPacked)
   reach_type_t* foo = reach_type_name(reach, "Foo");
   ASSERT_TRUE(foo != NULL);
 
-  LLVMTypeRef type = foo->structure;
+  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
   ASSERT_TRUE(LLVMIsPackedStruct(type));
 }
 
@@ -57,7 +57,7 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
   reach_type_t* foo = reach_type_name(reach, "Foo");
   ASSERT_TRUE(foo != NULL);
 
-  LLVMTypeRef type = foo->structure;
+  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
   ASSERT_TRUE(!LLVMIsPackedStruct(type));
 }
 
@@ -79,7 +79,7 @@ TEST_F(CodegenTest, ClassCannotBePacked)
   reach_type_t* foo = reach_type_name(reach, "Foo");
   ASSERT_TRUE(foo != NULL);
 
-  LLVMTypeRef type = foo->structure;
+  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
   ASSERT_TRUE(!LLVMIsPackedStruct(type));
 }
 
@@ -101,7 +101,7 @@ TEST_F(CodegenTest, ActorCannotBePacked)
   reach_type_t* foo = reach_type_name(reach, "Foo");
   ASSERT_TRUE(foo != NULL);
 
-  LLVMTypeRef type = foo->structure;
+  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
   ASSERT_TRUE(!LLVMIsPackedStruct(type));
 }
 
