@@ -140,7 +140,6 @@ static const lextoken_t keywords[] =
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
-  { "lambda", TK_LAMBDA },
 
   { "as", TK_AS },
   { "is", TK_IS },
@@ -268,6 +267,7 @@ static const lextoken_t abstract[] =
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
 
+  { "lambda", TK_LAMBDA },
   { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
