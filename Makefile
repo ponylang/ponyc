@@ -774,6 +774,9 @@ test-ci: all
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
 	@./examples1
 	@rm examples1
+	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
+	@diff pony.g pony.g.new
+	@rm pony.g.new
 
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
