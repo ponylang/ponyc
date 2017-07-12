@@ -272,38 +272,30 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
 
-static void set_method_external_nominal(reach_type_t* t, const char* name)
+static void set_method_external_interface(reach_type_t* t, const char* name,
+  uint32_t vtable_index)
 {
-  reach_method_name_t* n = reach_method_name(t, name);
-  if(n != NULL)
-  {
-    size_t i = HASHMAP_BEGIN;
-    reach_method_t* m;
-    while((m = reach_methods_next(&n->r_methods, &i)) != NULL)
-    {
-      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-      LLVMSetLinkage(m->func, LLVMExternalLinkage);
-    }
-  }
-}
-
-static void set_method_external_interface(reach_type_t* t, const char* name)
-{
-  set_method_external_nominal(t, name);
-
   size_t i = HASHMAP_BEGIN;
   reach_type_t* sub;
+
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
     reach_method_name_t* n = reach_method_name(sub, name);
+
     if(n == NULL)
       continue;
+
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-      LLVMSetLinkage(m->func, LLVMExternalLinkage);
+      if(m->vtable_index == vtable_index)
+      {
+        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+        LLVMSetLinkage(m->func, LLVMExternalLinkage);
+        break;
+      }
     }
   }
 }
@@ -351,13 +343,14 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
       case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
-        set_method_external_nominal(t, name);
+        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+        LLVMSetLinkage(m->func, LLVMExternalLinkage);
         break;
       case TK_UNIONTYPE:
       case TK_ISECTTYPE:
       case TK_INTERFACE:
       case TK_TRAIT:
-        set_method_external_interface(t, name);
+        set_method_external_interface(t, name, m->vtable_index);
         break;
       default:
         pony_assert(0);

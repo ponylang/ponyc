@@ -669,3 +669,20 @@ TEST_F(BadPonyTest, AsUnaliased)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, CodegenMangledFunptr)
+{
+  // Test that we don't crash in codegen when generating the function pointer.
+  const char* src =
+    "interface I\n"
+    "  fun foo(x: U32)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let i: I = this\n"
+    "    @foo[None](addressof i.foo)\n"
+
+    "  fun foo(x: Any) => None";
+
+  TEST_COMPILE(src);
+}
