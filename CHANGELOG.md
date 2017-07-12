@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash on interface function pointer generation ([PR #2025](https://github.com/ponylang/ponyc/pull/2025))
 
 
 ### Added
