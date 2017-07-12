@@ -1065,13 +1065,6 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     ret_type, raises, body, reference_cap);
   bool r = true;
 
-  if(ast_id(reference_cap) == TK_QUESTION)
-  {
-    ast_error(opt->check.errors, ast,
-      "lambda ... end is no longer supported syntax; use {...} for lambdas");
-    r = false;
-  }
-
   switch(ast_id(ret_type))
   {
     case TK_ISO:
