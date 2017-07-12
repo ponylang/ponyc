@@ -373,6 +373,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
   msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", msg_args, 2, "");
+  LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+  LLVMSetMetadataStr(msg, "pony.msgsend", md);
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   for(unsigned int i = 0; i < m->param_count; i++)
@@ -403,7 +405,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
 
   if(need_trace)
   {
-    gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    LLVMSetMetadataStr(gc, "pony.msgsend", md);
     param = ast_child(params);
     arg_ast = ast_child(args_ast);
 
@@ -415,14 +418,16 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
       arg_ast = ast_sibling(arg_ast);
     }
 
-    gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+    gc = gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+    LLVMSetMetadataStr(gc, "pony.msgsend", md);
   }
 
   // Send the message.
   msg_args[0] = ctx;
   msg_args[1] = LLVMBuildBitCast(c->builder, cast_args[0], c->object_ptr, "");
   msg_args[2] = msg;
-  gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+  LLVMValueRef send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+  LLVMSetMetadataStr(send, "pony.msgsend", md);
 }
 
 typedef struct call_tuple_indices_t
