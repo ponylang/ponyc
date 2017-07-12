@@ -905,6 +905,25 @@ TEST_F(SugarExprTest, MatchExhaustiveSomeCasesJumpAway)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveSingleElementTuples)
+{
+  // From issue #1991
+  const char* src =
+    "primitive T1\n"
+    "primitive T2\n"
+    "primitive T3\n"
+
+    "primitive Foo\n"
+    "  fun ref apply(p': (T1 | T2 | T3)): Bool =>\n"
+    "    match p'\n"
+    "    | (let p: T1) => true\n"
+    "    | (let p: (T2 | T3)) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(SugarExprTest, As)
 {
   const char* short_form =
