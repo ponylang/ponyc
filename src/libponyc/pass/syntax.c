@@ -1063,13 +1063,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
   pony_assert((ast_id(ast) == TK_LAMBDA) || (ast_id(ast) == TK_BARELAMBDA));
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
     ret_type, raises, body, reference_cap);
-
-  if(ast_id(reference_cap) == TK_QUESTION)
-  {
-    ast_error(opt->check.errors, ast,
-      "lambda ... end is no longer supported syntax; use {...} for lambdas");
-    return AST_ERROR;
-  }
+  bool r = true;
 
   switch(ast_id(ret_type))
   {
@@ -1084,7 +1078,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
         ast_print_type(ret_type));
       ast_error_continue(opt->check.errors, ret_type, "lambda return type "
         "cannot be capability");
-      return AST_ERROR;
+      r = false;
     }
     default: {}
   }
@@ -1095,21 +1089,21 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, receiver_cap, "a bare lambda cannot specify "
         "a receiver capability");
-      return AST_ERROR;
+      r = false;
     }
 
     if(ast_id(t_params) != TK_NONE)
     {
       ast_error(opt->check.errors, t_params, "a bare lambda cannot specify "
         "type parameters");
-      return AST_ERROR;
+      r = false;
     }
 
     if(ast_id(captures) != TK_NONE)
     {
       ast_error(opt->check.errors, captures, "a bare lambda cannot specify "
         "captures");
-      return AST_ERROR;
+      r = false;
     }
 
     switch(ast_id(reference_cap))
@@ -1121,8 +1115,20 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
       default:
         ast_error(opt->check.errors, reference_cap, "a bare lambda can only "
           "have a 'val' capability");
-        return AST_ERROR;
+        r = false;
     }
+  }
+
+  ast_t* param = ast_child(params);
+  while(param != NULL)
+  {
+    if(ast_id(ast_childidx(param, 1)) == TK_NONE)
+    {
+      ast_error(opt->check.errors, param,
+        "a lambda parameter must specify a type");
+      r = false;
+    }
+    param = ast_sibling(param);
   }
 
   ast_t* capture = ast_child(captures);
@@ -1132,12 +1138,12 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, capture,
         "use a named capture to capture 'this'");
-      return AST_ERROR;
+      r = false;
     }
     capture = ast_sibling(capture);
   }
 
-  return AST_OK;
+  return r ? AST_OK : AST_ERROR;
 }
 
 

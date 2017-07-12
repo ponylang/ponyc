@@ -6,6 +6,24 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash on interface function pointer generation ([PR #2025](https://github.com/ponylang/ponyc/pull/2025))
+
+
+### Added
+
+
+
+### Changed
+
+
+
+## [0.15.0] - 2017-07-08
+
+### Fixed
+
+- Fix bug in `as` capture ([PR #1981](https://github.com/ponylang/ponyc/pull/1981))
+- Fix assert failure on lambda parameter missing type. ([PR #2011](https://github.com/ponylang/ponyc/pull/2011))
+- Fix iftype where the type variable appears as a type parameter. ([PR #2007](https://github.com/ponylang/ponyc/pull/2007))
 - Fix support for recursive constraints in iftype conditions. ([PR #1961](https://github.com/ponylang/ponyc/pull/1961))
 - Fix segfault in Array.trim_in_place ([PR #1999](https://github.com/ponylang/ponyc/pull/1999))
 - Fix segfault in String.trim_in_place ([PR #1997](https://github.com/ponylang/ponyc/pull/1997))
@@ -27,7 +45,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix outdated methods in persistent.Map docstring. ([PR #1901](https://github.com/ponylang/ponyc/pull/1901))
 - Fix format for number types (issue #1920) ([PR #1927](https://github.com/ponylang/ponyc/pull/1927))
 
-
 ### Added
 
 - Make tuples be subtypes of empty interfaces (like Any). ([PR #1937](https://github.com/ponylang/ponyc/pull/1937))
@@ -39,7 +56,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 - Command line options for printing help ([PR #1899](https://github.com/ponylang/ponyc/pull/1899))
 - `Nanos.from_wall_clock` function to convert from a wall clock as obtained from `Time.now()` into number of nanoseconds since "the beginning of time". ([PR #1967](https://github.com/ponylang/ponyc/pull/1967))
-
 
 ### Changed
 

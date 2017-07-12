@@ -272,38 +272,30 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
 
-static void set_method_external_nominal(reach_type_t* t, const char* name)
+static void set_method_external_interface(reach_type_t* t, const char* name,
+  uint32_t vtable_index)
 {
-  reach_method_name_t* n = reach_method_name(t, name);
-  if(n != NULL)
-  {
-    size_t i = HASHMAP_BEGIN;
-    reach_method_t* m;
-    while((m = reach_methods_next(&n->r_methods, &i)) != NULL)
-    {
-      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-      LLVMSetLinkage(m->func, LLVMExternalLinkage);
-    }
-  }
-}
-
-static void set_method_external_interface(reach_type_t* t, const char* name)
-{
-  set_method_external_nominal(t, name);
-
   size_t i = HASHMAP_BEGIN;
   reach_type_t* sub;
+
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
     reach_method_name_t* n = reach_method_name(sub, name);
+
     if(n == NULL)
       continue;
+
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
-    while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
+
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-      LLVMSetLinkage(m->func, LLVMExternalLinkage);
+      if(m->vtable_index == vtable_index)
+      {
+        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+        LLVMSetLinkage(m->func, LLVMExternalLinkage);
+        break;
+      }
     }
   }
 }
@@ -351,13 +343,14 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
       case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
-        set_method_external_nominal(t, name);
+        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
+        LLVMSetLinkage(m->func, LLVMExternalLinkage);
         break;
       case TK_UNIONTYPE:
       case TK_ISECTTYPE:
       case TK_INTERFACE:
       case TK_TRAIT:
-        set_method_external_interface(t, name);
+        set_method_external_interface(t, name, m->vtable_index);
         break;
       default:
         pony_assert(0);
@@ -380,6 +373,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
   msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", msg_args, 2, "");
+  LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+  LLVMSetMetadataStr(msg, "pony.msgsend", md);
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   for(unsigned int i = 0; i < m->param_count; i++)
@@ -410,7 +405,8 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
 
   if(need_trace)
   {
-    gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    LLVMSetMetadataStr(gc, "pony.msgsend", md);
     param = ast_child(params);
     arg_ast = ast_child(args_ast);
 
@@ -422,14 +418,16 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
       arg_ast = ast_sibling(arg_ast);
     }
 
-    gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+    gc = gencall_runtime(c, "pony_send_done", &ctx, 1, "");
+    LLVMSetMetadataStr(gc, "pony.msgsend", md);
   }
 
   // Send the message.
   msg_args[0] = ctx;
   msg_args[1] = LLVMBuildBitCast(c->builder, cast_args[0], c->object_ptr, "");
   msg_args[2] = msg;
-  gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+  LLVMValueRef send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+  LLVMSetMetadataStr(send, "pony.msgsend", md);
 }
 
 typedef struct call_tuple_indices_t
@@ -443,12 +441,10 @@ static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
 {
   if(ti->count == ti->alloc)
   {
-    size_t* tmp_data =
-      (size_t*)ponyint_pool_alloc_size(2 * ti->alloc * sizeof(size_t));
-    memcpy(tmp_data, ti->data, ti->count * sizeof(size_t));
-    ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+    size_t old_alloc = ti->alloc * sizeof(size_t);
+    ti->data =
+      (size_t*)ponyint_pool_realloc_size(old_alloc, old_alloc * 2, ti->data);
     ti->alloc *= 2;
-    ti->data = tmp_data;
   }
   ti->data[ti->count++] = idx;
 }

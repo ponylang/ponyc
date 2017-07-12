@@ -729,6 +729,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     if(!incomplete_ok)
     {
       ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+      ast_setflag(tag_type, AST_FLAG_INCOMPLETE);
       ast_replace(&nominal, tag_type);
     }
   }

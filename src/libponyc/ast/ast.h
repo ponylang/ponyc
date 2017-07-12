@@ -207,21 +207,6 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 pony_type_t* ast_pony_type();
 
-typedef struct unattached_asts_t
-{
-  ast_t** storage;
-  size_t count;
-  size_t alloc;
-} unattached_asts_t;
-
-void unattached_asts_init(unattached_asts_t* asts);
-
-void unattached_asts_put(unattached_asts_t* asts, ast_t* ast);
-
-void unattached_asts_clear(unattached_asts_t* asts);
-
-void unattached_asts_destroy(unattached_asts_t* asts);
-
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }
 #endif

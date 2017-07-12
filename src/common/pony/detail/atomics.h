@@ -44,8 +44,7 @@ using std::atomic_thread_fence;
 #      define PONY_ATOMIC(T) T _Atomic
 #    endif
 #  elif __GNUC_PREREQ(4, 7)
-// Valid on x86 and ARM given our uses of atomics.
-#    define PONY_ATOMIC(T) T
+#    define PONY_ATOMIC(T) alignas(sizeof(T)) T
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use GCC >= 4.7"
@@ -57,8 +56,7 @@ using std::atomic_thread_fence;
 #    endif
 #    define PONY_ATOMIC(T) T _Atomic
 #  elif __clang_major__ >= 3 && __clang_minor__ >= 3
-// Valid on x86 and ARM given our uses of atomics.
-#    define PONY_ATOMIC(T) T
+#    define PONY_ATOMIC(T) alignas(sizeof(T)) T
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use Clang >= 3.3"
@@ -102,14 +100,19 @@ namespace ponyint_atomics
 #  define PONY_ABA_PROTECTED_PTR(T) aba_protected_##T
 #endif
 
-// Big atomic objects (larger than machine word size) aren't consistently
-// implemented on the compilers we support. We add our own implementation to
-// make sure the objects are correctly defined and aligned.
-#define PONY_ATOMIC_ABA_PROTECTED_PTR(T) alignas(16) PONY_ABA_PROTECTED_PTR(T)
+// We provide our own implementation of big atomic objects (larger than machine
+// word size) because we need special functionalities that aren't provided by
+// standard atomics. In particular, we need to be able to do both atomic and
+// non-atomic operations on big objects since big atomic operations (e.g.
+// CMPXCHG16B on x86_64) are very expensive.
+#define PONY_ATOMIC_ABA_PROTECTED_PTR(T) \
+    alignas(sizeof(PONY_ABA_PROTECTED_PTR(T))) PONY_ABA_PROTECTED_PTR(T)
 
 #ifdef PONY_WANT_ATOMIC_DEFS
 #  ifdef _MSC_VER
+#    pragma warning(push)
 #    pragma warning(disable:4164)
+#    pragma warning(disable:4800)
 #    pragma intrinsic(_InterlockedCompareExchange128)
 
 namespace ponyint_atomics
@@ -133,6 +136,14 @@ namespace ponyint_atomics
       (LONGLONG)val.counter, (LONGLONG)val.object, (LONGLONG*)&tmp))
     {}
   }
+
+  template <typename T>
+  inline bool big_cas(PONY_ABA_PROTECTED_PTR(T)* ptr,
+    PONY_ABA_PROTECTED_PTR(T)* exp, PONY_ABA_PROTECTED_PTR(T) des)
+  {
+    return _InterlockedCompareExchange128((LONGLONG*)ptr, (LONGLONG)des.counter,
+      (LONGLONG)des.object, (LONGLONG*)exp);
+  }
 }
 
 #    define bigatomic_load_explicit(PTR, MO) \
@@ -142,20 +153,28 @@ namespace ponyint_atomics
       ponyint_atomics::big_store(PTR, VAL)
 
 #    define bigatomic_compare_exchange_weak_explicit(PTR, EXP, DES, SUCC, FAIL) \
-      _InterlockedCompareExchange128((LONGLONG*)PTR, (LONGLONG)((DES).counter), \
-        (LONGLONG)((DES).object), (LONGLONG*)EXP)
+      ponyint_atomics::big_cas(PTR, EXP, DES)
 
-#    pragma warning(default:4164)
+#    pragma warning(pop)
 #  else
 #    define bigatomic_load_explicit(PTR, MO) \
-      (__typeof__(*(PTR)))__atomic_load_n(&(PTR)->raw, MO)
+      ({ \
+        _Static_assert(sizeof(*(PTR)) == (2 * sizeof(void*)), ""); \
+        (__typeof__(*(PTR)))__atomic_load_n(&(PTR)->raw, MO); \
+      })
 
 #    define bigatomic_store_explicit(PTR, VAL, MO) \
-      __atomic_store_n(&(PTR)->raw, (VAL).raw, MO)
+      ({ \
+        _Static_assert(sizeof(*(PTR)) == (2 * sizeof(void*)), ""); \
+        __atomic_store_n(&(PTR)->raw, (VAL).raw, MO); \
+      })
 
 #    define bigatomic_compare_exchange_weak_explicit(PTR, EXP, DES, SUCC, FAIL) \
-      __atomic_compare_exchange_n(&(PTR)->raw, &(EXP)->raw, (DES).raw, true, \
-        SUCC, FAIL)
+      ({ \
+        _Static_assert(sizeof(*(PTR)) == (2 * sizeof(void*)), ""); \
+        __atomic_compare_exchange_n(&(PTR)->raw, &(EXP)->raw, (DES).raw, true, \
+          SUCC, FAIL); \
+      })
 #  endif
 
 #  ifdef PONY_ATOMIC_BUILTINS

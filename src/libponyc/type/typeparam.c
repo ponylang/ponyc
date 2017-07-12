@@ -552,7 +552,7 @@ void typeparam_set_cap(ast_t* typeparamref)
   ast_setid(cap, tcap);
 }
 
-static ast_t* typeparamref_current(ast_t* typeparamref, ast_t* scope)
+static void typeparamref_current(ast_t* typeparamref, ast_t* scope)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
 
@@ -560,16 +560,14 @@ static ast_t* typeparamref_current(ast_t* typeparamref, ast_t* scope)
   ast_t* id = ast_child(typeparamref);
 
   ast_t* current_def = ast_get(scope, ast_name(id), NULL);
-  ast_t* new_typeparamref = ast_dup(typeparamref);
-  ast_setdata(new_typeparamref, current_def);
-  if(def == current_def)
-    return new_typeparamref;
-
-  typeparam_set_cap(new_typeparamref);
-  return new_typeparamref;
+  if(def != current_def)
+  {
+    ast_setdata(typeparamref, current_def);
+    typeparam_set_cap(typeparamref);
+  }
 }
 
-static ast_t* typeparam_current_inner(ast_t* type, ast_t* scope)
+static void typeparam_current_inner(ast_t* type, ast_t* scope)
 {
   switch(ast_id(type))
   {
@@ -577,42 +575,43 @@ static ast_t* typeparam_current_inner(ast_t* type, ast_t* scope)
       return typeparamref_current(type, scope);
 
     case TK_NOMINAL:
-      return ast_dup(type);
+    {
+      ast_t* typeargs = ast_childidx(type, 2);
+      ast_t* typearg = ast_child(typeargs);
+
+      while(typearg != NULL)
+      {
+        typeparam_current_inner(typearg, scope);
+        typearg = ast_sibling(typearg);
+      }
+      break;
+    }
 
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      ast_t* new_type = ast_from(type, ast_id(type));
       ast_t* child = ast_child(type);
 
       while(child != NULL)
       {
-        ast_t* new_child = typeparam_current_inner(child, scope);
-        ast_append(new_type, new_child);
+        typeparam_current_inner(child, scope);
         child = ast_sibling(child);
       }
 
-      return new_type;
+      break;
     }
 
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
 
-      ast_t* new_type = ast_from(type, TK_ARROW);
-      ast_t* new_left = typeparam_current_inner(left, scope);
-      ast_t* new_right = typeparam_current_inner(right, scope);
-
-      ast_add(type, new_right);
-      ast_add(type, new_left);
-
-      return new_type;
+      typeparam_current_inner(left, scope);
+      typeparam_current_inner(right, scope);
     }
 
     default:
       pony_assert(0);
-      return NULL;
   }
 }
 
@@ -621,5 +620,8 @@ ast_t* typeparam_current(pass_opt_t* opt, ast_t* type, ast_t* scope)
   if(opt->check.frame->iftype_body == NULL)
     return type;
 
-  return typeparam_current_inner(type, scope);
+  type = ast_dup(type);
+  typeparam_current_inner(type, scope);
+
+  return type;
 }

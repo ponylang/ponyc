@@ -626,8 +626,63 @@ TEST_F(BadPonyTest, DefaultArgScope)
 TEST_F(BadPonyTest, GenericMain)
 {
   const char* src =
-    "actor Main[X]"
+    "actor Main[X]\n"
     "  new create(env: Env) => None";
 
   TEST_ERRORS_1(src, "the Main actor cannot have type parameters");
+}
+
+TEST_F(BadPonyTest, LambdaParamNoType)
+{
+  // From issue #2010
+  const char* src =
+    "actor Main\n"
+    "  new create(e: Env) =>\n"
+    "    {(x: USize, y): USize => x }";
+
+  TEST_ERRORS_1(src, "a lambda parameter must specify a type");
+}
+
+TEST_F(BadPonyTest, AsBadCap)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let v: I64 = 3\n"
+    "    try (v as I64 iso) end";
+
+  TEST_ERRORS_1(src, "this capture violates capabilities");
+}
+
+TEST_F(BadPonyTest, AsUnaliased)
+{
+  const char* src =
+    "class trn Foo\n"
+
+    "actor Main\n"
+    "  let foo: Foo = Foo\n"
+
+    "  new create(env: Env) => None\n"
+
+    "  fun ref apply() ? =>\n"
+    "    (foo as Foo trn)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, CodegenMangledFunptr)
+{
+  // Test that we don't crash in codegen when generating the function pointer.
+  const char* src =
+    "interface I\n"
+    "  fun foo(x: U32)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let i: I = this\n"
+    "    @foo[None](addressof i.foo)\n"
+
+    "  fun foo(x: Any) => None";
+
+  TEST_COMPILE(src);
 }

@@ -140,7 +140,6 @@ static const lextoken_t keywords[] =
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
-  { "lambda", TK_LAMBDA },
 
   { "as", TK_AS },
   { "is", TK_IS },
@@ -268,6 +267,7 @@ static const lextoken_t abstract[] =
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
 
+  { "lambda", TK_LAMBDA },
   { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
@@ -351,13 +351,8 @@ static void append_to_token(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = (char*)ponyint_pool_alloc_size(new_len);
-    memcpy(new_buf, lexer->buffer, lexer->alloc);
-
-    if(lexer->alloc > 0)
-      ponyint_pool_free_size(lexer->alloc, lexer->buffer);
-
-    lexer->buffer = new_buf;
+    lexer->buffer =
+      (char*)ponyint_pool_realloc_size(lexer->alloc, new_len, lexer->buffer);
     lexer->alloc = new_len;
   }
 
