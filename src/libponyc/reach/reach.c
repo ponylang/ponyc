@@ -61,6 +61,12 @@ static void reach_mangled_free(reach_method_t* m)
   if(m->param_count > 0)
     ponyint_pool_free_size(m->param_count * sizeof(reach_param_t), m->params);
 
+  if(m->tuple_is_types != NULL)
+  {
+    reach_type_cache_destroy(m->tuple_is_types);
+    POOL_FREE(reach_type_cache_t, m->tuple_is_types);
+  }
+
   POOL_FREE(reach_method_t, m);
 }
 
@@ -1055,8 +1061,36 @@ static void reachable_ffi(reach_t* r, ast_t* ast, pass_opt_t* opt)
   }
 }
 
+typedef struct reach_identity_t
+{
+  reach_type_t* type;
+  reach_type_cache_t reached;
+} reach_identity_t;
+
+static size_t reach_identity_hash(reach_identity_t* id)
+{
+  return (size_t)id->type;
+}
+
+static bool reach_identity_cmp(reach_identity_t* a, reach_identity_t* b)
+{
+  return a->type == b->type;
+}
+
+static void reach_identity_free(reach_identity_t* id)
+{
+  reach_type_cache_destroy(&id->reached);
+  POOL_FREE(reach_identity_t, id);
+}
+
+DECLARE_HASHMAP(reach_identities, reach_identities_t, reach_identity_t);
+
+DEFINE_HASHMAP(reach_identities, reach_identities_t, reach_identity_t,
+  reach_identity_hash, reach_identity_cmp, ponyint_pool_alloc_size,
+  ponyint_pool_free_size, reach_identity_free);
+
 static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
-  pass_opt_t* opt)
+  pass_opt_t* opt, reach_identities_t* reached_identities)
 {
   if((ast_id(l_type) == TK_TUPLETYPE) && (ast_id(r_type) == TK_TUPLETYPE))
   {
@@ -1068,7 +1102,7 @@ static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
 
     while(l_child != NULL)
     {
-      reachable_identity_type(r, l_child, r_child, opt);
+      reachable_identity_type(r, l_child, r_child, opt, reached_identities);
       l_child = ast_sibling(l_child);
       r_child = ast_sibling(r_child);
     }
@@ -1082,12 +1116,8 @@ static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
     {
       const char* name = stringtab("__is");
 
-      if((reach_method_name(r_left, name) != NULL) &&
-        (reach_method_name(r_right, name) != NULL))
-        return;
-
       reach_method_name_t* n = add_method_name(r_left, name, true);
-      add_rmethod(r, r_left, n, TK_BOX, NULL, opt, true);
+      reach_method_t* m = add_rmethod(r, r_left, n, TK_BOX, NULL, opt, true);
 
       reach_type_t* l_sub;
       size_t i = HASHMAP_BEGIN;
@@ -1097,29 +1127,102 @@ static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
         if(l_sub->underlying != TK_TUPLETYPE)
           continue;
 
-        reach_type_t k;
-        k.name = l_sub->name;
-        size_t j = HASHMAP_UNKNOWN;
-        reach_type_t* r_sub = reach_type_cache_get(&r_right->subtypes, &k, &j);
+        m = reach_method(l_sub, TK_BOX, name, NULL);
+        pony_assert(m != NULL);
 
-        if(r_sub != NULL)
+        if(m->tuple_is_types == NULL)
         {
-          pony_assert(l_sub == r_sub);
-          reachable_identity_type(r, l_sub->ast_cap, r_sub->ast_cap, opt);
+          m->tuple_is_types = POOL_ALLOC(reach_type_cache_t);
+          reach_type_cache_init(m->tuple_is_types, 1);
         }
+
+        size_t cardinality = ast_childcount(l_sub->ast_cap);
+        reach_type_t* r_sub;
+        size_t j = HASHMAP_BEGIN;
+
+        while((r_sub = reach_type_cache_next(&r_right->subtypes, &j)) != NULL)
+        {
+          if((r_sub->underlying != TK_TUPLETYPE) ||
+            (ast_childcount(r_sub->ast_cap) != cardinality))
+            continue;
+
+          size_t k = HASHMAP_UNKNOWN;
+          reach_type_t* in_cache = reach_type_cache_get(m->tuple_is_types,
+            r_sub, &k);
+
+          if(in_cache == NULL)
+          {
+            reach_type_cache_putindex(m->tuple_is_types, r_sub, k);
+            reachable_identity_type(r, l_sub->ast_cap, r_sub->ast_cap, opt,
+              reached_identities);
+          }
+        }
+      }
+    }
+  } else {
+    ast_t* tuple;
+    ast_t* unknown;
+
+    if((ast_id(l_type) == TK_TUPLETYPE) && !is_known(r_type))
+    {
+      tuple = l_type;
+      unknown = r_type;
+    } else if((ast_id(r_type) == TK_TUPLETYPE) && !is_known(l_type)) {
+      tuple = r_type;
+      unknown = l_type;
+    } else {
+      return;
+    }
+
+    size_t cardinality = ast_childcount(tuple);
+    reach_type_t* r_tuple = reach_type(r, tuple);
+    reach_type_t* r_unknown = reach_type(r, unknown);
+    reach_identity_t k;
+    k.type = r_tuple;
+    size_t i = HASHMAP_UNKNOWN;
+    reach_identity_t* identity = reach_identities_get(reached_identities, &k,
+      &i);
+
+    if(identity == NULL)
+    {
+      identity = POOL_ALLOC(reach_identity_t);
+      identity->type = r_tuple;
+      reach_type_cache_init(&identity->reached, 0);
+      reach_identities_putindex(reached_identities, identity, i);
+    }
+
+    reach_type_t* u_sub;
+    i = HASHMAP_BEGIN;
+
+    while((u_sub = reach_type_cache_next(&r_unknown->subtypes, &i)) != NULL)
+    {
+      if((ast_id(u_sub->ast_cap) != TK_TUPLETYPE) ||
+        (ast_childcount(u_sub->ast_cap) == cardinality))
+        continue;
+
+      size_t j = HASHMAP_UNKNOWN;
+      reach_type_t* in_cache = reach_type_cache_get(&identity->reached,
+        u_sub, &j);
+
+      if(in_cache == NULL)
+      {
+        reach_type_cache_putindex(&identity->reached, u_sub, j);
+        reachable_identity_type(r, tuple, u_sub->ast_cap, opt,
+          reached_identities);
       }
     }
   }
 }
 
-static void reachable_identity(reach_t* r, ast_t* ast, pass_opt_t* opt)
+static void reachable_identity(reach_t* r, ast_t* ast, pass_opt_t* opt,
+  reach_identities_t* identities)
 {
   AST_GET_CHILDREN(ast, left, right);
 
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  reachable_identity_type(r, l_type, r_type, opt);
+  reachable_identity_type(r, l_type, r_type, opt, identities);
 }
 
 static void reachable_digestof_type(reach_t* r, ast_t* type, pass_opt_t* opt)
@@ -1370,6 +1473,8 @@ static void reachable_method(reach_t* r, ast_t* type, const char* name,
 static void handle_expr_stack(reach_t* r, pass_opt_t* opt)
 {
   // New types must not be reached by this function. New methods are fine.
+  reach_identities_t identities;
+  reach_identities_init(&identities, 8);
 
   while(r->expr_stack != NULL)
   {
@@ -1380,7 +1485,7 @@ static void handle_expr_stack(reach_t* r, pass_opt_t* opt)
     {
       case TK_IS:
       case TK_ISNT:
-        reachable_identity(r, ast, opt);
+        reachable_identity(r, ast, opt, &identities);
         break;
 
       case TK_DIGESTOF:
@@ -1390,6 +1495,8 @@ static void handle_expr_stack(reach_t* r, pass_opt_t* opt)
       default: {}
     }
   }
+
+  reach_identities_destroy(&identities);
 }
 
 static void handle_method_stack(reach_t* r, pass_opt_t* opt)
@@ -1633,6 +1740,10 @@ static void reach_method_serialise_trace(pony_ctx_t* ctx, void* object)
 
   if(m->result != NULL)
     pony_traceknown(ctx, m->result, reach_type_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(m->tuple_is_types != NULL)
+    pony_traceknown(ctx, m->tuple_is_types, reach_type_cache_pony_type(),
+      PONY_TRACE_MUTABLE);
 }
 
 static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
@@ -1683,6 +1794,9 @@ static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
   }
 
   dst->result = (reach_type_t*)pony_serialise_offset(ctx, m->result);
+
+  dst->tuple_is_types = (reach_type_cache_t*)pony_serialise_offset(ctx,
+    m->tuple_is_types);
 }
 
 static void reach_method_deserialise(pony_ctx_t* ctx, void* object)
@@ -1714,6 +1828,9 @@ static void reach_method_deserialise(pony_ctx_t* ctx, void* object)
 
   m->result = (reach_type_t*)pony_deserialise_offset(ctx, reach_type_pony_type(),
     (uintptr_t)m->result);
+
+  m->tuple_is_types = (reach_type_cache_t*)pony_deserialise_offset(ctx,
+    reach_type_cache_pony_type(), (uintptr_t)m->tuple_is_types);
 }
 
 static pony_type_t reach_method_pony =
