@@ -239,6 +239,11 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       errorframe_append(&frame, &info);
+
+      if(ast_checkflag(ast_type(arg), AST_FLAG_INCOMPLETE))
+        ast_error_frame(&frame, arg,
+          "this might be possible if all fields were already defined");
+
       errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(a_type);
       return false;
@@ -297,6 +302,18 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   }
 
   return true;
+}
+
+static ast_t* method_receiver(ast_t* method)
+{
+  ast_t* receiver = ast_child(method);
+
+  // Dig through function qualification.
+  if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+     (ast_id(receiver) == TK_FUNCHAIN))
+    receiver = ast_child(receiver);
+
+  return receiver;
 }
 
 static ast_t* method_receiver_type(ast_t* method)
@@ -380,6 +397,11 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
       "receiver type: %s", ast_print_type(a_type));
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
+    errorframe_append(&frame, &info);
+
+    if(ast_checkflag(ast_type(method_receiver(lhs)), AST_FLAG_INCOMPLETE))
+      ast_error_frame(&frame, method_receiver(lhs),
+        "this might be possible if all fields were already defined");
 
     if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL, opt))
     {
@@ -388,7 +410,6 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
         "were all sendable");
     }
 
-    errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
   }
 
