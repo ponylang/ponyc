@@ -207,7 +207,7 @@ actor ProcessMonitor
     end
 
     let ok = try
-      FileInfo(filepath).mode.any_exec
+      FileInfo(filepath)?.mode.any_exec
     else
       false
     end
@@ -219,14 +219,14 @@ actor ProcessMonitor
 
     ifdef posix then
       try
-        (_stdin_read, _stdin_write) = _make_pipe(_FDCLOEXEC())
-        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
-        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
+        (_stdin_read, _stdin_write) = _make_pipe(_FDCLOEXEC())?
+        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())?
+        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())?
         // Set O_NONBLOCK only for parent-side file descriptors, as many
         // programs (like cat) cannot handle a non-blocking stdin/stdout/stderr
-        _set_fl(_stdin_write, _ONONBLOCK())
-        _set_fl(_stdout_read, _ONONBLOCK())
-        _set_fl(_stderr_read, _ONONBLOCK())
+        _set_fl(_stdin_write, _ONONBLOCK())?
+        _set_fl(_stdout_read, _ONONBLOCK())?
+        _set_fl(_stderr_read, _ONONBLOCK())?
       else
         _close_fd(_stdin_read)
         _close_fd(_stdin_write)
@@ -334,8 +334,8 @@ actor ProcessMonitor
       if @pipe[I32](addressof pipe) < 0 then
         error
       end
-      _set_fd(pipe._1, fd_flags)
-      _set_fd(pipe._2, fd_flags)
+      _set_fd(pipe._1, fd_flags)?
+      _set_fd(pipe._2, fd_flags)?
       pipe
     else
       (U32(0), U32(0))
@@ -437,7 +437,7 @@ actor ProcessMonitor
     Terminate child and close down everything.
     """
     try
-      _kill_child()
+      _kill_child()?
     else
       _notifier.failed(this, KillError)
       return

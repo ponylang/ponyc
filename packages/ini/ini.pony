@@ -84,13 +84,13 @@ primitive Ini
       end
 
       try
-        match current(0)
+        match current(0)?
         | ';' | '#' =>
           // Skip comments.
           continue
         | '[' =>
           try
-            current.delete(current.find("]", 1), -1)
+            current.delete(current.find("]", 1)?, -1)
             current.delete(0)
             section = consume current
             if not f.add_section(section) then
@@ -106,9 +106,9 @@ primitive Ini
         else
           try
             let delim = try
-              current.find("=")
+              current.find("=")?
             else
-              current.find(":")
+              current.find(":")?
             end
 
             let value = current.substring(delim + 1)
@@ -119,12 +119,12 @@ primitive Ini
 
             try
               let comment = try
-                value.find(";")
+                value.find(";")?
               else
-                value.find("#")
+                value.find("#")?
               end
 
-              match value(comment.usize() - 1)
+              match value(comment.usize() - 1)?
               | ' ' | '\t' =>
                 value.delete(comment, -1)
                 value.rstrip()

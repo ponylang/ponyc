@@ -36,7 +36,7 @@ class _ServerConnHandler is TCPConnectionNotify
     manage further communication, and the message parser that feeds it.
     """
     (let host, let port) = try
-      conn.remote_address().name(_reversedns)
+      conn.remote_address().name(_reversedns)?
     else
       ("-", "-")
     end
@@ -65,7 +65,7 @@ class _ServerConnHandler is TCPConnectionNotify
     | let b: _HTTPParser =>
       try
         // Let the parser take a look at what has been received.
-        b.parse(_buffer)
+        b.parse(_buffer)?
       else
         // Any syntax errors will terminate the connection.
         conn.close()

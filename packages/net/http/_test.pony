@@ -32,75 +32,75 @@ class iso _Encode is UnitTest
   fun apply(h: TestHelper) ? =>
     // Unreserved chars, decoded.
     h.assert_eq[String]("Aa4-._~Aa4-._~",
-      URLEncode.encode("Aa4-._~%41%61%34%2D%2E%5F%7E", URLPartUser))
+      URLEncode.encode("Aa4-._~%41%61%34%2D%2E%5F%7E", URLPartUser)?)
 
-    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartPassword))
-    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartHost))
-    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartPath))
-    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartQuery))
-    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartFragment))
+    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartPassword)?)
+    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartHost)?)
+    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartPath)?)
+    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartQuery)?)
+    h.assert_eq[String]("F_12x", URLEncode.encode("F_1%32x", URLPartFragment)?)
 
     // Sub-delimiters, left encoded or not as original.
     h.assert_eq[String]("!$&'()*+,;=%21%24%26%27%28%29%2A%2B%2C%3B%3D",
       URLEncode.encode("!$&'()*+,;=%21%24%26%27%28%29%2A%2B%2C%3B%3D",
-        URLPartUser))
+        URLPartUser)?)
 
-    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartPassword))
-    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartHost))
-    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartPath))
-    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartQuery))
-    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartFragment))
+    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartPassword)?)
+    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartHost)?)
+    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartPath)?)
+    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartQuery)?)
+    h.assert_eq[String](",%2C", URLEncode.encode(",%2C", URLPartFragment)?)
 
     // Misc characters, encoded.
     h.assert_eq[String]("%23%3C%3E%5B%5D%7B%7D%7C%5E%20" +
       "%23%3C%3E%5B%5D%7B%7D%7C%5E%25",
       URLEncode.encode("#<>[]{}|^ %23%3C%3E%5B%5D%7B%7D%7C%5E%25",
-        URLPartUser))
+        URLPartUser)?)
 
-    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPassword))
-    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartHost))
-    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPath))
-    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartQuery))
-    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartFragment))
+    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPassword)?)
+    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartHost)?)
+    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartPath)?)
+    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartQuery)?)
+    h.assert_eq[String]("%23%23", URLEncode.encode("#%23", URLPartFragment)?)
 
     // Delimiters, whether encoded depends on URL part.
-    h.assert_eq[String]("%3A%40%2F%3F", URLEncode.encode(":@/?", URLPartUser))
+    h.assert_eq[String]("%3A%40%2F%3F", URLEncode.encode(":@/?", URLPartUser)?)
     h.assert_eq[String](":%40%2F%3F",
-      URLEncode.encode(":@/?", URLPartPassword))
-    h.assert_eq[String]("%3A%40%2F%3F", URLEncode.encode(":@/?", URLPartHost))
-    h.assert_eq[String](":@/%3F", URLEncode.encode(":@/?", URLPartPath))
-    h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartQuery))
-    h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartFragment))
+      URLEncode.encode(":@/?", URLPartPassword)?)
+    h.assert_eq[String]("%3A%40%2F%3F", URLEncode.encode(":@/?", URLPartHost)?)
+    h.assert_eq[String](":@/%3F", URLEncode.encode(":@/?", URLPartPath)?)
+    h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartQuery)?)
+    h.assert_eq[String](":@/?", URLEncode.encode(":@/?", URLPartFragment)?)
 
 class iso _EncodeBad is UnitTest
   fun name(): String => "net/http/URLEncode.encode_bad"
 
   fun apply(h: TestHelper) =>
-    h.assert_error({() ? => URLEncode.encode("%2G", URLPartUser) })
-    h.assert_error({() ? => URLEncode.encode("%xx", URLPartUser) })
-    h.assert_error({() ? => URLEncode.encode("%2", URLPartUser) })
+    h.assert_error({() ? => URLEncode.encode("%2G", URLPartUser)? })
+    h.assert_error({() ? => URLEncode.encode("%xx", URLPartUser)? })
+    h.assert_error({() ? => URLEncode.encode("%2", URLPartUser)? })
 
 class iso _EncodeIPv6 is UnitTest
   fun name(): String => "net/http/URLEncode.encode_ipv6"
 
   fun apply(h: TestHelper) ? =>
     // Allowed hex digits, '.' and ':' only, between '[' and ']'.
-    h.assert_eq[String]("[1::A.B]", URLEncode.encode("[1::A.B]", URLPartHost))
-    h.assert_error({() ? => URLEncode.encode("[G]", URLPartHost) })
-    h.assert_error({() ? => URLEncode.encode("[/]", URLPartHost) })
-    h.assert_error({() ? => URLEncode.encode("[%32]", URLPartHost) })
-    h.assert_error({() ? => URLEncode.encode("[1]2", URLPartHost) })
-    h.assert_error({() ? => URLEncode.encode("[1", URLPartHost) })
-    h.assert_eq[String]("1%5D", URLEncode.encode("1]", URLPartHost))
+    h.assert_eq[String]("[1::A.B]", URLEncode.encode("[1::A.B]", URLPartHost)?)
+    h.assert_error({() ? => URLEncode.encode("[G]", URLPartHost)? })
+    h.assert_error({() ? => URLEncode.encode("[/]", URLPartHost)? })
+    h.assert_error({() ? => URLEncode.encode("[%32]", URLPartHost)? })
+    h.assert_error({() ? => URLEncode.encode("[1]2", URLPartHost)? })
+    h.assert_error({() ? => URLEncode.encode("[1", URLPartHost)? })
+    h.assert_eq[String]("1%5D", URLEncode.encode("1]", URLPartHost)?)
 
 class iso _EncodeClean is UnitTest
   fun name(): String => "net/http/URLEncode.encode_clean"
 
   fun apply(h: TestHelper) ? =>
     // No percent encoding in source string.
-    h.assert_eq[String]("F_1x", URLEncode.encode("F_1x", URLPartQuery, false))
-    h.assert_eq[String]("%2541", URLEncode.encode("%41", URLPartQuery, false))
-    h.assert_eq[String]("%25", URLEncode.encode("%", URLPartQuery, false))
+    h.assert_eq[String]("F_1x", URLEncode.encode("F_1x", URLPartQuery, false)?)
+    h.assert_eq[String]("%2541", URLEncode.encode("%41", URLPartQuery, false)?)
+    h.assert_eq[String]("%25", URLEncode.encode("%", URLPartQuery, false)?)
 
 class iso _Check is UnitTest
   fun name(): String => "net/http/URLEncode.check"
@@ -201,73 +201,73 @@ class iso _Decode is UnitTest
 
   fun apply(h: TestHelper) ? =>
     h.assert_eq[String]("Aa4-._~Aa4-._~",
-      URLEncode.decode("Aa4-._~%41%61%34%2D%2E%5F%7E"))
+      URLEncode.decode("Aa4-._~%41%61%34%2D%2E%5F%7E")?)
 
-    h.assert_eq[String]("F_12x", URLEncode.decode("F_1%32x"))
+    h.assert_eq[String]("F_12x", URLEncode.decode("F_1%32x")?)
 
     h.assert_eq[String]("!$&'()* ,;=!$&'()*+,;=",
-      URLEncode.decode("!$&'()*+,;=%21%24%26%27%28%29%2A%2B%2C%3B%3D"))
+      URLEncode.decode("!$&'()*+,;=%21%24%26%27%28%29%2A%2B%2C%3B%3D")?)
 
     h.assert_eq[String]("#<>[]{}|^ #<>[]{}|^ %",
-      URLEncode.decode("#<>[]{}|^ %23%3C%3E%5B%5D%7B%7D%7C%5E%20%25"))
+      URLEncode.decode("#<>[]{}|^ %23%3C%3E%5B%5D%7B%7D%7C%5E%20%25")?)
 
 class iso _DecodeBad is UnitTest
   fun name(): String => "net/http/URLEncode.decode_bad"
 
   fun apply(h: TestHelper) =>
-    h.assert_error({() ? => URLEncode.decode("%2G") })
-    h.assert_error({() ? => URLEncode.decode("%xx") })
-    h.assert_error({() ? => URLEncode.decode("%2") })
+    h.assert_error({() ? => URLEncode.decode("%2G")? })
+    h.assert_error({() ? => URLEncode.decode("%xx")? })
+    h.assert_error({() ? => URLEncode.decode("%2")? })
 
 class iso _BuildBasic is UnitTest
   fun name(): String => "net/http/URL.build_basic"
 
   fun apply(h: TestHelper) ? =>
     _Test(h,
-      URL.build("https://user:password@host.name:12345/path?query#fragment"),
+      URL.build("https://user:password@host.name:12345/path?query#fragment")?,
       "https", "user", "password", "host.name", 12345, "/path", "query",
       "fragment")
 
     _Test(h,
-      URL.build("http://rosettacode.org/wiki/Category]Pony"),
+      URL.build("http://rosettacode.org/wiki/Category]Pony")?,
       "http", "", "", "rosettacode.org", 80, "/wiki/Category%5DPony", "", "")
 
     _Test(h,
       URL.build("https://en.wikipedia.org/wiki/Polymorphism_" +
-        "(computer_science)#Parametric_polymorphism"),
+        "(computer_science)#Parametric_polymorphism")?,
       "https", "", "", "en.wikipedia.org", 443,
       "/wiki/Polymorphism_(computer_science)", "",
       "Parametric_polymorphism")
 
-    _Test(h, URL.build("http://user@host"),
+    _Test(h, URL.build("http://user@host")?,
       "http", "user", "", "host", 80, "/", "", "")
 
 class iso _BuildMissingParts is UnitTest
   fun name(): String => "net/http/URL.build_missing_parts"
 
   fun apply(h: TestHelper) ? =>
-    _Test(h, URL.build("https://user@host.name/path#fragment"),
+    _Test(h, URL.build("https://user@host.name/path#fragment")?,
       "https", "user", "", "host.name", 443, "/path", "", "fragment")
 
-    _Test(h, URL.build("https://user@host.name#fragment"),
+    _Test(h, URL.build("https://user@host.name#fragment")?,
       "https", "user", "", "host.name", 443, "/", "", "fragment")
 
-    _Test(h, URL.build("//host.name/path"),
+    _Test(h, URL.build("//host.name/path")?,
       "", "", "", "host.name", 0, "/path", "", "")
 
-    _Test(h, URL.build("/path"),
+    _Test(h, URL.build("/path")?,
       "", "", "", "", 0, "/path", "", "")
 
-    _Test(h, URL.build("?query"),
+    _Test(h, URL.build("?query")?,
       "", "", "", "", 0, "/", "query", "")
 
-    _Test(h, URL.build("#fragment"),
+    _Test(h, URL.build("#fragment")?,
       "", "", "", "", 0, "/", "", "fragment")
 
-    _Test(h, URL.build("https://host.name/path#frag?ment"),
+    _Test(h, URL.build("https://host.name/path#frag?ment")?,
       "https", "", "", "host.name", 443, "/path", "", "frag?ment")
 
-    _Test(h, URL.build("https://user@host.name?quer/y#fragment"),
+    _Test(h, URL.build("https://user@host.name?quer/y#fragment")?,
       "https", "user", "", "host.name", 443, "/", "quer/y", "fragment")
 
 class iso _BuildBad is UnitTest
@@ -275,30 +275,30 @@ class iso _BuildBad is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_error({() ? =>
-      URL.build("htt_ps://user@host.name/path#fragment")
+      URL.build("htt_ps://user@host.name/path#fragment")?
     })
 
     h.assert_error({() ? =>
-      URL.build("https://[11::24_]/path")
+      URL.build("https://[11::24_]/path")?
     })
 
     h.assert_error({() ? =>
-      URL.build("https://[11::24/path")
+      URL.build("https://[11::24/path")?
     })
 
     h.assert_error({() ? =>
-      URL.build("https://host%2Gname/path")
+      URL.build("https://host%2Gname/path")?
     })
 
     h.assert_error({() ? =>
-      URL.build("https://hostname/path%")
+      URL.build("https://hostname/path%")?
     })
 
 class iso _BuildNoEncoding is UnitTest
   fun name(): String => "net/http/URL.build_no_encoding"
 
   fun apply(h: TestHelper) ? =>
-    _Test(h, URL.build("https://host.name/path%32path", false),
+    _Test(h, URL.build("https://host.name/path%32path", false)?,
       "https", "", "", "host.name", 443, "/path%2532path", "", "")
 
 class iso _Valid is UnitTest
@@ -306,20 +306,20 @@ class iso _Valid is UnitTest
 
   fun apply(h: TestHelper) ? =>
     _Test(h,
-      URL.valid("https://user:password@host.name:12345/path?query#fragment"),
+      URL.valid("https://user:password@host.name:12345/path?query#fragment")?,
       "https", "user", "password", "host.name", 12345, "/path", "query",
       "fragment")
 
     h.assert_error({() ? =>
-      URL.valid("http://rosettacode.org/wiki/Category[Pony]")
+      URL.valid("http://rosettacode.org/wiki/Category[Pony]")?
     })
 
     h.assert_error({() ? =>
       URL.valid("https://en.wikipedia|org/wiki/Polymorphism_" +
-        "(computer_science)#Parametric_polymorphism")
+        "(computer_science)#Parametric_polymorphism")?
     })
 
-    _Test(h, URL.valid("http://user@host"),
+    _Test(h, URL.valid("http://user@host")?,
       "http", "user", "", "host", 80, "/", "", "")
 
 class iso _ToStringFun is UnitTest
@@ -328,18 +328,18 @@ class iso _ToStringFun is UnitTest
   fun apply(h: TestHelper) ? =>
     h.assert_eq[String](
       "https://user:password@host.name:12345/path?query#fragment",
-      URL.build("https://user:password@host.name:12345/path?query#fragment")
+      URL.build("https://user:password@host.name:12345/path?query#fragment")?
         .string())
 
     h.assert_eq[String]("http://rosettacode.org/wiki/Category%5DPony",
-      URL.build("http://rosettacode.org/wiki/Category]Pony").string())
+      URL.build("http://rosettacode.org/wiki/Category]Pony")?.string())
 
     h.assert_eq[String]("http://user@host/",
-      URL.build("http://user@host").string())
+      URL.build("http://user@host")?.string())
 
     // Default ports should be omitted.
     h.assert_eq[String]("http://host.name/path",
-      URL.build("http://host.name:80/path").string())
+      URL.build("http://host.name:80/path")?.string())
 
 primitive _Test
   fun apply(

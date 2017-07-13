@@ -482,14 +482,14 @@ actor Main
     Returns the byte at the given offset. Raise an error if the offset is out
     of bounds.
     """
-    this(offset_to_index(offset))
+    this(offset_to_index(offset))?
 
   fun ref update_offset(offset: ISize, value: U8): U8 ? =>
     """
     Changes a byte in the string, returning the previous byte at that offset.
     Raise an error if the offset is out of bounds.
     """
-    this(offset_to_index(offset)) = value
+    this(offset_to_index(offset))? = value
 
   fun clone(): String iso^ =>
     """
@@ -607,7 +607,7 @@ actor Main
 
     try
       while k <= j do
-        k = find(s, k) + s.size().isize()
+        k = find(s, k)? + s.size().isize()
         i = i + 1
       end
     end
@@ -806,7 +806,7 @@ actor Main
 
       try
         while i < cap do
-          push(seq(i))
+          push(seq(i)?)
           i = i + 1
         end
       end
@@ -822,7 +822,7 @@ actor Main
 
       while n < offset do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -834,7 +834,7 @@ actor Main
 
       while n < len do
         if iter.has_next() then
-          push(iter.next())
+          push(iter.next()?)
         else
           return
         end
@@ -923,7 +923,7 @@ actor Main
 
     try
       while true do
-        i = find(s, i)
+        i = find(s, i)?
         cut_in_place(i, i + s.size().isize())
         n = n + 1
       end
@@ -942,7 +942,7 @@ actor Main
 
     try
       while true do
-        offset = find(from, offset)
+        offset = find(from, offset)?
         cut_in_place(offset, offset + from_len)
         insert_in_place(offset, to)
         offset = offset + to_len
@@ -978,7 +978,7 @@ actor Main
 
     while ((result.size() + 1) < n) and (current < total_size) do
       try
-        let delim_start = find(delim where offset = current)
+        let delim_start = find(delim where offset = current)?
         result.push(substring(current, delim_start))
         current = delim_start + delim_size
       else break end
@@ -1010,7 +1010,7 @@ actor Main
 
       try
         while i < _size do
-          (let c, let len) = utf32(i.isize())
+          (let c, let len) = utf32(i.isize())?
 
           if chars.contains(c) then
             // If we find a delimiter, add the current string to the array.
@@ -1067,7 +1067,7 @@ actor Main
 
       repeat
         try
-          match utf32(i.isize())
+          match utf32(i.isize())?
           | (0xFFFD, 1) => None
           | (let c: U32, _) =>
             if not chars.contains(c) then
@@ -1097,7 +1097,7 @@ actor Main
 
       while i < _size do
         try
-          (let c, let len) = utf32(i.isize())
+          (let c, let len) = utf32(i.isize())?
           if not chars.contains(c) then
             break
           end
@@ -1268,20 +1268,20 @@ actor Main
       error
     end
 
-  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
-  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
-  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
-  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)
-  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)
-  fun ilong(base: U8 = 0): ILong ? => _to_int[ILong](base)
-  fun isize(base: U8 = 0): ISize ? => _to_int[ISize](base)
-  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)
-  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)
-  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
-  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
-  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
-  fun ulong(base: U8 = 0): ULong ? => _to_int[ULong](base)
-  fun usize(base: U8 = 0): USize ? => _to_int[USize](base)
+  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)?
+  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)?
+  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)?
+  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)?
+  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)?
+  fun ilong(base: U8 = 0): ILong ? => _to_int[ILong](base)?
+  fun isize(base: U8 = 0): ISize ? => _to_int[ISize](base)?
+  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)?
+  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)?
+  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)?
+  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)?
+  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)?
+  fun ulong(base: U8 = 0): ULong ? => _to_int[ULong](base)?
+  fun usize(base: U8 = 0): USize ? => _to_int[USize](base)?
 
   fun _to_int[A: ((Signed | Unsigned) & Integer[A] val)](base: U8): A ? =>
     """
@@ -1289,7 +1289,7 @@ actor Main
     If there are any other characters in the string, or the integer found is
     out of range for the target type then an error is thrown.
     """
-    (let v, let d) = read_int[A](0, base)
+    (let v, let d) = read_int[A](0, base)?
     // Check the whole string is used
     if (d == 0) or (d.usize() != _size) then error end
     v
@@ -1468,7 +1468,7 @@ class StringBytes is Iterator[U8]
     _i < _string.size()
 
   fun ref next(): U8 ? =>
-    _string(_i = _i + 1)
+    _string(_i = _i + 1)?
 
 class StringRunes is Iterator[U32]
   let _string: String box
@@ -1482,7 +1482,7 @@ class StringRunes is Iterator[U32]
     _i < _string.size()
 
   fun ref next(): U32 ? =>
-    (let rune, let len) = _string.utf32(_i.isize())
+    (let rune, let len) = _string.utf32(_i.isize())?
     _i = _i + len.usize()
     rune
 

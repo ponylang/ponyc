@@ -18,7 +18,7 @@ interface TCPListenNotify
     It is expected to implement proper error handling. You need to opt in to
     ignoring errors, which can be implemented like this:
 
-    ```
+    ```pony
     fun ref not_listening(listen: TCPListener ref) =>
       None
     ```

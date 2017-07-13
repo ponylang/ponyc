@@ -58,7 +58,7 @@ actor _TestRunner
     _ponytest._test_started(_id)
 
     try
-      _test(_helper)
+      _test(_helper)?
     else
       log("Test threw an error", false)
       _pass = false
@@ -151,7 +151,7 @@ actor _TestRunner
 
     for (i, action) in _expect_actions.pairs() do
       if action == name then
-        try _expect_actions.delete(i) end
+        try _expect_actions.delete(i)? end
         break
       end
     end

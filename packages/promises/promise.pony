@@ -26,7 +26,7 @@ fulfilled + bar
 fulfilled + baz
 ```
 
-```
+```pony
 use "promises"
 
 class PrintFulfill is Fulfill[String, String]
@@ -56,7 +56,7 @@ value which fulfills the fourth one. The output is the average length
 of the words passed on the command line or `0` if there are no command
 line arguments.
 
-```
+```pony
 use "promises"
 
 primitive Computation

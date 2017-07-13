@@ -40,7 +40,7 @@ actor _ExclusiveGroup is _Group
     if _next < _tests.size() then
       // We have queued tests, run the next one
       try
-        let next_test = _tests(_next)
+        let next_test = _tests(_next)?
         _next = _next + 1
         _in_test = true
         next_test.run()

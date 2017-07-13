@@ -44,7 +44,7 @@ actor _BenchAsync[A: Any #share] is _Benchmark
     else
       try
         let n: _BenchAsync[A] tag = this
-        _f().next[None]({(a: A) => n._run(i + 1)} iso)
+        _f()?.next[None]({(a: A) => n._run(i + 1)} iso)
       else
         _notify._failure(_name, false)
       end

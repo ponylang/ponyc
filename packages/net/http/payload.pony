@@ -117,7 +117,7 @@ class trn Payload
     """
     Get a header.
     """
-    _headers(key)
+    _headers(key)?
 
   fun is_safe(): Bool =>
     """

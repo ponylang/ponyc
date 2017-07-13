@@ -7,7 +7,7 @@ actor TCPListener
   The following program creates an echo server that listens for
   connections on port 8989 and echoes back any data it receives.
 
-  ```
+  ```pony
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
@@ -216,7 +216,7 @@ actor TCPListener
     Spawn a new connection.
     """
     try
-      TCPConnection._accept(this, _notify.connected(this), ns, _init_size,
+      TCPConnection._accept(this, _notify.connected(this)?, ns, _init_size,
         _max_size)
       _count = _count + 1
     else

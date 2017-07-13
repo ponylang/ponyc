@@ -38,7 +38,7 @@ class Directory
       error
     end
 
-    if not FileInfo(from).directory then
+    if not FileInfo(from)?.directory then
       error
     end
 
@@ -60,7 +60,7 @@ class Directory
       compile_error "unsupported platform"
     end
 
-    _FileDes.set_rights(_fd, path)
+    _FileDes.set_rights(_fd, path)?
 
   new iso _relative(path': FilePath, fd': I32) =>
     """
@@ -150,7 +150,7 @@ class Directory
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
     ifdef linux or freebsd then
       let fd' =
@@ -160,7 +160,7 @@ class Directory
             or @ponyint_o_cloexec())
       _relative(path', fd')
     else
-      recover create(path') end
+      recover create(path')? end
     end
 
   fun mkdir(target: String): Bool =>
@@ -177,14 +177,14 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
       ifdef linux or freebsd then
         var offset: ISize = 0
 
         repeat
           let element = try
-            offset = target.find(Path.sep(), offset) + 1
+            offset = target.find(Path.sep(), offset)? + 1
             target.substring(0, offset - 1)
           else
             offset = -1
@@ -194,7 +194,7 @@ class Directory
           @mkdirat[I32](_fd, element.cstring(), U32(0x1FF))
         until offset < 0 end
 
-        FileInfo(path').directory
+        FileInfo(path')?.directory
       else
         path'.mkdir()
       end
@@ -216,7 +216,7 @@ class Directory
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
     ifdef linux or freebsd then
       let fd' =
@@ -225,7 +225,7 @@ class Directory
             or @ponyint_o_creat()
             or @ponyint_o_cloexec(),
           I32(0x1B6))
-      recover File._descriptor(fd', path') end
+      recover File._descriptor(fd', path')? end
     else
       recover File(path') end
     end
@@ -241,14 +241,14 @@ class Directory
       error
     end
 
-    let path' = FilePath(path, target, path.caps - FileWrite)
+    let path' = FilePath(path, target, path.caps - FileWrite)?
 
     ifdef linux or freebsd then
       let fd' =
         @openat[I32](_fd, target.cstring(),
           @ponyint_o_rdonly() or @ponyint_o_cloexec(),
           I32(0x1B6))
-      recover File._descriptor(fd', path') end
+      recover File._descriptor(fd', path')? end
     else
       recover File(path') end
     end
@@ -258,7 +258,7 @@ class Directory
     Return a FileInfo for this directory. Raise an error if the fd is invalid
     or if we don't have FileStat permission.
     """
-    FileInfo._descriptor(_fd, path)
+    FileInfo._descriptor(_fd, path)?
 
   fun chmod(mode: FileMode box): Bool =>
     """
@@ -297,12 +297,12 @@ class Directory
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
     ifdef linux or freebsd then
-      FileInfo._relative(_fd, path', target)
+      FileInfo._relative(_fd, path', target)?
     else
-      FileInfo(path')
+      FileInfo(path')?
     end
 
   fun chmodat(target: String, mode: FileMode box): Bool =>
@@ -318,7 +318,7 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
       ifdef linux or freebsd then
         0 == @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0))
@@ -342,7 +342,7 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
       ifdef linux or freebsd then
         0 == @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0))
@@ -378,7 +378,7 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
       ifdef linux or freebsd then
         var tv: (ILong, ILong, ILong, ILong) =
@@ -409,7 +409,7 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, link_name, path.caps)
+      let path' = FilePath(path, link_name, path.caps)?
 
       ifdef linux or freebsd then
         0 == @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring())
@@ -434,15 +434,15 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
       ifdef linux or freebsd then
-        let fi = FileInfo(path')
+        let fi = FileInfo(path')?
 
         if fi.directory and not fi.symlink then
-          let directory = open(target)
+          let directory = open(target)?
 
-          for entry in directory.entries().values() do
+          for entry in directory.entries()?.values() do
             if not directory.remove(entry) then
               return false
             end
@@ -476,8 +476,8 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, source, path.caps)
-      let path'' = FilePath(to.path, target, to.path.caps)
+      let path' = FilePath(path, source, path.caps)?
+      let path'' = FilePath(to.path, target, to.path.caps)?
 
       ifdef linux or freebsd then
         0 == @renameat[I32](_fd, source.cstring(), to._fd, target.cstring())

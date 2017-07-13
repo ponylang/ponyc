@@ -107,8 +107,8 @@ class iso _TestDigest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let d = Digest.md5()
-    d.append("message1")
-    d.append("message2")
+    d.append("message1")?
+    d.append("message2")?
     h.assert_eq[String](
       "94af09c09bb9bb7b5c94fec6e6121482",
       ToHexString(d.final()))
@@ -117,7 +117,7 @@ class iso _TestDigest is UnitTest
       ToHexString(d.final()))
 
     let d' = Digest.sha512()
-    d'.append("test")
+    d'.append("test")?
     h.assert_eq[String](
       "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db2" +
       "7ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",

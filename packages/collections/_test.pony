@@ -35,22 +35,22 @@ class iso _TestList is UnitTest
 
     let b = a.clone()
     h.assert_eq[USize](b.size(), 3)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 1)
-    h.assert_eq[U32](b(2), 2)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 2)
 
-    b.remove(1)
+    b.remove(1)?
     h.assert_eq[USize](b.size(), 2)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 2)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 2)
 
     b.append_list(a)
     h.assert_eq[USize](b.size(), 5)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 2)
-    h.assert_eq[U32](b(2), 0)
-    h.assert_eq[U32](b(3), 1)
-    h.assert_eq[U32](b(4), 2)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 2)
+    h.assert_eq[U32](b(2)?, 0)
+    h.assert_eq[U32](b(3)?, 1)
+    h.assert_eq[U32](b(4)?, 2)
 
 class iso _TestListsFrom is UnitTest
   fun name(): String => "collections/Lists/from()"
@@ -59,11 +59,11 @@ class iso _TestListsFrom is UnitTest
     let a = List[U32].from([1; 3; 5; 7; 9])
 
     h.assert_eq[USize](a.size(), 5)
-    h.assert_eq[U32](a(0), 1)
-    h.assert_eq[U32](a(1), 3)
-    h.assert_eq[U32](a(2), 5)
-    h.assert_eq[U32](a(3), 7)
-    h.assert_eq[U32](a(4), 9)
+    h.assert_eq[U32](a(0)?, 1)
+    h.assert_eq[U32](a(1)?, 3)
+    h.assert_eq[U32](a(2)?, 5)
+    h.assert_eq[U32](a(3)?, 7)
+    h.assert_eq[U32](a(4)?, 9)
 
     let b = List[U32].from(Array[U32])
     h.assert_eq[USize](b.size(), 0)
@@ -92,13 +92,13 @@ class iso _TestMap is UnitTest
     h.assert_eq[U32](11, (a("1") = 1) as U32)
 
     let b = Map[String, U32]
-    h.assert_eq[U32](0, b.insert("0", 0))
-    h.assert_eq[U32](1, b.insert("1", 1))
-    h.assert_eq[U32](2, b.insert("2", 2))
-    h.assert_eq[U32](3, b.insert("3", 3))
-    h.assert_eq[U32](4, b.insert("4", 4))
-    h.assert_eq[U32](5, b.insert("5", 5))
-    h.assert_eq[U32](6, b.insert("6", 6))
+    h.assert_eq[U32](0, b.insert("0", 0)?)
+    h.assert_eq[U32](1, b.insert("1", 1)?)
+    h.assert_eq[U32](2, b.insert("2", 2)?)
+    h.assert_eq[U32](3, b.insert("3", 3)?)
+    h.assert_eq[U32](4, b.insert("4", 4)?)
+    h.assert_eq[U32](5, b.insert("5", 5)?)
+    h.assert_eq[U32](6, b.insert("6", 6)?)
 
     h.assert_eq[USize](7, a.size())
     h.assert_eq[USize](16, a.space())
@@ -107,12 +107,12 @@ class iso _TestMap is UnitTest
 
     var pair_count: USize = 0
     for (k, v) in a.pairs() do
-      h.assert_eq[U32](b(k), v)
+      h.assert_eq[U32](b(k)?, v)
       pair_count = pair_count + 1
     end
     h.assert_eq[USize](7, pair_count)
 
-    let a_removed_pair = a.remove("1")
+    let a_removed_pair = a.remove("1")?
     h.assert_eq[String]("1", a_removed_pair._1)
     h.assert_eq[U32](1, a_removed_pair._2)
     h.assert_eq[USize](6, a.size())
@@ -127,12 +127,12 @@ class iso _TestMap is UnitTest
     h.assert_eq[USize](8, b.space())
 
     let c = Map[String, U32]
-    c.insert_if_absent("a", 1)
-    h.assert_eq[U32](1, c("a"))
-    c.insert_if_absent("a", 2)
-    h.assert_eq[U32](1, c("a"))
-    h.assert_eq[U32](0, c.insert_if_absent("0", 0))
-    h.assert_eq[U32](0, c.insert_if_absent("0", 1))
+    c.insert_if_absent("a", 1)?
+    h.assert_eq[U32](1, c("a")?)
+    c.insert_if_absent("a", 2)?
+    h.assert_eq[U32](1, c("a")?)
+    h.assert_eq[U32](0, c.insert_if_absent("0", 0)?)
+    h.assert_eq[U32](0, c.insert_if_absent("0", 1)?)
 
 class iso _TestMapRemove is UnitTest
   fun name(): String => "collections/Map.remove"
@@ -141,16 +141,16 @@ class iso _TestMapRemove is UnitTest
     let x: Map[U32, String] = Map[U32,String]
     x(1) = "one"
     h.assert_eq[USize](x.size(), 1)
-    x.remove(1)
+    x.remove(1)?
     h.assert_eq[USize](x.size(), 0)
 
     x(2) = "two"
     h.assert_eq[USize](x.size(), 1)
-    x.remove(2)
+    x.remove(2)?
     h.assert_eq[USize](x.size(), 0)
 
     x(11) = "here"
-    h.assert_eq[String](x(11), "here")
+    h.assert_eq[String](x(11)?, "here")
 
 class iso _TestMapUpsert is UnitTest
   fun name(): String => "collections/Map.upsert"
@@ -158,29 +158,29 @@ class iso _TestMapUpsert is UnitTest
   fun apply(h: TestHelper) ? =>
     let x: Map[U32, U64] = Map[U32,U64]
     let f = {(x: U64, y: U64): U64 => x + y }
-    x.upsert(1, 5, f)
-    h.assert_eq[U64](5, x(1))
-    x.upsert(1, 3, f)
-    h.assert_eq[U64](8, x(1))
-    x.upsert(1, 4, f)
-    h.assert_eq[U64](12, x(1))
-    x.upsert(1, 2, f)
-    h.assert_eq[U64](14, x(1))
-    x.upsert(1, 1, f)
-    h.assert_eq[U64](15, x(1))
+    x.upsert(1, 5, f)?
+    h.assert_eq[U64](5, x(1)?)
+    x.upsert(1, 3, f)?
+    h.assert_eq[U64](8, x(1)?)
+    x.upsert(1, 4, f)?
+    h.assert_eq[U64](12, x(1)?)
+    x.upsert(1, 2, f)?
+    h.assert_eq[U64](14, x(1)?)
+    x.upsert(1, 1, f)?
+    h.assert_eq[U64](15, x(1)?)
 
     let x2: Map[U32, String] = Map[U32,String]
     let g = {(x: String, y: String): String => x + ", " + y }
-    x2.upsert(1, "1", g)
-    h.assert_eq[String]("1", x2(1))
-    x2.upsert(1, "2", g)
-    h.assert_eq[String]("1, 2", x2(1))
-    x2.upsert(1, "3", g)
-    h.assert_eq[String]("1, 2, 3", x2(1))
-    x2.upsert(1, "abc", g)
-    h.assert_eq[String]("1, 2, 3, abc", x2(1))
-    x2.upsert(1, "def", g)
-    h.assert_eq[String]("1, 2, 3, abc, def", x2(1))
+    x2.upsert(1, "1", g)?
+    h.assert_eq[String]("1", x2(1)?)
+    x2.upsert(1, "2", g)?
+    h.assert_eq[String]("1, 2", x2(1)?)
+    x2.upsert(1, "3", g)?
+    h.assert_eq[String]("1, 2, 3", x2(1)?)
+    x2.upsert(1, "abc", g)?
+    h.assert_eq[String]("1, 2, 3, abc", x2(1)?)
+    x2.upsert(1, "def", g)?
+    h.assert_eq[String]("1, 2, 3, abc, def", x2(1)?)
 
     // verify correct results when we trigger a resize
     let prealloc: USize = 6
@@ -188,14 +188,14 @@ class iso _TestMapUpsert is UnitTest
     let x3: Map[U32, U64] = Map[U32,U64](prealloc)
     let f' = {(x: U64, y: U64): U64 => x + y }
     h.assert_eq[USize](expected_initial_size, x3.space())
-    h.assert_eq[U64](1, x3.upsert(1, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(2, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(3, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(4, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(5, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(6, 1, f'))
-    h.assert_eq[U64](1, x3.upsert(7, 1, f'))
-    h.assert_eq[U64](2, x3.upsert(5, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(1, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(2, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(3, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(4, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(5, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(6, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(7, 1, f')?)
+    h.assert_eq[U64](2, x3.upsert(5, 1, f')?)
     h.assert_ne[USize](expected_initial_size, x3.space())
 
 class iso _TestRing is UnitTest
@@ -205,22 +205,22 @@ class iso _TestRing is UnitTest
     let a = RingBuffer[U64](4)
     a .> push(0) .> push(1) .> push(2) .> push(3)
 
-    h.assert_eq[U64](a(0), 0)
-    h.assert_eq[U64](a(1), 1)
-    h.assert_eq[U64](a(2), 2)
-    h.assert_eq[U64](a(3), 3)
+    h.assert_eq[U64](a(0)?, 0)
+    h.assert_eq[U64](a(1)?, 1)
+    h.assert_eq[U64](a(2)?, 2)
+    h.assert_eq[U64](a(3)?, 3)
 
     a .> push(4) .> push(5)
 
-    h.assert_error({() ? => a(0) }, "Read ring 0")
-    h.assert_error({() ? => a(1) }, "Read ring 1")
+    h.assert_error({() ? => a(0)? }, "Read ring 0")
+    h.assert_error({() ? => a(1)? }, "Read ring 1")
 
-    h.assert_eq[U64](a(2), 2)
-    h.assert_eq[U64](a(3), 3)
-    h.assert_eq[U64](a(4), 4)
-    h.assert_eq[U64](a(5), 5)
+    h.assert_eq[U64](a(2)?, 2)
+    h.assert_eq[U64](a(3)?, 3)
+    h.assert_eq[U64](a(4)?, 4)
+    h.assert_eq[U64](a(5)?, 5)
 
-    h.assert_error({() ? => a(6) }, "Read ring 6")
+    h.assert_error({() ? => a(6)? }, "Read ring 6")
 
 class iso _TestListsMap is UnitTest
   fun name(): String => "collections/Lists/map()"
@@ -233,9 +233,9 @@ class iso _TestListsMap is UnitTest
     let c = a.map[U32](f)
 
     h.assert_eq[USize](c.size(), 3)
-    h.assert_eq[U32](c(0), 0)
-    h.assert_eq[U32](c(1), 2)
-    h.assert_eq[U32](c(2), 4)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 2)
+    h.assert_eq[U32](c(2)?, 4)
 
 class iso _TestListsFlatMap is UnitTest
   fun name(): String => "collections/Lists/flat_map()"
@@ -248,12 +248,12 @@ class iso _TestListsFlatMap is UnitTest
     let c = a.flat_map[U32](f)
 
     h.assert_eq[USize](c.size(), 6)
-    h.assert_eq[U32](c(0), 0)
-    h.assert_eq[U32](c(1), 0)
-    h.assert_eq[U32](c(2), 1)
-    h.assert_eq[U32](c(3), 2)
-    h.assert_eq[U32](c(4), 2)
-    h.assert_eq[U32](c(5), 4)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 0)
+    h.assert_eq[U32](c(2)?, 1)
+    h.assert_eq[U32](c(3)?, 2)
+    h.assert_eq[U32](c(4)?, 2)
+    h.assert_eq[U32](c(5)?, 4)
 
 class iso _TestListsFilter is UnitTest
   fun name(): String => "collections/Lists/filter()"
@@ -266,8 +266,8 @@ class iso _TestListsFilter is UnitTest
     let b = a.filter(f)
 
     h.assert_eq[USize](b.size(), 2)
-    h.assert_eq[U32](b(0), 2)
-    h.assert_eq[U32](b(1), 3)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(1)?, 3)
 
 class iso _TestListsFold is UnitTest
   fun name(): String => "collections/Lists/fold()"
@@ -285,10 +285,10 @@ class iso _TestListsFold is UnitTest
     let resList = a.fold[List[U32]](g, List[U32])
 
     h.assert_eq[USize](resList.size(), 4)
-    h.assert_eq[U32](resList(0), 0)
-    h.assert_eq[U32](resList(1), 2)
-    h.assert_eq[U32](resList(2), 4)
-    h.assert_eq[U32](resList(3), 6)
+    h.assert_eq[U32](resList(0)?, 0)
+    h.assert_eq[U32](resList(1)?, 2)
+    h.assert_eq[U32](resList(2)?, 4)
+    h.assert_eq[U32](resList(3)?, 6)
 
 class iso _TestListsEvery is UnitTest
   fun name(): String => "collections/Lists/every()"
@@ -345,11 +345,11 @@ class iso _TestListsPartition is UnitTest
     (let evens, let odds) = a.partition(isEven)
 
     h.assert_eq[USize](evens.size(), 2)
-    h.assert_eq[U32](evens(0), 0)
-    h.assert_eq[U32](evens(1), 2)
+    h.assert_eq[U32](evens(0)?, 0)
+    h.assert_eq[U32](evens(1)?, 2)
     h.assert_eq[USize](odds.size(), 2)
-    h.assert_eq[U32](odds(0), 1)
-    h.assert_eq[U32](odds(1), 3)
+    h.assert_eq[U32](odds(0)?, 1)
+    h.assert_eq[U32](odds(1)?, 3)
 
     let b = List[U32]
     (let emptyEvens, let emptyOdds) = b.partition(isEven)
@@ -370,10 +370,10 @@ class iso _TestListsDrop is UnitTest
     let e = a.drop(6)
 
     h.assert_eq[USize](b.size(), 3)
-    h.assert_eq[U32](b(0), 2)
-    h.assert_eq[U32](b(2), 4)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(2)?, 4)
     h.assert_eq[USize](c.size(), 1)
-    h.assert_eq[U32](c(0), 4)
+    h.assert_eq[U32](c(0)?, 4)
     h.assert_eq[USize](d.size(), 0)
     h.assert_eq[USize](e.size(), 0)
 
@@ -395,25 +395,25 @@ class iso _TestListsTake is UnitTest
     let m = a.take(0)
 
     h.assert_eq[USize](b.size(), 2)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 1)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
     h.assert_eq[USize](c.size(), 4)
-    h.assert_eq[U32](c(0), 0)
-    h.assert_eq[U32](c(1), 1)
-    h.assert_eq[U32](c(2), 2)
-    h.assert_eq[U32](c(3), 3)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 1)
+    h.assert_eq[U32](c(2)?, 2)
+    h.assert_eq[U32](c(3)?, 3)
     h.assert_eq[USize](d.size(), 5)
-    h.assert_eq[U32](d(0), 0)
-    h.assert_eq[U32](d(1), 1)
-    h.assert_eq[U32](d(2), 2)
-    h.assert_eq[U32](d(3), 3)
-    h.assert_eq[U32](d(4), 4)
+    h.assert_eq[U32](d(0)?, 0)
+    h.assert_eq[U32](d(1)?, 1)
+    h.assert_eq[U32](d(2)?, 2)
+    h.assert_eq[U32](d(3)?, 3)
+    h.assert_eq[U32](d(4)?, 4)
     h.assert_eq[USize](e.size(), 5)
-    h.assert_eq[U32](e(0), 0)
-    h.assert_eq[U32](e(1), 1)
-    h.assert_eq[U32](e(2), 2)
-    h.assert_eq[U32](e(3), 3)
-    h.assert_eq[U32](e(4), 4)
+    h.assert_eq[U32](e(0)?, 0)
+    h.assert_eq[U32](e(1)?, 1)
+    h.assert_eq[U32](e(2)?, 2)
+    h.assert_eq[U32](e(3)?, 3)
+    h.assert_eq[U32](e(4)?, 4)
     h.assert_eq[USize](m.size(), 0)
 
     let empty = List[U32]
@@ -437,18 +437,18 @@ class iso _TestListsTakeWhile is UnitTest
     let e = a.take_while(z)
 
     h.assert_eq[USize](b.size(), 5)
-    h.assert_eq[U32](b(0), 0)
-    h.assert_eq[U32](b(1), 1)
-    h.assert_eq[U32](b(2), 2)
-    h.assert_eq[U32](b(3), 3)
-    h.assert_eq[U32](b(4), 4)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 2)
+    h.assert_eq[U32](b(3)?, 3)
+    h.assert_eq[U32](b(4)?, 4)
     h.assert_eq[USize](c.size(), 4)
-    h.assert_eq[U32](c(0), 0)
-    h.assert_eq[U32](c(1), 1)
-    h.assert_eq[U32](c(2), 2)
-    h.assert_eq[U32](c(3), 3)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 1)
+    h.assert_eq[U32](c(2)?, 2)
+    h.assert_eq[U32](c(3)?, 3)
     h.assert_eq[USize](d.size(), 1)
-    h.assert_eq[U32](d(0), 0)
+    h.assert_eq[U32](d(0)?, 0)
     h.assert_eq[USize](e.size(), 0)
 
     let empty = List[U32]
@@ -477,14 +477,14 @@ class iso _TestListsReverse is UnitTest
     let b = a.reverse()
 
     h.assert_eq[USize](a.size(), 3)
-    h.assert_eq[U32](a(0), 0)
-    h.assert_eq[U32](a(1), 1)
-    h.assert_eq[U32](a(2), 2)
+    h.assert_eq[U32](a(0)?, 0)
+    h.assert_eq[U32](a(1)?, 1)
+    h.assert_eq[U32](a(2)?, 2)
 
     h.assert_eq[USize](b.size(), 3)
-    h.assert_eq[U32](b(0), 2)
-    h.assert_eq[U32](b(1), 1)
-    h.assert_eq[U32](b(2), 0)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 0)
 
 class iso _TestHashSetContains is UnitTest
   fun name(): String => "collections/HashSet/contains()"

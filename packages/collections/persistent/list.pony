@@ -4,7 +4,7 @@ A persistent list with functional transformations.
 
 ## Usage
 
-```
+```pony
 let l1 = Lists[U32]([2, 4, 6, 8]) // List(2, 4, 6, 8)
 
 let empty = Lists[U32].empty() // List()
@@ -77,10 +77,10 @@ primitive Lists[A]
       false
     elseif (l1.is_non_empty() and l2.is_empty()) then
       false
-    elseif (l1.head() != l2.head()) then
+    elseif (l1.head()? != l2.head()?) then
       false
     else
-      eq[T](l1.tail(), l2.tail())
+      eq[T](l1.tail()?, l2.tail()?)?
     end
 
 primitive Nil[A] is ReadSeq[val->A]
@@ -256,7 +256,7 @@ class val Cons[A] is ReadSeq[val->A]
     """
     match i
     | 0 => _head
-    else _tail(i - 1)
+    else _tail(i - 1)?
     end
 
   fun values(): Iterator[val->A]^ =>
@@ -266,7 +266,7 @@ class val Cons[A] is ReadSeq[val->A]
     object is Iterator[val->A]
       var _list: List[A] box = this
       fun has_next(): Bool => _list isnt Nil[A]
-      fun ref next(): val->A! ? => (_list = _list.tail()).head()
+      fun ref next(): val->A! ? => (_list = _list.tail()?).head()?
     end
 
   fun is_empty(): Bool =>

@@ -20,7 +20,7 @@ actor TCPConnection
   the local host, writes "hello world", and listens for a response,
   which it then prints.
 
-  ```
+  ```pony
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
@@ -556,7 +556,7 @@ actor TCPConnection
 
       try
         _manage_pending_buffer(len.usize(),
-          _pending_writev_total, _pending.size())
+          _pending_writev_total, _pending.size())?
       end
 
       if _pending_sent < 16 then
@@ -590,7 +590,7 @@ actor TCPConnection
             num_to_send = writev_batch_size
             bytes_to_send = 0
             for d in Range[USize](1, num_to_send * 2, 2) do
-              bytes_to_send = bytes_to_send + _pending_writev(d)
+              bytes_to_send = bytes_to_send + _pending_writev(d)?
             end
           end
 
@@ -598,7 +598,7 @@ actor TCPConnection
           var len = @pony_os_writev[USize](_event,
             _pending_writev.cpointer(), num_to_send.i32()) ?
 
-          if _manage_pending_buffer(len, bytes_to_send, num_to_send) then
+          if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
             return true
           end
         else
@@ -625,32 +625,32 @@ actor TCPConnection
       while len > 0 do
         let iov_p =
           ifdef windows then
-            _pending_writev(1)
+            _pending_writev(1)?
           else
-            _pending_writev(0)
+            _pending_writev(0)?
           end
         let iov_s =
           ifdef windows then
-            _pending_writev(0)
+            _pending_writev(0)?
           else
-            _pending_writev(1)
+            _pending_writev(1)?
           end
         if iov_s <= len then
           len = len - iov_s
-          _pending_writev.shift()
-          _pending_writev.shift()
-          _pending.shift()
+          _pending_writev.shift()?
+          _pending_writev.shift()?
+          _pending.shift()?
           ifdef windows then
             _pending_sent = _pending_sent - 1
           end
           _pending_writev_total = _pending_writev_total - iov_s
         else
           ifdef windows then
-            _pending_writev.update(1, iov_p+len)
-            _pending_writev.update(0, iov_s-len)
+            _pending_writev.update(1, iov_p+len)?
+            _pending_writev.update(0, iov_s-len)?
           else
-            _pending_writev.update(0, iov_p+len)
-            _pending_writev.update(1, iov_s-len)
+            _pending_writev.update(0, iov_p+len)?
+            _pending_writev.update(1, iov_s-len)?
           end
           _pending_writev_total = _pending_writev_total - len
           len = 0
@@ -671,9 +671,9 @@ actor TCPConnection
         return true
       else
         for d in Range[USize](0, num_to_send, 1) do
-          _pending_writev.shift()
-          _pending_writev.shift()
-          _pending.shift()
+          _pending_writev.shift()?
+          _pending_writev.shift()?
+          _pending.shift()?
           ifdef windows then
             _pending_sent = _pending_sent - 1
           end

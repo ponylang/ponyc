@@ -91,7 +91,7 @@ class Match
     var i: U32 = 1
     while i < _size do
       try
-        let g: String = apply(i)
+        let g: String = apply(i)?
         res.push(g)
       else
         res.push("")

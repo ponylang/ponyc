@@ -31,7 +31,7 @@ class Writer
   The following program uses a write buffer to encode an array of
   tuples as a message of this type:
 
-  ```
+  ```pony
   use "net"
 
   actor Main
@@ -303,7 +303,7 @@ class Writer
 
   fun ref _byte(data: U8) =>
     try
-      _current(_offset) = data
+      _current(_offset)? = data
       _offset = _offset + 1
       _size = _size + 1
     end

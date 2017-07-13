@@ -29,7 +29,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise(_fulfill(value))
+        _promise(_fulfill(value)?)
       else
         _promise.reject()
       end
@@ -43,7 +43,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise(_rejected())
+        _promise(_rejected()?)
       else
         _promise.reject()
       end

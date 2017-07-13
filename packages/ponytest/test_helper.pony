@@ -81,7 +81,7 @@ class val TestHelper
     Assert that the given test function throws an error when run.
     """
     try
-      test()
+      test()?
       fail(_format_loc(loc) + "Assert error failed. " + msg)
       false
     else
@@ -99,7 +99,7 @@ class val TestHelper
     Assert that the gived test function does not throw an error when run.
     """
     try
-      test()
+      test()?
       log(_format_loc(loc) + "Assert no error passed. " + msg, true)
       true
     else
@@ -252,7 +252,7 @@ class val TestHelper
       try
         var i: USize = 0
         while i < expect.size() do
-          if expect(i) != actual(i) then
+          if expect(i)? != actual(i)? then
             ok = false
             break
           end
@@ -294,9 +294,9 @@ class val TestHelper
         var i: USize = -1
         for a in actual.values() do
           i = i + 1
-          if consumed(i) then continue end
+          if consumed(i)? then continue end
           if e == a then
-            consumed.update(i, true)
+            consumed.update(i, true)?
             found = true
             break
           end
@@ -308,7 +308,7 @@ class val TestHelper
 
       let extra = Array[box->A]
       for (i, c) in consumed.pairs() do
-        if not c then extra.push(actual(i)) end
+        if not c then extra.push(actual(i)?) end
       end
 
       if (extra.size() != 0) or (missing.size() != 0) then

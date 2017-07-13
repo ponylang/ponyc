@@ -31,4 +31,4 @@ class Take[A] is Iterator[A]
 
   fun ref next(): A ? =>
     _countdown = _countdown - 1
-    _i.next()
+    _i.next()?

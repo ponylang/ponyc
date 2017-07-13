@@ -58,7 +58,7 @@ primitive X509
     end
 
     try
-      array.push(common_name(cert))
+      array.push(common_name(cert)?)
     end
 
     let stack =
@@ -131,25 +131,25 @@ primitive X509
     end
 
     try
-      if name(0) == '*' then
+      if name(0)? == '*' then
         // The name has a wildcard. Must be followed by at least two
         // non-empty domain levels.
-        if (name.size() < 3) or (name(1) != '.') or (name(2) == '.') then
+        if (name.size() < 3) or (name(1)? != '.') or (name(2)? == '.') then
           return false
         end
 
         try
           // Find the second domain level and make sure it's followed by
           // something other than a dot.
-          let offset = name.find(".", 3)
+          let offset = name.find(".", 3)?
 
-          if name.at_offset(offset + 1) == '.' then
+          if name.at_offset(offset + 1)? == '.' then
             return false
           end
         end
 
         // Get the host domain.
-        let domain = host.find(".")
+        let domain = host.find(".")?
 
         // If the host domain is the wildcard domain ignoring case, they match.
         return

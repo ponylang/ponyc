@@ -78,7 +78,7 @@ class Regex
     Return true on a successful match, false otherwise.
     """
     try
-      let m = _match(subject, 0, 0)
+      let m = _match(subject, 0, 0)?
       @pcre2_match_data_free_8[None](m)
       true
     else
@@ -97,7 +97,7 @@ class Regex
     object that can give precise match details. Raises an error if there is no
     match.
     """
-    let m = _match(subject, offset, U32(0))
+    let m = _match(subject, offset, U32(0))?
     Match._create(subject, m)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](
@@ -162,7 +162,7 @@ class Regex
 
     try
       while off < subject.size() do
-        let m' = _match(subject, off, _PCRE2.not_empty())
+        let m' = _match(subject, off, _PCRE2.not_empty())?
         let m = Match._create(subject, m')
         let off' = m.start_pos()
         out.push(subject.substring(off.isize(), off'.isize()))

@@ -51,7 +51,7 @@ actor Timers
     Cancels a timer.
     """
     try
-      (_, let timer') = _map.remove(timer)
+      (_, let timer') = _map.remove(timer)?
       timer'._cancel()
 
       if (_map.size() == 0) and (not _event.is_null()) then
@@ -94,7 +94,7 @@ actor Timers
 
     try
       for i in Range(0, _wheels()) do
-        if not _wheel(i).advance(_pending, _current, elapsed) then
+        if not _wheel(i)?.advance(_pending, _current, elapsed) then
           break
         end
       end
@@ -132,14 +132,14 @@ actor Timers
     """
     if not timer._fire(_current) then
       try
-        _map.remove(timer)
+        _map.remove(timer)?
       end
       return
     end
 
     try
       let rem = timer._next() - _current
-      _get_wheel(rem).schedule(consume timer)
+      _get_wheel(rem)?.schedule(consume timer)
     end
 
   fun _next(): U64 =>
@@ -152,7 +152,7 @@ actor Timers
 
     try
       for i in Range(0, _wheels()) do
-        next = next.min(_wheel(i).next(_current))
+        next = next.min(_wheel(i)?.next(_current))
       end
     end
 
@@ -176,7 +176,7 @@ actor Timers
     """
     let t = rem.min(_expiration_max())
     let i = ((t.bitwidth() - t.clz()) - 1).usize() / _bits()
-    _wheel(i)
+    _wheel(i)?
 
   fun tag _expiration_max(): U64 =>
     """

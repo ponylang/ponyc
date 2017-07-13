@@ -34,8 +34,8 @@ class Filter[A] is Iterator[A]
       match _next
       | _None =>
         if _iter.has_next() then
-          _next = _iter.next()
-          if try not _fn(_next as A) else true end then
+          _next = _iter.next()?
+          if try not _fn(_next as A)? else true end then
             _next = _None
             _find_next()
           end
@@ -64,7 +64,7 @@ class Filter[A] is Iterator[A]
     else
       if _iter.has_next() then
         _find_next()
-        next()
+        next()?
       else
         error
       end

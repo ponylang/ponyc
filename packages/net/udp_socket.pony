@@ -14,7 +14,7 @@ actor UDPSocket
 
   The server is implemented like this:
 
-  ```
+  ```pony
   use "net"
 
   class MyUDPNotify is UDPNotify
@@ -38,7 +38,7 @@ actor UDPSocket
 
   The client is implemented like this:
 
-  ```
+  ```pony
   use "net"
 
   class MyUDPNotify is UDPNotify

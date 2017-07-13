@@ -51,7 +51,7 @@ class SSLConnection is TCPConnectionNotify
     let notified = _notify.sent(conn, data)
     if _connected then
       try
-        _ssl.write(notified)
+        _ssl.write(notified)?
       else
         return ""
       end
@@ -117,7 +117,7 @@ class SSLConnection is TCPConnectionNotify
 
         try
           while _pending.size() > 0 do
-            _ssl.write(_pending.shift())
+            _ssl.write(_pending.shift()?)?
           end
         end
       end
@@ -156,6 +156,6 @@ class SSLConnection is TCPConnectionNotify
 
     try
       while _ssl.can_send() do
-        conn.write_final(_ssl.send())
+        conn.write_final(_ssl.send()?)
       end
     end

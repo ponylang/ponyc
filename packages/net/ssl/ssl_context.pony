@@ -36,7 +36,7 @@ class val SSLContext
 
     try
       set_ciphers(
-        "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256")
+        "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256")?
     end
 
   fun client(hostname: String = ""): SSL iso^ ? =>
@@ -46,7 +46,7 @@ class val SSLContext
     """
     let ctx = _ctx
     let verify = _client_verify
-    recover SSL._create(ctx, false, verify, hostname) end
+    recover SSL._create(ctx, false, verify, hostname)? end
 
   fun server(): SSL iso^ ? =>
     """
@@ -54,7 +54,7 @@ class val SSLContext
     """
     let ctx = _ctx
     let verify = _server_verify
-    recover SSL._create(ctx, true, verify) end
+    recover SSL._create(ctx, true, verify)? end
 
   fun ref set_cert(cert: FilePath, key: FilePath) ? =>
     """
