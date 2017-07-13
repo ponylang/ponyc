@@ -16,7 +16,7 @@ class val Config
       OptionSpec.i64("chunk", "Chunk size." where default' = 1024)
       OptionSpec.i64("streamers", "Number of streamers." where default' = 4)
       OptionSpec.i64("updaters", "Number of updaters." where default' = 8)
-    ]).>add_help()
+    ])?.>add_help()?
     let cmd =
       match CommandParser(cs).parse(env.args, env.vars())
       | let c: Command => c
@@ -49,7 +49,7 @@ actor Main
     _start = Time.nanos()
 
     try
-      let c = Config(env)
+      let c = Config(env)?
       _streamer_count = c.streamer_count
       _updater_count = c.updater_count
 
@@ -122,16 +122,16 @@ actor Streamer
       for i in Range(0, chks) do
         var datum = rand()
         var updater = ((datum >> shift) and mask).usize()
-        list(updater).push(datum)
+        list(updater)?.push(datum)
       end
 
       var vlist: Array[Array[U64] iso] val = consume list
 
       for i in vlist.keys() do
-        var data = vlist(i)
+        var data = vlist(i)?
 
         if data.size() > 0 then
-          updaters(i)(data)
+          updaters(i)?(data)
         end
       end
     end
@@ -158,7 +158,7 @@ actor Updater
     try
       for datum in data.values() do
         var i = (datum and (table.size() - 1).u64()).usize()
-        table(i) = table(i) xor datum
+        table(i)? = table(i)? xor datum
       end
     end
 
@@ -202,7 +202,7 @@ class PolyRand
 
         for j in Range(0, 64) do
           if ((last >> j.u64()) and 1) != 0 then
-            try temp = temp xor m2(j) end
+            try temp = temp xor m2(j)? end
           end
         end
 

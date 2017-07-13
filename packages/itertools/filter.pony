@@ -14,7 +14,7 @@ class Filter[A] is Iterator[A]
 
   actor Main
     new create(env: Env) =>
-      let fn = {(s: String): Bool => x.size() > 3 }
+      let fn = {(s: String): Bool => s.size() > 3 }
       for x in Filter[String](env.args.slice(1).values(), fn) do
         env.out.print(x)
       end

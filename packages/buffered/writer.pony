@@ -32,13 +32,13 @@ class Writer
   tuples as a message of this type:
 
   ```pony
-  use "net"
+  use "buffered"
 
   actor Main
     new create(env: Env) =>
       let wb = Writer
-      let messages = [[(F32(3597.82), "Anderson"), (F32(-7979.3), "Graham")],
-                      [(F32(3.14159), "Hopper"), (F32(-83.83), "Jones")]]
+      let messages = [[(F32(3597.82), "Anderson"); (F32(-7979.3), "Graham")]
+                      [(F32(3.14159), "Hopper"); (F32(-83.83), "Jones")]]
       for items in messages.values() do
         wb.i32_be((items.size() / 2).i32())
         for (f, s) in items.values() do

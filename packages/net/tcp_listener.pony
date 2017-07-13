@@ -11,7 +11,8 @@ actor TCPListener
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
-    fun ref received(conn: TCPConnection ref,
+    fun ref received(
+      conn: TCPConnection ref,
       data: Array[U8] iso,
       times: USize)
       : Bool
@@ -26,7 +27,7 @@ actor TCPListener
     fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
       MyTCPConnectionNotify
 
-    fun ref not_listening(conn: TCPListener ref) =>
+    fun ref not_listening(listen: TCPListener ref) =>
       None
 
   actor Main

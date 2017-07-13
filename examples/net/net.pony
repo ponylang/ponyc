@@ -6,7 +6,7 @@ actor Main
     var i = USize(1)
 
     let ssl = try
-      if env.args(i) == "ssl" then
+      if env.args(i)? == "ssl" then
         i = i + 1
         true
       else
@@ -17,7 +17,7 @@ actor Main
     end
 
     let limit = try
-      env.args(i).usize()
+      env.args(i)?.usize()?
     else
       1
     end

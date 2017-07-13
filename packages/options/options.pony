@@ -17,7 +17,7 @@ actor Main
   new create(env: Env) =>
     _env = env
     try
-      arguments()
+      arguments()?
     end
 
     _env.out.print("The String is " + _a_string)

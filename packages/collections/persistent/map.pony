@@ -19,14 +19,20 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   ## Usage
   ```pony
-  let empty = Map[String,U32] // {}
-  // Update returns a new map with the provided key set
-  // to the provided value. The old map is unchanged.
-  let m2 = m1("a") = 5 // {a: 5}
-  let m3 = m2("b") = 10 // {a: 5, b: 10}
-  let m4 = m3.remove("a") // {b: 10}
-  // You can create a new map from key value pairs.
-  let m5 = Map[String,U32].concat([("a", 2), ("b", 3)].values()) // {a: 2, b: 3}
+  use "collections/persistent"
+
+  actor Main
+    new create(env: Env) =>
+      try
+        let m1 = Map[String, U32] // {}
+        // Update returns a new map with the provided key set
+        // to the provided value. The old map is unchanged.
+        let m2 = m1("a") = 5 // {a: 5}
+        let m3 = m2("b") = 10 // {a: 5, b: 10}
+        let m4 = m3.remove("a")? // {b: 10}
+        // You can create a new map from key value pairs.
+        let m5 = Map[String, U32].concat([as (String, U32): ("a", 2); ("b", 3)].values()) // {a: 2, b: 3}
+      end
   ```
   """
   let _root: _MapNode[K, V, H]

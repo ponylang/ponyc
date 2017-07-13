@@ -33,7 +33,7 @@ class Reader
   this type and print them:
 
   ```pony
-  use "net"
+  use "buffered"
   use "collections"
 
   class Notify is StdinNotify
@@ -45,12 +45,12 @@ class Reader
       rb.append(consume data)
       try
         while true do
-          let len = rb.i32_be()
-          let items = rb.i32_be().usize()
+          let len = rb.i32_be()?
+          let items = rb.i32_be()?.usize()
           for range in Range(0, items) do
-            let f = rb.f32_be()
-            let str_len = rb.i32_be().usize()
-            let str = String.from_array(rb.block(str_len))
+            let f = rb.f32_be()?
+            let str_len = rb.i32_be()?.usize()
+            let str = String.from_array(rb.block(str_len)?)
             _env.out.print("[(" + f.string() + "), (" + str + ")]")
           end
         end

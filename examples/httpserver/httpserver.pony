@@ -5,8 +5,8 @@ actor Main
   A simple HTTP server.
   """
   new create(env: Env) =>
-    let service = try env.args(1) else "50000" end
-    let limit = try env.args(2).usize() else 100 end
+    let service = try env.args(1)? else "50000" end
+    let limit = try env.args(2)?.usize()? else 100 end
     let host = "localhost"
 
     let logger = CommonLog(env.out)
@@ -36,7 +36,7 @@ class ListenHandler
 
   fun ref listening(server: HTTPServer ref) =>
     try
-      (let host, let service) = server.local_address().name()
+      (let host, let service) = server.local_address().name()?
     else
       _env.out.print("Couldn't get local address.")
       server.dispose()

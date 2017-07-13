@@ -18,7 +18,7 @@ class Listener is TCPListenNotify
 
   fun ref listening(listen: TCPListener ref) =>
     try
-      (_host, _port) = listen.local_address().name()
+      (_host, _port) = listen.local_address().name()?
       _out.print("listening on " + _host + ":" + _port)
     else
       _out.print("couldn't get local address")

@@ -32,9 +32,15 @@ actor TCPConnection
     fun ref connected(conn: TCPConnection ref) =>
       conn.write("hello world")
 
-    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    fun ref received(
+      conn: TCPConnection ref,
+      data: Array[U8] iso,
+      times: USize)
+      : Bool
+    =>
       _out.print("GOT:" + String.from_array(consume data))
       conn.close()
+      true
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
@@ -75,6 +81,9 @@ actor TCPConnection
   // that backpressure has been applied and then it in turn can
   // notify senders who could then pause sending.
 
+  use "collections"
+  use "net"
+
   class SlowDown is TCPConnectionNotify
     let _coordinator: Coordinator
 
@@ -82,18 +91,18 @@ actor TCPConnection
       _coordinator = coordinator
 
     fun ref throttled(connection: TCPConnection ref) =>
-      _coordinator.throttled(this)
+      _coordinator.throttled(connection)
 
     fun ref unthrottled(connection: TCPConnection ref) =>
-      _coordinator.unthrottled(this)
+      _coordinator.unthrottled(connection)
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
 
   actor Coordinator
-    var _senders: List[Any tag] = _senders.create()
+    var _senders: List[Sender] = _senders.create()
 
-    be register(sender: Any tag) =>
+    be register(sender: Sender) =>
       _senders.push(sender)
 
     be throttled(connection: TCPConnection) =>
@@ -105,6 +114,19 @@ actor TCPConnection
       for sender in _senders.values() do
         sender.resume_sending_to(connection)
       end
+
+  interface tag Sender
+    be pause_sending_to(connection: TCPConnection)
+    be resume_sending_to(connection: TCPConnection)
+
+  actor Main
+    new create(env: Env) =>
+      let coordinator = Coordinator
+      // Register senders in the coordinator here.
+      try
+        TCPConnection(env.root as AmbientAuth,
+          recover SlowDown(coordinator) end, "", "8989")
+      end
   ```
 
   Or if you want, you could handle backpressure by shedding load, that is,
@@ -112,8 +134,10 @@ actor TCPConnection
   like:
 
   ```pony
+  use "net"
+
   class ThrowItAway is TCPConnectionNotify
-    var _throttled = false
+    var _throttled: Bool = false
 
     fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq =>
       if not _throttled then
@@ -126,7 +150,7 @@ actor TCPConnection
       if not _throttled then
         data
       else
-        Array[String]
+        recover Array[String] end
       end
 
     fun ref throttled(connection: TCPConnection ref) =>
@@ -137,6 +161,13 @@ actor TCPConnection
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
+
+  actor Main
+    new create(env: Env) =>
+      try
+        TCPConnection(env.root as AmbientAuth,
+          recover ThrowItAway end, "", "8989")
+      end
   ```
 
   In general, unless you have a very specific use case, we strongly advise that

@@ -16,10 +16,10 @@ actor Buffer
     _out.print(debug_string)
     try
       _out.print(debug_string + ": Calling consumer to consume")
-      cons.consuming(_products.delete(0)) // Fails if products is empty.
+      cons.consuming(_products.delete(0)?) // Fails if products is empty.
       try
         _out.print(debug_string + ": Calling producer to produce")
-        _producers_waiting.delete(0).produce()
+        _producers_waiting.delete(0)?.produce()
       end  // If there are no producers in waiting, do nothing.
     else
       _out.print(debug_string + ": Storing consumer in waiting")
@@ -44,7 +44,7 @@ actor Buffer
     _future_products = _future_products - 1
     try
       _out.print(debug_string + ": Calling consumer to consume")
-      _consumers_waiting.delete(0).consuming(product)
+      _consumers_waiting.delete(0)?.consuming(product)
     else
       _out.print(debug_string + ": Storing product")
       _products.push(product)

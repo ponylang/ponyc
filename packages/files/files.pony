@@ -32,7 +32,7 @@ actor Main
   new create(env: Env) =>
     try
       for file_name in env.args.slice(1).values() do
-        let path = FilePath(env.root as AmbientAuth, file_name)
+        let path = FilePath(env.root as AmbientAuth, file_name)?
         match OpenFile(path)
         | let file: File =>
           while file.errno() is FileOK do

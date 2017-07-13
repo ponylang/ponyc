@@ -24,7 +24,7 @@ actor Main
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
     try
-      let path = FilePath(env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(env.root as AmbientAuth, "/bin/cat")?
       // define the arguments; first arg is always the binary name
       let args: Array[String] iso = recover Array[String](1) end
       args.push("cat")

@@ -22,7 +22,7 @@ class val Config
         where short' = 'o', default' = "")
     ],[
       ArgSpec.string("url", "Url to query." where default' = None)
-    ]).>add_help()
+    ])?.>add_help()?
     let cmd =
       match CommandParser(cs).parse(env.args, env.vars())
       | let c: Command => c
@@ -46,10 +46,10 @@ actor Main
   """
   new create(env: Env) =>
     // Get common command line options.
-    let c = try Config(env) else return end
+    let c = try Config(env)? else return end
 
     let url = try
-      URL.valid(c.url)
+      URL.valid(c.url)?
     else
       env.out.print("Invalid URL: " + c.url)
       return
@@ -76,7 +76,7 @@ actor _GetWork
       recover
         SSLContext
           .>set_client_verify(true)
-          .>set_authority(FilePath(env.root as AmbientAuth, "cacert.pem"))
+          .>set_authority(FilePath(env.root as AmbientAuth, "cacert.pem")?)?
         end
       end
 
@@ -110,11 +110,11 @@ actor _GetWork
         end
 
         // Submit the request
-        let sentreq = client(consume req, dumpMaker)
+        let sentreq = client(consume req, dumpMaker)?
 
         // Could send body data via `sentreq`, if it was a POST
       else
-        try env.out.print("Malformed URL: " + env.args(1)) end
+        try env.out.print("Malformed URL: " + env.args(1)?) end
       end
     else
       env.out.print("unable to use network")
@@ -151,7 +151,7 @@ actor _GetWork
     // Print the body if there is any.  This will fail in Chunked or
     // Stream transfer modes.
     try
-      let body = response.body()
+      let body = response.body()?
       for piece in body.values() do
         _env.out.write(piece)
       end
