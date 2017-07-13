@@ -169,7 +169,7 @@ class iso _TestBools is UnitTest
 
   // Rules 2, 3, 5, 7 w/ Bools
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.bools_cli_spec()
+    let cs = _Fixtures.bools_cli_spec()?
 
     let args: Array[String] = ["ignored"; "-ab"; "-c=true"; "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -188,7 +188,7 @@ class iso _TestDefaults is UnitTest
 
   // Rules 2, 3, 5, 6
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = ["ignored"; "-B"; "-S--"; "-I42"; "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
@@ -207,7 +207,7 @@ class iso _TestShortsAdj is UnitTest
 
   // Rules 2, 3, 5, 6, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -232,7 +232,7 @@ class iso _TestShortsEq is UnitTest
 
   // Rules 2, 3, 5, 7
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -257,7 +257,7 @@ class iso _TestShortsNext is UnitTest
 
   // Rules 2, 3, 5, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -282,7 +282,7 @@ class iso _TestLongsEq is UnitTest
 
   // Rules 4, 5, 7
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -308,7 +308,7 @@ class iso _TestLongsNext is UnitTest
 
   // Rules 4, 5, 8
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -333,7 +333,7 @@ class iso _TestEnvs is UnitTest
 
   // Rules
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -359,7 +359,7 @@ class iso _TestOptionStop is UnitTest
 
   // Rules 2, 3, 5, 7, 9
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -379,7 +379,7 @@ class iso _TestDuplicate is UnitTest
 
   // Rules 4, 5, 7, 10
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.simple_cli_spec()
+    let cs = _Fixtures.simple_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -397,7 +397,7 @@ class iso _TestChat is UnitTest
   fun name(): String => "ponycli/chat"
 
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.chat_cli_spec()
+    let cs = _Fixtures.chat_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -458,7 +458,7 @@ class iso _TestHelp is UnitTest
   fun name(): String => "ponycli/help"
 
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.chat_cli_spec()
+    let cs = _Fixtures.chat_cli_spec()?
 
     let chErr = Help.for_command(cs, ["config"; "server"])
     let ch = match chErr | let c: CommandHelp => c else error end
@@ -477,7 +477,7 @@ primitive _Fixtures
       OptionSpec.bool("bbb" where short' = 'b')
       OptionSpec.bool("ccc" where short' = 'c')
       OptionSpec.bool("ddd" where short' = 'd')
-    ])
+    ])?
 
   fun simple_cli_spec(): CommandSpec box ? =>
     """
@@ -520,6 +520,6 @@ primitive _Fixtures
         Array[OptionSpec](), [
         CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
           ArgSpec.string("address", "Address of the server")
-        ])
-      ])
-    ])
+        ])?
+      ])?
+    ])?

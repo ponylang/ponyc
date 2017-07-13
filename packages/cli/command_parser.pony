@@ -25,7 +25,7 @@ class CommandParser
     or the first SyntaxError.
     """
     let tokens = argv.clone()
-    try tokens.shift() end  // argv[0] is the program name, so skip it
+    try tokens.shift()? end  // argv[0] is the program name, so skip it
     let options: Map[String,Option] ref = options.create()
     let args: Map[String,Arg] ref = args.create()
     _parse_command(
@@ -63,7 +63,7 @@ class CommandParser
     var arg_pos: USize = 0
 
     while tokens.size() > 0 do
-      let token = try tokens.shift() else "" end
+      let token = try tokens.shift()? else "" end
       if token == "--" then
         opt_stop = true
 
@@ -102,7 +102,7 @@ class CommandParser
       else // no dashes, must be a command or an arg
         if _spec.commands().size() > 0 then
           try
-            match _spec.commands()(token)
+            match _spec.commands()(token)?
             | let cs: CommandSpec box =>
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
@@ -141,7 +141,7 @@ class CommandParser
     // If it's a help command, return a general or specific CommandHelp.
     if _spec.name() == _help_name() then
       try
-        match args("command").string()
+        match args("command")?.string()
         | "" => return Help.general(_root_spec())
         | let c: String => return Help.for_command(_root_spec(), [c])
         end
@@ -156,7 +156,7 @@ class CommandParser
         if envsmap.contains(os.name()) then
           let vs =
             try
-              envsmap(os.name())
+              envsmap(os.name())?
             else  // TODO(cq) why is else needed? we just checked
               ""
             end
@@ -215,8 +215,8 @@ class CommandParser
     --opt foo => --opt has argument foo, iff arg is required
     """
     let parts = token.split("=")
-    let name = try parts(0) else "???" end
-    let targ = try parts(1) else None end
+    let name = try parts(0)? else "???" end
+    let targ = try parts(1)? else None end
     match _option_with_name(name)
     | let os: OptionSpec => _OptionParser.parse(os, targ, args)
     | None => SyntaxError(name, "unknown long option")
@@ -240,14 +240,14 @@ class CommandParser
     -abc Foo => options a, b, c. c has argument Foo iff its arg is required.
     """
     let parts = token.split("=")
-    let shorts = (try parts(0) else "" end).clone()
-    var targ = try parts(1) else None end
+    let shorts = (try parts(0)? else "" end).clone()
+    var targ = try parts(1)? else None end
 
     let options: Array[Option] ref = options.create()
     while shorts.size() > 0 do
       let c =
         try
-          shorts.shift()
+          shorts.shift()?
         else
           0  // TODO(cq) Should never error since checked
         end
@@ -274,7 +274,7 @@ class CommandParser
 
   fun _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
-      let arg_spec = _spec.args()(arg_pos)
+      let arg_spec = _spec.args()(arg_pos)?
       _ArgParser.parse(arg_spec, token)
     else
       return SyntaxError(token, "too many positional arguments")
@@ -282,7 +282,7 @@ class CommandParser
 
   fun _option_with_name(name: String): (OptionSpec | None) =>
     try
-      return _spec.options()(name)
+      return _spec.options()(name)?
     end
     match _parent
     | let p: CommandParser box => p._option_with_name(name)
@@ -318,7 +318,7 @@ primitive _OptionParser
     // Grab the token-arg if provided, else consume an arg if one is required.
     let arg = match targ
       | (let fn: None) if spec._requires_arg() =>
-        try args.shift() else None end
+        try args.shift()? else None end
       else
         targ
       end
