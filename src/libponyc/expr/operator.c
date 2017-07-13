@@ -539,6 +539,9 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast) == TK_AS);
   AST_GET_CHILDREN(ast, expr, type);
 
+  if(is_typecheck_error(ast_type(expr)))
+    return false;
+
   ast_t* pattern_root = ast_from(type, TK_LEX_ERROR);
   ast_t* body_root = ast_from(type, TK_LEX_ERROR);
   if(!add_as_type(opt, ast, expr, type, pattern_root, body_root))
