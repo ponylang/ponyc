@@ -686,3 +686,20 @@ TEST_F(BadPonyTest, CodegenMangledFunptr)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, AsFromUninferredReference)
+{
+  // From issue #2035
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b = apply(true)\n"
+    "    b as Bool\n"
+
+    "  fun ref apply(s: String): (Bool | None) =>\n"
+    "    true";
+
+  TEST_ERRORS_2(src,
+    "argument not a subtype of parameter",
+    "cannot infer type of b");
+}
