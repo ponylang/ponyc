@@ -162,6 +162,12 @@ $ brew update
 $ brew install ponyc
 ```
 
+## NixOS Linux or any OS using [nix](http://nixos.org/nix/)
+
+```bash
+nix-env -i ponyc
+```
+
 ## "cannot find 'ld'" error
 
 If you get an error when trying to use `ponyc` to compile pony source
