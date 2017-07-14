@@ -1273,7 +1273,7 @@ static ast_result_t syntax_as(pass_opt_t* opt, ast_t* ast)
         "Cannot cast uninferred numeric literal");
       ast_error_continue(opt->check.errors, expr,
         "To give a numeric literal a specific type, "
-        "use constructor of primitive");
+        "use the constructor of that numeric type");
       return AST_ERROR;
 
     default: break;
