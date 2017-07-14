@@ -1,4 +1,5 @@
 #include "call.h"
+#include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/lookup.h"
 #include "ponyassert.h"
@@ -32,6 +33,13 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
     ast_id(method_def) == TK_NEW);
 
+  // Determine whether the receiver is a reference with a hygienic id.
+  bool is_sugared_call = false;
+  if((ast_child(receiver) != NULL) && (ast_id(ast_child(receiver)) == TK_ID) &&
+    is_name_internal_test(ast_name(ast_child(receiver)))
+    )
+    is_sugared_call = true;
+
   // Verify that the call partiality matches that of the method.
   bool r = true;
   ast_t* method_error = ast_childidx(method_def, 5);
@@ -39,7 +47,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   {
     ast_seterror(ast);
 
-    if(ast_id(call_error) == TK_NONE) {
+    if((ast_id(call_error) != TK_QUESTION) && !is_sugared_call) {
       ast_error(opt->check.errors, call_error,
         "call is not partial but the method is - " \
         "a question mark is required after this call");
@@ -48,7 +56,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
       r = false;
     }
   } else {
-    if(ast_id(call_error) == TK_QUESTION) {
+    if((ast_id(call_error) == TK_QUESTION) && !is_sugared_call) {
       ast_error(opt->check.errors, call_error,
         "call is partial but the method is not - " \
         "this question mark should be removed");

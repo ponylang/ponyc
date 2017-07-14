@@ -269,8 +269,8 @@ TEST_F(CodegenTest, CustomSerialization)
     "      let deserialise = DeserialiseAuth(ambient)\n"
 
     "      let x: _Custom = _Custom\n"
-    "      let sx = Serialised(serialise, x)\n"
-    "      let yd: Any ref = sx(deserialise)\n"
+    "      let sx = Serialised(serialise, x)?\n"
+    "      let yd: Any ref = sx(deserialise)?\n"
     "      let y = yd as _Custom\n"
     "      let r: I32 = if (x isnt y) and (x == y) then\n"
     "        1\n"

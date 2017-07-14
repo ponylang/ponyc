@@ -497,7 +497,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         NODE(TK_CALL,
           NONE
           NONE
-          NODE(TK_DONTCARE) // indicates that partial call should not be checked
+          NODE(TK_QUESTION)
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_BREAK, NONE))
