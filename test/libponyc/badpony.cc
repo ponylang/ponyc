@@ -703,3 +703,17 @@ TEST_F(BadPonyTest, AsFromUninferredReference)
     "argument not a subtype of parameter",
     "cannot infer type of b");
 }
+
+TEST_F(BadPonyTest, AsUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    0 as I64\n"
+    "    0.0 as F64";
+
+  TEST_ERRORS_2(src,
+    "Cannot cast uninferred numeric literal",
+    "Cannot cast uninferred numeric literal");
+}

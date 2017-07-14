@@ -3,6 +3,7 @@
 #include "../ast/parser.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pkg/platformfuns.h"
 #include "../type/assemble.h"
@@ -1259,6 +1260,29 @@ static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_as(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_AS);
+  AST_GET_CHILDREN(ast, expr);
+
+  switch (ast_id(expr))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+      ast_error(opt->check.errors, expr,
+        "Cannot cast uninferred numeric literal");
+      ast_error_continue(opt->check.errors, expr,
+        "To give a numeric literal a specific type, "
+        "use constructor of primitive");
+      return AST_ERROR;
+
+    default: break;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   pony_assert(astp != NULL);
@@ -1341,6 +1365,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
         "Compile time expressions not yet supported");
       r = AST_ERROR;
       break;
+
+    case TK_AS:         r = syntax_as(options, ast); break;
 
     default: break;
   }
