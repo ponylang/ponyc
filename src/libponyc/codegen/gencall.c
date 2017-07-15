@@ -892,33 +892,62 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   return result;
 }
 
-static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
-  reach_type_t* t, bool err)
+static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
+  bool intrinsic)
 {
-  LLVMTypeRef f_type = LLVMFunctionType(t->use_type, NULL, 0, true);
-  LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
-
-  if(!err)
+  if(t->underlying == TK_TUPLETYPE)
   {
-#if PONY_LLVM >= 309
-    LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
+    pony_assert(intrinsic);
 
-    LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, nounwind_attr);
-#else
-    LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
-#endif
+    // Can't use the named type. Build an unnamed type with the same elements.
+    unsigned int count = LLVMCountStructElementTypes(t->use_type);
+    size_t buf_size = count * sizeof(LLVMTypeRef);
+    LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMGetStructElementTypes(t->use_type, e_types);
+
+    ast_t* child = ast_child(t->ast);
+    size_t i = 0;
+
+    while(child != NULL)
+    {
+      // A Bool in an intrinsic tuple return type is an i1, not an ibool.
+      if(is_bool(child))
+        e_types[i] = c->i1;
+
+      child = ast_sibling(child);
+      i++;
+    }
+
+    LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, e_types, count,
+      false);
+    ponyint_pool_free_size(buf_size, e_types);
+    return r_type;
+  } else {
+    // An intrinsic that returns a Bool returns an i1, not an ibool.
+    if(intrinsic && is_bool(t->ast))
+      return c->i1;
+    else
+      return t->use_type;
   }
+}
+
+static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
+  reach_type_t* t)
+{
+  LLVMTypeRef r_type = ffi_return_type(c, t, false);
+  LLVMTypeRef f_type = LLVMFunctionType(r_type, NULL, 0, true);
+  LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
 
   return func;
 }
 
 static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
-  reach_type_t* t, ast_t* args, bool err, bool intrinsic)
+  reach_type_t* t, ast_t* args, bool intrinsic)
 {
   ast_t* last_arg = ast_childlast(args);
 
   if((last_arg != NULL) && (ast_id(last_arg) == TK_ELLIPSIS))
-    return declare_ffi_vararg(c, f_name, t, err);
+    return declare_ffi_vararg(c, f_name, t);
 
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMTypeRef);
@@ -946,56 +975,9 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
     arg = ast_sibling(arg);
   }
 
-  LLVMTypeRef r_type;
-
-  if(t->underlying == TK_TUPLETYPE)
-  {
-    // Can't use the named type. Build an unnamed type with the same
-    // elements.
-    unsigned int count = LLVMCountStructElementTypes(t->use_type);
-    size_t buf_size = count * sizeof(LLVMTypeRef);
-    LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-    LLVMGetStructElementTypes(t->use_type, e_types);
-
-    if(intrinsic)
-    {
-      ast_t* child = ast_child(t->ast);
-      size_t i = 0;
-
-      while(child != NULL)
-      {
-        // A Bool in an intrinsic tuple return type is an i1, not an ibool.
-        if(is_bool(child))
-          e_types[i] = c->i1;
-
-        child = ast_sibling(child);
-        i++;
-      }
-    }
-
-    r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
-    ponyint_pool_free_size(buf_size, e_types);
-  } else {
-    // An intrinsic that returns a Bool returns an i1, not an ibool.
-    if(intrinsic && is_bool(t->ast))
-      r_type = c->i1;
-    else
-      r_type = t->use_type;
-  }
-
+  LLVMTypeRef r_type = ffi_return_type(c, t, intrinsic);
   LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count, false);
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
-
-  if(!err)
-  {
-#if PONY_LLVM >= 309
-    LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
-
-    LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, nounwind_attr);
-#else
-    LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
-#endif
-  }
 
   ponyint_pool_free_size(buf_size, f_params);
   return func;
@@ -1064,13 +1046,13 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
       // Define using the declared types.
       AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_err);
       err = (ast_id(decl_err) == TK_QUESTION);
-      func = declare_ffi(c, f_name, t, decl_params, err, false);
-    } else if(!strncmp(f_name, "llvm.", 5)) {
+      func = declare_ffi(c, f_name, t, decl_params, false);
+    } else if(!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9)) {
       // Intrinsic, so use the exact types we supply.
-      func = declare_ffi(c, f_name, t, args, err, true);
+      func = declare_ffi(c, f_name, t, args, true);
     } else {
       // Make it varargs.
-      func = declare_ffi_vararg(c, f_name, t, err);
+      func = declare_ffi_vararg(c, f_name, t);
     }
   }
 
