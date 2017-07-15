@@ -41,12 +41,14 @@ typedef struct pony_ctx_t pony_ctx_t;
  * dispatch. The index is a pool allocator index and is used for freeing the
  * message. The next pointer should not be read or set.
  */
-typedef struct pony_msg_t
+typedef struct pony_msg_t pony_msg_t;
+
+struct pony_msg_t
 {
   uint32_t index;
   uint32_t id;
-  PONY_ATOMIC(struct pony_msg_t*) next;
-} pony_msg_t;
+  PONY_ATOMIC(pony_msg_t*) next;
+};
 
 /// Convenience message for sending an integer.
 typedef struct pony_msgi_t
