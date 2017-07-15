@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make pony_os_std_print() write a newline when given empty input. ([PR #2050](https://github.com/ponylang/ponyc/pull/2050))
 - Fix boxed tuple identity when type identifiers differ ([PR #2009](https://github.com/ponylang/ponyc/pull/2009))
 - Fix crash on interface function pointer generation ([PR #2025](https://github.com/ponylang/ponyc/pull/2025))
 
