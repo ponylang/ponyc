@@ -371,6 +371,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   bool pinasio)
 {
   pony_register_thread();
+  this_scheduler->ctx.current = NULL;
 
   use_yield = !noyield;
 
