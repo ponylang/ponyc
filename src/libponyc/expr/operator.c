@@ -539,8 +539,15 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast) == TK_AS);
   AST_GET_CHILDREN(ast, expr, type);
 
-  if(is_typecheck_error(ast_type(expr)))
+  ast_t* expr_type = ast_type(expr);
+  if(is_typecheck_error(expr_type))
     return false;
+
+  if(ast_id(expr_type) == TK_LITERAL || ast_id(expr_type) == TK_OPERATORLITERAL)
+  {
+    ast_error(opt->check.errors, expr, "Cannot cast uninferred literal");
+    return false;
+  }
 
   ast_t* pattern_root = ast_from(type, TK_LEX_ERROR);
   ast_t* body_root = ast_from(type, TK_LEX_ERROR);

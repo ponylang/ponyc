@@ -761,3 +761,14 @@ TEST_F(BadPonyTest, AsUninferredNumericLiteral)
     "Cannot cast uninferred numeric literal",
     "Cannot cast uninferred numeric literal");
 }
+
+TEST_F(BadPonyTest, AsNestedUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    (0, 1) as (I64, I64)";
+
+  TEST_ERRORS_1(src, "Cannot cast uninferred literal");
+}

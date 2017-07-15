@@ -3,7 +3,6 @@
 #include "../ast/parser.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
-#include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pkg/platformfuns.h"
 #include "../type/assemble.h"
