@@ -5,6 +5,9 @@ class CommandParser
   let _parent: (CommandParser box | None)
 
   new box create(spec': CommandSpec box) =>
+    """
+    Creates a new parser for a given command spec.
+    """
     _spec = spec'
     _parent = None
 
@@ -200,7 +203,7 @@ class CommandParser
     end
 
     // A successfully parsed and populated leaf Command.
-    Command(_spec, _fullname(), consume options, args)
+    Command._create(_spec, _fullname(), consume options, args)
 
   fun _parse_long_option(
     token: String,
@@ -249,8 +252,8 @@ class CommandParser
           0  // TODO(cq) Should never error since checked
         end
       match _option_with_short(c)
-      | let fs: OptionSpec =>
-        if fs._requires_arg() and (shorts.size() > 0) then
+      | let os: OptionSpec =>
+        if os._requires_arg() and (shorts.size() > 0) then
           // opt needs an arg, so consume the remainder of the shorts for targ
           if targ is None then
             targ = shorts.clone()
@@ -260,11 +263,11 @@ class CommandParser
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
-        match _OptionParser.parse(fs, arg, args)
-        | let f: Option => options.push(f)
+        match _OptionParser.parse(os, arg, args)
+        | let o: Option => options.push(o)
         | let se: SyntaxError => return se
         end
-      | None => SyntaxError(_short_string(c), "unknown short option")
+      | None => return SyntaxError(_short_string(c), "unknown short option")
       end
     end
     options

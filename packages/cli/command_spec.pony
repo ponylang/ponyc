@@ -1,24 +1,3 @@
-"""
-This package implements command line parsing with the notion of commands that
-are specified as a hierarchy.
-See RFC-xxx for more details.
-
-The general EBNF of the command line looks like:
-  command_line ::= root_command (option | command)* (option | arg)*
-  command ::= alphanum_word
-  alphanum_word ::= alphachar(alphachar | numchar | '_' | '-')*
-  option ::= longoption | shortoptionset
-  longoption ::= '--'alphanum_word['='arg | ' 'arg]
-  shortoptionset := '-'alphachar[alphachar]...['='arg | ' 'arg]
-  arg := boolarg | intarg | floatarg | stringarg
-  boolarg := 'true' | 'false'
-  intarg> := ['-'] numchar...
-  floatarg ::= ['-'] numchar... ['.' numchar...]
-  stringarg ::= anychar
-
-Some Examples:
-  usage: chat [<options>] <command> [<options>] [<args> ...]
-"""
 use "collections"
 use pc = "collections/persistent"
 
@@ -51,7 +30,7 @@ class CommandSpec
     commands': Array[CommandSpec] box = Array[CommandSpec]()) ?
   =>
     """
-    Create a command spec that can accept options and child commands, but not
+    Creates a command spec that can accept options and child commands, but not
     arguments.
     """
     _name = _assertName(name')
@@ -70,7 +49,7 @@ class CommandSpec
     args': Array[ArgSpec] box = Array[ArgSpec]()) ?
   =>
     """
-    Create a command spec that can accept options and arguments, but not child
+    Creates a command spec that can accept options and arguments, but not child
     commands.
     """
     _name = _assertName(name')
@@ -95,14 +74,14 @@ class CommandSpec
 
   fun ref add_command(cmd: CommandSpec box) ? =>
     """
-    Add an additional child command to this parent command.
+    Adds an additional child command to this parent command.
     """
     if _args.size() > 0 then error end
     _commands.update(cmd.name(), cmd)
 
   fun ref add_help(hname: String = "help") ? =>
     """
-    Add a standard help option and, optionally, command to a root command.
+    Adds a standard help option and, optionally command, to a root command.
     """
     _help_name = hname
     let help_option = OptionSpec.bool(_help_name, "", 'h', false)
@@ -140,8 +119,8 @@ class val OptionSpec
   descr(iption), a short-name, a typ(e), and a default value when they are not
   required.
 
-  Options can be placed anywhere before or after commands, and can be thought of
-  as named arguments.
+  Options can be placed anywhere before or after commands, and can be thought
+  of as named arguments.
   """
   let _name: String
   let _descr: String
@@ -167,6 +146,9 @@ class val OptionSpec
     short': (U8 | None) = None,
     default': (Bool | None) = None)
   =>
+    """
+    Creates an Option with a Bool typed value.
+    """
     _name = name'
     _descr = descr'
     _short = short'
@@ -178,6 +160,9 @@ class val OptionSpec
     short': (U8 | None) = None,
     default': (String | None) = None)
   =>
+    """
+    Creates an Option with a String typed value.
+    """
     _name = name'
     _descr = descr'
     _short = short'
@@ -188,6 +173,9 @@ class val OptionSpec
     short': (U8 | None) = None,
     default': (I64 | None) = None)
   =>
+    """
+    Creates an Option with an I64 typed value.
+    """
     _name = name'
     _descr = descr'
     _short = short'
@@ -198,6 +186,9 @@ class val OptionSpec
     short': (U8 | None) = None,
     default': (F64 | None) = None)
   =>
+    """
+    Creates an Option with a F64 typed value.
+    """
     _name = name'
     _descr = descr'
     _short = short'
@@ -208,6 +199,9 @@ class val OptionSpec
     descr': String = "",
     short': (U8 | None) = None)
   =>
+    """
+    Creates an Option with a ReadSeq[String] typed value.
+    """
     _name = name'
     _descr = descr'
     _short = short'
@@ -263,7 +257,8 @@ class val OptionSpec
 class val ArgSpec
   """
   ArgSpec describes the specification of a positional Arg(ument). They have a
-  name, descr(iption), a typ(e), and a default value when they are not required.
+  name, descr(iption), a typ(e), and a default value when they are not
+  required.
 
   Args always come after a leaf command, and are assigned in their positional
   order.
@@ -290,6 +285,9 @@ class val ArgSpec
     descr': String = "",
     default': (Bool | None) = None)
   =>
+    """
+    Creates an Arg with a Bool typed value.
+    """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_BoolType, default')
@@ -299,6 +297,9 @@ class val ArgSpec
     descr': String = "",
     default': (String | None) = None)
   =>
+    """
+    Creates an Arg with a String typed value.
+    """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_StringType, default')
@@ -307,6 +308,9 @@ class val ArgSpec
     descr': String = "",
     default': (I64 | None) = None)
   =>
+    """
+    Creates an Arg with an I64 typed value.
+    """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_I64Type, default')
@@ -315,6 +319,9 @@ class val ArgSpec
     descr': String = "",
     default': (F64 | None) = None)
   =>
+    """
+    Creates an Arg with a F64 typed value.
+    """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_F64Type, default')
@@ -323,6 +330,9 @@ class val ArgSpec
     name': String,
     descr': String = "")
   =>
+    """
+    Creates an Arg with a ReadSeq[String] typed value.
+    """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
@@ -345,6 +355,10 @@ class val ArgSpec
       if not _required then "(=" + _default.string() + ")" else "" end
 
 class _StringSeq is ReadSeq[String]
+  """
+  _StringSeq is a wrapper / helper class for working with String sequence
+  values while parsing, and producing a ReadSeq[String] as a result.
+  """
   let strings: pc.Vec[String]
 
   new val empty() =>
@@ -399,6 +413,10 @@ primitive _StringSeqType is _ValueType
   fun value_of(s: String): _Value => _StringSeq.from_string(s)
   fun is_seq(): Bool => true
   fun append(v1: _Value, v2: _Value): _Value =>
+    """
+    When is_seq() returns true, append() is called during parsing to append
+    a new parsed value onto an existing value.
+    """
     try
       _StringSeq.from_concat(v1 as _StringSeq val, v2 as _StringSeq val)
     else

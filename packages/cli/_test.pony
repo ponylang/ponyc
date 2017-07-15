@@ -7,6 +7,10 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestMinimal)
     test(_TestBadName)
+    test(_TestUnknownCommand)
+    test(_TestUnexpectedArg)
+    test(_TestUnknownShort)
+    test(_TestUnknownLong)
     test(_TestHyphenArg)
     test(_TestBools)
     test(_TestDefaults)
@@ -49,6 +53,98 @@ class iso _TestBadName is UnitTest
     try
       let cs = CommandSpec.leaf("min imal", "")
       h.fail("expected error on bad command name: " + cs.name())
+    end
+
+class iso _TestUnknownCommand is UnitTest
+  fun name(): String => "ponycli/unknown_command"
+
+  // Negative test: unknown command should report
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.chat_cli_spec()
+
+    let args: Array[String] = [
+      "ignored"
+      "unknown"
+    ]
+
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    match cmdErr
+    | let se: SyntaxError => None
+      h.assert_eq[String]("Error: unknown command at: 'unknown'", se.string())
+    else
+      h.fail("expected syntax error for unknown command: " + cmdErr.string())
+    end
+
+class iso _TestUnexpectedArg is UnitTest
+  fun name(): String => "ponycli/unknown_command"
+
+  // Negative test: unexpected arg/command token should report
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.bools_cli_spec()
+
+    let args: Array[String] = [
+      "ignored"
+      "unknown"
+    ]
+
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    match cmdErr
+    | let se: SyntaxError => None
+      h.assert_eq[String](
+        "Error: too many positional arguments at: 'unknown'", se.string())
+    else
+      h.fail("expected syntax error for unknown command: " + cmdErr.string())
+    end
+
+class iso _TestUnknownShort is UnitTest
+  fun name(): String => "ponycli/unknown_short"
+
+  // Negative test: unknown short option should report
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.bools_cli_spec()
+
+    let args: Array[String] = [
+      "ignored"
+      "-Z"
+    ]
+
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    match cmdErr
+    | let se: SyntaxError => None
+      h.assert_eq[String]("Error: unknown short option at: 'Z'", se.string())
+    else
+      h.fail(
+        "expected syntax error for unknown short option: " + cmdErr.string())
+    end
+
+class iso _TestUnknownLong is UnitTest
+  fun name(): String => "ponycli/unknown_long"
+
+  // Negative test: unknown long option should report
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.bools_cli_spec()
+
+    let args: Array[String] = [
+      "ignored"
+      "--unknown"
+    ]
+
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    match cmdErr
+    | let se: SyntaxError => None
+      h.assert_eq[String](
+        "Error: unknown long option at: 'unknown'", se.string())
+    else
+      h.fail(
+        "expected syntax error for unknown long option: " + cmdErr.string())
     end
 
 class iso _TestHyphenArg is UnitTest
@@ -355,7 +451,7 @@ class iso _TestMustBeLeaf is UnitTest
     match cmdErr
     | let se: SyntaxError => None
     else
-      h.fail("expected syntax error for non-leaf cmd: " + cmdErr.string())
+      h.fail("expected syntax error for non-leaf command: " + cmdErr.string())
     end
 
 class iso _TestHelp is UnitTest
@@ -410,7 +506,7 @@ primitive _Fixtures
     CommandSpec.parent("chat", "A sample chat program", [
       OptionSpec.bool("admin", "Chat as admin" where default' = false)
       OptionSpec.string("name", "Your name" where short' = 'n')
-      OptionSpec.f64("volume", "Chat volume" where short' = 'v')
+      OptionSpec.f64("volume", "Chat volume" where short' = 'v', default' = 1.0)
     ], [
       CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
         ArgSpec.string_seq("words", "The words to say")
@@ -420,7 +516,8 @@ primitive _Fixtures
       ], [
         ArgSpec.string("emotion", "Emote to send")
       ])
-      CommandSpec.parent("config", "Configuration commands", Array[OptionSpec](), [
+      CommandSpec.parent("config", "Configuration commands",
+        Array[OptionSpec](), [
         CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
           ArgSpec.string("address", "Address of the server")
         ])

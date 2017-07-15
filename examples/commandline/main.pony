@@ -2,46 +2,35 @@ use "cli"
 
 actor Main
   new create(env: Env) =>
-    try
-      let cmd =
-        match CommandParser(cli_spec()).parse(env.args, env.vars())
-        | let c: Command => c
-        | let ch: CommandHelp =>
-            ch.print_help(env.out)
-            env.exitcode(0)
-            return
-        | let se: SyntaxError =>
-            env.out.print(se.string())
-            env.exitcode(1)
-            return
-        end
+    let cs =
+      try
+        CommandSpec.leaf("echo", "A sample echo program", [
+          OptionSpec.bool("upper", "Uppercase words"
+            where short' = 'U', default' = false)
+        ], [
+          ArgSpec.string_seq("words", "The words to echo")
+        ]).>add_help()
+      else
+        env.exitcode(-1)  // some kind of coding error
+        return
+      end
 
-        // cmd is a valid Command, now use it.
+    let cmd =
+      match CommandParser(cs).parse(env.args, env.vars())
+      | let c: Command => c
+      | let ch: CommandHelp =>
+          ch.print_help(env.out)
+          env.exitcode(0)
+          return
+      | let se: SyntaxError =>
+          env.out.print(se.string())
+          env.exitcode(1)
+          return
+      end
 
+    let upper = cmd.option("upper").bool()
+    let words = cmd.arg("words").string_seq()
+    for word in words.values() do
+      env.out.write(if upper then word.upper() else word end + " ")
     end
-
-  fun tag cli_spec(): CommandSpec box ? =>
-    """
-    Builds and returns the spec for a sample chat client's CLI.
-    """
-    let cs = CommandSpec.parent("chat", "A sample chat program", [
-      OptionSpec.bool("admin", "Chat as admin" where default' = false)
-      OptionSpec.string("name", "Your name" where short' = 'n')
-      OptionSpec.i64("volume", "Chat volume" where short' = 'v')
-    ], [
-      CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
-        ArgSpec.string("words", "The words to say")
-      ])
-      CommandSpec.leaf("emote", "Send an emotion", [
-        OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
-      ], [
-        ArgSpec.string("emotion", "Emote to send")
-      ])
-      CommandSpec.parent("config", "Configuration commands", Array[OptionSpec](), [
-        CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
-          ArgSpec.string("address", "Address of the server")
-        ])
-      ])
-    ])
-    cs.add_help()
-    cs
+    env.out.print("")
