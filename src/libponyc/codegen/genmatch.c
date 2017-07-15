@@ -176,6 +176,9 @@ static bool check_union(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     else
       nomatch_block = next_block;
 
+    if(nomatch_block == NULL)
+      nomatch_block = continue_block;
+
     if(!check_type(c, ptr, desc, child, nomatch_block, weight))
       return false;
 
