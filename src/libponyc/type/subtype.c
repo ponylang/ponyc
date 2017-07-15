@@ -135,6 +135,11 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
           ast_print_type(sub), ast_print_type(super),
           ast_print_type(sub_cap), ast_print_type(sub_eph),
           ast_print_type(super_cap), ast_print_type(super_eph));
+
+        if(is_cap_sub_cap(ast_id(sub_cap), ast_id(super_eph), ast_id(super_cap),
+          ast_id(super_eph)))
+          ast_error_frame(errorf, sub_cap,
+            "this would be possible if the subcap were more ephemeral");
       }
 
       return false;
