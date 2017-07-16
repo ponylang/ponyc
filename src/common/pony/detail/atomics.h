@@ -16,6 +16,7 @@
 // MSVC has no support of C11 atomics.
 #  include <atomic>
 #  define PONY_ATOMIC(T) std::atomic<T>
+#  define PONY_ATOMIC_RVALUE(T) std::atomic<T>
 #  ifdef PONY_WANT_ATOMIC_DEFS
 using std::memory_order_relaxed;
 using std::memory_order_consume;
@@ -41,14 +42,17 @@ using std::atomic_thread_fence;
 //     we only define the atomic types.
 #      include <atomic>
 #      define PONY_ATOMIC(T) std::atomic<T>
+#      define PONY_ATOMIC_RVALUE(T) std::atomic<T>
 #    else
 #      ifdef PONY_WANT_ATOMIC_DEFS
 #        include <stdatomic.h>
 #      endif
 #      define PONY_ATOMIC(T) T _Atomic
+#      define PONY_ATOMIC_RVALUE(T) T _Atomic
 #    endif
 #  elif __GNUC_PREREQ(4, 7)
 #    define PONY_ATOMIC(T) alignas(sizeof(T)) T
+#    define PONY_ATOMIC_RVALUE(T) T
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use GCC >= 4.7"
@@ -59,11 +63,13 @@ using std::atomic_thread_fence;
 #      include <stdatomic.h>
 #    endif
 #    define PONY_ATOMIC(T) T _Atomic
-#  elif __clang_major__ >= 3 && __clang_minor__ >= 3
+#    define PONY_ATOMIC_RVALUE(T) T _Atomic
+#  elif __clang_major__ >= 3 && __clang_minor__ >= 4
 #    define PONY_ATOMIC(T) alignas(sizeof(T)) T
+#    define PONY_ATOMIC_RVALUE(T) T
 #    define PONY_ATOMIC_BUILTINS
 #  else
-#    error "Please use Clang >= 3.3"
+#    error "Please use Clang >= 3.4"
 #  endif
 #else
 #  error "Unsupported compiler"

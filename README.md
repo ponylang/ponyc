@@ -204,7 +204,7 @@ Once you have installed the prerequisites, you can download the latest ponyc rel
 First of all, you need a compiler with decent C11 support. The following compilers are supported, though we recommend to use the most recent versions.
 
 - GCC >= 4.7
-- Clang >= 3.3
+- Clang >= 3.4
 - MSVC >= 2013
 - XCode Clang >= 6.0
 
