@@ -93,19 +93,46 @@ class CommandSpec
       _commands.update(_help_name, help_cmd)
     end
 
-  fun name(): String => _name
+  fun name(): String =>
+    """
+    Returns the name of this command.
+    """
+    _name
 
-  fun descr(): String => _descr
+  fun descr(): String =>
+    """
+    Returns the description for this command.
+    """
+    _descr
 
-  fun options(): Map[String, OptionSpec] box => _options
+  fun options(): Map[String, OptionSpec] box =>
+    """
+    Returns a map by name of the named options of this command.
+    """
+    _options
 
-  fun commands(): Map[String, CommandSpec box] box => _commands
+  fun commands(): Map[String, CommandSpec box] box =>
+    """
+    Returns a map by name of the child commands of this command.
+    """
+    _commands
 
-  fun args(): Array[ArgSpec] box => _args
+  fun args(): Array[ArgSpec] box =>
+    """
+    Returns an array of the positional arguments of this command.
+    """
+    _args
 
-  fun help_name(): String => _help_name
+  fun help_name(): String =>
+    """
+    Returns the name of the help command, which defaults to "help".
+    """
+    _help_name
 
   fun help_string(): String =>
+    """
+    Returns a formated help string for this command and all of its arguments.
+    """
     let s = _name.clone()
     s.append(" ")
     for a in _args.values() do
@@ -147,7 +174,10 @@ class val OptionSpec
     default': (Bool | None) = None)
   =>
     """
-    Creates an Option with a Bool typed value.
+    Creates an Option with a Bool typed value that can be used like
+      `--opt` or `-O` or `--opt=true` or `-O=true`
+    to yield an option value like
+      `cmd.option("opt").bool() == true`.
     """
     _name = name'
     _descr = descr'
@@ -161,7 +191,10 @@ class val OptionSpec
     default': (String | None) = None)
   =>
     """
-    Creates an Option with a String typed value.
+    Creates an Option with a String typed value that can be used like
+      `--file=dir/filename` or `-F=dir/filename` or `-Fdir/filename`
+    to yield an option value like
+      `cmd.option("file").string() == "dir/filename"`.
     """
     _name = name'
     _descr = descr'
@@ -174,7 +207,10 @@ class val OptionSpec
     default': (I64 | None) = None)
   =>
     """
-    Creates an Option with an I64 typed value.
+    Creates an Option with an I64 typed value that can be used like
+      `--count=42 -C=42`
+    to yield an option value like
+      `cmd.option("count").i64() == I64(64)`.
     """
     _name = name'
     _descr = descr'
@@ -187,7 +223,10 @@ class val OptionSpec
     default': (F64 | None) = None)
   =>
     """
-    Creates an Option with a F64 typed value.
+    Creates an Option with a F64 typed value that can be used like
+      `--ratio=1.039` or `-R=1.039`
+    to yield an option value like
+      `cmd.option("ratio").f64() == F64(1.039)`.
     """
     _name = name'
     _descr = descr'
@@ -200,22 +239,37 @@ class val OptionSpec
     short': (U8 | None) = None)
   =>
     """
-    Creates an Option with a ReadSeq[String] typed value.
+    Creates an Option with a ReadSeq[String] typed value that can be used like
+      `--files=file1 --files=files2 --files=files2`
+    to yield a sequence of three strings equivalent to
+      `cmd.option("ratio").string_seq() (equiv) ["file1"; "file2"; "file3"]`.
     """
     _name = name'
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
 
-  fun name(): String => _name
+  fun name(): String =>
+    """
+    Returns the name of this option.
+    """
+    _name
 
-  fun descr(): String => _descr
+  fun descr(): String =>
+    """
+    Returns the description for this option.
+    """
+    _descr
 
   fun _typ_p(): _ValueType => _typ
 
   fun _default_p(): _Value => _default
 
-  fun required(): Bool => _required
+  fun required(): Bool =>
+    """
+    Returns true iff this option is required to be present in the command line.
+    """
+    _required
 
   // Other than bools, all options require args.
   fun _requires_arg(): Bool =>
@@ -241,6 +295,9 @@ class val OptionSpec
     end
 
   fun help_string(): String =>
+    """
+    Returns a formated help string for this option.
+    """
     let s =
       match _short
       | let ss: U8 => "-" + String.from_utf32(ss.u32()) + ", "
@@ -286,7 +343,10 @@ class val ArgSpec
     default': (Bool | None) = None)
   =>
     """
-    Creates an Arg with a Bool typed value.
+    Creates an Arg with a Bool typed value that can be used like
+      `<cmd> true`
+    to yield an arg value like
+      `cmd.arg("opt").bool() == true`.
     """
     _name = name'
     _descr = descr'
@@ -298,7 +358,10 @@ class val ArgSpec
     default': (String | None) = None)
   =>
     """
-    Creates an Arg with a String typed value.
+    Creates an Arg with a String typed value that can be used like
+      `<cmd> filename`
+    to yield an arg value
+      `cmd.arg("file").string() == "filename"`.
     """
     _name = name'
     _descr = descr'
@@ -309,7 +372,10 @@ class val ArgSpec
     default': (I64 | None) = None)
   =>
     """
-    Creates an Arg with an I64 typed value.
+    Creates an Arg with an I64 typed value that can be used like
+      `<cmd> 42`
+    to yield an arg value like
+      `cmd.arg("count").i64() == I64(42)`.
     """
     _name = name'
     _descr = descr'
@@ -320,7 +386,10 @@ class val ArgSpec
     default': (F64 | None) = None)
   =>
     """
-    Creates an Arg with a F64 typed value.
+    Creates an Arg with a F64 typed value that can be used like
+      `<cmd> 1.039`
+    to yield an arg value like
+      `cmd.arg("ratio").f64() == F64(1.039)`.
     """
     _name = name'
     _descr = descr'
@@ -331,23 +400,41 @@ class val ArgSpec
     descr': String = "")
   =>
     """
-    Creates an Arg with a ReadSeq[String] typed value.
+    Creates an Arg with a ReadSeq[String] typed value that can be used like
+      `<cmd> file1 file2 file3`
+    to yield a sequence of three strings equivalent to
+      `cmd.arg("file").string_seq() (equiv) ["file1"; "file2"; "file3"]`.
     """
     _name = name'
     _descr = descr'
     (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
 
-  fun name(): String => _name
+  fun name(): String =>
+    """
+    Returns the name of this arg.
+    """
+    _name
 
-  fun descr(): String => _descr
+  fun descr(): String =>
+    """
+    Returns the description for this arg.
+    """
+    _descr
 
   fun _typ_p(): _ValueType => _typ
 
   fun _default_p(): _Value => _default
 
-  fun required(): Bool => _required
+  fun required(): Bool =>
+    """
+    Returns true iff this arg is required to be present in the command line.
+    """
+    _required
 
   fun help_string(): String =>
+    """
+    Returns a formated help string for this arg.
+    """
     "<" + _name + ">"
 
   fun deb_string(): String =>
@@ -357,7 +444,8 @@ class val ArgSpec
 class _StringSeq is ReadSeq[String]
   """
   _StringSeq is a wrapper / helper class for working with String sequence
-  values while parsing, and producing a ReadSeq[String] as a result.
+  values while parsing. It assists in collecting the strings as they are
+  parsed, and producing a ReadSeq[String] as a result.
   """
   let strings: pc.Vec[String]
 
