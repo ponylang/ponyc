@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
+- Deprecate support of Clang 3.3
 
 
 ## [0.15.0] - 2017-07-08

@@ -75,7 +75,7 @@ void* ponyint_pagemap_get(const void* m)
       return NULL;
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    PONY_ATOMIC(void**)* av = (PONY_ATOMIC(void**)*)&(v[ix]);
+    PONY_ATOMIC(void**)* av = (PONY_ATOMIC_RVALUE(void**)*)&(v[ix]);
     v = atomic_load_explicit(av, memory_order_relaxed);
   }
 
@@ -113,7 +113,7 @@ void ponyint_pagemap_set(const void* m, void* v)
     }
 
     uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+    pv = (PONY_ATOMIC_RVALUE(void**)*)&(pv_ld[ix]);
   }
 
   atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
@@ -157,7 +157,7 @@ void ponyint_pagemap_set_bulk(const void* m, void* v, size_t size)
       }
 
       ix = (m_ptr >> level[i].shift) & level[i].mask;
-      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+      pv = (PONY_ATOMIC_RVALUE(void**)*)&(pv_ld[ix]);
     }
 
     // store as many pagemap entries as would fit into this pagemap level segment
@@ -165,7 +165,7 @@ void ponyint_pagemap_set_bulk(const void* m, void* v, size_t size)
       atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
       m_ptr += POOL_ALIGN;
       ix++;
-      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+      pv = (PONY_ATOMIC_RVALUE(void**)*)&(pv_ld[ix]);
       // if ix is greater than mask we need to move to the next pagement level segment
     } while((m_ptr < m_end) && (ix <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
   }
