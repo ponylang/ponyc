@@ -766,3 +766,15 @@ TEST_F(BadPonyTest, MatchExhaustiveLastCaseUnionSubset)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, QuoteCommentsEmptyLine)
+{
+  // From issue #2027
+  const char* src =
+    "\"\"\"\n"
+    "\"\"\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
