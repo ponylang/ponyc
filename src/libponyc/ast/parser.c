@@ -421,23 +421,23 @@ DEF(arraytype);
   SKIP(NULL, TK_COLON);
   DONE();
 
-// (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
+// (LSQUARE | LSQUARE_NEW) [rawseq] RSQUARE
 DEF(array);
   PRINT_INLINE();
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
   OPT RULE("element type", arraytype);
-  RULE("array elements", rawseq);
+  OPT RULE("array elements", rawseq);
   TERMINATE("array literal", TK_RSQUARE);
   DONE();
 
-// LSQUARE_NEW rawseq {COMMA rawseq} RSQUARE
+// LSQUARE_NEW rawseq [rawseq] RSQUARE
 DEF(nextarray);
   PRINT_INLINE();
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE_NEW);
   OPT RULE("element type", arraytype);
-  RULE("array elements", rawseq);
+  OPT RULE("array elements", rawseq);
   TERMINATE("array literal", TK_RSQUARE);
   DONE();
 

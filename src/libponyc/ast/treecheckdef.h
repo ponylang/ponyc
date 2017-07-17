@@ -365,7 +365,7 @@ RULE(lambda_capture,
 
 RULE(array_literal,
   CHILD(type, none)
-  ONE_OR_MORE(rawseq),
+  CHILD(rawseq, none),
   TK_ARRAY);
 
 RULE(object_literal,

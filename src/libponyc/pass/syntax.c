@@ -1124,18 +1124,6 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  ast_t* param = ast_child(params);
-  while(param != NULL)
-  {
-    if(ast_id(ast_childidx(param, 1)) == TK_NONE)
-    {
-      ast_error(opt->check.errors, param,
-        "a lambda parameter must specify a type");
-      r = false;
-    }
-    param = ast_sibling(param);
-  }
-
   ast_t* capture = ast_child(captures);
   while(capture != NULL)
   {

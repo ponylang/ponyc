@@ -2,6 +2,7 @@
 #include "literal.h"
 #include "reference.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../ast/printbuf.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
@@ -9,7 +10,10 @@
 #include "../pass/syntax.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
+#include "../type/reify.h"
 #include "../type/sanitise.h"
+#include "../type/subtype.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
@@ -95,6 +99,67 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
 }
 
 
+static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
+  astlist_t** fun_defs, astlist_t** obj_caps)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+    {
+      // A lambda type definition must be an interface.
+      ast_t* def = (ast_t*)ast_data(ast);
+      if(ast_id(def) != TK_INTERFACE)
+        return;
+
+      // The interface must specify just one method in its members.
+      ast_t* members = ast_childidx(def, 4);
+      pony_assert(ast_id(members) == TK_MEMBERS);
+      if(ast_childcount(members) != 1)
+        return;
+
+      // That one method is the fun def that we're looking for.
+      ast_t* fun_def = ast_child(members);
+
+      // If the interface type has type parameters, we need to reify.
+      ast_t* typeargs = ast_childidx(ast, 2);
+      ast_t* typeparams = ast_childidx(def, 1);
+      if((ast_id(typeargs) == TK_TYPEARGS) &&
+        (ast_id(typeparams) == TK_TYPEPARAMS)
+        )
+        fun_def = reify_method_def(fun_def, typeparams, typeargs, opt);
+
+      // Return the object cap and the method definition.
+      *obj_caps = astlist_push(*obj_caps, ast_childidx(ast, 3));
+      *fun_defs = astlist_push(*fun_defs, fun_def);
+      break;
+    }
+
+    case TK_ARROW:
+      find_possible_fun_defs(opt, ast_childidx(ast, 1), fun_defs, obj_caps);
+      break;
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(ast_id(def) == TK_TYPEPARAM);
+      find_possible_fun_defs(opt, ast_childidx(def, 1), fun_defs, obj_caps);
+      break;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
+        find_possible_fun_defs(opt, c, fun_defs, obj_caps);
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+
 bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 {
   pony_assert(astp != NULL);
@@ -102,8 +167,140 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
-    ret_type, raises, body, reference_cap);
+    ret_type, raises, body, obj_cap);
   ast_t* annotation = ast_consumeannotation(ast);
+
+  // Try to find an antecedent type, and find possible lambda interfaces in it.
+  ast_t* antecedent_type = find_antecedent_type(opt, ast, NULL);
+  astlist_t* possible_fun_defs = NULL;
+  astlist_t* possible_obj_caps = NULL;
+  if(!is_typecheck_error(antecedent_type))
+    find_possible_fun_defs(opt, antecedent_type, &possible_fun_defs,
+      &possible_obj_caps);
+
+  // If there's more than one possible fun defs, rule out impossible ones by
+  // comparing each fun def by some basic criteria against the lambda,
+  // creating a new list containing only the remaining possibilities.
+  if(astlist_length(possible_fun_defs) > 1)
+  {
+    astlist_t* new_fun_defs = NULL;
+    astlist_t* new_obj_caps = NULL;
+
+    astlist_t* fun_def_cursor = possible_fun_defs;
+    astlist_t* obj_cap_cursor = possible_obj_caps;
+    for(; (fun_def_cursor != NULL) && (obj_cap_cursor != NULL);
+      fun_def_cursor = astlist_next(fun_def_cursor),
+      obj_cap_cursor = astlist_next(obj_cap_cursor))
+    {
+      ast_t* fun_def = astlist_data(fun_def_cursor);
+      ast_t* def_obj_cap = astlist_data(obj_cap_cursor);
+
+      if(is_typecheck_error(fun_def))
+        continue;
+
+      AST_GET_CHILDREN(fun_def, def_receiver_cap, def_name, def_t_params,
+        def_params, def_ret_type, def_raises);
+
+      // Must have the same number of parameters.
+      if(ast_childcount(params) != ast_childcount(def_params))
+        continue;
+
+      // Must have a supercap of the def's receiver cap (if present).
+      if((ast_id(receiver_cap) != TK_NONE) && !is_cap_sub_cap(
+        ast_id(def_receiver_cap), TK_NONE, ast_id(receiver_cap), TK_NONE)
+        )
+        continue;
+
+      // Must have a supercap of the def's object cap (if present).
+      if((ast_id(obj_cap) != TK_NONE) &&
+        !is_cap_sub_cap(ast_id(obj_cap), TK_NONE, ast_id(def_obj_cap), TK_NONE))
+        continue;
+
+      // TODO: This logic could potentially be expanded to do deeper
+      // compatibility checks, but checks involving subtyping here would be
+      // difficult, because the lambda's AST is not caught up yet in the passes.
+
+      new_fun_defs = astlist_push(new_fun_defs, fun_def);
+      new_obj_caps = astlist_push(new_obj_caps, def_obj_cap);
+    }
+
+    astlist_free(possible_fun_defs);
+    astlist_free(possible_obj_caps);
+    possible_fun_defs = new_fun_defs;
+    possible_obj_caps = new_obj_caps;
+  }
+
+  if(astlist_length(possible_fun_defs) == 1)
+  {
+    ast_t* fun_def = astlist_data(possible_fun_defs);
+    ast_t* def_obj_cap = astlist_data(possible_obj_caps);
+
+    // Try to complete the lambda's type info by inferring from the lambda type.
+    if(!is_typecheck_error(fun_def))
+    {
+      // Infer the object cap, receiver cap, and return type if unspecified.
+      if(ast_id(obj_cap) == TK_NONE)
+        ast_replace(&obj_cap, def_obj_cap);
+      if(ast_id(receiver_cap) == TK_NONE)
+        ast_replace(&receiver_cap, ast_child(fun_def));
+      if(ast_id(ret_type) == TK_NONE)
+        ast_replace(&ret_type, ast_childidx(fun_def, 4));
+
+      // Infer the type of any parameters that were left unspecified.
+      ast_t* param = ast_child(params);
+      ast_t* def_param = ast_child(ast_childidx(fun_def, 3));
+      while((param != NULL) && (def_param != NULL))
+      {
+        ast_t* param_id = ast_child(param);
+        ast_t* param_type = ast_sibling(param_id);
+
+        // Convert a "_" parameter to whatever the expected parameter is.
+        if((ast_id(param_id) == TK_REFERENCE) &&
+          is_name_dontcare(ast_name(ast_child(param_id))))
+        {
+          ast_replace(&param_id, ast_child(def_param));
+          ast_replace(&param_type, ast_childidx(def_param, 1));
+        }
+        // Give a type-unspecified parameter the type of the expected parameter.
+        else if(ast_id(param_type) == TK_NONE)
+        {
+          ast_replace(&param_id, ast_child(param_id)); // unwrap reference's id
+          ast_replace(&param_type, ast_childidx(def_param, 1));
+        }
+
+        param = ast_sibling(param);
+        def_param = ast_sibling(def_param);
+      }
+    }
+
+    ast_free_unattached(fun_def);
+  }
+
+
+  // If any parameters still have no type specified, it's an error.
+  ast_t* param = ast_child(params);
+  while(param != NULL)
+  {
+    if(ast_id(ast_childidx(param, 1)) == TK_NONE)
+    {
+      ast_error(opt->check.errors, param,
+        "a lambda parameter must specify a type or be inferable from context");
+
+      if(astlist_length(possible_fun_defs) > 1)
+      {
+        for(astlist_t* fun_def_cursor = possible_fun_defs;
+          fun_def_cursor != NULL;
+          fun_def_cursor = astlist_next(fun_def_cursor))
+        {
+          ast_error_continue(opt->check.errors, astlist_data(fun_def_cursor),
+            "this lambda interface is inferred, but it's not the only one");
+        }
+      }
+
+      return false;
+    }
+    param = ast_sibling(param);
+  }
 
   bool bare = ast_id(ast) == TK_BARELAMBDA;
   ast_t* members = ast_from(ast, TK_MEMBERS);
@@ -185,7 +382,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT, DATA(stringtab(buf->m))
-      TREE(reference_cap)
+      TREE(obj_cap)
       NONE  // Provides list
       TREE(members)));
 

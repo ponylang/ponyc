@@ -201,13 +201,264 @@ bool is_typecheck_error(ast_t* type)
   return false;
 }
 
+static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
+{
+  if((ast_id(ast) == TK_TUPLETYPE) && (ast_childcount(ast) == child_count))
+    return ast;
+
+  switch(ast_id(ast))
+  {
+    // For a union or intersection type, go for the first member in the
+    // type that is a tupletype with the right number of elements.
+    // We won't handle cases where there are multiple options with the
+    // right number of elements and one of the later options is correct.
+    // TODO: handle this using astlist_t.
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* member_type = ast_child(ast);
+      while(member_type != NULL)
+      {
+        ast_t* member_tuple_type =
+          find_tuple_type(opt, member_type, child_count);
+
+        if(member_tuple_type != NULL)
+          return member_tuple_type;
+
+        member_type = ast_sibling(member_type);
+      }
+      break;
+    }
+
+    // For an arrow type, just dig into the RHS.
+    case TK_ARROW:
+      return find_tuple_type(opt, ast_childlast(ast), child_count);
+
+    case TK_TYPEPARAMREF: break; // TODO
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
+{
+  ast_t* parent = ast_parent(ast);
+
+  switch(ast_id(parent))
+  {
+    // For the right side of an assignment, find the type of the left side.
+    case TK_ASSIGN:
+    {
+      // Get the lhs of the assignment and run the expr pass on it first.
+      AST_GET_CHILDREN(parent, rhs, lhs);
+      if(rhs != ast)
+        return NULL;
+      if(!ast_passes_subtree(&lhs, opt, PASS_EXPR))
+        return NULL;
+
+      return ast_type(lhs);
+    }
+
+    // For a parameter default value expression, use the type of the parameter.
+    case TK_PARAM:
+    case TK_LAMBDACAPTURE:
+    {
+      AST_GET_CHILDREN(parent, id, type, deflt);
+      pony_assert(ast == deflt);
+      return type;
+    }
+
+    // For an array literal expression, use the element type if specified.
+    case TK_ARRAY:
+    {
+      AST_GET_CHILDREN(parent, type, seq);
+      pony_assert(ast == seq);
+
+      if(ast_id(type) == TK_NONE)
+        return NULL;
+
+      return type;
+    }
+      break;
+
+    // For an argument, find the type of the corresponding parameter.
+    case TK_POSITIONALARGS:
+    {
+      // Get the receiver of the call and run the expr pass on it first.
+      ast_t* receiver = ast_childlast(ast_parent(parent));
+      if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
+        return NULL;
+
+      // Get the type signature of the function call.
+      ast_t* funtype = ast_type(receiver);
+      if(is_typecheck_error(funtype))
+        return funtype;
+      pony_assert(ast_id(funtype) == TK_FUNTYPE);
+      AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
+
+      // Find the parameter type corresponding to this specific argument.
+      ast_t* arg = ast_child(parent);
+      ast_t* param = ast_child(params);
+      while((arg != NULL) && (param != NULL))
+      {
+        if(arg == ast)
+          return ast_childidx(param, 1);
+
+        arg = ast_sibling(arg);
+        param = ast_sibling(param);
+      }
+
+      // We didn't find a match.
+      return NULL;
+    }
+
+    // For an argument, find the type of the corresponding parameter.
+    case TK_NAMEDARG:
+    case TK_UPDATEARG:
+    {
+      // Get the receiver of the call and run the expr pass on it first.
+      ast_t* receiver = ast_childlast(ast_parent(ast_parent(parent)));
+      if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
+        return NULL;
+
+      // Get the type signature of the function call.
+      ast_t* funtype = ast_type(receiver);
+      if(is_typecheck_error(funtype))
+        return funtype;
+      pony_assert(ast_id(funtype) == TK_FUNTYPE);
+      AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
+
+      // Find the parameter type corresponding to this named argument.
+      const char* name = ast_name(ast_child(parent));
+      ast_t* param = ast_child(params);
+      while(param != NULL)
+      {
+        if(ast_name(ast_child(param)) == name)
+          return ast_childidx(param, 1);
+
+        param = ast_sibling(param);
+      }
+
+      // We didn't find a match.
+      return NULL;
+    }
+
+    // For a function body, use the declared return type of the function.
+    case TK_FUN:
+    {
+      ast_t* body = ast_childidx(parent, 6);
+      pony_assert(ast == body);
+
+      ast_t* ret_type = ast_childidx(parent, 4);
+      if(ast_id(ret_type) == TK_NONE)
+        return NULL;
+
+      return ret_type;
+    }
+
+    // For the last expression in a sequence, recurse to the parent.
+    // If the given expression is not the last one, it is uninferable.
+    case TK_SEQ:
+    {
+      if(ast_childlast(parent) == ast)
+        return find_antecedent_type(opt, parent, is_recovered);
+
+      // If this sequence is an array literal, every child uses the LHS type.
+      if(ast_id(ast_parent(parent)) == TK_ARRAY)
+        return find_antecedent_type(opt, parent, is_recovered);
+
+      return NULL;
+    }
+
+    // For a tuple expression, take the nth element of the upper LHS type.
+    case TK_TUPLE:
+    {
+      ast_t* antecedent = find_antecedent_type(opt, parent, is_recovered);
+      if(antecedent == NULL)
+        return NULL;
+
+      // Dig through the LHS type until we find a tuple type.
+      antecedent = find_tuple_type(opt, antecedent, ast_childcount(parent));
+      if(antecedent == NULL)
+        return NULL;
+      pony_assert(ast_id(antecedent) == TK_TUPLETYPE);
+
+      // Find the element of the LHS type that corresponds to our element.
+      ast_t* elem = ast_child(parent);
+      ast_t* type_elem = ast_child(antecedent);
+      while((elem != NULL) && (type_elem != NULL))
+      {
+        if(elem == ast)
+          return type_elem;
+
+        elem = ast_sibling(elem);
+        type_elem = ast_sibling(type_elem);
+      }
+
+      break;
+    }
+
+    // For a return statement, recurse to the method body that contains it.
+    case TK_RETURN:
+    {
+      ast_t* body = opt->check.frame->method_body;
+      if(body == NULL)
+        return NULL;
+
+      return find_antecedent_type(opt, body, is_recovered);
+    }
+
+    // For a break statement, recurse to the loop body that contains it.
+    case TK_BREAK:
+    {
+      ast_t* body = opt->check.frame->loop_body;
+      if(body == NULL)
+        return NULL;
+
+      return find_antecedent_type(opt, body, is_recovered);
+    }
+
+    // For a recover block, note the recovery and move on to the parent.
+    case TK_RECOVER:
+    {
+      if(is_recovered != NULL)
+        *is_recovered = true;
+
+      return find_antecedent_type(opt, parent, is_recovered);
+    }
+
+    case TK_IF:
+    case TK_IFDEF:
+    case TK_IFTYPE:
+    case TK_IFTYPE_SET:
+    case TK_THEN:
+    case TK_ELSE:
+    case TK_WHILE:
+    case TK_REPEAT:
+    case TK_MATCH:
+    case TK_CASES:
+    case TK_CASE:
+    case TK_TRY:
+    case TK_TRY_NO_CHECK:
+      return find_antecedent_type(opt, parent, is_recovered);
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 {
-  (void)options;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
   {
+    case TK_ARRAY: return expr_pre_array(options, astp);
     case TK_USE:
       // Don't look in use commands to avoid false type errors from the guard
       return AST_IGNORE;

@@ -225,6 +225,10 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     }
   }
 
+  // Handle cases where we just want to transform a typeref for type purposes.
+  if(ast_parent(ast) == NULL)
+    return true;
+
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:

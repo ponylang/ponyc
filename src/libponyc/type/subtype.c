@@ -1679,6 +1679,12 @@ bool is_subtype_constraint(ast_t* sub, ast_t* super, errorframe_t* errorf,
   return is_x_sub_x(sub, super, CHECK_CAP_EQ, errorf, opt);
 }
 
+bool is_subtype_ignore_cap(ast_t* sub, ast_t* super, errorframe_t* errorf,
+  pass_opt_t* opt)
+{
+  return is_x_sub_x(sub, super, CHECK_CAP_IGNORE, errorf, opt);
+}
+
 bool is_subtype_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
   pass_opt_t* opt)
 {
