@@ -39,23 +39,47 @@ command line syntax. Many aspects of the spec are checked for correctness at
 compile time, and the result represents everything the parser needs to know
 when parsing a command line or forming syntax help messages.
 
+#### Option and Arg value types
+
+Options and Args parse values from the command line as one of four Pony types:
+`Bool`, `String`, `I64` and `F64`. Values of each of these types can then be
+retrieved using the corresponding accessor funtions.
+
+In addition, there is a string_seq type that accepts string values from the
+command line and collects them into a sequence which can then be retrieved as
+a `ReadSeq[String]` using the `string_seq()` accessor function.
+
+Some specific details:
+
+- bool Options: have a default value of 'true' if no value is given. That is,
+  `-f` is equivalent to `-f=true`.
+
+- string_seq Options: the option prefix has to be used each time, like:
+  `--file=f1 --file=f2 --file=f3` with the results being collected into
+  a single sequence.
+
+- string_seq Args: there is no way to indicate termination, so a string_seq
+  Arg should be the last arg for a command, and will consume all remaining
+  command line arguments.
+
 ### Parser
 
-Programs then use the spec to create a parser at runtime to parse any given
-command line. This is often env.args(), but could also be commands from files
-or other input sources. The result of a parse is either a parsed command, a
-help command object, or a syntax error.
+Programs then use the CommandSpec they've built to instantiate a parser to
+parse any given command line. This is often env.args(), but could also be
+commands from files or other input sources. The result of a parse is either a
+parsed command, a command help, or a syntax error object.
 
 ### Commands
 
-Programs then query the returned parsed command to determine the command
-specified, and the effective values for all options and arguments.
-
+Programs then match the object returned by the parser to determine what kind
+it is. Errors and help requests typically print messages and exit. For
+commands, the fullname can be matched and the effective values for the
+command's options and arguments can be retrieved.
 
 # Example program
 
-This program opens the files that are given as command line arguments
-and prints their contents.
+This program echos its command line arguments with the option of uppercasing
+them.
 
 ```pony
 use "cli"
