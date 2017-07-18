@@ -315,6 +315,22 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
+### Fedora (25)
+
+```bash
+$ dnf check-update
+$ sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel llvm-devel ncurses-devel
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+$ cd ~/ponyc/
+$ make
+$ ./build/release/ponyc examples/helloworld
+$ ./helloworld
+```
+
 ### Other Linux distributions
 
 You need to have the development versions of the following installed:
