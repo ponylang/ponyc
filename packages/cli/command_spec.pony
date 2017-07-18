@@ -162,9 +162,6 @@ class val OptionSpec
     match default'
     | None => (typ', false, true)
     | let d: _Value => (typ', d, false)
-    else
-      // Ponyc limitation: else can't happen, but segfaults without it
-      (_BoolType, false, false)
     end
 
   new val bool(
@@ -332,9 +329,6 @@ class val ArgSpec
     match default'
     | None => (typ', false, true)
     | let d: _Value => (typ', d, false)
-    else
-      // Ponyc limitation: else can't happen, but segfaults without it
-      (_BoolType, false, false)
     end
 
   new val bool(
