@@ -5,6 +5,9 @@ class CommandParser
   let _parent: (CommandParser box | None)
 
   new box create(spec': CommandSpec box) =>
+    """
+    Creates a new parser for a given command spec.
+    """
     _spec = spec'
     _parent = None
 
@@ -12,7 +15,7 @@ class CommandParser
     _spec = spec'
     _parent = parent'
 
-  fun box parse(
+  fun parse(
     argv: Array[String] box,
     envs: (Array[String] box | None) = None)
     : (Command | CommandHelp | SyntaxError)
@@ -30,14 +33,21 @@ class CommandParser
       EnvVars(envs, _spec.name().upper() + "_", true),
       false)
 
-  fun box _root_spec(): CommandSpec box =>
+  fun _fullname(): String =>
+    match _parent
+    | let p: CommandParser box => p._fullname() + "/" + _spec.name()
+    else
+      _spec.name()
+    end
+
+  fun _root_spec(): CommandSpec box =>
     match _parent
     | let p: CommandParser box => p._root_spec()
     else
       _spec
     end
 
-  fun box _parse_command(
+  fun _parse_command(
     tokens: Array[String] ref,
     options: Map[String,Option] ref,
     args: Map[String,Arg] ref,
@@ -59,7 +69,15 @@ class CommandParser
 
       elseif not opt_stop and (token.compare_sub("--", 2, 0) == Equal) then
         match _parse_long_option(token.substring(2), tokens)
-        | let o: Option => options.update(o.spec().name(), o)
+        | let o: Option =>
+          if o.spec()._typ_p().is_seq() then
+            try
+              options.upsert(o.spec().name(), o,
+                {(x: Option, n: Option): Option^ => x._append(n) })
+            end
+          else
+            options.update(o.spec().name(), o)
+          end
         | let se: SyntaxError => return se
         end
 
@@ -68,7 +86,14 @@ class CommandParser
         match _parse_short_options(token.substring(1), tokens)
         | let os: Array[Option] =>
           for o in os.values() do
-            options.update(o.spec().name(), o)
+            if o.spec()._typ_p().is_seq() then
+              try
+                options.upsert(o.spec().name(), o,
+                  {(x: Option, n: Option): Option^ => x._append(n) })
+              end
+            else
+              options.update(o.spec().name(), o)
+            end
           end
         | let se: SyntaxError =>
           return se
@@ -87,8 +112,16 @@ class CommandParser
           end
         else
           match _parse_arg(token, arg_pos)
-          | let a: Arg => args.update(a.spec().name(), a)
-            arg_pos = arg_pos + 1
+          | let a: Arg =>
+            if a.spec()._typ_p().is_seq() then
+              try
+                args.upsert(a.spec().name(), a,
+                  {(x: Arg, n: Arg): Arg^ => x._append(n) })
+              end
+            else
+              args.update(a.spec().name(), a)
+              arg_pos = arg_pos + 1
+            end
           | let se: SyntaxError => return se
           end
         end
@@ -154,18 +187,25 @@ class CommandParser
     while arg_pos < _spec.args().size() do
       try
         let ars = _spec.args()(arg_pos)
-        if ars.required() then
-          return SyntaxError(ars.name(), "missing value for required argument")
+        if not args.contains(ars.name()) then // latest arg may be a seq
+          if ars.required() then
+            return SyntaxError(ars.name(), "missing value for required argument")
+          end
+          args.update(ars.name(), Arg(ars, ars._default_p()))
         end
-        args.update(ars.name(), Arg(ars, ars._default_p()))
       end
       arg_pos = arg_pos + 1
     end
 
-    // A successfully parsed and populated leaf Command
-    Command(_spec, consume options, args)
+    // Specifying only the parent and not a leaf command is an error.
+    if _spec.commands().size() > 0 then
+      return SyntaxError(_spec.name(), "missing subcommand")
+    end
 
-  fun box _parse_long_option(
+    // A successfully parsed and populated leaf Command.
+    Command._create(_spec, _fullname(), consume options, args)
+
+  fun _parse_long_option(
     token: String,
     args: Array[String] ref)
     : (Option | SyntaxError)
@@ -182,7 +222,7 @@ class CommandParser
     | None => SyntaxError(name, "unknown long option")
     end
 
-  fun box _parse_short_options(
+  fun _parse_short_options(
     token: String,
     args: Array[String] ref)
     : (Array[Option] | SyntaxError)
@@ -212,8 +252,8 @@ class CommandParser
           0  // TODO(cq) Should never error since checked
         end
       match _option_with_short(c)
-      | let fs: OptionSpec =>
-        if fs._requires_arg() and (shorts.size() > 0) then
+      | let os: OptionSpec =>
+        if os._requires_arg() and (shorts.size() > 0) then
           // opt needs an arg, so consume the remainder of the shorts for targ
           if targ is None then
             targ = shorts.clone()
@@ -223,16 +263,16 @@ class CommandParser
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
-        match _OptionParser.parse(fs, arg, args)
-        | let f: Option => options.push(f)
+        match _OptionParser.parse(os, arg, args)
+        | let o: Option => options.push(o)
         | let se: SyntaxError => return se
         end
-      | None => SyntaxError(_short_string(c), "unknown short option")
+      | None => return SyntaxError(_short_string(c), "unknown short option")
       end
     end
     options
 
-  fun box _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
+  fun _parse_arg(token: String, arg_pos: USize): (Arg | SyntaxError) =>
     try
       let arg_spec = _spec.args()(arg_pos)
       _ArgParser.parse(arg_spec, token)
@@ -240,7 +280,7 @@ class CommandParser
       return SyntaxError(token, "too many positional arguments")
     end
 
-  fun box _option_with_name(name: String): (OptionSpec | None) =>
+  fun _option_with_name(name: String): (OptionSpec | None) =>
     try
       return _spec.options()(name)
     end
@@ -250,7 +290,7 @@ class CommandParser
       None
     end
 
-  fun box _option_with_short(short: U8): (OptionSpec | None) =>
+  fun _option_with_short(short: U8): (OptionSpec | None) =>
     for o in _spec.options().values() do
       if o._has_short(short) then
         return o
@@ -265,7 +305,7 @@ class CommandParser
   fun tag _short_string(c: U8): String =>
     recover String.from_utf32(c.u32()) end
 
-  fun box _help_name(): String =>
+  fun _help_name(): String =>
     _root_spec().help_name()
 
 primitive _OptionParser
@@ -307,12 +347,7 @@ primitive _ArgParser
 primitive _ValueParser
   fun box parse(typ: _ValueType, arg: String): (_Value | SyntaxError) =>
     try
-      match typ
-      | let b: _BoolType => arg.bool()
-      | let s: _StringType => arg
-      | let f: _F64Type => arg.f64()
-      | let i: _I64Type => arg.i64()
-      end
+      typ.value_of(arg)
     else
       SyntaxError(arg, "unable to convert '" + arg + "' to " + typ.string())
     end
