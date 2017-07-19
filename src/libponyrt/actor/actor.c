@@ -28,17 +28,24 @@ static bool actor_noblock = false;
 
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
-  return (actor->flags & flag) != 0;
+  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  return (flags & flag) != 0;
 }
+
+// The flags of a given actor cannot be mutated from more than one actor at
+// once, so these operations need not be atomic RMW.
 
 static void set_flag(pony_actor_t* actor, uint8_t flag)
 {
-  actor->flags |= flag;
+  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  atomic_store_explicit(&actor->flags, flags | flag, memory_order_relaxed);
 }
 
 static void unset_flag(pony_actor_t* actor, uint8_t flag)
 {
-  actor->flags &= (uint8_t)~flag;
+  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  atomic_store_explicit(&actor->flags, flags & (uint8_t)~flag,
+    memory_order_relaxed);
 }
 
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -246,6 +253,11 @@ bool ponyint_actor_pendingdestroy(pony_actor_t* actor)
 
 void ponyint_actor_setpendingdestroy(pony_actor_t* actor)
 {
+  // This is thread-safe, even though the flag is set from the cycle detector.
+  // The function is only called after the cycle detector has detected a true
+  // cycle and an actor won't change its flags if it is part of a true cycle.
+  // The synchronisation is done through the ACK message sent by the actor to
+  // the cycle detector.
   set_flag(actor, FLAG_PENDINGDESTROY);
 }
 
