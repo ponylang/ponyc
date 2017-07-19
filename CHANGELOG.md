@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Destroy all actors on runtime termination ([PR #2058](https://github.com/ponylang/ponyc/pull/2058))
 - Fixed compiler segfault on empty triple quote comment. ([PR #2053](https://github.com/ponylang/ponyc/pull/2053))
 - Fix compiler crash on exhaustive match where last case is a union subset ([PR #2049](https://github.com/ponylang/ponyc/pull/2049))
 - Make pony_os_std_print() write a newline when given empty input. ([PR #2050](https://github.com/ponylang/ponyc/pull/2050))
