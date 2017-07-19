@@ -39,3 +39,23 @@ TEST_F(CodegenOptimisationTest, MergeTraceMessageReordering)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 1);
 }
+
+TEST_F(CodegenOptimisationTest, MergeTraceCrossMessaging)
+{
+  // Test that we don't produce invalid LLVM IR that would cause a crash.
+  const char* src =
+    "actor A\n"
+    "  be m(a: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    test(A, A)\n"
+
+    "  be test(a1: A, a2: A) =>\n"
+    "    a1.m(a2)\n"
+    "    a2.m(a1)";
+
+  opt.release = true;
+
+  TEST_COMPILE(src);
+}
