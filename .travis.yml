@@ -136,7 +136,7 @@ matrix:
           packages:
             - g++-6
       env:
-        - FAVORITE_CONFIG=yes
+        - FAVORITE_CONFIG=no
         - LLVM_VERSION="4.0.0"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=release
@@ -212,12 +212,12 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
+        - LLVM_VERSION="4.0.0"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=release
         - lto=no
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
+        - CC1=clang-4.0
+        - CXX1=clang++-4.0
 
 rvm:
   - 2.2.3
