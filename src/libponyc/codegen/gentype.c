@@ -144,30 +144,6 @@ static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
   return LLVMMDNodeInContext(ctx, &mdstr, 1);
 }
 
-#if PONY_LLVM < 400
-
-static LLVMValueRef make_tbaa_descriptor(LLVMContextRef ctx, 
-  LLVMValueRef root)
-{
-  const char str[] = "Type descriptor";
-  LLVMValueRef params[3];
-  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
-  params[1] = root;
-  params[2] = LLVMConstInt(LLVMInt64TypeInContext(ctx), 1, false);
-  return LLVMMDNodeInContext(ctx, params, 3);
-}
-
-static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
-{
-  const char str[] = "Descriptor pointer";
-  LLVMValueRef params[2];
-  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
-  params[1] = root;
-  return LLVMMDNodeInContext(ctx, params, 2);
-}
-
-#endif
-
 static void compile_type_free(void* p)
 {
   POOL_FREE(compile_type_t, p);
