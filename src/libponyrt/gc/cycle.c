@@ -139,6 +139,9 @@ DEFINE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t,
   perceived_hash, perceived_cmp, ponyint_pool_alloc_size,
   ponyint_pool_free_size, perceived_free);
 
+DECLARE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
+DEFINE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
+
 typedef struct detector_t
 {
   pony_actor_pad_t pad;
@@ -673,6 +676,7 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
 static void final(pony_ctx_t* ctx, pony_actor_t* self)
 {
   // Find block messages and invoke finalisers for those actors
+  pendingdestroystack_t* stack = NULL;
   pony_msg_t* msg;
 
   do
@@ -690,6 +694,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
         {
           ponyint_actor_setpendingdestroy(m->actor);
           ponyint_actor_final(ctx, m->actor);
+          stack = ponyint_pendingdestroystack_push(stack, m->actor);
         }
       }
     }
@@ -708,12 +713,26 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     {
       ponyint_actor_setpendingdestroy(view->actor);
       ponyint_actor_final(ctx, view->actor);
+      stack = ponyint_pendingdestroystack_push(stack, view->actor);
     }
+  }
+
+  pony_actor_t* actor;
+
+  while(stack != NULL)
+  {
+    stack = ponyint_pendingdestroystack_pop(stack, &actor);
+    ponyint_actor_destroy(actor);
   }
 
   i = HASHMAP_BEGIN;
   while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
-    ponyint_viewmap_remove(&d->deferred, view);
+  {
+    ponyint_viewmap_removeindex(&d->deferred, i);
+    // always scan again from same index because robin hood hashmap
+    // will shift delete items
+    i--;
+  }
 
   ponyint_viewmap_destroy(&d->deferred);
   ponyint_viewmap_destroy(&d->views);
