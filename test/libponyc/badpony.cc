@@ -778,3 +778,28 @@ TEST_F(BadPonyTest, QuoteCommentsEmptyLine)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, AsUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    0 as I64\n"
+    "    0.0 as F64";
+
+  TEST_ERRORS_2(src,
+    "Cannot cast uninferred numeric literal",
+    "Cannot cast uninferred numeric literal");
+}
+
+TEST_F(BadPonyTest, AsNestedUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    (0, 1) as (I64, I64)";
+
+  TEST_ERRORS_1(src, "Cannot cast uninferred literal");
+}
