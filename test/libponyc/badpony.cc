@@ -748,6 +748,37 @@ TEST_F(BadPonyTest, FFIUndeclaredTupleReturn)
   TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
 }
 
+TEST_F(BadPonyTest, MatchExhaustiveLastCaseUnionSubset)
+{
+  // From issue #2048
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => apply(None)\n"
+
+    "  fun apply(p': (P1 | P2 | None)) =>\n"
+    "    match p'\n"
+    "    | None => None\n"
+    "    | let p: (P1 | P2) => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, QuoteCommentsEmptyLine)
+{
+  // From issue #2027
+  const char* src =
+    "\"\"\"\n"
+    "\"\"\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(BadPonyTest, AsUninferredNumericLiteral)
 {
   // From issue #2037

@@ -2,11 +2,18 @@ use "buffered"
 
 primitive Help
   fun general(cs: CommandSpec box): CommandHelp =>
+    """
+    Creates a command help that can print a general program help message.
+    """
     CommandHelp._create(None, cs)
 
   fun for_command(cs: CommandSpec box, argv: Array[String] box)
     : (CommandHelp | SyntaxError)
   =>
+    """
+    Creates a command help for a specific command that can print a detailed
+    help message.
+    """
     _parse(cs, CommandHelp._create(None, cs), argv)
 
   fun _parse(cs: CommandSpec box, ch: CommandHelp, argv: Array[String] box)
@@ -31,8 +38,8 @@ class box CommandHelp
   """
   CommandHelp encapsulates the information needed to generate a user help
   message for a given CommandSpec, optionally with a specific command
-  identified to get help on. Use `Help.general()` or `Help.for_command()` to
-  create a CommandHelp instance.
+  identified to print help about. Use `Help.general()` or `Help.for_command()`
+  to create a CommandHelp instance.
   """
   let _parent: (CommandHelp box | None)
   let _spec: CommandSpec box
@@ -51,13 +58,19 @@ class box CommandHelp
   fun box string(): String => fullname()
 
   fun box help_string(): String =>
+    """
+    Renders the help message as a String.
+    """
     let w: Writer = Writer
     _write_help(w)
     let str = recover trn String(w.size()) end
     for bytes in w.done().values() do str.append(bytes) end
-    consume str
+    str
 
   fun box print_help(os: OutStream) =>
+    """
+    Prints the help message to an OutStream.
+    """
     let w: Writer = Writer
     _write_help(w)
     os.writev(w.done())

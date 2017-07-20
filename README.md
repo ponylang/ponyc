@@ -204,7 +204,7 @@ Once you have installed the prerequisites, you can download the latest ponyc rel
 First of all, you need a compiler with decent C11 support. The following compilers are supported, though we recommend to use the most recent versions.
 
 - GCC >= 4.7
-- Clang >= 3.3
+- Clang >= 3.4
 - MSVC >= 2013
 - XCode Clang >= 6.0
 
@@ -305,6 +305,22 @@ tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
     clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
 ```
 where `${LLVM_VERSION}` is whatever version of LLVM you've downloaded the `.xz` file for.
+
+To build ponyc, compile and run helloworld:
+
+```bash
+$ cd ~/ponyc/
+$ make
+$ ./build/release/ponyc examples/helloworld
+$ ./helloworld
+```
+
+### Fedora (25)
+
+```bash
+$ dnf check-update
+$ sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel llvm-devel ncurses-devel
+```
 
 To build ponyc, compile and run helloworld:
 

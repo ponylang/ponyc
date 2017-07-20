@@ -933,7 +933,8 @@ public:
           while(iter != first.done)
           {
             auto& inst = *(iter++);
-            inst.moveBefore(&(*next.trace));
+            if(inst.getOpcode() == Instruction::Call)
+              inst.moveBefore(&(*next.trace));
           }
 
           iter++;
@@ -947,7 +948,8 @@ public:
           while(iter != first_send_post)
           {
             auto& inst = *(iter++);
-            inst.moveBefore(&(*next_done_post));
+            if(inst.getOpcode() == Instruction::Call)
+              inst.moveBefore(&(*next_done_post));
           }
 
           next.trace = first.trace;

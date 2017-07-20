@@ -1,6 +1,7 @@
 #include "gentrace.h"
 #include "gencall.h"
 #include "gendesc.h"
+#include "genfun.h"
 #include "genname.h"
 #include "genprim.h"
 #include "../type/cap.h"
@@ -494,7 +495,8 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   LLVMValueRef args[4];
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
-  args[2] = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr, "");
+  args[2] = LLVMBuildBitCast(c->builder, ((compile_type_t*)t->c_type)->desc,
+    c->descriptor_ptr, "");
   args[3] = LLVMConstInt(c->i32, mutability, false);
 
   gencall_runtime(c, "pony_traceknown", args, 4, "");
@@ -940,7 +942,8 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
   if(!need_trace)
     return;
 
-  t->trace_fn = codegen_addfun(c, genname_trace(t->name), c->trace_type);
+  ((compile_type_t*)t->c_type)->trace_fn = codegen_addfun(c,
+    genname_trace(t->name), c->trace_type);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,

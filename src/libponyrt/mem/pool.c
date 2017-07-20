@@ -993,7 +993,7 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p)
   } else {
     size_t new_adj_size = ponyint_pool_adjust_size(new_size);
 
-    if(old_index == POOL_COUNT)
+    if(old_index >= POOL_COUNT)
     {
       old_adj_size = ponyint_pool_adjust_size(old_size);
 
@@ -1057,9 +1057,6 @@ size_t ponyint_pool_index(size_t size)
 {
   if(size <= POOL_MIN)
     return 0;
-
-  if(size > POOL_MAX)
-    return POOL_COUNT;
 
 #ifdef PLATFORM_IS_ILP32
 #define BITS (32 - POOL_MIN_BITS)

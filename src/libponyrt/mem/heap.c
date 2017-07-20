@@ -459,7 +459,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   if(p == NULL)
     return ponyint_heap_alloc(actor, heap, size);
 
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   if(chunk == NULL)
   {

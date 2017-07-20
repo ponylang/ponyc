@@ -201,9 +201,11 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
   reach_method_t* m, LLVMValueRef l_value)
 {
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
   if(t->bare_method == m)
     return LLVMBuildBitCast(c->builder, l_value,
-      LLVMPointerType(m->func_type, 0), "");
+      LLVMPointerType(c_m->func_type, 0), "");
 
   switch(t->underlying)
   {
@@ -219,7 +221,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
         m->vtable_index);
 
       return LLVMBuildBitCast(c->builder, func,
-        LLVMPointerType(m->func_type, 0), "");
+        LLVMPointerType(c_m->func_type, 0), "");
     }
 
     case TK_PRIMITIVE:
@@ -228,7 +230,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
     case TK_ACTOR:
     {
       // Static, get the actual function.
-      return m->func;
+      return c_m->func;
     }
 
     default: {}
@@ -245,7 +247,7 @@ static bool call_needs_receiver(ast_t* postfix, reach_type_t* t)
     case TK_NEWREF:
     case TK_NEWBEREF:
       // No receiver if a new primitive.
-      if(t->primitive != NULL)
+      if(((compile_type_t*)t->c_type)->primitive != NULL)
         return false;
 
       // No receiver if a new Pointer or Maybe.
@@ -267,7 +269,8 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
     return;
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
-  LLVMValueRef store = LLVMBuildStore(c->builder, t->desc, desc_ptr);
+  LLVMValueRef store = LLVMBuildStore(c->builder,
+    ((compile_type_t*)t->c_type)->desc, desc_ptr);
   const char id[] = "tbaa";
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
@@ -292,8 +295,9 @@ static void set_method_external_interface(reach_type_t* t, const char* name,
     {
       if(m->vtable_index == vtable_index)
       {
-        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-        LLVMSetLinkage(m->func, LLVMExternalLinkage);
+        compile_method_t* c_m = (compile_method_t*)m->c_method;
+        LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+        LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
         break;
       }
     }
@@ -343,9 +347,12 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
       case TK_STRUCT:
       case TK_CLASS:
       case TK_ACTOR:
-        LLVMSetFunctionCallConv(m->func, LLVMCCallConv);
-        LLVMSetLinkage(m->func, LLVMExternalLinkage);
+      {
+        compile_method_t* c_m = (compile_method_t*)m->c_method;
+        LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+        LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
         break;
+      }
       case TK_UNIONTYPE:
       case TK_ISECTTYPE:
       case TK_INTERFACE:
@@ -365,8 +372,9 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
   LLVMValueRef cast_args[], ast_t* args_ast)
 {
   // Allocate the message, setting its size and ID.
-  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, m->msg_type);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(m->msg_type, 0);
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, c_m->msg_type);
+  LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
 
   LLVMValueRef msg_args[3];
 
@@ -700,7 +708,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     }
   } else {
     // Use a null for the receiver type.
-    args[0] = LLVMConstNull(t->use_type);
+    args[0] = LLVMConstNull(((compile_type_t*)t->c_type)->use_type);
   }
 
   // Static or virtual dispatch.
@@ -895,15 +903,17 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
   bool intrinsic)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   if(t->underlying == TK_TUPLETYPE)
   {
     pony_assert(intrinsic);
 
     // Can't use the named type. Build an unnamed type with the same elements.
-    unsigned int count = LLVMCountStructElementTypes(t->use_type);
+    unsigned int count = LLVMCountStructElementTypes(c_t->use_type);
     size_t buf_size = count * sizeof(LLVMTypeRef);
     LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-    LLVMGetStructElementTypes(t->use_type, e_types);
+    LLVMGetStructElementTypes(c_t->use_type, e_types);
 
     ast_t* child = ast_child(t->ast);
     size_t i = 0;
@@ -927,7 +937,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
     if(intrinsic && is_bool(t->ast))
       return c->i1;
     else
-      return t->use_type;
+      return c_t->use_type;
   }
 }
 
@@ -970,7 +980,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
     if(intrinsic && is_bool(pt->ast))
       f_params[count++] = c->i1;
     else
-      f_params[count++] = pt->use_type;
+      f_params[count++] = ((compile_type_t*)pt->c_type)->use_type;
 
     arg = ast_sibling(arg);
   }
@@ -1107,7 +1117,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   // Special case a None return value, which is used for void functions.
   if(is_none(type))
-    return t->instance;
+    return ((compile_type_t*)t->c_type)->instance;
 
   return result;
 }
@@ -1125,18 +1135,22 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 
 LLVMValueRef gencall_create(compile_t* c, reach_type_t* t)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   LLVMValueRef args[2];
   args[0] = codegen_ctx(c);
-  args[1] = LLVMConstBitCast(t->desc, c->descriptor_ptr);
+  args[1] = LLVMConstBitCast(c_t->desc, c->descriptor_ptr);
 
   LLVMValueRef result = gencall_runtime(c, "pony_create", args, 2, "");
-  return LLVMBuildBitCast(c->builder, result, t->use_type, "");
+  return LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
 }
 
 LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   // Do nothing for primitives.
-  if(t->primitive != NULL)
+  if(c_t->primitive != NULL)
     return NULL;
 
   // Do nothing for Pointer and Maybe.
@@ -1144,8 +1158,8 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
     return NULL;
 
   // Use the global instance if we have one.
-  if(t->instance != NULL)
-    return t->instance;
+  if(c_t->instance != NULL)
+    return c_t->instance;
 
   if(t->underlying == TK_ACTOR)
     return gencall_create(c, t);
@@ -1161,8 +1175,9 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   args[0] = codegen_ctx(c);
 
   LLVMValueRef result;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  size_t size = t->abi_size;
+  size_t size = c_t->abi_size;
   if(size == 0)
     size = 1;
 
@@ -1170,19 +1185,19 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   {
     uint32_t index = ponyint_heap_index(size);
     args[1] = LLVMConstInt(c->i32, index, false);
-    if(t->final_fn == NULL)
+    if(c_t->final_fn == NULL)
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     else
       result = gencall_runtime(c, "pony_alloc_small_final", args, 2, "");
   } else {
     args[1] = LLVMConstInt(c->intptr, size, false);
-    if(t->final_fn == NULL)
+    if(c_t->final_fn == NULL)
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     else
       result = gencall_runtime(c, "pony_alloc_large_final", args, 2, "");
   }
 
-  result = LLVMBuildBitCast(c->builder, result, t->structure_ptr, "");
+  result = LLVMBuildBitCast(c->builder, result, c_t->structure_ptr, "");
   set_descriptor(c, t, result);
 
   return result;
