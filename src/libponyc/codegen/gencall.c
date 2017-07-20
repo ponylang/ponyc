@@ -16,6 +16,47 @@
 #include "ponyassert.h"
 #include <string.h>
 
+typedef struct call_tuple_indices_t
+{
+  size_t* data;
+  size_t count;
+  size_t alloc;
+} call_tuple_indices_t;
+
+static void tuple_indices_init(call_tuple_indices_t* ti)
+{
+  ti->data = (size_t*)ponyint_pool_alloc_size(4 * sizeof(size_t));
+  ti->count = 0;
+  ti->alloc = 4;
+}
+
+static void tuple_indices_destroy(call_tuple_indices_t* ti)
+{
+  ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+  ti->data = NULL;
+  ti->count = 0;
+  ti->alloc = 0;
+}
+
+static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
+{
+  if(ti->count == ti->alloc)
+  {
+    size_t old_alloc = ti->alloc * sizeof(size_t);
+    ti->data =
+      (size_t*)ponyint_pool_realloc_size(old_alloc, old_alloc * 2, ti->data);
+    ti->alloc *= 2;
+  }
+  ti->data[ti->count++] = idx;
+}
+
+static size_t tuple_indices_pop(call_tuple_indices_t* ti)
+{
+  pony_assert(ti->count > 0);
+
+  return ti->data[--ti->count];
+}
+
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret, bool setcc)
 {
@@ -275,6 +316,89 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
 }
 
+// This function builds a stack of indices such that for an AST nested in an
+// arbitrary number of tuples, the stack will contain the indices of the
+// successive members to traverse when going from the top-level tuple to the
+// AST. If the AST isn't in a tuple, the stack stays empty.
+static ast_t* make_tuple_indices(call_tuple_indices_t* ti, ast_t* ast)
+{
+  ast_t* current = ast;
+  ast_t* parent = ast_parent(current);
+  while((parent != NULL) && (ast_id(parent) != TK_ASSIGN) &&
+    (ast_id(parent) != TK_CALL))
+  {
+    if(ast_id(parent) == TK_TUPLE)
+    {
+      size_t index = 0;
+      ast_t* child = ast_child(parent);
+      while(current != child)
+      {
+        ++index;
+        child = ast_sibling(child);
+      }
+      tuple_indices_push(ti, index);
+    }
+    current = parent;
+    parent = ast_parent(current);
+  }
+
+  return parent;
+}
+
+static ast_t* find_embed_constructor_receiver(ast_t* call)
+{
+  call_tuple_indices_t tuple_indices = {NULL, 0, 4};
+  tuple_indices_init(&tuple_indices);
+
+  ast_t* parent = make_tuple_indices(&tuple_indices, call);
+  ast_t* fieldref = NULL;
+
+  if((parent != NULL) && (ast_id(parent) == TK_ASSIGN))
+  {
+    // Traverse the LHS of the assignment looking for what our constructor call
+    // is assigned to.
+    ast_t* current = ast_childidx(parent, 1);
+    while((ast_id(current) == TK_TUPLE) || (ast_id(current) == TK_SEQ))
+    {
+      parent = current;
+      if(ast_id(current) == TK_TUPLE)
+      {
+        // If there are no indices left, we're destructuring a tuple.
+        // Errors in those cases have already been catched by the expr
+        // pass.
+        if(tuple_indices.count == 0)
+          break;
+
+        size_t index = tuple_indices_pop(&tuple_indices);
+        current = ast_childidx(parent, index);
+      } else {
+        current = ast_childlast(parent);
+      }
+    }
+
+    if(ast_id(current) == TK_EMBEDREF)
+      fieldref = current;
+  }
+
+  tuple_indices_destroy(&tuple_indices);
+  return fieldref;
+}
+
+static LLVMValueRef gen_constructor_receiver(compile_t* c, reach_type_t* t,
+  ast_t* call)
+{
+  ast_t* fieldref = find_embed_constructor_receiver(call);
+
+  if(fieldref != NULL)
+  {
+    LLVMValueRef receiver = gen_fieldptr(c, fieldref);
+    set_descriptor(c, t, receiver);
+    return receiver;
+  } else {
+    return gencall_alloc(c, t);
+  }
+}
+
 static void set_method_external_interface(reach_type_t* t, const char* name,
   uint32_t vtable_index)
 {
@@ -438,32 +562,6 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 }
 
-typedef struct call_tuple_indices_t
-{
-  size_t* data;
-  size_t count;
-  size_t alloc;
-} call_tuple_indices_t;
-
-static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
-{
-  if(ti->count == ti->alloc)
-  {
-    size_t old_alloc = ti->alloc * sizeof(size_t);
-    ti->data =
-      (size_t*)ponyint_pool_realloc_size(old_alloc, old_alloc * 2, ti->data);
-    ti->alloc *= 2;
-  }
-  ti->data[ti->count++] = idx;
-}
-
-static size_t tuple_indices_pop(call_tuple_indices_t* ti)
-{
-  pony_assert(ti->count > 0);
-
-  return ti->data[--ti->count];
-}
-
 static bool contains_boxable(ast_t* type)
 {
   switch(ast_id(type))
@@ -500,15 +598,15 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
 {
   switch(t->underlying)
   {
-    case TK_CLASS:
-    case TK_STRUCT:
-    case TK_PRIMITIVE:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      break;
+
+    default:
+      pony_assert(0);
       return false;
-
-    case TK_ACTOR:
-      return true;
-
-    default: {}
   }
 
   size_t i = HASHMAP_BEGIN;
@@ -632,68 +730,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     {
       case TK_NEWREF:
       case TK_NEWBEREF:
-      {
-        call_tuple_indices_t tuple_indices = {NULL, 0, 4};
-        tuple_indices.data =
-          (size_t*)ponyint_pool_alloc_size(4 * sizeof(size_t));
-
-        ast_t* current = ast;
-        ast_t* parent = ast_parent(current);
-        while((parent != NULL) && (ast_id(parent) != TK_ASSIGN) &&
-          (ast_id(parent) != TK_CALL))
-        {
-          if(ast_id(parent) == TK_TUPLE)
-          {
-            size_t index = 0;
-            ast_t* child = ast_child(parent);
-            while(current != child)
-            {
-              ++index;
-              child = ast_sibling(child);
-            }
-            tuple_indices_push(&tuple_indices, index);
-          }
-          current = parent;
-          parent = ast_parent(current);
-        }
-
-        // If we're constructing an embed field, pass a pointer to the field
-        // as the receiver. Otherwise, allocate an object.
-        if((parent != NULL) && (ast_id(parent) == TK_ASSIGN))
-        {
-          size_t index = 1;
-          current = ast_childidx(parent, 1);
-          while((ast_id(current) == TK_TUPLE) || (ast_id(current) == TK_SEQ))
-          {
-            parent = current;
-            if(ast_id(current) == TK_TUPLE)
-            {
-              // If there are no indices left, we're destructuring a tuple.
-              // Errors in those cases have already been catched by the expr
-              // pass.
-              if(tuple_indices.count == 0)
-                break;
-              index = tuple_indices_pop(&tuple_indices);
-              current = ast_childidx(parent, index);
-            } else {
-              current = ast_childlast(parent);
-            }
-          }
-          if(ast_id(current) == TK_EMBEDREF)
-          {
-            args[0] = gen_fieldptr(c, current);
-            set_descriptor(c, t, args[0]);
-          } else {
-            args[0] = gencall_alloc(c, t);
-          }
-        } else {
-          args[0] = gencall_alloc(c, t);
-        }
+        args[0] = gen_constructor_receiver(c, t, ast);
         is_new_call = true;
-        ponyint_pool_free_size(tuple_indices.alloc * sizeof(size_t),
-          tuple_indices.data);
         break;
-      }
 
       case TK_BEREF:
       case TK_FUNREF:
@@ -741,7 +780,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   bool bare = m->cap == TK_AT;
 
-  // Cast the arguments to the parameter types.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
@@ -790,7 +828,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       i++;
     }
 
-    intptr_t arg_offset = 0;
+    uintptr_t arg_offset = 0;
     if(bare)
     {
       arg_offset = 1;
