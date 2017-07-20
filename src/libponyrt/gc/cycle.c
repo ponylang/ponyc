@@ -169,6 +169,8 @@ static pony_actor_t* cycle_detector;
 
 static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
 {
+  pony_assert(actor != NULL);
+
   view_t key;
   key.actor = actor;
   size_t index = HASHMAP_UNKNOWN;
@@ -252,7 +254,7 @@ static void apply_delta(detector_t* d, view_t* view)
 
 static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 {
-  if(!view->blocked || (view->actor == NULL))
+  if(!view->blocked)
     return false;
 
   // apply any stored reference delta
@@ -299,7 +301,7 @@ static void scan_grey(detector_t* d, view_t* view, size_t rc)
 
 static bool mark_black(view_t* view, size_t rc, int* count)
 {
-  if(!view->blocked || (view->actor == NULL))
+  if(!view->blocked)
   {
     pony_assert(view->color == COLOR_BLACK);
     return false;
