@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
 - Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md)) 
    - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
       - Enhanced Posix / GNU program argument syntax.
