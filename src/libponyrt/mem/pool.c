@@ -1064,7 +1064,7 @@ size_t ponyint_pool_index(size_t size)
 #define BITS (64 - POOL_MIN_BITS)
 #endif
 
-  return (size_t)(BITS - __pony_clzl(size) - (!(size & (size - 1))));
+  return (size_t)BITS - __pony_clzl(size) - (!(size & (size - 1)));
 }
 
 size_t ponyint_pool_size(size_t index)
