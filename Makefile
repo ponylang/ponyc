@@ -174,10 +174,10 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-	ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm@4.0/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm@4.0/bin/opt
+	ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-4.0
     LLVM_LINK = llvm-link-4.0

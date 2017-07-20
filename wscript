@@ -42,13 +42,13 @@ MSVC_VERSIONS = [ '15', '14' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
-    '4.0.0',
+    '4.0.1',
     '3.9.1',
     '3.8.1',
     '3.7.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.4.0"
+WINDOWS_LIBS_TAG = "v1.4.1"
 LIBRESSL_VERSION = "2.5.0"
 PCRE2_VERSION = "10.21"
 
