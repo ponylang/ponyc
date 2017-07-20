@@ -181,10 +181,8 @@ typedef struct compile_t
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
   LLVMValueRef tbaa_root;
-#if LLVM_PONY < 400
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
-#endif  
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;

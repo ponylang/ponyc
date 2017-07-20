@@ -144,6 +144,25 @@ static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
   return LLVMMDNodeInContext(ctx, &mdstr, 1);
 }
 
+static LLVMValueRef make_tbaa_descriptor(LLVMContextRef ctx, LLVMValueRef root)
+{
+  const char str[] = "Type descriptor";
+  LLVMValueRef params[3];
+  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+  params[1] = root;
+  params[2] = LLVMConstInt(LLVMInt64TypeInContext(ctx), 1, false);
+  return LLVMMDNodeInContext(ctx, params, 3);
+}
+
+static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
+{
+  const char str[] = "Descriptor pointer";
+  LLVMValueRef params[2];
+  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
+  params[1] = root;
+  return LLVMMDNodeInContext(ctx, params, 2);
+}
+
 static void compile_type_free(void* p)
 {
   POOL_FREE(compile_type_t, p);
@@ -814,7 +833,8 @@ bool gentypes(compile_t* c)
     c->trait_bitmap_size = ((c->reach->trait_type_count + 63) & ~63) >> 6;
 
   c->tbaa_root = make_tbaa_root(c->context);
-
+  c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
+  c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);
 
   allocate_compile_types(c);
   genprim_builtins(c);

@@ -211,7 +211,6 @@ void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
 {
   pony_assert(parent != NULL);
   pony_assert(node != NULL);
-  pony_assert((int)i >= 0);
 
   MDNode *pn = extractMDNode(unwrap<MetadataAsValue>(parent));
   MDNode *cn = extractMDNode(unwrap<MetadataAsValue>(node));
