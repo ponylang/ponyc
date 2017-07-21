@@ -627,6 +627,34 @@ TEST_F(VerifyTest, FFICallNonPartialWithPartialDeclaration)
   TEST_ERRORS_1(src, "call is not partial but the declaration is");
 }
 
+TEST_F(VerifyTest, NonPartialSugaredBinaryOperatorCall)
+{
+  const char* src =
+    "class val Bar\n"
+    "  new val create() => None\n"
+    "  fun val add(other: Bar): Bar => this\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Bar =>\n"
+    "    Bar + Bar";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialSugaredBinaryOperatorCall)
+{
+  const char* src =
+    "class val Bar\n"
+    "  new val create() => None\n"
+    "  fun val add(other: Bar): Bar ? => error\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Bar ? =>\n"
+    "    Bar +? Bar";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, LambdaTypeGenericAliased)
 {
   const char* src =

@@ -824,10 +824,15 @@ static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 
   switch(ast_id(ast))
   {
+
     case TK_AND:
     case TK_OR:
     case TK_NOT:
       // Valid node.
+      break;
+
+    case TK_NONE:
+      // Valid because we have an optional TK_QUESTION in TK_AND and TK_OR.
       break;
 
     case TK_STRING:

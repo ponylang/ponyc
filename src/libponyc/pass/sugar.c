@@ -788,7 +788,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 
 static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
-  AST_GET_CHILDREN(*astp, left, right);
+  AST_GET_CHILDREN(*astp, left, right, question);
 
   ast_t* positional = ast_from(right, TK_POSITIONALARGS);
 
@@ -811,7 +811,7 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
     NODE(TK_CALL,
       TREE(positional)
       NONE
-      NONE
+      TREE(question)
       NODE(TK_DOT, TREE(left) ID(fn_name))
       ));
 
@@ -884,12 +884,14 @@ static ast_result_t sugar_ifdef(pass_opt_t* opt, ast_t* ast)
     REPLACE(&else_cond,
       NODE(TK_AND,
         TREE(parent_ifdef_cond)
-        NODE(TK_NOT, TREE(cond))));
+        NODE(TK_NOT, TREE(cond))
+        NODE(TK_NONE)));
 
     REPLACE(&cond,
       NODE(TK_AND,
         TREE(parent_ifdef_cond)
-        TREE(cond)));
+        TREE(cond)
+        NODE(TK_NONE)));
   }
   else
   {
