@@ -44,8 +44,7 @@ enum
   AST_FLAG_DONE_2       = 0x20000,
   AST_FLAG_ERROR_2      = 0x40000,
   AST_FLAG_JUMPS_AWAY   = 0x80000, // Jumps away (control flow) without a value.
-  AST_FLAG_INCOMPLETE   = 0x100000, // For TK_THIS: Not all fields are defined.
-                                    // For TK_CALL: No parentheses were used.
+  AST_FLAG_INCOMPLETE   = 0x100000, // Not all fields are defined.
   AST_FLAG_IMPORT       = 0x200000, // Import the referenced package.
 };
 

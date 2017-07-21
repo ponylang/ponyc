@@ -360,7 +360,6 @@ antlr_2
   | tilde
   | chain
   | typeargs
-  | '?'
   | call
   ;
 
@@ -369,7 +368,6 @@ antlr_3
   | tilde
   | chain
   | typeargs
-  | '?'
   | call
   ;
 

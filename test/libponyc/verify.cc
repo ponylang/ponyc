@@ -485,32 +485,6 @@ TEST_F(VerifyTest, IfTypeError)
     "function body can raise an error");
 }
 
-TEST_F(VerifyTest, NonPartialSugaredConstructorCall)
-{
-  const char* src =
-    "primitive Bar\n"
-    "  new create() => None\n"
-
-    "primitive Foo\n"
-    "  fun apply(): Bar =>\n"
-    "    Bar";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, PartialSugaredConstructorCall)
-{
-  const char* src =
-    "primitive Bar\n"
-    "  new create() ? => error\n"
-
-    "primitive Foo\n"
-    "  fun apply(): Bar ? =>\n"
-    "    Bar?";
-
-  TEST_COMPILE(src);
-}
-
 TEST_F(VerifyTest, NonPartialSugaredApplyCall)
 {
   const char* src =

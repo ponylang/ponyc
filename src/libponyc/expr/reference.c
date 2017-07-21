@@ -235,8 +235,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     case TK_CALL:
     {
-      ast_t* call = ast_parent(ast);
-
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -265,8 +263,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         pony_assert(ast_id(type) == TK_FUNTYPE);
         AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-        if((ast_id(params) == TK_NONE) &&
-          !ast_checkflag(call, AST_FLAG_INCOMPLETE))
+        if(ast_id(params) == TK_NONE)
         {
           // Add a call node.
           ast_t* call = ast_from(ast, TK_CALL);

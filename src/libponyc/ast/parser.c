@@ -556,26 +556,16 @@ DEF(call);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// QUESTION
-DEF(questioncall);
-  INFIX_REVERSE();
-  AST_NODE(TK_CALL);
-  AST_NODE(TK_NONE); // positional args
-  AST_NODE(TK_NONE); // named args
-  TOKEN(NULL, TK_QUESTION);
-  SET_FLAG(AST_FLAG_INCOMPLETE); // No explicit parentheses.
-  DONE();
-
-// atom {dot | tilde | chain | qualify | questioncall | call}
+// atom {dot | tilde | chain | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  SEQ("postfix expression", dot, tilde, chain, qualify, questioncall, call);
+  SEQ("postfix expression", dot, tilde, chain, qualify, call);
   DONE();
 
-// atom {dot | tilde | chain | qualify | questioncall | call}
+// atom {dot | tilde | chain | qualify | call}
 DEF(nextpostfix);
   RULE("value", nextatom);
-  SEQ("postfix expression", dot, tilde, chain, qualify, questioncall, call);
+  SEQ("postfix expression", dot, tilde, chain, qualify, call);
   DONE();
 
 // (VAR | LET | EMBED | $LET) ID [COLON type]
