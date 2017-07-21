@@ -141,13 +141,13 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
         void* prev = NULL;
 
 #ifdef USE_VALGRIND
-        ANNOTATE_HAPPENS_BEFORE(pv);
+        ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
         if(!atomic_compare_exchange_strong_explicit(next_node, &prev, new_node,
           memory_order_release, memory_order_acquire))
         {
 #ifdef USE_VALGRIND
-          ANNOTATE_HAPPENS_AFTER(pv);
+          ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
           ponyint_pool_free(level[i].size_index, new_node);
           node = prev;
