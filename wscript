@@ -228,6 +228,7 @@ def build(ctx):
                 import shutil
                 if (ctx.options.config == 'debug'):
                     shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), buildDir)
+                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), os.path.join(buildDir, 'pcre2-8.lib'))
                 else:
                     shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'crypto.lib'), buildDir)
