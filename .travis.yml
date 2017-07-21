@@ -122,7 +122,7 @@ matrix:
             - g++-6
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="4.0.0"
+        - LLVM_VERSION="4.0.1"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=debug
         - CC1=gcc-6
@@ -137,7 +137,7 @@ matrix:
             - g++-6
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="4.0.0"
+        - LLVM_VERSION="4.0.1"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=release
         - CC1=gcc-6
@@ -203,7 +203,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="4.0.0"
+        - LLVM_VERSION="4.0.1"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=debug
         - CC1=clang-3.9
@@ -212,7 +212,7 @@ matrix:
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="4.0.0"
+        - LLVM_VERSION="4.0.1"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=release
         - lto=no
