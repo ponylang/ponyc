@@ -140,6 +140,10 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   }
 
+  args[0] = ctx;
+  args[1] = LLVMConstNull(c->object_ptr);
+  gencall_runtime(c, "pony_become", args, 2, "");
+
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
 
