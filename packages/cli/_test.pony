@@ -32,7 +32,7 @@ class iso _TestMinimal is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal", "", [
       OptionSpec.bool("aflag", "")
-    ])
+    ])?
 
     h.assert_eq[String]("minimal", cs.name())
 
@@ -51,7 +51,7 @@ class iso _TestBadName is UnitTest
   // Negative test: command names must be alphanum tokens
   fun apply(h: TestHelper) =>
     try
-      let cs = CommandSpec.leaf("min imal", "")
+      let cs = CommandSpec.leaf("min imal", "")?
       h.fail("expected error on bad command name: " + cs.name())
     end
 
@@ -60,7 +60,7 @@ class iso _TestUnknownCommand is UnitTest
 
   // Negative test: unknown command should report
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.chat_cli_spec()
+    let cs = _Fixtures.chat_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -82,7 +82,7 @@ class iso _TestUnexpectedArg is UnitTest
 
   // Negative test: unexpected arg/command token should report
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.bools_cli_spec()
+    let cs = _Fixtures.bools_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -105,7 +105,7 @@ class iso _TestUnknownShort is UnitTest
 
   // Negative test: unknown short option should report
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.bools_cli_spec()
+    let cs = _Fixtures.bools_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -128,7 +128,7 @@ class iso _TestUnknownLong is UnitTest
 
   // Negative test: unknown long option should report
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.bools_cli_spec()
+    let cs = _Fixtures.bools_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -154,7 +154,7 @@ class iso _TestHyphenArg is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal" where args' = [
       ArgSpec.string("name", "")
-    ])
+    ])?
     let args: Array[String] = ["ignored"; "-"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -224,8 +224,8 @@ class iso _TestShortsAdj is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
-    h.assert_eq[String]("aaa", stringso.string_seq()(0))
-    h.assert_eq[String]("bbb", stringso.string_seq()(1))
+    h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
+    h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
@@ -249,8 +249,8 @@ class iso _TestShortsEq is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
-    h.assert_eq[String]("aaa", stringso.string_seq()(0))
-    h.assert_eq[String]("bbb", stringso.string_seq()(1))
+    h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
+    h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestShortsNext is UnitTest
   fun name(): String => "ponycli/shorts_next"
@@ -274,8 +274,8 @@ class iso _TestShortsNext is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
-    h.assert_eq[String]("aaa", stringso.string_seq()(0))
-    h.assert_eq[String]("bbb", stringso.string_seq()(1))
+    h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
+    h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestLongsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
@@ -300,8 +300,8 @@ class iso _TestLongsEq is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
-    h.assert_eq[String]("aaa", stringso.string_seq()(0))
-    h.assert_eq[String]("bbb", stringso.string_seq()(1))
+    h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
+    h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestLongsNext is UnitTest
   fun name(): String => "ponycli/longs_next"
@@ -325,8 +325,8 @@ class iso _TestLongsNext is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
-    h.assert_eq[String]("aaa", stringso.string_seq()(0))
-    h.assert_eq[String]("bbb", stringso.string_seq()(1))
+    h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
+    h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestEnvs is UnitTest
   fun name(): String => "ponycli/envs"
@@ -429,16 +429,16 @@ class iso _TestChat is UnitTest
     h.assert_eq[String]("words", a1.spec().name())
     let words = a1.string_seq()
     h.assert_eq[USize](3, words.size())
-    h.assert_eq[String]("hi", words(0))
-    h.assert_eq[String]("yo", words(1))
-    h.assert_eq[String]("hey", words(2))
+    h.assert_eq[String]("hi", words(0)?)
+    h.assert_eq[String]("yo", words(1)?)
+    h.assert_eq[String]("hey", words(2)?)
 
 class iso _TestMustBeLeaf is UnitTest
   fun name(): String => "ponycli/must_be_leaf"
 
   // Negative test: can't just supply parent command
   fun apply(h: TestHelper) ? =>
-    let cs = _Fixtures.chat_cli_spec()
+    let cs = _Fixtures.chat_cli_spec()?
 
     let args: Array[String] = [
       "ignored"
@@ -497,7 +497,7 @@ primitive _Fixtures
     ], [
       ArgSpec.string("words" where default' = "hello")
       ArgSpec.string_seq("argz")
-    ])
+    ])?
 
   fun chat_cli_spec(): CommandSpec box ? =>
     """
@@ -510,12 +510,12 @@ primitive _Fixtures
     ], [
       CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
         ArgSpec.string_seq("words", "The words to say")
-      ])
+      ])?
       CommandSpec.leaf("emote", "Send an emotion", [
         OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
       ], [
         ArgSpec.string("emotion", "Emote to send")
-      ])
+      ])?
       CommandSpec.parent("config", "Configuration commands",
         Array[OptionSpec](), [
         CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [

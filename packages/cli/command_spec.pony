@@ -463,7 +463,7 @@ class _StringSeq is ReadSeq[String]
     str
 
   fun size(): USize => strings.size()
-  fun apply(i: USize): this->String ? => strings(i)
+  fun apply(i: USize): this->String ? => strings(i)?
   fun values(): Iterator[this->String]^ => strings.values()
 
 type _Value is (Bool | String | I64 | F64 | _StringSeq val)
@@ -476,7 +476,7 @@ trait val _ValueType
 
 primitive _BoolType is _ValueType
   fun string(): String => "Bool"
-  fun value_of(s: String): _Value ? => s.bool()
+  fun value_of(s: String): _Value ? => s.bool()?
 
 primitive _StringType is _ValueType
   fun string(): String => "String"
@@ -484,7 +484,7 @@ primitive _StringType is _ValueType
 
 primitive _I64Type is _ValueType
   fun string(): String => "I64"
-  fun value_of(s: String): _Value ? => s.i64()
+  fun value_of(s: String): _Value ? => s.i64()?
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"

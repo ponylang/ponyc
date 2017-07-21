@@ -73,7 +73,7 @@ class CommandParser
           if o.spec()._typ_p().is_seq() then
             try
               options.upsert(o.spec().name(), o,
-                {(x: Option, n: Option): Option^ => x._append(n) })
+                {(x: Option, n: Option): Option^ => x._append(n) })?
             end
           else
             options.update(o.spec().name(), o)
@@ -89,7 +89,7 @@ class CommandParser
             if o.spec()._typ_p().is_seq() then
               try
                 options.upsert(o.spec().name(), o,
-                  {(x: Option, n: Option): Option^ => x._append(n) })
+                  {(x: Option, n: Option): Option^ => x._append(n) })?
               end
             else
               options.update(o.spec().name(), o)
@@ -116,7 +116,7 @@ class CommandParser
             if a.spec()._typ_p().is_seq() then
               try
                 args.upsert(a.spec().name(), a,
-                  {(x: Arg, n: Arg): Arg^ => x._append(n) })
+                  {(x: Arg, n: Arg): Arg^ => x._append(n) })?
               end
             else
               args.update(a.spec().name(), a)
@@ -186,7 +186,7 @@ class CommandParser
     // Check for missing args and error if found.
     while arg_pos < _spec.args().size() do
       try
-        let ars = _spec.args()(arg_pos)
+        let ars = _spec.args()(arg_pos)?
         if not args.contains(ars.name()) then // latest arg may be a seq
           if ars.required() then
             return SyntaxError(ars.name(), "missing value for required argument")
@@ -347,7 +347,7 @@ primitive _ArgParser
 primitive _ValueParser
   fun box parse(typ: _ValueType, arg: String): (_Value | SyntaxError) =>
     try
-      typ.value_of(arg)
+      typ.value_of(arg)?
     else
       SyntaxError(arg, "unable to convert '" + arg + "' to " + typ.string())
     end
