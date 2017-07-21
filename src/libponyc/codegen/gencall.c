@@ -312,8 +312,12 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
   LLVMValueRef store = LLVMBuildStore(c->builder,
     ((compile_type_t*)t->c_type)->desc, desc_ptr);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, c->tbaa_descptr, store);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
+#endif
 }
 
 // This function builds a stack of indices such that for an AST nested in an
