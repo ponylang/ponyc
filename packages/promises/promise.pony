@@ -36,7 +36,7 @@ class PrintFulfill is Fulfill[String, String]
     _env = env
     _msg = msg
   fun apply(s: String): String =>
-    _env.out.print(" + ".join([s, _msg]))
+    _env.out.print(" + ".join([s; _msg]))
     s
 
 actor Main
