@@ -114,10 +114,7 @@ actor Main
     else
       var i: USize = 0
 
-      while true do
-        if str._apply(i) == 0 then
-          break
-        end
+      while str._apply(i) != 0 do
         i = i + 1
       end
 
@@ -157,10 +154,7 @@ actor Main
     else
       var i: USize = 0
 
-      while true do
-        if str._apply(i) == 0 then
-          break
-        end
+      while str._apply(i) != 0 do
         i = i + 1
       end
 
