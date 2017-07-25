@@ -54,7 +54,7 @@ TEST_F(VerifyTest, MainActorNewCreateTwoParams)
     "    None";
 
   TEST_ERRORS_1(src,
-    "the create constructor of the Main actor must take only a single Env"
+    "the create constructor of the Main actor must take only a single Env "
     "parameter");
 }
 
