@@ -144,7 +144,10 @@ actor Main
 
   new copy_cstring(str: Pointer[U8] box) =>
     """
-    Create a string by copying a null terminated C string.
+    Create a string by copying a null-terminated C string. Note that
+    the scan is unbounded; the pointed to data must be null-terminated
+    within the allocated array to preserve memory safety. If a null
+    pointer is given then an empty string is returned.
     """
     if str.is_null() then
       _size = 0
