@@ -467,6 +467,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
     NODE(TK_CALL,
       NODE(TK_POSITIONALARGS)
       NONE
+      NONE
       NODE(TK_DOT,
         TREE(type_ref)
         ID("create"))));

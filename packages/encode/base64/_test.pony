@@ -35,21 +35,21 @@ class iso _TestBase64Decode is UnitTest
   fun name(): String => "encode/Base64.decode"
 
   fun apply(h: TestHelper) ? =>
-    h.assert_eq[String]("", Base64.decode[String iso](""))
-    h.assert_eq[String]("f", Base64.decode[String iso]("Zg=="))
-    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8="))
-    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v"))
-    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg=="))
-    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE="))
-    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
+    h.assert_eq[String]("", Base64.decode[String iso]("")?)
+    h.assert_eq[String]("f", Base64.decode[String iso]("Zg==")?)
+    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8=")?)
+    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v")?)
+    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg==")?)
+    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE=")?)
+    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
 
-    h.assert_eq[String]("", Base64.decode[String iso](""))
-    h.assert_eq[String]("f", Base64.decode[String iso]("Zg"))
-    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8"))
-    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v"))
-    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg"))
-    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE"))
-    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
+    h.assert_eq[String]("", Base64.decode[String iso]("")?)
+    h.assert_eq[String]("f", Base64.decode[String iso]("Zg")?)
+    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8")?)
+    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v")?)
+    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg")?)
+    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE")?)
+    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
 
 class iso _TestBase64EncodeDecode is UnitTest
   """
@@ -61,7 +61,7 @@ class iso _TestBase64EncodeDecode is UnitTest
   fun apply(h: TestHelper) ? =>
     let src = "Check encoding then decoding gives back original."
     let enc = recover val Base64.encode(src) end
-    let dec = recover val Base64.decode[String iso](enc) end
+    let dec = recover val Base64.decode[String iso](enc)? end
 
     h.assert_eq[String](src, dec)
 
@@ -91,5 +91,5 @@ class iso _TestBase64Quote is UnitTest
     let enc = recover val Base64.encode(src) end
     h.assert_eq[String](expect, enc)
 
-    let dec = recover val Base64.decode[String iso](enc) end
+    let dec = recover val Base64.decode[String iso](enc)? end
     h.assert_eq[String](src, dec)

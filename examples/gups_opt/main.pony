@@ -15,7 +15,7 @@ class val Config
       OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
       OptionSpec.i64("chunk", "Log2 of the chunk size." where default' = 10)
       OptionSpec.i64("actors", "Log2 of the actor count." where default' = 2)
-    ]).>add_help()
+    ])?.>add_help()?
     let cmd =
       match CommandParser(cs).parse(env.args, env.vars())
       | let c: Command => c
@@ -50,7 +50,7 @@ actor Main
     _env = env
 
     let c = try
-      Config(env)
+      Config(env)?
     else
       _actors = recover Array[Updater] end
       return
@@ -132,7 +132,7 @@ actor Updater
 
     try
       for i in Range(0, size) do
-        _table(i) = (i + offset).u64()
+        _table(i)? = (i + offset).u64()
       end
     end
 
@@ -149,7 +149,7 @@ actor Updater
     for i in Range(0, _updaters) do
       _output.push(
         try
-          _reuse.pop()
+          _reuse.pop()?
         else
           recover Array[U64](chk) end
         end
@@ -162,9 +162,9 @@ actor Updater
 
       try
         if updater == _index then
-          _table(i) = _table(i) xor datum
+          _table(i)? = _table(i)? xor datum
         else
-          _output(updater).push(datum)
+          _output(updater)?.push(datum)
         end
       end
     end
@@ -173,10 +173,10 @@ actor Updater
       let to = _others as Array[Updater] val
 
       repeat
-        let data = _output.pop()
+        let data = _output.pop()?
 
         if data.size() > 0 then
-          to(_output.size()).receive(consume data)
+          to(_output.size())?.receive(consume data)
         else
           _reuse.push(consume data)
         end
@@ -192,9 +192,9 @@ actor Updater
   be receive(data: Array[U64] iso) =>
     try
       for i in Range(0, data.size()) do
-        let datum = data(i)
+        let datum = data(i)?
         var j = ((datum >> _loglocal.u64()) and _mask.u64()).usize()
-        _table(j) = _table(j) xor datum
+        _table(j)? = _table(j)? xor datum
       end
 
       data.clear()
@@ -220,7 +220,7 @@ primitive PolyRand
 
     try
       for i in Range(0, 64) do
-        m2(i) = temp
+        m2(i)? = temp
         temp = this(temp)
         temp = this(temp)
       end
@@ -235,7 +235,7 @@ primitive PolyRand
 
         for j in Range[U64](0, 64) do
           if ((r >> j) and 1) != 0 then
-            temp = temp xor m2(j.usize())
+            temp = temp xor m2(j.usize())?
           end
         end
 

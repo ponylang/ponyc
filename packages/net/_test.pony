@@ -23,7 +23,7 @@ class _TestPing is UDPNotify
 
     _ip = try
       let auth = h.env.root as AmbientAuth
-      (_, let service) = ip.name()
+      (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
         ifdef freebsd then
@@ -39,7 +39,7 @@ class _TestPing is UDPNotify
         end
       end
 
-      list(0)
+      list(0)?
     else
       _h.fail("Couldn't make broadcast address")
       ip
@@ -173,7 +173,7 @@ class _TestTCP is TCPListenNotify
     try
       let auth = _h.env.root as AmbientAuth
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
-      (let host, let port) = listen.local_address().name()
+      (let host, let port) = listen.local_address().name()?
       _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
       _h.complete_action("client create")
     else

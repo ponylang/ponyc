@@ -43,9 +43,9 @@ class val Vec[A: Any #share]
     Get the i-th element, raising an error if the index is out of bounds.
     """
     if i < _tail_offset then
-      (_root as _VecNode[A])(i)
+      (_root as _VecNode[A])(i)?
     else
-      _tail(i - _tail_offset)
+      _tail(i - _tail_offset)?
     end
 
   fun val update(i: USize, value: val->A): Vec[A] ? =>
@@ -54,11 +54,11 @@ class val Vec[A: Any #share]
     index is out of bounds.
     """
     if i < _tail_offset then
-      let root = (_root as _VecNode[A]).update(i, value)
+      let root = (_root as _VecNode[A]).update(i, value)?
       _create(root, _tail, _size, _depth, _tail_offset)
     else
       let tail =
-        recover val _tail.clone() .> update(i - _tail_offset, value) end
+        recover val _tail.clone() .> update(i - _tail_offset, value)? end
       _create(_root, tail, _size, _depth, _tail_offset)
     end
 
@@ -72,9 +72,9 @@ class val Vec[A: Any #share]
     var vec = this
     var prev = value
     for idx in mut.Range(i, _size) do
-      vec = vec.update(idx, prev = this(idx))
+      vec = vec.update(idx, prev = this(idx)?)?
     end
-    vec.push(this(_size - 1))
+    vec.push(this(_size - 1)?)
 
   fun val delete(i: USize): Vec[A] ? =>
     """
@@ -83,9 +83,9 @@ class val Vec[A: Any #share]
     error.
     """
     if i >= _size then error end
-    var vec = pop()
+    var vec = pop()?
     for idx in mut.Range(i + 1, _size) do
-      vec = vec.update(idx - 1, this(idx))
+      vec = vec.update(idx - 1, this(idx)?)?
     end
     vec
 
@@ -95,9 +95,9 @@ class val Vec[A: Any #share]
     """
     if i >= _size then error end
     var vec = this
-    for _ in mut.Range(0, n) do vec = vec.pop() end
+    for _ in mut.Range(0, n) do vec = vec.pop()? end
     for idx in mut.Range(i, _size - n) do
-      vec = vec.update(idx, this(idx + n))
+      vec = vec.update(idx, this(idx + n)?)?
     end
     vec
 
@@ -114,7 +114,7 @@ class val Vec[A: Any #share]
       // push tail into root
       // push value into new tail
       let root =
-        try (_root as _VecNode[A]).new_root().push(_tail_offset, _tail)
+        try (_root as _VecNode[A]).new_root().push(_tail_offset, _tail)?
         else _root
         end
       let tail = recover val Array[A](1) .> push(value) end
@@ -124,10 +124,10 @@ class val Vec[A: Any #share]
       // push value into new tail
       let root =
         match _root
-        | let r: _VecNode[A] => try r.push(_tail_offset, _tail) else r end
+        | let r: _VecNode[A] => try r.push(_tail_offset, _tail)? else r end
         | None =>
           let r = _VecNode[A].empty(1)
-          try r.push(0, _tail) else r end
+          try r.push(0, _tail)? else r end
         end
       let tail = recover val Array[A](1) .> push(value) end
       _create(root, tail, _size + 1, _depth, _tail_offset + 32)
@@ -138,11 +138,11 @@ class val Vec[A: Any #share]
     Return a vector with the value at the end removed.
     """
     if (_tail.size() > 0) or (_size == 1) then
-      let tail = recover val _tail.clone() .> pop() end
+      let tail = recover val _tail.clone() .> pop()? end
       _create(_root, tail, _size - 1, _depth, _tail_offset)
     else
       let tail_offset = _tail_offset - 32
-      (let root, let tail) = (_root as _VecNode[A]).pop(tail_offset)
+      (let root, let tail) = (_root as _VecNode[A]).pop(tail_offset)?
       _create(root, tail, _size - 1, _depth, tail_offset)
     end
 
@@ -175,7 +175,7 @@ class val Vec[A: Any #share]
     """
     var n: USize = 0
     for i in mut.Range(offset, _size) do
-      if predicate(this(i), value) then
+      if predicate(this(i)?, value) then
         if n == nth then return i end
         n = n + 1
       end
@@ -202,7 +202,7 @@ class val Vec[A: Any #share]
     """
     var vec = Vec[A]
     for i in mut.Range(0, if _size < to then _size else to end, step) do
-      try vec.push(this(i)) end
+      try vec.push(this(i)?) end
     end
     vec
 
@@ -212,7 +212,7 @@ class val Vec[A: Any #share]
     """
     var vec = Vec[A]
     for i in mut.Reverse(_size - 1, 0) do
-      try vec = vec.push(this(i)) end
+      try vec = vec.push(this(i)?) end
     end
     vec
 
@@ -259,7 +259,7 @@ class VecKeys[A: Any #share]
 
   fun has_next(): Bool => _pairs.has_next()
 
-  fun ref next(): USize ? => _pairs.next()._1
+  fun ref next(): USize ? => _pairs.next()?._1
 
 class VecValues[A: Any #share]
   embed _pairs: VecPairs[A]
@@ -268,7 +268,7 @@ class VecValues[A: Any #share]
 
   fun has_next(): Bool => _pairs.has_next()
 
-  fun ref next(): val->A ? => _pairs.next()._2
+  fun ref next(): val->A ? => _pairs.next()?._2
 
 class VecPairs[A: Any #share]
   let _leaf_nodes: Array[Array[A] val]
@@ -282,11 +282,11 @@ class VecPairs[A: Any #share]
     _leaf_nodes.size() > 0
 
   fun ref next(): (USize, A) ? =>
-    var leaves = _leaf_nodes(0)
-    let v = leaves(_idx = _idx + 1)
+    var leaves = _leaf_nodes(0)?
+    let v = leaves(_idx = _idx + 1)?
 
     if _idx == leaves.size() then
-      _leaf_nodes.shift()
+      _leaf_nodes.shift()?
       _idx = 0
     end
     (_i = _i + 1, v)

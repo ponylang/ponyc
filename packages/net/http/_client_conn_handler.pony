@@ -48,7 +48,7 @@ class _ClientConnHandler is TCPConnectionNotify
 
     // Let the parser take a look at what has been received.
     try
-      _parser.parse(_buffer)
+      _parser.parse(_buffer)?
     else
       // Any syntax errors will terminate the connection.
       conn.close()

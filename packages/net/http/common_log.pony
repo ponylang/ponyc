@@ -45,9 +45,9 @@ class CommonLog is Logger
     list.push(body_size.string())
 
     list.push(" \"")
-    try list.push(request("Referrer")) end
+    try list.push(request("Referrer")?) end
     list.push("\" \"")
-    try list.push(request("User-Agent")) end
+    try list.push(request("User-Agent")?) end
     list.push("\"\n")
 
     _out.writev(consume list)

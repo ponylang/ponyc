@@ -778,6 +778,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
 
   // Complete wrapper function and add to containing entity.
   const char* worker_name = package_hygienic_id(t);
+  ast_t* wrapper_question = ast_childidx(wrapper, 5);
   ast_t* wrapper_body = ast_childidx(wrapper, 6);
   ast_t* wrapper_call;
   ast_t* call_t_args = ast_from(wrapper, TK_NONE);
@@ -785,6 +786,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
   pony_assert(ast_childcount(wrapper_body) == 0);
 
   build_t_params(ast_childidx(wrapper, 2), call_t_args);
+
 
   if(ast_id(call_t_args) == TK_NONE)
   {
@@ -794,6 +796,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
       NODE(TK_CALL,
         TREE(call_args)
         NONE
+        TREE(wrapper_question)
         NODE(TK_REFERENCE, ID(worker_name))));
 
     wrapper_call = tmp;
@@ -805,6 +808,7 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
       NODE(TK_CALL,
         TREE(call_args)
         NONE
+        TREE(wrapper_question)
         NODE(TK_QUALIFY,
           NODE(TK_REFERENCE, ID(worker_name))
           TREE(call_t_args))));

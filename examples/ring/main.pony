@@ -34,7 +34,7 @@ actor Main
     _env = env
 
     try
-      parse_args()
+      parse_args()?
       setup_ring()
     else
       usage()
@@ -45,17 +45,17 @@ actor Main
 
     while i < _env.args.size() do
       // Every option has an argument.
-      var option = _env.args(i)
-      var value = _env.args(i + 1)
+      var option = _env.args(i)?
+      var value = _env.args(i + 1)?
       i = i + 2
 
       match option
       | "--size" =>
-        _ring_size = value.u32()
+        _ring_size = value.u32()?
       | "--count" =>
-        _ring_count = value.u32()
+        _ring_count = value.u32()?
       | "--pass" =>
-        _pass = value.usize()
+        _pass = value.usize()?
       else
         error
       end

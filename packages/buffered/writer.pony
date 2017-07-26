@@ -31,14 +31,14 @@ class Writer
   The following program uses a write buffer to encode an array of
   tuples as a message of this type:
 
-  ```
-  use "net"
+  ```pony
+  use "buffered"
 
   actor Main
     new create(env: Env) =>
       let wb = Writer
-      let messages = [[(F32(3597.82), "Anderson"), (F32(-7979.3), "Graham")],
-                      [(F32(3.14159), "Hopper"), (F32(-83.83), "Jones")]]
+      let messages = [[(F32(3597.82), "Anderson"); (F32(-7979.3), "Graham")]
+                      [(F32(3.14159), "Hopper"); (F32(-83.83), "Jones")]]
       for items in messages.values() do
         wb.i32_be((items.size() / 2).i32())
         for (f, s) in items.values() do
@@ -303,7 +303,7 @@ class Writer
 
   fun ref _byte(data: U8) =>
     try
-      _current(_offset) = data
+      _current(_offset)? = data
       _offset = _offset + 1
       _size = _size + 1
     end

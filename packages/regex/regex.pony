@@ -11,7 +11,7 @@ use "regex"
 actor Main
   new create(env: Env) =>
     try
-      let r = Regex("\\d+")
+      let r = Regex("\\d+")?
 
       if r == "1234" then
         env.out.print("1234 is a series of numbers")
@@ -21,18 +21,18 @@ actor Main
         env.out.print("'Not a number' is not a series of numbers")
       end
 
-      let matched = r("There are 02 numbers in here.")
-      env.out.print(matched(0) + " was matched")
+      let matched = r("There are 02 numbers in here.")?
+      env.out.print(matched(0)? + " was matched")
       env.out.print("The match started at " + matched.start_pos().string())
       env.out.print("The match ended at " + matched.end_pos().string())
     end
 
     try
-      let r = Regex("(\\d+)?\\.(\\d+)?")
-      let matched = r("123.456")
-      env.out.print(matched(0) + " was matched")
-      env.out.print("The first match was " + matched(1))
-      env.out.print("The second match was " + matched(2))
+      let r = Regex("(\\d+)?\\.(\\d+)?")?
+      let matched = r("123.456")?
+      env.out.print(matched(0)? + " was matched")
+      env.out.print("The first match was " + matched(1)?)
+      env.out.print("The second match was " + matched(2)?)
     end
 ```
 
@@ -78,7 +78,7 @@ class Regex
     Return true on a successful match, false otherwise.
     """
     try
-      let m = _match(subject, 0, 0)
+      let m = _match(subject, 0, 0)?
       @pcre2_match_data_free_8[None](m)
       true
     else
@@ -97,7 +97,7 @@ class Regex
     object that can give precise match details. Raises an error if there is no
     match.
     """
-    let m = _match(subject, offset, U32(0))
+    let m = _match(subject, offset, U32(0))?
     Match._create(subject, m)
 
   fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](
@@ -162,7 +162,7 @@ class Regex
 
     try
       while off < subject.size() do
-        let m' = _match(subject, off, _PCRE2.not_empty())
+        let m' = _match(subject, off, _PCRE2.not_empty())?
         let m = Match._create(subject, m')
         let off' = m.start_pos()
         out.push(subject.substring(off.isize(), off'.isize()))

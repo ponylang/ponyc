@@ -31,7 +31,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     Return the value if its in the set, otherwise raise an error.
     """
-    _map(value)
+    _map(value)?
 
   fun contains(value: box->A!): Bool =>
     """
@@ -55,14 +55,14 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     Remove a value from the set.
     """
-    try _map.remove(value) end
+    try _map.remove(value)? end
 
   fun ref extract(value: box->A!): A^ ? =>
     """
     Remove a value from the set and return it. Raises an error if the value
     wasn't in the set.
     """
-    _map.remove(value)._2
+    _map.remove(value)?._2
 
   fun ref union(that: Iterator[A^]) =>
     """
@@ -80,7 +80,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     for value in values() do
       try
-        that(value)
+        that(value)?
       else
         unset(value)
       end
@@ -93,7 +93,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     for value in that do
       try
-        extract(value)
+        extract(value)?
       else
         set(consume value)
       end
@@ -150,7 +150,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     for value in values() do
       try
-        that(value)
+        that(value)?
         r.set(value)
       end
     end
@@ -167,7 +167,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     for value in values() do
       try
-        that(value)
+        that(value)?
       else
         r.set(value)
       end
@@ -175,7 +175,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     for value in that.values() do
       try
-        this(value)
+        this(value)?
       else
         r.set(value)
       end
@@ -193,7 +193,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     for value in values() do
       try
-        that(value)
+        that(value)?
       else
         r.set(value)
       end
@@ -237,7 +237,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     try
       for value in values() do
-        that(value)
+        that(value)?
       end
       true
     else
@@ -262,14 +262,14 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     Given an index, return the next index that has a populated value. Raise an
     error if there is no next populated index.
     """
-    _map.next_index(prev)
+    _map.next_index(prev)?
 
   fun index(i: USize): this->A ? =>
     """
     Returns the value at a given index. Raise an error if the index is not
     populated.
     """
-    _map.index(i)._2
+    _map.index(i)?._2
 
   fun values(): SetValues[A, H, this->HashSet[A, H]]^ =>
     """
@@ -304,6 +304,6 @@ class SetValues[A, H: HashFunction[A!] val, S: HashSet[A, H] #read] is
     Returns the next value, or raises an error if there isn't one. If values
     are added during iteration, this may not return all values.
     """
-    _i = _set.next_index(_i)
+    _i = _set.next_index(_i)?
     _count = _count + 1
-    _set.index(_i)
+    _set.index(_i)?

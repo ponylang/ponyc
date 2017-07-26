@@ -214,7 +214,7 @@ static bool is_expr_constructor(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_CALL:
-      return ast_id(ast_childidx(ast, 2)) == TK_NEWREF;
+      return ast_id(ast_childidx(ast, 3)) == TK_NEWREF;
     case TK_SEQ:
       return is_expr_constructor(ast_childlast(ast));
     case TK_IF:

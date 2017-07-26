@@ -11,7 +11,7 @@ Seed values can contain up to 128 bits of randomness in the form of two U64s.
 A common non-cryptographically secure way to seed a generator is with
 `Time.now`.
 
-```
+```pony
 let rand = Rand
 let n = rand.next()
 ```

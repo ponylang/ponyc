@@ -34,7 +34,7 @@ interface TCPConnectionNotify
     It is expected to implement proper error handling. You need to opt in to
     ignoring errors, which can be implemented like this:
 
-    ```
+    ```pony
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
     ```

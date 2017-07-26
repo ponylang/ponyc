@@ -114,7 +114,7 @@ actor Main
     _env = env
 
     let n = try
-      env.args(1).usize()
+      env.args(1)?.usize()?
     else
       50000000
     end
@@ -145,12 +145,12 @@ actor Main
 
     while i < count do
       try
-        let body = system(i)
+        let body = system(i)?
         var j = i + 1
 
         while j < count do
           // TODO: appears to be faster when not inlined
-          body.attract(system(j), dt)
+          body.attract(system(j)?, dt)
           //let body2 = system(j)
           //let dx = body.x - body2.x
           //let dy = body.y - body2.y
@@ -176,7 +176,7 @@ actor Main
       i = 0
 
       while i < system.size() do
-        let body = system(i)
+        let body = system(i)?
         body.integrate(dt)
         //body.x = body.x + (body.vx * dt)
         //body.y = body.y + (body.vy * dt)
@@ -195,12 +195,12 @@ actor Main
 
     while i < count do
       try
-        let body = system(i)
+        let body = system(i)?
         e = e + body.ke()
         var j = i + 1
 
         while j < count do
-          e = e - body.pe(system(j))
+          e = e - body.pe(system(j)?)
           j = j + 1
         end
       end
@@ -218,7 +218,7 @@ actor Main
       var i: USize = 0
 
       while i < system.size() do
-        var body = system(i)
+        var body = system(i)?
         px = px - (body.vx * body.mass)
         py = py - (body.vy * body.mass)
         pz = pz - (body.vz * body.mass)

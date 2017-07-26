@@ -23,22 +23,22 @@ class val URL
     Parse the URL string into its components. If it isn't URL encoded, encode
     it. If existing URL encoding is invalid, raise an error.
     """
-    _parse(from)
+    _parse(from)?
 
     if not URLEncode.check_scheme(scheme) then error end
-    user = URLEncode.encode(user, URLPartUser, percent_encoded)
-    password = URLEncode.encode(password, URLPartPassword, percent_encoded)
-    host = URLEncode.encode(host, URLPartHost, percent_encoded)
-    path = URLEncode.encode(path, URLPartPath, percent_encoded)
-    query = URLEncode.encode(query, URLPartQuery, percent_encoded)
-    fragment = URLEncode.encode(fragment, URLPartFragment, percent_encoded)
+    user = URLEncode.encode(user, URLPartUser, percent_encoded)?
+    password = URLEncode.encode(password, URLPartPassword, percent_encoded)?
+    host = URLEncode.encode(host, URLPartHost, percent_encoded)?
+    path = URLEncode.encode(path, URLPartPath, percent_encoded)?
+    query = URLEncode.encode(query, URLPartQuery, percent_encoded)?
+    fragment = URLEncode.encode(fragment, URLPartFragment, percent_encoded)?
 
   new val valid(from: String) ? =>
     """
     Parse the URL string into its components. If it isn't URL encoded, raise an
     error.
     """
-    _parse(from)
+    _parse(from)?
 
     if not is_valid() then
       error
@@ -156,7 +156,7 @@ class val URL
 
     port =
       if port_str.size() > 0 then
-        port_str.u16()
+        port_str.u16()?
       else
         default_port()
       end
@@ -171,7 +171,7 @@ class val URL
       var i = USize(0)
 
       while i < from.size() do
-        let c = from(i)
+        let c = from(i)?
 
         if c == ':' then
           // Scheme found.
@@ -215,11 +215,11 @@ class val URL
       var i = start.usize()
 
       while i < from.size() do
-        let c = from(i)
+        let c = from(i)?
 
         var j = USize(0)
         while j < terminators.size() do
-          if terminators(j) == c then
+          if terminators(j)? == c then
             // Terminator found.
             return (i.isize(), from.substring(start, i.isize()))
           end
@@ -244,7 +244,7 @@ class val URL
       var i = USize(0)
 
       while i < src.size() do
-        if src(i) == separator then
+        if src(i)? == separator then
           // Separator found.
           return (src.substring(0, i.isize()), src.substring((i + 1).isize()))
         end
@@ -261,7 +261,7 @@ class val URL
     Split the given "host and port" string into the host and port parts.
     """
     try
-      if (hostport.size() == 0) or (hostport(0) != '[') then
+      if (hostport.size() == 0) or (hostport(0)? != '[') then
         // This is not an IPv6 format host, just split at the first ':'.
         return _split(hostport, ':')
       end
@@ -271,7 +271,7 @@ class val URL
       var terminator = U8(']')
 
       while i < hostport.size() do
-        if hostport(i) == terminator then
+        if hostport(i)? == terminator then
           if terminator == ':' then
             // ':' found, now we can separate the host and port
             return (hostport.substring(0, i.isize()),

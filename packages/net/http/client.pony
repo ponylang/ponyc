@@ -47,7 +47,7 @@ class HTTPClient
     This is useful in Stream and Chunked transfer modes, so that the
     application can follow up with calls to `Client.send_body`.
     """
-    let session = _get_session(request.url, handlermaker)
+    let session = _get_session(request.url, handlermaker)?
     let mode = request.transfer_mode
     request.session = session
     let valrequest: Payload val = consume request
@@ -77,7 +77,7 @@ class HTTPClient
 
     try
       // Look for an existing session
-      _sessions(hs)
+      _sessions(hs)?
     else
       // or create a new session of the correct type.
       let session =

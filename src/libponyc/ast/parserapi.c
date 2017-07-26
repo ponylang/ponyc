@@ -10,9 +10,10 @@ struct parser_t
   source_t* source;
   lexer_t* lexer;
   token_t* token;
+  token_t* last_token;
   const char* last_matched;
-  size_t last_token_line;
   uint32_t next_flags;  // Data flags to set on the next token created
+  bool free_last_token;
   bool failed;
   errors_t* errors;
 };
@@ -27,13 +28,10 @@ static token_id current_token_id(parser_t* parser)
 }
 
 
-static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
+static void fetch_next_lexer_token(parser_t* parser, bool free_last_token)
 {
   token_t* old_token = parser->token;
   token_t* new_token = lexer_next(parser->lexer);
-
-  if(old_token != NULL)
-    parser->last_token_line = token_line_number(old_token);
 
   if(old_token != NULL && token_get_id(new_token) == TK_EOF)
   {
@@ -42,8 +40,14 @@ static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
       token_line_number(old_token), token_line_position(old_token));
   }
 
-  if(free_prev_token)
-    token_free(old_token);
+  if(old_token != NULL)
+  {
+    if(parser->free_last_token)
+      token_free(parser->last_token);
+
+    parser->free_last_token = free_last_token;
+    parser->last_token = old_token;
+  }
 
   parser->token = new_token;
 }
@@ -209,19 +213,19 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 // Add an AST node for the specified token, which may be deferred
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 {
-  pony_assert(parser->token != NULL);
+  pony_assert(parser->last_token != NULL);
 
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
     state->deferred = true;
     state->deferred_id = id;
-    state->line = token_line_number(parser->token);
-    state->pos = token_line_position(parser->token);
+    state->line = token_line_number(parser->last_token);
+    state->pos = token_line_position(parser->last_token);
     return;
   }
 
-  add_ast(parser, state, ast_new(parser->token, id), default_builder);
+  add_ast(parser, state, ast_new(parser->last_token, id), default_builder);
 }
 
 
@@ -428,7 +432,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     if(*p == TK_NEWLINE)
     {
       pony_assert(parser->token != NULL);
-      size_t last_token_line = parser->last_token_line;
+      size_t last_token_line = token_line_number(parser->last_token);
       size_t next_token_line = token_line_number(parser->token);
       bool is_newline = (next_token_line != last_token_line);
 
@@ -617,9 +621,10 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   parser->source = source;
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
+  parser->last_token = parser->token;
   parser->last_matched = NULL;
-  parser->last_token_line = 0;
   parser->next_flags = 0;
+  parser->free_last_token = false;
   parser->failed = false;
   parser->errors = errors;
 

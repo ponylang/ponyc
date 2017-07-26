@@ -545,7 +545,7 @@ DEF(qualify);
   RULE("type arguments", typeargs);
   DONE();
 
-// LPAREN [positional] [named] RPAREN
+// LPAREN [positional] [named] RPAREN [QUESTION]
 DEF(call);
   INFIX_REVERSE();
   AST_NODE(TK_CALL);
@@ -553,6 +553,7 @@ DEF(call);
   OPT RULE("argument", positional);
   OPT RULE("argument", named);
   TERMINATE("call arguments", TK_RPAREN);
+  OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
 // atom {dot | tilde | chain | qualify | call}
@@ -976,7 +977,7 @@ DEF(asop);
   RULE("type", type);
   DONE();
 
-// BINOP term
+// BINOP [QUESTION] term
 DEF(binop);
   INFIX_BUILD();
   TOKEN("binary operator",
@@ -985,9 +986,18 @@ DEF(binop);
     TK_PLUS_TILDE, TK_MINUS_TILDE, TK_MULTIPLY_TILDE, TK_DIVIDE_TILDE,
     TK_MOD_TILDE,
     TK_LSHIFT, TK_RSHIFT, TK_LSHIFT_TILDE, TK_RSHIFT_TILDE,
-    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
+    TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
     TK_EQ_TILDE, TK_NE_TILDE, TK_LT_TILDE, TK_LE_TILDE, TK_GE_TILDE, TK_GT_TILDE
     );
+  OPT TOKEN(NULL, TK_QUESTION);
+  RULE("value", term);
+  REORDER(1, 0);
+  DONE();
+
+// [IS | ISNT] term
+DEF(isop);
+  INFIX_BUILD();
+  TOKEN("binary operator", TK_IS, TK_ISNT);
   RULE("value", term);
   DONE();
 
@@ -997,18 +1007,19 @@ DEF(test_binop);
   INFIX_BUILD();
   TOKEN("binary operator", TK_IFDEFAND, TK_IFDEFOR);
   RULE("value", term);
+  OPT TOKEN(NULL, TK_NONE);
   DONE();
 
-// term {binop | asop}
+// term {binop | isop | asop}
 DEF(infix);
   RULE("value", term);
-  SEQ("value", binop, asop, test_binop);
+  SEQ("value", binop, isop, asop, test_binop);
   DONE();
 
-// term {binop | asop}
+// term {binop | isop | asop}
 DEF(nextinfix);
   RULE("value", nextterm);
-  SEQ("value", binop, asop, test_binop);
+  SEQ("value", binop, isop, asop, test_binop);
   DONE();
 
 // ASSIGNOP assignment

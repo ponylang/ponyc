@@ -11,7 +11,7 @@ class Timer
   seconds, and when it fires the `TimerNotify` object prints how many
   times it has been called:
 
-  ```
+  ```pony
   use "time"
 
   actor Main
@@ -49,7 +49,7 @@ class Timer
     _interval = interval
     _notify = consume notify
     _node = ListNode[Timer]
-    try _node() = this end
+    try _node()? = this end
 
   new abs(notify: TimerNotify, expiration: (I64, I64), interval: U64 = 0) =>
     """
@@ -60,7 +60,7 @@ class Timer
     _interval = interval
     _notify = notify
     _node = ListNode[Timer]
-    try _node() = this end
+    try _node()? = this end
 
   fun ref _cancel() =>
     """

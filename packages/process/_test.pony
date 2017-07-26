@@ -24,7 +24,7 @@ class iso _TestStdinStdout is UnitTest
     let notifier: ProcessNotify iso =
       _ProcessClient("one, two, three", "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
       let args: Array[String] iso = recover Array[String](1) end
       args.push("cat")
       let vars: Array[String] iso = recover Array[String](2) end
@@ -54,7 +54,7 @@ class iso _TestStderr is UnitTest
       _ProcessClient("",
         "cat: file_does_not_exist: No such file or directory\n", 1, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
       let args: Array[String] iso = recover Array[String](2) end
       args.push("cat")
       args.push("file_does_not_exist")
@@ -84,7 +84,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     try
       let path =
         FilePath(h.env.root as AmbientAuth, "/bin/date",
-          recover val FileCaps .> all() .> unset(FileExec) end)
+          recover val FileCaps .> all() .> unset(FileExec) end)?
       let args: Array[String] iso = recover Array[String](1) end
       args.push("date")
       let vars: Array[String] iso = recover Array[String](2) end
@@ -109,7 +109,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
 
   fun apply(h: TestHelper) =>
     try
-      let path = _setup_file(h)
+      let path = _setup_file(h)?
       let args: Array[String] iso = recover Array[String](1) end
       let vars: Array[String] iso = recover Array[String](2) end
 
@@ -149,9 +149,9 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
     end end
 
   fun _setup_file(h: TestHelper): FilePath ? =>
-    let tmp_dir = FilePath(h.env.root as AmbientAuth, "/tmp/")
+    let tmp_dir = FilePath(h.env.root as AmbientAuth, "/tmp/")?
     let path =
-      FilePath(h.env.root as AmbientAuth, tmp_dir.path + "/" + Path.random(32))
+      FilePath(h.env.root as AmbientAuth, tmp_dir.path + "/" + Path.random(32))?
     let tmp_file = CreateFile(path) as File
     let mode = FileMode
     mode.any_exec = false
@@ -187,7 +187,7 @@ class iso _TestExpect is UnitTest
           _h.complete(true)
       end end
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")?
       let args: Array[String] iso = recover Array[String](1) end
       args.push("echo")
       args.push("hello there!")
@@ -214,7 +214,7 @@ class iso _TestWritevOrdering is UnitTest
     let notifier: ProcessNotify iso =
       _ProcessClient("onetwothree", "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
       let args: Array[String] iso = recover Array[String](1) end
       args.push("cat")
       let vars: Array[String] iso = recover Array[String](2) end
@@ -248,7 +248,7 @@ class iso _TestPrintvOrdering is UnitTest
     let notifier: ProcessNotify iso =
       _ProcessClient("one\ntwo\nthree\n", "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
       let args: Array[String] iso = recover Array[String](1) end
       args.push("cat")
       let vars: Array[String] iso = recover Array[String](2) end

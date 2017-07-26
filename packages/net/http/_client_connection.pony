@@ -84,9 +84,9 @@ actor _ClientConnection is HTTPSession
     // we just remove it.
     try
       for node in _unsent.nodes() do
-        if node() is request then
+        if node()? is request then
           node.remove()
-          node.pop()
+          node.pop()?
           return
         end
       end
@@ -95,10 +95,10 @@ actor _ClientConnection is HTTPSession
       // yet. In that case we have to close the connection so that
       // the server finds out.
       for node in _sent.nodes() do
-        if node() is request then
+        if node()? is request then
           try (_conn as TCPConnection).dispose() end
           _conn = None
-          node.pop()
+          node.pop()?
           break
         end
       end
@@ -115,7 +115,7 @@ actor _ClientConnection is HTTPSession
     if there is any.
     """
     try
-      let request = _sent.shift()
+      let request = _sent.shift()?
       _app_handler(response)
 
       // If that request has no body data coming, we can go look
@@ -239,7 +239,7 @@ actor _ClientConnection is HTTPSession
         while _nobackpressure do
           // Take a request off the unsent queue and notice whether
           // it is safe.
-          let request = _unsent.shift()
+          let request = _unsent.shift()?
           let safereq = request.is_safe()
           // Send all of the request that is possible for now.
           request._write(true, conn)
@@ -278,7 +278,7 @@ actor _ClientConnection is HTTPSession
     """
     _conn = try
       let ctx = _sslctx as SSLContext
-      let ssl = ctx.client(_host)
+      let ssl = ctx.client(_host)?
       TCPConnection(
         _auth,
         SSLConnection(_ClientConnHandler(this), consume ssl),
@@ -296,13 +296,13 @@ actor _ClientConnection is HTTPSession
     """
     try
       while true do
-        _unsent.pop() //TODO send fail response
+        _unsent.pop()? //TODO send fail response
       end
     end
 
     for node in _sent.nodes() do
       node.remove()
-      try node.pop() end //TODO send fail response
+      try node.pop()? end //TODO send fail response
     end
 
   be _mute() =>

@@ -240,7 +240,7 @@ TEST_F(SugarExprTest, PartialRaisesError)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    {box()($1 = x): U32 ? => $1.f() }";
+    "    {box()($1 = x): U32 ? => $1.f()? }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -599,7 +599,7 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "      fun tag file(): String => \"\"\n"
     "      fun tag method(): String => \"bar\"\n"
     "      fun tag line(): USize => 9\n"
-    "      fun tag pos(): USize => 12\n"
+    "      fun tag pos(): USize => 11\n"
     "    end)\n"
     "  fun wombat(x: SourceLoc = __loc) =>\n"
     "    None";

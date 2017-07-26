@@ -21,9 +21,9 @@ primitive Help
   =>
     if argv.size() > 0 then
       try
-        let cname = argv(0)
+        let cname = argv(0)?
         if cs.commands().contains(cname) then
-          match cs.commands()(cname)
+          match cs.commands()(cname)?
           | let ccs: CommandSpec box =>
             let cch = CommandHelp._create(ch, ccs)
             return _parse(ccs, cch, argv.slice(1))

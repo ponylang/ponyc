@@ -138,13 +138,13 @@ actor PonyBench
   fun ref _remove(name: String) =>
     for (i, (n, _)) in _bs.pairs() do
       if n == name then
-        try _bs.delete(i) end
+        try _bs.delete(i)? end
         return
       end
     end
 
   fun ref _next() =>
-    try _bs(0)._2.run() end
+    try _bs(0)?._2.run() end
 
 interface tag _BenchNotify
   be _result(name: String, ops: U64, nspo: U64)

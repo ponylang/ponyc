@@ -1028,7 +1028,7 @@ static void reachable_addressof(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
 static void reachable_call(reach_t* r, ast_t* ast, pass_opt_t* opt)
 {
-  AST_GET_CHILDREN(ast, positional, named, postfix);
+  AST_GET_CHILDREN(ast, positional, named, question, postfix);
   reachable_fun(r, postfix, opt);
 }
 

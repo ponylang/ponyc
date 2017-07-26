@@ -29,7 +29,7 @@ static const char* src =
 
   "  be foo(x: Array[U8] val) =>\n"
   "    try\n"
-  "      if x(0) == 42 then\n"
+  "      if x(0)? == 42 then\n"
   "        @pony_exitcode[None](U32(1))\n"
   "      end\n"
   "    end";

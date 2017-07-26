@@ -33,7 +33,7 @@ class CommandSpec
     Creates a command spec that can accept options and child commands, but not
     arguments.
     """
-    _name = _assertName(name')
+    _name = _assertName(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -52,7 +52,7 @@ class CommandSpec
     Creates a command spec that can accept options and arguments, but not child
     commands.
     """
-    _name = _assertName(name')
+    _name = _assertName(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -89,7 +89,7 @@ class CommandSpec
     if _args.size() == 0 then
       let help_cmd = CommandSpec.leaf(_help_name, "", Array[OptionSpec](), [
         ArgSpec.string("command" where default' = "")
-      ])
+      ])?
       _commands.update(_help_name, help_cmd)
     end
 
@@ -463,7 +463,7 @@ class _StringSeq is ReadSeq[String]
     str
 
   fun size(): USize => strings.size()
-  fun apply(i: USize): this->String ? => strings(i)
+  fun apply(i: USize): this->String ? => strings(i)?
   fun values(): Iterator[this->String]^ => strings.values()
 
 type _Value is (Bool | String | I64 | F64 | _StringSeq val)
@@ -476,7 +476,7 @@ trait val _ValueType
 
 primitive _BoolType is _ValueType
   fun string(): String => "Bool"
-  fun value_of(s: String): _Value ? => s.bool()
+  fun value_of(s: String): _Value ? => s.bool()?
 
 primitive _StringType is _ValueType
   fun string(): String => "String"
@@ -484,7 +484,7 @@ primitive _StringType is _ValueType
 
 primitive _I64Type is _ValueType
   fun string(): String => "I64"
-  fun value_of(s: String): _Value ? => s.i64()
+  fun value_of(s: String): _Value ? => s.i64()?
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"

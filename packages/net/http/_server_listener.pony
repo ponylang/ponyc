@@ -53,7 +53,7 @@ class _ServerListener is TCPListenNotify
     """
     try
       let ctx = _sslctx as SSLContext
-      let ssl = ctx.server()
+      let ssl = ctx.server()?
       SSLConnection(
         _ServerConnHandler(_handlermaker, _logger, _reversedns, _server),
         consume ssl)

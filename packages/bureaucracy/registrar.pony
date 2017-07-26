@@ -22,8 +22,8 @@ actor Registrar
     updating), the mapping won't be removed.
     """
     try
-      if _registry(key) is value then
-        _registry.remove(key)
+      if _registry(key)? is value then
+        _registry.remove(key)?
       end
     end
 
@@ -42,7 +42,7 @@ actor Registrar
     Fulfills or rejects the promise.
     """
     try
-      promise(_registry(key) as A)
+      promise(_registry(key)? as A)
     else
       promise.reject()
     end

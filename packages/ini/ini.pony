@@ -17,12 +17,12 @@ use "files"
 actor Main
   new create(env:Env) =>
     try
-      let ini_file = File(FilePath(env.root as AmbientAuth, "example.ini"))
-      let sections = IniParse(ini_file.lines())
+      let ini_file = File(FilePath(env.root as AmbientAuth, "example.ini")?)
+      let sections = IniParse(ini_file.lines())?
       for section in sections.keys() do
         env.out.print("Section name is: " + section)
-        for key in sections(section).keys() do
-          env.out.print(key + " = " + sections(section)(key))
+        for key in sections(section)?.keys() do
+          env.out.print(key + " = " + sections(section)?(key)?)
         end
       end
     end
@@ -84,13 +84,13 @@ primitive Ini
       end
 
       try
-        match current(0)
+        match current(0)?
         | ';' | '#' =>
           // Skip comments.
           continue
         | '[' =>
           try
-            current.delete(current.find("]", 1), -1)
+            current.delete(current.find("]", 1)?, -1)
             current.delete(0)
             section = consume current
             if not f.add_section(section) then
@@ -106,9 +106,9 @@ primitive Ini
         else
           try
             let delim = try
-              current.find("=")
+              current.find("=")?
             else
-              current.find(":")
+              current.find(":")?
             end
 
             let value = current.substring(delim + 1)
@@ -119,12 +119,12 @@ primitive Ini
 
             try
               let comment = try
-                value.find(";")
+                value.find(";")?
               else
-                value.find("#")
+                value.find("#")?
               end
 
-              match value(comment.usize() - 1)
+              match value(comment.usize() - 1)?
               | ' ' | '\t' =>
                 value.delete(comment, -1)
                 value.rstrip()

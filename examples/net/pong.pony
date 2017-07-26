@@ -9,7 +9,7 @@ class Pong is UDPNotify
   fun ref listening(sock: UDPSocket ref) =>
     try
       let ip = sock.local_address()
-      (let host, let service) = ip.name()
+      (let host, let service) = ip.name()?
       _env.out.print("Pong: listening on " + host + ":" + service)
 
       let env = _env
@@ -34,7 +34,7 @@ class Pong is UDPNotify
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
     try
-      (let host, let service) = from.name()
+      (let host, let service) = from.name()?
       _env.out.print("from " + host + ":" + service)
     end
 

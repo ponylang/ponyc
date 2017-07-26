@@ -14,7 +14,7 @@ class Filter[A] is Iterator[A]
 
   actor Main
     new create(env: Env) =>
-      let fn = {(s: String): Bool => x.size() > 3 }
+      let fn = {(s: String): Bool => s.size() > 3 }
       for x in Filter[String](env.args.slice(1).values(), fn) do
         env.out.print(x)
       end
@@ -34,8 +34,8 @@ class Filter[A] is Iterator[A]
       match _next
       | _None =>
         if _iter.has_next() then
-          _next = _iter.next()
-          if try not _fn(_next as A) else true end then
+          _next = _iter.next()?
+          if try not _fn(_next as A)? else true end then
             _next = _None
             _find_next()
           end
@@ -64,7 +64,7 @@ class Filter[A] is Iterator[A]
     else
       if _iter.has_next() then
         _find_next()
-        next()
+        next()?
       else
         error
       end

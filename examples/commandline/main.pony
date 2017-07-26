@@ -9,7 +9,7 @@ actor Main
             where short' = 'U', default' = false)
         ], [
           ArgSpec.string_seq("words", "The words to echo")
-        ]).>add_help()
+        ])?.>add_help()?
       else
         env.exitcode(-1)  // some kind of coding error
         return

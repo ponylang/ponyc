@@ -39,7 +39,7 @@ class Chain[A] is Iterator[A]
 
     if _outer_iterator.has_next() then
       try
-        _inner_iterator = _outer_iterator.next()
+        _inner_iterator = _outer_iterator.next()?
         return has_next()
       end
     end
@@ -51,13 +51,13 @@ class Chain[A] is Iterator[A]
       let iter = _inner_iterator as Iterator[A]
 
       if iter.has_next() then
-        return iter.next()
+        return iter.next()?
       end
     end
 
     if _outer_iterator.has_next() then
-      _inner_iterator = _outer_iterator.next()
-      return next()
+      _inner_iterator = _outer_iterator.next()?
+      return next()?
     end
 
     error

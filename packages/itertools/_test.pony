@@ -98,9 +98,9 @@ class iso _TestChain is UnitTest
         [input0.values(); input1.values(); input0.values()].values())
     h.assert_true(chain.has_next())
     try
-      chain.next()
-      chain.next()
-      chain.next()
+      chain.next()?
+      chain.next()?
+      chain.next()?
       h.assert_false(chain.has_next())
     else
       h.fail()
@@ -187,16 +187,16 @@ class iso _TestCycle is UnitTest
 
     let cycle = Cycle[String](input.values())
     try
-      actual.push(cycle.next()) // 1 "a"
-      actual.push(cycle.next()) // 2 "b"
-      actual.push(cycle.next()) // 3 "c"
-      actual.push(cycle.next()) // 4 "a" <= start first cached cycle
-      actual.push(cycle.next()) // 5 "b"
-      actual.push(cycle.next()) // 6 "c"
-      actual.push(cycle.next()) // 7 "a" <= start second cached cycle
-      actual.push(cycle.next()) // 8 "b"
-      actual.push(cycle.next()) // 9 "c"
-      actual.push(cycle.next()) // 10 "a" <= start third cached cycle
+      actual.push(cycle.next()?) // 1 "a"
+      actual.push(cycle.next()?) // 2 "b"
+      actual.push(cycle.next()?) // 3 "c"
+      actual.push(cycle.next()?) // 4 "a" <= start first cached cycle
+      actual.push(cycle.next()?) // 5 "b"
+      actual.push(cycle.next()?) // 6 "c"
+      actual.push(cycle.next()?) // 7 "a" <= start second cached cycle
+      actual.push(cycle.next()?) // 8 "b"
+      actual.push(cycle.next()?) // 9 "c"
+      actual.push(cycle.next()?) // 10 "a" <= start third cached cycle
     else
       h.fail()
     end
@@ -258,7 +258,7 @@ class iso _TestIterAll is UnitTest
     let input = [as I64: 1; 3; 6; 7; 9]
     let is_positive = {(n: I64): Bool => n > 0 }
     h.assert_true(Iter[I64](input.values()).all(is_positive))
-    input(2) = -6
+    input(2)? = -6
     h.assert_false(Iter[I64](input.values()).all(is_positive))
 
 class iso _TestIterAny is UnitTest
@@ -268,7 +268,7 @@ class iso _TestIterAny is UnitTest
     let input = [as I64: -1; -3; 6; -7; -9]
     let is_positive = {(n: I64): Bool => n > 0 }
     h.assert_true(Iter[I64](input.values()).any(is_positive))
-    input(2) = -6
+    input(2)? = -6
     h.assert_false(Iter[I64](input.values()).any(is_positive))
 
 class iso _TestIterCollect is UnitTest
@@ -304,16 +304,16 @@ class iso _TestIterCycle is UnitTest
 
     let cycle = Iter[String](input.values()).cycle()
     try
-      actual.push(cycle.next()) // 1 "a"
-      actual.push(cycle.next()) // 2 "b"
-      actual.push(cycle.next()) // 3 "c"
-      actual.push(cycle.next()) // 4 "a" <= start first cached cycle
-      actual.push(cycle.next()) // 5 "b"
-      actual.push(cycle.next()) // 6 "c"
-      actual.push(cycle.next()) // 7 "a" <= start second cached cycle
-      actual.push(cycle.next()) // 8 "b"
-      actual.push(cycle.next()) // 9 "c"
-      actual.push(cycle.next()) // 10 "a" <= start third cached cycle
+      actual.push(cycle.next()?) // 1 "a"
+      actual.push(cycle.next()?) // 2 "b"
+      actual.push(cycle.next()?) // 3 "c"
+      actual.push(cycle.next()?) // 4 "a" <= start first cached cycle
+      actual.push(cycle.next()?) // 5 "b"
+      actual.push(cycle.next()?) // 6 "c"
+      actual.push(cycle.next()?) // 7 "a" <= start second cached cycle
+      actual.push(cycle.next()?) // 8 "b"
+      actual.push(cycle.next()?) // 9 "c"
+      actual.push(cycle.next()?) // 10 "a" <= start third cached cycle
     else
       h.fail()
     end
@@ -331,8 +331,8 @@ class iso _TestIterEnum is UnitTest
 
     var i: USize = 0
     for (n, s) in iter do
-      h.assert_eq[USize](n, expected(i)._1)
-      h.assert_eq[String](s, expected(i)._2)
+      h.assert_eq[USize](n, expected(i)?._1)
+      h.assert_eq[String](s, expected(i)?._2)
       i = i + 1
     end
     h.assert_eq[USize](i, 3)
@@ -376,16 +376,16 @@ class iso _TestIterFind is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as I64: 1; 2; 3; -4; 5]
     h.assert_error({()(input) ? =>
-      Iter[I64](input.values()).find({(x: I64): Bool => x == 0 })
+      Iter[I64](input.values()).find({(x: I64): Bool => x == 0 })?
     })
     let ltzero = {(x: I64): Bool => x < 0 }
     h.assert_eq[I64](-4,
-      Iter[I64](input.values()).find(ltzero))
+      Iter[I64](input.values()).find(ltzero)?)
     h.assert_error({()(input, ltzero) ? =>
-      Iter[I64](input.values()).find(ltzero, 2)
+      Iter[I64](input.values()).find(ltzero, 2)?
     })
     h.assert_eq[I64](5,
-      Iter[I64](input.values()).find({(x: I64): Bool => x > 0 }, 4))
+      Iter[I64](input.values()).find({(x: I64): Bool => x > 0 }, 4)?)
 
 class iso _TestIterFold is UnitTest
   fun name(): String => "itertools/Iter.fold"
@@ -393,12 +393,12 @@ class iso _TestIterFold is UnitTest
   fun apply(h: TestHelper) ? =>
     let ns = [as I64: 1; 2; 3; 4; 5; 6]
     let fn = {(sum: I64, n: I64): I64 => sum + n }
-    let sum = Iter[I64](ns.values()).fold[I64](fn, 0)
+    let sum = Iter[I64](ns.values()).fold[I64](fn, 0)?
     h.assert_eq[I64](sum, 21)
 
     let err = {(acc: I64, x: I64): I64 ? => error }
     h.assert_error({() ? =>
-      Iter[I64](ns.values()).fold[I64](err, 0)
+      Iter[I64](ns.values()).fold[I64](err, 0)?
     })
 
 class iso _TestIterLast is UnitTest
@@ -406,19 +406,19 @@ class iso _TestIterLast is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let input1 = Array[I64]
-    h.assert_error({() ? => Iter[I64](input1.values()).last() })
+    h.assert_error({() ? => Iter[I64](input1.values()).last()? })
 
     let input2 =[as I64: 1]
     h.assert_eq[I64](1,
-      Iter[I64](input2.values()).last())
+      Iter[I64](input2.values()).last()?)
 
     let input3 = [as I64: 1; 2]
     h.assert_eq[I64](2,
-      Iter[I64](input3.values()).last())
+      Iter[I64](input3.values()).last()?)
 
     let input4 = [as I64: 1; 2; 3]
     h.assert_eq[I64](3,
-      Iter[I64](input4.values()).last())
+      Iter[I64](input4.values()).last()?)
 
 class iso _TestIterMap is UnitTest
   fun name(): String => "itertools/Iter.map"
@@ -441,12 +441,12 @@ class iso _TestIterNth is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as USize: 1; 2; 3]
     h.assert_eq[USize](1,
-      Iter[USize](input.values()).nth(1))
+      Iter[USize](input.values()).nth(1)?)
     h.assert_eq[USize](2,
-      Iter[USize](input.values()).nth(2))
+      Iter[USize](input.values()).nth(2)?)
     h.assert_eq[USize](3,
-      Iter[USize](input.values()).nth(3))
-    h.assert_error({()? => Iter[USize](input.values()).nth(4) })
+      Iter[USize](input.values()).nth(3)?)
+    h.assert_error({()? => Iter[USize](input.values()).nth(4)? })
 
 class iso _TestIterRun is UnitTest
   fun name(): String => "itertools/Iter.run"
@@ -478,14 +478,14 @@ class iso _TestIterSkip is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as I64: 1]
     h.assert_error({()? =>
-      Iter[I64](input.values()).skip(1).next()
+      Iter[I64](input.values()).skip(1).next()?
     })
     input.push(2)
     h.assert_eq[I64](2,
-      Iter[I64](input.values()).skip(1).next())
+      Iter[I64](input.values()).skip(1).next()?)
     input.push(3)
     h.assert_eq[I64](3,
-      Iter[I64](input.values()).skip(2).next())
+      Iter[I64](input.values()).skip(2).next()?)
 
 class iso _TestIterSkipWhile is UnitTest
   fun name(): String => "itertools/Iter.skip_while"
@@ -493,9 +493,9 @@ class iso _TestIterSkipWhile is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_eq[I64](1,
-      Iter[I64](input.values()).skip_while({(x: I64): Bool => x <= 0 }).next())
+      Iter[I64](input.values()).skip_while({(x: I64): Bool => x <= 0 }).next()?)
     h.assert_eq[I64](-1,
-      Iter[I64](input.values()).skip_while({(x: I64): Bool => x < -2 }).next())
+      Iter[I64](input.values()).skip_while({(x: I64): Bool => x < -2 }).next()?)
 
 class iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"

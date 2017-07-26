@@ -36,7 +36,7 @@ class ContentsLog
       list.push("\n")
     end
 
-    for data in request.body().values() do
+    for data in request.body()?.values() do
       list.push(data)
     end
 
@@ -57,7 +57,7 @@ class ContentsLog
       list.push("\n")
     end
 
-    for data in response.body().values() do
+    for data in response.body()?.values() do
       list.push(data)
     end
 

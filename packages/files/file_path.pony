@@ -71,16 +71,16 @@ class val FilePath
     the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
-    let parent = FilePath(base, dir)
+    let parent = FilePath(base, dir)?
 
     if not parent.mkdir() then
       error
     end
 
-    var temp = FilePath(parent, pre + Path.random())
+    var temp = FilePath(parent, pre + Path.random())?
 
     while not temp.mkdir(true) do
-      temp = FilePath(parent, pre + Path.random())
+      temp = FilePath(parent, pre + Path.random())?
     end
 
     caps.union(caps')
@@ -102,7 +102,7 @@ class val FilePath
     """
     Return a new path relative to this one.
     """
-    create(this, path', caps')
+    create(this, path', caps')?
 
   fun val walk(handler: WalkHandler ref, follow_links: Bool = false) =>
     """
@@ -113,11 +113,11 @@ class val FilePath
     expanded by removing them from the `dir_entries` list.
     """
     try
-      var entries: Array[String] ref = Directory(this).entries()
+      var entries: Array[String] ref = Directory(this)?.entries()?
       handler(this, entries)
       for e in entries.values() do
-        let p = this.join(e)
-        if not follow_links and FileInfo(p).symlink then
+        let p = this.join(e)?
+        if not follow_links and FileInfo(p)?.symlink then
           continue
         end
         p.walk(handler, follow_links)
@@ -131,14 +131,14 @@ class val FilePath
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    _create(Path.canonical(path), caps)
+    _create(Path.canonical(path)?, caps)
 
   fun val exists(): Bool =>
     """
     Returns true if the path exists. Returns false for a broken symlink.
     """
     try
-      not FileInfo(this).broken
+      not FileInfo(this)?.broken
     else
       false
     end
@@ -158,7 +158,7 @@ class val FilePath
 
     repeat
       let element = try
-        offset = path.find(Path.sep(), offset) + 1
+        offset = path.find(Path.sep(), offset)? + 1
         path.substring(0, offset - 1)
       else
         offset = -1
@@ -185,7 +185,7 @@ class val FilePath
     until offset < 0 end
 
     try
-      FileInfo(this).directory
+      FileInfo(this)?.directory
     else
       false
     end
@@ -200,13 +200,13 @@ class val FilePath
     end
 
     try
-      let info = FileInfo(this)
+      let info = FileInfo(this)?
 
       if info.directory and not info.symlink then
-        let directory = Directory(this)
+        let directory = Directory(this)?
 
-        for entry in directory.entries().values() do
-          if not join(entry).remove() then
+        for entry in directory.entries()?.values() do
+          if not join(entry)?.remove() then
             return false
           end
         end
