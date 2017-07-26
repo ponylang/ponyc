@@ -261,7 +261,9 @@ primitive Promises[A: Any #share]
     """
     Create a promise that is fulfilled when all promises in the given sequence
     are fulfilled. If any promise in the sequence is rejected then the new
-    promise is also rejected.
+    promise is also rejected. The order that values appear in the final array
+    is based on when each promise is fulfilled and not the order that they are
+    given.
     """
     let p' = Promise[Array[A] val]
     let ps' = Array[Promise[A]] .> concat(consume ps)
@@ -275,7 +277,7 @@ primitive Promises[A: Any #share]
     for p in ps'.values() do
       p.next[None]({(a: A)(j) => j(a)} iso)
     end
-    
+
     p'
 
 actor _Join[A: Any #share]
