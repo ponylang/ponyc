@@ -1131,14 +1131,14 @@ actor Main
     let s = recover String(len) end
     (consume s)._append(this)._append(that)
 
-  fun join(data: ReadSeq[Stringable]): String iso^ =>
+  fun join(data: Iterator[Stringable]): String iso^ =>
     """
     Return a string that is a concatenation of the strings in data, using this
     as a separator.
     """
     var buf = recover String end
     var first = true
-    for v in data.values() do
+    for v in data do
       if first then
         first = false
       else

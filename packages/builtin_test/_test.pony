@@ -704,11 +704,11 @@ class iso _TestStringJoin is UnitTest
   fun name(): String => "builtin/String.join"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("_".join(["zomg"]), "zomg")
-    h.assert_eq[String]("_".join(["hi"; "there"]), "hi_there")
-    h.assert_eq[String](" ".join(["1"; ""; "2"; ""]), "1  2 ")
-    h.assert_eq[String](" ".join([as Stringable: U32(1); U32(4)]), "1 4")
-    h.assert_eq[String](" ".join(Array[String]), "")
+    h.assert_eq[String]("_".join(["zomg"].values()), "zomg")
+    h.assert_eq[String]("_".join(["hi"; "there"].values()), "hi_there")
+    h.assert_eq[String](" ".join(["1"; ""; "2"; ""].values()), "1  2 ")
+    h.assert_eq[String](" ".join([as Stringable: U32(1); U32(4)].values()), "1 4")
+    h.assert_eq[String](" ".join(Array[String].values()), "")
 
 class iso _TestStringCount is UnitTest
   """
