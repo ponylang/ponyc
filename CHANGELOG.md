@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler assertion failure on unused reference to `_` ([PR #2091](https://github.com/ponylang/ponyc/pull/2091))
 - Destroy all actors on runtime termination ([PR #2058](https://github.com/ponylang/ponyc/pull/2058))
 - Fixed compiler segfault on empty triple quote comment. ([PR #2053](https://github.com/ponylang/ponyc/pull/2053))
 - Fix compiler crash on exhaustive match where last case is a union subset ([PR #2049](https://github.com/ponylang/ponyc/pull/2049))
