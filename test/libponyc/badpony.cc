@@ -803,3 +803,18 @@ TEST_F(BadPonyTest, AsNestedUninferredNumericLiteral)
 
   TEST_ERRORS_1(src, "Cannot cast uninferred literal");
 }
+
+TEST_F(BadPonyTest, DontCareUnusedBranchValue)
+{
+  // From issue #2073
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if false then\n"
+    "      None\n"
+    "    else\n"
+    "      _\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

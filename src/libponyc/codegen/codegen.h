@@ -59,7 +59,7 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
-#define GEN_NOTNEEDED (LLVMConstInt(c->ibool, 0, false))
+#define GEN_NOTNEEDED ((LLVMValueRef)2)
 
 typedef struct genned_string_t genned_string_t;
 DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
