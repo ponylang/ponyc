@@ -33,6 +33,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
 - Deprecate support of Clang 3.3
+- Explicit partial calls - a question mark is now required to be at the call site for every call to a partial function.
+    - See [RFC 39](https://github.com/ponylang/rfcs/blob/master/text/0039-explicit-partial-calls.md).
+    - Migration scripts for user code, for convenience, are provided here:
+        - [Unix](https://gist.github.com/jemc/95969e3e2b58ddb0dede138c737907f5)
+        - [Windows](https://gist.github.com/kulibali/cd5caf3a32d510bb86412f3fd4d52d0f)
 
 
 ## [0.15.0] - 2017-07-08
