@@ -21,7 +21,12 @@ def cmd_output(cmd):
 APPNAME = 'ponyc'
 VERSION = '?'
 with open('VERSION') as v:
-    VERSION = v.read().strip() + '-' + cmd_output(['git', 'rev-parse', '--short', 'HEAD'])
+    VERSION = v.read().strip()
+    try:
+        rev = '-' + cmd_output(['git', 'rev-parse', '--short', 'HEAD'])
+        VERSION = VERSION + rev
+    except:
+        pass
 
 # source and build directories
 top = '.'
