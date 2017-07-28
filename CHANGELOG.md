@@ -2,6 +2,20 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [unreleased] - unreleased
+
+### Fixed
+
+
+
+### Added
+
+
+
+### Changed
+
+
+
 ## [0.16.0] - 2017-07-28
 
 ### Fixed
@@ -825,6 +839,4 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
-ised.
 
