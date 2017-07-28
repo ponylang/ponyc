@@ -3,11 +3,8 @@
 
 #include "../ast/ast.h"
 #include "../pass/pass.h"
-#include "../codegen/gendebug.h"
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/ds/stack.h"
-
-#include <llvm-c/Core.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -26,6 +23,13 @@ DECLARE_HASHMAP_SERIALISE(reach_method_names, reach_method_names_t,
 DECLARE_HASHMAP_SERIALISE(reach_types, reach_types_t, reach_type_t);
 DECLARE_HASHMAP_SERIALISE(reach_type_cache, reach_type_cache_t, reach_type_t);
 
+typedef void (*compile_opaque_free_fn)(void* p);
+
+typedef struct compile_opaque_t
+{
+  compile_opaque_free_fn free_fn;
+} compile_opaque_t;
+
 struct reach_method_t
 {
   const char* name;
@@ -36,13 +40,6 @@ struct reach_method_t
   ast_t* typeargs;
   ast_t* r_fun;
   uint32_t vtable_index;
-
-  LLVMTypeRef func_type;
-  LLVMTypeRef msg_type;
-  LLVMValueRef func;
-  LLVMValueRef func_handler;
-  LLVMMetadataRef di_method;
-  LLVMMetadataRef di_file;
 
   // Mark as true if the compiler supplies an implementation.
   bool intrinsic;
@@ -61,6 +58,11 @@ struct reach_method_t
   size_t param_count;
   reach_param_t* params;
   reach_type_t* result;
+
+  // Used when reaching and generating __is for tuples.
+  reach_type_cache_t* tuple_is_types;
+
+  compile_opaque_t* c_method;
 };
 
 struct reach_method_name_t
@@ -98,36 +100,14 @@ struct reach_type_t
   reach_method_t* bare_method;
   reach_type_cache_t subtypes;
   uint32_t type_id;
-  size_t abi_size;
   uint32_t vtable_size;
   bool can_be_boxed;
   bool is_trait;
 
-  LLVMTypeRef structure;
-  LLVMTypeRef structure_ptr;
-  LLVMTypeRef primitive;
-  LLVMTypeRef use_type;
-
-  LLVMTypeRef desc_type;
-  LLVMValueRef desc;
-  LLVMValueRef instance;
-  LLVMValueRef trace_fn;
-  LLVMValueRef serialise_trace_fn;
-  LLVMValueRef serialise_fn;
-  LLVMValueRef deserialise_fn;
-  LLVMValueRef custom_serialise_space_fn;
-  LLVMValueRef custom_serialise_fn;
-  LLVMValueRef custom_deserialise_fn;
-  LLVMValueRef final_fn;
-  LLVMValueRef dispatch_fn;
-  LLVMValueRef dispatch_switch;
-
-  LLVMMetadataRef di_file;
-  LLVMMetadataRef di_type;
-  LLVMMetadataRef di_type_embed;
-
   uint32_t field_count;
   reach_field_t* fields;
+
+  compile_opaque_t* c_type;
 };
 
 typedef struct

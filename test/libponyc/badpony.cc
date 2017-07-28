@@ -669,3 +669,152 @@ TEST_F(BadPonyTest, AsUnaliased)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, CodegenMangledFunptr)
+{
+  // Test that we don't crash in codegen when generating the function pointer.
+  const char* src =
+    "interface I\n"
+    "  fun foo(x: U32)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let i: I = this\n"
+    "    @foo[None](addressof i.foo)\n"
+
+    "  fun foo(x: Any) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, AsFromUninferredReference)
+{
+  // From issue #2035
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b = apply(true)\n"
+    "    b as Bool\n"
+
+    "  fun ref apply(s: String): (Bool | None) =>\n"
+    "    true";
+
+  TEST_ERRORS_2(src,
+    "argument not a subtype of parameter",
+    "cannot infer type of b");
+}
+
+TEST_F(BadPonyTest, FFIDeclaredTupleArgument)
+{
+  const char* src =
+    "use @foo[None](x: (U8, U8))\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo((0, 0))";
+
+  TEST_ERRORS_1(src, "cannot pass tuples as FFI arguments");
+}
+
+TEST_F(BadPonyTest, FFIUndeclaredTupleArgument)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[None]((U8(0), U8(0)))";
+
+  TEST_ERRORS_1(src, "cannot pass tuples as FFI arguments");
+}
+
+TEST_F(BadPonyTest, FFIDeclaredTupleReturn)
+{
+  const char* src =
+    "use @foo[(U8, U8)]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo()";
+
+  TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
+}
+
+TEST_F(BadPonyTest, FFIUndeclaredTupleReturn)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[(U8, U8)]()";
+
+  TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
+}
+
+TEST_F(BadPonyTest, MatchExhaustiveLastCaseUnionSubset)
+{
+  // From issue #2048
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => apply(None)\n"
+
+    "  fun apply(p': (P1 | P2 | None)) =>\n"
+    "    match p'\n"
+    "    | None => None\n"
+    "    | let p: (P1 | P2) => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, QuoteCommentsEmptyLine)
+{
+  // From issue #2027
+  const char* src =
+    "\"\"\"\n"
+    "\"\"\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, AsUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    0 as I64\n"
+    "    0.0 as F64";
+
+  TEST_ERRORS_2(src,
+    "Cannot cast uninferred numeric literal",
+    "Cannot cast uninferred numeric literal");
+}
+
+TEST_F(BadPonyTest, AsNestedUninferredNumericLiteral)
+{
+  // From issue #2037
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    (0, 1) as (I64, I64)";
+
+  TEST_ERRORS_1(src, "Cannot cast uninferred literal");
+}
+
+TEST_F(BadPonyTest, DontCareUnusedBranchValue)
+{
+  // From issue #2073
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if false then\n"
+    "      None\n"
+    "    else\n"
+    "      _\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

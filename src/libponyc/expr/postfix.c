@@ -226,6 +226,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // the LHS goes at the end, not the beginning
+      ast_add(call, ast_from(ast, TK_NONE)); // question
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 

@@ -72,20 +72,20 @@ class _HTTPParser
     Analyze new data based on the parser's current internal state.
     """
     match _state
-    | _ExpectRequest => _parse_request(buffer)
-    | _ExpectResponse => _parse_response(buffer)
-    | _ExpectHeaders => _parse_headers(buffer)
+    | _ExpectRequest => _parse_request(buffer)?
+    | _ExpectResponse => _parse_response(buffer)?
+    | _ExpectHeaders => _parse_headers(buffer)?
     | _ExpectBody =>
         // We are expecting a message body. Now we decide exactly
         // which encoding to look for.
         if _chunked then
           _state = _ExpectChunkStart
-          _parse_chunk_start(buffer)
+          _parse_chunk_start(buffer)?
         else
           _state = _ExpectContentLength
           _parse_content_length(buffer)
         end
-    | _ExpectChunkStart => _parse_chunk_start(buffer)
+    | _ExpectChunkStart => _parse_chunk_start(buffer)?
     | _ExpectChunk => _parse_chunk(buffer)
     | _ExpectChunkEnd => _parse_chunk_end(buffer)
     | _ExpectContentLength => _parse_content_length(buffer)
@@ -133,7 +133,7 @@ class _HTTPParser
       _expected_length = buffer.size()
 
       try
-        let bytes = buffer.block(_expected_length)
+        let bytes = buffer.block(_expected_length)?
         let chunk: ByteSeq = recover val consume bytes end
         match _payload.transfer_mode
         | OneshotTransfer => _payload.add_chunk(chunk)
@@ -155,16 +155,16 @@ class _HTTPParser
     _payload.session = _session
 
     try
-      let line = buffer.line()
-      let method_end = line.find(" ")
+      let line = buffer.line()?
+      let method_end = line.find(" ")?
       _payload.method = line.substring(0, method_end)
 
-      let url_end = line.find(" ", method_end + 1)
-      _payload.url = URL.valid(line.substring(method_end + 1, url_end))
+      let url_end = line.find(" ", method_end + 1)?
+      _payload.url = URL.valid(line.substring(method_end + 1, url_end))?
       _payload.proto = line.substring(url_end + 1)
 
       _state = _ExpectHeaders
-      parse(buffer)
+      parse(buffer)?
     else
       error
     end
@@ -180,17 +180,17 @@ class _HTTPParser
     _payload.session = _session
 
     try
-      let line = buffer.line()
+      let line = buffer.line()?
 
-      let proto_end = line.find(" ")
+      let proto_end = line.find(" ")?
       _payload.proto = line.substring(0, proto_end)
-      _payload.status = line.read_int[U16](proto_end + 1)._1
+      _payload.status = line.read_int[U16](proto_end + 1)?._1
 
-      let status_end = line.find(" ", proto_end + 1)
+      let status_end = line.find(" ", proto_end + 1)?
       _payload.method = line.substring(status_end + 1)
 
       _state = _ExpectHeaders
-      parse(buffer)
+      parse(buffer)?
     else
       error
     end
@@ -204,17 +204,17 @@ class _HTTPParser
       // Try to get another line out of the available buffer.
       // If this fails it is not a syntax error; we just wait for more.
       try
-        let line = buffer.line()
+        let line = buffer.line()?
         if line.size() == 0 then
           // An empty line marks the end of the headers. Set state
           // appropriately.
           _set_header_end()
           _deliver()
-          parse(buffer)
+          parse(buffer)?
         else
           // A non-empty line *must* be a header. Error if not.
           try
-            _process_header(line)
+            _process_header(line)?
           else
             _state = _ExpectError
             break
@@ -234,7 +234,7 @@ class _HTTPParser
     Save a header value. Raise an error on not finding the colon
     or can't interpret the value.
     """
-    let i = line.find(":")
+    let i = line.find(":")?
     let key = line.substring(0, i)
     key.strip()
     let key2: String val = consume key
@@ -245,7 +245,7 @@ class _HTTPParser
     // Examine certain headers describing the encoding.
     match key2.lower()
     | "content-length" => // Explicit body length.
-      _expected_length = value2.read_int[USize]()._1
+      _expected_length = value2.read_int[USize]()?._1
       // On the receiving end, there is no difference
       // between Oneshot and Stream transfers except how
       // we store it. TODO eliminate this?
@@ -258,7 +258,7 @@ class _HTTPParser
 
     | "transfer-encoding" => // Incremental body lengths.
       try
-        value2.find("chunked")
+        value2.find("chunked")?
         _payload.transfer_mode = ChunkedTransfer
         _chunked = true
       else
@@ -281,14 +281,14 @@ class _HTTPParser
     """
     try
       let parts = auth.split(" ")
-      let authscheme = parts(0)
+      let authscheme = parts(0)?
       match authscheme.lower()
       | "basic" =>
-        let autharg = parts(1)
-        let userpass = Base64.decode[String iso](autharg)
+        let autharg = parts(1)?
+        let userpass = Base64.decode[String iso](autharg)?
         let uparts = userpass.split(":")
-        _payload.username = uparts(0)
-        _payload.password = uparts(1)
+        _payload.username = uparts(0)?
+        _payload.password = uparts(1)?
       end
     end
 
@@ -327,7 +327,7 @@ class _HTTPParser
     let available = buffer.size()
     let usable = available.min(_expected_length)
     try
-      let bytes = buffer.block(usable)
+      let bytes = buffer.block(usable)?
       let body = recover val consume bytes end
       _expected_length = _expected_length - usable
       _session._chunk(body)
@@ -345,12 +345,12 @@ class _HTTPParser
     terminated by CRLF. An explicit length of zero marks the end of
     the entire chunked message body.
     """
-    let line = buffer.line()
+    let line = buffer.line()?
 
     if line.size() > 0
     then
       // This should be the length of the next chunk.
-      _expected_length = line.read_int[USize](0, 16)._1
+      _expected_length = line.read_int[USize](0, 16)?._1
       // A chunk explicitly of length zero marks the end of the body.
       if _expected_length > 0 then
         _state = _ExpectChunk
@@ -360,7 +360,7 @@ class _HTTPParser
         _restart()
       end
 
-      parse(buffer)
+      parse(buffer)?
     else
       // Anything other than a length is an error.
       _expected_length = 0
@@ -378,7 +378,7 @@ class _HTTPParser
     let available = buffer.size()
     let usable = available.min(_expected_length)
     try
-      let chunk = buffer.block(usable)
+      let chunk = buffer.block(usable)?
       _session._chunk(consume chunk)
       _expected_length = _expected_length - usable
 
@@ -386,7 +386,7 @@ class _HTTPParser
       // Otherwise we will keep working on this chunk.
       if _expected_length == 0 then
         _state = _ExpectChunkEnd
-        parse(buffer)
+        parse(buffer)?
         end
     end
 
@@ -396,14 +396,14 @@ class _HTTPParser
     the next chunk, or that was the special ending chunk.
     """
     try
-      let line = buffer.line()
+      let line = buffer.line()?
       if _chunk_end
       then
         _session._finish()
         _restart()
       else
         _state = _ExpectChunkStart
-        parse(buffer)
+        parse(buffer)?
       end
     end
 

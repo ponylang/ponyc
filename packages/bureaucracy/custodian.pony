@@ -33,6 +33,15 @@ actor Custodian
   use "bureaucracy"
   use "signals"
 
+  actor Actor1
+    be dispose() => None // dispose of resources here.
+
+  actor Actor2
+    be dispose() => None // dispose of resources here.
+
+  actor Actor3
+    be dispose() => None // dispose of resources here.
+
   actor Main
     new create(env: Env) =>
       let actor1 = Actor1
@@ -40,7 +49,9 @@ actor Custodian
       let actor3 = Actor3
 
       let custodian = Custodian
-      custodian(actor1)(actor2)(actor3)
+      custodian(actor1)
+      custodian(actor2)
+      custodian(actor3)
 
       SignalHandler(TermHandler(custodian), Sig.term())
 

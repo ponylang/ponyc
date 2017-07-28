@@ -34,9 +34,9 @@ primitive Path
     """
     try
       ifdef windows then
-        is_sep(path(0)) or _drive_letter(path)
+        is_sep(path(0)?) or _drive_letter(path)
       else
-        is_sep(path(0))
+        is_sep(path(0)?)
       end
     else
       false
@@ -55,8 +55,8 @@ primitive Path
       clean(next_path)
     else
       try
-        if is_sep(path(path.size()-1)) then
-          if is_sep(next_path(0)) then
+        if is_sep(path(path.size()-1)?) then
+          if is_sep(next_path(0)?) then
             return clean(path + next_path.trim(1))
           else
             return clean(path + next_path)
@@ -85,7 +85,7 @@ primitive Path
     let n = path.size()
 
     try
-      var c = path(i)
+      var c = path(i)?
 
       if is_sep(c) then
         s.append(sep())
@@ -99,7 +99,7 @@ primitive Path
       end
 
       while i < n do
-        c = path(i)
+        c = path(i)?
 
         if is_sep(c) then
           match state
@@ -111,7 +111,7 @@ primitive Path
               s.delete(backtrack, -1)
 
               try
-                backtrack = s.rfind(sep()) + 1
+                backtrack = s.rfind(sep())? + 1
               else
                 backtrack = vol.size().isize()
               end
@@ -174,7 +174,7 @@ primitive Path
     end
 
     try
-      if is_sep(s(s.size()-1)) then
+      if is_sep(s(s.size()-1)?) then
         s.delete(-1, sep().size())
       end
     end
@@ -248,13 +248,13 @@ primitive Path
 
     while true do
       to_i = try
-        to_clean.find(sep(), to_i)
+        to_clean.find(sep(), to_i)?
       else
         to_clean.size().isize()
       end
 
       target_i = try
-        target_clean.find(sep(), target_i)
+        target_clean.find(sep(), target_i)?
       else
         target_clean.size().isize()
       end
@@ -290,7 +290,7 @@ primitive Path
 
       try
         while true do
-          to_i = to_clean.find(sep(), to_i) + 1
+          to_i = to_clean.find(sep(), to_i)? + 1
           result.append("..")
           result.append(sep())
         end
@@ -315,7 +315,7 @@ primitive Path
     (but the strings may differ). Also see the functions dir() and base().
     """
     try
-      let i = path.rfind(separator).usize()
+      let i = path.rfind(separator)?.usize()
       (clean(path.trim(0, i)), path.trim(i+separator.size()))
     else
       ("", path)
@@ -329,7 +329,7 @@ primitive Path
     will be omitted from the result.
     """
     let b = try
-      path.trim(path.rfind(sep()).usize() + 1)
+      path.trim(path.rfind(sep())?.usize() + 1)
     else
       path
     end
@@ -352,7 +352,7 @@ primitive Path
     is no separator.
     """
     try
-      clean(path.trim(0, path.rfind(sep()).usize()))
+      clean(path.trim(0, path.rfind(sep())?.usize()))
     else
       path
     end
@@ -363,10 +363,10 @@ primitive Path
     dot is after all separators. Return an empty string for no extension.
     """
     try
-      let i = path.rfind(".")
+      let i = path.rfind(".")?
 
       let j = try
-        path.rfind(sep())
+        path.rfind(sep())?
       else
         i
       end
@@ -399,8 +399,8 @@ primitive Path
 
       try
         if
-          is_sep(path.at_offset(offset)) and
-          is_sep(path.at_offset(offset + 1))
+          is_sep(path.at_offset(offset)?) and
+          is_sep(path.at_offset(offset + 1)?)
         then
           return _network_share(path, offset + 3)
         end
@@ -413,10 +413,10 @@ primitive Path
     Look for a drive letter followed by a ':', returning true if we find it.
     """
     try
-      let c = path.at_offset(offset)
+      let c = path.at_offset(offset)?
 
       (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z')))
-        and (path.at_offset(offset + 1) == ':')
+        and (path.at_offset(offset + 1)? == ':')
     else
       false
     end
@@ -427,10 +427,10 @@ primitive Path
     we found one, otherwise an empty String.
     """
     try
-      let next = path.find("\\", offset) + 1
+      let next = path.find("\\", offset)? + 1
 
       try
-        path.trim(0, path.find("\\", next).usize())
+        path.trim(0, path.find("\\", next)?.usize())
       else
         path
       end
@@ -449,8 +449,8 @@ primitive Path
 
       try
         while i < len do
-          if s(i) == '/' then
-            s(i) = '\\'
+          if s(i)? == '/' then
+            s(i)? = '\\'
           end
 
           i = i + 1
@@ -473,8 +473,8 @@ primitive Path
 
       try
         while i < len do
-          if s(i) == '\\' then
-            s(i) = '/'
+          if s(i)? == '\\' then
+            s(i)? = '/'
           end
 
           i = i + 1
@@ -521,7 +521,7 @@ primitive Path
 
     try
       while true do
-        let next = path.find(list_sep(), offset)
+        let next = path.find(list_sep(), offset)?
         array.push(clean(path.trim(offset.usize(), next.usize())))
         offset = next + 1
       end
@@ -544,7 +544,7 @@ primitive Path
 
     try
       while n < len do
-        let c = letters(r % letters.size())
+        let c = letters(r % letters.size())?
         r = r / letters.size()
         s.push(c)
         n = n + 1

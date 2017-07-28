@@ -57,7 +57,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_DONTCARE:
     case TK_DONTCAREREF:
     case TK_MATCH_DONTCARE:
-      ret = GEN_NOVALUE;
+      ret = GEN_NOTNEEDED;
       break;
 
     case TK_IF:
@@ -256,6 +256,8 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
 {
   if(r_value <= GEN_NOVALUE)
     return r_value;
+
+  pony_assert(r_value != GEN_NOTNEEDED);
 
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 

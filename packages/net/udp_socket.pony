@@ -14,7 +14,7 @@ actor UDPSocket
 
   The server is implemented like this:
 
-  ```
+  ```pony
   use "net"
 
   class MyUDPNotify is UDPNotify
@@ -38,7 +38,7 @@ actor UDPSocket
 
   The client is implemented like this:
 
-  ```
+  ```pony
   use "net"
 
   class MyUDPNotify is UDPNotify
@@ -70,7 +70,7 @@ actor UDPSocket
     new create(env: Env) =>
       try
         let destination =
-          DNS.ip4(env.root as AmbientAuth, "localhost", "8989")(0)
+          DNS.ip4(env.root as AmbientAuth, "localhost", "8989")(0)?
         UDPSocket(env.root as AmbientAuth,
           recover MyUDPNotify(env.out, consume destination) end)
       end

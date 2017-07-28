@@ -54,14 +54,14 @@ actor Main is TestList
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath? =>
     let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
-      "tmp._FileHelper."))
+      "tmp._FileHelper.")?)?
     for f in files.values() do
       try
         let dir_head = Path.split(f)
-        let fp = FilePath(top.path, dir_head._1)
+        let fp = FilePath(top.path, dir_head._1)?
         fp.mkdir()
         if dir_head._2 != "" then
-          Directory(fp).create_file(dir_head._2).dispose()
+          Directory(fp)?.create_file(dir_head._2)?.dispose()
         end
       else
         h.fail("Failed to create file: " + f)
@@ -102,11 +102,11 @@ class iso _TestFilter is UnitTest
     let m = Glob.filter(["12/a/Bcd"; "12/q/abd"; "34/b/Befd"], "*/?/B*d")
     h.assert_eq[USize](2, m.size())
 
-    h.assert_eq[String](m(0)._1, "12/a/Bcd")
-    h.assert_array_eq[String](["12"; "a"; "c"], m(0)._2)
+    h.assert_eq[String](m(0)?._1, "12/a/Bcd")
+    h.assert_array_eq[String](["12"; "a"; "c"], m(0)?._2)
 
-    h.assert_eq[String](m(1)._1, "34/b/Befd")
-    h.assert_array_eq[String](["34"; "b"; "ef"], m(1)._2)
+    h.assert_eq[String](m(1)?._1, "34/b/Befd")
+    h.assert_array_eq[String](["34"; "b"; "ef"], m(1)?._2)
 
 class iso _TestGlob is UnitTest
   fun name(): String => "files/FilePath.glob"
@@ -114,17 +114,17 @@ class iso _TestGlob is UnitTest
   fun _rel(top: FilePath, files: Array[FilePath]): Array[String]? =>
     let res = recover ref Array[String] end
     for fp in files.values() do
-      res.push(Path.rel(top.path, fp.path))
+      res.push(Path.rel(top.path, fp.path)?)
     end
     res
 
   fun apply(h: TestHelper) ? =>
-    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])
+    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])?
     try
       h.assert_array_eq_unordered[String](
-        ["a/1"; "c/1"], _rel(top, Glob.glob(top, "*/1")))
+        ["a/1"; "c/1"], _rel(top, Glob.glob(top, "*/1"))?)
       h.assert_array_eq_unordered[String](
-        Array[String], _rel(top, Glob.glob(top, "1")))
+        Array[String], _rel(top, Glob.glob(top, "1"))?)
     then
       h.assert_true(top.remove())
     end
@@ -135,19 +135,19 @@ class iso _TestIGlob is UnitTest
   fun _rel(top: FilePath, files: Array[FilePath]): Array[String] ? =>
     let res = recover ref Array[String] end
     for fp in files.values() do
-      res.push(Path.rel(top.path, fp.path))
+      res.push(Path.rel(top.path, fp.path)?)
     end
     res
 
   fun apply(h: TestHelper) ? =>
-    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])
+    let top = _FileHelper.make_files(h, ["a/1"; "a/2"; "b"; "c/1"; "c/4"])?
     try
       Glob.iglob(top, "*/1",
         {(f: FilePath, matches: Array[String]) =>
           try
-            match matches(0)
-            | "a" => h.assert_eq[String](Path.rel(top.path, f.path), "a/1")
-            | "c" => h.assert_eq[String](Path.rel(top.path, f.path), "c/1")
+            match matches(0)?
+            | "a" => h.assert_eq[String](Path.rel(top.path, f.path)?, "a/1")
+            | "c" => h.assert_eq[String](Path.rel(top.path, f.path)?, "c/1")
             else error
             end
           else

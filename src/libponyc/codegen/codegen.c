@@ -639,6 +639,16 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 #endif
 
+  // void pony_send_next(i8*)
+  params[0] = c->void_ptr;
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  value = LLVMAddFunction(c->module, "pony_send_next", type);
+#if PONY_LLVM >= 309
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
+#else
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+#endif
+
   // void pony_serialise_reserve(i8*, i8*, intptr)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;

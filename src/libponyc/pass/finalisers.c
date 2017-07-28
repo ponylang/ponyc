@@ -94,7 +94,7 @@ static ast_t* receiver_def(ast_t* type)
 
 static int check_call_send(ast_t* ast, bool in_final)
 {
-  AST_GET_CHILDREN(ast, positional, named, lhs);
+  AST_GET_CHILDREN(ast, positional, named, question, lhs);
   AST_GET_CHILDREN(lhs, receiver, method);
 
   switch(ast_id(receiver))

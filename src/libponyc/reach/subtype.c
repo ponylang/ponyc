@@ -45,22 +45,41 @@ int subtype_kind_overlap(reach_type_t* left, reach_type_t* right)
       continue;
     }
 
-    reach_type_t k;
-    k.name = sub_left->name;
-    size_t j = HASHMAP_UNKNOWN;
-    reach_type_t* sub_right = reach_type_cache_get(&right->subtypes, &k, &j);
-
-    if(sub_right != NULL)
+    if(sub_left->underlying != TK_TUPLETYPE)
     {
-      pony_assert(sub_left == sub_right);
+      reach_type_t k;
+      k.name = sub_left->name;
+      size_t j = HASHMAP_UNKNOWN;
+      reach_type_t* sub_right = reach_type_cache_get(&right->subtypes, &k, &j);
 
-      if(sub_left->underlying == TK_PRIMITIVE)
-        subtypes |= SUBTYPE_KIND_NUMERIC;
-      else
-        subtypes |= SUBTYPE_KIND_TUPLE;
+      if(sub_right != NULL)
+      {
+        pony_assert(sub_left == sub_right);
 
-      if(subtypes == SUBTYPE_KIND_ALL)
-        return subtypes;
+        if(sub_left->underlying == TK_PRIMITIVE)
+          subtypes |= SUBTYPE_KIND_NUMERIC;
+
+        if(subtypes == SUBTYPE_KIND_ALL)
+          return subtypes;
+      }
+    } else if((subtypes & SUBTYPE_KIND_TUPLE) == 0) {
+      size_t cardinality = ast_childcount(sub_left->ast_cap);
+      size_t j = HASHMAP_UNKNOWN;
+      reach_type_t* sub_right;
+
+      while((sub_right = reach_type_cache_next(&right->subtypes, &j)) != NULL)
+      {
+        if((sub_right->underlying == TK_TUPLETYPE) &&
+          (ast_childcount(sub_right->ast_cap) == cardinality))
+        {
+          subtypes |= SUBTYPE_KIND_TUPLE;
+
+          if(subtypes == SUBTYPE_KIND_ALL)
+            return subtypes;
+
+          break;
+        }
+      }
     }
   }
 

@@ -19,7 +19,7 @@ actor Worker
 
     try
       while row < y do
-        let prefetch_i = imaginary(row)
+        let prefetch_i = imaginary(row)?
 
         var col: USize = 0
 
@@ -27,8 +27,8 @@ actor Worker
           var j: USize = 0
 
           while j < 8 do
-            group_r.update(j, real(col + j))
-            group_i.update(j, prefetch_i)
+            group_r.update(j, real(col + j)?)?
+            group_i.update(j, prefetch_i)?
             j = j + 1
           end
 
@@ -40,11 +40,11 @@ actor Worker
             var k: USize = 0
 
             while k < 8 do
-              let r = group_r(k)
-              let i = group_i(k)
+              let r = group_r(k)?
+              let i = group_i(k)?
 
-              group_r.update(k, ((r * r) - (i * i)) + real(col + k))
-              group_i.update(k, (2.0 * r * i) + prefetch_i)
+              group_r.update(k, ((r * r) - (i * i)) + real(col + k)?)?
+              group_i.update(k, (2.0 * r * i) + prefetch_i)?
 
               if ((r * r) + (i * i)) > limit then
                 bitmap = bitmap and not mask
@@ -95,7 +95,7 @@ class val Config
       OptionSpec.string("output",
         "File to write the output to."
         where short' = 'o', default' = "")
-    ]).>add_help()
+    ])?.>add_help()?
     let cmd =
       match CommandParser(cs).parse(env.args, env.vars())
       | let c: Command => c
@@ -114,7 +114,7 @@ class val Config
     width = cmd.option("width").i64().usize()
     outpath =
       try
-        FilePath(env.root as AmbientAuth, cmd.option("output").string())
+        FilePath(env.root as AmbientAuth, cmd.option("output").string())?
       else
         None
       end
@@ -136,7 +136,7 @@ actor Main
 
   new create(env: Env) =>
     try
-      c = Config(env)
+      c = Config(env)?
       outfile =
         match c.outpath
         | let fp: FilePath => File(fp)

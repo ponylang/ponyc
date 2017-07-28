@@ -18,6 +18,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void compile_type_free(void* p)
+{
+  POOL_FREE(compile_type_t, p);
+}
+
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
   return ponyint_hash_ptr(a->name);
@@ -137,8 +142,26 @@ static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
   return LLVMMDNodeInContext(ctx, params, 2);
 }
 
+static void allocate_compile_types(compile_t* c)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    compile_type_t* c_t = POOL_ALLOC(compile_type_t);
+    memset(c_t, 0, sizeof(compile_type_t));
+    c_t->free_fn = compile_type_free;
+    t->c_type = (compile_opaque_t*)c_t;
+
+    genfun_allocate_compile_methods(c, t);
+  }
+}
+
 static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   switch(ast_id(t->ast))
   {
     case TK_NOMINAL:
@@ -147,7 +170,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       {
         case TK_INTERFACE:
         case TK_TRAIT:
-          t->use_type = c->object_ptr;
+          c_t->use_type = c->object_ptr;
           return true;
 
         default: {}
@@ -165,95 +188,94 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       if(package == c->str_builtin)
       {
         if(name == c->str_Bool)
-          t->primitive = c->ibool;
+          c_t->primitive = c->ibool;
         else if(name == c->str_I8)
-          t->primitive = c->i8;
+          c_t->primitive = c->i8;
         else if(name == c->str_U8)
-          t->primitive = c->i8;
+          c_t->primitive = c->i8;
         else if(name == c->str_I16)
-          t->primitive = c->i16;
+          c_t->primitive = c->i16;
         else if(name == c->str_U16)
-          t->primitive = c->i16;
+          c_t->primitive = c->i16;
         else if(name == c->str_I32)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(name == c->str_U32)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(name == c->str_I64)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(name == c->str_U64)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(name == c->str_I128)
-          t->primitive = c->i128;
+          c_t->primitive = c->i128;
         else if(name == c->str_U128)
-          t->primitive = c->i128;
+          c_t->primitive = c->i128;
         else if(ilp32 && name == c->str_ILong)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(ilp32 && name == c->str_ULong)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(ilp32 && name == c->str_ISize)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(ilp32 && name == c->str_USize)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(lp64 && name == c->str_ILong)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(lp64 && name == c->str_ULong)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(lp64 && name == c->str_ISize)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(lp64 && name == c->str_USize)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(llp64 && name == c->str_ILong)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(llp64 && name == c->str_ULong)
-          t->primitive = c->i32;
+          c_t->primitive = c->i32;
         else if(llp64 && name == c->str_ISize)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(llp64 && name == c->str_USize)
-          t->primitive = c->i64;
+          c_t->primitive = c->i64;
         else if(name == c->str_F32)
-          t->primitive = c->f32;
+          c_t->primitive = c->f32;
         else if(name == c->str_F64)
-          t->primitive = c->f64;
+          c_t->primitive = c->f64;
         else if(name == c->str_Pointer)
         {
-          t->use_type = c->void_ptr;
+          c_t->use_type = c->void_ptr;
           return true;
         }
         else if(name == c->str_Maybe)
         {
-          t->use_type = c->void_ptr;
+          c_t->use_type = c->void_ptr;
           return true;
         }
       }
 
       if(t->bare_method == NULL)
       {
-        t->structure = LLVMStructCreateNamed(c->context, t->name);
-        t->structure_ptr = LLVMPointerType(t->structure, 0);
+        c_t->structure = LLVMStructCreateNamed(c->context, t->name);
+        c_t->structure_ptr = LLVMPointerType(c_t->structure, 0);
 
-        if(t->primitive != NULL)
-          t->use_type = t->primitive;
+        if(c_t->primitive != NULL)
+          c_t->use_type = c_t->primitive;
         else
-          t->use_type = t->structure_ptr;
+          c_t->use_type = c_t->structure_ptr;
       } else {
-        t->structure = c->void_ptr;
-        t->structure_ptr = c->void_ptr;
-        t->use_type = c->void_ptr;
+        c_t->structure = c->void_ptr;
+        c_t->structure_ptr = c->void_ptr;
+        c_t->use_type = c->void_ptr;
       }
 
       return true;
     }
 
     case TK_TUPLETYPE:
-      t->primitive = LLVMStructCreateNamed(c->context, t->name);
-      t->use_type = t->primitive;
-      t->field_count = (uint32_t)ast_childcount(t->ast);
+      c_t->primitive = LLVMStructCreateNamed(c->context, t->name);
+      c_t->use_type = c_t->primitive;
       return true;
 
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
       // Just a raw object pointer.
-      t->use_type = c->object_ptr;
+      c_t->use_type = c->object_ptr;
       return true;
 
     default: {}
@@ -265,8 +287,9 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 
 static void make_debug_basic(compile_t* c, reach_type_t* t)
 {
-  uint64_t size = LLVMABISizeOfType(c->target_data, t->primitive);
-  uint64_t align = LLVMABIAlignmentOfType(c->target_data, t->primitive);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  uint64_t size = LLVMABISizeOfType(c->target_data, c_t->primitive);
+  uint64_t align = LLVMABIAlignmentOfType(c->target_data, c_t->primitive);
   unsigned encoding;
 
   if(is_bool(t->ast))
@@ -280,19 +303,21 @@ static void make_debug_basic(compile_t* c, reach_type_t* t)
     encoding = DW_ATE_unsigned;
   }
 
-  t->di_type = LLVMDIBuilderCreateBasicType(c->di, t->name,
+  c_t->di_type = LLVMDIBuilderCreateBasicType(c->di, t->name,
     8 * size, 8 * align, encoding);
 }
 
 static void make_debug_prototype(compile_t* c, reach_type_t* t)
 {
-  t->di_type = LLVMDIBuilderCreateReplaceableStruct(c->di,
-    t->name, c->di_unit, t->di_file, (unsigned)ast_line(t->ast));
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  c_t->di_type = LLVMDIBuilderCreateReplaceableStruct(c->di,
+    t->name, c->di_unit, c_t->di_file, (unsigned)ast_line(t->ast));
 
   if(t->underlying != TK_TUPLETYPE)
   {
-    t->di_type_embed = t->di_type;
-    t->di_type = LLVMDIBuilderCreatePointerType(c->di, t->di_type_embed, 0, 0);
+    c_t->di_type_embed = c_t->di_type;
+    c_t->di_type = LLVMDIBuilderCreatePointerType(c->di, c_t->di_type_embed, 0,
+      0);
   }
 }
 
@@ -310,7 +335,8 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
   if(file == NULL)
     file = "";
 
-  t->di_file = LLVMDIBuilderCreateFile(c->di, file);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  c_t->di_file = LLVMDIBuilderCreateFile(c->di, file);
 
   switch(t->underlying)
   {
@@ -321,7 +347,7 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
 
     case TK_PRIMITIVE:
     {
-      if(t->primitive != NULL)
+      if(c_t->primitive != NULL)
         make_debug_basic(c, t);
       else
         make_debug_prototype(c, t);
@@ -345,18 +371,20 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
 
 static void make_box_type(compile_t* c, reach_type_t* t)
 {
-  if(t->primitive == NULL)
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  if(c_t->primitive == NULL)
     return;
 
   const char* box_name = genname_box(t->name);
-  t->structure = LLVMStructCreateNamed(c->context, box_name);
+  c_t->structure = LLVMStructCreateNamed(c->context, box_name);
 
   LLVMTypeRef elements[2];
-  elements[0] = LLVMPointerType(t->desc_type, 0);
-  elements[1] = t->primitive;
-  LLVMStructSetBody(t->structure, elements, 2, false);
+  elements[0] = LLVMPointerType(c_t->desc_type, 0);
+  elements[1] = c_t->primitive;
+  LLVMStructSetBody(c_t->structure, elements, 2, false);
 
-  t->structure_ptr = LLVMPointerType(t->structure, 0);
+  c_t->structure_ptr = LLVMPointerType(c_t->structure, 0);
 }
 
 static void make_global_instance(compile_t* c, reach_type_t* t)
@@ -365,8 +393,10 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   if(t->underlying != TK_PRIMITIVE)
     return;
 
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   // No instance for machine word types.
-  if(t->primitive != NULL)
+  if(c_t->primitive != NULL)
     return;
 
   if(t->bare_method != NULL)
@@ -374,11 +404,11 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
 
   // Create a unique global instance.
   const char* inst_name = genname_instance(t->name);
-  LLVMValueRef value = LLVMConstNamedStruct(t->structure, &t->desc, 1);
-  t->instance = LLVMAddGlobal(c->module, t->structure, inst_name);
-  LLVMSetInitializer(t->instance, value);
-  LLVMSetGlobalConstant(t->instance, true);
-  LLVMSetLinkage(t->instance, LLVMPrivateLinkage);
+  LLVMValueRef value = LLVMConstNamedStruct(c_t->structure, &c_t->desc, 1);
+  c_t->instance = LLVMAddGlobal(c->module, c_t->structure, inst_name);
+  LLVMSetInitializer(c_t->instance, value);
+  LLVMSetGlobalConstant(c_t->instance, true);
+  LLVMSetLinkage(c_t->instance, LLVMPrivateLinkage);
 }
 
 static void make_dispatch(compile_t* c, reach_type_t* t)
@@ -388,22 +418,23 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
     return;
 
   // Create a dispatch function.
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
   const char* dispatch_name = genname_dispatch(t->name);
-  t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
-  LLVMSetFunctionCallConv(t->dispatch_fn, LLVMCCallConv);
-  LLVMSetLinkage(t->dispatch_fn, LLVMExternalLinkage);
-  codegen_startfun(c, t->dispatch_fn, NULL, NULL, false);
+  c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
+  LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
+  LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
+  codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
 
   // Read the message ID.
-  LLVMValueRef msg = LLVMGetParam(t->dispatch_fn, 2);
+  LLVMValueRef msg = LLVMGetParam(c_t->dispatch_fn, 2);
   LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, msg, 1, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we
   // will add cases to this switch statement based on message ID.
-  t->dispatch_switch = LLVMBuildSwitch(c->builder, id, unreachable, 0);
+  c_t->dispatch_switch = LLVMBuildSwitch(c->builder, id, unreachable, 0);
 
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
@@ -413,6 +444,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
 static bool make_struct(compile_t* c, reach_type_t* t)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
   LLVMTypeRef type;
   int extra = 0;
   bool packed = false;
@@ -429,16 +461,16 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       return true;
 
     case TK_TUPLETYPE:
-      type = t->primitive;
+      type = c_t->primitive;
       break;
 
     case TK_STRUCT:
     {
       // Pointer and Maybe will have no structure.
-      if(t->structure == NULL)
+      if(c_t->structure == NULL)
         return true;
 
-      type = t->structure;
+      type = c_t->structure;
       ast_t* def = (ast_t*)ast_data(t->ast);
       if(ast_has_annotation(def, "packed"))
         packed = true;
@@ -448,25 +480,26 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
     case TK_PRIMITIVE:
       // Machine words will have a primitive.
-      if(t->primitive != NULL)
+      if(c_t->primitive != NULL)
       {
         // The ABI size for machine words and tuples is the boxed size.
-        t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
+        c_t->abi_size = (size_t)LLVMABISizeOfType(c->target_data,
+          c_t->structure);
         return true;
       }
 
       extra = 1;
-      type = t->structure;
+      type = c_t->structure;
       break;
 
     case TK_CLASS:
       extra = 1;
-      type = t->structure;
+      type = c_t->structure;
       break;
 
     case TK_ACTOR:
       extra = 2;
-      type = t->structure;
+      type = c_t->structure;
       break;
 
     default:
@@ -479,7 +512,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
   // Create the type descriptor as element 0.
   if(extra > 0)
-    elements[0] = LLVMPointerType(t->desc_type, 0);
+    elements[0] = LLVMPointerType(c_t->desc_type, 0);
 
   // Create the actor pad as element 1.
   if(extra > 1)
@@ -487,10 +520,12 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+
     if(t->fields[i].embed)
-      elements[i + extra] = t->fields[i].type->structure;
+      elements[i + extra] = f_c_t->structure;
     else
-      elements[i + extra] = t->fields[i].type->use_type;
+      elements[i + extra] = f_c_t->use_type;
 
     if(elements[i + extra] == NULL)
     {
@@ -512,6 +547,7 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
   unsigned flags = 0;
   uint64_t offset = 0;
   ast_t* ast;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   if(t->underlying != TK_TUPLETYPE)
   {
@@ -531,30 +567,31 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
     if(t->underlying == TK_ACTOR)
       extra++;
 
-    offset = LLVMOffsetOfElement(c->target_data, t->structure, i + extra);
+    offset = LLVMOffsetOfElement(c->target_data, c_t->structure, i + extra);
   } else {
     snprintf(buf, 32, "_%d", i + 1);
     name = buf;
     ast = t->ast;
-    offset = LLVMOffsetOfElement(c->target_data, t->primitive, i);
+    offset = LLVMOffsetOfElement(c->target_data, c_t->primitive, i);
   }
 
   LLVMTypeRef type;
   LLVMMetadataRef di_type;
+  compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
 
   if(t->fields[i].embed)
   {
-    type = t->fields[i].type->structure;
-    di_type = t->fields[i].type->di_type_embed;
+    type = f_c_t->structure;
+    di_type = f_c_t->di_type_embed;
   } else {
-    type = t->fields[i].type->use_type;
-    di_type = t->fields[i].type->di_type;
+    type = f_c_t->use_type;
+    di_type = f_c_t->di_type;
   }
 
   uint64_t size = LLVMABISizeOfType(c->target_data, type);
   uint64_t align = LLVMABIAlignmentOfType(c->target_data, type);
 
-  return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, t->di_file,
+  return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, c_t->di_file,
     (unsigned)ast_line(ast), 8 * size, 8 * align, 8 * offset, flags, di_type);
 }
 
@@ -576,11 +613,12 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
   }
 
   LLVMTypeRef type;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   if(t->underlying != TK_TUPLETYPE)
-    type = t->structure;
+    type = c_t->structure;
   else
-    type = t->primitive;
+    type = c_t->primitive;
 
   uint64_t size = 0;
   uint64_t align = 0;
@@ -592,16 +630,16 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
   }
 
   LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
-    t->name, t->di_file, (unsigned) ast_line(t->ast), 8 * size, 8 * align,
+    t->name, c_t->di_file, (unsigned) ast_line(t->ast), 8 * size, 8 * align,
     fields);
 
   if(t->underlying != TK_TUPLETYPE)
   {
-    LLVMMetadataReplaceAllUsesWith(t->di_type_embed, di_type);
-    t->di_type_embed = di_type;
+    LLVMMetadataReplaceAllUsesWith(c_t->di_type_embed, di_type);
+    c_t->di_type_embed = di_type;
   } else {
-    LLVMMetadataReplaceAllUsesWith(t->di_type, di_type);
-    t->di_type = di_type;
+    LLVMMetadataReplaceAllUsesWith(c_t->di_type, di_type);
+    c_t->di_type = di_type;
   }
 }
 
@@ -622,7 +660,8 @@ static void make_debug_final(compile_t* c, reach_type_t* t)
 
     case TK_PRIMITIVE:
     {
-      if(t->primitive == NULL)
+      compile_type_t* c_t = (compile_type_t*)t->c_type;
+      if(c_t->primitive == NULL)
         make_debug_fields(c, t);
       return;
     }
@@ -665,7 +704,9 @@ static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
 
 static bool make_trace(compile_t* c, reach_type_t* t)
 {
-  if(t->trace_fn == NULL)
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  if(c_t->trace_fn == NULL)
     return true;
 
   if(t->underlying == TK_CLASS)
@@ -683,13 +724,13 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   }
 
   // Generate the trace function.
-  codegen_startfun(c, t->trace_fn, NULL, NULL, false);
-  LLVMSetFunctionCallConv(t->trace_fn, LLVMCCallConv);
-  LLVMSetLinkage(t->trace_fn, LLVMExternalLinkage);
+  codegen_startfun(c, c_t->trace_fn, NULL, NULL, false);
+  LLVMSetFunctionCallConv(c_t->trace_fn, LLVMCCallConv);
+  LLVMSetLinkage(c_t->trace_fn, LLVMExternalLinkage);
 
-  LLVMValueRef ctx = LLVMGetParam(t->trace_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(t->trace_fn, 1);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, t->structure_ptr,
+  LLVMValueRef ctx = LLVMGetParam(c_t->trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(c_t->trace_fn, 1);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
     "object");
 
   int extra = 0;
@@ -714,7 +755,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
       gentrace(c, ctx, value, value, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
-      LLVMValueRef trace_fn = t->fields[i].type->trace_fn;
+      compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+      LLVMValueRef trace_fn = f_c_t->trace_fn;
 
       if(trace_fn != NULL)
       {
@@ -746,6 +788,7 @@ bool gentypes(compile_t* c)
   c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
   c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);
 
+  allocate_compile_types(c);
   genprim_builtins(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
@@ -786,7 +829,8 @@ bool gentypes(compile_t* c)
   // behaviour calls.
   t = reach_type_name(c->reach, "None");
   pony_assert(t != NULL);
-  c->none_instance = t->instance;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  c->none_instance = c_t->instance;
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Function prototypes\n");
@@ -795,9 +839,11 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+
     // The ABI size for machine words and tuples is the boxed size.
-    if(t->structure != NULL)
-      t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, t->structure);
+    if(c_t->structure != NULL)
+      c_t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, c_t->structure);
 
     make_debug_final(c, t);
     make_intrinsic_methods(c, t);

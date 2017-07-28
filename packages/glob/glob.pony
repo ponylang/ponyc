@@ -51,7 +51,7 @@ primitive Glob
   fun fnmatchcase(name: String, pattern: String): Bool =>
     """Tests whether `name` matches `pattern`, including case."""
     try
-      Regex(translate(pattern)) == name
+      Regex(translate(pattern))? == name
     else
       false
     end
@@ -66,10 +66,10 @@ primitive Glob
     """
     let result = recover Array[(String, Array[String])] end
     try
-      let regex = Regex(translate(Path.normcase(pattern)))
+      let regex = Regex(translate(Path.normcase(pattern)))?
       for name in names.values() do
         try
-          let m = regex(Path.normcase(name))
+          let m = regex(Path.normcase(name))?
           result.push((name, m.groups()))
         end
       end
@@ -85,13 +85,13 @@ primitive Glob
     let res = String(n)
     res.append("\\A")  // start of string
     try
-      let alpha_num_regex = Regex("\\w")
+      let alpha_num_regex = Regex("\\w")?
       var i: USize = 0
       while i < n do
-        let c = pat(i)
+        let c = pat(i)?
         i = i + 1
         if c == '*' then
-          if (i < n) and (pat(i) == '*') then
+          if (i < n) and (pat(i)? == '*') then
             res.append("(.*)")
             i = i + 1
           else
@@ -102,23 +102,23 @@ primitive Glob
         elseif c == '[' then
           var j = i
           if (j < n) then
-            if pat(j) == '!' then
+            if pat(j)? == '!' then
               j = j + 1
-            elseif pat(j) == ']' then
+            elseif pat(j)? == ']' then
               j = j + 1
             end
           end
-          while (j < n) and (pat(j) != ']') do
+          while (j < n) and (pat(j)? != ']') do
             j = j + 1
           end
           if j >= n then
             res.append("\\[")
           else
             res.append("([")
-            if pat(i) == '!' then
+            if pat(i)? == '!' then
               res.append("^")
               i = i + 1
-            elseif pat(i) == '^' then
+            elseif pat(i)? == '^' then
               res.append("\\^")
               i = i + 1
             end
@@ -164,13 +164,13 @@ primitive Glob
   =>
     for e in entries.values() do
       try
-        let p = dir.join(e)
+        let p = dir.join(e)?
         let m = compiled_pattern(
           if Path.is_abs(pattern) then
             p.path
           else
-            Path.rel(root.path, p.path)
-          end)
+            Path.rel(root.path, p.path)?
+          end)?
         glob_handler(p, m.groups())
       end
     end
@@ -187,5 +187,5 @@ primitive Glob
     // not contain wildcards and expanding them before walking.
     try
       root.walk(this~_apply_glob_to_walk(
-        pattern, Regex(translate(Path.normcase(pattern))), root, glob_handler))
+        pattern, Regex(translate(Path.normcase(pattern)))?, root, glob_handler))
     end

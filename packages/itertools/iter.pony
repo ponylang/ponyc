@@ -12,7 +12,7 @@ class Iter[A] is Iterator[A]
     _iter.has_next()
 
   fun ref next(): A ? =>
-    _iter.next()
+    _iter.next()?
 
   new chain(outer_iterator: Iterator[Iterator[A]]) =>
     """
@@ -51,7 +51,7 @@ class Iter[A] is Iterator[A]
     `false`
     """
     for x in _iter do
-      if not (try f(x) else false end) then
+      if not (try f(x)? else false end) then
         return false
       end
     end
@@ -78,7 +78,7 @@ class Iter[A] is Iterator[A]
     `true`
     """
     for x in _iter do
-      if try f(x) else false end then
+      if try f(x)? else false end then
         return true
       end
     end
@@ -147,8 +147,8 @@ class Iter[A] is Iterator[A]
         fun ref next(): A! ? =>
           if _first_time_through then
             if _iter.has_next() then
-              _store.push(_iter.next())
-              return _store(_store.size() - 1)
+              _store.push(_iter.next()?)
+              return _store(_store.size() - 1)?
             end
 
             _first_time_through = false
@@ -158,7 +158,7 @@ class Iter[A] is Iterator[A]
             _store_iter.rewind()
           end
 
-          _store_iter.next()
+          _store_iter.next()?
       end)
 
   fun ref enum[B: (Real[B] val & Number) = USize](): Iter[(B, A)]^ =>
@@ -183,7 +183,7 @@ class Iter[A] is Iterator[A]
           _iter.has_next()
 
         fun ref next(): (B, A) ? =>
-          (_i = _i + 1, _iter.next())
+          (_i = _i + 1, _iter.next()?)
       end)
 
   fun ref filter(f: {(A!): Bool ?} box): Iter[A]^ =>
@@ -209,8 +209,8 @@ class Iter[A] is Iterator[A]
             match _next
             | _None =>
               if _iter.has_next() then
-                _next = _iter.next()
-                if try not _fn(_next as A) else true end then
+                _next = _iter.next()?
+                if try not _fn(_next as A)? else true end then
                   _next = _None
                   _find_next()
                 end
@@ -239,7 +239,7 @@ class Iter[A] is Iterator[A]
           else
             if _iter.has_next() then
               _find_next()
-              next()
+              next()?
             else
               error
             end
@@ -266,7 +266,7 @@ class Iter[A] is Iterator[A]
     """
     var c = n
     for x in _iter do
-      if try f(x) else false end then
+      if try f(x)? else false end then
         if c == 1 then
           return consume x as A
         else
@@ -291,7 +291,7 @@ class Iter[A] is Iterator[A]
     if not _iter.has_next() then
       return acc
     end
-    fold[B](f, f(consume acc, _iter.next()))
+    fold[B](f, f(consume acc, _iter.next()?)?)?
 
   fun ref last(): A ? =>
     """
@@ -305,9 +305,9 @@ class Iter[A] is Iterator[A]
     ```
     `3`
     """
-    var l = _iter.next()
+    var l = _iter.next()?
     while _iter.has_next() do
-      l = _iter.next()
+      l = _iter.next()?
     end
     consume l as A
 
@@ -334,10 +334,10 @@ class Iter[A] is Iterator[A]
 
         fun ref next(): B ? =>
           try
-            _f(_iter.next())
+            _f(_iter.next()?)?
           else
             if _iter.has_next() then
-              next()
+              next()?
             else
               error
             end
@@ -358,10 +358,10 @@ class Iter[A] is Iterator[A]
     """
     var c = n
     while c > 1 do
-      _iter.next()
+      _iter.next()?
       c = c - 1
     end
-    _iter.next()
+    _iter.next()?
 
   fun ref run(on_error: {()} box = {() => None }) =>
     """
@@ -384,7 +384,7 @@ class Iter[A] is Iterator[A]
     """
     if not _iter.has_next() then return end
     try
-      _iter.next()
+      _iter.next()?
       run(on_error)
     else
       on_error()
@@ -405,7 +405,7 @@ class Iter[A] is Iterator[A]
     var c = n
     try
       while c > 0 do
-        _iter.next()
+        _iter.next()?
         c = c - 1
       end
     end
@@ -434,11 +434,11 @@ class Iter[A] is Iterator[A]
 
         fun ref next(): A ? =>
           if _done then
-            _iter.next()
+            _iter.next()?
           else
-            let x = _iter.next()
-            if try _f(x) else false end then
-              next()
+            let x = _iter.next()?
+            if try _f(x)? else false end then
+              next()?
             else
               _done = true
               consume x as A
@@ -468,7 +468,7 @@ class Iter[A] is Iterator[A]
 
         fun ref next(): A ? =>
           _countdown = _countdown - 1
-          _iter.next()
+          _iter.next()?
       end)
 
   fun ref take_while(f: {(A!): Bool ?} box): Iter[A]^ =>
@@ -491,7 +491,7 @@ class Iter[A] is Iterator[A]
 
         fun apply(a: A!): Bool ? =>
           if _taking then
-            _f(a)
+            _f(a)?
           else
             false
           end
@@ -522,7 +522,7 @@ class Iter[A] is Iterator[A]
           _i1.has_next() and _i2.has_next()
 
         fun ref next(): (A, B) ? =>
-          (_i1.next(), _i2.next())
+          (_i1.next()?, _i2.next()?)
       end)
 
   fun ref zip2[B, C](i2: Iterator[B], i3: Iterator[C]): Iter[(A, B, C)]^ =>
@@ -543,7 +543,7 @@ class Iter[A] is Iterator[A]
           _i1.has_next() and _i2.has_next() and _i3.has_next()
 
         fun ref next(): (A, B, C) ? =>
-          (_i1.next(), _i2.next(), _i3.next())
+          (_i1.next()?, _i2.next()?, _i3.next()?)
       end)
 
   fun ref zip3[B, C, D](i2: Iterator[B], i3: Iterator[C], i4: Iterator[D])
@@ -569,7 +569,7 @@ class Iter[A] is Iterator[A]
             and _i4.has_next()
 
         fun ref next(): (A, B, C, D) ? =>
-          (_i1.next(), _i2.next(), _i3.next(), _i4.next())
+          (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?)
       end)
 
   fun ref zip4[B, C, D, E](
@@ -601,5 +601,5 @@ class Iter[A] is Iterator[A]
             and _i5.has_next()
 
         fun ref next(): (A, B, C, D, E) ? =>
-          (_i1.next(), _i2.next(), _i3.next(), _i4.next(), _i5.next())
+          (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?, _i5.next()?)
       end)

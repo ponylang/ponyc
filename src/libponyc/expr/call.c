@@ -21,7 +21,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 {
   // Sugar .apply()
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   ast_t* dot = ast_from(ast, TK_DOT);
   ast_add(dot, ast_from_string(ast, "apply"));
@@ -239,6 +239,11 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       errorframe_append(&frame, &info);
+
+      if(ast_checkflag(ast_type(arg), AST_FLAG_INCOMPLETE))
+        ast_error_frame(&frame, arg,
+          "this might be possible if all fields were already defined");
+
       errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(a_type);
       return false;
@@ -299,6 +304,18 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   return true;
 }
 
+static ast_t* method_receiver(ast_t* method)
+{
+  ast_t* receiver = ast_child(method);
+
+  // Dig through function qualification.
+  if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+     (ast_id(receiver) == TK_FUNCHAIN))
+    receiver = ast_child(receiver);
+
+  return receiver;
+}
+
 static ast_t* method_receiver_type(ast_t* method)
 {
   ast_t* receiver = ast_child(method);
@@ -315,7 +332,7 @@ static ast_t* method_receiver_type(ast_t* method)
 
 static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 {
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   ast_t* type = ast_type(lhs);
 
@@ -380,6 +397,11 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
       "receiver type: %s", ast_print_type(a_type));
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
+    errorframe_append(&frame, &info);
+
+    if(ast_checkflag(ast_type(method_receiver(lhs)), AST_FLAG_INCOMPLETE))
+      ast_error_frame(&frame, method_receiver(lhs),
+        "this might be possible if all fields were already defined");
 
     if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL, opt))
     {
@@ -388,7 +410,6 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
         "were all sendable");
     }
 
-    errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
   }
 
@@ -437,7 +458,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
 {
   if(opt->check.frame->recover != NULL)
   {
-    AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+    AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
     ast_t* type = ast_type(lhs);
 
@@ -488,7 +509,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
 
 static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   if(!method_check_type_params(opt, &lhs))
     return false;
@@ -550,7 +571,7 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   if(!method_application(opt, ast, false))
     return false;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
   ast_t* type = ast_type(lhs);
 
   if(is_typecheck_error(type))
@@ -631,7 +652,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(!method_application(opt, ast, true))
     return false;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   // LHS must be an application, possibly wrapped in another application
   // if the method had type parameters for qualification.
@@ -842,6 +863,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
         NODE(TK_CALL,
           TREE(lambda_call_args)
           NONE  // Named args.
+          NODE(can_error)
           TREE(call_receiver)))
       NONE)); // Lambda reference capability.
 
@@ -860,7 +882,7 @@ static bool method_chain(pass_opt_t* opt, ast_t* ast)
   if(!method_application(opt, ast, false))
     return false;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   ast_t* type = ast_type(lhs);
   if(ast_id(ast_child(type)) == TK_AT)
@@ -907,7 +929,7 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   if((type != NULL) && (ast_id(type) != TK_INFERTYPE))
     return true;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, question, lhs);
 
   switch(ast_id(lhs))
   {

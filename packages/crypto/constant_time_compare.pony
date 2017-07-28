@@ -11,7 +11,7 @@ primitive ConstantTimeCompare
     var i: USize = 0
     while i < xs.size() do
       try
-        v = v or (xs(i) xor ys(i))
+        v = v or (xs(i)? xor ys(i)?)
       else
         return false
       end

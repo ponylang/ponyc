@@ -50,7 +50,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     (let i, let found) = _search(key)
 
     if found then
-      _array(i) as (_, this->V)
+      _array(i)? as (_, this->V)
     else
       error
     end
@@ -64,11 +64,11 @@ class HashMap[K, V, H: HashFunction[K] val]
       (let i, let found) = _search(key)
 
       let k = if found then
-        _array(i) as (K^, _)
+        _array(i)? as (K^, _)
       else
         consume key
       end
-      match _array(i) = (consume k, consume value)
+      match _array(i)? = (consume k, consume value)
       | (_, let v: V) =>
         return consume v
       else
@@ -107,20 +107,20 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       if found then
-        (let pkey, let pvalue) = (_array(i) = _MapEmpty) as (K^, V^)
-        _array(i) = (consume pkey, f(consume pvalue, consume value))
+        (let pkey, let pvalue) = (_array(i)? = _MapEmpty) as (K^, V^)
+        _array(i)? = (consume pkey, f(consume pvalue, consume value))
       else
         let key' = key
-        _array(i) = (consume key, consume value)
+        _array(i)? = (consume key, consume value)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')
+          return this(key')?
         end
       end
 
-      return _array(i) as (_, V)
+      return _array(i)? as (_, V)
     else
       error
     end
@@ -132,18 +132,18 @@ class HashMap[K, V, H: HashFunction[K] val]
     try
       (let i, let found) = _search(key)
       let key' = key
-      _array(i) = (consume key, consume value)
+      _array(i)? = (consume key, consume value)
 
       if not found then
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')
+          return this(key')?
         end
       end
 
-      _array(i) as (_, V)
+      _array(i)? as (_, V)
     else
       // This is unreachable, since index will never be out-of-bounds.
       error
@@ -168,17 +168,17 @@ class HashMap[K, V, H: HashFunction[K] val]
       let key' = key
 
       if not found then
-        _array(i) = (consume key, consume value)
+        _array(i)? = (consume key, consume value)
 
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')
+          return this(key')?
         end
       end
 
-      _array(i) as (_, V)
+      _array(i)? as (_, V)
     else
       // This is unreachable, since index will never be out-of-bounds.
       error
@@ -195,7 +195,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       if found then
         _size = _size - 1
 
-        match _array(i) = _MapDeleted
+        match _array(i)? = _MapDeleted
         | (let k: K, let v: V) =>
           return (consume k, consume v)
         end
@@ -212,7 +212,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     if found then
       try
-        _array(i) as (_, this->V)
+        _array(i)? as (_, this->V)
       else
         // This should never happen as we have already
         // proven that _array(i) exists
@@ -258,7 +258,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     This without the given key.
     """
     let r = clone[H2]()
-    try r.remove(key) end
+    try r.remove(key)? end
     r
 
   fun next_index(prev: USize = -1): USize ? =>
@@ -267,7 +267,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     Raise an error if there is no next populated index.
     """
     for i in Range(prev + 1, _array.size()) do
-      match _array(i)
+      match _array(i)?
       | (_, _) => return i
       end
     end
@@ -278,7 +278,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     Returns the key and value at a given index.
     Raise an error if the index is not populated.
     """
-    _array(i) as (this->K, this->V)
+    _array(i)? as (this->K, this->V)
 
   fun ref compact() =>
     """
@@ -320,7 +320,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       for i in Range(0, _array.size()) do
-        let entry = _array(idx)
+        let entry = _array(idx)?
 
         match entry
         | (let k: this->K!, _) =>
@@ -357,7 +357,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       for i in Range(0, old_len) do
-        match old(i) = _MapDeleted
+        match old(i)? = _MapDeleted
         | (let k: K, let v: V) =>
           this(consume k) = consume v
         end
@@ -409,9 +409,9 @@ class MapKeys[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
     Returns the next key, or raises an error if there isn't one. If keys are
     added during iteration, this may not return all keys.
     """
-    _i = _map.next_index(_i)
+    _i = _map.next_index(_i)?
     _count = _count + 1
-    _map.index(_i)._1
+    _map.index(_i)?._1
 
 class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   Iterator[M->V]
@@ -440,9 +440,9 @@ class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
     Returns the next value, or raises an error if there isn't one. If values
     are added during iteration, this may not return all values.
     """
-    _i = _map.next_index(_i)
+    _i = _map.next_index(_i)?
     _count = _count + 1
-    _map.index(_i)._2
+    _map.index(_i)?._2
 
 class MapPairs[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   Iterator[(M->K, M->V)]
@@ -471,6 +471,6 @@ class MapPairs[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
     Returns the next entry, or raises an error if there isn't one. If entries
     are added during iteration, this may not return all entries.
     """
-    _i = _map.next_index(_i)
+    _i = _map.next_index(_i)?
     _count = _count + 1
-    _map.index(_i)
+    _map.index(_i)?

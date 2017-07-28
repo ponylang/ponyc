@@ -9,7 +9,7 @@ primitive EnvVars
   =>
     """
     Turns an array of strings that look like environment variables, ie.
-    key=value, into a map from string to string. Can optionally filter for
+    key=value, into a map of string to string. Can optionally filter for
     keys matching a 'prefix', and will squash resulting keys to lowercase
     iff 'squash' is true.
 
@@ -23,7 +23,7 @@ primitive EnvVars
     | let envsarr: Array[String] box =>
       let prelen = prefix.size().isize()
       for e in envsarr.values() do
-        let eqpos = try e.find("=") else ISize.max_value() end
+        let eqpos = try e.find("=")? else ISize.max_value() end
         let ek: String val = e.substring(0, eqpos)
         let ev: String val = e.substring(eqpos + 1)
         if (prelen == 0) or ek.at(prefix, 0) then

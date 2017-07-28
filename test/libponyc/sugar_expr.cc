@@ -240,7 +240,7 @@ TEST_F(SugarExprTest, PartialRaisesError)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    {box()($1 = x): U32 ? => $1.f() }";
+    "    {box()($1 = x): U32 ? => $1.f()? }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -599,7 +599,7 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "      fun tag file(): String => \"\"\n"
     "      fun tag method(): String => \"bar\"\n"
     "      fun tag line(): USize => 9\n"
-    "      fun tag pos(): USize => 12\n"
+    "      fun tag pos(): USize => 11\n"
     "    end)\n"
     "  fun wombat(x: SourceLoc = __loc) =>\n"
     "    None";
@@ -899,6 +899,25 @@ TEST_F(SugarExprTest, MatchExhaustiveSomeCasesJumpAway)
     "    | let t: T1 => true\n"
     "    | let t: T2 => return false\n"
     "    | let t: T3 => return true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveSingleElementTuples)
+{
+  // From issue #1991
+  const char* src =
+    "primitive T1\n"
+    "primitive T2\n"
+    "primitive T3\n"
+
+    "primitive Foo\n"
+    "  fun ref apply(p': (T1 | T2 | T3)): Bool =>\n"
+    "    match p'\n"
+    "    | (let p: T1) => true\n"
+    "    | (let p: (T2 | T3)) => false\n"
     "    end";
 
   TEST_COMPILE(src);

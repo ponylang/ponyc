@@ -2,6 +2,42 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.16.0] - 2017-07-28
+
+### Fixed
+
+- Fix compiler assertion failure on unused reference to `_` ([PR #2091](https://github.com/ponylang/ponyc/pull/2091))
+- Destroy all actors on runtime termination ([PR #2058](https://github.com/ponylang/ponyc/pull/2058))
+- Fixed compiler segfault on empty triple quote comment. ([PR #2053](https://github.com/ponylang/ponyc/pull/2053))
+- Fix compiler crash on exhaustive match where last case is a union subset ([PR #2049](https://github.com/ponylang/ponyc/pull/2049))
+- Make pony_os_std_print() write a newline when given empty input. ([PR #2050](https://github.com/ponylang/ponyc/pull/2050))
+- Fix boxed tuple identity when type identifiers differ ([PR #2009](https://github.com/ponylang/ponyc/pull/2009))
+- Fix crash on interface function pointer generation ([PR #2025](https://github.com/ponylang/ponyc/pull/2025))
+
+### Added
+
+- Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
+- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md)) 
+   - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
+      - Enhanced Posix / GNU program argument syntax.
+      - Commands and sub-commands.
+      - Bool, String, I64 and F64 option / arg types.
+      - Help command and syntax errors with formatted output.
+   - Update ([PR #2019](https://github.com/ponylang/ponyc/pull/2019)) added:
+      - String-seq (ReadSeq[String]) types for repeated string options / args.
+      - Command fullname() to make it easier to match on unique command names.
+      - Checking that commands are leaves so that partial commands return syntax errors.
+
+### Changed
+
+- Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
+- Deprecate support of Clang 3.3
+- Explicit partial calls - a question mark is now required to be at the call site for every call to a partial function.
+    - See [RFC 39](https://github.com/ponylang/rfcs/blob/master/text/0039-explicit-partial-calls.md).
+    - Migration scripts for user code, for convenience, are provided here:
+        - [Unix](https://gist.github.com/jemc/95969e3e2b58ddb0dede138c737907f5)
+        - [Windows](https://gist.github.com/kulibali/cd5caf3a32d510bb86412f3fd4d52d0f)
+
 ## [0.15.0] - 2017-07-08
 
 ### Fixed
@@ -54,12 +90,13 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Compiler error instead of crash for invalid this-dot reference in a trait. ([PR #1879](https://github.com/ponylang/ponyc/pull/1879))
 - Compiler error instead of crash for too few args to constructor in case pattern. ([PR #1880](https://github.com/ponylang/ponyc/pull/1880))
-- Pony runtime hashmap bug that resulted in issues [#1483](https://github.com/ponylang/ponyc/issues/1483), [#1781](https://github.com/ponylang/ponyc/issues/1781), and [#1872](https://github.com/ponylang/ponyc/issues/1872). ([PR #1886](https://github.com/ponylang/ponyc/pull/1886)) 
+- Pony runtime hashmap bug that resulted in issues [#1483](https://github.com/ponylang/ponyc/issues/1483), [#1781](https://github.com/ponylang/ponyc/issues/1781), and [#1872](https://github.com/ponylang/ponyc/issues/1872). ([PR #1886](https://github.com/ponylang/ponyc/pull/1886))
 - Compiler crash when compiling to a library ([Issue #1881](https://github.com/ponylang/ponyc/issues/1881))([PR #1890](https://github.com/ponylang/ponyc/pull/1890))
 
 ### Changed
 
 - TCPConnectionNotify.connect_failed, UDPNotify.not_listening, TCPListenNotify.not_listening no longer have default implementation. The programmer is now required to implement error handling or consciously choose to ignore. ([PR #1853](https://github.com/ponylang/ponyc/pull/1853)) 
+- TCPConnection.connect_failed, UDPNotify.not_listening, TCPListenNotify.not_listening no longer have default implementation. The programmer is now required to implement error handling or consciously choose to ignore. ([PR #1853](https://github.com/ponylang/ponyc/pull/1853)
 
 ## [0.13.2] - 2017-04-29
 
@@ -790,5 +827,5 @@ All notable changes to the Pony compiler and standard library will be documented
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
 
-sed.
+ised.
 

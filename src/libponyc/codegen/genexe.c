@@ -1,10 +1,10 @@
 #include "genexe.h"
-#include "genopt.h"
-#include "genobj.h"
 #include "gencall.h"
+#include "genfun.h"
 #include "genname.h"
-#include "genprim.h"
+#include "genobj.h"
 #include "genopt.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -24,7 +24,8 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   // Create the main actor and become it.
   LLVMValueRef args[2];
   args[0] = ctx;
-  args[1] = LLVMConstBitCast(t->desc, c->descriptor_ptr);
+  args[1] = LLVMConstBitCast(((compile_type_t*)t->c_type)->desc,
+    c->descriptor_ptr);
   LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
 
   args[0] = ctx;
@@ -72,7 +73,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-  codegen_call(c, m->func, env_args, 4, true);
+  codegen_call(c, ((compile_method_t*)m->c_method)->func, env_args, 4, true);
   LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
@@ -107,7 +108,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   args[0] = ctx;
   args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMBuildBitCast(c->builder, t_env->desc, c->descriptor_ptr, "");
+  args[2] = LLVMBuildBitCast(c->builder, ((compile_type_t*)t_env->c_type)->desc,
+    c->descriptor_ptr, "");
   args[3] = LLVMConstInt(c->i32, PONY_TRACE_IMMUTABLE, false);
   gencall_runtime(c, "pony_traceknown", args, 4, "");
 
@@ -137,6 +139,10 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     // Reload it.
     rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   }
+
+  args[0] = ctx;
+  args[1] = LLVMConstNull(c->object_ptr);
+  gencall_runtime(c, "pony_become", args, 2, "");
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -259,6 +265,7 @@ static bool link_exe(compile_t* c, ast_t* program,
       "Warning: environment variable $CC undefined, using %s as the linker\n",
       PONY_COMPILER);
   }
+
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";

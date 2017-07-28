@@ -52,7 +52,7 @@ actor _ServerConnection is HTTPSession
         // Backend is not busy, so pass this request on for processing.
         _active_request = frozen_request
         _keepalive = try
-          frozen_request("Connection") != "close"
+          frozen_request("Connection")? != "close"
         else
           frozen_request.proto != "HTTP/1.0"
         end
@@ -120,7 +120,7 @@ actor _ServerConnection is HTTPSession
     If we have pending requests, dispatch the next one.
     """
     try
-      let request = _pending.pop()
+      let request = _pending.pop()?
       _active_request = request
       _backend(consume request)
     else

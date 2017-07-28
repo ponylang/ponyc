@@ -19,16 +19,16 @@ primitive IniParse
       fun ref apply(section: String, key: String, value: String): Bool =>
         try
           if not map.contains(section) then
-            map.insert(section, Map[String, String])
+            map.insert(section, Map[String, String])?
           end
-          map(section)(key) = value
+          map(section)?(key) = value
         end
         true
 
       fun ref add_section(section: String): Bool =>
         try
           if not map.contains(section) then
-            map.insert(section, Map[String, String])
+            map.insert(section, Map[String, String])?
           end
         end
         true

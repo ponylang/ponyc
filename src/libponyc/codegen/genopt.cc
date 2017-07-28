@@ -529,17 +529,36 @@ class MergeRealloc : public FunctionPass
 public:
   static char ID;
   compile_t* c;
-  Module* module;
+  Function* alloc_fn;
+  Function* alloc_small_fn;
+  Function* alloc_large_fn;
 
   MergeRealloc() : FunctionPass(ID)
   {
     c = the_compiler;
-    module = NULL;
+    alloc_fn = NULL;
+    alloc_small_fn = NULL;
+    alloc_large_fn = NULL;
   }
 
   bool doInitialization(Module& m)
   {
-    module = &m;
+    alloc_fn = m.getFunction("pony_alloc");
+    alloc_small_fn = m.getFunction("pony_alloc_small");
+    alloc_large_fn = m.getFunction("pony_alloc_large");
+
+    if(alloc_fn == NULL)
+      alloc_fn = declareAllocFunction(m, "pony_alloc", unwrap(c->intptr),
+        HEAP_MIN, true);
+
+    if(alloc_small_fn == NULL)
+      alloc_small_fn = declareAllocFunction(m, "pony_alloc_small",
+        unwrap(c->i32), HEAP_MIN, false);
+
+    if(alloc_large_fn == NULL)
+      alloc_large_fn = declareAllocFunction(m, "pony_alloc_large",
+        unwrap(c->intptr), HEAP_MAX << 1, false);
+
     return false;
   }
 
@@ -760,10 +779,6 @@ public:
 
   Value* mergeNoOp(IRBuilder<>& builder, Value* ctx, Value* size)
   {
-    Function* alloc_fn = module->getFunction("pony_alloc");
-    if(alloc_fn == NULL)
-      alloc_fn = declareAllocFunction("pony_alloc", unwrap(c->intptr));
-
     Value* args[2];
     args[0] = ctx;
     args[1] = size;
@@ -775,44 +790,33 @@ public:
 
   Value* mergeConstant(IRBuilder<>& builder, Value* ctx, size_t size)
   {
-    Function* alloc_fn;
-    ConstantInt* int_size;
+    Function* used_alloc_fn;
+    IntegerType* int_type;
 
     if(size == 0)
     {
       return ConstantPointerNull::get(builder.getInt8PtrTy());
     } else if(size <= HEAP_MAX) {
-      IntegerType* int_type = unwrap<IntegerType>(c->i32);
-      alloc_fn = module->getFunction("pony_alloc_small");
-      if(alloc_fn == NULL)
-        alloc_fn = declareAllocFunction("pony_alloc_small", int_type);
-
+      used_alloc_fn = alloc_small_fn;
+      int_type = unwrap<IntegerType>(c->i32);
       size = ponyint_heap_index(size);
-      int_size = ConstantInt::get(int_type, size);
     } else {
-      IntegerType* int_type;
-      if(target_is_ilp32(c->opt->triple))
-        int_type = unwrap<IntegerType>(c->i32);
-      else
-        int_type = unwrap<IntegerType>(c->i64);
-
-      alloc_fn = module->getFunction("pony_alloc_large");
-      if(alloc_fn == NULL)
-        alloc_fn = declareAllocFunction("pony_alloc_large", int_type);
-
-      int_size = ConstantInt::get(int_type, size);
+      used_alloc_fn = alloc_large_fn;
+      int_type = unwrap<IntegerType>(c->intptr);
     }
 
     Value* args[2];
     args[0] = ctx;
-    args[1] = int_size;
+    args[1] = ConstantInt::get(int_type, size);
 
-    CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    CallInst* inst = builder.CreateCall(used_alloc_fn,
+      ArrayRef<Value*>(args, 2));
     inst->setTailCall();
     return inst;
   }
 
-  Function* declareAllocFunction(std::string const& name, Type* size_type)
+  Function* declareAllocFunction(Module& m, std::string const& name,
+    Type* size_type, size_t min_size, bool can_be_null)
   {
     Type* params[2];
     params[0] = unwrap(c->void_ptr);
@@ -820,7 +824,26 @@ public:
 
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_ptr),
       ArrayRef<Type*>(params, 2), false);
-    return Function::Create(fn_type, Function::ExternalLinkage, name, module);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
+      &m);
+    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
+#if PONY_LLVM >= 308
+    fn->addAttribute(AttributeSet::FunctionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+    fn->setDoesNotAlias(0);
+
+    if(can_be_null)
+      fn->addDereferenceableOrNullAttr(AttributeSet::ReturnIndex, min_size);
+    else
+      fn->addDereferenceableAttr(AttributeSet::ReturnIndex, min_size);
+
+    AttrBuilder attr;
+    attr.addAlignmentAttr(32);
+    unsigned index = AttributeSet::ReturnIndex;
+    fn->addAttributes(index, AttributeSet::get(m.getContext(), index, attr));
+
+    return fn;
   }
 
   bool isZeroRealloc(CallInst* realloc)
@@ -847,6 +870,190 @@ static void addMergeReallocPass(const PassManagerBuilder& pmb,
 {
   if(pmb.OptLevel >= 2)
     pm.add(new MergeRealloc());
+}
+
+class MergeMessageTrace : public BasicBlockPass
+{
+public:
+  struct MsgFnGroup
+  {
+    BasicBlock::iterator alloc, trace, done, send;
+  };
+
+  static char ID;
+  compile_t* c;
+  Function* send_next_fn;
+
+  MergeMessageTrace() : BasicBlockPass(ID)
+  {
+    c = the_compiler;
+    send_next_fn = NULL;
+  }
+
+  bool doInitialization(Module& m)
+  {
+    send_next_fn = m.getFunction("pony_send_next");
+
+    if(send_next_fn == NULL)
+      send_next_fn = declareTraceNextFn(m);
+
+    return false;
+  }
+
+  bool doInitialization(Function& f)
+  {
+    (void)f;
+    return false;
+  }
+
+  bool runOnBasicBlock(BasicBlock& b)
+  {
+    auto start = b.begin();
+    auto end = b.end();
+    bool changed = false;
+
+    while(start != end)
+    {
+      MsgFnGroup first;
+
+      if(findMsgSend(start, end, true, first))
+      {
+        MsgFnGroup next;
+
+        while(findMsgSend(std::next(first.send), end, false, next))
+        {
+          auto iter = first.alloc;
+
+          while(iter != first.trace)
+          {
+            auto& inst = *(iter++);
+            inst.moveBefore(&(*next.alloc));
+          }
+
+          while(iter != first.done)
+          {
+            auto& inst = *(iter++);
+            if(inst.getOpcode() == Instruction::Call)
+              inst.moveBefore(&(*next.trace));
+          }
+
+          iter++;
+          first.done->eraseFromParent();
+          CallSite call(&(*next.trace));
+          call.setCalledFunction(send_next_fn);
+
+          auto first_send_post = std::next(first.send);
+          auto next_done_post = std::next(next.done);
+
+          while(iter != first_send_post)
+          {
+            auto& inst = *(iter++);
+            if(inst.getOpcode() == Instruction::Call)
+              inst.moveBefore(&(*next_done_post));
+          }
+
+          next.trace = first.trace;
+          first = next;
+          changed = true;
+        }
+
+        start = std::next(first.send);
+      } else {
+        start = end;
+      }
+    }
+
+    return changed;
+  }
+
+  bool findMsgSend(BasicBlock::iterator start, BasicBlock::iterator end,
+    bool can_pass_writes, MsgFnGroup& out_calls)
+  {
+    auto alloc = findCallTo("pony_alloc_msg", start, end, can_pass_writes);
+
+    if(alloc == end)
+      return false;
+
+    decltype(alloc) trace;
+    size_t fn_index;
+
+    std::tie(trace, fn_index) =
+      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv"},
+      std::next(alloc), end, true);
+
+    if(fn_index != 0)
+      return false;
+
+    auto done = findCallTo("pony_send_done", std::next(trace), end, true);
+
+    if(done == end)
+      return false;
+
+    auto send = findCallTo("pony_sendv", std::next(done), end, true);
+
+    if(send == end)
+      return false;
+
+    out_calls.alloc = alloc;
+    out_calls.trace = trace;
+    out_calls.done = done;
+    out_calls.send = send;
+    return true;
+  }
+
+  BasicBlock::iterator findCallTo(StringRef name,
+    BasicBlock::iterator start, BasicBlock::iterator end, bool can_pass_writes)
+  {
+    return findCallTo(std::vector<StringRef>{name}, start, end, can_pass_writes).first;
+  }
+
+  std::pair<BasicBlock::iterator, size_t> findCallTo(
+      std::vector<StringRef> const& names, BasicBlock::iterator start,
+    BasicBlock::iterator end, bool can_pass_writes)
+  {
+    for(auto iter = start; iter != end; ++iter)
+    {
+      if(iter->getMetadata("pony.msgsend") != NULL)
+      {
+        CallSite call(&(*iter));
+        Function* fun = call.getCalledFunction();
+        pony_assert(fun != NULL);
+
+        for(size_t i = 0; i < names.size(); i++)
+        {
+          if(fun->getName().compare(names[i]) == 0)
+            return {iter, i};
+        }
+      }
+
+      if(!can_pass_writes && iter->mayWriteToMemory())
+        break;
+    }
+
+    return {end, -1};
+  }
+
+  Function* declareTraceNextFn(Module& m)
+  {
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
+      {unwrap(c->void_ptr)}, false);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
+      "pony_send_next", &m);
+    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
+    return fn;
+  }
+};
+
+char MergeMessageTrace::ID = 0;
+
+static RegisterPass<MergeMessageTrace>
+  MMT("mergemessagetrace", "Group GC tracing in the same BasicBlock");
+
+static void addMergeMessageTracePass(const PassManagerBuilder& pmb,
+  PassManagerBase& pm)
+{
+  if(pmb.OptLevel >= 2)
+    pm.add(new MergeMessageTrace());
 }
 
 static void optimise(compile_t* c, bool pony_specific)
@@ -900,6 +1107,8 @@ static void optimise(compile_t* c, bool pony_specific)
       addHeapToStackPass);
     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
       addDispatchPonyCtxPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addMergeMessageTracePass);
   }
 
   pmb.populateFunctionPassManager(fpm);

@@ -360,31 +360,6 @@ DEF(lambdacaptures);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// LAMBDA [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params]
-// RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
-DEF(oldlambda);
-  PRINT_INLINE();
-  TOKEN(NULL, TK_LAMBDA);
-  ANNOTATE(annotations);
-  OPT RULE("receiver capability", cap);
-  OPT TOKEN("function name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", params);
-  SKIP(NULL, TK_RPAREN);
-  OPT RULE("captures", lambdacaptures);
-  IF(TK_COLON, RULE("return type", type));
-  OPT TOKEN(NULL, TK_QUESTION);
-  SKIP(NULL, TK_DBLARROW);
-  RULE("lambda body", rawseq);
-  TERMINATE("lambda expression", TK_END);
-  AST_NODE(TK_QUESTION); // Reference capability - question indicates old syntax
-  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Type parameters
-  SET_CHILD_FLAG(3, AST_FLAG_PRESERVE); // Parameters
-  SET_CHILD_FLAG(5, AST_FLAG_PRESERVE); // Return type
-  SET_CHILD_FLAG(7, AST_FLAG_PRESERVE); // Body
-  DONE();
-
 // LBRACE [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params]
 // RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE [CAP]
 DEF(lambda);
@@ -532,14 +507,14 @@ DEF(ffi);
 // location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    oldlambda, barelambda, ffi, location);
+    barelambda, ffi, location);
   DONE();
 
 // ref | this | literal | tuple | array | object | lambda | barelambda| ffi |
 // location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, oldlambda, barelambda, ffi, location);
+    lambda, barelambda, ffi, location);
   DONE();
 
 // DOT ID
@@ -570,7 +545,7 @@ DEF(qualify);
   RULE("type arguments", typeargs);
   DONE();
 
-// LPAREN [positional] [named] RPAREN
+// LPAREN [positional] [named] RPAREN [QUESTION]
 DEF(call);
   INFIX_REVERSE();
   AST_NODE(TK_CALL);
@@ -578,6 +553,7 @@ DEF(call);
   OPT RULE("argument", positional);
   OPT RULE("argument", named);
   TERMINATE("call arguments", TK_RPAREN);
+  OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
 // atom {dot | tilde | chain | qualify | call}
@@ -1001,7 +977,7 @@ DEF(asop);
   RULE("type", type);
   DONE();
 
-// BINOP term
+// BINOP [QUESTION] term
 DEF(binop);
   INFIX_BUILD();
   TOKEN("binary operator",
@@ -1010,9 +986,18 @@ DEF(binop);
     TK_PLUS_TILDE, TK_MINUS_TILDE, TK_MULTIPLY_TILDE, TK_DIVIDE_TILDE,
     TK_MOD_TILDE,
     TK_LSHIFT, TK_RSHIFT, TK_LSHIFT_TILDE, TK_RSHIFT_TILDE,
-    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
+    TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
     TK_EQ_TILDE, TK_NE_TILDE, TK_LT_TILDE, TK_LE_TILDE, TK_GE_TILDE, TK_GT_TILDE
     );
+  OPT TOKEN(NULL, TK_QUESTION);
+  RULE("value", term);
+  REORDER(1, 0);
+  DONE();
+
+// [IS | ISNT] term
+DEF(isop);
+  INFIX_BUILD();
+  TOKEN("binary operator", TK_IS, TK_ISNT);
   RULE("value", term);
   DONE();
 
@@ -1022,18 +1007,19 @@ DEF(test_binop);
   INFIX_BUILD();
   TOKEN("binary operator", TK_IFDEFAND, TK_IFDEFOR);
   RULE("value", term);
+  OPT TOKEN(NULL, TK_NONE);
   DONE();
 
-// term {binop | asop}
+// term {binop | isop | asop}
 DEF(infix);
   RULE("value", term);
-  SEQ("value", binop, asop, test_binop);
+  SEQ("value", binop, isop, asop, test_binop);
   DONE();
 
-// term {binop | asop}
+// term {binop | isop | asop}
 DEF(nextinfix);
   RULE("value", nextterm);
-  SEQ("value", binop, asop, test_binop);
+  SEQ("value", binop, isop, asop, test_binop);
   DONE();
 
 // ASSIGNOP assignment

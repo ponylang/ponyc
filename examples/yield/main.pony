@@ -204,7 +204,7 @@ actor Main
           where short' = 'l', default' = false)
         OptionSpec.bool("debug", "Run in debug mode with verbose output."
           where short' = 'd', default' = false)
-      ]).>add_help()
+      ])?.>add_help()?
     else
       _env.exitcode(-1)  // some kind of coding error
       return

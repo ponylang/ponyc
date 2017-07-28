@@ -39,7 +39,7 @@ class Zip2[A, B] is Iterator[(A, B)]
     _i1.has_next() and _i2.has_next()
 
   fun ref next(): (A, B) ? =>
-    (_i1.next(), _i2.next())
+    (_i1.next()?, _i2.next()?)
 
 class Zip3[A, B, C] is Iterator[(A, B, C)]
   """
@@ -91,7 +91,7 @@ class Zip3[A, B, C] is Iterator[(A, B, C)]
     _i1.has_next() and _i2.has_next() and _i3.has_next()
 
   fun ref next(): (A, B, C) ? =>
-    (_i1.next(), _i2.next(), _i3.next())
+    (_i1.next()?, _i2.next()?, _i3.next()?)
 
 class Zip4[A, B, C, D] is Iterator[(A, B, C, D)]
   """
@@ -151,7 +151,7 @@ class Zip4[A, B, C, D] is Iterator[(A, B, C, D)]
     _i1.has_next() and _i2.has_next() and _i3.has_next() and _i4.has_next()
 
   fun ref next(): (A, B, C, D) ? =>
-    (_i1.next(), _i2.next(), _i3.next(), _i4.next())
+    (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?)
 
 class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
   """
@@ -220,4 +220,4 @@ class Zip5[A, B, C, D, E] is Iterator[(A, B, C, D, E)]
       and _i5.has_next()
 
   fun ref next(): (A, B, C, D, E) ? =>
-    (_i1.next(), _i2.next(), _i3.next(), _i4.next(), _i5.next())
+    (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?, _i5.next()?)

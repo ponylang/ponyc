@@ -824,10 +824,15 @@ static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 
   switch(ast_id(ast))
   {
+
     case TK_AND:
     case TK_OR:
     case TK_NOT:
       // Valid node.
+      break;
+
+    case TK_NONE:
+      // Valid because we have an optional TK_QUESTION in TK_AND and TK_OR.
       break;
 
     case TK_STRING:
@@ -1065,13 +1070,6 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     ret_type, raises, body, reference_cap);
   bool r = true;
 
-  if(ast_id(reference_cap) == TK_QUESTION)
-  {
-    ast_error(opt->check.errors, ast,
-      "lambda ... end is no longer supported syntax; use {...} for lambdas");
-    r = false;
-  }
-
   switch(ast_id(ret_type))
   {
     case TK_ISO:
@@ -1266,6 +1264,29 @@ static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_as(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_AS);
+  AST_GET_CHILDREN(ast, expr);
+
+  switch (ast_id(expr))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+      ast_error(opt->check.errors, expr,
+        "Cannot cast uninferred numeric literal");
+      ast_error_continue(opt->check.errors, expr,
+        "To give a numeric literal a specific type, "
+        "use the constructor of that numeric type");
+      return AST_ERROR;
+
+    default: break;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   pony_assert(astp != NULL);
@@ -1348,6 +1369,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
         "Compile time expressions not yet supported");
       r = AST_ERROR;
       break;
+
+    case TK_AS:         r = syntax_as(options, ast); break;
 
     default: break;
   }

@@ -10,7 +10,7 @@ primitive MimeTypes
     """
     try
       // This will fail if no period is found.
-      let dotpos = (name.rfind(".", -1, 0) + 1).usize()
+      let dotpos = (name.rfind(".", -1, 0)? + 1).usize()
 
       match name.trim(dotpos).lower()
       | "html" => "text/html"

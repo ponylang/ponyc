@@ -28,7 +28,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     """
     Return the value if it is in the set, otherwise raise an error.
     """
-    _map(value)
+    _map(value)?
 
   fun contains(value: val->A): Bool =>
     """
@@ -46,7 +46,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     """
     Return a set with the value removed.
     """
-    try _create(_map.remove(value)) else this end
+    try _create(_map.remove(value)?) else this end
 
   fun val op_or(that: (HashSet[A, H] | Iterator[A])): HashSet[A, H] =>
     """

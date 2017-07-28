@@ -176,8 +176,6 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
     CPU_ZERO(&set);
     CPU_SET(cpu, &set);
 
-    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
-
     if(use_numa)
     {
       struct rlimit limit;

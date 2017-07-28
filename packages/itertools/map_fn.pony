@@ -31,10 +31,10 @@ class MapFn[A, B] is Iterator[B]
 
   fun ref next(): B ? =>
     try
-      _f(_iter.next())
+      _f(_iter.next()?)?
     else
       if _iter.has_next() then
-        next()
+        next()?
       else
         error
       end

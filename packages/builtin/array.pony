@@ -253,14 +253,14 @@ class Array[A] is Seq[A]
     Remove an element from the end of the array.
     The removed element is returned.
     """
-    delete(_size - 1)
+    delete(_size - 1)?
 
   fun ref unshift(value: A) =>
     """
     Add an element to the beginning of the array.
     """
     try
-      insert(0, consume value)
+      insert(0, consume value)?
     end
 
   fun ref shift(): A^ ? =>
@@ -268,7 +268,7 @@ class Array[A] is Seq[A]
     Remove an element from the beginning of the array.
     The removed element is returned.
     """
-    delete(0)
+    delete(0)?
 
   fun ref append(
     seq: (ReadSeq[A] & ReadElement[A^]),
@@ -289,7 +289,7 @@ class Array[A] is Seq[A]
 
     try
       while n < copy_len do
-        _ptr._update(_size + n, seq(offset + n))
+        _ptr._update(_size + n, seq(offset + n)?)
 
         n = n + 1
       end
@@ -308,7 +308,7 @@ class Array[A] is Seq[A]
     try
       while n < offset do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -329,7 +329,7 @@ class Array[A] is Seq[A]
       try
         while n < len do
           if iter.has_next() then
-            _ptr._update(_size + n, iter.next())
+            _ptr._update(_size + n, iter.next()?)
           else
             break
           end
@@ -343,7 +343,7 @@ class Array[A] is Seq[A]
       try
         while n < len do
           if iter.has_next() then
-            push(iter.next())
+            push(iter.next()?)
           else
             break
           end
@@ -480,7 +480,7 @@ class Array[A] is Seq[A]
           var i = from
 
           while i < last do
-            out.push(this(i))
+            out.push(this(i)?)
             i = i + step
           end
         end
@@ -499,7 +499,7 @@ class Array[A] is Seq[A]
     """
     let out = Array[this->A!]
     for i in indices do
-      out.push(this(i))
+      out.push(this(i)?)
     end
     out
 
@@ -576,7 +576,7 @@ class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
     _i < _array.size()
 
   fun ref next(): B->A ? =>
-    _array(_i = _i + 1)
+    _array(_i = _i + 1)?
 
   fun ref rewind(): ArrayValues[A, B] =>
     _i = 0
@@ -594,4 +594,4 @@ class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
     _i < _array.size()
 
   fun ref next(): (USize, B->A) ? =>
-    (_i, _array(_i = _i + 1))
+    (_i, _array(_i = _i + 1)?)

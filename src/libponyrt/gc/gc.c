@@ -420,7 +420,7 @@ static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -441,7 +441,7 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -462,7 +462,7 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -483,7 +483,7 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -504,7 +504,7 @@ void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -600,7 +600,7 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
     {
       // Mark in our heap and recurse if it wasn't already marked.
       void* p = obj->address;
-      chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+      chunk_t* chunk = ponyint_pagemap_get(p);
       pony_type_t* type = *(pony_type_t**)p;
       mark_local_object(ctx, chunk, p, type, PONY_TRACE_IMMUTABLE);
     }

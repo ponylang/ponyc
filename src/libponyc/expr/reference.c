@@ -267,6 +267,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         {
           // Add a call node.
           ast_t* call = ast_from(ast, TK_CALL);
+          ast_add(call, ast_from(call, TK_NONE)); // Call partiality
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
           ast_swap(ast, call);
@@ -309,6 +310,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // Receiver comes last.
+      ast_add(call, ast_from(ast, TK_NONE)); // Call partiality.
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
 
@@ -729,6 +731,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     if(!incomplete_ok)
     {
       ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+      ast_setflag(tag_type, AST_FLAG_INCOMPLETE);
       ast_replace(&nominal, tag_type);
     }
   }

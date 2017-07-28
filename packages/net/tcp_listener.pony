@@ -7,20 +7,28 @@ actor TCPListener
   The following program creates an echo server that listens for
   connections on port 8989 and echoes back any data it receives.
 
-  ```
+  ```pony
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
-    fun ref received(conn: TCPConnection ref, data: Array[U8] iso): Bool =>
+    fun ref received(
+      conn: TCPConnection ref,
+      data: Array[U8] iso,
+      times: USize)
+      : Bool
+    =>
       conn.write(String.from_array(consume data))
       true
+
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
-
 
   class MyTCPListenNotify is TCPListenNotify
     fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
       MyTCPConnectionNotify
+
+    fun ref not_listening(listen: TCPListener ref) =>
+      None
 
   actor Main
     new create(env: Env) =>
@@ -209,7 +217,7 @@ actor TCPListener
     Spawn a new connection.
     """
     try
-      TCPConnection._accept(this, _notify.connected(this), ns, _init_size,
+      TCPConnection._accept(this, _notify.connected(this)?, ns, _init_size,
         _max_size)
       _count = _count + 1
     else

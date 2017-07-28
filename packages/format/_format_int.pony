@@ -84,11 +84,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end
@@ -122,11 +122,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end
@@ -164,11 +164,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end
@@ -206,11 +206,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end
@@ -248,11 +248,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = (value = value / base) - (value * base)
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end

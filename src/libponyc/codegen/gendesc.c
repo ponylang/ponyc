@@ -1,4 +1,5 @@
 #include "gendesc.h"
+#include "genfun.h"
 #include "genname.h"
 #include "genopt.h"
 #include "gentype.h"
@@ -32,7 +33,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
 {
   // Create a new unboxing function that forwards to the real function.
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(m->func));
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(c_m->func));
   int count = LLVMCountParamTypes(f_type);
 
   // Leave space for a receiver if it's a constructor vtable entry.
@@ -43,17 +45,18 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   const char* box_name = genname_box(t->name);
   const char* unbox_name = genname_unbox(m->full_name);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   if(ast_id(m->r_fun) != TK_NEW)
   {
     // It's the same type, but it takes the boxed type instead of the primitive
     // type as the receiver.
-    params[0] = t->structure_ptr;
+    params[0] = c_t->structure_ptr;
   } else {
     // For a constructor, the unbox_fun has a receiver, even though the real
     // method does not.
     memmove(&params[1], &params[0], count * sizeof(LLVMTypeRef*));
-    params[0] = t->structure_ptr;
+    params[0] = c_t->structure_ptr;
     count++;
   }
 
@@ -86,7 +89,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
       args[i] = LLVMGetParam(unbox_fun, i + 1);
   }
 
-  LLVMValueRef result = codegen_call(c, m->func, args, count, m->cap != TK_AT);
+  LLVMValueRef result = codegen_call(c, c_m->func, args, count, m->cap != TK_AT);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -213,8 +216,9 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
   if(t->underlying == TK_ACTOR)
     index++;
 
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
   return LLVMConstInt(c->i32,
-    LLVMOffsetOfElement(c->target_data, t->structure, index), false);
+    LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
 
 static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
@@ -236,18 +240,19 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   // Create a constant array of field descriptors.
   size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   for(uint32_t i = 0; i < count; i++)
   {
     LLVMValueRef fdesc[2];
-    fdesc[0] = LLVMConstInt(c->i32,
-      LLVMOffsetOfElement(c->target_data, t->primitive, i), false);
+    fdesc[0] = LLVMConstInt(c->i32, LLVMOffsetOfElement(c->target_data,
+      c_t->primitive, i), false);
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
 
-    if(t->fields[i].type->desc != NULL)
+    if(f_c_t->desc != NULL)
     {
       // We are a concrete type.
-      fdesc[1] = LLVMConstBitCast(t->fields[i].type->desc,
-        c->descriptor_ptr);
+      fdesc[1] = LLVMConstBitCast(f_c_t->desc, c->descriptor_ptr);
     } else {
       // We aren't a concrete type.
       fdesc[1] = LLVMConstNull(c->descriptor_ptr);
@@ -278,6 +283,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
   size_t buf_size = t->vtable_size * sizeof(LLVMValueRef);
   LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
   memset(vtable, 0, buf_size);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   size_t i = HASHMAP_BEGIN;
   reach_method_name_t* n;
@@ -292,11 +298,12 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       uint32_t index = m->vtable_index;
       pony_assert(index != (uint32_t)-1);
       pony_assert(vtable[index] == NULL);
+      compile_method_t* c_m = (compile_method_t*)m->c_method;
 
-      if((t->primitive != NULL) && !m->internal)
+      if((c_t->primitive != NULL) && !m->internal)
         vtable[index] = make_unbox_function(c, t, m);
       else
-        vtable[index] = make_desc_ptr(m->func, c->void_ptr);
+        vtable[index] = make_desc_ptr(c_m->func, c->void_ptr);
     }
   }
 
@@ -362,7 +369,8 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   else
     vtable_size = t->vtable_size;
 
-  t->desc_type = LLVMStructCreateNamed(c->context, desc_name);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  c_t->desc_type = LLVMStructCreateNamed(c->context, desc_name);
   LLVMTypeRef params[DESC_LENGTH];
 
   params[DESC_ID] = c->i32;
@@ -385,16 +393,18 @@ void gendesc_type(compile_t* c, reach_type_t* t)
     LLVMArrayType(c->field_descriptor, fields), 0);
   params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, vtable_size);
 
-  LLVMStructSetBody(t->desc_type, params, DESC_LENGTH, false);
+  LLVMStructSetBody(c_t->desc_type, params, DESC_LENGTH, false);
 
-  t->desc = LLVMAddGlobal(c->module, t->desc_type, desc_name);
-  LLVMSetGlobalConstant(t->desc, true);
-  LLVMSetLinkage(t->desc, LLVMPrivateLinkage);
+  c_t->desc = LLVMAddGlobal(c->module, c_t->desc_type, desc_name);
+  LLVMSetGlobalConstant(c_t->desc, true);
+  LLVMSetLinkage(c_t->desc, LLVMPrivateLinkage);
 }
 
 void gendesc_init(compile_t* c, reach_type_t* t)
 {
-  if(t->desc_type == NULL)
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  if(c_t->desc_type == NULL)
     return;
 
   // Initialise the global descriptor.
@@ -403,29 +413,29 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   LLVMValueRef args[DESC_LENGTH];
 
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
-  args[DESC_SIZE] = LLVMConstInt(c->i32, t->abi_size, false);
+  args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  args[DESC_INSTANCE] = make_desc_ptr(t->instance, c->object_ptr);
-  args[DESC_TRACE] = make_desc_ptr(t->trace_fn, c->trace_fn);
-  args[DESC_SERIALISE_TRACE] = make_desc_ptr(t->serialise_trace_fn,
+  args[DESC_INSTANCE] = make_desc_ptr(c_t->instance, c->object_ptr);
+  args[DESC_TRACE] = make_desc_ptr(c_t->trace_fn, c->trace_fn);
+  args[DESC_SERIALISE_TRACE] = make_desc_ptr(c_t->serialise_trace_fn,
     c->trace_fn);
-  args[DESC_SERIALISE] = make_desc_ptr(t->serialise_fn, c->serialise_fn);
-  args[DESC_DESERIALISE] = make_desc_ptr(t->deserialise_fn, c->trace_fn);
+  args[DESC_SERIALISE] = make_desc_ptr(c_t->serialise_fn, c->serialise_fn);
+  args[DESC_DESERIALISE] = make_desc_ptr(c_t->deserialise_fn, c->trace_fn);
   args[DESC_CUSTOM_SERIALISE_SPACE] =
-    make_desc_ptr(t->custom_serialise_space_fn, c->custom_serialise_space_fn);
+    make_desc_ptr(c_t->custom_serialise_space_fn, c->custom_serialise_space_fn);
   args[DESC_CUSTOM_DESERIALISE] =
-    make_desc_ptr(t->custom_deserialise_fn, c->custom_deserialise_fn);
-  args[DESC_DISPATCH] = make_desc_ptr(t->dispatch_fn, c->dispatch_fn);
-  args[DESC_FINALISE] = make_desc_ptr(t->final_fn, c->final_fn);
+    make_desc_ptr(c_t->custom_deserialise_fn, c->custom_deserialise_fn);
+  args[DESC_DISPATCH] = make_desc_ptr(c_t->dispatch_fn, c->dispatch_fn);
+  args[DESC_FINALISE] = make_desc_ptr(c_t->final_fn, c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
   args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);
 
-  LLVMValueRef desc = LLVMConstNamedStruct(t->desc_type, args, DESC_LENGTH);
-  LLVMSetInitializer(t->desc, desc);
-  LLVMSetGlobalConstant(t->desc, true);
+  LLVMValueRef desc = LLVMConstNamedStruct(c_t->desc_type, args, DESC_LENGTH);
+  LLVMSetInitializer(c_t->desc, desc);
+  LLVMSetGlobalConstant(c_t->desc, true);
 }
 
 void gendesc_table(compile_t* c)
@@ -455,10 +465,11 @@ void gendesc_table(compile_t* c)
     if(t->is_trait || (t->underlying == TK_STRUCT))
       continue;
 
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
     LLVMValueRef desc;
 
-    if(t->desc != NULL)
-      desc = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr, "");
+    if(c_t->desc != NULL)
+      desc = LLVMBuildBitCast(c->builder, c_t->desc, c->descriptor_ptr, "");
     else
       desc = LLVMConstNull(c->descriptor_ptr);
 
@@ -674,7 +685,8 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
   if(t == NULL)
     return GEN_NOVALUE;
 
-  LLVMValueRef dptr = LLVMBuildBitCast(c->builder, t->desc, c->descriptor_ptr,
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  LLVMValueRef dptr = LLVMBuildBitCast(c->builder, c_t->desc, c->descriptor_ptr,
     "");
   return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, dptr, "");
 }

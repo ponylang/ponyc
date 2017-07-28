@@ -83,6 +83,10 @@ Once those conditions are met, the PR can be merged, and an automated system wil
 
 Please note, if your changes are purely to things like README, CHANGELOG etc, you can add [skip ci] as the last line of your commit message and your PR won't be run through our continuous integration systems. We ask that you use [skip ci] where appropriate as it helps to get changes through CI faster and doesn't waste resources that Appveyor and TravisCI are kindly donating to the Open Source community.
 
+Grammar Changes
+---------------
+If your contribution contains changes to the grammar of the language, you should update the `pony.g` file at the root of the repository with `ponyc --antlr > pony.g`.
+
 Documentation Formatting
 ---------------
 When contributing to documentation, try to keep the following style guidelines in mind:

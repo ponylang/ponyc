@@ -44,7 +44,7 @@ static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
         "single Env parameter");
     else
       ast_error(opt->check.errors, params,
-        "the create constructor of the Main actor must take only a single Env"
+        "the create constructor of the Main actor must take only a single Env "
         "parameter");
     ok = false;
   }

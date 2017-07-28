@@ -88,18 +88,6 @@ TEST_F(LambdaTest, LambdaCaptureTypeWithoutExpressionFail)
 }
 
 
-TEST_F(LambdaTest, LambdaOldSyntax)
-{
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    lambda() => None end";
-
-  TEST_ERRORS_1(src,
-    "lambda ... end is no longer supported syntax; use {...} for lambdas");
-}
-
-
 TEST_F(LambdaTest, LambdaCaptureFree)
 {
   const char* src =

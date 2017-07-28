@@ -21,7 +21,12 @@ def cmd_output(cmd):
 APPNAME = 'ponyc'
 VERSION = '?'
 with open('VERSION') as v:
-    VERSION = v.read().strip() + '-' + cmd_output(['git', 'rev-parse', '--short', 'HEAD'])
+    VERSION = v.read().strip()
+    try:
+        rev = '-' + cmd_output(['git', 'rev-parse', '--short', 'HEAD'])
+        VERSION = VERSION + rev
+    except:
+        pass
 
 # source and build directories
 top = '.'
@@ -324,12 +329,21 @@ def build(ctx):
         target   = stdlibTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
+    
+    # grammar file
+    ctx(
+        features = 'seq',
+        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' --antlr > pony.g.new',
+        target   = 'pony.g.new',
+    )
 
 
 # this command runs the test suites
 def test(ctx):
     import os
+
     buildDir = ctx.bldnode.abspath()
+    sourceDir = ctx.srcnode.abspath()
 
     total = 0
     passed = 0
@@ -358,6 +372,14 @@ def test(ctx):
     print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
     if passed < total:
         sys.exit(1)
+    
+    ponyg = os.path.join(sourceDir, 'pony.g')
+    ponygNew = os.path.join(buildDir, 'pony.g.new')
+    with open(ponyg, 'r') as pg:
+        with open(ponygNew, 'r') as pgn:
+            if pg.read() != pgn.read():
+                print('Grammar files differ')
+                sys.exit(1)
 
 
 # subclass the build context for the test command,

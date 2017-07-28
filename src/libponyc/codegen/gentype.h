@@ -6,6 +6,36 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef struct compile_type_t
+{
+  compile_opaque_free_fn free_fn;
+
+  size_t abi_size;
+
+  LLVMTypeRef structure;
+  LLVMTypeRef structure_ptr;
+  LLVMTypeRef primitive;
+  LLVMTypeRef use_type;
+
+  LLVMTypeRef desc_type;
+  LLVMValueRef desc;
+  LLVMValueRef instance;
+  LLVMValueRef trace_fn;
+  LLVMValueRef serialise_trace_fn;
+  LLVMValueRef serialise_fn;
+  LLVMValueRef deserialise_fn;
+  LLVMValueRef custom_serialise_space_fn;
+  LLVMValueRef custom_serialise_fn;
+  LLVMValueRef custom_deserialise_fn;
+  LLVMValueRef final_fn;
+  LLVMValueRef dispatch_fn;
+  LLVMValueRef dispatch_switch;
+
+  LLVMMetadataRef di_file;
+  LLVMMetadataRef di_type;
+  LLVMMetadataRef di_type_embed;
+} compile_type_t;
+
 typedef struct tbaa_metadata_t
 {
   const char* name;

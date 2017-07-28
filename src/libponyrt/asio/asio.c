@@ -33,6 +33,11 @@ asio_backend_t* ponyint_asio_get_backend()
   return running_base.backend;
 }
 
+uint32_t ponyint_asio_get_cpu()
+{
+  return asio_cpu;
+}
+
 void ponyint_asio_init(uint32_t cpu)
 {
   asio_cpu = cpu;

@@ -316,7 +316,7 @@ actor PonyTest
         _env.out.print(
           _started.string() + " test" + _plural(_started)
             + " started, " + _finished.string() + " complete: "
-            + _records(id).name + " started")
+            + _records(id)?.name + " started")
       end
     end
 
@@ -329,13 +329,13 @@ actor PonyTest
     _finished = _finished + 1
 
     try
-      _records(id)._result(pass, log)
+      _records(id)?._result(pass, log)
 
       if not _no_prog then
         _env.out.print(
           _started.string() + " test" + _plural(_started)
             + " started, " + _finished.string() + " complete: "
-            + _records(id).name + " complete")
+            + _records(id)?.name + " complete")
       end
     end
 

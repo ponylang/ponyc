@@ -65,7 +65,7 @@ primitive _JsonPrint
         // Place the numbers back in the proper order
         try
           while i < j do
-            buf(i) = buf(j = j - 1) = buf(i = i + 1)
+            buf(i)? = buf(j = j - 1)? = buf(i = i + 1)?
           end
         end
       end
@@ -95,7 +95,7 @@ primitive _JsonPrint
 
     try
       while i < s.size() do
-        (let c, let count) = s.utf32(i.isize())
+        (let c, let count) = s.utf32(i.isize())?
         i = i + count.usize()
 
         if c == '"' then

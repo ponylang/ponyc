@@ -100,6 +100,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     NODE(TK_CALL,
       NODE(TK_POSITIONALARGS, TREE(size_arg_seq))
       NONE
+      NONE
       TREE(dot)));
 
   if(!refer_reference(opt, &ref) ||
@@ -122,6 +123,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     BUILD(append, ast,
       NODE(TK_CALL,
         NODE(TK_POSITIONALARGS, TREE(ele))
+        NONE
         NONE
         TREE(append_chain)));
 

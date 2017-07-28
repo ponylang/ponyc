@@ -30,8 +30,8 @@ class _TimingWheel
     let slot = ((timer._next() >> _shift) - _adjust) and _mask()
 
     try
-      let list = _list(slot.usize())
-      _list(slot.usize()).append_node(timer._get_node())
+      let list = _list(slot.usize())?
+      _list(slot.usize())?.append_node(timer._get_node())
       _pending = _pending or (1 << slot)
     end
 
@@ -59,7 +59,7 @@ class _TimingWheel
 
     while (pending and _pending) != 0 do
       let slot = (pending and _pending).ctz()
-      try list.append_list(_list(slot.usize())) end
+      try list.append_list(_list(slot.usize())?) end
       _pending = _pending and not (1 << slot)
     end
 

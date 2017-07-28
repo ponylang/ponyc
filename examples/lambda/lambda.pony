@@ -23,7 +23,7 @@ actor Main
     both into the given function.
     """
     try
-      fn(x, 3)
+      fn(x, 3)?
     else
       // Lambda function raised an error, just return 0.
       0

@@ -214,7 +214,7 @@ static bool is_expr_constructor(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_CALL:
-      return ast_id(ast_childidx(ast, 2)) == TK_NEWREF;
+      return ast_id(ast_childidx(ast, 3)) == TK_NEWREF;
     case TK_SEQ:
       return is_expr_constructor(ast_childlast(ast));
     case TK_IF:
@@ -372,6 +372,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
     errorframe_append(&frame, &info);
+
+    if(ast_checkflag(ast_type(right), AST_FLAG_INCOMPLETE))
+      ast_error_frame(&frame, right,
+        "this might be possible if all fields were already defined");
+
     errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(a_type);
     return false;
@@ -533,6 +538,16 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
 
   pony_assert(ast_id(ast) == TK_AS);
   AST_GET_CHILDREN(ast, expr, type);
+
+  ast_t* expr_type = ast_type(expr);
+  if(is_typecheck_error(expr_type))
+    return false;
+
+  if(ast_id(expr_type) == TK_LITERAL || ast_id(expr_type) == TK_OPERATORLITERAL)
+  {
+    ast_error(opt->check.errors, expr, "Cannot cast uninferred literal");
+    return false;
+  }
 
   ast_t* pattern_root = ast_from(type, TK_LEX_ERROR);
   ast_t* body_root = ast_from(type, TK_LEX_ERROR);

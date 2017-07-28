@@ -140,7 +140,6 @@ static const lextoken_t keywords[] =
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
-  { "lambda", TK_LAMBDA },
 
   { "as", TK_AS },
   { "is", TK_IS },
@@ -268,6 +267,7 @@ static const lextoken_t abstract[] =
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
 
+  { "lambda", TK_LAMBDA },
   { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
@@ -524,8 +524,21 @@ static void normalise_string(lexer_t* lexer)
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
     return;
 
-  // Calculate leading whitespace.
+  // Trim a leading newline if there is one.
   char* buf = lexer->buffer;
+
+  if((buf[0] == '\r') && (buf[1] == '\n'))
+  {
+    lexer->buflen -= 2;
+    memmove(&buf[0], &buf[2], lexer->buflen);
+  }
+  else if(buf[0] == '\n')
+  {
+    lexer->buflen--;
+    memmove(&buf[0], &buf[1], lexer->buflen);
+  }
+
+  // Calculate leading whitespace.
   size_t ws = lexer->buflen;
   size_t ws_this_line = 0;
   bool in_leading_ws = true;
@@ -540,7 +553,7 @@ static void normalise_string(lexer_t* lexer)
       {
         ws_this_line++;
       }
-      else if((c != '\r') && (c != '\n'))
+      else
       {
         if(ws_this_line < ws)
           ws = ws_this_line;
@@ -586,20 +599,6 @@ static void normalise_string(lexer_t* lexer)
     }
 
     lexer->buflen = compacted - lexer->buffer;
-  }
-
-  // Trim a leading newline if there is one.
-  buf = lexer->buffer;
-
-  if((buf[0] == '\r') && (buf[1] == '\n'))
-  {
-    lexer->buflen -= 2;
-    memmove(&buf[0], &buf[2], lexer->buflen);
-  }
-  else if(buf[0] == '\n')
-  {
-    lexer->buflen--;
-    memmove(&buf[0], &buf[1], lexer->buflen);
   }
 }
 
