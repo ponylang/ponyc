@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.16.0] - 2017-07-28
 
 ### Fixed
 
@@ -13,7 +13,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Make pony_os_std_print() write a newline when given empty input. ([PR #2050](https://github.com/ponylang/ponyc/pull/2050))
 - Fix boxed tuple identity when type identifiers differ ([PR #2009](https://github.com/ponylang/ponyc/pull/2009))
 - Fix crash on interface function pointer generation ([PR #2025](https://github.com/ponylang/ponyc/pull/2025))
-
 
 ### Added
 
@@ -29,7 +28,6 @@ All notable changes to the Pony compiler and standard library will be documented
       - Command fullname() to make it easier to match on unique command names.
       - Checking that commands are leaves so that partial commands return syntax errors.
 
-
 ### Changed
 
 - Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
@@ -39,7 +37,6 @@ All notable changes to the Pony compiler and standard library will be documented
     - Migration scripts for user code, for convenience, are provided here:
         - [Unix](https://gist.github.com/jemc/95969e3e2b58ddb0dede138c737907f5)
         - [Windows](https://gist.github.com/kulibali/cd5caf3a32d510bb86412f3fd4d52d0f)
-
 
 ## [0.15.0] - 2017-07-08
 
@@ -828,4 +825,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+
+ised.
 
