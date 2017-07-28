@@ -19,6 +19,25 @@ download_llvm(){
   popd
 }
 
+download_llvm_macos(){
+  archive="clang+llvm-${LLVM_VERSION}-x86_64-apple-darwin.tar.xz"
+
+  echo "Downloading the LLVM specified by envvars: ${archive}..."
+  wget "http://releases.llvm.org/${LLVM_VERSION}/${archive}"
+  wget "http://releases.llvm.org/${LLVM_VERSION}/${archive}.sig"
+
+  echo "Verifying signatures..."
+  gpg --import "./keys/llvm-hans-wennborg-gpg-key.asc"
+  gpg --verify "./${archive}.sig"
+
+  echo "Extracting LLVM..."
+  tar -xvf "./${archive}"
+  pushd clang+llvm*
+  sudo mkdir /tmp/llvm
+  sudo cp -r ./* /tmp/llvm/
+  popd
+}
+
 download_pcre(){
   echo "Downloading and building PCRE2..."
 
@@ -49,33 +68,56 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "osx:llvm-config-3.7")
     brew update
-    brew install pcre2
-    brew install libressl
+    brew rm --force pcre2 libressl gpg
+    brew install -v shellcheck pcre2 libressl gpg
+    brew rm --force llvm
 
-    brew install llvm37
+    shellcheck ./.*.bash ./*.bash
+
+    download_llvm_macos
+
+    mkdir llvmsym
+    ln -s "/tmp/llvm/bin/llvm-config" "llvmsym/llvm-config-3.7"
+    ln -s "/tmp/llvm/bin/clang++" "llvmsym/clang++-3.7"
+    ln -s "/tmp/llvm/bin/clang" "llvmsym/clang-3.7"
+
+    # do this elsewhere:
+    #export PATH=llvmsym/:$PATH
   ;;
 
   "osx:llvm-config-3.8")
     brew update
-    brew install pcre2
-    brew install libressl
+    brew rm --force pcre2 libressl gpg
+    brew install -v shellcheck pcre2 libressl gpg
+    brew rm --force llvm
 
-    brew install llvm38
+    shellcheck ./.*.bash ./*.bash
+
+    download_llvm_macos
+
+    mkdir llvmsym
+    ln -s "/tmp/llvm/bin/llvm-config" "llvmsym/llvm-config-3.8"
+    ln -s "/tmp/llvm/bin/clang++" "llvmsym/clang++-3.8"
+    ln -s "/tmp/llvm/bin/clang" "llvmsym/clang-3.8"
+
+    # do this elsewhere:
+    #export PATH=llvmsym/:$PATH
   ;;
 
   "osx:llvm-config-3.9")
     brew update
-    brew install shellcheck
+    brew rm --force pcre2 libressl gpg
+    brew install -v shellcheck pcre2 libressl gpg
+    brew rm --force llvm
+
     shellcheck ./.*.bash ./*.bash
 
-    brew install pcre2
-    brew install libressl
+    download_llvm_macos
 
-    brew install llvm@3.9
-    brew link --overwrite --force llvm@3.9
     mkdir llvmsym
-    ln -s "$(which llvm-config)" llvmsym/llvm-config-3.9
-    ln -s "$(which clang++)" llvmsym/clang++-3.9
+    ln -s "/tmp/llvm/bin/llvm-config" "llvmsym/llvm-config-3.9"
+    ln -s "/tmp/llvm/bin/clang++" "llvmsym/clang++-3.9"
+    ln -s "/tmp/llvm/bin/clang" "llvmsym/clang-3.9"
 
     # do this elsewhere:
     #export PATH=llvmsym/:$PATH

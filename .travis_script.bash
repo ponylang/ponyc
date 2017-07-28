@@ -84,10 +84,12 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   ;;
 
   "osx:llvm-config-3.7")
+    export PATH=llvmsym/:$PATH
     ponyc-test
   ;;
 
   "osx:llvm-config-3.8")
+    export PATH=llvmsym/:$PATH
     ponyc-test
   ;;
 
