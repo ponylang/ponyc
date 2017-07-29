@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix reachability analysis for intersection types ([PR #2106](https://github.com/ponylang/ponyc/pull/2106))
 - Fix compiler assertion failure at code generation ([PR #2099](https://github.com/ponylang/ponyc/pull/2099))
+- FreeBSD builds([PR #2107](https://github.com/ponylang/ponyc/pull/2107))
 
 
 ### Added
