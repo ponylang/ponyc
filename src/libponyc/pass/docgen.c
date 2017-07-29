@@ -30,7 +30,6 @@ typedef struct docgen_t
   FILE* index_file;
   FILE* home_file;
   FILE* package_file;
-  printbuf_t* test_types;
   printbuf_t* public_types;
   printbuf_t* private_types;
   FILE* type_file;
@@ -106,6 +105,34 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
 }
 
 
+static bool is_for_testing(const char* name, ast_t* list)
+{
+  pony_assert(name != NULL);
+  pony_assert(list != NULL);
+
+  if (strncmp(name, "_Test", 5) == 0) return true;
+
+  if(ast_id(list) == TK_NONE) return false;
+
+  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_id(p) == TK_NOMINAL)
+    {
+      ast_t* id = ast_childidx(p, 1);
+
+      if(strcmp(ast_name(id), "TestList") == 0) return true;
+      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
+
+      ast_t* p_def = (ast_t*)ast_data(p);
+      ast_t* p_list = ast_childidx(p_def, 3);
+      return is_for_testing(ast_name(id), p_list);
+    }
+  }
+
+  return false;
+}
+
+
 // Add the given AST to the given list, using the name from the specified
 // child.
 // ASTs with hygenic names are ignored.
@@ -124,7 +151,7 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(is_name_internal_test(name))  // Ignore internally generated names
     return;
 
-  if(is_name_private(name) && !allow_private)  // Ignore private
+  if(is_for_testing(name, ast)) // Ignore test types
     return;
 
   if(!is_name_private(name) && !allow_public)  // Ignore public
@@ -429,33 +456,6 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static bool is_for_testing(const char* name, ast_t* list)
-{
-  pony_assert(name != NULL);
-  pony_assert(list != NULL);
-
-  if (strncmp(name, "_Test", 5) == 0) return true;
-
-  if(ast_id(list) == TK_NONE) return false;
-
-  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
-  {
-    if(ast_id(p) == TK_NOMINAL)
-    {
-      ast_t* id = ast_childidx(p, 1);
-
-      if(strcmp(ast_name(id), "TestList") == 0) return true;
-      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
-
-      ast_t* p_def = (ast_t*)ast_data(p);
-      ast_t* p_list = ast_childidx(p_def, 3);
-      return is_for_testing(ast_name(id), p_list);
-    }
-  }
-
-  return false;
-}
-
 
 
 // Functions to handle everything else
@@ -731,7 +731,6 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   pony_assert(docgen != NULL);
   pony_assert(docgen->index_file != NULL);
   pony_assert(docgen->package_file != NULL);
-  pony_assert(docgen->test_types != NULL);
   pony_assert(docgen->public_types != NULL);
   pony_assert(docgen->private_types != NULL);
   pony_assert(docgen->type_file == NULL);
@@ -757,8 +756,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   // Add to appropriate package types buffer
   printbuf_t* buffer = docgen->public_types;
-  if(is_for_testing(name, provides)) buffer = docgen->test_types;
-  else if(name[0] == '_') buffer = docgen->private_types;
+  if(is_name_private(name)) buffer = docgen->private_types;
   printbuf(buffer,
            "* [%s %s](%s.md)\n",
            ast_get_print(ast), name, tqfn);
@@ -860,7 +858,6 @@ static void doc_package_home(docgen_t* docgen,
   pony_assert(docgen->index_file != NULL);
   pony_assert(docgen->home_file != NULL);
   pony_assert(docgen->package_file == NULL);
-  pony_assert(docgen->test_types == NULL);
   pony_assert(docgen->public_types == NULL);
   pony_assert(docgen->private_types == NULL);
   pony_assert(docgen->type_file == NULL);
@@ -901,8 +898,7 @@ static void doc_package_home(docgen_t* docgen,
 
 
   ponyint_pool_free_size(tqfn_len, tqfn);
-
-  docgen->test_types = printbuf_new();
+  
   docgen->public_types = printbuf_new();
   docgen->private_types = printbuf_new();
   docgen->package_file = docgen->type_file;
@@ -916,7 +912,6 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PACKAGE);
   pony_assert(docgen->package_file == NULL);
-  pony_assert(docgen->test_types == NULL);
   pony_assert(docgen->public_types == NULL);
   pony_assert(docgen->private_types == NULL);
 
@@ -970,18 +965,10 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     fprintf(docgen->package_file, "%s", docgen->private_types->m);
   }
 
-  if(docgen->test_types->offset > 0)
-  {
-    fprintf(docgen->package_file, "\n\n## Test Types\n\n");
-    fprintf(docgen->package_file, "%s", docgen->test_types->m);
-  }
-
   fclose(docgen->package_file);
   docgen->package_file = NULL;
-  printbuf_free(docgen->test_types);
   printbuf_free(docgen->public_types);
   printbuf_free(docgen->private_types);
-  docgen->test_types = NULL;
   docgen->public_types = NULL;
   docgen->private_types = NULL;
 }
@@ -1010,7 +997,6 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
 
   // Process packages
   docgen->package_file = NULL;
-  docgen->test_types = NULL;
   docgen->public_types = NULL;
   docgen->private_types = NULL;
   doc_package(docgen, package_1);
