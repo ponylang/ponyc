@@ -40,6 +40,12 @@ typedef struct docgen_t
   errors_t* errors;
 } docgen_t;
 
+// Define options for doc generation
+typedef struct docgen_opt_t
+{
+    bool include_private;
+} docgen_opt_t;
+
 
 // Define a list for keeping lists of ASTs ordered by name.
 // Each list should have an empty head node (prefereably on the stack). Other
@@ -154,10 +160,16 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(is_for_testing(name, ast)) // Ignore test types
     return;
 
-  if(!is_name_private(name) && !allow_public)  // Ignore public
+  bool private = is_name_private(name);
+
+  if(private && !allow_private)  // Ignore private
     return;
 
-  if(is_name_private(name))  // Ignore leading underscore for ordering
+
+  if(!private && !allow_public)  // Ignore public
+    return;
+
+  if(private)  // Ignore leading underscore for ordering
     name++;
 
   doc_list_add(list, ast, name, false);
@@ -287,8 +299,9 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
 
 // Functions to handle types
 
-static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links, bool line_breaks);
+static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* list,
+        const char* preamble, const char* separator, const char* postamble,
+        bool generate_links, bool line_breaks);
 
 // Report the human readable description for the given capability node.
 // The returned string is valid forever and should not be freed.
@@ -318,7 +331,8 @@ static const char* doc_get_cap(ast_t* cap)
 
 
 // Write the given type to the current type file
-static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
+static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
+                     ast_t* type, bool generate_links)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -331,8 +345,11 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
       AST_GET_CHILDREN(type, package, id, tparams, cap, ephemeral);
 
       // Generate links only if directed to and if the type is not anonymous (as
-      // indicated by a name created by package_hygienic_id).
-      if(generate_links && *ast_name(id) != '$')
+      // indicated by a name created by package_hygienic_id)
+      // and if the type not private if we exclude private types.
+      const char* type_id_name = ast_name(id);
+      if(generate_links && *type_id_name != '$' 
+              && (docgen_opt->include_private || !is_name_private(type_id_name)))
       {
         // Find type we reference so we can link to it
         ast_t* target = (ast_t*)ast_data(type);
@@ -345,12 +362,12 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
         fprintf(docgen->type_file, "[%s](%s)", ast_nice_name(id), tqfn);
         ponyint_pool_free_size(link_len, tqfn);
 
-        doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true, false);
+        doc_type_list(docgen, docgen_opt, tparams, "\\[", ", ", "\\]", true, false);
       }
       else
       {
         fprintf(docgen->type_file, "%s", ast_nice_name(id));
-        doc_type_list(docgen, tparams, "[", ", ", "]", false, false);
+        doc_type_list(docgen, docgen_opt, tparams, "[", ", ", "]", false, false);
       }
 
       const char* cap_text = doc_get_cap(cap);
@@ -364,15 +381,15 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     }
 
     case TK_UNIONTYPE:
-      doc_type_list(docgen, type, "(", " | ", ")", generate_links, true);
+      doc_type_list(docgen, docgen_opt, type, "(", " | ", ")", generate_links, true);
       break;
 
     case TK_ISECTTYPE:
-      doc_type_list(docgen, type, "(", " & ", ")", generate_links, false);
+      doc_type_list(docgen, docgen_opt, type, "(", " & ", ")", generate_links, false);
       break;
 
     case TK_TUPLETYPE:
-      doc_type_list(docgen, type, "(", " , ", ")", generate_links, false);
+      doc_type_list(docgen, docgen_opt, type, "(", " , ", ")", generate_links, false);
       break;
 
     case TK_TYPEPARAMREF:
@@ -393,9 +410,9 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      doc_type(docgen, left, generate_links);
+      doc_type(docgen, docgen_opt, left, generate_links);
       fprintf(docgen->type_file, "->");
-      doc_type(docgen, right, generate_links);
+      doc_type(docgen, docgen_opt, right, generate_links);
       break;
     }
 
@@ -418,10 +435,11 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
 }
 
 // Write the given list of types to the current type file, with the specified
-// preamble, separator and psotamble text. If the list is empty nothing is
+// preamble, separator and postamble text. If the list is empty nothing is
 // written.
-static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links, bool line_breaks)
+static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* list,
+        const char* preamble, const char* separator, const char* postamble,
+        bool generate_links, bool line_breaks)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -438,7 +456,7 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   int listItemCount = 0;
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
-    doc_type(docgen, p, generate_links);
+    doc_type(docgen, docgen_opt, p, generate_links);
 
     if(ast_sibling(p) != NULL) {
       fprintf(docgen->type_file, "%s", separator);
@@ -463,7 +481,7 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
 // Write the given list of fields to the current type file.
 // The given title text is used as a section header.
 // If the field list is empty nothing is written.
-static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
+static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_list_t* fields, const char* title)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -496,7 +514,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
     }
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
-    doc_type(docgen, type, true);
+    doc_type(docgen, docgen_opt, type, true);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -504,7 +522,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
 
 // Write the given list of type parameters to the current type file, with
 // surrounding []. If the given list is empty nothing is written.
-static void doc_type_params(docgen_t* docgen, ast_t* t_params,
+static void doc_type_params(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* t_params,
   bool generate_links)
 {
   pony_assert(docgen != NULL);
@@ -537,7 +555,7 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params,
     fprintf(docgen->type_file, "%s: ", name);
 
     if(ast_id(constraint) != TK_NONE)
-      doc_type(docgen, constraint, generate_links);
+      doc_type(docgen, docgen_opt, constraint, generate_links);
     else
       fprintf(docgen->type_file, "no constraint");
   }
@@ -550,7 +568,8 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params,
 
 // Write the given list of parameters to the current type file, with
 // surrounding (). If the given list is empty () is still written.
-static void code_block_doc_params(docgen_t* docgen, ast_t* params)
+static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
+        ast_t* params)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -571,7 +590,7 @@ static void code_block_doc_params(docgen_t* docgen, ast_t* params)
     pony_assert(name != NULL);
 
     fprintf(docgen->type_file, "  %s: ", name);
-    doc_type(docgen, type, false);
+    doc_type(docgen, docgen_opt, type, false);
 
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
@@ -592,7 +611,8 @@ static void code_block_doc_params(docgen_t* docgen, ast_t* params)
   fprintf(docgen->type_file, ")");
 }
 
-static void list_doc_params(docgen_t* docgen, ast_t* params)
+static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
+        ast_t* params)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -612,7 +632,7 @@ static void list_doc_params(docgen_t* docgen, ast_t* params)
     pony_assert(name != NULL);
 
     fprintf(docgen->type_file, "  %s: ", name);
-    doc_type(docgen, type, true);
+    doc_type(docgen, docgen_opt, type, true);
 
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
@@ -636,7 +656,8 @@ static void list_doc_params(docgen_t* docgen, ast_t* params)
 }
 
 // Write a description of the given method to the current type file
-static void doc_method(docgen_t* docgen, ast_t* method)
+static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt, 
+        ast_t* method)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -649,7 +670,7 @@ static void doc_method(docgen_t* docgen, ast_t* method)
 
   // Method
   fprintf(docgen->type_file, "### %s", name);
-  doc_type_params(docgen, t_params, true);
+  doc_type_params(docgen, docgen_opt, t_params, true);
   fprintf(docgen->type_file, "\n\n");
 
   // The docstring, if any
@@ -665,15 +686,15 @@ static void doc_method(docgen_t* docgen, ast_t* method)
     if(cap_text != NULL) fprintf(docgen->type_file, "%s ", cap_text);
   }
   fprintf(docgen->type_file, "%s", name);
-  doc_type_params(docgen, t_params, false);
+  doc_type_params(docgen, docgen_opt, t_params, false);
   // parameters of the code block
-  code_block_doc_params(docgen, params);
+  code_block_doc_params(docgen, docgen_opt, params);
 
   // return type
   if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "\n: ");
-    doc_type(docgen, ret, false);
+    doc_type(docgen, docgen_opt, ret, false);
 
     if(ast_id(error) == TK_QUESTION)
       fprintf(docgen->type_file, " ?");
@@ -683,14 +704,14 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   fprintf(docgen->type_file, "\n```\n");
 
   // Parameters
-  list_doc_params(docgen, params);
+  list_doc_params(docgen, docgen_opt, params);
 
   // Return value
   if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "#### Returns\n\n");
     fprintf(docgen->type_file, "* ");
-    doc_type(docgen, ret, true);
+    doc_type(docgen, docgen_opt, ret, true);
 
     if(ast_id(error) == TK_QUESTION)
       fprintf(docgen->type_file, " ?");
@@ -707,8 +728,8 @@ static void doc_method(docgen_t* docgen, ast_t* method)
 // Write the given list of methods to the current type file.
 // The variety text is used as a heading.
 // If the list is empty nothing is written.
-static void doc_methods(docgen_t* docgen, ast_list_t* methods,
-  const char* variety)
+static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_list_t* methods, const char* variety)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -721,12 +742,12 @@ static void doc_methods(docgen_t* docgen, ast_list_t* methods,
   fprintf(docgen->type_file, "## %s\n\n", variety);
 
   for(ast_list_t* p = methods->next; p != NULL; p = p->next)
-    doc_method(docgen, p->ast);
+    doc_method(docgen, docgen_opt, p->ast);
 }
 
 
 // Write a description of the given entity to its own type file.
-static void doc_entity(docgen_t* docgen, ast_t* ast)
+static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->index_file != NULL);
@@ -765,7 +786,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  doc_type_params(docgen, tparams, true);
+  doc_type_params(docgen, docgen_opt, tparams, true);
   fprintf(docgen->type_file, "\n\n");
 
   if(ast_id(doc) != TK_NONE)
@@ -780,15 +801,15 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   fprintf(docgen->type_file, "%s", name);
 
-  doc_type_params(docgen, tparams, false);
-  doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false, false);
+  doc_type_params(docgen, docgen_opt, tparams, false);
+  doc_type_list(docgen, docgen_opt, provides, " is\n  ", ",\n  ", "", false, false);
   fprintf(docgen->type_file, "\n```\n\n");
 
   if (ast_id(ast) !=  TK_TYPE)
-    doc_type_list(docgen, provides,
+    doc_type_list(docgen, docgen_opt, provides,
       "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true, false);
   else
-    doc_type_list(docgen, provides,
+    doc_type_list(docgen, docgen_opt, provides,
       "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true, false);
 
   // Sort members into varieties
@@ -810,17 +831,17 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
         break;
 
       case TK_NEW:
-        doc_list_add_named(&news, p, 1, true, true);
+        doc_list_add_named(&news, p, 1, true, docgen_opt->include_private);
         break;
 
       case TK_BE:
         doc_list_add_named(&pub_bes, p, 1, true, false);
-        doc_list_add_named(&priv_bes, p, 1, false, true);
+        doc_list_add_named(&priv_bes, p, 1, false, docgen_opt->include_private);
         break;
 
       case TK_FUN:
         doc_list_add_named(&pub_funs, p, 1, true, false);
-        doc_list_add_named(&priv_funs, p, 1, false, true);
+        doc_list_add_named(&priv_funs, p, 1, false, docgen_opt->include_private);
         break;
 
       default:
@@ -830,12 +851,12 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   }
 
   // Handle member variety lists
-  doc_methods(docgen, &news, "Constructors");
-  doc_fields(docgen, &pub_fields, "Public fields");
-  doc_methods(docgen, &pub_bes, "Public Behaviours");
-  doc_methods(docgen, &pub_funs, "Public Functions");
-  doc_methods(docgen, &priv_bes, "Private Behaviours");
-  doc_methods(docgen, &priv_funs, "Private Functions");
+  doc_methods(docgen, docgen_opt, &news, "Constructors");
+  doc_fields(docgen, docgen_opt, &pub_fields, "Public fields");
+  doc_methods(docgen, docgen_opt, &pub_bes, "Public Behaviours");
+  doc_methods(docgen, docgen_opt, &pub_funs, "Public Functions");
+  doc_methods(docgen, docgen_opt, &priv_bes, "Private Behaviours");
+  doc_methods(docgen, docgen_opt, &priv_funs, "Private Functions");
 
   doc_list_free(&pub_fields);
   doc_list_free(&news);
@@ -901,13 +922,14 @@ static void doc_package_home(docgen_t* docgen,
   
   docgen->public_types = printbuf_new();
   docgen->private_types = printbuf_new();
+
   docgen->package_file = docgen->type_file;
   docgen->type_file = NULL;
 }
 
 
 // Document the given package
-static void doc_package(docgen_t* docgen, ast_t* ast)
+static void doc_package(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PACKAGE);
@@ -940,7 +962,13 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
             ast_id(t) == TK_STRUCT || ast_id(t) == TK_CLASS ||
             ast_id(t) == TK_ACTOR);
           // We have a type
-          doc_list_add_named(&types, t, 0, true, true);
+          doc_list_add_named(
+                  &types,
+                  t,
+                  0,
+                  true,
+                  docgen_opt->include_private
+          );
         }
       }
     }
@@ -950,7 +978,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
 
   // Process types
   for(ast_list_t* p = types.next; p != NULL; p = p->next)
-    doc_entity(docgen, p->ast);
+    doc_entity(docgen, docgen_opt, p->ast);
 
   // Add listing of subpackages and links
   if(docgen->public_types->offset > 0)
@@ -959,7 +987,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     fprintf(docgen->package_file, "%s", docgen->public_types->m);
   }
 
-  if(docgen->private_types->offset > 0)
+  if(docgen_opt->include_private && docgen->private_types->offset > 0)
   {
     fprintf(docgen->package_file, "\n\n## Private Types\n\n");
     fprintf(docgen->package_file, "%s", docgen->private_types->m);
@@ -975,7 +1003,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
 
 
 // Document the packages in the given program
-static void doc_packages(docgen_t* docgen, ast_t* ast)
+static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PROGRAM);
@@ -999,10 +1027,10 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
   docgen->package_file = NULL;
   docgen->public_types = NULL;
   docgen->private_types = NULL;
-  doc_package(docgen, package_1);
+  doc_package(docgen, docgen_opt, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)
-    doc_package(docgen, p->ast);
+    doc_package(docgen, docgen_opt, p->ast);
 }
 
 
@@ -1090,6 +1118,9 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   if(ast_id(program) != TK_PROGRAM)
     return;
 
+  docgen_opt_t docgen_opt;
+  docgen_opt.include_private = options->docs_private;
+
   docgen_t docgen;
   docgen.errors = options->check.errors;
 
@@ -1113,7 +1144,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
-    doc_packages(&docgen, program);
+    doc_packages(&docgen, &docgen_opt, program);
   }
 
   // Tidy up
