@@ -465,6 +465,8 @@ ifeq ($(OSTYPE),linux)
 endif
 
 ifeq ($(OSTYPE),freebsd)
+  libponyc.tests.links += libpthread
+  libponyrt.tests.links += libpthread
   libponyc.benchmarks.links += libpthread
   libponyrt.benchmarks.links += libpthread
 endif
