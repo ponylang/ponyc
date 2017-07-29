@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler assertion failure at code generation ([PR #2099](https://github.com/ponylang/ponyc/pull/2099))
 
 
 ### Added
