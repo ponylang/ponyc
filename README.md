@@ -331,6 +331,30 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
+### Apline (Edge)
+
+Install build tools/dependencies:
+
+```bash
+apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev pcre2-dev libunwind-dev coreutils
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+$ cd ~/ponyc/
+$ make
+$ ./build/release/ponyc --pic examples/helloworld
+$ ./helloworld
+```
+
+NOTE: You need to pass `--pic` to `ponyc` or you will get errors like the following during linking:
+
+```bash
+/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
+ 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
+```
+
 ### Other Linux distributions
 
 You need to have the development versions of the following installed:
