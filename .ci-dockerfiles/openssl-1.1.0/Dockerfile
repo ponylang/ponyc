@@ -7,6 +7,7 @@ RUN apt-get update \
   apt-transport-https \
   g++ \
   git \
+  libunwind-dev \
   libncurses5-dev \
   libpcre2-dev \
   make \
@@ -15,6 +16,9 @@ RUN apt-get update \
   zlib1g-dev \
  && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
  | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+
+# delete the libunwind files shipped with LLVM, they conflict with the system libunwind files
+RUN rm /usr/local/lib/libunwind*
 
  RUN wget https://www.openssl.org/source/openssl-1.1.0.tar.gz \
    && tar xf openssl-1.1.0.tar.gz \

@@ -11,6 +11,7 @@ RUN apt-get update \
   build-essential \
   g++-6 \
   git \
+  libunwind8-dev \
   libncurses5-dev \
   libssl-dev \
   make \
@@ -19,6 +20,9 @@ RUN apt-get update \
   zlib1g-dev \
  && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz \
  | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8
+
+# delete the libunwind files shipped with LLVM, they conflict with the system libunwind files
+RUN rm /usr/local/lib/libunwind*
 
 # install pcre2
 RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \

@@ -5,8 +5,13 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef PLATFORM_IS_POSIX_BASED
-#  include <execinfo.h>
 #  include <unistd.h>
+#  ifdef PLATFORM_IS_MACOSX
+#    include <execinfo.h>
+#  else
+#    define UNW_LOCAL_ONLY
+#    include <libunwind.h>
+#  endif
 #else
 #  include <Windows.h>
 #  include <DbgHelp.h>
@@ -14,67 +19,43 @@
 
 #include <pony/detail/atomics.h>
 
-static PONY_ATOMIC(bool) assert_guard = false;
-
-#ifdef PLATFORM_IS_POSIX_BASED
-
-#ifdef PLATFORM_IS_BSD
-typedef size_t stack_depth_t;
-#else
-typedef int stack_depth_t;
-#endif
-
-void ponyint_assert_fail(const char* expr, const char* file, size_t line,
-  const char* func)
+static void print_backtrace(FILE* out)
 {
-  while(atomic_exchange_explicit(&assert_guard, true, memory_order_acq_rel))
-  {
-    // If the guard is already set, an assertion fired in another thread. The
-    // things here aren't thread safe, so we just start an infinite loop.
-    struct timespec ts = {1, 0};
-    nanosleep(&ts, NULL);
-  }
+  fputs("Backtrace:\n", out);
 
-  fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
-    func, expr);
-
+#ifdef PLATFORM_IS_MACOSX
   void* addrs[256];
-  stack_depth_t depth = backtrace(addrs, 256);
+  int depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
 
-  fputs("Backtrace:\n", stderr);
+  for(int i = 0; i < depth; i++)
+    fprintf(stderr, "  %s\n", strings[i]);
 
-  for(stack_depth_t i = 0; i < depth; i++)
-    printf("  %s\n", strings[i]);
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  unw_context_t context;
+  unw_getcontext(&context);
 
-  free(strings);
+  unw_cursor_t cursor;
+  unw_init_local(&cursor, &context);
 
-  if(strcmp(PONY_BUILD_CONFIG, "release") == 0)
+  while(unw_step(&cursor) > 0)
   {
-    fputs("This is an optimised version of ponyc: the backtrace may be "
-      "imprecise or incorrect.\nUse a debug version to get more meaningful "
-      "information.\n", stderr);
+    unw_word_t pc;
+    unw_get_reg(&cursor, UNW_REG_IP, &pc);
+
+    if(pc == 0)
+      break;
+
+    char sym[1024];
+    unw_word_t offset;
+
+    if(unw_get_proc_name(&cursor, sym, sizeof(sym), &offset) == 0)
+      fprintf(out, "  (%s+%p) [%p]\n", sym, (void*)offset, (void*)pc);
+    else
+      fprintf(out, "  (?\?) [%p]\n", (void*)pc);
   }
 
-  fflush(stderr);
-  abort();
-}
-
-#elif defined(PLATFORM_IS_WINDOWS)
-
-void ponyint_assert_fail(const char* expr, const char* file, size_t line,
-  const char* func)
-{
-  while(atomic_exchange_explicit(&assert_guard, true, memory_order_acq_rel))
-  {
-    // If the guard is already set, an assertion fired in another thread. The
-    // things here aren't thread safe, so we just start an infinite loop.
-    Sleep(1);
-  }
-
-  fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
-    func, expr);
-
+#else
   HANDLE process = GetCurrentProcess();
   HANDLE thread = GetCurrentThread();
 
@@ -102,8 +83,6 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   DWORD machine = IMAGE_FILE_MACHINE_AMD64;
 #  endif
 
-  fputs("Backtrace:\n", stderr);
-
   while(true)
   {
     SetLastError(0);
@@ -120,29 +99,51 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
       SYMBOL_INFO sym;
       BYTE buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
     } sym_buf;
+
     PSYMBOL_INFO symbol = &sym_buf.sym;
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     symbol->MaxNameLen = MAX_SYM_NAME;
 
     if(SymFromAddr(process, frame.AddrPC.Offset, NULL, symbol))
     {
-      fprintf(stderr, "  (%s) [%p]\n", symbol->Name,
+      fprintf(out, "  (%s) [%p]\n", symbol->Name,
         (void*)frame.AddrPC.Offset);
     } else {
-      fprintf(stderr, "  () [%p]\n", (void*)frame.AddrPC.Offset);
+      fprintf(out, "  (?\?) [%p]\n", (void*)frame.AddrPC.Offset);
     }
   }
 
+  SymCleanup(process);
+
+#endif
   if(strcmp(PONY_BUILD_CONFIG, "release") == 0)
   {
     fputs("This is an optimised version of ponyc: the backtrace may be "
       "imprecise or incorrect.\nUse a debug version to get more meaningful "
-      "information.\n", stderr);
+      "information.\n", out);
+  }
+}
+
+static PONY_ATOMIC(bool) assert_guard = false;
+
+void ponyint_assert_fail(const char* expr, const char* file, size_t line,
+  const char* func)
+{
+  while(atomic_exchange_explicit(&assert_guard, true, memory_order_acq_rel))
+  {
+    // If the guard is already set, an assertion fired in another thread. The
+    // things here aren't thread safe, so we just start an infinite loop.
+#ifdef PLATFORM_IS_POSIX_BASED
+    struct timespec ts = {1, 0};
+    nanosleep(&ts, NULL);
+#else
+    Sleep(1000);
+#endif
   }
 
-  SymCleanup(process);
+  fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
+    func, expr);
+  print_backtrace(stderr);
   fflush(stderr);
   abort();
 }
-
-#endif
