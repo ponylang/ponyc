@@ -292,14 +292,9 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
 static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt, bool internal)
 {
-  bool typeexpr = false;
   switch(t->underlying)
   {
     case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-      typeexpr = true;
-      // fallthrough
-
     case TK_INTERFACE:
     case TK_TRAIT:
     {
@@ -308,15 +303,31 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 
       while((t2 = reach_type_cache_next(&t->subtypes, &i)) != NULL)
       {
-        if(!internal && typeexpr)
+        if(!internal || valid_internal_method_for_type(t2, n->name))
+          add_rmethod_to_subtype(r, t2, n, m, opt, internal);
+      }
+
+      break;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(t->ast_cap);
+      reach_type_t* t2;
+
+      for(; child != NULL; child = ast_sibling(child))
+      {
+        if(!internal)
         {
-          ast_t* find = lookup_try(NULL, NULL, t2->ast, n->name);
+          ast_t* find = lookup_try(NULL, NULL, child, n->name);
 
           if(find == NULL)
             continue;
 
           ast_free_unattached(find);
         }
+
+        t2 = add_type(r, child, opt);
 
         if(!internal || valid_internal_method_for_type(t2, n->name))
           add_rmethod_to_subtype(r, t2, n, m, opt, internal);
