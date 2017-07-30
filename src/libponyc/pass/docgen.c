@@ -142,6 +142,14 @@ static bool is_for_testing(const char* name, ast_t* list)
   return false;
 }
 
+// detect if a whole package is for testing purposes
+// statically checks if package name is "test" or "builtin_test"
+static bool is_package_for_testing(const char* name)
+{
+    pony_assert(name != NULL);
+    return (strcmp(name, "test") == 0 || strcmp(name, "builtin_test") == 0);
+}
+
 
 // Add the given AST to the given list, using the name from the specified
 // child.
@@ -1033,8 +1041,12 @@ static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   docgen->private_types = NULL;
   doc_package(docgen, docgen_opt, package_1);
 
-  for(ast_list_t* p = packages.next; p != NULL; p = p->next)
-    doc_package(docgen, docgen_opt, p->ast);
+  for(ast_list_t* p = packages.next; p != NULL; p = p->next) {
+    const char* p_name = package_qualified_name(p->ast);
+    if (!is_package_for_testing(p_name)) {
+        doc_package(docgen, docgen_opt, p->ast);
+    }
+  }
 }
 
 
