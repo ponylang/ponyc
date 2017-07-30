@@ -138,6 +138,10 @@ Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony 
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
+### Verify that playground.ponylang.org updated
+
+With each release, [the pony playground](https://playground.ponylang.org) should automatically update to the new version. Visit the playground and run a simple application like "Hello World". The output will include the Pony version used for compilation. Verify that it matches the newly released version. If it doesn't, ping @plietar, @jemc, and @seantallen on the release issue. One of them will be able to get the playground updated.
+
 ### Close the GitHub issue
 
 Close the GitHub issue for this release.
