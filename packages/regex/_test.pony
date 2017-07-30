@@ -8,6 +8,8 @@ actor Main is TestList
     test(_TestApply)
     test(_TestGroups)
     test(_TestEq)
+    test(_TestMatchIter)
+    test(_TestIterEmpty)
     test(_TestSplit)
     test(_TestError)
 
@@ -60,6 +62,43 @@ class iso _TestEq is UnitTest
     let r = Regex("\\d+")?
     h.assert_true(r == "1234", """ \d+ =~ "1234" """)
     h.assert_true(r != "asdf", """ \d+ !~ "asdf" """)
+
+class iso _TestMatchIter is UnitTest
+  """
+  Tests the match iterator
+  """
+  fun name(): String => "regex/Regex.matches"
+
+  fun apply(h: TestHelper) ? =>
+    let r = Regex("([+-]?\\s*\\d+[dD]\\d+|[+-]?\\s*\\d+)")?
+    let matches = r.matches("9d6+4d20+30-5d5+12-60")
+
+    let m1 = matches.next()?
+    h.assert_eq[String](m1(0)?, "9d6")
+    let m2 = matches.next()?
+    h.assert_eq[String](m2(0)?, "+4d20")
+    let m3 = matches.next()?
+    h.assert_eq[String](m3(0)?, "+30")
+    let m4 = matches.next()?
+    h.assert_eq[String](m4(0)?, "-5d5")
+    let m5 = matches.next()?
+    h.assert_eq[String](m5(0)?, "+12")
+    let m6 = matches.next()?
+    h.assert_eq[String](m6(0)?, "-60")
+    h.assert_false(matches.has_next())
+
+class iso _TestIterEmpty is UnitTest
+  """
+  Tests the match iterator when the subject doesn't contain any matches
+  for the regular expression
+  """
+  fun name(): String => "regex/Regex.matches/nomatch"
+
+  fun apply(h: TestHelper) ? =>
+    let r = Regex("([+-]?\\s*\\d+[dD]\\d+|[+-]?\\s*\\d+)")?
+    let matches = r.matches("nevergonnaletyoudown")
+
+    h.assert_false(matches.has_next())
 
 class iso _TestSplit is UnitTest
   """

@@ -73,6 +73,13 @@ class Regex
 
     _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
 
+  fun matches(subject: String): MatchIterator =>
+    """ 
+    Creates a match iterator from the regular expression that will iterate
+    over the supplied subject returning matches
+    """
+    MatchIterator(this, subject)
+
   fun eq(subject: ByteSeq box): Bool =>
     """
     Return true on a successful match, false otherwise.
