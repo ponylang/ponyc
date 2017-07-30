@@ -36,3 +36,4 @@ class MatchIterator is Iterator[Match]
     let m = _regex(_subject, _offset)?
     _offset = m.end_pos() + 1 
     m
+    
