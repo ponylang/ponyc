@@ -818,3 +818,23 @@ TEST_F(BadPonyTest, DontCareUnusedBranchValue)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, ForwardTuple)
+{
+  // From issue #2097
+  const char* src =
+    "class val X\n"
+
+    "trait T\n"
+    "  fun f(): Any val\n"
+
+    "class C is T\n"
+    "  fun f(): (X, USize) => (X, 0)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let t: T = C\n"
+    "    t.f()";
+
+  TEST_COMPILE(src);
+}

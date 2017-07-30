@@ -1055,16 +1055,18 @@ void ponyint_pool_thread_cleanup()
 
 size_t ponyint_pool_index(size_t size)
 {
-  if(size <= POOL_MIN)
-    return 0;
-
 #ifdef PLATFORM_IS_ILP32
 #define BITS (32 - POOL_MIN_BITS)
 #else
 #define BITS (64 - POOL_MIN_BITS)
 #endif
 
-  return (size_t)BITS - __pony_clzl(size) - (!(size & (size - 1)));
+  // The condition is in that order for better branch prediction: non-zero pool
+  // indices are more likely than zero pool indices.
+  if(size > POOL_MIN)
+    return (size_t)BITS - __pony_clzl(size) - (!(size & (size - 1)));
+
+  return 0;
 }
 
 size_t ponyint_pool_size(size_t index)
