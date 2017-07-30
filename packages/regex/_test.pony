@@ -8,8 +8,8 @@ actor Main is TestList
     test(_TestApply)
     test(_TestGroups)
     test(_TestEq)
-    test(_TestMatchIter)
-    test(_TestIterEmpty)
+    test(_TestMatchIterator)
+    test(_TestMatchIteratorEmpty)
     test(_TestSplit)
     test(_TestError)
 
@@ -63,7 +63,7 @@ class iso _TestEq is UnitTest
     h.assert_true(r == "1234", """ \d+ =~ "1234" """)
     h.assert_true(r != "asdf", """ \d+ !~ "asdf" """)
 
-class iso _TestMatchIter is UnitTest
+class iso _TestMatchIterator is UnitTest
   """
   Tests the match iterator
   """
@@ -87,7 +87,7 @@ class iso _TestMatchIter is UnitTest
     h.assert_eq[String](m6(0)?, "-60")
     h.assert_false(matches.has_next())
 
-class iso _TestIterEmpty is UnitTest
+class iso _TestMatchIteratorEmpty is UnitTest
   """
   Tests the match iterator when the subject doesn't contain any matches
   for the regular expression
