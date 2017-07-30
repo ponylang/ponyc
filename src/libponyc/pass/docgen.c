@@ -122,6 +122,10 @@ static bool is_for_testing(const char* name, ast_t* list)
 
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
+    if (ast_id(p) == TK_PROVIDES) {
+        // descent 1 level down to TK_NOMINAL
+        p = ast_child(p);
+    }
     if(ast_id(p) == TK_NOMINAL)
     {
       ast_t* id = ast_childidx(p, 1);
