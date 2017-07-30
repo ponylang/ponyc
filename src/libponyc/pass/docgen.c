@@ -172,16 +172,16 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(is_for_testing(name, ast)) // Ignore test types
     return;
 
-  bool private = is_name_private(name);
+  bool has_private_name = is_name_private(name);
 
-  if(private && !allow_private)  // Ignore private
+  if(has_private_name && !allow_private)  // Ignore private
     return;
 
 
-  if(!private && !allow_public)  // Ignore public
+  if(!has_private_name && !allow_public)  // Ignore public
     return;
 
-  if(private)  // Ignore leading underscore for ordering
+  if(has_private_name)  // Ignore leading underscore for ordering
     name++;
 
   doc_list_add(list, ast, name, false);
@@ -360,7 +360,7 @@ static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
       // indicated by a name created by package_hygienic_id)
       // and if the type not private if we exclude private types.
       const char* type_id_name = ast_name(id);
-      if(generate_links && *type_id_name != '$' 
+      if(generate_links && *type_id_name != '$'
               && (docgen_opt->include_private || !is_name_private(type_id_name)))
       {
         // Find type we reference so we can link to it
