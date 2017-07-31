@@ -33,7 +33,7 @@ enum
   OPT_PIC,
   OPT_NOPIC,
   OPT_DOCS,
-  OPT_DOCS_PRIVATE,
+  OPT_DOCS_PUBLIC,
 
   OPT_SAFE,
   OPT_CPU,
@@ -74,7 +74,7 @@ static opt_arg_t args[] =
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   {"nopic", '\0', OPT_ARG_NONE, OPT_NOPIC},
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
-  {"docs-private", '\0', OPT_ARG_NONE, OPT_DOCS_PRIVATE},
+  {"docs-public", '\0', OPT_ARG_NONE, OPT_DOCS_PUBLIC},
 
   {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
   {"cpu", '\0', OPT_ARG_REQUIRED, OPT_CPU},
@@ -125,8 +125,7 @@ static void usage()
     "  --pic           Compile using position independent code.\n"
     "  --nopic         Don't compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
-    "  --docs-private  Generate code documentation for private types\n"
-    "                  as well as for public types.\n"
+    "  --docs-public   Generate code documentation for public types only.\n"
     ,
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
@@ -304,9 +303,18 @@ int main(int argc, char* argv[])
       case OPT_RUNTIMEBC: opt.runtimebc = true; break;
       case OPT_PIC: opt.pic = true; break;
       case OPT_NOPIC: opt.pic = false; break;
-      case OPT_DOCS: opt.docs = true; break;
-      case OPT_DOCS_PRIVATE: opt.docs_private = true; break;
-
+      case OPT_DOCS:
+        {
+          opt.docs = true;
+          opt.docs_private = true;
+        }
+        break;
+      case OPT_DOCS_PUBLIC:
+        {
+          opt.docs = true;
+          opt.docs_private = false;
+        }
+        break;
       case OPT_SAFE:
         if(!package_add_safe(s.arg_val, &opt))
           ok = false;
