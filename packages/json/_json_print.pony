@@ -1,6 +1,6 @@
 use "format"
 
-primitive _JsonPrint
+primitive _JSONPrint
   fun _indent(buf: String iso, indent: String, level': USize): String iso^ =>
     """
     Add indentation to the buf to the appropriate indent_level
@@ -17,7 +17,7 @@ primitive _JsonPrint
     buf
 
   fun _string(
-    d: box->JsonType,
+    d: box->JSONType,
     buf': String iso,
     indent: String,
     level: USize,
@@ -35,10 +35,10 @@ primitive _JsonPrint
     | let x: String =>
       buf = _escaped_string(consume buf, x)
 
-    | let x: JsonArray box =>
+    | let x: JSONArray box =>
       buf = x._show(consume buf, indent, level, pretty)
 
-    | let x: JsonObject box =>
+    | let x: JSONObject box =>
       buf = x._show(consume buf, indent, level, pretty)
 
     | let x': I64 =>
