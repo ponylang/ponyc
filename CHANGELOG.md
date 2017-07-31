@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add ability to default enable PIC when compiling ponyc ([PR #2113](https://github.com/ponylang/ponyc/pull/2113))
 
 
 ### Changed
