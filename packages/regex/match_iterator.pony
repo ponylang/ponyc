@@ -11,7 +11,7 @@ class MatchIterator is Iterator[Match]
   new create(regex': Regex box, subject': String, offset': USize = 0) =>   
     """
     Creates a new Match Iterator from a regular expression and a subject 
-    string 
+    string. 
     """ 
     _regex = regex'
     _subject = consume subject'
@@ -19,7 +19,7 @@ class MatchIterator is Iterator[Match]
 
   fun has_next() : Bool =>
     """
-    Indicates whether there is another match available
+    Indicates whether there is another match available.
     """
     try
       let m = _regex(_subject, _offset)?
@@ -28,10 +28,10 @@ class MatchIterator is Iterator[Match]
       false
     end 
 
-  fun ref next() : Match? =>
+  fun ref next(): Match ? =>
     """
     Yields the next match to the regular expression or produces
-    an error if there is no match
+    an error if there is no match.
     """
     let m = _regex(_subject, _offset)?
     _offset = m.end_pos() + 1 
