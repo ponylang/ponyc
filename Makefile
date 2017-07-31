@@ -444,6 +444,12 @@ ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic
 endif
 
+# default enable PIC compiling if requested
+ifdef default_pic
+  libponyrt.buildoptions += -fpic
+  BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+endif
+
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
 libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra

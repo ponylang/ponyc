@@ -31,6 +31,7 @@ enum
   OPT_LIBRARY,
   OPT_RUNTIMEBC,
   OPT_PIC,
+  OPT_NOPIC,
   OPT_DOCS,
 
   OPT_SAFE,
@@ -70,6 +71,7 @@ static opt_arg_t args[] =
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
+  {"nopic", '\0', OPT_ARG_NONE, OPT_NOPIC},
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
 
   {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
@@ -119,6 +121,7 @@ static void usage()
     "  --library, -l   Generate a C-API compatible static library.\n"
     "  --runtimebc     Compile with the LLVM bitcode file for the runtime.\n"
     "  --pic           Compile using position independent code.\n"
+    "  --nopic         Don't compile using position independent code.\n"
     "  --docs, -g      Generate code documentation.\n"
     ,
     "Rarely needed options:\n"
@@ -272,6 +275,10 @@ int main(int argc, char* argv[])
   bool print_usage = false;
   int id;
 
+#if defined(PONY_DEFAULT_PIC)
+  opt.pic = true;
+#endif
+
   while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
@@ -292,6 +299,7 @@ int main(int argc, char* argv[])
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_RUNTIMEBC: opt.runtimebc = true; break;
       case OPT_PIC: opt.pic = true; break;
+      case OPT_NOPIC: opt.pic = false; break;
       case OPT_DOCS: opt.docs = true; break;
 
       case OPT_SAFE:
