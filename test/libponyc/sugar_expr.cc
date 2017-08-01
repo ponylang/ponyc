@@ -14,6 +14,10 @@
   { const char* errs[] = {err1, NULL}; \
     DO(test_expected_errors(src, "expr", errs)); }
 
+#define TEST_ERRORS_2(src, err1, err2) \
+  { const char* errs[] = {err1, err2, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 
 class SugarExprTest : public PassTest
 {};
@@ -909,18 +913,39 @@ TEST_F(SugarExprTest, MatchExhaustiveSingleElementTuples)
 {
   // From issue #1991
   const char* src =
-    "primitive T1\n"
-    "primitive T2\n"
-    "primitive T3\n"
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
 
     "primitive Foo\n"
-    "  fun ref apply(p': (T1 | T2 | T3)): Bool =>\n"
+    "  fun apply(p': (P1 | P2 | P3)): Bool =>\n"
     "    match p'\n"
-    "    | (let p: T1) => true\n"
-    "    | (let p: (T2 | T3)) => false\n"
+    "    | (let p: P1) => true\n"
+    "    | (let p: (P2 | P3)) => false\n"
     "    end";
 
   TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchStructuralEqualityOnIncompatibleUnion)
+{
+  // From issue #2110
+  const char* src =
+    "class C1\n"
+    "  fun eq(that: C1 box): Bool => that is this\n"
+
+    "primitive Foo\n"
+    "  fun apply(c': (C1 | None)) =>\n"
+    "    let compare: (C1 | None) = C1\n"
+    "    match c'\n"
+    "    | compare => true\n"
+    "    | let c: (C1 | None) => false"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "a member of the union type has an incompatible method signature",
+    "this pattern element doesn't support structural equality");
 }
 
 
