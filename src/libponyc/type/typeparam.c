@@ -608,6 +608,8 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
 
       typeparam_current_inner(left, scope);
       typeparam_current_inner(right, scope);
+
+      break;
     }
 
     default:
