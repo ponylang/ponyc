@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler assert on match including structural equality on union type. ([PR #2117](https://github.com/ponylang/ponyc/pull/2117))
 
 
 ### Added
