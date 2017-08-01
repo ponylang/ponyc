@@ -57,9 +57,8 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     return false;
 
   ast_t* def = (ast_t*)ast_data(type);
-  pony_assert(def != NULL);
 
-  if((ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
+  if((def == NULL) || (ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
     return false;
 
   ast_t* eq_def = ast_get(def, stringtab("eq"), NULL);
