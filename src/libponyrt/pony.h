@@ -137,12 +137,13 @@ typedef const struct _pony_type_t
  *
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
- * 44/80 bytes: gc
+ * 48/88 bytes: gc
+ * 28/0 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
-#  define PONY_ACTOR_PAD_SIZE 256
+#  define PONY_ACTOR_PAD_SIZE 248
 #elif INTPTR_MAX == INT32_MAX
-#  define PONY_ACTOR_PAD_SIZE 164
+#  define PONY_ACTOR_PAD_SIZE 160
 #endif
 
 typedef struct pony_actor_pad_t

@@ -30,7 +30,7 @@ typedef struct pony_actor_t
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
-  gc_t gc; // 44/80 bytes
+  gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
