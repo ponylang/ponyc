@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- docgen: ingore test types and only document public types by default ([PR #2112](https://github.com/ponylang/ponyc/pull/2112))
 
 
 ## [0.16.1] - 2017-07-30
