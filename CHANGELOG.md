@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add more promise methods (RFC 35) ([PR #2084](https://github.com/ponylang/ponyc/pull/2084))
 - Add ability to default enable PIC when compiling ponyc ([PR #2113](https://github.com/ponylang/ponyc/pull/2113))
 
 
