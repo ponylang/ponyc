@@ -391,7 +391,7 @@ end
   output.>append(file_name).>append(":").>append(msg)
   ```
 
-- Explicit partial calls are postfixed with '?' operator without whitespace inbetween.
+- Explicit partial calls are postfixed with '?' operator without whitespace in between.
 
   ```pony
   // OK
