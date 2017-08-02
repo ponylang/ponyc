@@ -76,7 +76,7 @@ class Regex
   fun matches(subject: String): MatchIterator =>
     """ 
     Creates a match iterator from the regular expression that will iterate
-    over the supplied subject returning matches
+    over the supplied subject returning matches.
     """
     MatchIterator(this, subject)
 
