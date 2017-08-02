@@ -391,6 +391,15 @@ end
   output.>append(file_name).>append(":").>append(msg)
   ```
 
+- Explicit partial calls are postfixed with '?' operator without whitespace inbetween.
+
+  ```pony
+  // OK
+  [as U8: 0; 1; 1].apply(0)?
+
+  // not OK
+  let newVal = myHashMap.insert("key", "value") ?
+  ```
 
 - Multiple function calls should generally be aligned so that each call is placed on a separate line indented below the initial object.
 
