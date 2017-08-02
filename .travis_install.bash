@@ -104,13 +104,15 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     brew install libressl
 
     brew install llvm
-    # brew link --overwrite --force llvm@4.0
-    # mkdir llvmsym
-    # ln -s "$(which llvm-config)" llvmsym/llvm-config-4.0
-    # ln -s "$(which clang++)" llvmsym/clang++-4.0
+    brew link --overwrite --force llvm
+    mkdir llvmsym
+    ln -s "$(which llvm-config)" llvmsym/llvm-config-4.0
+    ln -s "$(which clang++)" llvmsym/clang++-4.0
+    #ln -s /usr/local/opt/llvm/bin/llvm-config llvmsym/llvm-config-4.0
+    #ln -s /usr/local/opt/llvm/bin/clang++ llvmsym/clang++-4.0
 
     # do this elsewhere:
-    #export PATH=llvmsym/:$PATH
+    export PATH=llvmsym/:$PATH
   ;;
 
   *)
