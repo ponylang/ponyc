@@ -108,8 +108,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     mkdir llvmsym
     ln -s "$(which llvm-config)" llvmsym/llvm-config-4.0
     ln -s "$(which clang++)" llvmsym/clang++-4.0
-    #ln -s /usr/local/opt/llvm/bin/llvm-config llvmsym/llvm-config-4.0
-    #ln -s /usr/local/opt/llvm/bin/clang++ llvmsym/clang++-4.0
 
     # do this elsewhere:
     export PATH=llvmsym/:$PATH
