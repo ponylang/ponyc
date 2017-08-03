@@ -527,6 +527,17 @@ class Array[A] is Seq[A]
       end
     end
 
+  fun ref swap_elements(i: USize, j: USize) ? =>
+    """
+    Swap the element at index i with the element at index j.
+    If either i or j are out of bounds, an error is raised.
+    """
+    if (i >= _size) or (j >= _size) then error end
+
+    let x = _ptr._apply(i)
+    _ptr._update(i, _ptr._apply(j))
+    _ptr._update(j, consume x)
+
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     """
     Return an iterator over the indices in the array.
