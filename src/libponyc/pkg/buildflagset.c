@@ -99,8 +99,7 @@ static void flag_free(flag_t* flag)
 }
 
 DECLARE_HASHMAP(flagtab, flagtab_t, flag_t);
-DEFINE_HASHMAP(flagtab, flagtab_t, flag_t, flag_hash, flag_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, flag_free);
+DEFINE_HASHMAP(flagtab, flagtab_t, flag_t, flag_hash, flag_cmp, flag_free);
 
 
 struct buildflagset_t

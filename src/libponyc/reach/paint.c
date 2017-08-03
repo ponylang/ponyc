@@ -102,8 +102,7 @@ static void name_record_free(name_record_t* p)
 
 DECLARE_HASHMAP(name_records, name_records_t, name_record_t);
 DEFINE_HASHMAP(name_records, name_records_t, name_record_t, name_record_hash,
-  name_record_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  name_record_free);
+  name_record_cmp, name_record_free);
 
 
 typedef struct colour_record_t

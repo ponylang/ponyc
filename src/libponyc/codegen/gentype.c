@@ -34,8 +34,7 @@ static bool tbaa_metadata_cmp(tbaa_metadata_t* a, tbaa_metadata_t* b)
 }
 
 DEFINE_HASHMAP(tbaa_metadatas, tbaa_metadatas_t, tbaa_metadata_t,
-  tbaa_metadata_hash, tbaa_metadata_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, NULL);
+  tbaa_metadata_hash, tbaa_metadata_cmp, NULL);
 
 tbaa_metadatas_t* tbaa_metadatas_new()
 {
