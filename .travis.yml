@@ -206,8 +206,8 @@ matrix:
         - LLVM_VERSION="4.0.1"
         - LLVM_CONFIG="llvm-config-4.0"
         - config=debug
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
+        - CC1=clang-4.0
+        - CXX1=clang++-4.0
 
     - os: osx
       env:
