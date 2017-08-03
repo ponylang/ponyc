@@ -1097,3 +1097,145 @@ TEST_F(SugarExprTest, AsDontCareMultiTuple)
 
   TEST_EQUIV(short_form, full_form);
 }
+
+
+TEST_F(SugarExprTest, ArrayLiteralAsVal)
+{
+  const char* src =
+    "trait val T\n"
+    "primitive P1 is T\n"
+    "primitive P2 is T\n"
+    "primitive P3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[T] =>\n"
+    "    [as T: P1; P2; P3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralAsIso)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[T] =>\n"
+    "    [as T: C1; C2; C3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralAsIsoAliasedElements)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[T] =>\n"
+    "    let c1: C1 = C1\n"
+    "    let c2: C2 = C2\n"
+    "    let c3: C3 = C3\n"
+    "    [as T: c1; c2; c3]";
+
+  TEST_ERRORS_1(src,
+    "array element not a subtype of specified array type");
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralAsIsoConsumedElements)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[T] =>\n"
+    "    let c1: C1 iso = C1\n"
+    "    let c2: C2 iso = C2\n"
+    "    let c3: C3 iso = C3\n"
+    "    [as T: consume c1; consume c2; consume c3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralNoAsVal)
+{
+  const char* src =
+    "trait val T\n"
+    "primitive P1 is T\n"
+    "primitive P2 is T\n"
+    "primitive P3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[(P1 | P2 | P3)] =>\n"
+    "    [P1; P2; P3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralNoAsIso)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[(C1 | C2 | C3)] =>\n"
+    "    [C1; C2; C3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralNoAsIsoAliasedElements)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[(C1 | C2 | C3)] =>\n"
+    "    let c1: C1 = C1\n"
+    "    let c2: C2 = C2\n"
+    "    let c3: C3 = C3\n"
+    "    [c1; c2; c3]";
+
+  TEST_ERRORS_1(src,
+    "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, ArrayLiteralNoAsIsoConsumedElements)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[(C1 | C2 | C3)] =>\n"
+    "    let c1: C1 iso = C1\n"
+    "    let c2: C2 iso = C2\n"
+    "    let c3: C3 iso = C3\n"
+    "    [consume c1; consume c2; consume c3]";
+
+  TEST_COMPILE(src);
+}
