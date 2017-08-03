@@ -48,9 +48,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return false;
 
       c_type = ast_type(ele); // May have changed due to literals
+      ast_t* a_type = alias(c_type);
 
       errorframe_t info = NULL;
-      if(!is_subtype(c_type, type, &info, opt))
+      if(!is_subtype(a_type, type, &info, opt))
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ele,
@@ -78,16 +79,19 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     }
   }
 
-  BUILD(ref, ast, NODE(TK_REFERENCE, ID("Array")));
+  if(!told_type)
+  {
+    ast_t* aliasable_type = type;
+    type = alias(aliasable_type);
+    ast_free_unattached(aliasable_type);
+  }
 
-  ast_t* a_type = alias(type);
+  BUILD(ref, ast, NODE(TK_REFERENCE, ID("Array")));
 
   BUILD(qualify, ast,
     NODE(TK_QUALIFY,
       TREE(ref)
-      NODE(TK_TYPEARGS, TREE(a_type))));
-
-  ast_free_unattached(type);
+      NODE(TK_TYPEARGS, TREE(type))));
 
   BUILD(dot, ast, NODE(TK_DOT, TREE(qualify) ID("create")));
 
