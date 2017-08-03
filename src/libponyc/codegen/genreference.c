@@ -37,8 +37,7 @@ static void genned_string_free(genned_string_t* s)
 }
 
 DEFINE_HASHMAP(genned_strings, genned_strings_t, genned_string_t,
-  genned_string_hash, genned_string_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, genned_string_free);
+  genned_string_hash, genned_string_cmp, genned_string_free);
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {

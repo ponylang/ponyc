@@ -40,8 +40,7 @@ static bool reach_method_cmp(reach_method_t* a, reach_method_t* b)
 }
 
 DEFINE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t,
-  reach_method_hash, reach_method_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, NULL, reach_method_pony_type());
+  reach_method_hash, reach_method_cmp, NULL, reach_method_pony_type());
 
 static size_t reach_mangled_hash(reach_method_t* m)
 {
@@ -74,8 +73,8 @@ static void reach_mangled_free(reach_method_t* m)
 }
 
 DEFINE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t,
-  reach_mangled_hash, reach_mangled_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, reach_mangled_free, reach_method_pony_type());
+  reach_mangled_hash, reach_mangled_cmp, reach_mangled_free,
+  reach_method_pony_type());
 
 static size_t reach_method_name_hash(reach_method_name_t* n)
 {
@@ -96,8 +95,7 @@ static void reach_method_name_free(reach_method_name_t* n)
 }
 
 DEFINE_HASHMAP_SERIALISE(reach_method_names, reach_method_names_t,
-  reach_method_name_t, reach_method_name_hash,
-  reach_method_name_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
+  reach_method_name_t, reach_method_name_hash, reach_method_name_cmp,
   reach_method_name_free, reach_method_name_pony_type());
 
 static size_t reach_type_hash(reach_type_t* t)
@@ -134,12 +132,10 @@ static void reach_type_free(reach_type_t* t)
 }
 
 DEFINE_HASHMAP_SERIALISE(reach_types, reach_types_t, reach_type_t,
-  reach_type_hash, reach_type_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, reach_type_free, reach_type_pony_type());
+  reach_type_hash, reach_type_cmp, reach_type_free, reach_type_pony_type());
 
 DEFINE_HASHMAP_SERIALISE(reach_type_cache, reach_type_cache_t, reach_type_t,
-  reach_type_hash, reach_type_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, NULL, reach_type_pony_type());
+  reach_type_hash, reach_type_cmp, NULL, reach_type_pony_type());
 
 static reach_method_t* reach_rmethod(reach_method_name_t* n, const char* name)
 {
@@ -1103,8 +1099,7 @@ static void reach_identity_free(reach_identity_t* id)
 DECLARE_HASHMAP(reach_identities, reach_identities_t, reach_identity_t);
 
 DEFINE_HASHMAP(reach_identities, reach_identities_t, reach_identity_t,
-  reach_identity_hash, reach_identity_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, reach_identity_free);
+  reach_identity_hash, reach_identity_cmp, reach_identity_free);
 
 static void reachable_identity_type(reach_t* r, ast_t* l_type, ast_t* r_type,
   pass_opt_t* opt, reach_identities_t* reached_identities)

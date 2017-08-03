@@ -48,8 +48,7 @@ void ponyint_actorref_free(actorref_t* aref)
 }
 
 DEFINE_HASHMAP(ponyint_actormap, actormap_t, actorref_t, actorref_hash,
-  actorref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  ponyint_actorref_free);
+  actorref_cmp, ponyint_actorref_free);
 
 static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 {

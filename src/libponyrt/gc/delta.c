@@ -33,7 +33,7 @@ size_t ponyint_delta_rc(delta_t* delta)
 }
 
 DEFINE_HASHMAP(ponyint_deltamap, deltamap_t, delta_t, delta_hash, delta_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, delta_free);
+  delta_free);
 
 deltamap_t* ponyint_deltamap_update(deltamap_t* map, pony_actor_t* actor,
   size_t rc)
