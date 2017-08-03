@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Treat `as` type of array literals as the alias of the element type. ([PR #2126](https://github.com/ponylang/ponyc/pull/2126))
 - docgen: ignore test types and add cli flag to only document public types ([PR #2112](https://github.com/ponylang/ponyc/pull/2112))
 
 
