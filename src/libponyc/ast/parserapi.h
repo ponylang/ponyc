@@ -112,6 +112,8 @@ void infix_builder(rule_state_t* state, ast_t* new_ast);
 
 void infix_reverse_builder(rule_state_t* state, ast_t* new_ast);
 
+void infix_builder_flat(rule_state_t* state, ast_t* new_ast);
+
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id);
 
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
@@ -248,8 +250,9 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
  *                    be the last child (eg call).
  */
 #define CUSTOMBUILD(builder_fn) *out_builder = builder_fn
-#define INFIX_BUILD()   *out_builder = infix_builder
-#define INFIX_REVERSE() *out_builder = infix_reverse_builder
+#define INFIX_BUILD()      *out_builder = infix_builder
+#define INFIX_REVERSE()    *out_builder = infix_reverse_builder
+#define INFIX_BUILD_FLAT() *out_builder = infix_builder_flat
 
 
 /** Attempt to match one of the given set of tokens.

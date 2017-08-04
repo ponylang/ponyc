@@ -8,24 +8,6 @@
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
-static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
-{
-  ast_t* ast = *astp;
-
-  // If there are more than 2 children, this has already been flattened.
-  if(ast_childcount(ast) > 2)
-    return AST_OK;
-
-  AST_EXTRACT_CHILDREN(ast, left, right);
-
-  ast_t* r_ast = type_union(opt, left, right);
-  ast_replace(astp, r_ast);
-  ast_free_unattached(left);
-  ast_free_unattached(right);
-
-  return AST_OK;
-}
-
 static void flatten_isect_element(ast_t* type, ast_t* elem)
 {
   if(ast_id(elem) != TK_ISECTTYPE)
@@ -249,9 +231,6 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_UNIONTYPE:
-      return flatten_union(options, astp);
-
     case TK_ISECTTYPE:
       return flatten_isect(options, ast);
 

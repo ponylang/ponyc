@@ -158,6 +158,29 @@ void infix_reverse_builder(rule_state_t* state, ast_t* new_ast)
 }
 
 
+void infix_builder_flat(rule_state_t* state, ast_t* new_ast)
+{
+  pony_assert(state != NULL);
+  pony_assert(new_ast != NULL);
+
+  if(ast_id(state->ast) == ast_id(new_ast))
+  {
+    // New AST gets deleted, after moving its children into the existing AST.
+    ast_t* new_child;
+
+    while((new_child = ast_pop(new_ast)) != NULL)
+      ast_append(state->ast, new_child);
+
+    ast_free(new_ast);
+  } else {
+    // New AST goes at the top
+    ast_add(new_ast, state->ast);
+    state->ast = new_ast;
+  }
+  state->last_child = NULL;
+}
+
+
 static void annotation_builder(rule_state_t* state, ast_t* new_ast)
 {
   pony_assert(state != NULL);

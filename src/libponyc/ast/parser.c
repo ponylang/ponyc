@@ -183,7 +183,7 @@ DEF(nominal);
 
 // PIPE type
 DEF(uniontype);
-  INFIX_BUILD();
+  INFIX_BUILD_FLAT();
   AST_NODE(TK_UNIONTYPE);
   SKIP(NULL, TK_PIPE);
   RULE("type", type);
