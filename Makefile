@@ -463,11 +463,11 @@ libponyc.benchmarks.links = libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ponyc.links += libpthread libdl
-  libponyc.tests.links += libpthread libdl
-  libponyrt.tests.links += libpthread libdl
-  libponyc.benchmarks.links += libpthread libdl
-  libponyrt.benchmarks.links += libpthread libdl
+  ponyc.links += libpthread libdl libatomic
+  libponyc.tests.links += libpthread libdl libatomic
+  libponyrt.tests.links += libpthread libdl libatomic
+  libponyc.benchmarks.links += libpthread libdl libatomic
+  libponyrt.benchmarks.links += libpthread libdl libatomic
 endif
 
 ifeq ($(OSTYPE),freebsd)
