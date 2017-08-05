@@ -542,6 +542,7 @@ static void normalise_string(lexer_t* lexer)
   size_t ws = lexer->buflen;
   size_t ws_this_line = 0;
   bool in_leading_ws = true;
+  bool has_non_ws = false;
 
   for(size_t i = 0; i < lexer->buflen; i++)
   {
@@ -555,7 +556,10 @@ static void normalise_string(lexer_t* lexer)
       }
       else
       {
-        if(ws_this_line < ws)
+        if(!isspace(c))
+          has_non_ws = true;
+
+        if(has_non_ws && (ws_this_line < ws))
           ws = ws_this_line;
 
         in_leading_ws = false;
@@ -565,6 +569,7 @@ static void normalise_string(lexer_t* lexer)
     if(c == '\n')
     {
       ws_this_line = 0;
+      has_non_ws = false;
       in_leading_ws = true;
     }
   }

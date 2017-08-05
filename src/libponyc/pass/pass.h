@@ -221,6 +221,8 @@ typedef struct pass_opt_t
   bool print_filenames;
   bool check_tree;
   bool docs;
+  bool docs_private;
+
   verbosity_level verbosity;
   const char* output;
   char* link_arch;

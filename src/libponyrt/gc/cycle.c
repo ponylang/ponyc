@@ -55,7 +55,7 @@ DEFINE_STACK(ponyint_viewrefstack, viewrefstack_t, viewref_t);
 
 DECLARE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t);
 DEFINE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t, viewref_hash,
-  viewref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size, viewref_free);
+  viewref_cmp, viewref_free);
 
 enum
 {
@@ -107,8 +107,7 @@ static void view_free(view_t* view)
 
 // no element free for a viewmap. views are kept in many maps.
 DECLARE_HASHMAP(ponyint_viewmap, viewmap_t, view_t);
-DEFINE_HASHMAP(ponyint_viewmap, viewmap_t, view_t, view_hash, view_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, NULL);
+DEFINE_HASHMAP(ponyint_viewmap, viewmap_t, view_t, view_hash, view_cmp, NULL);
 
 struct perceived_t
 {
@@ -136,8 +135,7 @@ static void perceived_free(perceived_t* per)
 
 DECLARE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t);
 DEFINE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t,
-  perceived_hash, perceived_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, perceived_free);
+  perceived_hash, perceived_cmp, perceived_free);
 
 DECLARE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
 DEFINE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);

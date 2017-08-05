@@ -539,6 +539,15 @@ TEST_F(LexerTest, TripleStringWithLeadingEmptyLine)
   DO(test(src));
 }
 
+TEST_F(LexerTest, TripleStringWithLeadingEmptyLineAndIndentedFirstLine)
+{
+  const char* src = "\"\"\"\n  Foo\n\n  bar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\n\nbar");
+  expect(4, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
+
 
 TEST_F(LexerTest, TripleStringWithNonLeadingEmptyLine)
 {

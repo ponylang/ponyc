@@ -6,6 +6,7 @@
 
 #include <ds/fun.h>
 #include <ds/hash.h>
+#include <mem/pool.h>
 #include <iostream>
 
 #define INITIAL_SIZE 8
@@ -35,8 +36,7 @@ class HashMapBench: public ::benchmark::Fixture
 };
 
 DEFINE_HASHMAP(testmap, testmap_t, hash_elem_t, HashMapBench::hash_tst,
-  HashMapBench::cmp_tst, malloc, HashMapBench::free_buckets,
-  HashMapBench::free_elem)
+  HashMapBench::cmp_tst, HashMapBench::free_elem)
 
 struct hash_elem_t
 {
@@ -95,7 +95,7 @@ void HashMapBench::delete_elements(size_t del_pct, size_t count)
 
 hash_elem_t* HashMapBench::get_element()
 {
-  return (hash_elem_t*) malloc(sizeof(hash_elem_t));
+  return POOL_ALLOC(hash_elem_t);
 }
 
 size_t HashMapBench::hash_tst(hash_elem_t* p)
@@ -110,13 +110,7 @@ bool HashMapBench::cmp_tst(hash_elem_t* a, hash_elem_t* b)
 
 void HashMapBench::free_elem(hash_elem_t* p)
 {
-  free(p);
-}
-
-void HashMapBench::free_buckets(size_t len, void* p)
-{
-  (void)len;
-  free(p);
+  POOL_FREE(hash_elem_t, p);
 }
 
 BENCHMARK_DEFINE_F(HashMapBench, HashDestroy$)(benchmark::State& st) {
@@ -270,7 +264,7 @@ BENCHMARK_REGISTER_F(HashMapBench, HashPutNewResize)->RangeMultiplier(2)->Ranges
 
 BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   hash_elem_t* curr = get_element();
-  hash_elem_t **a = new hash_elem_t*[st.range(2)];
+  hash_elem_t** a = (hash_elem_t**)ponyint_pool_alloc_size(st.range(2));
   for(int i = 0; i < st.range(2); i++)
   {
     a[i] = get_element();
@@ -292,7 +286,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   for(int i = 0; i < st.range(2); i++)
     free_elem(a[i]);
   free_elem(curr);
-  delete[] a;
+  ponyint_pool_free_size(st.range(2), a);
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashRemove$_)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}, {1<<10, 64<<10}});
@@ -301,7 +295,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
   hash_elem_t* e1 = get_element();
   size_t map_count = testmap_size(&_map);
   size_t map_count_mask = map_count - 1;
-  size_t *a = new size_t[map_count];
+  size_t* a = (size_t*)ponyint_pool_alloc_size(map_count);
   size_t index = HASHMAP_UNKNOWN;
   if(st.range(2) == 0) {
     for(size_t i = 0; i < map_count; i++) {
@@ -332,7 +326,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
     j++;
   }
   st.SetItemsProcessed(st.iterations());
-  delete[] a;
+  ponyint_pool_free_size(map_count, a);
   free_elem(e1);
   e1 = nullptr;
 }
@@ -343,7 +337,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
   // range(2) == % of items to delete at random
   delete_elements(st.range(2), st.range(1));
   hash_elem_t* e1 = get_element();
-  size_t *a = NULL;
+  size_t* a = NULL;
   size_t map_count = testmap_size(&_map);
   // we're testing our pathological case
   if(map_count == 0)
@@ -366,7 +360,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
   size_t array_size = ponyint_next_pow2(map_count);
   size_t array_size_mask = array_size - 1;
   array_size = array_size < 128 ? 128 : array_size;
-  a = new size_t[array_size];
+  a = (size_t*)ponyint_pool_alloc_size(array_size);
   size_t ind = HASHMAP_UNKNOWN;
   if(st.range(3) == 0) {
     for(size_t i = 0; i < array_size; i++) {
@@ -401,7 +395,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     j++;
   }
   st.SetItemsProcessed(st.iterations());
-  delete[] a;
+  ponyint_pool_free_size(array_size, a);
   free_elem(e1);
   e1 = nullptr;
 }

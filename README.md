@@ -246,10 +246,12 @@ If you get errors like
  'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
 ```
 
-try running `ponyc` with the `--pic` flag.
+You need to rebuild `ponyc` with `default_pic=true`
 
 ```bash
-$ ./build/release/ponyc --pic examples/helloworld
+$ make clean
+$ make default_pic=true
+$ ./build/release/ponyc examples/helloworld
 ```
 
 ### Debian Jessie
@@ -286,6 +288,25 @@ To build ponyc, compile and run helloworld:
 ```bash
 $ cd ~/ponyc/
 $ make
+$ ./build/release/ponyc examples/helloworld
+$ ./helloworld
+```
+
+### Debian Sid
+
+Install pony dependencies:
+
+```bash
+$ sudo apt-get update
+$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+                       libssl-dev llvm llvm-dev libpcre2-dev
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+$ cd ~/ponyc/
+$ make default_pic=true
 $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
@@ -343,16 +364,9 @@ To build ponyc, compile and run helloworld:
 
 ```bash
 $ cd ~/ponyc/
-$ make
-$ ./build/release/ponyc --pic examples/helloworld
+$ make default_pic=true
+$ ./build/release/ponyc examples/helloworld
 $ ./helloworld
-```
-
-NOTE: You need to pass `--pic` to `ponyc` or you will get errors like the following during linking:
-
-```bash
-/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
- 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
 ```
 
 ### Other Linux distributions

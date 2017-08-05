@@ -2,6 +2,27 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.17.0] - 2017-08-05
+
+### Fixed
+
+- Fix cursor location for displaying compiler errors and info. ([PR #2136](https://github.com/ponylang/ponyc/pull/2136))
+- Fix indent detection when lexing docstrings that contain whitespace-only lines. ([PR #2131](https://github.com/ponylang/ponyc/pull/2131))
+- Fix compiler crash on typecheck error in FFI call. ([PR #2124](https://github.com/ponylang/ponyc/pull/2124))
+- Fix compiler assert on match including structural equality on union type. ([PR #2117](https://github.com/ponylang/ponyc/pull/2117))
+
+### Added
+
+- Support GCC7 on Linux ([PR #2134](https://github.com/ponylang/ponyc/pull/2134))
+- Add regex match iterator ([PR #2109](https://github.com/ponylang/ponyc/pull/2109))
+- Add more promise methods (RFC 35) ([PR #2084](https://github.com/ponylang/ponyc/pull/2084))
+- Add ability to default enable PIC when compiling ponyc ([PR #2113](https://github.com/ponylang/ponyc/pull/2113))
+
+### Changed
+
+- Treat `as` type of array literals as the alias of the element type. ([PR #2126](https://github.com/ponylang/ponyc/pull/2126))
+- docgen: ignore test types and add cli flag to only document public types ([PR #2112](https://github.com/ponylang/ponyc/pull/2112))
+
 ## [0.16.1] - 2017-07-30
 
 ### Fixed
@@ -835,5 +856,5 @@ All notable changes to the Pony compiler and standard library will be documented
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
 
-ontinue` if an error is raised.
+ised.
 

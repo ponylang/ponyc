@@ -40,8 +40,7 @@ static void stringtab_free(stringtab_entry_t* a)
 
 DECLARE_HASHMAP(strtable, strtable_t, stringtab_entry_t);
 DEFINE_HASHMAP(strtable, strtable_t, stringtab_entry_t, stringtab_hash,
-  stringtab_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  stringtab_free);
+  stringtab_cmp, stringtab_free);
 
 static strtable_t table;
 

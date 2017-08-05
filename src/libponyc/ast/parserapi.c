@@ -211,21 +211,25 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 
 
 // Add an AST node for the specified token, which may be deferred
-void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
+void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id,
+  token_t* token_for_pos)
 {
-  pony_assert(parser->last_token != NULL);
+  if(token_for_pos == NULL)
+    token_for_pos = parser->token;
+
+  pony_assert(token_for_pos != NULL);
 
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
     state->deferred = true;
     state->deferred_id = id;
-    state->line = token_line_number(parser->last_token);
-    state->pos = token_line_position(parser->last_token);
+    state->line = token_line_number(token_for_pos);
+    state->pos = token_line_position(token_for_pos);
     return;
   }
 
-  add_ast(parser, state, ast_new(parser->last_token, id), default_builder);
+  add_ast(parser, state, ast_new(token_for_pos, id), default_builder);
 }
 
 
@@ -348,7 +352,7 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   {
     // Optional token / sub rule not found
     if(state->deflt_id != TK_EOF) // Default node is specified
-      add_deferrable_ast(parser, state, state->deflt_id);
+      add_deferrable_ast(parser, state, state->deflt_id, parser->last_token);
 
     state->deflt_id = TK_LEX_ERROR;
     return PARSE_OK;

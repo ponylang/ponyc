@@ -2,6 +2,7 @@
 #include "literal.h"
 #include "../type/subtype.h"
 #include "../pkg/ifdef.h"
+#include "../pass/expr.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -54,6 +55,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       return false;
 
     ast_t* a_type = ast_type(arg);
+
+    if (is_typecheck_error(a_type))
+      return false;
 
     if(ast_id(a_type) == TK_TUPLETYPE)
     {

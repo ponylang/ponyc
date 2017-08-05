@@ -33,7 +33,7 @@ static void sym_free(symbol_t* sym)
 }
 
 DEFINE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, sym_free, symbol_pony_type());
+  sym_free, symbol_pony_type());
 
 static const char* name_without_case(const char* name)
 {

@@ -7,6 +7,7 @@
 #include "../gc/cycle.h"
 #include "../gc/trace.h"
 #include "ponyassert.h"
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <dtrace.h>
@@ -14,6 +15,10 @@
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
 #endif
+
+// Ignore padding at the end of the type.
+static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
+  sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 enum
 {

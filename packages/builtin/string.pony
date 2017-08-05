@@ -114,10 +114,7 @@ actor Main
     else
       var i: USize = 0
 
-      while true do
-        if str._apply(i) == 0 then
-          break
-        end
+      while str._apply(i) != 0 do
         i = i + 1
       end
 
@@ -126,11 +123,9 @@ actor Main
       _ptr = str
     end
 
-  new copy_cstring(str: Pointer[U8] box, len: USize = 0) =>
+  new copy_cpointer(str: Pointer[U8] box, len: USize) =>
     """
-    If the cstring is not null terminated and a length isn't specified, this
-    can crash. This will only occur if the C-FFI has been used to craft such
-    a pointer.
+    Create a string by copying a fixed number of bytes from a pointer.
     """
     if str.is_null() then
       _size = 0
@@ -139,14 +134,32 @@ actor Main
       _set(0, 0)
     else
       _size = len
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      str._copy_to(_ptr, _alloc)
+    end
 
-      if len == 0 then
-        while str._apply(_size) != 0 do
-          _size = _size + 1
-        end
+  new copy_cstring(str: Pointer[U8] box) =>
+    """
+    Create a string by copying a null-terminated C string. Note that
+    the scan is unbounded; the pointed to data must be null-terminated
+    within the allocated array to preserve memory safety. If a null
+    pointer is given then an empty string is returned.
+    """
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      var i: USize = 0
+
+      while str._apply(i) != 0 do
+        i = i + 1
       end
 
-      _alloc = _size + 1
+      _size = i
+      _alloc = i + 1
       _ptr = Pointer[U8]._alloc(_alloc)
       str._copy_to(_ptr, _alloc)
     end

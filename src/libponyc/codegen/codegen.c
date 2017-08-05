@@ -44,8 +44,7 @@ static void compile_local_free(compile_local_t* p)
 }
 
 DEFINE_HASHMAP(compile_locals, compile_locals_t, compile_local_t,
-  compile_local_hash, compile_local_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, compile_local_free);
+  compile_local_hash, compile_local_cmp, compile_local_free);
 
 static void fatal_error(const char* reason)
 {

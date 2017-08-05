@@ -57,8 +57,7 @@ static void serialise_free(serialise_t* p)
 }
 
 DEFINE_HASHMAP(ponyint_serialise, ponyint_serialise_t,
-  serialise_t, serialise_hash, serialise_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, serialise_free);
+  serialise_t, serialise_hash, serialise_cmp, serialise_free);
 
 static void recurse(pony_ctx_t* ctx, void* p, void* f)
 {

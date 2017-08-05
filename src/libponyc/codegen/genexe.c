@@ -272,6 +272,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* export = target_is_linux(c->opt->triple) ?
     "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
     "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
+  const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
@@ -284,9 +285,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s -lm %s",
-    linker, file_exe, arch, mcx16_arg, fuseld, file_o, lib_args, ponyrt, ldl,
-    export
+    "%s %s %s %s -lpthread %s %s -lm %s",
+    linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
+    ponyrt, ldl, export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
