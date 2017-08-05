@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix cursor location for displaying compiler errors and info. ([PR #2136](https://github.com/ponylang/ponyc/pull/2136))
 - Fix indent detection when lexing docstrings that contain whitespace-only lines. ([PR #2131](https://github.com/ponylang/ponyc/pull/2131))
 - Fix compiler crash on typecheck error in FFI call. ([PR #2124](https://github.com/ponylang/ponyc/pull/2124))
 - Fix compiler assert on match including structural equality on union type. ([PR #2117](https://github.com/ponylang/ponyc/pull/2117))
