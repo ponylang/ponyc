@@ -971,7 +971,7 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p)
     new_p = pool_alloc_size(new_adj_size);
   }
 
-  memcpy(new_p, p, old_size);
+  memcpy(new_p, p, old_size < new_size ? old_size : new_size);
 
   if(old_index < POOL_COUNT)
     ponyint_pool_free(old_index, p);
