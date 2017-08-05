@@ -292,6 +292,25 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
+### Debian Sid
+
+Install pony dependencies:
+
+```bash
+$ sudo apt-get update
+$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+                       libssl-dev llvm llvm-dev libpcre2-dev
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+$ cd ~/ponyc/
+$ make default_pic=true
+$ ./build/release/ponyc examples/helloworld
+$ ./helloworld
+```
+
 ### Ubuntu (14.04, 15.10, 16.04)
 
 ```bash
