@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix read past the end of a buffer in `pool.c`. ([PR #2139](https://github.com/ponylang/ponyc/pull/2139))
 
 
 ### Added
