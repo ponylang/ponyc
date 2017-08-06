@@ -186,11 +186,15 @@ actor Promise[A: Any #share]
           end
       end
 
-    next[None]({(a: A) => c.fulfill_a(a) } iso)
+    next[None](
+      {(a: A) => c.fulfill_a(a) } iso,
+      {() => p'.reject() } iso)
+
     p.next[None](
       object iso is Fulfill[B, None]
         fun ref apply(b: B) => c.fulfill_b(b)
-      end)
+      end,
+      {() => p'.reject() } iso)
 
     p'
 
