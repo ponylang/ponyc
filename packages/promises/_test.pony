@@ -43,20 +43,40 @@ class iso _TestPromiseAdd is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    h.expect_action("42")
-    (let p1, let p2, let p3) = (Promise[I64], Promise[I64], Promise[I64])
-    Promises[I64].join([p1; p2; p3].values())
-      .next[I64](
-        {(ns: Array[I64] val): I64 =>
-          var sum: I64 = 0
-          for n in ns.values() do sum = sum + n end
-          sum
-        } iso)
-      .next[None]({(s: I64) => h.complete_action(s.string()) } iso)
 
-    p1(16)
-    p2(12)
-    p3(14)
+    (var p1, var p2) = (Promise[I64], Promise[I64])
+    h.expect_action("5")
+
+    (p1 + p2)
+      .next[None](
+        {(ns: (I64, I64)) =>
+          h.complete_action((ns._1 + ns._2).string())
+        } iso)
+
+    p1(2)
+    p2(3)
+
+    (p1, p2) = (Promise[I64], Promise[I64])
+    h.expect_action("reject p1")
+
+    (p1 + p2)
+      .next[None](
+        {(ns: (I64, I64)) => h.complete(false) } iso,
+        {() => h.complete_action("reject p1") } iso)
+
+    p1.reject()
+    p2(3)
+
+    (p1, p2) = (Promise[I64], Promise[I64])
+    h.expect_action("reject p2")
+
+    (p1 + p2)
+      .next[None](
+        {(ns: (I64, I64)) => h.complete(false) } iso,
+        {() => h.complete_action("reject p2") } iso)
+
+    p1(2)
+    p2.reject()
 
 class iso _TestPromiseSelect is UnitTest
   fun name(): String => "promises/Promise.select"
