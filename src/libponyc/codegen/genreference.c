@@ -92,21 +92,23 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
 
   LLVMValueRef field = gen_fieldptr(c, ast);
 
   if(field == NULL)
     return NULL;
 
-  pony_assert(ast_id(l_type) == TK_NOMINAL);
+  ast_t* type = ast_type(right);
+  reach_type_t* t = reach_type(c->reach, type);
+  pony_assert(t != NULL);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   field = LLVMBuildLoad(c->builder, field, "");
-  LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, ast_type(left));
   const char id[] = "tbaa";
   LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
-  return field;
+  return gen_assign_cast(c, c_t->use_type, field, type);
 }
 
 
@@ -138,8 +140,14 @@ LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast)
   if(l_value == NULL)
     return NULL;
 
+  ast_t* type = ast_type(ast);
+  reach_type_t* t = reach_type(c->reach, type);
+  pony_assert(t != NULL);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   ast_t* l_type = ast_type(left);
-  return make_tupleelemptr(c, l_value, l_type, right);
+  LLVMValueRef value = make_tupleelemptr(c, l_value, l_type, right);
+  return gen_assign_cast(c, c_t->use_type, value, type);
 }
 
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
@@ -157,6 +165,11 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   reach_type_t* t = reach_type(c->reach, type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
+  int count = LLVMCountStructElementTypes(c_t->primitive);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMGetStructElementTypes(c_t->primitive, elements);
+
   LLVMValueRef tuple = LLVMGetUndef(c_t->primitive);
   int i = 0;
 
@@ -165,18 +178,26 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     LLVMValueRef value = gen_expr(c, child);
 
     if(value == NULL)
+    {
+      ponyint_pool_free_size(buf_size, elements);
       return NULL;
+    }
 
     // We'll have an undefined element if one of our source elements is a
     // variable declaration. This is ok, since the tuple value will never be
     // used.
     if(value == GEN_NOVALUE)
+    {
+      ponyint_pool_free_size(buf_size, elements);
       return GEN_NOTNEEDED;
+    }
 
+    value = gen_assign_cast(c, elements[i], value, ast_type(child));
     tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
   }
 
+  ponyint_pool_free_size(buf_size, elements);
   return tuple;
 }
 
@@ -207,7 +228,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   else
     LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
-  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, c_t->use_type, name);
+  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, c_t->mem_type, name);
 
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, alloc);
@@ -247,7 +268,12 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   if(local_ptr == NULL)
     return NULL;
 
-  return LLVMBuildLoad(c->builder, local_ptr, "");
+  ast_t* type = ast_type(ast);
+  reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  LLVMValueRef value = LLVMBuildLoad(c->builder, local_ptr, "");
+  return gen_assign_cast(c, c_t->use_type, value, type);
 }
 
 LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)

@@ -188,7 +188,6 @@ typedef struct compile_t
   LLVMValueRef numeric_sizes;
 
   LLVMTypeRef void_type;
-  LLVMTypeRef ibool;
   LLVMTypeRef i1;
   LLVMTypeRef i8;
   LLVMTypeRef i16;

@@ -1,5 +1,6 @@
 #include "genbox.h"
 #include "gencall.h"
+#include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
 #include "gentype.h"
@@ -18,6 +19,8 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 
   if(l_type != c_t->primitive)
     return NULL;
+
+  value = gen_assign_cast(c, c_t->mem_type, value, t->ast_cap);
 
   // Allocate the object.
   LLVMValueRef this_ptr = gencall_allocstruct(c, t);
@@ -60,5 +63,5 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
   const char id[] = "tbaa";
   LLVMSetMetadata(value, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
-  return value;
+  return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }

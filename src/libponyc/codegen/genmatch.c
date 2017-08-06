@@ -268,8 +268,7 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   if(next_block == NULL)
     next_block = continue_block;
 
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, result, c->i1, "");
-  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, continue_block,
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, result, continue_block,
     next_block);
 
   handle_branch_prediction_default(c->context, br, ast_parent(pattern));
@@ -716,8 +715,7 @@ static bool guard_match(compile_t* c, ast_t* guard,
   if(next_block == NULL)
     next_block = continue_block;
 
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, value, c->i1, "");
-  LLVMBuildCondBr(c->builder, test, continue_block, next_block);
+  LLVMBuildCondBr(c->builder, value, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
 }
