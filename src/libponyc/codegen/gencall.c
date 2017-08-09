@@ -176,7 +176,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
   bool is_target;
 
   if(os_is_target(method_name, c->opt->release, &is_target, c->opt))
-    return LLVMConstInt(c->ibool, is_target ? 1 : 0, false);
+    return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
   ast_error(c->opt->check.errors, ast, "unknown Platform setting");
   return NULL;
@@ -492,13 +492,30 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   return funptr;
 }
 
-void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
-  LLVMValueRef cast_args[], ast_t* args_ast)
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
+  ast_t* args_ast)
 {
   // Allocate the message, setting its size and ID.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, c_m->msg_type);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
+
+  size_t params_buf_size = (m->param_count + 3) * sizeof(LLVMTypeRef);
+  LLVMTypeRef* param_types =
+    (LLVMTypeRef*)ponyint_pool_alloc_size(params_buf_size);
+  LLVMGetStructElementTypes(c_m->msg_type, param_types);
+  size_t args_buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
+  LLVMValueRef* cast_args =
+    (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
+
+  ast_t* arg_ast = ast_child(args_ast);
+
+  for(size_t i = 0; i < m->param_count; i++)
+  {
+    cast_args[i+1] = gen_assign_cast(c, param_types[i+3], args[i+1],
+     ast_type(arg_ast));
+    arg_ast = ast_sibling(arg_ast);
+  }
 
   LLVMValueRef msg_args[3];
 
@@ -518,7 +535,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
   // Trace while populating the message contents.
   ast_t* params = ast_childidx(m->r_fun, 3);
   ast_t* param = ast_child(params);
-  ast_t* arg_ast = ast_child(args_ast);
+  arg_ast = ast_child(args_ast);
   bool need_trace = false;
 
   while(param != NULL)
@@ -544,7 +561,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
 
     for(size_t i = 0; i < m->param_count; i++)
     {
-      gentrace(c, ctx, orig_args[i+1], cast_args[i+1], ast_type(arg_ast),
+      gentrace(c, ctx, args[i+1], cast_args[i+1], ast_type(arg_ast),
         ast_type(param));
       param = ast_sibling(param);
       arg_ast = ast_sibling(arg_ast);
@@ -556,10 +573,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
 
   // Send the message.
   msg_args[0] = ctx;
-  msg_args[1] = LLVMBuildBitCast(c->builder, cast_args[0], c->object_ptr, "");
+  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
   msg_args[2] = msg;
   LLVMValueRef send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
   LLVMSetMetadataStr(send, "pony.msgsend", md);
+
+  ponyint_pool_free_size(params_buf_size, param_types);
+  ponyint_pool_free_size(args_buf_size, cast_args);
 }
 
 static bool contains_boxable(ast_t* type)
@@ -779,34 +799,17 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   bool bare = m->cap == TK_AT;
-
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
-  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-  LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
-
-  arg = ast_child(positional);
-  i = 1;
-
   LLVMValueRef r = NULL;
 
   if(is_message)
   {
     // If we're sending a message, trace and send here instead of calling the
     // sender to trace the most specific types possible.
-    LLVMValueRef* cast_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
-    cast_args[0] = args[0];
-    while(arg != NULL)
-    {
-      cast_args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
-      arg = ast_sibling(arg);
-      i++;
-    }
-
     token_id cap = cap_dispatch(type);
     reach_method_t* m = reach_method(t, cap, method_name, typeargs);
 
     codegen_debugloc(c, ast);
-    gen_send_message(c, m, args, cast_args, positional);
+    gen_send_message(c, m, args, positional);
     codegen_debugloc(c, NULL);
     switch(ast_id(postfix))
     {
@@ -819,8 +822,14 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         r = c->none_instance;
         break;
     }
-    ponyint_pool_free_size(buf_size, cast_args);
   } else {
+    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
+
+    arg = ast_child(positional);
+    i = 1;
+
     while(arg != NULL)
     {
       args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
@@ -853,6 +862,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       }
 
       codegen_debugloc(c, NULL);
+      ponyint_pool_free_size(buf_size, params);
     }
   }
 
@@ -871,7 +881,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     r = args[0];
 
   ponyint_pool_free_size(buf_size, args);
-  ponyint_pool_free_size(buf_size, params);
   return r;
 }
 
@@ -958,7 +967,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
 
     while(child != NULL)
     {
-      // A Bool in an intrinsic tuple return type is an i1, not an ibool.
+      // A Bool in an intrinsic tuple return type is an i1.
       if(is_bool(child))
         e_types[i] = c->i1;
 
@@ -971,11 +980,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
     ponyint_pool_free_size(buf_size, e_types);
     return r_type;
   } else {
-    // An intrinsic that returns a Bool returns an i1, not an ibool.
-    if(intrinsic && is_bool(t->ast))
-      return c->i1;
-    else
-      return c_t->use_type;
+    return c_t->use_type;
   }
 }
 
@@ -1013,13 +1018,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
 
     reach_type_t* pt = reach_type(c->reach, p_type);
     pony_assert(pt != NULL);
-
-    // An intrinsic that takes a Bool should be i1, not ibool.
-    if(intrinsic && is_bool(pt->ast))
-      f_params[count++] = c->i1;
-    else
-      f_params[count++] = ((compile_type_t*)pt->c_type)->use_type;
-
+    f_params[count++] = ((compile_type_t*)pt->c_type)->use_type;
     arg = ast_sibling(arg);
   }
 
@@ -1038,17 +1037,6 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, LLVMValueRef arg,
     return NULL;
 
   LLVMTypeRef arg_type = LLVMTypeOf(arg);
-
-  if(param == c->i1)
-  {
-    // If the parameter is an i1, it must be from an LLVM intrinsic. In that
-    // case, the argument must be a Bool encoded as an ibool.
-    if(arg_type != c->ibool)
-      return NULL;
-
-    // Truncate the Bool's i8 representation to i1.
-    return LLVMBuildTrunc(c->builder, arg, c->i1, "");
-  }
 
   switch(LLVMGetTypeKind(param))
   {

@@ -72,8 +72,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "if_post");
 
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, then_block, else_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
   handle_branch_prediction_default(c->context, br, ast);
 
@@ -211,8 +210,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(i_value == NULL)
     return NULL;
 
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
-  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, body_block, else_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, body_block, else_block);
 
   handle_branch_prediction_default(c->context, br, ast);
 
@@ -240,8 +238,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
       return NULL;
 
     body_from = LLVMGetInsertBlock(c->builder);
-    LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-    br = LLVMBuildCondBr(c->builder, test, body_block, post_block);
+    br = LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
 
     handle_branch_prediction_default(c->context, br, ast);
   }
@@ -350,8 +347,8 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
       return NULL;
 
     body_from = LLVMGetInsertBlock(c->builder);
-    LLVMValueRef test = LLVMBuildTrunc(c->builder, c_value, c->i1, "");
-    LLVMValueRef br = LLVMBuildCondBr(c->builder, test, post_block, body_block);
+    LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, post_block,
+      body_block);
 
     handle_branch_prediction_default(c->context, br, cond);
   }
@@ -363,8 +360,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef i_value = gen_expr(c, cond);
 
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, i_value, c->i1, "");
-  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, else_block, body_block);
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, else_block, body_block);
 
   handle_branch_prediction_default(c->context, br, cond);
 

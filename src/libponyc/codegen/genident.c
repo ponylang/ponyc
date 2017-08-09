@@ -40,8 +40,14 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
     LLVMPositionBuilderAtEnd(c->builder, this_block);
 
     // Test the element.
+    compile_type_t* c_t_left =
+      (compile_type_t*)reach_type(c->reach, left_child)->c_type;
+    compile_type_t* c_t_right =
+      (compile_type_t*)reach_type(c->reach, right_child)->c_type;
     LLVMValueRef l_elem = LLVMBuildExtractValue(c->builder, l_value, i, "");
     LLVMValueRef r_elem = LLVMBuildExtractValue(c->builder, r_value, i, "");
+    l_elem = gen_assign_cast(c, c_t_left->use_type, l_elem, left_child);
+    r_elem = gen_assign_cast(c, c_t_right->use_type, r_elem, right_child);
     LLVMValueRef test = gen_is_value(c, left_child, right_child, l_elem,
       r_elem);
 
@@ -447,9 +453,8 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   codegen_debugloc(c, ast);
   LLVMValueRef result = gen_is_value(c, left_type, right_type,
     l_value, r_value);
-  LLVMValueRef value = LLVMBuildZExt(c->builder, result, c->ibool, "");
   codegen_debugloc(c, NULL);
-  return value;
+  return result;
 }
 
 LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
@@ -468,9 +473,8 @@ LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
   LLVMValueRef result = gen_is_value(c, left_type, right_type,
     l_value, r_value);
   result = LLVMBuildNot(c->builder, result, "");
-  LLVMValueRef value = LLVMBuildZExt(c->builder, result, c->ibool, "");
   codegen_debugloc(c, NULL);
-  return value;
+  return result;
 }
 
 void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
@@ -549,7 +553,7 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
     if((type_id % 4) == 0)
     {
       size_t type_size = (size_t)LLVMABISizeOfType(c->target_data,
-        ((compile_type_t*)t->c_type)->use_type);
+        ((compile_type_t*)t->c_type)->mem_type);
       args[type_id >> 2] = LLVMConstInt(c->i32, type_size, false);
       count++;
     }

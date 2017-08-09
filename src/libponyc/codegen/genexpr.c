@@ -149,11 +149,11 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_TRUE:
-      ret = LLVMConstInt(c->ibool, 1, false);
+      ret = LLVMConstInt(c->i1, 1, false);
       break;
 
     case TK_FALSE:
-      ret = LLVMConstInt(c->ibool, 0, false);
+      ret = LLVMConstInt(c->i1, 0, false);
       break;
 
     case TK_INT:
@@ -267,31 +267,39 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   switch(LLVMGetTypeKind(l_type))
   {
     case LLVMIntegerTypeKind:
+      // This can occur for Bool as its value type differs from its memory
+      // representation type.
+      if(LLVMGetTypeKind(r_type) == LLVMIntegerTypeKind)
+      {
+        unsigned l_width = LLVMGetIntTypeWidth(l_type);
+        unsigned r_width = LLVMGetIntTypeWidth(r_type);
+
+        if(l_width > r_width)
+          return LLVMBuildZExt(c->builder, r_value, l_type, "");
+        else
+          return LLVMBuildTrunc(c->builder, r_value, l_type, "");
+      }
+      // fallthrough
+
     case LLVMHalfTypeKind:
     case LLVMFloatTypeKind:
     case LLVMDoubleTypeKind:
-    {
-      // This can occur if an LLVM intrinsic returns an i1 or a tuple that
-      // contains an i1. Extend the i1 to an ibool.
-      if((r_type == c->i1) && (l_type == c->ibool))
-        return LLVMBuildZExt(c->builder, r_value, l_type, "");
-
       pony_assert(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind);
-      return gen_unbox(c, type, r_value);
-    }
+      r_value = gen_unbox(c, type, r_value);
+      // The value could be needed in either its value representation type or
+      // its memory representation type. Cast the unboxed value to ensure the
+      // final type is correct.
+      return gen_assign_cast(c, l_type, r_value, type);
 
     case LLVMPointerTypeKind:
-    {
       r_value = gen_box(c, type, r_value);
 
       if(r_value == NULL)
         return NULL;
 
       return LLVMBuildBitCast(c->builder, r_value, l_type, "");
-    }
 
     case LLVMStructTypeKind:
-    {
       if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
       {
         r_value = gen_unbox(c, type, r_value);
@@ -299,7 +307,6 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       }
 
       return assign_to_tuple(c, l_type, r_value, type);
-    }
 
     default: {}
   }

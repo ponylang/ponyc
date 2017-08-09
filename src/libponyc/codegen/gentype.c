@@ -1,13 +1,14 @@
 #include "gentype.h"
-#include "genname.h"
 #include "gendesc.h"
-#include "genprim.h"
-#include "gentrace.h"
+#include "genexpr.h"
 #include "genfun.h"
-#include "genopt.h"
-#include "genserialise.h"
 #include "genident.h"
+#include "genname.h"
+#include "genopt.h"
+#include "genprim.h"
 #include "genreference.h"
+#include "genserialise.h"
+#include "gentrace.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/cap.h"
@@ -170,6 +171,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
         case TK_INTERFACE:
         case TK_TRAIT:
           c_t->use_type = c->object_ptr;
+          c_t->mem_type = c->object_ptr;
           return true;
 
         default: {}
@@ -180,15 +182,14 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       const char* package = ast_name(pkg);
       const char* name = ast_name(id);
 
-      bool ilp32 = target_is_ilp32(c->opt->triple);
-      bool llp64 = target_is_llp64(c->opt->triple);
-      bool lp64 = target_is_lp64(c->opt->triple);
+      char* triple = c->opt->triple;
+      bool ilp32 = target_is_ilp32(triple);
+      bool llp64 = target_is_llp64(triple);
+      bool lp64 = target_is_lp64(triple);
 
       if(package == c->str_builtin)
       {
-        if(name == c->str_Bool)
-          c_t->primitive = c->ibool;
-        else if(name == c->str_I8)
+        if(name == c->str_I8)
           c_t->primitive = c->i8;
         else if(name == c->str_U8)
           c_t->primitive = c->i8;
@@ -236,14 +237,30 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
           c_t->primitive = c->f32;
         else if(name == c->str_F64)
           c_t->primitive = c->f64;
+        else if(name == c->str_Bool)
+        {
+          c_t->primitive = c->i1;
+          c_t->use_type = c->i1;
+
+          // The memory representation of Bool is 32 bits wide on Darwin PPC32,
+          // 8 bits wide everywhere else.
+          if(target_is_ppc(triple) && ilp32 && target_is_macosx(triple))
+            c_t->mem_type = c->i32;
+          else
+            c_t->mem_type = c->i8;
+
+          return true;
+        }
         else if(name == c->str_Pointer)
         {
           c_t->use_type = c->void_ptr;
+          c_t->mem_type = c->void_ptr;
           return true;
         }
         else if(name == c->str_Maybe)
         {
           c_t->use_type = c->void_ptr;
+          c_t->mem_type = c->void_ptr;
           return true;
         }
       }
@@ -257,10 +274,13 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
           c_t->use_type = c_t->primitive;
         else
           c_t->use_type = c_t->structure_ptr;
+
+        c_t->mem_type = c_t->use_type;
       } else {
         c_t->structure = c->void_ptr;
         c_t->structure_ptr = c->void_ptr;
         c_t->use_type = c->void_ptr;
+        c_t->mem_type = c->void_ptr;
       }
 
       return true;
@@ -269,12 +289,14 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
     case TK_TUPLETYPE:
       c_t->primitive = LLVMStructCreateNamed(c->context, t->name);
       c_t->use_type = c_t->primitive;
+      c_t->mem_type = c_t->primitive;
       return true;
 
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
       // Just a raw object pointer.
       c_t->use_type = c->object_ptr;
+      c_t->mem_type = c->object_ptr;
       return true;
 
     default: {}
@@ -380,7 +402,7 @@ static void make_box_type(compile_t* c, reach_type_t* t)
 
   LLVMTypeRef elements[2];
   elements[0] = LLVMPointerType(c_t->desc_type, 0);
-  elements[1] = c_t->primitive;
+  elements[1] = c_t->mem_type;
   LLVMStructSetBody(c_t->structure, elements, 2, false);
 
   c_t->structure_ptr = LLVMPointerType(c_t->structure, 0);
@@ -524,7 +546,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     if(t->fields[i].embed)
       elements[i + extra] = f_c_t->structure;
     else
-      elements[i + extra] = f_c_t->use_type;
+      elements[i + extra] = f_c_t->mem_type;
 
     if(elements[i + extra] == NULL)
     {
@@ -583,7 +605,7 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
     type = f_c_t->structure;
     di_type = f_c_t->di_type_embed;
   } else {
-    type = f_c_t->use_type;
+    type = f_c_t->mem_type;
     di_type = f_c_t->di_type;
   }
 
@@ -744,6 +766,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
     if(!t->fields[i].embed)
@@ -751,10 +774,10 @@ static bool make_trace(compile_t* c, reach_type_t* t)
       // Call the trace function indirectly depending on rcaps.
       LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
       ast_t* field_type = t->fields[i].ast;
+      value = gen_assign_cast(c, f_c_t->use_type, value, field_type);
       gentrace(c, ctx, value, value, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
-      compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
       LLVMValueRef trace_fn = f_c_t->trace_fn;
 
       if(trace_fn != NULL)
