@@ -77,6 +77,25 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
   return was_empty;
 }
 
+bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m)
+{
+  atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
+
+  // If we have a single producer, the swap of the head need not be atomic RMW.
+  pony_msg_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
+  atomic_store_explicit(&q->head, m, memory_order_relaxed);
+
+  bool was_empty = ((uintptr_t)prev & 1) != 0;
+  prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
+
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&prev->next);
+#endif
+  atomic_store_explicit(&prev->next, m, memory_order_release);
+
+  return was_empty;
+}
+
 pony_msg_t* ponyint_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;

@@ -978,8 +978,8 @@ public:
     size_t fn_index;
 
     std::tie(trace, fn_index) =
-      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv"},
-      std::next(alloc), end, true);
+      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv",
+        "pony_sendv_single"}, std::next(alloc), end, true);
 
     if(fn_index != 0)
       return false;
@@ -989,7 +989,8 @@ public:
     if(done == end)
       return false;
 
-    auto send = findCallTo("pony_sendv", std::next(done), end, true);
+    auto send = findCallTo(std::vector<StringRef>{"pony_sendv",
+      "pony_sendv_single"}, std::next(done), end, true).first;
 
     if(send == end)
       return false;

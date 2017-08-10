@@ -174,6 +174,16 @@ PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
 /// Sends a message to an actor.
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
 
+/** Single producer version of pony_sendv.
+ *
+ * This is a more efficient version of pony_sendv in the single producer case.
+ * This is unsafe to use with multiple producers, only use this function when
+ * you know nobody else will try to send a message to the actor at the same
+ * time.
+ */
+PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_msg_t* m);
+
 /** Convenience function to send a message with no arguments.
  *
  * The dispatch function receives a pony_msg_t.

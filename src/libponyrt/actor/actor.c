@@ -364,6 +364,18 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
   }
 }
 
+PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_msg_t* m)
+{
+  DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id);
+
+  if(ponyint_messageq_push_single(&to->q, m))
+  {
+    if(!has_flag(to, FLAG_UNSCHEDULED))
+      ponyint_sched_add(ctx, to);
+  }
+}
+
 PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);

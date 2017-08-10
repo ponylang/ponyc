@@ -18,6 +18,8 @@ void ponyint_messageq_destroy(messageq_t* q);
 
 bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m);
 
+bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m);
+
 pony_msg_t* ponyint_messageq_pop(messageq_t* q);
 
 bool ponyint_messageq_markempty(messageq_t* q);
