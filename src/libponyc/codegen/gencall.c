@@ -575,7 +575,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   msg_args[0] = ctx;
   msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
   msg_args[2] = msg;
-  LLVMValueRef send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+  LLVMValueRef send;
+
+  if(ast_id(m->r_fun) == TK_NEW)
+    send = gencall_runtime(c, "pony_sendv_single", msg_args, 3, "");
+  else
+    send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 
   ponyint_pool_free_size(params_buf_size, param_types);

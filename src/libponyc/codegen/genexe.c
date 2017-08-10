@@ -120,7 +120,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[0] = ctx;
   args[1] = main_actor;
   args[2] = msg;
-  gencall_runtime(c, "pony_sendv", args, 3, "");
+  gencall_runtime(c, "pony_sendv_single", args, 3, "");
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i32, 0, false);
