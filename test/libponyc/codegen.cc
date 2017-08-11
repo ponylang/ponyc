@@ -2,6 +2,7 @@
 #include <platform.h>
 
 #include <codegen/gentype.h>
+#include <../libponyrt/mem/pool.h>
 
 #include "util.h"
 
@@ -247,6 +248,9 @@ TEST_F(CodegenTest, CustomSerialization)
     "  new create() =>\n"
     "    p = @test_custom_serialisation_get_object[Pointer[U8] ref]()\n"
 
+    "  fun _final() =>\n"
+    "    @test_custom_serialisation_free_object[None](p)\n"
+
     "  fun _serialise_space(): USize =>\n"
     "    8\n"
 
@@ -278,8 +282,7 @@ TEST_F(CodegenTest, CustomSerialization)
     "        0\n"
     "      end\n"
     "      @pony_exitcode[None](r)\n"
-    "    end"
-    ;
+    "    end";
 
   set_builtin(NULL);
 
@@ -294,23 +297,33 @@ TEST_F(CodegenTest, CustomSerialization)
 extern "C"
 {
 
-EXPORT_SYMBOL void *test_custom_serialisation_get_object() {
-  uint64_t *i = (uint64_t *) malloc(sizeof(uint64_t));
+EXPORT_SYMBOL void* test_custom_serialisation_get_object()
+{
+  uint64_t* i = POOL_ALLOC(uint64_t);
   *i = 0xDEADBEEF10ADBEE5;
   return i;
 }
 
-EXPORT_SYMBOL void test_custom_serialisation_serialise(uint64_t *p, unsigned char *bytes) {
-  *(uint64_t *)(bytes) = *p;
+EXPORT_SYMBOL void test_custom_serialisation_free_object(uint64_t* p)
+{
+  POOL_FREE(uint64_t, p);
 }
 
-EXPORT_SYMBOL void *test_custom_serialisation_deserialise(unsigned char *bytes) {
-  uint64_t *p = (uint64_t *) malloc(sizeof(uint64_t));
-  *p = *(uint64_t *)(bytes);
+EXPORT_SYMBOL void test_custom_serialisation_serialise(uint64_t* p,
+  unsigned char* bytes)
+{
+  *(uint64_t*)(bytes) = *p;
+}
+
+EXPORT_SYMBOL void* test_custom_serialisation_deserialise(unsigned char* bytes)
+{
+  uint64_t* p = POOL_ALLOC(uint64_t);
+  *p = *(uint64_t*)(bytes);
   return p;
 }
 
-EXPORT_SYMBOL char test_custom_serialisation_compare(uint64_t *p1, uint64_t *p2) {
+EXPORT_SYMBOL char test_custom_serialisation_compare(uint64_t* p1, uint64_t* p2)
+{
   return *p1 == *p2;
 }
 
