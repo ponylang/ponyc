@@ -501,6 +501,22 @@ $ make LTO_PLUGIN=/usr/lib/LLVMgold.so
 
 Refer to your compiler documentation for the plugin to use in your case.
 
+## Building the runtime as an LLVM bitcode file
+
+If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `runtime-bitcode` to `yes` in the build command line:
+
+```bash
+$ make runtime-bitcode=yes
+```
+
+Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode file instead of the static library to link in the runtime:
+
+```bash
+$ ponyc --runtimebc
+```
+
+This functionnality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If your're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+
 ## VirtualBox
 
 Pony binaries can trigger illegal instruction errors under VirtualBox 4.x, for at least the x86_64 platform and possibly others.
