@@ -352,7 +352,7 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
-### Apline (Edge)
+### Alpine (Edge)
 
 Install build tools/dependencies:
 
