@@ -144,7 +144,7 @@ By default, the Pony DEB package is compiled without support for AVX CPU instruc
 Make sure you have a gcc installed:
 
 ```bash
-sudo apt-get build-essentials
+sudo apt-get install build-essential
 ```
 
 Set the `CC` environment variable:
