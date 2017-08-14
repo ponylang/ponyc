@@ -311,7 +311,52 @@ $ ./build/release/ponyc examples/helloworld
 $ ./helloworld
 ```
 
-### Ubuntu (14.04, 15.10, 16.04)
+### Ubuntu Trusty
+
+Add the LLVM apt report to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
+
+```
+deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
+deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
+```
+
+Add the LLVM repo as a trusted source:
+
+```bash
+cd /tmp
+wget -O llvm-snapshot.gpg.key http://apt.llvm.org/llvm-snapshot.gpg.key
+sudo apt-key add llvm-snapshot.gpg.key
+```
+
+Install dependencies:
+
+```bash
+$ sudo apt-get update
+$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
+```
+
+Install libprce2:
+
+```bash
+cd /tmp
+wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+tar xjvf pcre2-10.21.tar.bz2
+cd pcre2-10.21
+./configure --prefix=/usr
+make
+sudo make install
+```
+
+Build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make 
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
+### Ubuntu (15.10, 16.04)
 
 ```bash
 $ sudo apt-get update
