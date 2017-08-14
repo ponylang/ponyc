@@ -379,29 +379,42 @@ make
 ./helloworld
 ```
 
-### Ubuntu (15.10, 16.04)
+### Ubuntu Xenial
 
-```bash
-$ sudo apt-get update
-$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
+Add the LLVM apt repos to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
+
+```
+deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main
+deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main
 ```
 
-You should install LLVM 3.7.1, 3.8.1, or 3.9.1 from the [LLVM download page](http://llvm.org/releases/download.html) under Pre-Built Binaries.  Then you can extract that LLVM to `/usr/local`, for example, like so:
+Add the LLVM repo as a trusted source:
 
 ```bash
-tar xJf clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
-    --strip-components 1 -C /usr/local/ \
-    clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+cd /tmp
+wget -O llvm-snapshot.gpg.key http://apt.llvm.org/llvm-snapshot.gpg.key
+sudo apt-key add llvm-snapshot.gpg.key
 ```
-where `${LLVM_VERSION}` is whatever version of LLVM you've downloaded the `.xz` file for.
-
-To build ponyc, compile and run helloworld:
 
 ```bash
-$ cd ~/ponyc/
-$ make
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+sudo apt-get update
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+```
+
+Clone the ponyc repo:
+
+```bash
+cd ~/
+git clone https://github.com/ponylang/ponyc.git
+```
+
+Build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Fedora (25)
