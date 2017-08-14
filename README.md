@@ -135,10 +135,33 @@ sudo apt-get -V install ponyc
 
 You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated).  And if you have issues with package authentication you may need to comment out the `deb` line in `/etc/apt/sources.list`, do an update, and uncomment it again.  Feel free to ask for help if you have any problems!
 
-
 ### DEB and AVX2 Support
 
 By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
+## Prepackaged Ubuntu Xenial
+
+Make sure you have a gcc installed:
+
+```bash
+sudo apt-get build-essentials
+```
+
+Set the `CC` environment variable:
+
+```bash
+echo "export CC=`which gcc`" >> ~/.profile
+export CC=`which gcc`
+```
+
+Install ponyc via bintray:
+
+```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "8756 C4F7 65C9 AC3C B6B8  5D62 379C E192 D401 AB61"
+echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
+sudo apt-get update
+sudo apt-get -V install ponyc
+```
 
 ## Arch Linux
 
