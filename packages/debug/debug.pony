@@ -44,7 +44,7 @@ primitive Debug
     default separator is ", ", and the default output stream is stdout.
     """
     ifdef debug then
-      _print(sep.join(msg), stream)
+      _print(sep.join(msg.values()), stream)
     end
 
   fun out(msg: Stringable = "") =>

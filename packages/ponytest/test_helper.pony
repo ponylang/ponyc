@@ -338,7 +338,7 @@ class val TestHelper
     Generate a printable string of the contents of the given readseq to use in
     error messages.
     """
-    "[len=" + array.size().string() + ": " + ", ".join(array) + "]"
+    "[len=" + array.size().string() + ": " + ", ".join(array.values()) + "]"
 
   fun long_test(timeout: U64) =>
     """
