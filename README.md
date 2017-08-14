@@ -181,8 +181,8 @@ A live ebuild is also available in the [overlay](https://github.com/stefantalpal
 ## Linux using [Linuxbrew](http://linuxbrew.sh)
 
 ```bash
-$ brew update
-$ brew install ponyc
+brew update
+brew install ponyc
 ```
 
 ## NixOS Linux or any OS using [nix](http://nixos.org/nix/)
@@ -208,8 +208,8 @@ or just `ld-gold`.
 ## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
-$ brew update
-$ brew install ponyc
+brew update
+brew install ponyc
 ```
 
 ## Windows using ZIP (via Bintray)
@@ -243,8 +243,8 @@ Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
 Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
 ```bash
-$ sudo apt install git
-$ git clone git://github.com/ponylang/ponyc
+sudo apt install git
+git clone git://github.com/ponylang/ponyc
 ```
 
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
@@ -258,8 +258,8 @@ pacman -S llvm make ncurses openssl pcre2 zlib
 To build ponyc and compile helloworld:
 
 ```bash
-$ make
-$ ./build/release/ponyc examples/helloworld
+make
+./build/release/ponyc examples/helloworld
 ```
 
 If you get errors like
@@ -272,9 +272,9 @@ If you get errors like
 You need to rebuild `ponyc` with `default_pic=true`
 
 ```bash
-$ make clean
-$ make default_pic=true
-$ ./build/release/ponyc examples/helloworld
+make clean
+make default_pic=true
+./build/release/ponyc examples/helloworld
 ```
 
 ### Debian Jessie
@@ -289,30 +289,30 @@ deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
 Install the LLVM toolchain public GPG key, update `apt` and install packages:
 
 ```bash
-$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
-$ sudo apt-get update
-$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
+sudo apt-get update
+sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
                        libssl-dev llvm-3.8-dev
 ```
 
 Debian Jessie and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
 
 ```bash
-$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-$ tar xvf pcre2-10.21.tar.bz2
-$ cd pcre2-10.21
-$ ./configure --prefix=/usr
-$ make
-$ sudo make install
+wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+tar xvf pcre2-10.21.tar.bz2
+cd pcre2-10.21
+./configure --prefix=/usr
+make
+sudo make install
 ```
 
 To build ponyc, compile and run helloworld:
 
 ```bash
-$ cd ~/ponyc/
-$ make
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Debian Sid
@@ -320,18 +320,18 @@ $ ./helloworld
 Install pony dependencies:
 
 ```bash
-$ sudo apt-get update
-$ sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
-                       libssl-dev llvm llvm-dev libpcre2-dev
+sudo apt-get update
+sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+  libssl-dev llvm llvm-dev libpcre2-dev
 ```
 
 To build ponyc, compile and run helloworld:
 
 ```bash
-$ cd ~/ponyc/
-$ make default_pic=true
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+cd ~/ponyc/
+make default_pic=true
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Ubuntu Trusty
@@ -354,8 +354,9 @@ sudo apt-key add llvm-snapshot.gpg.key
 Install dependencies:
 
 ```bash
-$ sudo apt-get update
-$ sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
+sudo apt-get update
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev \
+  libssl-dev llvm-3.9
 ```
 
 Install libprce2:
@@ -427,17 +428,18 @@ make
 ### Fedora (25)
 
 ```bash
-$ dnf check-update
-$ sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel llvm-devel ncurses-devel
+dnf check-update
+sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+  llvm-devel ncurses-devel
 ```
 
 To build ponyc, compile and run helloworld:
 
 ```bash
-$ cd ~/ponyc/
-$ make
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Alpine (Edge)
@@ -445,16 +447,17 @@ $ ./helloworld
 Install build tools/dependencies:
 
 ```bash
-apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev pcre2-dev libunwind-dev coreutils
+apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
+  pcre2-dev libunwind-dev coreutils
 ```
 
 To build ponyc, compile and run helloworld:
 
 ```bash
-$ cd ~/ponyc/
-$ make default_pic=true
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+cd ~/ponyc/
+make default_pic=true
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Other Linux distributions
@@ -470,21 +473,21 @@ You need to have the development versions of the following installed:
 If your distribution doesn't have a package for prce2, you will need to download and build it from source:
 
 ```bash
-$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-$ tar xvf pcre2-10.21.tar.bz2
-$ cd pcre2-10.21
-$ ./configure --prefix=/usr
-$ make
-$ sudo make install
+wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
+tar xvf pcre2-10.21.tar.bz2
+cd pcre2-10.21
+./configure --prefix=/usr
+make
+sudo make install
 ```
 
 Finally to build ponyc, compile and run the hello world app:
 
 ```bash
-$ cd ~/ponyc/
-$ make
-$ ./build/release/ponyc examples/helloworld
-$ ./helloworld
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ## Building on FreeBSD
@@ -501,8 +504,8 @@ sudo pkg install libunwind
 This will build ponyc and compile helloworld:
 
 ```bash
-$ gmake
-$ ./build/release/ponyc examples/helloworld
+gmake
+./build/release/ponyc examples/helloworld
 ```
 
 Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.9.1. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
@@ -514,20 +517,20 @@ You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You 
 
 Installation via [homebrew](http://brew.sh):
 ```
-$ brew update
-$ brew install llvm@3.9 pcre2 libressl
+brew update
+brew install llvm@3.9 pcre2 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-$ sudo port install llvm-3.9 pcre2 libressl
-$ sudo port select --set llvm mp-llvm-3.9
+sudo port install llvm-3.9 pcre2 libressl
+sudo port select --set llvm mp-llvm-3.9
 ```
 
 Launch the build with `make` after installing the dependencies:
 ```
-$ make
-$ ./build/release/ponyc examples/helloworld
+make
+./build/release/ponyc examples/helloworld
 ```
 
 ## Building on Windows
@@ -545,13 +548,13 @@ Building on Windows requires the following:
 In a command prompt in the `ponyc` source directory, run the following:
 
 ```
-> make.bat configure
+make.bat configure
 ```
 
 (You only need to run this the first time you build the project.)
 
 ```
-> make.bat build test
+make.bat build test
 ```
 
 This will automatically perform the following steps:
@@ -578,13 +581,13 @@ Other commands include `clean`, which will clean a specified configuration; and 
 You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line:
 
 ```bash
-$ make lto=yes
+make lto=yes
 ```
 
 If the build fails, you have to specify the LTO plugin for your compiler in the `LTO_PLUGIN` variable. For example:
 
 ```bash
-$ make LTO_PLUGIN=/usr/lib/LLVMgold.so
+make LTO_PLUGIN=/usr/lib/LLVMgold.so
 ```
 
 Refer to your compiler documentation for the plugin to use in your case.
@@ -594,13 +597,13 @@ Refer to your compiler documentation for the plugin to use in your case.
 If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `runtime-bitcode` to `yes` in the build command line:
 
 ```bash
-$ make runtime-bitcode=yes
+make runtime-bitcode=yes
 ```
 
 Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode file instead of the static library to link in the runtime:
 
 ```bash
-$ ponyc --runtimebc
+ponyc --runtimebc
 ```
 
 This functionnality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If your're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
@@ -618,7 +621,7 @@ You can learn more about [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Ex
 
 On ARM platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
 ```bash
-$ make arch=armv7
+make arch=armv7
 ```
 
 To get a complete list of acceptable architecture names, use the gcc command:
