@@ -370,6 +370,13 @@ make
 sudo make install
 ```
 
+Clone the ponyc repo:
+
+```bash
+cd ~/
+git clone https://github.com/ponylang/ponyc.git
+```
+
 Build ponyc, compile and run helloworld:
 
 ```bash
