@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler error on lambda capture of '_' ([PR #2171](https://github.com/ponylang/ponyc/pull/2171))
 - Fix read past the end of a buffer in `pool.c`. ([PR #2139](https://github.com/ponylang/ponyc/pull/2139))
 
 
