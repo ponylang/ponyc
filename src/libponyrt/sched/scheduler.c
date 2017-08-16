@@ -474,5 +474,6 @@ PONY_API void pony_unregister_thread()
 
 PONY_API pony_ctx_t* pony_ctx()
 {
+  pony_assert(this_scheduler != NULL);
   return &this_scheduler->ctx;
 }

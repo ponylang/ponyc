@@ -17,7 +17,7 @@ actor _Valtrace
     """
     Create a String iso, send it to a new actor.
     """
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     let s = recover String .> append("test") end
     _Valtrace.two(this, h, consume s)
 
@@ -27,7 +27,7 @@ actor _Valtrace
     Append to it.
     Send it as a val to a third actor.
     """
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     s.append("ing")
     _Valtrace.three(a1, this, h, consume s)
 
@@ -35,7 +35,7 @@ actor _Valtrace
     """
     Receive a String that was an iso that passed through another actor.
     """
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     h.assert_eq[String]("testing", s)
     _Valtrace.four(a1, a2, this, h, s)
 
@@ -45,14 +45,14 @@ actor _Valtrace
     """
     Ask all actors to test the string.
     """
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     a1.gc(a1, h, s)
     a2.gc(a1, h, s)
     a2.gc(a1, h, s)
     gc(a1, h, s)
 
   be gc(a: _Valtrace, h: TestHelper, s: String) =>
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     h.assert_eq[String]("testing", s)
     a.done(h)
 

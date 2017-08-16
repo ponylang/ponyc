@@ -12,7 +12,7 @@ actor _Bench[A: Any #share] is _Benchmark
 
   be run() =>
     try
-      @pony_triggergc[None](this)
+      @pony_triggergc[None](@pony_ctx[Pointer[None]]())
       let start = Time.nanos()
       for i in Range[U64](0, _ops) do
         DoNotOptimise[A](_f()?)
