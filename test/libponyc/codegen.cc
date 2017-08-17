@@ -235,6 +235,19 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesPrimitiveValues)
   ASSERT_EQ(exit_code, 3);
 }
 
+
+TEST_F(CodegenTest, UnionOfTuplesToTuple)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: ((Main, Env) | (Env, Main)) = (this, env)\n"
+    "    let b: ((Main | Env), (Main | Env)) = a";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(CodegenTest, CustomSerialization)
 {
   const char* src =
