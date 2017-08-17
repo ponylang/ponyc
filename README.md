@@ -442,6 +442,25 @@ make
 ./helloworld
 ```
 
+### OpenSUSE (Leap 24.3)
+
+```bash
+sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
+sudo zypper refresh
+sudo zypper update
+sudo zypper install git gcc-c++ make openssl pcre2-devel zlib-devel \
+  llvm3_9-devel binutils-gold
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
 ### Alpine (Edge)
 
 Install build tools/dependencies:
