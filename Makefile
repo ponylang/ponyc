@@ -174,7 +174,7 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
+  ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-4.0
     LLVM_LINK = llvm-link-4.0
     LLVM_OPT = opt-4.0

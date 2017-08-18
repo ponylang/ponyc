@@ -33,12 +33,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_TUPLEELEMREF:
     {
-      ast_t* s_type;
-      uint32_t index;
-      ret = gen_tupleelemptr(c, ast, &s_type, &index);
+      ret = gen_tupleelemptr(c, ast);
       break;
     }
-    
+
     case TK_EMBEDREF:
       ret = gen_fieldembed(c, ast);
       break;

@@ -129,16 +129,15 @@ LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
 }
 
 static LLVMValueRef make_tupleelemptr(compile_t* c, LLVMValueRef l_value,
-  ast_t* l_type, ast_t* right, uint32_t* index)
+  ast_t* l_type, ast_t* right)
 {
   pony_assert(ast_id(l_type) == TK_TUPLETYPE);
-  *index = (int)ast_int(right)->low;
+  int index = (int)ast_int(right)->low;
 
-  return LLVMBuildExtractValue(c->builder, l_value, *index, "");
+  return LLVMBuildExtractValue(c->builder, l_value, index, "");
 }
 
-LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast, ast_t** l_type,
-  uint32_t* index)
+LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
 
