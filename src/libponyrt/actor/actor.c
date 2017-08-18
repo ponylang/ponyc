@@ -402,14 +402,17 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   pony_sendv(ctx, to, &m->msg);
 }
 
-PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m)
+PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m)
 {
+  pony_assert(ctx->current != NULL);
+  pony_actor_t* self = ctx->current;
   atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
   self->continuation = m;
 }
 
 PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc(ctx->current, &ctx->current->heap, size);
@@ -417,6 +420,7 @@ PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 
 PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small(ctx->current, &ctx->current->heap, sizeclass);
@@ -424,6 +428,7 @@ PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 
 PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_large(ctx->current, &ctx->current->heap, size);
@@ -431,6 +436,7 @@ PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 
 PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size);
@@ -438,6 +444,7 @@ PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 
 PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_final(ctx->current, &ctx->current->heap, size);
@@ -445,6 +452,7 @@ PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 
 void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small_final(ctx->current, &ctx->current->heap,
@@ -453,15 +461,17 @@ void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 
 void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_large_final(ctx->current, &ctx->current->heap,
     size);
 }
 
-PONY_API void pony_triggergc(pony_actor_t* actor)
+PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
-  actor->heap.next_gc = 0;
+  pony_assert(ctx->current != NULL);
+  ctx->current->heap.next_gc = 0;
 }
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)

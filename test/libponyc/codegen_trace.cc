@@ -97,7 +97,7 @@ TEST_F(CodegenTraceTest, NoTrace)
 
     "  new create(env: Env) =>\n"
          // Trigger GC to remove env from the object map.
-    "    @pony_triggergc[None](this)\n"
+    "    @pony_triggergc[None](@pony_ctx[Pointer[None]]())\n"
     "    test()\n"
 
     "  be test() =>\n"

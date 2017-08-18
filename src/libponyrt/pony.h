@@ -206,13 +206,12 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 
 /** Store a continuation.
  *
- * This puts a message at the front of the actor's queue, instead of at the
- * back. This is not concurrency safe: an actor should only push a continuation
- * to itself.
+ * This puts a message at the front of the current actor's queue, instead of at
+ * the back.
  *
  * Not used in Pony.
  */
-PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m);
+PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m);
 
 /** Allocate memory on the current actor's heap.
  *
@@ -249,7 +248,7 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_final(pony_ctx_t* ctx,
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size);
 
 /// Trigger GC next time the current actor is scheduled
-PONY_API void pony_triggergc(pony_actor_t* actor);
+PONY_API void pony_triggergc(pony_ctx_t* ctx);
 
 /** Start gc tracing for sending.
  *

@@ -8,6 +8,7 @@
 
 PONY_API void pony_gc_send(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_sendobject;
   ctx->trace_actor = ponyint_gc_sendactor;
@@ -17,6 +18,7 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx)
 
 PONY_API void pony_gc_recv(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_recvobject;
   ctx->trace_actor = ponyint_gc_recvactor;
@@ -33,6 +35,7 @@ void ponyint_gc_mark(pony_ctx_t* ctx)
 
 PONY_API void pony_gc_acquire(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_acquireobject;
   ctx->trace_actor = ponyint_gc_acquireactor;
@@ -40,6 +43,7 @@ PONY_API void pony_gc_acquire(pony_ctx_t* ctx)
 
 PONY_API void pony_gc_release(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_releaseobject;
   ctx->trace_actor = ponyint_gc_releaseactor;
@@ -47,6 +51,7 @@ PONY_API void pony_gc_release(pony_ctx_t* ctx)
 
 PONY_API void pony_send_done(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_sendacquire(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
@@ -56,6 +61,7 @@ PONY_API void pony_send_done(pony_ctx_t* ctx)
 
 PONY_API void pony_recv_done(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
@@ -73,6 +79,7 @@ void ponyint_mark_done(pony_ctx_t* ctx)
 
 PONY_API void pony_acquire_done(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_sendacquire(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
@@ -80,6 +87,7 @@ PONY_API void pony_acquire_done(pony_ctx_t* ctx)
 
 PONY_API void pony_release_done(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_sendrelease_manual(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
@@ -87,6 +95,7 @@ PONY_API void pony_release_done(pony_ctx_t* ctx)
 
 PONY_API void pony_send_next(pony_ctx_t* ctx)
 {
+  pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
