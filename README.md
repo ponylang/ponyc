@@ -109,11 +109,21 @@ sudo dnf --refresh install ponyc
 ```
 
 Or via Yum:
-```
+```bash
 wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
 sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
 
 sudo yum install ponyc
+```
+
+Or via Zypper:
+```bash
+sudo zypper install gcc6 binutils-gold \
+  zlib-devel libopenssl-devel pcre2-devel
+wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
+sudo mv bintray-pony-language-ponyc-rpm.repo /etc/zypp/repos.d/
+
+sudo zypper install ponyc
 ```
 
 ### RPM and AVX2 Support
@@ -448,7 +458,7 @@ make
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
 sudo zypper refresh
 sudo zypper update
-sudo zypper install git gcc-c++ make openssl pcre2-devel zlib-devel \
+sudo zypper install git gcc-c++ make libopenssl-devel pcre2-devel zlib-devel \
   llvm3_9-devel binutils-gold
 ```
 
