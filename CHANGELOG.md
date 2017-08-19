@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make actor continuations a build time option ([PR #2179](https://github.com/ponylang/ponyc/pull/2179))
 - RFC #48 Change String.join to take Iterable ([PR #2159](https://github.com/ponylang/ponyc/pull/2159))
 - Change fallback linker to "gcc" from "gcc-6" on Linux. ([PR #2166](https://github.com/ponylang/ponyc/pull/2166))
 - Change the signature of `pony_continuation` and `pony_triggergc` to take a `pony_ctx_t*` instead of a `pony_actor_t*`.
