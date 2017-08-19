@@ -13,6 +13,12 @@
 #include <stdio.h>
 #include <signal.h>
 
+#ifdef PLATFORM_IS_DRAGONFLY_BSD
+#define KEVENT_FLAG u_short
+#else
+#define KEVENT_FLAG uint32_t
+#endif
+
 struct asio_backend_t
 {
   int kq;
@@ -77,7 +83,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   struct kevent event[1];
   int i = 0;
 
-  uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
+  KEVENT_FLAG kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_READ) && !ev->readable)
   {
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
@@ -104,7 +110,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   struct kevent event[2];
   int i = 0;
 
-  uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
+  KEVENT_FLAG kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
   {
     EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
@@ -211,7 +217,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   struct kevent event[4];
   int i = 0;
 
-  uint32_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
+  KEVENT_FLAG flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
