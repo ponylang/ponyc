@@ -25,7 +25,9 @@ typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
+#ifdef USE_ACTOR_CONTINUATIONS
   pony_msg_t* continuation;
+#endif
   PONY_ATOMIC(uint8_t) flags;
 
   // keep things accessed by other actors on a separate cache line

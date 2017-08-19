@@ -143,6 +143,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   pony_msg_t* msg;
   size_t app = 0;
 
+#ifdef USE_ACTOR_CONTINUATIONS
   while(actor->continuation != NULL)
   {
     msg = actor->continuation;
@@ -161,6 +162,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
         return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
+#endif
 
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
@@ -402,6 +404,7 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   pony_sendv(ctx, to, &m->msg);
 }
 
+#ifdef USE_ACTOR_CONTINUATIONS
 PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m)
 {
   pony_assert(ctx->current != NULL);
@@ -409,6 +412,7 @@ PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m)
   atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
   self->continuation = m;
 }
+#endif
 
 PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {

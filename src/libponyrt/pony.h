@@ -211,7 +211,9 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
  *
  * Not used in Pony.
  */
+#ifdef USE_ACTOR_CONTINUATIONS
 PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m);
+#endif
 
 /** Allocate memory on the current actor's heap.
  *
