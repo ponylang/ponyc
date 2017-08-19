@@ -20,7 +20,7 @@ actor _BenchAsync[A: Any #share] is _Benchmark
     (_name, _notify, _f, _ops, _timeout) = (name, notify, f, ops, timeout)
 
   be run() =>
-    @pony_triggergc[None](this)
+    @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     if _timeout > 0 then
       Timers.apply(Timer(
         object iso is TimerNotify

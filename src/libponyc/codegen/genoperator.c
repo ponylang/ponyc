@@ -245,10 +245,7 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    cmp_f, cmp_si, cmp_ui, safe);
-
-  return LLVMBuildZExt(c->builder, test, c->ibool, "");
+  return make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
 }
 
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
@@ -286,12 +283,11 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 
   LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
   LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, l_value, c->i1, "");
 
   if(is_and)
-    LLVMBuildCondBr(c->builder, test, right_block, post_block);
+    LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
   else
-    LLVMBuildCondBr(c->builder, test, post_block, right_block);
+    LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
 
   LLVMPositionBuilderAtEnd(c->builder, right_block);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -303,7 +299,7 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   LLVMBuildBr(c->builder, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->ibool, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
   LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
   LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
@@ -326,44 +322,50 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 }
 
 static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
+  reach_type_t* t = reach_type(c->reach, l_type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+  result = gen_assign_cast(c, c_t->use_type, result, l_type);
 
   // Cast the rvalue appropriately.
-  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
+  r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);
 
-  if(cast_value == NULL)
+  if(r_value == NULL)
     return NULL;
 
   // Store to the local.
-  LLVMBuildStore(c->builder, cast_value, l_value);
+  LLVMBuildStore(c->builder, r_value, l_value);
 
   return result;
 }
 
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* p_type, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* p_type, ast_t* l_type, ast_t* r_type)
 {
+  reach_type_t* t = reach_type(c->reach, l_type);
+  pony_assert(t != NULL);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
 
   // Cast the rvalue appropriately.
-  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
+  r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);
 
-  if(cast_value == NULL)
+  if(r_value == NULL)
     return NULL;
 
   // Store to the field.
-  LLVMValueRef store = LLVMBuildStore(c->builder, cast_value, l_value);
+  LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
 
   LLVMValueRef metadata = tbaa_metadata_for_type(c, p_type);
   const char id[] = "tbaa";
   LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
-  return result;
+  return gen_assign_cast(c, c_t->use_type, result, l_type);
 }
 
 static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
@@ -453,7 +455,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       // The result is the previous value of the field.
       LLVMValueRef l_value = gen_fieldptr(c, left);
       ast_t* p_type = ast_type(ast_child(left));
-      return assign_field(c, l_value, r_value, p_type, r_type);
+      ast_t* l_type = ast_type(left);
+      return assign_field(c, l_value, r_value, p_type, l_type, r_type);
     }
 
     case TK_TUPLEELEMREF:
@@ -461,7 +464,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       // The result is the previous value of the tuple element.
       LLVMValueRef l_value = gen_tupleelemptr(c, left);
       ast_t* p_type = ast_type(ast_child(left));
-      return assign_field(c, l_value, r_value, p_type, r_type);
+      ast_t* l_type = ast_type(left);
+      return assign_field(c, l_value, r_value, p_type, l_type, r_type);
     }
 
     case TK_EMBEDREF:
@@ -476,7 +480,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(ast_child(left));
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
+      ast_t* l_type = ast_type(left);
+      LLVMValueRef ret = assign_local(c, l_value, r_value, l_type, r_type);
       return ret;
     }
 
@@ -510,7 +515,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(left);
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
+      ast_t* l_type = ast_type(ast_parent(left));
+      LLVMValueRef ret = assign_local(c, l_value, r_value, l_type, r_type);
       return ret;
     }
 
@@ -821,14 +827,13 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
     if(LLVMIsAConstantInt(value))
     {
       if(is_always_true(value))
-        return LLVMConstInt(c->ibool, 0, false);
+        return LLVMConstInt(c->i1, 0, false);
 
-      return LLVMConstInt(c->ibool, 1, false);
+      return LLVMConstInt(c->i1, 1, false);
     }
 
-    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
-      LLVMConstInt(c->ibool, 0, false), "");
-    return LLVMBuildZExt(c->builder, test, c->ibool, "");
+    return LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+      LLVMConstInt(c->i1, 0, false), "");
   }
 
   if(LLVMIsAConstantInt(value))
@@ -849,10 +854,8 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
   bool sign = is_signed(type);
   LLVMValueRef l_value = gen_expr(c, left);
 
-  LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
-
-  return LLVMBuildZExt(c->builder, test, c->ibool, "");
+  return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,
+    LLVMIntEQ, safe);
 }
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)

@@ -131,6 +131,11 @@ ifdef use
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
+
+  ifneq (,$(filter $(use), actor_continuations))
+    ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
+  endif
 endif
 
 ifdef config
@@ -896,6 +901,7 @@ help:
 	@echo '   valgrind'
 	@echo '   pooltrack'
 	@echo '   dtrace'
+	@echo '   actor_continuations'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

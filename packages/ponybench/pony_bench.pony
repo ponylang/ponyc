@@ -118,7 +118,7 @@ actor PonyBench
         Format.int[U64](nspo where width = 10)
         " ns/op"
       ]
-    _env.out.print(String.join(sl))
+    _env.out.print(String.join(sl.values()))
     _next()
 
   be _failure(name: String, timeout: Bool) =>
@@ -128,7 +128,7 @@ actor PonyBench
       sl.push(" (timeout)")
     end
     sl.push(ANSI.reset())
-    _env.out.print(String.join(sl))
+    _env.out.print(String.join(sl.values()))
     _next()
 
   fun ref _add(name: String, b: _Benchmark) =>

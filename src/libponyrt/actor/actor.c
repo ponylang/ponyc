@@ -143,6 +143,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   pony_msg_t* msg;
   size_t app = 0;
 
+#ifdef USE_ACTOR_CONTINUATIONS
   while(actor->continuation != NULL)
   {
     msg = actor->continuation;
@@ -161,6 +162,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
         return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
+#endif
 
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
@@ -364,6 +366,18 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
   }
 }
 
+PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_msg_t* m)
+{
+  DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id);
+
+  if(ponyint_messageq_push_single(&to->q, m))
+  {
+    if(!has_flag(to, FLAG_UNSCHEDULED))
+      ponyint_sched_add(ctx, to);
+  }
+}
+
 PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
@@ -390,14 +404,19 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   pony_sendv(ctx, to, &m->msg);
 }
 
-PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m)
+#ifdef USE_ACTOR_CONTINUATIONS
+PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m)
 {
+  pony_assert(ctx->current != NULL);
+  pony_actor_t* self = ctx->current;
   atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
   self->continuation = m;
 }
+#endif
 
 PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc(ctx->current, &ctx->current->heap, size);
@@ -405,6 +424,7 @@ PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 
 PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small(ctx->current, &ctx->current->heap, sizeclass);
@@ -412,6 +432,7 @@ PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 
 PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_large(ctx->current, &ctx->current->heap, size);
@@ -419,6 +440,7 @@ PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 
 PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size);
@@ -426,6 +448,7 @@ PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 
 PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_final(ctx->current, &ctx->current->heap, size);
@@ -433,6 +456,7 @@ PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 
 void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small_final(ctx->current, &ctx->current->heap,
@@ -441,15 +465,17 @@ void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 
 void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 {
+  pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
   return ponyint_heap_alloc_large_final(ctx->current, &ctx->current->heap,
     size);
 }
 
-PONY_API void pony_triggergc(pony_actor_t* actor)
+PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
-  actor->heap.next_gc = 0;
+  pony_assert(ctx->current != NULL);
+  ctx->current->heap.next_gc = 0;
 }
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)

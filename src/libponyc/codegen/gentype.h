@@ -16,6 +16,7 @@ typedef struct compile_type_t
   LLVMTypeRef structure_ptr;
   LLVMTypeRef primitive;
   LLVMTypeRef use_type;
+  LLVMTypeRef mem_type;
 
   LLVMTypeRef desc_type;
   LLVMValueRef desc;

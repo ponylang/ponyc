@@ -133,7 +133,7 @@ class Directory
         until not @FindNextFileA[Bool](h, find) end
 
         @FindClose[Bool](h)
-        @free[None](find)
+        @ponyint_windows_find_data_free[None](find)
       else
         compile_error "unsupported platform"
       end

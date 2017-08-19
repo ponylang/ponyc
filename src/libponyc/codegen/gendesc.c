@@ -1,4 +1,5 @@
 #include "gendesc.h"
+#include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
 #include "genopt.h"
@@ -72,6 +73,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
   const char id[] = "tbaa";
   LLVMSetMetadata(primitive, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+
+  primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 

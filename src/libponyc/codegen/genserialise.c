@@ -170,7 +170,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     // Machine word, write the bits to the buffer.
     LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
     LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
-      LLVMPointerType(c_t->primitive, 0), "");
+      LLVMPointerType(c_t->mem_type, 0), "");
     LLVMBuildStore(c->builder, value, loc);
   } else if(t->bare_method != NULL) {
     // Bare object, either write the type id directly if it is a concrete object
@@ -349,7 +349,7 @@ void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
     LLVMValueRef object = gencall_runtime(c, "pony_deserialise_offset",
       args, 3, "");
 
-    object = LLVMBuildBitCast(c->builder, object, c_t->use_type, "");
+    object = LLVMBuildBitCast(c->builder, object, c_t->mem_type, "");
     LLVMBuildStore(c->builder, object, ptr);
   }
 }

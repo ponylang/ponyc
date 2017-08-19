@@ -2,6 +2,21 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.18.0] - 2017-08-19
+
+### Fixed
+
+- Fix compiler crash on union-of-tuples to tuple conversions ([PR #2176](https://github.com/ponylang/ponyc/pull/2176))
+- Fix compiler error on lambda capture of '_' ([PR #2171](https://github.com/ponylang/ponyc/pull/2171))
+- Fix read past the end of a buffer in `pool.c`. ([PR #2139](https://github.com/ponylang/ponyc/pull/2139))
+
+### Changed
+
+- Make actor continuations a build time option ([PR #2179](https://github.com/ponylang/ponyc/pull/2179))
+- RFC #48 Change String.join to take Iterable ([PR #2159](https://github.com/ponylang/ponyc/pull/2159))
+- Change fallback linker to "gcc" from "gcc-6" on Linux. ([PR #2166](https://github.com/ponylang/ponyc/pull/2166))
+- Change the signature of `pony_continuation` and `pony_triggergc` to take a `pony_ctx_t*` instead of a `pony_actor_t*`.
+
 ## [0.17.0] - 2017-08-05
 
 ### Fixed
@@ -856,5 +871,5 @@ All notable changes to the Pony compiler and standard library will be documented
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
 
-ised.
+ error is raised.
 

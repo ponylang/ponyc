@@ -23,8 +23,10 @@ matrix:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: linux
       addons:
@@ -38,8 +40,10 @@ matrix:
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: linux
       addons:
@@ -53,8 +57,10 @@ matrix:
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: linux
       addons:
@@ -68,8 +74,10 @@ matrix:
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: linux
       addons:
@@ -83,8 +91,10 @@ matrix:
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: linux
       addons:
@@ -98,8 +108,10 @@ matrix:
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: osx
       env:
