@@ -80,7 +80,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_READ) && !ev->readable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, (void *)ev);
     i++;
   } else {
     return;
@@ -107,7 +107,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   uint32_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, (void *)ev);
     i++;
   } else {
     return;
@@ -214,13 +214,13 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   uint32_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, (void *)ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, (void *)ev);
     i++;
   }
 
@@ -228,10 +228,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   {
 #ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+      0, ev->nsec / 1000000, (void *)ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->nsec, ev);
+      NOTE_NSECONDS, ev->nsec, (void *)ev);
 #endif
     i++;
   }
@@ -239,7 +239,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if(ev->flags & ASIO_SIGNAL)
   {
     signal((int)ev->nsec, SIG_IGN);
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, (void *)ev);
     i++;
   }
 
@@ -271,7 +271,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 
 #ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+      0, ev->nsec / 1000000, (void *)ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->nsec, ev);
@@ -306,26 +306,26 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, (void *)ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void *)ev);
     i++;
   }
 
   if(ev->flags & ASIO_TIMER)
   {
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_DELETE, 0, 0, (void *)ev);
     i++;
   }
 
   if(ev->flags & ASIO_SIGNAL)
   {
     signal((int)ev->nsec, SIG_DFL);
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_DELETE, 0, 0, (void *)ev);
     i++;
   }
 
