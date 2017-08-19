@@ -26,6 +26,11 @@ else
     OSTYPE = freebsd
     CXX = c++
   endif
+
+  ifeq ($(UNAME_S),DragonFly)
+    OSTYPE = freebsd
+    CXX = c++
+  endif
 endif
 
 ifndef lto
