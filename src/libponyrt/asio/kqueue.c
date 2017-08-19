@@ -14,9 +14,9 @@
 #include <signal.h>
 
 #ifdef PLATFORM_IS_DRAGONFLY_BSD
-typedef kevent_flag u_short
+typedef kevent_flag u_short;
 #elset
-typedef kevent_flag uint32_t
+typedef kevent_flag uint32_t;
 #endif
 
 struct asio_backend_t
