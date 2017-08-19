@@ -12,6 +12,8 @@
 
 #if defined(PLATFORM_IS_BSD)
 #include <pthread_np.h>
+#endif
+#if defined(PLATFORM_IS_FREEBSD)
 #include <sys/cpuset.h>
 typedef cpuset_t cpu_set_t;
 #endif
