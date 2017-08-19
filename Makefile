@@ -23,12 +23,12 @@ else
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
-    OSTYPE = freebsd
+    OSTYPE = bsd
     CXX = c++
   endif
 
   ifeq ($(UNAME_S),DragonFly)
-    OSTYPE = freebsd
+    OSTYPE = bsd
     CXX = c++
   endif
 endif
@@ -78,7 +78,7 @@ ifdef destdir
   endif
 endif
 
-ifneq (,$(filter $(OSTYPE), osx freebsd))
+ifneq (,$(filter $(OSTYPE), osx bsd))
   symlink.flags = -sf
 else
   symlink.flags = -srf
@@ -160,7 +160,7 @@ ifeq ($(config),release)
       AR_FLAGS += --plugin $(LTO_PLUGIN)
     endif
 
-    ifneq (,$(filter $(OSTYPE),linux freebsd))
+    ifneq (,$(filter $(OSTYPE),linux bsd))
       LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
     endif
   endif
@@ -307,7 +307,7 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-  ifneq ($(OSTYPE),freebsd)
+  ifneq ($(OSTYPE),bsd)
     libponyrt.except += src/libponyrt/asio/kqueue.c
   endif
 endif
@@ -358,7 +358,7 @@ llvm.include :=
 endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
-ifeq ($(OSTYPE), freebsd)
+ifeq ($(OSTYPE), bsd)
   llvm.libs += -lpthread -lexecinfo
 endif
 
@@ -402,7 +402,7 @@ ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 libgbenchmark.include := -isystem lib/gbenchmark/include/
 
-ifneq (,$(filter $(OSTYPE), osx freebsd))
+ifneq (,$(filter $(OSTYPE), osx bsd))
   libponyrt.include += -I /usr/local/include
 endif
 
@@ -480,7 +480,7 @@ ifeq ($(OSTYPE),linux)
   libponyrt.benchmarks.links += libpthread libdl libatomic
 endif
 
-ifeq ($(OSTYPE),freebsd)
+ifeq ($(OSTYPE),bsd)
   libponyc.tests.links += libpthread
   libponyrt.tests.links += libpthread
   libponyc.benchmarks.links += libpthread

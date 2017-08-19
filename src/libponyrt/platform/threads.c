@@ -3,14 +3,14 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #endif
 
-#if defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_BSD)
 #include <pthread_np.h>
 #include <sys/cpuset.h>
 typedef cpuset_t cpu_set_t;

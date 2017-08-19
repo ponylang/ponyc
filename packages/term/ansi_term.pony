@@ -36,7 +36,7 @@ primitive _TIOCGWINSZ
   fun apply(): ULong =>
     ifdef linux then
       21523
-    elseif osx or freebsd then
+    elseif osx or bsd then
       1074295912
     else
       0

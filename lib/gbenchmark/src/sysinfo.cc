@@ -25,7 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>  // this header must be included before 'sys/sysctl.h' to avoid compilation error on FreeBSD
 #include <unistd.h>
-#if defined BENCHMARK_OS_FREEBSD || defined BENCHMARK_OS_MACOSX
+#if defined BENCHMARK_OS_BSD || defined BENCHMARK_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
 #endif
@@ -228,7 +228,7 @@ void InitializeSystemInfo() {
     cpuinfo_num_cpus = num_cpus;
   }
 
-#elif defined BENCHMARK_OS_FREEBSD
+#elif defined BENCHMARK_OS_BSD
 // For this sysctl to work, the machine must be configured without
 // SMP, APIC, or APM support.  hz should be 64-bit in freebsd 7.0
 // and later.  Before that, it's a 32-bit quantity (and gives the

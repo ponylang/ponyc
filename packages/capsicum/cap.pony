@@ -9,7 +9,7 @@ primitive Cap
     descriptors or reading limited global system state. Access to global name
     spaces, such as file system or IPC name spaces, is prevented.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @cap_enter[I32]() == 0
     else
       false

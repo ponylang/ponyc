@@ -1195,7 +1195,7 @@ bool target_is_linux(char* t)
   return triple.isOSLinux();
 }
 
-bool target_is_freebsd(char* t)
+bool target_is_bsd(char* t)
 {
   Triple triple = Triple(t);
 

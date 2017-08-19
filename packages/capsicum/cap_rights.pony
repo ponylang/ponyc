@@ -53,17 +53,17 @@ class CapRights0
     """
     Initialises with the rights on the given file descriptor.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @__cap_rights_get[I32](_version(), fd, addressof _r0)
     end
 
   fun ref set(cap: U64) =>
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @__cap_rights_set[None](addressof _r0, cap, U64(0))
     end
 
   fun ref unset(cap: U64) =>
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @__cap_rights_clear[None](addressof _r0, cap, U64(0))
     end
 
@@ -71,7 +71,7 @@ class CapRights0
     """
     Limits the fd to the encoded rights.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @cap_rights_limit[I32](fd, addressof _r0) == 0
     else
       true
@@ -81,7 +81,7 @@ class CapRights0
     """
     Merge the rights in that into this.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @cap_rights_merge[None](addressof _r0, addressof that._r0)
     end
 
@@ -89,7 +89,7 @@ class CapRights0
     """
     Remove the rights in that from this.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @cap_rights_remove[None](addressof _r0, addressof that._r0)
     end
 
@@ -97,7 +97,7 @@ class CapRights0
     """
     Clear all rights.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @__cap_rights_init[Pointer[U64]](I32(0), addressof _r0, U64(0))
     end
 
@@ -105,7 +105,7 @@ class CapRights0
     """
     Check that this is a superset of the rights in that.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       @cap_rights_contains[Bool](addressof _r0, addressof that._r0)
     else
       true

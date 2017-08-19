@@ -66,7 +66,7 @@ primitive _FileDes
     """
     Set the Capsicum rights on the file descriptor.
     """
-    ifdef freebsd or "capsicum" then
+    ifdef bsd or "capsicum" then
       if fd != -1 then
         let cap = CapRights.from(path.caps)
 

@@ -11,7 +11,7 @@
 // Mutually exclusive platform flag groups.
 static const char* _os_flags[] =
 {
-  OS_FREEBSD_NAME,
+  OS_BSD_NAME,
   OS_LINUX_NAME,
   OS_MACOSX_NAME,
   OS_WINDOWS_NAME,

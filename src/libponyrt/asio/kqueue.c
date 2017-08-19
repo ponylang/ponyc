@@ -226,7 +226,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
-#ifdef PLATFORM_IS_FREEBSD
+#ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       0, ev->nsec / 1000000, ev);
 #else
@@ -269,7 +269,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   {
     ev->nsec = nsec;
 
-#ifdef PLATFORM_IS_FREEBSD
+#ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       0, ev->nsec / 1000000, ev);
 #else

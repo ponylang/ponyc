@@ -155,7 +155,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   return func;
 }
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
 static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 {
   const char* cc = getenv("CC");
@@ -243,7 +243,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
 
-#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
