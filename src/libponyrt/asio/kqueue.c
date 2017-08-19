@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <signal.h>
 
-#ifdef PLATFORM_IS_DRAGONFLY_BSD
-typedef kevent_flag u_short;
-#elset
-typedef kevent_flag uint32_t;
+#if defined(PLATFORM_IS_DRAGONFLY_BSD)
+typedef u_short kevent_flag;
+#else
+typedef uint32_t kevent_flag;
 #endif
 
 struct asio_backend_t
