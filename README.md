@@ -519,6 +519,25 @@ make
 ./helloworld
 ```
 
+## Building on DragonFly
+
+Dragonfly has been tested on 64-bit X86 DragonFly 4.8.
+
+First, install the required dependencies:
+
+```bash
+sudo pkg install gmake
+sudo pkg install llvm38
+sudo pkg install pcre2
+```
+
+This will build ponyc and compile helloworld:
+
+```bash
+gmake
+./build/release/ponyc examples/helloworld
+```
+
 ## Building on FreeBSD
 
 First, install the required dependencies:
