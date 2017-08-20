@@ -1180,24 +1180,13 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-static void platform_bsd(compile_t* c, reach_type_t* t, token_id cap)
-{
-  FIND_METHOD("bsd", cap);
-  start_function(c, t, m, c->i1, &c_t->use_type, 1);
-
-  LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_bsd(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-}
-
 static void platform_freebsd(compile_t* c, reach_type_t* t, token_id cap)
 {
   FIND_METHOD("freebsd", cap);
   start_function(c, t, m, c->i1, &c_t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_bsd(c->opt->triple), false);
+    LLVMConstInt(c->i1, target_is_freebsd(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
@@ -1208,7 +1197,7 @@ static void platform_dragonfly(compile_t* c, reach_type_t* t, token_id cap)
   start_function(c, t, m, c->i1, &c_t->use_type, 1);
 
   LLVMValueRef result =
-    LLVMConstInt(c->i1, target_is_bsd(c->opt->triple), false);
+    LLVMConstInt(c->i1, target_is_dragonfly(c->opt->triple), false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
