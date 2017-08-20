@@ -8,7 +8,7 @@
 #  error "Unsupported platform"
 #endif
 
- #ifndef __cplusplus
+#ifndef __cplusplus
 #  include <stdalign.h>
 #endif
 
