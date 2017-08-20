@@ -8,9 +8,11 @@
 #  error "Unsupported platform"
 #endif
 
-#ifndef __cplusplus
+ #ifndef __cplusplus
 #  include <stdalign.h>
 #endif
+
+#include <platform.h>
 
 #ifdef _MSC_VER
 // MSVC has no support of C11 atomics.
