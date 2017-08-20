@@ -39,7 +39,7 @@ using std::atomic_thread_fence;
 #elif defined(__GNUC__) && !defined(__clang__)
 #  if !defined(PLATFORM_IS_DRAGONFLY)
 #    include <features.h>
-#  elif
+#  else
 #    include <sys/cdefs.h>
 #  endif
 #  if ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((4) << 16) + (9))
