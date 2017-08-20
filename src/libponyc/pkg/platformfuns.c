@@ -17,6 +17,18 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
     return true;
   }
 
+  if(!strcmp(attribute, OS_FREEBSD_NAME))
+  {
+    *out_is_target = target_is_freebsd(options->triple);
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_DRAGONFLY_NAME))
+  {
+    *out_is_target = target_is_dragonfly(options->triple);
+    return true;
+  }
+
   if(!strcmp(attribute, OS_LINUX_NAME))
   {
     *out_is_target = target_is_linux(options->triple);
