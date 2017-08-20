@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <signal.h>
 
-#if defined(PLATFORM_IS_DRAGONFLY_BSD)
+#if defined(PLATFORM_IS_DRAGONFLY)
 typedef u_short kevent_flag;
 #else
 typedef uint32_t kevent_flag;

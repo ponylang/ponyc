@@ -35,7 +35,9 @@ using std::atomic_fetch_sub_explicit;
 using std::atomic_thread_fence;
 #  endif
 #elif defined(__GNUC__) && !defined(__clang__)
-#  include <features.h>
+#  if !defined(PLATFORM_IS_DRAGONFLY)
+#    include <features.h>
+#  endif
 #  if ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((4) << 16) + (9))
 #    ifdef __cplusplus
 //     g++ doesn't like C11 atomics. We never need atomic ops in C++ files so
