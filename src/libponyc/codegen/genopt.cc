@@ -1206,7 +1206,7 @@ bool target_is_freebsd(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isOSFreeBSD()
+  return triple.isOSFreeBSD();
 }
 
 bool target_is_dragonfly(char* t)
