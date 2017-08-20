@@ -1,5 +1,7 @@
 primitive Platform
   fun bsd(): Bool => compile_intrinsic
+  fun freebsd(): Bool => compile_intrinsic
+  fun dragonfly(): Bool => compile_intrinsic
   fun linux(): Bool => compile_intrinsic
   fun osx(): Bool => compile_intrinsic
   fun posix(): Bool => bsd() or linux() or osx()
