@@ -11,6 +11,12 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
   pony_assert(out_is_target != NULL);
   pony_assert(options != NULL);
 
+  if(!strcmp(attribute, OS_BSD_NAME))
+  {
+    *out_is_target = target_is_bsd(options->triple);
+    return true;
+  }
+
   if(!strcmp(attribute, OS_FREEBSD_NAME))
   {
     *out_is_target = target_is_freebsd(options->triple);

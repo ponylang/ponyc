@@ -8,6 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 bool genopt(compile_t* c, bool pony_specific);
 bool target_is_linux(char* triple);
+bool target_is_bsd(char* triple);
 bool target_is_freebsd(char* triple);
 bool target_is_dragonfly(char* triple);
 bool target_is_macosx(char* triple);
