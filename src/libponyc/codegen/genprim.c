@@ -1313,7 +1313,6 @@ static void platform_debug(compile_t* c, reach_type_t* t, token_id cap)
 
 void genprim_platform_methods(compile_t* c, reach_type_t* t)
 {
-  BOX_FUNCTION(platform_bsd, t);
   BOX_FUNCTION(platform_freebsd, t);
   BOX_FUNCTION(platform_dragonfly, t);
   BOX_FUNCTION(platform_linux, t);
