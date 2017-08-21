@@ -383,6 +383,7 @@ static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
       }
 
       const char* cap_text = doc_get_cap(cap);
+
       if(cap_text != NULL)
         fprintf(docgen->type_file, " %s", cap_text);
 
@@ -408,10 +409,6 @@ static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
     {
       AST_GET_CHILDREN(type, id, cap, ephemeral);
       fprintf(docgen->type_file, "%s", ast_nice_name(id));
-
-      const char* cap_text = doc_get_cap(cap);
-      if(cap_text != NULL)
-        fprintf(docgen->type_file, " %s", cap_text);
 
       if(ast_id(ephemeral) != TK_NONE)
         fprintf(docgen->type_file, "%s", ast_get_print(ephemeral));
@@ -669,7 +666,7 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
 }
 
 // Write a description of the given method to the current type file
-static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt, 
+static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   ast_t* method)
 {
   pony_assert(docgen != NULL);
@@ -850,7 +847,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 
       case TK_BE:
         doc_list_add_named(&pub_bes, p, 1, true, false);
-        doc_list_add_named(&priv_bes, p, 1, 
+        doc_list_add_named(&priv_bes, p, 1,
           false, docgen_opt->include_private);
         break;
 
@@ -935,7 +932,7 @@ static void doc_package_home(docgen_t* docgen,
 
 
   ponyint_pool_free_size(tqfn_len, tqfn);
-  
+
   docgen->public_types = printbuf_new();
   docgen->private_types = printbuf_new();
 
