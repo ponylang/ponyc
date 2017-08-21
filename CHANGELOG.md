@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't print capabilities for type params when generating docs ([PR #2184](https://github.com/ponylang/ponyc/pull/2184))
 
 
 ### Added
