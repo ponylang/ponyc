@@ -173,6 +173,10 @@ ifeq ($(OSTYPE),osx)
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
+ifeq ($(UNAME_S),DragonFly)
+  LINKER_FLAGS += -L /usr/local/lib
+endif
+
 ifndef LLVM_CONFIG
 	ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
