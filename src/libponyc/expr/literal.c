@@ -416,8 +416,21 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
-      pony_assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
-      return uifset(opt, ast_childidx(type, 1), chain);
+      {
+        ast_t* rhs = ast_childidx(type, 1);
+        switch(ast_id(rhs))
+        {
+          case TK_NOMINAL:
+          case TK_TYPEPARAMREF:
+            return uifset(opt, rhs, chain);
+
+          default:
+            ast_error(opt->check.errors, rhs,
+              "Internal error: uif type, node %d", ast_id(rhs));
+            pony_assert(0);
+            return UIF_ERROR;
+        }
+      }
 
     case TK_TYPEPARAMREF:
       if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
