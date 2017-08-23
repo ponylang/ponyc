@@ -90,7 +90,7 @@ destdir ?= $(prefix)/lib/pony/$(tag)
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch) -mtune=$(tune)
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune) -L /usr/local/lib
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
@@ -171,10 +171,6 @@ endif
 ifeq ($(OSTYPE),osx)
   ALL_CFLAGS += -mmacosx-version-min=10.8
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
-endif
-
-ifeq ($(UNAME_S),DragonFly)
-  LINKER_FLAGS += -L /usr/local/lib
 endif
 
 ifndef LLVM_CONFIG
