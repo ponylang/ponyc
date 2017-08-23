@@ -211,7 +211,7 @@ TEST_F(ArrayTest, InferFromSeq)
 }
 
 
-TEST_F(ArrayTest, InferFromInterface)
+TEST_F(ArrayTest, InferFromApplyInterface)
 {
   const char* src =
     "trait iso T\n"
@@ -230,7 +230,7 @@ TEST_F(ArrayTest, InferFromInterface)
 }
 
 
-TEST_F(ArrayTest, InferFromInterfaceValElementNoArrowThis)
+TEST_F(ArrayTest, InferFromApplyInterfaceValElementNoArrowThis)
 {
   const char* src =
     "trait val T\n"
@@ -249,7 +249,7 @@ TEST_F(ArrayTest, InferFromInterfaceValElementNoArrowThis)
 }
 
 
-TEST_F(ArrayTest, InferFromInterfaceIsoElementNoArrowThis)
+TEST_F(ArrayTest, InferFromApplyInterfaceIsoElementNoArrowThis)
 {
   const char* src =
     "trait iso T\n"
@@ -265,6 +265,60 @@ TEST_F(ArrayTest, InferFromInterfaceIsoElementNoArrowThis)
     "    [C1; C2; C3]";
 
   TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(ArrayTest, InferFromValuesInterface)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "interface ArrayishOfT\n"
+    "  fun values(): Iterator[this->T]^\n"
+
+    "primitive Foo\n"
+    "  fun apply(): ArrayishOfT =>\n"
+    "    [C1; C2; C3]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, InferFromValuesOfArrayInterface)
+{
+  const char* src =
+    "trait iso T\n"
+    "class iso C1 is T\n"
+    "class iso C2 is T\n"
+    "class iso C3 is T\n"
+
+    "interface ArrayishOfArrayOfT\n"
+    "  fun values(): Iterator[Array[T]]^\n"
+
+    "primitive Foo\n"
+    "  fun apply(): ArrayishOfArrayOfT =>\n"
+    "    [[C1]; [C2]; [C3]]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, InferFromReadSeqAndReadElementInterface)
+{
+  const char* src =
+    "interface box ReadSeq[A]\n"
+    "  fun apply(i: USize): this->A ?\n"
+    "interface box ReadElement[A]\n"
+    "  fun apply(i: USize): A ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): (ReadSeq[U8] & ReadElement[U8]) =>\n"
+    "    [1; 2; 3]";
+
+  TEST_COMPILE(src);
 }
 
 

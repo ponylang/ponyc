@@ -34,6 +34,79 @@ static ast_t* build_array_type(ast_t* scope, ast_t* elem_type, token_id cap)
   return array_type;
 }
 
+static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
+{
+  // The interface must have an apply method for us to find it.
+  ast_t* apply = ast_get(def, stringtab("apply"), NULL);
+  if((apply == NULL) || (ast_id(apply) != TK_FUN))
+    return NULL;
+
+  // The apply method must match the signature we're expecting.
+  AST_GET_CHILDREN(apply, receiver_cap, apply_name, type_params, params,
+    ret_type, question);
+  if((ast_id(receiver_cap) != TK_BOX) ||
+    (ast_id(type_params) != TK_NONE) ||
+    (ast_childcount(params) != 1) ||
+    (ast_id(question) != TK_QUESTION))
+    return NULL;
+
+  ast_t* param = ast_child(params);
+  ast_t* param_type = ast_childidx(param, 1);
+  if(ast_name(ast_childidx(param_type, 1)) != stringtab("USize"))
+    return NULL;
+
+  // Based on the return type we try to figure out the element type.
+  ast_t* elem_type = ret_type;
+
+  ast_t* typeparams = ast_childidx(def, 1);
+  ast_t* typeargs = ast_childidx(ast, 2);
+  if(ast_id(typeparams) == TK_TYPEPARAMS)
+    elem_type = reify(elem_type, typeparams, typeargs, opt, true);
+
+  if((ast_id(elem_type) == TK_ARROW) &&
+    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
+    elem_type = ast_childidx(elem_type, 1);
+
+  return elem_type;
+}
+
+static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
+  ast_t* def)
+{
+  // The interface must have an apply method for us to find it.
+  ast_t* values = ast_get(def, stringtab("values"), NULL);
+  if((values == NULL) || (ast_id(values) != TK_FUN))
+    return NULL;
+
+  // The values method must match the signature we're expecting.
+  AST_GET_CHILDREN(values, receiver_cap, apply_name, type_params, params,
+    ret_type, question);
+  if((ast_id(receiver_cap) != TK_BOX) ||
+    (ast_id(type_params) != TK_NONE) ||
+    (ast_childcount(params) != 0) ||
+    (ast_id(question) != TK_NONE))
+    return NULL;
+
+  if((ast_id(ret_type) != TK_NOMINAL) ||
+    (ast_name(ast_childidx(ret_type, 1)) != stringtab("Iterator")) ||
+    (ast_childcount(ast_childidx(ret_type, 2)) != 1))
+    return NULL;
+
+  // Based on the return type we try to figure out the element type.
+  ast_t* elem_type = ast_child(ast_childidx(ret_type, 2));
+
+  ast_t* typeparams = ast_childidx(def, 1);
+  ast_t* typeargs = ast_childidx(ast, 2);
+  if(ast_id(typeparams) == TK_TYPEPARAMS)
+    elem_type = reify(elem_type, typeparams, typeargs, opt, true);
+
+  if((ast_id(elem_type) == TK_ARROW) &&
+    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
+    elem_type = ast_childidx(elem_type, 1);
+
+  return elem_type;
+}
+
 static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
   astlist_t** list)
 {
@@ -55,35 +128,16 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
       if((def == NULL) || (ast_id(def) != TK_INTERFACE))
         return;
 
-      // The interface must have an apply method for us to find it.
-      ast_t* apply = ast_get(def, stringtab("apply"), NULL);
-      if((apply == NULL) || (ast_id(apply) != TK_FUN))
+      // Try to find an element type by looking for an apply method.
+      ast_t* elem_type = detect_apply_element_type(opt, ast, def);
+
+      // Otherwise, try to find an element type by looking for a values method.
+      if(elem_type == NULL)
+        elem_type = detect_values_element_type(opt, ast, def);
+
+      // If we haven't found an element type by now, give up.
+      if(elem_type == NULL)
         return;
-
-      // The apply method must match the signature we're expecting.
-      AST_GET_CHILDREN(apply, receiver_cap, apply_name, type_params, params,
-        ret_type, question);
-      if((ast_id(receiver_cap) != TK_BOX) ||
-        (ast_id(type_params) != TK_NONE) ||
-        (ast_childcount(params) != 1) ||
-        (ast_id(question) != TK_QUESTION))
-        return;
-
-      ast_t* param = ast_child(params);
-      ast_t* param_type = ast_childidx(param, 1);
-      if(ast_name(ast_childidx(param_type, 1)) != stringtab("USize"))
-        return;
-
-      // Based on the apply method we try to figure out the element type.
-      ast_t* elem_type = ret_type;
-
-      ast_t* typeparams = ast_childidx(def, 1);
-      if(ast_id(typeparams) == TK_TYPEPARAMS)
-        elem_type = reify(ret_type, typeparams, typeargs, opt, true);
-
-      if((ast_id(elem_type) == TK_ARROW) &&
-        (ast_id(ast_child(elem_type)) == TK_THISTYPE))
-        elem_type = ast_childidx(elem_type, 1);
 
       // Construct a guess of the corresponding Array type.
       // Use iso^ so that the object cap isn't a concern for subtype checking.
@@ -133,7 +187,61 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
   astlist_t* possible_element_types = NULL;
   find_possible_element_types(opt, antecedent_type, &possible_element_types);
 
-  // If there's more than one possible element type, test against the elements,
+  // If there's more than one possible element type, remove equivalent types.
+  if(astlist_length(possible_element_types) > 1)
+  {
+    astlist_t* new_list = NULL;
+
+    astlist_t* left_cursor = possible_element_types;
+    for(; left_cursor != NULL; left_cursor = astlist_next(left_cursor))
+    {
+      bool eqtype_of_any_remaining = false;
+
+      astlist_t* right_cursor = astlist_next(left_cursor);
+      for(; right_cursor != NULL; right_cursor = astlist_next(right_cursor))
+      {
+        ast_t* left = astlist_data(left_cursor);
+        ast_t* right = astlist_data(right_cursor);
+        if((right_cursor == left_cursor) || is_eqtype(right, left, NULL, opt))
+          eqtype_of_any_remaining = true;
+      }
+
+      if(!eqtype_of_any_remaining)
+        new_list = astlist_push(new_list, astlist_data(left_cursor));
+    }
+
+    astlist_free(possible_element_types);
+    possible_element_types = new_list;
+  }
+
+  // If there's still more than one possible element type, choose the most
+  // specific type (removing types that are supertypes of one or more others).
+  if(astlist_length(possible_element_types) > 1)
+  {
+    astlist_t* new_list = NULL;
+
+    astlist_t* super_cursor = possible_element_types;
+    for(; super_cursor != NULL; super_cursor = astlist_next(super_cursor))
+    {
+      bool supertype_of_any = false;
+
+      astlist_t* sub_cursor = possible_element_types;
+      for(; sub_cursor != NULL; sub_cursor = astlist_next(sub_cursor))
+      {
+        if((sub_cursor != super_cursor) && is_subtype(astlist_data(sub_cursor),
+          astlist_data(super_cursor), NULL, opt))
+          supertype_of_any = true;
+      }
+
+      if(!supertype_of_any)
+        new_list = astlist_push(new_list, astlist_data(super_cursor));
+    }
+
+    astlist_free(possible_element_types);
+    possible_element_types = new_list;
+  }
+
+  // If there's still more than one possible type, test against the elements,
   // creating a new list containing only the possibilities that are supertypes.
   if(astlist_length(possible_element_types) > 1)
   {
@@ -164,33 +272,6 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
 
       if(supertype_of_all)
         new_list = astlist_push(new_list, astlist_data(cursor));
-    }
-
-    astlist_free(possible_element_types);
-    possible_element_types = new_list;
-  }
-
-  // If there's still more than one possible element type, choose the most
-  // specific type (removing types that are supertypes of one or more others).
-  if(astlist_length(possible_element_types) > 1)
-  {
-    astlist_t* new_list = NULL;
-
-    astlist_t* super_cursor = possible_element_types;
-    for(; super_cursor != NULL; super_cursor = astlist_next(super_cursor))
-    {
-      bool supertype_of_any = false;
-
-      astlist_t* sub_cursor = possible_element_types;
-      for(; sub_cursor != NULL; sub_cursor = astlist_next(sub_cursor))
-      {
-        if((sub_cursor != super_cursor) && is_subtype(astlist_data(sub_cursor),
-          astlist_data(super_cursor), NULL, opt))
-          supertype_of_any = true;
-      }
-
-      if(!supertype_of_any)
-        new_list = astlist_push(new_list, astlist_data(super_cursor));
     }
 
     astlist_free(possible_element_types);
