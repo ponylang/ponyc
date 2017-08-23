@@ -31,7 +31,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         let m3 = m2("b") = 10 // {a: 5, b: 10}
         let m4 = m3.remove("a")? // {b: 10}
         // You can create a new map from key value pairs.
-        let m5 = Map[String, U32].concat([as (String, U32): ("a", 2); ("b", 3)].values()) // {a: 2, b: 3}
+        let m5 = Map[String, U32].concat([("a", 2); ("b", 3)].values()) // {a: 2, b: 3}
       end
   ```
   """
