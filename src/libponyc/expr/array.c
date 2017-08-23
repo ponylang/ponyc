@@ -180,12 +180,67 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
   }
 }
 
+static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
+  astlist_t** list)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
+
+      if(stringtab("Iterator") == ast_name(name))
+      {
+        *list = astlist_push(*list, ast_child(typeargs));
+        return;
+      }
+    }
+
+    case TK_ARROW:
+      find_possible_iterator_element_types(opt, ast_childidx(ast, 1), list);
+      return;
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(ast_id(def) == TK_TYPEPARAM);
+      find_possible_iterator_element_types(opt, ast_childidx(def, 1), list);
+      return;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
+        find_possible_iterator_element_types(opt, c, list);
+    }
+
+    default:
+      break;
+  }
+}
+
 static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
   ast_t** type_spec_p, ast_t* antecedent_type)
 {
-  // List the element types of all array-matching types in the antecedent type.
   astlist_t* possible_element_types = NULL;
-  find_possible_element_types(opt, antecedent_type, &possible_element_types);
+
+  if(antecedent_type != NULL)
+  {
+    // List the element types of all array-matching types in the antecedent.
+    find_possible_element_types(opt, antecedent_type, &possible_element_types);
+  } else {
+    // If the ast parent is a call to values() and the antecedent of that call
+    // is an Iterator, then we can get possible element types that way.
+    if((ast_id(ast_parent(ast)) == TK_DOT) &&
+      (ast_name(ast_sibling(ast)) == stringtab("values")))
+    {
+      ast_t* dot = ast_parent(ast);
+      antecedent_type = find_antecedent_type(opt, dot, NULL);
+      find_possible_iterator_element_types(opt, antecedent_type,
+        &possible_element_types);
+    }
+  }
 
   // If there's more than one possible element type, remove equivalent types.
   if(astlist_length(possible_element_types) > 1)
@@ -295,8 +350,6 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
   // Try to find an antecedent type, or bail out if none was found.
   bool is_recovered = false;
   ast_t* antecedent_type = find_antecedent_type(opt, ast, &is_recovered);
-  if(antecedent_type == NULL)
-    return AST_OK;
 
   // If we don't have an explicit element type, try to infer it.
   if(ast_id(type_spec) == TK_NONE)
@@ -313,7 +366,8 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
   // and if the array literal is not a subtype of the antecedent type,
   // but would be if the object cap were ignored, then recover it.
   ast_t* array_type = build_array_type(ast, type_spec, TK_REF);
-  if(!is_recovered && !is_subtype(array_type, antecedent_type, NULL, opt) &&
+  if((antecedent_type != NULL) && !is_recovered &&
+    !is_subtype(array_type, antecedent_type, NULL, opt) &&
     is_subtype_ignore_cap(array_type, antecedent_type, NULL, opt))
   {
     ast_free_unattached(array_type);

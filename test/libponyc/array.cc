@@ -322,6 +322,17 @@ TEST_F(ArrayTest, InferFromReadSeqAndReadElementInterface)
 }
 
 
+TEST_F(ArrayTest, InferFromValuesCallWithIteratorAntecedent)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(): (Iterator[U8] | None) =>\n"
+    "    [1; 2; 3].values()";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(ArrayTest, InferFromArrayIso)
 {
   const char* src =
