@@ -417,7 +417,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
       {
-        ast_t *rhs = ast_childidx(type, 1);
+        ast_t* rhs = ast_childidx(type, 1);
         switch(ast_id(rhs))
         {
           case TK_NOMINAL:
