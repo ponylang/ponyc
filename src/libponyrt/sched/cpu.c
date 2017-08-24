@@ -4,7 +4,7 @@
 #include <platform.h>
 #include <dtrace.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
   #include <sched.h>
   #include <stdlib.h>
   #include <unistd.h>
@@ -26,7 +26,7 @@ static uint32_t* avail_cpu_list;
 static uint32_t avail_cpu_size;
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -138,7 +138,7 @@ void ponyint_cpu_init()
     i = cpu_add_mask_to_list(i, &hw_cpus);
     i = cpu_add_mask_to_list(i, &ht_cpus);
   }
-#elif defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_BSD)
   hw_cpu_count = property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   hw_cpu_count = property("hw.physicalcpu");
@@ -229,7 +229,7 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   avail_cpu_count = avail_cpu_size = 0;
 
   return asio_cpu;
-#elif defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_BSD)
   // FreeBSD does not currently do thread pinning, as we can't yet determine
   // which cores are hyperthreads.
 
@@ -271,7 +271,7 @@ void ponyint_cpu_affinity(uint32_t cpu)
     CPU_SET(cpu, &set);
 
     sched_setaffinity(0, sizeof(cpu_set_t), &set);
-#elif defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_BSD)
   // No pinning, since we cannot yet determine hyperthreads vs physical cores.
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;

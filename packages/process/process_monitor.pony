@@ -127,13 +127,13 @@ primitive _SIGTERM
 
 primitive _EAGAIN
   fun apply(): I32 =>
-    ifdef freebsd or osx then 35
+    ifdef bsd or osx then 35
     elseif linux then 11
     else compile_error "no EAGAIN" end
 
 primitive _ONONBLOCK
   fun apply(): I32 =>
-    ifdef freebsd or osx then 4
+    ifdef bsd or osx then 4
     elseif linux then 2048
     else compile_error "no O_NONBLOCK" end
 

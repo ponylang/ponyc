@@ -119,7 +119,7 @@ static struct addrinfo* os_addrinfo_intern(int family, int socktype,
   return result;
 }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
 static int set_nonblocking(int s)
 {
   int flags = fcntl(s, F_GETFL, 0);
@@ -446,7 +446,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
       (const char*)&reuseaddr, sizeof(int));
   }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
   r |= set_nonblocking(fd);
 #endif
 
@@ -881,16 +881,16 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
   SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
   DWORD sent;
-  
+
   if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
-  { 
+  {
     if(GetLastError() != WSA_IO_PENDING)
-    { 
+    {
       iocp_destroy(iocp);
       pony_throw();
     }
   }
-  
+
   return 0;
 }
 #else
@@ -1023,7 +1023,7 @@ PONY_API void pony_os_keepalive(int fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 

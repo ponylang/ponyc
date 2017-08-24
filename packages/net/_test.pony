@@ -26,13 +26,13 @@ class _TestPing is UDPNotify
       (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
-        ifdef freebsd then
+        ifdef bsd then
           DNS.ip4(auth, "", service)
         else
           DNS.broadcast_ip4(auth, service)
         end
       else
-        ifdef freebsd then
+        ifdef bsd then
           DNS.ip6(auth, "", service)
         else
           DNS.broadcast_ip6(auth, service)
