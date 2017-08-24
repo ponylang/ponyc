@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- DragonFly BSD 4.8 support ([PR #2183](https://github.com/ponylang/ponyc/pull/2183))
 - Process monitor async write buffering ([PR #2186](https://github.com/ponylang/ponyc/pull/2186))
 
 
