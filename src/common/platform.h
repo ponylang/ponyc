@@ -29,7 +29,11 @@
 #elif defined(__linux__)
 #  define PLATFORM_IS_LINUX
 #elif defined(__FreeBSD__)
+#  define PLATFORM_IS_BSD
 #  define PLATFORM_IS_FREEBSD
+#elif defined(__DragonFly__)
+#  define PLATFORM_IS_BSD
+#  define PLATFORM_IS_DRAGONFLY
 #elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
@@ -98,7 +102,7 @@
 #  error PLATFORM NOT SUPPORTED!
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_BSD)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 
@@ -237,7 +241,7 @@ inline uint32_t __pony_ffs(uint32_t x)
   unsigned char non_zero = _BitScanForward(&i, x);
   return non_zero ? i + 1 : 0;
 }
-  
+
 #  ifdef PLATFORM_IS_ILP32
 inline uint32_t __pony_ffsl(uint32_t x)
 {

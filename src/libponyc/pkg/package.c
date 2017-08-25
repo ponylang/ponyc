@@ -22,7 +22,7 @@
 #include <unistd.h>
 #elif defined(PLATFORM_IS_MACOSX)
 #include <mach-o/dyld.h>
-#elif defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_BSD)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -587,7 +587,7 @@ static bool add_exec_dir(pass_opt_t* opt)
 
   if(success)
     path[r] = '\0';
-#elif defined PLATFORM_IS_FREEBSD
+#elif defined PLATFORM_IS_BSD
   int mib[4];
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;

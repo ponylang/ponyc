@@ -34,7 +34,7 @@
 // that it is an apple system.
 #define BENCHMARK_OS_MACOSX 1
 #elif defined(__FreeBSD__)
-#define BENCHMARK_OS_FREEBSD 1
+#define BENCHMARK_OS_BSD 1
 #elif defined(__linux__)
 #define BENCHMARK_OS_LINUX 1
 #endif
