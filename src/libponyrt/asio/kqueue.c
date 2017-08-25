@@ -162,6 +162,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         {
           case EVFILT_READ:
             ev->readable = true;
+            //assert(ev->flags == ASIO_READ);
             pony_asio_event_send(ev, ASIO_READ, 0);
             break;
 
@@ -170,18 +171,24 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             {
               ev->readable = true;
               ev->writeable = true;
+              //assert(ev->flags == (ASIO_READ | ASIO_WRITE));
               pony_asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
             } else {
               ev->writeable = true;
+              //assert(ev->flags == ASIO_WRITE);
+              ev->flags = ASIO_WRITE;
               pony_asio_event_send(ev, ASIO_WRITE, 0);
             }
             break;
 
           case EVFILT_TIMER:
+            //assert(ev->flags == ASIO_TIMER);
             pony_asio_event_send(ev, ASIO_TIMER, 0);
             break;
 
           case EVFILT_SIGNAL:
+            //assert(ev->flags == ASIO_SIGNAL);
+            ev->flags = ASIO_SIGNAL;
             pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
             break;
 
