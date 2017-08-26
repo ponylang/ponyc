@@ -107,11 +107,6 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   uint32_t arg)
 {
-  //if (ev->flags != flags)
-  //{
-    printf("flags are off: ev- %d, flags- %d\n", ev->flags, flags);
-  //  assert(0);
-  //}
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;

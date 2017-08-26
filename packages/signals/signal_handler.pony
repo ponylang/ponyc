@@ -41,7 +41,6 @@ actor SignalHandler
     Called when the signal is received, or when the AsioEventID can be
     destroyed.
     """
-    @printf[None]("SIG EVENT: %d %d\n".cstring(), flags, arg)
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)
     elseif event is _event then
