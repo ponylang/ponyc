@@ -186,6 +186,50 @@ static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
   return lookup_base(opt, from, orig, constraint, name, errors);
 }
 
+static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
+  const char* name, errorframe_t* pframe, pass_opt_t* opt)
+{
+  AST_GET_CHILDREN(prev_fun, prev_cap, prev_name, prev_tparams,
+    prev_params);
+  AST_GET_CHILDREN(cur_fun, cur_cap, cur_name, cur_tparams, cur_params);
+
+  ast_t* prev_param = ast_child(prev_params);
+  ast_t* cur_param = ast_child(cur_params);
+
+  while(prev_param != NULL && cur_param != NULL)
+  {
+    AST_GET_CHILDREN(prev_param, prev_id);
+    AST_GET_CHILDREN(cur_param, cur_id);
+
+    if(ast_name(prev_id) != ast_name(cur_id))
+    {
+      ast_t* parent = from != NULL ? ast_parent(from) : NULL;
+      if(parent != NULL && ast_id(parent) == TK_CALL)
+      {
+        AST_GET_CHILDREN(parent, positional, namedargs);
+        if(namedargs != NULL && ast_id(namedargs) == TK_NAMEDARGS)
+        {
+          if(pframe != NULL)
+          {
+            errorframe_t frame = NULL;
+            ast_error_frame(&frame, from, "the '%s' methods of this union"
+              " type have different parameter names; this prevents their"
+              " use as named arguments", name);
+            errorframe_append(&frame, pframe);
+            errorframe_report(&frame, opt->check.errors);
+          }
+          return false;
+        }
+      }
+    }
+
+    prev_param = ast_sibling(prev_param);
+    cur_param = ast_sibling(cur_param);
+  }
+
+  return true;
+}
+
 static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
   const char* name, bool errors)
 {
@@ -237,13 +281,17 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
             {
               // Use the supertype function. Require the most specific
               // arguments and return the least specific result.
-              // TODO: union the signatures, to handle arg names and
-              // default arguments.
-              if(errors)
-                errorframe_discard(pframe);
+              if(!param_names_match(from, result, r, name, pframe, opt))
+              {
+                ast_free_unattached(r);
+                ok = false;
+              } else {
+                if(errors)
+                  errorframe_discard(pframe);
 
-              ast_free_unattached(result);
-              result = r;
+                ast_free_unattached(result);
+                result = r;
+              }
             } else {
               if(errors)
               {
@@ -255,6 +303,12 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
                 errorframe_report(&frame, opt->check.errors);
               }
 
+              ast_free_unattached(r);
+              ok = false;
+            }
+          } else {
+            if(!param_names_match(from, result, r, name, pframe, opt))
+            {
               ast_free_unattached(r);
               ok = false;
             }
