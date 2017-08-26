@@ -26,7 +26,7 @@ class iso _TestSignalINT is UnitTest
     let signal = SignalHandler(_TestSighupNotify(h), Sig.int())
     signal.raise()
     _signal = signal
-   // h.long_test(2_000_000_000) // 2 second timeout
+    h.long_test(2_000_000_000) // 2 second timeout
 
   fun timed_out(h: TestHelper) =>
     try

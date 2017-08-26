@@ -4,7 +4,6 @@
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
-#include <stdio.h>
 
 PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   uint32_t flags, uint64_t nsec, bool noisy)
