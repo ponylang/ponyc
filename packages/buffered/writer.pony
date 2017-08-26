@@ -297,13 +297,15 @@ class Writer
     end
 
   fun ref _check(size': USize) =>
-    if (_current.size() - _offset) < size' then
-      _current.undefined(_offset + size')
+    let available = _current.space() - _offset
+    if (available < size') then
+      let need = size' - available
+      _current.undefined(_current.space() + need)
     end
 
   fun ref _byte(data: U8) =>
     try
-      _current(_offset)? = data
+      _current.insert(_offset, data)?
       _offset = _offset + 1
       _size = _size + 1
     end
