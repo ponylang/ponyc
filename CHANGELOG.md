@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
 - Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
 
 
