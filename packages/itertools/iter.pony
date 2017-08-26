@@ -40,13 +40,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([2; 4; 6].values())
-      .all({(x: I64): Bool => (x % 2) == 0 })
+      .all({(x) => (x % 2) == 0 })
     ```
     `true`
 
     ```pony
     Iter[I64]([2; 3; 4].values())
-      .all({(x: I64): Bool => (x % 2) == 0 })
+      .all({(x) => (x % 2) == 0 })
     ```
     `false`
     """
@@ -67,13 +67,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([2; 4; 6].values())
-      .any({(x: I64): Bool => (x % 2) == 1 })
+      .any({(I64) => (x % 2) == 1 })
     ```
     `false`
 
     ```pony
     Iter[I64]([2; 3; 4].values())
-      .any({(x: I64): Bool => (x % 2) == 1 })
+      .any({(I64) => (x % 2) == 1 })
     ```
     `true`
     """
@@ -194,7 +194,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
-      .filter({(x: I64): Bool => (x % 2) == 0 })
+      .filter({(x) => (x % 2) == 0 })
     ```
     `2 4 6`
     """
@@ -320,7 +320,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3].values())
-      .map[I64]({(x: I64): I64 => x * x })
+      .map[I64]({(x) => x * x })
     ```
     `1 4 9`
     """
@@ -373,7 +373,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3].values())
-      .map[None]({(x: I64) => env.out.print(x.string()) })
+      .map[None]({(x) => env.out.print(x.string()) })
       .run()
     ```
     ```
@@ -419,7 +419,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
-      .skip_while({(x: I64): Bool => x < 4 })
+      .skip_while({(x) => x < 4 })
     ```
     `4 5 6`
     """
@@ -480,7 +480,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
-      .take_while({(x: I64): Bool => x < 4 })
+      .take_while({(x) => x < 4 })
     ```
     `1 2 3`
     """

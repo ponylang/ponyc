@@ -148,10 +148,7 @@ primitive Glob
     on `Glob` for details.
     """
     let res = Array[FilePath]
-    iglob(
-      root_path,
-      pattern,
-      {ref(path: FilePath, match_groups: Array[String]) => res.push(path)})
+    iglob(root_path, pattern, {(path, _) => res.push(path)})
     res
 
   fun _apply_glob_to_walk(

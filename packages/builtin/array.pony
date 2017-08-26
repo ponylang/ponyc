@@ -357,8 +357,7 @@ class Array[A] is Seq[A]
     value: A!,
     offset: USize = 0,
     nth: USize = 0,
-    predicate: {(box->A!, box->A!): Bool} val =
-      {(l: box->A!, r: box->A!): Bool => l is r })
+    predicate: {(box->A!, box->A!): Bool} val = {(l, r) => l is r })
     : USize ?
   =>
     """

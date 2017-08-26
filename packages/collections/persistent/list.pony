@@ -26,7 +26,7 @@ actor Main
       Lists[U32].eq(l4, Lists[U32]([1; 2; 3]))?
       Lists[U32].eq(l4_tail, Lists[U32]([2; 3]))?
 
-      let doubled = l4.map[U32]({(x: U32): U32 => x * 2 })
+      let doubled = l4.map[U32]({(x) => x * 2 })
 
       Lists[U32].eq(doubled, Lists[U32]([2; 4; 6]))?
     end
