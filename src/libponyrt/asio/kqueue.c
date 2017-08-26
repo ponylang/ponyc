@@ -86,6 +86,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_READ) && !ev->readable)
   {
+    printf("ONESHOT 3\n");
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
     i++;
   } else {
@@ -113,6 +114,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
   {
+    printf("ONE SHOT 4\n");
     EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
     i++;
   } else {
@@ -163,6 +165,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           case EVFILT_READ:
             ev->readable = true;
             //assert(ev->flags == ASIO_READ);
+            //printf("Filter read: ev flags %d\n", ev->flags);
+            //ev->flags = ASIO_READ;
             pony_asio_event_send(ev, ASIO_READ, 0);
             break;
 
@@ -176,7 +180,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             } else {
               ev->writeable = true;
               //assert(ev->flags == ASIO_WRITE);
-              ev->flags = ASIO_WRITE;
+              //ev->flags = ASIO_WRITE;
               pony_asio_event_send(ev, ASIO_WRITE, 0);
             }
             break;
@@ -188,7 +192,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
           case EVFILT_SIGNAL:
             //assert(ev->flags == ASIO_SIGNAL);
-            ev->flags = ASIO_SIGNAL;
+            //ev->flags = ASIO_SIGNAL;
+            printf("EVFIL_SIGNAL: %d\n", ev->flags);
+            printf("EVFIL_SIGNAL: %d\n", (uint32_t)ep->data);
             pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
             break;
 
@@ -227,12 +233,14 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   kevent_flag_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
+    printf("ONE SHOT 5\n");
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
+    printf("ONE SHOT 6\n");
     EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
     i++;
   }
@@ -243,6 +251,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       0, ev->nsec / 1000000, ev);
 #else
+    printf("ONE SHOT 1\n");
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->nsec, ev);
 #endif
@@ -286,6 +295,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       0, ev->nsec / 1000000, ev);
 #else
+    printf("ONESHOT 2\n");
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->nsec, ev);
 #endif
