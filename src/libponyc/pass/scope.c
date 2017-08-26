@@ -320,7 +320,8 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
       // Store the original definition of the typeparam in the data field here.
       // It will be retained later if the typeparam def is copied via ast_dup.
-      ast_setdata(ast, ast);
+      if(ast_data(ast) == NULL)
+        ast_setdata(ast, ast);
       break;
 
     case TK_IFTYPE:
