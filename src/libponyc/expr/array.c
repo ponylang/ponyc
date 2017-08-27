@@ -15,21 +15,16 @@
 #include "../type/lookup.h"
 #include "ponyassert.h"
 
-static ast_t* build_array_type(ast_t* scope, ast_t* elem_type, token_id cap)
+static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
+  token_id cap)
 {
   elem_type = ast_dup(elem_type);
 
-  BUILD(array_type, elem_type,
-    NODE(TK_NOMINAL,
-      ID("$0")
-      ID("Array")
-      NODE(TK_TYPEARGS, TREE(elem_type))
-      NODE(cap)
-      NODE(TK_EPHEMERAL)
-      NODE(TK_NONE)));
+  BUILD(typeargs, elem_type,
+    NODE(TK_TYPEARGS, TREE(elem_type)));
 
-  // Link the nominal type to the entity definition for Array.
-  ast_setdata(array_type, ast_get(scope, stringtab("Array"), NULL));
+  ast_t* array_type = type_builtin_args(opt, scope, "Array", typeargs);
+  ast_setid(ast_childidx(array_type, 3), cap);
 
   return array_type;
 }
@@ -141,7 +136,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
 
       // Construct a guess of the corresponding Array type.
       // Use iso^ so that the object cap isn't a concern for subtype checking.
-      ast_t* array_type = build_array_type(ast, elem_type, TK_ISO);
+      ast_t* array_type = build_array_type(opt, ast, elem_type, TK_ISO);
 
       // The guess type must be a subtype of the interface type.
       if(!is_subtype(array_type, ast, NULL, opt))
@@ -173,6 +168,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
     {
       for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
         find_possible_element_types(opt, c, list);
+      return;
     }
 
     default:
@@ -365,7 +361,7 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
   // If there is no recover statement between the antecedent type and here,
   // and if the array literal is not a subtype of the antecedent type,
   // but would be if the object cap were ignored, then recover it.
-  ast_t* array_type = build_array_type(ast, type_spec, TK_REF);
+  ast_t* array_type = build_array_type(opt, ast, type_spec, TK_REF);
   if((antecedent_type != NULL) && !is_recovered &&
     !is_subtype(array_type, antecedent_type, NULL, opt) &&
     is_subtype_ignore_cap(array_type, antecedent_type, NULL, opt))
@@ -407,7 +403,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     told_type = true;
   }
 
-  if(!told_type && (ast_childcount(elements) == 0))
+  if(!told_type && (size == 0))
   {
     ast_error(opt->check.errors, ast, "an empty array literal must specify "
       "the element type or it must be inferable from context");
