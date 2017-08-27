@@ -123,6 +123,50 @@ TEST_F(LambdaTest, LambdaCaptureRefInVal)
 }
 
 
+TEST_F(LambdaTest, LambdaCaptureDontcareVariable)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    {()(_) => None}";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(LambdaTest, LambdaCaptureDontcareExpression)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    {()(_ = Foo) => None}";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(LambdaTest, LambdaCaptureDontcareExpressionAndType)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    {()(_: Foo = Foo) => None}";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(LambdaTest, LambdaCaptureDontcareFree)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    {() => _}";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(LambdaTest, ObjectCaptureFree)
 {
   const char* src =

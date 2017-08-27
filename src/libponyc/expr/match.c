@@ -474,8 +474,12 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     case MATCHTYPE_DENY:
     {
       ast_error(opt->check.errors, pattern,
-        "this capture violates capabilities");
-      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+        "this capture violates capabilities, because the match would "
+        "need to differentiate by capability at runtime instead of matching "
+        "on type alone");
+      ast_error_continue(opt->check.errors, match_type, "the match type "
+        "allows for more than one possibility with the same type as "
+        "pattern type, but different capabilities. match type: %s",
         ast_print_type(operand_type));
       ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
         ast_print_type(pattern_type));

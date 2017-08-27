@@ -23,7 +23,12 @@ else
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
-    OSTYPE = freebsd
+    OSTYPE = bsd
+    CXX = c++
+  endif
+
+  ifeq ($(UNAME_S),DragonFly)
+    OSTYPE = bsd
     CXX = c++
   endif
 endif
@@ -73,7 +78,7 @@ ifdef destdir
   endif
 endif
 
-ifneq (,$(filter $(OSTYPE), osx freebsd))
+ifneq (,$(filter $(OSTYPE), osx bsd))
   symlink.flags = -sf
 else
   symlink.flags = -srf
@@ -85,7 +90,7 @@ destdir ?= $(prefix)/lib/pony/$(tag)
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch) -mtune=$(tune)
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune) -L /usr/local/lib
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
@@ -131,6 +136,11 @@ ifdef use
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
   endif
+
+  ifneq (,$(filter $(use), actor_continuations))
+    ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
+  endif
 endif
 
 ifdef config
@@ -150,7 +160,7 @@ ifeq ($(config),release)
       AR_FLAGS += --plugin $(LTO_PLUGIN)
     endif
 
-    ifneq (,$(filter $(OSTYPE),linux freebsd))
+    ifneq (,$(filter $(OSTYPE),linux bsd))
       LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
     endif
   endif
@@ -297,7 +307,7 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-  ifneq ($(OSTYPE),freebsd)
+  ifneq ($(OSTYPE),bsd)
     libponyrt.except += src/libponyrt/asio/kqueue.c
   endif
 endif
@@ -348,7 +358,7 @@ llvm.include :=
 endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
-ifeq ($(OSTYPE), freebsd)
+ifeq ($(OSTYPE), bsd)
   llvm.libs += -lpthread -lexecinfo
 endif
 
@@ -392,7 +402,7 @@ ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 libgbenchmark.include := -isystem lib/gbenchmark/include/
 
-ifneq (,$(filter $(OSTYPE), osx freebsd))
+ifneq (,$(filter $(OSTYPE), osx bsd))
   libponyrt.include += -I /usr/local/include
 endif
 
@@ -470,7 +480,7 @@ ifeq ($(OSTYPE),linux)
   libponyrt.benchmarks.links += libpthread libdl libatomic
 endif
 
-ifeq ($(OSTYPE),freebsd)
+ifeq ($(OSTYPE),bsd)
   libponyc.tests.links += libpthread
   libponyrt.tests.links += libpthread
   libponyc.benchmarks.links += libpthread
@@ -896,6 +906,7 @@ help:
 	@echo '   valgrind'
 	@echo '   pooltrack'
 	@echo '   dtrace'
+	@echo '   actor_continuations'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

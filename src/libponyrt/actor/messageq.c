@@ -45,12 +45,9 @@ void ponyint_messageq_init(messageq_t* q)
 void ponyint_messageq_destroy(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
+  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_relaxed) &
     ~(uintptr_t)1)) == (uintptr_t)tail);
 #ifdef USE_VALGRIND
-#  ifdef NDEBUG
-  ANNOTATE_HAPPENS_AFTER(&q->head);
-#  endif
   ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
 
@@ -63,12 +60,43 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
 {
   atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
 
+  // Without that fence, the store to m->next above could be reordered after
+  // the exchange on the head and after the store to prev->next done by the
+  // next push, which would result in the pop incorrectly seeing the queue as
+  // empty.
+  // Also synchronise with the pop on prev->next.
+  atomic_thread_fence(memory_order_release);
+
   pony_msg_t* prev = atomic_exchange_explicit(&q->head, m,
     memory_order_relaxed);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
+#ifdef USE_VALGRIND
+  // Double fence with Valgrind since we need to have prev in scope for the
+  // synchronisation annotation.
+  ANNOTATE_HAPPENS_BEFORE(&prev->next);
+  atomic_thread_fence(memory_order_release);
+#endif
+  atomic_store_explicit(&prev->next, m, memory_order_relaxed);
+
+  return was_empty;
+}
+
+bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m)
+{
+  atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
+
+  // If we have a single producer, the swap of the head need not be atomic RMW.
+  pony_msg_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
+  atomic_store_explicit(&q->head, m, memory_order_relaxed);
+
+  bool was_empty = ((uintptr_t)prev & 1) != 0;
+  prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
+
+  // If we have a single producer, the fence can be replaced with a store
+  // release on prev->next.
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif

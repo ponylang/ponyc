@@ -28,6 +28,12 @@ download_pcre(){
   popd
 }
 
+set_linux_compiler(){
+  echo "Setting $ICC1 and $ICXX1 as default compiler"
+
+  sudo update-alternatives --install /usr/bin/gcc gcc "/usr/bin/$ICC1" 60 --slave /usr/bin/g++ g++ "/usr/bin/$ICXX1"
+}
+
 echo "Installing ponyc build dependencies..."
 
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
@@ -35,16 +41,19 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   "linux:llvm-config-3.7")
     download_llvm
     download_pcre
+    set_linux_compiler
   ;;
 
   "linux:llvm-config-3.8")
     download_llvm
     download_pcre
+    set_linux_compiler
   ;;
 
   "linux:llvm-config-3.9")
     download_llvm
     download_pcre
+    set_linux_compiler
   ;;
 
   "osx:llvm-config-3.7")

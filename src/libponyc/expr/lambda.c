@@ -19,14 +19,19 @@
 
 
 // Process the given capture and create the AST for the corresponding field.
-// Returns the create field AST, which must be freed by the caller.
-// Returns NULL on error.
-static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
+// Returns the create field AST in out_field, which must be freed by the caller,
+// or NULL if there is no field to create.
+// Returns false on error.
+static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
+  ast_t** out_field)
 {
   pony_assert(capture != NULL);
+  pony_assert(out_field != NULL);
 
   AST_GET_CHILDREN(capture, id_node, type, value);
   const char* name = ast_name(id_node);
+
+  bool is_dontcare = is_name_dontcare(name);
 
   // There are 3 varieties of capture:
   // x -> capture variable x, type from defn of x
@@ -38,19 +43,25 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     // Variable capture
     pony_assert(ast_id(type) == TK_NONE);
 
+    if(is_dontcare)
+    {
+      *out_field = NULL;
+      return true;
+    }
+
     ast_t* def = ast_get(capture, name, NULL);
 
     if(def == NULL)
     {
       ast_error(opt->check.errors, id_node,
         "cannot capture \"%s\", variable not defined", name);
-      return NULL;
+      return false;
     }
 
     // lambda captures used before their declaration with their type
     // not defined are not legal
     if(!def_before_use(opt, def, capture, name))
-      return NULL;
+      return false;
 
     switch(ast_id(def))
     {
@@ -66,7 +77,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
       default:
         ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
           "capture fields, parameters and local variables", name);
-        return NULL;
+        return false;
     }
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
@@ -76,16 +87,43 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
     if(ast_type(value) == NULL)
-      return NULL;
+      return false;
+
     type = alias(ast_type(value));
   } else {
     // Type given, infer literals
     if(!coerce_literals(&value, type, opt))
-      return NULL;
+      return false;
+
+    // Check subtyping now if we're capturing into '_', since the field will be
+    // discarded.
+    if(is_dontcare)
+    {
+      ast_t* v_type = alias(ast_type(value));
+      errorframe_t info = NULL;
+
+      if(!is_subtype(v_type, type, &info, opt))
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, value, "argument not a subtype of parameter");
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
+        ast_free_unattached(v_type);
+        return false;
+      }
+
+      ast_free_unattached(v_type);
+    }
   }
 
   if(is_typecheck_error(type))
-    return NULL;
+    return false;
+
+  if(is_dontcare)
+  {
+    *out_field = NULL;
+    return true;
+  }
 
   type = sanitise_type(type);
 
@@ -95,7 +133,8 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
       TREE(type)
       TREE(value)));
 
-  return field;
+  *out_field = field;
+  return true;
 }
 
 
@@ -313,11 +352,13 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Process captures
   for(ast_t* p = ast_child(captures); p != NULL; p = ast_sibling(p))
   {
-    ast_t* field = make_capture_field(opt, p);
+    ast_t* field = NULL;
+    bool ok = make_capture_field(opt, p, &field);
 
     if(field != NULL)
       ast_list_append(members, &last_member, field);
-    else  // An error occurred, just keep going to potentially find more errors
+    else if(!ok)
+      // An error occurred, just keep going to potentially find more errors
       failed = true;
   }
 
@@ -412,6 +453,9 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   ast_t* captures, ast_t** last_capture)
 {
   const char* name = ast_name(ast_child(ast));
+
+  if(is_name_dontcare(name))
+    return true;
 
   ast_t* refdef = ast_get(ast, name, NULL);
 

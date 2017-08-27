@@ -7,7 +7,7 @@
 printbuf_t* printbuf_new()
 {
   printbuf_t* buf = POOL_ALLOC(printbuf_t);
-  buf->m = (char*)malloc(32);
+  buf->m = (char*)ponyint_pool_alloc_size(32);
   buf->m[0] = '\0';
   buf->size = 32;
   buf->offset = 0;
@@ -16,7 +16,7 @@ printbuf_t* printbuf_new()
 
 void printbuf_free(printbuf_t* buf)
 {
-  free(buf->m);
+  ponyint_pool_free_size(buf->size, buf->m);
   POOL_FREE(printbuf_t, buf);
 }
 
@@ -45,8 +45,9 @@ void printbuf(printbuf_t* buf, const char* fmt, ...)
 
   if((size_t)r >= avail)
   {
-    buf->size = buf->size + r + 1;
-    buf->m = (char*)realloc(buf->m, buf->size);
+    size_t new_size = buf->size + r + 1;
+    buf->m = (char*)ponyint_pool_realloc_size(buf->size, new_size, buf->m);
+    buf->size = new_size;
     avail = buf->size - buf->offset;
 
     va_start(ap, fmt);

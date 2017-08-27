@@ -254,13 +254,13 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3].values())
-      .find({(x: I64): Bool => (x % 2) == 0 })
+      .find({(x) => (x % 2) == 0 })
     ```
     `2`
 
     ```pony
     Iter[I64]([1; 2; 3; 4].values())
-      .find({(x: I64): Bool => (x % 2) == 0 }, 2)
+      .find({(x) => (x % 2) == 0 }, 2)
     ```
     `4`
     """
@@ -284,7 +284,7 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[I64]([1; 2; 3].values())
-      .fold[I64]({(sum: I64, x: I64): I64 => sum + x }, 0)
+      .fold[I64]({(sum, x) => sum + x }, 0)
     ```
     `6`
     """

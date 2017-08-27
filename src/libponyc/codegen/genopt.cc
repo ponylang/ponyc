@@ -978,8 +978,8 @@ public:
     size_t fn_index;
 
     std::tie(trace, fn_index) =
-      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv"},
-      std::next(alloc), end, true);
+      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv",
+        "pony_sendv_single"}, std::next(alloc), end, true);
 
     if(fn_index != 0)
       return false;
@@ -989,7 +989,8 @@ public:
     if(done == end)
       return false;
 
-    auto send = findCallTo("pony_sendv", std::next(done), end, true);
+    auto send = findCallTo(std::vector<StringRef>{"pony_sendv",
+      "pony_sendv_single"}, std::next(done), end, true).first;
 
     if(send == end)
       return false;
@@ -1194,11 +1195,25 @@ bool target_is_linux(char* t)
   return triple.isOSLinux();
 }
 
+bool target_is_bsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSDragonFly() || triple.isOSFreeBSD();
+}
+
 bool target_is_freebsd(char* t)
 {
   Triple triple = Triple(t);
 
   return triple.isOSFreeBSD();
+}
+
+bool target_is_dragonfly(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSDragonFly();
 }
 
 bool target_is_macosx(char* t)
@@ -1219,7 +1234,8 @@ bool target_is_posix(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux();
+  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux()
+    || triple.isOSDragonFly();
 }
 
 bool target_is_x86(char* t)

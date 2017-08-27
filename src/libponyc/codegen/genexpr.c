@@ -1,12 +1,13 @@
 #include "genexpr.h"
-#include "genname.h"
 #include "genbox.h"
+#include "gencall.h"
 #include "gencontrol.h"
+#include "gendesc.h"
 #include "genident.h"
 #include "genmatch.h"
+#include "genname.h"
 #include "genoperator.h"
 #include "genreference.h"
-#include "gencall.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -251,6 +252,52 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
   return result;
 }
 
+static LLVMValueRef assign_union_to_tuple(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, ast_t* type)
+{
+  reach_type_t* t = reach_type(c->reach, type);
+  pony_assert(t != NULL);
+  pony_assert(t->underlying == TK_UNIONTYPE);
+
+  LLVMValueRef r_desc = gendesc_fetch(c, r_value);
+  LLVMValueRef r_typeid = gendesc_typeid(c, r_desc);
+
+  LLVMBasicBlockRef unreachable_block = codegen_block(c, "unreachable");
+  LLVMBasicBlockRef post_block = codegen_block(c, "assign_union_tuple_post");
+  LLVMValueRef type_switch = LLVMBuildSwitch(c->builder, r_typeid,
+    unreachable_block, 0);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, l_type, "");
+
+  reach_type_t* sub;
+  size_t i = HASHMAP_BEGIN;
+
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    pony_assert(sub->underlying == TK_TUPLETYPE);
+
+    LLVMBasicBlockRef sub_block = codegen_block(c, "assign_union_tuple_sub");
+    LLVMAddCase(type_switch, LLVMConstInt(c->i32, sub->type_id, false),
+      sub_block);
+    LLVMPositionBuilderAtEnd(c->builder, sub_block);
+
+    LLVMValueRef r_unbox = gen_unbox(c, sub->ast_cap, r_value);
+    r_unbox = assign_to_tuple(c, l_type, r_unbox, sub->ast_cap);
+    LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+    LLVMAddIncoming(phi, &r_unbox, &this_block, 1);
+    LLVMBuildBr(c->builder, post_block);
+  }
+
+  LLVMMoveBasicBlockAfter(unreachable_block, LLVMGetInsertBlock(c->builder));
+  LLVMPositionBuilderAtEnd(c->builder, unreachable_block);
+  LLVMBuildUnreachable(c->builder);
+
+  LLVMMoveBasicBlockAfter(post_block, unreachable_block);
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  return phi;
+}
+
 LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, ast_t* type)
 {
@@ -302,7 +349,11 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
     case LLVMStructTypeKind:
       if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
       {
-        r_value = gen_unbox(c, type, r_value);
+        if(ast_id(type) == TK_TUPLETYPE)
+          r_value = gen_unbox(c, type, r_value);
+        else
+          return assign_union_to_tuple(c, l_type, r_value, type);
+
         pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMStructTypeKind);
       }
 

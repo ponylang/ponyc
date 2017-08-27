@@ -850,3 +850,17 @@ TEST_F(BadPonyTest, ForwardTuple)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, CoerceUninferredNumericLiteralThroughTypeArgWithViewpoint)
+{
+  // From issue #2181
+  const char* src =
+    "class A[T]\n"
+    "  new create(x: T) => None\n"
+
+    "primitive B[T]\n"
+    "  fun apply(): A[T] =>\n"
+    "    A[this->T](1)\n";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}

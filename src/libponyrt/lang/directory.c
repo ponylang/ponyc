@@ -4,6 +4,7 @@
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
+#include "../mem/pool.h"
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -62,7 +63,12 @@ PONY_API char* pony_os_cwd()
 
 PONY_API WIN32_FIND_DATA* ponyint_windows_find_data()
 {
-  return (WIN32_FIND_DATA*)malloc(sizeof(WIN32_FIND_DATA));
+  return POOL_ALLOC(WIN32_FIND_DATA);
+}
+
+PONY_API void ponyint_windows_find_data_free(WIN32_FIND_DATA* data)
+{
+  POOL_FREE(WIN32_FIND_DATA, data);
 }
 
 PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
@@ -132,7 +138,7 @@ PONY_API const char* ponyint_unix_readdir(DIR* dir)
 
 #if defined(PLATFORM_IS_LINUX)
     size_t len = strlen(d->d_name);
-#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX)
+#elif defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
     size_t len = d->d_namlen;
 #endif
 

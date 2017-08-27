@@ -6,7 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Fix read past the end of a buffer in `pool.c`. ([PR #2139](https://github.com/ponylang/ponyc/pull/2139))
+- Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
+- Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
 
 
 ### Added
@@ -16,6 +17,32 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 
+
+## [0.18.1] - 2017-08-25
+
+### Fixed
+
+- Don't print capabilities for type params when generating docs ([PR #2184](https://github.com/ponylang/ponyc/pull/2184))
+
+### Added
+
+- DragonFly BSD 4.8 support ([PR #2183](https://github.com/ponylang/ponyc/pull/2183))
+- Process monitor async write buffering ([PR #2186](https://github.com/ponylang/ponyc/pull/2186))
+
+## [0.18.0] - 2017-08-19
+
+### Fixed
+
+- Fix compiler crash on union-of-tuples to tuple conversions ([PR #2176](https://github.com/ponylang/ponyc/pull/2176))
+- Fix compiler error on lambda capture of '_' ([PR #2171](https://github.com/ponylang/ponyc/pull/2171))
+- Fix read past the end of a buffer in `pool.c`. ([PR #2139](https://github.com/ponylang/ponyc/pull/2139))
+
+### Changed
+
+- Make actor continuations a build time option ([PR #2179](https://github.com/ponylang/ponyc/pull/2179))
+- RFC #48 Change String.join to take Iterable ([PR #2159](https://github.com/ponylang/ponyc/pull/2159))
+- Change fallback linker to "gcc" from "gcc-6" on Linux. ([PR #2166](https://github.com/ponylang/ponyc/pull/2166))
+- Change the signature of `pony_continuation` and `pony_triggergc` to take a `pony_ctx_t*` instead of a `pony_actor_t*`.
 
 ## [0.17.0] - 2017-08-05
 

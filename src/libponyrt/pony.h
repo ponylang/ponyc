@@ -174,6 +174,16 @@ PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
 /// Sends a message to an actor.
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
 
+/** Single producer version of pony_sendv.
+ *
+ * This is a more efficient version of pony_sendv in the single producer case.
+ * This is unsafe to use with multiple producers, only use this function when
+ * you know nobody else will try to send a message to the actor at the same
+ * time.
+ */
+PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_msg_t* m);
+
 /** Convenience function to send a message with no arguments.
  *
  * The dispatch function receives a pony_msg_t.
@@ -196,13 +206,14 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 
 /** Store a continuation.
  *
- * This puts a message at the front of the actor's queue, instead of at the
- * back. This is not concurrency safe: an actor should only push a continuation
- * to itself.
+ * This puts a message at the front of the current actor's queue, instead of at
+ * the back.
  *
  * Not used in Pony.
  */
-PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m);
+#ifdef USE_ACTOR_CONTINUATIONS
+PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m);
+#endif
 
 /** Allocate memory on the current actor's heap.
  *
@@ -239,7 +250,7 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_final(pony_ctx_t* ctx,
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size);
 
 /// Trigger GC next time the current actor is scheduled
-PONY_API void pony_triggergc(pony_actor_t* actor);
+PONY_API void pony_triggergc(pony_ctx_t* ctx);
 
 /** Start gc tracing for sending.
  *
