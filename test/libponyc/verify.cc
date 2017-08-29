@@ -158,6 +158,16 @@ TEST_F(VerifyTest, PrimitiveInitPartial)
     "a primitive _init method cannot be a partial function");
 }
 
+TEST_F(VerifyTest, StructFinal)
+{
+  const char* src =
+    "struct Foo\n"
+    "  fun _final() =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "a struct cannot have a _final method");
+}
+
 TEST_F(VerifyTest, PrimitiveWithTypeParamsFinal)
 {
   const char* src =
