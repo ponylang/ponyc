@@ -56,18 +56,18 @@ void ponyint_messageq_destroy(messageq_t* q)
   q->tail = NULL;
 }
 
-bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
+bool ponyint_messageq_push(messageq_t* q, pony_msg_t* first, pony_msg_t* last)
 {
-  atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
+  atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
-  // Without that fence, the store to m->next above could be reordered after
+  // Without that fence, the store to last->next above could be reordered after
   // the exchange on the head and after the store to prev->next done by the
   // next push, which would result in the pop incorrectly seeing the queue as
   // empty.
   // Also synchronise with the pop on prev->next.
   atomic_thread_fence(memory_order_release);
 
-  pony_msg_t* prev = atomic_exchange_explicit(&q->head, m,
+  pony_msg_t* prev = atomic_exchange_explicit(&q->head, last,
     memory_order_relaxed);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
@@ -79,18 +79,19 @@ bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m)
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
   atomic_thread_fence(memory_order_release);
 #endif
-  atomic_store_explicit(&prev->next, m, memory_order_relaxed);
+  atomic_store_explicit(&prev->next, first, memory_order_relaxed);
 
   return was_empty;
 }
 
-bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m)
+bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* first,
+  pony_msg_t* last)
 {
-  atomic_store_explicit(&m->next, NULL, memory_order_relaxed);
+  atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
   // If we have a single producer, the swap of the head need not be atomic RMW.
   pony_msg_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
-  atomic_store_explicit(&q->head, m, memory_order_relaxed);
+  atomic_store_explicit(&q->head, last, memory_order_relaxed);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
@@ -100,7 +101,7 @@ bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m)
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
-  atomic_store_explicit(&prev->next, m, memory_order_release);
+  atomic_store_explicit(&prev->next, first, memory_order_release);
 
   return was_empty;
 }

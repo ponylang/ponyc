@@ -16,9 +16,10 @@ void ponyint_messageq_init(messageq_t* q);
 
 void ponyint_messageq_destroy(messageq_t* q);
 
-bool ponyint_messageq_push(messageq_t* q, pony_msg_t* m);
+bool ponyint_messageq_push(messageq_t* q, pony_msg_t* first, pony_msg_t* last);
 
-bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* m);
+bool ponyint_messageq_push_single(messageq_t* q, pony_msg_t* first,
+  pony_msg_t* last);
 
 pony_msg_t* ponyint_messageq_pop(messageq_t* q);
 

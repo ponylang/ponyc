@@ -118,5 +118,5 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   pony_register_thread();
 #endif
 
-  pony_sendv(pony_ctx(), ev->owner, &m->msg);
+  pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg);
 }

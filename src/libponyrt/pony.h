@@ -165,24 +165,43 @@ PONY_API pony_ctx_t* pony_ctx();
 PONY_API ATTRIBUTE_MALLOC pony_actor_t* pony_create(pony_ctx_t* ctx,
   pony_type_t* type);
 
-/// Allocates a message and sets up the header. The index is a POOL_INDEX.
+/// Allocate a message and set up the header. The index is a POOL_INDEX.
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
 
-/// Allocates a message and sets up the header. The size is in bytes.
+/// Allocate a message and set up the header. The size is in bytes.
 PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
 
-/// Sends a message to an actor.
-PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
+/** Send a chain of messages to an actor.
+ *
+ * The first and last messages must either be the same message or the two ends
+ * of a chain built with calls to pony_chain.
+ */
+PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
+  pony_msg_t* last);
 
 /** Single producer version of pony_sendv.
  *
  * This is a more efficient version of pony_sendv in the single producer case.
  * This is unsafe to use with multiple producers, only use this function when
  * you know nobody else will try to send a message to the actor at the same
- * time.
+ * time. This includes messages sent by ASIO event notifiers.
+ *
+ * The first and last messages must either be the same message or the two ends
+ * of a chain built with calls to pony_chain.
  */
 PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
-  pony_msg_t* m);
+  pony_msg_t* first, pony_msg_t* last);
+
+/** Chain two messages together.
+ *
+ * Make a link in a chain of messages in preparation for a subsequent call to
+ * pony_sendv with the completed chain. prev will appear before next in the
+ * delivery order.
+ *
+ * prev must either be an unchained message or the end of an existing chain.
+ * next must either be an unchained message or the start of an existing chain.
+ */
+PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next);
 
 /** Convenience function to send a message with no arguments.
  *
