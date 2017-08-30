@@ -189,25 +189,25 @@ static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
 static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
   const char* name, errorframe_t* pframe, pass_opt_t* opt)
 {
-  AST_GET_CHILDREN(prev_fun, prev_cap, prev_name, prev_tparams,
-    prev_params);
-  AST_GET_CHILDREN(cur_fun, cur_cap, cur_name, cur_tparams, cur_params);
-
-  ast_t* prev_param = ast_child(prev_params);
-  ast_t* cur_param = ast_child(cur_params);
-
-  while(prev_param != NULL && cur_param != NULL)
+  ast_t* parent = from != NULL ? ast_parent(from) : NULL;
+  if(parent != NULL && ast_id(parent) == TK_CALL)
   {
-    AST_GET_CHILDREN(prev_param, prev_id);
-    AST_GET_CHILDREN(cur_param, cur_id);
-
-    if(ast_name(prev_id) != ast_name(cur_id))
+    AST_GET_CHILDREN(parent, positional, namedargs);
+    if(namedargs != NULL && ast_id(namedargs) == TK_NAMEDARGS)
     {
-      ast_t* parent = from != NULL ? ast_parent(from) : NULL;
-      if(parent != NULL && ast_id(parent) == TK_CALL)
+      AST_GET_CHILDREN(prev_fun, prev_cap, prev_name, prev_tparams,
+        prev_params);
+      AST_GET_CHILDREN(cur_fun, cur_cap, cur_name, cur_tparams, cur_params);
+
+      ast_t* prev_param = ast_child(prev_params);
+      ast_t* cur_param = ast_child(cur_params);
+
+      while(prev_param != NULL && cur_param != NULL)
       {
-        AST_GET_CHILDREN(parent, positional, namedargs);
-        if(namedargs != NULL && ast_id(namedargs) == TK_NAMEDARGS)
+        AST_GET_CHILDREN(prev_param, prev_id);
+        AST_GET_CHILDREN(cur_param, cur_id);
+
+        if(ast_name(prev_id) != ast_name(cur_id))
         {
           if(pframe != NULL)
           {
@@ -220,11 +220,11 @@ static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
           }
           return false;
         }
+
+        prev_param = ast_sibling(prev_param);
+        cur_param = ast_sibling(cur_param);
       }
     }
-
-    prev_param = ast_sibling(prev_param);
-    cur_param = ast_sibling(cur_param);
   }
 
   return true;
