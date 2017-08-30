@@ -122,6 +122,26 @@ TEST_F(CodegenTest, JitRun)
 }
 
 
+TEST_F(CodegenTest, BoxBoolAsUnionIntoTuple)
+{
+  // From #2191
+  const char* src =
+    "type U is (Bool | C)\n"
+
+    "class C\n"
+    "  fun apply(): (I32, U) =>\n"
+    "    (0, false)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    C()";
+
+  TEST_COMPILE(src);
+
+  ASSERT_TRUE(compile != NULL);
+}
+
+
 extern "C"
 {
 

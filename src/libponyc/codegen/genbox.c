@@ -17,7 +17,7 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  if(l_type != c_t->primitive)
+  if(l_type != c_t->primitive && l_type != c_t->mem_type)
     return NULL;
 
   value = gen_assign_cast(c, c_t->mem_type, value, t->ast_cap);
