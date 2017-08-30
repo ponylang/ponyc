@@ -872,7 +872,7 @@ static void addMergeReallocPass(const PassManagerBuilder& pmb,
     pm.add(new MergeRealloc());
 }
 
-class MergeMessageTrace : public BasicBlockPass
+class MergeMessageSend : public BasicBlockPass
 {
 public:
   struct MsgFnGroup
@@ -880,22 +880,38 @@ public:
     BasicBlock::iterator alloc, trace, done, send;
   };
 
+  enum MsgKind
+  {
+    MsgNone,
+    MsgNoTrace,
+    MsgTrace
+  };
+
   static char ID;
   compile_t* c;
   Function* send_next_fn;
+  Function* msg_chain_fn;
+  Function* sendv_single_fn;
 
-  MergeMessageTrace() : BasicBlockPass(ID)
+  MergeMessageSend() : BasicBlockPass(ID)
   {
     c = the_compiler;
-    send_next_fn = NULL;
+    send_next_fn = nullptr;
+    msg_chain_fn = nullptr;
+    sendv_single_fn = nullptr;
   }
 
   bool doInitialization(Module& m)
   {
     send_next_fn = m.getFunction("pony_send_next");
+    msg_chain_fn = m.getFunction("pony_chain");
+    sendv_single_fn = m.getFunction("pony_sendv_single");
 
     if(send_next_fn == NULL)
       send_next_fn = declareTraceNextFn(m);
+
+    if(msg_chain_fn == NULL)
+      msg_chain_fn = declareMsgChainFn(m);
 
     return false;
   }
@@ -911,68 +927,66 @@ public:
     auto start = b.begin();
     auto end = b.end();
     bool changed = false;
+    SmallVector<CallInst*, 16> sends;
 
     while(start != end)
     {
       MsgFnGroup first;
+      MsgKind first_kind = findMsgSend(start, end, true, first);
 
-      if(findMsgSend(start, end, true, first))
+      switch(first_kind)
       {
-        MsgFnGroup next;
+        case MsgNone:
+          start = end;
+          break;
 
-        while(findMsgSend(std::next(first.send), end, false, next))
+        default:
         {
-          auto iter = first.alloc;
+          sends.push_back(cast<CallInst>(&(*first.send)));
+          bool stop = false;
 
-          while(iter != first.trace)
+          while(!stop)
           {
-            auto& inst = *(iter++);
-            inst.moveBefore(&(*next.alloc));
+            MsgFnGroup next;
+            MsgKind next_kind = findMsgSend(std::next(first.send), end, false,
+              next);
+
+            switch(next_kind)
+            {
+              case MsgNone:
+                stop = true;
+                break;
+
+              default:
+                sends.push_back(cast<CallInst>(&(*next.send)));
+                mergeMsgSend(first, next, first_kind, next_kind);
+                first = next;
+                first_kind = next_kind;
+                changed = true;
+                break;
+            }
           }
 
-          while(iter != first.done)
-          {
-            auto& inst = *(iter++);
-            if(inst.getOpcode() == Instruction::Call)
-              inst.moveBefore(&(*next.trace));
-          }
-
-          iter++;
-          first.done->eraseFromParent();
-          CallSite call(&(*next.trace));
-          call.setCalledFunction(send_next_fn);
-
-          auto first_send_post = std::next(first.send);
-          auto next_done_post = std::next(next.done);
-
-          while(iter != first_send_post)
-          {
-            auto& inst = *(iter++);
-            if(inst.getOpcode() == Instruction::Call)
-              inst.moveBefore(&(*next_done_post));
-          }
-
-          next.trace = first.trace;
-          first = next;
-          changed = true;
+          sends.push_back(nullptr);
+          start = std::next(first.send);
+          break;
         }
-
-        start = std::next(first.send);
-      } else {
-        start = end;
       }
     }
+
+    if(!sends.empty())
+      makeMsgChains(sends);
 
     return changed;
   }
 
-  bool findMsgSend(BasicBlock::iterator start, BasicBlock::iterator end,
+  MsgKind findMsgSend(BasicBlock::iterator start, BasicBlock::iterator end,
     bool can_pass_writes, MsgFnGroup& out_calls)
   {
     auto alloc = findCallTo("pony_alloc_msg", start, end, can_pass_writes);
 
     if(alloc == end)
-      return false;
+      return MsgNone;
 
     decltype(alloc) trace;
     size_t fn_index;
@@ -981,25 +995,36 @@ public:
       findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv",
         "pony_sendv_single"}, std::next(alloc), end, true);
 
-    if(fn_index != 0)
-      return false;
+    switch(fn_index)
+    {
+      case (size_t)-1:
+        return MsgNone;
+
+      case 0:
+        break;
+
+      default:
+        out_calls.alloc = alloc;
+        out_calls.send = trace;
+        return MsgNoTrace;
+    }
 
     auto done = findCallTo("pony_send_done", std::next(trace), end, true);
 
     if(done == end)
-      return false;
+      return MsgNone;
 
     auto send = findCallTo(std::vector<StringRef>{"pony_sendv",
       "pony_sendv_single"}, std::next(done), end, true).first;
 
     if(send == end)
-      return false;
+      return MsgNone;
 
     out_calls.alloc = alloc;
     out_calls.trace = trace;
     out_calls.done = done;
     out_calls.send = send;
-    return true;
+    return MsgTrace;
   }
 
   BasicBlock::iterator findCallTo(StringRef name,
@@ -1034,6 +1059,167 @@ public:
     return {end, -1};
   }
 
+  void mergeMsgSend(MsgFnGroup& first, MsgFnGroup& next, MsgKind first_kind,
+    MsgKind& next_kind)
+  {
+    pony_assert((first_kind != MsgNone) && (next_kind != MsgNone));
+
+    if(first_kind == MsgNoTrace)
+    {
+      auto src = first.send;
+      auto dst = next.send;
+
+      while(1)
+      {
+        auto prev = std::prev(src);
+        src->moveBefore(&(*dst));
+
+        if(prev->getMetadata("pony.msgsend") == NULL)
+          break;
+
+        CallSite call(&(*prev));
+        auto fun = call.getCalledFunction();
+        pony_assert(fun != NULL);
+
+        if(fun->getName().compare("pony_alloc_msg") == 0)
+          break;
+
+        dst = src;
+        src = prev;
+      }
+    } else {
+      auto iter = first.alloc;
+
+      while(iter != first.trace)
+      {
+        auto& inst = (*iter++);
+        inst.moveBefore(&(*next.alloc));
+      }
+
+      if(next_kind == MsgNoTrace)
+      {
+        auto first_send_post = std::next(first.send);
+
+        while(iter != first_send_post)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next.send));
+        }
+
+        next.trace = first.trace;
+        next.done = first.done;
+        next_kind = MsgTrace;
+      } else {
+        while(iter != first.done)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next.trace));
+        }
+
+        iter++;
+        first.done->eraseFromParent();
+        CallSite call(&(*next.trace));
+        call.setCalledFunction(send_next_fn);
+
+        auto first_send_post = std::next(first.send);
+        auto next_done_post = std::next(next.done);
+
+        while(iter != first_send_post)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next_done_post));
+        }
+
+        next.trace = first.trace;
+      }
+    }
+  }
+
+  bool makeMsgChains(SmallVector<CallInst*, 16> const& sends)
+  {
+    if(sends.size() < 2)
+      return false;
+
+    auto iter = std::begin(sends);
+    auto next = std::next(iter);
+    Value* chain_start = nullptr;
+    bool is_single = false;
+    bool changed = false;
+
+    while(true)
+    {
+      pony_assert(*iter != nullptr);
+
+      if((next == std::end(sends)) || (*next == nullptr))
+      {
+        if(chain_start != nullptr)
+        {
+          (*iter)->setArgOperand(2, chain_start);
+          chain_start = nullptr;
+
+          if(is_single)
+          {
+            pony_assert(sendv_single_fn != nullptr);
+            (*iter)->setCalledFunction(sendv_single_fn);
+            is_single = false;
+          }
+        }
+
+        if(next == std::end(sends))
+          break;
+
+        iter = std::next(next);
+
+        if(iter == std::end(sends))
+          break;
+
+        next = std::next(iter);
+        continue;
+      }
+
+      auto prev_msg = (*iter)->getArgOperand(2);
+      auto next_msg = (*next)->getArgOperand(2);
+
+      pony_assert(prev_msg == (*iter)->getArgOperand(3));
+      pony_assert(next_msg == (*next)->getArgOperand(3));
+
+      if((*iter)->getArgOperand(1) == (*next)->getArgOperand(1))
+      {
+        if((*iter)->getCalledFunction() == sendv_single_fn)
+          is_single = true;
+
+        auto chain_call = CallInst::Create(msg_chain_fn, {prev_msg, next_msg},
+          "", *iter);
+        chain_call->setTailCall();
+        (*iter)->eraseFromParent();
+
+        if(chain_start == nullptr)
+        {
+          chain_start = prev_msg;
+          changed = true;
+        }
+      } else if(chain_start != nullptr) {
+        (*iter)->setArgOperand(2, chain_start);
+        chain_start = nullptr;
+
+        if(is_single)
+        {
+          pony_assert(sendv_single_fn != nullptr);
+          (*iter)->setCalledFunction(sendv_single_fn);
+          is_single = false;
+        }
+      }
+
+      iter = next;
+      next = std::next(iter);
+    }
+
+    return changed;
+  }
+
   Function* declareTraceNextFn(Module& m)
   {
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
@@ -1043,18 +1229,31 @@ public:
     fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
     return fn;
   }
+
+  Function* declareMsgChainFn(Module& m)
+  {
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
+      {unwrap(c->msg_ptr), unwrap(c->msg_ptr)}, false);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
+      "pony_chain", &m);
+    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
+    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::ArgMemOnly);
+    fn->addAttribute(1, Attribute::NoCapture);
+    fn->addAttribute(2, Attribute::ReadNone);
+    return fn;
+  }
 };
 
-char MergeMessageTrace::ID = 0;
+char MergeMessageSend::ID = 0;
 
-static RegisterPass<MergeMessageTrace>
-  MMT("mergemessagetrace", "Group GC tracing in the same BasicBlock");
+static RegisterPass<MergeMessageSend>
+  MMS("mergemessagesend", "Group message sends in the same BasicBlock");
 
-static void addMergeMessageTracePass(const PassManagerBuilder& pmb,
+static void addMergeMessageSendPass(const PassManagerBuilder& pmb,
   PassManagerBase& pm)
 {
   if(pmb.OptLevel >= 2)
-    pm.add(new MergeMessageTrace());
+    pm.add(new MergeMessageSend());
 }
 
 static void optimise(compile_t* c, bool pony_specific)
@@ -1068,7 +1267,7 @@ static void optimise(compile_t* c, bool pony_specific)
   llvm::legacy::PassManager mpm;
   llvm::legacy::FunctionPassManager fpm(m);
 
-  TargetLibraryInfoImpl *tl = new TargetLibraryInfoImpl(
+  TargetLibraryInfoImpl* tl = new TargetLibraryInfoImpl(
     Triple(m->getTargetTriple()));
 
   lpm.add(createTargetTransformInfoWrapperPass(
@@ -1109,7 +1308,7 @@ static void optimise(compile_t* c, bool pony_specific)
     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
       addDispatchPonyCtxPass);
     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-      addMergeMessageTracePass);
+      addMergeMessageSendPass);
   }
 
   pmb.populateFunctionPassManager(fpm);

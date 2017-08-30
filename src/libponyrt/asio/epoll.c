@@ -39,7 +39,7 @@ static void send_request(asio_event_t* ev, int req)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   eventfd_write(b->wakeup, 1);
 }
