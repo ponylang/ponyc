@@ -300,10 +300,11 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
   }
 
-  if((n->cap == TK_AT) && (c_m->func != NULL))
+  if(n->cap == TK_AT)
   {
     LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
+    LLVMSetUnnamedAddr(c_m->func, false);
 
     if(t->bare_method == m)
     {

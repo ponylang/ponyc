@@ -1109,6 +1109,7 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
   LLVMSetFunctionCallConv(fun, c->callconv);
   LLVMSetLinkage(fun, c->linkage);
+  LLVMSetUnnamedAddr(fun, true);
 
   LLVMValueRef arg = LLVMGetFirstParam(fun);
   uint32_t i = 1;
