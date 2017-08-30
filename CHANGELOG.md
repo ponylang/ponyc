@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Improve the itertools API (RFC 49) ([PR #2190](https://github.com/ponylang/ponyc/pull/2190))
 - Forbid struct finalisers ([PR #2202](https://github.com/ponylang/ponyc/pull/2202))
 
 ## [0.18.1] - 2017-08-25
