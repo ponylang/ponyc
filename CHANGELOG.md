@@ -4,17 +4,18 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ## [unreleased] - unreleased
 
-{{hook}}- Fix compiler crash on illegal read from '_' ([PR #2201](https://github.com/ponylang/ponyc/pull/2201))
+### Fixed
+
+- Fix compiler crash on illegal read from '_' ([PR #2201](https://github.com/ponylang/ponyc/pull/2201))
 - Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
 - Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
-
 
 ### Added
 
 
+### Changed
 
-{{hook}}- Forbid struct finalisers ([PR #2202](https://github.com/ponylang/ponyc/pull/2202))
-
+- Forbid struct finalisers ([PR #2202](https://github.com/ponylang/ponyc/pull/2202))
 
 ## [0.18.1] - 2017-08-25
 
