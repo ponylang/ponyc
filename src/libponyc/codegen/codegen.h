@@ -39,6 +39,7 @@ void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
+bool LLVMHasMetadataStr(LLVMValueRef val, const char* str);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 
 // Intrinsics.
@@ -66,6 +67,9 @@ DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
 
 typedef struct compile_local_t compile_local_t;
 DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
+
+typedef struct ffi_decl_t ffi_decl_t;
+DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 
 typedef struct tbaa_metadatas_t tbaa_metadatas_t;
 
@@ -95,6 +99,7 @@ typedef struct compile_t
   reach_t* reach;
   tbaa_metadatas_t* tbaa_mds;
   genned_strings_t strings;
+  ffi_decls_t ffi_decls;
   const char* filename;
 
   const char* str_builtin;
@@ -239,7 +244,8 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
 
 void codegen_cleanup(compile_t* c);
 
-LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
+LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
+  bool pony_abi);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
   LLVMMetadataRef scope, bool bare);

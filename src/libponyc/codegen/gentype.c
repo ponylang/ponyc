@@ -441,7 +441,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   // Create a dispatch function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   const char* dispatch_name = genname_dispatch(t->name);
-  c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
+  c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type, true);
   LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
   codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, false);

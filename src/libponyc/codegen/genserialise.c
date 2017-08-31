@@ -213,7 +213,7 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   // Generate the serialise function.
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_type);
+    c->serialise_type, true);
 
   codegen_startfun(c, c_t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
@@ -359,7 +359,7 @@ static void make_deserialise(compile_t* c, reach_type_t* t)
   // Generate the deserialise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_type);
+    c->trace_type, true);
 
   codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
