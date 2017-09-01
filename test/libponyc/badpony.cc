@@ -864,3 +864,75 @@ TEST_F(BadPonyTest, CoerceUninferredNumericLiteralThroughTypeArgWithViewpoint)
 
   TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }
+
+TEST_F(BadPonyTest, UnionTypeMethodsWithDifferentParamNamesNamedParams)
+{
+  // From issue #394
+  // disallow calling a method on a union with named arguments
+  // when the parameter names differ
+  const char* src =
+    "primitive A\n"
+    "  fun foo(a: U64, b: U64): U64 => a\n"
+    "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+    "primitive B\n"
+    "  fun foo(b: U64, c: U64): U64 => b\n"
+    "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let aba = add_ab(A)\n"
+    "    let abb = add_ab(B)\n"
+    "    let bca = add_bc(A)\n"
+    "    let bcb = add_bc(B)\n"
+    "    let xya = add_xy(A)\n"
+    "    let xyb = add_xy(B)\n\n"
+
+    "  fun add_ab(uni: (A | B)): U64 =>\n"
+    "    uni.foo(where a = 80, b = 8)\n\n"
+
+    "  fun add_bc(uni: (A | B)): U64 =>\n"
+    "    uni.foo(where b = 80, c = 8)\n\n"
+
+    "  fun add_xy(uni: (A | B)): U64 =>\n"
+    "    uni.bar(where x = 80, y = 8)\n\n";
+
+    TEST_ERRORS_2(src,
+      "methods of this union type have different parameter names",
+      "methods of this union type have different parameter names");
+}
+
+TEST_F(BadPonyTest, UnionTypeMethodsWithDifferentParamNamesPositional)
+{
+  // From issue #394
+  // allow calling a method on a union with positional arguments
+  // when the parameter names differ
+  const char* src =
+  "primitive A\n"
+  "  fun foo(a: U64, b: U64): U64 => a\n"
+  "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+  "primitive B\n"
+  "  fun foo(b: U64, c: U64): U64 => b\n"
+  "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+  "actor Main\n"
+  "  new create(env: Env) =>\n"
+  "    let aba = add_ab(A)\n"
+  "    let abb = add_ab(B)\n"
+  "    let bca = add_bc(A)\n"
+  "    let bcb = add_bc(B)\n"
+  "    let xya = add_xy(A)\n"
+  "    let xyb = add_xy(B)\n\n"
+
+  "  fun add_ab(uni: (A | B)): U64 =>\n"
+  "    uni.foo(80, 8)\n\n"
+
+  "  fun add_bc(uni: (A | B)): U64 =>\n"
+  "    uni.foo(80, 8)\n\n"
+
+  "  fun add_xy(uni: (A | B)): U64 =>\n"
+  "    uni.bar(80, 8)\n\n";
+
+  TEST_COMPILE(src);
+}
