@@ -197,13 +197,29 @@ static MDNode* extractMDNode(MetadataAsValue* mdv)
   return MDNode::get(mdv->getContext(), md);
 }
 
-void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
+bool LLVMHasMetadataStr(LLVMValueRef val, const char* str)
+{
+  Value* v = unwrap<Value>(val);
+  Instruction* i = dyn_cast<Instruction>(v);
+
+  if(i != NULL)
+    return i->getMetadata(str) != NULL;
+
+  return cast<Function>(v)->getMetadata(str) != NULL;
+}
+
+void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node)
 {
   pony_assert(node != NULL);
 
   MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
+  Value* v = unwrap<Value>(val);
+  Instruction* i = dyn_cast<Instruction>(v);
 
-  unwrap<Instruction>(inst)->setMetadata(str, n);
+  if(i != NULL)
+    i->setMetadata(str, n);
+  else
+    cast<Function>(v)->setMetadata(str, n);
 }
 
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
