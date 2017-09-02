@@ -4,11 +4,11 @@
 #include "util.h"
 
 
-#define TEST_COMPILE(src) DO(test_compile(src, "finalisers"))
+#define TEST_COMPILE(src) DO(test_compile(src, "final"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
-    DO(test_expected_errors(src, "finalisers", errs)); }
+    DO(test_expected_errors(src, "final", errs)); }
 
 
 class FinalisersTest : public PassTest

@@ -39,7 +39,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
 {
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   c_m->func_type = LLVMFunctionType(result, params, count, false);
-  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
   genfun_param_attrs(c, t, m, c_m->func);
   codegen_startfun(c, c_m->func, NULL, NULL, false);
 }
@@ -766,7 +766,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   // Generate the serialise_trace function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
-    c->trace_type);
+    c->trace_type, true);
 
   codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
@@ -821,7 +821,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   // Generate the serialise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_type);
+    c->serialise_type, true);
 
   codegen_startfun(c, c_t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
@@ -948,7 +948,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
   // Generate the deserisalise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_type);
+    c->trace_type, true);
 
   codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
@@ -1032,7 +1032,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   // Generate the serialise_trace function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
-    c->serialise_type);
+    c->serialise_type, true);
 
   codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
@@ -1078,7 +1078,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   // Generate the serialise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_type);
+    c->serialise_type, true);
 
   codegen_startfun(c, c_t->serialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
@@ -1148,7 +1148,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
   // Generate the deserisalise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_type);
+    c->trace_type, true);
 
   codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
@@ -1935,7 +1935,7 @@ static void make_cpuid(compile_t* c)
     LLVMTypeRef elems[4] = {c->i32, c->i32, c->i32, c->i32};
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, elems, 4, false);
     LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
-    LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
+    LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
     codegen_startfun(c, fun, NULL, NULL, false);
 
@@ -1964,7 +1964,7 @@ static void make_rdtscp(compile_t* c)
     // i64 @internal.x86.rdtscp(i32*)
     LLVMTypeRef i32_ptr = LLVMPointerType(c->i32, 0);
     f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
-    LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
+    LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
     codegen_startfun(c, fun, NULL, NULL, false);
 

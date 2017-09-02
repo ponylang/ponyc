@@ -2,6 +2,26 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.19.0] - 2017-09-02
+
+### Fixed
+
+- Fix codegen failures on incompatible FFI declarations ([PR #2205](https://github.com/ponylang/ponyc/pull/2205))
+- Disallow named arguments for methods of a type union where parameter names differ ([PR #2194](https://github.com/ponylang/ponyc/pull/2194))
+- Fix compiler crash on illegal read from '_' ([PR #2201](https://github.com/ponylang/ponyc/pull/2201))
+- Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
+- Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
+
+### Added
+
+- `pony_chain` runtime function
+
+### Changed
+
+- The `pony_sendv` and `pony_sendv_single` runtime functions now take a message chain instead of a single message
+- Improve the itertools API (RFC 49) ([PR #2190](https://github.com/ponylang/ponyc/pull/2190))
+- Forbid struct finalisers ([PR #2202](https://github.com/ponylang/ponyc/pull/2202))
+
 ## [0.18.1] - 2017-08-25
 
 ### Fixed
@@ -882,5 +902,5 @@ All notable changes to the Pony compiler and standard library will be documented
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
 
-an error is raised.
+d.
 

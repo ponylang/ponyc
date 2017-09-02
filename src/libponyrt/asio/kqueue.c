@@ -161,28 +161,43 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         switch(ep->filter)
         {
           case EVFILT_READ:
-            ev->readable = true;
-            pony_asio_event_send(ev, ASIO_READ, 0);
+            if(ev->flags & ASIO_READ)
+            {
+              ev->readable = true;
+              pony_asio_event_send(ev, ASIO_READ, 0);
+            }
             break;
 
           case EVFILT_WRITE:
             if(ep->flags & EV_EOF)
             {
-              ev->readable = true;
-              ev->writeable = true;
-              pony_asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+              if(ev->flags & (ASIO_READ | ASIO_WRITE))
+              {
+                ev->readable = true;
+                ev->writeable = true;
+                pony_asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+              }
             } else {
-              ev->writeable = true;
-              pony_asio_event_send(ev, ASIO_WRITE, 0);
+              if(ev->flags & ASIO_WRITE)
+              {
+                ev->writeable = true;
+                pony_asio_event_send(ev, ASIO_WRITE, 0);
+              }
             }
             break;
 
           case EVFILT_TIMER:
-            pony_asio_event_send(ev, ASIO_TIMER, 0);
+            if(ev->flags & ASIO_TIMER)
+            {
+              pony_asio_event_send(ev, ASIO_TIMER, 0);
+            }
             break;
 
           case EVFILT_SIGNAL:
-            pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
+            if(ev->flags & ASIO_SIGNAL)
+            {
+              pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
+            }
             break;
 
           default: {}
@@ -343,7 +358,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   retry_loop(b);
 }

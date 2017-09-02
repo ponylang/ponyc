@@ -138,9 +138,12 @@ static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
 
   bool ok = true;
 
-  if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
-    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE))
+  if(ast_id(opt->check.frame->type) == TK_STRUCT)
   {
+    ast_error(opt->check.errors, ast, "a struct cannot have a _final method");
+    ok = false;
+  } else if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
+    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE)) {
     ast_error(opt->check.errors, ast,
       "a primitive with type parameters cannot have a _final method");
     ok = false;

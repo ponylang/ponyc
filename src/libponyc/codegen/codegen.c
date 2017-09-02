@@ -336,11 +336,12 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // void pony_sendv(i8*, __object*, $message*)
+  // void pony_sendv(i8*, __object*, $message*, $message*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
-  type = LLVMFunctionType(c->void_type, params, 3, false);
+  params[3] = c->msg_ptr;
+  type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -353,11 +354,12 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // void pony_sendv_single(i8*, __object*, $message*)
+  // void pony_sendv_single(i8*, __object*, $message*, $message*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
-  type = LLVMFunctionType(c->void_type, params, 3, false);
+  params[3] = c->msg_ptr;
+  type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_sendv_single", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -648,16 +650,6 @@ static void init_runtime(compile_t* c)
   params[0] = c->void_ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
-#if PONY_LLVM >= 309
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-#else
-  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
-#endif
-
-  // void pony_send_next(i8*)
-  params[0] = c->void_ptr;
-  type = LLVMFunctionType(c->void_type, params, 1, false);
-  value = LLVMAddFunction(c->module, "pony_send_next", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 #else
@@ -1028,6 +1020,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   memset(&c, 0, sizeof(compile_t));
 
   genned_strings_init(&c.strings, 64);
+  ffi_decls_init(&c.ffi_decls, 64);
 
   if(!init_module(&c, program, opt))
     return false;
@@ -1054,6 +1047,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     memset(c, 0, sizeof(compile_t));
 
     genned_strings_init(&c->strings, 64);
+    ffi_decls_init(&c->ffi_decls, 64);
 
     if(!init_module(c, program, opt))
       return false;
@@ -1108,15 +1102,24 @@ void codegen_cleanup(compile_t* c)
   LLVMDisposeTargetMachine(c->machine);
   tbaa_metadatas_free(c->tbaa_mds);
   genned_strings_destroy(&c->strings);
+  ffi_decls_destroy(&c->ffi_decls);
   reach_free(c->reach);
 }
 
-LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
+LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
+  bool pony_abi)
 {
   // Add the function and set the calling convention and the linkage type.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
   LLVMSetFunctionCallConv(fun, c->callconv);
   LLVMSetLinkage(fun, c->linkage);
+  LLVMSetUnnamedAddr(fun, true);
+
+  if(pony_abi)
+  {
+    LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+    LLVMSetMetadataStr(fun, "pony.abi", md);
+  }
 
   LLVMValueRef arg = LLVMGetFirstParam(fun);
   uint32_t i = 1;

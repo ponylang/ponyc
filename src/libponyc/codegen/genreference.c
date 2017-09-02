@@ -444,7 +444,7 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   c_m->func_type = LLVMFunctionType(c->i64, &c_t->structure_ptr, 1, false);
-  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
 
   codegen_startfun(c, c_m->func, NULL, NULL, false);
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);

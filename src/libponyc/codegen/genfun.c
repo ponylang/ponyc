@@ -248,7 +248,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   if(!handler)
   {
     // Generate the function prototype.
-    c_m->func = codegen_addfun(c, m->full_name, c_m->func_type);
+    c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
     genfun_param_attrs(c, t, m, c_m->func);
     make_function_debug(c, t, m, c_m->func);
   } else {
@@ -259,7 +259,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
     // Generate the sender prototype.
     const char* sender_name = genname_be(m->full_name);
-    c_m->func = codegen_addfun(c, sender_name, c_m->func_type);
+    c_m->func = codegen_addfun(c, sender_name, c_m->func_type, true);
     genfun_param_attrs(c, t, m, c_m->func);
 
     // If the method is a forwarding mangling, we don't need the handler.
@@ -270,7 +270,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
         (int)count, false);
 
       // Generate the handler prototype.
-      c_m->func_handler = codegen_addfun(c, m->full_name, handler_type);
+      c_m->func_handler = codegen_addfun(c, m->full_name, handler_type, true);
       genfun_param_attrs(c, t, m, c_m->func_handler);
       make_function_debug(c, t, m, c_m->func_handler);
     }
@@ -300,10 +300,11 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
   }
 
-  if((n->cap == TK_AT) && (c_m->func != NULL))
+  if(n->cap == TK_AT)
   {
     LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
+    LLVMSetUnnamedAddr(c_m->func, false);
 
     if(t->bare_method == m)
     {
@@ -634,7 +635,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
 
   const char* funname = genname_alloc(t->name);
   LLVMTypeRef ftype = LLVMFunctionType(c_t->use_type, NULL, 0, false);
-  LLVMValueRef fun = codegen_addfun(c, funname, ftype);
+  LLVMValueRef fun = codegen_addfun(c, funname, ftype, true);
   if(t->underlying != TK_PRIMITIVE)
   {
     LLVMTypeRef elem = LLVMGetElementType(c_t->use_type);

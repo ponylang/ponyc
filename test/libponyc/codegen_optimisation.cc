@@ -10,7 +10,7 @@ class CodegenOptimisationTest : public PassTest
 {};
 
 
-TEST_F(CodegenOptimisationTest, MergeTraceMessageReordering)
+TEST_F(CodegenOptimisationTest, MergeSendMessageReordering)
 {
   const char* src =
     "actor Main\n"
@@ -40,7 +40,7 @@ TEST_F(CodegenOptimisationTest, MergeTraceMessageReordering)
   ASSERT_EQ(exit_code, 1);
 }
 
-TEST_F(CodegenOptimisationTest, MergeTraceCrossMessaging)
+TEST_F(CodegenOptimisationTest, MergeSendCrossMessaging)
 {
   // Test that we don't produce invalid LLVM IR that would cause a crash.
   const char* src =

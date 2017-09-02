@@ -365,13 +365,16 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 
 static void pool_block_remove(pool_block_t* block)
 {
-  if(block->prev != NULL)
-    block->prev->next = block->next;
-  else
-    pool_block_header.head = block->next;
+  pool_block_t* prev = block->prev;
+  pool_block_t* next = block->next;
 
-  if(block->next != NULL)
-    block->next->prev = block->prev;
+  if(prev != NULL)
+    prev->next = next;
+  else
+    pool_block_header.head = next;
+
+  if(next != NULL)
+    next->prev = prev;
 }
 
 static void pool_block_insert(pool_block_t* block)
