@@ -1,5 +1,6 @@
-use "ponytest"
 use "collections"
+use "ponytest"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -410,6 +411,7 @@ class iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"
 
   fun apply(h: TestHelper) =>
+    h.long_test(Nanos.from_seconds(10))
     let take: USize = 3
     let input = ["a"; "b"; "c"; "d"; "e"]
     let expected = ["a"; "b"; "c"]
@@ -420,6 +422,16 @@ class iso _TestIterTake is UnitTest
     end
 
     h.assert_array_eq[String](expected, actual)
+
+    let infinite =
+      Iter[U64](
+        object ref
+          fun ref has_next(): Bool => true
+          fun ref next(): U64 => 0
+        end)
+
+    h.assert_eq[USize](3, infinite.take(3).collect(Array[U64]).size())
+    h.complete(true)
 
 class iso _TestIterTakeWhile is UnitTest
   fun name(): String => "itertools/Iter.take_while"

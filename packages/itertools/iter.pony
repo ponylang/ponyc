@@ -678,16 +678,19 @@ class Iter[A] is Iterator[A]
     ```
     `1 2 3`
     """
-    filter_stateful(
+    Iter[A](
       object
         var _countdown: USize = n
 
-        fun ref apply(a: A!): Bool =>
+        fun ref has_next(): Bool =>
+          _countdown > 0
+
+        fun ref next(): A ? =>
           if _countdown > 0 then
             _countdown = _countdown - 1
-            true
+            _iter.next()?
           else
-            false
+            error
           end
       end)
 
