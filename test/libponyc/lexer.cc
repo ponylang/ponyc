@@ -598,6 +598,71 @@ TEST_F(LexerTest, EmptyStringAtEndOfSource)
   DO(test(src));
 }
 
+// Character Literals
+
+TEST_F(LexerTest, SingleCharacterLiteral)
+{
+    const char* src = "'a'";
+
+    expect(1, 1, TK_INT, "97");
+    expect(1, 4, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, EscapeCharacterLiteral)
+{
+    const char* src = "'\\t'";
+
+    expect(1, 1, TK_INT, "9");
+    expect(1, 5, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, HexEscapeCharacterLiteral)
+{
+    const char* src = "'\\xFF'";
+
+    expect(1, 1, TK_INT, "255");
+    expect(1, 7, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, UTF8CharacterLiteral)
+{
+
+    const char* src = "'🎠'";
+
+    expect(1, 1, TK_INT, "4036988576"); // 0xF09F8EA0
+    expect(1, 7, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, MixedMultiCharacterLiteral)
+{
+    const char* src = "'\\x01A\\01'";
+
+    expect(1, 1, TK_INT, "21037105"); // 0x01410031
+    expect(1, 11, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, InvalidEscapeCharacterLiteral)
+{
+    const char* src = "'\\p'";
+
+    expect(1, 1, TK_INT, "0"); // ignored here
+    expect(1, 5, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, EmptyCharacterLiteral)
+{
+  const char* src = "''";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
 
 // Symbols after errors
 
