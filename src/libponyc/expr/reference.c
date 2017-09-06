@@ -213,10 +213,10 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
     ast_free_unattached(upper);
   }
 
-  // In a recover expression, we can access obj.field if field is sendable
-  // and not being assigned to, even if obj isn't sendable.
+  // In a recover expression, we can access `this.field` if field is sendable
+  // and not being assigned to, even if the `this` object isn't sendable.
 
-  if(opt->check.frame->recover != NULL)
+  if((opt->check.frame->recover != NULL) && (ast_id(left) == TK_THIS))
   {
     if(!sendable(type))
     {
@@ -224,9 +224,9 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access field of non-sendable "
-          "object inside of a recover expression");
-        ast_error_frame(&frame, find, "this would be possible if the field was "
-          "sendable");
+          "`this` object inside of a recover expression");
+        ast_error_frame(&frame, find, "this would be possible if the field "
+          "was sendable");
         errorframe_report(&frame, opt->check.errors);
         return false;
       }
@@ -244,7 +244,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access field of non-sendable "
-          "object inside of a recover expression");
+          "`this` object inside of a recover expression");
         ast_error_frame(&frame, parent, "this would be possible if the field "
           "wasn't assigned to");
         errorframe_report(&frame, opt->check.errors);
@@ -472,7 +472,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
           {
             ast_error(opt->check.errors, ast, "can't access a non-sendable "
               "local defined outside of a recover expression from within "
-              "that recover epression");
+              "that recover expression");
             ast_error_continue(opt->check.errors, parent, "this would be "
               "possible if the local wasn't assigned to");
             return false;

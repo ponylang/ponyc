@@ -290,7 +290,25 @@ TEST_F(RecoverTest, CantAccess_NonSendableField)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't access field of non-sendable object");
+  TEST_ERRORS_1(src, "can't access field of non-sendable `this` object");
+}
+
+TEST_F(RecoverTest, CanAccess_NonSendableFieldOfLocalRef)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  let inner: Inner = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover\n"
+    "      let c: Class = Class\n"
+    "      Wrap(c.inner)\n"
+    "    end";
+
+  TEST_COMPILE(src);
 }
 
 TEST_F(RecoverTest, CantAccess_AssignedField)
@@ -305,8 +323,26 @@ TEST_F(RecoverTest, CantAccess_AssignedField)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner = recover Inner end) end";
 
-  TEST_ERRORS_2(src, "can't access field of non-sendable object",
+  TEST_ERRORS_2(src, "can't access field of non-sendable `this` object",
     "left side must be something that can be assigned to");
+}
+
+TEST_F(RecoverTest, CanAccess_AssignedFieldOfLocalRef)
+{
+  const char* src =
+    "class Inner\n"
+    "class Wrap\n"
+    "  new create(s: Inner box) => None\n"
+
+    "class Class\n"
+    "  var inner: Inner = Inner\n"
+    "  fun apply(): Wrap iso =>\n"
+    "    recover\n"
+    "      let c: Class = Class\n"
+    "      Wrap(c.inner = recover Inner end)\n"
+    "    end";
+
+  TEST_COMPILE(src);
 }
 
 TEST_F(RecoverTest, CantAccess_ThisOriginallyTagField)
