@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix Iter.take to handle infinite iterator ([PR #2212](https://github.com/ponylang/ponyc/pull/2212))
 - Fix handling of empty and multi-byte character literals ([PR #2214](https://github.com/ponylang/ponyc/pull/2214))
 
 
