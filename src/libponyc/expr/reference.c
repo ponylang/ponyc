@@ -174,7 +174,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
         current = parent;
         parent = ast_parent(parent);
       }
-      if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+      if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access field of non-sendable "
@@ -401,7 +401,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
             current = parent;
             parent = ast_parent(parent);
           }
-          if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+          if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
           {
             ast_error(opt->check.errors, ast, "can't access a non-sendable "
               "local defined outside of a recover expression from within "

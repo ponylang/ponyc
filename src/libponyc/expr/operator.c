@@ -317,7 +317,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
 
   if(l_type == NULL)

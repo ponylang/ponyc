@@ -186,8 +186,8 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
           // id = init
           BUILD(init, member,
             NODE(TK_ASSIGN,
-            TREE(f_init)
-            NODE(TK_REFERENCE, TREE(f_id))));
+              NODE(TK_REFERENCE, TREE(f_id))
+              TREE(f_init)));
 
           ast_add(init_seq, init);
         }
@@ -508,8 +508,8 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
   REPLACE(astp,
     NODE(TK_SEQ,
       NODE(TK_ASSIGN,
-        TREE(for_iter)
-        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
+        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE)
+        TREE(for_iter))
       NODE(TK_WHILE, AST_SCOPE
         ANNOTATE(annotation)
         NODE(TK_SEQ,
@@ -520,8 +520,8 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
             NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
-            TREE(try_next)
-            TREE(for_idseq))
+            TREE(for_idseq)
+            TREE(try_next))
           TREE(for_body))
         TREE(for_else))));
 
@@ -601,13 +601,13 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 
     BUILD(assign, idseq,
       NODE(TK_ASSIGN,
-        TREE(init)
-        NODE(TK_LET, ID(init_name) NONE)));
+        NODE(TK_LET, ID(init_name) NONE)
+        TREE(init)));
 
     BUILD(local, idseq,
       NODE(TK_ASSIGN,
-        NODE(TK_REFERENCE, ID(init_name))
-        TREE(idseq)));
+        TREE(idseq)
+        NODE(TK_REFERENCE, ID(init_name))));
 
     ast_add(replace, assign);
     ast_add(try_body, local);
@@ -722,7 +722,7 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_ASSIGN);
 
-  AST_GET_CHILDREN(ast, value, call);
+  AST_GET_CHILDREN(ast, call, value);
 
   if(ast_id(call) != TK_CALL)
     return AST_OK;

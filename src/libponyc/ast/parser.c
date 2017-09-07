@@ -1025,7 +1025,7 @@ DEF(nextinfix);
 // ASSIGNOP assignment
 DEF(assignop);
   PRINT_INLINE();
-  INFIX_REVERSE();
+  INFIX_BUILD();
   TOKEN("assign operator", TK_ASSIGN);
   RULE("assign rhs", assignment);
   DONE();

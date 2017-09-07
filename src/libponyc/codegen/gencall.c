@@ -357,7 +357,7 @@ static ast_t* find_embed_constructor_receiver(ast_t* call)
   {
     // Traverse the LHS of the assignment looking for what our constructor call
     // is assigned to.
-    ast_t* current = ast_childidx(parent, 1);
+    ast_t* current = ast_child(parent);
     while((ast_id(current) == TK_TUPLE) || (ast_id(current) == TK_SEQ))
     {
       parent = current;

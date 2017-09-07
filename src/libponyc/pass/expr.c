@@ -253,7 +253,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_ASSIGN:
     {
       // Get the lhs of the assignment and run the expr pass on it first.
-      AST_GET_CHILDREN(parent, rhs, lhs);
+      AST_GET_CHILDREN(parent, lhs, rhs);
       if(rhs != ast)
         return NULL;
       if(!ast_passes_subtree(&lhs, opt, PASS_EXPR))

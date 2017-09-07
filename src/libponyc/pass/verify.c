@@ -93,7 +93,7 @@ static bool verify_assign_lvalue(pass_opt_t* opt, ast_t* ast)
 static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
 
   if(!verify_assign_lvalue(opt, left))
     return false;
@@ -119,7 +119,7 @@ static bool is_legal_dontcare_read(ast_t* ast)
   {
     case TK_ASSIGN:
     {
-      AST_GET_CHILDREN(parent, right, left);
+      AST_GET_CHILDREN(parent, left, right);
       if(ast == left)
         return true;
       return false;
@@ -140,7 +140,7 @@ static bool is_legal_dontcare_read(ast_t* ast)
       {
         case TK_ASSIGN:
         {
-          AST_GET_CHILDREN(grandparent, right, left);
+          AST_GET_CHILDREN(grandparent, left, right);
 
           if(parent == left)
             return true;

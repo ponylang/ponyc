@@ -605,8 +605,8 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   // The body of create contains: id = consume $0
   BUILD(assign, init,
     NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-      NODE(TK_REFERENCE, TREE(id))));
+      NODE(TK_REFERENCE, TREE(id))
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))));
 
   // Remove the initialiser from the field
   ast_replace(&init, ast_from(init, TK_NONE));

@@ -76,9 +76,8 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
     {
       case TK_ASSIGN:
       {
-        // Has to be the left hand side of an assignment. Left and right sides
-        // are swapped, so we must be the second child.
-        if(ast_childidx(parent, 1) != ast)
+        // Has to be the left hand side of an assignment (the first child).
+        if(ast_child(parent) != ast)
           return false;
 
         if(!check_result_needed)
@@ -683,10 +682,23 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
   return false;
 }
 
+static bool refer_pre_assign(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_ASSIGN);
+  AST_GET_CHILDREN(ast, left, right);
+
+  // Run the right side before the left side, so that symbol status tracking
+  // will see things like consumes in the right side first.
+  if(!ast_passes_subtree(&right, opt, PASS_REFER))
+    return false;
+
+  return true;
+}
+
 static bool refer_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
 
   if(!is_lvalue(opt, left, is_result_needed(ast)))
   {
@@ -1255,7 +1267,8 @@ ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_NEW: r = refer_pre_new(options, ast); break;
+    case TK_NEW:    r = refer_pre_new(options, ast); break;
+    case TK_ASSIGN: r = refer_pre_assign(options, ast); break;
 
     default: {}
   }

@@ -302,7 +302,7 @@ TEST_F(RecoverTest, CantAccess_AssignedField)
 
     "class Class\n"
     "  var inner: Inner iso = recover Inner end\n"
-    "  fun apply(): Wrap iso =>\n"
+    "  fun ref apply(): Wrap iso =>\n"
     "    recover Wrap(inner = recover Inner end) end";
 
   TEST_ERRORS_2(src, "can't access field of non-sendable object",

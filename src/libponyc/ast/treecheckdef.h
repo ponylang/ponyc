@@ -172,7 +172,7 @@ RULE(isop,
 
 RULE(assignop,
   HAS_TYPE(type)
-  CHILD(expr) // RHS first to handle init tracking
+  CHILD(expr)
   CHILD(expr),
   TK_ASSIGN);
 
