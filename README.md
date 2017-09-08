@@ -27,6 +27,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
     - [vim-pony](https://github.com/jakwings/vim-pony)
     - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
     - [currycomb: Syntastic support](https://github.com/killerswan/pony-currycomb.vim)
+    - [SpaceVim](http://spacevim.org), available as layer for Vim and [Neovim](https://neovim.io). Just follow [installation instructions](https://github.com/SpaceVim/SpaceVim) then put `call SpaceVim#layers#load('lang#pony')`inside configuration file (*$HOME/.SpaceVim.d/init.vim*)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
