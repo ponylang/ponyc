@@ -495,10 +495,10 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
     NODE(TK_TRY_NO_CHECK,
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_CALL,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
           NONE
           NONE
-          NODE(TK_QUESTION)
-          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
+          NODE(TK_QUESTION)))
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_BREAK, NONE))
       NONE));
@@ -514,10 +514,10 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
         ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
             NONE
             NONE
-            NONE
-            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
+            NONE))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
             TREE(for_idseq)
@@ -546,10 +546,10 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 
     BUILD(dispose, idseq,
       NODE(TK_CALL,
+        NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))
         NONE
         NONE
-        NONE
-        NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
+        NONE));
 
     ast_add(dispose_clause, dispose);
     return;
@@ -729,7 +729,7 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // We are of the form:  x(y) = z
   // Replace us with:     x.update(y where value = z)
-  AST_EXTRACT_CHILDREN(call, positional, named, question, expr);
+  AST_EXTRACT_CHILDREN(call, expr, positional, named, question);
 
   // If there are no named arguments yet, named will be a TK_NONE.
   ast_setid(named, TK_NAMEDARGS);
@@ -746,10 +746,10 @@ static ast_result_t sugar_update(ast_t** astp)
   // Replace with the update call.
   REPLACE(astp,
     NODE(TK_CALL,
+      NODE(TK_DOT, TREE(expr) ID("update"))
       TREE(positional)
       TREE(named)
-      TREE(question)
-      NODE(TK_DOT, TREE(expr) ID("update"))));
+      TREE(question)));
 
   return AST_OK;
 }
@@ -809,11 +809,10 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
+      NODE(TK_DOT, TREE(left) ID(fn_name))
       TREE(positional)
       NONE
-      TREE(question)
-      NODE(TK_DOT, TREE(left) ID(fn_name))
-      ));
+      TREE(question)));
 
   return AST_OK;
 }
@@ -825,11 +824,10 @@ static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NONE
-      NONE
-      NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))
-      ));
+      NONE
+      NONE
+      NONE));
 
   return AST_OK;
 }

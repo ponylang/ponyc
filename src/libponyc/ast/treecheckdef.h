@@ -223,10 +223,10 @@ RULE(qualify,
 
 RULE(call,
   HAS_TYPE(type)
+  CHILD(expr) // receiver
   CHILD(positional_args, none)
   CHILD(named_args, none)
-  CHILD(question, none)
-  CHILD(expr),  // Note that receiver comes last
+  CHILD(question, none),
   TK_CALL);
 
 RULE(ffi_call,

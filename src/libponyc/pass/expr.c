@@ -288,7 +288,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_POSITIONALARGS:
     {
       // Get the receiver of the call and run the expr pass on it first.
-      ast_t* receiver = ast_childlast(ast_parent(parent));
+      ast_t* receiver = ast_child(ast_parent(parent));
       if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
         return NULL;
 
@@ -320,7 +320,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_UPDATEARG:
     {
       // Get the receiver of the call and run the expr pass on it first.
-      ast_t* receiver = ast_childlast(ast_parent(ast_parent(parent)));
+      ast_t* receiver = ast_child(ast_parent(ast_parent(parent)));
       if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
         return NULL;
 

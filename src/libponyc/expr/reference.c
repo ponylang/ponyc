@@ -275,7 +275,8 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
           ast_swap(ast, call);
-          ast_append(call, ast);
+          *astp = call;
+          ast_add(call, ast);
 
           if(!expr_call(opt, &call))
           {
@@ -288,6 +289,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_t* apply = ast_from(call, TK_DOT);
           ast_add(apply, ast_from_string(call, "apply"));
           ast_swap(call, apply);
+          *astp = apply;
           ast_add(apply, call);
 
           if(!expr_dot(opt, &apply))
@@ -313,10 +315,10 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       // Call the default constructor with no arguments.
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
-      ast_add(call, dot); // Receiver comes last.
       ast_add(call, ast_from(ast, TK_NONE)); // Call partiality.
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
+      ast_add(call, dot);
 
       *astp = call;
 

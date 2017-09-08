@@ -706,16 +706,16 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS)
-      NONE
-      NONE
       NODE(TK_DOT,
         TREE(type_ref)
-        ID("create"))));
+        ID("create"))
+      NODE(TK_POSITIONALARGS)
+      NONE
+      NONE));
 
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);
-  ast_t* call_args = ast_child(call);
+  ast_t* call_args = ast_childidx(call, 1);
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 

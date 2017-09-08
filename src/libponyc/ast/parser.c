@@ -547,7 +547,7 @@ DEF(qualify);
 
 // LPAREN [positional] [named] RPAREN [QUESTION]
 DEF(call);
-  INFIX_REVERSE();
+  INFIX_BUILD();
   AST_NODE(TK_CALL);
   SKIP(NULL, TK_LPAREN);
   OPT RULE("argument", positional);

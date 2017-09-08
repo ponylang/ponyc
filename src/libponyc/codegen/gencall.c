@@ -82,7 +82,7 @@ static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
 static bool special_case_operator(compile_t* c, ast_t* ast,
   LLVMValueRef *value, bool short_circuit, bool native128)
 {
-  AST_GET_CHILDREN(ast, positional, named, question, postfix);
+  AST_GET_CHILDREN(ast, postfix, positional, named, question);
   AST_GET_CHILDREN(postfix, left, method);
 
   ast_t* right = ast_child(positional);
@@ -169,7 +169,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
 
 static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, positional, named, question, postfix);
+  AST_GET_CHILDREN(ast, postfix, positional, named, question);
   AST_GET_CHILDREN(postfix, receiver, method);
 
   const char* method_name = ast_name(method);
@@ -184,7 +184,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
 
 static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 {
-  AST_GET_CHILDREN(ast, positional, named, question, postfix);
+  AST_GET_CHILDREN(ast, postfix, positional, named, question);
 
   if((ast_id(postfix) != TK_FUNREF) || (ast_id(named) != TK_NONE))
     return false;
@@ -697,7 +697,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if(special_case_call(c, ast, &special))
     return special;
 
-  AST_GET_CHILDREN(ast, positional, named, question, postfix);
+  AST_GET_CHILDREN(ast, postfix, positional, named, question);
   AST_GET_CHILDREN(postfix, receiver, method);
   ast_t* typeargs = NULL;
 

@@ -485,10 +485,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   BUILD(call, ast,
     NODE(TK_CALL,
+      TREE(dot)
       NODE(TK_POSITIONALARGS, TREE(size_arg_seq))
       NONE
-      NONE
-      TREE(dot)));
+      NONE));
 
   if(!refer_reference(opt, &ref) ||
     !refer_qualify(opt, qualify) ||
@@ -509,10 +509,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
     BUILD(append, ast,
       NODE(TK_CALL,
+        TREE(append_chain)
         NODE(TK_POSITIONALARGS, TREE(ele))
         NONE
-        NONE
-        TREE(append_chain)));
+        NONE));
 
     ast_replace(astp, append);
 

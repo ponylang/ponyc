@@ -682,6 +682,20 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
   return false;
 }
 
+static bool refer_pre_call(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_CALL);
+  AST_GET_CHILDREN(ast, lhs, positional, named, question);
+
+  // Run the args before the receiver, so that symbol status tracking
+  // will see things like consumes in the right side first.
+  if(!ast_passes_subtree(&positional, opt, PASS_REFER) ||
+    !ast_passes_subtree(&named, opt, PASS_REFER))
+    return false;
+
+  return true;
+}
+
 static bool refer_pre_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
@@ -1268,6 +1282,7 @@ ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NEW:    r = refer_pre_new(options, ast); break;
+    case TK_CALL:   r = refer_pre_call(options, ast); break;
     case TK_ASSIGN: r = refer_pre_assign(options, ast); break;
 
     default: {}
