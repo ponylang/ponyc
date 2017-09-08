@@ -688,7 +688,7 @@ static bool refer_pre_call(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, lhs, positional, named, question);
 
   // Run the args before the receiver, so that symbol status tracking
-  // will see things like consumes in the right side first.
+  // will see things like consumes in the args first.
   if(!ast_passes_subtree(&positional, opt, PASS_REFER) ||
     !ast_passes_subtree(&named, opt, PASS_REFER))
     return false;
