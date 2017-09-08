@@ -57,6 +57,25 @@ static size_t tuple_indices_pop(call_tuple_indices_t* ti)
   return ti->data[--ti->count];
 }
 
+struct ffi_decl_t
+{
+  LLVMValueRef func;
+  ast_t* decl;
+};
+
+static size_t ffi_decl_hash(ffi_decl_t* d)
+{
+  return ponyint_hash_ptr(d->func);
+}
+
+static bool ffi_decl_cmp(ffi_decl_t* a, ffi_decl_t* b)
+{
+  return a->func == b->func;
+}
+
+DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
+  NULL);
+
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret, bool setcc)
 {
@@ -517,7 +536,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
     arg_ast = ast_sibling(arg_ast);
   }
 
-  LLVMValueRef msg_args[3];
+  LLVMValueRef msg_args[4];
 
   msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
@@ -575,12 +594,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   msg_args[0] = ctx;
   msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
   msg_args[2] = msg;
+  msg_args[3] = msg;
   LLVMValueRef send;
 
   if(ast_id(m->r_fun) == TK_NEW)
-    send = gencall_runtime(c, "pony_sendv_single", msg_args, 3, "");
+    send = gencall_runtime(c, "pony_sendv_single", msg_args, 4, "");
   else
-    send = gencall_runtime(c, "pony_sendv", msg_args, 3, "");
+    send = gencall_runtime(c, "pony_sendv", msg_args, 4, "");
 
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 
@@ -985,6 +1005,8 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
       false);
     ponyint_pool_free_size(buf_size, e_types);
     return r_type;
+  } else if(is_none(t->ast_cap)) {
+    return c->void_type;
   } else {
     return c_t->use_type;
   }
@@ -1036,30 +1058,59 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   return func;
 }
 
-static LLVMValueRef cast_ffi_arg(compile_t* c, LLVMValueRef arg,
-  LLVMTypeRef param)
+static void report_ffi_type_err(compile_t* c, ffi_decl_t* decl, ast_t* ast,
+  const char* name)
+{
+  ast_error(c->opt->check.errors, ast,
+    "conflicting declarations for FFI function: %s have incompatible types",
+    name);
+
+  if(decl != NULL)
+    ast_error_continue(c->opt->check.errors, decl->decl, "first declaration is "
+      "here");
+}
+
+static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
+  LLVMValueRef arg, LLVMTypeRef param, const char* name)
 {
   if(arg == NULL)
     return NULL;
 
   LLVMTypeRef arg_type = LLVMTypeOf(arg);
 
+  if(param == arg_type)
+    return arg;
+
+  if((LLVMABISizeOfType(c->target_data, param) !=
+    LLVMABISizeOfType(c->target_data, arg_type)))
+  {
+    report_ffi_type_err(c, decl, ast, name);
+    return NULL;
+  }
+
   switch(LLVMGetTypeKind(param))
   {
     case LLVMPointerTypeKind:
-    {
       if(LLVMGetTypeKind(arg_type) == LLVMIntegerTypeKind)
-        arg = LLVMBuildIntToPtr(c->builder, arg, param, "");
+        return LLVMBuildIntToPtr(c->builder, arg, param, "");
       else
-        arg = LLVMBuildBitCast(c->builder, arg, param, "");
+        return LLVMBuildBitCast(c->builder, arg, param, "");
+
+    case LLVMIntegerTypeKind:
+      if(LLVMGetTypeKind(arg_type) == LLVMPointerTypeKind)
+        return LLVMBuildPtrToInt(c->builder, arg, param, "");
 
       break;
-    }
+
+    case LLVMStructTypeKind:
+      pony_assert(LLVMGetTypeKind(arg_type) == LLVMStructTypeKind);
+      return arg;
 
     default: {}
   }
 
-  return arg;
+  pony_assert(false);
+  return NULL;
 }
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
@@ -1075,8 +1126,17 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   reach_type_t* t = reach_type(c->reach, type);
   pony_assert(t != NULL);
 
-  // Get the function.
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, f_name);
+  // Get the function. First check if the name is in use by a global and error
+  // if it's the case.
+  ffi_decl_t* ffi_decl;
+  bool is_func = false;
+  LLVMValueRef func = LLVMGetNamedGlobal(c->module, f_name);
+
+  if(func == NULL)
+  {
+    func = LLVMGetNamedFunction(c->module, f_name);
+    is_func = true;
+  }
 
   if(func == NULL)
   {
@@ -1096,6 +1156,37 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
       // Make it varargs.
       func = declare_ffi_vararg(c, f_name, t);
     }
+
+    size_t index = HASHMAP_UNKNOWN;
+
+#ifndef NDEBUG
+    ffi_decl_t k;
+    k.func = func;
+
+    ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
+    pony_assert(ffi_decl == NULL);
+#endif
+
+    ffi_decl = POOL_ALLOC(ffi_decl_t);
+    ffi_decl->func = func;
+    ffi_decl->decl = (decl != NULL) ? decl : ast;
+
+    ffi_decls_putindex(&c->ffi_decls, ffi_decl, index);
+  } else {
+    ffi_decl_t k;
+    k.func = func;
+    size_t index = HASHMAP_UNKNOWN;
+
+    ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
+
+    if((ffi_decl == NULL) && (!is_func || LLVMHasMetadataStr(func, "pony.abi")))
+    {
+      ast_error(c->opt->check.errors, ast, "cannot use '%s' as an FFI name: "
+        "name is already in use by the internal ABI", f_name);
+      return NULL;
+    }
+
+    pony_assert(is_func);
   }
 
   // Generate the arguments.
@@ -1109,6 +1200,19 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   if(!vararg)
   {
+    if(count != (int)LLVMCountParamTypes(f_type))
+    {
+      ast_error(c->opt->check.errors, ast,
+        "conflicting declarations for FFI function: declarations have an "
+        "incompatible number of parameters");
+
+      if(ffi_decl != NULL)
+        ast_error_continue(c->opt->check.errors, ffi_decl->decl, "first "
+          "declaration is here");
+
+      return NULL;
+    }
+
     f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(f_type, f_params);
   }
@@ -1120,7 +1224,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     f_args[i] = gen_expr(c, arg);
 
     if(!vararg)
-      f_args[i] = cast_ffi_arg(c, f_args[i], f_params[i]);
+      f_args[i] = cast_ffi_arg(c, ffi_decl, ast, f_args[i], f_params[i],
+        "parameters");
 
     if(f_args[i] == NULL)
     {
@@ -1147,9 +1252,23 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   if(!vararg)
     ponyint_pool_free_size(buf_size, f_params);
 
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   // Special case a None return value, which is used for void functions.
-  if(is_none(type))
-    return ((compile_type_t*)t->c_type)->instance;
+  bool isnone = is_none(type);
+  bool isvoid = LLVMGetReturnType(f_type) == c->void_type;
+
+  if(isnone && isvoid)
+  {
+    result = c_t->instance;
+  } else if(isnone != isvoid) {
+    report_ffi_type_err(c, ffi_decl, ast, "return values");
+    return NULL;
+  }
+
+  result = cast_ffi_arg(c, ffi_decl, ast, result, c_t->use_type,
+    "return values");
+  result = gen_assign_cast(c, c_t->use_type, result, type);
 
   return result;
 }

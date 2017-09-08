@@ -4,7 +4,7 @@
 #include "util.h"
 
 
-#define TEST_COMPILE(src) DO(test_compile(src, "all"))
+#define TEST_COMPILE(src) DO(test_compile(src, "verify"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
@@ -97,7 +97,7 @@ TEST_F(DontcareTest, CannotCallMethodOnDontcare)
     "  fun f() =>\n"
     "    _.foo()";
 
-  TEST_ERRORS_1(src, "can't lookup by name on '_'");
+  TEST_ERRORS_1(src, "can't read from '_'");
 }
 
 
@@ -162,6 +162,17 @@ TEST_F(DontcareTest, CannotUseDontcareAsArgumentInCaseExpression)
     "    match c\n"
     "    | C(_) => None\n"
     "    end";
+
+  TEST_ERRORS_1(src, "can't read from '_'");
+}
+
+
+TEST_F(DontcareTest, CannotUseDontcareAsFunctionArgument)
+{
+  const char* src =
+    "class C\n"
+    "  fun f(x: U8) =>\n"
+    "    f(_)";
 
   TEST_ERRORS_1(src, "can't read from '_'");
 }

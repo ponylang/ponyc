@@ -358,7 +358,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   retry_loop(b);
 }

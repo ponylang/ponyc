@@ -837,6 +837,7 @@ static token_t* character(lexer_t* lexer)
 {
   consume_chars(lexer, 1);  // Leading '
 
+  size_t chars_consumed = 0;
   lexint_t value;
   lexint_zero(&value);
 
@@ -845,13 +846,22 @@ static token_t* character(lexer_t* lexer)
     if(is_eof(lexer))
       return literal_doesnt_terminate(lexer);
 
-    int c = look(lexer);
-
+    // ensure lexer char is correctly coerced to int
+    int c = look(lexer) & 0x000000FF;
     if(c == '\'')
     {
+      token_t* t;
       consume_chars(lexer, 1);
-      token_t* t = make_token(lexer, TK_INT);
-      token_set_int(t, &value);
+      if (chars_consumed == 0)
+      {
+        lex_error(lexer, "Empty character literal");
+        t = make_token(lexer, TK_LEX_ERROR);
+      }
+      else
+      {
+        t = make_token(lexer, TK_INT);
+        token_set_int(t, &value);
+      }
       return t;
     }
 
@@ -860,6 +870,7 @@ static token_t* character(lexer_t* lexer)
     else
       consume_chars(lexer, 1);
 
+    chars_consumed++;
     // Just ignore bad escapes here and carry on. They've already been
     // reported and this allows catching later errors.
     if(c >= 0)

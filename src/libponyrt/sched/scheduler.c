@@ -72,7 +72,7 @@ static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
   m->i = arg;
-  ponyint_messageq_push(&scheduler[to].mq, &m->msg);
+  ponyint_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
 }
 
 static void send_msg_single(uint32_t to, sched_msg_t msg, intptr_t arg)
@@ -81,7 +81,7 @@ static void send_msg_single(uint32_t to, sched_msg_t msg, intptr_t arg)
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
   m->i = arg;
-  ponyint_messageq_push_single(&scheduler[to].mq, &m->msg);
+  ponyint_messageq_push_single(&scheduler[to].mq, &m->msg, &m->msg);
 }
 
 static void send_msg_all(sched_msg_t msg, intptr_t arg)

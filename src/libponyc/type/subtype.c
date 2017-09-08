@@ -746,7 +746,7 @@ static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super,
       "%s is not a subtype of %s: the subtype is a tuple",
       ast_print_type(sub), ast_print_type(super));
     ast_error_frame(errorf, super_def, "this might be possible if the supertype"
-      "were an empty interface, such as the Any type.");
+      " were an empty interface, such as the Any type.");
   }
 
   return false;

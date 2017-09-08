@@ -104,87 +104,6 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 }
 
 
-static bool is_legal_dontcare_read(ast_t* ast)
-{
-  // We either are the LHS of an assignment or a tuple element. That tuple must
-  // either be a pattern or the LHS of an assignment. It can be embedded in
-  // other tuples, which may appear in sequences.
-
-  // '_' may be wrapped in a sequence.
-  ast_t* parent = ast_parent(ast);
-  if(ast_id(parent) == TK_SEQ)
-    parent = ast_parent(parent);
-
-  switch(ast_id(parent))
-  {
-    case TK_ASSIGN:
-    {
-      AST_GET_CHILDREN(parent, left, right);
-      if(ast == left)
-        return true;
-      return false;
-    }
-
-    case TK_TUPLE:
-    {
-      ast_t* grandparent = ast_parent(parent);
-
-      while((ast_id(grandparent) == TK_TUPLE) ||
-        (ast_id(grandparent) == TK_SEQ))
-      {
-        parent = grandparent;
-        grandparent = ast_parent(parent);
-      }
-
-      switch(ast_id(grandparent))
-      {
-        case TK_ASSIGN:
-        {
-          AST_GET_CHILDREN(grandparent, left, right);
-
-          if(parent == left)
-            return true;
-
-          break;
-        }
-
-        case TK_CASE:
-        {
-          AST_GET_CHILDREN(grandparent, pattern, guard, body);
-
-          if(parent == pattern)
-            return true;
-
-          break;
-        }
-
-        default: {}
-      }
-
-      break;
-    }
-
-    default: {}
-  }
-
-  return false;
-}
-
-
-static bool verify_dontcareref(pass_opt_t* opt, ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_DONTCAREREF);
-
-  if(is_result_needed(ast) && !is_legal_dontcare_read(ast))
-  {
-    ast_error(opt->check.errors, ast, "can't read from '_'");
-    return false;
-  }
-
-  return true;
-}
-
-
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -205,7 +124,6 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_FFICALL:      r = verify_ffi_call(options, ast); break;
     case TK_TRY:
     case TK_TRY_NO_CHECK: r = verify_try(options, ast); break;
-    case TK_DONTCAREREF:  r = verify_dontcareref(options, ast); break;
     case TK_ERROR:        ast_seterror(ast); break;
 
     default:              ast_inheritflags(ast); break;

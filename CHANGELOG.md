@@ -6,8 +6,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
-- Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
+- Fix undersized string buffer for library link command in Windows. ([PR #2223](https://github.com/ponylang/ponyc/pull/2223))
+- Fix Iter.take to handle infinite iterator ([PR #2212](https://github.com/ponylang/ponyc/pull/2212))
+- Fix handling of empty and multi-byte character literals ([PR #2214](https://github.com/ponylang/ponyc/pull/2214))
 
 
 ### Added
@@ -17,6 +18,26 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 
+
+## [0.19.0] - 2017-09-02
+
+### Fixed
+
+- Fix codegen failures on incompatible FFI declarations ([PR #2205](https://github.com/ponylang/ponyc/pull/2205))
+- Disallow named arguments for methods of a type union where parameter names differ ([PR #2194](https://github.com/ponylang/ponyc/pull/2194))
+- Fix compiler crash on illegal read from '_' ([PR #2201](https://github.com/ponylang/ponyc/pull/2201))
+- Fix signals on Sierra ([PR #2195](https://github.com/ponylang/ponyc/pull/2195))
+- Fix race condition in kqueue event system implementation ([PR #2193](https://github.com/ponylang/ponyc/pull/2193))
+
+### Added
+
+- `pony_chain` runtime function
+
+### Changed
+
+- The `pony_sendv` and `pony_sendv_single` runtime functions now take a message chain instead of a single message
+- Improve the itertools API (RFC 49) ([PR #2190](https://github.com/ponylang/ponyc/pull/2190))
+- Forbid struct finalisers ([PR #2202](https://github.com/ponylang/ponyc/pull/2202))
 
 ## [0.18.1] - 2017-08-25
 

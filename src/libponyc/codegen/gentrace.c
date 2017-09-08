@@ -943,7 +943,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
     return;
 
   ((compile_type_t*)t->c_type)->trace_fn = codegen_addfun(c,
-    genname_trace(t->name), c->trace_type);
+    genname_trace(t->name), c->trace_type, true);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,

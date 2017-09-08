@@ -15,7 +15,7 @@
  * suitable location for tests which don't obviously belong anywhere else.
  */
 
-#define TEST_COMPILE(src) DO(test_compile(src, "all"))
+#define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
@@ -153,7 +153,7 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
 // TODO: This test is not correct because it does not fail without the fix.
 // I do not know how to generate a test that calls genheader().
 // Comments are welcomed.
-TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
+/*TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
 {
   // From issue #891
   const char* src =
@@ -164,7 +164,7 @@ TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
     "    a\n";
 
   TEST_COMPILE(src);
-}
+}*/
 
 TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
 {
@@ -408,7 +408,10 @@ TEST_F(BadPonyTest, TypeParamArrowClass)
     "class C1\n"
 
     "trait Test[A]\n"
-      "fun foo(a: A): A->C1";
+    "  fun foo(a: A): A->C1\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
 
   TEST_COMPILE(src);
 }
@@ -560,11 +563,11 @@ TEST_F(BadPonyTest, ExhaustiveMatchCasesJumpAway)
 {
   // From issue #1898
   const char* src =
-    "primitive Foo\n"
-    "  fun apply(b: Bool) =>\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
     "    if true then\n"
-    "      match b\n"
-    "      | let b': Bool => return\n"
+    "      match env\n"
+    "      | let env': Env => return\n"
     "      end\n"
     "    end";
 
@@ -863,4 +866,76 @@ TEST_F(BadPonyTest, CoerceUninferredNumericLiteralThroughTypeArgWithViewpoint)
     "    A[this->T](1)\n";
 
   TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, UnionTypeMethodsWithDifferentParamNamesNamedParams)
+{
+  // From issue #394
+  // disallow calling a method on a union with named arguments
+  // when the parameter names differ
+  const char* src =
+    "primitive A\n"
+    "  fun foo(a: U64, b: U64): U64 => a\n"
+    "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+    "primitive B\n"
+    "  fun foo(b: U64, c: U64): U64 => b\n"
+    "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let aba = add_ab(A)\n"
+    "    let abb = add_ab(B)\n"
+    "    let bca = add_bc(A)\n"
+    "    let bcb = add_bc(B)\n"
+    "    let xya = add_xy(A)\n"
+    "    let xyb = add_xy(B)\n\n"
+
+    "  fun add_ab(uni: (A | B)): U64 =>\n"
+    "    uni.foo(where a = 80, b = 8)\n\n"
+
+    "  fun add_bc(uni: (A | B)): U64 =>\n"
+    "    uni.foo(where b = 80, c = 8)\n\n"
+
+    "  fun add_xy(uni: (A | B)): U64 =>\n"
+    "    uni.bar(where x = 80, y = 8)\n\n";
+
+    TEST_ERRORS_2(src,
+      "methods of this union type have different parameter names",
+      "methods of this union type have different parameter names");
+}
+
+TEST_F(BadPonyTest, UnionTypeMethodsWithDifferentParamNamesPositional)
+{
+  // From issue #394
+  // allow calling a method on a union with positional arguments
+  // when the parameter names differ
+  const char* src =
+  "primitive A\n"
+  "  fun foo(a: U64, b: U64): U64 => a\n"
+  "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+  "primitive B\n"
+  "  fun foo(b: U64, c: U64): U64 => b\n"
+  "  fun bar(x: U64, y: U64): U64 => x\n\n"
+
+  "actor Main\n"
+  "  new create(env: Env) =>\n"
+  "    let aba = add_ab(A)\n"
+  "    let abb = add_ab(B)\n"
+  "    let bca = add_bc(A)\n"
+  "    let bcb = add_bc(B)\n"
+  "    let xya = add_xy(A)\n"
+  "    let xyb = add_xy(B)\n\n"
+
+  "  fun add_ab(uni: (A | B)): U64 =>\n"
+  "    uni.foo(80, 8)\n\n"
+
+  "  fun add_bc(uni: (A | B)): U64 =>\n"
+  "    uni.foo(80, 8)\n\n"
+
+  "  fun add_xy(uni: (A | B)): U64 =>\n"
+  "    uni.bar(80, 8)\n\n";
+
+  TEST_COMPILE(src);
 }
