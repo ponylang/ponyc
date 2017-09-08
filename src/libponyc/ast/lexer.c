@@ -514,6 +514,7 @@ static token_t* slash(lexer_t* lexer)
 * Removes longest common prefix indentation from every line in a triple
 * quoted string. If the string begins with an empty line, that line is removed
 * entirely.
+* If the last line only consists of whitespace those will also be removed.
 */
 static void normalise_string(lexer_t* lexer)
 {
@@ -605,6 +606,24 @@ static void normalise_string(lexer_t* lexer)
 
     lexer->buflen = compacted - lexer->buffer;
   }
+
+  // Trim trailing empty line
+  size_t trim = 0;
+  for (size_t i = (lexer->buflen - 1); i>0; i--)
+  {
+    char c = lexer->buffer[i];
+    if (c == '\n')
+    {
+      lexer->buflen -= trim;
+      break;
+    }
+    else if (isspace(c))
+    {
+      trim++;
+    }
+    else
+      break; // non-empty line
+  }
 }
 
 
@@ -613,6 +632,9 @@ static void normalise_string(lexer_t* lexer)
 static token_t* triple_string(lexer_t* lexer)
 {
   consume_chars(lexer, 3);  // Leading """
+
+  size_t start_line = lexer->line;
+  bool non_space_on_first_line = false;
 
   while(true)
   {
@@ -633,9 +655,20 @@ static token_t* triple_string(lexer_t* lexer)
         consume_chars(lexer, 1);
       }
 
+      if (lexer->line > start_line && non_space_on_first_line)
+      {
+        lex_error(
+          lexer,
+          "multi-line triple-quoted string must be started below the opening triple-quote");
+        return make_token(lexer, TK_LEX_ERROR);
+      }
+
       normalise_string(lexer);
       return make_token_with_text(lexer, TK_STRING);
     }
+
+    if (lexer->line == start_line && !isspace(c))
+      non_space_on_first_line = true;
 
     consume_chars(lexer, 1);
     append_to_token(lexer, c);
@@ -797,7 +830,6 @@ static token_t* string(lexer_t* lexer)
 {
   if((lookn(lexer, 2) == '\"') && (lookn(lexer, 3) == '\"'))
     return triple_string(lexer);
-
   consume_chars(lexer, 1);  // Leading "
 
   while(true)
