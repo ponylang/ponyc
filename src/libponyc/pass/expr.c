@@ -252,11 +252,8 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     // For the right side of an assignment, find the type of the left side.
     case TK_ASSIGN:
     {
-      // Get the lhs of the assignment and run the expr pass on it first.
       AST_GET_CHILDREN(parent, lhs, rhs);
       if(rhs != ast)
-        return NULL;
-      if(!ast_passes_subtree(&lhs, opt, PASS_EXPR))
         return NULL;
 
       return ast_type(lhs);
@@ -287,12 +284,8 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     // For an argument, find the type of the corresponding parameter.
     case TK_POSITIONALARGS:
     {
-      // Get the receiver of the call and run the expr pass on it first.
-      ast_t* receiver = ast_child(ast_parent(parent));
-      if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
-        return NULL;
-
       // Get the type signature of the function call.
+      ast_t* receiver = ast_child(ast_parent(parent));
       ast_t* funtype = ast_type(receiver);
       if(is_typecheck_error(funtype))
         return funtype;
@@ -319,12 +312,8 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_NAMEDARG:
     case TK_UPDATEARG:
     {
-      // Get the receiver of the call and run the expr pass on it first.
-      ast_t* receiver = ast_child(ast_parent(ast_parent(parent)));
-      if(!ast_passes_subtree(&receiver, opt, PASS_EXPR))
-        return NULL;
-
       // Get the type signature of the function call.
+      ast_t* receiver = ast_child(ast_parent(ast_parent(parent)));
       ast_t* funtype = ast_type(receiver);
       if(is_typecheck_error(funtype))
         return funtype;
