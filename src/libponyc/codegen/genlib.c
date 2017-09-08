@@ -148,7 +148,7 @@ static bool link_lib(compile_t* c, const char* file_o)
     return false;
   }
 
-  size_t len = 128 + strlen(file_lib) + strlen(file_o);
+  size_t len = strlen(vcvars.ar) + strlen(file_lib) + strlen(file_o) + 64;
   char* cmd = (char*)ponyint_pool_alloc_size(len);
 
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
