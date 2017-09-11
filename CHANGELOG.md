@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix broken "make" command ([PR #2220](https://github.com/ponylang/ponyc/pull/2220))
 - Fix inconsistencies in multi-line triple-quoted strings ([PR #2221](https://github.com/ponylang/ponyc/pull/2221))
 - Fix undersized string buffer for library link command in Windows. ([PR #2223](https://github.com/ponylang/ponyc/pull/2223))
 - Fix Iter.take to handle infinite iterator ([PR #2212](https://github.com/ponylang/ponyc/pull/2212))
