@@ -289,7 +289,25 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       ast_t* funtype = ast_type(receiver);
       if(is_typecheck_error(funtype))
         return funtype;
-      pony_assert(ast_id(funtype) == TK_FUNTYPE);
+
+      // If this is a call to a callable object instead of a function reference,
+      // we need to use the funtype of the apply method of the object.
+      if(ast_id(funtype) != TK_FUNTYPE)
+      {
+        ast_t* dot = ast_from(ast, TK_DOT);
+        ast_add(dot, ast_from_string(ast, "apply"));
+        ast_swap(receiver, dot);
+        ast_add(dot, receiver);
+
+        bool r = expr_dot(opt, &dot);
+        funtype = ast_type(dot);
+
+        ast_swap(receiver, dot); // put the original receiver back
+
+        if(!r || (ast_id(funtype) != TK_FUNTYPE))
+          return NULL;
+      }
+
       AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
 
       // Find the parameter type corresponding to this specific argument.
