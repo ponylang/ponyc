@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Inference of lambda type and array element type from an antecedent (RFC 45). ([PR #2168](https://github.com/ponylang/ponyc/pull/2168))
 
 
 ### Changed
