@@ -90,13 +90,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     add 4 to the current value for key "test", which let's say is currently 2.
     We call
 
-    m.upsert("test", 4, {(x: I64, y: I64): I64 => x - y })
+    m.upsert("test", 4, {(x, y) => x - y })
 
     This changes the value associated with "test" to -2.
 
     If we have not yet added the key "new-key" to the map and we call
 
-    m.upsert("new-key", 4, {(x: I64, y: I64): I64 => x - y })
+    m.upsert("new-key", 4, {(x, y) => x - y })
 
     then "new-key" is added to the map with a value of -4.
 

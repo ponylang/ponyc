@@ -65,7 +65,7 @@ static bool is_legal_dontcare_read(ast_t* ast)
   {
     case TK_ASSIGN:
     {
-      AST_GET_CHILDREN(parent, right, left);
+      AST_GET_CHILDREN(parent, left, right);
       if(ast == left)
         return true;
       return false;
@@ -86,7 +86,7 @@ static bool is_legal_dontcare_read(ast_t* ast)
       {
         case TK_ASSIGN:
         {
-          AST_GET_CHILDREN(grandparent, right, left);
+          AST_GET_CHILDREN(grandparent, left, right);
 
           if(parent == left)
             return true;
@@ -240,7 +240,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
         current = parent;
         parent = ast_parent(parent);
       }
-      if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+      if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access field of non-sendable "
@@ -291,6 +291,10 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     }
   }
 
+  // Handle cases where we just want to transform a typeref for type purposes.
+  if(ast_parent(ast) == NULL)
+    return true;
+
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
@@ -337,7 +341,8 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
           ast_swap(ast, call);
-          ast_append(call, ast);
+          *astp = call;
+          ast_add(call, ast);
 
           if(!expr_call(opt, &call))
           {
@@ -350,6 +355,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_t* apply = ast_from(call, TK_DOT);
           ast_add(apply, ast_from_string(call, "apply"));
           ast_swap(call, apply);
+          *astp = apply;
           ast_add(apply, call);
 
           if(!expr_dot(opt, &apply))
@@ -375,10 +381,10 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       // Call the default constructor with no arguments.
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
-      ast_add(call, dot); // Receiver comes last.
       ast_add(call, ast_from(ast, TK_NONE)); // Call partiality.
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
+      ast_add(call, dot);
 
       *astp = call;
 
@@ -468,7 +474,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
             current = parent;
             parent = ast_parent(parent);
           }
-          if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+          if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
           {
             ast_error(opt->check.errors, ast, "can't access a non-sendable "
               "local defined outside of a recover expression from within "

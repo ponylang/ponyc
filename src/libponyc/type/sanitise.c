@@ -24,6 +24,10 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
         TREE(constraint)
         NONE));
 
+    // The new type param is directly bound to the original, so store the
+    // original in the data field for use in subtyping checks.
+    ast_setdata(new_param, orig_param);
+
     ast_append(params, new_param);
     ast_setid(params, TK_TYPEPARAMS);
   }

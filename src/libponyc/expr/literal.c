@@ -773,7 +773,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
     case TK_CALL:
     {
-      AST_GET_CHILDREN(literal_expr, positional, named, question, receiver);
+      AST_GET_CHILDREN(literal_expr, receiver, positional, named, question);
       ast_t* arg = ast_child(positional);
 
       if(!coerce_literal_to_type(&receiver, target_type, chain, opt,
@@ -921,7 +921,7 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_CALL);
 
-  AST_GET_CHILDREN(ast, positional_args, named_args, question, receiver);
+  AST_GET_CHILDREN(ast, receiver, positional_args, named_args, question);
 
   ast_t* recv_type = ast_type(receiver);
 

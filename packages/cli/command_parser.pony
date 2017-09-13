@@ -72,8 +72,7 @@ class CommandParser
         | let o: Option =>
           if o.spec()._typ_p().is_seq() then
             try
-              options.upsert(o.spec().name(), o,
-                {(x: Option, n: Option): Option^ => x._append(n) })?
+              options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })?
             end
           else
             options.update(o.spec().name(), o)
@@ -88,8 +87,7 @@ class CommandParser
           for o in os.values() do
             if o.spec()._typ_p().is_seq() then
               try
-                options.upsert(o.spec().name(), o,
-                  {(x: Option, n: Option): Option^ => x._append(n) })?
+                options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })?
               end
             else
               options.update(o.spec().name(), o)
@@ -115,8 +113,7 @@ class CommandParser
           | let a: Arg =>
             if a.spec()._typ_p().is_seq() then
               try
-                args.upsert(a.spec().name(), a,
-                  {(x: Arg, n: Arg): Arg^ => x._append(n) })?
+                args.upsert(a.spec().name(), a, {(x, n) => x._append(n) })?
               end
             else
               args.update(a.spec().name(), a)

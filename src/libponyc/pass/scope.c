@@ -288,6 +288,33 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   return AST_OK;
 }
 
+static bool scope_call(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_CALL);
+  AST_GET_CHILDREN(ast, lhs, positional, named, question);
+
+  // Run the args before the receiver, so that symbol status tracking
+  // will have their scope names defined in the args first.
+  if(!ast_passes_subtree(&positional, opt, PASS_SCOPE) ||
+    !ast_passes_subtree(&named, opt, PASS_SCOPE))
+    return false;
+
+  return true;
+}
+
+static bool scope_assign(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_ASSIGN);
+  AST_GET_CHILDREN(ast, left, right);
+
+  // Run the right side before the left side, so that symbol status tracking
+  // will have their scope names defined in the right side first.
+  if(!ast_passes_subtree(&right, opt, PASS_SCOPE))
+    return false;
+
+  return true;
+}
+
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -320,11 +347,22 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
       // Store the original definition of the typeparam in the data field here.
       // It will be retained later if the typeparam def is copied via ast_dup.
-      ast_setdata(ast, ast);
+      if(ast_data(ast) == NULL)
+        ast_setdata(ast, ast);
       break;
 
     case TK_IFTYPE:
       return scope_iftype(options, ast);
+
+    case TK_CALL:
+      if(!scope_call(options, ast))
+        return AST_ERROR;
+      break;
+
+    case TK_ASSIGN:
+      if(!scope_assign(options, ast))
+        return AST_ERROR;
+      break;
 
     default: {}
   }

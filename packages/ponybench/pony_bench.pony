@@ -16,28 +16,23 @@ actor Main
     let bench = PonyBench(env)
 
     // benchmark Fib with different inputs
-    bench[USize]("fib 5", {(): USize => Fib(5) })
-    bench[USize]("fib 10", {(): USize => Fib(10) })
-    bench[USize]("fib 20", {(): USize => Fib(20) })
-    bench[USize]("fib 40", {(): USize => Fib(40) })
+    bench[USize]("fib 5", {() => Fib(5) })
+    bench[USize]("fib 10", {() => Fib(10) })
+    bench[USize]("fib 20", {() => Fib(20) })
+    bench[USize]("fib 40", {() => Fib(40) })
 
     // show what happens when a benchmark fails
     bench[String]("fail", {(): String ? => error })
 
     // async benchmark
-    bench.async[USize](
-      "async",
-      {(): Promise[USize] => Promise[USize] .> apply(0) } iso)
+    bench.async[USize]("async", {() => Promise[USize] .> apply(0) })
 
     // async benchmark timeout
-    bench.async[USize](
-      "timeout",
-      {(): Promise[USize] => Promise[USize] } iso,
-      1_000_000)
+    bench.async[USize]("timeout", {() => Promise[USize] }, 1_000_000)
 
     // benchmarks with set ops
-    bench[USize]("add", {(): USize => 1 + 2 }, 10_000_000)
-    bench[USize]("sub", {(): USize => 2 - 1 }, 10_000_000)
+    bench[USize]("add", {() => 1 + 2 }, 10_000_000)
+    bench[USize]("sub", {() => 2 - 1 }, 10_000_000)
 
 primitive Fib
   fun apply(n: USize): USize =>

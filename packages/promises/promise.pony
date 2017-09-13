@@ -187,14 +187,12 @@ actor Promise[A: Any #share]
       end
 
     next[None](
-      {(a: A) => c.fulfill_a(a) } iso,
-      {() => p'.reject() } iso)
+      {(a) => c.fulfill_a(a) },
+      {() => p'.reject() })
 
     p.next[None](
-      object iso is Fulfill[B, None]
-        fun ref apply(b: B) => c.fulfill_b(b)
-      end,
-      {() => p'.reject() } iso)
+      {(b) => c.fulfill_b(b) },
+      {() => p'.reject() })
 
     p'
 
@@ -228,8 +226,8 @@ actor Promise[A: Any #share]
           end
       end
 
-    next[None]({(a: A) => s(a, p) } iso)
-    p.next[None]({(a: A)(p = this) => s(a, p) } iso)
+    next[None]({(a) => s(a, p) })
+    p.next[None]({(a)(p = this) => s(a, p) })
     
     p'
 
@@ -279,7 +277,7 @@ primitive Promises[A: Any #share]
 
     let j = _Join[A](p', ps'.size())
     for p in ps'.values() do
-      p.next[None]({(a: A)(j) => j(a)} iso)
+      p.next[None]({(a)(j) => j(a)})
     end
 
     p'

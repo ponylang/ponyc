@@ -18,10 +18,10 @@ containing the numbers 1 through 5, increments each number by one, filters out
 any odd numbers, and prints the rest.
 
 ```pony
-let xs = Iter[I64]([as I64: 1; 2; 3; 4; 5].values())
-  .map[I64]({(x: I64): I64 => x + 1 })
-  .filter({(x: I64): Bool => (x % 2) == 0 })
-  .map[None]({(x: I64) => env.out.print(x.string()) })
+let xs = Iter[I64]([1; 2; 3; 4; 5].values())
+  .map[I64]({(x) => x + 1 })
+  .filter({(x) => (x % 2) == 0 })
+  .map[None]({(x) => env.out.print(x.string()) })
 ```
 
 This will result in an iterator that prints the numbers 2, 4, and 6. However,
@@ -40,10 +40,10 @@ where the `run` method comes in handy by doing the iteration without the need
 for a loop. So the final code would be as follows:
 
 ```pony
-Iter[I64]([as I64: 1; 2; 3; 4; 5].values())
-  .map[I64]({(x: I64): I64 => x + 1 })
-  .filter({(x: I64): Bool => (x % 2) == 0 })
-  .map[None]({(x: I64) => env.out.print(x.string()) })
+Iter[I64]([1; 2; 3; 4; 5].values())
+  .map[I64]({(x) => x + 1 })
+  .filter({(x) => (x % 2) == 0 })
+  .map[None]({(x) => env.out.print(x.string()) })
   .run()
 ```
 

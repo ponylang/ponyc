@@ -23,7 +23,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   if(ast_id(call) != TK_CALL)
     call = ast_parent(call);
   pony_assert(ast_id(call) == TK_CALL);
-  ast_t* call_error = ast_childidx(call, 2);
+  ast_t* call_error = ast_childidx(call, 3);
   pony_assert(ast_id(call_error) == TK_QUESTION ||
     ast_id(call_error) == TK_NONE || ast_id(call_error) == TK_DONTCARE);
 

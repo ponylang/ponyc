@@ -77,16 +77,21 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
 
 ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, cap, eph);
+  ast_t* cap = ast_childidx(ast, 1);
 
-  if(ast_id(cap) != TK_NONE)
+  typeparam_set_cap(ast);
+
+  ast_t* set_cap = ast_childidx(ast, 1);
+
+  if((ast_id(cap) != TK_NONE) && (ast_id(cap) != ast_id(set_cap)))
   {
-    ast_error(opt->check.errors, cap,
-      "can't specify a capability on a type parameter");
+    ast_error(opt->check.errors, cap, "can't specify a capability on a type "
+      "parameter that differs from the constraint");
+    ast_error_continue(opt->check.errors, set_cap,
+      "constraint capability is here");
     return AST_ERROR;
   }
 
-  typeparam_set_cap(ast);
   return AST_OK;
 }
 

@@ -25,7 +25,7 @@ class iso _TestConstantTimeCompare is UnitTest
     let s3 = "123456"
     let s4 = "1234"
     let s5 = recover val [as U8: 0; 0; 0; 0; 0] end
-    let s6 = String.from_array(recover [as U8: 0; 0; 0; 0; 0] end)
+    let s6 = String.from_array([0; 0; 0; 0; 0])
     let s7 = ""
     h.assert_true(ConstantTimeCompare(s1, s1))
     h.assert_false(ConstantTimeCompare(s1, s2))

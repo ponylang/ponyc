@@ -93,7 +93,7 @@ static bool verify_assign_lvalue(pass_opt_t* opt, ast_t* ast)
 static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
 
   if(!verify_assign_lvalue(opt, left))
     return false;
