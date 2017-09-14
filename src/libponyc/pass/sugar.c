@@ -186,8 +186,8 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
           // id = init
           BUILD(init, member,
             NODE(TK_ASSIGN,
-            TREE(f_init)
-            NODE(TK_REFERENCE, TREE(f_id))));
+              NODE(TK_REFERENCE, TREE(f_id))
+              TREE(f_init)));
 
           ast_add(init_seq, init);
         }
@@ -495,10 +495,10 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
     NODE(TK_TRY_NO_CHECK,
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_CALL,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
           NONE
           NONE
-          NODE(TK_QUESTION)
-          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
+          NODE(TK_QUESTION)))
       NODE(TK_SEQ, AST_SCOPE
         NODE(TK_BREAK, NONE))
       NONE));
@@ -508,20 +508,20 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
   REPLACE(astp,
     NODE(TK_SEQ,
       NODE(TK_ASSIGN,
-        TREE(for_iter)
-        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE))
+        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE)
+        TREE(for_iter))
       NODE(TK_WHILE, AST_SCOPE
         ANNOTATE(annotation)
         NODE(TK_SEQ,
           NODE_ERROR_AT(TK_CALL, for_iter,
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
             NONE
             NONE
-            NONE
-            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
+            NONE))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
-            TREE(try_next)
-            TREE(for_idseq))
+            TREE(for_idseq)
+            TREE(try_next))
           TREE(for_body))
         TREE(for_else))));
 
@@ -546,10 +546,10 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 
     BUILD(dispose, idseq,
       NODE(TK_CALL,
+        NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))
         NONE
         NONE
-        NONE
-        NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
+        NONE));
 
     ast_add(dispose_clause, dispose);
     return;
@@ -601,13 +601,13 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 
     BUILD(assign, idseq,
       NODE(TK_ASSIGN,
-        TREE(init)
-        NODE(TK_LET, ID(init_name) NONE)));
+        NODE(TK_LET, ID(init_name) NONE)
+        TREE(init)));
 
     BUILD(local, idseq,
       NODE(TK_ASSIGN,
-        NODE(TK_REFERENCE, ID(init_name))
-        TREE(idseq)));
+        TREE(idseq)
+        NODE(TK_REFERENCE, ID(init_name))));
 
     ast_add(replace, assign);
     ast_add(try_body, local);
@@ -722,14 +722,14 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_ASSIGN);
 
-  AST_GET_CHILDREN(ast, value, call);
+  AST_GET_CHILDREN(ast, call, value);
 
   if(ast_id(call) != TK_CALL)
     return AST_OK;
 
   // We are of the form:  x(y) = z
   // Replace us with:     x.update(y where value = z)
-  AST_EXTRACT_CHILDREN(call, positional, named, question, expr);
+  AST_EXTRACT_CHILDREN(call, expr, positional, named, question);
 
   // If there are no named arguments yet, named will be a TK_NONE.
   ast_setid(named, TK_NAMEDARGS);
@@ -746,10 +746,10 @@ static ast_result_t sugar_update(ast_t** astp)
   // Replace with the update call.
   REPLACE(astp,
     NODE(TK_CALL,
+      NODE(TK_DOT, TREE(expr) ID("update"))
       TREE(positional)
       TREE(named)
-      TREE(question)
-      NODE(TK_DOT, TREE(expr) ID("update"))));
+      TREE(question)));
 
   return AST_OK;
 }
@@ -809,11 +809,10 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
+      NODE(TK_DOT, TREE(left) ID(fn_name))
       TREE(positional)
       NONE
-      TREE(question)
-      NODE(TK_DOT, TREE(left) ID(fn_name))
-      ));
+      TREE(question)));
 
   return AST_OK;
 }
@@ -825,11 +824,10 @@ static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NONE
-      NONE
-      NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))
-      ));
+      NONE
+      NONE
+      NONE));
 
   return AST_OK;
 }

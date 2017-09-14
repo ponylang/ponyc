@@ -24,7 +24,7 @@ If you submit a pull request to implement a new feature without going through th
 
 Bug report
 ----------
-First of all please [search existing issues][complete-issue-list] to make sure your issue hasn't already been reported. If you cannot find a suitable issue — [create a new one][new-issue].
+First of all please [search existing issues](https://github.com/ponylang/ponyc/issues) to make sure your issue hasn't already been reported. If you cannot find a suitable issue — [create a new one](https://github.com/ponylang/ponyc/issues/new).
 
 Provide the following details:
 

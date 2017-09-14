@@ -172,7 +172,7 @@ RULE(isop,
 
 RULE(assignop,
   HAS_TYPE(type)
-  CHILD(expr) // RHS first to handle init tracking
+  CHILD(expr)
   CHILD(expr),
   TK_ASSIGN);
 
@@ -223,10 +223,10 @@ RULE(qualify,
 
 RULE(call,
   HAS_TYPE(type)
+  CHILD(expr) // receiver
   CHILD(positional_args, none)
   CHILD(named_args, none)
-  CHILD(question, none)
-  CHILD(expr),  // Note that receiver comes last
+  CHILD(question, none),
   TK_CALL);
 
 RULE(ffi_call,
@@ -365,7 +365,7 @@ RULE(lambda_capture,
 
 RULE(array_literal,
   CHILD(type, none)
-  ONE_OR_MORE(rawseq),
+  CHILD(rawseq, none),
   TK_ARRAY);
 
 RULE(object_literal,

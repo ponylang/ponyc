@@ -68,7 +68,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
             {
               ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
 
-              if(ast_visit_scope(&param, NULL, pass_expr, opt,
+              if(ast_visit_scope(&param, pass_pre_expr, pass_expr, opt,
                 PASS_EXPR) != AST_OK)
                 return false;
 
@@ -192,7 +192,7 @@ static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
   ast_t* parent = from != NULL ? ast_parent(from) : NULL;
   if(parent != NULL && ast_id(parent) == TK_CALL)
   {
-    AST_GET_CHILDREN(parent, positional, namedargs);
+    AST_GET_CHILDREN(parent, receiver, positional, namedargs);
     if(namedargs != NULL && ast_id(namedargs) == TK_NAMEDARGS)
     {
       AST_GET_CHILDREN(prev_fun, prev_cap, prev_name, prev_tparams,

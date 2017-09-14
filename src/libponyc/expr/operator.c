@@ -214,7 +214,7 @@ static bool is_expr_constructor(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_CALL:
-      return ast_id(ast_childidx(ast, 3)) == TK_NEWREF;
+      return ast_id(ast_child(ast)) == TK_NEWREF;
     case TK_SEQ:
       return is_expr_constructor(ast_childlast(ast));
     case TK_IF:
@@ -317,7 +317,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
 
   if(l_type == NULL)

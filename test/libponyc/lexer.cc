@@ -370,92 +370,92 @@ TEST_F(LexerTest, StringUnicode6Escape)
 
 TEST_F(LexerTest, TripleString)
 {
-  const char* src = "\"\"\"Foo\"\"\"";
+  const char* src = "\"\"\"\nFoo\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo");
-  expect(1, 10, TK_EOF, "EOF");
+  expect(2, 7, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringEnds)
 {
-  const char* src = "\"\"\"Foo\"\"\"+";
+  const char* src = "\"\"\"\nFoo\"\"\"+";
 
   expect(1, 1, TK_STRING, "Foo");
-  expect(1, 10, TK_PLUS, "+");
-  expect(1, 11, TK_EOF, "EOF");
+  expect(2, 7, TK_PLUS, "+");
+  expect(2, 8, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringContainingDoubleQuote)
 {
-  const char* src = "\"\"\"Foo\"bar\"\"\"";
+  const char* src = "\"\"\"\nFoo\"bar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\"bar");
-  expect(1, 14, TK_EOF, "EOF");
+  expect(2, 11, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringContaining2DoubleQuotes)
 {
-  const char* src = "\"\"\"Foo\"\"bar\"\"\"";
+  const char* src = "\"\"\"\nFoo\"\"bar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\"\"bar");
-  expect(1, 15, TK_EOF, "EOF");
+  expect(2, 12, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringEndingWithExtraDoubleQuotes)
 {
-  const char* src = "\"\"\"Foobar\"\"\"\"";
+  const char* src = "\"\"\"\nFoobar\"\"\"\"";
 
   expect(1, 1, TK_STRING, "Foobar\"");
-  expect(1, 14, TK_EOF, "EOF");
+  expect(2, 11, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringEndingWith3ExtraDoubleQuotes)
 {
-  const char* src = "\"\"\"Foobar\"\"\"\"\"\"";
+  const char* src = "\"\"\"\nFoobar\"\"\"\"\"\"";
 
   expect(1, 1, TK_STRING, "Foobar\"\"\"");
-  expect(1, 16, TK_EOF, "EOF");
+  expect(2, 13, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringEndingWith4ExtraDoubleQuotes)
 {
-  const char* src = "\"\"\"Foobar\"\"\"\"\"\"\"";
+  const char* src = "\"\"\"\nFoobar\"\"\"\"\"\"\"";
 
   expect(1, 1, TK_STRING, "Foobar\"\"\"\"");
-  expect(1, 17, TK_EOF, "EOF");
+  expect(2, 14, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringMultipleLines)
 {
-  const char* src = "\"\"\"Foo\nbar\"\"\"";
+  const char* src = "\"\"\"\nFoo\nbar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\nbar");
-  expect(2, 7, TK_EOF, "EOF");
+  expect(3, 7, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringMultipleLinesBlocksNewline)
 {
-  const char* src = "\"\"\"Foo\nbar\"\"\"-";
+  const char* src = "\"\"\"\nFoo\nbar\"\"\"-";
 
   expect(1, 1, TK_STRING, "Foo\nbar");
-  expect(2, 7, TK_MINUS, "-");  // Not TK_MINUS_NEW
-  expect(2, 8, TK_EOF, "EOF");
+  expect(3, 7, TK_MINUS, "-");  // Not TK_MINUS_NEW
+  expect(3, 8, TK_EOF, "EOF");
   DO(test(src));
 }
 
@@ -469,63 +469,98 @@ TEST_F(LexerTest, TripleStringEmpty)
   DO(test(src));
 }
 
+TEST_F(LexerTest, TripleStringOnlyLinebreak)
+{
+  const char* src = "\"\"\"\n\"\"\"";
+
+  expect(1, 1, TK_STRING, "");
+  expect(2, 4, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, TripleStringOnlyWhitespace)
+{
+  const char* src = "\"\"\" \t\"\"\"";
+
+  expect(1, 1, TK_STRING, " \t"); // no changes
+  expect(1, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, TripleStringWithoutNewline)
+{
+  const char* src = "\"\"\"\tno newline here \"\"\"";
+
+  expect(1, 1, TK_STRING, "\tno newline here "); // no changes
+  expect(1, 24, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, TripleStringWithNonWhiteSpaceBeforeFirstNewline)
+{
+  const char* src = "\"\"\"before\n and after newline \"\"\"";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(2, 23, TK_EOF, "EOF");
+  DO(test(src));
+}
 
 TEST_F(LexerTest, TripleStringContainingEscape)
 {
-  const char* src = "\"\"\"Foo\\nbar\"\"\"";
+  const char* src = "\"\"\"\nFoo\\nbar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\\nbar");
-  expect(1, 15, TK_EOF, "EOF");
+  expect(2, 12, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringStripsEqualLeadingWhitespace)
 {
-  const char* src = "\"\"\"   Foo\n   bar\"\"\"";
+  const char* src = "\"\"\"\n   Foo\n   bar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\nbar");
-  expect(2, 10, TK_EOF, "EOF");
+  expect(3, 10, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringStripsIncreasingLeadingWhitespace)
 {
-  const char* src = "\"\"\"   Foo\n     bar\"\"\"";
+  const char* src = "\"\"\"\n   Foo\n     bar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\n  bar");
-  expect(2, 12, TK_EOF, "EOF");
+  expect(3, 12, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringStripsDecreasingLeadingWhitespace)
 {
-  const char* src = "\"\"\"   Foo\n  bar\"\"\"";
+  const char* src = "\"\"\"\n   Foo\n  bar\"\"\"";
 
   expect(1, 1, TK_STRING, " Foo\nbar");
-  expect(2, 9, TK_EOF, "EOF");
+  expect(3, 9, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringStripsVariableLeadingWhitespace)
 {
-  const char* src = "\"\"\"   Foo\n     bar\n    wom\n   bat\"\"\"";
+  const char* src = "\"\"\"\n   Foo\n     bar\n    wom\n   bat\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\n  bar\n wom\nbat");
-  expect(4, 10, TK_EOF, "EOF");
+  expect(5, 10, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, TripleStringStripsVariableLeadingWhitespaceWithBlankLines)
 {
-  const char* src = "\"\"\"   Foo\n     bar\n    \n   bat\n \"\"\"";
+  const char* src = "\"\"\"\n   Foo\n     bar\n    \n   bat\n \"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\n  bar\n \nbat\n");
-  expect(5, 5, TK_EOF, "EOF");
+  expect(6, 5, TK_EOF, "EOF");
   DO(test(src));
 }
 
@@ -551,13 +586,30 @@ TEST_F(LexerTest, TripleStringWithLeadingEmptyLineAndIndentedFirstLine)
 
 TEST_F(LexerTest, TripleStringWithNonLeadingEmptyLine)
 {
-  const char* src = "\"\"\"Foo\n\nbar\"\"\"";
+  const char* src = "\"\"\"\nFoo\n\nbar\"\"\"";
 
   expect(1, 1, TK_STRING, "Foo\n\nbar");
-  expect(3, 7, TK_EOF, "EOF");
+  expect(4, 7, TK_EOF, "EOF");
   DO(test(src));
 }
 
+TEST_F(LexerTest, TripleStringWithoutIndentWithTrailingWsLine)
+{
+  const char* src = "\"\"\"\nFoo\nbar\n  \t\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar\n");
+  expect(4, 7, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, TripleStringWithoutIndentWithTrailingWsAndNonWsLine)
+{
+  const char* src = "\"\"\"\nFoo\nbar  \"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar  ");
+  expect(3, 9, TK_EOF, "EOF");
+  DO(test(src));
+}
 
 TEST_F(LexerTest, TripleStringUnterminated)
 {
@@ -598,6 +650,71 @@ TEST_F(LexerTest, EmptyStringAtEndOfSource)
   DO(test(src));
 }
 
+// Character Literals
+
+TEST_F(LexerTest, SingleCharacterLiteral)
+{
+    const char* src = "'a'";
+
+    expect(1, 1, TK_INT, "97");
+    expect(1, 4, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, EscapeCharacterLiteral)
+{
+    const char* src = "'\\t'";
+
+    expect(1, 1, TK_INT, "9");
+    expect(1, 5, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, HexEscapeCharacterLiteral)
+{
+    const char* src = "'\\xFF'";
+
+    expect(1, 1, TK_INT, "255");
+    expect(1, 7, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, UTF8CharacterLiteral)
+{
+
+    const char* src = "'🎠'";
+
+    expect(1, 1, TK_INT, "4036988576"); // 0xF09F8EA0
+    expect(1, 7, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, MixedMultiCharacterLiteral)
+{
+    const char* src = "'\\x01A\\01'";
+
+    expect(1, 1, TK_INT, "21037105"); // 0x01410031
+    expect(1, 11, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, InvalidEscapeCharacterLiteral)
+{
+    const char* src = "'\\p'";
+
+    expect(1, 1, TK_INT, "0"); // ignored here
+    expect(1, 5, TK_EOF, "EOF");
+    DO(test(src));
+}
+
+TEST_F(LexerTest, EmptyCharacterLiteral)
+{
+  const char* src = "''";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
 
 // Symbols after errors
 

@@ -90,7 +90,7 @@ destdir ?= $(prefix)/lib/pony/$(tag)
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch) -mtune=$(tune) -L /usr/local/lib
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune)
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
@@ -610,7 +610,7 @@ define CONFIGURE_LINKER_WHOLE
 endef
 
 define CONFIGURE_LINKER
-  $(eval linkcmd := $(LINKER_FLAGS) -L $(lib))
+  $(eval linkcmd := $(LINKER_FLAGS) -L $(lib) -L /usr/local/lib )
   $(eval linker := $(CC))
   $(eval libs :=)
 

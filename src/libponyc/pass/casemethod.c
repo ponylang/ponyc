@@ -794,10 +794,10 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
     ast_free(call_t_args);
     BUILD(tmp, wrapper_body,
       NODE(TK_CALL,
+        NODE(TK_REFERENCE, ID(worker_name))
         TREE(call_args)
         NONE
-        TREE(wrapper_question)
-        NODE(TK_REFERENCE, ID(worker_name))));
+        TREE(wrapper_question)));
 
     wrapper_call = tmp;
   }
@@ -806,12 +806,12 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
     // Type args needed on call.
     BUILD(tmp, wrapper_body,
       NODE(TK_CALL,
-        TREE(call_args)
-        NONE
-        TREE(wrapper_question)
         NODE(TK_QUALIFY,
           NODE(TK_REFERENCE, ID(worker_name))
-          TREE(call_t_args))));
+          TREE(call_t_args))
+        TREE(call_args)
+        NONE
+        TREE(wrapper_question)));
 
     wrapper_call = tmp;
   }

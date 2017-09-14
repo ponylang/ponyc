@@ -65,9 +65,7 @@ use "logger"
 
 actor Main
   new create(env: Env) =>
-    let logger = Logger[U64](Fine,
-    env.out,
-    {(a: U64): String => a.string() })
+    let logger = Logger[U64](Fine, env.out, {(a) => a.string() })
 
     logger(Error) and logger.log(U64(42))
 ```

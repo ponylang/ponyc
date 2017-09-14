@@ -1,5 +1,6 @@
-use "ponytest"
 use "collections"
+use "ponytest"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -257,14 +258,12 @@ class iso _TestIterFind is UnitTest
     h.assert_error({() ? =>
       Iter[I64](input.values()).find({(x: I64): Bool => x == 0 })?
     })
-    let ltzero = {(x: I64): Bool => x < 0 }
-    h.assert_eq[I64](-4,
-      Iter[I64](input.values()).find(ltzero)?)
+    h.assert_eq[I64](-4, Iter[I64](input.values()).find({(x) => x < 0 })?)
     h.assert_error({() ? =>
-      Iter[I64](input.values()).find(ltzero, 2)?
+      Iter[I64](input.values()).find({(x) => x < 0 }, 2)?
     })
-    h.assert_eq[I64](5,
-      Iter[I64](input.values()).find({(x: I64): Bool => x > 0 }, 4)?)
+
+    h.assert_eq[I64](5, Iter[I64](input.values()).find({(x) => x > 0 }, 4)?)
 
 class iso _TestIterFlatMap is UnitTest
   fun name(): String => "itertools/Iter.flat_map"
@@ -297,13 +296,12 @@ class iso _TestIterFold is UnitTest
 
   fun apply(h: TestHelper) =>
     let ns = [as I64: 1; 2; 3; 4; 5; 6]
-    let sum = Iter[I64](ns.values())
-      .fold[I64](0, {(sum: I64, n: I64): I64 => sum + n })
+    let sum = Iter[I64](ns.values()).fold[I64](0, {(sum, n) => sum + n })
     h.assert_eq[I64](sum, 21)
 
     h.assert_error({() ? =>
       Iter[I64](ns.values())
-        .fold_partial[I64](0, {(acc: I64, x: I64): I64 ? => error })?
+        .fold_partial[I64](0, {(acc, x) ? => error })?
     })
 
 class iso _TestIterLast is UnitTest
@@ -333,8 +331,7 @@ class iso _TestIterMap is UnitTest
     let expected = ["ab"; "bb"; "cb"]
     let actual = Array[String]
 
-    let fn = {(x: String): String => x + "b" }
-    for x in Iter[String](input.values()).map[String](fn) do
+    for x in Iter[String](input.values()).map[String]({(x) => x + "b" }) do
       actual.push(x)
     end
 
@@ -367,7 +364,7 @@ class iso _TestIterRun is UnitTest
     let xs = [as I64: 1; 2; 3]
 
     Iter[I64](xs.values())
-      .map_stateful[None]({ref(x: I64) => actions(x.string()) = true })
+      .map_stateful[None]({(x) => actions(x.string()) = true })
       .run()
 
     Iter[I64](
@@ -400,16 +397,15 @@ class iso _TestIterSkipWhile is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_eq[I64](1,
-      Iter[I64](input.values())
-        .skip_while({(x: I64): Bool => x <= 0 }).next()?)
+      Iter[I64](input.values()).skip_while({(x) => x <= 0 }).next()?)
     h.assert_eq[I64](-1,
-      Iter[I64](input.values())
-        .skip_while({(x: I64): Bool => x < -2 }).next()?)
+      Iter[I64](input.values()).skip_while({(x) => x < -2 }).next()?)
 
 class iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"
 
   fun apply(h: TestHelper) =>
+    h.long_test(Nanos.from_seconds(10))
     let take: USize = 3
     let input = ["a"; "b"; "c"; "d"; "e"]
     let expected = ["a"; "b"; "c"]
@@ -421,25 +417,35 @@ class iso _TestIterTake is UnitTest
 
     h.assert_array_eq[String](expected, actual)
 
+    let infinite =
+      Iter[U64](
+        object ref
+          fun ref has_next(): Bool => true
+          fun ref next(): U64 => 0
+        end)
+
+    h.assert_eq[USize](3, infinite.take(3).collect(Array[U64]).size())
+    h.complete(true)
+
 class iso _TestIterTakeWhile is UnitTest
   fun name(): String => "itertools/Iter.take_while"
 
   fun apply(h: TestHelper) =>
     let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_array_eq[I64](
-      [as I64: -1; 0],
+      [-1; 0],
       Iter[I64](input.values())
-        .take_while({(x: I64): Bool => x < 1 })
+        .take_while({(x) => x < 1 })
         .collect(Array[I64]))
     h.assert_array_eq[I64](
       input,
       Iter[I64](input.values())
-        .take_while({(x: I64): Bool => x < 4 })
+        .take_while({(x) => x < 4 })
         .collect(Array[I64]))
     h.assert_array_eq[I64](
       Array[I64],
       Iter[I64](input.values())
-        .take_while({(x: I64): Bool ? => error })
+        .take_while({(x) ? => error })
         .collect(Array[I64]))
 
 class iso _TestIterZip is UnitTest
