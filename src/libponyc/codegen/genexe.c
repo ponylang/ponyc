@@ -330,6 +330,10 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
+  char* linker = vcvars.link;
+  if (c->opt->linker != NULL && strlen(c->opt->linker) > 0)
+    linker = c->opt->linker;
+
   while (true)
   {
     size_t num_written = snprintf(ld_cmd, ld_len,
@@ -339,7 +343,7 @@ static bool link_exe(compile_t* c, ast_t* program,
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
       "%s %s %s \"",
-      vcvars.link, file_exe, file_o, ucrt_lib, vcvars.kernel32,
+      linker, file_exe, file_o, ucrt_lib, vcvars.kernel32,
       vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 
