@@ -102,3 +102,39 @@ For code formatting guidelines please see [The Style Guide](https://github.com/p
 Standard Library File Naming
 ----------------
 For standard library file naming guidelines see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md#naming).
+
+Source Code Coverage of Ponyc
+----------------
+
+To get C code coverage information for test runs or for calling ponyc, call `make` with `use=coverage config=debug`. This works both for *clang* and *gcc*. Make sure to configure `CC` and `CXX` environment variables both to either `gcc` and `g++` or `clang` and `clang++`.
+
+### Using gcc and lcov
+
+* Compile ponyc with `use=coverage config=debug` and environment variables `CC=gcc CXX=g++`
+* Run ponyc or the test suite from `build/debug-coverage`
+* generate the html coverage report:
+
+  ```
+  # generate coverage report
+  lcov --directory .build/debug-coverage/obj –zerocounters
+  lcov --directory .build/debug-coverage/obj --capture --output-file ponyc.info
+  genhtml -o build/debug-coverage/coverage ponyc.info
+  ```
+* open the html report at `build/debug-coverage/coverage/index.html`
+
+### Using clang and llvm-cov
+
+* Compile ponyc with `use=coverage config=debug` and environment variables `CC=clang CXX=clang++`
+* Run ponyc or the test suite from `build/debug-coverage` with environment variable: `LLVM_PROFILE_FILE="build/debug-coverage/coverage.profraw"`
+* generate coverage data:
+
+  ```
+  llvm-profdata merge -sparse -output=build/debug-coverage/coverage.profdata build/debug-coverage/coverage.profraw
+  ```
+
+* show coverage data (only for `lexer.c` in this case):
+
+  ```
+  llvm-cov show ./build/debug-coverage/libponyc.tests -instr-profile=./build/debug-coverage/coverage.profdata src/libponyc/ast/lexer.c 
+  ```
+
