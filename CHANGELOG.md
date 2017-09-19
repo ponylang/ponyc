@@ -11,7 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
-
+- Added Array.swap_elements, Random.shuffle and extends Random with methods for generating all Integer types (RFC 46). ([PR #2128](https://github.com/ponylang/ponyc/pull/2128))
 
 ### Changed
 
