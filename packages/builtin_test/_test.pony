@@ -60,6 +60,7 @@ actor Main is TestList
     test(_TestArrayInsert)
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
+    test(_TestArraySwapElements)
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestAddc)
@@ -1279,6 +1280,43 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](0, b.find(c)?)
     h.assert_eq[USize](0, b.find(_FindTestCls where
       predicate = {(l, r) => l == r })?)
+
+class iso _TestArraySwapElements is UnitTest
+  """
+  Test swapping array elements
+  """
+
+  fun name(): String => "builtin/Array.swap_elements"
+
+  fun apply(h: TestHelper)? =>
+    let array = [as I32: 0; 1]
+    let expected = [as I32: 1; 0]
+    array.swap_elements(0, 1)?
+    h.assert_array_eq[I32](expected, array)
+
+    array.swap_elements(0, 0)?
+    h.assert_array_eq[I32](expected, array)
+
+    let singleton = [as I32: 42]
+    singleton.swap_elements(0, 0)?
+    h.assert_array_eq[I32]([as I32: 42], singleton)
+
+    _test_error_cases(h)
+
+  fun _test_error_cases(h: TestHelper) =>
+    h.assert_error({()? =>
+      Array[I32](0).swap_elements(0, 0)?
+    })
+    h.assert_error({()? =>
+      Array[I32](0).swap_elements(0, 1)?
+    })
+    h.assert_error({()? =>
+      Array[I32](0).swap_elements(1, 0)?
+    })
+    h.assert_error({()? =>
+      [as I32: 1; 2; 3].swap_elements(3, 4)?
+    })
+
 
 class iso _TestMath128 is UnitTest
   """

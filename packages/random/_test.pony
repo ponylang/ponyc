@@ -7,6 +7,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestMT)
+    test(_TestRandomShuffle)
 
 class iso _TestMT is UnitTest
   fun name(): String => "random/MT"
@@ -219,3 +220,22 @@ class iso _TestMT is UnitTest
     h.assert_eq[U64](mt.next(), 12977877641513765020)
     h.assert_eq[U64](mt.next(), 1395685694494152690)
     h.assert_eq[U64](mt.next(), 3117577794082200174)
+
+class iso _TestRandomShuffle is UnitTest
+  fun name(): String => "random/Random.shuffle"
+
+  fun apply(h: TestHelper) ? =>
+    let mt = MT
+    let words: Array[String] ref =
+      "a quick brown fox jumps over the lazy dog".split(" ")
+
+    mt.shuffle[String](words)
+    h.assert_eq[String](words(0)?, "fox")
+    h.assert_eq[String](words(1)?, "dog")
+    h.assert_eq[String](words(2)?, "the")
+    h.assert_eq[String](words(3)?, "quick")
+    h.assert_eq[String](words(4)?, "a")
+    h.assert_eq[String](words(5)?, "over")
+    h.assert_eq[String](words(6)?, "jumps")
+    h.assert_eq[String](words(7)?, "brown")
+    h.assert_eq[String](words(8)?, "lazy")
