@@ -50,6 +50,24 @@
 #  pragma warning(disable:4996)
 #endif
 
+
+static const char* simple_builtin =
+  "primitive Bool\n"
+  "  new create(a: Bool) => a\n"
+  "primitive U8 is Real[U8]\n"
+  "  new create(a: U8) => a\n"
+  "primitive U32 is Real[U32]\n"
+  "  new create(a: U32) => a\n"
+  "trait val Real[A: Real[A] val]\n"
+  "type Number is (U8 | U32)\n"
+  "primitive None\n"
+  "struct Pointer[A]\n"
+  "class val Env\n"
+  "  new _create(argc: U32, argv: Pointer[Pointer[U8]] val,\n"
+  "    envp: Pointer[Pointer[U8]] val)\n"
+  "  => None";
+
+
 // Per package state
 typedef struct package_t
 {
@@ -704,6 +722,10 @@ bool package_init(pass_opt_t* opt)
   }
 
   safe = full_safe;
+
+  if(opt->simple_builtin)
+    package_add_magic_src("builtin", simple_builtin);
+
   return true;
 }
 
