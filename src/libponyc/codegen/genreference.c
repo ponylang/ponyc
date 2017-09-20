@@ -63,9 +63,10 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   pony_assert(ast_id(l_type) == TK_NOMINAL);
   pony_assert(ast_id(right) == TK_ID);
 
-  ast_t* def = (ast_t*)ast_data(l_type);
-  ast_t* field = ast_get(def, ast_name(right), NULL);
-  int index = (int)ast_index(field);
+  ast_t* def;
+  ast_t* field;
+  uint32_t index;
+  get_fieldinfo(l_type, right, &def, &field, &index);
 
   if(ast_id(def) != TK_STRUCT)
     index++;
@@ -104,9 +105,14 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   field = LLVMBuildLoad(c->builder, field, "");
+
   LLVMValueRef metadata = tbaa_metadata_for_type(c, ast_type(left));
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, field);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   return gen_assign_cast(c, c_t->use_type, field, type);
 }

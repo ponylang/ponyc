@@ -222,6 +222,17 @@ void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node)
     cast<Function>(v)->setMetadata(str, n);
 }
 
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i, 
+  LLVMValueRef node)
+{
+  pony_assert(parent != NULL);
+  pony_assert(node != NULL);
+
+  MDNode *pn = extractMDNode(unwrap<MetadataAsValue>(parent));
+  MDNode *cn = extractMDNode(unwrap<MetadataAsValue>(node));
+  pn->replaceOperandWith(i, cn);
+}
+
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
 {
   Module* m = unwrap(module);

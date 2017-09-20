@@ -41,6 +41,8 @@ LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 bool LLVMHasMetadataStr(LLVMValueRef val, const char* str);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node);
 
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
