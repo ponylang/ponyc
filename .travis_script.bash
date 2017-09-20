@@ -24,7 +24,7 @@ verify-changelog(){
   cd pony-stable && git checkout tags/0.0.1 && make && sudo make install && cd -
 
   git clone "https://github.com/ponylang/changelog-tool"
-  cd changelog-tool && git checkout tags/0.1.4 && make && sudo make install && cd -
+  cd changelog-tool && git checkout tags/0.2.0 && make && sudo make install && cd -
 
   popd
 
