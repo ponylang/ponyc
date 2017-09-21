@@ -179,6 +179,7 @@ static void usage()
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
+    "  --checktree     Verify AST well-formedness.\n"
     "  --verify        Verify LLVM IR.\n"
     "  --extfun        Set function default linkage to external.\n"
     "  --simplebuiltin Use a minimal builtin package.\n"

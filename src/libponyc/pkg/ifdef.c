@@ -25,7 +25,9 @@ static void cond_normalise(ast_t** astp)
     {
       ast_setid(ast, TK_IFDEFAND);
 
-      AST_GET_CHILDREN(ast, left, right);
+      AST_GET_CHILDREN(ast, left, right, question);
+      pony_assert(ast_id(question) == TK_NONE);
+      ast_remove(question);
       cond_normalise(&left);
       cond_normalise(&right);
       break;
@@ -35,7 +37,9 @@ static void cond_normalise(ast_t** astp)
     {
       ast_setid(ast, TK_IFDEFOR);
 
-      AST_GET_CHILDREN(ast, left, right);
+      AST_GET_CHILDREN(ast, left, right, question);
+      pony_assert(ast_id(question) == TK_NONE);
+      ast_remove(question);
       cond_normalise(&left);
       cond_normalise(&right);
       break;
@@ -70,10 +74,8 @@ static void cond_normalise(ast_t** astp)
           NODE(TK_IFDEFOR,
             NODE(TK_IFDEFOR,
               NODE(TK_IFDEFFLAG, ID(OS_LINUX_NAME))
-              NODE(TK_IFDEFFLAG, ID(OS_MACOSX_NAME))
-              NODE(TK_NONE))
-            NODE(TK_IFDEFFLAG, ID(OS_BSD_NAME))
-            NODE(TK_NONE)));
+              NODE(TK_IFDEFFLAG, ID(OS_MACOSX_NAME)))
+            NODE(TK_IFDEFFLAG, ID(OS_BSD_NAME))));
         break;
       }
 

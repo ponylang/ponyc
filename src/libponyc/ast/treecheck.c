@@ -22,9 +22,16 @@ typedef enum
 
 typedef check_res_t (*check_fn_t)(ast_t* ast, errors_t* errors);
 
+typedef enum
+{
+  SCOPE_NO,
+  SCOPE_YES,
+  SCOPE_MAYBE
+} scope_kind_t;
+
 typedef struct check_state_t
 {
-  bool is_scope;
+  scope_kind_t scope;
   bool has_data;
   check_fn_t type;
   ast_t* child;
@@ -209,7 +216,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     return CHK_ERROR;
   }
 
-  if(ast_has_scope(ast) && !state->is_scope)
+  if(ast_has_scope(ast) && (state->scope == SCOPE_NO))
   {
     error_preamble(ast);
     fprintf(stderr, "unexpected scope\n");
@@ -221,7 +228,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     return CHK_ERROR;
   }
 
-  if(!ast_has_scope(ast) && state->is_scope)
+  if(!ast_has_scope(ast) && (state->scope == SCOPE_YES))
   {
     error_preamble(ast);
     fprintf(stderr, "expected scope not found\n");
@@ -265,7 +272,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   { \
     const token_id ids[] = { __VA_ARGS__, TK_EOF }; \
     if(!is_id_in_list(ast_id(ast), ids)) return CHK_NOT_FOUND; \
-    check_state_t state = {false, false, NULL, NULL, 0, errors}; \
+    check_state_t state = {SCOPE_NO, false, NULL, NULL, 0, errors}; \
     state.child = ast_child(ast); \
     def \
     return check_extras(ast, &state, errors); \
@@ -278,7 +285,8 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     return check_from_list(ast, rules, errors); \
   }
 
-#define IS_SCOPE state.is_scope = true;
+#define IS_SCOPE state.scope = SCOPE_YES;
+#define MAYBE_SCOPE state.scope = SCOPE_MAYBE;
 #define HAS_DATA state.has_data = true;
 #define HAS_TYPE(type_fn) state.type = type_fn;
 
@@ -295,6 +303,15 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 #define OPTIONAL(...)     CHILDREN(0, 1, __VA_ARGS__)
 #define ZERO_OR_MORE(...) CHILDREN(0, -1, __VA_ARGS__)
 #define ONE_OR_MORE(...)  CHILDREN(1, -1, __VA_ARGS__)
+
+#define IF(cond, body) \
+  if(cond) \
+  { \
+    body \
+  }
+
+#define CHILD_ID(index) \
+  ast_id(ast_childidx(ast, index))
 
 #include "treecheckdef.h"
 

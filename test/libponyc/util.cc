@@ -241,6 +241,7 @@ void PassTest::SetUp()
   package_clear_magic();
   package_suppress_build_message();
   opt.verbosity = VERBOSITY_QUIET;
+  opt.check_tree = true;
   last_pass = PASS_PARSE;
 }
 

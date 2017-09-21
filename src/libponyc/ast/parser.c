@@ -20,6 +20,7 @@ DECL(annotatedrawseq);
 DECL(annotatedseq);
 DECL(exprseq);
 DECL(nextexprseq);
+DECL(jump);
 DECL(assignment);
 DECL(term);
 DECL(infix);
@@ -68,6 +69,7 @@ DEF(provides);
 DEF(defaultarg);
   PRINT_INLINE();
   SCOPE();
+  AST_NODE(TK_SEQ);
   RULE("default value", infix);
   DONE();
 
@@ -723,6 +725,7 @@ DEF(iftype);
   RULE("type", type);
   SKIP(NULL, TK_THEN);
   RULE("then value", seq);
+  AST_NODE(TK_NONE);
   DONE();
 
 // ELSEIF [annotations] iftype [elseiftype | (ELSE seq)]
@@ -883,7 +886,7 @@ DEF(test_try_block);
   TERMINATE("try expression", TK_END);
   DONE();
 
-// RECOVER [annotations] [CAP] rawseq END
+// RECOVER [annotations] [CAP] seq END
 DEF(recover);
   PRINT_INLINE();
   TOKEN(NULL, TK_RECOVER);
@@ -1007,7 +1010,6 @@ DEF(test_binop);
   INFIX_BUILD();
   TOKEN("binary operator", TK_IFDEFAND, TK_IFDEFOR);
   RULE("value", term);
-  OPT TOKEN(NULL, TK_NONE);
   DONE();
 
 // term {binop | isop | asop}

@@ -1,9 +1,10 @@
 #include "array.h"
-#include "reference.h"
-#include "postfix.h"
 #include "call.h"
+#include "control.h"
+#include "literal.h"
+#include "postfix.h"
+#include "reference.h"
 #include "../ast/astbuild.h"
-#include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../pass/expr.h"
@@ -371,7 +372,8 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
     BUILD(recover, ast,
       NODE(TK_RECOVER,
         NODE(TK_ISO)
-        NODE(TK_SEQ, TREE(ast))));
+        NODE(TK_SEQ, AST_SCOPE
+          TREE(ast))));
 
     ast_replace(astp, recover);
 
@@ -506,17 +508,19 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   for(ast_t* ele = ast_child(elements); ele != NULL; ele = ast_sibling(ele))
   {
     BUILD(append_chain, ast, NODE(TK_CHAIN, TREE(*astp) ID("push")));
+    BUILD(ele_seq, ast, NODE(TK_SEQ, TREE(ele)));
 
     BUILD(append, ast,
       NODE(TK_CALL,
         TREE(append_chain)
-        NODE(TK_POSITIONALARGS, TREE(ele))
+        NODE(TK_POSITIONALARGS, TREE(ele_seq))
         NONE
         NONE));
 
     ast_replace(astp, append);
 
     if(!expr_chain(opt, &append_chain) ||
+      !expr_seq(opt, ele_seq) ||
       !expr_call(opt, &append)
       )
       return false;
