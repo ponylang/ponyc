@@ -337,7 +337,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   while (true)
   {
     size_t num_written = snprintf(ld_cmd, ld_len,
-      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
+      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 /ignore:4099 "
       "/OUT:%s "
       "%s %s "
       "/LIBPATH:\"%s\" "
