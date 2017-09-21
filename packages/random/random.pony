@@ -94,31 +94,31 @@ trait Random
 
   fun ref i8(): I8 =>
     """
-    A random integer in [-2^8, 2^8)
+    A random integer in [-2^7, 2^7)
     """
     u8().i8()
 
   fun ref i16(): I16 =>
     """
-    A random integer in [-2^16, 2^16)
+    A random integer in [-2^15, 2^15)
     """
     u16().i16()
 
   fun ref i32(): I32 =>
     """
-    A random integer in [-2^32, 2^32)
+    A random integer in [-2^31, 2^31)
     """
     u32().i32()
 
   fun ref i64(): I64 =>
     """
-    A random integer in [-2^64, 2^64)
+    A random integer in [-2^63, 2^63)
     """
     u64().i64()
 
   fun ref i128(): I128 =>
     """
-    A random integer in [-2^128, 2^128)
+    A random integer in [-2^127, 2^127)
     """
     u128().i128()
 
