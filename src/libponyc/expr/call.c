@@ -155,23 +155,27 @@ static bool apply_named_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
   return true;
 }
 
-static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
+static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 {
   // Pick up a default argument.
   AST_GET_CHILDREN(param, id, type, def_arg);
 
   if(ast_id(def_arg) == TK_NONE)
   {
-    ast_error(opt->check.errors, arg, "not enough arguments");
+    ast_error(opt->check.errors, *argp, "not enough arguments");
     ast_error_continue(opt->check.errors, param, "definition is here");
     return false;
   }
 
-  if(ast_id(def_arg) == TK_LOCATION)
+  pony_assert(ast_id(def_arg) == TK_SEQ);
+
+  if(ast_id(ast_child(def_arg)) == TK_LOCATION)
   {
     // Default argument is __loc. Expand call location.
+    ast_t* arg = *argp;
     ast_t* location = expand_location(arg);
     ast_add(arg, location);
+    ast_setid(arg, TK_SEQ);
 
     if(!ast_passes_subtree(&location, opt, PASS_EXPR))
       return false;
@@ -179,12 +183,10 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   else
   {
     // Just use default argument.
-    ast_add(arg, def_arg);
+    ast_replace(argp, def_arg);
   }
 
-  ast_setid(arg, TK_SEQ);
-
-  if(!expr_seq(opt, arg))
+  if(!expr_seq(opt, *argp))
     return false;
 
   return true;
@@ -209,7 +211,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
         continue;
       } else {
         // Pick up a default argument if we can.
-        if(!apply_default_arg(opt, param, arg))
+        if(!apply_default_arg(opt, param, &arg))
           return false;
       }
     }

@@ -385,6 +385,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   {
     ast_set_name(doc, "");
     ast_setid(doc, TK_NONE);
+    ast_settype(doc, NULL);
   }
 
   ast_t* local = ast_append(ast_childidx(entity, 4), basis_method);

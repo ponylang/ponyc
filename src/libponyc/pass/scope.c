@@ -203,7 +203,7 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_IFTYPE);
 
-  AST_GET_CHILDREN(ast, subtype, supertype);
+  AST_GET_CHILDREN(ast, subtype, supertype, body, typeparam_store);
 
   ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
 
@@ -284,7 +284,8 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   // We don't want the scope pass to run on typeparams. The compiler would think
   // that type parameters are declared twice.
   ast_pass_record(typeparams, PASS_SCOPE);
-  ast_append(ast, typeparams);
+  pony_assert(ast_id(typeparam_store) == TK_NONE);
+  ast_replace(&typeparam_store, typeparams);
   return AST_OK;
 }
 

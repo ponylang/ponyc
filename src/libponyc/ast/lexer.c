@@ -217,6 +217,8 @@ static const lextoken_t keywords[] =
   { "$ifdefnot", TK_IFDEFNOT },
   { "$flag", TK_IFDEFFLAG },
   { "$let", TK_MATCH_CAPTURE },
+  { "$dontcare", TK_MATCH_DONTCARE },
+  { "$iftype", TK_IFTYPE },
 
   { NULL, (token_id)0 }
 };

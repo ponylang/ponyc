@@ -349,7 +349,7 @@ def test(ctx):
 
     ctx(
         features = 'seq',
-        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' -d -s ../../packages/stdlib',
+        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' -d -s --checktree --verify ../../packages/stdlib',
         target   = stdlibTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )

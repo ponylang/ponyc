@@ -809,12 +809,12 @@ benchmark: all
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 
@@ -822,13 +822,13 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
