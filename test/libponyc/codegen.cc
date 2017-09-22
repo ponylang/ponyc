@@ -299,6 +299,23 @@ TEST_F(CodegenTest, UnionOfTuplesToTuple)
 }
 
 
+TEST_F(CodegenTest, ViewpointAdaptedFieldReach)
+{
+  // From issue #2238
+  const char* src =
+    "class A\n"
+    "class B\n"
+    "  var f: (A | None) = None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = B\n"
+    "    l.f = A";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(CodegenTest, CustomSerialization)
 {
   const char* src =
