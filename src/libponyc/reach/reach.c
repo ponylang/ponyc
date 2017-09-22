@@ -1302,6 +1302,9 @@ static void reachable_expr(reach_t* r, ast_t* ast, pass_opt_t* opt)
 
     case TK_LET:
     case TK_VAR:
+    case TK_FLETREF:
+    case TK_FVARREF:
+    case TK_EMBEDREF:
     case TK_TUPLE:
     {
       ast_t* type = ast_type(ast);
