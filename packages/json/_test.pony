@@ -28,12 +28,12 @@ actor Main is TestList
 
 class iso _TestParseBasic is UnitTest
   """
-  Test Json basic parsing, eg allowing whitespace.
+  Test JSON basic parsing, eg allowing whitespace.
   """
   fun name(): String => "JSON/parse.basic"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse("true")?
     h.assert_eq[Bool](true, doc.data as Bool)
@@ -41,18 +41,18 @@ class iso _TestParseBasic is UnitTest
     doc.parse(" true   ")?
     h.assert_eq[Bool](true, doc.data as Bool)
 
-    h.assert_error({() ? => JsonDoc.parse("")? })
-    h.assert_error({() ? => JsonDoc.parse("   ")? })
-    h.assert_error({() ? => JsonDoc.parse("true true")? })
+    h.assert_error({() ? => JSONDoc.parse("")? })
+    h.assert_error({() ? => JSONDoc.parse("   ")? })
+    h.assert_error({() ? => JSONDoc.parse("true true")? })
 
 class iso _TestParseKeyword is UnitTest
   """
-  Test Json parsing of keywords.
+  Test JSON parsing of keywords.
   """
   fun name(): String => "JSON/parse.keyword"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse("true")?
     h.assert_eq[Bool](true, doc.data as Bool)
@@ -63,19 +63,19 @@ class iso _TestParseKeyword is UnitTest
     doc.parse("null")?
     h.assert_eq[None](None, doc.data as None)
 
-    h.assert_error({() ? => JsonDoc.parse("tru e")? })
-    h.assert_error({() ? => JsonDoc.parse("truw")? })
-    h.assert_error({() ? => JsonDoc.parse("truez")? })
-    h.assert_error({() ? => JsonDoc.parse("TRUE")? })
+    h.assert_error({() ? => JSONDoc.parse("tru e")? })
+    h.assert_error({() ? => JSONDoc.parse("truw")? })
+    h.assert_error({() ? => JSONDoc.parse("truez")? })
+    h.assert_error({() ? => JSONDoc.parse("TRUE")? })
 
 class iso _TestParseNumber is UnitTest
   """
-  Test Json parsing of numbers.
+  Test JSON parsing of numbers.
   """
   fun name(): String => "JSON/parse.number"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse("0")?
     h.assert_eq[I64](0, doc.data as I64)
@@ -104,20 +104,20 @@ class iso _TestParseNumber is UnitTest
     doc.parse("1.23e3")?
     h.assert_eq[F64](1230, doc.data as F64)
 
-    h.assert_error({() ? => JsonDoc.parse("0x4")? })
-    h.assert_error({() ? => JsonDoc.parse("+1")? })
-    h.assert_error({() ? => JsonDoc.parse("1.")? })
-    h.assert_error({() ? => JsonDoc.parse("1.-3")? })
-    h.assert_error({() ? => JsonDoc.parse("1e")? })
+    h.assert_error({() ? => JSONDoc.parse("0x4")? })
+    h.assert_error({() ? => JSONDoc.parse("+1")? })
+    h.assert_error({() ? => JSONDoc.parse("1.")? })
+    h.assert_error({() ? => JSONDoc.parse("1.-3")? })
+    h.assert_error({() ? => JSONDoc.parse("1e")? })
 
 class iso _TestParseString is UnitTest
   """
-  Test Json parsing of strings.
+  Test JSON parsing of strings.
   """
   fun name(): String => "JSON/parse.string"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse(""""Foo"""")?
     h.assert_eq[String]("Foo", doc.data as String)
@@ -143,125 +143,125 @@ class iso _TestParseString is UnitTest
     doc.parse(""" "Foo\uD834\uDD1Ebar" """)?
     h.assert_eq[String]("Foo\U01D11Ebar", doc.data as String)
 
-    h.assert_error({() ? => JsonDoc.parse(""" "Foo """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "Foo\z" """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "\u" """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "\u37" """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "\u037g" """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "\uD834" """)? })
-    h.assert_error({() ? => JsonDoc.parse(""" "\uDD1E" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "Foo """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "Foo\z" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "\u" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "\u37" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "\u037g" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "\uD834" """)? })
+    h.assert_error({() ? => JSONDoc.parse(""" "\uDD1E" """)? })
 
 class iso _TestParseArray is UnitTest
   """
-  Test Json parsing of arrays.
+  Test JSON parsing of arrays.
   """
   fun name(): String => "JSON/parse.array"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse("[]")?
-    h.assert_eq[USize](0, (doc.data as JsonArray).data.size())
+    h.assert_eq[USize](0, (doc.data as JSONArray).data.size())
 
     doc.parse("[ ]")?
-    h.assert_eq[USize](0, (doc.data as JsonArray).data.size())
+    h.assert_eq[USize](0, (doc.data as JSONArray).data.size())
 
     doc.parse("[true]")?
-    h.assert_eq[USize](1, (doc.data as JsonArray).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonArray).data(0)? as Bool)
+    h.assert_eq[USize](1, (doc.data as JSONArray).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONArray).data(0)? as Bool)
 
     doc.parse("[ true ]")?
-    h.assert_eq[USize](1, (doc.data as JsonArray).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonArray).data(0)? as Bool)
+    h.assert_eq[USize](1, (doc.data as JSONArray).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONArray).data(0)? as Bool)
 
     doc.parse("[true, false]")?
-    h.assert_eq[USize](2, (doc.data as JsonArray).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonArray).data(0)? as Bool)
-    h.assert_eq[Bool](false, (doc.data as JsonArray).data(1)? as Bool)
+    h.assert_eq[USize](2, (doc.data as JSONArray).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONArray).data(0)? as Bool)
+    h.assert_eq[Bool](false, (doc.data as JSONArray).data(1)? as Bool)
 
     doc.parse("[true , 13,null]")?
-    h.assert_eq[USize](3, (doc.data as JsonArray).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonArray).data(0)? as Bool)
-    h.assert_eq[I64](13, (doc.data as JsonArray).data(1)? as I64)
-    h.assert_eq[None](None, (doc.data as JsonArray).data(2)? as None)
+    h.assert_eq[USize](3, (doc.data as JSONArray).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONArray).data(0)? as Bool)
+    h.assert_eq[I64](13, (doc.data as JSONArray).data(1)? as I64)
+    h.assert_eq[None](None, (doc.data as JSONArray).data(2)? as None)
 
     doc.parse("[true, [52, null]]")?
-    h.assert_eq[USize](2, (doc.data as JsonArray).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonArray).data(0)? as Bool)
+    h.assert_eq[USize](2, (doc.data as JSONArray).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONArray).data(0)? as Bool)
     h.assert_eq[USize](2,
-      ((doc.data as JsonArray).data(1)? as JsonArray).data.size())
+      ((doc.data as JSONArray).data(1)? as JSONArray).data.size())
     h.assert_eq[I64](52,
-      ((doc.data as JsonArray).data(1)? as JsonArray).data(0)? as I64)
+      ((doc.data as JSONArray).data(1)? as JSONArray).data(0)? as I64)
     h.assert_eq[None](None,
-      ((doc.data as JsonArray).data(1)? as JsonArray).data(1)? as None)
+      ((doc.data as JSONArray).data(1)? as JSONArray).data(1)? as None)
 
-    h.assert_error({() ? => JsonDoc.parse("[true true]")? })
-    h.assert_error({() ? => JsonDoc.parse("[,]")? })
-    h.assert_error({() ? => JsonDoc.parse("[true,]")? })
-    h.assert_error({() ? => JsonDoc.parse("[,true]")? })
-    h.assert_error({() ? => JsonDoc.parse("[")? })
-    h.assert_error({() ? => JsonDoc.parse("[true")? })
-    h.assert_error({() ? => JsonDoc.parse("[true,")? })
+    h.assert_error({() ? => JSONDoc.parse("[true true]")? })
+    h.assert_error({() ? => JSONDoc.parse("[,]")? })
+    h.assert_error({() ? => JSONDoc.parse("[true,]")? })
+    h.assert_error({() ? => JSONDoc.parse("[,true]")? })
+    h.assert_error({() ? => JSONDoc.parse("[")? })
+    h.assert_error({() ? => JSONDoc.parse("[true")? })
+    h.assert_error({() ? => JSONDoc.parse("[true,")? })
 
 class iso _TestParseObject is UnitTest
   """
-  Test Json parsing of objects.
+  Test JSON parsing of objects.
   """
   fun name(): String => "JSON/parse.object"
 
   fun apply(h: TestHelper) ? =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.parse("{}")?
-    h.assert_eq[USize](0, (doc.data as JsonObject).data.size())
+    h.assert_eq[USize](0, (doc.data as JSONObject).data.size())
 
     doc.parse("{ }")?
-    h.assert_eq[USize](0, (doc.data as JsonObject).data.size())
+    h.assert_eq[USize](0, (doc.data as JSONObject).data.size())
 
     doc.parse("""{"foo": true}""")?
-    h.assert_eq[USize](1, (doc.data as JsonObject).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonObject).data("foo")? as Bool)
+    h.assert_eq[USize](1, (doc.data as JSONObject).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONObject).data("foo")? as Bool)
 
     doc.parse("""{ "foo" :"true" }""")?
-    h.assert_eq[USize](1, (doc.data as JsonObject).data.size())
-    h.assert_eq[String]("true", (doc.data as JsonObject).data("foo")? as String)
+    h.assert_eq[USize](1, (doc.data as JSONObject).data.size())
+    h.assert_eq[String]("true", (doc.data as JSONObject).data("foo")? as String)
 
     doc.parse("""{"a": true, "b": false}""")?
-    h.assert_eq[USize](2, (doc.data as JsonObject).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonObject).data("a")? as Bool)
-    h.assert_eq[Bool](false, (doc.data as JsonObject).data("b")? as Bool)
+    h.assert_eq[USize](2, (doc.data as JSONObject).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONObject).data("a")? as Bool)
+    h.assert_eq[Bool](false, (doc.data as JSONObject).data("b")? as Bool)
 
     doc.parse("""{"a": true , "b": 13,"c":null}""")?
-    h.assert_eq[USize](3, (doc.data as JsonObject).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonObject).data("a")? as Bool)
-    h.assert_eq[I64](13, (doc.data as JsonObject).data("b")? as I64)
-    h.assert_eq[None](None, (doc.data as JsonObject).data("c")? as None)
+    h.assert_eq[USize](3, (doc.data as JSONObject).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONObject).data("a")? as Bool)
+    h.assert_eq[I64](13, (doc.data as JSONObject).data("b")? as I64)
+    h.assert_eq[None](None, (doc.data as JSONObject).data("c")? as None)
 
     doc.parse("""{"a": true, "b": {"c": 52, "d": null}}""")?
-    h.assert_eq[USize](2, (doc.data as JsonObject).data.size())
-    h.assert_eq[Bool](true, (doc.data as JsonObject).data("a")? as Bool)
+    h.assert_eq[USize](2, (doc.data as JSONObject).data.size())
+    h.assert_eq[Bool](true, (doc.data as JSONObject).data("a")? as Bool)
     h.assert_eq[USize](2,
-      ((doc.data as JsonObject).data("b")? as JsonObject).data.size())
+      ((doc.data as JSONObject).data("b")? as JSONObject).data.size())
     h.assert_eq[I64](52,
-      ((doc.data as JsonObject).data("b")? as JsonObject).data("c")? as I64)
+      ((doc.data as JSONObject).data("b")? as JSONObject).data("c")? as I64)
     h.assert_eq[None](None,
-      ((doc.data as JsonObject).data("b")? as JsonObject).data("d")? as None)
+      ((doc.data as JSONObject).data("b")? as JSONObject).data("d")? as None)
 
-    h.assert_error({() ? => JsonDoc.parse("""{"a": 1 "b": 2}""")? })
-    h.assert_error({() ? => JsonDoc.parse("{,}")? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a": true,}""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{,"a": true}""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a" """)? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a": """)? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a": true""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a": true,""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{"a" true}""")? })
-    h.assert_error({() ? => JsonDoc.parse("""{:true}""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a": 1 "b": 2}""")? })
+    h.assert_error({() ? => JSONDoc.parse("{,}")? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a": true,}""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{,"a": true}""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a" """)? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a": """)? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a": true""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a": true,""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{"a" true}""")? })
+    h.assert_error({() ? => JSONDoc.parse("""{:true}""")? })
 
 class iso _TestParseRFC1 is UnitTest
   """
-  Test Json parsing of first example from RFC7159.
+  Test JSON parsing of first example from RFC7159.
   """
   fun name(): String => "JSON/parse.rfc1"
 
@@ -284,14 +284,14 @@ class iso _TestParseRFC1 is UnitTest
       }
       """
 
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
     doc.parse(src)?
 
-    let obj1 = doc.data as JsonObject
+    let obj1 = doc.data as JSONObject
 
     h.assert_eq[USize](1, obj1.data.size())
 
-    let obj2 = obj1.data("Image")? as JsonObject
+    let obj2 = obj1.data("Image")? as JSONObject
 
     h.assert_eq[USize](6, obj2.data.size())
     h.assert_eq[I64](800, obj2.data("Width")? as I64)
@@ -299,7 +299,7 @@ class iso _TestParseRFC1 is UnitTest
     h.assert_eq[String]("View from 15th Floor", obj2.data("Title")? as String)
     h.assert_eq[Bool](false, obj2.data("Animated")? as Bool)
 
-    let obj3 = obj2.data("Thumbnail")? as JsonObject
+    let obj3 = obj2.data("Thumbnail")? as JSONObject
 
     h.assert_eq[USize](3, obj3.data.size())
     h.assert_eq[I64](100, obj3.data("Width")? as I64)
@@ -307,7 +307,7 @@ class iso _TestParseRFC1 is UnitTest
     h.assert_eq[String]("http://www.example.com/image/481989943",
       obj3.data("Url")? as String)
 
-    let array = obj2.data("IDs")? as JsonArray
+    let array = obj2.data("IDs")? as JSONArray
 
     h.assert_eq[USize](4, array.data.size())
     h.assert_eq[I64](116, array.data(0)? as I64)
@@ -317,7 +317,7 @@ class iso _TestParseRFC1 is UnitTest
 
 class iso _TestParseRFC2 is UnitTest
   """
-  Test Json parsing of second example from RFC7159.
+  Test JSON parsing of second example from RFC7159.
   """
   fun name(): String => "JSON/parse.rfc2"
 
@@ -348,14 +348,14 @@ class iso _TestParseRFC2 is UnitTest
       ]
       """
 
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
     doc.parse(src)?
 
-    let array = doc.data as JsonArray
+    let array = doc.data as JSONArray
 
     h.assert_eq[USize](2, array.data.size())
 
-    let obj1 = array.data(0)? as JsonObject
+    let obj1 = array.data(0)? as JSONObject
 
     h.assert_eq[USize](8, obj1.data.size())
     h.assert_eq[String]("zip", obj1.data("precision")? as String)
@@ -367,7 +367,7 @@ class iso _TestParseRFC2 is UnitTest
     h.assert_eq[String]("94107", obj1.data("Zip")? as String)
     h.assert_eq[String]("US", obj1.data("Country")? as String)
 
-    let obj2 = array.data(1)? as JsonObject
+    let obj2 = array.data(1)? as JSONObject
 
     h.assert_eq[USize](8, obj2.data.size())
     h.assert_eq[String]("zip", obj2.data("precision")? as String)
@@ -381,12 +381,12 @@ class iso _TestParseRFC2 is UnitTest
 
 class iso _TestPrintKeyword is UnitTest
   """
-  Test Json printing of keywords.
+  Test JSON printing of keywords.
   """
   fun name(): String => "JSON/print.keyword"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.data = true
     h.assert_eq[String]("true", doc.string())
@@ -399,12 +399,12 @@ class iso _TestPrintKeyword is UnitTest
 
 class iso _TestPrintNumber is UnitTest
   """
-  Test Json printing of numbers.
+  Test JSON printing of numbers.
   """
   fun name(): String => "JSON/print.number"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.data = I64(0)
     h.assert_eq[String]("0", doc.string())
@@ -429,12 +429,12 @@ class iso _TestPrintNumber is UnitTest
 
 class iso _TestPrintString is UnitTest
   """
-  Test Json printing of strings.
+  Test JSON printing of strings.
   """
   fun name(): String => "JSON/print.string"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
 
     doc.data = "Foo"
     h.assert_eq[String](""""Foo"""", doc.string())
@@ -459,13 +459,13 @@ class iso _TestPrintString is UnitTest
 
 class iso _TestPrintArray is UnitTest
   """
-  Test Json printing of arrays.
+  Test JSON printing of arrays.
   """
   fun name(): String => "JSON/print.array"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
-    let array: JsonArray = JsonArray
+    let doc: JSONDoc = JSONDoc
+    let array: JSONArray = JSONArray
 
     doc.data = array
     h.assert_eq[String]("[]", doc.string("  ", true))
@@ -487,7 +487,7 @@ class iso _TestPrintArray is UnitTest
 
     array.data.clear()
     array.data.push(true)
-    var nested: JsonArray = JsonArray
+    var nested: JSONArray = JSONArray
     nested.data.push(I64(52))
     nested.data.push(None)
     array.data.push(nested)
@@ -496,13 +496,13 @@ class iso _TestPrintArray is UnitTest
 
 class iso _TestNoPrettyPrintArray is UnitTest
   """
-  Test Json none-pretty printing of arrays.
+  Test JSON none-pretty printing of arrays.
   """
   fun name(): String => "JSON/nopprint.array"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
-    let array: JsonArray = JsonArray
+    let doc: JSONDoc = JSONDoc
+    let array: JSONArray = JSONArray
 
     doc.data = array
     h.assert_eq[String]("[]", doc.string())
@@ -524,7 +524,7 @@ class iso _TestNoPrettyPrintArray is UnitTest
 
     array.data.clear()
     array.data.push(true)
-    var nested: JsonArray = JsonArray
+    var nested: JSONArray = JSONArray
     nested.data.push(I64(52))
     nested.data.push(None)
     array.data.push(nested)
@@ -533,13 +533,13 @@ class iso _TestNoPrettyPrintArray is UnitTest
 
 class iso _TestPrintObject is UnitTest
   """
-  Test Json printing of objects.
+  Test JSON printing of objects.
   """
   fun name(): String => "JSON/print.object"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
-    let obj: JsonObject = JsonObject
+    let doc: JSONDoc = JSONDoc
+    let obj: JSONObject = JSONObject
 
     doc.data = obj
     h.assert_eq[String]("{}", doc.string("  ", true))
@@ -560,13 +560,13 @@ class iso _TestPrintObject is UnitTest
 
 class iso _TestNoPrettyPrintObject is UnitTest
   """
-  Test Json none-pretty printing of objects.
+  Test JSON none-pretty printing of objects.
   """
   fun name(): String => "JSON/nopprint.object"
 
   fun apply(h: TestHelper) =>
-    let doc: JsonDoc = JsonDoc
-    let obj: JsonObject = JsonObject
+    let doc: JSONDoc = JSONDoc
+    let obj: JSONObject = JSONObject
 
     doc.data = obj
     h.assert_eq[String]("{}", doc.string())
@@ -587,7 +587,7 @@ class iso _TestNoPrettyPrintObject is UnitTest
 
 class iso _TestParsePrint is UnitTest
   """
-  Test Json parsing a complex example and then reprinting it.
+  Test JSON parsing a complex example and then reprinting it.
   """
   fun name(): String => "JSON/parseprint"
 
@@ -623,7 +623,7 @@ class iso _TestParsePrint is UnitTest
         }
       ]"""
 
-    let doc: JsonDoc = JsonDoc
+    let doc: JSONDoc = JSONDoc
     doc.parse(src)?
     let printed = doc.string("  ", true)
 

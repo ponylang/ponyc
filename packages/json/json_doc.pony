@@ -1,12 +1,12 @@
 use "collections"
 use "format"
 
-class JsonDoc
+class JSONDoc
   """
   Top level JSON type containing an entire document.
   A JSON document consists of exactly 1 value.
   """
-  var data: JsonType
+  var data: JSONType
 
   // Internal state for parsing
   var _source: String = ""
@@ -27,7 +27,7 @@ class JsonDoc
     Generate string representation of this document.
     """
     let buf =
-      _JsonPrint._string(data, recover String(256) end, indent, 0,
+      _JSONPrint._string(data, recover String(256) end, indent, 0,
         pretty_print)
     buf.compact()
     buf
@@ -61,7 +61,7 @@ class JsonDoc
     """
     (_err_line, _err_msg)
 
-  fun ref _parse_value(context: String): JsonType ? =>
+  fun ref _parse_value(context: String): JSONType ? =>
     """
     Parse a single JSON value of any type, which MUST be present.
     Raise error on invalid or missing value.
@@ -176,7 +176,7 @@ class JsonDoc
 
     (value, digit_count)
 
-  fun ref _parse_object(): JsonObject ? =>
+  fun ref _parse_object(): JSONObject ? =>
     """
     Parse a JSON object, the leading { of which has already been peeked.
     """
@@ -186,10 +186,10 @@ class JsonDoc
     if _peek_char("object")? == '}' then
       // Empty object
       _get_char()? // Consume }
-      return JsonObject
+      return JSONObject
     end
 
-    let map = Map[String, JsonType]
+    let map = Map[String, JSONType]
 
     // Find elements in object
     while true do
@@ -217,9 +217,9 @@ class JsonDoc
       end
     end
 
-    JsonObject.from_map(map)
+    JSONObject.from_map(map)
 
-  fun ref _parse_array(): JsonArray ? =>
+  fun ref _parse_array(): JSONArray ? =>
     """
     Parse an array, the leading [ of which has already been peeked.
     """
@@ -229,10 +229,10 @@ class JsonDoc
     if _peek_char("array")? == ']' then
       // Empty array
       _get_char()? // Consume ]
-      return JsonArray
+      return JSONArray
     end
 
-    let array = Array[JsonType]
+    let array = Array[JSONType]
 
     // Find elements in array
     while true do
@@ -250,7 +250,7 @@ class JsonDoc
       end
     end
 
-    JsonArray.from_array(array)
+    JSONArray.from_array(array)
 
   fun ref _parse_string(context: String): String ? =>
     """
