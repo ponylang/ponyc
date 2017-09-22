@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix codegen failure on field access ([PR #2244](https://github.com/ponylang/ponyc/pull/2244))
 - Make Windows link step use the command-line `--linker` value if present. ([PR #2231](https://github.com/ponylang/ponyc/pull/2231))
 
 
