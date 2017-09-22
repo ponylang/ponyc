@@ -782,7 +782,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
 
   LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
-    LLVMConstInt(c->intptr, 0, false), "");
+    LLVMConstInt(c->intptr, PONY_TRACE_OPAQUE, false), "");
   LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, trace_block);
@@ -1048,7 +1048,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
 
   LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
-    LLVMConstInt(c->intptr, 0, false), "");
+    LLVMConstInt(c->intptr, PONY_TRACE_OPAQUE, false), "");
   LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, trace_block);
