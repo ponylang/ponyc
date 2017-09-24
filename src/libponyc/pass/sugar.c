@@ -1165,7 +1165,7 @@ static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   pony_assert(ast != NULL);
 
-  if(ast_id(ast_parent(ast)) == TK_PARAM)
+  if(ast_id(ast_parent(ast_parent(ast))) == TK_PARAM)
     // Location is a default argument, do not expand yet.
     return AST_OK;
 

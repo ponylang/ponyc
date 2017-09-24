@@ -25,4 +25,4 @@ The Pony community while small is helpful and inviting. We think you'll find int
 [IRC]: https://webchat.freenode.net/?channels=%23ponylang
 [FAQ]: https://www.ponylang.org/faq/
 [issues]: https://github.com/ponylang/ponyc/issues
-[webiste community section]: https://www.ponylang.org/community/
+[website community section]: https://www.ponylang.org/community/

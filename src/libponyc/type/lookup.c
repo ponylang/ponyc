@@ -66,16 +66,19 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
             if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
             {
-              ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
+              ast_t* child = ast_child(def_arg);
+
+              if(ast_id(child) == TK_CALL)
+                ast_settype(child, ast_from(child, TK_INFERTYPE));
 
               if(ast_visit_scope(&param, pass_pre_expr, pass_expr, opt,
                 PASS_EXPR) != AST_OK)
-                return false;
+                return NULL;
 
               def_arg = ast_childidx(param, 2);
 
               if(!coerce_literals(&def_arg, type, opt))
-                return false;
+                return NULL;
             }
 
             param = ast_sibling(param);

@@ -53,11 +53,12 @@ enum
   OPT_VERIFY,
   OPT_FILENAMES,
   OPT_CHECKTREE,
+  OPT_EXTFUN,
+  OPT_SIMPLEBUILTIN,
 
   OPT_BNF,
   OPT_ANTLR,
-  OPT_ANTLRRAW,
-  OPT_EXTFUN
+  OPT_ANTLRRAW
 };
 
 static opt_arg_t args[] =
@@ -94,11 +95,12 @@ static opt_arg_t args[] =
   {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
+  {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
+  {"simplebuiltin", '\0', OPT_ARG_NONE, OPT_SIMPLEBUILTIN},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
-  {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   OPT_ARGS_FINISH
 };
 
@@ -177,8 +179,10 @@ static void usage()
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
+    "  --checktree     Verify AST well-formedness.\n"
     "  --verify        Verify LLVM IR.\n"
     "  --extfun        Set function default linkage to external.\n"
+    "  --simplebuiltin Use a minimal builtin package.\n"
     "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
@@ -334,6 +338,7 @@ int main(int argc, char* argv[])
       case OPT_IMMERR: errors_set_immediate(opt.check.errors, true); break;
       case OPT_VERIFY: opt.verify = true; break;
       case OPT_EXTFUN: opt.extfun = true; break;
+      case OPT_SIMPLEBUILTIN: opt.simple_builtin = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
       case OPT_CHECKTREE: opt.check_tree = true; break;
 

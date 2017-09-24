@@ -122,6 +122,25 @@ ifdef use
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
 
+  ifneq (,$(filter $(use), coverage))
+    ifneq (,$(shell $(CC) -v 2>&1 | grep clang))
+      # clang
+      COVERAGE_FLAGS = -O0 -fprofile-instr-generate -fcoverage-mapping
+      LINKER_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    else
+      ifneq (,$(shell $(CC) -v 2>&1 | grep "gcc version"))
+        # gcc
+        COVERAGE_FLAGS = -O0 -fprofile-arcs -ftest-coverage
+        LINKER_FLAGS += -fprofile-arcs
+      else
+        $(error coverage not supported for this compiler/platform)
+      endif
+      ALL_CFLAGS += $(COVERAGE_FLAGS)
+      ALL_CXXFLAGS += $(COVERAGE_FLAGS)
+    endif
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-coverage
+  endif
+
   ifneq (,$(filter $(use), pooltrack))
     ALL_CFLAGS += -DUSE_POOLTRACK
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
@@ -790,12 +809,12 @@ benchmark: all
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 
@@ -803,13 +822,13 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@$(PONY_BUILD_DIR)/ponyc --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
@@ -907,6 +926,7 @@ help:
 	@echo '   pooltrack'
 	@echo '   dtrace'
 	@echo '   actor_continuations'
+	@echo '   coverage'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

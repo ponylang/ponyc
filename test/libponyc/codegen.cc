@@ -299,6 +299,51 @@ TEST_F(CodegenTest, UnionOfTuplesToTuple)
 }
 
 
+TEST_F(CodegenTest, ViewpointAdaptedFieldReach)
+{
+  // From issue #2238
+  const char* src =
+    "class A\n"
+    "class B\n"
+    "  var f: (A | None) = None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = B\n"
+    "    l.f = A";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(CodegenTest, StringSerialization)
+{
+  // From issue 2245
+  const char* src =
+    "use \"serialise\"\n"
+
+    "class V\n"
+    "  let _v: String = \"\"\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try\n"
+    "      let auth = env.root as AmbientAuth\n"
+    "      let v: V = V\n"
+    "      Serialised(SerialiseAuth(auth), v)?\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  set_builtin(NULL);
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(CodegenTest, CustomSerialization)
 {
   const char* src =

@@ -2,6 +2,18 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.19.2] - 2017-09-24
+
+### Fixed
+
+- Fix codegen failure on field access ([PR #2244](https://github.com/ponylang/ponyc/pull/2244))
+- Make Windows link step use the command-line `--linker` value if present. ([PR #2231](https://github.com/ponylang/ponyc/pull/2231))
+- Fix empty string serialisation ([PR #2247](https://github.com/ponylang/ponyc/pull/2247))
+
+### Added
+
+- Added Array.swap_elements, Random.shuffle and extends Random with methods for generating all Integer types (RFC 46). ([PR #2128](https://github.com/ponylang/ponyc/pull/2128))
+
 ## [0.19.1] - 2017-09-14
 
 ### Fixed
@@ -915,6 +927,4 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
-an error is raised.
 

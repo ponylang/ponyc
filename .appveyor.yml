@@ -37,7 +37,7 @@ skip_commits:
 
 clone_folder: C:\projects\ponyc
 
-install:
+build_script:
   - ps: |
       $package_commit = git rev-parse --short --verify "HEAD^{commit}"
       $package_version = (Get-Content "VERSION")
@@ -80,11 +80,6 @@ deploy:
         configuration: release
     publish: true
 
-build:
-  none
-
 test_script:
-  - ps: |
-      cd C:\projects\ponyc
-      python -x waf test --config $env:configuration --llvm $env:llvm
-
+  - cd C:\projects\ponyc
+  - python -x waf test --config %configuration% --llvm %llvm%
