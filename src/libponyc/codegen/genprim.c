@@ -1044,15 +1044,6 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
 
   LLVMValueRef size = field_value(c, object, 1);
 
-  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
-    LLVMConstInt(c->intptr, 0, false), "");
-  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, trace_block);
-
   LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
     LLVMConstInt(c->intptr, 1, false), "");
 
@@ -1064,10 +1055,6 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   args[1] = ptr;
   args[2] = alloc;
   gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
-
-  LLVMBuildBr(c->builder, post_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
