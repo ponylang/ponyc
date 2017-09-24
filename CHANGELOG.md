@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.19.2] - 2017-09-24
 
 ### Fixed
 
@@ -13,10 +13,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Added Array.swap_elements, Random.shuffle and extends Random with methods for generating all Integer types (RFC 46). ([PR #2128](https://github.com/ponylang/ponyc/pull/2128))
-
-### Changed
-
-
 
 ## [0.19.1] - 2017-09-14
 
