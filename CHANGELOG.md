@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix implicit fallthrough in array inference. ([PR #2251](https://github.com/ponylang/ponyc/pull/2251))
 
 ### Added
 
