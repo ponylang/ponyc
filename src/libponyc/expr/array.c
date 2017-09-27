@@ -150,6 +150,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
 
       // Note this as a possible element type and move on.
       *list = astlist_push(*list, elem_type);
+      return;
     }
 
     case TK_ARROW:
@@ -189,8 +190,8 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
       if(stringtab("Iterator") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
-        return;
       }
+      return;
     }
 
     case TK_ARROW:
