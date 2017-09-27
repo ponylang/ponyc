@@ -2363,6 +2363,86 @@ TEST_F(SugarTest, CaseFunctionDefaultTypeParamClash)
   TEST_ERROR(short_form);
 }
 
+TEST_F(SugarTest, CaseFunctionDocStringMergeSingleStringBody)
+{
+    const char* short_form =
+        "class Foo\n"
+        "  var create: U32\n"
+        "  fun name(a: U64): String => \"dunno\"\n"
+        "  fun name(1): String => \"John Doe\"\n";
+    const char* full_form =
+        "use \"builtin\"\n"
+        "class ref Foo\n"
+        "  var create: U32\n"
+        "  fun box name(a: U64): (None|String|String) =>\n"
+        "    $1(consume a)\n"
+        "  fun box $1($2: U64): (None|String|String) =>\n"
+        "    match consume $2\n"
+        "    | $let a: U64 => \"dunno\"\n"
+        "    | 1 => \"John Doe\"\n"
+        "    end";
+    TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, CaseFunctionDocStringMerge)
+{
+    const char* short_form =
+        "class Foo\n"
+        "  var create: U32\n"
+        "  fun with_docstring(0): U64 =>\n"
+        "    \"\"\"\n"
+        "    exit case\n"
+        "    \"\"\"\n"
+        "    0\n"
+        "  fun with_docstring(a : U64): U64 if a > 1 =>\n"
+        "    \"\"\"\n"
+        "    bigger than one\n"
+        "    \"\"\"\n"
+        "    a-1\n"
+        "  fun with_docstring(_): U64 =>\n"
+        "    \"\"\"\n"
+        "    dont care\n"
+        "    \"\"\"\n"
+        "    1\n";
+    TEST_COMPILE(short_form);
+    ast_t* m = module;
+    AST_GET_CHILDREN(m, use_decls, type_decls);
+
+    ast_t* foo_ast = type_decls;
+    ASSERT_TRUE(foo_ast != NULL);
+    ASSERT_EQ(ast_id(foo_ast), TK_CLASS);
+    AST_GET_CHILDREN(foo_ast, id, type_params, cap, provides, members);
+
+    ASSERT_TRUE(members != NULL);
+
+    AST_GET_CHILDREN(members, fields, methods);
+
+    ast_t* method = methods;
+    const char* method_name = "with_docstring";
+    while (method != NULL)
+    {
+      ast_t* child = ast_childidx(method, 1);
+
+      if (strncmp(ast_name(child), method_name, ast_name_len(child)) == 0)
+        break;
+      method = ast_sibling(method);
+    }
+
+    ASSERT_TRUE(method != NULL);
+    AST_GET_CHILDREN(method, mcap, mid, mtype_params, mparams, mreturn_type,
+      merror, mbody, mdocstring);
+    ASSERT_STREQ(
+      ast_get_print(mdocstring),
+      "`with_docstring(0): U64`: exit case\n"
+      "\n"
+      "\n"
+      "`with_docstring(a: U64): U64`: bigger than one\n"
+      "\n"
+      "\n"
+      "`with_docstring(_): U64`: dont care\n");
+}
+
 
 TEST_F(SugarTest, AsOperatorWithLambdaType)
 {
