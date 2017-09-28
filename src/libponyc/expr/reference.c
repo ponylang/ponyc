@@ -52,7 +52,7 @@ static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
 
 static bool is_legal_dontcare_read(ast_t* ast)
 {
-  // We either are the LHS of an assignment or a tuple element. That tuple must
+  // We either are the LHS of an assignment, a case expr or a tuple element. That tuple must
   // either be a pattern or the LHS of an assignment. It can be embedded in
   // other tuples, which may appear in sequences.
 
@@ -70,7 +70,16 @@ static bool is_legal_dontcare_read(ast_t* ast)
         return true;
       return false;
     }
-
+    case TK_CASE:
+    {
+      // we have a single `_` as case pattern
+      // which is actually forbidden in favor for the else clause
+      // but it is referentially legal
+      AST_GET_CHILDREN(parent, case_pattern);
+      if(case_pattern == ast)
+        return true;
+      return false;
+    }
     case TK_TUPLE:
     {
       ast_t* grandparent = ast_parent(parent);

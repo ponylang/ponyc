@@ -265,7 +265,15 @@ static ast_t* process_params(ast_t* match_params, ast_t* case_params,
   {
     AST_GET_CHILDREN(case_param, id, type, def_arg);
 
-    if(ast_id(type) != TK_NONE)
+    if ((ast_childcount(case_params) == 1)
+        && (ast_id(id) == TK_REFERENCE)
+        && (is_name_dontcare(ast_name(ast_child(id)))))
+    {
+      ast_error(opt->check.errors, case_param,
+        "can't have '_' as single parameter in a case method");
+      ok = false;
+    }
+    else if(ast_id(type) != TK_NONE)
     {
       // We have a parameter.
       if(!param_with_type(case_param, match_param, pattern, opt))
@@ -763,6 +771,8 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
       // This method is in the case set.
       ast_t* case_ast = add_case_method(wrapper, p, opt);
 
+      ast_setid(p, TK_NONE);  // Mark for removal, even in case of errors.
+
       if(case_ast == NULL)
       {
         ast_free(wrapper);
@@ -771,7 +781,6 @@ static bool sugar_case_method(ast_t* first_case_method, ast_t* members,
       }
 
       ast_append(match_cases, case_ast);
-      ast_setid(p, TK_NONE);  // Mark for removal.
     }
   }
 
