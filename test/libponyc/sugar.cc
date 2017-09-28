@@ -2395,12 +2395,12 @@ TEST_F(SugarTest, CaseFunctionDocStringMerge)
         "    exit case\n"
         "    \"\"\"\n"
         "    0\n"
-        "  fun with_docstring(a : U64): U64 if a > 1 =>\n"
+        "  fun with_docstring(a : U64): U64 if a > 4 =>\n"
         "    \"\"\"\n"
-        "    bigger than one\n"
+        "    bigger than four\n"
         "    \"\"\"\n"
         "    a-1\n"
-        "  fun with_docstring(_): U64 =>\n"
+        "  fun with_docstring(2): U64 =>\n"
         "    \"\"\"\n"
         "    dont care\n"
         "    \"\"\"\n"
@@ -2437,10 +2437,10 @@ TEST_F(SugarTest, CaseFunctionDocStringMerge)
       "`with_docstring(0): U64`: exit case\n"
       "\n"
       "\n"
-      "`with_docstring(a: U64): U64`: bigger than one\n"
+      "`with_docstring(a: U64): U64`: bigger than four\n"
       "\n"
       "\n"
-      "`with_docstring(_): U64`: dont care\n");
+      "`with_docstring(2): U64`: dont care\n");
 }
 
 

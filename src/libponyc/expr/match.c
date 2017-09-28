@@ -107,6 +107,11 @@ static bool is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type, ast_t* cases)
     AST_GET_CHILDREN(c, case_expr, guard, case_body);
     ast_t* pattern_type = ast_type(c);
 
+    // if any case is a `_` we have an exhaustive match
+    // and we can shortcut here
+    if(ast_id(case_expr) == TK_DONTCAREREF)
+      return true;
+
     // Only cases with no guard clause can count toward exhaustive match,
     // because the truth of a guard clause can't be statically evaluated.
     // So, for the purposes of exhaustive match, we ignore those cases.
@@ -429,6 +434,13 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   {
     ast_error(opt->check.errors, ast,
       "can't have a case with no conditions, use an else clause");
+    return false;
+  }
+
+  if((ast_id(pattern) == TK_DONTCAREREF))
+  {
+    ast_error(opt->check.errors, pattern,
+      "can't have a case with `_` only, use an else clause");
     return false;
   }
 
