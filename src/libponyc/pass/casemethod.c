@@ -562,16 +562,17 @@ static void print_params(ast_t* params, printbuf_t* buf)
 
     switch (ast_id(param_id))
     {
-
       case TK_ID:
       case TK_STRING:
         printbuf(buf, ast_name(param_id));
         printbuf(buf, ": ");
         printbuf(buf, ast_print_type(param_type));
         break;
+
       case TK_REFERENCE:
         printbuf(buf, ast_name(ast_child(param_id)));
         break;
+
       default:
         printbuf(buf, ast_get_print(param_id));
         break;
