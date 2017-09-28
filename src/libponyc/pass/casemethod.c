@@ -537,7 +537,9 @@ static ast_t* get_docstring(ast_t* body, ast_t* doc)
   if (body != NULL && ast_id(body) == TK_SEQ)
   {
     ast_t* first = ast_child(body);
-    if (first != NULL && ast_id(first) == TK_STRING)
+    if ((first != NULL) &&
+        (ast_id(first) == TK_STRING) &&
+        (ast_sibling(first) != NULL))
       return first;
   }
 
@@ -558,9 +560,23 @@ static void print_params(ast_t* params, printbuf_t* buf)
 
     AST_GET_CHILDREN(param, param_id, param_type);
 
-    printbuf(buf, ast_name(param_id));
-    printbuf(buf, ": ");
-    printbuf(buf, ast_print_type(param_type));
+    switch (ast_id(param_id))
+    {
+      case TK_ID:
+      case TK_STRING:
+        printbuf(buf, ast_name(param_id));
+        printbuf(buf, ": ");
+        printbuf(buf, ast_print_type(param_type));
+        break;
+
+      case TK_REFERENCE:
+        printbuf(buf, ast_name(ast_child(param_id)));
+        break;
+
+      default:
+        printbuf(buf, ast_get_print(param_id));
+        break;
+    }
 
     param = ast_sibling(param);
   }
@@ -697,7 +713,7 @@ static ast_t* add_case_method(ast_t* match_method, ast_t* case_method,
   if (match_docstring != NULL && ast_id(match_docstring) == TK_STRING
       && case_docstring != NULL && ast_id(case_docstring) == TK_STRING)
   {
-    add_docstring(case_id, match_docstring, case_docstring, case_params, 
+    add_docstring(case_id, match_docstring, case_docstring, case_params,
       case_ret_type);
   }
 
