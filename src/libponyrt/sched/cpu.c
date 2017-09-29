@@ -314,6 +314,11 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
       // If it has been 1 billion cycles, pause 1 ms.
       ts.tv_nsec = 1000000;
     }
+    else
+    {
+      // Otherwise, pause for 100 microseconds
+      ts.tv_nsec = 100000;
+    }
   }
 
   DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
