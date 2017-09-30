@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "mutemap.h"
 
-#define PONY_SCHED_BATCH 2
+#define PONY_SCHED_BATCH 100
 
 static DECLARE_THREAD_FN(run_thread);
 

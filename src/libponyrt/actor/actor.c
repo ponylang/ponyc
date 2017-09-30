@@ -215,15 +215,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
       if(app == batch) {
         if(!has_flag(actor, FLAG_OVERLOADED)) {
-          printf("overloaded\n");
+          printf("overloaded %p\n", actor);
           ponyint_actor_setoverloaded(actor);
+        } else {
+          printf("already overloaded\n");
         }
         return !has_flag(actor, FLAG_UNSCHEDULED);
       }
-    }
 
-    if(actor->muted > 0)
-      break;
+      if(!has_flag(actor, FLAG_OVERLOADED) && (actor->muted > 0))
+        break;
+    }
 
     // Stop handling a batch if we reach the head we found when we were
     // scheduled.
@@ -236,9 +238,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   pony_assert(app < batch);
 
   if(has_flag(actor, FLAG_OVERLOADED)) {
-    printf("clearing an overload\n");
+    printf("clearing an overload %p\n", actor);
     unset_flag(actor, FLAG_OVERLOADED);
-
     ponyint_sched_unmute(ctx, actor, true);
   }
 
@@ -494,14 +495,6 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
   {
     if(m->id <= ACTORMSG_APPLICATION_START)
     {
-      if (has_flag(to, FLAG_OVERLOADED))
-        printf("sending to an overloaded\n");
-      else if (to->muted > 0)
-        printf("sending to a muted\n");
-
-      if (has_flag(ctx->current, FLAG_OVERLOADED))
-        printf("overloaded sending\n");
-
       if(!has_flag(ctx->current, FLAG_OVERLOADED) &&
         (has_flag(to, FLAG_OVERLOADED) || to->muted > 0))
       {
