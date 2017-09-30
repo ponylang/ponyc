@@ -2,6 +2,7 @@
 #include "mutemap.h"
 #include "ds/fun.h"
 #include "mem/pool.h"
+#include "ponyassert.h"
 
 static size_t muteset_hash(pony_actor_t* actor)
 {
@@ -14,8 +15,7 @@ static bool muteset_cmp(pony_actor_t* a, pony_actor_t* b)
 }
 
 DEFINE_HASHMAP(ponyint_muteset, muteset_t, pony_actor_t, muteset_hash,
-  muteset_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  NULL);
+  muteset_cmp, NULL);
 
 static size_t muteref_hash(muteref_t* mref)
 {
@@ -43,5 +43,4 @@ static void muteref_free(muteref_t* mref)
 }
 
 DEFINE_HASHMAP(ponyint_mutemap, mutemap_t, muteref_t, muteref_hash,
-  muteref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  muteref_free);
+  muteref_cmp, muteref_free);

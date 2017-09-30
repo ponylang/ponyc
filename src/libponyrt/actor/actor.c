@@ -213,9 +213,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
-      if(app == batch)
+      if(app == batch) {
+        if(!has_flag(actor, FLAG_OVERLOADED)) {
+          printf("overloaded\n");
+          ponyint_actor_setoverloaded(actor);
+        }
         return !has_flag(actor, FLAG_UNSCHEDULED);
+      }
     }
+
+    if(actor->muted > 0)
+      break;
 
     // Stop handling a batch if we reach the head we found when we were
     // scheduled.
@@ -226,6 +234,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
+
+  if(has_flag(actor, FLAG_OVERLOADED)) {
+    printf("clearing an overload\n");
+    unset_flag(actor, FLAG_OVERLOADED);
+
+    ponyint_sched_unmute(ctx, actor, true);
+  }
+
   try_gc(ctx, actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
@@ -237,7 +253,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   // If we have processed any application level messages, defer blocking.
   if(app > 0)
-    return true;
+    return true && !(actor->muted > 0);
 
   // Tell the cycle detector we are blocking. We may not actually block if a
   // message is received between now and when we try to mark our queue as
@@ -265,7 +281,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // Return true (i.e. reschedule immediately) if our queue isn't empty.
-  return !empty;
+  return !empty && !(actor->muted > 0);
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor)
@@ -431,9 +447,11 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
+  // what if more than 1?
+  maybe_mute(ctx, to, first);
   if(ponyint_messageq_push(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !(to->muted > 0))
       ponyint_sched_add(ctx, to);
   }
 }
@@ -461,10 +479,37 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
+  // what if more than 1?
+  maybe_mute(ctx, to, first);
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !(to->muted > 0))
       ponyint_sched_add(ctx, to);
+  }
+}
+
+void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
+{
+  if(ctx->current != NULL)
+  {
+    if(m->id <= ACTORMSG_APPLICATION_START)
+    {
+      if (has_flag(to, FLAG_OVERLOADED))
+        printf("sending to an overloaded\n");
+      else if (to->muted > 0)
+        printf("sending to a muted\n");
+
+      if (has_flag(ctx->current, FLAG_OVERLOADED))
+        printf("overloaded sending\n");
+
+      if(!has_flag(ctx->current, FLAG_OVERLOADED) &&
+        (has_flag(to, FLAG_OVERLOADED) || to->muted > 0))
+      {
+        printf("muting\n");
+        ponyint_sched_mute(ctx, ctx->current, to);
+        // should we lower batch size for sender?
+      }
+    }
   }
 }
 

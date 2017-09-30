@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "mutemap.h"
 
-#define PONY_SCHED_BATCH 100
+#define PONY_SCHED_BATCH 2
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -505,7 +505,7 @@ PONY_API pony_ctx_t* pony_ctx()
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
 {
   scheduler_t* sched = ctx->scheduler;
-  size_t index;
+  size_t index = HASHMAP_UNKNOWN;
   muteref_t key;
   key.key = recv;
 
@@ -516,7 +516,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     ponyint_mutemap_putindex(&sched->mute_mapping, mref, index);
   }
 
-  size_t index2;
+  size_t index2 = HASHMAP_UNKNOWN;
   pony_actor_t* r = ponyint_muteset_get(&mref->value, sender, &index2);
   if(r == NULL)
   {
