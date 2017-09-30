@@ -311,26 +311,6 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-      } else if(ponyint_is_cycle(actor)) {
-        // If all we have is the cycle detector, try to steal something else to
-        // run as well.
-        next = steal(sched, actor);
-
-        if(next == NULL)
-        {
-          // Termination.
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          return;
-        }
-
-        // Push the cycle detector and run the actor we stole.
-        if(actor != next)
-        {
-          push(sched, actor);
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          actor = next;
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-        }
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
