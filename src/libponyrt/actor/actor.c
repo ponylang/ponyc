@@ -223,8 +223,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
         return !has_flag(actor, FLAG_UNSCHEDULED);
       }
 
-      if(!has_flag(actor, FLAG_OVERLOADED) && (actor->muted > 0))
-        break;
+      //if(!has_flag(actor, FLAG_OVERLOADED) && (actor->muted > 0))
+      //  break;
     }
 
     // Stop handling a batch if we reach the head we found when we were

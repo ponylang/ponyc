@@ -291,6 +291,8 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
+    read_msg(sched);
+
     if(actor == NULL)
     {
       read_msg(sched);
@@ -527,6 +529,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
 
 void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 {
+  printf("scheduler unmuting for %p %d\n", actor, inform ? 1 : 0);
   scheduler_t* sched = ctx->scheduler;
   size_t index;
   muteref_t key;
@@ -536,8 +539,10 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
   {
     for(uint32_t i = 0; i < scheduler_count; i++)
     {
-      if(&scheduler[i] != sched)
+      if(&scheduler[i] != sched) {
+        printf("Informing for %p\n", actor);
         send_msg(i, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+      }
     }
   }
 
@@ -561,6 +566,9 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
+  } else {
+    printf("mref is none %p %d\n", actor, inform ? 1 : 0);
   }
+
 }
 
