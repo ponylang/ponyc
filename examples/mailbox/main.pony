@@ -15,8 +15,12 @@ use "files"
 actor Pong
   var _pongs: U64 = 0
 
+  new create() =>
+    @printf[None]("PONG is %p\n".cstring(), this)
+
   be pong() =>
     _pongs = _pongs + 1
+    @printf[None]("pongs %d\n".cstring(), _pongs)
 
 actor Mailer
   let _receiver: Pong

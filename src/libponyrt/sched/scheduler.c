@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "mutemap.h"
 
-#define PONY_SCHED_BATCH 100
+#define PONY_SCHED_BATCH 5
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -524,12 +524,15 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   {
     ponyint_muteset_putindex(&mref->value, sender, index2);
     sender->muted += 1;
+    printf("xxMUTED %p %p count %d\n", sender, recv, (int)sender->muted);
   }
 }
 
 void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 {
-  printf("scheduler unmuting for %p %d\n", actor, inform ? 1 : 0);
+  // this needs a better name. its not unmuting actor.
+  // its unmuting anything that got muted because of this actor
+  printf("xxxscheduler unmuting for %p %d\n", actor, inform ? 1 : 0);
   scheduler_t* sched = ctx->scheduler;
   size_t index;
   muteref_t key;
@@ -546,20 +549,24 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
     }
   }
 
+  actor->muted -= 1;
   muteref_t* mref = ponyint_mutemap_get(&sched->mute_mapping, &key, &index);
 
   if(mref != NULL)
   {
-    size_t i = HASHMAP_BEGIN;
+    size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
 
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
       assert(muted->muted > 0);
+      printf("muted count is %d\n", (int)muted->muted);
+
       muted->muted -= 1;
 
       if(muted->muted == 0)
       {
+        printf("xxxscheduler added for %p %d\n", muted, inform ? 1 : 0);
         ponyint_sched_add(ctx, muted);
         ponyint_sched_unmute(ctx, muted, true);
       }
