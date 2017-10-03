@@ -81,8 +81,9 @@ static void final_small(chunk_t* chunk, uint32_t mark)
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers))))
+  while(finalisers != 0)
   {
+    bit = __pony_ctzl(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
@@ -108,8 +109,9 @@ static void final_small_freed(chunk_t* chunk)
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers))))
+  while(finalisers != 0)
   {
+    bit = __pony_ctzl(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
@@ -126,6 +128,7 @@ static void final_large(chunk_t* chunk, uint32_t mark)
   if(chunk->finalisers == 1)
   {
     // run finaliser
+    pony_assert((*(pony_type_t**)chunk->m)->final != NULL);
     (*(pony_type_t**)chunk->m)->final(chunk->m);
     chunk->finalisers = 0;
   }

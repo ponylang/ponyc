@@ -145,6 +145,44 @@ TEST_F(CodegenTest, BoxBoolAsUnionIntoTuple)
 extern "C"
 {
 
+uint32_t num_objects = 0;
+
+EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
+  num_objects++;
+  pony_exitcode(num_objects);
+}
+
+}
+
+
+TEST_F(CodegenTest, SmallFinalisers)
+{
+  const char* src =
+    "use \"collections\"\n"
+
+    "class _Final\n"
+    "  fun _final() =>\n"
+    "    @codegentest_small_finalisers_increment_num_objects[None]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    for i in Range[I32](0, 42) do\n"
+    "      _Final\n"
+    "    end\n";
+
+  set_builtin(NULL);
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 42);
+}
+
+
+extern "C"
+{
+
 typedef int (*codegentest_ccallback_fn)(void* self, int value);
 
 EXPORT_SYMBOL int codegentest_ccallback(void* self, codegentest_ccallback_fn cb,
