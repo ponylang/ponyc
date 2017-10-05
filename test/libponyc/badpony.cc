@@ -939,3 +939,18 @@ TEST_F(BadPonyTest, UnionTypeMethodsWithDifferentParamNamesPositional)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, ApplySugarInferredLambdaArgument)
+{
+  // From issue #2233
+  const char* src =
+    "primitive Callable\n"
+    "  fun apply(x: U64, fn: {(U64): U64} val): U64 => fn(x)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let callable = Callable\n"
+    "    callable(0, {(x) => x + 1 })";
+
+  TEST_COMPILE(src);
+}
