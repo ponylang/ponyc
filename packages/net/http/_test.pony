@@ -1,4 +1,6 @@
 use "ponytest"
+use "net"
+use "collections"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -25,6 +27,7 @@ actor Main is TestList
     test(_Valid)
     test(_ToStringFun)
 
+    test(_HTTPConnTest)
 
 class iso _Encode is UnitTest
   fun name(): String => "net/http/URLEncode.encode"
@@ -362,3 +365,80 @@ primitive _Test
     h.assert_eq[String](path, url.path)
     h.assert_eq[String](query, url.query)
     h.assert_eq[String](fragment, url.fragment)
+
+
+
+// Actor and classes to test the HTTPClient and modified _HTTPConnection.
+actor _HTTPHandlerActor
+  let h: TestHelper
+  var tries: USize
+
+  new create(h': TestHelper, tries': USize) =>
+    h = h'
+    tries = tries'
+    h.log("_HTTPHandlerActor create called")
+
+  be apply(p: Payload val) =>
+    h.log("_HTTPHandlerActor apply called: " + tries.string())
+    if (tries = tries - 1) == 1 then 
+      h.complete(true)
+    end
+
+class _TestHTTPHandler is HTTPHandler
+  let h: TestHelper
+  let ha: _HTTPHandlerActor
+
+  new create(ha': _HTTPHandlerActor, h': TestHelper) =>
+    ha = ha'
+    h = h'
+    h.log("_TestHTTPHandler.create called")
+
+  fun ref apply(payload: Payload val): Any => 
+    h.log("_TestHTTPHandler.apply called")
+    ha(payload)
+
+  fun ref chunk(data: ByteSeq val) => 
+    h.log("_TestHTTPHandler.chunk called")
+
+class val _TestHandlerFactory is HandlerFactory
+  let h: TestHelper
+  let ha: _HTTPHandlerActor
+
+  new val create(ha': _HTTPHandlerActor, h': TestHelper) =>
+    ha = ha'
+    h = h'
+
+  fun apply(session: HTTPSession): HTTPHandler ref^ =>
+    h.log("_TestHTTPHandlerFactory.apply called")
+    _TestHTTPHandler(ha, h)
+
+class iso _HTTPConnTest is UnitTest
+  fun name(): String => "net/http/_HTTPConnection._new_conn"
+
+  fun apply(h: TestHelper) ? =>
+    let urls: Array[URL] = 
+      [ 
+        URL.build(
+          "https://raw.githubusercontent.com/ponylang/ponyc/master/README.md")?
+        URL.build(
+          "https://raw.githubusercontent.com/ponylang/ponyc/master/README.md")?
+        URL.build(
+          "https://github.com/ponylang/ponyc/blob/master/CODE_OF_CONDUCT.md")?
+        URL.build(
+          "https://github.com/ponylang/ponyc/blob/master/CODE_OF_CONDUCT.md")?
+        URL.build(
+          "http://www.nu.nl")?
+      ]
+
+    let ha = _HTTPHandlerActor(h, urls.size())
+    let hf = _TestHandlerFactory(ha, h)
+    let client = HTTPClient(h.env.root as TCPConnectionAuth)
+
+    for url in urls.values() do 
+      let payload: Payload iso = Payload.request("GET", url)
+      client(consume payload, hf)?
+    end
+
+    // Start a long test. Will work for really slow lines. Ahem.
+    h.long_test(10_000_000_000)
+
