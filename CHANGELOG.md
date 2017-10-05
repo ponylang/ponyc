@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler crash related to inferred lambda argument in apply sugar. ([PR #2258](https://github.com/ponylang/ponyc/pull/2258))
 - Fix excess work stealing under low loads ([PR #2254](https://github.com/ponylang/ponyc/pull/2254))
 - Fix compiler crash on case methods with `_` as a method parameter. ([PR #2252](https://github.com/ponylang/ponyc/pull/2252))
 - Fix implicit fallthrough in array inference. ([PR #2251](https://github.com/ponylang/ponyc/pull/2251))
