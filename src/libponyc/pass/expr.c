@@ -9,6 +9,8 @@
 #include "../expr/array.h"
 #include "../expr/ffi.h"
 #include "../expr/lambda.h"
+#include "../type/assemble.h"
+#include "../type/lookup.h"
 #include "ponyassert.h"
 
 static bool is_numeric_primitive(const char* name)
@@ -294,18 +296,12 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       // we need to use the funtype of the apply method of the object.
       if(ast_id(funtype) != TK_FUNTYPE)
       {
-        ast_t* dot = ast_from(ast, TK_DOT);
-        ast_add(dot, ast_from_string(ast, "apply"));
-        ast_swap(receiver, dot);
-        ast_add(dot, receiver);
+        ast_t* fun = lookup(opt, receiver, funtype, stringtab("apply"));
 
-        bool r = expr_dot(opt, &dot);
-        funtype = ast_type(dot);
-
-        ast_swap(receiver, dot); // put the original receiver back
-
-        if(!r || (ast_id(funtype) != TK_FUNTYPE))
+        if((fun == NULL) || ((ast_id(fun) != TK_BE) && (ast_id(fun) != TK_FUN)))
           return NULL;
+
+        funtype = type_for_fun(fun);
       }
 
       AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
