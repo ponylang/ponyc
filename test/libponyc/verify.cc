@@ -639,6 +639,25 @@ TEST_F(VerifyTest, PartialSugaredBinaryOperatorCall)
   TEST_COMPILE(src);
 }
 
+TEST_F(VerifyTest, PartialTraitCall)
+{
+  // From issue #2228
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b = B\n"
+
+    "trait A\n"
+    "  fun a1() ?\n"
+    "  fun a2() ? => a1()?\n"
+
+    "class B is A\n"
+    "  fun a1() =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, LambdaTypeGenericAliased)
 {
   const char* src =
