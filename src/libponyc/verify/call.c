@@ -41,7 +41,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
     )
     skip_partial_check = true;
 
-  // If the method definition containinf the call site had its body inherited
+  // If the method definition containing the call site had its body inherited
   // from a trait, we don't want to check partiality of the call site here -
   // it should only be checked in the context of the original trait.
   ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
