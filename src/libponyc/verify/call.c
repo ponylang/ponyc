@@ -33,12 +33,20 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
     ast_id(method_def) == TK_NEW);
 
-  // Determine whether the receiver is a reference with a hygienic id.
-  bool is_sugared_call = false;
+  // If the receiver is a reference with a hygienic id, it's a sugared call,
+  // and we should skip the check for partiality at the call site.
+  bool skip_partial_check = false;
   if((ast_child(receiver) != NULL) && (ast_id(ast_child(receiver)) == TK_ID) &&
     is_name_internal_test(ast_name(ast_child(receiver)))
     )
-    is_sugared_call = true;
+    skip_partial_check = true;
+
+  // If the method definition containinf the call site had its body inherited
+  // from a trait, we don't want to check partiality of the call site here -
+  // it should only be checked in the context of the original trait.
+  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
+  if((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT))
+    skip_partial_check = true;
 
   // Verify that the call partiality matches that of the method.
   bool r = true;
@@ -47,7 +55,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   {
     ast_seterror(ast);
 
-    if((ast_id(call_error) != TK_QUESTION) && !is_sugared_call) {
+    if((ast_id(call_error) != TK_QUESTION) && !skip_partial_check) {
       ast_error(opt->check.errors, call_error,
         "call is not partial but the method is - " \
         "a question mark is required after this call");
@@ -56,7 +64,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
       r = false;
     }
   } else {
-    if((ast_id(call_error) == TK_QUESTION) && !is_sugared_call) {
+    if((ast_id(call_error) == TK_QUESTION) && !skip_partial_check) {
       ast_error(opt->check.errors, call_error,
         "call is partial but the method is not - " \
         "this question mark should be removed");
