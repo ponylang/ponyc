@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't verify partial calls for method bodies inherited from a trait. ([PR #2261](https://github.com/ponylang/ponyc/pull/2261))
 - Fix broken method and type headings in generated documentation ([PR #2262](https://github.com/ponylang/ponyc/pull/2262))
 - Fix array inference from ReadSeq interface with tuple element type. ([PR #2259](https://github.com/ponylang/ponyc/pull/2259))
 - Fix compiler crash related to inferred lambda argument in apply sugar. ([PR #2258](https://github.com/ponylang/ponyc/pull/2258))
