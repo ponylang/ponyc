@@ -342,8 +342,6 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
   pony_assert(type != NULL);
 
-  DTRACE1(ACTOR_ALLOC, (uintptr_t)ctx->scheduler);
-
   // allocate variable sized actors correctly
   pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(type->size);
   memset(actor, 0, type->size);
@@ -366,6 +364,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
     actor->gc.rc = 0;
   }
 
+  DTRACE2(ACTOR_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   return actor;
 }
 
@@ -408,11 +407,13 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
     while(m != last)
     {
-      DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id);
+      DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id,
+        (uintptr_t)ctx->current, (uintptr_t)to);
       m = atomic_load_explicit(&m->next, memory_order_relaxed);
     }
 
-    DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id);
+    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id,
+        (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
   if(ponyint_messageq_push(&to->q, first, last))
@@ -436,11 +437,13 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 
     while(m != last)
     {
-      DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id);
+      DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id,
+        (uintptr_t)ctx->current, (uintptr_t)to);
       m = atomic_load_explicit(&m->next, memory_order_relaxed);
     }
 
-    DTRACE2(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id);
+    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id,
+        (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
   if(ponyint_messageq_push_single(&to->q, first, last))
