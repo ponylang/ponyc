@@ -315,6 +315,8 @@ static void run(scheduler_t* sched)
 
     if(reschedule)
     {
+      printf("RESHECED %p\n", actor);
+
       if(next != NULL)
       {
         // If we have a next actor, we go on the back of the queue. Otherwise,
@@ -345,6 +347,7 @@ static void run(scheduler_t* sched)
         }
       }
     } else {
+      printf("DONT RESHECED %p\n", actor);
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
       DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
@@ -549,7 +552,7 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
     }
   }
 
-  actor->muted -= 1;
+  //actor->muted -= 1;
   muteref_t* mref = ponyint_mutemap_get(&sched->mute_mapping, &key, &index);
 
   if(mref != NULL)
@@ -573,9 +576,6 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
-  } else {
-    printf("mref is none %p %d\n", actor, inform ? 1 : 0);
   }
-
 }
 
