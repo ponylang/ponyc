@@ -20,7 +20,7 @@ actor Pong
 
   be pong() =>
     _pongs = _pongs + 1
-    @printf[None]("pongs %d\n".cstring(), _pongs)
+    //@printf[None]("pongs %d\n".cstring(), _pongs)
 
 actor Mailer
   let _receiver: Pong
