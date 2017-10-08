@@ -36,11 +36,11 @@ muteref_t* ponyint_muteref_alloc(pony_actor_t* key)
   return mref;
 }
 
-void muteref_free(muteref_t* mref)
+void ponyint_muteref_free(muteref_t* mref)
 {
   ponyint_muteset_destroy(&mref->value);
   POOL_FREE(muteref_t, mref);
 }
 
 DEFINE_HASHMAP(ponyint_mutemap, mutemap_t, muteref_t, muteref_hash,
-  muteref_cmp, muteref_free);
+  muteref_cmp, ponyint_muteref_free);

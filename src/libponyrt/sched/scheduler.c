@@ -574,7 +574,7 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
-    muteref_free(mref);
+    ponyint_muteref_free(mref);
   }
 }
 
