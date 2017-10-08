@@ -535,7 +535,6 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 {
   // this needs a better name. its not unmuting actor.
   // its unmuting anything that got muted because of this actor
-  //printf("xxxscheduler unmuting for %p %d\n", actor, inform ? 1 : 0);
   scheduler_t* sched = ctx->scheduler;
   size_t index;
   muteref_t key;
@@ -545,10 +544,8 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
   {
     for(uint32_t i = 0; i < scheduler_count; i++)
     {
-      if(&scheduler[i] != sched) {
-        //printf("Informing for %p\n", actor);
+      if(&scheduler[i] != sched)
         send_msg(i, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
-      }
     }
   }
 
@@ -566,10 +563,8 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 
       if(muted->muted == 0)
       {
-        //printf("xxxscheduler added for %p %d\n", muted, inform ? 1 : 0);
         ponyint_sched_add(ctx, muted);
         ponyint_sched_unmute(ctx, muted, true);
-
       }
     }
 

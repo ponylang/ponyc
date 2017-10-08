@@ -1,77 +1,55 @@
 """
-This example is a stress test of Pony messaging and mailbox usage.
-All X Mailers send to a single actor, Main, attempting to overload its
-mailbox. This is a degenerate condition, the more actors you have sending
-to Main (and the more messages they send), the more memory will be used.
+This is an example of Pony's built-in backpressure. You'll note that if this
+program was run with fair scheduling of all actors that the single `Receiver`
+instance would be unable to keep up with all the `Sender` instances sending
+messages to the `Receiver` instance. The result would be runaway memory
+growth as the mailbox for `Receiver` grew larger and larger.
 
-Run this and watch the process memory usage grow as actor Main gets swamped.
-
-Also note, it finishes reasonably quickly for how many messages that single
-actor ends up processing.
+Thanks to Pony's built-in backpressure mechanism, this doesn't happen. As the
+`Receiver` instance becomes overloaded, the Pony runtime responds by not
+scheduling the various `Sender` instances until the overload on `Receiver` is
+cleared.
 """
 use "collections"
 use "files"
 
-actor Pong
-  var _pongs: U64 = 0
+actor Receiver
+  var _msgs: U64 = 0
+  let _out: StdStream
 
-  new create() =>
-    @printf[None]("PONG is %p\n".cstring(), this)
+  new create(out: StdStream) =>
+    _out = out
+    _out.print("Single receiver started.")
 
-  be pong() =>
-    _pongs = _pongs + 1
-    //@printf[None]("pongs %d\n".cstring(), _pongs)
+  be receive() =>
+    _msgs = _msgs + 1
+    if ((_msgs % 50_000_000) == 0) then
+      _out.print(_msgs.string() + " messages received.")
+    end
 
-actor Mailer
-  let _receiver: Pong
-  var _pass: U32 = 0
+actor Sender
+  let _receiver: Receiver
 
-  new create(receiver: Pong, pass: U32) =>
-    _pass = pass
+  new create(receiver: Receiver) =>
     _receiver = receiver
 
-  be ping() =>
-    //if (_pass > 0) then
-      _receiver.pong()
-      _pass = _pass - 1
-      ping()
-    //end
+  be fire() =>
+    _receiver.receive()
+    fire()
 
 actor Main
-  var _env: Env
-  var _size: U32 = 3
-  var _pass: U32 = 0
-  var _pongs: U64 = 0
+  var _size: U32 = 10_000
 
   new create(env: Env) =>
-    _env = env
-
-    try
-      parse_args()?
-      start_messaging()
-    else
-      usage()
-    end
+    start_messaging(env.out)
+    loop()
 
   be loop() => None
     loop()
 
-  fun ref start_messaging() =>
-    let p = Pong
+  fun ref start_messaging(out: StdStream) =>
+    let r = Receiver(out)
+    out.print("Starting " + _size.string() + " senders.")
     for i in Range[U32](0, _size) do
-      Mailer(p, _pass).ping()
+      Sender(r).fire()
     end
-    loop()
-
-  fun ref parse_args() ? =>
-    _size = _env.args(1)?.u32()?
-    _pass = _env.args(2)?.u32()?
-
-  fun ref usage() =>
-    _env.out.print(
-      """
-      mailbox OPTIONS
-        N   number of sending actors
-        M   number of messages to pass from each sender to the receiver
-      """
-      )

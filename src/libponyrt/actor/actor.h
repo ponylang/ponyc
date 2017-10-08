@@ -60,7 +60,7 @@ void ponyint_actor_setnoblock(bool state);
 
 void ponyint_actor_setoverloaded(pony_actor_t* actor);
 
-void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
+void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
 

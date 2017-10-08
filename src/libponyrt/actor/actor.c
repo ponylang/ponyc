@@ -218,21 +218,21 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
+      // if we become muted as a result of handling a message,
+      // bail out now.
       if(actor->muted > 0)
         return false;
 
-      if(app == batch) {
-        if(!has_flag(actor, FLAG_OVERLOADED)) {
-          //printf("overloaded %p\n", actor);
+      if(app == batch)
+      {
+        if(!has_flag(actor, FLAG_OVERLOADED))
+        {
+          // if we hit our batch size, consider this actor to be overloaded
           ponyint_actor_setoverloaded(actor);
         }
-        //ponyint_sched_unmute(ctx, actor, true);
 
         return !has_flag(actor, FLAG_UNSCHEDULED);
       }
-
-      //if(!has_flag(actor, FLAG_OVERLOADED) && (actor->muted > 0))
-      //  break;
     }
 
     // Stop handling a batch if we reach the head we found when we were
@@ -245,10 +245,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // empty, but we may have received further messages.
   pony_assert(app < batch);
 
-  if(has_flag(actor, FLAG_OVERLOADED)) {
-    //printf("clearing an overload %p\n", actor);
-    ponyint_actor_unsetoverloaded(actor);
-    ponyint_sched_unmute(ctx, actor, true);
+  if(has_flag(actor, FLAG_OVERLOADED))
+  {
+  // if we were overloaded and didn't process a full batch, set ourselves as no
+  // longer overloaded.
+    ponyint_actor_unsetoverloaded(ctx, actor);
   }
 
   try_gc(ctx, actor);
@@ -257,7 +258,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   {
     // When unscheduling, don't mark the queue as empty, since we don't want
     // to get rescheduled if we receive a message.
-    //printf("UNEXPECTED UNSCHEDULED FALSE FROM RUN FOR %p\n", actor);
     return false;
   }
 
@@ -672,7 +672,8 @@ bool ponyint_actor_overloaded(pony_actor_t* actor)
   return has_flag(actor, FLAG_OVERLOADED);
 }
 
-void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
+void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   unset_flag(actor, FLAG_OVERLOADED);
+  ponyint_sched_unmute(ctx, actor, true);
 }
