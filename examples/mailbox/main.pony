@@ -10,32 +10,12 @@ Also note, it finishes reasonably quickly for how many messages that single
 actor ends up processing.
 """
 use "collections"
-use "files"
-
-actor Pong
-  var _pongs: U64 = 0
-
-  new create() =>
-    @printf[None]("PONG is %p\n".cstring(), this)
-
-  be pong() =>
-    _pongs = _pongs + 1
-    //@printf[None]("pongs %d\n".cstring(), _pongs)
 
 actor Mailer
-  let _receiver: Pong
-  var _pass: U32 = 0
-
-  new create(receiver: Pong, pass: U32) =>
-    _pass = pass
-    _receiver = receiver
-
-  be ping() =>
-    //if (_pass > 0) then
-      _receiver.pong()
-      _pass = _pass - 1
-      ping()
-    //end
+  be ping(receiver: Main, pass: U32) =>
+    for i in Range[U32](0, pass) do
+      receiver.pong()
+    end
 
 actor Main
   var _env: Env
@@ -53,15 +33,13 @@ actor Main
       usage()
     end
 
-  be loop() => None
-    loop()
+  be pong() =>
+    _pongs = _pongs + 1
 
   fun ref start_messaging() =>
-    let p = Pong
     for i in Range[U32](0, _size) do
-      Mailer(p, _pass).ping()
+      Mailer.ping(this, _pass)
     end
-    loop()
 
   fun ref parse_args() ? =>
     _size = _env.args(1)?.u32()?
