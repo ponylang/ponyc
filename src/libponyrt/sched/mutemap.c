@@ -36,7 +36,7 @@ muteref_t* ponyint_muteref_alloc(pony_actor_t* key)
   return mref;
 }
 
-static void muteref_free(muteref_t* mref)
+void muteref_free(muteref_t* mref)
 {
   ponyint_muteset_destroy(&mref->value);
   POOL_FREE(muteref_t, mref);

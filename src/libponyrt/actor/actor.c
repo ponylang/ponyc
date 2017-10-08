@@ -206,7 +206,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
-  printf("runnings messages for %p\n", actor);
+  //printf("runnings messages for %p\n", actor);
 
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
@@ -223,10 +223,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
       if(app == batch) {
         if(!has_flag(actor, FLAG_OVERLOADED)) {
-          printf("overloaded %p\n", actor);
+          //printf("overloaded %p\n", actor);
           ponyint_actor_setoverloaded(actor);
-        } else {
-          printf("already overloaded\n");
         }
         //ponyint_sched_unmute(ctx, actor, true);
 
@@ -243,14 +241,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       break;
   }
 
-  if (all_msgs == 0)
-    printf("no messages for %p\n", actor);
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
 
   if(has_flag(actor, FLAG_OVERLOADED)) {
-    printf("clearing an overload %p\n", actor);
+    //printf("clearing an overload %p\n", actor);
     ponyint_actor_unsetoverloaded(actor);
     ponyint_sched_unmute(ctx, actor, true);
   }
@@ -261,7 +257,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   {
     // When unscheduling, don't mark the queue as empty, since we don't want
     // to get rescheduled if we receive a message.
-    printf("UNEXPECTED UNSCHEDULED FALSE FROM RUN FOR %p\n", actor);
+    //printf("UNEXPECTED UNSCHEDULED FALSE FROM RUN FOR %p\n", actor);
     return false;
   }
 
@@ -463,19 +459,14 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
   // what if more than 1?
   maybe_mute(ctx, to, first);
-  printf("sending message from %p to %p\n", ctx->current, to);
+  //printf("sending message from %p to %p\n", ctx->current, to);
 
   if(ponyint_messageq_push(&to->q, first, last))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
-      printf("rescheduling %p after receiving a message\n", to);
+      //printf("rescheduling %p after receiving a message\n", to);
       ponyint_sched_add(ctx, to);
-    } else {
-      printf("DIDNT EXPECT TO BE HERE 13: %p\n", to);
-      printf("%p muted is %d\n", to, (int)to->muted);
     }
-  } else {
-    printf("%p has non-empty q\n", to);
   }
 }
 
@@ -504,20 +495,14 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 
   // what if more than 1?
   maybe_mute(ctx, to, first);
-  printf("sending message from %p to %p\n", ctx->current, to);
+  //printf("sending message from %p to %p\n", ctx->current, to);
 
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
-      printf("rescheduling %p after receiving a message\n", to);
+      //printf("rescheduling %p after receiving a message\n", to);
       ponyint_sched_add(ctx, to);
-    } else {
-      printf("O HELLO %p\n", to);
-      if (ctx->current != NULL)
-        printf("DIDNT EXPECT TO BE HERE %p\n", ctx->current);
     }
-  } else {
-    printf("%p already has a message in q\n", to);
   }
 }
 
@@ -532,7 +517,7 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
         (has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
         ctx->current != to)
       {
-        printf("muting %p\n", ctx->current);
+        //printf("muting %p\n", ctx->current);
         ponyint_sched_mute(ctx, ctx->current, to);
         // should we lower batch size for sender?
       }
