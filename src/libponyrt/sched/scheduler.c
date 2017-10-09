@@ -295,8 +295,6 @@ static void run(scheduler_t* sched)
 
     if(actor == NULL)
     {
-      read_msg(sched);
-
       // We had an empty queue and no rescheduled actor.
       actor = steal(sched, NULL);
 
