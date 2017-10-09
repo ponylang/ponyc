@@ -237,7 +237,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!actor->muted)
+  pony_assert(!actor->muted);
 
   if(has_flag(actor, FLAG_OVERLOADED))
   {
