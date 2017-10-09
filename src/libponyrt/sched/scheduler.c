@@ -520,9 +520,8 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   pony_actor_t* r = ponyint_muteset_get(&mref->value, sender, &index2);
   if(r == NULL)
   {
-    pony_assert(!sender->muted);
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    sender->muted = true;
+    sender->muted += 1;
   }
 }
 
@@ -553,10 +552,14 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
-      pony_assert(muted->muted);
-      muted->muted = false;
-      ponyint_sched_add(ctx, muted);
-      ponyint_sched_unmute(ctx, muted, true);
+      pony_assert(muted->muted > 0);
+      muted->muted -= 1;
+
+      if (muted->muted == 0)
+      {
+        ponyint_sched_add(ctx, muted);
+        ponyint_sched_unmute(ctx, muted, true);
+      }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);

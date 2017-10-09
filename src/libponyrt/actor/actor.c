@@ -213,7 +213,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       try_gc(ctx, actor);
 
       // if we become muted as a result of handling a message, bail out now.
-      if(actor->muted)
+      if(actor->muted > 0)
         return false;
 
       if(app == batch)
@@ -237,7 +237,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!actor->muted);
+  pony_assert(actor->muted == 0);
 
   if(has_flag(actor, FLAG_OVERLOADED))
   {
@@ -455,7 +455,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
   if(ponyint_messageq_push(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && (!to->muted)) {
+    if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
       ponyint_sched_add(ctx, to);
     }
   }
@@ -488,7 +488,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && (!to->muted)) {
+    if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
       // if the receiving actor is currently unscheduled AND it's not
       // muted, schedule it.
       ponyint_sched_add(ctx, to);
@@ -507,7 +507,7 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
     // 2. the sender isn't overloaded
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if((has_flag(to, FLAG_OVERLOADED) || to->muted) &&
+    if((has_flag(to, FLAG_OVERLOADED) || (to->muted > 0)) &&
       !has_flag(ctx->current, FLAG_OVERLOADED) &&
       ctx->current != to)
     {
