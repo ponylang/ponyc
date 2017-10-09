@@ -9,7 +9,6 @@
 #include "ponyassert.h"
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 #include <dtrace.h>
 
 #ifdef USE_VALGRIND

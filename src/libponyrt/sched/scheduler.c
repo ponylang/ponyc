@@ -527,7 +527,6 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   {
     ponyint_muteset_putindex(&mref->value, sender, index2);
     sender->muted += 1;
-    //printf("xxMUTED %p %p count %d\n", sender, recv, (int)sender->muted);
   }
 }
 
