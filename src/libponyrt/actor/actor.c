@@ -206,8 +206,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
-  //printf("runnings messages for %p\n", actor);
-
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
     all_msgs++;
@@ -458,13 +456,11 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   }
 
   // what if more than 1?
-  maybe_mute(ctx, to, first);
-  //printf("sending message from %p to %p\n", ctx->current, to);
+  maybe_mute(ctx, to, first, last);
 
   if(ponyint_messageq_push(&to->q, first, last))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
-      //printf("rescheduling %p after receiving a message\n", to);
       ponyint_sched_add(ctx, to);
     }
   }
@@ -494,32 +490,55 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   }
 
   // what if more than 1?
-  maybe_mute(ctx, to, first);
-  //printf("sending message from %p to %p\n", ctx->current, to);
+  maybe_mute(ctx, to, first, last);
 
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
-      //printf("rescheduling %p after receiving a message\n", to);
+      // if the receiving actor is currently unscheduled AND it's not
+      // muted, schedule it.
       ponyint_sched_add(ctx, to);
     }
   }
 }
 
-void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
+void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
+  pony_msg_t* last)
 {
   if(ctx->current != NULL)
   {
-    if(m->id <= ACTORMSG_APPLICATION_START)
+    // only mute a sender IF:
+    // 1. the sender isn't overloaded AND the not muted
+    // AND
+    // 2. the receiver is overloaded or the receiver is muted
+    // AND
+    // 3. we are sending to another actor (as compared to sending to self)
+    if(
+      (!has_flag(ctx->current, FLAG_OVERLOADED) && ctx->current->muted == 0) &&
+      (has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
+      ctx->current != to)
     {
-      if(
-        (!has_flag(ctx->current, FLAG_OVERLOADED) && ctx->current->muted == 0) &&
-        (has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
-        ctx->current != to)
+      if (first == last)
       {
-        //printf("muting %p\n", ctx->current);
-        ponyint_sched_mute(ctx, ctx->current, to);
-        // should we lower batch size for sender?
+        if(first->id <= ACTORMSG_APPLICATION_START)
+        {
+          ponyint_sched_mute(ctx, ctx->current, to);
+          return;
+        }
+      }
+
+      bool muted = false;
+      pony_msg_t* m = first;
+
+      while((m != last) && (muted == false))
+      {
+        if(m->id <= ACTORMSG_APPLICATION_START)
+        {
+          ponyint_sched_mute(ctx, ctx->current, to);
+          return;
+        }
+
+        m = atomic_load_explicit(&m->next, memory_order_relaxed);
       }
     }
   }
