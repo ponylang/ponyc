@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.19.3] - 2017-10-09
 
 ### Fixed
 
@@ -13,12 +13,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix excess work stealing under low loads ([PR #2254](https://github.com/ponylang/ponyc/pull/2254))
 - Fix compiler crash on case methods with `_` as a method parameter. ([PR #2252](https://github.com/ponylang/ponyc/pull/2252))
 - Fix implicit fallthrough in array inference. ([PR #2251](https://github.com/ponylang/ponyc/pull/2251))
-
-### Added
-
-
-### Changed
-
 
 ## [0.19.2] - 2017-09-24
 
