@@ -690,5 +690,5 @@ bool ponyint_actor_overloaded(pony_actor_t* actor)
 void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   unset_flag(actor, FLAG_OVERLOADED);
-  ponyint_sched_unmute(ctx, actor, true);
+  ponyint_sched_unmute_senders(ctx, actor, true);
 }
