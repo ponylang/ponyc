@@ -179,7 +179,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   pony_msg_t* msg;
   size_t app = 0;
-  size_t all_msgs = 0;
 
 #ifdef USE_ACTOR_CONTINUATIONS
   while(actor->continuation != NULL)
@@ -207,8 +206,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
-    all_msgs++;
-
     if(handle_message(ctx, actor, msg))
     {
       // If we handle an application message, try to gc.
@@ -240,11 +237,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
+  pony_assert(!actor->muted)
 
   if(has_flag(actor, FLAG_OVERLOADED))
   {
-  // if we were overloaded and didn't process a full batch, set ourselves as no
-  // longer overloaded.
+    // if we were overloaded and didn't process a full batch, set ourselves as no
+    // longer overloaded.
     ponyint_actor_unsetoverloaded(ctx, actor);
   }
 
@@ -259,7 +257,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   // If we have processed any application level messages, defer blocking.
   if(app > 0)
-    return !actor->muted;
+    return true;
 
   // Tell the cycle detector we are blocking. We may not actually block if a
   // message is received between now and when we try to mark our queue as
@@ -287,7 +285,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // Return true (i.e. reschedule immediately) if our queue isn't empty.
-  return !empty && !actor->muted;
+  return !empty &&
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor)
@@ -453,7 +451,6 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
-  // what if more than 1?
   maybe_mute(ctx, to, first, last);
 
   if(ponyint_messageq_push(&to->q, first, last))
@@ -487,7 +484,6 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
-  // what if more than 1?
   maybe_mute(ctx, to, first, last);
 
   if(ponyint_messageq_push_single(&to->q, first, last))

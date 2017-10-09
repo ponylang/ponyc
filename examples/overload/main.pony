@@ -11,7 +11,6 @@ scheduling the various `Sender` instances until the overload on `Receiver` is
 cleared.
 """
 use "collections"
-use "files"
 
 actor Receiver
   var _msgs: U64 = 0

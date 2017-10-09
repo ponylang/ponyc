@@ -315,8 +315,6 @@ static void run(scheduler_t* sched)
 
     if(reschedule)
     {
-      //printf("RESHECED %p\n", actor);
-
       if(next != NULL)
       {
         // If we have a next actor, we go on the back of the queue. Otherwise,
@@ -347,7 +345,6 @@ static void run(scheduler_t* sched)
         }
       }
     } else {
-      //printf("DONT RESHECED %p\n", actor);
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
       DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
