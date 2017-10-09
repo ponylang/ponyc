@@ -61,7 +61,7 @@ void ponyint_actor_setoverloaded(pony_actor_t* actor);
 
 void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
+void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   pony_msg_t* last);
 
 PONY_API void ponyint_destroy(pony_actor_t* actor);

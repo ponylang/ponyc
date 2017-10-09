@@ -521,7 +521,8 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   if(r == NULL)
   {
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    sender->muted += 1;
+    uint8_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
+    atomic_store_explicit(&sender->muted, muted + 1, memory_order_relaxed);
   }
 }
 
@@ -552,8 +553,10 @@ void ponyint_sched_unmute(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
-      pony_assert(muted->muted > 0);
-      muted->muted -= 1;
+      uint8_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
+      pony_assert(muted_count > 0);
+      muted_count--;
+      atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
 
       if (muted->muted == 0)
       {
