@@ -508,14 +508,13 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   if(ctx->current != NULL)
   {
     // only mute a sender IF:
-    // 1. the sender isn't overloaded AND the not muted
+    // 1. the receiver is overloaded or the receiver is muted
     // AND
-    // 2. the receiver is overloaded or the receiver is muted
+    // 2. the sender isn't overloaded
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if(
-      (!has_flag(ctx->current, FLAG_OVERLOADED) && ctx->current->muted == 0) &&
-      (has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
+    if((has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
+      !has_flag(ctx->current, FLAG_OVERLOADED) &&
       ctx->current != to)
     {
       if (first == last)
