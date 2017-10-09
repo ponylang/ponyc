@@ -30,8 +30,7 @@ typedef struct pony_actor_t
   pony_msg_t* continuation;
 #endif
   PONY_ATOMIC(uint8_t) flags;
-  size_t batch;
-  PONY_ATOMIC(size_t) muted;
+  PONY_ATOMIC(bool) muted;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes

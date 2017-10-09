@@ -215,9 +215,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
-      // if we become muted as a result of handling a message,
-      // bail out now.
-      if(actor->muted > 0)
+      // if we become muted as a result of handling a message, bail out now.
+      if(actor->muted)
         return false;
 
       if(app == batch)
@@ -260,7 +259,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   // If we have processed any application level messages, defer blocking.
   if(app > 0)
-    return actor->muted == 0;
+    return !actor->muted;
 
   // Tell the cycle detector we are blocking. We may not actually block if a
   // message is received between now and when we try to mark our queue as
@@ -288,7 +287,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // Return true (i.e. reschedule immediately) if our queue isn't empty.
-  return !empty && actor->muted == 0;
+  return !empty && !actor->muted;
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor)
@@ -459,7 +458,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
   if(ponyint_messageq_push(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
+    if(!has_flag(to, FLAG_UNSCHEDULED) && (!to->muted)) {
       ponyint_sched_add(ctx, to);
     }
   }
@@ -493,7 +492,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && (to->muted == 0)) {
+    if(!has_flag(to, FLAG_UNSCHEDULED) && (!to->muted)) {
       // if the receiving actor is currently unscheduled AND it's not
       // muted, schedule it.
       ponyint_sched_add(ctx, to);
@@ -512,7 +511,7 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
     // 2. the sender isn't overloaded
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if((has_flag(to, FLAG_OVERLOADED) || to->muted > 0) &&
+    if((has_flag(to, FLAG_OVERLOADED) || to->muted) &&
       !has_flag(ctx->current, FLAG_OVERLOADED) &&
       ctx->current != to)
     {
@@ -525,10 +524,9 @@ void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
         }
       }
 
-      bool muted = false;
       pony_msg_t* m = first;
 
-      while((m != last) && (muted == false))
+      while(m != last)
       {
         if(m->id <= ACTORMSG_APPLICATION_START)
         {
