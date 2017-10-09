@@ -2,6 +2,18 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.19.3] - 2017-10-09
+
+### Fixed
+
+- Don't verify partial calls for method bodies inherited from a trait. ([PR #2261](https://github.com/ponylang/ponyc/pull/2261))
+- Fix broken method and type headings in generated documentation ([PR #2262](https://github.com/ponylang/ponyc/pull/2262))
+- Fix array inference from ReadSeq interface with tuple element type. ([PR #2259](https://github.com/ponylang/ponyc/pull/2259))
+- Fix compiler crash related to inferred lambda argument in apply sugar. ([PR #2258](https://github.com/ponylang/ponyc/pull/2258))
+- Fix excess work stealing under low loads ([PR #2254](https://github.com/ponylang/ponyc/pull/2254))
+- Fix compiler crash on case methods with `_` as a method parameter. ([PR #2252](https://github.com/ponylang/ponyc/pull/2252))
+- Fix implicit fallthrough in array inference. ([PR #2251](https://github.com/ponylang/ponyc/pull/2251))
+
 ## [0.19.2] - 2017-09-24
 
 ### Fixed

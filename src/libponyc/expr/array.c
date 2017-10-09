@@ -30,6 +30,25 @@ static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
   return array_type;
 }
 
+static ast_t* strip_this_arrow(pass_opt_t* opt, ast_t* ast)
+{
+  if((ast_id(ast) == TK_ARROW) &&
+    (ast_id(ast_child(ast)) == TK_THISTYPE))
+    return ast_childidx(ast, 1);
+
+  if(ast_id(ast) == TK_TUPLETYPE)
+  {
+    ast_t* new_ast = ast_from(ast, TK_TUPLETYPE);
+
+    for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
+      ast_append(new_ast, strip_this_arrow(opt, c));
+
+    return new_ast;
+  }
+
+  return ast;
+}
+
 static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 {
   // The interface must have an apply method for us to find it.
@@ -59,11 +78,7 @@ static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
   if(ast_id(typeparams) == TK_TYPEPARAMS)
     elem_type = reify(elem_type, typeparams, typeargs, opt, true);
 
-  if((ast_id(elem_type) == TK_ARROW) &&
-    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
-    elem_type = ast_childidx(elem_type, 1);
-
-  return elem_type;
+  return strip_this_arrow(opt, elem_type);
 }
 
 static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
@@ -150,6 +165,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
 
       // Note this as a possible element type and move on.
       *list = astlist_push(*list, elem_type);
+      return;
     }
 
     case TK_ARROW:
@@ -189,8 +205,8 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
       if(stringtab("Iterator") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
-        return;
       }
+      return;
     }
 
     case TK_ARROW:

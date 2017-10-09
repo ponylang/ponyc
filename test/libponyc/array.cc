@@ -268,6 +268,29 @@ TEST_F(ArrayTest, InferFromApplyInterfaceIsoElementNoArrowThis)
 }
 
 
+TEST_F(ArrayTest, InferFromApplyInterfaceBoxElementInTuple)
+{
+  // From issue #2233
+  const char* src =
+    "trait box T\n"
+    "class box C1 is T\n"
+    "  new box create() => None\n"
+    "class box C2 is T\n"
+    "  new box create() => None\n"
+    "class box C3 is T\n"
+    "  new box create() => None\n"
+
+    "interface ArrayishOfTAndU64\n"
+    "  fun apply(index: USize): this->(T, U64) ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): ArrayishOfTAndU64 =>\n"
+    "    [(C1, 1); (C2, 2); (C3, 3)]";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(ArrayTest, InferFromValuesInterface)
 {
   const char* src =
