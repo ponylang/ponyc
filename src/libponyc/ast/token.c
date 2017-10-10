@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct token_t
+struct token_t
 {
   token_id id;
   source_t* source;
@@ -27,7 +27,26 @@ typedef struct token_t
     double real;
     lexint_t integer;
   };
-} token_t;
+};
+
+
+// Minimal token structure for signature computation.
+struct token_signature_t
+{
+  token_id id;
+
+  union
+  {
+    struct
+    {
+      const char* string;
+      size_t str_length;
+    };
+
+    double real;
+    lexint_t integer;
+  };
+};
 
 
 token_t* token_new(token_id id)
@@ -315,6 +334,125 @@ void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 }
 
 // Serialisation
+
+static void token_signature_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  token_t* token = (token_t*)object;
+
+  if((token->id == TK_STRING) || (token->id == TK_ID))
+    string_trace_len(ctx, token->string, token->str_length);
+}
+
+static void token_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  token_t* token = (token_t*)object;
+  token_signature_t* dst = (token_signature_t*)((uintptr_t)buf + offset);
+
+  memset(dst, 0, sizeof(token_signature_t));
+
+  dst->id = token->id;
+
+  switch(token->id)
+  {
+    case TK_STRING:
+    case TK_ID:
+      dst->str_length = token->str_length;
+      dst->string = (const char*)pony_serialise_offset(ctx,
+        (char*)token->string);
+      break;
+
+    case TK_FLOAT:
+      dst->real = token->real;
+      break;
+
+    case TK_INT:
+      dst->integer = token->integer;
+      break;
+
+    default: {}
+  }
+}
+
+static pony_type_t token_signature_pony =
+{
+  0,
+  sizeof(token_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  token_signature_serialise_trace,
+  token_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* token_signature_pony_type()
+{
+  return &token_signature_pony;
+}
+
+// Docstring-specific signature serialisation. We don't want docstrings to
+// influence signatures so we pretend them to be TK_NONE nodes.
+static void token_docstring_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  (void)ctx;
+
+  token_t* token = (token_t*)object;
+
+  pony_assert(token->id == TK_STRING);
+}
+
+static void token_docstring_signature_serialise(pony_ctx_t* ctx, void* object,
+  void* buf, size_t offset, int mutability)
+{
+  (void)ctx;
+  (void)object;
+  (void)mutability;
+
+  token_signature_t* dst = (token_signature_t*)((uintptr_t)buf + offset);
+
+  memset(dst, 0, sizeof(token_signature_t));
+
+  dst->id = TK_NONE;
+}
+
+static pony_type_t token_docstring_signature_pony =
+{
+  0,
+  sizeof(token_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  token_docstring_signature_serialise_trace,
+  token_docstring_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* token_docstring_signature_pony_type()
+{
+  return &token_docstring_signature_pony;
+}
 
 static void token_serialise_trace(pony_ctx_t* ctx, void* object)
 {

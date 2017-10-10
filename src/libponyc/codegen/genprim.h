@@ -29,6 +29,8 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t);
 
 void genprim_platform_methods(compile_t* c, reach_type_t* t);
 
+void genprim_signature(compile_t* c);
+
 void genprim_builtins(compile_t* c);
 
 void genprim_reachable_init(compile_t* c, ast_t* program);

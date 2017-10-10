@@ -386,14 +386,6 @@ TEST_F(HashMapTest, NotEmptyPutByIndex)
   ASSERT_EQ(e->val, m->val);
 }
 
-typedef struct ponyint_array_t
-{
-  void* desc;
-  size_t size;
-  size_t alloc;
-  char* ptr;
-} ponyint_array_t;
-
 struct testmap_deleter
 {
   void operator()(testmap_t* ptr)

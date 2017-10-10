@@ -67,12 +67,21 @@ struct ast_t
   token_t* t;
   symtab_t* symtab;
   void* data;
-  struct ast_t* parent;
-  struct ast_t* child;
-  struct ast_t* sibling;
-  struct ast_t* annotation_type;
+  ast_t* parent;
+  ast_t* child;
+  ast_t* sibling;
+  ast_t* annotation_type;
   uint32_t flags;
 };
+
+// Minimal AST structure for signature computation.
+typedef struct ast_signature_t
+{
+  token_signature_t* t;
+  struct ast_signature_t* child;
+  struct ast_signature_t* sibling;
+  struct ast_signature_t* annotation_type;
+} ast_signature_t;
 
 static bool ast_cmp(ast_t* a, ast_t* b)
 {
@@ -1674,6 +1683,194 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
     p = next;
   }
+}
+
+static void ast_signature_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  // Ignore the data. We don't want to cross package boundaries.
+  // The symtab, parent and type don't provide additional information to the
+  // signature so we ignore them as well.
+
+  token_id id = ast_id(ast);
+  bool docstring = false;
+
+  if(id == TK_STRING)
+  {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_MODULE:
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+      case TK_TYPE:
+      case TK_INTERFACE:
+      case TK_TRAIT:
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+      case TK_CLASS:
+      case TK_ACTOR:
+        docstring = true;
+        break;
+
+      default: {}
+    }
+  }
+
+  pony_traceknown(ctx, ast->t, docstring ?
+    token_docstring_signature_pony_type() : token_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+
+  if(id == TK_NOMINAL)
+  {
+    pony_assert(ast->child != NULL);
+
+    pony_traceknown(ctx, ast->child, (ast_id(ast->child) == TK_ID) ?
+      ast_nominal_pkg_id_signature_pony_type() : ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+  } else if(ast->child != NULL) {
+    pony_traceknown(ctx, ast->child, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+  }
+
+  if((id != TK_PACKAGE) && (ast->sibling != NULL))
+    pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  // Don't use ast->annotation_type directly. It could be a type, and we don't
+  // want to serialise types.
+  ast_t* annotation = ast_annotation(ast);
+
+  if(annotation != NULL)
+    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void ast_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  ast_t* ast = (ast_t*)object;
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+
+  dst->t = (token_signature_t*)pony_serialise_offset(ctx, ast->t);
+  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
+
+  if(ast_id(ast) != TK_PACKAGE)
+    dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
+  else
+    dst->sibling = NULL;
+
+  ast_t* annotation = ast_annotation(ast);
+
+  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
+    annotation);
+}
+
+static pony_type_t ast_signature_pony =
+{
+  0,
+  sizeof(ast_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  ast_signature_serialise_trace,
+  ast_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* ast_signature_pony_type()
+{
+  return &ast_signature_pony;
+}
+
+// Special case serialisation for package IDs nodes as TK_NOMINAL children.
+static void ast_nominal_pkg_id_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  pony_assert(ast_id(ast) == TK_ID);
+  ast_t* parent = ast->parent;
+  (void)parent;
+  pony_assert((parent != NULL) && (ast_id(parent) == TK_NOMINAL) &&
+    (ast == parent->child));
+
+  // Ignore the token. We'll setup a fake token directly referencing the
+  // associated package later.
+
+  pony_assert(ast->child == NULL);
+  pony_assert(ast->sibling != NULL);
+
+  pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  if(annotation != NULL)
+    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void ast_nominal_pkg_id_signature_serialise(pony_ctx_t* ctx,
+  void* object, void* buf, size_t offset, int mutability)
+{
+  (void)mutability;
+
+  ast_t* ast = (ast_t*)object;
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+
+  ast_t* def = (ast_t*)ast_data(ast_parent(ast));
+  pony_assert(def != NULL);
+  ast_t* pkg_ast = ast_nearest(def, TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(pkg_ast);
+  pony_assert(pkg != NULL);
+  dst->t = (token_signature_t*)pony_serialise_offset(ctx, pkg);
+
+  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
+  dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
+    annotation);
+}
+
+static pony_type_t ast_nominal_pkg_id_signature_pony =
+{
+  0,
+  sizeof(ast_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  ast_nominal_pkg_id_signature_serialise_trace,
+  ast_nominal_pkg_id_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* ast_nominal_pkg_id_signature_pony_type()
+{
+  return &ast_nominal_pkg_id_signature_pony;
 }
 
 static void ast_serialise_trace_data(pony_ctx_t* ctx, ast_t* ast)

@@ -259,6 +259,13 @@ def build(ctx):
         includes = [ 'lib/gbenchmark/include' ],
         defines  = [ 'HAVE_STD_REGEX' ]
     )
+    
+    # blake2
+    ctx(
+        features = 'c seq',
+        target   = 'blake2',
+        source   = ctx.path.ant_glob('lib/blake2/*.c'),
+    )
 
     # libponyc
     ctx(
@@ -266,7 +273,8 @@ def build(ctx):
         target    = 'libponyc',
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
-        includes  = [ 'src/common' ] + llvmIncludes + sslIncludes
+        includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
+        use       = [ 'blake2' ]
     )
 
     # libponyc.benchmarks

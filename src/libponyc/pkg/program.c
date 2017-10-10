@@ -4,12 +4,15 @@
 #include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+#include <blake2.h>
 #include <string.h>
 
 
 // Per program state.
 typedef struct program_t
 {
+  package_group_list_t* package_groups;
+  char* signature;
   uint32_t next_package_id;
   strlist_t* libpaths;
   strlist_t* libs;
@@ -46,6 +49,8 @@ static void append_to_args(program_t* program, const char* text)
 program_t* program_create()
 {
   program_t* p = POOL_ALLOC(program_t);
+  p->package_groups = NULL;
+  p->signature = NULL;
   p->next_package_id = 0;
   p->libpaths = NULL;
   p->libs = NULL;
@@ -59,6 +64,11 @@ program_t* program_create()
 void program_free(program_t* program)
 {
   pony_assert(program != NULL);
+
+  package_group_list_free(program->package_groups);
+
+  if(program->signature != NULL)
+    ponyint_pool_free_size(SIGNATURE_LENGTH, program->signature);
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
@@ -250,9 +260,90 @@ const char* program_lib_args(ast_t* program)
 }
 
 
+const char* program_signature(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  if(data->signature == NULL)
+  {
+    ast_t* first_package = ast_child(program);
+    pony_assert(first_package != NULL);
+
+    pony_assert(data->package_groups == NULL);
+    data->package_groups = package_dependency_groups(first_package);
+
+    blake2b_state hash_state;
+    int status = blake2b_init(&hash_state, SIGNATURE_LENGTH);
+    pony_assert(status == 0);
+
+    package_group_list_t* iter = data->package_groups;
+
+    while(iter != NULL)
+    {
+      package_group_t* group = package_group_list_data(iter);
+      const char* group_sig = package_group_signature(group);
+      blake2b_update(&hash_state, group_sig, SIGNATURE_LENGTH);
+      iter = package_group_list_next(iter);
+    }
+
+    data->signature = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
+    status = blake2b_final(&hash_state, data->signature, SIGNATURE_LENGTH);
+    pony_assert(status == 0);
+  }
+
+  return data->signature;
+}
+
+
+static void print_signature(const char* sig)
+{
+  for(size_t i = 0; i < SIGNATURE_LENGTH; i++)
+    printf("%02hhX", sig[i]);
+}
+
+
+void program_dump(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  const char* signature = program_signature(program);
+  fputs("Program signature: ", stdout);
+  print_signature(signature);
+  puts("\n");
+
+  size_t i = 0;
+  package_group_list_t* iter = data->package_groups;
+
+  while(iter != NULL)
+  {
+    printf("Group " __zu "\n", i);
+    package_group_t* group = package_group_list_data(iter);
+    package_group_dump(group);
+    putchar('\n');
+    iter = package_group_list_next(iter);
+    i++;
+  }
+}
+
+
 static void program_serialise_trace(pony_ctx_t* ctx, void* object)
 {
   program_t* program = (program_t*)object;
+
+  if(program->package_groups != NULL)
+    pony_traceknown(ctx, program->package_groups,
+      package_group_list_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(program->signature != NULL)
+    pony_serialise_reserve(ctx, program->signature, SIGNATURE_LENGTH);
 
   if(program->libpaths != NULL)
     pony_traceknown(ctx, program->libpaths, strlist_pony_type(),
@@ -274,30 +365,48 @@ static void program_serialise(pony_ctx_t* ctx, void* object, void* buf,
   program_t* program = (program_t*)object;
   program_t* dst = (program_t*)((uintptr_t)buf + offset);
 
+  dst->package_groups = (package_group_list_t*)pony_serialise_offset(ctx,
+    program->package_groups);
+
+  uintptr_t ptr_offset = pony_serialise_offset(ctx, program->signature);
+  dst->signature = (char*)ptr_offset;
+
+  if(program->signature != NULL)
+  {
+    char* dst_sig = (char*)((uintptr_t)buf + ptr_offset);
+    memcpy(dst_sig, program->signature, SIGNATURE_LENGTH);
+  }
+
+  dst->next_package_id = program->next_package_id;
   dst->libpaths = (strlist_t*)pony_serialise_offset(ctx, program->libpaths);
   dst->libs = (strlist_t*)pony_serialise_offset(ctx, program->libs);
-  dst->lib_args = (char*)pony_serialise_offset(ctx, program->lib_args);
   dst->lib_args_size = program->lib_args_size;
   dst->lib_args_alloced = program->lib_args_size + 1;
 
+  ptr_offset = pony_serialise_offset(ctx, program->lib_args);
+  dst->lib_args = (char*)ptr_offset;
+
   if(dst->lib_args != NULL)
-    memcpy(dst->lib_args, program->lib_args, program->lib_args_size + 1);
+  {
+    char* dst_lib = (char*)((uintptr_t)buf + ptr_offset);
+    memcpy(dst_lib, program->lib_args, program->lib_args_size + 1);
+  }
 }
 
 static void program_deserialise(pony_ctx_t* ctx, void* object)
 {
   program_t* program = (program_t*)object;
 
+  program->package_groups = (package_group_list_t*)pony_deserialise_offset(ctx,
+    package_group_list_pony_type(), (uintptr_t)program->package_groups);
+  program->signature = (char*)pony_deserialise_block(ctx,
+    (uintptr_t)program->signature, SIGNATURE_LENGTH);
   program->libpaths = (strlist_t*)pony_deserialise_offset(ctx,
     strlist_pony_type(), (uintptr_t)program->libpaths);
   program->libs = (strlist_t*)pony_deserialise_offset(ctx, strlist_pony_type(),
     (uintptr_t)program->libs);
-
-  if(program->lib_args != (char*)((size_t)(~0)))
-    program->lib_args = (char*)pony_deserialise_block(ctx,
-      (uintptr_t)program->lib_args, program->lib_args_size + 1);
-  else
-    program->lib_args = NULL;
+  program->lib_args = (char*)pony_deserialise_block(ctx,
+    (uintptr_t)program->lib_args, program->lib_args_size + 1);
 }
 
 

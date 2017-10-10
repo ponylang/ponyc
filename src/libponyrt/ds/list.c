@@ -178,3 +178,35 @@ void ponyint_list_free(list_t* list, free_fn f)
     list = next;
   }
 }
+
+void ponyint_list_serialise_trace(pony_ctx_t* ctx, void* object,
+  pony_type_t* list_type, pony_type_t* elem_type)
+{
+  list_t* list = (list_t*)object;
+
+  if(list->data != NULL)
+    pony_traceknown(ctx, list->data, elem_type, PONY_TRACE_MUTABLE);
+
+  if(list->next != NULL)
+    pony_traceknown(ctx, list->next, list_type, PONY_TRACE_MUTABLE);
+}
+
+void ponyint_list_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset)
+{
+  list_t* list = (list_t*)object;
+  list_t* dst = (list_t*)((uintptr_t)buf + offset);
+
+  dst->data = (void*)pony_serialise_offset(ctx, list->data);
+  dst->next = (list_t*)pony_serialise_offset(ctx, list->next);
+}
+
+void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
+  pony_type_t* list_type, pony_type_t* elem_type)
+{
+  list_t* list = (list_t*)object;
+
+  list->data = pony_deserialise_offset(ctx, elem_type, (uintptr_t)list->data);
+  list->next = (list_t*)pony_deserialise_offset(ctx, list_type,
+    (uintptr_t)list->next);
+}

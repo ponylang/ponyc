@@ -6,9 +6,15 @@
 #include "../ast/stringtab.h"
 #include "../pass/pass.h"
 
+#define SIGNATURE_LENGTH 64
+
 PONY_EXTERN_C_BEGIN
 
 typedef struct package_t package_t;
+typedef struct package_group_t package_group_t;
+
+DECLARE_LIST_SERIALISE(package_group_list, package_group_list_t,
+  package_group_t)
 
 /**
  * Cat together the 2 given path fragments into the given buffer.
@@ -140,11 +146,44 @@ bool package_allow_ffi(typecheck_t* t);
 const char* package_alias_from_id(ast_t* module, const char* id);
 
 /**
+ * Adds a package to the dependency list of another package.
+ */
+void package_add_dependency(ast_t* package, ast_t* dep);
+
+const char* package_signature(ast_t* package);
+
+size_t package_group_index(ast_t* package);
+
+package_group_t* package_group_new();
+
+void package_group_free(package_group_t* group);
+
+/**
+ * Build a list of the dependency groups (the strongly connected components) in
+ * the package dependency graph. The list is topologically sorted.
+ */
+package_group_list_t* package_dependency_groups(ast_t* first_package);
+
+const char* package_group_signature(package_group_t* group);
+
+void package_group_dump(package_group_t* group);
+
+/**
  * Cleans up the list of search directories.
  */
 void package_done();
 
+pony_type_t* package_dep_signature_pony_type();
+
+pony_type_t* package_signature_pony_type();
+
+pony_type_t* package_group_dep_signature_pony_type();
+
+pony_type_t* package_group_signature_pony_type();
+
 pony_type_t* package_pony_type();
+
+pony_type_t* package_group_pony_type();
 
 bool is_path_absolute(const char* path);
 

@@ -15,6 +15,8 @@ extern "C" {
 
 typedef struct token_t token_t;
 
+typedef struct token_signature_t token_signature_t;
+
 typedef enum token_id
 {
   TK_EOF,
@@ -290,6 +292,13 @@ token_t* token_dup_new_id(token_t* token, token_id id);
   * The token argument may be NULL.
   */
 void token_free(token_t* token);
+
+/// Get a pony_type_t for token_t. Should only be used for signature computation.
+pony_type_t* token_signature_pony_type();
+
+/// Get a pony_type_t for a docstring token_t. Should only be used for signature
+/// computation.
+pony_type_t* token_docstring_signature_pony_type();
 
 /// Get a pony_type_t for token_t. Should only be used for serialisation.
 pony_type_t* token_pony_type();

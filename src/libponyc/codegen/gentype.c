@@ -847,6 +847,8 @@ bool gentypes(compile_t* c)
     make_global_instance(c, t);
   }
 
+  genprim_signature(c);
+
   // Cache the instance of None, which is used as the return value for
   // behaviour calls.
   t = reach_type_name(c->reach, "None");
