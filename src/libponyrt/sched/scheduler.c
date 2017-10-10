@@ -77,21 +77,12 @@ static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
   ponyint_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
 }
 
-static void send_msg_single(uint32_t to, sched_msg_t msg, intptr_t arg)
-{
-  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgi_t)), msg);
-
-  m->i = arg;
-  ponyint_messageq_push_single(&scheduler[to].mq, &m->msg, &m->msg);
-}
-
 static void send_msg_all(sched_msg_t msg, intptr_t arg)
 {
   send_msg(0, msg, arg);
 
   for(uint32_t i = 1; i < scheduler_count; i++)
-    send_msg_single(i, msg, arg);
+    send_msg(i, msg, arg);
 }
 
 static void read_msg(scheduler_t* sched)
