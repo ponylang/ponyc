@@ -205,6 +205,10 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       children); \
   }
 
+pony_type_t* ast_signature_pony_type();
+
+pony_type_t* ast_nominal_pkg_id_signature_pony_type();
+
 pony_type_t* ast_pony_type();
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)

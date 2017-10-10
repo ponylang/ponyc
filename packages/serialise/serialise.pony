@@ -20,7 +20,23 @@ possibly including recompilation of the same code. This is due to the use of
 type identifiers rather than a heavy-weight self-describing serialisation
 schema. This also means it isn't safe to deserialise something serialised by
 the same program compiled for a different platform.
+
+The Serialise.signature method is provided for the purposes of comparing
+communicating Pony binaries to determine if they are the same. Confirming this
+before deserialising data can help mitigate the risk of accidental serialisation
+across different Pony binaries, but does not on its own address the security
+issues of accepting data from untrusted sources.
 """
+
+primitive Serialise
+  fun signature(): Array[U8] val =>
+    """
+    Returns a byte array that is unique to this compiled Pony binary, for the
+    purposes of comparing before deserialising any data from that source.
+    It is statistically impossible for two serialisation-incompatible Pony
+    binaries to have the same serialise signature.
+    """
+    @"internal.signature"[Array[U8] val]()
 
 primitive SerialiseAuth
   """

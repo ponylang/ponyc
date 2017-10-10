@@ -45,14 +45,6 @@ static void s_throw_fn()
   throw std::exception{};
 }
 
-typedef struct ponyint_array_t
-{
-  void* desc;
-  size_t size;
-  size_t alloc;
-  char* ptr;
-} ponyint_array_t;
-
 struct pool_size_deleter
 {
   size_t size;

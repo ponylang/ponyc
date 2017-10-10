@@ -342,13 +342,16 @@ libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
 libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+libblake2 := $(lib)
+libblake2.dir := lib/blake2
+libblake2.files := $(libblake2.dir)/blake2b-ref.c
 
 # We don't add libponyrt here. It's a special case because it can be compiled
 # to LLVM bitcode.
 ifeq ($(OSTYPE), linux)
-  libraries := libponyc libponyrt-pic libgtest libgbenchmark
+  libraries := libponyc libponyrt-pic libgtest libgbenchmark libblake2
 else
-  libraries := libponyc libgtest libgbenchmark
+  libraries := libponyc libgtest libgbenchmark libblake2
 endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
@@ -396,7 +399,8 @@ benchmarks := libponyc.benchmarks libponyrt.benchmarks
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include) \
+  -isystem lib/blake2
 libponycc.include := -I src/common/ $(llvm.include)
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
@@ -413,6 +417,7 @@ libponyrt.benchmarks.include := -I src/common/ -I src/libponyrt/ -isystem \
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 libgbenchmark.include := -isystem lib/gbenchmark/include/
+libblake2.include := -isystem lib/blake2/
 
 ifneq (,$(filter $(OSTYPE), osx bsd))
   libponyrt.include += -I /usr/local/include
@@ -475,13 +480,14 @@ endif
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
 libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+libblake2.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
-ponyc.links = libponyc libponyrt llvm
-libponyc.tests.links = libgtest libponyc llvm
+ponyc.links = libponyc libponyrt llvm libblake2
+libponyc.tests.links = libgtest libponyc llvm libblake2
 libponyc.tests.links.whole = libponyrt
 libponyrt.tests.links = libgtest libponyrt
-libponyc.benchmarks.links = libgbenchmark libponyc libponyrt llvm
+libponyc.benchmarks.links = libblake2 libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
 
 ifeq ($(OSTYPE),linux)
@@ -516,7 +522,7 @@ all: $(targets)
 	@:
 
 # Dependencies
-libponyc.depends := libponyrt
+libponyc.depends := libponyrt libblake2
 libponyc.tests.depends := libponyc libgtest
 libponyrt.tests.depends := libponyrt libgtest
 libponyc.benchmarks.depends := libponyc libgbenchmark

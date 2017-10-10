@@ -15,6 +15,7 @@
 #include "serialisers.h"
 #include "docgen.h"
 #include "../codegen/codegen.h"
+#include "../pkg/program.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -250,6 +251,15 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(options->check_tree)
     check_tree(*astp, options->check.errors);
+
+  if(ast_id(*astp) == TK_PROGRAM)
+  {
+    program_signature(*astp);
+
+    if(options->verbosity >= VERBOSITY_TOOL_INFO)
+      program_dump(*astp);
+  }
+
   return true;
 }
 
