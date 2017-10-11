@@ -417,6 +417,7 @@ class iso _HTTPConnTest is UnitTest
   fun label(): String => "conn-fix"
 
   fun ref apply(h: TestHelper) ? =>
+    // Need two or more request to check if the fix worked.
     let urls: Array[URL] = 
       [ 
         URL.build(
@@ -425,29 +426,11 @@ class iso _HTTPConnTest is UnitTest
           "http://localhost:50000")?
         URL.build(
           "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
       ]
-
+    // Start the fake server.
     server = TCPListener(
       h.env.root as AmbientAuth,
-      MyTCPListenNotify, 
+      _MyTCPListenNotify, 
       "", 
       "50000")
 
@@ -461,14 +444,14 @@ class iso _HTTPConnTest is UnitTest
       client(consume payload, hf)?
     end
 
-    // Start a long test. Will work for really slow lines. Ahem.
-    h.long_test(10_000_000_000)
+    // Start a long test for 2 seconds.
+    h.long_test(2_000_000_000)
 
   fun ref tear_down(h: TestHelper) =>
     try (server as TCPListener).dispose() end
 
 ////////////////////////
-primitive ResponseWriter
+primitive _ResponseWriter
   fun val ok(): Array[String val] val^ =>
     [ as String val: 
       "HTTP/1.1 200 OK"
@@ -497,7 +480,7 @@ primitive ResponseWriter
     end
 
 
-class iso MyTCPConnectionNotify is TCPConnectionNotify
+class iso _MyTCPConnectionNotify is TCPConnectionNotify
   let reader: Reader
 
   new iso create() =>
@@ -522,7 +505,7 @@ class iso MyTCPConnectionNotify is TCPConnectionNotify
 
       // Write the response.
       if start then
-        ResponseWriter.write(conn, ResponseWriter.ok())
+        _ResponseWriter.write(conn, _ResponseWriter.ok())
       end
     end // while
     true
@@ -539,7 +522,7 @@ class iso MyTCPConnectionNotify is TCPConnectionNotify
   fun ref closed(conn: TCPConnection ref) =>
     None
 
-class MyTCPListenNotify is TCPListenNotify
+class _MyTCPListenNotify is TCPListenNotify
   new iso create() =>
     None
 
@@ -553,5 +536,5 @@ class MyTCPListenNotify is TCPListenNotify
     None
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    MyTCPConnectionNotify
+    _MyTCPConnectionNotify
 
