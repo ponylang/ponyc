@@ -548,7 +548,7 @@ void ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
       muted_count--;
       atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
 
-      if (muted->muted == 0)
+      if (muted_count == 0)
       {
         ponyint_sched_add(ctx, muted);
         ponyint_sched_unmute_senders(ctx, muted, true);
