@@ -1,4 +1,7 @@
 use "ponytest"
+use "net"
+use "collections"
+use "buffered"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -25,6 +28,7 @@ actor Main is TestList
     test(_Valid)
     test(_ToStringFun)
 
+    test(_HTTPConnTest)
 
 class iso _Encode is UnitTest
   fun name(): String => "net/http/URLEncode.encode"
@@ -362,3 +366,192 @@ primitive _Test
     h.assert_eq[String](path, url.path)
     h.assert_eq[String](query, url.query)
     h.assert_eq[String](fragment, url.fragment)
+
+// Actor and classes to test the HTTPClient and modified _HTTPConnection.
+actor _HTTPHandlerActor
+  let h: TestHelper
+  var tries: USize
+  
+  new create(h': TestHelper, tries': USize) =>
+    h = h'
+    tries = tries'
+    h.log("_HTTPHandlerActor create called")
+
+  be apply(p: Payload val) =>
+    h.log("_HTTPHandlerActor apply called. Tries to go: " + tries.string())
+    if (tries = tries - 1) == 1 then 
+      h.complete(true)
+    end
+
+class _TestHTTPHandler is HTTPHandler
+  let h: TestHelper
+  let ha: _HTTPHandlerActor
+
+  new create(ha': _HTTPHandlerActor, h': TestHelper) =>
+    ha = ha'
+    h = h'
+    h.log("_TestHTTPHandler.create called")
+
+  fun ref apply(payload: Payload val): Any => 
+    h.log("_TestHTTPHandler.apply called")
+    ha(payload)
+
+  fun ref chunk(data: ByteSeq val) => 
+    h.log("_TestHTTPHandler.chunk called")
+
+class val _TestHandlerFactory is HandlerFactory
+  let h: TestHelper
+  let ha: _HTTPHandlerActor
+
+  new val create(ha': _HTTPHandlerActor, h': TestHelper) =>
+    ha = ha'
+    h = h'
+
+  fun apply(session: HTTPSession): HTTPHandler ref^ =>
+    h.log("_TestHTTPHandlerFactory.apply called")
+    _TestHTTPHandler(ha, h)
+
+class iso _HTTPConnTest is UnitTest
+  var server: (TCPListener | None) = None
+  fun name(): String => "net/http/_HTTPConnection._new_conn"
+  fun label(): String => "conn-fix"
+
+  fun ref apply(h: TestHelper) ? =>
+    let urls: Array[URL] = 
+      [ 
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+        URL.build(
+          "http://localhost:50000")?
+      ]
+
+    server = TCPListener(
+      h.env.root as AmbientAuth,
+      MyTCPListenNotify, 
+      "", 
+      "50000")
+
+
+    let ha = _HTTPHandlerActor(h, urls.size())
+    let hf = _TestHandlerFactory(ha, h)
+    let client = HTTPClient(h.env.root as TCPConnectionAuth)
+
+    for url in urls.values() do 
+      let payload: Payload iso = Payload.request("GET", url)
+      client(consume payload, hf)?
+    end
+
+    // Start a long test. Will work for really slow lines. Ahem.
+    h.long_test(10_000_000_000)
+
+  fun ref tear_down(h: TestHelper) =>
+    try (server as TCPListener).dispose() end
+
+////////////////////////
+primitive ResponseWriter
+  fun val ok(): Array[String val] val^ =>
+    [ as String val: 
+      "HTTP/1.1 200 OK"
+      "Server: pony_fake_server"
+      // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
+      // "Content-Type: text/html; charset=utf-8"
+      "Content-Length: 0"
+      "Status: 200 OK"
+      ""
+    ]
+
+  fun val error_503(): Array[String val] val^ =>
+    [ as String val: 
+      "HTTP/1.1 520 Unknown Error"
+      "Server: pony_fake_server"
+      // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
+      // "Content-Type: text/html; charset=utf-8"
+      "Content-Length: 0"
+      "Status: 520 Unknown Error"
+      ""
+    ]
+
+  fun write(conn: TCPConnection, resp: Array[String val] val) =>
+    for r in resp.values() do
+      conn.write(r + "\n")
+    end
+
+
+class iso MyTCPConnectionNotify is TCPConnectionNotify
+  let reader: Reader
+
+  new iso create() =>
+    reader = Reader
+
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
+  =>
+    // Test if the request was issued completely.
+    reader.append(consume data)
+    while true do
+      let start = 
+        try 
+          let l = reader.line()?
+          l.contains("HTTP/1.1")
+        else
+          break
+        end
+
+      // Write the response.
+      if start then
+        ResponseWriter.write(conn, ResponseWriter.ok())
+      end
+    end // while
+    true
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    None
+
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
+    None
+  
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    None
+  
+  fun ref closed(conn: TCPConnection ref) =>
+    None
+
+class MyTCPListenNotify is TCPListenNotify
+  new iso create() =>
+    None
+
+  fun ref listening(listen: TCPListener ref) =>
+    None
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    None
+
+  fun ref closed(listen: TCPListener ref) =>
+    None
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    MyTCPConnectionNotify
+
