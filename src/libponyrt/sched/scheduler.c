@@ -513,7 +513,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   {
     ponyint_muteset_putindex(&mref->value, sender, index2);
     uint8_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
-    muted++
+    muted++;
     atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
   }
 }
