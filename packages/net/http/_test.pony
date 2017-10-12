@@ -417,35 +417,53 @@ class iso _HTTPConnTest is UnitTest
   fun label(): String => "conn-fix"
 
   fun ref apply(h: TestHelper) ? =>
-    // Need two or more request to check if the fix worked.
-    let urls: Array[URL] = 
-      [ 
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-        URL.build(
-          "http://localhost:50000")?
-      ]
+
+    let worker = object
+      be listening(port: String) =>
+        try
+          // Need two or more request to check if the fix worked.
+          let loops: USize = 3
+          // let port: String val = "12345"
+          h.log("received port: [" + port + "]")
+          // let us = "http://localhost:" + port
+          let port1 = "12345"
+          let us = "http://localhost:" + port
+          let us1 = "http://localhost:" + port1
+          h.log("URL: " + us)
+          let url = URL.build(us)?
+          let url1 = URL.build(us1)?
+          h.log("url.string()=" + url.string())
+          h.log("url1.string()=" + url1.string())
+          h.assert_true(url.is_valid(), "URL not valid.")
+
+          let ha = _HTTPHandlerActor(h, loops)
+          let hf = _TestHandlerFactory(ha, h)
+          let client = HTTPClient(h.env.root as TCPConnectionAuth)
+
+          for _ in Range(0, loops) do 
+            let payload: Payload iso = Payload.request("GET", url)
+            client(consume payload, hf)?
+          end
+        else 
+          h.log("Error in worker.listening")
+          // h.complete(false)
+        end
+    end // object
+
     // Start the fake server.
-    server = TCPListener(
+    server = TCPListener.ip4(
       h.env.root as AmbientAuth,
-      _MyTCPListenNotify, 
-      "", 
-      "50000")
-
-
-    let ha = _HTTPHandlerActor(h, urls.size())
-    let hf = _TestHandlerFactory(ha, h)
-    let client = HTTPClient(h.env.root as TCPConnectionAuth)
-
-    for url in urls.values() do 
-      let payload: Payload iso = Payload.request("GET", url)
-      client(consume payload, hf)?
-    end
+      _MyTCPListenNotify(
+        h, 
+        {(p: String val) =>
+          worker.listening(p)
+        }
+      ),
+      "localhost", "5000"
+    )
 
     // Start a long test for 2 seconds.
-    h.long_test(2_000_000_000)
+    h.long_test(10_000_000_000)
 
   fun ref tear_down(h: TestHelper) =>
     try (server as TCPListener).dispose() end
@@ -523,17 +541,23 @@ class iso _MyTCPConnectionNotify is TCPConnectionNotify
     None
 
 class _MyTCPListenNotify is TCPListenNotify
-  new iso create() =>
-    None
+  let listen_cb: {(String val)} iso
+  let h: TestHelper
+  
+  new iso create(h': TestHelper, f: {(String val)} iso) =>
+    h = h'
+    listen_cb = consume f
 
   fun ref listening(listen: TCPListener ref) =>
-    None
+    let port: U16 = listen.local_address().port
+    h.env.out.print("Listening on port:" + port.string())
+    listen_cb(port.string())
 
   fun ref not_listening(listen: TCPListener ref) =>
-    None
+    h.log("Not listening")
 
   fun ref closed(listen: TCPListener ref) =>
-    None
+    h.log("closed")
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     _MyTCPConnectionNotify
