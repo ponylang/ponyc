@@ -419,23 +419,16 @@ class iso _HTTPConnTest is UnitTest
   fun ref apply(h: TestHelper) ? =>
 
     let worker = object
-      be listening(port: String) =>
+      be listening(service: String) =>
         try
           // Need two or more request to check if the fix worked.
           let loops: USize = 3
-          // let port: String val = "12345"
-          h.log("received port: [" + port + "]")
-          // let us = "http://localhost:" + port
-          let port1 = "12345"
-          let us = "http://localhost:" + port
-          let us1 = "http://localhost:" + port1
+          // let service: String val = "12345"
+          h.log("received service: [" + service + "]")
+          let us = "http://localhost:" + service
           h.log("URL: " + us)
           let url = URL.build(us)?
-          let url1 = URL.build(us1)?
           h.log("url.string()=" + url.string())
-          h.log("url1.string()=" + url1.string())
-          h.assert_true(url.is_valid(), "URL not valid.")
-
           let ha = _HTTPHandlerActor(h, loops)
           let hf = _TestHandlerFactory(ha, h)
           let client = HTTPClient(h.env.root as TCPConnectionAuth)
@@ -451,7 +444,7 @@ class iso _HTTPConnTest is UnitTest
     end // object
 
     // Start the fake server.
-    server = TCPListener.ip4(
+    server = TCPListener(
       h.env.root as AmbientAuth,
       _MyTCPListenNotify(
         h, 
@@ -459,7 +452,8 @@ class iso _HTTPConnTest is UnitTest
           worker.listening(p)
         }
       ),
-      "localhost", "5000"
+      "", // all interfaces
+      "0" // service
     )
 
     // Start a long test for 2 seconds.
@@ -480,17 +474,17 @@ primitive _ResponseWriter
       "Status: 200 OK"
       ""
     ]
-
-  fun val error_503(): Array[String val] val^ =>
-    [ as String val: 
-      "HTTP/1.1 520 Unknown Error"
-      "Server: pony_fake_server"
-      // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
-      // "Content-Type: text/html; charset=utf-8"
-      "Content-Length: 0"
-      "Status: 520 Unknown Error"
-      ""
-    ]
+  // For future use.
+  // fun val error_503(): Array[String val] val^ =>
+  //   [ as String val: 
+  //     "HTTP/1.1 520 Unknown Error"
+  //     "Server: pony_fake_server"
+  //     // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
+  //     // "Content-Type: text/html; charset=utf-8"
+  //     "Content-Length: 0"
+  //     "Status: 520 Unknown Error"
+  //     ""
+  //   ]
 
   fun write(conn: TCPConnection, resp: Array[String val] val) =>
     for r in resp.values() do
@@ -549,9 +543,12 @@ class _MyTCPListenNotify is TCPListenNotify
     listen_cb = consume f
 
   fun ref listening(listen: TCPListener ref) =>
-    let port: U16 = listen.local_address().port
-    h.env.out.print("Listening on port:" + port.string())
-    listen_cb(port.string())
+    try
+      // Get the service as numeric.
+      let name = listen.local_address().name()?
+      h.env.out.print("Listening on service:" + name._2)
+      listen_cb(name._2)
+    end
 
   fun ref not_listening(listen: TCPListener ref) =>
     h.log("Not listening")
