@@ -206,7 +206,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 
   while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
   {
-    if(handle_message(ctx, actor, msg))
+    if(handle_message(ctx, actor, msg) && !ponyint_is_cycle(actor))
     {
       // If we handle an application message, try to gc.
       app++;
