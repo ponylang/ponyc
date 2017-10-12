@@ -15,6 +15,10 @@ If you are looking for an answer "right now", we suggest you give our IRC channe
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 
+# Trying it online
+
+If you want to try Pony and want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/)
+
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
 
 # Editor support
