@@ -1441,7 +1441,11 @@ bool target_is_x86(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
   return !strcmp("x86", arch);
 }
@@ -1450,7 +1454,11 @@ bool target_is_arm(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
   return !strcmp("arm", arch);
 }
