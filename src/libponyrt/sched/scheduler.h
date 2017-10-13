@@ -5,6 +5,9 @@
 #  include <stdalign.h>
 #endif
 #include "mpmcq.h"
+
+typedef struct scheduler_t scheduler_t;
+
 #include "../actor/messageq.h"
 #include "../gc/gc.h"
 #include "../gc/serialise.h"
@@ -12,14 +15,16 @@
 #include <platform.h>
 #include "mutemap.h"
 
+#define SPECIAL_THREADID_KQUEUE   -10
+#define SPECIAL_THREADID_IOCP     -11
+#define SPECIAL_THREADID_EPOLL    -12
+
 PONY_EXTERN_C_BEGIN
 
 typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);
-
-typedef struct scheduler_t scheduler_t;
 
 typedef struct pony_ctx_t
 {
@@ -42,6 +47,7 @@ struct scheduler_t
 {
   // These are rarely changed.
   pony_thread_id_t tid;
+  int32_t index;
   uint32_t cpu;
   uint32_t node;
   bool terminate;
@@ -75,17 +81,17 @@ uint32_t ponyint_sched_cores();
 
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv);
 
-void ponyint_sched_start_global_unmute(pony_actor_t* actor);
+void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /** Mark asio as being noisy
  */
-void ponyint_sched_noisy_asio();
+void ponyint_sched_noisy_asio(int32_t from);
 
 /** Mark asio as not being noisy
  */
-void ponyint_sched_unnoisy_asio();
+void ponyint_sched_unnoisy_asio(int32_t from);
 
 PONY_EXTERN_C_END
 

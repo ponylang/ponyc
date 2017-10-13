@@ -42,7 +42,8 @@ static void send_request(asio_event_t* ev, int req)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL,
+    &b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   eventfd_write(b->wakeup, 1);
 }
@@ -73,7 +74,7 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(SPECIAL_THREADID_EPOLL, &b->q)) != NULL)
   {
     asio_event_t* ev = msg->event;
 
@@ -280,7 +281,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // tell scheduler threads that asio has at least one noisy actor
     // if the old_count was 0
     if (old_count == 0)
-      ponyint_sched_noisy_asio();
+      ponyint_sched_noisy_asio(SPECIAL_THREADID_EPOLL);
   }
 
   struct epoll_event ep;
@@ -358,7 +359,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // tell scheduler threads that asio has no noisy actors
     // if the old_count was 1
     if (old_count == 1)
-      ponyint_sched_unnoisy_asio();
+      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_EPOLL);
     ev->noisy = false;
   }
 

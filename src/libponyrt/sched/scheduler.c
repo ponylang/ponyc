@@ -18,14 +18,14 @@ static DECLARE_THREAD_FN(run_thread);
 
 typedef enum
 {
-  SCHED_BLOCK,
-  SCHED_UNBLOCK,
-  SCHED_CNF,
+  SCHED_BLOCK = 20,
+  SCHED_UNBLOCK = 21,
+  SCHED_CNF = 30,
   SCHED_ACK,
-  SCHED_TERMINATE,
-  SCHED_UNMUTE_ACTOR,
-  SCHED_NOISY_ASIO,
-  SCHED_UNNOISY_ASIO
+  SCHED_TERMINATE = 40,
+  SCHED_UNMUTE_ACTOR = 50,
+  SCHED_NOISY_ASIO = 51,
+  SCHED_UNNOISY_ASIO = 52
 } sched_msg_t;
 
 // Scheduler global data.
@@ -70,19 +70,21 @@ static pony_actor_t* pop_global(scheduler_t* sched)
  * Sends a message to a thread.
  */
 
-static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
+static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
   m->i = arg;
-  ponyint_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
+  ponyint_thread_messageq_push(from, to, &scheduler[to].mq, &m->msg, &m->msg);
 }
 
-static void send_msg_all(sched_msg_t msg, intptr_t arg)
+static void send_msg_all(uint32_t from, sched_msg_t msg, intptr_t arg)
 {
-  for(uint32_t i = 0; i < scheduler_count; i++)
-    send_msg(i, msg, arg);
+  send_msg(from, 0, msg, arg);
+
+  for(uint32_t i = 1; i < scheduler_count; i++)
+    send_msg(from, i, msg, arg);
 }
 
 static bool read_msg(scheduler_t* sched)
@@ -91,7 +93,7 @@ static bool read_msg(scheduler_t* sched)
 
   bool run_queue_changed = false;
 
-  while((m = (pony_msgi_t*)ponyint_messageq_pop(&sched->mq)) != NULL)
+  while((m = (pony_msgi_t*)ponyint_thread_messageq_pop(sched->index, &sched->mq)) != NULL)
   {
     switch(m->msg.id)
     {
@@ -103,7 +105,7 @@ static bool read_msg(scheduler_t* sched)
           (sched->block_count == scheduler_count))
         {
           // If we think all threads are blocked, send CNF(token) to everyone.
-          send_msg_all(SCHED_CNF, sched->ack_token);
+          send_msg_all(sched->index, SCHED_CNF, sched->ack_token);
         }
         break;
       }
@@ -133,7 +135,7 @@ static bool read_msg(scheduler_t* sched)
       case SCHED_CNF:
       {
         // Echo the token back as ACK(token).
-        send_msg(0, SCHED_ACK, m->i);
+        send_msg(sched->index, 0, SCHED_ACK, m->i);
         break;
       }
 
@@ -196,7 +198,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
   {
     if(sched->asio_stopped)
     {
-      send_msg_all(SCHED_TERMINATE, 0);
+      send_msg_all(sched->index, SCHED_TERMINATE, 0);
 
       sched->ack_token++;
       sched->ack_count = 0;
@@ -206,7 +208,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
       sched->ack_count = 0;
 
       // Run another CNF/ACK cycle.
-      send_msg_all(SCHED_CNF, sched->ack_token);
+      send_msg_all(sched->index, SCHED_CNF, sched->ack_token);
     }
   }
 
@@ -261,7 +263,6 @@ static pony_actor_t* steal(scheduler_t* sched)
 {
   bool block_sent = false;
   uint32_t steal_attempts = 0;
-
   uint64_t tsc = ponyint_cpu_tick();
   pony_actor_t* actor;
 
@@ -341,7 +342,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         ((tsc2 - tsc) > 1000000) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
-        send_msg(0, SCHED_BLOCK, 0);
+        send_msg(sched->index, 0, SCHED_BLOCK, 0);
         block_sent = true;
       }
     }
@@ -350,7 +351,7 @@ static pony_actor_t* steal(scheduler_t* sched)
   if(block_sent)
   {
     // Only send unblock message if a corresponding block message was sent
-    send_msg(0, SCHED_UNBLOCK, 0);
+    send_msg(sched->index, 0, SCHED_UNBLOCK, 0);
   }
   return actor;
 }
@@ -441,7 +442,7 @@ static void ponyint_sched_shutdown()
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
-    while(ponyint_messageq_pop(&scheduler[i].mq) != NULL);
+    while(ponyint_thread_messageq_pop(i, &scheduler[i].mq) != NULL) { ; }
     ponyint_messageq_destroy(&scheduler[i].mq);
     ponyint_mpmcq_destroy(&scheduler[i].q);
   }
@@ -476,6 +477,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   {
     scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
+    scheduler[i].index = i;
     scheduler[i].asio_noisy = false;
     ponyint_messageq_init(&scheduler[i].mq);
     ponyint_mpmcq_init(&scheduler[i].q);
@@ -566,15 +568,15 @@ PONY_API pony_ctx_t* pony_ctx()
 }
 
 // Tell all scheduler threads that asio is noisy
-void ponyint_sched_noisy_asio()
+void ponyint_sched_noisy_asio(int32_t from)
 {
-  send_msg_all(SCHED_NOISY_ASIO, 0);
+  send_msg_all(from, SCHED_NOISY_ASIO, 0);
 }
 
 // Tell all scheduler threads that asio is not noisy
-void ponyint_sched_unnoisy_asio()
+void ponyint_sched_unnoisy_asio(int32_t from)
 {
-  send_msg_all(SCHED_UNNOISY_ASIO, 0);
+  send_msg_all(from, SCHED_UNNOISY_ASIO, 0);
 }
 
 // Manage a scheduler's mute map
@@ -623,9 +625,9 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   }
 }
 
-void ponyint_sched_start_global_unmute(pony_actor_t* actor)
+void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 {
-  send_msg_all(SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+  send_msg_all(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
 }
 
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
@@ -683,7 +685,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
         actors_rescheduled++;
       }
 
-      ponyint_sched_start_global_unmute(to_unmute);
+      ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
     }
   }
 

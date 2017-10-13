@@ -5,6 +5,7 @@
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
+#include "../sched/scheduler.h"
 #include "ponyassert.h"
 #include <sys/event.h>
 #include <string.h>
@@ -61,8 +62,11 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(
+    SPECIAL_THREADID_KQUEUE, &b->q)) != NULL)
+  {
     pony_asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
+  }
 }
 
 static void retry_loop(asio_backend_t* b)
@@ -236,7 +240,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // tell scheduler threads that asio has at least one noisy actor
     // if the old_count was 0
     if (old_count == 0)
-      ponyint_sched_noisy_asio();
+      ponyint_sched_noisy_asio(SPECIAL_THREADID_KQUEUE);
   }
 
   struct kevent event[4];
@@ -334,7 +338,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // tell scheduler threads that asio has no noisy actors
     // if the old_count was 1
     if (old_count == 1)
-      ponyint_sched_unnoisy_asio();
+      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_KQUEUE);
     ev->noisy = false;
   }
 
@@ -374,7 +378,8 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(SPECIAL_THREADID_KQUEUE, SPECIAL_THREADID_KQUEUE,
+    &b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   retry_loop(b);
 }
