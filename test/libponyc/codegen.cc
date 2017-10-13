@@ -158,19 +158,17 @@ EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
 TEST_F(CodegenTest, SmallFinalisers)
 {
   const char* src =
-    "use \"collections\"\n"
-
     "class _Final\n"
     "  fun _final() =>\n"
     "    @codegentest_small_finalisers_increment_num_objects[None]()\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    for i in Range[I32](0, 42) do\n"
+    "    var i: U64 = 0\n"
+    "    while i < 42 do\n"
     "      _Final\n"
-    "    end\n";
-
-  set_builtin(NULL);
+    "      i = i + 1\n"
+    "    end";
 
   TEST_COMPILE(src);
 
