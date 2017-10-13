@@ -306,6 +306,22 @@ inline uint64_t __pony_clzl(uint64_t x)
 
 #endif
 
+/** Static assert
+ *
+ */
+
+#if defined(__clang__)
+#  if __has_feature(cxx_static_assert)
+#    define pony_static_assert(c, m) static_assert(c, m)
+#  elif __has_feature(c_static_assert)
+#    define pony_static_assert(c, m) _Static_assert(c, m)
+#  else
+#    error "Clang doesn't support `static_assert` or `_Static_assert`."
+#  endif
+#else
+#  define pony_static_assert(c, m) static_assert(c, m)
+#endif
+
 /** Storage class modifiers.
  *
  */
