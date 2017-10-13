@@ -368,7 +368,7 @@ primitive _Test
     h.assert_eq[String](fragment, url.fragment)
 
 // Actor and classes to test the HTTPClient and modified _HTTPConnection.
-actor _HTTPHandlerActor
+actor _HTTPConnTestHandlerActor
   let h: TestHelper
   var tries: USize
   
@@ -383,33 +383,33 @@ actor _HTTPHandlerActor
       h.complete(true)
     end
 
-class _TestHTTPHandler is HTTPHandler
+class _HTTPConnTestHandler is HTTPHandler
   let h: TestHelper
-  let ha: _HTTPHandlerActor
+  let ha: _HTTPConnTestHandlerActor
 
-  new create(ha': _HTTPHandlerActor, h': TestHelper) =>
+  new create(ha': _HTTPConnTestHandlerActor, h': TestHelper) =>
     ha = ha'
     h = h'
-    h.log("_TestHTTPHandler.create called")
+    h.log("_HTTPConnTestHandler.create called")
 
   fun ref apply(payload: Payload val): Any => 
-    h.log("_TestHTTPHandler.apply called")
+    h.log("_HTTPConnTestHandler.apply called")
     ha(payload)
 
   fun ref chunk(data: ByteSeq val) => 
-    h.log("_TestHTTPHandler.chunk called")
+    h.log("_HTTPConnTestHandler.chunk called")
 
-class val _TestHandlerFactory is HandlerFactory
+class val _HTTPConnTestHandlerFactory is HandlerFactory
   let h: TestHelper
-  let ha: _HTTPHandlerActor
+  let ha: _HTTPConnTestHandlerActor
 
-  new val create(ha': _HTTPHandlerActor, h': TestHelper) =>
+  new val create(ha': _HTTPConnTestHandlerActor, h': TestHelper) =>
     ha = ha'
     h = h'
 
   fun apply(session: HTTPSession): HTTPHandler ref^ =>
-    h.log("_TestHTTPHandlerFactory.apply called")
-    _TestHTTPHandler(ha, h)
+    h.log("_HTTPConnTestHandlerFactory.apply called")
+    _HTTPConnTestHandler(ha, h)
 
 class iso _HTTPConnTest is UnitTest
   var server: (TCPListener | None) = None
@@ -429,8 +429,8 @@ class iso _HTTPConnTest is UnitTest
           h.log("URL: " + us)
           let url = URL.build(us)?
           h.log("url.string()=" + url.string())
-          let ha = _HTTPHandlerActor(h, loops)
-          let hf = _TestHandlerFactory(ha, h)
+          let ha = _HTTPConnTestHandlerActor(h, loops)
+          let hf = _HTTPConnTestHandlerFactory(ha, h)
           let client = HTTPClient(h.env.root as TCPConnectionAuth)
 
           for _ in Range(0, loops) do 
@@ -446,116 +446,104 @@ class iso _HTTPConnTest is UnitTest
     // Start the fake server.
     server = TCPListener(
       h.env.root as AmbientAuth,
-      _MyTCPListenNotify(
+      _FakeHTTPServerNotify(
         h, 
         {(p: String val) =>
           worker.listening(p)
-        }
+        },
+        recover 
+          [ as String val: 
+            "HTTP/1.1 200 OK"
+            "Server: pony_fake_server"
+            "Content-Length: 0"
+            "Status: 200 OK"
+            ""
+          ]
+        end
       ),
       "", // all interfaces
       "0" // service
     )
 
-    // Start a long test for 2 seconds.
-    h.long_test(10_000_000_000)
+    // Start a long test for 5 seconds.
+    h.long_test(5_000_000_000)
 
   fun ref tear_down(h: TestHelper) =>
     try (server as TCPListener).dispose() end
 
-////////////////////////
-primitive _ResponseWriter
-  fun val ok(): Array[String val] val^ =>
-    [ as String val: 
-      "HTTP/1.1 200 OK"
-      "Server: pony_fake_server"
-      // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
-      // "Content-Type: text/html; charset=utf-8"
-      "Content-Length: 0"
-      "Status: 200 OK"
-      ""
-    ]
-  // For future use.
-  // fun val error_503(): Array[String val] val^ =>
-  //   [ as String val: 
-  //     "HTTP/1.1 520 Unknown Error"
-  //     "Server: pony_fake_server"
-  //     // "Date: Wed, 11 Oct 2017 15:16:32 GMT"
-  //     // "Content-Type: text/html; charset=utf-8"
-  //     "Content-Length: 0"
-  //     "Status: 520 Unknown Error"
-  //     ""
-  //   ]
-
-  fun write(conn: TCPConnection, resp: Array[String val] val) =>
-    for r in resp.values() do
-      conn.write(r + "\n")
-    end
-
-
-class iso _MyTCPConnectionNotify is TCPConnectionNotify
-  let reader: Reader
-
-  new iso create() =>
-    reader = Reader
-
-  fun ref received(
-    conn: TCPConnection ref,
-    data: Array[U8] iso,
-    times: USize)
-    : Bool
+primitive _FakeHTTPServerNotify
+  fun apply(
+    h': TestHelper, 
+    f: {(String val)} iso, 
+    r: Array[String val] val)
+    : TCPListenNotify iso^
   =>
-    // Test if the request was issued completely.
-    reader.append(consume data)
-    while true do
-      let start = 
-        try 
-          let l = reader.line()?
-          l.contains("HTTP/1.1")
-        else
-          break
-        end
+    recover
+      object is TCPListenNotify iso^
+        let h: TestHelper = h'
+        let listen_cb: {(String val)} iso = consume f
+        let response: Array[String val] val = r
 
-      // Write the response.
-      if start then
-        _ResponseWriter.write(conn, _ResponseWriter.ok())
-      end
-    end // while
-    true
+        fun ref listening(listen: TCPListener ref) =>
+          try
+            // Get the service as numeric.
+            let name = listen.local_address().name()?
+            h.env.out.print("Listening on service:" + name._2)
+            listen_cb(name._2)
+          end
 
-  fun ref accepted(conn: TCPConnection ref) =>
-    None
+        fun ref not_listening(listen: TCPListener ref) =>
+          h.log("Not listening")
 
-  fun ref connecting(conn: TCPConnection ref, count: U32) =>
-    None
-  
-  fun ref connect_failed(conn: TCPConnection ref) =>
-    None
-  
-  fun ref closed(conn: TCPConnection ref) =>
-    None
+        fun ref closed(listen: TCPListener ref) =>
+          h.log("closed")
 
-class _MyTCPListenNotify is TCPListenNotify
-  let listen_cb: {(String val)} iso
-  let h: TestHelper
-  
-  new iso create(h': TestHelper, f: {(String val)} iso) =>
-    h = h'
-    listen_cb = consume f
+        fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+          recover 
+            object is TCPConnectionNotify iso^
+            // let response': Array[String val] val = response
+            let reader: Reader iso = Reader
 
-  fun ref listening(listen: TCPListener ref) =>
-    try
-      // Get the service as numeric.
-      let name = listen.local_address().name()?
-      h.env.out.print("Listening on service:" + name._2)
-      listen_cb(name._2)
-    end
+            fun ref received(
+              conn: TCPConnection ref,
+              data: Array[U8] iso,
+              times: USize)
+              : Bool
+            =>
+              // Test if the request was issued completely.
+              reader.append(consume data)
+              while true do
+                let start = 
+                  try 
+                    let l = reader.line()?
+                    l.contains("HTTP/1.1")
+                  else
+                    break
+                  end
 
-  fun ref not_listening(listen: TCPListener ref) =>
-    h.log("Not listening")
+                // Write the response.
+                if start then
+                  for r in response.values() do
+                    conn.write(r + "\n")
+                  end
+                end
+              end // while
+              true
 
-  fun ref closed(listen: TCPListener ref) =>
-    h.log("closed")
+            fun ref accepted(conn: TCPConnection ref) =>
+              None
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    _MyTCPConnectionNotify
+            fun ref connecting(conn: TCPConnection ref, count: U32) =>
+              None
+            
+            fun ref connect_failed(conn: TCPConnection ref) =>
+              None
+            
+            fun ref closed(conn: TCPConnection ref) =>
+              None
 
+          end // object
+        end // recover
+
+      end // object  
+    end // recover
