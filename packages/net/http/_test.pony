@@ -412,12 +412,10 @@ class val _HTTPConnTestHandlerFactory is HandlerFactory
     _HTTPConnTestHandler(ha, h)
 
 class iso _HTTPConnTest is UnitTest
-  var server: (TCPListener | None) = None
   fun name(): String => "net/http/_HTTPConnection._new_conn"
   fun label(): String => "conn-fix"
 
   fun ref apply(h: TestHelper) ? =>
-
     let worker = object
       be listening(service: String) =>
         try
@@ -444,34 +442,33 @@ class iso _HTTPConnTest is UnitTest
     end // object
 
     // Start the fake server.
-    server = TCPListener(
-      h.env.root as AmbientAuth,
-      _FakeHTTPServerNotify(
-        h, 
-        {(p: String val) =>
-          worker.listening(p)
-        },
-        recover 
-          [ as String val: 
-            "HTTP/1.1 200 OK"
-            "Server: pony_fake_server"
-            "Content-Length: 0"
-            "Status: 200 OK"
-            ""
-          ]
-        end
-      ),
-      "", // all interfaces
-      "0" // service
+    h.dispose_when_done(
+      TCPListener(
+        h.env.root as AmbientAuth,
+        _FixedResponseHTTPServerNotify(
+          h, 
+          {(p: String val) =>
+            worker.listening(p)
+          },
+          recover 
+            [ as String val: 
+              "HTTP/1.1 200 OK"
+              "Server: pony_fake_server"
+              "Content-Length: 0"
+              "Status: 200 OK"
+              ""
+            ]
+          end
+        ),
+        "", // all interfaces
+        "0" // random service
+      )
     )
 
     // Start a long test for 5 seconds.
     h.long_test(5_000_000_000)
 
-  fun ref tear_down(h: TestHelper) =>
-    try (server as TCPListener).dispose() end
-
-primitive _FakeHTTPServerNotify
+primitive _FixedResponseHTTPServerNotify
   fun apply(
     h': TestHelper, 
     f: {(String val)} iso, 
