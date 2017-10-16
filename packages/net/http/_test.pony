@@ -28,7 +28,8 @@ actor Main is TestList
     test(_Valid)
     test(_ToStringFun)
 
-    test(_HTTPConnTest)
+    // Disabled to check if this causes the appveyor block.
+    // test(_HTTPConnTest)
 
 class iso _Encode is UnitTest
   fun name(): String => "net/http/URLEncode.encode"
@@ -485,7 +486,6 @@ primitive _FixedResponseHTTPServerNotify
           try
             // Get the service as numeric.
             let name = listen.local_address().name()?
-            h.env.out.print("Listening on service:" + name._2)
             listen_cb(name._2)
           end
 
