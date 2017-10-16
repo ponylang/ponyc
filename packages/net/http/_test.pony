@@ -29,7 +29,7 @@ actor Main is TestList
     test(_ToStringFun)
 
     // Disabled to check if this causes the appveyor block.
-    // test(_HTTPConnTest)
+    test(_HTTPConnTest)
 
 class iso _Encode is UnitTest
   fun name(): String => "net/http/URLEncode.encode"
@@ -418,6 +418,8 @@ class iso _HTTPConnTest is UnitTest
 
   fun ref apply(h: TestHelper) ? =>
     let worker = object
+      var client: (HTTPClient iso| None) = None
+
       be listening(service: String) =>
         try
           // Need two or more request to check if the fix worked.
@@ -430,17 +432,31 @@ class iso _HTTPConnTest is UnitTest
           h.log("url.string()=" + url.string())
           let ha = _HTTPConnTestHandlerActor(h, loops)
           let hf = _HTTPConnTestHandlerFactory(ha, h)
-          let client = HTTPClient(h.env.root as TCPConnectionAuth)
+          client = recover iso HTTPClient(h.env.root as TCPConnectionAuth) end
 
           for _ in Range(0, loops) do 
             let payload: Payload iso = Payload.request("GET", url)
-            client(consume payload, hf)?
+            try
+              (client as HTTPClient iso)(consume payload, hf)?
+            end
+            // match client
+            // | let c: HTTPClient iso =>
+            //   c(consume payload, hf)?
+            // end
           end
         else 
           h.log("Error in worker.listening")
           // h.complete(false)
+        end // try
+
+      be dispose() =>
+        try
+          (client as HTTPClient iso).dispose()
         end
+
     end // object
+
+    h.dispose_when_done(worker)
 
     // Start the fake server.
     h.dispose_when_done(

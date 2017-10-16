@@ -87,7 +87,7 @@ actor _ClientConnection is HTTPSession
     try
       for node in _unsent.nodes() do
         if node()? is request then
-          node.>remove().pop()?
+          node .> remove().pop()?
           return
         end
       end
@@ -99,7 +99,7 @@ actor _ClientConnection is HTTPSession
         if node()? is request then
           try (_conn as TCPConnection).dispose() end
           _conn = None
-          node.>remove().pop()?
+          node .> remove().pop()?
           break
         end
       end

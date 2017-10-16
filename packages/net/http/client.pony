@@ -53,6 +53,11 @@ class HTTPClient
     let valrequest: Payload val = consume request
     session(valrequest)
     valrequest
+
+  fun dispose() =>
+    for s in _sessions.values() do
+      s.dispose()
+    end
     
 /*
   fun ref cancel(request: Payload val) =>
