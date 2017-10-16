@@ -38,7 +38,7 @@ CONFIGS = [
     'debug'
 ]
 
-MSVC_VERSIONS = [ '15', '14' ]
+MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
@@ -77,7 +77,7 @@ def configure(ctx):
         import os
 
         base_env = ctx.env
-        base_env.MSVC_VERSIONS = [ 'msvc ' + v + '.0' for v in MSVC_VERSIONS ]
+        base_env.MSVC_VERSIONS = [ 'msvc ' + v for v in MSVC_VERSIONS ]
         base_env.MSVC_TARGETS = [ 'x64' ]
         ctx.load('msvc')
 
