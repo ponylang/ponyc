@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Turn off LTO by default on OSX ([PR #2284](https://github.com/ponylang/ponyc/pull/2284))
 - Replace memory-leak-inciting `Writer.reserve` with more intuitive `Writer.reserve_current` method. ([PR #2260](https://github.com/ponylang/ponyc/pull/2260))
 
 ## [0.19.3] - 2017-10-09
