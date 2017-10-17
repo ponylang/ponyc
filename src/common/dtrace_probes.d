@@ -1,14 +1,19 @@
 provider pony {
   /**
    * Fired when a actor is being created
+   * @param scheduler is the scheduler that created the actor
+   * @actor is the actor that was created
    */
-  probe actor__alloc(uintptr_t scheduler);
+  probe actor__alloc(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when a message is being send
+   * @param scheduler is the active scheduler
    * @param id the message id
+   * @param actor_from is the sending actor
+   * @param actor_to is the receiving actor
    */
-  probe actor__msg__send(uintptr_t scheduler, uint32_t id);
+  probe actor__msg__send(uintptr_t scheduler, uint32_t id, uintptr_t actor_from, uintptr_t actor_to);
 
   /**
    * Fired when a message is being run by an actor

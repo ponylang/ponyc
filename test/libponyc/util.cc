@@ -51,6 +51,7 @@ static const char* _builtin =
   "  new create(a: U64 = 0) => a\n"
   "  fun op_xor(a: U64): U64 => this xor a\n"
   "  fun add(a: U64): U64 => this + a\n"
+  "  fun lt(a: U64): Bool => this < a\n"
   "primitive I64 is Real[I64]"
   "  new create(a: I64 = 0) => a\n"
   "  fun neg():I64 => -this\n"

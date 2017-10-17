@@ -67,11 +67,11 @@ class Writer
     """
     _chunks.reserve(size')
 
-  fun ref reserve(size': USize) =>
+  fun ref reserve_current(size': USize) =>
     """
-    Reserve space for size additional bytes.
+    Reserve space for size bytes in `_current`.
     """
-    _current.undefined(_current.size() + size')
+    _check(size')
 
   fun size(): USize =>
     _size

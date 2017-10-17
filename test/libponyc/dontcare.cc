@@ -176,3 +176,25 @@ TEST_F(DontcareTest, CannotUseDontcareAsFunctionArgument)
 
   TEST_ERRORS_1(src, "can't read from '_'");
 }
+
+TEST_F(DontcareTest, CannotUseDontcareInCaseExpression)
+{
+  const char* src =
+    "class C\n"
+    "  fun c_ase(x: I32): I32 =>\n"
+    "    match x\n"
+    "      | let x1: I32 => -1\n"
+    "      | _ => 42\n"
+    "    end";
+  TEST_ERRORS_1(src, "can't have a case with `_` only, use an else clause");
+}
+
+TEST_F(DontcareTest, CannotUseDontcareInCaseMethod)
+{
+    const char* src =
+      "class C\n"
+      "  fun case_function(x: I32): I32 => -1\n"
+      "  fun case_function(_): I32 => 42\n";
+    TEST_ERRORS_1(src, "can't have '_' as single parameter in a case method");
+}
+

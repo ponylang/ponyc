@@ -2,6 +2,17 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.20.0] - 2017-10-17
+
+### Fixed
+
+- Forbid single '_' in case expr and case methods ([PR #2269](https://github.com/ponylang/ponyc/pull/2269))
+
+### Changed
+
+- Turn off LTO by default on OSX ([PR #2284](https://github.com/ponylang/ponyc/pull/2284))
+- Replace memory-leak-inciting `Writer.reserve` with more intuitive `Writer.reserve_current` method. ([PR #2260](https://github.com/ponylang/ponyc/pull/2260))
+
 ## [0.19.3] - 2017-10-09
 
 ### Fixed
@@ -13,6 +24,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix excess work stealing under low loads ([PR #2254](https://github.com/ponylang/ponyc/pull/2254))
 - Fix compiler crash on case methods with `_` as a method parameter. ([PR #2252](https://github.com/ponylang/ponyc/pull/2252))
 - Fix implicit fallthrough in array inference. ([PR #2251](https://github.com/ponylang/ponyc/pull/2251))
+- Fix small chunk finaliser bug. ([PR #2257](https://github.com/ponylang/ponyc/pull/2257))
 
 ## [0.19.2] - 2017-09-24
 
