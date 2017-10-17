@@ -2,14 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.20.0] - 2017-10-17
 
 ### Fixed
 
 - Forbid single '_' in case expr and case methods ([PR #2269](https://github.com/ponylang/ponyc/pull/2269))
-
-### Added
-
 
 ### Changed
 
