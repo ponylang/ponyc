@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Implement RFC 47 (Serialise signature) ([PR #2272](https://github.com/ponylang/ponyc/pull/2272))
 
 ### Changed
 
