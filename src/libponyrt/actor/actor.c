@@ -138,6 +138,20 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_BLOCK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
+    case ACTORMSG_UNBLOCK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
     default:
     {
       if(has_flag(actor, FLAG_BLOCKED))

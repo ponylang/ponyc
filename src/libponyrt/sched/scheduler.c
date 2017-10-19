@@ -237,7 +237,9 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  */
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
-  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  bool send_block_msgs = ponyint_mutemap_size(&sched->mute_mapping) == 0;
+
+  if(send_block_msgs)
   {
     // Only send block message if we don't have any muted actors.
     // If we have at least one muted actor it means we aren't really
@@ -270,7 +272,9 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
       // and actor was unmuted and added to our run queue.
       // pop it and return. effectively, we are "stealing" from ourselves
 
-      return pop_global(sched);
+      actor = pop_global(sched);
+      if(actor != NULL)
+        break;
     }
 
     if(quiescent(sched, tsc, tsc2))
@@ -289,7 +293,7 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     }
   }
 
-  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  if(send_block_msgs)
   {
     // Only send unblock message if we don't have any muted actors
     // If we have at least one muted actor it means we weren't really
@@ -327,6 +331,7 @@ static void run(scheduler_t* sched)
       if(actor == NULL)
       {
         // Termination.
+        printf("SCHEDULER TERIMINATION\n");
         pony_assert(pop(sched) == NULL);
         return;
       }
@@ -347,26 +352,6 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-      } else if(ponyint_is_cycle(actor)) {
-        // If all we have is the cycle detector, try to steal something else to
-        // run as well.
-        next = steal(sched, actor);
-
-        if(next == NULL)
-        {
-          // Termination.
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          return;
-        }
-
-        // Push the cycle detector and run the actor we stole.
-        if(actor != next)
-        {
-          push(sched, actor);
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          actor = next;
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-        }
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
