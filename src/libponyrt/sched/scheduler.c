@@ -331,7 +331,6 @@ static void run(scheduler_t* sched)
       if(actor == NULL)
       {
         // Termination.
-        printf("SCHEDULER TERIMINATION\n");
         pony_assert(pop(sched) == NULL);
         return;
       }
