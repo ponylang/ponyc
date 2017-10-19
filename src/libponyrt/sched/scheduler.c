@@ -85,9 +85,11 @@ static void send_msg_all(sched_msg_t msg, intptr_t arg)
     send_msg(i, msg, arg);
 }
 
-static void read_msg(scheduler_t* sched)
+static bool read_msg(scheduler_t* sched)
 {
   pony_msgi_t* m;
+
+  bool run_queue_changed = false;
 
   while((m = (pony_msgi_t*)ponyint_messageq_pop(&sched->mq)) != NULL)
   {
@@ -139,13 +141,21 @@ static void read_msg(scheduler_t* sched)
 
       case SCHED_UNMUTE_ACTOR:
       {
-        ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i, false);
+        if(ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i, false))
+        {
+          if(run_queue_changed == false)
+          {
+            run_queue_changed = true;
+          }
+        }
         break;
       }
 
       default: {}
     }
   }
+
+  return run_queue_changed;
 }
 
 
@@ -157,8 +167,6 @@ static void read_msg(scheduler_t* sched)
 
 static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
-  read_msg(sched);
-
   if(sched->terminate)
     return true;
 
@@ -229,7 +237,14 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  */
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
-  send_msg(0, SCHED_BLOCK, 0);
+  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  {
+    // Only send block message if we don't have any muted actors.
+    // If we have at least one muted actor it means we aren't really
+    // blocked. There's work that can eventually be done.
+    send_msg(0, SCHED_BLOCK, 0);
+  }
+
   uint64_t tsc = ponyint_cpu_tick();
   pony_actor_t* actor;
 
@@ -250,6 +265,14 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
+    if(read_msg(sched))
+    {
+      // and actor was unmuted and added to our run queue.
+      // pop it and return. effectively, we are "stealing" from ourselves
+
+      return pop_global(sched);
+    }
+
     if(quiescent(sched, tsc, tsc2))
     {
       DTRACE2(WORK_STEAL_FAILURE, (uintptr_t)sched, (uintptr_t)victim);
@@ -266,7 +289,13 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     }
   }
 
-  send_msg(0, SCHED_UNBLOCK, 0);
+  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  {
+    // Only send unblock message if we don't have any muted actors
+    // If we have at least one muted actor it means we weren't really
+    // blocked. There's was that could eventually be done.
+    send_msg(0, SCHED_UNBLOCK, 0);
+  }
   return actor;
 }
 
@@ -282,7 +311,13 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
-    read_msg(sched);
+    // In response to reading a message, we might have unmuted an actor and
+    // added it back to our queue. if we don't have an actor to run, we want
+    // to pop from our queue to check for a recently unmuted actor
+    if(read_msg(sched) && actor == NULL)
+    {
+      actor = pop_global(sched);
+    }
 
     if(actor == NULL)
     {
@@ -518,8 +553,9 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   }
 }
 
-void ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
+bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 {
+  size_t actors_rescheduled = 0;
   scheduler_t* sched = ctx->scheduler;
   size_t index;
   muteref_t key;
@@ -552,11 +588,14 @@ void ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
       {
         ponyint_sched_add(ctx, muted);
         ponyint_sched_unmute_senders(ctx, muted, true);
+        actors_rescheduled++;
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
   }
+
+  return actors_rescheduled > 0;
 }
 
