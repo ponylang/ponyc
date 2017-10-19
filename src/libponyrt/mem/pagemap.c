@@ -90,27 +90,31 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
 
   for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
   {
-    void* node = atomic_load_explicit(next_node, memory_order_acquire);
+    void* node = atomic_load_explicit(next_node, memory_order_relaxed);
+
     if(node == NULL)
     {
       void* new_node = ponyint_pool_alloc(level[i].size_index);
       memset(new_node, 0, level[i].size);
-      void* prev = NULL;
 
 #ifdef USE_VALGRIND
       ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
-      if(!atomic_compare_exchange_strong_explicit(next_node, &prev, new_node,
+      if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
         memory_order_release, memory_order_acquire))
       {
 #ifdef USE_VALGRIND
         ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
         ponyint_pool_free(level[i].size_index, new_node);
-        node = prev;
       } else {
         node = new_node;
       }
+    } else {
+      atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+      ANNOTATE_HAPPENS_AFTER(next_node);
+#endif
     }
 
     uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
@@ -131,29 +135,34 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
   while(addr_ptr < addr_end)
   {
     next_node = &root;
+
     for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
     {
-      node = atomic_load_explicit(next_node, memory_order_acquire);
+      node = atomic_load_explicit(next_node, memory_order_relaxed);
+
       if(node == NULL)
       {
         void* new_node = ponyint_pool_alloc(level[i].size_index);
         memset(new_node, 0, level[i].size);
-        void* prev = NULL;
 
 #ifdef USE_VALGRIND
         ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
-        if(!atomic_compare_exchange_strong_explicit(next_node, &prev, new_node,
+        if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
           memory_order_release, memory_order_acquire))
         {
 #ifdef USE_VALGRIND
           ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
           ponyint_pool_free(level[i].size_index, new_node);
-          node = prev;
         } else {
           node = new_node;
         }
+      } else {
+        atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+        ANNOTATE_HAPPENS_AFTER(next_node);
+#endif
       }
 
       ix = (addr_ptr >> level[i].shift) & level[i].mask;
