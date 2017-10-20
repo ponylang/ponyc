@@ -11,10 +11,12 @@ scheduling the various `Sender` instances until the overload on `Receiver` is
 cleared.
 """
 use "collections"
+use "time"
 
 actor Receiver
   var _msgs: U64 = 0
   let _out: StdStream
+  var _last: U64 = Time.nanos()
 
   new create(out: StdStream) =>
     _out = out
@@ -23,7 +25,11 @@ actor Receiver
   be receive() =>
     _msgs = _msgs + 1
     if ((_msgs % 50_000_000) == 0) then
-      _out.print(_msgs.string() + " messages received.")
+      let now = Time.nanos()
+      let nanos = now - _last
+      _last = now
+      _out.print(_msgs.string() + " messages received in " +
+        nanos.string() + " nanos.")
     end
 
 actor Sender
