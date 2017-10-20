@@ -386,7 +386,7 @@ class Iter[A] is Iterator[A]
     """
     filter_stateful({(a: A!): Bool ? => f(a)? })
 
-  fun ref find(f: {(A!): Bool ?} box, n: USize = 1): A ? =>
+  fun ref find(f: {(A!): Bool ?} box, n: USize = 1): A! ? =>
     """
     Return the nth value in the iterator that satisfies the predicate `f`.
 
@@ -408,7 +408,7 @@ class Iter[A] is Iterator[A]
     for x in _iter do
       if try f(x)? else false end then
         if c == 1 then
-          return consume x as A
+          return x
         else
           c = c - 1
         end

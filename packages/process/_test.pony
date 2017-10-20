@@ -434,7 +434,6 @@ class _ProcessClient is ProcessNotify
     | KillError => _h.fail("ProcessError: KillError")
     | Unsupported => _h.fail("ProcessError: Unsupported")
     | CapError => _h.complete(true) // used in _TestFileExec
-    else _h.fail("Unknown ProcessError!")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
