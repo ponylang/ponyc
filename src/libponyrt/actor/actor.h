@@ -63,6 +63,8 @@ void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to);
 
+bool triggers_muting(pony_actor_t* actor);
+
 PONY_API void ponyint_destroy(pony_actor_t* actor);
 
 PONY_EXTERN_C_END
