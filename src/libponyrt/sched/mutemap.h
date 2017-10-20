@@ -1,7 +1,7 @@
 #ifndef sched_mutemap_h
 #define sched_mutemap_h
 
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include "ds/hash.h"
 
