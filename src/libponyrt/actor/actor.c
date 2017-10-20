@@ -27,7 +27,7 @@ enum
   FLAG_UNSCHEDULED = 1 << 3,
   FLAG_PENDINGDESTROY = 1 << 4,
   FLAG_OVERLOADED = 1 << 5,
-  FLAG_UNDER_PRESSURE = 1 << 5,
+  FLAG_UNDER_PRESSURE = 1 << 6,
 };
 
 static bool actor_noblock = false;
