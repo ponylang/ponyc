@@ -8,6 +8,7 @@
 #include "../gc/serialise.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
+#include "ponyassert.h"
 #include <dtrace.h>
 #include <string.h>
 #include <stdlib.h>
@@ -28,6 +29,7 @@ typedef struct options_t
 } options_t;
 
 // global data
+static PONY_ATOMIC(bool) initialised;
 static PONY_ATOMIC(int) exit_code;
 static bool language_init;
 
@@ -92,6 +94,14 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
 PONY_API int pony_init(int argc, char** argv)
 {
+  bool prev_init = atomic_exchange_explicit(&initialised, true,
+    memory_order_acquire);
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_AFTER(&initialised);
+#endif
+  (void)prev_init;
+  pony_assert(!prev_init);
+
   DTRACE0(RT_INIT);
   options_t opt;
   memset(&opt, 0, sizeof(options_t));
@@ -124,6 +134,8 @@ PONY_API int pony_init(int argc, char** argv)
 
 PONY_API int pony_start(bool library, bool language_features)
 {
+  pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
+
   if(language_features)
   {
     if(!ponyint_os_sockets_init())
@@ -147,11 +159,19 @@ PONY_API int pony_start(bool library, bool language_features)
     language_init = false;
   }
 
-  return pony_get_exitcode();
+  int ec = pony_get_exitcode();
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&initialised);
+#endif
+  atomic_thread_fence(memory_order_acq_rel);
+  atomic_store_explicit(&initialised, false, memory_order_relaxed);
+  return ec;
 }
 
 PONY_API int pony_stop()
 {
+  pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
+
   ponyint_sched_stop();
   if(language_init)
   {
@@ -159,7 +179,13 @@ PONY_API int pony_stop()
     language_init = false;
   }
 
-  return pony_get_exitcode();
+  int ec = pony_get_exitcode();
+#ifdef USE_VALGRIND
+  ANNOTATE_HAPPENS_BEFORE(&initialised);
+#endif
+  atomic_thread_fence(memory_order_acq_rel);
+  atomic_store_explicit(&initialised, false, memory_order_relaxed);
+  return ec;
 }
 
 PONY_API void pony_exitcode(int code)

@@ -103,7 +103,6 @@ static void cond_normalise(ast_t** astp)
       break;
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       break;
   }
@@ -160,7 +159,6 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
     }
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       return false;
   }
@@ -200,7 +198,6 @@ static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
     }
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       break;
   }

@@ -20,14 +20,16 @@
  */
 
 
-struct
+typedef struct use_scheme_t
 {
   const char* scheme; // Interned textual identifier including :
   size_t scheme_len;  // Number of characters in scheme, including :
   bool allow_name;    // Is the name clause allowed
   bool allow_guard;   // Is the guard expression allowed
   use_handler_t handler;
-} handlers[] =
+} use_scheme_t;
+
+static __pony_thread_local use_scheme_t handlers[] =
 {
   {"package:", 8, true, false, use_package},
   {"lib:", 4, false, true, use_library},

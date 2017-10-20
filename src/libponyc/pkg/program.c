@@ -205,7 +205,7 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   }
 
   // Library paths from the command line and environment variable.
-  for(strlist_t* p = package_paths(); p != NULL; p = strlist_next(p))
+  for(strlist_t* p = opt->package_search_paths; p != NULL; p = strlist_next(p))
   {
     const char* libpath = quoted_locator(opt, NULL, strlist_data(p));
 

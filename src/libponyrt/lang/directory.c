@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include <platform.h>
 #include <pony.h>
 #include "lang.h"
@@ -11,11 +13,12 @@
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
 
-const char* cwd;
+PONY_ATOMIC(const char*) cwd_cache;
 
 PONY_API int pony_os_eexist()
 {
@@ -40,16 +43,38 @@ static bool skip_entry(const char* entry, size_t len)
 
 PONY_API char* pony_os_cwd()
 {
+  const char* cwd = atomic_load_explicit(&cwd_cache, memory_order_relaxed);
+
   if(cwd == NULL)
   {
+    char* cwd_alloc;
 #if defined(PLATFORM_IS_WINDOWS)
-    cwd = _getcwd(NULL, 0);
+    cwd_alloc = _getcwd(NULL, 0);
 #else
-    cwd = getcwd(NULL, 0);
+    cwd_alloc = getcwd(NULL, 0);
 #endif
 
-    if(cwd == NULL)
-      cwd = strdup(".");
+    if(cwd_alloc == NULL)
+      cwd_alloc = strdup(".");
+
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE(&cwd_cache);
+#endif
+    if(!atomic_compare_exchange_strong_explicit(&cwd_cache, &cwd,
+      (const char*)cwd_alloc, memory_order_release, memory_order_acquire))
+    {
+#ifdef USE_VALGRIND
+      ANNOTATE_HAPPENS_AFTER(&cwd_cache);
+#endif
+      free(cwd_alloc);
+    } else {
+      cwd = cwd_alloc;
+    }
+  } else {
+    atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_AFTER(&cwd_cache);
+#endif
   }
 
   size_t len = strlen(cwd) + 1;

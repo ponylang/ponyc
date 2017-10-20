@@ -251,10 +251,10 @@ static bool compile_package(const char* path, pass_opt_t* opt,
     return false;
 
   if(print_program_ast)
-    ast_fprint(stderr, program);
+    ast_fprint(stderr, program, opt->ast_print_width);
 
   if(print_package_ast)
-    ast_fprint(stderr, ast_child(program));
+    ast_fprint(stderr, ast_child(program), opt->ast_print_width);
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
@@ -270,8 +270,8 @@ int main(int argc, char* argv[])
 
   opt.release = true;
   opt.output = ".";
+  opt.ast_print_width = get_width();
 
-  ast_setwidth(get_width());
   bool print_program_ast = false;
   bool print_package_ast = false;
 
@@ -333,8 +333,8 @@ int main(int argc, char* argv[])
 
       case OPT_AST: print_program_ast = true; break;
       case OPT_ASTPACKAGE: print_package_ast = true; break;
-      case OPT_TRACE: parse_trace(true); break;
-      case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
+      case OPT_TRACE: opt.parse_trace = true; break;
+      case OPT_WIDTH: opt.ast_print_width = atoi(s.arg_val); break;
       case OPT_IMMERR: errors_set_immediate(opt.check.errors, true); break;
       case OPT_VERIFY: opt.verify = true; break;
       case OPT_EXTFUN: opt.extfun = true; break;

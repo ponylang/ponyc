@@ -145,7 +145,7 @@ TEST_F(CodegenTest, BoxBoolAsUnionIntoTuple)
 extern "C"
 {
 
-uint32_t num_objects = 0;
+static uint32_t num_objects = 0;
 
 EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
   num_objects++;

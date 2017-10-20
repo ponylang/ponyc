@@ -1226,10 +1226,11 @@ DEF(module);
 #ifdef PARSER
 
 // external API
-bool pass_parse(ast_t* package, source_t* source, errors_t* errors)
+bool pass_parse(ast_t* package, source_t* source, errors_t* errors,
+  bool allow_test_symbols, bool trace)
 {
   return parse(package, source, module, "class, actor, primitive or trait",
-    errors);
+    errors, allow_test_symbols, trace);
 }
 
 #endif

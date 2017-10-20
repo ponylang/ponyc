@@ -1,5 +1,6 @@
 #include "treecheck.h"
 #include "ast.h"
+#include "../pass/pass.h"
 #include "ponyassert.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -20,7 +21,8 @@ typedef enum
   CHK_ERROR      // Error has occurred
 } check_res_t;
 
-typedef check_res_t (*check_fn_t)(ast_t* ast, errors_t* errors);
+typedef check_res_t (*check_fn_t)(ast_t* ast, errors_t* errors,
+  size_t print_width);
 
 typedef enum
 {
@@ -67,7 +69,7 @@ static bool is_id_in_list(token_id id, const token_id* list)
 // Check the given node if it's covered by the specified rule list.
 // The rules list must be NULL terminated.
 static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
-  errors_t* errors)
+  errors_t* errors, size_t print_width)
 {
   pony_assert(ast != NULL);
   pony_assert(rules != NULL);
@@ -75,7 +77,7 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
   // Check rules in given list
   for(const check_fn_t* p = rules; *p != NULL; p++)
   {
-    check_res_t r = (*p)(ast, errors);
+    check_res_t r = (*p)(ast, errors, print_width);
 
     if(r != CHK_NOT_FOUND)
       return r;
@@ -89,7 +91,8 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
 // Check some number of children, all using the same rules.
 // The given max and min counts are inclusive. Pass -1 for no maximum limit.
 static bool check_children(ast_t* ast, check_state_t* state,
-  const check_fn_t *rules, size_t min_count, size_t max_count, errors_t* errors)
+  const check_fn_t *rules, size_t min_count, size_t max_count, errors_t* errors,
+  size_t print_width)
 {
   pony_assert(ast != NULL);
   pony_assert(state != NULL);
@@ -100,7 +103,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
   while(found_count < max_count && state->child != NULL)
   {
     // See if next child is suitable
-    check_res_t r = check_from_list(state->child, rules, errors);
+    check_res_t r = check_from_list(state->child, rules, errors, print_width);
 
     if(r == CHK_ERROR)  // Propagate error
       return false;
@@ -125,7 +128,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     fprintf(stderr, "found " __zu " child%s, expected more\n", state->child_index,
       (state->child_index == 1) ? "" : "ren");
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -136,7 +139,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
     fprintf(stderr, "child " __zu " has invalid id %d\n", state->child_index,
       ast_id(state->child));
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -151,7 +154,7 @@ static bool check_children(ast_t* ast, check_state_t* state,
 // * legal scope symbol table
 // * no extra children
 static check_res_t check_extras(ast_t* ast, check_state_t* state,
-  errors_t* errors)
+  errors_t* errors, size_t print_width)
 {
   pony_assert(ast != NULL);
   pony_assert(state != NULL);
@@ -166,14 +169,14 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
       error_preamble(ast);
       fprintf(stderr, "unexpected type\n");
       ast_error(state->errors, ast, "Here");
-      ast_fprint(stderr, ast);
+      ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
       pony_assert(false);
 #endif
       return CHK_ERROR;
     }
 
-    check_res_t r = state->type(type_field, errors);
+    check_res_t r = state->type(type_field, errors, print_width);
 
     if(r == CHK_ERROR)  // Propagate error
       return CHK_ERROR;
@@ -183,7 +186,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
       error_preamble(ast);
       fprintf(stderr, "type field has invalid id %d\n", ast_id(type_field));
       ast_error(state->errors, ast, "Here");
-      ast_fprint(stderr, ast);
+      ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
       pony_assert(false);
 #endif
@@ -197,7 +200,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     fprintf(stderr, "child " __zu " (id %d, %s) unexpected\n", state->child_index,
       ast_id(state->child), ast_get_print(state->child));
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -209,7 +212,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     error_preamble(ast);
     fprintf(stderr, "unexpected data %p\n", ast_data(ast));
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -221,7 +224,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     error_preamble(ast);
     fprintf(stderr, "unexpected scope\n");
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -233,7 +236,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
     error_preamble(ast);
     fprintf(stderr, "expected scope not found\n");
     ast_error(state->errors, ast, "Here");
-    ast_fprint(stderr, ast);
+    ast_fprint(stderr, ast, print_width);
 #ifdef IMMEDIATE_FAIL
     pony_assert(false);
 #endif
@@ -247,8 +250,13 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 // Defines for first pass, forward declare group and rule functions
 #define TREE_CHECK
 #define ROOT(...)
-#define RULE(name, def, ...) static check_res_t name(ast_t* ast, errors_t* errs)
-#define GROUP(name, ...)     static check_res_t name(ast_t* ast, errors_t* errs)
+
+#define RULE(name, def, ...) \
+  static check_res_t name(ast_t* ast, errors_t* errs, size_t width)
+
+#define GROUP(name, ...) \
+  static check_res_t name(ast_t* ast, errors_t* errs, size_t width)
+
 #define LEAF                 
 
 #include "treecheckdef.h"
@@ -261,28 +269,28 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 // Defines for second pass, group and rule functions
 
 #define ROOT(...) \
-  check_res_t check_root(ast_t* ast, errors_t* errors) \
+  check_res_t check_root(ast_t* ast, errors_t* errors, size_t print_width) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    return check_from_list(ast, rules, errors); \
+    return check_from_list(ast, rules, errors, print_width); \
   }
 
 #define RULE(name, def, ...) \
-  static check_res_t name(ast_t* ast, errors_t* errors) \
+  static check_res_t name(ast_t* ast, errors_t* errors, size_t print_width) \
   { \
     const token_id ids[] = { __VA_ARGS__, TK_EOF }; \
     if(!is_id_in_list(ast_id(ast), ids)) return CHK_NOT_FOUND; \
     check_state_t state = {SCOPE_NO, false, NULL, NULL, 0, errors}; \
     state.child = ast_child(ast); \
     def \
-    return check_extras(ast, &state, errors); \
+    return check_extras(ast, &state, errors, print_width); \
   }
 
 #define GROUP(name, ...) \
-  static check_res_t name(ast_t* ast, errors_t* errors) \
+  static check_res_t name(ast_t* ast, errors_t* errors, size_t print_width) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    return check_from_list(ast, rules, errors); \
+    return check_from_list(ast, rules, errors, print_width); \
   }
 
 #define IS_SCOPE state.scope = SCOPE_YES;
@@ -293,7 +301,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 #define CHILDREN(min, max, ...) \
   { \
     const check_fn_t rules[] = { __VA_ARGS__, NULL }; \
-    if(!check_children(ast, &state, rules, min, max, errors)) \
+    if(!check_children(ast, &state, rules, min, max, errors, print_width)) \
       return CHK_ERROR; \
   }
 
@@ -316,16 +324,16 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 #include "treecheckdef.h"
 
 
-void check_tree(ast_t* tree, errors_t* errors)
+void check_tree(ast_t* tree, pass_opt_t* opt)
 {
 #ifdef NDEBUG
   // Keep compiler happy in release builds.
   (void)tree;
-  (void)errors;
+  (void)opt;
 #else
   // Only check tree in debug builds.
   pony_assert(tree != NULL);
-  check_res_t r = check_root(tree, errors);
+  check_res_t r = check_root(tree, opt->check.errors, opt->ast_print_width);
   pony_assert(r != CHK_ERROR);
 
   // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.

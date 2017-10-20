@@ -20,7 +20,7 @@ public:
   void test_pass_reach(const char* pass);
 };
 
-static const char* src =
+static const char* const src =
   "actor Main\n"
   "  new create(env: Env) =>\n"
   "    let x = recover Array[U8] end\n"

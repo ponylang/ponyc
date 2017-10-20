@@ -890,11 +890,11 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
 bool codegen_merge_runtime_bitcode(compile_t* c)
 {
-  strlist_t* search = package_paths();
   char path[FILENAME_MAX];
   LLVMModuleRef runtime = NULL;
 
-  for(strlist_t* p = search; p != NULL && runtime == NULL; p = strlist_next(p))
+  for(strlist_t* p = c->opt->package_search_paths;
+    (p != NULL) && (runtime == NULL); p = strlist_next(p))
   {
     path_cat(strlist_data(p), "libponyrt.bc", path);
     runtime = LLVMParseIRFileInContext(c->context, path);

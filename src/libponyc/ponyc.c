@@ -20,7 +20,7 @@ bool ponyc_init(pass_opt_t* options)
 void ponyc_shutdown(pass_opt_t* options)
 {
   errors_print(options->check.errors);
-  package_done();
+  package_done(options);
   codegen_pass_cleanup(options);
   codegen_llvm_shutdown();
   stringtab_done();

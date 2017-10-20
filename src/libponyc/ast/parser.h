@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "source.h"
 
-bool pass_parse(ast_t* package, source_t* source, errors_t* errors);
+bool pass_parse(ast_t* package, source_t* source, errors_t* errors,
+  bool allow_test_symbols, bool trace);
 
 #endif
