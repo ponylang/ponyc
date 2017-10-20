@@ -70,63 +70,54 @@ actor TCPConnection
   that are called when backpressure is applied and released.
 
   Upon receiving a `throttled` notification, your application has two choices
-  on how to handle it. One is to inform any actors sending the connection to
-  stop sending data. For example, you might construct your application like:
+  on how to handle it. One is to inform the Pony runtime that it can no
+  longer make progress and that runtime backpressure should be applied to
+  any actors sending this one messages. For example, you might construct your
+  application like:
 
   ```pony
   // Here we have a TCPConnectionNotify that upon construction
-  // is given a tag to a "Coordinator". Any actors that want to
-  // "publish" to this connection should register with the
-  // coordinator. This allows the notifier to inform the coordinator
-  // that backpressure has been applied and then it in turn can
-  // notify senders who could then pause sending.
+  // is given a BackpressureAuth token. This allows the notifier
+  // to inform the Pony runtime when to apply and release backpressure
+  // as the connection experiences it.
+  // Note the calls to
+  //
+  // Backpressure.apply(_auth)
+  // Backpressure.release(_auth)
+  //
+  // that apply and release backpressure as needed
 
+  use "backpressure"
   use "collections"
   use "net"
 
   class SlowDown is TCPConnectionNotify
-    let _coordinator: Coordinator
+    let _auth: BackpressureAuth
+    let _out: StdStream
 
-    new create(coordinator: Coordinator) =>
-      _coordinator = coordinator
+    new iso create(auth: BackpressureAuth, out: StdStream) =>
+      _auth = auth
+      _out = out
 
     fun ref throttled(connection: TCPConnection ref) =>
-      _coordinator.throttled(connection)
+      _out.print("Experiencing backpressure!")
+      Backpressure.apply(_auth)
 
     fun ref unthrottled(connection: TCPConnection ref) =>
-      _coordinator.unthrottled(connection)
+      _out.print("Releasing backpressure!")
+      Backpressure.release(_auth)
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
 
-  actor Coordinator
-    var _senders: List[Sender] = _senders.create()
-
-    be register(sender: Sender) =>
-      _senders.push(sender)
-
-    be throttled(connection: TCPConnection) =>
-      for sender in _senders.values() do
-        sender.pause_sending_to(connection)
-      end
-
-     be unthrottled(connection: TCPConnection) =>
-      for sender in _senders.values() do
-        sender.resume_sending_to(connection)
-      end
-
-  interface tag Sender
-    be pause_sending_to(connection: TCPConnection)
-    be resume_sending_to(connection: TCPConnection)
-
   actor Main
     new create(env: Env) =>
-      let coordinator = Coordinator
-      // Register senders in the coordinator here.
       try
-        TCPConnection(env.root as AmbientAuth,
-          recover SlowDown(coordinator) end, "", "8989")
+        let auth = env.root as AmbientAuth
+        let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
+          "", "7669")
       end
+
   ```
 
   Or if you want, you could handle backpressure by shedding load, that is,
@@ -166,7 +157,7 @@ actor TCPConnection
     new create(env: Env) =>
       try
         TCPConnection(env.root as AmbientAuth,
-          recover ThrowItAway end, "", "8989")
+          recover ThrowItAway end, "", "7669")
       end
   ```
 
