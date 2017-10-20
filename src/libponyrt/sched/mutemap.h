@@ -3,7 +3,7 @@
 
 #include "../pony.h"
 #include <platform.h>
-#include "ds/hash.h"
+#include "../ds/hash.h"
 
 PONY_EXTERN_C_BEGIN
 
