@@ -1,5 +1,5 @@
 """
-This is an example of you as a Pony user can participaate in Pony's built-in
+This is an example of you, as a Pony user, can participate in Pony's built-in
 backpressure system. This program starts up and connects to a program listening
 on localhost port 7669. It then starts sending large chunks of data. If it
 experiences backpressure, it uses the `Backpressure` primitive to inform the
