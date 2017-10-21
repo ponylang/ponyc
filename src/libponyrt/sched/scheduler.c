@@ -508,6 +508,24 @@ PONY_API pony_ctx_t* pony_ctx()
   return &this_scheduler->ctx;
 }
 
+// Manage a scheduler's mute map
+//
+// When an actor attempts to send to an overloaded actor, it will be added
+// to the mute map for this scheduler. The mute map is in the form of:
+//
+// overloaded receiving actor => [sending actors]
+//
+// - A given actor will only existing as a sending actor in the map for
+//   a given scheduler.
+// - Receiving actors can exist as a mute map key in the mute map of more
+//   than one scheduler
+//
+// Because muted sending actors only exist in a single scheduler's mute map
+// and because they aren't scheduled when they are muted, any manipulation
+// that we do on their state (for example incrementing or decrementing their
+// mute count) is thread safe as only a single scheduler thread will be
+// accessing the information.
+
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
 {
   scheduler_t* sched = ctx->scheduler;
