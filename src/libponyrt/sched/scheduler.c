@@ -141,13 +141,9 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNMUTE_ACTOR:
       {
-        if(ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i, false))
-        {
-          if(run_queue_changed == false)
-          {
-            run_queue_changed = true;
-          }
-        }
+        if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i, false))
+          run_queue_changed = true;
+
         break;
       }
 
