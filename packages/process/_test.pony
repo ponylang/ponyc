@@ -43,7 +43,7 @@ class iso _TestStdinStdout is UnitTest
       pm.write("one, two, three")
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -81,7 +81,7 @@ class iso _TestStderr is UnitTest
         pm.done_writing() // closing stdin
         h.dispose_when_done(pm)
       end
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -120,7 +120,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
         ProcessMonitor(auth, consume notifier, path,
           consume args, consume vars)
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -146,7 +146,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
       let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
         consume args, consume vars)
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -234,7 +234,7 @@ class iso _TestExpect is UnitTest
         consume args, consume vars)
       pm.done_writing()  // closing stdin allows "echo" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -272,7 +272,7 @@ class iso _TestWritevOrdering is UnitTest
       pm.writev(consume params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -310,7 +310,7 @@ class iso _TestPrintvOrdering is UnitTest
       pm.printv(consume params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -355,7 +355,7 @@ class iso _TestStdinWriteBuf is UnitTest
         pm.done_writing() // closing stdin allows "cat" to terminate
         h.dispose_when_done(pm)
       end
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Error running STDIN-WriteBuf test")
     end
