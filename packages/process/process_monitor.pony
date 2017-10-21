@@ -87,8 +87,10 @@ a runtime error.
 Document waitpid behaviour (stops world)
 
 """
+use "backpressure"
 use "collections"
 use "files"
+
 use @pony_os_errno[I32]()
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
       flags: U32, nsec: U64, noisy: Bool)
@@ -166,6 +168,8 @@ actor ProcessMonitor
   let _notifier: ProcessNotify
   var _child_pid: I32 = -1
 
+  let _backpressure_auth: BackpressureAuth
+
   var _stdin_event: AsioEventID = AsioEvent.none()
   var _stdout_event: AsioEventID = AsioEvent.none()
   var _stderr_event: AsioEventID = AsioEvent.none()
@@ -193,6 +197,7 @@ actor ProcessMonitor
 
   new create(
     auth: ProcessMonitorAuth,
+    backpressure_auth: BackpressureAuth,
     notifier: ProcessNotify iso,
     filepath: FilePath,
     args: Array[String] val,
@@ -203,6 +208,7 @@ actor ProcessMonitor
     and register the asio events. Fork child process and notify our
     user about incoming data via the notifier.
     """
+    _backpressure_auth = backpressure_auth
     _notifier = consume notifier
 
     // We need permission to execute and the
@@ -427,6 +433,7 @@ actor ProcessMonitor
     close the _stdin_write file descriptor.
     """
     _done_writing = true
+    Backpressure.release(_backpressure_auth)
     if _pending.size() == 0 then
       _close_fd(_stdin_write)
     end
@@ -435,6 +442,7 @@ actor ProcessMonitor
     """
     Terminate child and close down everything.
     """
+    Backpressure.release(_backpressure_auth)
     try
       _kill_child()?
     else
@@ -647,6 +655,7 @@ actor ProcessMonitor
         if errno == _EAGAIN() then
           // Resource temporarily unavailable, send data later.
           _pending.push((data, 0))
+          Backpressure.apply(_backpressure_auth)
           return false
         else
           // notify caller, close fd and bail out
@@ -657,12 +666,14 @@ actor ProcessMonitor
       elseif len.usize() < data.size() then
         // Send any remaining data later.
         _pending.push((data, len.usize()))
+        Backpressure.apply(_backpressure_auth)
         return false
       end
       return true
     else
       // Send later, when the fd is available for writing.
       _pending.push((data, 0))
+      Backpressure.apply(_backpressure_auth)
       return false
     end
 
@@ -699,9 +710,12 @@ actor ProcessMonitor
         else
           // This chunk has been fully sent.
           _pending.shift()?
-          // check if the client has signaled it is done
-          if (_pending.size() == 0) and _done_writing then
-            _close_fd(_stdin_write)
+          if (_pending.size() == 0) then
+            Backpressure.release(_backpressure_auth)
+            // check if the client has signaled it is done
+            if _done_writing then
+              _close_fd(_stdin_write)
+            end
           end
         end
       else
