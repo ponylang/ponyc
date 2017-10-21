@@ -14,6 +14,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+// Reminder: When adding new types, please also update
+// examples/dtrace/telemetry.d
+
 #define ACTORMSG_APPLICATION_START (UINT32_MAX - 7)
 #define ACTORMSG_BLOCK (UINT32_MAX - 6)
 #define ACTORMSG_UNBLOCK (UINT32_MAX - 5)
