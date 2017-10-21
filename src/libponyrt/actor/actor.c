@@ -228,7 +228,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       try_gc(ctx, actor);
 
       // if we become muted as a result of handling a message, bail out now.
-      if(is_muted(actor))
+      if(ponyint_is_muted(actor))
         return false;
 
       if(app == batch)
@@ -252,7 +252,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!is_muted(actor));
+  pony_assert(!ponyint_is_muted(actor));
 
   if(has_flag(actor, FLAG_OVERLOADED))
   {
@@ -471,7 +471,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
   if(ponyint_messageq_push(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !is_muted(to))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
       ponyint_sched_add(ctx, to);
     }
@@ -506,7 +506,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 
   if(ponyint_messageq_push_single(&to->q, first, last))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !is_muted(to))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
       // if the receiving actor is currently unscheduled AND it's not
       // muted, schedule it.
@@ -525,7 +525,7 @@ void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // 2. the sender isn't overloaded
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if(triggers_muting(to) &&
+    if(ponyint_triggers_muting(to) &&
        !has_flag(ctx->current, FLAG_OVERLOADED) &&
        ctx->current != to)
     {
@@ -701,14 +701,14 @@ PONY_API void pony_release_backpressure()
       ponyint_sched_unmute_senders(ctx, ctx->current, true);
 }
 
-bool triggers_muting(pony_actor_t* actor)
+bool ponyint_triggers_muting(pony_actor_t* actor)
 {
   return has_flag(actor, FLAG_OVERLOADED) ||
     has_flag(actor, FLAG_UNDER_PRESSURE) ||
-    is_muted(actor);
+    ponyint_is_muted(actor);
 }
 
-bool is_muted(pony_actor_t* actor)
+bool ponyint_is_muted(pony_actor_t* actor)
 {
   return atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0;
 }
