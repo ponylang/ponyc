@@ -271,6 +271,15 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
       actor = pop_global(sched);
       if(actor != NULL)
         break;
+      else
+      {
+        if (ponyint_mutemap_size(&sched->mute_mapping) == 0)
+        {
+          // Someone else stole from our newly unmuted actor. If we have no
+          // more muted actors, we need to inform everyone that we are blocked
+          send_msg(0, SCHED_BLOCK, 0);
+        }
+      }
     }
 
     if(quiescent(sched, tsc, tsc2))
