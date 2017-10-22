@@ -233,12 +233,15 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  */
 static pony_actor_t* steal(scheduler_t* sched)
 {
+  bool block_sent = false;
+
   if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
   {
     // Only send block message if we don't have any muted actors.
     // If we have at least one muted actor it means we aren't really
     // blocked. There's work that can eventually be done.
     send_msg(0, SCHED_BLOCK, 0);
+    block_sent = true;
   }
 
   uint64_t tsc = ponyint_cpu_tick();
@@ -276,6 +279,7 @@ static pony_actor_t* steal(scheduler_t* sched)
           // Someone else stole from our newly unmuted actor. If we have no
           // more muted actors, we need to inform everyone that we are blocked
           send_msg(0, SCHED_BLOCK, 0);
+          block_sent = true;
         }
       }
     }
@@ -287,7 +291,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     }
   }
 
-  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  if(block_sent)
   {
     // Only send unblock message if we don't have any muted actors
     // If we have at least one muted actor it means we arent't really
