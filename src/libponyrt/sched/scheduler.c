@@ -233,9 +233,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  */
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
-  bool send_block_msgs = ponyint_mutemap_size(&sched->mute_mapping) == 0;
-
-  if(send_block_msgs)
+  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
   {
     // Only send block message if we don't have any muted actors.
     // If we have at least one muted actor it means we aren't really
@@ -298,7 +296,7 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     }
   }
 
-  if(send_block_msgs)
+  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
   {
     // Only send unblock message if we don't have any muted actors
     // If we have at least one muted actor it means we weren't really
