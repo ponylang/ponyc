@@ -231,7 +231,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  * Use mpmcqs to allow stealing directly from a victim, without waiting for a
  * response.
  */
-static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
+static pony_actor_t* steal(scheduler_t* sched)
 {
   if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
   {
@@ -285,21 +285,12 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
       DTRACE2(WORK_STEAL_FAILURE, (uintptr_t)sched, (uintptr_t)victim);
       return NULL;
     }
-
-    // If we have been passed an actor (implicitly, the cycle detector), and
-    // enough time has elapsed without stealing or quiescing, return the actor
-    // we were passed (allowing the cycle detector to run).
-    if((prev != NULL) && ((tsc2 - tsc) > 10000000000))
-    {
-      actor = prev;
-      break;
-    }
   }
 
   if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
   {
     // Only send unblock message if we don't have any muted actors
-    // If we have at least one muted actor it means we weren't really
+    // If we have at least one muted actor it means we arent't really
     // blocked. There's was that could eventually be done.
     send_msg(0, SCHED_UNBLOCK, 0);
   }
@@ -329,7 +320,7 @@ static void run(scheduler_t* sched)
     if(actor == NULL)
     {
       // We had an empty queue and no rescheduled actor.
-      actor = steal(sched, NULL);
+      actor = steal(sched);
 
       if(actor == NULL)
       {
