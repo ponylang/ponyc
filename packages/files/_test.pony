@@ -281,7 +281,7 @@ class iso _TestFileEOF is UnitTest
           h.assert_true(file.errno() is FileEOF)
         end
       end
-        filepath.remove()
+      filepath.remove()
     else
       h.fail("Unhandled error!")
     end
