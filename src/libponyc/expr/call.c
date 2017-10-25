@@ -242,6 +242,10 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       errorframe_append(&frame, &info);
 
+      if (ast_childcount(arg) > 1)
+        ast_error_frame(&frame, arg,
+          "note that arguments must be separated by a comma");
+
       if(ast_checkflag(ast_type(arg), AST_FLAG_INCOMPLETE))
         ast_error_frame(&frame, arg,
           "this might be possible if all fields were already defined");
