@@ -549,20 +549,20 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  if(is_eqtype(expr_type, type, NULL, opt))
-  {
-    ast_error(opt->check.errors, ast, "Cannot cast to same type");
-    ast_error_continue(opt->check.errors, expr,
-      "Expression is already of type %s", ast_print_type(type));
-
-    return false;
-  }
-
   if(is_subtype(expr_type, type, NULL, opt))
   {
-    ast_error(opt->check.errors, ast, "Cannot cast to subtype");
-    ast_error_continue(opt->check.errors, expr,
-      "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type));
+    if(is_subtype(type, expr_type, NULL, opt))
+    {
+      ast_error(opt->check.errors, ast, "Cannot cast to same type");
+      ast_error_continue(opt->check.errors, expr,
+        "Expression is already of type %s", ast_print_type(type));
+    }
+    else
+    {
+      ast_error(opt->check.errors, ast, "Cannot cast to subtype");
+      ast_error_continue(opt->check.errors, expr,
+        "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type));
+    }
     return false;
   }
 
