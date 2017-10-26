@@ -58,7 +58,7 @@ provider pony {
    * Fired when actor is no longer under pressure
    * @param actor is the no longer under pressure actor
    */
-  probe actor__pressure_released(uintptr_t actor);
+  probe actor__pressure__released(uintptr_t actor);
 
   /**
    * Fired when cpu goes into nanosleep
