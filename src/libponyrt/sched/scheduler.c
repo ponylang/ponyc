@@ -587,6 +587,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
       if (muted_count == 0)
       {
         ponyint_sched_add(ctx, muted);
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
         ponyint_sched_unmute_senders(ctx, muted, true);
         actors_rescheduled++;
       }

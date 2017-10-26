@@ -674,6 +674,7 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
 void ponyint_actor_setoverloaded(pony_actor_t* actor)
 {
   set_flag(actor, FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
 }
 
 bool ponyint_actor_overloaded(pony_actor_t* actor)
@@ -684,19 +685,23 @@ bool ponyint_actor_overloaded(pony_actor_t* actor)
 void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   unset_flag(actor, FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_flag(actor, FLAG_UNDER_PRESSURE))
     ponyint_sched_unmute_senders(ctx, actor, true);
 }
 
 PONY_API void pony_apply_backpressure()
 {
-  set_flag(pony_ctx()->current, FLAG_UNDER_PRESSURE);
+  pony_ctx_t* ctx = pony_ctx();
+  set_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  DTRACE1(ACTOR_UNDER_PRESSURE, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_release_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
   unset_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_flag(ctx->current, FLAG_OVERLOADED))
       ponyint_sched_unmute_senders(ctx, ctx->current, true);
 }
