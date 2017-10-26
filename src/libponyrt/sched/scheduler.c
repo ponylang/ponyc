@@ -546,6 +546,8 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   pony_actor_t* r = ponyint_muteset_get(&mref->value, sender, &index2);
   if(r == NULL)
   {
+    // This is safe because an actor can only ever be in a single scheduler's
+    // mutemap
     ponyint_muteset_putindex(&mref->value, sender, index2);
     uint8_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
     muted++;
@@ -579,6 +581,8 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
 
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
+      // This is safe because an actor can only ever be in a single scheduler's
+      // mutemap
       uint8_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
       pony_assert(muted_count > 0);
       muted_count--;
