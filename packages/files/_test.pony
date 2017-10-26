@@ -96,9 +96,10 @@ class iso _TestDirectoryOpen is UnitTest
 
     try
       h.assert_true(FileInfo(tmp)?.directory)
-      let file = File.open(tmp)
-      h.assert_true(file.errno() is FileError)
-      h.assert_false(file.valid())
+      with file = File.open(tmp) do
+        h.assert_true(file.errno() is FileError)
+        h.assert_false(file.valid())
+      end
     then
       h.assert_true(tmp.remove())
     end
@@ -267,17 +268,18 @@ class iso _TestFileEOF is UnitTest
     try
       let path = "tmp.eof"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = File(filepath)
-      file.print("foobar")
-      file.sync()
-      file.seek_start(0)
-      let line1 = file.line()?
-      h.assert_eq[String]("foobar", consume line1)
-      try
-        let line2 = file.line()?
-        h.fail("Read beyond EOF without error!")
-      else
-        h.assert_true(file.errno() is FileEOF)
+      with file = File(filepath) do
+        file.print("foobar")
+        file.sync()
+        file.seek_start(0)
+        let line1 = file.line()?
+        h.assert_eq[String]("foobar", consume line1)
+        try
+          let line2 = file.line()?
+          h.fail("Read beyond EOF without error!")
+        else
+          h.assert_true(file.errno() is FileEOF)
+        end
       end
       filepath.remove()
     else
@@ -304,13 +306,13 @@ class iso _TestFileCreate is UnitTest
     try
       let path = "tmp.create"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.print("foobar")
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      let line1 = file2.line()?
-      h.assert_eq[String]("foobar", consume line1)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.print("foobar")
+      end
+      with file2 = CreateFile(filepath) as File do
+        let line1 = file2.line()?
+        h.assert_eq[String]("foobar", consume line1)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -323,13 +325,13 @@ class iso _TestFileOpen is UnitTest
     try
       let path = "tmp.open"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.print("foobar")
-      file.dispose()
-      let file2 = OpenFile(filepath) as File
-      let line1 = file2.line()?
-      h.assert_eq[String]("foobar", consume line1)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.print("foobar")
+      end
+      with file2 = OpenFile(filepath) as File do
+        let line1 = file2.line()?
+        h.assert_eq[String]("foobar", consume line1)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -342,16 +344,17 @@ class iso _TestFileLongLine is UnitTest
     try
       let path = "tmp.longline"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = File(filepath)
-      var longline = "foobar"
-      for d in Range(0, 10) do
-        longline = longline + longline
+      with file = File(filepath) do
+        var longline = "foobar"
+        for d in Range(0, 10) do
+          longline = longline + longline
+        end
+        file.print(longline)
+        file.sync()
+        file.seek_start(0)
+        let line1 = file.line()?
+        h.assert_eq[String](longline, consume line1)
       end
-      file.print(longline)
-      file.sync()
-      file.seek_start(0)
-      let line1 = file.line()?
-      h.assert_eq[String](longline, consume line1)
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -363,13 +366,13 @@ class iso _TestFileWrite is UnitTest
     try
       let path = "tmp.write"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.write("foobar\n")
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      let line1 = file2.line()?
-      h.assert_eq[String]("foobar", consume line1)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.write("foobar\n")
+      end
+      with file2 = CreateFile(filepath) as File do
+        let line1 = file2.line()?
+        h.assert_eq[String]("foobar", consume line1)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -386,15 +389,15 @@ class iso _TestFileWritev is UnitTest
       wb.write(line2)
       let path = "tmp.writev"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.writev(wb.done())
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      let fileline1 = file2.line()?
-      let fileline2 = file2.line()?
-      h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
-      h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.writev(wb.done())
+      end
+      with file2 = CreateFile(filepath) as File do
+        let fileline1 = file2.line()?
+        let fileline2 = file2.line()?
+        h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
+        h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -406,13 +409,13 @@ class iso _TestFileQueue is UnitTest
     try
       let path = "tmp.queue"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.queue("foobar\n")
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      let line1 = file2.line()?
-      h.assert_eq[String]("foobar", consume line1)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.queue("foobar\n")
+      end
+      with file2 = CreateFile(filepath) as File do
+        let line1 = file2.line()?
+        h.assert_eq[String]("foobar", consume line1)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -429,15 +432,15 @@ class iso _TestFileQueuev is UnitTest
       wb.write(line2)
       let path = "tmp.queuev"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.queuev(wb.done())
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      let fileline1 = file2.line()?
-      let fileline2 = file2.line()?
-      h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
-      h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.queuev(wb.done())
+      end
+      with file2 = CreateFile(filepath) as File do
+        let fileline1 = file2.line()?
+        let fileline2 = file2.line()?
+        h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
+        h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -465,25 +468,25 @@ class iso _TestFileMixedWriteQueue is UnitTest
       let queuev_data = wb.done()
       let path = "tmp.mixedwrite"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.print(line3)
-      file.queue(line5)
-      file.write(line1)
-      file.printv(consume printv_data)
-      file.queuev(consume queuev_data)
-      file.writev(consume writev_data)
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      h.assert_eq[String](line3, file2.line()?)
-      h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-      h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-      h.assert_eq[String](line3, file2.line()?)
-      h.assert_eq[String](line4, file2.line()?)
-      h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-      h.assert_eq[String](line6.split("\n")(0)?, file2.line()?)
-      h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-      h.assert_eq[String](line2.split("\n")(0)?, file2.line()?)
-      file2.dispose()
+      with file = CreateFile(filepath) as File do
+        file.print(line3)
+        file.queue(line5)
+        file.write(line1)
+        file.printv(consume printv_data)
+        file.queuev(consume queuev_data)
+        file.writev(consume writev_data)
+      end
+      with file2 = CreateFile(filepath) as File do
+        h.assert_eq[String](line3, file2.line()?)
+        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line3, file2.line()?)
+        h.assert_eq[String](line4, file2.line()?)
+        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line6.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line2.split("\n")(0)?, file2.line()?)
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
@@ -502,17 +505,17 @@ class iso _TestFileWritevLarge is UnitTest
       end
       let path = "tmp.writevlarge"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      let file = CreateFile(filepath) as File
-      file.writev(wb.done())
-      file.dispose()
-      let file2 = CreateFile(filepath) as File
-      count = 0
-      while count < writev_batch_size do
-        let fileline1 = file2.line()?
-        h.assert_eq[String](count.string(), consume fileline1)
-        count = count + 1
+      with file = CreateFile(filepath) as File do
+        file.writev(wb.done())
       end
-      file2.dispose()
+      with file2 = CreateFile(filepath) as File do
+        count = 0
+        while count < writev_batch_size do
+          let fileline1 = file2.line()?
+          h.assert_eq[String](count.string(), consume fileline1)
+          count = count + 1
+        end
+      end
       filepath.remove()
     else
       h.fail("Unhandled error!")
