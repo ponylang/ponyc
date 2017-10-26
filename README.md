@@ -6,7 +6,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
-* [Standard library docs](http://stdlib.ponylang.org/).
+* [Standard library docs](http://stdlib.ponylang.org/).nice wheather
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
