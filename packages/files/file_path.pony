@@ -34,23 +34,22 @@ class val FilePath
     """
     caps.union(caps')
 
-    match base
-    | let b: FilePath =>
-      if not b.caps(FileLookup) then
-        error
-      end
+    path = match base
+      | let b: FilePath =>
+        if not b.caps(FileLookup) then
+          error
+        end
 
-      path = Path.join(b.path, path')
-      caps.intersect(b.caps)
+        let tmp_path = Path.join(b.path, path')
+        caps.intersect(b.caps)
 
-      if not path.at(b.path, 0) then
-        error
+        if not tmp_path.at(b.path, 0) then
+          error
+        end
+        tmp_path
+      | let b: AmbientAuth =>
+        Path.abs(path')
       end
-    | let b: AmbientAuth =>
-      path = Path.abs(path')
-    else
-      error
-    end
 
   new val mkdtemp(
     base: (FilePath | AmbientAuth),

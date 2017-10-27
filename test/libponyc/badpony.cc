@@ -675,7 +675,7 @@ TEST_F(BadPonyTest, AsUnaliased)
     "class trn Foo\n"
 
     "actor Main\n"
-    "  let foo: Foo = Foo\n"
+    "  let foo: (Foo|None) = Foo\n"
 
     "  new create(env: Env) => None\n"
 

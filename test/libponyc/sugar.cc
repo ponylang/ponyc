@@ -936,7 +936,7 @@ TEST_F(SugarTest, MatchWithNoElse)
     "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
-    "    |1=> 2\n"
+    "    |1 => 2\n"
     "    end";
 
   const char* full_form =

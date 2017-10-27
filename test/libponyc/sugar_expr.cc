@@ -632,7 +632,6 @@ TEST_F(SugarExprTest, MatchExhaustiveAllCasesOfUnion)
   TEST_COMPILE(src);
 }
 
-
 TEST_F(SugarExprTest, MatchNonExhaustiveSomeCasesMissing)
 {
   const char* src =
@@ -927,6 +926,51 @@ TEST_F(SugarExprTest, MatchExhaustiveSingleElementTuples)
   TEST_COMPILE(src);
 }
 
+TEST_F(SugarExprTest, MatchExhaustiveElseClause)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(p: (String | None)): U8 =>\n"
+    "    match p\n"
+    "    | let s: String => U8(1)\n"
+    "    | None => U8(0)\n"
+    "    else\n"
+    "      U8(2)\n"
+    "    end";
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveUnreachableCase)
+{
+  const char* src =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+    "primitive Foo\n"
+    "  fun apply(p: (Bar | Baz)): String =>\n"
+    "    match p\n"
+    "    | let q: Qux => \"qux\"\n"
+    "    | let b: Bar => \"bar\"\n"
+    "    end";
+  TEST_ERRORS_1(src, "match contains unreachable cases");
+
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveUnreachableCases)
+{
+  const char* src =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+    "primitive Foo\n"
+    "  fun apply(p: (Bar | Baz)): String =>\n"
+    "    match p\n"
+    "    | let q: Qux => \"qux\"\n"
+    "    | let b1: Bar => \"bar\"\n"
+    "    | let b2: Baz => \"baz\"\n"
+    "    end";
+  TEST_ERRORS_1(src, "match contains unreachable cases");
+}
 
 TEST_F(SugarExprTest, MatchStructuralEqualityOnIncompatibleUnion)
 {
@@ -974,23 +1018,63 @@ TEST_F(SugarExprTest, As)
   TEST_EQUIV(short_form, full_form);
 }
 
-
-TEST_F(SugarExprTest, AsTuple)
+TEST_F(SugarExprTest, AsSameType)
 {
-  const char* short_form =
+  const char* src =
     "class Bar\n"
 
     "class Foo\n"
     "  var create: U32\n"
-    "  fun f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
+    "  fun f(a: (Foo | Bar)): Foo ? =>\n"
+    "    a as (Foo | Bar)";
+  TEST_ERRORS_1(src, "Cannot cast to same type");
+}
+
+TEST_F(SugarExprTest, AsSubtype)
+{
+  const char* src =
+    "trait Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: Bar): Baz ? =>\n"
+    "    a as Baz";
+
+  TEST_ERRORS_1(src, "Cannot cast to subtype");
+}
+
+TEST_F(SugarExprTest, AsTupleSubtype)
+{
+  const char* src =
+    "interface Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo is Baz\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo, Bar)): (Baz, Baz) ? =>\n"
+    "    a as (Baz, Baz)";
+  TEST_ERRORS_1(src, "Cannot cast to subtype");
+}
+
+TEST_F(SugarExprTest, AsTuple)
+{
+  const char* short_form =
+    "interface Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo, Baz)): (Foo, Bar) ? =>\n"
     "    a as (Foo ref, Bar ref)";
 
   const char* full_form =
-    "class Bar\n"
+    "interface Baz\n"
+    "class Bar is Baz\n"
 
     "class ref Foo\n"
     "  var create: U32\n"
-    "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
+    "  fun box f(a: (Foo, Baz)): (Foo, Bar) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, $let $2: Bar ref) =>\n"
     "      (consume $aliased $1, consume $aliased $2)\n"
@@ -1005,21 +1089,23 @@ TEST_F(SugarExprTest, AsTuple)
 TEST_F(SugarExprTest, AsNestedTuple)
 {
   const char* short_form =
-    "class Bar\n"
-    "class Baz\n"
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
 
     "class Foo\n"
     "  var create: U32\n"
-    "  fun f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
+    "  fun f(a: (Foo, (Qux, Qux))): (Foo, (Bar, Baz)) ? =>\n"
     "    a as (Foo ref, (Bar ref, Baz ref))";
 
   const char* full_form =
-    "class Bar\n"
-    "class Baz\n"
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
 
     "class ref Foo\n"
     "  var create: U32\n"
-    "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
+    "  fun box f(a: (Foo, (Qux, Qux))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, ($let $2: Bar ref, $let $3: Baz ref)) =>\n"
     "      (consume $aliased $1,\n"
@@ -1046,19 +1132,21 @@ TEST_F(SugarExprTest, AsDontCare)
 TEST_F(SugarExprTest, AsDontCare2Tuple)
 {
   const char* short_form =
+    "trait Baz\n"
     "class Bar\n"
 
-    "class Foo\n"
+    "class Foo is Baz\n"
     "  var create: U32\n"
-    "  fun f(a: (Foo, Bar)): Foo ? =>\n"
+    "  fun f(a: (Baz, Bar)): Foo ? =>\n"
     "    a as (Foo ref, _)";
 
   const char* full_form =
+    "trait Baz\n"
     "class Bar\n"
 
-    "class ref Foo\n"
+    "class ref Foo is Baz\n"
     "  var create: U32\n"
-    "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
+    "  fun box f(a: (Baz, Bar)): Foo ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _) =>\n"
     "      consume $aliased $1\n"
@@ -1073,21 +1161,23 @@ TEST_F(SugarExprTest, AsDontCare2Tuple)
 TEST_F(SugarExprTest, AsDontCareMultiTuple)
 {
   const char* short_form =
-    "class Bar\n"
-    "class Baz\n"
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
 
     "class Foo\n"
     "  var create: U32\n"
-    "  fun f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
+    "  fun f(a: (Foo, Qux, Qux)): (Foo, Baz) ? =>\n"
     "    a as (Foo ref, _, Baz ref)";
 
   const char* full_form =
-    "class Bar\n"
-    "class Baz\n"
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
 
     "class ref Foo\n"
     "  var create: U32\n"
-    "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
+    "  fun box f(a: (Foo, Qux, Qux)): (Foo, Baz) ? =>\n"
     "    match a\n"
     "    | ($let $1: Foo ref, _, $let $2: Baz ref) =>\n"
     "      (consume $aliased $1, consume $aliased $2)\n"
