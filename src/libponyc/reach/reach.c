@@ -556,35 +556,6 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
   }
 }
 
-static void add_final(reach_t* r, reach_type_t* t, pass_opt_t* opt)
-{
-  ast_t* def = (ast_t*)ast_data(t->ast);
-
-  BUILD(final_ast, def,
-    NODE(TK_FUN, AST_SCOPE
-      NODE(TK_BOX)
-      ID("_final")
-      NONE
-      NONE
-      NONE
-      NONE
-      NODE(TK_SEQ, NODE(TK_TRUE))
-      NONE
-      NONE));
-
-  ast_append(ast_childidx(def, 4), final_ast);
-  ast_set(def, stringtab("_final"), final_ast, SYM_NONE, false);
-  bool pop = frame_push(&opt->check, def);
-  bool ok = ast_passes_subtree(&final_ast, opt, PASS_FINALISER);
-  pony_assert(ok);
-  (void)ok;
-
-  if(pop)
-    frame_pop(&opt->check);
-
-  add_special(r, t, t->ast, "_final", opt);
-}
-
 static bool embed_has_finaliser(ast_t* ast, const char* str_final)
 {
   switch(ast_id(ast))
@@ -645,7 +616,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
     return;
 
   t->fields = (reach_field_t*)ponyint_pool_alloc_size(
-      t->field_count * sizeof(reach_field_t));
+    t->field_count * sizeof(reach_field_t));
   member = ast_child(members);
   size_t index = 0;
 
@@ -692,7 +663,10 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
   }
 
   if(!has_finaliser && needs_finaliser)
-    add_final(r, t, opt);
+  {
+    reach_method_name_t* n = add_method_name(t, stringtab("_final"), true);
+    add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  }
 }
 
 static reach_type_t* add_reach_type(reach_t* r, ast_t* type)

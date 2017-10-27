@@ -616,6 +616,27 @@ static void copy_subordinate(reach_method_t* m)
   }
 }
 
+static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  c_m->func_type = LLVMFunctionType(c->void_type, &c_t->use_type, 1, false);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
+
+  codegen_startfun(c, c_m->func, NULL, NULL, false);
+  call_embed_finalisers(c, t, NULL, gen_this(c, NULL));
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+
+  c_t->final_fn = c_m->func;
+  LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+  LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
+
+  return true;
+}
+
 static bool genfun_allocator(compile_t* c, reach_type_t* t)
 {
   switch(t->underlying)
@@ -870,10 +891,13 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       if(m->intrinsic)
-        continue;
-
-      if(m->forwarding)
       {
+        if(m->internal && (n->name == c->str__final))
+        {
+          if(!genfun_implicit_final(c, t, m))
+            return false;
+        }
+      } else if(m->forwarding) {
         if(!genfun_forward(c, t, n, m))
           return false;
       } else {
