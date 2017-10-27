@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Error on unreachable cases in match expressions and illegal as expressions. ([PR #2289](https://github.com/ponylang/ponyc/pull/2289))
 
 ## [0.20.0] - 2017-10-17
 
