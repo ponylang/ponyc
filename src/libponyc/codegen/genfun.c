@@ -78,8 +78,8 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
   }
 }
 
-static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m,
-  bool message_type)
+static void make_signature(compile_t* c, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m, bool message_type)
 {
   // Count the parameters, including the receiver if the method isn't bare.
   size_t count = m->param_count;
@@ -126,7 +126,8 @@ static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m,
   // Generate the function type.
   // Bare methods returning None return void to maintain compatibility with C.
   // Class constructors return void to avoid clobbering nocapture information.
-  if(bare_void || ((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS)))
+  if(bare_void || (n->name == c->str__final) ||
+    ((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS)))
     c_m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
   else
     c_m->func_type = LLVMFunctionType(
@@ -238,7 +239,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       return;
   }
 
-  make_signature(c, t, m, handler || is_trait);
+  make_signature(c, t, n, m, handler || is_trait);
 
   if(is_trait)
     return;
@@ -392,7 +393,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 }
 
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
-  ast_t* method_body, LLVMValueRef obj)
+  ast_t* call_location, LLVMValueRef obj)
 {
   uint32_t base = 0;
   if(t->underlying != TK_STRUCT)
@@ -412,7 +413,7 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
       continue;
 
     LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
-    codegen_debugloc(c, method_body);
+    codegen_debugloc(c, call_location);
     LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
     codegen_debugloc(c, NULL);
   }
@@ -431,7 +432,9 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
     ast_id(cap) == TK_AT);
   name_params(c, t, m, params, c_m->func);
 
-  if(c_m->func == c_t->final_fn)
+  bool finaliser = c_m->func == c_t->final_fn;
+
+  if(finaliser)
     call_embed_finalisers(c, t, body, gen_this(c, NULL));
 
   LLVMValueRef value = gen_expr(c, body);
@@ -441,7 +444,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   if(value != GEN_NOVALUE)
   {
-    if((ast_id(cap) == TK_AT) && is_none(result))
+    if(finaliser || ((ast_id(cap) == TK_AT) && is_none(result)))
     {
       codegen_scope_lifetime_end(c);
       codegen_debugloc(c, ast_childlast(body));
