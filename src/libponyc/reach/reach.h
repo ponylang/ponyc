@@ -45,8 +45,7 @@ struct reach_method_t
   bool intrinsic;
 
   // Mark as true if the compiler supplies an implementation and the function
-  // isn't exposed to the user at all. The method will also be automatically
-  // added to supertypes.
+  // isn't exposed to the user at all.
   bool internal;
 
   // Mark as true if the method is a forwarding method.
