@@ -142,7 +142,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
         return NULL;
     }
 
-    if(!strcmp(name, "_final"))
+    if(name == stringtab("_final"))
     {
       switch(ast_id(find))
       {
@@ -157,6 +157,23 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
         default: {}
       }
+    } else if((name == stringtab("_init")) && (ast_id(def) == TK_PRIMITIVE)) {
+      switch(ast_id(find))
+      {
+        case TK_NEW:
+        case TK_BE:
+        case TK_FUN:
+          break;
+
+        default:
+          pony_assert(0);
+      }
+
+      if(errors)
+        ast_error(opt->check.errors, from,
+          "can't lookup an _init function on a primitive");
+
+      return NULL;
     }
   }
 

@@ -110,3 +110,27 @@ TEST_F(FinalisersTest, FinalCannotCallChainedBehaviour)
 
   TEST_ERRORS_1(src, "_final cannot create actors or send messages");
 }
+
+TEST_F(FinalisersTest, CannotLookupFinal)
+{
+  const char* src =
+    "class Actor\n"
+    "  fun apply() =>\n"
+    "    _final()\n"
+    "  fun _final() =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't lookup a _final function");
+}
+
+TEST_F(FinalisersTest, CannotLookupPrimitiveInit)
+{
+  const char* src =
+    "primitive Prim\n"
+    "  fun apply() =>\n"
+    "    _init()\n"
+    "  fun _init() =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't lookup an _init function on a primitive");
+}
