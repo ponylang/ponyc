@@ -92,7 +92,6 @@ DEFINE_LIST(astlist, astlist_t, ast_t, ast_cmp, NULL);
 
 static const char in[] = "  ";
 static const size_t in_len = 2;
-static size_t width = 80;
 
 enum print_special
 {
@@ -103,7 +102,8 @@ enum print_special
 
 static const char special_char[] = {'(', ')', '[', ']', '\\', '\\'};
 
-static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind);
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind,
+  size_t width);
 
 
 static void print_token(FILE* fp, token_t* token)
@@ -204,7 +204,7 @@ static void print_compact(FILE* fp, ast_t* ast, size_t indent,
 }
 
 static void print_extended(FILE* fp, ast_t* ast, size_t indent,
-  enum print_special kind)
+  enum print_special kind, size_t width)
 {
   for(size_t i = 0; i < indent; i++)
     fprintf(fp, in);
@@ -224,16 +224,16 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent,
   fprintf(fp, "\n");
 
   if(ast_annotation(ast) != NULL)
-    print(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION);
+    print(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION, width);
 
   while(child != NULL)
   {
-    print(fp, child, indent + 1, NOT_SPECIAL);
+    print(fp, child, indent + 1, NOT_SPECIAL, width);
     child = child->sibling;
   }
 
   if(ast_type(ast) != NULL)
-    print(fp, ast_type(ast), indent + 1, SPECIAL_TYPE);
+    print(fp, ast_type(ast), indent + 1, SPECIAL_TYPE, width);
 
   if(parens)
   {
@@ -299,14 +299,15 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
   }
 }
 
-static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind)
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind,
+  size_t width)
 {
   size_t len = length(ast, indent, kind);
 
   if(len < width)
     print_compact(fp, ast, indent, kind);
   else
-    print_extended(fp, ast, indent, kind);
+    print_extended(fp, ast, indent, kind, width);
 
   fprintf(fp, "\n");
 }
@@ -1434,9 +1435,9 @@ void ast_free_unattached(ast_t* ast)
     ast_free(ast);
 }
 
-void ast_print(ast_t* ast)
+void ast_print(ast_t* ast, size_t width)
 {
-  ast_fprint(stdout, ast);
+  ast_fprint(stdout, ast, width);
 }
 
 void ast_printverbose(ast_t* ast)
@@ -1444,12 +1445,12 @@ void ast_printverbose(ast_t* ast)
   ast_fprintverbose(stdout, ast);
 }
 
-void ast_fprint(FILE* fp, ast_t* ast)
+void ast_fprint(FILE* fp, ast_t* ast, size_t width)
 {
   if(ast == NULL)
     return;
 
-  print(fp, ast, 0, NOT_SPECIAL);
+  print(fp, ast, 0, NOT_SPECIAL, width);
   fprintf(fp, "\n");
 }
 
@@ -1592,11 +1593,6 @@ const char* ast_print_type(ast_t* type)
   printbuf_free(buffer);
 
   return s;
-}
-
-void ast_setwidth(size_t w)
-{
-  width = w;
 }
 
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)

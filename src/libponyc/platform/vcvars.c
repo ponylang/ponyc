@@ -20,7 +20,7 @@ typedef struct vsinfo_t
   char* lib_path;    // lib subdir; must NOT have trailing '\\'
 } vsinfo_t;
 
-static vsinfo_t vs_infos[] =
+static const vsinfo_t vs_infos[] =
 {
   { // VS2017 full install & Visual C++ Build Tools 2017
     "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7", 
@@ -326,7 +326,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars, errors_t* err
   TCHAR link_path[MAX_PATH + 1];
   TCHAR lib_path[MAX_PATH + 1];
 
-  vsinfo_t* info;
+  const vsinfo_t* info;
   for (info = vs_infos; info->version != NULL; info++)
   {
     if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

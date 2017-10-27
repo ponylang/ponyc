@@ -15,6 +15,7 @@ struct lexer_t
 {
   source_t* source;
   errors_t* errors;
+  bool allow_test_symbols;
 
   // Information about next unused character in file
   size_t ptr;
@@ -308,15 +309,6 @@ static const lextoken_t abstract[] =
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}
 };
-
-
-static bool allow_test_symbols = false;
-
-
-void lexer_allow_test_symbols()
-{
-  allow_test_symbols = true;
-}
 
 
 // Report an error at the specified location
@@ -1197,7 +1189,7 @@ static token_t* dollar(lexer_t* lexer)
   append_to_token(lexer, look(lexer));  // $
   consume_chars(lexer, 1);
 
-  if(allow_test_symbols)
+  if(lexer->allow_test_symbols)
   {
     // Test mode, allow test keywords and identifiers.
     // Note that a lone '$' is always an error to allow tests to force a lexer
@@ -1261,7 +1253,8 @@ static token_t* symbol(lexer_t* lexer)
 }
 
 
-lexer_t* lexer_open(source_t* source, errors_t* errors)
+lexer_t* lexer_open(source_t* source, errors_t* errors,
+  bool allow_test_symbols)
 {
   pony_assert(source != NULL);
 
@@ -1270,6 +1263,7 @@ lexer_t* lexer_open(source_t* source, errors_t* errors)
 
   lexer->source = source;
   lexer->errors = errors;
+  lexer->allow_test_symbols = allow_test_symbols;
   lexer->len = source->len;
   lexer->line = 1;
   lexer->pos = 1;

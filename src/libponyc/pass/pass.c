@@ -97,6 +97,7 @@ void pass_opt_init(pass_opt_t* options)
   options->limit = PASS_ALL;
   options->verbosity = VERBOSITY_INFO;
   options->check.errors = errors_alloc();
+  options->ast_print_width = 80;
   frame_push(&options->check, NULL);
 }
 
@@ -179,7 +180,8 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source, options->check.errors))
+  if(!pass_parse(package, source, options->check.errors,
+    options->allow_test_symbols, options->parse_trace))
     return false;
 
   if(options->limit < PASS_SYNTAX)
@@ -191,7 +193,7 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
     return false;
 
   if(options->check_tree)
-    check_tree(module, options->check.errors);
+    check_tree(module, options);
   return true;
 }
 
@@ -206,7 +208,7 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
     return r;
 
   if(options->check_tree)
-    check_tree(*astp, options->check.errors);
+    check_tree(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
     return r;
@@ -250,7 +252,7 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
     return false;
 
   if(options->check_tree)
-    check_tree(*astp, options->check.errors);
+    check_tree(*astp, options);
 
   if(ast_id(*astp) == TK_PROGRAM)
   {

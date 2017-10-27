@@ -204,6 +204,8 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
+typedef struct magic_package_t magic_package_t;
+
 /** Pass options.
  */
 typedef struct pass_opt_t
@@ -225,6 +227,15 @@ typedef struct pass_opt_t
   bool docs_private;
 
   verbosity_level verbosity;
+
+  size_t ast_print_width;
+  bool allow_test_symbols;
+  bool parse_trace;
+
+  strlist_t* package_search_paths;
+  strlist_t* safe_packages;
+  magic_package_t* magic_packages;
+
   const char* output;
   char* link_arch;
   char* linker;
@@ -234,6 +245,8 @@ typedef struct pass_opt_t
   char* features;
 
   typecheck_t check;
+
+  void* data; // User-defined data for unit test callbacks.
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the

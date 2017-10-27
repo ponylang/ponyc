@@ -24,7 +24,7 @@ static struct
   const char* name;
   lexint_t limit;
   bool neg_plus_one;    // Is a negated value allowed to be 1 bigger
-} _str_uif_types[UIF_COUNT] =
+} const _str_uif_types[UIF_COUNT] =
 {
   { "U8", {0x100, 0}, false },
   { "U16", {0x10000, 0}, false },
@@ -53,7 +53,7 @@ typedef struct lit_op_info_t
   bool neg_plus_one;
 } lit_op_info_t;
 
-static lit_op_info_t _operator_fns[] =
+static const lit_op_info_t _operator_fns[] =
 {
   { "add", 1, true, false },
   { "sub", 1, true, false },
@@ -77,7 +77,7 @@ static lit_op_info_t _operator_fns[] =
 };
 
 
-static lit_op_info_t* lookup_literal_op(const char* name)
+static lit_op_info_t const* lookup_literal_op(const char* name)
 {
   for(int i = 0; _operator_fns[i].name != NULL; i++)
     if(strcmp(name, _operator_fns[i].name) == 0)
@@ -89,7 +89,7 @@ static lit_op_info_t* lookup_literal_op(const char* name)
 
 void operatorliteral_serialise_data(ast_t* ast, ast_t* dst)
 {
-  lit_op_info_t* data = (lit_op_info_t*)ast_data(ast);
+  lit_op_info_t const* data = (lit_op_info_t*)ast_data(ast);
   if(data != NULL)
   {
     size_t index = (size_t)(data - _operator_fns);
@@ -107,7 +107,7 @@ void operatorliteral_deserialise_data(ast_t* ast)
   if(index > 17)
     ast_setdata(ast, (void*)NULL);
   else
-    ast_setdata(ast, &_operator_fns[index]);
+    ast_setdata(ast, (void*)&_operator_fns[index]);
 }
 
 
@@ -588,7 +588,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 
         if(parent_type != NULL && ast_id(parent_type) == TK_OPERATORLITERAL &&
           ast_child(parent) == literal &&
-          ((lit_op_info_t*)ast_data(parent_type))->neg_plus_one)
+          ((lit_op_info_t const*)ast_data(parent_type))->neg_plus_one)
           neg_plus_one = true;
       }
 
@@ -900,7 +900,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* opt)
   // Look up member name
   pony_assert(ast_id(name_node) == TK_ID);
   const char* name = ast_name(name_node);
-  lit_op_info_t* op = lookup_literal_op(name);
+  lit_op_info_t const* op = lookup_literal_op(name);
 
   if(op == NULL || ast_id(ast_parent(ast)) != TK_CALL)
   {
@@ -937,7 +937,7 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
   if(ast_id(recv_type) != TK_OPERATORLITERAL) // Nothing to do
     return true;
 
-  lit_op_info_t* op = (lit_op_info_t*)ast_data(recv_type);
+  lit_op_info_t const* op = (lit_op_info_t const*)ast_data(recv_type);
   pony_assert(op != NULL);
 
   if(ast_childcount(named_args) != 0)

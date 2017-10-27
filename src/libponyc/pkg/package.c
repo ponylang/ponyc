@@ -53,7 +53,7 @@
 #endif
 
 
-static const char* simple_builtin =
+static const char* const simple_builtin =
   "primitive Bool\n"
   "  new create(a: Bool) => a\n"
   "primitive U8 is Real[U8]\n"
@@ -105,23 +105,17 @@ struct package_group_t
   package_set_t members;
 };
 
-// Per defined magic package sate
-typedef struct magic_package_t
+// Per defined magic package state
+struct magic_package_t
 {
   const char* path;
   const char* src;
   const char* mapped_path;
   struct magic_package_t* next;
-} magic_package_t;
+};
 
 // Function that will handle a path in some way.
-typedef bool (*path_fn)(const char* path);
-
-// Global state
-static strlist_t* search = NULL;
-static strlist_t* safe = NULL;
-static magic_package_t* magic_packages = NULL;
-static bool report_build = true;
+typedef bool (*path_fn)(const char* path, pass_opt_t* opt);
 
 DECLARE_STACK(package_stack, package_stack_t, package_t)
 DEFINE_STACK(package_stack, package_stack_t, package_t)
@@ -150,9 +144,9 @@ DEFINE_HASHMAP_SERIALISE(package_set, package_set_t, package_t, package_hash,
 
 
 // Find the magic source code associated with the given path, if any
-static magic_package_t* find_magic_package(const char* path)
+static magic_package_t* find_magic_package(const char* path, pass_opt_t* opt)
 {
-  for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
+  for(magic_package_t* p = opt->magic_packages; p != NULL; p = p->next)
   {
     if(path == p->path)
       return p;
@@ -393,7 +387,7 @@ static const char* try_package_path(const char* base, const char* path)
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
 static const char* find_path(ast_t* from, const char* path,
-  bool* out_is_relative)
+  bool* out_is_relative, pass_opt_t* opt)
 {
   if(out_is_relative != NULL)
     *out_is_relative = false;
@@ -451,7 +445,8 @@ static const char* find_path(ast_t* from, const char* path,
     }
 
     // Try the search paths
-    for(strlist_t* p = search; p != NULL; p = strlist_next(p))
+    for(strlist_t* p = opt->package_search_paths; p != NULL;
+      p = strlist_next(p))
     {
       result = try_path(strlist_data(p), path);
 
@@ -566,7 +561,7 @@ static const char* create_package_symbol(ast_t* program, const char* filename)
 
 // Create a package AST, set up its state and add it to the given program
 static ast_t* create_package(ast_t* program, const char* name,
-  const char* qualified_name)
+  const char* qualified_name, pass_opt_t* opt)
 {
   ast_t* package = ast_blank(TK_PACKAGE);
   uint32_t pkg_id = program_assign_pkg_id(program);
@@ -603,6 +598,8 @@ static ast_t* create_package(ast_t* program, const char* name,
   ast_set(program, pkg->path, package, SYM_NONE, false);
   ast_set(program, pkg->id, package, SYM_NONE, false);
 
+  strlist_t* safe = opt->safe_packages;
+
   if((safe != NULL) && (strlist_find(safe, pkg->path) == NULL))
     pkg->allow_ffi = false;
   else
@@ -615,7 +612,7 @@ static ast_t* create_package(ast_t* program, const char* name,
 
 
 // Check that the given path exists and add it to our package search paths
-static bool add_path(const char* path)
+static bool add_path(const char* path, pass_opt_t* opt)
 {
 #ifdef PLATFORM_IS_WINDOWS
   // The Windows implementation of stat() cannot cope with trailing a \ on a
@@ -638,16 +635,18 @@ static bool add_path(const char* path)
   if((err != -1) && S_ISDIR(s.st_mode))
   {
     path = stringtab(path);
+    strlist_t* search = opt->package_search_paths;
 
     if(strlist_find(search, path) == NULL)
-      search = strlist_append(search, path);
+      opt->package_search_paths = strlist_append(search, path);
   }
 
   return true;
 }
 
 // Safely concatenate paths and add it to package search paths
-static bool add_relative_path(const char* path, const char* relpath)
+static bool add_relative_path(const char* path, const char* relpath,
+  pass_opt_t* opt)
 {
   char buf[FILENAME_MAX];
 
@@ -656,16 +655,17 @@ static bool add_relative_path(const char* path, const char* relpath)
 
   strcpy(buf, path);
   strcat(buf, relpath);
-  return add_path(buf);
+  return add_path(buf, opt);
 }
 
 
-static bool add_safe(const char* path)
+static bool add_safe(const char* path, pass_opt_t* opt)
 {
   path = stringtab(path);
+  strlist_t* safe = opt->safe_packages;
 
   if(strlist_find(safe, path) == NULL)
-    safe = strlist_append(safe, path);
+    opt->safe_packages = strlist_append(safe, path);
 
   return true;
 }
@@ -731,13 +731,13 @@ static bool add_exec_dir(pass_opt_t* opt)
 
   p++;
   *p = '\0';
-  add_path(path);
+  add_path(path, opt);
 
   // Allow ponyc to find the lib directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
-  success = add_relative_path(path, "..\\lib");
+  success = add_relative_path(path, "..\\lib", opt);
 #else
-  success = add_relative_path(path, "../lib");
+  success = add_relative_path(path, "../lib", opt);
 #endif
 
   if(!success)
@@ -745,9 +745,9 @@ static bool add_exec_dir(pass_opt_t* opt)
 
   // Allow ponyc to find the packages directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
-  success = add_relative_path(path, "..\\packages");
+  success = add_relative_path(path, "..\\packages", opt);
 #else
-  success = add_relative_path(path, "../packages");
+  success = add_relative_path(path, "../packages", opt);
 #endif
 
   if(!success)
@@ -756,9 +756,9 @@ static bool add_exec_dir(pass_opt_t* opt)
   // Check two levels up. This allows ponyc to find the packages directory
   // when it is built from source.
 #ifdef PLATFORM_IS_WINDOWS
-  success = add_relative_path(path, "..\\..\\packages");
+  success = add_relative_path(path, "..\\..\\packages", opt);
 #else
-  success = add_relative_path(path, "../../packages");
+  success = add_relative_path(path, "../../packages", opt);
 #endif
 
   if(!success)
@@ -782,12 +782,13 @@ bool package_init(pass_opt_t* opt)
 
   // Finally we add OS specific paths.
 #ifdef PLATFORM_IS_POSIX_BASED
-  add_path("/usr/local/lib");
-  add_path("/opt/local/lib");
+  add_path("/usr/local/lib", opt);
+  add_path("/opt/local/lib", opt);
 #endif
 
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
+  strlist_t* safe = opt->safe_packages;
 
   while(safe != NULL)
   {
@@ -795,29 +796,25 @@ bool package_init(pass_opt_t* opt)
     safe = strlist_pop(safe, &path);
 
     // Lookup (and hence normalise) path.
-    path = find_path(NULL, path, NULL);
+    path = find_path(NULL, path, NULL, opt);
 
     if(path == NULL)
     {
       strlist_free(full_safe);
+      strlist_free(safe);
+      opt->safe_packages = NULL;
       return false;
     }
 
     full_safe = strlist_push(full_safe, path);
   }
 
-  safe = full_safe;
+  opt->safe_packages = full_safe;
 
   if(opt->simple_builtin)
-    package_add_magic_src("builtin", simple_builtin);
+    package_add_magic_src("builtin", simple_builtin, opt);
 
   return true;
-}
-
-
-strlist_t* package_paths()
-{
-  return search;
 }
 
 
@@ -851,7 +848,7 @@ static bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
 
       strncpy(path, paths, len);
       path[len] = '\0';
-      ok = f(path) && ok;
+      ok = f(path, opt) && ok;
     }
 
     if(p == NULL) // No more separators
@@ -871,36 +868,37 @@ void package_add_paths(const char* paths, pass_opt_t* opt)
 
 bool package_add_safe(const char* paths, pass_opt_t* opt)
 {
-  add_safe("builtin");
+  add_safe("builtin", opt);
   return handle_path_list(paths, add_safe, opt);
 }
 
 
-void package_add_magic_src(const char* path, const char* src)
+void package_add_magic_src(const char* path, const char* src, pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
   n->path = stringtab(path);
   n->src = src;
   n->mapped_path = NULL;
-  n->next = magic_packages;
-  magic_packages = n;
+  n->next = opt->magic_packages;
+  opt->magic_packages = n;
 }
 
 
-void package_add_magic_path(const char* path, const char* mapped_path)
+void package_add_magic_path(const char* path, const char* mapped_path,
+  pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
   n->path = stringtab(path);
   n->src = NULL;
   n->mapped_path = mapped_path;
-  n->next = magic_packages;
-  magic_packages = n;
+  n->next = opt->magic_packages;
+  opt->magic_packages = n;
 }
 
 
-void package_clear_magic()
+void package_clear_magic(pass_opt_t* opt)
 {
-  magic_package_t*p = magic_packages;
+  magic_package_t* p = opt->magic_packages;
 
   while(p != NULL)
   {
@@ -909,13 +907,7 @@ void package_clear_magic()
     p = next;
   }
 
-  magic_packages = NULL;
-}
-
-
-void package_suppress_build_message()
-{
-  report_build = false;
+  opt->magic_packages = NULL;
 }
 
 
@@ -952,7 +944,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 {
   pony_assert(from != NULL);
 
-  magic_package_t* magic = find_magic_package(path);
+  magic_package_t* magic = find_magic_package(path, opt);
   const char* full_path = path;
   const char* qualified_name = path;
   ast_t* program = ast_nearest(from, TK_PROGRAM);
@@ -961,7 +953,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   {
     // Lookup (and hence normalise) path
     bool is_relative = false;
-    full_path = find_path(from, path, &is_relative);
+    full_path = find_path(from, path, &is_relative, opt);
 
     if(full_path == NULL)
     {
@@ -997,12 +989,10 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   if(package != NULL)
     return package;
 
-  package = create_package(program, full_path, qualified_name);
+  package = create_package(program, full_path, qualified_name, opt);
 
-  if(report_build) {
-    if(opt->verbosity >= VERBOSITY_INFO)
-      fprintf(stderr, "Building %s -> %s\n", path, full_path);
-  }
+  if(opt->verbosity >= VERBOSITY_INFO)
+    fprintf(stderr, "Building %s -> %s\n", path, full_path);
 
   if(magic != NULL)
   {
@@ -1599,15 +1589,15 @@ const char* package_group_signature(package_group_t* group)
 }
 
 
-void package_done()
+void package_done(pass_opt_t* opt)
 {
-  strlist_free(search);
-  search = NULL;
+  strlist_free(opt->package_search_paths);
+  opt->package_search_paths = NULL;
 
-  strlist_free(safe);
-  safe = NULL;
+  strlist_free(opt->safe_packages);
+  opt->safe_packages = NULL;
 
-  package_clear_magic();
+  package_clear_magic(opt);
 }
 
 
