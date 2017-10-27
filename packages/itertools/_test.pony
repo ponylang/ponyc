@@ -268,7 +268,7 @@ class iso _TestIterFind is UnitTest
 class iso _TestIterFlatMap is UnitTest
   fun name(): String => "itertools/Iter.flat_map"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     h.assert_array_eq[U8](
       Iter[String](["alpha"; "beta"; "gamma"].values())
         .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
@@ -290,6 +290,14 @@ class iso _TestIterFlatMap is UnitTest
         .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
         .collect(Array[U8]),
       [as U8: 'a'; 'b'; 'c'; 'd'])
+
+    let iter =
+      Iter[U8](Range[U8](1, 3))
+        .flat_map[U8]({(n) => Range[U8](0, n) })
+    h.assert_eq[U8](0, iter.next()?)
+    h.assert_eq[U8](0, iter.next()?)
+    h.assert_eq[U8](1, iter.next()?)
+    h.assert_false(iter.has_next())
 
 class iso _TestIterFold is UnitTest
   fun name(): String => "itertools/Iter.fold"

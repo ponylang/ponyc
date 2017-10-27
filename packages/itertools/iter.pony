@@ -454,9 +454,13 @@ class Iter[A] is Iterator[A]
         fun ref has_next(): Bool =>
           if _iterb.has_next() then true
           else
-            try
-              _iterb = f(_iter.next()?)?
-              has_next()
+            if _iter.has_next() then
+              try
+                _iterb = f(_iter.next()?)?
+                has_next()
+              else
+                false
+              end
             else
               false
             end
