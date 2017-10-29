@@ -98,7 +98,11 @@ def configure(ctx):
             bld_env.PCRE2_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
                 'lib', 'pcre2-' + PCRE2_VERSION)
             bld_env.append_value('DEFINES', [
-                'LLVM_VERSION="' + llvm_version + '"'
+                'LLVM_VERSION="' + llvm_version + '"',
+                'PONY_VERSION_STR="' + \
+                    '%s [%s]\\ncompiled with: llvm %s -- msvc-%d-x64"' % \
+                    (VERSION, ctx.options.config, \
+                        llvm_version, base_env.MSVC_VERSION)
             ])
 
             libs_name = 'PonyWinLibs' + \
