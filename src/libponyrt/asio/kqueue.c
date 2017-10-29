@@ -322,7 +322,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     ev->noisy = false;
   }
 
-  struct kevent event[3];
+  struct kevent event[4];
   int i = 0;
 
   if(ev->flags & ASIO_READ)
