@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix incorrect kevent structure size ([PR #2312](https://github.com/ponylang/ponyc/pull/2312))
 - Fix possible repetition in Iter.flat_map ([PR #2304](https://github.com/ponylang/ponyc/pull/2304))
 
 ### Added
