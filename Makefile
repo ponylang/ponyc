@@ -55,6 +55,9 @@ else
   tag := $(shell cat VERSION)
 endif
 
+version_str = "$(tag) [$(config)]\ncompiled with: llvm $(llvm_version) \
+  -- "$(compiler_version)
+
 # package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
@@ -90,6 +93,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\" \
   -DBUILD_COMPILER=\"$(compiler_version)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\" \
+  -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 

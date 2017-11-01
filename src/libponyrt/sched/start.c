@@ -12,6 +12,7 @@
 #include <dtrace.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef struct options_t
 {
@@ -26,6 +27,7 @@ typedef struct options_t
   bool noblock;
   bool nopin;
   bool pinasio;
+  bool version;
 } options_t;
 
 // global data
@@ -44,7 +46,8 @@ enum
   OPT_NOYIELD,
   OPT_NOBLOCK,
   OPT_NOPIN,
-  OPT_PINASIO
+  OPT_PINASIO,
+  OPT_VERSION
 };
 
 static opt_arg_t args[] =
@@ -59,6 +62,7 @@ static opt_arg_t args[] =
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponynopin", 0, OPT_ARG_NONE, OPT_NOPIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
+  {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 
   OPT_ARGS_FINISH
 };
@@ -83,6 +87,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_NOPIN: opt->nopin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
+      case OPT_VERSION: opt->version = true; break;
 
       default: exit(-1);
     }
@@ -114,6 +119,11 @@ PONY_API int pony_init(int argc, char** argv)
   opt.gc_factor = 2.0f;
 
   argc = parse_opts(argc, argv, &opt);
+
+  if (opt.version) {
+    printf("%s\n", PONY_VERSION_STR);
+    exit(0);
+  }
 
   ponyint_cpu_init();
 

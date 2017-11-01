@@ -208,6 +208,7 @@ static void usage()
     "                  threads are pinned to CPUs.\n"
     "  --ponypinasio   Pin the ASIO thread to a CPU the way scheduler\n"
     "                  threads are pinned to CPUs.\n"
+    "  --ponyversion   Print the version of the compiler and exit.\n"
     );
 }
 
@@ -291,8 +292,7 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%s [%s]\ncompiled with: llvm %s -- %s\n", PONY_VERSION, PONY_BUILD_CONFIG,
-          LLVM_VERSION, BUILD_COMPILER);
+        printf("%s\n", PONY_VERSION_STR);
         return 0;
 
       case OPT_HELP:
