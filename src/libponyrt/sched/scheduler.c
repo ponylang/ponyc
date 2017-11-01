@@ -530,6 +530,7 @@ PONY_API pony_ctx_t* pony_ctx()
 
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
 {
+  pony_assert(sender != recv);
   scheduler_t* sched = ctx->scheduler;
   size_t index = HASHMAP_UNKNOWN;
   muteref_t key;
