@@ -591,10 +591,14 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
 
       if (muted_count == 0)
       {
-        ponyint_sched_add(ctx, muted);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
+        // TODO: expose has_flag
+        //if(!has_flag(to, FLAG_UNSCHEDULED))
+        //{
+          ponyint_sched_add(ctx, muted);
+          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
+          actors_rescheduled++;
+        //}
         ponyint_sched_unmute_senders(ctx, muted, true);
-        actors_rescheduled++;
       }
     }
 

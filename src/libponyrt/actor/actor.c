@@ -190,6 +190,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 {
+  pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
 
   pony_msg_t* msg;
@@ -508,7 +509,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
-      // if the receiving actor is currently unscheduled AND it's not
+      // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
       ponyint_sched_add(ctx, to);
     }
@@ -642,7 +643,7 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!has_flag(actor, FLAG_UNSCHEDULED))
+  if(!has_flag(actor, FLAG_UNSCHEDULED) || ponyint_is_muted(actor))
     return;
 
   unset_flag(actor, FLAG_UNSCHEDULED);
