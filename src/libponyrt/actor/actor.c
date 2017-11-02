@@ -300,7 +300,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // Return true (i.e. reschedule immediately) if our queue isn't empty.
-  return !empty &&
+  return !empty;
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor)
