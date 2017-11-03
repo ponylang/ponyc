@@ -79,9 +79,7 @@ static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
 
 static void send_msg_all(sched_msg_t msg, intptr_t arg)
 {
-  send_msg(0, msg, arg);
-
-  for(uint32_t i = 1; i < scheduler_count; i++)
+  for(uint32_t i = 0; i < scheduler_count; i++)
     send_msg(i, msg, arg);
 }
 
@@ -553,14 +551,18 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     uint8_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
     muted++;
     atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+    printf("%p muted in %p by %p\n", sender, sched, recv);
   }
 }
+
+DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
+DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
 {
   size_t actors_rescheduled = 0;
   scheduler_t* sched = ctx->scheduler;
-  size_t index;
+  size_t index = HASHMAP_UNKNOWN;
   muteref_t key;
   key.key = actor;
 
@@ -577,34 +579,50 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
 
   if(mref != NULL)
   {
+    printf("found mute mapping for %p in %p\n", actor, sched);
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
+    actorstack_t* needs_unmuting = NULL;
 
+    // Find and collect any actors that need to be unmuted
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
       // This is safe because an actor can only ever be in a single scheduler's
       // mutemap
       uint8_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
+      if (muted_count < 1)
+        printf("WOAH! %p was also in %p by %p inform was %d\n", muted, sched, actor, inform);
       pony_assert(muted_count > 0);
       muted_count--;
       atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
 
       if (muted_count == 0)
       {
-        ponyint_sched_unmute_senders(ctx, muted, true);
-
-        // TODO: expose has_flag
-        //if(!has_flag(to, FLAG_UNSCHEDULED))
-        //{
-          ponyint_sched_add(ctx, muted);
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
-          actors_rescheduled++;
-        //}
+        needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
+
+    // Unmute any actors that need to be unmuted
+    pony_actor_t* to_unmute;
+
+    while(needs_unmuting != NULL)
+    {
+      needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
+
+      printf("%p unmuted in %p by %p inform was %d\n", to_unmute, sched, actor, inform);
+      // shouldnt be recursive
+      ponyint_sched_unmute_senders(ctx, to_unmute, true);
+      // TODO: expose has_flag
+      //if(!has_flag(to, FLAG_UNSCHEDULED))
+      //{
+        ponyint_sched_add(ctx, to_unmute);
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+        actors_rescheduled++;
+      //}
+    }
   }
 
   return actors_rescheduled > 0;
