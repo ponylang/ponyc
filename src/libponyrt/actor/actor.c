@@ -283,8 +283,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // If we have processed any application level messages, defer blocking.
-  //if(app > 0)
-  //  return true;
+  if(app > 0)
+    return true;
 
   // Tell the cycle detector we are blocking. We may not actually block if a
   // message is received between now and when we try to mark our queue as

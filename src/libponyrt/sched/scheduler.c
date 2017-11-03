@@ -182,6 +182,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
     }
   }
 
+  printf("Q: %p\n", sched);
   ponyint_cpu_core_pause(tsc, tsc2, use_yield);
   return false;
 }
@@ -238,7 +239,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     // Only send block message if we don't have any muted actors.
     // If we have at least one muted actor it means we aren't really
     // blocked. There's work that can eventually be done.
-    //send_msg(0, SCHED_BLOCK, 0);
+    send_msg(0, SCHED_BLOCK, 0);
     block_sent = true;
   }
 
@@ -277,7 +278,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         {
           // Someone else stole from our newly unmuted actor. If we have no
           // more muted actors, we need to inform everyone that we are blocked
-          //send_msg(0, SCHED_BLOCK, 0);
+          send_msg(0, SCHED_BLOCK, 0);
           block_sent = true;
         }
       }
@@ -293,7 +294,7 @@ static pony_actor_t* steal(scheduler_t* sched)
   if(block_sent)
   {
     // Only send unblock message if sent one while trying to steal
-    //send_msg(0, SCHED_UNBLOCK, 0);
+    send_msg(0, SCHED_UNBLOCK, 0);
     ;
   }
   return actor;
@@ -619,7 +620,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       //if(!has_flag(to, FLAG_UNSCHEDULED))
       //{
         ponyint_unmute_actor(to_unmute);
-        if(!ponyint_messageq_markempty(&actor->q))
+        //if(!ponyint_messageq_markempty(&actor->q))
         {
           ponyint_sched_add(ctx, to_unmute);
           DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
