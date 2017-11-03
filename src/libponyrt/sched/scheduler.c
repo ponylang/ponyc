@@ -139,7 +139,7 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNMUTE_ACTOR:
       {
-        if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i, false))
+        if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
           run_queue_changed = true;
 
         break;
@@ -272,7 +272,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         break;
       else
       {
-        if (ponyint_mutemap_size(&sched->mute_mapping) == 0)
+        if (ponyint_mutemap_size(&sched->mute_mapping) == 0 && !block_sent)
         {
           // Someone else stole from our newly unmuted actor. If we have no
           // more muted actors, we need to inform everyone that we are blocked
@@ -291,9 +291,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
   if(block_sent)
   {
-    // Only send unblock message if we don't have any muted actors
-    // If we have at least one muted actor it means we arent't really
-    // blocked. There's was that could eventually be done.
+    // Only send unblock message if sent one while trying to steal
     send_msg(0, SCHED_UNBLOCK, 0);
   }
   return actor;
@@ -555,25 +553,21 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   }
 }
 
+void ponyint_sched_start_global_unmute( pony_actor_t* actor)
+{
+  send_msg_all(SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+}
+
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 
-bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inform)
+bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   size_t actors_rescheduled = 0;
   scheduler_t* sched = ctx->scheduler;
   size_t index = HASHMAP_UNKNOWN;
   muteref_t key;
   key.key = actor;
-
-  if(inform)
-  {
-    for(uint32_t i = 0; i < scheduler_count; i++)
-    {
-      if(&scheduler[i] != sched)
-        send_msg(i, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
-    }
-  }
 
   muteref_t* mref = ponyint_mutemap_get(&sched->mute_mapping, &key, &index);
 
@@ -591,7 +585,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
       // mutemap
       uint8_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
       if (muted_count < 1)
-        printf("WOAH! %p was also in %p by %p inform was %d\n", muted, sched, actor, inform);
+        printf("WOAH! %p was also in %p by %p\n", muted, sched, actor);
       pony_assert(muted_count > 0);
       muted_count--;
       atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
@@ -612,9 +606,8 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inf
     {
       needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
 
-      printf("%p unmuted in %p by %p inform was %d\n", to_unmute, sched, actor, inform);
-      // shouldnt be recursive
-      ponyint_sched_unmute_senders(ctx, to_unmute, true);
+      printf("%p unmuted in %p by %p\n", to_unmute, sched, actor);
+      ponyint_sched_start_global_unmute(to_unmute);
       // TODO: expose has_flag
       //if(!has_flag(to, FLAG_UNSCHEDULED))
       //{

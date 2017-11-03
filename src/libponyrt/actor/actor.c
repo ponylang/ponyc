@@ -259,7 +259,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   {
     // if we were overloaded and didn't process a full batch, set ourselves as no
     // longer overloaded.
-    ponyint_actor_unsetoverloaded(ctx, actor);
+    ponyint_actor_unsetoverloaded(actor);
   }
 
   try_gc(ctx, actor);
@@ -674,6 +674,7 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
 
 void ponyint_actor_setoverloaded(pony_actor_t* actor)
 {
+  pony_assert(!ponyint_is_cycle(actor));
   set_flag(actor, FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
 }
@@ -683,12 +684,12 @@ bool ponyint_actor_overloaded(pony_actor_t* actor)
   return has_flag(actor, FLAG_OVERLOADED);
 }
 
-void ponyint_actor_unsetoverloaded(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
 {
   unset_flag(actor, FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_flag(actor, FLAG_UNDER_PRESSURE))
-    ponyint_sched_unmute_senders(ctx, actor, true);
+    ponyint_sched_start_global_unmute(actor);
 }
 
 PONY_API void pony_apply_backpressure()
@@ -704,7 +705,7 @@ PONY_API void pony_release_backpressure()
   unset_flag(ctx->current, FLAG_UNDER_PRESSURE);
   DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_flag(ctx->current, FLAG_OVERLOADED))
-      ponyint_sched_unmute_senders(ctx, ctx->current, true);
+      ponyint_sched_start_global_unmute(ctx->current);
 }
 
 bool ponyint_triggers_muting(pony_actor_t* actor)

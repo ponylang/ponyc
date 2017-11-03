@@ -74,7 +74,9 @@ uint32_t ponyint_sched_cores();
 
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv);
 
-bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor, bool inform);
+void ponyint_sched_start_global_unmute(pony_actor_t* actor);
+
+bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
 PONY_EXTERN_C_END
 
