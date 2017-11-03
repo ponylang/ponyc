@@ -283,8 +283,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   }
 
   // If we have processed any application level messages, defer blocking.
-  if(app > 0)
-    return true;
+  //if(app > 0)
+  //  return true;
 
   // Tell the cycle detector we are blocking. We may not actually block if a
   // message is received between now and when we try to mark our queue as
@@ -485,6 +485,8 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
+      printf("SCHEDULING %p on %p because of empty queue sendv\n", to, ctx->scheduler);
+
       ponyint_sched_add(ctx, to);
     }
   }
@@ -522,6 +524,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
+      printf("SCHEDULING %p on %p because of empty queue\n", to, ctx->scheduler);
       ponyint_sched_add(ctx, to);
     }
   }

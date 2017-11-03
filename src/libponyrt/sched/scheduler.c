@@ -238,7 +238,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     // Only send block message if we don't have any muted actors.
     // If we have at least one muted actor it means we aren't really
     // blocked. There's work that can eventually be done.
-    send_msg(0, SCHED_BLOCK, 0);
+    //send_msg(0, SCHED_BLOCK, 0);
     block_sent = true;
   }
 
@@ -277,7 +277,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         {
           // Someone else stole from our newly unmuted actor. If we have no
           // more muted actors, we need to inform everyone that we are blocked
-          send_msg(0, SCHED_BLOCK, 0);
+          //send_msg(0, SCHED_BLOCK, 0);
           block_sent = true;
         }
       }
@@ -293,7 +293,8 @@ static pony_actor_t* steal(scheduler_t* sched)
   if(block_sent)
   {
     // Only send unblock message if sent one while trying to steal
-    send_msg(0, SCHED_UNBLOCK, 0);
+    //send_msg(0, SCHED_UNBLOCK, 0);
+    ;
   }
   return actor;
 }
@@ -348,6 +349,7 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
       }
     } else {
+      printf("NOT RUNNING %p again on %p, Running %p instead\n", actor, sched, next);
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
       DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
