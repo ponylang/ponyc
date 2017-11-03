@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <string.h>
 #include <dtrace.h>
+#include <stdio.h>
 
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
@@ -28,6 +29,7 @@ enum
   FLAG_PENDINGDESTROY = 1 << 4,
   FLAG_OVERLOADED = 1 << 5,
   FLAG_UNDER_PRESSURE = 1 << 6,
+  FLAG_MUTED = 1 << 7,
 };
 
 static bool actor_noblock = false;
@@ -190,6 +192,11 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 {
+  if (ponyint_is_muted(actor))
+  {
+    printf("%p is muted at start of run in %p\n", actor, ctx->scheduler);
+  }
+
   pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
 
@@ -229,8 +236,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       try_gc(ctx, actor);
 
       // if we become muted as a result of handling a message, bail out now.
-      if(ponyint_is_muted(actor))
+      if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
+      {
+        printf("%p is bailing out due to mute in %p\n", actor, ctx->scheduler);
+        ponyint_mute_actor(actor);
         return false;
+      }
 
       if(app == batch)
       {
@@ -688,8 +699,10 @@ void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
 {
   unset_flag(actor, FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
-  if (!has_flag(actor, FLAG_UNDER_PRESSURE))
+  if (!has_flag(actor, FLAG_UNDER_PRESSURE)) {
+    printf("OVERLOAD OF %p cleared\n", actor);
     ponyint_sched_start_global_unmute(actor);
+  }
 }
 
 PONY_API void pony_apply_backpressure()
@@ -717,5 +730,20 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0;
+  return (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
+}
+
+void ponyint_mute_actor(pony_actor_t* actor)
+{
+  atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_relaxed);
+
+//    uint64_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
+  // muted++;
+   // atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+
+}
+
+void ponyint_unmute_actor(pony_actor_t* actor)
+{
+  atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
 }
