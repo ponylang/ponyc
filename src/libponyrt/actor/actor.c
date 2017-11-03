@@ -192,10 +192,10 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 {
-  if (ponyint_is_muted(actor))
+  /*if (ponyint_is_muted(actor))
   {
     printf("%p is muted at start of run in %p\n", actor, ctx->scheduler);
-  }
+  }*/
 
   pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
@@ -238,7 +238,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       // if we become muted as a result of handling a message, bail out now.
       if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
       {
-        printf("%p is bailing out due to mute in %p\n", actor, ctx->scheduler);
+        //printf("%p is bailing out due to mute in %p\n", actor, ctx->scheduler);
         ponyint_mute_actor(actor);
         return false;
       }
@@ -485,7 +485,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
-      printf("SCHEDULING %p on %p because of empty queue sendv\n", to, ctx->scheduler);
+      //printf("SCHEDULING %p on %p because of empty queue sendv\n", to, ctx->scheduler);
 
       ponyint_sched_add(ctx, to);
     }
@@ -524,7 +524,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
-      printf("SCHEDULING %p on %p because of empty queue\n", to, ctx->scheduler);
+      //printf("SCHEDULING %p on %p because of empty queue\n", to, ctx->scheduler);
       ponyint_sched_add(ctx, to);
     }
   }
@@ -703,7 +703,7 @@ void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
   unset_flag(actor, FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_flag(actor, FLAG_UNDER_PRESSURE)) {
-    printf("OVERLOAD OF %p cleared\n", actor);
+    //printf("OVERLOAD OF %p cleared\n", actor);
     ponyint_sched_start_global_unmute(actor);
   }
 }

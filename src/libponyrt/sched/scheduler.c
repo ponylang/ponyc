@@ -182,7 +182,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
     }
   }
 
-  printf("Q: %p\n", sched);
+  //printf("Q: %p\n", sched);
   ponyint_cpu_core_pause(tsc, tsc2, use_yield);
   return false;
 }
@@ -257,7 +257,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     if(actor != NULL)
     {
-      printf("ACTOR %p stolen in %p\n", actor, sched);
+      //printf("ACTOR %p stolen in %p\n", actor, sched);
       DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
       break;
     }
@@ -350,7 +350,7 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
       }
     } else {
-      printf("NOT RUNNING %p again on %p, Running %p instead\n", actor, sched, next);
+      //printf("NOT RUNNING %p again on %p, Running %p instead\n", actor, sched, next);
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
       DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
@@ -467,7 +467,7 @@ void ponyint_sched_stop()
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  printf("SCHEDULING %p on %p\n", actor, ctx->scheduler);
+  //printf("SCHEDULING %p on %p\n", actor, ctx->scheduler);
 
   if(ctx->scheduler != NULL)
   {
@@ -555,7 +555,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     uint64_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
     muted++;
     atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
-    printf("%p muted in %p by %p count is %lld\n", sender, sched, recv, muted);
+    //printf("%p muted in %p by %p count is %lld\n", sender, sched, recv, muted);
   }
 }
 
@@ -579,7 +579,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if(mref != NULL)
   {
-    printf("found mute mapping for %p in %p\n", actor, sched);
+    //printf("found mute mapping for %p in %p\n", actor, sched);
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
     actorstack_t* needs_unmuting = NULL;
@@ -600,10 +600,10 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       {
         needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
       }
-      else
+      /*else
       {
         printf("%p not unmuted in %p by %p count is %lld\n", muted, sched, actor, muted_count);
-      }
+      }*/
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
@@ -628,7 +628,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
         }
       //}
 
-      printf("%p unmuted in %p by %p\n", to_unmute, sched, actor);
+      //printf("%p unmuted in %p by %p\n", to_unmute, sched, actor);
       ponyint_sched_start_global_unmute(to_unmute);
     }
   }
