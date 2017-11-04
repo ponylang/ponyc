@@ -128,6 +128,13 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_ACK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
     case ACTORMSG_CONF:
     {
       if(has_flag(actor, FLAG_BLOCKED) && !has_flag(actor, FLAG_RC_CHANGED))
@@ -157,6 +164,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     default:
     {
+      assert(!ponyint_is_cycle(actor));
       if(has_flag(actor, FLAG_BLOCKED))
       {
         // Send unblock before continuing. We no longer need to send any
