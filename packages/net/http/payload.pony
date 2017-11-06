@@ -248,7 +248,7 @@ class trn Payload
     Start sending a response from the server to the client.
     """
     try
-      (session as HTTPSession)(response')
+      (session as HTTPSession)(consume response')
     end
 
   fun val _client_fail() =>
