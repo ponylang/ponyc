@@ -6,6 +6,8 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
+#include "extra_js.c"
+#include "extra_css.c"
 
 
 // Define a type with the docgen state that needs to passed around the
@@ -1045,6 +1047,10 @@ static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt,
       doc_package(docgen, docgen_opt, p->ast);
     }
   }
+
+  fprintf(docgen->index_file, "extra_css: [extra.css]\n");
+  fprintf(docgen->index_file, "extra_javascript: [extra.js]\n");
+  
 }
 
 
@@ -1145,6 +1151,12 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
 
+  FILE* extra_js = doc_open_file(&docgen, true, "extra", ".js");
+  fprintf(extra_js, extra_js_content);
+
+  FILE* extra_css = doc_open_file(&docgen, true, "extra", ".css");
+  fprintf(extra_css, extra_css_content);
+
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
   {
@@ -1167,6 +1179,12 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if(docgen.home_file != NULL)
    fclose(docgen.home_file);
+
+  if (extra_js != NULL)
+    fclose(extra_js);
+
+  if (extra_css != NULL)
+    fclose(extra_css);
 
   if(docgen.base_dir != NULL)
     ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
