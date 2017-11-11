@@ -6,8 +6,7 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include "extra_js.c"
-#include "extra_css.c"
+#include "doc_extra.h"
 
 
 // Define a type with the docgen state that needs to passed around the
@@ -40,6 +39,8 @@ typedef struct docgen_t
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
   errors_t* errors;
+  const char** included_source_files;
+  size_t included_source_files_count;
 } docgen_t;
 
 // Define options for doc generation
@@ -757,6 +758,42 @@ static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
     doc_method(docgen, docgen_opt, p->ast);
 }
 
+// Include the file of the corresponding source in the documentation.
+static void include_source_if_needed(docgen_t* docgen, source_t* source) 
+{
+  pony_assert(source != NULL);
+  // TODO fix paths and name and dump escaped content of source into the correct location.
+
+  const char* source_path = source->file;
+  if (docgen->included_source_files != NULL) {
+    // does the file was already included in the doc ?
+    bool was_included = false;
+    for (int i = 0; i < docgen->included_source_files_count; i++) {
+      if( strcmp(source_path, docgen->included_source_files[i]) == 0)
+        was_included = 1;
+    }
+    // the file was already here. We are done here.
+    if (was_included) {
+      return;
+    }
+    else {
+      // should be using realloc
+      const char** resized_array = (const char**) malloc(sizeof(char**) * (docgen->included_source_files_count + 1));
+      for (int i = 0; i < docgen->included_source_files_count; i++) {
+        resized_array[i] = docgen->included_source_files[i];
+      }
+      docgen->included_source_files = resized_array;
+      docgen->included_source_files_count = docgen->included_source_files_count + 1;
+      docgen->included_source_files[docgen->included_source_files_count - 1] = source_path;
+    }
+  }
+  else {
+    docgen->included_source_files = (const char **) calloc(sizeof(char*), 1);
+    docgen->included_source_files_count = 1;
+    docgen->included_source_files[0] = source_path;
+  }
+}
+
 
 // Write a description of the given entity to its own type file.
 static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
@@ -768,6 +805,11 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   pony_assert(docgen->private_types != NULL);
   pony_assert(docgen->type_file == NULL);
   pony_assert(ast != NULL);
+
+  //TODO
+  source_t* source = ast_source(ast);
+  if (source != NULL)
+    include_source_if_needed(docgen, source);
 
   // First open a file
   size_t tqfn_len;
@@ -1047,10 +1089,6 @@ static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt,
       doc_package(docgen, docgen_opt, p->ast);
     }
   }
-
-  fprintf(docgen->index_file, "extra_css: [extra.css]\n");
-  fprintf(docgen->index_file, "extra_javascript: [extra.js]\n");
-  
 }
 
 
@@ -1150,12 +1188,14 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
+  docgen.included_source_files = NULL;
+  docgen.included_source_files_count = 0;
 
   FILE* extra_js = doc_open_file(&docgen, true, "extra", ".js");
-  fprintf(extra_js, extra_js_content);
+  fprintf(extra_js, get_doc_extra_js_content());
 
   FILE* extra_css = doc_open_file(&docgen, true, "extra", ".css");
-  fprintf(extra_css, extra_css_content);
+  fprintf(extra_css, get_doc_extra_css_content());
 
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
@@ -1167,10 +1207,19 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
     fprintf(docgen.index_file, "theme: readthedocs\n");
+    fprintf(docgen.index_file, "extra_css: [extra.css]\n");
+    fprintf(docgen.index_file, "extra_javascript: [extra.js]\n");
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, &docgen_opt, program);
+  }
+
+  if (docgen.included_source_files != NULL) {
+    fprintf(docgen.index_file, "- source:\n");
+    for (int i = 0; i < docgen.included_source_files_count; i++) {
+      fprintf(docgen.index_file, "  - %s : \"%s\" \n" , docgen.included_source_files[i] , docgen.included_source_files[i]);
+    }
   }
 
   // Tidy up
