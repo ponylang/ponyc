@@ -35,6 +35,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   source->len = size;
 
   ssize_t read = fread(source->m, sizeof(char), size, fp);
+  source->m[size] = '\0';
 
   if(read < size)
   {
