@@ -25,10 +25,11 @@ code.has-numbering { \n \
 } \n \
     \n \
 .pre-numbering { \n \
+    width: 22px;\n \
     position: absolute; \n \
     top: 0; \n \
     left: 0; \n \
-    padding: 26px 2px 18px 0; \n \
+    padding: 12px 2px 18px 0; \n \
     border-right: 1px solid #C3CCD0; \n \
     border-radius: 3px 0 0 3px; \n \
     background-color: #EEE; \n \
@@ -51,13 +52,15 @@ const char* get_doc_extra_js_content()
 try\n \
 {\n \
     var originalSourceCode = document.getElementsByClassName(\"pony-full-source\")[0];\n \
+    var toRemove = originalSourceCode;\n \
+    originalSourceCode = originalSourceCode.nextElementSibling;\n \
     var preElem = document.createElement(\"pre\");\n \
     var codeElem = document.createElement(\"code\");\n \
     codeElem.className = 'pony';\n \
 \n \
     preElem.append(codeElem);\n \
     originalSourceCode.parentNode.append(preElem);\n \
-    codeElem.innerHTML = originalSourceCode.innerHTML;\n \
+    codeElem.innerHTML = originalSourceCode.children[0].innerHTML;\n \
     originalSourceCode.parentElement.removeChild(originalSourceCode);\n \
 \n \
     var lines = $(codeElem).text().split('\\n').length - 1;      \n \

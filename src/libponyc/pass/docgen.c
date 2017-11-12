@@ -851,6 +851,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
 
   FILE* file = fopen(path, "w");
   if (file != NULL) {
+    fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
     fprintf(file, "```pony\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```");
