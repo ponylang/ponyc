@@ -669,6 +669,17 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "\n");
 }
 
+static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
+{
+  for (int i = 0; i < docgen->included_sources_count; i++) {
+    if (source == docgen->included_sources[i]-> source) {
+      return docgen->included_sources[i];
+    }
+
+  }
+  return NULL;
+}
+
 // Write a description of the given method to the current type file
 static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   ast_t* method)
@@ -683,7 +694,17 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   pony_assert(name != NULL);
 
   // Method
-  fprintf(docgen->type_file, "### %s", name);
+  source_t* source = ast_source(method);
+  doc_sources_t* doc_source = NULL;
+
+  if (source != NULL)
+    doc_source = get_doc_source(docgen, source);
+
+  if (doc_source != NULL) {
+    fprintf(docgen->type_file, "### %s [[Src]](%s#%zd) ", name, doc_source->doc_path, ast_line(method));
+  } else {
+    fprintf(docgen->type_file, "### %s", name);
+  }
   doc_type_params(docgen, docgen_opt, t_params, true, false);
   fprintf(docgen->type_file, "\n\n");
 
