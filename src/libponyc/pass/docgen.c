@@ -57,13 +57,11 @@ typedef struct docgen_t
   size_t included_sources_count;
 } docgen_t;
 
-
 // Define options for doc generation
 typedef struct docgen_opt_t
 {
   bool include_private;
 } docgen_opt_t;
-
 
 // Define a list for keeping lists of ASTs ordered by name.
 // Each list should have an empty head node (prefereably on the stack). Other
@@ -76,7 +74,6 @@ typedef struct ast_list_t
   const char* name;
   struct ast_list_t* next;
 } ast_list_t;
-
 
 // Free the contents of the given list, but not the head node which must be
 // handled separately
@@ -93,7 +90,6 @@ static void doc_list_free(ast_list_t* list)
     p = next;
   }
 }
-
 
 // Add the given AST to the given list, under the specified name
 static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
@@ -127,7 +123,6 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
   // Add new node at end of list
   prev->next = n;
 }
-
 
 static bool is_for_testing(const char* name, ast_t* list)
 {
@@ -168,7 +163,6 @@ static bool is_package_for_testing(const char* name)
     return (strcmp(name, "test") == 0 || strcmp(name, "builtin_test") == 0);
 }
 
-
 // Add the given AST to the given list, using the name from the specified
 // child.
 // ASTs with hygenic names are ignored.
@@ -204,7 +198,6 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
 
   doc_list_add(list, ast, name, false);
 }
-
 
 // Utilities
 
@@ -246,7 +239,6 @@ static char* doc_cat(const char* a, const char* b, const char* c,
   *out_buf_size = buf_len;
   return buffer;
 }
-
 
 // Fully qualified type names (TQFNs).
 // We need unique names for types, for use in file names and links. The format
@@ -295,7 +287,6 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
   return buffer;
 }
 
-
 // Open a file with the specified info.
 // The given filename extension should include a dot if one is needed.
 // The returned file handle must be fclosed() with no longer needed.
@@ -325,7 +316,6 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
   ponyint_pool_free_size(buf_len, buffer);
   return file;
 }
-
 
 // Functions to handle types
 
@@ -358,7 +348,6 @@ static const char* doc_get_cap(ast_t* cap)
       return NULL;
   }
 }
-
 
 // Write the given type to the current type file
 static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
@@ -501,8 +490,6 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-
-
 // Functions to handle everything else
 
 // Write the given list of fields to the current type file.
@@ -546,7 +533,6 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
-
 
 // Write the given list of type parameters to the current type file, with
 // surrounding []. If the given list is empty nothing is written.
@@ -752,7 +738,6 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "---\n\n");
 }
 
-
 // Write the given list of methods to the current type file.
 // The variety text is used as a heading.
 // If the list is empty nothing is written.
@@ -883,15 +868,6 @@ static char* str_replace(char *orig, char *rep, char *with)
   strcpy(tmp, orig);
   return result;
 }
-
-// bool does_file_exist(const char* path)
-// {
-//   if( access( fname, F_OK ) != -1 ) {
-//     return true;
-//   } else {
-//     return false;
-//   }
-// }
 
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
 {
@@ -1174,7 +1150,6 @@ static void doc_package_home(docgen_t* docgen,
   docgen->type_file = NULL;
 }
 
-
 // Document the given package
 static void doc_package(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
@@ -1281,7 +1256,6 @@ static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt,
   }
 }
 
-
 // Delete all the files in the specified directory
 static void doc_rm_star(const char* path)
 {
@@ -1316,7 +1290,6 @@ static void doc_rm_star(const char* path)
 
   pony_closedir(dir);
 }
-
 
 /* Ensure that the directories we need exist and are empty.
  *
