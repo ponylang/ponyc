@@ -1,4 +1,4 @@
-class ContentsLog
+class ContentsLog is Logger
   """
   Logs the contents of HTTP requests and responses.
   """
@@ -7,7 +7,12 @@ class ContentsLog
   new val create(out: OutStream) =>
     _out = out
 
-  fun val apply(ip: String, request: Payload val, response: Payload val) ? =>
+  fun val apply(
+    ip: String,
+    body_size: USize,
+    request: Payload val,
+    response: Payload val)
+  =>
     let list = recover Array[ByteSeq] end
 
     list.push("REQUEST\n")
@@ -36,9 +41,7 @@ class ContentsLog
       list.push("\n")
     end
 
-    for data in request.body()?.values() do
-      list.push(data)
-    end
+    try list.append(request.body()?) end
 
     list.push("\n")
 
@@ -57,9 +60,7 @@ class ContentsLog
       list.push("\n")
     end
 
-    for data in response.body()?.values() do
-      list.push(data)
-    end
+    try list.append(response.body()?) end
 
     list.push("\n\n")
     _out.writev(consume list)

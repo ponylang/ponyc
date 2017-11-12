@@ -4,7 +4,7 @@ primitive DiscardLog
   """
   fun val apply(
     ip: String,
-    transferred: USize,
+    body_size: USize,
     request: Payload val,
     response: Payload val)
   =>
