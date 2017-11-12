@@ -14,7 +14,6 @@
   #pragma comment(lib, "shlwapi.lib")
 #endif
 
-//source_t** included_sources;
 typedef struct doc_sources_t
 {
   const source_t* source;
@@ -896,7 +895,6 @@ static char* str_replace(char *orig, char *rep, char *with)
 
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
 {
-  // TODO handle filename clashes.
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
   const char* filename = basename(source->file);
