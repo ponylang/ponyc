@@ -20,6 +20,7 @@ typedef struct doc_sources_t
   const source_t* source;
   const char* filename;
   const char* doc_path;
+  const char* file_path;
 } doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
@@ -884,6 +885,15 @@ static char* str_replace(char *orig, char *rep, char *with)
   return result;
 }
 
+// bool does_file_exist(const char* path)
+// {
+//   if( access( fname, F_OK ) != -1 ) {
+//     return true;
+//   } else {
+//     return false;
+//   }
+// }
+
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
 {
   // TODO handle filename clashes.
@@ -893,9 +903,36 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
 
-  char path[FILENAME_MAX];
+  char* path = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(docgen->doc_source_dir, filename_md_extension, path);
   const char* doc_path = concat("src/", filename_md_extension);
+
+  bool are_name_clashing = false;
+  int current_numbering = 0;
+  int number_of_try = 0;
+  do {
+    are_name_clashing = false;
+    for (int i = 0; i < docgen->included_sources_count; i++) {
+      pony_assert(docgen->included_sources[i] != NULL);
+      if(strcmp(path, docgen->included_sources[i]->file_path) == 0) {
+        are_name_clashing = true;
+      }
+    }
+    number_of_try++;
+    if (are_name_clashing) {
+      current_numbering++;
+      char extension[FILENAME_MAX];
+      sprintf(extension, "--%i.md", current_numbering);
+      filename_md_extension = concat(filename_without_ext, extension);
+      path_cat(docgen->doc_source_dir, filename_md_extension, path);
+      doc_path = concat("src/", filename_md_extension);
+    }
+  } while (are_name_clashing && number_of_try < 10);
+
+  if (are_name_clashing) {
+    errorf(docgen->errors, NULL, "Could not handle name clash for file %s", filename);
+    return NULL;
+  }
 
   FILE* file = fopen(path, "w");
   if (file != NULL) {
@@ -912,6 +949,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
     result->source = source;
     result->filename = filename;
     result->doc_path = doc_path;
+    result->file_path = path;
     return result;
   } else {
     errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
@@ -930,7 +968,7 @@ static void include_source_if_needed(docgen_t* docgen, source_t* source)
   for (int i = 0; i < docgen->included_sources_count; i++) {
     pony_assert(docgen->included_sources[i] != NULL);
     if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
-      was_included = 1;
+      was_included = true;
   }
 
   if (!was_included) {
