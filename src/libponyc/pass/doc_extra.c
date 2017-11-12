@@ -25,7 +25,7 @@ code.has-numbering { \n \
 } \n \
     \n \
 .pre-numbering { \n \
-    width: 22px;\n \
+    width: 35px;\n \
     position: absolute; \n \
     top: 0; \n \
     left: 0; \n \
