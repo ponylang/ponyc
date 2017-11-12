@@ -44,7 +44,7 @@ source_t* source_open(const char* file, const char** error_msgp)
     fclose(fp);
     return NULL;
   }
-
+  source->m[size] = '\0';
   fclose(fp);
   return source;
 }
