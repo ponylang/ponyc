@@ -51,18 +51,8 @@ const char* get_doc_extra_js_content()
 " \
 try\n \
 {\n \
-    var originalSourceCode = document.getElementsByClassName(\"pony-full-source\")[0];\n \
-    var toRemove = originalSourceCode;\n \
-    originalSourceCode = originalSourceCode.nextElementSibling;\n \
-    var preElem = document.createElement(\"pre\");\n \
-    var codeElem = document.createElement(\"code\");\n \
-    codeElem.className = 'pony';\n \
-\n \
-    preElem.append(codeElem);\n \
-    originalSourceCode.parentNode.append(preElem);\n \
-    codeElem.innerHTML = originalSourceCode.children[0].innerHTML;\n \
-    originalSourceCode.parentElement.removeChild(originalSourceCode);\n \
-\n \
+    var preElem = document.getElementsByClassName(\"pony-full-source\")[0].nextElementSibling;\n \
+    var codeElem = preElem.children[0];\n \
     var lines = $(codeElem).text().split('\\n').length - 1;      \n \
     var numbering = $('<code class=\"code-line-numbers\"></code>').addClass('pre-numbering');\n \
 \n \
@@ -74,8 +64,6 @@ try\n \
     for (i = 1; i <= lines; i++) {\n \
         numbering.append($('<div></div>').text(i));\n \
     }\n \
-\n \
-    hljs.highlightBlock(codeElem);\n \
 }\n \
 catch (e) \n \
 {\n \
