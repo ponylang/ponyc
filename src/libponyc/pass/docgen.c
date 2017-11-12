@@ -349,6 +349,17 @@ static const char* doc_get_cap(ast_t* cap)
   }
 }
 
+static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
+{
+  for (int i = 0; i < docgen->included_sources_count; i++) {
+    if (source == docgen->included_sources[i]-> source) {
+      return docgen->included_sources[i];
+    }
+
+  }
+  return NULL;
+}
+
 // Write the given type to the current type file
 static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
   ast_t* type, bool generate_links, bool break_lines)
@@ -505,7 +516,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
   if(fields->next == NULL)  // No fields
     return;
-
+  
   fprintf(docgen->type_file, "## %s\n\n", title);
 
   for(ast_list_t* p = fields->next; p != NULL; p = p->next)
@@ -528,7 +539,19 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
       default: pony_assert(0);
     }
 
-    fprintf(docgen->type_file, "* %s %s: ", ftype, name);
+    source_t* source = ast_source(field);
+    doc_sources_t* doc_source = NULL;
+
+    if (source != NULL)
+      doc_source = get_doc_source(docgen, source);
+
+    if (doc_source != NULL) {
+      fprintf(docgen->type_file, "* %s %s: [[Src]](%s#%zd) ", ftype, name, doc_source->doc_path, ast_line(field));
+    } else {
+      fprintf(docgen->type_file, "* %s %s: ", ftype, name);
+    }
+
+
     doc_type(docgen, docgen_opt, type, true, true);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
@@ -669,17 +692,6 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "\n");
 }
 
-static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
-{
-  for (int i = 0; i < docgen->included_sources_count; i++) {
-    if (source == docgen->included_sources[i]-> source) {
-      return docgen->included_sources[i];
-    }
-
-  }
-  return NULL;
-}
-
 // Write a description of the given method to the current type file
 static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   ast_t* method)
@@ -693,7 +705,6 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   const char* name = ast_name(id);
   pony_assert(name != NULL);
 
-  // Method
   source_t* source = ast_source(method);
   doc_sources_t* doc_source = NULL;
 
@@ -1026,7 +1037,18 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-  fprintf(docgen->type_file, "# %s", name);
+  doc_sources_t* doc_source = NULL;
+
+  if (source != NULL)
+    doc_source = get_doc_source(docgen, source);
+
+  if (doc_source != NULL) {
+      fprintf(docgen->type_file, "# %s [[Src]](%s#%zd) ", name, doc_source->doc_path, ast_line(ast));
+  } else {
+    fprintf(docgen->type_file, "# %s", name);
+  }
+
+
   doc_type_params(docgen, docgen_opt, tparams, true, false);
   fprintf(docgen->type_file, "\n\n");
 
