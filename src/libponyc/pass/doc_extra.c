@@ -76,6 +76,7 @@ try\n \
     var line_numbers = document.getElementsByClassName(\"code-line-numbers\")[0];\n \
     var elem = line_numbers.children[line_number - 1];\n \
     elem.style.backgroundColor = \"yellow\";\n \
+    elem.scrollIntoView(); \n \
 }\n \
 catch (e) \n \
 {\n \
