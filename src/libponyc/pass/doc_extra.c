@@ -21,7 +21,7 @@ code { \n \
 } \n \
     \n \
 code.has-numbering { \n \
-    margin-left: 21px; \n \
+    margin-left: 28px; \n \
 } \n \
     \n \
 .pre-numbering { \n \
