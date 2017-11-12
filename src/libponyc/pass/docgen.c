@@ -9,6 +9,19 @@
 #include "doc_extra.h"
 
 
+#ifdef PLATFORM_IS_WINDOWS
+  #include <shlwapi.h>
+  #pragma comment(lib, "shlwapi.lib")
+#endif
+
+//source_t** included_sources;
+typedef struct doc_sources_t
+{
+  const source_t* source;
+  const char* filename;
+  const char* doc_path;
+} doc_sources_t;
+
 // Define a type with the docgen state that needs to passed around the
 // functions below.
 // The doc directory is the root directory that we put our generated files
@@ -36,12 +49,14 @@ typedef struct docgen_t
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
+  char* doc_source_dir;
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
   errors_t* errors;
-  const char** included_source_files;
-  size_t included_source_files_count;
+  doc_sources_t** included_sources;
+  size_t included_sources_count;
 } docgen_t;
+
 
 // Define options for doc generation
 typedef struct docgen_opt_t
@@ -758,42 +773,129 @@ static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
     doc_method(docgen, docgen_opt, p->ast);
 }
 
-// Include the file of the corresponding source in the documentation.
-static void include_source_if_needed(docgen_t* docgen, source_t* source) 
+// https://stackoverflow.com/questions/2736753/how-to-remove-extension-from-file-name
+// remove_ext: removes the "extension" from a file spec.
+//   mystr is the string to process.
+//   dot is the extension separator.
+//   sep is the path separator (0 means to ignore).
+// Returns an allocated string identical to the original but
+//   with the extension removed. It must be freed when you're
+//   finished with it.
+// If you pass in NULL or the new string can't be allocated,
+//   it returns NULL.
+static const char* remove_ext(const char* mystr, char dot, char sep) 
 {
-  pony_assert(source != NULL);
-  // TODO fix paths and name and dump escaped content of source into the correct location.
+    char *retstr, *lastdot, *lastsep;
+    // Error checks and allocate string.
+    if (mystr == NULL)
+      return NULL;
+    if ((retstr = (char*) malloc(strlen(mystr) + 1)) == NULL)
+      return NULL;
+    // Make a copy and find the relevant characters.
+    strcpy(retstr, mystr);
+    lastdot = strrchr(retstr, dot);
+    lastsep = (sep == 0) ? NULL : strrchr(retstr, sep);
 
-  const char* source_path = source->file;
-  if (docgen->included_source_files != NULL) {
-    // does the file was already included in the doc ?
-    bool was_included = false;
-    for (int i = 0; i < docgen->included_source_files_count; i++) {
-      if( strcmp(source_path, docgen->included_source_files[i]) == 0)
-        was_included = 1;
-    }
-    // the file was already here. We are done here.
-    if (was_included) {
-      return;
-    }
-    else {
-      // should be using realloc
-      const char** resized_array = (const char**) malloc(sizeof(char**) * (docgen->included_source_files_count + 1));
-      for (int i = 0; i < docgen->included_source_files_count; i++) {
-        resized_array[i] = docgen->included_source_files[i];
+    // If it has an extension separator.
+    if (lastdot != NULL) {
+      // and it's before the extenstion separator.
+      if (lastsep != NULL) {
+        if (lastsep < lastdot) {
+          // then remove it.
+          *lastdot = '\0';
+        }
       }
-      docgen->included_source_files = resized_array;
-      docgen->included_source_files_count = docgen->included_source_files_count + 1;
-      docgen->included_source_files[docgen->included_source_files_count - 1] = source_path;
+      else {
+        // Has extension separator with no path separator.
+        *lastdot = '\0';
+      }
     }
-  }
-  else {
-    docgen->included_source_files = (const char **) calloc(sizeof(char*), 1);
-    docgen->included_source_files_count = 1;
-    docgen->included_source_files[0] = source_path;
+    // Return the modified string.
+    return retstr;
+}
+
+static char* concat(const char *s1, const char *s2)
+{
+    char *result = (char*) malloc(strlen(s1)+strlen(s2)+1);//+1 for the null-terminator
+    //in real code you would check for errors in malloc here
+    strcpy(result, s1);
+    strcat(result, s2);
+    return result;
+}
+
+static const char* basename(const char* path)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  char* filename = (char*) malloc(strlen(path) + 1);
+  strcpy(filename, path);
+  PathStripPath((LPSTR) filename);
+  return filename;
+#else
+  #include <libgen.h>
+  return basename(path);
+#endif
+}
+
+static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
+{
+  // TODO handle filename clashes.
+  doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
+
+  const char* filename = basename(source->file);
+  const char* filename_without_ext = remove_ext(filename, '.', 0);
+  const char* filename_md_extension = concat(filename_without_ext, ".md");
+
+  char path[FILENAME_MAX];
+  path_cat(docgen->doc_source_dir, filename_md_extension, path);
+  const char* doc_path = concat("src/", filename_md_extension);
+
+  FILE* file = fopen(path, "w");
+  if (file != NULL) {
+    fprintf(file, "```pony\n");
+    fprintf(file, "%s", source->m);
+    fprintf(file, "\n```");
+    fclose(file);
+
+    result->source = source;
+    result->filename = filename;
+    result->doc_path = doc_path;
+    return result;
+  } else {
+    errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
+    return NULL;
   }
 }
 
+static void include_source_if_needed(docgen_t* docgen, source_t* source) 
+{
+  pony_assert(source != NULL);
+  pony_assert(docgen != NULL);
+  const char* source_path = source->file;
+  pony_assert(source_path != NULL);
+
+  bool was_included = false;
+  for (int i = 0; i < docgen->included_sources_count; i++) {
+    pony_assert(docgen->included_sources[i] != NULL);
+    if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
+      was_included = 1;
+  }
+
+  if (!was_included) {
+    doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source);
+    if (new_elem != NULL) {
+      // should be using realloc
+      doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
+      for (int i = 0; i < docgen->included_sources_count; i = i++) {
+        pony_assert(docgen->included_sources[i] != NULL);
+        resized_array[i] = docgen->included_sources[i];
+      }
+
+      docgen->included_sources = resized_array;
+      docgen->included_sources[docgen->included_sources_count] = new_elem;
+      docgen->included_sources_count = docgen->included_sources_count + 1;
+    }
+  }
+}
 
 // Write a description of the given entity to its own type file.
 static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
@@ -806,7 +908,6 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   pony_assert(docgen->type_file == NULL);
   pony_assert(ast != NULL);
 
-  //TODO
   source_t* source = ast_source(ast);
   if (source != NULL)
     include_source_if_needed(docgen, source);
@@ -1168,7 +1269,6 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   doc_rm_star(docgen->sub_dir);
 }
 
-
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
@@ -1188,14 +1288,18 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
-  docgen.included_source_files = NULL;
-  docgen.included_source_files_count = 0;
+  docgen.included_sources = NULL;
+  docgen.included_sources_count = 0;
 
   FILE* extra_js = doc_open_file(&docgen, true, "extra", ".js");
   fprintf(extra_js, get_doc_extra_js_content());
 
   FILE* extra_css = doc_open_file(&docgen, true, "extra", ".css");
   fprintf(extra_css, get_doc_extra_css_content());
+
+  docgen.doc_source_dir = (char*) malloc(sizeof(char) * FILENAME_MAX);
+  path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
+  pony_mkdir(docgen.doc_source_dir);
 
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
@@ -1215,10 +1319,11 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     doc_packages(&docgen, &docgen_opt, program);
   }
 
-  if (docgen.included_source_files != NULL) {
+  if (docgen.included_sources != NULL) {
     fprintf(docgen.index_file, "- source:\n");
-    for (int i = 0; i < docgen.included_source_files_count; i++) {
-      fprintf(docgen.index_file, "  - %s : \"%s\" \n" , docgen.included_source_files[i] , docgen.included_source_files[i]);
+    for (int i = 0; i < docgen.included_sources_count; i++) {
+      doc_sources_t* current_source = docgen.included_sources[i];
+      fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
     }
   }
 
