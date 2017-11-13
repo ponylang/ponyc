@@ -45,11 +45,16 @@ void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef md_old,
 LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m)
 {
   Module* pm = unwrap(m);
+
+#if defined(_MSC_VER) && PONY_LLVM >= 309
+  pm->addModuleFlag(Module::Warning, "CodeView", 1);
+#else
   unsigned dwarf = dwarf::DWARF_VERSION;
   unsigned debug_info = DEBUG_METADATA_VERSION;
-
+  
   pm->addModuleFlag(Module::Warning, "Dwarf Version", dwarf);
   pm->addModuleFlag(Module::Warning, "Debug Info Version", debug_info);
+#endif
 
   return wrap(new DIBuilder(*pm));
 }
