@@ -184,11 +184,15 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
     } else {
       used += sizeof(block_t) -
         (__pony_popcount(chunk->slots) * size);
-      chunk->next = *avail;
-      *avail = chunk;
 
       // run finalisers for freed slots
       final_small_freed(chunk);
+
+      // make chunk available for allocations only after finalisers have been
+      // run to prevent premature reuse of memory slots by an allocation
+      // required for finaliser execution
+      chunk->next = *avail;
+      *avail = chunk;
     }
 
     chunk = next;
