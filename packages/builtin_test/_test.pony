@@ -444,10 +444,15 @@ class iso _TestStringTrim is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String]("45", "0123456".trim(4, 6))
+    h.assert_eq[USize](2, "0123456".trim(4, 6).space())
     h.assert_eq[String]("456", "0123456".trim(4, 7))
+    h.assert_eq[USize](3, "0123456".trim(4, 7).space())
     h.assert_eq[String]("456", "0123456".trim(4))
+    h.assert_eq[USize](3, "0123456".trim(4).space())
     h.assert_eq[String]("", "0123456".trim(4, 4))
+    h.assert_eq[USize](0, "0123456".trim(4, 4).space())
     h.assert_eq[String]("", "0123456".trim(4, 1))
+    h.assert_eq[USize](0, "0123456".trim(4, 1).space())
 
 class iso _TestStringTrimInPlace is UnitTest
   """
@@ -456,22 +461,24 @@ class iso _TestStringTrimInPlace is UnitTest
   fun name(): String => "builtin/String.trim_in_place"
 
   fun apply(h: TestHelper) =>
-    case(h, "45", "0123456", 4, 6)
-    case(h, "456", "0123456", 4, 7)
-    case(h, "456", "0123456", 4)
-    case(h, "", "0123456", 4, 4)
-    case(h, "", "0123456", 4, 1)
+    case(h, "45", "0123456", 4, 6, 2)
+    case(h, "456", "0123456", 4, 7, 3)
+    case(h, "456", "0123456", 4 where space = 3)
+    case(h, "", "0123456", 4, 4, 0)
+    case(h, "", "0123456", 4, 1, 0)
 
   fun case(
     h: TestHelper,
     expected: String,
     orig: String,
     from: USize,
-    to: USize = -1)
+    to: USize = -1,
+    space: USize = 0)
   =>
     let copy: String ref = orig.clone()
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
+    h.assert_eq[USize](space, copy.space())
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
 
 class iso _TestStringTrimInPlaceWithAppend is UnitTest
@@ -1136,10 +1143,15 @@ class iso _TestArrayTrim is UnitTest
   fun apply(h: TestHelper) =>
     let orig: Array[U8] val = [0; 1; 2; 3; 4; 5; 6]
     h.assert_array_eq[U8]([4; 5], orig.trim(4, 6))
+    h.assert_eq[USize](2, orig.trim(4, 6).space())
     h.assert_array_eq[U8]([4; 5; 6], orig.trim(4, 7))
+    h.assert_eq[USize](4, orig.trim(4, 7).space())
     h.assert_array_eq[U8]([4; 5; 6], orig.trim(4))
+    h.assert_eq[USize](4, orig.trim(4).space())
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
+    h.assert_eq[USize](0, orig.trim(4, 4).space())
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
+    h.assert_eq[USize](0, orig.trim(4, 1).space())
 
 class iso _TestArrayTrimInPlace is UnitTest
   """
@@ -1148,21 +1160,23 @@ class iso _TestArrayTrimInPlace is UnitTest
   fun name(): String => "builtin/Array.trim_in_place"
 
   fun apply(h: TestHelper) =>
-    case(h, [4; 5], [0; 1; 2; 3; 4; 5; 6], 4, 6)
-    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4, 7)
-    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4)
-    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4)
-    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1)
+    case(h, [4; 5], [0; 1; 2; 3; 4; 5; 6], 4, 6, 2)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4, 7, 4)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4 where space = 4)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4, 0)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1, 0)
 
   fun case(
     h: TestHelper,
     expected: Array[U8],
     orig: Array[U8],
     from: USize,
-    to: USize = -1)
+    to: USize = -1,
+    space: USize = 0)
   =>
     let copy: Array[U8] ref = orig.clone()
     copy.trim_in_place(from, to)
+    h.assert_eq[USize](space, copy.space())
     h.assert_array_eq[U8](expected, copy)
 
 class iso _TestArrayTrimInPlaceWithAppend is UnitTest
