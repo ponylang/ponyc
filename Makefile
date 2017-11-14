@@ -917,8 +917,8 @@ help:
 	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
-	@echo '  debug (default)'
-	@echo '  release'
+	@echo '  debug'
+	@echo '  release (default)'
 	@echo
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'
