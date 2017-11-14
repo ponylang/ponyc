@@ -746,15 +746,17 @@ bool ponyint_is_muted(pony_actor_t* actor)
 
 void ponyint_mute_actor(pony_actor_t* actor)
 {
-  atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_relaxed);
+  //atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_relaxed);
 
-//    uint64_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
-  // muted++;
-   // atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+   uint64_t is_muted = atomic_load_explicit(&actor->is_muted, memory_order_relaxed);
+   pony_assert(is_muted == 0);
+   is_muted++;
+   atomic_store_explicit(&actor->is_muted, is_muted, memory_order_relaxed);
 
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
-  atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
+  uint64_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
+  pony_assert(is_muted == 1);
 }
