@@ -274,10 +274,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
     "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
+  const char* dtrace_args =
+#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
+   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
+#else
+    "";
+#endif
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl);
+                  + strlen(ldl) + strlen(dtrace_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -286,9 +292,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s %s -lm %s",
+    "%s %s %s %s -lpthread %s %s %s -lm %s",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    ponyrt, ldl, export
+    dtrace_args, ponyrt, ldl, export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
