@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make ContentsLogger implement the Logger interface ([PR #2330](https://github.com/ponylang/ponyc/pull/2330))
 - Fix alloc bug in String/Array trimming functions ([PR #2336](https://github.com/ponylang/ponyc/pull/2336))
 - Fix small chunk finaliser premature re-use bug ([PR #2335](https://github.com/ponylang/ponyc/pull/2335))
 - Make Payload.respond() send given parameter, not `this`. ([PR #2324](https://github.com/ponylang/ponyc/pull/2324))
