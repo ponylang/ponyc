@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix small chunk finaliser premature re-use bug ([PR #2335](https://github.com/ponylang/ponyc/pull/2335))
 - Make Payload.respond() send given parameter, not `this`. ([PR #2324](https://github.com/ponylang/ponyc/pull/2324))
 - Garbage collect actors when --ponynoblock is in use ([PR #2307](https://github.com/ponylang/ponyc/pull/2307))
 - Fix incorrect kevent structure size ([PR #2312](https://github.com/ponylang/ponyc/pull/2312))
