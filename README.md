@@ -179,8 +179,31 @@ sudo apt-get -V install ponyc
 
 ## Arch Linux
 
-```bash
-pacman -S ponyc
+Currently the ponyc package in Arch does not work because
+Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9. Also,
+building from source does not work for the same reason.
+
+Using [Docker](#using-docker) is one choice, another is to
+use [ponyc-rpm](https://github.com/winksaville/ponyc-rpm).
+
+### ponyc-rpm
+#### Prerequisites: `git` and `rpmextract`
+```
+sudo pacman -Syu git rpmextract
+```
+#### Instructions:
+Clone the repo, change directory to the repo, run `makepkg -si`
+or use your favorite AUR package manager.
+```
+git clone https://github.com/winksaville/ponyc-rpm
+cd ponyc-rpm
+makepkg -si
+```
+
+#### Ponyc Usage
+You must pass the `--pic` parameter to ponyc on Arch Linux
+```
+ponyc --pic
 ```
 
 ## Gentoo Linux
