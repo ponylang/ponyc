@@ -453,6 +453,12 @@ class iso _TestStringTrim is UnitTest
     h.assert_eq[USize](0, "0123456".trim(4, 4).space())
     h.assert_eq[String]("", "0123456".trim(4, 1))
     h.assert_eq[USize](0, "0123456".trim(4, 1).space())
+    h.assert_eq[String]("456", "0123456789".trim(1, 8).trim(3, 6))
+    h.assert_eq[USize](3, "0123456789".trim(1, 8).trim(3, 6).space())
+    h.assert_eq[String]("456",
+      "0123456789".clone().>trim_in_place(1, 8).trim(3, 6))
+    h.assert_eq[USize](3,
+      "0123456789".clone().>trim_in_place(1, 8).trim(3, 6).space())
 
 class iso _TestStringTrimInPlace is UnitTest
   """
@@ -466,6 +472,8 @@ class iso _TestStringTrimInPlace is UnitTest
     case(h, "456", "0123456", 4 where space = 3)
     case(h, "", "0123456", 4, 4, 0)
     case(h, "", "0123456", 4, 1, 0)
+    case(h, "456", "0123456789".clone().>trim_in_place(1, 8), 3, 6, 3)
+    case(h, "456", "0123456789".trim(1, 8), 3, 6, 3)
 
   fun case(
     h: TestHelper,
