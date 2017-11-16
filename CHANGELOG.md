@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add `chop` function for chopping `iso` Strings and Arrays ([PR #2337](https://github.com/ponylang/ponyc/pull/2337))
 - Add --ponyversion option to compiled binary ([PR #2318](https://github.com/ponylang/ponyc/pull/2318))
 - Implement RFC 47 (Serialise signature) ([PR #2272](https://github.com/ponylang/ponyc/pull/2272))
 
