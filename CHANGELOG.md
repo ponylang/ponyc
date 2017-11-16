@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix poor randomness properties of first call to `Rand.next()`. ([PR #2321](https://github.com/ponylang/ponyc/pull/2321))
 - Fully close unspecified family TCP connections on Windows. ([PR #2325](https://github.com/ponylang/ponyc/pull/2325))
 - Make ContentsLogger implement the Logger interface ([PR #2330](https://github.com/ponylang/ponyc/pull/2330))
 - Fix alloc bug in String/Array trimming functions ([PR #2336](https://github.com/ponylang/ponyc/pull/2336))
