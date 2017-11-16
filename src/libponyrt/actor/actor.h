@@ -41,6 +41,20 @@ typedef struct pony_actor_t
   gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
+enum
+{
+  FLAG_BLOCKED = 1 << 0,
+  FLAG_RC_CHANGED = 1 << 1,
+  FLAG_SYSTEM = 1 << 2,
+  FLAG_UNSCHEDULED = 1 << 3,
+  FLAG_PENDINGDESTROY = 1 << 4,
+  FLAG_OVERLOADED = 1 << 5,
+  FLAG_UNDER_PRESSURE = 1 << 6,
+  FLAG_MUTED = 1 << 7,
+};
+
+bool has_flag(pony_actor_t* actor, uint8_t flag);
+
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
 
 void ponyint_actor_destroy(pony_actor_t* actor);
