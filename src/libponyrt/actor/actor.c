@@ -151,7 +151,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     default:
     {
-      assert(!ponyint_is_cycle(actor));
+      pony_assert(!ponyint_is_cycle(actor));
       if(has_flag(actor, FLAG_BLOCKED))
       {
         // Send unblock before continuing. We no longer need to send any

@@ -102,6 +102,3 @@ actor Main
       let t = Timer(Send(socket), 0, 5_000_000)
       timers(consume t)
     end
-
-
-
