@@ -49,6 +49,7 @@ actor Main is TestList
     test(_TestStringSpace)
     test(_TestStringRecalc)
     test(_TestStringTruncate)
+    test(_TestStringChop)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -61,6 +62,7 @@ actor Main is TestList
     test(_TestArrayValuesRewind)
     test(_TestArrayFind)
     test(_TestArraySwapElements)
+    test(_TestArrayChop)
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestAddc)
@@ -1039,6 +1041,32 @@ class iso _TestStringTruncate is UnitTest
     h.assert_eq[USize](s.size(), 3)
     h.assert_eq[USize](s.space(), 31)
 
+class iso _TestStringChop is UnitTest
+  """
+  Test chopping an array
+  """
+  fun name(): String => "builtin/String.chop"
+
+  fun apply(h: TestHelper) =>
+    case(h, "0123", "456", "0123456".clone(), 4)
+    case(h, "012345", "6", "0123456".clone(), 6)
+    case(h, "0", "123456", "0123456".clone(), 1)
+    case(h, "0123456", "", "0123456".clone(), 7)
+    case(h, "", "0123456", "0123456".clone(), 0)
+    case(h, "0123", "456", "0123456789".clone().chop(7)._1, 4)
+    case(h, "0123456", "", "0123456".clone(), 10)
+
+  fun case(
+    h: TestHelper,
+    expected_left: String,
+    expected_right: String,
+    orig: String iso,
+    split_point: USize)
+  =>
+    (let left: String iso, let right: String iso) = (consume orig).chop(split_point)
+    h.assert_eq[String box](expected_left, consume left)
+    h.assert_eq[String box](expected_right, consume right)
+
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
 
@@ -1339,6 +1367,30 @@ class iso _TestArraySwapElements is UnitTest
       [as I32: 1; 2; 3].swap_elements(3, 4)?
     })
 
+class iso _TestArrayChop is UnitTest
+  """
+  Test chopping an array
+  """
+  fun name(): String => "builtin/Array.chop"
+
+  fun apply(h: TestHelper) =>
+    case(h, [0; 1; 2; 3], [4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 4)
+    case(h, [0; 1; 2; 3; 4; 5], [6], recover [0; 1; 2; 3; 4; 5; 6] end, 6)
+    case(h, [0], [1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 1)
+    case(h, [0; 1; 2; 3; 4; 5; 6], Array[U8], recover [0; 1; 2; 3; 4; 5; 6] end, 7)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 0)
+    case(h, [0; 1; 2; 3; 4; 5; 6], Array[U8], recover [0; 1; 2; 3; 4; 5; 6] end, 10)
+
+  fun case(
+    h: TestHelper,
+    expected_left: Array[U8],
+    expected_right: Array[U8],
+    orig: Array[U8] iso,
+    split_point: USize)
+  =>
+    (let left: Array[U8] iso, let right: Array[U8] iso) = (consume orig).chop(split_point)
+    h.assert_array_eq[U8](expected_left, consume left)
+    h.assert_array_eq[U8](expected_right, consume right)
 
 class iso _TestMath128 is UnitTest
   """

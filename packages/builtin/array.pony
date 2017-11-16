@@ -217,6 +217,32 @@ class Array[A] is Seq[A]
       end
     end
 
+  fun iso chop(split_point: USize): (Array[A] iso^, Array[A] iso^) =>
+    """
+    Chops the array in half at the split point requested and returns both
+    the left and right portions. The original array is trimmed in place and
+    returned as the right portion. If the split point is larger than the
+    array, the left portion is the original array and the right portion
+    is a new empty array.
+    Both arrays are isolated and mutable, as they do not share memory.
+    The operation does not allocate a new array pointer nor copy elements.
+    """
+    let start_ptr = _ptr
+    let size' = _size.min(split_point)
+    let alloc = if size' == _size then _alloc else split_point end
+
+    trim_in_place(split_point)
+
+    let left = recover
+      if size' > 0 then
+        from_cpointer(start_ptr._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+    (consume left, consume this)
+
   fun copy_to(
     dst: Array[this->A!],
     src_idx: USize,
