@@ -497,6 +497,7 @@ actor TCPConnection
           // We're already connected, unsubscribe the event and close.
           @pony_asio_event_unsubscribe(event)
           @pony_os_socket_close[None](fd)
+          _try_shutdown()
         end
       else
         // It's not our event.
