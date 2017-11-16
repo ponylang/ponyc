@@ -546,6 +546,13 @@ gmake
 
 First, install the required dependencies:
 
+* FreeBSD 11 for amd64 (64-bit).  It is extremely difficult to
+coordinate the LLVM version, operating system support for atomics, and
+Pony to work in harmony on FreeBSD 10 or earlier.  (See additional
+info below that mentions problems with 32-bit executable support.)
+
+* The following packages, with their installation commands:
+
 ```bash
 sudo pkg install gmake
 sudo pkg install llvm38
