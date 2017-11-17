@@ -184,7 +184,7 @@ Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9. Also,
 building from source does not work for the same reason.
 
 Using [Docker](#using-docker) is one choice, another is to
-use [ponyc-rpm](https://github.com/winksaville/ponyc-rpm).
+use [ponyc-rpm](https://aur.archlinux.org/packages/ponyc-rpm/)
 
 ### ponyc-rpm
 #### Prerequisites: `git` and `rpmextract`
@@ -195,7 +195,7 @@ sudo pacman -Syu git rpmextract
 Clone the repo, change directory to the repo, run `makepkg -si`
 or use your favorite AUR package manager.
 ```
-git clone https://github.com/winksaville/ponyc-rpm
+git clone https://aur.archlinux.org/ponyc-rpm.git
 cd ponyc-rpm
 makepkg -si
 ```
