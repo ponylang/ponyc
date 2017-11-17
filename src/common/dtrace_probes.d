@@ -37,6 +37,30 @@ provider pony {
   probe actor__descheduled(uintptr_t scheduler, uintptr_t actor);
 
   /**
+   * Fired when actor becomes overloaded
+   * @param actor is the overloaded actor
+   */
+  probe actor__overloaded(uintptr_t actor);
+
+  /**
+   * Fired when actor stops being overloaded
+   * @param actor is the no longer overloaded actor
+   */
+  probe actor__overloaded__cleared(uintptr_t actor);
+
+  /**
+   * Fired when actor is under pressure
+   * @param actor is the under pressure actor
+   */
+  probe actor__under__pressure(uintptr_t actor);
+
+  /**
+   * Fired when actor is no longer under pressure
+   * @param actor is the no longer under pressure actor
+   */
+  probe actor__pressure__released(uintptr_t actor);
+
+  /**
    * Fired when cpu goes into nanosleep
    * @param ns is nano seconds spent in sleep
    */

@@ -536,7 +536,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
     arg_ast = ast_sibling(arg_ast);
   }
 
-  LLVMValueRef msg_args[4];
+  LLVMValueRef msg_args[5];
 
   msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
@@ -595,12 +595,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
   msg_args[2] = msg;
   msg_args[3] = msg;
+  msg_args[4] = LLVMConstInt(c->i1, 1, false);
   LLVMValueRef send;
 
   if(ast_id(m->r_fun) == TK_NEW)
-    send = gencall_runtime(c, "pony_sendv_single", msg_args, 4, "");
+    send = gencall_runtime(c, "pony_sendv_single", msg_args, 5, "");
   else
-    send = gencall_runtime(c, "pony_sendv", msg_args, 4, "");
+    send = gencall_runtime(c, "pony_sendv", msg_args, 5, "");
 
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 

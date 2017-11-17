@@ -47,7 +47,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   codegen_startfun(c, func, NULL, NULL, false);
 
-  LLVMValueRef args[4];
+  LLVMValueRef args[5];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -121,7 +121,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[1] = main_actor;
   args[2] = msg;
   args[3] = msg;
-  gencall_runtime(c, "pony_sendv_single", args, 4, "");
+  args[4] = LLVMConstInt(c->i1, 1, false);
+  gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i32, 0, false);

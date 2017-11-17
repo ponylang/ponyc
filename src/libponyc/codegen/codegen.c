@@ -336,12 +336,13 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // void pony_sendv(i8*, __object*, $message*, $message*)
+  // void pony_sendv(i8*, __object*, $message*, $message*, i1)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
   params[3] = c->msg_ptr;
-  type = LLVMFunctionType(c->void_type, params, 4, false);
+  params[4] = c->i1;
+  type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -354,12 +355,13 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // void pony_sendv_single(i8*, __object*, $message*, $message*)
+  // void pony_sendv_single(i8*, __object*, $message*, $message*, i1)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->msg_ptr;
   params[3] = c->msg_ptr;
-  type = LLVMFunctionType(c->void_type, params, 4, false);
+  params[4] = c->i1;
+  type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv_single", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);

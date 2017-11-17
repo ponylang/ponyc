@@ -10,7 +10,7 @@
 #include "ponyassert.h"
 #include <dtrace.h>
 #include <string.h>
-#include <stdio.h>
+#include "mutemap.h"
 
 #define PONY_SCHED_BATCH 100
 
@@ -22,7 +22,8 @@ typedef enum
   SCHED_UNBLOCK,
   SCHED_CNF,
   SCHED_ACK,
-  SCHED_TERMINATE
+  SCHED_TERMINATE,
+  SCHED_UNMUTE_ACTOR
 } sched_msg_t;
 
 // Scheduler global data.
@@ -75,26 +76,17 @@ static void send_msg(uint32_t to, sched_msg_t msg, intptr_t arg)
   ponyint_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
 }
 
-static void send_msg_single(uint32_t to, sched_msg_t msg, intptr_t arg)
-{
-  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgi_t)), msg);
-
-  m->i = arg;
-  ponyint_messageq_push_single(&scheduler[to].mq, &m->msg, &m->msg);
-}
-
 static void send_msg_all(sched_msg_t msg, intptr_t arg)
 {
-  send_msg(0, msg, arg);
-
-  for(uint32_t i = 1; i < scheduler_count; i++)
-    send_msg_single(i, msg, arg);
+  for(uint32_t i = 0; i < scheduler_count; i++)
+    send_msg(i, msg, arg);
 }
 
-static void read_msg(scheduler_t* sched)
+static bool read_msg(scheduler_t* sched)
 {
   pony_msgi_t* m;
+
+  bool run_queue_changed = false;
 
   while((m = (pony_msgi_t*)ponyint_messageq_pop(&sched->mq)) != NULL)
   {
@@ -144,9 +136,19 @@ static void read_msg(scheduler_t* sched)
         break;
       }
 
+      case SCHED_UNMUTE_ACTOR:
+      {
+        if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
+          run_queue_changed = true;
+
+        break;
+      }
+
       default: {}
     }
   }
+
+  return run_queue_changed;
 }
 
 
@@ -158,8 +160,6 @@ static void read_msg(scheduler_t* sched)
 
 static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
-  read_msg(sched);
-
   if(sched->terminate)
     return true;
 
@@ -228,9 +228,19 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  * Use mpmcqs to allow stealing directly from a victim, without waiting for a
  * response.
  */
-static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
+static pony_actor_t* steal(scheduler_t* sched)
 {
-  send_msg(0, SCHED_BLOCK, 0);
+  bool block_sent = false;
+
+  if(ponyint_mutemap_size(&sched->mute_mapping) == 0)
+  {
+    // Only send block message if we don't have any muted actors.
+    // If we have at least one muted actor it means we aren't really
+    // blocked. There's work that can eventually be done.
+    send_msg(0, SCHED_BLOCK, 0);
+    block_sent = true;
+  }
+
   uint64_t tsc = ponyint_cpu_tick();
   pony_actor_t* actor;
 
@@ -251,23 +261,39 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
+    if(read_msg(sched))
+    {
+      // and actor was unmuted and added to our run queue.
+      // pop it and return. effectively, we are "stealing" from ourselves
+
+      actor = pop_global(sched);
+      if(actor != NULL)
+        break;
+      else
+      {
+        if (ponyint_mutemap_size(&sched->mute_mapping) == 0 && !block_sent)
+        {
+          // Someone else stole from our newly unmuted actor. If we have no
+          // more muted actors, we need to inform everyone that we are blocked
+          send_msg(0, SCHED_BLOCK, 0);
+          block_sent = true;
+        }
+      }
+    }
+
     if(quiescent(sched, tsc, tsc2))
     {
       DTRACE2(WORK_STEAL_FAILURE, (uintptr_t)sched, (uintptr_t)victim);
       return NULL;
     }
-
-    // If we have been passed an actor (implicitly, the cycle detector), and
-    // enough time has elapsed without stealing or quiescing, return the actor
-    // we were passed (allowing the cycle detector to run).
-    if((prev != NULL) && ((tsc2 - tsc) > 10000000000))
-    {
-      actor = prev;
-      break;
-    }
   }
 
-  send_msg(0, SCHED_UNBLOCK, 0);
+  if(block_sent)
+  {
+    // Only send unblock message if sent one while trying to steal
+    send_msg(0, SCHED_UNBLOCK, 0);
+    ;
+  }
   return actor;
 }
 
@@ -283,10 +309,18 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
+    // In response to reading a message, we might have unmuted an actor and
+    // added it back to our queue. if we don't have an actor to run, we want
+    // to pop from our queue to check for a recently unmuted actor
+    if(read_msg(sched) && actor == NULL)
+    {
+      actor = pop_global(sched);
+    }
+
     if(actor == NULL)
     {
       // We had an empty queue and no rescheduled actor.
-      actor = steal(sched, NULL);
+      actor = steal(sched);
 
       if(actor == NULL)
       {
@@ -311,26 +345,6 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-      } else if(ponyint_is_cycle(actor)) {
-        // If all we have is the cycle detector, try to steal something else to
-        // run as well.
-        next = steal(sched, actor);
-
-        if(next == NULL)
-        {
-          // Termination.
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          return;
-        }
-
-        // Push the cycle detector and run the actor we stole.
-        if(actor != next)
-        {
-          push(sched, actor);
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-          actor = next;
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-        }
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
@@ -491,3 +505,117 @@ PONY_API pony_ctx_t* pony_ctx()
   pony_assert(this_scheduler != NULL);
   return &this_scheduler->ctx;
 }
+
+// Manage a scheduler's mute map
+//
+// When an actor attempts to send to an overloaded actor, it will be added
+// to the mute map for this scheduler. The mute map is in the form of:
+//
+// overloaded receiving actor => [sending actors]
+//
+// - A given actor will only existing as a sending actor in the map for
+//   a given scheduler.
+// - Receiving actors can exist as a mute map key in the mute map of more
+//   than one scheduler
+//
+// Because muted sending actors only exist in a single scheduler's mute map
+// and because they aren't scheduled when they are muted, any manipulation
+// that we do on their state (for example incrementing or decrementing their
+// mute count) is thread safe as only a single scheduler thread will be
+// accessing the information.
+
+void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
+{
+  pony_assert(sender != recv);
+  scheduler_t* sched = ctx->scheduler;
+  size_t index = HASHMAP_UNKNOWN;
+  muteref_t key;
+  key.key = recv;
+
+  muteref_t* mref = ponyint_mutemap_get(&sched->mute_mapping, &key, &index);
+  if(mref == NULL)
+  {
+    mref = ponyint_muteref_alloc(recv);
+    ponyint_mutemap_putindex(&sched->mute_mapping, mref, index);
+  }
+
+  size_t index2 = HASHMAP_UNKNOWN;
+  pony_actor_t* r = ponyint_muteset_get(&mref->value, sender, &index2);
+  if(r == NULL)
+  {
+    // This is safe because an actor can only ever be in a single scheduler's
+    // mutemap
+    ponyint_muteset_putindex(&mref->value, sender, index2);
+    uint64_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
+    muted++;
+    atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+  }
+}
+
+void ponyint_sched_start_global_unmute(pony_actor_t* actor)
+{
+  send_msg_all(SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+}
+
+DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
+DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
+
+bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  size_t actors_rescheduled = 0;
+  scheduler_t* sched = ctx->scheduler;
+  size_t index = HASHMAP_UNKNOWN;
+  muteref_t key;
+  key.key = actor;
+
+  muteref_t* mref = ponyint_mutemap_get(&sched->mute_mapping, &key, &index);
+
+  if(mref != NULL)
+  {
+    size_t i = HASHMAP_UNKNOWN;
+    pony_actor_t* muted = NULL;
+    actorstack_t* needs_unmuting = NULL;
+
+    // Find and collect any actors that need to be unmuted
+    while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
+    {
+      // This is safe because an actor can only ever be in a single scheduler's
+      // mutemap
+      uint64_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
+      pony_assert(muted_count > 0);
+      muted_count--;
+      atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
+
+      if (muted_count == 0)
+      {
+        needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
+      }
+    }
+
+    ponyint_mutemap_removeindex(&sched->mute_mapping, index);
+    ponyint_muteref_free(mref);
+
+    // Unmute any actors that need to be unmuted
+    pony_actor_t* to_unmute;
+
+    while(needs_unmuting != NULL)
+    {
+      needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
+
+      if(!has_flag(to_unmute, FLAG_UNSCHEDULED))
+      {
+        ponyint_unmute_actor(to_unmute);
+        // TODO: we don't want to reschedule if our queue is empty.
+        // That's wasteful.
+        ponyint_sched_add(ctx, to_unmute);
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+        actors_rescheduled++;
+      }
+
+      ponyint_sched_start_global_unmute(to_unmute);
+    }
+  }
+
+  return actors_rescheduled > 0;
+}
+
