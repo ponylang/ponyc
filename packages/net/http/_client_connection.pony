@@ -176,8 +176,11 @@ actor _ClientConnection is HTTPSession
 
   be _finish() =>
     """
-    Inidcates that the last *inbound* body chunk has been sent to
+    Indicates that the last *inbound* body chunk has been sent to
     `_chunk`. This is passed on to the front end.
+
+    _send_pending is called to detect that _unsent and _sent are emptye
+    and that _conn can be disposed. 
     """
     _app_handler.finished()
     _send_pending()
@@ -190,7 +193,7 @@ actor _ClientConnection is HTTPSession
 
   be dispose() =>
     """
-    Close the connection from the client end.
+    Cancels all requests and disposes the tcp connection.
     """
     _cancel_all()
     match _conn

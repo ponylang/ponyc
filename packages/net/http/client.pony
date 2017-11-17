@@ -54,10 +54,14 @@ class HTTPClient
     session(valrequest)
     valrequest
 
-  fun dispose() =>
+  fun ref dispose() =>
+    """
+    Disposes the sessions and cancels all pending requests.
+    """
     for s in _sessions.values() do
       s.dispose()
     end
+    _sessions.clear()
     
 /*
   fun ref cancel(request: Payload val) =>

@@ -29,7 +29,6 @@ actor Main is TestList
     test(_Valid)
     test(_ToStringFun)
 
-    // Disabled to check if this causes the appveyor block.
     test(_HTTPConnTest)
 
 class iso _Encode is UnitTest
@@ -418,7 +417,7 @@ class iso _HTTPConnTest is UnitTest
 
       be listening(service: String) =>
         try
-          // Need two or more request to check if the fix worked.
+          // Need two or more request to check if the fix works.
           let loops: USize = 2
           // let service: String val = "12345"
           h.log("received service: [" + service + "]")
@@ -440,16 +439,7 @@ class iso _HTTPConnTest is UnitTest
           h.log("Error in worker.listening")
           h.complete(false)
         end // try
-
-      be dispose() =>
-        // try
-        //   (client as HTTPClient iso).dispose()
-        // end
-        None
-
     end // object
-
-   // h.dispose_when_done(worker)
 
     // Start the fake server.
     h.dispose_when_done(
@@ -481,7 +471,7 @@ class iso _HTTPConnTest is UnitTest
 
 primitive _FixedResponseHTTPServerNotify
   """
-  Test http server spitting out fixed responses.
+  Test http server that spits out fixed responses.
   apply returns a TCPListenNotify object.
   """
 
