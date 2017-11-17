@@ -480,6 +480,11 @@ class iso _HTTPConnTest is UnitTest
     h.long_test(5_000_000_000)
 
 primitive _FixedResponseHTTPServerNotify
+  """
+  Test http server spitting out fixed responses.
+  apply returns a TCPListenNotify object.
+  """
+
   fun apply(
     h': TestHelper, 
     f: {(String val)} iso, 
