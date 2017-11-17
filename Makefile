@@ -780,8 +780,6 @@ ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a
-else
-	damnit
 endif
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
