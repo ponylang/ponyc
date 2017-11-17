@@ -111,7 +111,7 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
     AST_GET_CHILDREN(c, case_expr, guard, case_body);
-    ast_t* pattern_type = ast_type(c);
+    ast_t* case_type = ast_type(case_expr);
 
     // if any case is a `_` we have an exhaustive match
     // and we can shortcut here
@@ -133,7 +133,7 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
       continue;
 
     // It counts, so add this pattern type to our running union type.
-    ast_add(cases_union_type, pattern_type);
+    ast_add(cases_union_type, case_type);
 
     // If our cases types union is a supertype of the match expression type,
     // then the match must be exhaustive, because all types are covered by cases.
