@@ -263,7 +263,7 @@ LLVMMetadataRef LLVMDIBuilderCreateArrayType(LLVMDIBuilderRef d,
 {
   DIBuilder* pd = unwrap(d);
 
-  return wrap(pd->createArrayType(size_bits, align_bits,
+  return wrap(pd->createArrayType(size_bits, static_cast<uint32_t>(align_bits),
     unwrap<DIType>(elem_type), DINodeArray(unwrap<MDTuple>(subscripts))));
 }
 
