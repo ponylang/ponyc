@@ -2,6 +2,7 @@ use "ponytest"
 use "net"
 use "collections"
 use "buffered"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -369,103 +370,96 @@ primitive _Test
     h.assert_eq[String](fragment, url.fragment)
 
 // Actor and classes to test the HTTPClient and modified _HTTPConnection.
-actor _HTTPConnTestHandlerActor
-  let h: TestHelper
-  var tries: USize
-  
-  new create(h': TestHelper, tries': USize) =>
-    h = h'
-    tries = tries'
-    h.log("_HTTPHandlerActor create called")
-
-  be apply(p: Payload val) =>
-    h.log("_HTTPHandlerActor apply called. Tries to go: " + tries.string())
-    if (tries = tries - 1) == 1 then 
-      h.complete(true)
-    end
-
 class _HTTPConnTestHandler is HTTPHandler
+  var n_received: U32 = 0
   let h: TestHelper
-  let ha: _HTTPConnTestHandlerActor
 
-  new create(ha': _HTTPConnTestHandlerActor, h': TestHelper) =>
-    ha = ha'
+  new create(h': TestHelper) =>
     h = h'
-    h.log("_HTTPConnTestHandler.create called")
+    h.complete_action("client handler create called")
 
   fun ref apply(payload: Payload val): Any => 
-    h.log("_HTTPConnTestHandler.apply called")
-    ha(payload)
+    n_received = n_received + 1
+    h.complete_action("client handler apply called " + n_received.string())
 
   fun ref chunk(data: ByteSeq val) => 
     h.log("_HTTPConnTestHandler.chunk called")
 
 class val _HTTPConnTestHandlerFactory is HandlerFactory
   let h: TestHelper
-  let ha: _HTTPConnTestHandlerActor
 
-  new val create(ha': _HTTPConnTestHandlerActor, h': TestHelper) =>
-    ha = ha'
+  new val create(h': TestHelper) =>
     h = h'
 
   fun apply(session: HTTPSession): HTTPHandler ref^ =>
-    h.log("_HTTPConnTestHandlerFactory.apply called")
-    _HTTPConnTestHandler(ha, h)
+    h.dispose_when_done(session)
+    h.complete_action("client factory apply called")
+    _HTTPConnTestHandler(h)
 
 class iso _HTTPConnTest is UnitTest
   fun name(): String => "net/http/_HTTPConnection._new_conn"
   fun label(): String => "conn-fix"
 
   fun ref apply(h: TestHelper) ? =>
+    // Set expectations.
+    h.expect_action("client factory apply called")
+    h.expect_action("client handler create called")
+    h.expect_action("client handler apply called 1")
+    h.expect_action("client handler apply called 2")
+    h.expect_action("server writing reponse 1")
+    h.expect_action("server writing reponse 2")
+    h.expect_action("server listening")
+    h.expect_action("server listen connected")
+    h.expect_action("server connection accepted")
+    h.expect_action("server connection closed")
+
     let worker = object
-      var client: (HTTPClient iso| None) = None
+      var client: (HTTPClient iso | None) = None
 
       be listening(service: String) =>
         try
           // Need two or more request to check if the fix worked.
-          let loops: USize = 3
+          let loops: USize = 2
           // let service: String val = "12345"
           h.log("received service: [" + service + "]")
           let us = "http://localhost:" + service
           h.log("URL: " + us)
           let url = URL.build(us)?
           h.log("url.string()=" + url.string())
-          let ha = _HTTPConnTestHandlerActor(h, loops)
-          let hf = _HTTPConnTestHandlerFactory(ha, h)
+          let hf = _HTTPConnTestHandlerFactory(h)
           client = recover iso HTTPClient(h.env.root as TCPConnectionAuth) end
 
           for _ in Range(0, loops) do 
             let payload: Payload iso = Payload.request("GET", url)
+            payload.set_length(0)
             try
               (client as HTTPClient iso)(consume payload, hf)?
             end
-            // match client
-            // | let c: HTTPClient iso =>
-            //   c(consume payload, hf)?
-            // end
           end
         else 
           h.log("Error in worker.listening")
-          // h.complete(false)
+          h.complete(false)
         end // try
 
       be dispose() =>
-        try
-          (client as HTTPClient iso).dispose()
-        end
+        // try
+        //   (client as HTTPClient iso).dispose()
+        // end
+        None
 
     end // object
 
-    h.dispose_when_done(worker)
+   // h.dispose_when_done(worker)
 
     // Start the fake server.
     h.dispose_when_done(
-      TCPListener(
+      TCPListener.ip4(
         h.env.root as AmbientAuth,
         _FixedResponseHTTPServerNotify(
           h, 
           {(p: String val) =>
             worker.listening(p)
+            None
           },
           recover 
             [ as String val: 
@@ -502,20 +496,26 @@ primitive _FixedResponseHTTPServerNotify
           try
             // Get the service as numeric.
             let name = listen.local_address().name()?
+            h.log("listening on: " + name._1 + ":" + name._2)
             listen_cb(name._2)
+            h.dispose_when_done(listen)
+            h.complete_action("server listening")
           end
 
         fun ref not_listening(listen: TCPListener ref) =>
-          h.log("Not listening")
+          h.fail_action("server listening")
+          h.log("not_listening")
 
         fun ref closed(listen: TCPListener ref) =>
           h.log("closed")
 
         fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+          h.complete_action("server listen connected")
           recover 
             object is TCPConnectionNotify iso^
             // let response': Array[String val] val = response
             let reader: Reader iso = Reader
+            var nr: USize = 0
 
             fun ref received(
               conn: TCPConnection ref,
@@ -523,38 +523,50 @@ primitive _FixedResponseHTTPServerNotify
               times: USize)
               : Bool
             =>
-              // Test if the request was issued completely.
               reader.append(consume data)
               while true do
-                let start = 
-                  try 
-                    let l = reader.line()?
-                    l.contains("HTTP/1.1")
-                  else
-                    break
+                var blank = false
+                try 
+                  let l = reader.line()?
+                  h.log("received line: " + l)
+                  if l.size() == 0 then
+                    // Write the response.
+                    nr = nr + 1
+                    for r in response.values() do
+                      h.log("[" + r + "]")
+                      conn.write(r + "\r\n")
+                    end
+                    h.complete_action(
+                      "server writing reponse " + nr.string())
                   end
-
-                // Write the response.
-                if start then
-                  for r in response.values() do
-                    conn.write(r + "\n")
-                  end
+                else
+                  h.log("breaking")
+                  break
                 end
+
               end // while
               true
 
             fun ref accepted(conn: TCPConnection ref) =>
-              None
+              h.complete_action("server connection accepted")
+              h.dispose_when_done(conn)
+
+            fun ref closed(conn: TCPConnection ref) =>
+              h.complete_action("server connection closed")
 
             fun ref connecting(conn: TCPConnection ref, count: U32) =>
+              h.log("connecting")
               None
             
             fun ref connect_failed(conn: TCPConnection ref) =>
+              h.log("connect_failed")
               None
             
-            fun ref closed(conn: TCPConnection ref) =>
-              None
+            fun ref throttled(conn: TCPConnection ref) =>
+              h.log("throttled")
 
+            fun ref unthrottled(conn: TCPConnection ref) =>
+              h.log("unthrottled")
           end // object
         end // recover
 
