@@ -8,10 +8,10 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
     env.out.print(i.string())
   end
 
-  // iterating over Range with while-loop
-  let range = Range(5, 100, 5)
+  // iterating over Range of U8 with while-loop
+  let range = Range[U8](5, 100, 5)
   while range.has_next() do
-    compute_something(range.next())
+    handle_u8(range.next())
   end
   ```
 
@@ -42,6 +42,25 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   end
   ```
 
+  When using `Range` with  floating point types (`F32` and `F64`)
+  `inc` steps < 1.0 are possible. If any of the arguments contains
+  `NaN`, `+Inf` or `-Inf` the range is considered infinite operations on
+  any of them don't move `min` towards `max`.
+  The actual values produced by the range are determined by what IEEE 754
+  defines as the repeated result of `min` + `inc`:
+
+  ```pony
+  for and_a_half in Range[F64](0.5, 100) do
+    handle_half(and_a_half)
+  end
+
+  // this Range will produce 0 at first, then infinitely NaN
+  let nan: F64 = F64(0) / F64(0)
+  for what_am_i in Range[F64](0, 1000, nan) do
+    wild_guess(what_am_i)
+  end
+  ```
+
   """
   let _min: A
   let _max: A
@@ -56,10 +75,19 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
     _inc = inc
     _idx = min
     _forward = (_min < _max) and (_inc > 0)
+    let is_float_infinite =
+      iftype A <: FloatingPoint[A] then
+        _min.nan() or _min.infinite()
+          or _max.nan() or _max.infinite()
+          or _inc.nan() or _inc.infinite()
+      else
+        false
+      end
     _infinite =
-      ((_inc == 0) and (min != max))    // no progress
-      or ((_min < _max) and (_inc < 0)) // progress into other directions
-      or ((_min > _max) and (_inc > 0))
+      is_float_infinite
+        or ((_inc == 0) and (min != max))    // no progress
+        or ((_min < _max) and (_inc < 0)) // progress into other directions
+        or ((_min > _max) and (_inc > 0))
 
   fun has_next(): Bool =>
     if _forward then

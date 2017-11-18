@@ -561,11 +561,29 @@ class iso _TestRange is UnitTest
     _assert_range[F32](h, 0.0, 0.0, 1.0, [])
     _assert_range[F32](h, 0.0, 0.0, F32.epsilon(), [])
     _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
+
     _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
     _assert_infinite[F64](h, -0.1, 0.2, -0.1)
+
     _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
     _assert_infinite[F64](h, 0.2, -0.1, 0.1)
     _assert_infinite[F64](h, 0.2, -0.1, 0.0)
+
+    let p_inf = F64.max_value() + F64.max_value()
+    let n_inf = -p_inf
+    let nan = F64(0) / F64(0)
+
+    _assert_infinite[F64](h, nan, 0, 1)
+    _assert_infinite[F64](h, 0, nan, 1)
+    _assert_infinite[F64](h, 0, 100, nan)
+
+    _assert_infinite[F64](h, p_inf, 10, -1)
+    _assert_infinite[F64](h, n_inf, p_inf, 1)
+    _assert_infinite[F64](h, 10, p_inf, 0)
+    _assert_infinite[F64](h, 0, 10, p_inf)
+    _assert_infinite[F64](h, 100, 10, n_inf)
+
+
 
   fun _assert_infinite[N: (Real[N] val & Number)](
     h: TestHelper,
