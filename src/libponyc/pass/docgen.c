@@ -884,13 +884,9 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
   FILE* file = fopen(path, "w");
   if (file != NULL) {
     fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
-    fprintf(file, "```pony\n");
-    // Replace all triple backtick (```) by a triple backtick with a invisible character
-    // that way it won't mess with the markdown.
-    const char* content = str_replace(source->m, "```", "```\xe2\x80\x8b");
-    fprintf(file, "%s", content);
-    free((void*) content);
-    fprintf(file, "\n```");
+    fprintf(file, "```````pony\n");
+    fprintf(file, "%s", source->m);
+    fprintf(file, "\n```````");
     fclose(file);
 
     result->source = source;
