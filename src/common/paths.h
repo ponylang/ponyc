@@ -42,4 +42,8 @@ PONY_DIRINFO* pony_dir_entry_next(PONY_DIR* dir);
 // Make the specified directory, including any intermediate directories
 void pony_mkdir(const char* path);
 
+const char* basename(const char* path);
+
+const char* remove_ext(const char* mystr, char dot, char sep);
+
 #endif
