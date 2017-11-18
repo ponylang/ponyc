@@ -496,7 +496,7 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static void add_source_code_link(docgen_t* docgen, ast_t* elem)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line = false)
 {
   source_t* source = ast_source(elem);
   doc_sources_t* doc_source = NULL;
@@ -504,8 +504,24 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
   if (source != NULL)
     doc_source = get_doc_source(docgen, source);
 
-  if (doc_source != NULL)
-    fprintf(docgen->type_file, "\n[[Source]](%s#%zd) ", doc_source->doc_path, ast_line(elem));
+  if (doc_source != NULL) {
+    // The <sub><sub> is to make the font smaller.
+    // Idea comes from 
+    // https://meta.stackexchange.com/questions/53800/markdown-extension-for-really-small-tiny-text
+    if (on_new_line) {
+      fprintf(
+        docgen->type_file, 
+        "\n<sub><sup>[[Source]](%s#%zd)</sup></sub>", 
+        doc_source->doc_path, ast_line(elem)
+      );
+    } else {
+      fprintf(
+        docgen->type_file, 
+        " <sub><sup>[[Source]](%s#%zd)</sup></sub>", 
+        doc_source->doc_path, ast_line(elem)
+      );
+    }
+  }
 }
 
 // Functions to handle everything else
@@ -547,10 +563,8 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
     }
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
-
-    add_source_code_link(docgen, field);
-
     doc_type(docgen, docgen_opt, type, true, true);
+    add_source_code_link(docgen, field);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -972,8 +986,8 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  
-  add_source_code_link(docgen, ast);
+  bool add_new_line_before_link = true;
+  add_source_code_link(docgen, ast, add_new_line_before_link);
 
   doc_type_params(docgen, docgen_opt, tparams, true, false);
   fprintf(docgen->type_file, "\n\n");
