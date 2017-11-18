@@ -806,17 +806,23 @@ static char* concat(const char *s1, const char *s2)
   return result;
 }
 
-static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
+static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source, const char* package_name)
 {
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
   const char* filename = basename(source->file);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
+  char source_dir[FILENAME_MAX];
+  const char* doc_source_dir_relative = concat("src/", package_name);
+  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
+  path_cat(docgen->doc_source_dir, package_name, source_dir);
 
+  pony_mkdir(source_dir);
+  
   char* path = (char*) malloc(sizeof(char) * FILENAME_MAX);
-  path_cat(docgen->doc_source_dir, filename_md_extension, path);
-  const char* doc_path = concat("src/", filename_md_extension);
+  path_cat(source_dir, filename_md_extension, path);
+  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension);
 
   bool are_name_clashing = false;
   int current_numbering = 0;
@@ -836,11 +842,15 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
       sprintf(extension, "--%i.md", current_numbering);
       free((void*) filename_md_extension);
       filename_md_extension = concat(filename_without_ext, extension);
-      path_cat(docgen->doc_source_dir, filename_md_extension, path);
+      path_cat(source_dir, filename_md_extension, path);
       free((void*) doc_path);
-      doc_path = concat("src/", filename_md_extension);
+      doc_path = concat(doc_source_dir_relative, filename_md_extension);
     }
   } while (are_name_clashing && number_of_try < 10);
+
+  free((void*) filename_without_ext);
+  free((void*) filename_md_extension);
+  free((void*) doc_source_dir_relative);
 
   if (are_name_clashing) {
     errorf(docgen->errors, NULL, "Could not handle name clash for file %s", filename);
@@ -848,8 +858,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
   }
 
   FILE* file = fopen(path, "w");
-  free((void*) filename_without_ext);
-  free((void*) filename_md_extension);
+
   if (file != NULL) {
     fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
     fprintf(file, "```````pony\n");
@@ -868,7 +877,11 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
   }
 }
 
-static void include_source_if_needed(docgen_t* docgen, source_t* source) 
+static void include_source_if_needed(
+  docgen_t* docgen, 
+  source_t* source, 
+  const char* package_name
+) 
 {
   pony_assert(source != NULL);
   pony_assert(docgen != NULL);
@@ -883,9 +896,8 @@ static void include_source_if_needed(docgen_t* docgen, source_t* source)
   }
 
   if (!was_included) {
-    doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source);
+    doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
     if (new_elem != NULL) {
-      // should be using realloc
       doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
       for (int i = 0; i < docgen->included_sources_count; i = i++) {
         pony_assert(docgen->included_sources[i] != NULL);
@@ -910,9 +922,17 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   pony_assert(docgen->type_file == NULL);
   pony_assert(ast != NULL);
 
+  ast_t* package =  ast;
+  while (ast_parent(package) != NULL && ast_id(package) != TK_PACKAGE)
+  {
+    package = ast_parent(package);
+  }
+
+  const char* package_name = package_qualified_name(package);
+
   source_t* source = ast_source(ast);
-  if (source != NULL)
-    include_source_if_needed(docgen, source);
+  if (source != NULL && package != NULL)
+    include_source_if_needed(docgen, source, package_name);
 
   // First open a file
   size_t tqfn_len;
