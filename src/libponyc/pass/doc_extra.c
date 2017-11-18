@@ -18,6 +18,7 @@ code { \n \
     overflow-y: auto; \n \
     font-weight: 300; \n \
     font-family: Menlo, monospace; \n \
+    border: none; \n \
 } \n \
     \n \
 code.has-numbering { \n \
