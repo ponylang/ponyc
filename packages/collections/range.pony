@@ -44,10 +44,10 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
 
   When using `Range` with  floating point types (`F32` and `F64`)
   `inc` steps < 1.0 are possible. If any of the arguments contains
-  `NaN`, `+Inf` or `-Inf` the range is considered infinite operations on
-  any of them don't move `min` towards `max`.
-  The actual values produced by the range are determined by what IEEE 754
-  defines as the repeated result of `min` + `inc`:
+  `NaN`, `+Inf` or `-Inf` the range is considered infinite as operations on
+  any of them won't move `min` towards `max`.
+  The actual values produced by such a `Range` are determined by what IEEE 754
+  defines as the result of `min` + `inc`:
 
   ```pony
   for and_a_half in Range[F64](0.5, 100) do
