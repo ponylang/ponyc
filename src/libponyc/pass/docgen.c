@@ -496,6 +496,18 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
+static void add_source_code_link(docgen_t* docgen, ast_t* elem)
+{
+  source_t* source = ast_source(elem);
+  doc_sources_t* doc_source = NULL;
+
+  if (source != NULL)
+    doc_source = get_doc_source(docgen, source);
+
+  if (doc_source != NULL)
+    fprintf(docgen->type_file, "\n[[Source]](%s#%zd) ", doc_source->doc_path, ast_line(elem));
+}
+
 // Functions to handle everything else
 
 // Write the given list of fields to the current type file.
@@ -534,18 +546,9 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
       default: pony_assert(0);
     }
 
-    source_t* source = ast_source(field);
-    doc_sources_t* doc_source = NULL;
+    fprintf(docgen->type_file, "* %s %s: ", ftype, name);
 
-    if (source != NULL)
-      doc_source = get_doc_source(docgen, source);
-
-    if (doc_source != NULL) {
-      fprintf(docgen->type_file, "* %s %s: [[Src]](%s#%zd) ", ftype, name, doc_source->doc_path, ast_line(field));
-    } else {
-      fprintf(docgen->type_file, "* %s %s: ", ftype, name);
-    }
-
+    add_source_code_link(docgen, field);
 
     doc_type(docgen, docgen_opt, type, true, true);
     fprintf(docgen->type_file, "\n\n---\n\n");
@@ -700,18 +703,12 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   const char* name = ast_name(id);
   pony_assert(name != NULL);
 
-  source_t* source = ast_source(method);
-  doc_sources_t* doc_source = NULL;
 
-  if (source != NULL)
-    doc_source = get_doc_source(docgen, source);
-
-  if (doc_source != NULL) {
-    fprintf(docgen->type_file, "### %s [[Src]](%s#%zd) ", name, doc_source->doc_path, ast_line(method));
-  } else {
-    fprintf(docgen->type_file, "### %s", name);
-  }
+  fprintf(docgen->type_file, "### %s", name);
   doc_type_params(docgen, docgen_opt, t_params, true, false);
+
+  add_source_code_link(docgen, method);
+
   fprintf(docgen->type_file, "\n\n");
 
   // The docstring, if any
@@ -974,17 +971,9 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   ponyint_pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
-  doc_sources_t* doc_source = NULL;
-
-  if (source != NULL)
-    doc_source = get_doc_source(docgen, source);
-
-  if (doc_source != NULL) {
-      fprintf(docgen->type_file, "# %s [[Src]](%s#%zd) ", name, doc_source->doc_path, ast_line(ast));
-  } else {
-    fprintf(docgen->type_file, "# %s", name);
-  }
-
+  fprintf(docgen->type_file, "# %s", name);
+  
+  add_source_code_link(docgen, ast);
 
   doc_type_params(docgen, docgen_opt, tparams, true, false);
   fprintf(docgen->type_file, "\n\n");
