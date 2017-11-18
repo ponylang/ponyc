@@ -31,7 +31,7 @@ source_t* source_open(const char* file, const char** error_msgp)
 
   source_t* source = POOL_ALLOC(source_t);
   source->file = stringtab(file);
-  source->m = (char*)ponyint_pool_alloc_size(size);
+  source->m = (char*)ponyint_pool_alloc_size(size + 1);
   source->len = size;
 
   ssize_t read = fread(source->m, sizeof(char), size, fp);
