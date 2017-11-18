@@ -798,11 +798,12 @@ static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
 static char* concat(const char *s1, const char *s2)
 {
-    char *result = (char*) malloc(strlen(s1)+strlen(s2)+1);//+1 for the null-terminator
-    //in real code you would check for errors in malloc here
-    strcpy(result, s1);
-    strcat(result, s2);
-    return result;
+  size_t str_size = strlen(s1) + strlen(s2) + 1;
+  char* result = (char*) malloc(str_size); //+1 for the null-terminator
+  strcpy(result, s1);
+  strcat(result, s2);
+  result[str_size - 1] = '\0';
+  return result;
 }
 
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
@@ -833,8 +834,10 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
       current_numbering++;
       char extension[FILENAME_MAX];
       sprintf(extension, "--%i.md", current_numbering);
+      free((void*) filename_md_extension);
       filename_md_extension = concat(filename_without_ext, extension);
       path_cat(docgen->doc_source_dir, filename_md_extension, path);
+      free((void*) doc_path);
       doc_path = concat("src/", filename_md_extension);
     }
   } while (are_name_clashing && number_of_try < 10);
@@ -845,6 +848,8 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source)
   }
 
   FILE* file = fopen(path, "w");
+  free((void*) filename_without_ext);
+  free((void*) filename_md_extension);
   if (file != NULL) {
     fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
     fprintf(file, "```````pony\n");
