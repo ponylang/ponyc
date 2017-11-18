@@ -259,14 +259,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   bool fallback_linker = false;
   const char* linker = c->opt->linker != NULL ? c->opt->linker :
     env_cc_or_pony_compiler(&fallback_linker);
-
-  if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-  {
-    fprintf(stderr,
-      "Warning: environment variable $CC undefined, using %s as the linker\n",
-      PONY_COMPILER);
-  }
-
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
@@ -296,6 +288,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
+    if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
+    {
+      fprintf(stderr,
+        "Warning: environment variable $CC undefined, using %s as the linker\n",
+        PONY_COMPILER);
+    }
+
     errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
