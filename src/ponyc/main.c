@@ -379,10 +379,6 @@ int main(int argc, char* argv[])
     }
   }
 
-#if defined(PLATFORM_IS_WINDOWS)
-  opt.strip_debug = true;
-#endif
-
   if(!ok)
   {
     errors_print(opt.check.errors);

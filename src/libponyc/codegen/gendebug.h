@@ -54,6 +54,12 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
 
 LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file);
 
+#if PONY_LLVM >= 309
+LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d, 
+  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, 
+  unsigned line);
+#endif
+
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col);
 

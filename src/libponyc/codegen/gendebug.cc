@@ -1,5 +1,5 @@
-#include "gendebug.h"
 #include "codegen.h"
+#include "gendebug.h"
 
 #ifdef _MSC_VER
 #  pragma warning(push)
@@ -45,11 +45,16 @@ void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef md_old,
 LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m)
 {
   Module* pm = unwrap(m);
+
+#if defined(_MSC_VER) && PONY_LLVM >= 309
+  pm->addModuleFlag(Module::Warning, "CodeView", 1);
+#else
   unsigned dwarf = dwarf::DWARF_VERSION;
   unsigned debug_info = DEBUG_METADATA_VERSION;
-
+  
   pm->addModuleFlag(Module::Warning, "Dwarf Version", dwarf);
   pm->addModuleFlag(Module::Warning, "Debug Info Version", debug_info);
+#endif
 
   return wrap(new DIBuilder(*pm));
 }
@@ -91,6 +96,18 @@ LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file)
 
   return wrap(pd->createFile(filename, dir));
 }
+
+#if PONY_LLVM >= 309
+
+LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d, 
+  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, unsigned line)
+{
+  DIBuilder* pd = unwrap(d);
+  return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name, 
+    unwrap<DIFile>(file), line));
+}
+
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col)

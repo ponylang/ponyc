@@ -1,12 +1,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "gendebug.h"
-#include "../reach/reach.h"
-#include "../pass/pass.h"
-#include "../ast/ast.h"
-#include "../ast/printbuf.h"
-
 #include <platform.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
@@ -15,9 +9,15 @@
 #include <llvm-c/Analysis.h>
 #include <stdio.h>
 
-PONY_EXTERN_C_BEGIN
-
 #define PONY_LLVM ((LLVM_VERSION_MAJOR * 100) + LLVM_VERSION_MINOR)
+
+#include "gendebug.h"
+#include "../reach/reach.h"
+#include "../pass/pass.h"
+#include "../ast/ast.h"
+#include "../ast/printbuf.h"
+
+PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
