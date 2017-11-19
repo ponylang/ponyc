@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Enable CodeView debug information with MSVC on Windows ([PR #2334](https://github.com/ponylang/ponyc/pull/2334))
 - Generalized runtime backpressure. ([PR #2264](https://github.com/ponylang/ponyc/pull/2264))
 - A microbenchmark for measuring message passing rates in the Pony runtime. ([PR #2347](https://github.com/ponylang/ponyc/pull/2347))
 - Add `chop` function for chopping `iso` Strings and Arrays ([PR #2337](https://github.com/ponylang/ponyc/pull/2337))
