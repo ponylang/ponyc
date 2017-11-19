@@ -189,6 +189,15 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   else
     scope = c_t->di_type;
 
+#if PONY_LLVM >= 309 && defined(_MSC_VER)
+  // CodeView on Windows doesn't like "non-class" methods
+  if (c_t->primitive != NULL)
+  {
+    scope = LLVMDIBuilderCreateNamespace(c->di, c->di_unit, t->name, 
+      c_t->di_file, (unsigned)ast_line(t->ast));
+  }
+#endif
+
   c_m->di_method = LLVMDIBuilderCreateMethod(c->di, scope, ast_name(id),
     m->full_name, c_m->di_file, (unsigned)ast_line(m->r_fun), subroutine, func,
     c->opt->release);

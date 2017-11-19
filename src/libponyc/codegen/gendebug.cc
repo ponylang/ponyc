@@ -1,5 +1,5 @@
-#include "gendebug.h"
 #include "codegen.h"
+#include "gendebug.h"
 
 #ifdef _MSC_VER
 #  pragma warning(push)
@@ -96,6 +96,18 @@ LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file)
 
   return wrap(pd->createFile(filename, dir));
 }
+
+#if PONY_LLVM >= 309
+
+LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d, 
+  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, unsigned line)
+{
+  DIBuilder* pd = unwrap(d);
+  return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name, 
+    unwrap<DIFile>(file), line));
+}
+
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col)
