@@ -438,7 +438,7 @@ class iso _TestIterTake is UnitTest
 class iso _TestIterTakeWhile is UnitTest
   fun name(): String => "itertools/Iter.take_while"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_array_eq[I64](
       [-1; 0],
@@ -455,6 +455,14 @@ class iso _TestIterTakeWhile is UnitTest
       Iter[I64](input.values())
         .take_while({(x) ? => error })
         .collect(Array[I64]))
+    
+    let infinite =
+      Iter[USize](Range(0, 3))
+        .cycle()
+        .take_while({(n) => n < 2 })
+    h.assert_eq[USize](0, infinite.next()?)
+    h.assert_eq[USize](1, infinite.next()?)
+    h.assert_false(infinite.has_next())
 
 class iso _TestIterZip is UnitTest
   fun name(): String => "itertools/Iter.zip"
