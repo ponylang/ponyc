@@ -24,6 +24,7 @@ actor Main is TestList
     test(_TestListsContains)
     test(_TestListsReverse)
     test(_TestHashSetContains)
+    test(_TestHashSetIntersect)
     test(_TestSort)
 
 class iso _TestList is UnitTest
@@ -510,6 +511,29 @@ class iso _TestHashSetContains is UnitTest
     // And resetting an element should cause it to be found again
     a.set(0)
     h.assert_true(a.contains(0), not_found_fail)
+
+class iso _TestHashSetIntersect is UnitTest
+  fun name(): String => "collections/HashSet/intersect()"
+
+  fun apply(h: TestHelper) =>
+    let tests =
+      [ as (Array[U32], Array[U32], Array[U32]):
+        ([1; 2; 3; 4; 5; 6; 10; 60], [1; 7], [1])
+        ([1; 2; 3], [3; 2], [2; 3])
+        ([1; 2; 3], [], [])
+        ([], [1; 2], [])
+        ([], [], [])
+      ]
+
+    for test in tests.values() do
+      let sa = Set[U32] .> union(test._1.values())
+      let sb = Set[U32] .> union(test._2.values())
+      let intersect = sa .> intersect(sb)
+      h.assert_eq[USize](intersect.size(), test._3.size())
+      for v in test._3.values() do
+        h.assert_true(intersect.contains(v))
+      end
+    end
 
 class iso _TestSort is UnitTest
   fun name(): String => "collections/Sort"
