@@ -701,7 +701,8 @@ class Iter[A] is Iterator[A]
   fun ref take_while(f: {(A!): Bool ?} box): Iter[A]^ =>
     """
     Return an iterator that returns values while the predicate `f` returns
-    true.
+    true. This iterator short-circuits the first time that `f` returns false or
+    raises an error.
 
     ## Example
 
@@ -711,17 +712,36 @@ class Iter[A] is Iterator[A]
     ```
     `1 2 3`
     """
-    filter_stateful(
+    Iter[A](
       object
         var _done: Bool = false
+        var _next: (A! | None) = None
 
-        fun ref apply(a: A!): Bool =>
-          if _done then return false end
-          if try f(a)? else false end then
-            true
-          else
+        fun ref has_next(): Bool =>
+          if _next isnt None then true
+          else _try_next()
+          end
+
+        fun ref next(): A ? =>
+          if (_next isnt None) or _try_next() then
+            (_next = None) as A
+          else error
+          end
+
+        fun ref _try_next(): Bool =>
+          if _done then false
+          elseif not _iter.has_next() then
             _done = true
             false
+          else
+            _next =
+              try _iter.next()?
+              else
+                _done = true
+                return false
+              end 
+            _done = try not f(_next as A)? else true end
+            not _done
           end
       end)
 
