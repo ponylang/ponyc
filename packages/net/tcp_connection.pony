@@ -289,7 +289,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    ifdef not windows then
+    ifdef bsd or linux then
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write_oneshot(), 0, true)
     else
@@ -297,7 +297,7 @@ actor TCPConnection
         AsioEvent.read_write(), 0, true)
     end
     _connected = true
-    ifdef not windows then
+    ifdef bsd or linux then
       @pony_asio_event_set_writeable(_event, true)
     end
     _writeable = true
@@ -790,9 +790,13 @@ actor TCPConnection
             // Would block, try again later.
             // this is safe because asio thread isn't currently subscribed
             // for a read event so will not be writing to the readable flag
-            @pony_asio_event_set_readable(_event, false)
-            _readable = false
-            @pony_asio_event_resubscribe_read(_event)
+            ifdef bsd or linux then
+              @pony_asio_event_set_readable(_event, false)
+              _readable = false
+              @pony_asio_event_resubscribe_read(_event)
+            else
+              _readable = false
+            end
             return
           | _next_size =>
             // Increase the read buffer size.
@@ -923,8 +927,10 @@ actor TCPConnection
       @pony_asio_event_unsubscribe(_event)
       _readable = false
       _writeable = false
-      @pony_asio_event_set_readable(_event, false)
-      @pony_asio_event_set_writeable(_event, false)
+      ifdef bsd or linux then
+        @pony_asio_event_set_readable(_event, false)
+        @pony_asio_event_set_writeable(_event, false)
+      end
     end
 
     // On windows, this will also cancel all outstanding IOCP operations.
@@ -943,8 +949,10 @@ actor TCPConnection
 
         // this is safe because asio thread isn't currently subscribed
         // for a write event so will not be writing to the readable flag
-        @pony_asio_event_set_writeable(_event, false)
-        @pony_asio_event_resubscribe_write(_event)
+        ifdef bsd or linux then
+          @pony_asio_event_set_writeable(_event, false)
+          @pony_asio_event_resubscribe_write(_event)
+        end
       end
 
       _notify.throttled(this)
