@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compilation error with 'use=dtrace' for FreeBSD 11 ([PR #2343](https://github.com/ponylang/ponyc/pull/2343))
 - Fix Set.intersect ([PR #2361](https://github.com/ponylang/ponyc/pull/2361))
 -  Fixed state handling of HTTP client connections ([PR #2273](https://github.com/ponylang/ponyc/pull/2273))
 - Fix incorrect detection of exhaustive matches for structural equality comparisons on some primitives. ([PR #2342](https://github.com/ponylang/ponyc/pull/2342))
