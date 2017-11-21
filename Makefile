@@ -696,9 +696,15 @@ $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking libponyrt'
     ifneq (,$(DTRACE))
     ifeq ($(OSTYPE), linux)
-	@echo 'Generating dtrace object file'
+	@echo 'Generating dtrace object file (linux)'
 	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+    else ifeq ($(OSTYPE), bsd)
+	@echo 'Generating dtrace object file (bsd)'
+	$(SILENT)rm -f $(PONY_BUILD_DIR)/dtrace_probes.o
+	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o $(ofiles)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+	$(SILENT)$(AR) $(AR_FLAGS) $(PONY_BUILD_DIR)/libdtrace_probes.a $(PONY_BUILD_DIR)/dtrace_probes.o
     else
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
     endif
@@ -752,6 +758,9 @@ endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
 endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(destdir)/lib
+endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
@@ -768,6 +777,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
+endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a
 endif
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
@@ -787,6 +799,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
 	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
+endif
+ifneq ($(wildcard $(prefix)/lib/libdtrace_probes.a),)
+	-$(SILENT)rm $(prefix)/lib/libdtrace_probes.a 2>/dev/null ||:
 endif
 	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
@@ -865,6 +880,9 @@ endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
 endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(package)/usr/lib/pony/$(package_version)/lib
+endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(package)/usr/lib/pony/$(package_version)/include/pony/detail
@@ -874,6 +892,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
+endif
+ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libdtrace_probes.a),)
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libdtrace_probes.a $(package)/usr/lib/libdtrace_probes.a
 endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
