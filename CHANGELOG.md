@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make take_while short-circuit ([PR #2358](https://github.com/ponylang/ponyc/pull/2358))
 - Fix compilation error with 'use=dtrace' for FreeBSD 11 ([PR #2343](https://github.com/ponylang/ponyc/pull/2343))
 - Fix Set.intersect ([PR #2361](https://github.com/ponylang/ponyc/pull/2361))
 -  Fixed state handling of HTTP client connections ([PR #2273](https://github.com/ponylang/ponyc/pull/2273))
