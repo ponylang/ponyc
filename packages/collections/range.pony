@@ -15,7 +15,8 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   end
   ```
 
-  Supports `min` being smaller than `max` with negative `inc`:
+  Supports `min` being smaller than `max` with negative `inc`
+  but only for signed integer types and floats:
 
   ```pony
   var previous = 11
@@ -35,7 +36,7 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   let infinite_range1 = Range(0, 1, 0)
   infinite_range1.is_infinite() == true
 
-  let infinite_range2 = Range[U8](0, 10, -1)
+  let infinite_range2 = Range[I8](0, 10, -1)
   for _ in infinite_range2 do
     env.out.print("will this ever end?")
     env.err.print("no, never!")
