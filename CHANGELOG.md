@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Improve work-stealing "scheduler is blocked" logic ([PR #2355](https://github.com/ponylang/ponyc/pull/2355))
 - Make take_while short-circuit ([PR #2358](https://github.com/ponylang/ponyc/pull/2358))
 - Fix compilation error with 'use=dtrace' for FreeBSD 11 ([PR #2343](https://github.com/ponylang/ponyc/pull/2343))
 - Fix Set.intersect ([PR #2361](https://github.com/ponylang/ponyc/pull/2361))
