@@ -133,7 +133,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   LLVMBasicBlockRef insert;
   LLVMBasicBlockRef nonzero_block;
   LLVMBasicBlockRef no_overflow_block;
-  LLVMBasicBlockRef post_block;
+  LLVMBasicBlockRef post_block = NULL;
   LLVMValueRef zero;
 
   if(safe)
