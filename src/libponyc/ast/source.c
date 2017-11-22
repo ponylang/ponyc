@@ -20,6 +20,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   fseek(fp, 0, SEEK_END);
   ssize_t size = ftell(fp);
   size = size + 1; // for null terminator
+  
   if(size < 0)
   {
     *error_msgp = "can't determine length of file";
@@ -28,7 +29,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   }
 
   fseek(fp, 0, SEEK_SET);
-  
+
   source_t* source = POOL_ALLOC(source_t);
   source->file = stringtab(file);
   source->m = (char*)ponyint_pool_alloc_size(size);
@@ -40,7 +41,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   if(read < size)
   {
     *error_msgp = "failed to read entire file";
-    ponyint_pool_free_size(size, source->m);
+    ponyint_pool_free_size(source->len, source->m);
     POOL_FREE(source_t, source);
     fclose(fp);
     return NULL;
