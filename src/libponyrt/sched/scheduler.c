@@ -297,7 +297,8 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    stealing for generating far fewer block/unblock messages.
     if (!block_sent)
     {
-      if (steal_attempts < scheduler_count){
+      if (steal_attempts < scheduler_count)
+      {
         steal_attempts++;
       }
       else if (((tsc2 - tsc) > 10000000000) &&
