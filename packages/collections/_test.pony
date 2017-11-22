@@ -26,6 +26,7 @@ actor Main is TestList
     test(_TestHashSetContains)
     test(_TestHashSetIntersect)
     test(_TestSort)
+    test(_TestRange)
 
 class iso _TestList is UnitTest
   fun name(): String => "collections/List"
@@ -558,3 +559,85 @@ class iso _TestSort is UnitTest
     unsorted: Array[A])
   =>
     h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))
+
+class iso _TestRange is UnitTest
+  fun name(): String => "collections/Range"
+
+  fun apply(h: TestHelper) =>
+    _assert_range[USize](h, 0, 0, 1, [])
+    _assert_range[USize](h, 0, 0, 0, [])
+    _assert_range[USize](h, 0, 0, -1, [])
+    _assert_range[USize](h, 0, 0, 2, [])
+
+    _assert_range[USize](h, 0, 1, 1, [0])
+    _assert_infinite[I8](h, 0, 1, -1)
+    _assert_infinite[I8](h, 0, 1, 0)
+    _assert_infinite[I8](h, 1, 0, 0)
+    _assert_infinite[I8](h, 1, 0, 1)
+    _assert_range[I8](h, -1, 1, 1, [-1; 0])
+
+    _assert_range[USize](h, 0, 1, 2, [0])
+    _assert_range[USize](h, 0, 10, 1, [0; 1; 2; 3; 4; 5; 6; 7; 8; 9])
+    _assert_range[USize](h, 0, 10, 2, [0; 2; 4; 6; 8])
+    _assert_range[I8](h, 2, -2, -1, [2; 1; 0; -1])
+    _assert_range[I8](h, -10, -7, 1, [-10; -9; -8])
+
+    _assert_range[F32](h, 0.0, 0.0, 1.0, [])
+    _assert_range[F32](h, 0.0, 0.0, F32.epsilon(), [])
+    _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
+
+    _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
+    _assert_infinite[F64](h, -0.1, 0.2, -0.1)
+
+    _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
+    _assert_infinite[F64](h, 0.2, -0.1, 0.1)
+    _assert_infinite[F64](h, 0.2, -0.1, 0.0)
+
+    let p_inf = F64.max_value() + F64.max_value()
+    let n_inf = -p_inf
+    let nan = F64(0) / F64(0)
+
+    _assert_infinite[F64](h, nan, 0, 1)
+    _assert_infinite[F64](h, 0, nan, 1)
+    _assert_infinite[F64](h, 0, 100, nan)
+
+    _assert_infinite[F64](h, p_inf, 10, -1)
+    _assert_infinite[F64](h, n_inf, p_inf, 1)
+    _assert_infinite[F64](h, 10, p_inf, 0)
+    _assert_infinite[F64](h, 0, 10, p_inf)
+    _assert_infinite[F64](h, 100, 10, n_inf)
+
+
+
+  fun _assert_infinite[N: (Real[N] val & Number)](
+    h: TestHelper,
+    min: N,
+    max: N,
+    step: N = 1
+  ) =>
+    let range: Range[N] = Range[N](min, max, step)
+    let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
+
+    h.assert_true(range.is_infinite(), range_str + " should be infinite")
+
+  fun _assert_range[N: (Real[N] val & Number)](
+    h: TestHelper,
+    min: N,
+    max: N,
+    step: N = 1,
+    expected: Array[N] val
+  ) =>
+    let range: Range[N] = Range[N](min, max, step)
+    let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
+
+    h.assert_false(range.is_infinite(), range_str + " is infinite")
+    let collector = Array[N].create(0) .> concat(range)
+    h.assert_array_eq[N](expected, collector, range_str + " should produce expected elements")
+
+
+  fun _count_range[N: (Real[N] val & Number)](range: Range[N]): USize =>
+    var count: USize = 0
+    for _ in range do
+      count = count + 1
+    end
+    count
