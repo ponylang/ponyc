@@ -861,9 +861,9 @@ docs: all
 # Note: linux only
 define EXPAND_DEPLOY
 deploy: test docs
-	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
-	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
-	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash debian "$(package_base_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash rpm    "$(package_base_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash source "$(package_base_version)" "$(package_name)"
 	$(SILENT)rm -rf build/bin
 	@mkdir -p build/bin
 	@mkdir -p $(package)/usr/bin
