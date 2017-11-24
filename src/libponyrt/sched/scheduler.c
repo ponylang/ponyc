@@ -30,6 +30,7 @@ typedef enum
 static uint32_t scheduler_count;
 static scheduler_t* scheduler;
 static PONY_ATOMIC(bool) detect_quiescence;
+static uint64_t quiescence_timeout_cycles;
 static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
@@ -287,7 +288,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    get any work. In the process of stealing from every other scheduler,
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
-    // 3. We've been trying to steal for at least 10 billion cycles.
+    // 3. We've been trying to steal for at least quiescence_timeout_cycles.
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
@@ -295,13 +296,14 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    By waiting 5 seconds before sending a block message, we are going to
     //    deal quiescence by a decent amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
+    //    To get this behaviour, set --ponyqkcycles=10000000.
     if (!block_sent)
     {
       if (steal_attempts < scheduler_count)
       {
         steal_attempts++;
       }
-      else if (((tsc2 - tsc) > 10000000000) &&
+      else if (((tsc2 - tsc) > quiescence_timeout_cycles) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         send_msg(0, SCHED_BLOCK, 0);
@@ -417,11 +419,14 @@ static void ponyint_sched_shutdown()
 }
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio)
+  bool pinasio, uint32_t q_kcycles)
 {
   pony_register_thread();
 
   use_yield = !noyield;
+
+  quiescence_timeout_cycles = q_kcycles;
+  quiescence_timeout_cycles *= 1000;
 
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
