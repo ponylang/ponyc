@@ -13,6 +13,7 @@
 #include "mutemap.h"
 
 #define PONY_SCHED_BATCH 100
+#define DEFAULT_QUIESCENCE_CYCLES 10000000000
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -25,7 +26,8 @@ typedef enum
   SCHED_TERMINATE,
   SCHED_UNMUTE_ACTOR,
   SCHED_NOISY_ASIO,
-  SCHED_UNNOISY_ASIO
+  SCHED_UNNOISY_ASIO,
+  SCHED_RECONFIG
 } sched_msg_t;
 
 // Scheduler global data.
@@ -171,6 +173,15 @@ static bool read_msg(scheduler_t* sched)
       {
         // mark asio as not being noisy
         sched->asio_noisy = false;
+        break;
+      }
+
+      case SCHED_RECONFIG:
+      {
+        // Pull scheduler parameters into this scheduler from within the schedulers thread context.
+        // Change quiecence cycle parameter for this scheduler.
+        // The next read depends on the atomic_thread_fence in ponyint_messageq_push/pop.
+        sched->quiescence_cycles = (uint64_t)m->i;
         break;
       }
 
@@ -339,7 +350,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         steal_attempts++;
       }
       else if ((!sched->asio_noisy) &&
-        ((tsc2 - tsc) > 1000000) &&
+        ((tsc2 - tsc) > sched->quiescence_cycles) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         send_msg(0, SCHED_BLOCK, 0);
@@ -478,6 +489,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
     scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
     scheduler[i].asio_noisy = false;
+    scheduler[i].quiescence_cycles = DEFAULT_QUIESCENCE_CYCLES;
     ponyint_messageq_init(&scheduler[i].mq);
     ponyint_mpmcq_init(&scheduler[i].q);
   }
@@ -536,6 +548,12 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
 uint32_t ponyint_sched_cores()
 {
   return scheduler_count;
+}
+
+PONY_API void pony_scheduler_set_quiescence(uint64_t cycles)
+{
+  // Signal all schedulers to reconfigure their quiescence cycle value.
+  send_msg_all(SCHED_RECONFIG, (intptr_t)cycles);
 }
 
 PONY_API void pony_register_thread()

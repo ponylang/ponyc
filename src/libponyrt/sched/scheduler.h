@@ -57,6 +57,8 @@ struct scheduler_t
   uint32_t ack_count;
   mutemap_t mute_mapping;
 
+  uint64_t quiescence_cycles;
+
   // These are accessed by other scheduler threads. The mpmcq_t is aligned.
   mpmcq_t q;
   messageq_t mq;
@@ -86,6 +88,8 @@ void ponyint_sched_noisy_asio();
 /** Mark asio as not being noisy
  */
 void ponyint_sched_unnoisy_asio();
+
+PONY_API void pony_scheduler_set_quiescence(uint64_t cycles);
 
 PONY_EXTERN_C_END
 
