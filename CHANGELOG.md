@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Restart ASIO if needed while runtime is attempting to terminate. ([PR #2373](https://github.com/ponylang/ponyc/pull/2373))
 - fix Range with negative or 0 step and allow backward Ranges (having `min > max`) ([PR #2350](https://github.com/ponylang/ponyc/pull/2350))
 - Improve work-stealing "scheduler is blocked" logic ([PR #2355](https://github.com/ponylang/ponyc/pull/2355))
 - Make take_while short-circuit ([PR #2358](https://github.com/ponylang/ponyc/pull/2358))
