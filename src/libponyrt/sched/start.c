@@ -23,6 +23,7 @@ typedef struct options_t
   uint32_t cd_conf_group;
   size_t gc_initial;
   double gc_factor;
+  uint32_t q_kcycles;
   bool noyield;
   bool noblock;
   bool nopin;
@@ -43,6 +44,7 @@ enum
   OPT_CDCONF,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
+  OPT_QKCYCLES,
   OPT_NOYIELD,
   OPT_NOBLOCK,
   OPT_NOPIN,
@@ -58,6 +60,7 @@ static opt_arg_t args[] =
   {"ponycdconf", 0, OPT_ARG_REQUIRED, OPT_CDCONF},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
+  {"ponyqkcycles", 0, OPT_ARG_REQUIRED, OPT_QKCYCLES},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponynopin", 0, OPT_ARG_NONE, OPT_NOPIN},
@@ -83,6 +86,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_QKCYCLES: opt->q_kcycles = atoi(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_NOPIN: opt->nopin = true; break;
@@ -117,6 +121,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_conf_group = 6;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
+  opt.q_kcycles = 0;
 
   argc = parse_opts(argc, argv, &opt);
 
@@ -134,7 +139,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
-    opt.pinasio);
+    opt.pinasio, opt.q_kcycles);
 
   ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);

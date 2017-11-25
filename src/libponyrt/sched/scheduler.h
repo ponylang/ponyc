@@ -44,6 +44,7 @@ struct scheduler_t
   pony_thread_id_t tid;
   uint32_t cpu;
   uint32_t node;
+  uint64_t quiescence_timeout;
   bool terminate;
   bool asio_stopped;
 
@@ -62,7 +63,7 @@ struct scheduler_t
 };
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio);
+  bool pinasio, uint32_t q_kcycles);
 
 bool ponyint_sched_start(bool library);
 
