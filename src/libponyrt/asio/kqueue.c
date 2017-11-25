@@ -79,6 +79,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct kevent event[1];
   int i = 0;
@@ -106,6 +107,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct kevent event[2];
   int i = 0;
@@ -130,6 +132,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = arg;
+  pony_assert(b != NULL);
   struct kevent fired[MAX_EVENTS];
 
   while(b->kq != -1)
@@ -225,6 +228,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
     ponyint_asio_noisy_add();
@@ -282,6 +286,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct kevent event[1];
   int i = 0;
@@ -315,6 +320,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
   {
