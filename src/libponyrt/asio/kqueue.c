@@ -231,7 +231,13 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   pony_assert(b != NULL);
 
   if(ev->noisy)
-    ponyint_asio_noisy_add();
+  {
+    uint64_t old_count = ponyint_asio_noisy_add();
+    // tell scheduler threads that asio has at least one noisy actor
+    // if the old_count was 0
+    if (old_count == 0)
+      ponyint_sched_noisy_asio();
+  }
 
   struct kevent event[4];
   int i = 0;
@@ -324,7 +330,11 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->noisy)
   {
-    ponyint_asio_noisy_remove();
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+      ponyint_sched_unnoisy_asio();
     ev->noisy = false;
   }
 
