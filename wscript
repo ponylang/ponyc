@@ -44,7 +44,9 @@ MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 LLVM_VERSIONS = [
     '3.9.1',
     '3.8.1',
-    '3.7.1'
+    '3.7.1',
+    '5.0.0',
+    '4.0.1'
 ]
 
 WINDOWS_LIBS_TAG = "v1.5.0"
@@ -247,6 +249,9 @@ def build(ctx):
                 llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)\.lib', r'\1', x) for x in llvmLibFiles.split(' ')]
 
     # build targets:
+
+    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5'):
+        print('WARNING: LLVM 4 and 5 support is experimental and may result in decreased performance or crashes')
 
     # gtest
     ctx(

@@ -180,8 +180,11 @@ sudo apt-get -V install ponyc
 ## Arch Linux
 
 Currently the ponyc package in Arch does not work because
-Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9. Also,
-building from source does not work for the same reason.
+Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9.
+
+There is experimental support for building from source with LLVM 5.0.0,
+but this may cause decreased performance or crashes in generated
+applications.
 
 Using [Docker](#using-docker) is one choice, another is to
 use [ponyc-rpm](https://aur.archlinux.org/packages/ponyc-rpm/)
@@ -265,7 +268,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 
 - GCC >= 4.7
 - Clang >= 3.4
-- MSVC >= 2013
+- MSVC >= 2015
 - XCode Clang >= 6.0
 
 Pony requires one of the following versions of LLVM:
@@ -273,6 +276,10 @@ Pony requires one of the following versions of LLVM:
 - 3.7.1
 - 3.8.1
 - 3.9.1
+
+There is experimental support for building with LLVM 4.0.1 or 5.0.0,
+but this may result in decreased performance or crashes in generated
+applications.
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
@@ -319,8 +326,8 @@ make default_pic=true
 Add the following to `/etc/apt/sources`:
 
 ```
-deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
-deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main
+deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main
+deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main
 ```
 
 Install the LLVM toolchain public GPG key, update `apt` and install packages:
@@ -329,7 +336,7 @@ Install the LLVM toolchain public GPG key, update `apt` and install packages:
 wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
 sudo apt-get update
 sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
-                       libssl-dev llvm-3.8-dev
+                       libssl-dev llvm-3.9-dev
 ```
 
 Debian Jessie and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
@@ -419,7 +426,7 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make 
+make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -520,11 +527,14 @@ make default_pic=true
 
 You need to have the development versions of the following installed:
 
-* LLVM 3.7.1, 3.8.1, or 3.9.1
+* 3.7.1, 3.8.1, or 3.9.1
 * zlib
 * ncurses
 * pcre2
 * libssl
+
+There is experimental support for LLVM 4.0.1 and 5.0.0, but this may
+result in decreased performance or crashes in generated applications.
 
 If your distribution doesn't have a package for prce2, you will need to download and build it from source:
 
@@ -590,12 +600,13 @@ gmake
 ./build/release/ponyc examples/helloworld
 ```
 
-Please note that on 32-bit X86, using LLVM 3.7.1 or 3.8.1 on FreeBSD currently produces executables that don't run. Please use LLVM 3.9.1. 64-bit X86 does not have this problem, and works fine with LLVM 3.7.1 and 3.8.1.
-
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.7.1, 3.8.1 or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies. Please note that llvm 3.9.1 is not available via homebrew. As such, the instructions below install 3.8.1
+You'll need llvm 3.7.1, 3.8.1, or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
+
+There is experimental support for LLVM 4.0.1 or 5.0.0, but this may result in
+decreased performance or crashes in generated applications.
 
 Installation via [homebrew](http://brew.sh):
 ```
@@ -651,8 +662,8 @@ This will automatically perform the following steps:
 
 You can provide the following options to `make.bat` when running the `build` or `test` commands:
 
-- `--config debug|release`: whether or not to build a debug or release build (debug is the default).
-- `--llvm <version>`: the LLVM version to build against (3.9.1 is the default).
+- `--config debug|release`: whether or not to build a debug or release build (`release` is the default).
+- `--llvm <version>`: the LLVM version to build against (`3.9.1` is the default).
 
 Note that you need to provide these options each time you run make.bat; the system will not remember your last choice.
 
@@ -662,7 +673,7 @@ Other commands include `clean`, which will clean a specified configuration; and 
 
 Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
 
-- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen. Before turning on LTO you need to be aware that it's possible. 
+- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen. Before turning on LTO you need to be aware that it's possible.
 
 - If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
 

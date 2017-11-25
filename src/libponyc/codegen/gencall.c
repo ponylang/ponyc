@@ -331,8 +331,12 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
   LLVMValueRef store = LLVMBuildStore(c->builder,
     ((compile_type_t*)t->c_type)->desc, desc_ptr);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, c->tbaa_descptr, store);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
+#endif
 }
 
 // This function builds a stack of indices such that for an AST nested in an
@@ -1397,7 +1401,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMLifetimeStart(c->module);
+  LLVMValueRef func = LLVMLifetimeStart(c->module, c->void_ptr);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
@@ -1409,7 +1413,7 @@ void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMLifetimeEnd(c->module);
+  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->void_ptr);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 

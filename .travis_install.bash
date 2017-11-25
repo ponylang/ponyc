@@ -56,6 +56,16 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     set_linux_compiler
   ;;
 
+  "linux:llvm-config-4.0")
+    download_llvm
+    download_pcre
+  ;;
+
+  "linux:llvm-config-5.0")
+    download_llvm
+    download_pcre
+  ;;
+
   "osx:llvm-config-3.7")
     brew update
     brew install pcre2
@@ -71,7 +81,7 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
     brew install llvm38
   ;;
-
+  
   "osx:llvm-config-3.9")
     brew update
     brew install shellcheck
@@ -88,6 +98,42 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
     # do this elsewhere:
     #export PATH=llvmsym/:$PATH
+  ;;
+
+  "osx:llvm-config-4.0")
+    brew update
+    brew install shellcheck
+    shellcheck ./.*.bash ./*.bash
+
+    brew install pcre2
+    brew install libressl
+
+    brew install llvm@4
+    brew link --overwrite --force llvm@4
+    mkdir llvmsym
+    ln -s "$(which llvm-config)" llvmsym/llvm-config-4.0
+    ln -s "$(which clang++)" llvmsym/clang++-4.0
+
+    # do this elsewhere:
+    export PATH=llvmsym/:$PATH
+  ;;
+
+  "osx:llvm-config-5.0")
+    brew update
+    brew install shellcheck
+    shellcheck ./.*.bash ./*.bash
+
+    brew install pcre2
+    brew install libressl
+
+    brew install llvm@5
+    brew link --overwrite --force llvm@5
+    mkdir llvmsym
+    ln -s "$(which llvm-config)" llvmsym/llvm-config-5.0
+    ln -s "$(which clang++)" llvmsym/clang++-5.0
+
+    # do this elsewhere:
+    export PATH=llvmsym/:$PATH
   ;;
 
   *)

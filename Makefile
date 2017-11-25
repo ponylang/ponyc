@@ -190,14 +190,18 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-	ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
+	ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
     LLVM_LINK = llvm-link-3.9
-    LLVM_OPT = opt-3.9
+		LLVM_OPT = opt-3.9
+  else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
   else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.8
     LLVM_LINK = llvm-link-3.8
@@ -234,6 +238,18 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config
     LLVM_LINK = llvm-link
     LLVM_OPT = opt
+  else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-5.0
+    LLVM_LINK = llvm-link-5.0
+    LLVM_OPT = opt-5.0
+  else ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-4.0
+    LLVM_LINK = llvm-link-4.0
+    LLVM_OPT = opt-4.0
+	else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm@4.0/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm@4.0/bin/opt
   endif
 endif
 
@@ -245,7 +261,6 @@ llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq ($(OSTYPE),osx)
 	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir)
-
   ifneq (,$(shell which $(llvm_bindir)/llvm-ar 2> /dev/null))
     AR = $(llvm_bindir)/llvm-ar
     AR_FLAGS := rcs
@@ -264,6 +279,12 @@ endif
 ifeq ($(llvm_version),3.7.1)
 else ifeq ($(llvm_version),3.8.1)
 else ifeq ($(llvm_version),3.9.1)
+else ifeq ($(llvm_version),4.0.1)
+  $(warning WARNING: LLVM 4 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),5.0.0)
+  $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),5.0.1)
+  $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.7.1, 3.8.1, or 3.9.1)
