@@ -107,6 +107,20 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNBLOCK:
       {
+        // if the ASIO thread has already been stopped
+        if (sched->asio_stopped)
+        {
+          // restart the ASIO thread
+          bool asio_started = ponyint_asio_start();
+          pony_assert(asio_started);
+          (void) asio_started;
+          sched->asio_stopped = false;
+        }
+
+        // make sure asio hasn't already been stopped or else runtime is in
+        // an invalid state without the ASIO thread running
+        pony_assert(!sched->asio_stopped);
+
         // Cancel all acks and increment the ack token, so that any pending
         // acks in the queue will be dropped when they are received.
         sched->block_count--;

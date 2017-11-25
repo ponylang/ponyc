@@ -8,6 +8,7 @@
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
+#include "ponyassert.h"
 #include <string.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -43,6 +44,7 @@ enum // Event requests
 static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
@@ -62,6 +64,7 @@ static void signal_handler(int sig)
   // Reset the signal handler.
   signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
   asio_event_t* ev = b->sighandlers[sig];
   pony_asio_event_send(ev, ASIO_SIGNAL, 1);
 }
@@ -105,6 +108,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = (asio_backend_t*)arg;
+  pony_assert(b != NULL);
   asio_event_t* stdin_event = NULL;
   HANDLE handles[2];
   handles[0] = b->wakeup;
@@ -251,6 +255,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
     ponyint_asio_noisy_add();
@@ -299,6 +304,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
   {
