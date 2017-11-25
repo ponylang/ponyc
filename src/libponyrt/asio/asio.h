@@ -85,11 +85,11 @@ bool ponyint_asio_stop();
 
 /** Add a noisy event subscription.
  */
-void ponyint_asio_noisy_add();
+uint64_t ponyint_asio_noisy_add();
 
 /** Remove a noisy event subscription.
  */
-void ponyint_asio_noisy_remove();
+uint64_t ponyint_asio_noisy_remove();
 
 /** Destroys an ASIO backend.
  *

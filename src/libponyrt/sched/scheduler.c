@@ -23,7 +23,9 @@ typedef enum
   SCHED_CNF,
   SCHED_ACK,
   SCHED_TERMINATE,
-  SCHED_UNMUTE_ACTOR
+  SCHED_UNMUTE_ACTOR,
+  SCHED_NOISY_ASIO,
+  SCHED_UNNOISY_ASIO
 } sched_msg_t;
 
 // Scheduler global data.
@@ -155,6 +157,20 @@ static bool read_msg(scheduler_t* sched)
         if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
           run_queue_changed = true;
 
+        break;
+      }
+
+      case SCHED_NOISY_ASIO:
+      {
+        // mark asio as being noisy
+        sched->asio_noisy = true;
+        break;
+      }
+
+      case SCHED_UNNOISY_ASIO:
+      {
+        // mark asio as not being noisy
+        sched->asio_noisy = false;
         break;
       }
 
@@ -292,16 +308,23 @@ static pony_actor_t* steal(scheduler_t* sched)
     //
     // To be blocked, we have to:
     //
-    // 1. Not have any muted actors. If we are holding any muted actors then,
+    // 1. Not have any noisy actors registered with the ASIO thread/subsystem.
+    //    If we have any noisy actors then, while we might not have any work
+    //    to do, we aren't blocked. Blocked means we can't make forward
+    //    progress and the program might be ready to terminate. Noisy actors
+    //    means that no, the program isn't ready to terminate becuase one of
+    //    noisy actors could receive a message from an external source (timer,
+    //    network, etc).
+    // 2. Not have any muted actors. If we are holding any muted actors then,
     //    while we might not have any work to do, we aren't blocked. Blocked
     //    means we can't make forward progress and the program might be ready
     //    to terminate. Muted actors means that no, the program isn't ready
     //    to terminate.
-    // 2. We have attempted to steal from every other scheduler and failed to
+    // 3. We have attempted to steal from every other scheduler and failed to
     //    get any work. In the process of stealing from every other scheduler,
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
-    // 3. We've been trying to steal for at least 10 billion cycles.
+    // 4. We've been trying to steal for at least 10 billion cycles.
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
@@ -315,7 +338,8 @@ static pony_actor_t* steal(scheduler_t* sched)
       {
         steal_attempts++;
       }
-      else if (((tsc2 - tsc) > 10000000000) &&
+      else if ((!sched->asio_noisy) &&
+        ((tsc2 - tsc) > 10000000000) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         send_msg(0, SCHED_BLOCK, 0);
@@ -453,6 +477,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   {
     scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
+    scheduler[i].asio_noisy = false;
     ponyint_messageq_init(&scheduler[i].mq);
     ponyint_mpmcq_init(&scheduler[i].q);
   }
@@ -539,6 +564,18 @@ PONY_API pony_ctx_t* pony_ctx()
 {
   pony_assert(this_scheduler != NULL);
   return &this_scheduler->ctx;
+}
+
+// Tell all scheduler threads that asio is noisy
+void ponyint_sched_noisy_asio()
+{
+  send_msg_all(SCHED_NOISY_ASIO, 0);
+}
+
+// Tell all scheduler threads that asio is not noisy
+void ponyint_sched_unnoisy_asio()
+{
+  send_msg_all(SCHED_UNNOISY_ASIO, 0);
 }
 
 // Manage a scheduler's mute map
