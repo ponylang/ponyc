@@ -34,6 +34,29 @@ static void node_free(mpmcq_node_t* node)
   POOL_FREE(mpmcq_node_t, node);
 }
 
+#ifndef NDEBUG
+
+static size_t mpmcq_size_debug(mpmcq_t* q)
+{
+  size_t count = 0;
+
+#ifdef PLATFORM_IS_X86
+  mpmcq_node_t* tail = q->tail.object;
+#else
+  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+#endif
+
+  while(atomic_load_explicit(&tail->next, memory_order_relaxed) != NULL)
+  {
+    count++;
+    tail = atomic_load_explicit(&tail->next, memory_order_relaxed);
+  }
+
+  return count;
+}
+
+#endif
+
 void ponyint_mpmcq_init(mpmcq_t* q)
 {
   mpmcq_node_t* node = node_alloc(NULL);
@@ -44,6 +67,10 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   q->tail.counter = 0;
 #else
   atomic_store_explicit(&q->tail, node, memory_order_relaxed);
+#endif
+
+#ifndef NDEBUG
+  mpmcq_size_debug(q);
 #endif
 }
 
