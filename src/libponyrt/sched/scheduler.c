@@ -339,7 +339,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         steal_attempts++;
       }
       else if ((!sched->asio_noisy) &&
-        ((tsc2 - tsc) > 10000000000) &&
+        ((tsc2 - tsc) > 1000000) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         send_msg(0, SCHED_BLOCK, 0);
