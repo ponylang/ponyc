@@ -450,8 +450,7 @@ class iso _TestIterTake is UnitTest
         var counter: U64 = 0
         fun ref has_next(): Bool => false
         fun ref next(): U64^ => counter = counter + 1
-      end
-    )
+      end)
     h.assert_eq[USize](0, short.take(10).collect(Array[U64]).size())
 
     h.complete(true)
