@@ -590,11 +590,15 @@ class Iter[A] is Iterator[A]
     `2`
     """
     var c = n
-    while c > 1 do
+    while _iter.has_next() and (c > 1) do
       _iter.next()?
       c = c - 1
     end
-    _iter.next()?
+    if not _iter.has_next() then
+      error
+    else
+      _iter.next()?
+    end
 
   fun ref run(on_error: {ref()} = {() => None } ref) =>
     """
@@ -634,10 +638,17 @@ class Iter[A] is Iterator[A]
       .skip(3)
     ```
     `4 5 6`
+
+    ```pony
+    Iter[I64]([1; 2; 3].values())
+      .skip(3)
+      .has_next()
+    ```
+    `false`
     """
     var c = n
     try
-      while c > 0 do
+      while _iter.has_next() and (c > 0) do
         _iter.next()?
         c = c - 1
       end
@@ -687,7 +698,7 @@ class Iter[A] is Iterator[A]
         var _countdown: USize = n
 
         fun ref has_next(): Bool =>
-          _countdown > 0
+          (_countdown > 0) and _iter.has_next()
 
         fun ref next(): A ? =>
           if _countdown > 0 then
@@ -739,7 +750,7 @@ class Iter[A] is Iterator[A]
               else
                 _done = true
                 return false
-              end 
+              end
             _done = try not f(_next as A)? else true end
             not _done
           end
