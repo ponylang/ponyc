@@ -19,6 +19,12 @@ typedef struct scheduler_t scheduler_t;
 #define SPECIAL_THREADID_IOCP     -11
 #define SPECIAL_THREADID_EPOLL    -12
 
+#if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
+// Signal to use for suspending/resuming threads via `sigwait`/`pthread_kill`
+// If you change this, remember to change `signals` package accordingly
+#define PONY_SCHED_SLEEP_WAKE_SIGNAL SIGUSR2
+#endif
+
 PONY_EXTERN_C_BEGIN
 
 typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -53,6 +59,7 @@ struct scheduler_t
   bool terminate;
   bool asio_stopped;
   bool asio_noisy;
+  pony_signal_event_t sleep_object;
 
   // These are changed primarily by the owning scheduler thread.
   alignas(64) struct scheduler_t* last_victim;
@@ -69,7 +76,7 @@ struct scheduler_t
 };
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio);
+  bool pinasio, uint32_t min_threads);
 
 bool ponyint_sched_start(bool library);
 
@@ -92,6 +99,9 @@ void ponyint_sched_noisy_asio(int32_t from);
 /** Mark asio as not being noisy
  */
 void ponyint_sched_unnoisy_asio(int32_t from);
+
+// Try and wake up a sleeping scheduler thread to help with load
+void ponyint_sched_maybe_wakeup();
 
 PONY_EXTERN_C_END
 

@@ -197,6 +197,8 @@ static void usage()
     "Runtime options for Pony programs (not for use with ponyc):\n"
     "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
     "                  cores (not hyperthreads) available.\n"
+    "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
+    "                   Defaults to 1.\n"
     "  --ponycdmin     Defer cycle detection until 2^N actors have blocked.\n"
     "                  Defaults to 2^4.\n"
     "  --ponycdmax     Always cycle detect when 2^N actors have blocked.\n"
@@ -292,6 +294,12 @@ int main(int argc, char* argv[])
 
 #if defined(PONY_DEFAULT_PIC)
   opt.pic = true;
+#endif
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
+  // use by the signals package when not using signals for scheduler scaling
+  define_build_flag("scheduler_scaling_pthreads");
 #endif
 
   while((id = ponyint_opt_next(&s)) != -1)

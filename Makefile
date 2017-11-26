@@ -163,6 +163,11 @@ ifdef use
     ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
   endif
+
+  ifneq (,$(filter $(use), scheduler_scaling_pthreads))
+    ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
+  endif
 endif
 
 ifdef config
@@ -992,6 +997,7 @@ help:
 	@echo '   actor_continuations'
 	@echo '   coverage'
 	@echo '   llvm_link_static'
+	@echo '   scheduler_scaling_pthreads'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'
