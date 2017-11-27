@@ -46,6 +46,10 @@ void ponyint_asio_init(uint32_t cpu)
 
 bool ponyint_asio_start()
 {
+  // if the backend wasn't successfully initialized
+  if(running_base.backend == NULL)
+    return false;
+
   if(!ponyint_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
     asio_cpu, running_base.backend))
     return false;
