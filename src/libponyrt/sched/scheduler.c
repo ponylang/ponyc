@@ -324,13 +324,13 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    get any work. In the process of stealing from every other scheduler,
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
-    // 4. We've been trying to steal for at least 10 billion cycles.
+    // 4. We've been trying to steal for at least 1 million cycles.
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
-    //    10 billion cycles is roughly 5 seconds, depending on clock speed.
-    //    By waiting 5 seconds before sending a block message, we are going to
-    //    deal quiescence by a decent amount of time but also optimize work
+    //    1 million cycles is roughly 1 millisecond, depending on clock speed.
+    //    By waiting 1 millisecond before sending a block message, we are going to
+    //    delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
     if (!block_sent)
     {
@@ -339,7 +339,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         steal_attempts++;
       }
       else if ((!sched->asio_noisy) &&
-        ((tsc2 - tsc) > 10000000000) &&
+        ((tsc2 - tsc) > 1000000) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         send_msg(0, SCHED_BLOCK, 0);
