@@ -29,6 +29,7 @@ typedef enum
 } sched_msg_t;
 
 // Scheduler global data.
+static uint32_t asio_cpu;
 static uint32_t scheduler_count;
 static scheduler_t* scheduler;
 static PONY_ATOMIC(bool) detect_quiescence;
@@ -113,10 +114,8 @@ static bool read_msg(scheduler_t* sched)
         if (sched->asio_stopped)
         {
           // restart the ASIO thread
-          bool asio_started = ponyint_asio_start();
-          pony_assert(asio_started);
-          (void) asio_started;
-          sched->asio_stopped = false;
+          ponyint_asio_init(asio_cpu);
+          sched->asio_stopped = !ponyint_asio_start();
         }
 
         // make sure asio hasn't already been stopped or else runtime is in
@@ -470,7 +469,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
     scheduler_count * sizeof(scheduler_t));
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
-  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, nopin,
+  asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, nopin,
     pinasio);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
