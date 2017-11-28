@@ -63,11 +63,20 @@ class val Env
       end
     end
 
-  fun tag exitcode(code: I32) =>
+  fun tag exitcode(code: I32, quiescence_cycles: U64 = 0) =>
     """
     Sets the application exit code. If this is called more than once, the last
     value set will be the exit code. The exit code defaults to 0.
+
+    The quiescence_cycles is a performance optimisation to reduce overhead during
+    message handling. But, higher values will result in a longer wait time to detecting
+    that the application has terminated. As such, it defaults to 0, since setting then
+    the exit code is generally an indication that the application should terminate soon.
+    (A value of 10E9 would equate to approximatly 5 seconds on 2017 hardware).
     """
+    // tell the scheduler to use the update cycle count when checking for completion
+    @pony_scheduler_set_quiescence[None](quiescence_cycles)
+    // set the exit code for the process
     @pony_exitcode[None](code)
 
   fun tag _count_strings(data: Pointer[Pointer[U8]] val): USize =>
