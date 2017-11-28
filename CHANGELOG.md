@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fail pony_start if ASIO backend wasn't successfully initialized ([PR #2381](https://github.com/ponylang/ponyc/pull/2381))
 - Make windows sleep consistent with non-windows sleep ([PR #2382](https://github.com/ponylang/ponyc/pull/2382))
 - Fix Iter.{skip,take,nth} to check '.has_next()' of their inner iterator ([PR #2377](https://github.com/ponylang/ponyc/pull/2377))
 - Restart ASIO if needed while runtime is attempting to terminate. ([PR #2373](https://github.com/ponylang/ponyc/pull/2373))
