@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix allocation sizes in runtime benchmarks ([PR #2383](https://github.com/ponylang/ponyc/pull/2383))
 - Fail pony_start if ASIO backend wasn't successfully initialized ([PR #2381](https://github.com/ponylang/ponyc/pull/2381))
 - Make windows sleep consistent with non-windows sleep ([PR #2382](https://github.com/ponylang/ponyc/pull/2382))
 - Fix Iter.{skip,take,nth} to check '.has_next()' of their inner iterator ([PR #2377](https://github.com/ponylang/ponyc/pull/2377))
