@@ -51,7 +51,7 @@ ponyc-build-docs(){
   sudo -H pip install mkdocs
 
   echo "Building ponyc docs..."
-  make CC="$CC1" CXX="$CXX1" docs
+  make CC="$CC1" CXX="$CXX1" docs-online
 
   echo "Uploading docs using mkdocs..."
   git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
