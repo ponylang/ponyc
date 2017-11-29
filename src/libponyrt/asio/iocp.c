@@ -52,8 +52,8 @@ static void send_request(asio_event_t* ev, int req)
   msg->event = ev;
   msg->flags = req;
 
-  ponyint_thread_messageq_push(SPECIAL_THREADID_IOCP, SPECIAL_THREADID_IOCP,
-    &b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg,
+    SPECIAL_THREADID_IOCP, SPECIAL_THREADID_IOCP);
 
   SetEvent(b->wakeup);
 }

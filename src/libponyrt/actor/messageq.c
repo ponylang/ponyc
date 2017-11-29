@@ -107,9 +107,9 @@ void ponyint_messageq_destroy(messageq_t* q)
   q->tail = NULL;
 }
 
-bool ponyint_actor_messageq_push(scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor,
-  messageq_t* q, pony_msg_t* first, pony_msg_t* last)
+bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
+  pony_msg_t* last, scheduler_t* sched,
+  pony_actor_t* from_actor, pony_actor_t* to_actor)
 {
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
@@ -134,8 +134,8 @@ bool ponyint_actor_messageq_push(scheduler_t* sched,
   return messageq_push(q, first, last);
 }
 
-bool ponyint_thread_messageq_push(uintptr_t from_thr, uintptr_t to_thr,
-  messageq_t* q, pony_msg_t* first, pony_msg_t* last)
+bool ponyint_thread_messageq_push(messageq_t* q, pony_msg_t* first,
+  pony_msg_t* last, uintptr_t from_thr, uintptr_t to_thr)
 {
   if(DTRACE_ENABLED(THREAD_MSG_PUSH))
   {
@@ -156,9 +156,9 @@ bool ponyint_thread_messageq_push(uintptr_t from_thr, uintptr_t to_thr,
   return messageq_push(q, first, last);
 }
 
-bool ponyint_actor_messageq_push_single(scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor,
-  messageq_t* q, pony_msg_t* first, pony_msg_t* last)
+bool ponyint_actor_messageq_push_single(messageq_t* q,
+  pony_msg_t* first, pony_msg_t* last, scheduler_t* sched,
+  pony_actor_t* from_actor, pony_actor_t* to_actor)
 {
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
@@ -183,9 +183,9 @@ bool ponyint_actor_messageq_push_single(scheduler_t* sched,
   return messageq_push_single(q, first, last);
 }
 
-bool ponyint_thread_messageq_push_single(
-  uintptr_t from_thr, uintptr_t to_thr,
-  messageq_t* q, pony_msg_t* first, pony_msg_t* last)
+bool ponyint_thread_messageq_push_single(messageq_t* q,
+  pony_msg_t* first, pony_msg_t* last,
+  uintptr_t from_thr, uintptr_t to_thr)
 {
   if(DTRACE_ENABLED(THREAD_MSG_PUSH))
   {
@@ -206,8 +206,8 @@ bool ponyint_thread_messageq_push_single(
   return messageq_push_single(q, first, last);
 }
 
-pony_msg_t* ponyint_actor_messageq_pop(scheduler_t* sched,
-  pony_actor_t* actor, messageq_t* q)
+pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q,
+  scheduler_t* sched, pony_actor_t* actor)
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
@@ -230,7 +230,7 @@ pony_msg_t* ponyint_actor_messageq_pop(scheduler_t* sched,
   return next;
 }
 
-pony_msg_t* ponyint_thread_messageq_pop(uintptr_t thr, messageq_t* q)
+pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q, uintptr_t thr)
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
