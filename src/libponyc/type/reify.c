@@ -234,17 +234,10 @@ ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
       pony_assert(false);
   }
 
-  // Remove the body AST to avoid duplicating it.
-  ast_t* body = ast_childidx(ast, 6);
-  ast_t* temp_body = ast_blank(TK_NONE);
-  ast_swap(body, temp_body);
-
-  ast_t* r_ast = reify(ast, typeparams, typeargs, opt, true);
-
-  ast_swap(temp_body, body);
-  ast_free_unattached(temp_body);
-
-  return r_ast;
+  // Do not duplicate the body and docstring.
+  bool dup_child[9] = {true, true, true, true, true, true, false, false, true};
+  ast_t* r_ast = ast_dup_partial(ast, dup_child, true, true, true);
+  return reify(r_ast, typeparams, typeargs, opt, false);
 }
 
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
