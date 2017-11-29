@@ -69,7 +69,8 @@ interface Iterator[A]
   fun ref has_next(): Bool
     """
     Returns `true` if this Iterator is not yet exhausted.
-    That means a subsequent call to `next()` will return a value.
+    That means that a value returned from a subsequent call to `next()`
+    is a valid part of this iterator.
 
     Returns `false` if this Iterator is exhausted.
 
