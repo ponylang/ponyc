@@ -35,10 +35,10 @@ source_t* source_open(const char* file, const char** error_msgp)
   source->m = (char*)ponyint_pool_alloc_size(size);
   source->len = size;
 
-  ssize_t read = fread(source->m, sizeof(char), size, fp);
+  ssize_t read = fread(source->m, sizeof(char), size - 1, fp);
   source->m[size - 1] = '\0';
   
-  if(read < size)
+  if(read < size - 1)
   {
     *error_msgp = "failed to read entire file";
     ponyint_pool_free_size(source->len, source->m);
