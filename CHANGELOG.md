@@ -41,6 +41,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove unused FormatSettings interface and related types. ([PR #2397](https://github.com/ponylang/ponyc/pull/2397))
 - Error on unreachable cases in match expressions and illegal as expressions. ([PR #2289](https://github.com/ponylang/ponyc/pull/2289))
 
 ## [0.20.0] - 2017-10-17
