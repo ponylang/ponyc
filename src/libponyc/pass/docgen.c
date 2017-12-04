@@ -511,7 +511,7 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line
     if (on_new_line) {
       fprintf(
         docgen->type_file, 
-        "\n<sub><sup>[[Source]](%s#%zd)</sup></sub>", 
+        "\n\n<sub><sup>[[Source]](%s#%zd)</sup></sub>\n\n", 
         doc_source->doc_path, ast_line(elem)
       );
     } else {
@@ -877,6 +877,26 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   }
 }
 
+static char* replace_path_separator(const char* path, size_t* name_len) {
+  size_t str_len = strlen(path);
+  *name_len = str_len + 1;
+  char* buffer = (char*) ponyint_pool_alloc_size(*name_len);
+  memcpy(buffer, path, str_len);
+  for(char* p = buffer; *p != '\0'; p++)
+  {
+    if(*p == '.')
+      *p = '_';
+    if(*p == '/')
+      *p = '-';
+#ifdef PLATFORM_IS_WINDOWS
+    if(*p == '\\')
+      *p = '-';
+#endif
+  }
+  buffer[str_len] = '\0';
+  return buffer;
+}
+
 static void include_source_if_needed(
   docgen_t* docgen, 
   source_t* source, 
@@ -928,11 +948,19 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
     package = ast_parent(package);
   }
 
-  const char* package_name = package_qualified_name(package);
+  size_t package_name_len;
+
+  char* package_name =
+    replace_path_separator(
+      package_qualified_name(package),
+      &package_name_len
+    );
 
   source_t* source = ast_source(ast);
   if (source != NULL && package != NULL)
     include_source_if_needed(docgen, source, package_name);
+
+  ponyint_pool_free_size(package_name_len, package_name);
 
   // First open a file
   size_t tqfn_len;
