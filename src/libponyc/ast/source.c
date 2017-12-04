@@ -55,7 +55,7 @@ source_t* source_open_string(const char* source_code)
 {
   source_t* source = POOL_ALLOC(source_t);
   source->file = NULL;
-  source->len = strlen(source_code);
+  source->len = strlen(source_code) + 1; // for null terminator
   source->m = (char*)ponyint_pool_alloc_size(source->len);
 
   memcpy(source->m, source_code, source->len);
