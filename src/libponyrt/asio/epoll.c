@@ -42,8 +42,11 @@ static void send_request(asio_event_t* ev, int req)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg,
-    SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL
+#endif
+    );
 
   eventfd_write(b->wakeup, 1);
 }
@@ -74,7 +77,11 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q, SPECIAL_THREADID_EPOLL)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL
+#endif
+    )) != NULL)
   {
     asio_event_t* ev = msg->event;
 

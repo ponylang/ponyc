@@ -108,9 +108,14 @@ void ponyint_messageq_destroy(messageq_t* q)
 }
 
 bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
-  pony_msg_t* last, scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor)
+  pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched,
+  pony_actor_t* from_actor, pony_actor_t* to_actor
+#endif
+  )
 {
+#ifdef USE_DYNAMIC_TRACE
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
@@ -130,13 +135,18 @@ bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
     (void)from_actor;
     (void)to_actor;
   }
-
+#endif
   return messageq_push(q, first, last);
 }
 
 bool ponyint_thread_messageq_push(messageq_t* q, pony_msg_t* first,
-  pony_msg_t* last, uintptr_t from_thr, uintptr_t to_thr)
+  pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , uintptr_t from_thr, uintptr_t to_thr
+#endif
+  )
 {
+#ifdef USE_DYNAMIC_TRACE
   if(DTRACE_ENABLED(THREAD_MSG_PUSH))
   {
     pony_msg_t* m = first;
@@ -152,14 +162,18 @@ bool ponyint_thread_messageq_push(messageq_t* q, pony_msg_t* first,
     (void)from_thr;
     (void)to_thr;
   }
-
+#endif
   return messageq_push(q, first, last);
 }
 
 bool ponyint_actor_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last, scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor)
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched, pony_actor_t* from_actor, pony_actor_t* to_actor
+#endif
+  )
 {
+#ifdef USE_DYNAMIC_TRACE
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
@@ -179,14 +193,18 @@ bool ponyint_actor_messageq_push_single(messageq_t* q,
     (void)from_actor;
     (void)to_actor;
   }
-
+#endif
   return messageq_push_single(q, first, last);
 }
 
 bool ponyint_thread_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last,
-  uintptr_t from_thr, uintptr_t to_thr)
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , uintptr_t from_thr, uintptr_t to_thr
+#endif
+  )
 {
+#ifdef USE_DYNAMIC_TRACE
   if(DTRACE_ENABLED(THREAD_MSG_PUSH))
   {
     pony_msg_t* m = first;
@@ -202,12 +220,15 @@ bool ponyint_thread_messageq_push_single(messageq_t* q,
     (void)from_thr;
     (void)to_thr;
   }
-
+#endif
   return messageq_push_single(q, first, last);
 }
 
-pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q,
-  scheduler_t* sched, pony_actor_t* actor)
+pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched, pony_actor_t* actor
+#endif
+  )
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
@@ -222,15 +243,16 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q,
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
     ponyint_pool_free(tail->index, tail);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)sched;
-    (void)actor;
   }
 
   return next;
 }
 
-pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q, uintptr_t thr)
+pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
+#ifdef USE_DYNAMIC_TRACE
+  , uintptr_t thr
+#endif
+  )
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
@@ -245,8 +267,6 @@ pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q, uintptr_t thr)
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
     ponyint_pool_free(tail->index, tail);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)thr;
   }
 
   return next;

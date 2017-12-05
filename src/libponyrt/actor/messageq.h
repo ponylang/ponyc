@@ -21,26 +21,46 @@ void ponyint_messageq_init(messageq_t* q);
 void ponyint_messageq_destroy(messageq_t* q);
 
 bool ponyint_actor_messageq_push(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last, scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor);
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched,
+  pony_actor_t* from_actor, pony_actor_t* to_actor
+#endif
+  );
 
 bool ponyint_actor_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last, scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor);
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched,
+  pony_actor_t* from_actor, pony_actor_t* to_actor
+#endif
+  );
 
-pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q,
-  scheduler_t* sched, pony_actor_t* actor);
+pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
+#ifdef USE_DYNAMIC_TRACE
+  , scheduler_t* sched, pony_actor_t* actor
+#endif
+  );
 
 bool ponyint_thread_messageq_push(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last,
-  uintptr_t from_thread, uintptr_t to_thread);
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE 
+  , uintptr_t from_thread, uintptr_t to_thread
+#endif
+  );
 
 bool ponyint_thread_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last,
-  uintptr_t from_thread, uintptr_t to_thread);
+  pony_msg_t* first, pony_msg_t* last
+#ifdef USE_DYNAMIC_TRACE
+  , uintptr_t from_thread, uintptr_t to_thread
+#endif
+  );
 
-pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q,
-  uintptr_t thr);
+pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
+#ifdef USE_DYNAMIC_TRACE
+  , uintptr_t thr
+#endif
+  );
 
 bool ponyint_messageq_markempty(messageq_t* q);
 

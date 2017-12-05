@@ -52,8 +52,11 @@ static void send_request(asio_event_t* ev, int req)
   msg->event = ev;
   msg->flags = req;
 
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg,
-    SPECIAL_THREADID_IOCP, SPECIAL_THREADID_IOCP);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_IOCP, SPECIAL_THREADID_IOCP
+#endif
+    );
 
   SetEvent(b->wakeup);
 }
@@ -134,7 +137,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         asio_msg_t* msg;
 
         while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(
-          &b->q, SPECIAL_THREADID_IOCP)) != NULL)
+          &b->q
+#ifdef USE_DYNAMIC_TRACE
+          , SPECIAL_THREADID_IOCP
+#endif
+          )) != NULL)
         {
           asio_event_t* ev = msg->event;
 
