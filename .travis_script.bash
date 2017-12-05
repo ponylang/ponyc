@@ -92,25 +92,50 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   ;;
 
   "osx:llvm-config-3.7")
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-3.8")
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-3.9")
     export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-4.0")
     export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-5.0")
     export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
