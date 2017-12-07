@@ -756,10 +756,10 @@ class FileLines is Iterator[String]
   new create(file: File) =>
     _file = file
 
-    try
-      _line = file.lineNOPE()?
+    //try
+      _line = "" //file.lineNOPE()?
       _next = true
-    end
+    //end
 
   fun ref has_next(): Bool =>
     _next
@@ -767,10 +767,10 @@ class FileLines is Iterator[String]
   fun ref next(): String =>
     let r = _line
 
-    try
-      _line = _file.lineNOPE()?
-    else
-      _next = false
-    end
+    //try
+      _line = "" //_file.lineNOPE()?
+    //else
+    //  _next = false
+    //end
 
     r
