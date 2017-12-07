@@ -429,12 +429,20 @@ class iso _TestFileMixedWriteQueue is UnitTest
         file.queuev(consume queuev_data)
         file.writev(consume writev_data)
       end
+
+      let offset: USize =
+        ifdef windows then
+          2
+        else
+          1
+        end
+
       with file2 = CreateFile(filepath) as File do
-        h.assert_eq[String](line3, file2.read_string(line3.size() + 1).split("\n")(0)?)
+        h.assert_eq[String](line3, file2.read_string(line3.size() + offset).split("\n")(0)?)
         h.assert_eq[String](line5, file2.read_string(line5.size()))
         h.assert_eq[String](line1, file2.read_string(line1.size()))
-        h.assert_eq[String](line3, file2.read_string(line3.size() + 1).split("\n")(0)?)
-        h.assert_eq[String](line4, file2.read_string(line4.size() + 1).split("\n")(0)?)
+        h.assert_eq[String](line3, file2.read_string(line3.size() + offset).split("\n")(0)?)
+        h.assert_eq[String](line4, file2.read_string(line4.size() + offset).split("\n")(0)?)
         h.assert_eq[String](line5, file2.read_string(line5.size()))
         h.assert_eq[String](line6, file2.read_string(line6.size()))
         h.assert_eq[String](line1, file2.read_string(line1.size()))
@@ -461,11 +469,20 @@ class iso _TestFileWritevLarge is UnitTest
       with file = CreateFile(filepath) as File do
         file.writev(wb.done())
       end
+
+      let offset: USize =
+        ifdef windows then
+          2
+        else
+          1
+        end
+
       with file2 = CreateFile(filepath) as File do
         count = 0
         while count < writev_batch_size do
-          let fileline1 = file2.read_string(count.string().size() + 1)
-          h.assert_eq[String](count.string(), fileline1.split("\n")(0)?)
+          let fileline1 = file2.read_string(count.string().size() + offset)
+          fileline1.trim_in_place(0, count.string().size())
+          h.assert_eq[String](count.string(), consume fileline1)
           count = count + 1
         end
       end
