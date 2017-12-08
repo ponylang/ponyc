@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add DTrace probes for all message push and pop operations ([PR #2295](https://github.com/ponylang/ponyc/pull/2295))
 - Experimental support for LLVM 4.0.1 (#1592) and 5.0.0. ([PR #2303](https://github.com/ponylang/ponyc/pull/2303))
 - Add pony stable to docker image ([PR #2364](https://github.com/ponylang/ponyc/pull/2364))
 - Enable CodeView debug information with MSVC on Windows ([PR #2334](https://github.com/ponylang/ponyc/pull/2334))
