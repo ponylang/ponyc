@@ -1264,7 +1264,7 @@ lexer_t* lexer_open(source_t* source, errors_t* errors,
   lexer->source = source;
   lexer->errors = errors;
   lexer->allow_test_symbols = allow_test_symbols;
-  lexer->len = source->len;
+  lexer->len = source->len - 1; // because we don't want the null terminator to be parsed.
   lexer->line = 1;
   lexer->pos = 1;
   lexer->newline = true;
