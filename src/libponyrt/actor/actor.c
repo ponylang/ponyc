@@ -217,7 +217,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
-  while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
+  while((msg = ponyint_actor_messageq_pop(&actor->q
+#ifdef USE_DYNAMIC_TRACE    
+    , ctx->scheduler, ctx->current
+#endif
+    )) != NULL)
   {
     if(handle_message(ctx, actor, msg))
     {
@@ -492,7 +496,11 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   if(has_app_msg)
     ponyint_maybe_mute(ctx, to);
 
-  if(ponyint_messageq_push(&to->q, first, last))
+  if(ponyint_actor_messageq_push(&to->q, first, last
+#ifdef USE_DYNAMIC_TRACE 
+    , ctx->scheduler, ctx->current, to
+#endif
+    ))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
@@ -527,7 +535,11 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   if(has_app_msg)
     ponyint_maybe_mute(ctx, to);
 
-  if(ponyint_messageq_push_single(&to->q, first, last))
+  if(ponyint_actor_messageq_push_single(&to->q, first, last
+#ifdef USE_DYNAMIC_TRACE
+    , ctx->scheduler, ctx->current, to
+#endif
+    ))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
     {
@@ -708,11 +720,12 @@ bool ponyint_actor_overloaded(pony_actor_t* actor)
 
 void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
 {
+  pony_ctx_t* ctx = pony_ctx();
   unset_flag(actor, FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_flag(actor, FLAG_UNDER_PRESSURE))
   {
-    ponyint_sched_start_global_unmute(actor);
+    ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
   }
 }
 
@@ -729,7 +742,7 @@ PONY_API void pony_release_backpressure()
   unset_flag(ctx->current, FLAG_UNDER_PRESSURE);
   DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_flag(ctx->current, FLAG_OVERLOADED))
-      ponyint_sched_start_global_unmute(ctx->current);
+    ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
 }
 
 bool ponyint_triggers_muting(pony_actor_t* actor)
