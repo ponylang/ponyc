@@ -82,6 +82,12 @@ protected:
   void test_expected_errors(const char* src, const char* pass,
     const char** errors);
 
+  // Performs the same check as test_expected_errors, and alse checks all
+  // errors within each error frame, given as a NULL-terminated array of
+  // NULL-terminated arrays of additional error messages.
+  void test_expected_error_frames(const char* src, const char* pass,
+    const char** errors, const char*** frames);
+
   // Check that the 2 given sources compile to give the same AST for the first
   // package
   void test_equiv(const char* actual_src, const char* actual_pass,

@@ -665,3 +665,20 @@ TEST_F(VerifyTest, LambdaTypeGenericAliased)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(VerifyTest, PartialFunCallInTryBlock)
+{
+  // From issue #2146
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try partial()? else partial()? end\n"
+    "fun partial() ? => error";
+
+  {
+      const char* errs[] = {"an actor constructor must handle any potential error", NULL};
+      const char* frame1[] = {"an error can be raised here", NULL};
+      const char** frames[] = {frame1, NULL};
+      DO(test_expected_error_frames(src, "verify", errs, frames));
+  }
+}
