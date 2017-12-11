@@ -1,6 +1,36 @@
 class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
+
+  # Usage
+  Creating an array of Strings, single line.
+  ```pony
+    let array: Array[String] = ["one"; "two"; "three"]
+  ```
+
+  Semicolon terminates the line, so this is a mulitiline equivalent.
+   ```pony
+    let array: Array[String] = [
+      "one"
+      "two"
+      "three"
+    ]
+  ```
+
+  Accessing elements can be done via the apply method.
+  Since elements might not be available in the index requested,
+  the function is partial and has to be called within a try-catch block
+  or inside a partial method.
+  ```pony
+    fun second_element_is_trek(array: Array[String]): Bool =>
+      try
+        return array(1)? == "trek"
+      else
+        return false
+      end
+
+      h.assert_eq[Bool](true, second_element_is_trek(["star"; "trek"]))
+  ```
   """
   var _size: USize
   var _alloc: USize
