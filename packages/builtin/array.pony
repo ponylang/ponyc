@@ -8,7 +8,7 @@ class Array[A] is Seq[A]
     let array: Array[String] = ["one"; "two"; "three"]
   ```
 
-  Semicolon terminates the line, so this is a mulitiline equivalent.
+  Semicolon is an expression separator, so this is a mulitiline equivalent.
    ```pony
     let array: Array[String] = [
       "one"
