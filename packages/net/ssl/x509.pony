@@ -69,7 +69,12 @@ primitive X509
       return array
     end
 
-    var name = @sk_pop[Pointer[_GeneralName]](stack)
+    var name =
+      ifdef "openssl_1.1.0" then
+        @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
+      else
+        @sk_pop[Pointer[_GeneralName]](stack)
+      end
 
     while not name.is_null() do
       var ptype = I32(0)
@@ -109,10 +114,18 @@ primitive X509
       end
 
       @GENERAL_NAME_free[None](name)
-      name = @sk_pop[Pointer[_GeneralName]](stack)
+      ifdef "openssl_1.1.0" then
+        name = @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
+      else
+        name = @sk_pop[Pointer[_GeneralName]](stack)
+      end
     end
 
-    @sk_free[None](stack)
+    ifdef "openssl_1.1.0" then
+      @OPENSSL_sk_free[None](stack)
+    else
+      @sk_free[None](stack)
+    end
     array
 
   fun _match_name(host: String, name: String): Bool =>

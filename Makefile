@@ -292,6 +292,10 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
+ifneq (,$(OPENSSL))
+  $(warning targeting openssl 1.1.0)
+endif
+
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
 packages_abs_src := $(shell dirname $(makefile_abs_path))/packages
 
@@ -859,10 +863,10 @@ benchmark: all
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
 stdlib-debug: all
-	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
+	$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d --checktree --verify packages/stdlib
 
 stdlib: all
-	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
+	$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --checktree --verify packages/stdlib
 
 test-stdlib-debug: stdlib-debug
 	./stdlib --sequential
@@ -873,12 +877,12 @@ test-stdlib: stdlib
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 
@@ -886,21 +890,21 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
-	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
+	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --antlr > pony.g.new
 	@diff pony.g pony.g.new
 	@rm pony.g.new
 
 docs: all
-	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
+	$(SILENT)$(PONY_BUILD_DIR)/ponyc $(OPENSSL) packages/stdlib --docs --pass expr
 	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
 
 docs-online: docs

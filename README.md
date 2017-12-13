@@ -7,6 +7,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
 * [Standard library docs](http://stdlib.ponylang.org/).
+* [Build Problems, see FAQ Compiling](https://www.ponylang.org/faq/#compiling).
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
@@ -39,6 +40,8 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 
 # Installation
+
+Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.org/faq/#compiling) for additional information.
 
 ## Using Docker
 
