@@ -865,8 +865,8 @@ test-examples: all
 
 test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
-	@$(PONY_BUILD_DIR)/libponyc.tests
-	@$(PONY_BUILD_DIR)/libponyrt.tests
+	@$(PONY_BUILD_DIR)/libponyc.tests --gtest_output=xml:$(PONY_BUILD_DIR)/libponyc.xml
+	@$(PONY_BUILD_DIR)/libponyrt.tests --gtest_output=xml:$(PONY_BUILD_DIR)/libponyrt.xml
 	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
