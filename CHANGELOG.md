@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix codegen ordering of implicit finalisers ([PR #2419](https://github.com/ponylang/ponyc/pull/2419))
 - Fix GC tracing of struct fields ([PR #2418](https://github.com/ponylang/ponyc/pull/2418))
 - Remove redundant error message for unhandled partial calls that are actually in a try block. ([PR #2411](https://github.com/ponylang/ponyc/pull/2411))
 - Fix allocation sizes in runtime benchmarks ([PR #2383](https://github.com/ponylang/ponyc/pull/2383))
