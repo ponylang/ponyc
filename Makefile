@@ -776,6 +776,7 @@ else
 install: libponyc libponyrt ponyc
 endif
 	@mkdir -p $(destdir)/bin
+	@mkdir -p $(destdir)/docs-support
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
@@ -793,6 +794,7 @@ endif
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
 	$(SILENT)cp -r packages $(destdir)/
+	$(SILENT)cp -r .docs/* $(destdir)/docs-support/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
