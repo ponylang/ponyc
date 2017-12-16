@@ -18,12 +18,18 @@ class PosixDate
     """
     Create a date from a POSIX time.
     """
-    if seconds < 0
-      seconds = 0
-    if nanoseconds < 0
-      nanoseconds = 0
+    @ponyint_gmtime[None](
+      this,
+      negative_to_zero(seconds),
+      negative_to_zero(nanoseconds)
+    )
 
-    @ponyint_gmtime[None](this, seconds, nanoseconds)
+  fun negative_to_zero(value: I64): I64 =>
+    if value > 0 then
+      value
+    else
+      0
+    end
 
   fun time(): I64 =>
     """
