@@ -18,11 +18,9 @@ class PosixDate
     """
     Create a date from a POSIX time. Negative arguments will be changed to zero.
     """
-    @ponyint_gmtime[None](
-      this,
+    @ponyint_gmtime[None](this,
       negative_to_zero(seconds),
-      negative_to_zero(nanoseconds)
-    )
+      negative_to_zero(nanoseconds))
 
   fun negative_to_zero(value: I64): I64 =>
     if value > 0 then
