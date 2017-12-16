@@ -222,6 +222,17 @@ void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node)
     cast<Function>(v)->setMetadata(str, n);
 }
 
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node)
+{
+  pony_assert(parent != NULL);
+  pony_assert(node != NULL);
+
+  MDNode *pn = extractMDNode(unwrap<MetadataAsValue>(parent));
+  MDNode *cn = extractMDNode(unwrap<MetadataAsValue>(node));
+  pn->replaceOperandWith(i, cn);
+}
+
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
 {
   Module* m = unwrap(module);
@@ -246,16 +257,28 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::memmove, {params, 3}));
 }
 
-LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module)
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
+#if PONY_LLVM < 500
+  (void)type;
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, {}));
+#else
+  Type* t[1] = { unwrap(type) };
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, t));
+#endif
 }
 
-LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module)
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
+#if PONY_LLVM < 500
+  (void)type;
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
+#else
+  Type* t[1] = { unwrap(type) };
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
+#endif
 }

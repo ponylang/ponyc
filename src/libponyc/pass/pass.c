@@ -254,6 +254,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(options->check_tree)
     check_tree(*astp, options);
 
+  ast_freeze(*astp);
+
   if(ast_id(*astp) == TK_PROGRAM)
   {
     program_signature(*astp);

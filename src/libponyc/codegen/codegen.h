@@ -1,12 +1,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "gendebug.h"
-#include "../reach/reach.h"
-#include "../pass/pass.h"
-#include "../ast/ast.h"
-#include "../ast/printbuf.h"
-
 #include <platform.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
@@ -15,9 +9,15 @@
 #include <llvm-c/Analysis.h>
 #include <stdio.h>
 
-PONY_EXTERN_C_BEGIN
-
 #define PONY_LLVM ((LLVM_VERSION_MAJOR * 100) + LLVM_VERSION_MINOR)
+
+#include "gendebug.h"
+#include "../reach/reach.h"
+#include "../pass/pass.h"
+#include "../ast/ast.h"
+#include "../ast/printbuf.h"
+
+PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
@@ -41,12 +41,14 @@ LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
 bool LLVMHasMetadataStr(LLVMValueRef val, const char* str);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node);
 
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
-LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module);
-LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type);
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
 
 #if PONY_LLVM >= 309
 #define LLVM_DECLARE_ATTRIBUTEREF(decl, name, val) \
@@ -184,8 +186,10 @@ typedef struct compile_t
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
   LLVMValueRef tbaa_root;
+#if LLVM_PONY < 400
   LLVMValueRef tbaa_descriptor;
   LLVMValueRef tbaa_descptr;
+#endif
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;

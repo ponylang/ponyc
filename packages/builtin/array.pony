@@ -183,9 +183,14 @@ class Array[A] is Seq[A]
     """
     let last = _size.min(to)
     let offset = last.min(from)
+    let size' = last - offset
 
-    _size = last - offset
-    _alloc = _alloc - offset
+    // use the new size' for alloc if we're not including the last used byte
+    // from the original data and only include the extra allocated bytes if
+    // we're including the last byte.
+    _alloc = if last == _size then _alloc - offset else size' end
+
+    _size = size'
     _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
@@ -199,7 +204,11 @@ class Array[A] is Seq[A]
 
     recover
       let size' = last - offset
-      let alloc = _alloc - offset
+
+      // use the new size' for alloc if we're not including the last used byte
+      // from the original data and only include the extra allocated bytes if
+      // we're including the last byte.
+      let alloc = if last == _size then _alloc - offset else size' end
 
       if size' > 0 then
         from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
@@ -207,6 +216,32 @@ class Array[A] is Seq[A]
         create()
       end
     end
+
+  fun iso chop(split_point: USize): (Array[A] iso^, Array[A] iso^) =>
+    """
+    Chops the array in half at the split point requested and returns both
+    the left and right portions. The original array is trimmed in place and
+    returned as the right portion. If the split point is larger than the
+    array, the left portion is the original array and the right portion
+    is a new empty array.
+    Both arrays are isolated and mutable, as they do not share memory.
+    The operation does not allocate a new array pointer nor copy elements.
+    """
+    let start_ptr = _ptr
+    let size' = _size.min(split_point)
+    let alloc = if size' == _size then _alloc else split_point end
+
+    trim_in_place(split_point)
+
+    let left = recover
+      if size' > 0 then
+        from_cpointer(start_ptr._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+    (consume left, consume this)
 
   fun copy_to(
     dst: Array[this->A!],

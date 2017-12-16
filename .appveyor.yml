@@ -1,6 +1,6 @@
 version: "{build}"
 
-image: Visual Studio 2015
+image: Visual Studio 2017
 
 branches:
   only:
@@ -9,9 +9,11 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.9.1
-  - llvm: 3.8.1
   - llvm: 3.7.1
+  - llvm: 3.8.1
+  - llvm: 3.9.1
+  - llvm: 4.0.1
+  - llvm: 5.0.0
 
 configuration:
   - release
@@ -58,6 +60,7 @@ build_script:
       copy $builddir\ponyrt.* "${ponydir}\ponyc\bin"
       copy $builddir\*.lib "${ponydir}\ponyc\bin"
       copy -recurse packages "${ponydir}\packages"
+      copy -recurse ".docs" "${ponydir}\docs-support"
       7z a -tzip "C:\projects\ponyc\${ponydir}.zip" "${ponydir}"
 
 artifacts:

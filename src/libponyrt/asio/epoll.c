@@ -7,6 +7,8 @@
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
+#include "../sched/scheduler.h"
+#include "ponyassert.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
@@ -34,12 +36,17 @@ struct asio_backend_t
 static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL
+#endif
+    );
 
   eventfd_write(b->wakeup, 1);
 }
@@ -52,6 +59,7 @@ static void signal_handler(int sig)
   // Reset the signal handler.
   signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
   asio_event_t* ev = atomic_load_explicit(&b->sighandlers[sig],
     memory_order_acquire);
 
@@ -69,7 +77,11 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL
+#endif
+    )) != NULL)
   {
     asio_event_t* ev = msg->event;
 
@@ -122,6 +134,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -146,6 +159,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -167,6 +181,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = arg;
+  pony_assert(b != NULL);
 
   while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
   {
@@ -265,9 +280,16 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
-    ponyint_asio_noisy_add();
+  {
+    uint64_t old_count = ponyint_asio_noisy_add();
+    // tell scheduler threads that asio has at least one noisy actor
+    // if the old_count was 0
+    if (old_count == 0)
+      ponyint_sched_noisy_asio(SPECIAL_THREADID_EPOLL);
+  }
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -336,10 +358,15 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
   {
-    ponyint_asio_noisy_remove();
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_EPOLL);
     ev->noisy = false;
   }
 

@@ -28,7 +28,7 @@ class MT is Random
 
   fun ref next(): U64 =>
     """
-    A random integer in [0, 2^64 - 1]
+    A random integer in [0, 2^64)
     """
     if _index >= _n() then
       _populate()

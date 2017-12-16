@@ -80,6 +80,12 @@ else
   symlink.flags = -srf
 endif
 
+ifneq (,$(filter $(OSTYPE), osx bsd))
+  SED_INPLACE = sed -i -e
+else
+  SED_INPLACE = sed -i
+endif
+
 prefix ?= /usr/local
 destdir ?= $(prefix)/lib/pony/$(tag)
 
@@ -190,14 +196,18 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-	ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
+	ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
     LLVM_LINK = llvm-link-3.9
-    LLVM_OPT = opt-3.9
+		LLVM_OPT = opt-3.9
+  else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
   else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.8
     LLVM_LINK = llvm-link-3.8
@@ -234,6 +244,18 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config
     LLVM_LINK = llvm-link
     LLVM_OPT = opt
+  else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-5.0
+    LLVM_LINK = llvm-link-5.0
+    LLVM_OPT = opt-5.0
+  else ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-4.0
+    LLVM_LINK = llvm-link-4.0
+    LLVM_OPT = opt-4.0
+	else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
+    LLVM_LINK = /usr/local/opt/llvm@4.0/bin/llvm-link
+    LLVM_OPT = /usr/local/opt/llvm@4.0/bin/opt
   endif
 endif
 
@@ -245,7 +267,6 @@ llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq ($(OSTYPE),osx)
 	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir)
-
   ifneq (,$(shell which $(llvm_bindir)/llvm-ar 2> /dev/null))
     AR = $(llvm_bindir)/llvm-ar
     AR_FLAGS := rcs
@@ -264,6 +285,12 @@ endif
 ifeq ($(llvm_version),3.7.1)
 else ifeq ($(llvm_version),3.8.1)
 else ifeq ($(llvm_version),3.9.1)
+else ifeq ($(llvm_version),4.0.1)
+  $(warning WARNING: LLVM 4 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),5.0.0)
+  $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),5.0.1)
+  $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.7.1, 3.8.1, or 3.9.1)
@@ -696,9 +723,15 @@ $($(1))/libponyrt.$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking libponyrt'
     ifneq (,$(DTRACE))
     ifeq ($(OSTYPE), linux)
-	@echo 'Generating dtrace object file'
+	@echo 'Generating dtrace object file (linux)'
 	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+    else ifeq ($(OSTYPE), bsd)
+	@echo 'Generating dtrace object file (bsd)'
+	$(SILENT)rm -f $(PONY_BUILD_DIR)/dtrace_probes.o
+	$(SILENT)$(DTRACE) -G -s $(PONY_SOURCE_DIR)/common/dtrace_probes.d -o $(PONY_BUILD_DIR)/dtrace_probes.o $(ofiles)
+	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles) $(PONY_BUILD_DIR)/dtrace_probes.o
+	$(SILENT)$(AR) $(AR_FLAGS) $(PONY_BUILD_DIR)/libdtrace_probes.a $(PONY_BUILD_DIR)/dtrace_probes.o
     else
 	$(SILENT)$(AR) $(AR_FLAGS) $$@ $(ofiles)
     endif
@@ -743,6 +776,7 @@ else
 install: libponyc libponyrt ponyc
 endif
 	@mkdir -p $(destdir)/bin
+	@mkdir -p $(destdir)/docs-support
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
@@ -752,11 +786,15 @@ endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
 endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(destdir)/lib
+endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
 	$(SILENT)cp -r packages $(destdir)/
+	$(SILENT)cp -r .docs/* $(destdir)/docs-support/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
@@ -768,6 +806,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
+endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a
 endif
 	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
@@ -787,6 +828,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
 	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
+endif
+ifneq ($(wildcard $(prefix)/lib/libdtrace_probes.a),)
+	-$(SILENT)rm $(prefix)/lib/libdtrace_probes.a 2>/dev/null ||:
 endif
 	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
 	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
@@ -841,20 +885,23 @@ test-ci: all
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
 	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
-	$(SILENT)sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
+
+docs-online: docs
+	$(SILENT)$(SED_INPLACE) 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
 
 # Note: linux only
 define EXPAND_DEPLOY
 deploy: test docs
-	$(SILENT)bash .bintray.bash debian "$(package_version)" "$(package_name)"
-	$(SILENT)bash .bintray.bash rpm    "$(package_version)" "$(package_name)"
-	$(SILENT)bash .bintray.bash source "$(package_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash debian "$(package_base_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash rpm    "$(package_base_version)" "$(package_name)"
+	$(SILENT)bash .bintray.bash source "$(package_base_version)" "$(package_name)"
 	$(SILENT)rm -rf build/bin
 	@mkdir -p build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include/pony/detail
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/docs-support
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
@@ -864,6 +911,9 @@ ifeq ($(OSTYPE),linux)
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
+endif
+ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(package)/usr/lib/pony/$(package_version)/lib
 endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
@@ -875,10 +925,14 @@ endif
 ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libponyrt.bc),)
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyrt.bc $(package)/usr/lib/libponyrt.bc
 endif
+ifneq ($(wildcard /usr/lib/pony/$(package_version)/lib/libdtrace_probes.a),)
+	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libdtrace_probes.a $(package)/usr/lib/libdtrace_probes.a
+endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
+	$(SILENT)cp -r .docs/* $(package)/usr/lib/pony/$(package_version)/docs-support/
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
@@ -917,8 +971,8 @@ help:
 	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
-	@echo '  debug (default)'
-	@echo '  release'
+	@echo '  debug'
+	@echo '  release (default)'
 	@echo
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'

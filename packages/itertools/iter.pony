@@ -590,11 +590,15 @@ class Iter[A] is Iterator[A]
     `2`
     """
     var c = n
-    while c > 1 do
+    while _iter.has_next() and (c > 1) do
       _iter.next()?
       c = c - 1
     end
-    _iter.next()?
+    if not _iter.has_next() then
+      error
+    else
+      _iter.next()?
+    end
 
   fun ref run(on_error: {ref()} = {() => None } ref) =>
     """
@@ -634,10 +638,17 @@ class Iter[A] is Iterator[A]
       .skip(3)
     ```
     `4 5 6`
+
+    ```pony
+    Iter[I64]([1; 2; 3].values())
+      .skip(3)
+      .has_next()
+    ```
+    `false`
     """
     var c = n
     try
-      while c > 0 do
+      while _iter.has_next() and (c > 0) do
         _iter.next()?
         c = c - 1
       end
@@ -687,7 +698,7 @@ class Iter[A] is Iterator[A]
         var _countdown: USize = n
 
         fun ref has_next(): Bool =>
-          _countdown > 0
+          (_countdown > 0) and _iter.has_next()
 
         fun ref next(): A ? =>
           if _countdown > 0 then
@@ -701,7 +712,8 @@ class Iter[A] is Iterator[A]
   fun ref take_while(f: {(A!): Bool ?} box): Iter[A]^ =>
     """
     Return an iterator that returns values while the predicate `f` returns
-    true.
+    true. This iterator short-circuits the first time that `f` returns false or
+    raises an error.
 
     ## Example
 
@@ -711,17 +723,36 @@ class Iter[A] is Iterator[A]
     ```
     `1 2 3`
     """
-    filter_stateful(
+    Iter[A](
       object
         var _done: Bool = false
+        var _next: (A! | None) = None
 
-        fun ref apply(a: A!): Bool =>
-          if _done then return false end
-          if try f(a)? else false end then
-            true
-          else
+        fun ref has_next(): Bool =>
+          if _next isnt None then true
+          else _try_next()
+          end
+
+        fun ref next(): A ? =>
+          if (_next isnt None) or _try_next() then
+            (_next = None) as A
+          else error
+          end
+
+        fun ref _try_next(): Bool =>
+          if _done then false
+          elseif not _iter.has_next() then
             _done = true
             false
+          else
+            _next =
+              try _iter.next()?
+              else
+                _done = true
+                return false
+              end
+            _done = try not f(_next as A)? else true end
+            not _done
           end
       end)
 

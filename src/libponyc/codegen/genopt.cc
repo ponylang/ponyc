@@ -21,6 +21,8 @@
 #include <llvm/IR/DebugInfo.h>
 
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Analysis/CallGraph.h>
+#include <llvm/Analysis/Lint.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 
@@ -110,7 +112,7 @@ public:
       {
         Instruction* inst = &(*(iter++));
 
-        if(runOnInstruction(builder, inst, dt))
+        if(runOnInstruction(builder, inst, dt, f))
           changed = true;
       }
     }
@@ -119,7 +121,7 @@ public:
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
-    DominatorTree& dt)
+    DominatorTree& dt, Function& f)
   {
     CallSite call(inst);
 
@@ -179,11 +181,35 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
+#if PONY_LLVM < 500
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, "",
       begin);
+#else
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(),
+      0, int_size, "", begin);
+#endif
 
     replace->setDebugLoc(call->getDebugLoc());
     inst->replaceAllUsesWith(replace);
+
+#if PONY_LLVM < 400
+    (void)f;
+#else
+    if (call.isInvoke())
+    {
+      InvokeInst *invoke = cast<InvokeInst>(call.getInstruction());
+      BranchInst::Create(invoke->getNormalDest(), invoke);
+      invoke->getUnwindDest()->removePredecessor(call->getParent());
+    }
+    CallGraphWrapperPass *cg_pass =
+      getAnalysisIfAvailable<CallGraphWrapperPass>();
+    CallGraph *cg = cg_pass ? &cg_pass->getCallGraph() : nullptr;
+    CallGraphNode *cg_node = cg ? (*cg)[&f] : nullptr;
+    if (cg_node)
+    {
+      cg_node->removeCallEdgeFor(call);
+    }
+#endif
     inst->eraseFromParent();
 
     for(auto new_call: new_calls)
@@ -274,7 +300,15 @@ public:
         }
 
         case Instruction::Load:
+          // This is a workaround for a problem with LLVM 4 & 5 on *nix when 
+          // hoisting loads (see #2303, #2061, #1592).
+          // TODO: figure out the real reason LLVM 4 and 5 produce bad code 
+          // when hoisting stack allocated loads.
+#if PONY_LLVM >= 400 && !defined(_MSC_VER)
+          // fall through
+#else
           break;
+#endif
 
         case Instruction::Store:
         {
@@ -511,7 +545,7 @@ public:
   }
 };
 
-char DispatchPonyCtx::ID = 0;
+char DispatchPonyCtx::ID = 1;
 
 static RegisterPass<DispatchPonyCtx>
   DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
@@ -826,23 +860,38 @@ public:
       ArrayRef<Type*>(params, 2), false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
       &m);
-    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+    unsigned returnIndex = AttributeSet::ReturnIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+    unsigned returnIndex = AttributeList::ReturnIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
 #if PONY_LLVM >= 308
-    fn->addAttribute(AttributeSet::FunctionIndex,
+    fn->addAttribute(functionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
 #endif
+
+#if PONY_LLVM < 500
     fn->setDoesNotAlias(0);
+#endif
 
     if(can_be_null)
-      fn->addDereferenceableOrNullAttr(AttributeSet::ReturnIndex, min_size);
+      fn->addDereferenceableOrNullAttr(returnIndex, min_size);
     else
-      fn->addDereferenceableAttr(AttributeSet::ReturnIndex, min_size);
+      fn->addDereferenceableAttr(returnIndex, min_size);
 
     AttrBuilder attr;
     attr.addAlignmentAttr(32);
-    unsigned index = AttributeSet::ReturnIndex;
-    fn->addAttributes(index, AttributeSet::get(m.getContext(), index, attr));
-
+#if PONY_LLVM < 500
+    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(),
+      returnIndex, attr));
+#else
+    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(), attr));
+#endif
     return fn;
   }
 
@@ -860,7 +909,7 @@ public:
   }
 };
 
-char MergeRealloc::ID = 0;
+char MergeRealloc::ID = 2;
 
 static RegisterPass<MergeRealloc>
   MR("mergerealloc", "Merge successive reallocations of the same variable");
@@ -1226,7 +1275,14 @@ public:
       {unwrap(c->void_ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
-    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
     return fn;
   }
 
@@ -1236,15 +1292,22 @@ public:
       {unwrap(c->msg_ptr), unwrap(c->msg_ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
-    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::NoUnwind);
-    fn->addAttribute(AttributeSet::FunctionIndex, Attribute::ArgMemOnly);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
+    fn->addAttribute(functionIndex, Attribute::ArgMemOnly);
     fn->addAttribute(1, Attribute::NoCapture);
     fn->addAttribute(2, Attribute::ReadNone);
     return fn;
   }
 };
 
-char MergeMessageSend::ID = 0;
+char MergeMessageSend::ID = 3;
 
 static RegisterPass<MergeMessageSend>
   MMS("mergemessagesend", "Group message sends in the same BasicBlock");
@@ -1297,7 +1360,9 @@ static void optimise(compile_t* c, bool pony_specific)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
+#if PONY_LLVM < 500
   pmb.LoadCombine = true;
+#endif
 
   if(pony_specific)
   {
@@ -1345,6 +1410,9 @@ static void optimise(compile_t* c, bool pony_specific)
 
   if(c->opt->strip_debug)
     lpm.add(createStripSymbolsPass());
+
+  if(c->opt->lint_llvm)
+    fpm.add(createLintPass());
 
   fpm.doInitialization();
 
@@ -1441,7 +1509,11 @@ bool target_is_x86(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
   return !strcmp("x86", arch);
 }
@@ -1450,7 +1522,11 @@ bool target_is_arm(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
   return !strcmp("arm", arch);
 }

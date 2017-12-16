@@ -55,6 +55,7 @@ enum
   OPT_CHECKTREE,
   OPT_EXTFUN,
   OPT_SIMPLEBUILTIN,
+  OPT_LINT_LLVM,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -97,6 +98,7 @@ static opt_arg_t args[] =
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   {"simplebuiltin", '\0', OPT_ARG_NONE, OPT_SIMPLEBUILTIN},
+  {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -186,6 +188,7 @@ static void usage()
     "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
+    "  --lint-llvm     Run the LLVM linting pass on generated IR.\n"
     ,
     "Runtime options for Pony programs (not for use with ponyc):\n"
     "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
@@ -341,6 +344,7 @@ int main(int argc, char* argv[])
       case OPT_SIMPLEBUILTIN: opt.simple_builtin = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
       case OPT_CHECKTREE: opt.check_tree = true; break;
+      case OPT_LINT_LLVM: opt.lint_llvm = true; break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
@@ -378,10 +382,6 @@ int main(int argc, char* argv[])
       print_usage = true;
     }
   }
-
-#if defined(PLATFORM_IS_WINDOWS)
-  opt.strip_debug = true;
-#endif
 
   if(!ok)
   {

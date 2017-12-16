@@ -9,7 +9,6 @@
 #include "ponyassert.h"
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 #include <dtrace.h>
 
 #ifdef USE_VALGRIND
@@ -20,25 +19,16 @@
 pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
-enum
-{
-  FLAG_BLOCKED = 1 << 0,
-  FLAG_RC_CHANGED = 1 << 1,
-  FLAG_SYSTEM = 1 << 2,
-  FLAG_UNSCHEDULED = 1 << 3,
-  FLAG_PENDINGDESTROY = 1 << 4,
-};
-
 static bool actor_noblock = false;
 
-static bool has_flag(pony_actor_t* actor, uint8_t flag)
+// The flags of a given actor cannot be mutated from more than one actor at
+// once, so these operations need not be atomic RMW.
+
+bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
   uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
   return (flags & flag) != 0;
 }
-
-// The flags of a given actor cannot be mutated from more than one actor at
-// once, so these operations need not be atomic RMW.
 
 static void set_flag(pony_actor_t* actor, uint8_t flag)
 {
@@ -125,6 +115,13 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_ACK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
     case ACTORMSG_CONF:
     {
       if(has_flag(actor, FLAG_BLOCKED) && !has_flag(actor, FLAG_RC_CHANGED))
@@ -138,8 +135,23 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_BLOCK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
+    case ACTORMSG_UNBLOCK:
+    {
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
     default:
     {
+      pony_assert(!ponyint_is_cycle(actor));
       if(has_flag(actor, FLAG_BLOCKED))
       {
         // Send unblock before continuing. We no longer need to send any
@@ -175,6 +187,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
 {
+  pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
 
   pony_msg_t* msg;
@@ -204,7 +217,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
-  while((msg = ponyint_messageq_pop(&actor->q)) != NULL)
+  while((msg = ponyint_actor_messageq_pop(&actor->q
+#ifdef USE_DYNAMIC_TRACE    
+    , ctx->scheduler, ctx->current
+#endif
+    )) != NULL)
   {
     if(handle_message(ctx, actor, msg))
     {
@@ -212,8 +229,42 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
+      // if we become muted as a result of handling a message, bail out now.
+      // we aren't set to "muted" at this point. setting to muted during a
+      // a behavior can lead to race conditions that might result in a
+      // deadlock.
+      // Given that actor's are not run when they are muted, then when we
+      // started out batch, actor->muted would have been 0. If any of our
+      // message sends would result in the actor being muted, that value will
+      // have changed to greater than 0.
+      //
+      // We will then set the actor to "muted". Once set, any actor sending
+      // a message to it will be also be muted unless said sender is marked
+      // as overloaded.
+      //
+      // The key points here is that:
+      //   1. We can't set the actor to "muted" until after its finished running
+      //   a behavior.
+      //   2. We should bail out from running the actor and return false so that
+      //   it won't be rescheduled.
+      if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
+      {
+        ponyint_mute_actor(actor);
+        return false;
+      }
+
       if(app == batch)
+      {
+        if(!has_flag(actor, FLAG_OVERLOADED))
+        {
+          // If we hit our batch size, consider this actor to be overloaded.
+          // Overloaded actors are allowed to send to other overloaded actors
+          // and to muted actors without being muted themselves.
+          ponyint_actor_setoverloaded(actor);
+        }
+
         return !has_flag(actor, FLAG_UNSCHEDULED);
+      }
     }
 
     // Stop handling a batch if we reach the head we found when we were
@@ -225,6 +276,18 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
+  pony_assert(!ponyint_is_muted(actor));
+
+  if(has_flag(actor, FLAG_OVERLOADED))
+  {
+    // if we were overloaded and didn't process a full batch, set ourselves as
+    // no longer overloaded. Once this is done:
+    // 1- sending to this actor is no longer grounds for an actor being muted
+    // 2- this actor can no longer send to other actors free from muting should
+    //    the receiver be overloaded or muted
+    ponyint_actor_unsetoverloaded(actor);
+  }
+
   try_gc(ctx, actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
@@ -408,7 +471,7 @@ PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
 }
 
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
-  pony_msg_t* last)
+  pony_msg_t* last, bool has_app_msg)
 {
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
@@ -430,15 +493,24 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
-  if(ponyint_messageq_push(&to->q, first, last))
+  if(has_app_msg)
+    ponyint_maybe_mute(ctx, to);
+
+  if(ponyint_actor_messageq_push(&to->q, first, last
+#ifdef USE_DYNAMIC_TRACE 
+    , ctx->scheduler, ctx->current, to
+#endif
+    ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    {
       ponyint_sched_add(ctx, to);
+    }
   }
 }
 
 PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
-  pony_msg_t* first, pony_msg_t* last)
+  pony_msg_t* first, pony_msg_t* last, bool has_app_msg)
 {
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
@@ -460,10 +532,40 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
         (uintptr_t)ctx->current, (uintptr_t)to);
   }
 
-  if(ponyint_messageq_push_single(&to->q, first, last))
+  if(has_app_msg)
+    ponyint_maybe_mute(ctx, to);
+
+  if(ponyint_actor_messageq_push_single(&to->q, first, last
+#ifdef USE_DYNAMIC_TRACE
+    , ctx->scheduler, ctx->current, to
+#endif
+    ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    {
+      // if the receiving actor is currently not unscheduled AND it's not
+      // muted, schedule it.
       ponyint_sched_add(ctx, to);
+    }
+  }
+}
+
+void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
+{
+  if(ctx->current != NULL)
+  {
+    // only mute a sender IF:
+    // 1. the receiver is overloaded/under pressure/muted
+    // AND
+    // 2. the sender isn't overloaded
+    // AND
+    // 3. we are sending to another actor (as compared to sending to self)
+    if(ponyint_triggers_muting(to) &&
+       !has_flag(ctx->current, FLAG_OVERLOADED) &&
+       ctx->current != to)
+    {
+      ponyint_sched_mute(ctx, ctx->current, to);
+    }
   }
 }
 
@@ -476,7 +578,7 @@ PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next)
 PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
-  pony_sendv(ctx, to, m, m);
+  pony_sendv(ctx, to, m, m, id <= ACTORMSG_APPLICATION_START);
 }
 
 PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
@@ -486,7 +588,7 @@ PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
     POOL_INDEX(sizeof(pony_msgp_t)), id);
   m->p = p;
 
-  pony_sendv(ctx, to, &m->msg, &m->msg);
+  pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
 }
 
 PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
@@ -496,7 +598,7 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
     POOL_INDEX(sizeof(pony_msgi_t)), id);
   m->i = i;
 
-  pony_sendv(ctx, to, &m->msg, &m->msg);
+  pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
 }
 
 #ifdef USE_ACTOR_CONTINUATIONS
@@ -575,7 +677,7 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!has_flag(actor, FLAG_UNSCHEDULED))
+  if(!has_flag(actor, FLAG_UNSCHEDULED) || ponyint_is_muted(actor))
     return;
 
   unset_flag(actor, FLAG_UNSCHEDULED);
@@ -602,4 +704,102 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
   ponyint_actor_run(ctx, ctx->current, 1);
+}
+
+void ponyint_actor_setoverloaded(pony_actor_t* actor)
+{
+  pony_assert(!ponyint_is_cycle(actor));
+  set_flag(actor, FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
+}
+
+bool ponyint_actor_overloaded(pony_actor_t* actor)
+{
+  return has_flag(actor, FLAG_OVERLOADED);
+}
+
+void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
+{
+  pony_ctx_t* ctx = pony_ctx();
+  unset_flag(actor, FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
+  if (!has_flag(actor, FLAG_UNDER_PRESSURE))
+  {
+    ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
+  }
+}
+
+PONY_API void pony_apply_backpressure()
+{
+  pony_ctx_t* ctx = pony_ctx();
+  set_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  DTRACE1(ACTOR_UNDER_PRESSURE, (uintptr_t)ctx->current);
+}
+
+PONY_API void pony_release_backpressure()
+{
+  pony_ctx_t* ctx = pony_ctx();
+  unset_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
+  if (!has_flag(ctx->current, FLAG_OVERLOADED))
+    ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
+}
+
+bool ponyint_triggers_muting(pony_actor_t* actor)
+{
+  return has_flag(actor, FLAG_OVERLOADED) ||
+    has_flag(actor, FLAG_UNDER_PRESSURE) ||
+    ponyint_is_muted(actor);
+}
+
+//
+// Mute/Unmute/Check mute status functions
+//
+// For backpressure related muting and unmuting to work correctly, the following
+// rules have to be maintained.
+//
+// 1. Across schedulers, an actor should never been seen as muted when it is not
+// in fact muted.
+// 2. It's ok for a muted actor to be seen as unmuted in a transient fashion
+// across actors
+//
+// If rule #1 is violated, we might end up deadlocking because an actor was
+// muted for sending to an actor that might never be unmuted (because it isn't
+// muted). The actor muted actor would continue to remain muted and the actor
+// incorrectly seen as muted became actually muted and then unmuted.
+//
+// If rule #2 is violated, then a muted actor will receive from 1 to a few
+// additional messages and the sender won't be muted. As this is a transient
+// situtation that should be shortly rectified, there's no harm done.
+//
+// Our handling of atomic operations in `ponyint_is_muted` and
+// `ponyint_unmute_actor` are to assure that rule #1 isn't violated.
+// We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
+// far more relaxed rule #2.
+//
+// An actor's `is_muted` field is effectly a `bool` value. However, by using a
+// `uint8_t`, we use the same amount of space that we would for a boolean but
+// can use more efficient atomic operations. Given how often these methods are
+// called (at least once per message send), efficiency is of primary
+// importance.
+
+bool ponyint_is_muted(pony_actor_t* actor)
+{
+  return (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
+}
+
+void ponyint_mute_actor(pony_actor_t* actor)
+{
+   uint8_t is_muted = atomic_load_explicit(&actor->is_muted, memory_order_relaxed);
+   pony_assert(is_muted == 0);
+   is_muted++;
+   atomic_store_explicit(&actor->is_muted, is_muted, memory_order_relaxed);
+
+}
+
+void ponyint_unmute_actor(pony_actor_t* actor)
+{
+  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
+  pony_assert(is_muted == 1);
+  (void)is_muted;
 }
