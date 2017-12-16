@@ -626,12 +626,15 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       if(ast_id(receiver) == ast_id(expr))
         AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
 
-      ast_t* def = lookup(opt, expr, ast_type(receiver), ast_name(method));
-      pony_assert((ast_id(def) == TK_FUN) || (ast_id(def) == TK_BE));
+      deferred_reification_t* def = lookup(opt, expr, ast_type(receiver),
+        ast_name(method));
+      pony_assert((ast_id(def->ast) == TK_FUN) || (ast_id(def->ast) == TK_BE));
+
+      ast_t* r_def = deferred_reify_method_def(def, def->ast, opt);
 
       // Set the type to a bare lambda type equivalent to the function type.
-      bool bare = ast_id(ast_child(def)) == TK_AT;
-      ast_t* params = ast_childidx(def, 3);
+      bool bare = ast_id(ast_child(r_def)) == TK_AT;
+      ast_t* params = ast_childidx(r_def, 3);
       ast_t* result = ast_sibling(params);
       ast_t* partial = ast_sibling(result);
 
@@ -665,6 +668,9 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
           TREE(partial)
           NODE(TK_VAL) // object cap
           NONE)); // object cap mod
+
+      ast_free_unattached(r_def);
+      deferred_reify_free(def);
 
       if(!ast_passes_subtree(&type, opt, PASS_EXPR))
         return false;
