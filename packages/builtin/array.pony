@@ -5,31 +5,79 @@ class Array[A] is Seq[A]
   # Usage
   Creating an array of Strings, single line.
   ```pony
-    let array: Array[String] = ["one"; "two"; "three"]
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
   ```
 
-  Semicolon is an expression separator, so this is a mulitiline equivalent.
+  Semicolon is an expression, so this is a multiline equivalent.
    ```pony
     let array: Array[String] = [
-      "one"
-      "two"
-      "three"
+      "dog"
+      "cat"
+      "wombat"
     ]
   ```
 
-  Accessing elements can be done via the apply method.
-  Since elements might not be available in the index requested,
-  the function is partial and has to be called within a try-catch block
-  or inside a partial method.
+  Accessing elements can be done via the `apply(i: USize): this->A ?` method.
+  The index provided might be out of bounds so `apply` is partial and has to be
+  called within a try-catch block or inside another partial method.
   ```pony
-    fun second_element_is_trek(array: Array[String]): Bool =>
+    fun second_element_is_wombat(array: Array[String]): Bool =>
       try
-        return array(1)? == "trek"
+        // first element's index is 0, so second is 1
+        return array(1)? == "wombat"
       else
         return false
       end
 
-      h.assert_eq[Bool](true, second_element_is_trek(["star"; "trek"]))
+      h.assert_true(second_element_is_trek(["star"; "wombat"]))
+  ```
+
+  Below more examples of working with Array class, including modifying
+  and iterating over it.
+  ```pony
+    let animals = [
+        "dog"
+        "dog"
+        "cat"
+        "fish"
+        "wombat"
+      ]
+
+    h.assert_eq[USize](5, animals.size())
+    // initial space is at least as big as the size of the array
+    h.assert_true(animals.space() >= animals.size())
+
+    // second animal is not a dog - it's a wombat - fix this
+    try
+      animals.update(1, "wombat")?
+    end
+
+    // find a wombat and verify it's index
+    try
+      let index = animals.find("wombat")?
+      h.assert_eq[USize](1, index)
+    end
+
+    // find all wombats
+    let wombats = Array[String]
+    for animal in animals.values() do
+      if animal == "wombat" then
+        wombats.push(animal)
+      end
+    end
+
+    // verify two wombats found
+    h.assert_eq[USize](2, wombats.size())
+
+    // print the animals one by one, until the whole array is empty
+    while animals.size() > 0 do
+      try
+      h.log(animals.pop()?)
+      end
+    end
+
+    // no animals are left in the array
+    h.assert_eq[USize](0, animals.size())
   ```
   """
   var _size: USize
