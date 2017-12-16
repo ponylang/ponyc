@@ -1,4 +1,4 @@
-class Date
+class PosixDate
   """
   Represents a proleptic Gregorian date and time, without specifying a
   time zone. The day of month, month, day of week, and day of year are all
@@ -18,6 +18,11 @@ class Date
     """
     Create a date from a POSIX time.
     """
+    if seconds < 0
+      seconds = 0
+    if nanoseconds < 0
+      nanoseconds = 0
+
     @ponyint_gmtime[None](this, seconds, nanoseconds)
 
   fun time(): I64 =>
