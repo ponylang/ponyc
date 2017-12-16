@@ -168,6 +168,19 @@ TEST_F(VerifyTest, StructFinal)
   TEST_ERRORS_1(src, "a struct cannot have a _final method");
 }
 
+TEST_F(VerifyTest, StructEmbedFieldFinal)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun _final() =>\n"
+    "    None\n"
+
+    "struct Bar\n"
+    "  embed f: Foo = Foo";
+
+  TEST_ERRORS_1(src, "a struct cannot have a field with a _final method");
+}
+
 TEST_F(VerifyTest, PrimitiveWithTypeParamsFinal)
 {
   const char* src =
