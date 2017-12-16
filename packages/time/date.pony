@@ -16,7 +16,7 @@ class PosixDate
 
   new create(seconds: I64 = 0, nanoseconds: I64 = 0) =>
     """
-    Create a date from a POSIX time.
+    Create a date from a POSIX time. Negative arguments will be changed to zero.
     """
     @ponyint_gmtime[None](
       this,
