@@ -196,7 +196,7 @@ else
 endif
 
 ifeq ($(OSTYPE),osx)
-  ALL_CFLAGS += -mmacosx-version-min=10.8
+  ALL_CFLAGS += -mmacosx-version-min=10.8 -DUSE_SCHEDULER_SCALING_PTHREADS
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
