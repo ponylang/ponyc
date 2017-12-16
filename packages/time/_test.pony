@@ -24,10 +24,16 @@ class iso _TestPosixDate is UnitTest
   fun name(): String => "time/PosixDate"
 
   fun apply(h: TestHelper) =>
+    // time is in seconds
     h.assert_eq[I64](0, PosixDate(0, 0).time())
-    h.assert_eq[I64](0, PosixDate(0, 999).time())
-    h.assert_eq[I64](100, PosixDate(100, 0).time())
+    h.assert_eq[I64](1, PosixDate(1, 0).time())
+    // small nanoseconds can not affect time
+    h.assert_eq[I64](0, PosixDate(0, 900_000_000).time())
+    // big nanoseconds can affect time
+    h.assert_eq[I64](1, PosixDate(0, 1_000_000_000).time())
+    h.assert_eq[I64](2, PosixDate(1, 1_000_000_000).time())
     // negaive seconds should be changed to zero
-    h.assert_eq[I64](0, PosixDate(-100, 0).time())
-    // negative nanoseconds should not affect seconds
-    h.assert_eq[I64](100, PosixDate(100, -999).time())
+    h.assert_eq[I64](0, PosixDate(-1, 0).time())
+    h.assert_eq[I64](1, PosixDate(-1, 1_000_000_000).time())
+    // negative nanoseconds cannot not affect time
+    h.assert_eq[I64](1, PosixDate(1, -1_000_000_000).time())
