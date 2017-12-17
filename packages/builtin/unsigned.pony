@@ -579,4 +579,29 @@ primitive U128 is _UnsignedInteger[U128]
     """
     f64()
 
+  fun addc(y: U128): (U128, Bool) =>
+    ifdef native128 then
+      @"llvm.uadd.with.overflow.i128"[(U128, Bool)](this, y)
+    else
+      let overflow = this > (max_value() - y)
+      (this + y, overflow)
+    end
+
+  fun subc(y: U128): (U128, Bool) =>
+    ifdef native128 then
+      @"llvm.usub.with.overflow.i128"[(U128, Bool)](this, y)
+    else
+      let overflow = this < y
+      (this - y, overflow)
+    end
+
+  fun mulc(y: U128): (U128, Bool) =>
+    ifdef native128 then
+      @"llvm.umul.with.overflow.i128"[(U128, Bool)](this, y)
+    else
+      let result = this * y
+      let overflow = (this != 0) and ((result / this) != y)
+      (result, overflow)
+    end
+
 type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)
