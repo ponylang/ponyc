@@ -6,6 +6,17 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+
+## [0.21.0] - 2017-12-17
+
+### Fixed
+
 - Forbid structs with embed fields with finalisers ([PR #2420](https://github.com/ponylang/ponyc/pull/2420))
 - Fix codegen ordering of implicit finalisers ([PR #2419](https://github.com/ponylang/ponyc/pull/2419))
 - Fix GC tracing of struct fields ([PR #2418](https://github.com/ponylang/ponyc/pull/2418))
