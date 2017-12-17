@@ -26,7 +26,7 @@ PONY_EXTERN_C_BEGIN
 
 /** Definition of a hash map entry for uintptr_t.
  */
-typedef struct hashmap_entry_t
+typedef struct hashmap_enotry_t
 {
   void* ptr;         /* pointer */
   size_t hash;       /* hash */

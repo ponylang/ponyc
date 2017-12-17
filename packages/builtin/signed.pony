@@ -488,4 +488,41 @@ primitive I128 is _SignedInteger[I128, U128]
     """
     f64()
 
+  fun addc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.sadd.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this > (max_value() - y))
+        else
+          (this < (min_value() - y))
+        end
+
+      (this + y, overflow)
+    end
+
+  fun subc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.ssub.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this < (min_value() + y))
+        else
+          (this > (max_value() + y))
+        end
+
+      (this - y, overflow)
+    end
+
+  fun mulc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.smul.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let result = this * y
+      let overflow = (this != 0) and ((result / this) != y)
+      (result, overflow)
+    end
+
 type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
