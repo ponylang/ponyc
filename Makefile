@@ -776,6 +776,7 @@ else
 install: libponyc libponyrt ponyc
 endif
 	@mkdir -p $(destdir)/bin
+	@mkdir -p $(destdir)/docs-support
 	@mkdir -p $(destdir)/lib
 	@mkdir -p $(destdir)/include/pony/detail
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
@@ -793,6 +794,7 @@ endif
 	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
 	$(SILENT)cp -r packages $(destdir)/
+	$(SILENT)cp -r .docs/* $(destdir)/docs-support/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
@@ -899,6 +901,7 @@ deploy: test docs
 	@mkdir -p $(package)/usr/include/pony/detail
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/docs-support
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
@@ -929,6 +932,7 @@ endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
+	$(SILENT)cp -r .docs/* $(package)/usr/lib/pony/$(package_version)/docs-support/
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"

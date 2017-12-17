@@ -2,6 +2,7 @@
 #include "../verify/call.h"
 #include "../verify/control.h"
 #include "../verify/fun.h"
+#include "../verify/type.h"
 #include "expr.h"
 #include "ponyassert.h"
 
@@ -111,6 +112,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_STRUCT:       r = verify_struct(options, ast); break;
     case TK_ASSIGN:       r = verify_assign(options, ast); break;
     case TK_FUN:
     case TK_NEW:

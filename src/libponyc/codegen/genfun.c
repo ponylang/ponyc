@@ -193,7 +193,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   // CodeView on Windows doesn't like "non-class" methods
   if (c_t->primitive != NULL)
   {
-    scope = LLVMDIBuilderCreateNamespace(c->di, c->di_unit, t->name, 
+    scope = LLVMDIBuilderCreateNamespace(c->di, c->di_unit, t->name,
       c_t->di_file, (unsigned)ast_line(t->ast));
   }
 #endif
@@ -625,7 +625,7 @@ static void copy_subordinate(reach_method_t* m)
   }
 }
 
-static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
+static void genfun_implicit_final_prototype(compile_t* c, reach_type_t* t,
   reach_method_t* m)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -634,14 +634,20 @@ static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
   c_m->func_type = LLVMFunctionType(c->void_type, &c_t->use_type, 1, false);
   c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
 
+  c_t->final_fn = c_m->func;
+  LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+  LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
+}
+
+static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
   codegen_startfun(c, c_m->func, NULL, NULL, false);
   call_embed_finalisers(c, t, NULL, gen_this(c, NULL));
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
-
-  c_t->final_fn = c_m->func;
-  LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
-  LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
 
   return true;
 }
@@ -864,7 +870,11 @@ bool genfun_method_sigs(compile_t* c, reach_type_t* t)
 
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      make_prototype(c, t, n, m);
+      if(m->internal && (n->name == c->str__final))
+        genfun_implicit_final_prototype(c, t, m);
+      else
+        make_prototype(c, t, n, m);
+
       copy_subordinate(m);
     }
   }
