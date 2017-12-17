@@ -14,8 +14,8 @@ PONY_EXTERN_C_BEGIN
 #include <stdio.h>
 #endif
 
-static __thread struct _Unwind_Exception exception;
-static __thread uintptr_t landing_pad;
+static __pony_thread_local struct _Unwind_Exception exception;
+static __pony_thread_local uintptr_t landing_pad;
 
 static void exception_cleanup(_Unwind_Reason_Code reason,
   struct _Unwind_Exception* exception)

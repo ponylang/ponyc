@@ -4,7 +4,7 @@ interface val Logger
   """
   fun val apply(
     ip: String,
-    transfer: USize,
+    body_size: USize,
     request: Payload val,
     response: Payload val)
     : Any

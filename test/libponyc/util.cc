@@ -28,7 +28,7 @@ extern "C"
 }
 
 
-static const char* _builtin =
+static const char* const _builtin =
   "primitive U8 is Real[U8]\n"
   "  new create(a: U8 = 0) => a\n"
   "  fun mul(a: U8): U8 => this * a\n"
@@ -239,10 +239,10 @@ void PassTest::SetUp()
   compile = NULL;
   _builtin_src = _builtin;
   _first_pkg_path = "prog";
-  package_clear_magic();
-  package_suppress_build_message();
+  package_clear_magic(&opt);
   opt.verbosity = VERBOSITY_QUIET;
   opt.check_tree = true;
+  opt.allow_test_symbols = true;
   last_pass = PASS_PARSE;
 }
 
@@ -260,7 +260,7 @@ void PassTest::TearDown()
   package = NULL;
   module = NULL;
   last_pass = PASS_PARSE;
-  package_done();
+  package_done(&opt);
   codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
@@ -274,7 +274,7 @@ void PassTest::set_builtin(const char* src)
 
 void PassTest::add_package(const char* path, const char* src)
 {
-  package_add_magic_src(path, src);
+  package_add_magic_src(path, src, &opt);
 }
 
 
@@ -312,9 +312,9 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
   if(!compare_asts(expect, actual, errors))
   {
     printf("Expected:\n");
-    ast_print(expect);
+    ast_print(expect, 80);
     printf("Got:\n");
-    ast_print(actual);
+    ast_print(actual, 80);
     errors_print(errors);
     ASSERT_TRUE(false);
   }
@@ -356,6 +356,56 @@ void PassTest::test_expected_errors(const char* src, const char* pass,
   package = NULL;
   module = NULL;
   ASSERT_EQ((void*)NULL, program);
+}
+
+
+void PassTest::test_expected_error_frames(const char* src, const char* pass,
+  const char** errors, const char*** frames)
+{
+  PassTest::test_expected_errors(src, pass, errors);
+
+  size_t expected_count = 0;
+  while(frames[expected_count] != NULL)
+  {
+    expected_count++;
+  }
+
+  ASSERT_EQ(expected_count, errors_get_count(opt.check.errors));
+
+  size_t frame = 0;
+  errormsg_t* e = errors_get_first(opt.check.errors);
+  while(e != NULL) {
+    const char** expected_errors = frames[frame];
+
+    {
+      size_t expected_count = 0;
+      while(expected_errors[expected_count] != NULL)
+      {
+        expected_count++;
+      }
+
+      size_t error_count = 0;
+      errormsg_t* ef = e->frame;
+      while(ef != NULL)
+      {
+        error_count++;
+        ef = ef->frame;
+      }
+
+      ASSERT_EQ(expected_count, error_count);
+    }
+
+    for(errormsg_t* ef = e->frame; ef != NULL; ef = ef->frame)
+    {
+      const char* expected_error = *expected_errors;
+      EXPECT_FALSE(strstr(ef->msg, expected_error) == NULL)
+        << "Actual error: " << ef->msg;
+      expected_errors++;
+    }
+
+    e = e->next;
+    frame++;
+  }
 }
 
 
@@ -457,24 +507,20 @@ void PassTest::build_package(const char* pass, const char* src,
     module = NULL;
     last_pass = PASS_PARSE;
 
-    lexer_allow_test_symbols();
-
 #ifndef PONY_PACKAGES_DIR
 #  error Packages directory undefined
 #else
     if(_builtin_src != NULL)
     {
-      package_add_magic_src("builtin", _builtin_src);
+      package_add_magic_src("builtin", _builtin_src, &opt);
     } else {
       char path[FILENAME_MAX];
       path_cat(PONY_PACKAGES_DIR, "builtin", path);
-      package_add_magic_path("builtin", path);
+      package_add_magic_path("builtin", path, &opt);
     }
 #endif
 
-    package_add_magic_src(package_name, src);
-
-    package_suppress_build_message();
+    package_add_magic_src(package_name, src, &opt);
 
     limit_passes(&opt, pass);
     program = program_load(stringtab(package_name), &opt);

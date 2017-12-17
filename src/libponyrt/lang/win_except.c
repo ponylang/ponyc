@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-static __declspec(thread) uintptr_t landing_pad;
+static __pony_thread_local uintptr_t landing_pad;
 
 PONY_API void pony_throw()
 {

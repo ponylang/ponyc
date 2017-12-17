@@ -332,6 +332,13 @@ static bool show_partiality(pass_opt_t* opt, ast_t* ast)
   ast_t* child = ast_child(ast);
   bool found = false;
 
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+  {
+      pony_assert(child != NULL);
+      // Skip error in body.
+      child = ast_sibling(child);
+  }
+
   while(child != NULL)
   {
     if(ast_canerror(child))

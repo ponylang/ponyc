@@ -78,12 +78,18 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     Remove everything that isn't in that.
     """
-    for value in values() do
+    let start_size = _map.size()
+    var seen: USize = 0
+    var i: USize = -1
+
+    while seen < start_size do
       try
-        that(value)?
-      else
-        unset(value)
+        i = next_index(i)?
+        if not that.contains(index(i)?) then
+          unset(index(i)?)
+        end
       end
+      seen = seen + 1
     end
 
   fun ref difference(that: Iterator[A^]) =>

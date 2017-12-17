@@ -331,8 +331,12 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
   LLVMValueRef store = LLVMBuildStore(c->builder,
     ((compile_type_t*)t->c_type)->desc, desc_ptr);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, c->tbaa_descptr, store);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
+#endif
 }
 
 // This function builds a stack of indices such that for an AST nested in an
@@ -536,7 +540,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
     arg_ast = ast_sibling(arg_ast);
   }
 
-  LLVMValueRef msg_args[4];
+  LLVMValueRef msg_args[5];
 
   msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
@@ -595,12 +599,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
   msg_args[2] = msg;
   msg_args[3] = msg;
+  msg_args[4] = LLVMConstInt(c->i1, 1, false);
   LLVMValueRef send;
 
   if(ast_id(m->r_fun) == TK_NEW)
-    send = gencall_runtime(c, "pony_sendv_single", msg_args, 4, "");
+    send = gencall_runtime(c, "pony_sendv_single", msg_args, 5, "");
   else
-    send = gencall_runtime(c, "pony_sendv", msg_args, 4, "");
+    send = gencall_runtime(c, "pony_sendv", msg_args, 5, "");
 
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 
@@ -1396,7 +1401,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMLifetimeStart(c->module);
+  LLVMValueRef func = LLVMLifetimeStart(c->module, c->void_ptr);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
@@ -1408,7 +1413,7 @@ void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef func = LLVMLifetimeEnd(c->module);
+  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->void_ptr);
   LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 

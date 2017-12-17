@@ -16,10 +16,11 @@ class XorOshiro128Plus is Random
     """
     _x = x
     _y = y
+    next()
 
   fun ref next(): U64 =>
     """
-    A random integer in [0, 2^64 - 1]
+    A random integer in [0, 2^64)
     """
     let x = _x
     var y = _y

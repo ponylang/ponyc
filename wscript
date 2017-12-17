@@ -44,7 +44,9 @@ MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 LLVM_VERSIONS = [
     '3.9.1',
     '3.8.1',
-    '3.7.1'
+    '3.7.1',
+    '5.0.0',
+    '4.0.1'
 ]
 
 WINDOWS_LIBS_TAG = "v1.5.0"
@@ -55,6 +57,7 @@ PCRE2_VERSION = "10.30"
 def options(ctx):
     ctx.add_option('--config', action='store', default=CONFIGS[0], help='debug or release build')
     ctx.add_option('--llvm', action='store', default=LLVM_VERSIONS[0], help='llvm version')
+    ctx.add_option('--msvc', action='store', default=None, help='MSVC version')
 
 # This replaces the default versions of these context classes with subclasses
 # that set their "variant", i.e. build directory, to the debug or release config.
@@ -77,7 +80,10 @@ def configure(ctx):
         import os
 
         base_env = ctx.env
-        base_env.MSVC_VERSIONS = [ 'msvc ' + v for v in MSVC_VERSIONS ]
+        if ctx.options.msvc is None:
+            base_env.MSVC_VERSIONS = [ 'msvc ' + v for v in MSVC_VERSIONS ]
+        else:
+            base_env.MSVC_VERSIONS = [ 'msvc ' + ctx.options.msvc ]
         base_env.MSVC_TARGETS = [ 'x64' ]
         ctx.load('msvc')
 
@@ -86,7 +92,7 @@ def configure(ctx):
         base_env.append_value('DEFINES', [
             '_CRT_SECURE_NO_WARNINGS', '_MBCS',
             'PLATFORM_TOOLS_VERSION=%d0' % base_env.MSVC_VERSION,
-            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION
+            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION            
         ])
         base_env.append_value('LIBPATH', [ base_env.LLVM_DIR ])
 
@@ -98,7 +104,11 @@ def configure(ctx):
             bld_env.PCRE2_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
                 'lib', 'pcre2-' + PCRE2_VERSION)
             bld_env.append_value('DEFINES', [
-                'LLVM_VERSION="' + llvm_version + '"'
+                'LLVM_VERSION="' + llvm_version + '"',
+                'PONY_VERSION_STR="' + \
+                    '%s [%s]\\ncompiled with: llvm %s -- msvc-%d-x64"' % \
+                    (VERSION, ctx.options.config, \
+                        llvm_version, base_env.MSVC_VERSION)
             ])
 
             libs_name = 'PonyWinLibs' + \
@@ -244,11 +254,15 @@ def build(ctx):
 
     # build targets:
 
+    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5'):
+        print('WARNING: LLVM 4 and 5 support is experimental and may result in decreased performance or crashes')
+
     # gtest
     ctx(
         features = 'cxx cxxstlib seq',
         target   = 'gtest',
         source   = ctx.path.ant_glob('lib/gtest/*.cc'),
+        defines  = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ]
     )
 
     # gbenchmark
@@ -259,6 +273,13 @@ def build(ctx):
         includes = [ 'lib/gbenchmark/include' ],
         defines  = [ 'HAVE_STD_REGEX' ]
     )
+    
+    # blake2
+    ctx(
+        features = 'c seq',
+        target   = 'blake2',
+        source   = ctx.path.ant_glob('lib/blake2/*.c'),
+    )
 
     # libponyc
     ctx(
@@ -266,7 +287,8 @@ def build(ctx):
         target    = 'libponyc',
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
-        includes  = [ 'src/common' ] + llvmIncludes + sslIncludes
+        includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
+        use       = [ 'blake2' ]
     )
 
     # libponyc.benchmarks
@@ -321,7 +343,10 @@ def build(ctx):
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
-        defines   = [ 'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"'],
+        defines   = [ 
+            'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
+            '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
+        ],
         use       = testcUses,
         lib       = testcLibs,
         linkflags = [ '/INCREMENTAL:NO' ]
@@ -333,6 +358,7 @@ def build(ctx):
         target    = 'testrt',
         source    = ctx.path.ant_glob('test/libponyrt/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest' ],
+        defines   = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ],
         use       = [ 'gtest', 'libponyrt' ],
         lib       = ctx.env.PONYC_EXTRA_LIBS
     )

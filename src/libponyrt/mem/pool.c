@@ -93,24 +93,28 @@ typedef struct pool_block_header_t
   size_t largest_size;
 } pool_block_header_t;
 
+
+#define THREAD_MAX_BEFORE_SHARE(MAX_MEM, SIZE) \
+ (((MAX_MEM / SIZE)>=(1))?(MAX_MEM / SIZE):(1))
+
 static pool_global_t pool_global[POOL_COUNT] =
 {
-  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), {{NULL, 0}}},
-  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), {{NULL, 0}}},
-  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), {{NULL, 0}}},
-  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), {{NULL, 0}}},
-  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), {{NULL, 0}}},
-  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), {{NULL, 0}}},
-  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), {{NULL, 0}}},
-  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), {{NULL, 0}}},
-  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), {{NULL, 0}}},
-  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), {{NULL, 0}}},
-  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), {{NULL, 0}}},
-  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), {{NULL, 0}}},
-  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), {{NULL, 0}}},
-  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), {{NULL, 0}}},
-  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), {{NULL, 0}}},
-  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), {{NULL, 0}}},
+  {POOL_MIN << 0, THREAD_MAX_BEFORE_SHARE(0x8000, POOL_MIN << 0), {{NULL, 0}}},
+  {POOL_MIN << 1, THREAD_MAX_BEFORE_SHARE(0x8000, POOL_MIN << 1), {{NULL, 0}}},
+  {POOL_MIN << 2, THREAD_MAX_BEFORE_SHARE(0x8000, POOL_MIN << 2), {{NULL, 0}}},
+  {POOL_MIN << 3, THREAD_MAX_BEFORE_SHARE(0x8000, POOL_MIN << 3), {{NULL, 0}}},
+  {POOL_MIN << 4, THREAD_MAX_BEFORE_SHARE(0x8000, POOL_MIN << 4), {{NULL, 0}}},
+  {POOL_MIN << 5, THREAD_MAX_BEFORE_SHARE(0x10000, POOL_MIN << 5), {{NULL, 0}}},
+  {POOL_MIN << 6, THREAD_MAX_BEFORE_SHARE(0x20000, POOL_MIN << 6), {{NULL, 0}}},
+  {POOL_MIN << 7, THREAD_MAX_BEFORE_SHARE(0x40000, POOL_MIN << 7), {{NULL, 0}}},
+  {POOL_MIN << 8, THREAD_MAX_BEFORE_SHARE(0x80000, POOL_MIN << 8), {{NULL, 0}}},
+  {POOL_MIN << 9, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 9), {{NULL, 0}}},
+  {POOL_MIN << 10, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 10), {{NULL, 0}}},
+  {POOL_MIN << 11, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 11), {{NULL, 0}}},
+  {POOL_MIN << 12, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 12), {{NULL, 0}}},
+  {POOL_MIN << 13, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 13), {{NULL, 0}}},
+  {POOL_MIN << 14, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 14), {{NULL, 0}}},
+  {POOL_MIN << 15, THREAD_MAX_BEFORE_SHARE(POOL_MAX, POOL_MIN << 15), {{NULL, 0}}},
 };
 
 static pool_block_t pool_block_global;

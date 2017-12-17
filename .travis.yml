@@ -113,22 +113,71 @@ matrix:
         - ICC1=gcc-6
         - ICXX1=g++-6
 
-    - os: osx
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
-        - LLVM_CONFIG="llvm-config-3.7"
+        - LLVM_VERSION="4.0.1"
+        - LLVM_CONFIG="llvm-config-4.0"
         - config=debug
-        - CC1=clang-3.7
-        - CXX1=clang++-3.7
+        - CC1=gcc-6
+        - CXX1=g++-6
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - FAVORITE_CONFIG=no
+        - LLVM_VERSION="4.0.1"
+        - LLVM_CONFIG="llvm-config-4.0"
+        - config=release
+        - CC1=gcc-6
+        - CXX1=g++-6
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - FAVORITE_CONFIG=no
+        - LLVM_VERSION="5.0.0"
+        - LLVM_CONFIG="llvm-config-5.0"
+        - config=debug
+        - CC1=gcc-6
+        - CXX1=g++-6
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - FAVORITE_CONFIG=no
+        - LLVM_VERSION="5.0.0"
+        - LLVM_CONFIG="llvm-config-5.0"
+        - config=release
+        - CC1=gcc-6
+        - CXX1=g++-6
 
     - os: osx
       env:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.7.1"
         - LLVM_CONFIG="llvm-config-3.7"
-        - config=release
-        - lto=no
         - CC1=clang-3.7
         - CXX1=clang++-3.7
 
@@ -137,17 +186,6 @@ matrix:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.8.1"
         - LLVM_CONFIG="llvm-config-3.8"
-        - config=debug
-        - CC1=clang-3.8
-        - CXX1=clang++-3.8
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=release
-        - lto=no
         - CC1=clang-3.8
         - CXX1=clang++-3.8
 
@@ -156,19 +194,24 @@ matrix:
         - FAVORITE_CONFIG=no
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
         - CC1=clang-3.9
         - CXX1=clang++-3.9
 
     - os: osx
       env:
         - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - lto=no
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
+        - LLVM_VERSION="4.0.1"
+        - LLVM_CONFIG="llvm-config-4.0"
+        - CC1=clang-4.0
+        - CXX1=clang++-4.0
+
+    - os: osx
+      env:
+        - FAVORITE_CONFIG=no
+        - LLVM_VERSION="5.0.0"
+        - LLVM_CONFIG="llvm-config-5.0"
+        - CC1=clang-5.0
+        - CXX1=clang++-5.0
 
 rvm:
   - 2.2.3

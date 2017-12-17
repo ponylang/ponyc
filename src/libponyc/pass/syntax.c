@@ -336,7 +336,6 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
       }
 
       default:
-        ast_print(members);
         pony_assert(0);
         return false;
     }
@@ -805,7 +804,7 @@ static ast_result_t syntax_type_param(pass_opt_t* opt, ast_t* ast)
 }
 
 
-static const char* _illegal_flags[] =
+static const char* const _illegal_flags[] =
 {
   "ndebug",
   "unknown_os",

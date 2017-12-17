@@ -43,7 +43,7 @@ static bool _stringtabed = false;
 
 // Replace all the strings in the _os_flags, _arch_flags and _size_flags
 // arrays with stringtab'ed versions the first time this is called.
-// This method of initialisatino is obviously not at all concurrency safe, but
+// This method of initialisation is obviously not at all concurrency safe, but
 // it works with unit tests trivially.
 static void stringtab_mutexgroups()
 {

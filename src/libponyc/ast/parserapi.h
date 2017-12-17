@@ -129,9 +129,6 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
 // External API
 
-/// Enable or disable parsing trace output
-void parse_trace(bool enable);
-
 /** Generates a module AST and attaches it to the given package AST.
  * The expected argument is used in the generated error message if nothing is
  * found. It is not stored.
@@ -139,7 +136,7 @@ void parse_trace(bool enable);
  * failure.
  */
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors);
+  errors_t* errors, bool allow_test_symbols, bool trace);
 
 
 /* The API for parser rules starts here */
@@ -464,7 +461,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
  * be freed within the provided code.
  *
  * Example:
- *    REWRITE(ast_print(ast));
+ *    REWRITE(ast_print(ast, 80));
  */
 #define REWRITE(body) \
   { \

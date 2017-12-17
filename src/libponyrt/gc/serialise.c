@@ -24,14 +24,6 @@ static pony_type_t** desc_table = NULL;
 
 PONY_EXTERN_C_END
 
-typedef struct
-{
-  pony_type_t* t;
-  size_t size;
-  size_t alloc;
-  char* ptr;
-} ponyint_array_t;
-
 struct serialise_t
 {
   uintptr_t key;
@@ -214,7 +206,8 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 }
 
 PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
-  void* out, serialise_alloc_fn alloc_fn, serialise_throw_fn throw_fn)
+  ponyint_array_t* out, serialise_alloc_fn alloc_fn,
+  serialise_throw_fn throw_fn)
 {
   // This can raise an error.
   pony_assert(ctx->stack == NULL);
@@ -231,10 +224,9 @@ PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
   ponyint_gc_handlestack(ctx);
 
-  ponyint_array_t* r = (ponyint_array_t*)out;
-  r->size = ctx->serialise_size;
-  r->alloc = r->size;
-  r->ptr = (char*)alloc_fn(ctx, r->size);
+  out->size = ctx->serialise_size;
+  out->alloc = out->size;
+  out->ptr = (char*)alloc_fn(ctx, out->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
@@ -242,7 +234,7 @@ PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
   while((s = ponyint_serialise_next(&ctx->serialise, &i)) != NULL)
   {
     if(!(s->block) && s->t != NULL && s->t->serialise != NULL)
-      s->t->serialise(ctx, (void*)s->key, r->ptr, s->value, s->mutability);
+      s->t->serialise(ctx, (void*)s->key, out->ptr, s->value, s->mutability);
   }
 
   serialise_cleanup(ctx);
@@ -388,14 +380,13 @@ PONY_API void* pony_deserialise_raw(pony_ctx_t* ctx, uintptr_t offset,
   return object;
 }
 
-PONY_API void* pony_deserialise(pony_ctx_t* ctx, pony_type_t* t, void* in,
-  serialise_alloc_fn alloc_fn, serialise_alloc_fn alloc_final_fn,
-  serialise_throw_fn throw_fn)
+PONY_API void* pony_deserialise(pony_ctx_t* ctx, pony_type_t* t,
+  ponyint_array_t* in, serialise_alloc_fn alloc_fn,
+  serialise_alloc_fn alloc_final_fn, serialise_throw_fn throw_fn)
 {
   // This can raise an error.
-  ponyint_array_t* r = (ponyint_array_t*)in;
-  ctx->serialise_buffer = r->ptr;
-  ctx->serialise_size = r->size;
+  ctx->serialise_buffer = in->ptr;
+  ctx->serialise_size = in->size;
   ctx->serialise_alloc = alloc_fn;
   ctx->serialise_alloc_final = alloc_final_fn;
   ctx->serialise_throw = throw_fn;

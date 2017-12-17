@@ -31,8 +31,12 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 
   const char* box_name = genname_box(t->name);
   LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, store);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   return this_ptr;
 }
@@ -60,8 +64,12 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
 
   const char* box_name = genname_box(t->name);
   LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, value);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(value, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }

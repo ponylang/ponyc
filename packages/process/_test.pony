@@ -1,4 +1,5 @@
 use "ponytest"
+use "backpressure"
 use "capsicum"
 use "collections"
 use "files"
@@ -38,12 +39,12 @@ class iso _TestStdinStdout is UnitTest
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, consume notifier, path,
+        ProcessMonitor(auth, auth, consume notifier, path,
           consume args, consume vars)
       pm.write("one, two, three")
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -74,14 +75,14 @@ class iso _TestStderr is UnitTest
       vars.push("PATH=/bin")
 
       let auth = h.env.root as AmbientAuth
-      _pm  = ProcessMonitor(auth, consume notifier, path,
+      _pm  = ProcessMonitor(auth, auth, consume notifier, path,
           consume args, consume vars)
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
         pm.done_writing() // closing stdin
         h.dispose_when_done(pm)
       end
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -117,10 +118,10 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, consume notifier, path,
+        ProcessMonitor(auth, auth, consume notifier, path,
           consume args, consume vars)
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -143,10 +144,10 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
 
       let auth = h.env.root as AmbientAuth
       let notifier = _setup_notifier(h, path)
-      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
-        consume args, consume vars)
+      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+        path, consume args, consume vars)
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -230,11 +231,11 @@ class iso _TestExpect is UnitTest
       vars.push("PATH=/bin")
 
       let auth = h.env.root as AmbientAuth
-      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
-        consume args, consume vars)
+      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+        path, consume args, consume vars)
       pm.done_writing()  // closing stdin allows "echo" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -262,7 +263,7 @@ class iso _TestWritevOrdering is UnitTest
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, consume notifier, path,
+        ProcessMonitor(auth, auth, consume notifier, path,
           consume args, consume vars)
       let params: Array[String] iso = recover Array[String](3) end
       params.push("one")
@@ -272,7 +273,7 @@ class iso _TestWritevOrdering is UnitTest
       pm.writev(consume params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -300,7 +301,7 @@ class iso _TestPrintvOrdering is UnitTest
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, consume notifier, path,
+        ProcessMonitor(auth, auth, consume notifier, path,
           consume args, consume vars)
       let params: Array[String] iso = recover Array[String](3) end
       params.push("one")
@@ -310,7 +311,7 @@ class iso _TestPrintvOrdering is UnitTest
       pm.printv(consume params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
     end
@@ -342,7 +343,7 @@ class iso _TestStdinWriteBuf is UnitTest
 
       // fork the child process and attach a ProcessMonitor
       let auth = h.env.root as AmbientAuth
-      _pm = ProcessMonitor(auth, consume notifier, path, consume args,
+      _pm = ProcessMonitor(auth, auth, consume notifier, path, consume args,
         consume vars)
 
       // create a message larger than pipe_cap bytes
@@ -355,7 +356,7 @@ class iso _TestStdinWriteBuf is UnitTest
         pm.done_writing() // closing stdin allows "cat" to terminate
         h.dispose_when_done(pm)
       end
-      h.long_test(5_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("Error running STDIN-WriteBuf test")
     end
@@ -434,7 +435,6 @@ class _ProcessClient is ProcessNotify
     | KillError => _h.fail("ProcessError: KillError")
     | Unsupported => _h.fail("ProcessError: Unsupported")
     | CapError => _h.complete(true) // used in _TestFileExec
-    else _h.fail("Unknown ProcessError!")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>

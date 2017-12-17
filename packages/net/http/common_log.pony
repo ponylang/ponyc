@@ -9,8 +9,12 @@ class CommonLog is Logger
   new val create(out: OutStream) =>
     _out = out
 
-  fun val apply(ip: String, body_size: USize,
-    request: Payload val, response: Payload val) =>
+  fun val apply(
+    ip: String,
+    body_size: USize,
+    request: Payload val,
+    response: Payload val)
+  =>
 
     let list = recover Array[String](24) end
 

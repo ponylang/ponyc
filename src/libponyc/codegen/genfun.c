@@ -78,8 +78,8 @@ static void name_params(compile_t* c, reach_type_t* t, reach_method_t* m,
   }
 }
 
-static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m,
-  bool message_type)
+static void make_signature(compile_t* c, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m, bool message_type)
 {
   // Count the parameters, including the receiver if the method isn't bare.
   size_t count = m->param_count;
@@ -126,7 +126,8 @@ static void make_signature(compile_t* c, reach_type_t* t, reach_method_t* m,
   // Generate the function type.
   // Bare methods returning None return void to maintain compatibility with C.
   // Class constructors return void to avoid clobbering nocapture information.
-  if(bare_void || ((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS)))
+  if(bare_void || (n->name == c->str__final) ||
+    ((ast_id(m->r_fun) == TK_NEW) && (t->underlying == TK_CLASS)))
     c_m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
   else
     c_m->func_type = LLVMFunctionType(
@@ -188,6 +189,15 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   else
     scope = c_t->di_type;
 
+#if PONY_LLVM >= 309 && defined(_MSC_VER)
+  // CodeView on Windows doesn't like "non-class" methods
+  if (c_t->primitive != NULL)
+  {
+    scope = LLVMDIBuilderCreateNamespace(c->di, c->di_unit, t->name,
+      c_t->di_file, (unsigned)ast_line(t->ast));
+  }
+#endif
+
   c_m->di_method = LLVMDIBuilderCreateMethod(c->di, scope, ast_name(id),
     m->full_name, c_m->di_file, (unsigned)ast_line(m->r_fun), subroutine, func,
     c->opt->release);
@@ -238,7 +248,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       return;
   }
 
-  make_signature(c, t, m, handler || is_trait);
+  make_signature(c, t, n, m, handler || is_trait);
 
   if(is_trait)
     return;
@@ -392,7 +402,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t, ast_t* params,
 }
 
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
-  ast_t* method_body, LLVMValueRef obj)
+  ast_t* call_location, LLVMValueRef obj)
 {
   uint32_t base = 0;
   if(t->underlying != TK_STRUCT)
@@ -412,7 +422,7 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
       continue;
 
     LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
-    codegen_debugloc(c, method_body);
+    codegen_debugloc(c, call_location);
     LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
     codegen_debugloc(c, NULL);
   }
@@ -431,7 +441,9 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
     ast_id(cap) == TK_AT);
   name_params(c, t, m, params, c_m->func);
 
-  if(c_m->func == c_t->final_fn)
+  bool finaliser = c_m->func == c_t->final_fn;
+
+  if(finaliser)
     call_embed_finalisers(c, t, body, gen_this(c, NULL));
 
   LLVMValueRef value = gen_expr(c, body);
@@ -441,7 +453,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   if(value != GEN_NOVALUE)
   {
-    if((ast_id(cap) == TK_AT) && is_none(result))
+    if(finaliser || ((ast_id(cap) == TK_AT) && is_none(result)))
     {
       codegen_scope_lifetime_end(c);
       codegen_debugloc(c, ast_childlast(body));
@@ -611,6 +623,33 @@ static void copy_subordinate(reach_method_t* m)
     c_m2->func = c_m->func;
     m2 = m2->subordinate;
   }
+}
+
+static void genfun_implicit_final_prototype(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  c_m->func_type = LLVMFunctionType(c->void_type, &c_t->use_type, 1, false);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
+
+  c_t->final_fn = c_m->func;
+  LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+  LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
+}
+
+static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  codegen_startfun(c, c_m->func, NULL, NULL, false);
+  call_embed_finalisers(c, t, NULL, gen_this(c, NULL));
+  LLVMBuildRetVoid(c->builder);
+  codegen_finishfun(c);
+
+  return true;
 }
 
 static bool genfun_allocator(compile_t* c, reach_type_t* t)
@@ -831,7 +870,11 @@ bool genfun_method_sigs(compile_t* c, reach_type_t* t)
 
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      make_prototype(c, t, n, m);
+      if(m->internal && (n->name == c->str__final))
+        genfun_implicit_final_prototype(c, t, m);
+      else
+        make_prototype(c, t, n, m);
+
       copy_subordinate(m);
     }
   }
@@ -867,10 +910,13 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
       if(m->intrinsic)
-        continue;
-
-      if(m->forwarding)
       {
+        if(m->internal && (n->name == c->str__final))
+        {
+          if(!genfun_implicit_final(c, t, m))
+            return false;
+        }
+      } else if(m->forwarding) {
         if(!genfun_forward(c, t, n, m))
           return false;
       } else {

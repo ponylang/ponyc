@@ -17,7 +17,7 @@ void lexint_zero(lexint_t* i)
   i->high = 0;
 }
 
-int lexint_cmp(lexint_t* a, lexint_t* b)
+int lexint_cmp(lexint_t const* a, lexint_t const* b)
 {
   if(a->high > b->high)
     return 1;

@@ -58,6 +58,8 @@ ast_t* ast_from_string(ast_t* ast, const char* name);
 ast_t* ast_from_int(ast_t* ast, uint64_t value);
 ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
+ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
+  bool dup_annotation, bool dup_symtab);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 void ast_set_scope(ast_t* ast, ast_t* scope);
@@ -141,12 +143,14 @@ void ast_reorder_children(ast_t* ast, const size_t* new_order,
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
-void ast_print(ast_t* ast);
+bool ast_is_frozen(ast_t* ast);
+void ast_freeze(ast_t* ast);
+
+void ast_print(ast_t* ast, size_t width);
 void ast_printverbose(ast_t* ast);
-void ast_fprint(FILE* fp, ast_t* ast);
+void ast_fprint(FILE* fp, ast_t* ast, size_t width);
 void ast_fprintverbose(FILE* fp, ast_t* ast);
 const char* ast_print_type(ast_t* type);
-void ast_setwidth(size_t w);
 
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 3, 4)));
@@ -204,6 +208,10 @@ void ast_extract_children(ast_t* parent, size_t child_count,
     ast_extract_children(parent, (sizeof(children)/sizeof(ast_t**)) - 1, \
       children); \
   }
+
+pony_type_t* ast_signature_pony_type();
+
+pony_type_t* ast_nominal_pkg_id_signature_pony_type();
 
 pony_type_t* ast_pony_type();
 

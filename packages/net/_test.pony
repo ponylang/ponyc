@@ -5,7 +5,9 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestBroadcast)
+    ifdef not osx then
+      test(_TestBroadcast)
+    end
     test(_TestTCPWritev)
     test(_TestTCPExpect)
     test(_TestTCPMute)

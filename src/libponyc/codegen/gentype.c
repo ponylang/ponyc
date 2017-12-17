@@ -19,11 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void compile_type_free(void* p)
-{
-  POOL_FREE(compile_type_t, p);
-}
-
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
   return ponyint_hash_ptr(a->name);
@@ -116,6 +111,32 @@ LLVMValueRef tbaa_metadata_for_box_type(compile_t* c, const char* box_name)
   return md->metadata;
 }
 
+void tbaa_tag(compile_t* c, LLVMValueRef metadata, LLVMValueRef instr)
+{
+  const char id[] = "tbaa";
+  unsigned md_kind = LLVMGetMDKindID(id, sizeof(id) - 1);
+
+  LLVMValueRef params[3];
+  params[0] = metadata;
+  params[1] = metadata;
+  params[2] = LLVMConstInt(c->i32, 0, false);
+
+  LLVMValueRef tag = LLVMMDNodeInContext(c->context, params, 3);
+  LLVMSetMetadata(instr, md_kind, tag);
+}
+
+void get_fieldinfo(ast_t* l_type, ast_t* right, ast_t** l_def,
+  ast_t** field, uint32_t* index)
+{
+  ast_t* d = (ast_t*)ast_data(l_type);
+  ast_t* f = ast_get(d, ast_name(right), NULL);
+  uint32_t i = (uint32_t)ast_index(f);
+
+  *l_def = d;
+  *field = f;
+  *index = i;
+}
+
 static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
 {
   const char str[] = "Pony TBAA";
@@ -129,8 +150,10 @@ static LLVMValueRef make_tbaa_descriptor(LLVMContextRef ctx, LLVMValueRef root)
   LLVMValueRef params[3];
   params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
   params[1] = root;
+#if PONY_LLVM < 400
   params[2] = LLVMConstInt(LLVMInt64TypeInContext(ctx), 1, false);
-  return LLVMMDNodeInContext(ctx, params, 3);
+#endif
+  return LLVMMDNodeInContext(ctx, params, PONY_LLVM < 400 ? 3 : 2);
 }
 
 static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
@@ -140,6 +163,11 @@ static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
   params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
   params[1] = root;
   return LLVMMDNodeInContext(ctx, params, 2);
+}
+
+static void compile_type_free(void* p)
+{
+  POOL_FREE(compile_type_t, p);
 }
 
 static void allocate_compile_types(compile_t* c)
@@ -807,6 +835,7 @@ bool gentypes(compile_t* c)
     c->trait_bitmap_size = ((c->reach->trait_type_count + 63) & ~63) >> 6;
 
   c->tbaa_root = make_tbaa_root(c->context);
+
   c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
   c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);
 
@@ -846,6 +875,8 @@ bool gentypes(compile_t* c)
 
     make_global_instance(c, t);
   }
+
+  genprim_signature(c);
 
   // Cache the instance of None, which is used as the return value for
   // behaviour calls.

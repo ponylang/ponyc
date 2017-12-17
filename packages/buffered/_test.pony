@@ -118,9 +118,7 @@ class iso _TestWriter is UnitTest
       ['r'; 'e'; '\r'; '\n']])
 
     for bs in wb.done().values() do
-      try
-        b.append(bs as Array[U8] val)
-      end
+      b.append(bs)
     end
 
     // These expectations peek into the buffer without consuming bytes.

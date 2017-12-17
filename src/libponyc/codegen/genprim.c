@@ -6,7 +6,9 @@
 #include "genopt.h"
 #include "genserialise.h"
 #include "gentrace.h"
+#include "../pkg/package.h"
 #include "../pkg/platformfuns.h"
+#include "../pkg/program.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
@@ -216,8 +218,12 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
   ast_setid(tcap, cap);
 
   LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, result);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   ast_setid(tcap, tmp_cap);
 
@@ -252,9 +258,14 @@ static void pointer_update(compile_t* c, reach_type_t* t,
   LLVMValueRef store = LLVMBuildStore(c->builder, value, loc);
 
   LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, result);
+  tbaa_tag(c, metadata, store);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
   LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
   LLVMBuildRet(c->builder, result);
@@ -358,8 +369,12 @@ static void pointer_delete(compile_t* c, reach_type_t* t,
   LLVMValueRef result = LLVMBuildLoad(c->builder, elem_ptr, "");
 
   LLVMValueRef metadata = tbaa_metadata_for_type(c, t->ast);
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, result);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
   LLVMValueRef src = LLVMBuildInBoundsGEP(c->builder, elem_ptr, &n, 1, "");
   src = LLVMBuildBitCast(c->builder, src, c_t->use_type, "");
@@ -1965,6 +1980,68 @@ static void make_rdtscp(compile_t* c)
   } else {
     (void)c;
   }
+}
+
+static LLVMValueRef make_signature_array(compile_t* c, compile_type_t* c_t,
+  const char* signature)
+{
+  LLVMValueRef args[SIGNATURE_LENGTH];
+
+  for(size_t i = 0; i < SIGNATURE_LENGTH; i++)
+    args[i] = LLVMConstInt(c->i8, signature[i], false);
+
+  LLVMValueRef sig = LLVMConstArray(c->i8, args, SIGNATURE_LENGTH);
+  LLVMValueRef g_sig = LLVMAddGlobal(c->module, LLVMTypeOf(sig), "");
+  LLVMSetLinkage(g_sig, LLVMPrivateLinkage);
+  LLVMSetInitializer(g_sig, sig);
+  LLVMSetGlobalConstant(g_sig, true);
+  LLVMSetUnnamedAddr(g_sig, true);
+
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 0, false);
+
+  LLVMValueRef ptr = LLVMConstInBoundsGEP(g_sig, args, 2);
+
+  args[0] = c_t->desc;
+  args[1] = LLVMConstInt(c->intptr, SIGNATURE_LENGTH, false);
+  args[2] = args[1];
+  args[3] = ptr;
+
+  LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
+  LLVMSetInitializer(g_inst, inst);
+  LLVMSetGlobalConstant(g_inst, true);
+  LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
+  LLVMSetUnnamedAddr(g_inst, true);
+
+  return g_inst;
+}
+
+void genprim_signature(compile_t* c)
+{
+  reach_type_t* t = reach_type_name(c->reach, "Array_U8_val");
+
+  if(t == NULL)
+    return;
+
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  ast_t* def = (ast_t*)ast_data(t->ast);
+  pony_assert(def != NULL);
+
+  ast_t* program = ast_nearest(def, TK_PROGRAM);
+  pony_assert(program != NULL);
+
+  const char* signature = program_signature(program);
+  LLVMValueRef g_array = make_signature_array(c, c_t, signature);
+
+  // Array_U8_val* @internal.signature()
+  LLVMTypeRef f_type = LLVMFunctionType(c_t->use_type, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, "internal.signature", f_type, false);
+  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+  codegen_startfun(c, fun, NULL, NULL, false);
+  LLVMBuildRet(c->builder, g_array);
+  codegen_finishfun(c);
 }
 
 void genprim_builtins(compile_t* c)

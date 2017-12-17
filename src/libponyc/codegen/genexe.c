@@ -47,7 +47,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   codegen_startfun(c, func, NULL, NULL, false);
 
-  LLVMValueRef args[4];
+  LLVMValueRef args[5];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -121,7 +121,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[1] = main_actor;
   args[2] = msg;
   args[3] = msg;
-  gencall_runtime(c, "pony_sendv_single", args, 4, "");
+  args[4] = LLVMConstInt(c->i1, 1, false);
+  gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i32, 0, false);
@@ -259,14 +260,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   bool fallback_linker = false;
   const char* linker = c->opt->linker != NULL ? c->opt->linker :
     env_cc_or_pony_compiler(&fallback_linker);
-
-  if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-  {
-    fprintf(stderr,
-      "Warning: environment variable $CC undefined, using %s as the linker\n",
-      PONY_COMPILER);
-  }
-
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
@@ -274,10 +267,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
     "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
+  const char* dtrace_args =
+#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
+   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
+#else
+    "";
+#endif
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl);
+                  + strlen(ldl) + strlen(dtrace_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -286,9 +285,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s %s -lm %s",
+    "%s %s %s %s -lpthread %s %s %s -lm %s",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    ponyrt, ldl, export
+    dtrace_args, ponyrt, ldl, export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -296,6 +295,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
+    if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
+    {
+      fprintf(stderr,
+        "Warning: environment variable $CC undefined, using %s as the linker\n",
+        PONY_COMPILER);
+    }
+
     errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;

@@ -181,9 +181,9 @@ TEST_F(DontcareTest, CannotUseDontcareInCaseExpression)
 {
   const char* src =
     "class C\n"
-    "  fun c_ase(x: I32): I32 =>\n"
+    "  fun c_ase(x: (I32 | None)): I32 =>\n"
     "    match x\n"
-    "      | let x1: I32 => -1\n"
+    "      | let x1: I32 => x1\n"
     "      | _ => 42\n"
     "    end";
   TEST_ERRORS_1(src, "can't have a case with `_` only, use an else clause");

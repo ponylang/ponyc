@@ -36,7 +36,7 @@ protected:
   {
     errors_t* errors = errors_alloc();
     source_t* source = source_open_string(src);
-    lexer_t* lexer = lexer_open(source, errors);
+    lexer_t* lexer = lexer_open(source, errors, false);
     token_id id = TK_LEX_ERROR;
     string actual;
 

@@ -20,7 +20,7 @@ public:
   void test_pass_reach(const char* pass);
 };
 
-static const char* src =
+static const char* const src =
   "actor Main\n"
   "  new create(env: Env) =>\n"
   "    let x = recover Array[U8] end\n"
@@ -44,14 +44,6 @@ static void s_throw_fn()
 {
   throw std::exception{};
 }
-
-typedef struct ponyint_array_t
-{
-  void* desc;
-  size_t size;
-  size_t alloc;
-  char* ptr;
-} ponyint_array_t;
 
 struct pool_size_deleter
 {

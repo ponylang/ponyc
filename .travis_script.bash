@@ -51,7 +51,7 @@ ponyc-build-docs(){
   sudo -H pip install mkdocs
 
   echo "Building ponyc docs..."
-  make CC="$CC1" CXX="$CXX1" docs
+  make CC="$CC1" CXX="$CXX1" docs-online
 
   echo "Uploading docs using mkdocs..."
   git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
@@ -70,7 +70,7 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   "linux:llvm-config-3.8")
     ponyc-test
   ;;
-
+  
   "linux:llvm-config-3.9")
     # when FAVORITE_CONFIG stops matching part of this case, move this logic
     if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$FAVORITE_CONFIG" == "yes" ]]
@@ -83,16 +83,59 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     fi
   ;;
 
+  "linux:llvm-config-4.0")
+    ponyc-test
+  ;;
+
+  "linux:llvm-config-5.0")
+    ponyc-test
+  ;;
+
   "osx:llvm-config-3.7")
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-3.8")
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 
   "osx:llvm-config-3.9")
     export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
+    ponyc-test
+  ;;
+
+  "osx:llvm-config-4.0")
+    export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
+    ponyc-test
+  ;;
+
+  "osx:llvm-config-5.0")
+    export PATH=llvmsym/:$PATH
+    echo "Running config=debug build..."
+    export config=debug
+    ponyc-test
+    echo "Running config=release build..."
+    export config=release
     ponyc-test
   ;;
 

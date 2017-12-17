@@ -92,6 +92,10 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   // again
   ast_setdata(ast, (void*)package);
 
+  ast_t* curr_package = ast_nearest(ast, TK_PACKAGE);
+  pony_assert(curr_package != NULL);
+  package_add_dependency(curr_package, package);
+
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
     return set_scope(options, ast, name, package, false);
 

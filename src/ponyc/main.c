@@ -55,6 +55,7 @@ enum
   OPT_CHECKTREE,
   OPT_EXTFUN,
   OPT_SIMPLEBUILTIN,
+  OPT_LINT_LLVM,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -97,6 +98,7 @@ static opt_arg_t args[] =
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   {"simplebuiltin", '\0', OPT_ARG_NONE, OPT_SIMPLEBUILTIN},
+  {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -186,6 +188,7 @@ static void usage()
     "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
+    "  --lint-llvm     Run the LLVM linting pass on generated IR.\n"
     ,
     "Runtime options for Pony programs (not for use with ponyc):\n"
     "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
@@ -208,6 +211,7 @@ static void usage()
     "                  threads are pinned to CPUs.\n"
     "  --ponypinasio   Pin the ASIO thread to a CPU the way scheduler\n"
     "                  threads are pinned to CPUs.\n"
+    "  --ponyversion   Print the version of the compiler and exit.\n"
     );
 }
 
@@ -251,10 +255,10 @@ static bool compile_package(const char* path, pass_opt_t* opt,
     return false;
 
   if(print_program_ast)
-    ast_fprint(stderr, program);
+    ast_fprint(stderr, program, opt->ast_print_width);
 
   if(print_package_ast)
-    ast_fprint(stderr, ast_child(program));
+    ast_fprint(stderr, ast_child(program), opt->ast_print_width);
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
@@ -270,8 +274,8 @@ int main(int argc, char* argv[])
 
   opt.release = true;
   opt.output = ".";
+  opt.ast_print_width = get_width();
 
-  ast_setwidth(get_width());
   bool print_program_ast = false;
   bool print_package_ast = false;
 
@@ -291,8 +295,7 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%s [%s]\ncompiled with: llvm %s -- %s\n", PONY_VERSION, PONY_BUILD_CONFIG,
-          LLVM_VERSION, BUILD_COMPILER);
+        printf("%s\n", PONY_VERSION_STR);
         return 0;
 
       case OPT_HELP:
@@ -333,14 +336,15 @@ int main(int argc, char* argv[])
 
       case OPT_AST: print_program_ast = true; break;
       case OPT_ASTPACKAGE: print_package_ast = true; break;
-      case OPT_TRACE: parse_trace(true); break;
-      case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
+      case OPT_TRACE: opt.parse_trace = true; break;
+      case OPT_WIDTH: opt.ast_print_width = atoi(s.arg_val); break;
       case OPT_IMMERR: errors_set_immediate(opt.check.errors, true); break;
       case OPT_VERIFY: opt.verify = true; break;
       case OPT_EXTFUN: opt.extfun = true; break;
       case OPT_SIMPLEBUILTIN: opt.simple_builtin = true; break;
       case OPT_FILENAMES: opt.print_filenames = true; break;
       case OPT_CHECKTREE: opt.check_tree = true; break;
+      case OPT_LINT_LLVM: opt.lint_llvm = true; break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
@@ -378,10 +382,6 @@ int main(int argc, char* argv[])
       print_usage = true;
     }
   }
-
-#if defined(PLATFORM_IS_WINDOWS)
-  opt.strip_debug = true;
-#endif
 
   if(!ok)
   {

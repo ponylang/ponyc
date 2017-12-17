@@ -2,6 +2,8 @@ use "collections"
 use "net"
 use "net/ssl"
 
+primitive _ConnConnecting
+
 actor _ClientConnection is HTTPSession
   """
   Manages a persistent and possibly pipelined TCP connection to an HTTP server.
@@ -46,7 +48,7 @@ actor _ClientConnection is HTTPSession
   let _unsent: List[Payload val] = _unsent.create()
   let _sent: List[Payload val] = _sent.create()
   var _safewait: Bool = false
-  var _conn: (TCPConnection | None) = None
+  var _conn: (TCPConnection | None | _ConnConnecting) = None
   var _nobackpressure: Bool = true   // TCP backpressure indicator
   
   new create(
@@ -85,8 +87,7 @@ actor _ClientConnection is HTTPSession
     try
       for node in _unsent.nodes() do
         if node()? is request then
-          node.remove()
-          node.pop()?
+          node .> remove().pop()?
           return
         end
       end
@@ -98,7 +99,7 @@ actor _ClientConnection is HTTPSession
         if node()? is request then
           try (_conn as TCPConnection).dispose() end
           _conn = None
-          node.pop()?
+          node .> remove().pop()?
           break
         end
       end
@@ -130,6 +131,7 @@ actor _ClientConnection is HTTPSession
     The connection to the server has been established. Send pending requests.
     """
     _nobackpressure = true
+    _conn = conn
     _send_pending()
 
   be _connect_failed(conn: TCPConnection) =>
@@ -174,10 +176,14 @@ actor _ClientConnection is HTTPSession
 
   be _finish() =>
     """
-    Inidcates that the last *inbound* body chunk has been sent to
+    Indicates that the last *inbound* body chunk has been sent to
     `_chunk`. This is passed on to the front end.
+
+    _send_pending is called to detect that _unsent and _sent are emptye
+    and that _conn can be disposed. 
     """
     _app_handler.finished()
+    _send_pending()
 
   be finish() =>
     """
@@ -187,11 +193,13 @@ actor _ClientConnection is HTTPSession
 
   be dispose() =>
     """
-    Close the connection from the client end.
+    Cancels all requests and disposes the tcp connection.
     """
+    _cancel_all()
     match _conn
     | let c: TCPConnection => c.dispose()
     end
+    _conn = None
 
   be throttled() =>
     """
@@ -276,18 +284,22 @@ actor _ClientConnection is HTTPSession
     Creates a new connection. `ResponseBuilder` is the notification class
     that will send back a `_connected` call when the connection has been made.
     """
-    _conn = try
-      let ctx = _sslctx as SSLContext
-      let ssl = ctx.client(_host)?
-      TCPConnection(
-        _auth,
-        SSLConnection(_ClientConnHandler(this), consume ssl),
-        _host, _service)
-    else
-      TCPConnection(
-        _auth,
-        _ClientConnHandler(this),
-        _host, _service)
+    match _conn
+    | let _: None =>
+      try
+        let ctx = _sslctx as SSLContext
+        let ssl = ctx.client(_host)?
+        TCPConnection(
+          _auth,
+          SSLConnection(_ClientConnHandler(this), consume ssl),
+          _host, _service)
+      else
+        TCPConnection(
+          _auth,
+          _ClientConnHandler(this),
+          _host, _service)
+      end
+      _conn = _ConnConnecting
     end
 
   fun ref _cancel_all() =>

@@ -11,43 +11,18 @@
 #define TEST_ERROR(src) DO(test_error(src, "scope"))
 
 
-// Defined in use.c
-typedef bool(*use_handler_t)(ast_t* use, const char* locator, ast_t* name,
-  pass_opt_t* options);
-
-extern "C"
-{
-  void use_test_handler(use_handler_t handler, bool allow_alias,
-    bool allow_guard);
-}
-
-
-static ast_t* received_ast;
-static const char* received_locator;
-static const char* received_name;
-static int call_count;
-static bool return_value;
-
-
 static bool handler(ast_t* use, const char* locator, ast_t* name,
-  pass_opt_t* options)
-{
-  (void)options;
-  received_ast = use;
-  received_locator = locator;
-  call_count++;
-
-  if(name != NULL && ast_id(name) == TK_ID)
-    received_name = ast_name(name);
-
-  return return_value;
-}
+  pass_opt_t* options);
 
 
 class UseTest : public PassTest
 {
-protected:
-  pass_opt_t _options;
+public:
+  ast_t* received_ast;
+  const char* received_locator;
+  const char* received_name;
+  int call_count;
+  bool return_value;
 
   virtual void SetUp()
   {
@@ -57,10 +32,26 @@ protected:
     received_name = NULL;
     call_count = 0;
     return_value = true;
-    _options.release = true;
+    opt.release = true;
+    opt.data = this;
     use_test_handler(handler, false, true);
   }
 };
+
+
+static bool handler(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options)
+{
+  UseTest* pass = (UseTest*)options->data;
+  pass->received_ast = use;
+  pass->received_locator = locator;
+  pass->call_count++;
+
+  if(name != NULL && ast_id(name) == TK_ID)
+    pass->received_name = ast_name(name);
+
+  return pass->return_value;
+}
 
 
 TEST_F(UseTest, Basic)

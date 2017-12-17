@@ -67,12 +67,24 @@ struct ast_t
   token_t* t;
   symtab_t* symtab;
   void* data;
-  struct ast_t* parent;
-  struct ast_t* child;
-  struct ast_t* sibling;
-  struct ast_t* annotation_type;
+  ast_t* parent;
+  ast_t* child;
+  ast_t* sibling;
+  ast_t* annotation_type;
   uint32_t flags;
+#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  bool frozen;
+#endif
 };
+
+// Minimal AST structure for signature computation.
+typedef struct ast_signature_t
+{
+  token_signature_t* t;
+  struct ast_signature_t* child;
+  struct ast_signature_t* sibling;
+  struct ast_signature_t* annotation_type;
+} ast_signature_t;
 
 static bool ast_cmp(ast_t* a, ast_t* b)
 {
@@ -83,7 +95,6 @@ DEFINE_LIST(astlist, astlist_t, ast_t, ast_cmp, NULL);
 
 static const char in[] = "  ";
 static const size_t in_len = 2;
-static size_t width = 80;
 
 enum print_special
 {
@@ -94,7 +105,8 @@ enum print_special
 
 static const char special_char[] = {'(', ')', '[', ']', '\\', '\\'};
 
-static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind);
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind,
+  size_t width);
 
 
 static void print_token(FILE* fp, token_t* token)
@@ -195,7 +207,7 @@ static void print_compact(FILE* fp, ast_t* ast, size_t indent,
 }
 
 static void print_extended(FILE* fp, ast_t* ast, size_t indent,
-  enum print_special kind)
+  enum print_special kind, size_t width)
 {
   for(size_t i = 0; i < indent; i++)
     fprintf(fp, in);
@@ -215,16 +227,16 @@ static void print_extended(FILE* fp, ast_t* ast, size_t indent,
   fprintf(fp, "\n");
 
   if(ast_annotation(ast) != NULL)
-    print(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION);
+    print(fp, ast_annotation(ast), indent + 1, SPECIAL_ANNOTATION, width);
 
   while(child != NULL)
   {
-    print(fp, child, indent + 1, NOT_SPECIAL);
+    print(fp, child, indent + 1, NOT_SPECIAL, width);
     child = child->sibling;
   }
 
   if(ast_type(ast) != NULL)
-    print(fp, ast_type(ast), indent + 1, SPECIAL_TYPE);
+    print(fp, ast_type(ast), indent + 1, SPECIAL_TYPE, width);
 
   if(parens)
   {
@@ -290,14 +302,15 @@ static void print_verbose(FILE* fp, ast_t* ast, size_t indent,
   }
 }
 
-static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind)
+static void print(FILE* fp, ast_t* ast, size_t indent, enum print_special kind,
+  size_t width)
 {
   size_t len = length(ast, indent, kind);
 
   if(len < width)
     print_compact(fp, ast, indent, kind);
   else
-    print_extended(fp, ast, indent, kind);
+    print_extended(fp, ast, indent, kind, width);
 
   fprintf(fp, "\n");
 }
@@ -312,6 +325,7 @@ static bool hasparent(ast_t* ast)
 static void set_scope_and_parent(ast_t* ast, ast_t* parent)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   ast->parent = parent;
   ast_clearflag(ast, AST_ORPHAN);
@@ -321,6 +335,7 @@ static void set_scope_and_parent(ast_t* ast, ast_t* parent)
 static void set_scope_no_parent(ast_t* ast, ast_t* scope)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   ast->parent = scope;
   ast_setflag(ast, AST_ORPHAN);
@@ -329,6 +344,9 @@ static void set_scope_no_parent(ast_t* ast, ast_t* scope)
 // Remove the given node's parent without changing its scope (if any)
 static void make_orphan_leave_scope(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
+
   ast_setflag(ast, AST_ORPHAN);
 }
 
@@ -447,9 +465,68 @@ ast_t* ast_dup(ast_t* ast)
   return duplicate(NULL, ast);
 }
 
+ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
+  bool dup_annotation, bool dup_symtab)
+{
+  if(ast == NULL)
+    return NULL;
+
+  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
+    ast_id(ast) != TK_MODULE);
+
+  ast_t* n = ast_token(token_dup(ast->t));
+  n->data = ast->data;
+  n->flags = ast->flags & AST_ALL_FLAGS;
+  set_scope_no_parent(n, ast->parent);
+
+  if(dup_annotation)
+    ast_setannotation(n, duplicate(NULL, ast_annotation(ast)));
+
+  if(dup_type)
+    ast_settype(n, duplicate(NULL, ast_type(ast)));
+
+  if(dup_symtab && (ast->symtab != NULL))
+    n->symtab = symtab_dup(ast->symtab);
+
+  ast_t* src_child = ast->child;
+
+  if(src_child != NULL)
+  {
+    ast_t* dst_child;
+
+    if(dup_child[0])
+      dst_child = duplicate(NULL, src_child);
+    else
+      dst_child = ast_blank(TK_NONE);
+
+    n->child = dst_child;
+    set_scope_and_parent(dst_child, n);
+
+    src_child = ast_sibling(src_child);
+    size_t idx = 1;
+
+    for(; src_child != NULL; (src_child = ast_sibling(src_child)), idx++)
+    {
+      ast_t* dst_sibling;
+
+      if(dup_child[idx])
+        dst_sibling = duplicate(NULL, src_child);
+      else
+        dst_sibling = ast_blank(TK_NONE);
+
+      dst_child->sibling = dst_sibling;
+      dst_child = dst_sibling;
+      set_scope_and_parent(dst_sibling, n);
+    }
+  }
+
+  return n;
+}
+
 void ast_scope(ast_t* ast)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast->symtab = symtab_new();
 }
 
@@ -462,6 +539,7 @@ bool ast_has_scope(ast_t* ast)
 void ast_set_scope(ast_t* ast, ast_t* scope)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   pony_assert(!hasparent(ast));
   set_scope_no_parent(ast, scope);
 }
@@ -469,12 +547,16 @@ void ast_set_scope(ast_t* ast, ast_t* scope)
 symtab_t* ast_get_symtab(ast_t* ast)
 {
   pony_assert(ast != NULL);
+  // Allowing direct access to the symtab includes write access, so we forbid
+  // any direct access if the AST is immutable.
+  pony_assert(!ast->frozen);
   return ast->symtab;
 }
 
 ast_t* ast_setid(ast_t* ast, token_id id)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   token_set_id(ast->t, id);
   return ast;
 }
@@ -482,6 +564,7 @@ ast_t* ast_setid(ast_t* ast, token_id id)
 void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   token_set_pos(ast->t, source, line, pos);
 }
 
@@ -520,48 +603,61 @@ void* ast_data(ast_t* ast)
 ast_t* ast_setdata(ast_t* ast, void* data)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast->data = data;
   return ast;
 }
 
 bool ast_canerror(ast_t* ast)
 {
+  pony_assert(ast != NULL);
   return ast_checkflag(ast, AST_FLAG_CAN_ERROR) != 0;
 }
 
 void ast_seterror(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast_setflag(ast, AST_FLAG_CAN_ERROR);
 }
 
 bool ast_cansend(ast_t* ast)
 {
+  pony_assert(ast != NULL);
   return ast_checkflag(ast, AST_FLAG_CAN_SEND) != 0;
 }
 
 void ast_setsend(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast_setflag(ast, AST_FLAG_CAN_SEND);
 }
 
 bool ast_mightsend(ast_t* ast)
 {
+  pony_assert(ast != NULL);
   return ast_checkflag(ast, AST_FLAG_MIGHT_SEND) != 0;
 }
 
 void ast_setmightsend(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast_setflag(ast, AST_FLAG_MIGHT_SEND);
 }
 
 void ast_clearmightsend(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   ast_clearflag(ast, AST_FLAG_MIGHT_SEND);
 }
 
 void ast_inheritflags(ast_t* ast)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   for(ast_t* child = ast->child; child != NULL; child = ast_sibling(child))
     ast_setflag(ast, child->flags & AST_INHERIT_FLAGS);
@@ -579,6 +675,7 @@ void ast_setflag(ast_t* ast, uint32_t flag)
 {
   pony_assert(ast != NULL);
   pony_assert((flag & AST_ALL_FLAGS) == flag);
+  pony_assert(!ast->frozen);
 
   ast->flags |= flag;
 }
@@ -587,6 +684,7 @@ void ast_clearflag(ast_t* ast, uint32_t flag)
 {
   pony_assert(ast != NULL);
   pony_assert((flag & AST_ALL_FLAGS) == flag);
+  pony_assert(!ast->frozen);
 
   ast->flags &= ~flag;
 }
@@ -597,6 +695,8 @@ void ast_resetpass(ast_t* ast, uint32_t flag)
 
   if(ast == NULL)
     return;
+
+  pony_assert(!ast->frozen);
 
   if(ast_checkflag(ast, AST_FLAG_PRESERVE))
     return;
@@ -643,6 +743,7 @@ size_t ast_name_len(ast_t* ast)
 void ast_set_name(ast_t* ast, const char* name)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
   token_set_string(ast->t, name, 0);
 }
 
@@ -678,6 +779,7 @@ ast_t* ast_type(ast_t* ast)
 static void settype(ast_t* ast, ast_t* type, bool allow_free)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   // An annotation may never have a type.
   if(ast_id(ast) == TK_ANNOTATION)
@@ -733,6 +835,7 @@ ast_t* ast_annotation(ast_t* ast)
 void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   // An annotation may never be annotated.
   if(ast_id(ast) == TK_ANNOTATION)
@@ -809,6 +912,7 @@ bool ast_has_annotation(ast_t* ast, const char* name)
 void ast_erase(ast_t* ast)
 {
   pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
 
   ast_t* child = ast->child;
 
@@ -1009,9 +1113,12 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   bool allow_shadowing)
 {
+  pony_assert(ast != NULL);
+
   while(ast->symtab == NULL)
     ast = ast->parent;
 
+  pony_assert(!ast->frozen);
   ast_t* find;
 
   if(allow_shadowing)
@@ -1035,25 +1142,33 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
 
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
 {
+  pony_assert(ast != NULL);
+
   while(ast->symtab == NULL)
     ast = ast->parent;
 
+  pony_assert(!ast->frozen);
   symtab_set_status(ast->symtab, name, status);
 }
 
 void ast_inheritstatus(ast_t* dst, ast_t* src)
 {
+  pony_assert(src != NULL);
+
   if(dst == NULL)
     return;
 
   while(dst->symtab == NULL)
     dst = dst->parent;
 
+  pony_assert(!dst->frozen);
   symtab_inherit_status(dst->symtab, src->symtab);
 }
 
 void ast_inheritbranch(ast_t* dst, ast_t* src)
 {
+  pony_assert(dst != NULL);
+  pony_assert(src != NULL);
   pony_assert(dst->symtab != NULL);
   pony_assert(src->symtab != NULL);
 
@@ -1062,7 +1177,10 @@ void ast_inheritbranch(ast_t* dst, ast_t* src)
 
 void ast_consolidate_branches(ast_t* ast, size_t count)
 {
+  pony_assert(ast != NULL);
   pony_assert(hasparent(ast));
+  pony_assert(ast->symtab != NULL);
+  pony_assert(!ast->frozen);
 
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
@@ -1091,6 +1209,9 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
 
 bool ast_canmerge(ast_t* dst, ast_t* src)
 {
+  pony_assert(dst != NULL);
+  pony_assert(src != NULL);
+
   while(dst->symtab == NULL)
     dst = dst->parent;
 
@@ -1099,14 +1220,21 @@ bool ast_canmerge(ast_t* dst, ast_t* src)
 
 bool ast_merge(ast_t* dst, ast_t* src)
 {
+  pony_assert(dst != NULL);
+  pony_assert(src != NULL);
+
   while(dst->symtab == NULL)
     dst = dst->parent;
 
+  pony_assert(!dst->frozen);
   return symtab_merge_public(dst->symtab, src->symtab);
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
 {
+  pony_assert(outer != NULL);
+  pony_assert(inner != NULL);
+
   do
   {
     if(inner->symtab != NULL)
@@ -1129,6 +1257,9 @@ bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
 
 bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner, errorframe_t* errorf)
 {
+  pony_assert(outer != NULL);
+  pony_assert(inner != NULL);
+
   ast_t* from = inner;
   bool ok = true;
 
@@ -1172,6 +1303,9 @@ bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner, errorframe_t* errorf)
 
 void ast_clear(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
+
   if(ast->symtab != NULL)
   {
     symtab_free(ast->symtab);
@@ -1189,6 +1323,9 @@ void ast_clear(ast_t* ast)
 
 void ast_clear_local(ast_t* ast)
 {
+  pony_assert(ast != NULL);
+  pony_assert(!ast->frozen);
+
   if(ast->symtab != NULL)
   {
     symtab_free(ast->symtab);
@@ -1201,9 +1338,12 @@ ast_t* ast_add(ast_t* parent, ast_t* child)
   pony_assert(parent != NULL);
   pony_assert(parent != child);
   pony_assert(parent->child != child);
+  pony_assert(!parent->frozen);
 
   if(hasparent(child))
     child = ast_dup(child);
+  else
+    pony_assert(!child->frozen);
 
   set_scope_and_parent(child, parent);
   child->sibling = parent->child;
@@ -1217,9 +1357,12 @@ ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
   pony_assert(new_sibling != NULL);
   pony_assert(older_sibling != new_sibling);
   pony_assert(hasparent(older_sibling));
+  pony_assert(!older_sibling->parent->frozen);
 
   if(hasparent(new_sibling))
     new_sibling = ast_dup(new_sibling);
+  else
+    pony_assert(!new_sibling->frozen);
 
   pony_assert(new_sibling->sibling == NULL);
 
@@ -1231,6 +1374,9 @@ ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
 
 ast_t* ast_pop(ast_t* parent)
 {
+  pony_assert(parent != NULL);
+  pony_assert(!parent->frozen);
+
   ast_t* child = parent->child;
 
   if(child != NULL)
@@ -1248,9 +1394,12 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   pony_assert(parent != NULL);
   pony_assert(child != NULL);
   pony_assert(parent != child);
+  pony_assert(!parent->frozen);
 
   if(hasparent(child))
     child = ast_dup(child);
+  else
+  pony_assert(!child->frozen);
 
   set_scope_and_parent(child, parent);
 
@@ -1296,13 +1445,18 @@ void ast_remove(ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(hasparent(ast));
+  pony_assert(!ast->frozen);
 
   ast_t* last = ast_previous(ast);
 
   if(last != NULL)
+  {
+    pony_assert(!last->frozen);
     last->sibling = ast->sibling;
-  else
+  } else {
+    pony_assert(!ast->parent->frozen);
     ast->parent->child = ast->sibling;
+  }
 
   ast->parent = NULL;
   ast->sibling = NULL;
@@ -1313,12 +1467,16 @@ void ast_swap(ast_t* prev, ast_t* next)
 {
   pony_assert(prev != NULL);
   pony_assert(prev != next);
+  pony_assert(!prev->frozen);
 
   ast_t* parent = ast_parent(prev);
   pony_assert(parent != NULL);
+  pony_assert(!parent->frozen);
 
   if(hasparent(next))
     next = ast_dup(next);
+  else
+    pony_assert(!next->frozen);
 
   if(ast_type(parent) == prev)
   {
@@ -1342,6 +1500,8 @@ void ast_swap(ast_t* prev, ast_t* next)
 
 void ast_replace(ast_t** prev, ast_t* next)
 {
+  pony_assert(!(*prev)->frozen);
+
   if(*prev == next)
     return;
 
@@ -1382,6 +1542,8 @@ void ast_free(ast_t* ast)
 {
   if(ast == NULL)
     return;
+
+  ast->frozen = false;
 
   ast_t* child = ast->child;
   ast_t* next;
@@ -1425,9 +1587,36 @@ void ast_free_unattached(ast_t* ast)
     ast_free(ast);
 }
 
-void ast_print(ast_t* ast)
+bool ast_is_frozen(ast_t* ast)
 {
-  ast_fprint(stdout, ast);
+  pony_assert(ast != NULL);
+
+#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  return ast->frozen;
+#else
+  return false;
+#endif
+}
+
+void ast_freeze(ast_t* ast)
+{
+#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  if((ast == NULL) || ast->frozen)
+    return;
+
+  ast->frozen = true;
+  token_freeze(ast->t);
+
+  for(ast_t* child = ast->child; child != NULL; child = ast_sibling(child))
+    ast_freeze(child);
+
+  ast_freeze(ast->annotation_type);
+#endif
+}
+
+void ast_print(ast_t* ast, size_t width)
+{
+  ast_fprint(stdout, ast, width);
 }
 
 void ast_printverbose(ast_t* ast)
@@ -1435,12 +1624,12 @@ void ast_printverbose(ast_t* ast)
   ast_fprintverbose(stdout, ast);
 }
 
-void ast_fprint(FILE* fp, ast_t* ast)
+void ast_fprint(FILE* fp, ast_t* ast, size_t width)
 {
   if(ast == NULL)
     return;
 
-  print(fp, ast, 0, NOT_SPECIAL);
+  print(fp, ast, 0, NOT_SPECIAL, width);
   fprintf(fp, "\n");
 }
 
@@ -1585,11 +1774,6 @@ const char* ast_print_type(ast_t* type)
   return s;
 }
 
-void ast_setwidth(size_t w)
-{
-  width = w;
-}
-
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
 {
   va_list ap;
@@ -1674,6 +1858,194 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
     p = next;
   }
+}
+
+static void ast_signature_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  // Ignore the data. We don't want to cross package boundaries.
+  // The symtab, parent and type don't provide additional information to the
+  // signature so we ignore them as well.
+
+  token_id id = ast_id(ast);
+  bool docstring = false;
+
+  if(id == TK_STRING)
+  {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_MODULE:
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+      case TK_TYPE:
+      case TK_INTERFACE:
+      case TK_TRAIT:
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+      case TK_CLASS:
+      case TK_ACTOR:
+        docstring = true;
+        break;
+
+      default: {}
+    }
+  }
+
+  pony_traceknown(ctx, ast->t, docstring ?
+    token_docstring_signature_pony_type() : token_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+
+  if(id == TK_NOMINAL)
+  {
+    pony_assert(ast->child != NULL);
+
+    pony_traceknown(ctx, ast->child, (ast_id(ast->child) == TK_ID) ?
+      ast_nominal_pkg_id_signature_pony_type() : ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+  } else if(ast->child != NULL) {
+    pony_traceknown(ctx, ast->child, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+  }
+
+  if((id != TK_PACKAGE) && (ast->sibling != NULL))
+    pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  // Don't use ast->annotation_type directly. It could be a type, and we don't
+  // want to serialise types.
+  ast_t* annotation = ast_annotation(ast);
+
+  if(annotation != NULL)
+    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void ast_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  ast_t* ast = (ast_t*)object;
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+
+  dst->t = (token_signature_t*)pony_serialise_offset(ctx, ast->t);
+  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
+
+  if(ast_id(ast) != TK_PACKAGE)
+    dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
+  else
+    dst->sibling = NULL;
+
+  ast_t* annotation = ast_annotation(ast);
+
+  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
+    annotation);
+}
+
+static pony_type_t ast_signature_pony =
+{
+  0,
+  sizeof(ast_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  ast_signature_serialise_trace,
+  ast_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* ast_signature_pony_type()
+{
+  return &ast_signature_pony;
+}
+
+// Special case serialisation for package IDs nodes as TK_NOMINAL children.
+static void ast_nominal_pkg_id_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  ast_t* ast = (ast_t*)object;
+
+  pony_assert(ast_id(ast) == TK_ID);
+  ast_t* parent = ast->parent;
+  (void)parent;
+  pony_assert((parent != NULL) && (ast_id(parent) == TK_NOMINAL) &&
+    (ast == parent->child));
+
+  // Ignore the token. We'll setup a fake token directly referencing the
+  // associated package later.
+
+  pony_assert(ast->child == NULL);
+  pony_assert(ast->sibling != NULL);
+
+  pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  if(annotation != NULL)
+    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void ast_nominal_pkg_id_signature_serialise(pony_ctx_t* ctx,
+  void* object, void* buf, size_t offset, int mutability)
+{
+  (void)mutability;
+
+  ast_t* ast = (ast_t*)object;
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+
+  ast_t* def = (ast_t*)ast_data(ast_parent(ast));
+  pony_assert(def != NULL);
+  ast_t* pkg_ast = ast_nearest(def, TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(pkg_ast);
+  pony_assert(pkg != NULL);
+  dst->t = (token_signature_t*)pony_serialise_offset(ctx, pkg);
+
+  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
+  dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
+    annotation);
+}
+
+static pony_type_t ast_nominal_pkg_id_signature_pony =
+{
+  0,
+  sizeof(ast_signature_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  ast_nominal_pkg_id_signature_serialise_trace,
+  ast_nominal_pkg_id_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* ast_nominal_pkg_id_signature_pony_type()
+{
+  return &ast_nominal_pkg_id_signature_pony;
 }
 
 static void ast_serialise_trace_data(pony_ctx_t* ctx, ast_t* ast)
@@ -1888,6 +2260,9 @@ static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->sibling = (ast_t*)pony_serialise_offset(ctx, ast->sibling);
   dst->annotation_type = (ast_t*)pony_serialise_offset(ctx, ast->annotation_type);
   dst->flags = ast->flags;
+#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  dst->frozen = ast->frozen;
+#endif
 }
 
 static void ast_deserialise(pony_ctx_t* ctx, void* object)
