@@ -384,13 +384,17 @@ bool genexe(compile_t* c, ast_t* program)
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = c->str_Main;
   const char* env_class = c->str_Env;
+  const char* package_name = c->filename;
+
+  if((c->opt->exe_name != NULL) && (strlen(c->opt->exe_name) > 0))
+    c->filename = c->opt->exe_name;
 
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
 
   if(main_def == NULL)
   {
-    errorf(errors, NULL, "no Main actor found in package '%s'", c->filename);
+    errorf(errors, NULL, "no Main actor found in package '%s'", package_name);
     return false;
   }
 

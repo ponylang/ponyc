@@ -28,6 +28,7 @@ enum
   OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
+  OPT_EXE_NAME,
   OPT_LIBRARY,
   OPT_RUNTIMEBC,
   OPT_PIC,
@@ -71,6 +72,7 @@ static opt_arg_t args[] =
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
+  {"exe-name", 'e', OPT_ARG_REQUIRED, OPT_EXE_NAME},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
@@ -124,6 +126,8 @@ static void usage()
     "    =path         Used to find packages and libraries.\n"
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
+    "  --exe-name, -e  Name of executable.\n"
+    "    =name         Defaults to name of the directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
     "  --runtimebc     Compile with the LLVM bitcode file for the runtime.\n"
     "  --pic           Compile using position independent code.\n"
@@ -306,6 +310,7 @@ int main(int argc, char* argv[])
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val, &opt); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
+      case OPT_EXE_NAME: opt.exe_name = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_RUNTIMEBC: opt.runtimebc = true; break;
       case OPT_PIC: opt.pic = true; break;
