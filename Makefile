@@ -265,8 +265,15 @@ endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
+ifeq (,$(LLVM_LINK_STATIC))
+  ifneq (,$(filter $(use), llvm_link_static))
+    LLVM_LINK_STATIC=--link-static
+    $(warning "linking llvm statically")
+  endif
+endif
+
 ifeq ($(OSTYPE),osx)
-	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir)
+	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir $(LLVM_LINK_STATIC))
   ifneq (,$(shell which $(llvm_bindir)/llvm-ar 2> /dev/null))
     AR = $(llvm_bindir)/llvm-ar
     AR_FLAGS := rcs
@@ -390,8 +397,8 @@ endif
 # (2) the linker flags necessary to link against the prebuilt libraries
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
-llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
-llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir)
+llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC))
+llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir $(LLVM_LINK_STATIC))
 include.paths := $(shell echo | $(CC) -v -E - 2>&1)
 ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
 # LLVM include directory is not in the existing paths;
@@ -402,7 +409,7 @@ else
 # do nothing
 llvm.include :=
 endif
-llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
+llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
   llvm.libs += -lpthread -lexecinfo
@@ -984,6 +991,7 @@ help:
 	@echo '   dtrace'
 	@echo '   actor_continuations'
 	@echo '   coverage'
+	@echo '   llvm_link_static'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'
