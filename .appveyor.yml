@@ -49,7 +49,7 @@ build_script:
   - python -x waf configure
   - python -x waf build --config %configuration% --llvm %llvm%
   - ps: |
-      $ponydir = "${env:appveyor_build_version}-win64"
+      $ponydir = "ponyc-${package_version}-win64"
       cd C:\projects\ponyc
       md "$ponydir"
       md "${ponydir}\ponyc"
