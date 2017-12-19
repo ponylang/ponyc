@@ -386,8 +386,8 @@ bool genexe(compile_t* c, ast_t* program)
   const char* env_class = c->str_Env;
   const char* package_name = c->filename;
 
-  if((c->opt->exe_name != NULL) && (strlen(c->opt->exe_name) > 0))
-    c->filename = c->opt->exe_name;
+  if((c->opt->bin_name != NULL) && (strlen(c->opt->bin_name) > 0))
+    c->filename = c->opt->bin_name;
 
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
