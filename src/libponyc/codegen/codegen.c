@@ -818,6 +818,11 @@ static void init_runtime(compile_t* c)
   param = LLVMGetParam(value, 1);
   LLVMAddAttribute(param, LLVMReadOnlyAttribute);
 #endif
+
+  // i32 puts(i8*)
+  params[0] = c->void_ptr;
+  type = LLVMFunctionType(c->i32, params, 1, false);
+  value = LLVMAddFunction(c->module, "puts", type);
 }
 
 static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
@@ -1420,6 +1425,22 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
     LLVMSetInstructionCallConv(result, c->callconv);
 
   return result;
+}
+
+LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len)
+{
+  LLVMValueRef str_val = LLVMConstStringInContext(c->context, str, (int)len,
+    false);
+  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str_val), "");
+  LLVMSetLinkage(g_str, LLVMPrivateLinkage);
+  LLVMSetInitializer(g_str, str_val);
+  LLVMSetGlobalConstant(g_str, true);
+  LLVMSetUnnamedAddr(g_str, true);
+
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 0, false);
+  return LLVMConstInBoundsGEP(g_str, args, 2);
 }
 
 const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,

@@ -507,26 +507,14 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 
   size_t len = ast_name_len(ast);
 
-  LLVMValueRef args[4];
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMConstInt(c->i32, 0, false);
-
-  LLVMValueRef str = LLVMConstStringInContext(c->context, name, (int)len,
-    false);
-  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "");
-  LLVMSetLinkage(g_str, LLVMPrivateLinkage);
-  LLVMSetInitializer(g_str, str);
-  LLVMSetGlobalConstant(g_str, true);
-  LLVMSetUnnamedAddr(g_str, true);
-  LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
-
   reach_type_t* t = reach_type(c->reach, type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
+  LLVMValueRef args[4];
   args[0] = c_t->desc;
   args[1] = LLVMConstInt(c->intptr, len, false);
   args[2] = LLVMConstInt(c->intptr, len + 1, false);
-  args[3] = str_ptr;
+  args[3] = codegen_string(c, name, len);
 
   LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
   LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
