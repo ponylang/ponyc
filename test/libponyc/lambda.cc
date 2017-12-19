@@ -194,6 +194,19 @@ TEST_F(LambdaTest, ObjectCaptureRefInActor)
   TEST_ERRORS_1(src, "this parameter must be sendable");
 }
 
+TEST_F(LambdaTest, ObjectSyntaxErrorInMethod)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    object\n"
+    "      fun wrong_syntax() =>\n"
+    "        1 + 2 * 4\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "Operator precedence is not supported. Parentheses required.");
+}
+
 
 TEST_F(LambdaTest, InferFromArgType)
 {
