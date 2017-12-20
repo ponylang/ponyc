@@ -27,6 +27,13 @@ struct asio_backend_t
   messageq_t q;
 };
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+static void empty_signal_handler(int sig)
+{
+  (void) sig;
+}
+#endif
+
 asio_backend_t* ponyint_asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
@@ -48,6 +55,19 @@ asio_backend_t* ponyint_asio_backend_init()
 
   struct timespec t = {0, 0};
   kevent(b->kq, &new_event, 1, NULL, 0, &t);
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we ignore signals related to scheduler sleeping/waking
+  // as the default for those signals is termination
+  struct sigaction new_action;
+  new_action.sa_handler = empty_signal_handler;
+  sigemptyset (&new_action.sa_mask);
+
+  // ask to restart interrupted syscalls to match `signal` behavior
+  new_action.sa_flags = SA_RESTART;
+
+  sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
+#endif
 
   return b;
 }
@@ -141,6 +161,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pony_register_thread();
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we block signals related to scheduler sleeping/waking
+  // so they queue up to avoid race conditions
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
+  pthread_sigmask(SIG_BLOCK, &set, NULL);
+#endif
+
   struct kevent fired[MAX_EVENTS];
 
   while(b->kq != -1)
@@ -277,7 +307,22 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    signal((int)ev->nsec, SIG_IGN);
+    // Make sure we ignore signals related to scheduler sleeping/waking
+    // as the default for those signals is termination
+    struct sigaction new_action;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+      new_action.sa_handler = empty_signal_handler;
+    else
+#endif
+      new_action.sa_handler = SIG_IGN;
+    sigemptyset (&new_action.sa_mask);
+
+    // ask to restart interrupted syscalls to match `signal` behavior
+    new_action.sa_flags = SA_RESTART;
+
+    sigaction((int)ev->nsec, &new_action, NULL);
+
     EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
@@ -369,7 +414,22 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    signal((int)ev->nsec, SIG_DFL);
+    // Make sure we ignore signals related to scheduler sleeping/waking
+    // as the default for those signals is termination
+    struct sigaction new_action;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+      new_action.sa_handler = empty_signal_handler;
+    else
+#endif
+      new_action.sa_handler = SIG_DFL;
+    sigemptyset (&new_action.sa_mask);
+
+    // ask to restart interrupted syscalls to match `signal` behavior
+    new_action.sa_flags = SA_RESTART;
+
+    sigaction((int)ev->nsec, &new_action, NULL);
+
     EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_DELETE, 0, 0, ev);
     i++;
   }

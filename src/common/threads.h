@@ -8,7 +8,13 @@
  */
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <pthread.h>
+#  include <signal.h>
 #  define pony_thread_id_t pthread_t
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+#  define pony_signal_event_t pthread_cond_t*
+#else
+#  define pony_signal_event_t uint32_t
+#endif
 
 typedef void* (*thread_fn) (void* arg);
 
@@ -16,6 +22,7 @@ typedef void* (*thread_fn) (void* arg);
 #elif defined(PLATFORM_IS_WINDOWS)
 #  include <process.h>
 #  define pony_thread_id_t HANDLE
+#  define pony_signal_event_t HANDLE
 
 typedef uint32_t(__stdcall *thread_fn) (void* arg);
 
@@ -49,5 +56,9 @@ bool ponyint_thread_join(pony_thread_id_t thread);
 void ponyint_thread_detach(pony_thread_id_t thread);
 
 pony_thread_id_t ponyint_thread_self();
+
+void ponyint_thread_suspend(pony_signal_event_t signal);
+
+void ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal);
 
 #endif

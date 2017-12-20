@@ -18,6 +18,7 @@ typedef struct options_t
 {
   // concurrent options
   uint32_t threads;
+  uint32_t min_threads;
   uint32_t cd_min_deferred;
   uint32_t cd_max_deferred;
   uint32_t cd_conf_group;
@@ -38,6 +39,7 @@ static bool language_init;
 enum
 {
   OPT_THREADS,
+  OPT_MINTHREADS,
   OPT_CDMIN,
   OPT_CDMAX,
   OPT_CDCONF,
@@ -53,6 +55,7 @@ enum
 static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
+  {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
   {"ponycdmin", 0, OPT_ARG_REQUIRED, OPT_CDMIN},
   {"ponycdmax", 0, OPT_ARG_REQUIRED, OPT_CDMAX},
   {"ponycdconf", 0, OPT_ARG_REQUIRED, OPT_CDCONF},
@@ -78,6 +81,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     switch(id)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
+      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
       case OPT_CDMIN: opt->cd_min_deferred = atoi(s.arg_val); break;
       case OPT_CDMAX: opt->cd_max_deferred = atoi(s.arg_val); break;
       case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
@@ -134,7 +138,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
-    opt.pinasio);
+    opt.pinasio, opt.min_threads);
 
   ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);

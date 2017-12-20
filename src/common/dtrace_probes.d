@@ -170,4 +170,16 @@ provider pony {
    */
   probe work__steal__failure(uintptr_t scheduler, uintptr_t victim);
 
+  /**
+   * Fired when a scheduler suspends
+   * @param scheduler is the scheduler that suspended
+   */
+  probe thread__suspend(uintptr_t scheduler);
+
+  /**
+   * Fired when a scheduler resumes
+   * @param scheduler is the scheduler that resumed
+   */
+  probe thread__resume(uintptr_t scheduler);
+
 };

@@ -199,9 +199,17 @@ primitive Sig
     end
 
   fun usr2(): U32 =>
-    ifdef bsd or osx then 31
-    elseif linux then 12
-    else compile_error "no SIGUSR2"
+    ifdef not "scheduler_scaling_pthreads" then
+      ifdef bsd or osx then 31
+      elseif linux then 12
+      else compile_error "no SIGUSR2"
+      end
+    else
+      ifdef linux or bsd or osx then
+        compile_error "SIGUSR2 reserved for runtime use"
+      else
+        compile_error "no SIGUSR2"
+      end
     end
 
   fun rt(n: U32): U32 ? =>
