@@ -296,6 +296,8 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count, bool setcc);
 
+LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len);
+
 const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   const char* file, const char* extension);
 
