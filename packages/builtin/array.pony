@@ -1,6 +1,86 @@
 class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
+
+  # Usage
+  Creating an array of Strings, single line.
+  ```pony
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+  ```
+
+  Semicolon is an expression, so this is a multiline equivalent.
+   ```pony
+    let array: Array[String] = [
+      "dog"
+      "cat"
+      "wombat"
+    ]
+  ```
+
+  Accessing elements can be done via the `apply(i: USize): this->A ?` method.
+  The index provided might be out of bounds so `apply` is partial and has to be
+  called within a try-catch block or inside another partial method.
+  ```pony
+    fun second_element_is_wombat(array: Array[String]): Bool =>
+      try
+        // first element's index is 0, so second is 1
+        return array(1)? == "wombat"
+      else
+        return false
+      end
+
+      // the second element is indeed a wombat
+      second_element_is_wombat(["star"; "wombat"]) == true
+  ```
+
+  Below more examples of working with Array class, including modifying
+  and iterating over it.
+  ```pony
+    let animals = [
+        "dog"
+        "dog"
+        "cat"
+        "fish"
+        "wombat"
+      ]
+
+    // it's an array with five elements - that's the size of the array
+    animals.size() == 5
+    // initial space is at least as big as the size of the array
+    animals.space() >= animals.size()
+
+    // second animal is not a dog - it's a wombat - fix this
+    try
+      animals.update(1, "wombat")?
+    end
+
+    // find first wombat from the left, it's index is 1
+    try
+      animals.find("wombat")? == 1
+    end
+
+    // find all wombats
+    let wombats = Array[String]
+    for animal in animals.values() do
+      if animal == "wombat" then
+        wombats.push(animal)
+      end
+    end
+    wombads
+
+    // all two wombats found
+    wombats.size() == 2
+
+    // print the animals one by one, until the whole array is empty
+    while animals.size() > 0 do
+      try
+      env.out.print(animals.pop()?)
+      end
+    end
+
+    // no animals are left in the array
+    animals.size() == 0
+  ```
   """
   var _size: USize
   var _alloc: USize
