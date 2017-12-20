@@ -33,8 +33,66 @@ class Array[A] is Seq[A]
       second_element_is_wombat(["star"; "wombat"]) == true
   ```
 
-  Below more examples of working with Array class, including modifying
-  and iterating over it.
+  # Memory allocation
+  Array allocates contiguous memory. It always allocates at least enough memory
+  space to hold all of it's elements. Space is the number of elements the array
+  can hold without allocating more memory. The exact amout of memory needed for
+  one unit of space depends on the type of elements the array can hold.
+
+  When creating an array or adding more elements the Array will allocate
+  a next power of two of space, but no less than 8 of space. Empty array
+  is an exception and can be of 0 space.
+
+  Here's a few examples of the space allocated when initialising a table with
+  various number of elements:
+
+  | size | space |
+  |------|-------|
+  | 0    | 0     |
+  | 1    | 8     |
+  | 8    | 8     |
+  | 9    | 16    |
+  | 16   | 16    |
+  | 17   | 32    |
+
+  The space allocated can change when elemnts are added or removed from an
+  array.
+  ```pony
+      // create an array of 8 wombats
+      let wombats = Array[String].init("wombat", 8)
+      wombats.size() == 8
+      wombats.space() == 8
+
+      // insert a cat into the wombats
+      // all elements begining from index 4 will be moved one index to the right
+      try
+        wombats.insert(4, "cat")?
+        wombats.size() == 9
+        wombats.space() == 16
+      end
+
+      // delete fourth element - the cat
+      // all elements on the right will be moved one position to the left
+      try
+        wombats.delete(3)?
+      end
+      // the space of the array won't change, unless the Garbage Collector runs
+      wombats.space() == 16
+      // we can tell the GC to try and reclaim unused space
+      wombats.compact()
+      // this may or not happen
+      wombats.space() == 8 or wombats.space() == 16
+  ```
+
+  It's possible to create an empty array with at some memory allocated.
+  ```pony
+      let empty_array = Array[String].init(9)
+      empty_array.size() == 0
+      empty_array.space() == 16
+  ```
+
+  # More examples
+  Iterating over elements, modifying the array.
   ```pony
     let animals = [
         "dog"
@@ -43,11 +101,6 @@ class Array[A] is Seq[A]
         "fish"
         "wombat"
       ]
-
-    // it's an array with five elements - that's the size of the array
-    animals.size() == 5
-    // initial space is at least as big as the size of the array
-    animals.space() >= animals.size()
 
     // second animal is not a dog - it's a wombat - fix this
     try
