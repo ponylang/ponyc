@@ -47,6 +47,9 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   codegen_startfun(c, func, NULL, NULL, false);
 
+  LLVMBasicBlockRef start_fail_block = codegen_block(c, "start_fail");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
   LLVMValueRef args[5];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
@@ -128,6 +131,21 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[0] = LLVMConstInt(c->i32, 0, false);
   args[1] = LLVMConstInt(c->i32, 1, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
+
+  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
+  LLVMValueRef start_success = LLVMBuildICmp(c->builder, LLVMIntNE, rc,
+    minus_one, "");
+  LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, start_fail_block);
+
+  const char error_msg_str[] = "Error: couldn't initialise runtime!";
+
+  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
+  gencall_runtime(c, "puts", args, 1, "");
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
