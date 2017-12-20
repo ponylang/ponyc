@@ -30,6 +30,21 @@ class Array[A] is Seq[A]
   which alter the Array at an arbitrary index, moving elements left (when
   deleting) or right (when inserting) as necessary.
 
+  Iterating over can be done using the `values` method.
+  ```pony
+    for element in array.values() do
+        // do something with element
+    end
+  ```
+
+  You could also treat the array as a FIFO queue using `pop()` method.
+  ```pony
+    while (array.size() > 0) do
+      let elem = array.pop()
+      // do something with element
+    end
+  ```
+
   ## Memory allocation
   Array allocates contiguous memory. It always allocates at least enough memory
   space to hold all of its elements. Space is the number of elements the Array
