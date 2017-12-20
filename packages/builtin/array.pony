@@ -29,7 +29,8 @@ class Array[A] is Seq[A]
         return false
       end
 
-      h.assert_true(second_element_is_trek(["star"; "wombat"]))
+      // the second element is indeed a wombat
+      second_element_is_wombat(["star"; "wombat"]) == true
   ```
 
   Below more examples of working with Array class, including modifying
