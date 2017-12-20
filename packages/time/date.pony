@@ -1,4 +1,4 @@
-class Date
+class PosixDate
   """
   Represents a proleptic Gregorian date and time, without specifying a
   time zone. The day of month, month, day of week, and day of year are all
@@ -16,9 +16,11 @@ class Date
 
   new create(seconds: I64 = 0, nanoseconds: I64 = 0) =>
     """
-    Create a date from a POSIX time.
+    Create a date from a POSIX time. Negative arguments will be changed to zero.
     """
-    @ponyint_gmtime[None](this, seconds, nanoseconds)
+    @ponyint_gmtime[None](this,
+      _negative_to_zero(seconds),
+      _negative_to_zero(nanoseconds))
 
   fun time(): I64 =>
     """
@@ -42,4 +44,11 @@ class Date
     recover
       String.from_cstring(@ponyint_formattime[Pointer[U8]](this,
         fmt.cstring()))
+    end
+
+  fun _negative_to_zero(value: I64): I64 =>
+    if value > 0 then
+      value
+    else
+      0
     end
