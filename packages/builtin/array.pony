@@ -43,19 +43,19 @@ class Array[A] is Seq[A]
         "wombat"
       ]
 
-    h.assert_eq[USize](5, animals.size())
+    // it's an array with five elements - that's the size of the array
+    animals.size() == 5
     // initial space is at least as big as the size of the array
-    h.assert_true(animals.space() >= animals.size())
+    animals.space() >= animals.size()
 
     // second animal is not a dog - it's a wombat - fix this
     try
       animals.update(1, "wombat")?
     end
 
-    // find a wombat and verify it's index
+    // find first wombat from the left, it's index is 1
     try
-      let index = animals.find("wombat")?
-      h.assert_eq[USize](1, index)
+      animals.find("wombat")? == 1
     end
 
     // find all wombats
@@ -65,19 +65,20 @@ class Array[A] is Seq[A]
         wombats.push(animal)
       end
     end
+    wombads
 
-    // verify two wombats found
-    h.assert_eq[USize](2, wombats.size())
+    // all two wombats found
+    wombats.size() == 2
 
     // print the animals one by one, until the whole array is empty
     while animals.size() > 0 do
       try
-      h.log(animals.pop()?)
+      env.out.print(animals.pop()?)
       end
     end
 
     // no animals are left in the array
-    h.assert_eq[USize](0, animals.size())
+    animals.size() == 0
   ```
   """
   var _size: USize
