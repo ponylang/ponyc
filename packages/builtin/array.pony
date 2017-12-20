@@ -2,19 +2,10 @@ class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
 
-  # Usage
-  Creating an array of Strings, single line.
+  ## Usage
+  Creating an Array of String.
   ```pony
     let array: Array[String] = ["dog"; "cat"; "wombat"]
-  ```
-
-  Semicolon is an expression, so this is a multiline equivalent.
-   ```pony
-    let array: Array[String] = [
-      "dog"
-      "cat"
-      "wombat"
-    ]
   ```
 
   Accessing elements can be done via the `apply(i: USize): this->A ?` method.
@@ -30,17 +21,29 @@ class Array[A] is Seq[A]
       end
 
       // the second element is indeed a wombat
-      second_element_is_wombat(["star"; "wombat"]) == true
+      // second_element_is_wombat(["star"; "wombat"]) == true
   ```
 
-  # Memory allocation
+  Adding and removing elements to and from the end of the array can be done via
+  `push` and `pop` methods, which add and remove elements to the end of the
+  Array.
+
+  Modifying the Array can be done via `update`, `insert` and `delete` methods
+  which alter the array at an arbitrary index, moving elements so that they are
+  contiguous.
+
+  ## Memory allocation
   Array allocates contiguous memory. It always allocates at least enough memory
-  space to hold all of it's elements. Space is the number of elements the array
-  can hold without allocating more memory. The exact amout of memory needed for
-  one unit of space depends on the type of elements the array can hold.
+  space to hold all of its elements. Space is the number of elements the array
+  can hold without allocating more memory. The `space()` method returns the
+  number of elements an array can hold. The `size()` method returns the number
+  of elements the Array holds.
+
+  Different data types require different amounts of memory. Array[U64] with size
+  of 6 will take more memory than an Array[U8] of the same size.
 
   When creating an array or adding more elements the Array will allocate
-  a next power of two of space, but no less than 8 of space. Empty array
+  a next power of two of space, but no less than 8 of space. An empty array
   is an exception and can be of 0 space.
 
   Here's a few examples of the space allocated when initialising a table with
@@ -55,85 +58,8 @@ class Array[A] is Seq[A]
   | 16   | 16    |
   | 17   | 32    |
 
-  The space allocated can change when elemnts are added or removed from an
-  array.
-  ```pony
-      // create an array of 8 wombats
-      let wombats = Array[String].init("wombat", 8)
-      wombats.size() == 8
-      wombats.space() == 8
-
-      // insert a cat into the wombats
-      // all elements begining from index 4 will be moved one index to the right
-      try
-        wombats.insert(4, "cat")?
-        wombats.size() == 9
-        wombats.space() == 16
-      end
-
-      // delete fourth element - the cat
-      // all elements on the right will be moved one position to the left
-      try
-        wombats.delete(3)?
-      end
-      // the space of the array won't change, unless the Garbage Collector runs
-      wombats.space() == 16
-      // we can tell the GC to try and reclaim unused space
-      wombats.compact()
-      // this may or not happen
-      wombats.space() == 8 or wombats.space() == 16
-  ```
-
-  It's possible to create an empty array with at some memory allocated.
-  ```pony
-      let empty_array = Array[String].init(9)
-      empty_array.size() == 0
-      empty_array.space() == 16
-  ```
-
-  # More examples
-  Iterating over elements, modifying the array.
-  ```pony
-    let animals = [
-        "dog"
-        "dog"
-        "cat"
-        "fish"
-        "wombat"
-      ]
-
-    // second animal is not a dog - it's a wombat - fix this
-    try
-      animals.update(1, "wombat")?
-    end
-
-    // find first wombat from the left, it's index is 1
-    try
-      animals.find("wombat")? == 1
-    end
-
-    // find all wombats
-    let wombats = Array[String]
-    for animal in animals.values() do
-      if animal == "wombat" then
-        wombats.push(animal)
-      end
-    end
-    wombads
-
-    // all two wombats found
-    wombats.size() == 2
-
-    // print the animals one by one, until the whole array is empty
-    while animals.size() > 0 do
-      try
-      env.out.print(animals.pop()?)
-      end
-    end
-
-    // no animals are left in the array
-    animals.size() == 0
-  ```
+  Call the `compact()` method to ask the GC to reclaim unused space. There are
+  no guarantees that the GC will actually reclaim any space.
   """
   var _size: USize
   var _alloc: USize
