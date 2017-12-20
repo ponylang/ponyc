@@ -9,41 +9,39 @@ class Array[A] is Seq[A]
   ```
 
   Accessing elements can be done via the `apply(i: USize): this->A ?` method.
-  The index provided might be out of bounds so `apply` is partial and has to be
-  called within a try-catch block or inside another partial method.
+  The provided index might be out of bounds so `apply` (like many other Array's
+  methods) is partial and has to be called within a try-catch block or inside
+  another partial method.
   ```pony
-    fun second_element_is_wombat(array: Array[String]): Bool =>
-      try
-        // first element's index is 0, so second is 1
-        return array(1)? == "wombat"
-      else
-        return false
-      end
-
-      // the second element is indeed a wombat
-      // second_element_is_wombat(["star"; "wombat"]) == true
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+    let is_second_element_wobat = try
+      // indexes start from 0, so 1 is the second element
+      array(1)? == "wombat"
+    else
+      false
+    end
   ```
 
-  Adding and removing elements to and from the end of the array can be done via
+  Adding and removing elements to and from the end of the Array can be done via
   `push` and `pop` methods, which add and remove elements to the end of the
   Array.
 
   Modifying the Array can be done via `update`, `insert` and `delete` methods
-  which alter the array at an arbitrary index, moving elements so that they are
-  contiguous.
+  which alter the Array at an arbitrary index, moving elements left (when
+  deleting) or right (when inserting) as necessary.
 
   ## Memory allocation
   Array allocates contiguous memory. It always allocates at least enough memory
-  space to hold all of its elements. Space is the number of elements the array
+  space to hold all of its elements. Space is the number of elements the Array
   can hold without allocating more memory. The `space()` method returns the
-  number of elements an array can hold. The `size()` method returns the number
+  number of elements an Array can hold. The `size()` method returns the number
   of elements the Array holds.
 
   Different data types require different amounts of memory. Array[U64] with size
   of 6 will take more memory than an Array[U8] of the same size.
 
-  When creating an array or adding more elements the Array will allocate
-  a next power of two of space, but no less than 8 of space. An empty array
+  When creating an Array or adding more elements the Array will allocate
+  a next power of two of space, but no less than 8 of space. An empty Array
   is an exception and can be of 0 space.
 
   Here's a few examples of the space allocated when initialising a table with
