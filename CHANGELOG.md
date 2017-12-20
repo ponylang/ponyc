@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Dynamic scheduler thread scaling based on workload ([PR #2386](https://github.com/ponylang/ponyc/pull/2386))
 - Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
 
 ### Changed
