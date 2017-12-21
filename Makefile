@@ -946,8 +946,8 @@ endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r .docs/* $(package)/usr/lib/pony/$(package_version)/docs-support/
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
