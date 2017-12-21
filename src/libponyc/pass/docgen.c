@@ -345,7 +345,7 @@ static const char* doc_get_cap(ast_t* cap)
 
 static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
 {
-  for (int i = 0; i < docgen->included_sources_count; i++) {
+  for (size_t i = 0; i < docgen->included_sources_count; i++) {
     if (source == docgen->included_sources[i]-> source) {
       return docgen->included_sources[i];
     }
@@ -495,7 +495,7 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line = false)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line)
 {
   source_t* source = ast_source(elem);
   doc_sources_t* doc_source = NULL;
@@ -563,7 +563,8 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
-    add_source_code_link(docgen, field);
+    bool on_new_line = false;
+    add_source_code_link(docgen, field, on_new_line);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -720,7 +721,8 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "### %s", name);
   doc_type_params(docgen, docgen_opt, t_params, true, false);
 
-  add_source_code_link(docgen, method);
+  bool on_new_line = false;
+  add_source_code_link(docgen, method, on_new_line);
 
   fprintf(docgen->type_file, "\n\n");
 
@@ -828,7 +830,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   int number_of_try = 0;
   do {
     are_name_clashing = false;
-    for (int i = 0; i < docgen->included_sources_count; i++) {
+    for (size_t i = 0; i < docgen->included_sources_count; i++) {
       pony_assert(docgen->included_sources[i] != NULL);
       if(strcmp(path, docgen->included_sources[i]->file_path) == 0) {
         are_name_clashing = true;
@@ -908,7 +910,7 @@ static void include_source_if_needed(
   pony_assert(source_path != NULL);
 
   bool was_included = false;
-  for (int i = 0; i < docgen->included_sources_count; i++) {
+  for (size_t i = 0; i < docgen->included_sources_count; i++) {
     pony_assert(docgen->included_sources[i] != NULL);
     if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
       was_included = true;
@@ -918,7 +920,7 @@ static void include_source_if_needed(
     doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
     if (new_elem != NULL) {
       doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
-      for (int i = 0; i < docgen->included_sources_count; i = i++) {
+      for (size_t i = 0; i < docgen->included_sources_count; i = i++) {
         pony_assert(docgen->included_sources[i] != NULL);
         resized_array[i] = docgen->included_sources[i];
       }
@@ -1323,7 +1325,7 @@ static void copy_file_content(FILE* source, FILE* dest)
   pony_assert(source != NULL && dest != NULL);
   while(1)
   {
-    char a = fgetc(source);
+    int a = fgetc(source);
     if(!feof(source))
       fputc(a, dest);
     else
@@ -1469,7 +1471,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if (docgen.included_sources != NULL) {
     fprintf(docgen.index_file, "- source:\n");
-    for (int i = 0; i < docgen.included_sources_count; i++) {
+    for (size_t i = 0; i < docgen.included_sources_count; i++) {
       doc_sources_t* current_source = docgen.included_sources[i];
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
     }
