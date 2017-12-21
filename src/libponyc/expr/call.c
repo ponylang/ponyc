@@ -674,9 +674,16 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   }
 
   // Look up the original method definition for this method call.
-  ast_t* method_def = lookup(opt, lhs, ast_type(receiver), ast_name(method));
-  pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
-    ast_id(method_def) == TK_NEW);
+  deferred_reification_t* method_def = lookup(opt, lhs, ast_type(receiver),
+    ast_name(method));
+  ast_t* method_ast = method_def->ast;
+
+  // The deferred reification doesn't own the underlying AST so we can free it
+  // safely.
+  deferred_reify_free(method_def);
+
+  pony_assert(ast_id(method_ast) == TK_FUN || ast_id(method_ast) == TK_BE ||
+    ast_id(method_ast) == TK_NEW);
 
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
@@ -693,7 +700,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(!bare)
     apply_cap = partial_application_cap(opt, type, receiver, positional);
 
-  token_id can_error = ast_id(ast_childidx(method_def, 5));
+  token_id can_error = ast_id(ast_childidx(method_ast, 5));
   const char* recv_name = package_hygienic_id(t);
 
   // Build lambda expression.

@@ -296,12 +296,22 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       // we need to use the funtype of the apply method of the object.
       if(ast_id(funtype) != TK_FUNTYPE)
       {
-        ast_t* fun = lookup(opt, receiver, funtype, stringtab("apply"));
+        deferred_reification_t* fun = lookup(opt, receiver, funtype,
+          stringtab("apply"));
 
-        if((fun == NULL) || ((ast_id(fun) != TK_BE) && (ast_id(fun) != TK_FUN)))
+        if(fun == NULL)
           return NULL;
 
-        funtype = type_for_fun(fun);
+        if((ast_id(fun->ast) != TK_BE) && (ast_id(fun->ast) != TK_FUN))
+        {
+          deferred_reify_free(fun);
+          return NULL;
+        }
+
+        ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
+        funtype = type_for_fun(r_fun);
+        ast_free_unattached(r_fun);
+        deferred_reify_free(fun);
       }
 
       AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);

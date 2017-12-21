@@ -164,11 +164,12 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name,
       n->cap = TK_BOX;
       n->internal = true;
     } else {
-      ast_t* fun = lookup(NULL, NULL, t->ast, name);
-      n->id = ast_id(fun);
-      n->cap = ast_id(ast_child(fun));
-      ast_free_unattached(fun);
+      deferred_reification_t* fun = lookup(NULL, NULL, t->ast, name);
+      ast_t* fun_ast = fun->ast;
+      n->id = ast_id(fun_ast);
+      n->cap = ast_id(ast_child(fun_ast));
       n->internal = false;
+      deferred_reify_free(fun);
     }
   }
 
@@ -315,12 +316,12 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
       {
         if(!internal)
         {
-          ast_t* find = lookup_try(NULL, NULL, child, n->name);
+          deferred_reification_t* find = lookup_try(NULL, NULL, child, n->name);
 
           if(find == NULL)
             continue;
 
-          ast_free_unattached(find);
+          deferred_reify_free(find);
         }
 
         t2 = add_type(r, child, opt);
@@ -358,19 +359,19 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   if(!internal)
   {
     ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
-    ast_t* fun = lookup(NULL, NULL, r_ast, n->name);
+    deferred_reification_t* fun = lookup(NULL, NULL, r_ast, n->name);
     ast_free_unattached(r_ast);
 
     if(typeargs != NULL)
     {
-      // Reify the method with its typeargs, if it has any.
-      AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
-        body);
-
-      fun = reify(fun, typeparams, typeargs, opt, false);
+      ast_t* typeparams = ast_childidx(fun->ast, 2);
+      deferred_reify_add_method_params(fun, typeparams, typeargs);
     }
 
-    m->r_fun = fun;
+    ast_t* r_fun = deferred_reify(fun, fun->ast, opt);
+    deferred_reify_free(fun);
+
+    m->r_fun = r_fun;
     set_method_types(r, m, opt);
   }
 
@@ -536,23 +537,22 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
   const char* special, pass_opt_t* opt)
 {
   special = stringtab(special);
-  ast_t* find = lookup_try(NULL, NULL, type, special);
+  deferred_reification_t* find = lookup_try(NULL, NULL, type, special);
 
   if(find != NULL)
   {
-    switch(ast_id(find))
+    switch(ast_id(find->ast))
     {
       case TK_NEW:
       case TK_FUN:
       case TK_BE:
-      {
         reachable_method(r, t->ast, special, NULL, opt);
-        ast_free_unattached(find);
         break;
-      }
 
       default: {}
     }
+
+    deferred_reify_free(find);
   }
 }
 
@@ -632,9 +632,13 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
       case TK_FLET:
       case TK_EMBED:
       {
-        ast_t* r_member = lookup(NULL, NULL, t->ast,
+        deferred_reification_t* member_lookup = lookup(NULL, NULL, t->ast,
           ast_name(ast_child(member)));
-        pony_assert(r_member != NULL);
+        pony_assert(member_lookup != NULL);
+
+        ast_t* r_member = deferred_reify(member_lookup, member_lookup->ast,
+          opt);
+        deferred_reify_free(member_lookup);
 
         ast_t* name = ast_pop(r_member);
         ast_t* type = ast_pop(r_member);
