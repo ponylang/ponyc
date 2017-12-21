@@ -2,6 +2,12 @@
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
+#ifdef PLATFORM_IS_WINDOWS
+# define PATH_SLASH '\\'
+#else
+# define PATH_SLASH '/'
+#endif
+
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -141,7 +147,7 @@ void pony_mkdir(const char* path)
 #endif
 
 
-const char* basename(const char* path)
+const char* get_file_name(const char* path)
 {
 #ifdef PLATFORM_IS_WINDOWS
   char* filename = (char*) malloc(strlen(path) + 1);
@@ -155,7 +161,7 @@ const char* basename(const char* path)
 
 // https://stackoverflow.com/questions/2736753/how-to-remove-extension-from-file-name
 // remove_ext: removes the "extension" from a file spec.
-//   mystr is the string to process.
+//   path is the string to process.
 //   dot is the extension separator.
 //   sep is the path separator (0 means to ignore).
 // Returns an allocated string identical to the original but
@@ -163,24 +169,24 @@ const char* basename(const char* path)
 //   finished with it.
 // If you pass in NULL or the new string can't be allocated,
 //   it returns NULL.
-const char* remove_ext(const char* mystr, char dot, char sep) 
+const char* remove_ext(const char* path, char dot, char sep) 
 {
     char *retstr, *lastdot, *lastsep;
     // Error checks and allocate string.
-    if (mystr == NULL)
+    if (path == NULL)
       return NULL;
 
-    if ((retstr = (char*) malloc(strlen(mystr) + 1)) == NULL)
+    if ((retstr = (char*) malloc(strlen(path) + 1)) == NULL)
       return NULL;
 
     // Make a copy and find the relevant characters.
-    strcpy(retstr, mystr);
+    strcpy(retstr, path);
     lastdot = strrchr(retstr, dot);
     lastsep = (sep == 0) ? NULL : strrchr(retstr, sep);
 
     // If it has an extension separator.
     if (lastdot != NULL) {
-      // and it's before the extenstion separator.
+      // and it's before the extension separator.
       if (lastsep != NULL) {
         if (lastsep < lastdot) {
           // then remove it.
@@ -194,4 +200,62 @@ const char* remove_ext(const char* mystr, char dot, char sep)
     }
     // Return the modified string.
     return retstr;
+}
+
+bool get_compiler_exe_path(char* output_path)
+{
+  bool success = false;
+  #ifdef PLATFORM_IS_WINDOWS
+  // Specified size *includes* nul terminator
+  GetModuleFileName(NULL, output_path, FILENAME_MAX);
+  success = (GetLastError() == ERROR_SUCCESS);
+#elif defined PLATFORM_IS_LINUX
+  // Specified size *excludes* nul terminator
+  ssize_t r = readlink("/proc/self/exe", output_path, FILENAME_MAX - 1);
+  success = (r >= 0);
+
+  if(success)
+    output_path[r] = '\0';
+#elif defined PLATFORM_IS_BSD
+  int mib[4];
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = -1;
+
+  size_t len = FILENAME_MAX;
+  int r = sysctl(mib, 4, output_path, &len, NULL, 0);
+  success = (r == 0);
+#elif defined PLATFORM_IS_MACOSX
+  char exec_path[FILENAME_MAX];
+  uint32_t size = sizeof(exec_path);
+  int r = _NSGetExecutablePath(exec_path, &size);
+  success = (r == 0);
+
+  if(success)
+  {
+    pony_realpath(exec_path, output_path);
+  }
+#else
+#  error Unsupported platform for exec_path()
+#endif
+  return success;
+}
+
+bool get_compiler_exe_directory(char* output_path)
+{
+  bool can_get_compiler_path = get_compiler_exe_path(output_path);
+  if (can_get_compiler_path)
+  {
+    char *p = strrchr(output_path, PATH_SLASH);
+    if(p == NULL)
+    {
+      return false;
+    }
+    p++;
+    *p = '\0';
+    return true;
+  } else {
+    return false;
+  }
 }

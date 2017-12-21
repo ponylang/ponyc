@@ -1,0 +1,35 @@
+pre {
+    position: relative;
+    margin-bottom: 24px;
+    border-radius: 3px;
+    border: 1px solid #C3CCD0;
+    background: #FFF;
+    overflow: hidden;
+}
+code {
+    display: block;
+    padding: 12px 24px;
+    overflow-y: auto;
+    font-weight: 300;
+    font-family: Menlo, monospace;
+    border: none;
+}
+code.has-numbering {
+    margin-left: 28px;
+}
+.pre-numbering {
+    width: 35px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 12px 2px 18px 0;
+    border-right: 1px solid #C3CCD0;
+    border-radius: 3px 0 0 3px;
+    background-color: #EEE;
+    text-align: right;
+    font-family: Menlo, monospace;
+    color: #AAA;
+}
+.wy-nav-content {
+    max-width: 1200px;
+}

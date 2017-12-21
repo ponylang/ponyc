@@ -676,61 +676,15 @@ static bool add_safe(const char* path, pass_opt_t* opt)
 static bool add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
-  bool success;
+  bool success = get_compiler_exe_directory(path);
   errors_t* errors = opt->check.errors;
-
-#ifdef PLATFORM_IS_WINDOWS
-  // Specified size *includes* nul terminator
-  GetModuleFileName(NULL, path, FILENAME_MAX);
-  success = (GetLastError() == ERROR_SUCCESS);
-#elif defined PLATFORM_IS_LINUX
-  // Specified size *excludes* nul terminator
-  ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX - 1);
-  success = (r >= 0);
-
-  if(success)
-    path[r] = '\0';
-#elif defined PLATFORM_IS_BSD
-  int mib[4];
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  size_t len = FILENAME_MAX;
-  int r = sysctl(mib, 4, path, &len, NULL, 0);
-  success = (r == 0);
-#elif defined PLATFORM_IS_MACOSX
-  char exec_path[FILENAME_MAX];
-  uint32_t size = sizeof(exec_path);
-  int r = _NSGetExecutablePath(exec_path, &size);
-  success = (r == 0);
-
-  if(success)
-  {
-    pony_realpath(exec_path, path);
-  }
-#else
-#  error Unsupported platform for exec_path()
-#endif
 
   if(!success)
   {
-    errorf(errors, NULL, "Error determining executable path");
+    errorf(errors, NULL, "Error determining executable path or directory.");
     return false;
   }
 
-  // We only need the directory
-  char *p = strrchr(path, PATH_SLASH);
-
-  if(p == NULL)
-  {
-    errorf(errors, NULL, "Error determining executable path (%s)", path);
-    return false;
-  }
-
-  p++;
-  *p = '\0';
   add_path(path, opt);
 
   // Allow ponyc to find the lib directory when it is installed.

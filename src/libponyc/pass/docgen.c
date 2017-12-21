@@ -6,7 +6,6 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include "doc_extra.h"
 #include "../common/paths.h"
 
 typedef struct doc_sources_t
@@ -810,7 +809,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 {
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
-  const char* filename = basename(source->file);
+  const char* filename = get_file_name(source->file);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
   char source_dir[FILENAME_MAX];
@@ -1319,6 +1318,95 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   doc_rm_star(docgen->sub_dir);
 }
 
+static void copy_file_content(FILE* source, FILE* dest)
+{
+  pony_assert(source != NULL && dest != NULL);
+  while(1)
+  {
+    char a = fgetc(source);
+    if(!feof(source))
+      fputc(a, dest);
+    else
+      break;
+  }
+}
+
+static void copy_doc_file(
+  const char* compiler_dir, 
+  const char* file_install_path, 
+  const char* file_source_path,
+  FILE* file_dest,
+  docgen_t* docgen
+)
+{
+  pony_assert(compiler_dir != NULL);
+  pony_assert(file_install_path != NULL);
+  pony_assert(file_source_path != NULL);
+  pony_assert(file_dest != NULL);
+  pony_assert(docgen != NULL);
+
+  // Find file in the compiler installation directory.
+  char file_path[FILENAME_MAX];
+  path_cat(compiler_dir, file_install_path, file_path);
+  FILE* file_source = fopen(file_path, "r");
+  if (file_source != NULL) {
+      copy_file_content(file_source, file_dest);
+      fclose(file_source);
+  } 
+  else {
+    // Find file in the source directory.
+    path_cat(compiler_dir, file_source_path, file_path);
+    file_source = fopen(file_path, "r");
+    if (file_source != NULL) {
+      copy_file_content(file_source, file_dest);
+      fclose(file_source);
+    }
+    else {
+      errorf(docgen->errors, NULL, "Cannot find either %s or %s." , file_install_path, file_source_path);
+    }
+  }
+  fclose(file_dest);
+}
+
+static void copy_doc_files(docgen_t* docgen)
+{
+  char compiler_dir[FILENAME_MAX];
+  bool can_get_compiler_dir = get_compiler_exe_directory(compiler_dir);
+  if (can_get_compiler_dir) {
+
+    FILE* extra_js_dest = doc_open_file(docgen, true, "extra", ".js");
+
+    if (extra_js_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\extra.js";
+      const char* source_path = "..\\..\\.docs\\extra.js";
+  #else
+      const char* install_path = "../docs-support/extra.js";
+      const char* source_path = "../../.docs/extra.js";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_js_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create extra.js in the generated documentation.");
+    }
+
+    FILE* extra_css_dest = doc_open_file(docgen, true, "extra", ".css");
+    if (extra_css_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\extra.css";
+      const char* source_path = "..\\..\\.docs\\extra.css";
+  #else
+      const char* install_path = "../docs-support/extra.css";
+      const char* source_path = "../../.docs/extra.css";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_css_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
+    }
+  } else {
+    errorf(docgen->errors, NULL, "Cannot get the compiler executable path.");
+  }
+}
+
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
@@ -1341,11 +1429,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.included_sources = NULL;
   docgen.included_sources_count = 0;
 
-  FILE* extra_js = doc_open_file(&docgen, true, "extra", ".js");
-  fprintf(extra_js, get_doc_extra_js_content());
-
-  FILE* extra_css = doc_open_file(&docgen, true, "extra", ".css");
-  fprintf(extra_css, get_doc_extra_css_content());
+  copy_doc_files(&docgen);
 
   docgen.doc_source_dir = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
@@ -1383,12 +1467,6 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if(docgen.home_file != NULL)
    fclose(docgen.home_file);
-
-  if (extra_js != NULL)
-    fclose(extra_js);
-
-  if (extra_css != NULL)
-    fclose(extra_css);
 
   if(docgen.base_dir != NULL)
     ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
