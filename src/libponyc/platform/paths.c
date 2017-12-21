@@ -1,6 +1,17 @@
 #include <platform.h>
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
+#include <stdio.h>
+
+#if defined(PLATFORM_IS_LINUX)
+#include <unistd.h>
+#elif defined(PLATFORM_IS_MACOSX)
+#include <mach-o/dyld.h>
+#elif defined(PLATFORM_IS_BSD)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 
 #ifdef PLATFORM_IS_WINDOWS
 # define PATH_SLASH '\\'
@@ -147,7 +158,7 @@ void pony_mkdir(const char* path)
 #endif
 
 
-const char* get_file_name(const char* path)
+const char* get_file_name(char* path)
 {
 #ifdef PLATFORM_IS_WINDOWS
   char* filename = (char*) malloc(strlen(path) + 1);

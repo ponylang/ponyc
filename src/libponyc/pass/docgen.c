@@ -811,7 +811,9 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 {
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
-  const char* filename = get_file_name(source->file);
+  char filename_copy[FILENAME_MAX];
+  strcpy(filename_copy, source->file);
+  const char* filename = get_file_name(filename_copy);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
   char source_dir[FILENAME_MAX];
