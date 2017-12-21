@@ -6,6 +6,40 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+- Dynamic scheduler thread scaling based on workload ([PR #2386](https://github.com/ponylang/ponyc/pull/2386))
+- Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
+
+### Changed
+
+
+## [0.21.0] - 2017-12-17
+
+### Fixed
+
+- Forbid structs with embed fields with finalisers ([PR #2420](https://github.com/ponylang/ponyc/pull/2420))
+- Fix codegen ordering of implicit finalisers ([PR #2419](https://github.com/ponylang/ponyc/pull/2419))
+- Fix GC tracing of struct fields ([PR #2418](https://github.com/ponylang/ponyc/pull/2418))
+- Remove redundant error message for unhandled partial calls that are actually in a try block. ([PR #2411](https://github.com/ponylang/ponyc/pull/2411))
+- Fix allocation sizes in runtime benchmarks ([PR #2383](https://github.com/ponylang/ponyc/pull/2383))
+- Fail pony_start if ASIO backend wasn't successfully initialized ([PR #2381](https://github.com/ponylang/ponyc/pull/2381))
+- Make windows sleep consistent with non-windows sleep ([PR #2382](https://github.com/ponylang/ponyc/pull/2382))
+- Fix Iter.{skip,take,nth} to check '.has_next()' of their inner iterator ([PR #2377](https://github.com/ponylang/ponyc/pull/2377))
+- Restart ASIO if needed while runtime is attempting to terminate. ([PR #2373](https://github.com/ponylang/ponyc/pull/2373))
+- fix Range with negative or 0 step and allow backward Ranges (having `min > max`) ([PR #2350](https://github.com/ponylang/ponyc/pull/2350))
+- Improve work-stealing "scheduler is blocked" logic ([PR #2355](https://github.com/ponylang/ponyc/pull/2355))
+- Make take_while short-circuit ([PR #2358](https://github.com/ponylang/ponyc/pull/2358))
+- Fix compilation error with 'use=dtrace' for FreeBSD 11 ([PR #2343](https://github.com/ponylang/ponyc/pull/2343))
+- Fix Set.intersect ([PR #2361](https://github.com/ponylang/ponyc/pull/2361))
+-  Fixed state handling of HTTP client connections ([PR #2273](https://github.com/ponylang/ponyc/pull/2273))
+- Fix incorrect detection of exhaustive matches for structural equality comparisons on some primitives. ([PR #2342](https://github.com/ponylang/ponyc/pull/2342))
+- Fix poor randomness properties of first call to `Rand.next()`. ([PR #2321](https://github.com/ponylang/ponyc/pull/2321))
+- Fully close unspecified family TCP connections on Windows. ([PR #2325](https://github.com/ponylang/ponyc/pull/2325))
+- Make ContentsLogger implement the Logger interface ([PR #2330](https://github.com/ponylang/ponyc/pull/2330))
+- Fix alloc bug in String/Array trimming functions ([PR #2336](https://github.com/ponylang/ponyc/pull/2336))
+- Fix small chunk finaliser premature re-use bug ([PR #2335](https://github.com/ponylang/ponyc/pull/2335))
 - Make Payload.respond() send given parameter, not `this`. ([PR #2324](https://github.com/ponylang/ponyc/pull/2324))
 - Garbage collect actors when --ponynoblock is in use ([PR #2307](https://github.com/ponylang/ponyc/pull/2307))
 - Fix incorrect kevent structure size ([PR #2312](https://github.com/ponylang/ponyc/pull/2312))
@@ -13,11 +47,19 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add DTrace probes for all message push and pop operations ([PR #2295](https://github.com/ponylang/ponyc/pull/2295))
+- Experimental support for LLVM 4.0.1 (#1592) and 5.0.0. ([PR #2303](https://github.com/ponylang/ponyc/pull/2303))
+- Add pony stable to docker image ([PR #2364](https://github.com/ponylang/ponyc/pull/2364))
+- Enable CodeView debug information with MSVC on Windows ([PR #2334](https://github.com/ponylang/ponyc/pull/2334))
+- Generalized runtime backpressure. ([PR #2264](https://github.com/ponylang/ponyc/pull/2264))
+- A microbenchmark for measuring message passing rates in the Pony runtime. ([PR #2347](https://github.com/ponylang/ponyc/pull/2347))
+- Add `chop` function for chopping `iso` Strings and Arrays ([PR #2337](https://github.com/ponylang/ponyc/pull/2337))
 - Add --ponyversion option to compiled binary ([PR #2318](https://github.com/ponylang/ponyc/pull/2318))
 - Implement RFC 47 (Serialise signature) ([PR #2272](https://github.com/ponylang/ponyc/pull/2272))
 
 ### Changed
 
+- Remove unused FormatSettings interface and related types. ([PR #2397](https://github.com/ponylang/ponyc/pull/2397))
 - Error on unreachable cases in match expressions and illegal as expressions. ([PR #2289](https://github.com/ponylang/ponyc/pull/2289))
 
 ## [0.20.0] - 2017-10-17

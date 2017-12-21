@@ -264,7 +264,8 @@ BENCHMARK_REGISTER_F(HashMapBench, HashPutNewResize)->RangeMultiplier(2)->Ranges
 
 BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   hash_elem_t* curr = get_element();
-  hash_elem_t** a = (hash_elem_t**)ponyint_pool_alloc_size(st.range(2));
+  hash_elem_t** a =
+    (hash_elem_t**)ponyint_pool_alloc_size(st.range(2) * sizeof(hash_elem_t*));
   for(int i = 0; i < st.range(2); i++)
   {
     a[i] = get_element();
@@ -295,7 +296,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
   hash_elem_t* e1 = get_element();
   size_t map_count = testmap_size(&_map);
   size_t map_count_mask = map_count - 1;
-  size_t* a = (size_t*)ponyint_pool_alloc_size(map_count);
+  size_t* a = (size_t*)ponyint_pool_alloc_size(map_count * sizeof(size_t));
   size_t index = HASHMAP_UNKNOWN;
   if(st.range(2) == 0) {
     for(size_t i = 0; i < map_count; i++) {
@@ -360,7 +361,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
   size_t array_size = ponyint_next_pow2(map_count);
   size_t array_size_mask = array_size - 1;
   array_size = array_size < 128 ? 128 : array_size;
-  a = (size_t*)ponyint_pool_alloc_size(array_size);
+  a = (size_t*)ponyint_pool_alloc_size(array_size * sizeof(size_t));
   size_t ind = HASHMAP_UNKNOWN;
   if(st.range(3) == 0) {
     for(size_t i = 0; i < array_size; i++) {

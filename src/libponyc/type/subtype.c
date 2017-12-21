@@ -484,7 +484,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
       super_typeparam = ast_sibling(super_typeparam);
     }
 
-    r_sub = reify(sub, sub_typeparams, typeargs, opt, true);
+    r_sub = reify_method_def(sub, sub_typeparams, typeargs, opt);
     ast_free_unattached(typeargs);
   }
 

@@ -22,6 +22,7 @@ class val SSLContext
     """
     _ctx = @SSL_CTX_new[Pointer[_SSLContext]](@SSLv23_method[Pointer[None]]())
 
+    // Disable older protocols, allow only TLSv1.2 and above
     // set SSL_OP_NO_SSLv2
     @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[None])
 
@@ -33,11 +34,6 @@ class val SSLContext
 
     // set SSL_OP_NO_TLSv1_1
     @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
-
-    try
-      set_ciphers(
-        "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256")?
-    end
 
   fun client(hostname: String = ""): SSL iso^ ? =>
     """

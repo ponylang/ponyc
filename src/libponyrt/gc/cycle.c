@@ -681,7 +681,11 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
 
   do
   {
-    while((msg = ponyint_messageq_pop(&self->q)) != NULL)
+    while((msg = ponyint_actor_messageq_pop(&self->q
+#ifdef USE_DYNAMIC_TRACE
+      , ctx->scheduler, self
+#endif
+      )) != NULL)
     {
       if(msg->id == ACTORMSG_BLOCK)
       {
@@ -922,7 +926,7 @@ void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
   m->delta = ponyint_gc_delta(gc);
   pony_assert(gc->delta == NULL);
 
-  pony_sendv(ctx, cycle_detector, &m->msg, &m->msg);
+  pony_sendv(ctx, cycle_detector, &m->msg, &m->msg, false);
 }
 
 void ponyint_cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)

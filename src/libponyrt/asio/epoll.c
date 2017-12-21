@@ -7,6 +7,8 @@
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
+#include "../sched/scheduler.h"
+#include "ponyassert.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
@@ -34,12 +36,17 @@ struct asio_backend_t
 static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL
+#endif
+    );
 
   eventfd_write(b->wakeup, 1);
 }
@@ -49,9 +56,8 @@ static void signal_handler(int sig)
   if(sig >= MAX_SIGNAL)
     return;
 
-  // Reset the signal handler.
-  signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
   asio_event_t* ev = atomic_load_explicit(&b->sighandlers[sig],
     memory_order_acquire);
 
@@ -65,11 +71,22 @@ static void signal_handler(int sig)
   eventfd_write(ev->fd, 1);
 }
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+static void empty_signal_handler(int sig)
+{
+  (void) sig;
+}
+#endif
+
 static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL
+#endif
+    )) != NULL)
   {
     asio_event_t* ev = msg->event;
 
@@ -105,6 +122,19 @@ asio_backend_t* ponyint_asio_backend_init()
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we ignore signals related to scheduler sleeping/waking
+  // as the default for those signals is termination
+  struct sigaction new_action;
+  new_action.sa_handler = empty_signal_handler;
+  sigemptyset (&new_action.sa_mask);
+
+  // ask to restart interrupted syscalls to match `signal` behavior
+  new_action.sa_flags = SA_RESTART;
+
+  sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
+#endif
+
   return b;
 }
 
@@ -122,6 +152,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -146,6 +177,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -167,6 +199,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = arg;
+  pony_assert(b != NULL);
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we block signals related to scheduler sleeping/waking
+  // so they queue up to avoid race conditions
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
+  pthread_sigmask(SIG_BLOCK, &set, NULL);
+#endif
 
   while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
   {
@@ -265,9 +307,16 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
-    ponyint_asio_noisy_add();
+  {
+    uint64_t old_count = ponyint_asio_noisy_add();
+    // tell scheduler threads that asio has at least one noisy actor
+    // if the old_count was 0
+    if (old_count == 0)
+      ponyint_sched_noisy_asio(SPECIAL_THREADID_EPOLL);
+  }
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -298,7 +347,15 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
       memory_order_release, memory_order_relaxed))
     {
-      signal(sig, signal_handler);
+      struct sigaction new_action;
+      new_action.sa_handler = signal_handler;
+      sigemptyset (&new_action.sa_mask);
+
+      // ask to restart interrupted syscalls to match `signal` behavior
+      new_action.sa_flags = SA_RESTART;
+
+      sigaction(sig, &new_action, NULL);
+
       ev->fd = eventfd(0, EFD_NONBLOCK);
       ep.events |= EPOLLIN;
     } else {
@@ -336,10 +393,15 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
   {
-    ponyint_asio_noisy_remove();
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_EPOLL);
     ev->noisy = false;
   }
 
@@ -366,7 +428,24 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
       memory_order_release, memory_order_relaxed))
     {
-      signal(sig, SIG_DFL);
+      struct sigaction new_action;
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+      // Make sure we ignore signals related to scheduler sleeping/waking
+      // as the default for those signals is termination
+      if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+        new_action.sa_handler = empty_signal_handler;
+      else
+#endif
+        new_action.sa_handler = SIG_DFL;
+
+      sigemptyset (&new_action.sa_mask);
+
+      // ask to restart interrupted syscalls to match `signal` behavior
+      new_action.sa_flags = SA_RESTART;
+
+      sigaction(sig, &new_action, NULL);
+
       close(ev->fd);
       ev->fd = -1;
     }

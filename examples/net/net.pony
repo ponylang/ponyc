@@ -22,6 +22,8 @@ actor Main
       1
     end
 
+    env.out.print("SSL is " + (if ssl then "" else "not " end) + "enabled")
+
     try
       let auth = env.root as AmbientAuth
       TCPListener(auth, recover Listener(env, ssl, limit) end)

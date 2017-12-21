@@ -58,6 +58,8 @@ ast_t* ast_from_string(ast_t* ast, const char* name);
 ast_t* ast_from_int(ast_t* ast, uint64_t value);
 ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
+ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
+  bool dup_annotation, bool dup_symtab);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 void ast_set_scope(ast_t* ast, ast_t* scope);
@@ -140,6 +142,9 @@ void ast_reorder_children(ast_t* ast, const size_t* new_order,
   ast_t** shuffle_space);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
+
+bool ast_is_frozen(ast_t* ast);
+void ast_freeze(ast_t* ast);
 
 void ast_print(ast_t* ast, size_t width);
 void ast_printverbose(ast_t* ast);

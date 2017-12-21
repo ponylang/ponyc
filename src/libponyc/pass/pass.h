@@ -223,6 +223,7 @@ typedef struct pass_opt_t
   bool strip_debug;
   bool print_filenames;
   bool check_tree;
+  bool lint_llvm;
   bool docs;
   bool docs_private;
 
@@ -237,6 +238,7 @@ typedef struct pass_opt_t
   magic_package_t* magic_packages;
 
   const char* output;
+  const char* bin_name;
   char* link_arch;
   char* linker;
 

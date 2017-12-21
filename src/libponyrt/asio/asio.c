@@ -46,6 +46,10 @@ void ponyint_asio_init(uint32_t cpu)
 
 bool ponyint_asio_start()
 {
+  // if the backend wasn't successfully initialized
+  if(running_base.backend == NULL)
+    return false;
+
   if(!ponyint_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
     asio_cpu, running_base.backend))
     return false;
@@ -70,12 +74,12 @@ bool ponyint_asio_stop()
   return true;
 }
 
-void ponyint_asio_noisy_add()
+uint64_t ponyint_asio_noisy_add()
 {
-  atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  return atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
 }
 
-void ponyint_asio_noisy_remove()
+uint64_t ponyint_asio_noisy_remove()
 {
-  atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  return atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
 }

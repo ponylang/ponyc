@@ -25,12 +25,13 @@ ast_t* viewpoint_lower(ast_t* type);
  * Replace all instances of target with some type. The target must either be
  * `this` or a typeparamref.
  */
-ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with);
+ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with,
+  bool duplicate);
 
 /**
  * Replace all instances of `this` with some type.
  */
-ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with);
+ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with, bool duplicate);
 
 /**
  * Returns a tuple of type reified with every possible instantiation of

@@ -357,6 +357,15 @@ class iso _TestIterNth is UnitTest
     h.assert_eq[USize](3,
       Iter[USize](input.values()).nth(3)?)
     h.assert_error({()? => Iter[USize](input.values()).nth(4)? })
+    h.assert_error({()? =>
+        Iter[U8](
+          object is Iterator[U8]
+            var c: U8 = 0
+            fun ref has_next(): Bool => c < 5
+            fun ref next(): U8 =>
+              c = c + 1
+          end).nth(6)?
+    })
 
 class iso _TestIterRun is UnitTest
   fun name(): String => "itertools/Iter.run"
@@ -399,6 +408,8 @@ class iso _TestIterSkip is UnitTest
     h.assert_eq[I64](3,
       Iter[I64](input.values()).skip(2).next()?)
 
+    h.assert_false(Iter[I64](input.values()).skip(4).has_next())
+
 class iso _TestIterSkipWhile is UnitTest
   fun name(): String => "itertools/Iter.skip_while"
 
@@ -433,12 +444,21 @@ class iso _TestIterTake is UnitTest
         end)
 
     h.assert_eq[USize](3, infinite.take(3).collect(Array[U64]).size())
+
+    let short = Iter[U64](
+      object is Iterator[U64]
+        var counter: U64 = 0
+        fun ref has_next(): Bool => false
+        fun ref next(): U64^ => counter = counter + 1
+      end)
+    h.assert_eq[USize](0, short.take(10).collect(Array[U64]).size())
+
     h.complete(true)
 
 class iso _TestIterTakeWhile is UnitTest
   fun name(): String => "itertools/Iter.take_while"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let input = [as I64: -1; 0; 1; 2; 3]
     h.assert_array_eq[I64](
       [-1; 0],
@@ -455,6 +475,14 @@ class iso _TestIterTakeWhile is UnitTest
       Iter[I64](input.values())
         .take_while({(x) ? => error })
         .collect(Array[I64]))
+
+    let infinite =
+      Iter[USize](Range(0, 3))
+        .cycle()
+        .take_while({(n) => n < 2 })
+    h.assert_eq[USize](0, infinite.next()?)
+    h.assert_eq[USize](1, infinite.next()?)
+    h.assert_false(infinite.has_next())
 
 class iso _TestIterZip is UnitTest
   fun name(): String => "itertools/Iter.zip"

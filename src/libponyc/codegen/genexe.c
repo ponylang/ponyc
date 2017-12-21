@@ -47,7 +47,10 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   codegen_startfun(c, func, NULL, NULL, false);
 
-  LLVMValueRef args[4];
+  LLVMBasicBlockRef start_fail_block = codegen_block(c, "start_fail");
+  LLVMBasicBlockRef post_block = codegen_block(c, "post");
+
+  LLVMValueRef args[5];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -121,12 +124,28 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[1] = main_actor;
   args[2] = msg;
   args[3] = msg;
-  gencall_runtime(c, "pony_sendv_single", args, 4, "");
+  args[4] = LLVMConstInt(c->i1, 1, false);
+  gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i32, 0, false);
   args[1] = LLVMConstInt(c->i32, 1, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
+
+  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
+  LLVMValueRef start_success = LLVMBuildICmp(c->builder, LLVMIntNE, rc,
+    minus_one, "");
+  LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, start_fail_block);
+
+  const char error_msg_str[] = "Error: couldn't initialise runtime!";
+
+  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
+  gencall_runtime(c, "puts", args, 1, "");
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
@@ -259,14 +278,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   bool fallback_linker = false;
   const char* linker = c->opt->linker != NULL ? c->opt->linker :
     env_cc_or_pony_compiler(&fallback_linker);
-
-  if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-  {
-    fprintf(stderr,
-      "Warning: environment variable $CC undefined, using %s as the linker\n",
-      PONY_COMPILER);
-  }
-
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
@@ -274,10 +285,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
     "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
+  const char* dtrace_args =
+#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
+   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
+#else
+    "";
+#endif
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl);
+                  + strlen(ldl) + strlen(dtrace_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -286,9 +303,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s %s -lm %s",
+    "%s %s %s %s -lpthread %s %s %s -lm %s",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    ponyrt, ldl, export
+    dtrace_args, ponyrt, ldl, export
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -296,6 +313,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   if(system(ld_cmd) != 0)
   {
+    if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
+    {
+      fprintf(stderr,
+        "Warning: environment variable $CC undefined, using %s as the linker\n",
+        PONY_COMPILER);
+    }
+
     errorf(errors, NULL, "unable to link: %s", ld_cmd);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
@@ -378,13 +402,17 @@ bool genexe(compile_t* c, ast_t* program)
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = c->str_Main;
   const char* env_class = c->str_Env;
+  const char* package_name = c->filename;
+
+  if((c->opt->bin_name != NULL) && (strlen(c->opt->bin_name) > 0))
+    c->filename = c->opt->bin_name;
 
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
 
   if(main_def == NULL)
   {
-    errorf(errors, NULL, "no Main actor found in package '%s'", c->filename);
+    errorf(errors, NULL, "no Main actor found in package '%s'", package_name);
     return false;
   }
 

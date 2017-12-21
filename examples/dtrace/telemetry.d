@@ -3,6 +3,7 @@
 #pragma D option quiet
 
 inline unsigned int UINT32_MAX = -1;
+inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 7);
 inline unsigned int ACTORMSG_BLOCK = (UINT32_MAX - 6);
 inline unsigned int ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
 inline unsigned int ACTORMSG_ACQUIRE = (UINT32_MAX - 4);
@@ -11,6 +12,11 @@ inline unsigned int ACTORMSG_CONF = (UINT32_MAX - 2);
 inline unsigned int ACTORMSG_ACK = (UINT32_MAX - 1);
 
 pony$target:::actor-msg-send
+/ (unsigned int)arg1 <= (unsigned int)ACTORMSG_APPLICATION_START /
+{
+  @counts[arg0, "Application Messages Sent"] = count();
+}
+
 / (unsigned int)arg1 == (unsigned int)ACTORMSG_BLOCK /
 {
   @counts[arg0, "Block Messages Sent"] = count();

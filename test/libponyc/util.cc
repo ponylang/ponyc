@@ -359,6 +359,56 @@ void PassTest::test_expected_errors(const char* src, const char* pass,
 }
 
 
+void PassTest::test_expected_error_frames(const char* src, const char* pass,
+  const char** errors, const char*** frames)
+{
+  PassTest::test_expected_errors(src, pass, errors);
+
+  size_t expected_count = 0;
+  while(frames[expected_count] != NULL)
+  {
+    expected_count++;
+  }
+
+  ASSERT_EQ(expected_count, errors_get_count(opt.check.errors));
+
+  size_t frame = 0;
+  errormsg_t* e = errors_get_first(opt.check.errors);
+  while(e != NULL) {
+    const char** expected_errors = frames[frame];
+
+    {
+      size_t expected_count = 0;
+      while(expected_errors[expected_count] != NULL)
+      {
+        expected_count++;
+      }
+
+      size_t error_count = 0;
+      errormsg_t* ef = e->frame;
+      while(ef != NULL)
+      {
+        error_count++;
+        ef = ef->frame;
+      }
+
+      ASSERT_EQ(expected_count, error_count);
+    }
+
+    for(errormsg_t* ef = e->frame; ef != NULL; ef = ef->frame)
+    {
+      const char* expected_error = *expected_errors;
+      EXPECT_FALSE(strstr(ef->msg, expected_error) == NULL)
+        << "Actual error: " << ef->msg;
+      expected_errors++;
+    }
+
+    e = e->next;
+    frame++;
+  }
+}
+
+
 void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   const char* expect_src, const char* expect_pass)
 {

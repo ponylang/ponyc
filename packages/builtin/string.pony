@@ -91,7 +91,7 @@ actor Main
       _set(0, 0)
     else
       _size = len
-      _alloc = alloc.max(_size.min(len.max_value() - 1) + 1)
+      _alloc = alloc.max(_size.min(len.max_value() - 1))
       _ptr = str
     end
 
@@ -352,9 +352,14 @@ actor Main
     """
     let last = _size.min(to)
     let offset = last.min(from)
+    let size' = last - offset
 
-    _size = last - offset
-    _alloc = _alloc - offset
+    // use the new size' for alloc if we're not including the last used byte
+    // from the original data and only include the extra allocated bytes if
+    // we're including the last byte.
+    _alloc = if last == _size then _alloc - offset else size' end
+
+    _size = size'
     _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
@@ -368,7 +373,11 @@ actor Main
 
     recover
       let size' = last - offset
-      let alloc = _alloc - offset
+
+      // use the new size' for alloc if we're not including the last used byte
+      // from the original data and only include the extra allocated bytes if
+      // we're including the last byte.
+      let alloc = if last == _size then _alloc - offset else size' end
 
       if size' > 0 then
         from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
@@ -376,6 +385,32 @@ actor Main
         create()
       end
     end
+
+  fun iso chop(split_point: USize): (String iso^, String iso^) =>
+    """
+    Chops the string in half at the split point requested and returns both
+    the left and right portions. The original string is trimmed in place and
+    returned as the right portion. If the split point is larger than the
+    string, the left portion is the original string and the right portion
+    is a new empty string.
+    Both strings are isolated and mutable, as they do not share memory.
+    The operation does not allocate a new string pointer nor copy elements.
+    """
+    let start_ptr = _ptr
+    let size' = _size.min(split_point)
+    let alloc = if size' == _size then _alloc else split_point end
+
+    trim_in_place(split_point)
+
+    let left = recover
+      if size' > 0 then
+        from_cpointer(start_ptr._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+    (consume left, consume this)
 
   fun is_null_terminated(): Bool =>
     """

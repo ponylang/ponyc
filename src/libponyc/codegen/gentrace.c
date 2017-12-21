@@ -920,6 +920,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
   switch(t->underlying)
   {
     case TK_CLASS:
+    case TK_STRUCT:
     case TK_ACTOR:
       break;
 

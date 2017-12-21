@@ -12,11 +12,11 @@
 #include "ponyassert.h"
 #include <string.h>
 
-static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
-  ast_t* type, const char* name, bool errors);
+static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
+  ast_t* orig, ast_t* type, const char* name, bool errors);
 
-static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
-  ast_t* type, const char* name, bool errors)
+static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
+  ast_t* orig, ast_t* type, const char* name, bool errors)
 {
   pony_assert(ast_id(type) == TK_NOMINAL);
   typecheck_t* t = &opt->check;
@@ -178,12 +178,11 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   }
 
   ast_t* typeargs = ast_childidx(type, 2);
-  ast_t* r_find = viewpoint_replacethis(find, orig);
-  return reify(r_find, typeparams, typeargs, opt, false);
+  return deferred_reify_new(find, typeparams, typeargs, orig);
 }
 
-static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
-  ast_t* type, const char* name, bool errors)
+static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
+  ast_t* orig, ast_t* type, const char* name, bool errors)
 {
   ast_t* def = (ast_t*)ast_data(type);
   ast_t* constraint = ast_childidx(def, 1);
@@ -250,16 +249,18 @@ static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
   return true;
 }
 
-static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
-  const char* name, bool errors)
+static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
+  ast_t* type, const char* name, bool errors)
 {
   ast_t* child = ast_child(type);
-  ast_t* result = NULL;
+  deferred_reification_t* result = NULL;
+  ast_t* reified_result = NULL;
   bool ok = true;
 
   while(child != NULL)
   {
-    ast_t* r = lookup_base(opt, from, child, child, name, errors);
+    deferred_reification_t* r = lookup_base(opt, from, child, child, name,
+      errors);
 
     if(r == NULL)
     {
@@ -272,7 +273,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
 
       ok = false;
     } else {
-      switch(ast_id(r))
+      switch(ast_id(r->ast))
       {
         case TK_FVAR:
         case TK_FLET:
@@ -284,6 +285,7 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
               name, ast_print_type(child));
           }
 
+          deferred_reify_free(r);
           ok = false;
           break;
 
@@ -296,41 +298,56 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype_fun(r, result, pframe, opt)) {
-            if(is_subtype_fun(result, r, pframe, opt))
+          } else {
+            if(reified_result == NULL)
+              reified_result = deferred_reify_method_def(result, result->ast,
+                opt);
+
+            ast_t* reified_r = deferred_reify_method_def(r, r->ast, opt);
+
+            if(!is_subtype_fun(reified_r, reified_result, pframe, opt))
             {
-              // Use the supertype function. Require the most specific
-              // arguments and return the least specific result.
-              if(!param_names_match(from, result, r, name, pframe, opt))
+              if(is_subtype_fun(reified_result, reified_r, pframe, opt))
               {
-                ast_free_unattached(r);
-                ok = false;
+                // Use the supertype function. Require the most specific
+                // arguments and return the least specific result.
+                if(!param_names_match(from, reified_result, reified_r, name,
+                  pframe, opt))
+                {
+                  ast_free_unattached(reified_r);
+                  deferred_reify_free(r);
+                  ok = false;
+                } else {
+                  if(errors)
+                    errorframe_discard(pframe);
+
+                  ast_free_unattached(reified_result);
+                  deferred_reify_free(result);
+                  reified_result = reified_r;
+                  result = r;
+                }
               } else {
                 if(errors)
-                  errorframe_discard(pframe);
+                {
+                  errorframe_t frame = NULL;
+                  ast_error_frame(&frame, from,
+                    "a member of the union type has an incompatible method "
+                    "signature");
+                  errorframe_append(&frame, pframe);
+                  errorframe_report(&frame, opt->check.errors);
+                }
 
-                ast_free_unattached(result);
-                result = r;
+                ast_free_unattached(reified_r);
+                deferred_reify_free(r);
+                ok = false;
               }
             } else {
-              if(errors)
-              {
-                errorframe_t frame = NULL;
-                ast_error_frame(&frame, from,
-                  "a member of the union type has an incompatible method "
-                  "signature");
-                errorframe_append(&frame, pframe);
-                errorframe_report(&frame, opt->check.errors);
-              }
+              if(!param_names_match(from, reified_result, reified_r, name,
+                pframe, opt))
+                ok = false;
 
-              ast_free_unattached(r);
-              ok = false;
-            }
-          } else {
-            if(!param_names_match(from, result, r, name, pframe, opt))
-            {
-              ast_free_unattached(r);
-              ok = false;
+              ast_free_unattached(reified_r);
+              deferred_reify_free(r);
             }
           }
           break;
@@ -341,34 +358,40 @@ static ast_t* lookup_union(pass_opt_t* opt, ast_t* from, ast_t* type,
     child = ast_sibling(child);
   }
 
+  if(reified_result != NULL)
+    ast_free_unattached(reified_result);
+
   if(!ok)
   {
-    ast_free_unattached(result);
+    deferred_reify_free(result);
     result = NULL;
   }
 
   return result;
 }
 
-static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
-  const char* name, bool errors)
+static deferred_reification_t* lookup_isect(pass_opt_t* opt, ast_t* from,
+  ast_t* type, const char* name, bool errors)
 {
   ast_t* child = ast_child(type);
-  ast_t* result = NULL;
+  deferred_reification_t* result = NULL;
+  ast_t* reified_result = NULL;
   bool ok = true;
 
   while(child != NULL)
   {
-    ast_t* r = lookup_base(opt, from, child, child, name, false);
+    deferred_reification_t* r = lookup_base(opt, from, child, child, name,
+      false);
 
     if(r != NULL)
     {
-      switch(ast_id(r))
+      switch(ast_id(r->ast))
       {
         case TK_FVAR:
         case TK_FLET:
         case TK_EMBED:
           // Ignore fields.
+          deferred_reify_free(r);
           break;
 
         default:
@@ -376,18 +399,37 @@ static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
           {
             // If we don't have a result yet, use this one.
             result = r;
-          } else if(!is_subtype_fun(result, r, NULL, opt)) {
-            if(is_subtype_fun(r, result, NULL, opt))
+          } else {
+            if(reified_result == NULL)
+              reified_result = deferred_reify_method_def(result, result->ast,
+                opt);
+
+            ast_t* reified_r = deferred_reify_method_def(r, r->ast, opt);
+            bool changed = false;
+
+            if(!is_subtype_fun(reified_result, reified_r, NULL, opt))
             {
-              // Use the subtype function. Require the least specific
-              // arguments and return the most specific result.
-              ast_free_unattached(result);
-              result = r;
+              if(is_subtype_fun(reified_r, reified_result, NULL, opt))
+              {
+                // Use the subtype function. Require the least specific
+                // arguments and return the most specific result.
+                ast_free_unattached(reified_result);
+                deferred_reify_free(result);
+                reified_result = reified_r;
+                result = r;
+                changed = true;
+              }
+
+              // TODO: isect the signatures, to handle arg names and
+              // default arguments. This is done even when the functions have
+              // no subtype relationship.
             }
 
-            // TODO: isect the signatures, to handle arg names and
-            // default arguments. This is done even when the functions have
-            // no subtype relationship.
+            if(!changed)
+            {
+              ast_free_unattached(reified_r);
+              deferred_reify_free(r);
+            }
           }
           break;
       }
@@ -399,17 +441,20 @@ static ast_t* lookup_isect(pass_opt_t* opt, ast_t* from, ast_t* type,
   if(errors && (result == NULL))
     ast_error(opt->check.errors, from, "couldn't find '%s'", name);
 
+  if(reified_result != NULL)
+    ast_free_unattached(reified_result);
+
   if(!ok)
   {
-    ast_free_unattached(result);
+    deferred_reify_free(result);
     result = NULL;
   }
 
   return result;
 }
 
-static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
-  ast_t* type, const char* name, bool errors)
+static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
+  ast_t* orig, ast_t* type, const char* name, bool errors)
 {
   switch(ast_id(type))
   {
@@ -459,12 +504,14 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
   return NULL;
 }
 
-ast_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name)
+deferred_reification_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type,
+  const char* name)
 {
   return lookup_base(opt, from, type, type, name, true);
 }
 
-ast_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name)
+deferred_reification_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type,
+  const char* name)
 {
   return lookup_base(opt, from, type, type, name, false);
 }

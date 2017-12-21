@@ -175,9 +175,11 @@ PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
  *
  * The first and last messages must either be the same message or the two ends
  * of a chain built with calls to pony_chain.
+ *
+ * has_app_msg should be true if there are application messages in the chain.
  */
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
-  pony_msg_t* last);
+  pony_msg_t* last, bool has_app_msg);
 
 /** Single producer version of pony_sendv.
  *
@@ -188,9 +190,11 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
  *
  * The first and last messages must either be the same message or the two ends
  * of a chain built with calls to pony_chain.
+ *
+ * has_app_msg should be true if there are application messages in the chain.
  */
 PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
-  pony_msg_t* first, pony_msg_t* last);
+  pony_msg_t* first, pony_msg_t* last, bool has_app_msg);
 
 /** Chain two messages together.
  *

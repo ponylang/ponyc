@@ -111,7 +111,7 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
     AST_GET_CHILDREN(c, case_expr, guard, case_body);
-    ast_t* pattern_type = ast_type(c);
+    ast_t* case_type = ast_type(case_expr);
 
     // if any case is a `_` we have an exhaustive match
     // and we can shortcut here
@@ -133,7 +133,7 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
       continue;
 
     // It counts, so add this pattern type to our running union type.
-    ast_add(cases_union_type, pattern_type);
+    ast_add(cases_union_type, case_type);
 
     // If our cases types union is a supertype of the match expression type,
     // then the match must be exhaustive, because all types are covered by cases.
@@ -364,7 +364,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
   }
 
   // Structural equality, pattern.eq(match).
-  ast_t* fun = lookup(opt, pattern, pattern_type, stringtab("eq"));
+  deferred_reification_t* fun = lookup(opt, pattern, pattern_type,
+    stringtab("eq"));
 
   if(fun == NULL)
   {
@@ -374,17 +375,19 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
     return NULL;
   }
 
-  if(ast_id(fun) != TK_FUN)
+  if(ast_id(fun->ast) != TK_FUN)
   {
     ast_error(opt->check.errors, pattern,
       "eq is not a function on this pattern element");
-    ast_error_continue(opt->check.errors, fun,
+    ast_error_continue(opt->check.errors, fun->ast,
       "definition of eq is here");
-    ast_free_unattached(fun);
+    deferred_reify_free(fun);
     return NULL;
   }
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
+  ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
+
+  AST_GET_CHILDREN(r_fun, cap, id, typeparams, params, result, partial);
   bool ok = true;
 
   if(ast_id(typeparams) != TK_NONE)
@@ -441,7 +444,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   ast_free_unattached(r_type);
   ast_free_unattached(a_type);
-  ast_free_unattached(fun);
+  ast_free_unattached(r_fun);
+  deferred_reify_free(fun);
 
   return pattern_type;
 }
