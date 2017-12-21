@@ -1402,6 +1402,20 @@ static void copy_doc_files(docgen_t* docgen)
     } else {
       errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
     }
+
+    FILE* extra_newer_highlight_js_dest = doc_open_file(docgen, true, "highlight.pack.newer", ".js");
+    if (extra_newer_highlight_js_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\highlight.pack.newer.js";
+      const char* source_path = "..\\..\\.docs\\highlight.pack.newer.js";
+  #else
+      const char* install_path = "../docs-support/highlight.pack.newer.js";
+      const char* source_path = "../../.docs/highlight.pack.newer.js";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_newer_highlight_js_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create highlight.pack.newer.js in the generated documentation.");
+    }
   } else {
     errorf(docgen->errors, NULL, "Cannot get the compiler executable path.");
   }
@@ -1446,7 +1460,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.index_file, "site_name: %s\n", name);
     fprintf(docgen.index_file, "theme: readthedocs\n");
     fprintf(docgen.index_file, "extra_css: [extra.css]\n");
-    fprintf(docgen.index_file, "extra_javascript: [extra.js]\n");
+    fprintf(docgen.index_file, "extra_javascript: [extra.js, highlight.pack.newer.js]\n");
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 

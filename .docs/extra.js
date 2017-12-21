@@ -1,6 +1,3 @@
-// https://github.com/mkdocs/mkdocs/issues/803
-$(document).ready(() => $('.wy-nav-side').scrollTop($('li.toctree-l1.current').offset().top - $('.wy-nav-side').offset().top - 80));
-
 try {
     var preElem = document.getElementsByClassName("pony-full-source")[0].nextElementSibling;
     var codeElem = preElem.children[0];
@@ -14,7 +11,9 @@ try {
     for (i = 1; i <= lines; i++) {
         numbering.append($('<div></div>').text(i));
     }
-} catch (e) {}
+} catch (e) {
+    (console.error || console.log).call(console, e.stack || e);
+}
 
 try {
     var line_number = window.location.href.substring(window.location.href.indexOf("#") + 1);
@@ -22,4 +21,9 @@ try {
     var elem = line_numbers.children[line_number - 1];
     elem.style.backgroundColor = "yellow";
     elem.scrollIntoView();
-} catch (e) {}
+} catch (e) {
+    (console.error || console.log).call(console, e.stack || e);
+}
+
+// https://github.com/mkdocs/mkdocs/issues/803
+$(document).ready(() => $('.wy-nav-side').scrollTop($('li.toctree-l1.current').offset().top - $('.wy-nav-side').offset().top - 80));
