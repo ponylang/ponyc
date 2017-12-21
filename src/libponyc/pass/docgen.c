@@ -922,7 +922,7 @@ static void include_source_if_needed(
     doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
     if (new_elem != NULL) {
       doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
-      for (size_t i = 0; i < docgen->included_sources_count; i = i++) {
+      for (size_t i = 0; i < docgen->included_sources_count; i++) {
         pony_assert(docgen->included_sources[i] != NULL);
         resized_array[i] = docgen->included_sources[i];
       }
