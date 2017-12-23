@@ -14,4 +14,4 @@ workflows:
       - llvm391:
           filters:
             branches:
-              ignore: release
+              only: master
