@@ -12,7 +12,4 @@ workflows:
   llvms:
     jobs:
       - llvm391
-    filters:
-      branches:
-        only:
-          - master
+
