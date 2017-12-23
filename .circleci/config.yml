@@ -12,7 +12,6 @@ workflows:
   llvms:
     jobs:
       - llvm391
-    filters:
-      branches:
-        ignore:
-          - release
+        filters:
+          branches:
+            only: master
