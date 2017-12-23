@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
-
-### Fixed
-
+## [0.21.1] - 2017-12-23
 
 ### Added
 
 - Dynamic scheduler thread scaling based on workload ([PR #2386](https://github.com/ponylang/ponyc/pull/2386))
 - Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
-
-### Changed
-
 
 ## [0.21.0] - 2017-12-17
 
