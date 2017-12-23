@@ -36,6 +36,7 @@ skip_commits:
     - release.bash
     - '**/*.md'
     - '**/*.txt'
+    - .circleci/config.yml
 
 clone_folder: C:\projects\ponyc
 
