@@ -1,5 +1,11 @@
 version: 2
 jobs:
+  llvm381:
+    docker:
+      - image: ponylang/ponyc-ci-llvm3.8.1
+    steps:
+      - checkout
+      - run: make test-ci
   llvm391:
     docker:
       - image: ponylang/ponyc-ci-llvm3.9.1
@@ -11,7 +17,5 @@ workflows:
   version: 2
   llvms:
     jobs:
-      - llvm391:
-          filters:
-            branches:
-              only: master
+      - llvm381
+      - llvm391
