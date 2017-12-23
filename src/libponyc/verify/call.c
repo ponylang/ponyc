@@ -28,10 +28,13 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
     ast_id(call_error) == TK_NONE || ast_id(call_error) == TK_DONTCARE);
 
   // Look up the original method definition for this method call.
-  ast_t* method_def = lookup(opt, receiver, ast_type(receiver),
+  deferred_reification_t* method_def = lookup(opt, receiver, ast_type(receiver),
     ast_name(method));
-  pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
-    ast_id(method_def) == TK_NEW);
+  ast_t* method_ast = method_def->ast;
+  deferred_reify_free(method_def);
+
+  pony_assert(ast_id(method_ast) == TK_FUN || ast_id(method_ast) == TK_BE ||
+    ast_id(method_ast) == TK_NEW);
 
   // If the receiver is a reference with a hygienic id, it's a sugared call,
   // and we should skip the check for partiality at the call site.
@@ -50,7 +53,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
 
   // Verify that the call partiality matches that of the method.
   bool r = true;
-  ast_t* method_error = ast_childidx(method_def, 5);
+  ast_t* method_error = ast_childidx(method_ast, 5);
   if(ast_id(method_error) == TK_QUESTION)
   {
     ast_seterror(ast);
@@ -73,8 +76,6 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
       r = false;
     }
   }
-
-  ast_free_unattached(method_def);
 
   return r;
 }

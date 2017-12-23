@@ -13,7 +13,7 @@ download_llvm(){
   echo "Downloading and installing the LLVM specified by envvars..."
 
   wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz"
-  tar -xvf clang+llvm*
+  tar -xf clang+llvm*
   pushd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r ./* /tmp/llvm/
   sudo ln -s "/tmp/llvm/bin/llvm-config" "/usr/local/bin/${LLVM_CONFIG}"
   popd
@@ -23,7 +23,7 @@ download_pcre(){
   echo "Downloading and building PCRE2..."
 
   wget "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2"
-  tar -xjvf pcre2-10.21.tar.bz2
+  tar -xjf pcre2-10.21.tar.bz2
   pushd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install
   popd
 }
@@ -81,7 +81,7 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
     brew install llvm38
   ;;
-  
+
   "osx:llvm-config-3.9")
     brew update
     brew install shellcheck

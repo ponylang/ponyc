@@ -28,6 +28,7 @@ enum
   OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
+  OPT_BIN_NAME,
   OPT_LIBRARY,
   OPT_RUNTIMEBC,
   OPT_PIC,
@@ -71,6 +72,7 @@ static opt_arg_t args[] =
   {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
+  {"bin-name", 'b', OPT_ARG_REQUIRED, OPT_BIN_NAME},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
@@ -114,47 +116,49 @@ static void usage()
     "The package directory defaults to the current directory.\n"
     ,
     "Options:\n"
-    "  --version, -v   Print the version of the compiler and exit.\n"
-    "  --help, -h      Print this help text and exit.\n"
-    "  --debug, -d     Don't optimise the output.\n"
-    "  --define, -D    Define the specified build flag.\n"
+    "  --version, -v    Print the version of the compiler and exit.\n"
+    "  --help, -h       Print this help text and exit.\n"
+    "  --debug, -d      Don't optimise the output.\n"
+    "  --define, -D     Define the specified build flag.\n"
     "    =name\n"
-    "  --strip, -s     Strip debug info.\n"
-    "  --path, -p      Add an additional search path.\n"
-    "    =path         Used to find packages and libraries.\n"
-    "  --output, -o    Write output to this directory.\n"
-    "    =path         Defaults to the current directory.\n"
-    "  --library, -l   Generate a C-API compatible static library.\n"
-    "  --runtimebc     Compile with the LLVM bitcode file for the runtime.\n"
-    "  --pic           Compile using position independent code.\n"
-    "  --nopic         Don't compile using position independent code.\n"
-    "  --docs, -g      Generate code documentation.\n"
-    "  --docs-public   Generate code documentation for public types only.\n"
+    "  --strip, -s      Strip debug info.\n"
+    "  --path, -p       Add an additional search path.\n"
+    "    =path          Used to find packages and libraries.\n"
+    "  --output, -o     Write output to this directory.\n"
+    "    =path          Defaults to the current directory.\n"
+    "  --bin-name, -b   Name of executable binary.\n"
+    "    =name          Defaults to name of the directory.\n"
+    "  --library, -l    Generate a C-API compatible static library.\n"
+    "  --runtimebc      Compile with the LLVM bitcode file for the runtime.\n"
+    "  --pic            Compile using position independent code.\n"
+    "  --nopic          Don't compile using position independent code.\n"
+    "  --docs, -g       Generate code documentation.\n"
+    "  --docs-public    Generate code documentation for public types only.\n"
     ,
     "Rarely needed options:\n"
-    "  --safe          Allow only the listed packages to use C FFI.\n"
-    "    =package      With no packages listed, only builtin is allowed.\n"
-    "  --cpu           Set the target CPU.\n"
-    "    =name         Default is the host CPU.\n"
-    "  --features      CPU features to enable or disable.\n"
-    "    =+this,-that  Use + to enable, - to disable.\n"
-    "                  Defaults to detecting all CPU features from the host.\n"
-    "  --triple        Set the target triple.\n"
-    "    =name         Defaults to the host triple.\n"
-    "  --stats         Print some compiler stats.\n"
-    "  --link-arch     Set the linking architecture.\n"
-    "    =name         Default is the host architecture.\n"
-    "  --linker        Set the linker command to use.\n"
-    "    =name         Default is the compiler used to compile ponyc.\n"
+    "  --safe           Allow only the listed packages to use C FFI.\n"
+    "    =package       With no packages listed, only builtin is allowed.\n"
+    "  --cpu            Set the target CPU.\n"
+    "    =name          Default is the host CPU.\n"
+    "  --features       CPU features to enable or disable.\n"
+    "    =+this,-that   Use + to enable, - to disable.\n"
+    "                   Defaults to detecting all CPU features from the host.\n"
+    "  --triple         Set the target triple.\n"
+    "    =name          Defaults to the host triple.\n"
+    "  --stats          Print some compiler stats.\n"
+    "  --link-arch      Set the linking architecture.\n"
+    "    =name          Default is the host architecture.\n"
+    "  --linker         Set the linker command to use.\n"
+    "    =name          Default is the compiler used to compile ponyc.\n"
     ,
     "Debugging options:\n"
-    "  --verbose, -V   Verbosity level.\n"
-    "    =0            Only print errors.\n"
-    "    =1            Print info on compiler stages.\n"
-    "    =2            More detailed compilation information.\n"
-    "    =3            External tool command lines.\n"
-    "    =4            Very low-level detail.\n"
-    "  --pass, -r      Restrict phases.\n"
+    "  --verbose, -V    Verbosity level.\n"
+    "    =0             Only print errors.\n"
+    "    =1             Print info on compiler stages.\n"
+    "    =2             More detailed compilation information.\n"
+    "    =3             External tool command lines.\n"
+    "    =4             Very low-level detail.\n"
+    "  --pass, -r       Restrict phases.\n"
     "    =parse\n"
     "    =syntax\n"
     "    =sugar\n"
@@ -170,48 +174,49 @@ static void usage()
     "    =final\n"
     "    =reach\n"
     "    =paint\n"
-    "    =ir           Output LLVM IR.\n"
-    "    =bitcode      Output LLVM bitcode.\n"
-    "    =asm          Output assembly.\n"
-    "    =obj          Output an object file.\n"
-    "    =all          The default: generate an executable.\n"
-    "  --ast, -a       Output an abstract syntax tree for the whole program.\n"
-    "  --astpackage    Output an abstract syntax tree for the main package.\n"
-    "  --trace, -t     Enable parse trace.\n"
-    "  --width, -w     Width to target when printing the AST.\n"
-    "    =columns      Defaults to the terminal width.\n"
-    "  --immerr        Report errors immediately rather than deferring.\n"
-    "  --checktree     Verify AST well-formedness.\n"
-    "  --verify        Verify LLVM IR.\n"
-    "  --extfun        Set function default linkage to external.\n"
-    "  --simplebuiltin Use a minimal builtin package.\n"
-    "  --files         Print source file names as each is processed.\n"
-    "  --bnf           Print out the Pony grammar as human readable BNF.\n"
-    "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
-    "  --lint-llvm     Run the LLVM linting pass on generated IR.\n"
+    "    =ir            Output LLVM IR.\n"
+    "    =bitcode       Output LLVM bitcode.\n"
+    "    =asm           Output assembly.\n"
+    "    =obj           Output an object file.\n"
+    "    =all           The default: generate an executable.\n"
+    "  --ast, -a        Output an abstract syntax tree for the whole program.\n"
+    "  --astpackage     Output an abstract syntax tree for the main package.\n"
+    "  --trace, -t      Enable parse trace.\n"
+    "  --width, -w      Width to target when printing the AST.\n"
+    "    =columns       Defaults to the terminal width.\n"
+    "  --immerr         Report errors immediately rather than deferring.\n"
+    "  --checktree      Verify AST well-formedness.\n"
+    "  --verify         Verify LLVM IR.\n"
+    "  --extfun         Set function default linkage to external.\n"
+    "  --simplebuiltin  Use a minimal builtin package.\n"
+    "  --files          Print source file names as each is processed.\n"
+    "  --bnf            Print out the Pony grammar as human readable BNF.\n"
+    "  --antlr          Print out the Pony grammar as an ANTLR file.\n"
+    "  --lint-llvm      Run the LLVM linting pass on generated IR.\n"
     ,
     "Runtime options for Pony programs (not for use with ponyc):\n"
-    "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
-    "                  cores (not hyperthreads) available.\n"
-    "  --ponycdmin     Defer cycle detection until 2^N actors have blocked.\n"
-    "                  Defaults to 2^4.\n"
-    "  --ponycdmax     Always cycle detect when 2^N actors have blocked.\n"
-    "                  Defaults to 2^18.\n"
-    "  --ponycdconf    Send cycle detection CNF messages in groups of 2^N.\n"
-    "                  Defaults to 2^6.\n"
-    "  --ponygcinitial Defer garbage collection until an actor is using at\n"
-    "                  least 2^N bytes. Defaults to 2^14.\n"
-    "  --ponygcfactor  After GC, an actor will next be GC'd at a heap memory\n"
-    "                  usage N times its current value. This is a floating\n"
-    "                  point value. Defaults to 2.0.\n"
-    "  --ponynoyield   Do not yield the CPU when no work is available.\n"
-    "  --ponynoblock   Do not send block messages to the cycle detector.\n"
-    "  --ponynopin     Do not pin scheduler threads or the ASIO thread, even\n"
-    "                  if --ponypinasio is set.\n"
-    "                  threads are pinned to CPUs.\n"
-    "  --ponypinasio   Pin the ASIO thread to a CPU the way scheduler\n"
-    "                  threads are pinned to CPUs.\n"
-    "  --ponyversion   Print the version of the compiler and exit.\n"
+    "  --ponythreads    Use N scheduler threads. Defaults to the number of\n"
+    "                   cores (not hyperthreads) available.\n"
+    "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
+    "                   Defaults to 1.\n"
+    "  --ponycdmin      Defer cycle detection until 2^N actors have blocked.\n"
+    "                   Defaults to 2^4.\n"
+    "  --ponycdmax      Always cycle detect when 2^N actors have blocked.\n"
+    "                   Defaults to 2^18.\n"
+    "  --ponycdconf     Send cycle detection CNF messages in groups of 2^N.\n"
+    "                   Defaults to 2^6.\n"
+    "  --ponygcinitial  Defer garbage collection until an actor is using at\n"
+    "                   least 2^N bytes. Defaults to 2^14.\n"
+    "  --ponygcfactor   After GC, an actor will next be GC'd at a heap memory\n"
+    "                   usage N times its current value. This is a floating\n"
+    "                   point value. Defaults to 2.0.\n"
+    "  --ponynoyield    Do not yield the CPU when no work is available.\n"
+    "  --ponynoblock    Do not send block messages to the cycle detector.\n"
+    "  --ponynopin      Do not pin scheduler threads or the ASIO thread, even\n"
+    "                   if --ponypinasio is set.\n"
+    "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n"
+    "                   threads are pinned to CPUs.\n"
+    "  --ponyversion    Print the version of the compiler and exit.\n"
     );
 }
 
@@ -290,6 +295,12 @@ int main(int argc, char* argv[])
   opt.pic = true;
 #endif
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
+  // use by the signals package when not using signals for scheduler scaling
+  define_build_flag("scheduler_scaling_pthreads");
+#endif
+
   while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
@@ -306,6 +317,7 @@ int main(int argc, char* argv[])
       case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val, &opt); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
+      case OPT_BIN_NAME: opt.bin_name = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
       case OPT_RUNTIMEBC: opt.runtimebc = true; break;
       case OPT_PIC: opt.pic = true; break;

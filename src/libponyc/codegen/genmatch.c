@@ -36,12 +36,13 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
 static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 {
   ast_t* pattern_type = ast_type(pattern);
-  ast_t* fun = lookup(NULL, pattern, pattern_type, c->str_eq);
+  deferred_reification_t* fun = lookup(NULL, pattern, pattern_type, c->str_eq);
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
+  AST_GET_CHILDREN(fun->ast, cap, id, typeparams, params, result, partial);
   ast_t* param = ast_child(params);
+  ast_t* type = ast_childidx(param, 1);
 
-  return ast_childidx(param, 1);
+  return deferred_reify(fun, type, c->opt);
 }
 
 static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
