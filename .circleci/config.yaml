@@ -1,13 +1,14 @@
 version: 2
 jobs:
-  build:
+  llvm391:
     docker:
-      - image: debian:stretch
+      - image: ponylang/ponyc-ci-llvm3.9.1
     steps:
       - checkout
-      - run:
-          name: Greeting
-          command: echo Hello, world.
-      - run:
-          name: Print the Current Time
-          command: date
+      - run: make test-ci
+
+workflows:
+  version: 2
+  llvms:
+    jobs:
+      - llvm391
