@@ -11,7 +11,7 @@ workflows:
   version: 2
   llvms:
     jobs:
-      - llvm391
+      - llvm391:
         filters:
           branches:
             only: master
