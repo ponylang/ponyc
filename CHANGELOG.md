@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't suspend schedulers if terminating and reset steal_attempts on wake ([PR #2447](https://github.com/ponylang/ponyc/pull/2447))
 
 ### Added
 
