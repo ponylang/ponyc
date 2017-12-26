@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.21.2] - 2017-12-26
 
 ### Fixed
 
 - Don't suspend schedulers if terminating and reset steal_attempts on wake ([PR #2447](https://github.com/ponylang/ponyc/pull/2447))
-
-### Added
-
-
-### Changed
-
 
 ## [0.21.1] - 2017-12-23
 
