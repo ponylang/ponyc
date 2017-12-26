@@ -47,7 +47,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   const char* unbox_name = genname_unbox(m->full_name);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  if(ast_id(m->r_fun) != TK_NEW)
+  if(ast_id(m->fun->ast) != TK_NEW)
   {
     // It's the same type, but it takes the boxed type instead of the primitive
     // type as the receiver.
@@ -82,7 +82,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
-  if(ast_id(m->r_fun) != TK_NEW)
+  if(ast_id(m->fun->ast) != TK_NEW)
   {
     // If it's not a constructor, pass the extracted primitive as the receiver.
     args[0] = primitive;
