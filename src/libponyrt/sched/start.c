@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 typedef struct options_t
 {
   // concurrent options
