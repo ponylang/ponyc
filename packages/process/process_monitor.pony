@@ -479,7 +479,8 @@ actor ProcessMonitor
 
   fun _kill_child() =>
     """
-    Terminate the child process.
+    Terminate the child process, first trying SIGTERM and if
+    that fails try SIGKILL.
     """
     if _child_pid != -1 then
       // Try a graceful termination
