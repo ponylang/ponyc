@@ -865,6 +865,19 @@ benchmark: all
 	@echo "Running libponyrt benchmarks..."
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
+stdlib-debug: all
+	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
+
+stdlib: all
+	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
+
+stdlib-loop:
+	while true; do echo "Date: `date +%y%m%d-%H%M%S.%N`"; ./stdlib --sequential; echo "stdlib done"; done 2>&1 | tee stdlib-`date +%y%m%d-%H%M%S.%N`.txt
+
+test-stdlib-debug: stdlib-debug stdlib-loop
+
+test-stdlib: stdlib stdlib-loop
+
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
