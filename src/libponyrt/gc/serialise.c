@@ -4,7 +4,6 @@
 
 #include "serialise.h"
 #include "../sched/scheduler.h"
-#include "../lang/lang.h"
 #include "ponyassert.h"
 #include <string.h>
 

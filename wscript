@@ -5,6 +5,13 @@
 # Target definitions are in the build() function.
 
 import sys, subprocess
+from waflib import TaskGen
+
+TaskGen.declare_chain(
+    rule    = '${LLVM_LLC} -filetype=obj -o ${TGT} ${SRC}',
+    ext_in  = '.ll',
+    ext_out = '.o'
+)
 
 # check if the operating system's description contains a string
 def os_is(name):
@@ -171,8 +178,7 @@ def configure(ctx):
                 'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
                 'dbghelp', 'Shlwapi'
             ]
-
-
+        
 # specifies build targets
 def build(ctx):
     import os
@@ -243,6 +249,7 @@ def build(ctx):
                 shutil.copy(os.path.join(libresslDir, 'lib', 'tls.lib'), buildDir)
 
             llvmConfig = os.path.join(llvmDir, 'bin', 'llvm-config.exe')
+            ctx.env.LLVM_LLC = os.path.join(llvmDir, 'bin', 'llc.exe')
             llvmLibFiles = cmd_output([llvmConfig, '--libs'])
             import re
             if ctx.options.llvm.startswith(('3.7', '3.8')):
@@ -303,7 +310,8 @@ def build(ctx):
     ctx(
         features = 'c cxx cxxstlib seq',
         target   = 'libponyrt',
-        source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
+        source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
+                   ctx.path.ant_glob('src/libponyrt/**/*.ll'),
         includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
         defines  = [ 'PONY_NO_ASSERT' ]
     )

@@ -629,7 +629,7 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
-  gencall_throw(c);
+  gencall_error(c);
   codegen_debugloc(c, NULL);
 
   return GEN_NOVALUE;

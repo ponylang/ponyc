@@ -787,9 +787,9 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMReadOnlyAttribute);
 #endif
 
-  // void pony_throw()
+  // void pony_error()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
-  value = LLVMAddFunction(c->module, "pony_throw", type);
+  value = LLVMAddFunction(c->module, "pony_error", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, noreturn_attr);
 #else
