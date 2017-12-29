@@ -871,12 +871,17 @@ stdlib-debug: all
 stdlib: all
 	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 
-stdlib-loop:
-	while true; do echo "Date: `date +%y%m%d-%H%M%S.%N`"; ./stdlib --sequential; echo "stdlib done"; done 2>&1 | tee stdlib-`date +%y%m%d-%H%M%S.%N`.txt
+test-stdlib-debug: stdlib-debug
+	./stdlib --sequential
 
-test-stdlib-debug: stdlib-debug stdlib-loop
+test-stdlib: stdlib
+	./stdlib --sequential
 
-test-stdlib: stdlib stdlib-loop
+# For a long term test build stdlib-debug or stdlib
+# and uncomment test-long-term. This will will run
+# stdlib forever pushing the output to stdlib-xxxx.txt
+#test-long-term:
+#	while true; do echo "Date: `date +%y%m%d-%H%M%S.%N`"; ./stdlib --sequential; echo "stdlib done"; done 2>&1 | tee stdlib-`date +%y%m%d-%H%M%S.%N`.txt
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
