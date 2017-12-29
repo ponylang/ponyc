@@ -759,10 +759,11 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // i32 pony_start(i32, i32)
-  params[0] = c->i32;
-  params[1] = c->i32;
-  type = LLVMFunctionType(c->i32, params, 2, false);
+  // i1 pony_start(i1, i1, i32*)
+  params[0] = c->i1;
+  params[1] = c->i1;
+  params[2] = LLVMPointerType(c->i32, 0);
+  type = LLVMFunctionType(c->i1, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);

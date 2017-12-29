@@ -37,7 +37,7 @@ typedef struct options_t
 
 // global data
 static PONY_ATOMIC(bool) initialised;
-static PONY_ATOMIC(int) exit_code;
+static PONY_ATOMIC(int) rt_exit_code;
 static bool language_init;
 
 enum
@@ -150,26 +150,26 @@ PONY_API int pony_init(int argc, char** argv)
   return argc;
 }
 
-PONY_API int pony_start(bool library, bool language_features)
+PONY_API bool pony_start(bool library, bool language_features, int* exit_code)
 {
   pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
 
   if(language_features)
   {
     if(!ponyint_os_sockets_init())
-      return -1;
+      return false;
 
     if(!ponyint_serialise_setup())
-      return -1;
+      return false;
 
     language_init = true;
   }
 
   if(!ponyint_sched_start(library))
-    return -1;
+    return false;
 
   if(library)
-    return 0;
+    return true;
 
   if(language_init)
   {
@@ -183,7 +183,11 @@ PONY_API int pony_start(bool library, bool language_features)
 #endif
   atomic_thread_fence(memory_order_acq_rel);
   atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  return ec;
+
+  if(exit_code != NULL)
+    *exit_code = ec;
+
+  return true;
 }
 
 PONY_API int pony_stop()
@@ -208,10 +212,10 @@ PONY_API int pony_stop()
 
 PONY_API void pony_exitcode(int code)
 {
-  atomic_store_explicit(&exit_code, code, memory_order_relaxed);
+  atomic_store_explicit(&rt_exit_code, code, memory_order_relaxed);
 }
 
 PONY_API int pony_get_exitcode()
 {
-  return atomic_load_explicit(&exit_code, memory_order_relaxed);
+  return atomic_load_explicit(&rt_exit_code, memory_order_relaxed);
 }
