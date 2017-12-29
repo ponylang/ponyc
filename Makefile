@@ -877,12 +877,6 @@ test-stdlib-debug: stdlib-debug
 test-stdlib: stdlib
 	./stdlib --sequential
 
-# For a long term test build stdlib-debug or stdlib
-# and uncomment test-long-term. This will will run
-# stdlib forever pushing the output to stdlib-xxxx.txt
-#test-long-term:
-#	while true; do echo "Date: `date +%y%m%d-%H%M%S.%N`"; ./stdlib --sequential; echo "stdlib done"; done 2>&1 | tee stdlib-`date +%y%m%d-%H%M%S.%N`.txt
-
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
