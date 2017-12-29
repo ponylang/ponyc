@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
 
 ### Added
 
