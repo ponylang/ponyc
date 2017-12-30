@@ -3,15 +3,25 @@ class Array[A] is Seq[A]
   Contiguous, resizable memory to store elements of type A.
 
   ## Usage
+
   Creating an Array of String.
   ```pony
     let array: Array[String] = ["dog"; "cat"; "wombat"]
+    // array.size() == 3
+    // array.space() >= 3
+  ```
+
+  Creating an empty Array of String, which may hold at least 10 elements before
+  requesting more space.
+  ```pony
+    let array = Array(10)
+    // array.size() == 0
+    // array.space() >= 10
   ```
 
   Accessing elements can be done via the `apply(i: USize): this->A ?` method.
-  The provided index might be out of bounds so `apply` (like many other Array's
-  methods) is partial and has to be called within a try-catch block or inside
-  another partial method.
+  The provided index might be out of bounds so `apply` is partial and has to be
+  called within a try-catch block or inside another partial method.
   ```pony
     let array: Array[String] = ["dog"; "cat"; "wombat"]
     let is_second_element_wobat = try
@@ -23,25 +33,23 @@ class Array[A] is Seq[A]
   ```
 
   Adding and removing elements to and from the end of the Array can be done via
-  `push` and `pop` methods, which add and remove elements to the end of the
-  Array.
+  `push` and `pop` methods. You could treat the array as a FIFO queue using
+  those method.
+  ```pony
+    while (array.size() > 0) do
+      let elem = array.pop()
+      // do something with element
+    end
+  ```
 
   Modifying the Array can be done via `update`, `insert` and `delete` methods
   which alter the Array at an arbitrary index, moving elements left (when
   deleting) or right (when inserting) as necessary.
 
-  Iterating over can be done using the `values` method.
+  Iterating over the elements of an Array can be done using the `values` method.
   ```pony
     for element in array.values() do
         // do something with element
-    end
-  ```
-
-  You could also treat the array as a FIFO queue using `pop()` method.
-  ```pony
-    while (array.size() > 0) do
-      let elem = array.pop()
-      // do something with element
     end
   ```
 
@@ -55,11 +63,11 @@ class Array[A] is Seq[A]
   Different data types require different amounts of memory. Array[U64] with size
   of 6 will take more memory than an Array[U8] of the same size.
 
-  When creating an Array or adding more elements the Array will allocate
-  a next power of two of space, but no less than 8 of space. An empty Array
-  is an exception and can be of 0 space.
+  When creating an Array or adding more elements will calculate the next power
+  of 2 of the requested number of elements and allocate that much space, with a
+  lower bound of space for 8 elements.
 
-  Here's a few examples of the space allocated when initialising a table with
+  Here's a few examples of the space allocated when initialising an Array with
   various number of elements:
 
   | size | space |
