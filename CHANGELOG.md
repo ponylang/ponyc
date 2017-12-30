@@ -6,13 +6,26 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
 
 ### Added
 
-- Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
 
 ### Changed
 
+
+## [0.21.2] - 2017-12-26
+
+### Fixed
+
+- Don't suspend schedulers if terminating and reset steal_attempts on wake ([PR #2447](https://github.com/ponylang/ponyc/pull/2447))
+
+## [0.21.1] - 2017-12-23
+
+### Added
+
+- Dynamic scheduler thread scaling based on workload ([PR #2386](https://github.com/ponylang/ponyc/pull/2386))
+- Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
 
 ## [0.21.0] - 2017-12-17
 

@@ -163,6 +163,11 @@ ifdef use
     ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
   endif
+
+  ifneq (,$(filter $(use), scheduler_scaling_pthreads))
+    ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
+  endif
 endif
 
 ifdef config
@@ -191,7 +196,7 @@ else
 endif
 
 ifeq ($(OSTYPE),osx)
-  ALL_CFLAGS += -mmacosx-version-min=10.8
+  ALL_CFLAGS += -mmacosx-version-min=10.8 -DUSE_SCHEDULER_SCALING_PTHREADS
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
@@ -941,8 +946,8 @@ endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
 	$(SILENT)cp -r .docs/* $(package)/usr/lib/pony/$(package_version)/docs-support/
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
-	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
-	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --iteration "$(package_iteration)" --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
+	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
+	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
 	$(SILENT)git archive HEAD > build/bin/$(archive)
 	$(SILENT)tar rvf build/bin/$(archive) stdlib-docs
 	$(SILENT)bzip2 build/bin/$(archive)
@@ -992,6 +997,7 @@ help:
 	@echo '   actor_continuations'
 	@echo '   coverage'
 	@echo '   llvm_link_static'
+	@echo '   scheduler_scaling_pthreads'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

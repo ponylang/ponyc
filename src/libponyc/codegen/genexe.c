@@ -128,18 +128,16 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
   // Start the runtime.
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMConstInt(c->i32, 1, false);
-  LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
+  args[0] = LLVMConstInt(c->i1, 0, false);
+  args[1] = LLVMConstInt(c->i1, 1, false);
+  args[2] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
 
-  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
-  LLVMValueRef start_success = LLVMBuildICmp(c->builder, LLVMIntNE, rc,
-    minus_one, "");
   LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
 
   LLVMPositionBuilderAtEnd(c->builder, start_fail_block);
 
-  const char error_msg_str[] = "Error: couldn't initialise runtime!";
+  const char error_msg_str[] = "Error: couldn't start runtime!";
 
   args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
   gencall_runtime(c, "puts", args, 1, "");
@@ -155,14 +153,15 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
-    // The exit code may have been set by one of the primitive finalisers.
-    // Reload it.
-    rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   }
 
   args[0] = ctx;
   args[1] = LLVMConstNull(c->object_ptr);
   gencall_runtime(c, "pony_become", args, 2, "");
+
+  LLVMValueRef rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
+  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
+  rc = LLVMBuildSelect(c->builder, start_success, rc, minus_one, "");
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);

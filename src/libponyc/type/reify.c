@@ -4,6 +4,7 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
 static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
@@ -238,6 +239,129 @@ ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
   bool dup_child[9] = {true, true, true, true, true, true, false, false, true};
   ast_t* r_ast = ast_dup_partial(ast, dup_child, true, true, true);
   return reify(r_ast, typeparams, typeargs, opt, false);
+}
+
+deferred_reification_t* deferred_reify_new(ast_t* ast, ast_t* typeparams,
+  ast_t* typeargs, ast_t* thistype)
+{
+  deferred_reification_t* deferred = POOL_ALLOC(deferred_reification_t);
+
+  deferred->ast = ast;
+  deferred->type_typeparams = ast_dup(typeparams);
+  deferred->type_typeargs = ast_dup(typeargs);
+  deferred->thistype = ast_dup(thistype);
+  deferred->method_typeparams = NULL;
+  deferred->method_typeargs = NULL;
+
+  return deferred;
+}
+
+void deferred_reify_add_method_params(deferred_reification_t* deferred,
+  ast_t* typeparams, ast_t* typeargs)
+{
+  deferred->method_typeparams = ast_dup(typeparams);
+  deferred->method_typeargs = ast_dup(typeargs);
+}
+
+ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
+  pass_opt_t* opt)
+{
+  ast_t* r_ast = ast_dup(ast);
+
+  // Must replace `this` before typeparam reification.
+  if(deferred->thistype != NULL)
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+
+  if(deferred->type_typeparams != NULL)
+    r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,
+      opt, false);
+
+  if(deferred->method_typeparams != NULL)
+  {
+    ast_t* r_typeparams = deferred->method_typeparams;
+    bool duplicate = false;
+
+    if(deferred->thistype != NULL)
+      r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
+        true);
+    else
+      duplicate = true;
+
+    if(deferred->type_typeparams != NULL)
+      r_typeparams = reify(r_typeparams, deferred->type_typeparams,
+        deferred->type_typeargs, opt, duplicate);
+
+    r_ast = reify(r_ast, r_typeparams, deferred->method_typeargs, opt, false);
+
+    if(r_typeparams != deferred->method_typeparams)
+      ast_free_unattached(r_typeparams);
+  }
+
+  return r_ast;
+}
+
+ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
+  pass_opt_t* opt)
+{
+  (void)opt;
+  switch(ast_id(ast))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      break;
+
+    default:
+      pony_assert(false);
+  }
+
+  // Do not duplicate the body and docstring.
+  bool dup_child[9] = {true, true, true, true, true, true, false, false, true};
+  ast_t* r_ast = ast_dup_partial(ast, dup_child, true, true, true);
+
+  // Must replace `this` before typeparam reification.
+  if(deferred->thistype != NULL)
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+
+  if(deferred->type_typeparams != NULL)
+    r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,
+      opt, false);
+
+  if(deferred->method_typeparams != NULL)
+  {
+    ast_t* r_typeparams = deferred->method_typeparams;
+    bool duplicate = false;
+
+    if(deferred->thistype != NULL)
+      r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
+        true);
+    else
+      duplicate = true;
+
+    if(deferred->type_typeparams != NULL)
+      r_typeparams = reify(r_typeparams, deferred->type_typeparams,
+        deferred->type_typeargs, opt, duplicate);
+
+    r_ast = reify(r_ast, r_typeparams, deferred->method_typeargs, opt, false);
+
+    if(r_typeparams != deferred->method_typeparams)
+      ast_free_unattached(r_typeparams);
+  }
+
+  return r_ast;
+}
+
+void deferred_reify_free(deferred_reification_t* deferred)
+{
+  if(deferred != NULL)
+  {
+    ast_free_unattached(deferred->type_typeparams);
+    ast_free_unattached(deferred->type_typeargs);
+    ast_free_unattached(deferred->method_typeparams);
+    ast_free_unattached(deferred->method_typeargs);
+    ast_free_unattached(deferred->thistype);
+    POOL_FREE(deferred_reification_t, deferred);
+  }
 }
 
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,

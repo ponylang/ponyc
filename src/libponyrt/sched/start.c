@@ -14,10 +14,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 typedef struct options_t
 {
   // concurrent options
   uint32_t threads;
+  uint32_t min_threads;
   uint32_t cd_min_deferred;
   uint32_t cd_max_deferred;
   uint32_t cd_conf_group;
@@ -32,12 +37,13 @@ typedef struct options_t
 
 // global data
 static PONY_ATOMIC(bool) initialised;
-static PONY_ATOMIC(int) exit_code;
+static PONY_ATOMIC(int) rt_exit_code;
 static bool language_init;
 
 enum
 {
   OPT_THREADS,
+  OPT_MINTHREADS,
   OPT_CDMIN,
   OPT_CDMAX,
   OPT_CDCONF,
@@ -53,6 +59,7 @@ enum
 static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
+  {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
   {"ponycdmin", 0, OPT_ARG_REQUIRED, OPT_CDMIN},
   {"ponycdmax", 0, OPT_ARG_REQUIRED, OPT_CDMAX},
   {"ponycdconf", 0, OPT_ARG_REQUIRED, OPT_CDCONF},
@@ -78,6 +85,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     switch(id)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
+      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
       case OPT_CDMIN: opt->cd_min_deferred = atoi(s.arg_val); break;
       case OPT_CDMAX: opt->cd_max_deferred = atoi(s.arg_val); break;
       case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
@@ -134,7 +142,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
-    opt.pinasio);
+    opt.pinasio, opt.min_threads);
 
   ponyint_cycle_create(ctx,
     opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
@@ -142,26 +150,26 @@ PONY_API int pony_init(int argc, char** argv)
   return argc;
 }
 
-PONY_API int pony_start(bool library, bool language_features)
+PONY_API bool pony_start(bool library, bool language_features, int* exit_code)
 {
   pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
 
   if(language_features)
   {
     if(!ponyint_os_sockets_init())
-      return -1;
+      return false;
 
     if(!ponyint_serialise_setup())
-      return -1;
+      return false;
 
     language_init = true;
   }
 
   if(!ponyint_sched_start(library))
-    return -1;
+    return false;
 
   if(library)
-    return 0;
+    return true;
 
   if(language_init)
   {
@@ -175,7 +183,11 @@ PONY_API int pony_start(bool library, bool language_features)
 #endif
   atomic_thread_fence(memory_order_acq_rel);
   atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  return ec;
+
+  if(exit_code != NULL)
+    *exit_code = ec;
+
+  return true;
 }
 
 PONY_API int pony_stop()
@@ -200,10 +212,10 @@ PONY_API int pony_stop()
 
 PONY_API void pony_exitcode(int code)
 {
-  atomic_store_explicit(&exit_code, code, memory_order_relaxed);
+  atomic_store_explicit(&rt_exit_code, code, memory_order_relaxed);
 }
 
 PONY_API int pony_get_exitcode()
 {
-  return atomic_load_explicit(&exit_code, memory_order_relaxed);
+  return atomic_load_explicit(&rt_exit_code, memory_order_relaxed);
 }
