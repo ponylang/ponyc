@@ -8,12 +8,13 @@
 #include <string.h>
 #include "../common/paths.h"
 
+// Type for storing the source code along the documentation.
 typedef struct doc_sources_t
 {
-  const source_t* source;
-  const char* filename;
-  const char* doc_path;
-  const char* file_path;
+  const source_t* source; // The source file content
+  const char* filename; // The source filename.
+  const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
+  const char* file_path; // The absolute path of the generate source file.
 } doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
@@ -809,24 +810,41 @@ static char* concat(const char *s1, const char *s2)
 
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source, const char* package_name)
 {
+  pony_assert(docgen != NULL);
+  pony_assert(source != NULL);
+  pony_assert(package_name != NULL);
+
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
   char filename_copy[FILENAME_MAX];
   strcpy(filename_copy, source->file);
+
   const char* filename = get_file_name(filename_copy);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
+
+  // Absolute path where a copy of the source will be put.
   char source_dir[FILENAME_MAX];
-  const char* doc_source_dir_relative = concat("src/", package_name);
-  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
   path_cat(docgen->doc_source_dir, package_name, source_dir);
 
+  //Create directory for [documentationDir]/src/[package_name]
   pony_mkdir(source_dir);
   
+  // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
   char* path = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(source_dir, filename_md_extension, path);
+
+  // Get relative path for [documentationDir]/src/[package_name]/
+  // so it can be written in the mkdocs.yml file.
+  const char* doc_source_dir_relative = concat("src/", package_name);
+  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
+
+  // Get relative path for [documentationDir]/src/[package_name]/[filename].md
   const char* doc_path = concat(doc_source_dir_relative, filename_md_extension);
 
+  // Add a number (starting a 0) at the end of the file 
+  // in case there is name clashing.
+  // Only go up to 10 before not trying anymore.
   bool are_name_clashing = false;
   int current_numbering = 0;
   int number_of_try = 0;
@@ -834,11 +852,14 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     are_name_clashing = false;
     for (size_t i = 0; i < docgen->included_sources_count; i++) {
       pony_assert(docgen->included_sources[i] != NULL);
+      // Check if the path we want to use was used for another source file.
       if(strcmp(path, docgen->included_sources[i]->file_path) == 0) {
         are_name_clashing = true;
       }
     }
     number_of_try++;
+    // If the name are clashing add --[number] before extension to try
+    // to avoid name clashes.
     if (are_name_clashing) {
       current_numbering++;
       char extension[FILENAME_MAX];
@@ -860,10 +881,17 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     return NULL;
   }
 
+  // Section to copy source file to [documentationDir]/src/[package_name]/[filename].md
   FILE* file = fopen(path, "w");
 
   if (file != NULL) {
+    // Adding a 'special' header so it can be identified 
+    // as a complete Pony source file by JavaScript  to add line numbers.
     fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
+
+    // Escape markdown to tell this is Pony code
+    // Using multiple '```````'  so hopefully the markdown parser
+    // will consider the whole text as a code block.
     fprintf(file, "```````pony\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
@@ -911,9 +939,15 @@ static void include_source_if_needed(
   const char* source_path = source->file;
   pony_assert(source_path != NULL);
 
+  // Check if source file is already included in the generated documentation
+  // by comparing the path of the current source file path to the ones
+  // that were used to generated a copy for the documentation.
   bool was_included = false;
   for (size_t i = 0; i < docgen->included_sources_count; i++) {
     pony_assert(docgen->included_sources[i] != NULL);
+    pony_assert(docgen->included_sources[i]->source != NULL);
+    pony_assert(docgen->included_sources[i]->source->file != NULL);
+
     if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
       was_included = true;
   }
@@ -921,12 +955,16 @@ static void include_source_if_needed(
   if (!was_included) {
     doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
     if (new_elem != NULL) {
-      doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
+      doc_sources_t ** resized_array = 
+        (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
+      
+      // Copy old array.
       for (size_t i = 0; i < docgen->included_sources_count; i++) {
         pony_assert(docgen->included_sources[i] != NULL);
         resized_array[i] = docgen->included_sources[i];
       }
 
+      // Add new element.
       docgen->included_sources = resized_array;
       docgen->included_sources[docgen->included_sources_count] = new_elem;
       docgen->included_sources_count = docgen->included_sources_count + 1;
@@ -1378,6 +1416,8 @@ static void copy_doc_files(docgen_t* docgen)
   bool can_get_compiler_dir = get_compiler_exe_directory(compiler_dir);
   if (can_get_compiler_dir) {
 
+    // The extra.js file to add line numbers around pony source code block 
+    // in the generated HTML documentation.
     FILE* extra_js_dest = doc_open_file(docgen, true, "extra", ".js");
 
     if (extra_js_dest != NULL) {
@@ -1393,6 +1433,8 @@ static void copy_doc_files(docgen_t* docgen)
       errorf(docgen->errors, NULL, "Cannot create extra.js in the generated documentation.");
     }
 
+    // The extra.css file so that line numbers around pony source code block 
+    // are displayed properly.
     FILE* extra_css_dest = doc_open_file(docgen, true, "extra", ".css");
     if (extra_css_dest != NULL) {
   #ifdef PLATFORM_IS_WINDOWS
@@ -1407,6 +1449,8 @@ static void copy_doc_files(docgen_t* docgen)
       errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
     }
 
+    // Newer version of higlight js that does the highlighting of block code.
+    // Currently, the one packaged with mkdocs for Pony source code  is buggy.
     FILE* extra_newer_highlight_js_dest = doc_open_file(docgen, true, "highlight.pack.newer", ".js");
     if (extra_newer_highlight_js_dest != NULL) {
   #ifdef PLATFORM_IS_WINDOWS
