@@ -76,7 +76,6 @@ deploy:
     subject: pony-language
     repo: ponyc-win
     package: ponyc
-    version: ponyc-$(package_version)
     on:
         branch: release
         llvm: 3.9.1

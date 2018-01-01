@@ -401,20 +401,23 @@ PONY_API int pony_init(int argc, char** argv);
 
 /** Starts the pony runtime.
  *
- * Returns -1 if the scheduler couldn't start, otherwise returns the exit code
- * set with pony_exitcode(), defaulting to 0.
+ * Returns false if the runtime couldn't start, otherwise returns true with
+ * the value pointed by exit_code set with pony_exitcode(), defaulting to 0.
+ * exit_code can be NULL if you don't care about the exit code.
  *
  * If library is false, this call will return when the pony program has
  * terminated. If library is true, this call will return immediately, with an
  * exit code of 0, and the runtime won't terminate until pony_stop() is
  * called. This allows further processing to be done on the current thread.
+ * The value pointed by exit_code will not be modified if library is true. Use
+ * the return value of pony_stop() in that case.
  *
  * If language_features is false, the features of the runtime specific to the
  * Pony language, such as network or serialisation, won't be initialised.
  *
  * It is not safe to call this again before the runtime has terminated.
  */
-PONY_API int pony_start(bool library, bool language_features);
+PONY_API bool pony_start(bool library, bool language_features, int* exit_code);
 
 /**
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be

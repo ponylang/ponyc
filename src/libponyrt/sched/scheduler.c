@@ -416,9 +416,11 @@ static pony_actor_t* steal(scheduler_t* sched)
       {
         // if we're the highest active scheduler thread
         // and there are more active schedulers than the minimum requested
+        // and we're not terminating
         if ((sched == &scheduler[current_active_scheduler_count - 1])
-          && (current_active_scheduler_count > min_scheduler_count) &&
-          !atomic_exchange_explicit(&scheduler_count_changing, true,
+          && (current_active_scheduler_count > min_scheduler_count)
+          && (!sched->terminate)
+          && !atomic_exchange_explicit(&scheduler_count_changing, true,
             memory_order_acquire))
         {
           // let sched 0 know we're suspending
@@ -457,6 +459,10 @@ static pony_actor_t* steal(scheduler_t* sched)
 
           // dtrace resume notification
           DTRACE1(THREAD_RESUME, (uintptr_t)sched);
+
+          // reset steal_attempts so we try to steal from all other schedulers
+          // prior to suspending again
+          steal_attempts = 0;
         }
         else if(!sched->asio_noisy)
         {

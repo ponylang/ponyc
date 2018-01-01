@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #endif
 
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
+#endif
+
 PONY_EXTERN_C_BEGIN
 
 PONY_ATOMIC(const char*) cwd_cache;
