@@ -6,7 +6,6 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
-#include "doc_extra.h"
 #include "../common/paths.h"
 
 typedef struct doc_sources_t
@@ -346,7 +345,7 @@ static const char* doc_get_cap(ast_t* cap)
 
 static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
 {
-  for (int i = 0; i < docgen->included_sources_count; i++) {
+  for (size_t i = 0; i < docgen->included_sources_count; i++) {
     if (source == docgen->included_sources[i]-> source) {
       return docgen->included_sources[i];
     }
@@ -496,7 +495,7 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line = false)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line)
 {
   source_t* source = ast_source(elem);
   doc_sources_t* doc_source = NULL;
@@ -564,7 +563,8 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
-    add_source_code_link(docgen, field);
+    bool on_new_line = false;
+    add_source_code_link(docgen, field, on_new_line);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -721,7 +721,8 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "### %s", name);
   doc_type_params(docgen, docgen_opt, t_params, true, false);
 
-  add_source_code_link(docgen, method);
+  bool on_new_line = false;
+  add_source_code_link(docgen, method, on_new_line);
 
   fprintf(docgen->type_file, "\n\n");
 
@@ -810,7 +811,9 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 {
   doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
 
-  const char* filename = basename(source->file);
+  char filename_copy[FILENAME_MAX];
+  strcpy(filename_copy, source->file);
+  const char* filename = get_file_name(filename_copy);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
   char source_dir[FILENAME_MAX];
@@ -829,7 +832,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   int number_of_try = 0;
   do {
     are_name_clashing = false;
-    for (int i = 0; i < docgen->included_sources_count; i++) {
+    for (size_t i = 0; i < docgen->included_sources_count; i++) {
       pony_assert(docgen->included_sources[i] != NULL);
       if(strcmp(path, docgen->included_sources[i]->file_path) == 0) {
         are_name_clashing = true;
@@ -909,7 +912,7 @@ static void include_source_if_needed(
   pony_assert(source_path != NULL);
 
   bool was_included = false;
-  for (int i = 0; i < docgen->included_sources_count; i++) {
+  for (size_t i = 0; i < docgen->included_sources_count; i++) {
     pony_assert(docgen->included_sources[i] != NULL);
     if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
       was_included = true;
@@ -919,7 +922,7 @@ static void include_source_if_needed(
     doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
     if (new_elem != NULL) {
       doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
-      for (int i = 0; i < docgen->included_sources_count; i = i++) {
+      for (size_t i = 0; i < docgen->included_sources_count; i++) {
         pony_assert(docgen->included_sources[i] != NULL);
         resized_array[i] = docgen->included_sources[i];
       }
@@ -1319,6 +1322,109 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   doc_rm_star(docgen->sub_dir);
 }
 
+static void copy_file_content(FILE* source, FILE* dest)
+{
+  pony_assert(source != NULL && dest != NULL);
+  while(1)
+  {
+    int a = fgetc(source);
+    if(!feof(source))
+      fputc(a, dest);
+    else
+      break;
+  }
+}
+
+static void copy_doc_file(
+  const char* compiler_dir, 
+  const char* file_install_path, 
+  const char* file_source_path,
+  FILE* file_dest,
+  docgen_t* docgen
+)
+{
+  pony_assert(compiler_dir != NULL);
+  pony_assert(file_install_path != NULL);
+  pony_assert(file_source_path != NULL);
+  pony_assert(file_dest != NULL);
+  pony_assert(docgen != NULL);
+
+  // Find file in the compiler installation directory.
+  char file_path[FILENAME_MAX];
+  path_cat(compiler_dir, file_install_path, file_path);
+  FILE* file_source = fopen(file_path, "r");
+  if (file_source != NULL) {
+      copy_file_content(file_source, file_dest);
+      fclose(file_source);
+  } 
+  else {
+    // Find file in the source directory.
+    path_cat(compiler_dir, file_source_path, file_path);
+    file_source = fopen(file_path, "r");
+    if (file_source != NULL) {
+      copy_file_content(file_source, file_dest);
+      fclose(file_source);
+    }
+    else {
+      errorf(docgen->errors, NULL, "Cannot find either %s or %s." , file_install_path, file_source_path);
+    }
+  }
+  fclose(file_dest);
+}
+
+static void copy_doc_files(docgen_t* docgen)
+{
+  char compiler_dir[FILENAME_MAX];
+  bool can_get_compiler_dir = get_compiler_exe_directory(compiler_dir);
+  if (can_get_compiler_dir) {
+
+    FILE* extra_js_dest = doc_open_file(docgen, true, "extra", ".js");
+
+    if (extra_js_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\extra.js";
+      const char* source_path = "..\\..\\.docs\\extra.js";
+  #else
+      const char* install_path = "../docs-support/extra.js";
+      const char* source_path = "../../.docs/extra.js";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_js_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create extra.js in the generated documentation.");
+    }
+
+    FILE* extra_css_dest = doc_open_file(docgen, true, "extra", ".css");
+    if (extra_css_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\extra.css";
+      const char* source_path = "..\\..\\.docs\\extra.css";
+  #else
+      const char* install_path = "../docs-support/extra.css";
+      const char* source_path = "../../.docs/extra.css";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_css_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
+    }
+
+    FILE* extra_newer_highlight_js_dest = doc_open_file(docgen, true, "highlight.pack.newer", ".js");
+    if (extra_newer_highlight_js_dest != NULL) {
+  #ifdef PLATFORM_IS_WINDOWS
+      const char* install_path = "..\\docs-support\\highlight.pack.newer.js";
+      const char* source_path = "..\\..\\.docs\\highlight.pack.newer.js";
+  #else
+      const char* install_path = "../docs-support/highlight.pack.newer.js";
+      const char* source_path = "../../.docs/highlight.pack.newer.js";
+  #endif
+      copy_doc_file(compiler_dir, install_path, source_path, extra_newer_highlight_js_dest, docgen);
+    } else {
+      errorf(docgen->errors, NULL, "Cannot create highlight.pack.newer.js in the generated documentation.");
+    }
+  } else {
+    errorf(docgen->errors, NULL, "Cannot get the compiler executable path.");
+  }
+}
+
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
@@ -1341,11 +1447,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.included_sources = NULL;
   docgen.included_sources_count = 0;
 
-  FILE* extra_js = doc_open_file(&docgen, true, "extra", ".js");
-  fprintf(extra_js, get_doc_extra_js_content());
-
-  FILE* extra_css = doc_open_file(&docgen, true, "extra", ".css");
-  fprintf(extra_css, get_doc_extra_css_content());
+  copy_doc_files(&docgen);
 
   docgen.doc_source_dir = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
@@ -1362,7 +1464,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.index_file, "site_name: %s\n", name);
     fprintf(docgen.index_file, "theme: readthedocs\n");
     fprintf(docgen.index_file, "extra_css: [extra.css]\n");
-    fprintf(docgen.index_file, "extra_javascript: [extra.js]\n");
+    fprintf(docgen.index_file, "extra_javascript: [extra.js, highlight.pack.newer.js]\n");
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
@@ -1371,7 +1473,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if (docgen.included_sources != NULL) {
     fprintf(docgen.index_file, "- source:\n");
-    for (int i = 0; i < docgen.included_sources_count; i++) {
+    for (size_t i = 0; i < docgen.included_sources_count; i++) {
       doc_sources_t* current_source = docgen.included_sources[i];
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
     }
@@ -1383,12 +1485,6 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if(docgen.home_file != NULL)
    fclose(docgen.home_file);
-
-  if (extra_js != NULL)
-    fclose(extra_js);
-
-  if (extra_css != NULL)
-    fclose(extra_css);
 
   if(docgen.base_dir != NULL)
     ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);

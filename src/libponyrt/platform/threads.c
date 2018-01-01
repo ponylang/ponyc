@@ -18,6 +18,17 @@
 typedef cpuset_t cpu_set_t;
 #endif
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+static pthread_mutex_t sleep_mut;
+
+static pthread_once_t sleep_mut_once = PTHREAD_ONCE_INIT;
+
+void sleep_mut_init()
+{
+    pthread_mutex_init(&sleep_mut, NULL);
+}
+#endif
+
 #if defined(PLATFORM_IS_LINUX)
 
 #include <dlfcn.h>
@@ -201,6 +212,11 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   if(pthread_create(thread, NULL, start, arg))
     return false;
 #endif
+
+#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
+  pthread_once(&sleep_mut_once, sleep_mut_init);
+#endif
+
   return true;
 }
 
@@ -230,5 +246,49 @@ pony_thread_id_t ponyint_thread_self()
   return GetCurrentThread();
 #else
   return pthread_self();
+#endif
+}
+
+void ponyint_thread_suspend(pony_signal_event_t signal)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  WaitForSingleObject(signal, INFINITE);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  int ret;
+  // lock mutex
+  ret = pthread_mutex_lock(&sleep_mut);
+
+  // wait for condition variable (will sleep and release mutex)
+  ret = pthread_cond_wait(signal, &sleep_mut);
+  // TODO: What to do if `ret` is an unrecoverable error?
+  (void) ret;
+
+  // unlock mutex
+  ret = pthread_mutex_unlock(&sleep_mut);
+#else
+  int sig;
+  sigset_t sigmask;
+  sigemptyset(&sigmask);         /* zero out all bits */
+  sigaddset(&sigmask, signal);   /* unblock desired signal */
+
+  // sleep waiting for signal to wake up again
+  sigwait(&sigmask, &sig);
+#endif
+}
+
+void ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  (void) thread;
+  SetEvent(signal);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  (void) thread;
+  int ret;
+  // signal condition variable
+  ret = pthread_cond_signal(signal);
+  // TODO: What to do if `ret` is an unrecoverable error?
+  (void) ret;
+#else
+  pthread_kill(thread, signal);
 #endif
 }

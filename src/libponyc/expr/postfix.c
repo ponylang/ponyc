@@ -127,8 +127,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
 
 static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 {
-  AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
-    body);
+  AST_GET_CHILDREN(method, cap, id, typeparams, params, result);
 
   switch(ast_id(method))
   {
@@ -142,6 +141,7 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 
       if(!constructor_type(opt, ast, ast_id(cap), type, &result))
         return false;
+
       break;
     }
 
@@ -178,14 +178,31 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(left) == TK_TYPEREF);
   pony_assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(opt, ast, type, ast_name(right));
+  deferred_reification_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
 
+  ast_t* r_find = find->ast;
+
+  switch(ast_id(r_find))
+  {
+    case TK_FUN:
+      if(ast_id(ast_child(r_find)) != TK_AT)
+        break;
+      //fallthrough
+
+    case TK_NEW:
+      r_find = deferred_reify_method_def(find, r_find, opt);
+      break;
+
+    default:
+      break;
+  }
+
   bool ret = true;
 
-  switch(ast_id(find))
+  switch(ast_id(r_find))
   {
     case TK_TYPEPARAM:
       ast_error(opt->check.errors, right,
@@ -194,13 +211,13 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       break;
 
     case TK_NEW:
-      ret = method_access(opt, ast, find);
+      ret = method_access(opt, ast, r_find);
       break;
 
     case TK_FUN:
-      if(ast_id(ast_child(find)) == TK_AT)
+      if(ast_id(ast_child(r_find)) == TK_AT)
       {
-        ret = method_access(opt, ast, find);
+        ret = method_access(opt, ast, r_find);
         break;
       }
       //fallthrough
@@ -246,7 +263,10 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       break;
   }
 
-  ast_free_unattached(find);
+  if(r_find != find->ast)
+    ast_free_unattached(r_find);
+
+  deferred_reify_free(find);
   return ret;
 }
 
@@ -325,14 +345,34 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(type))
     return false;
 
-  ast_t* find = lookup(opt, ast, type, ast_name(right));
+  deferred_reification_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
 
+  ast_t* r_find = find->ast;
+
+  switch(ast_id(r_find))
+  {
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_EMBED:
+      r_find = deferred_reify(find, r_find, opt);
+      break;
+
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      r_find = deferred_reify_method_def(find, r_find, opt);
+      break;
+
+    default:
+      break;
+  }
+
   bool ret = true;
 
-  switch(ast_id(find))
+  switch(ast_id(r_find))
   {
     case TK_TYPEPARAM:
       ast_error(opt->check.errors, right,
@@ -341,24 +381,24 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
       break;
 
     case TK_FVAR:
-      if(!expr_fieldref(opt, ast, find, TK_FVARREF))
+      if(!expr_fieldref(opt, ast, r_find, TK_FVARREF))
         return false;
       break;
 
     case TK_FLET:
-      if(!expr_fieldref(opt, ast, find, TK_FLETREF))
+      if(!expr_fieldref(opt, ast, r_find, TK_FLETREF))
         return false;
       break;
 
     case TK_EMBED:
-      if(!expr_fieldref(opt, ast, find, TK_EMBEDREF))
+      if(!expr_fieldref(opt, ast, r_find, TK_EMBEDREF))
         return false;
       break;
 
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      ret = method_access(opt, ast, find);
+      ret = method_access(opt, ast, r_find);
       break;
 
     default:
@@ -367,7 +407,10 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
       break;
   }
 
-  ast_free_unattached(find);
+  if(r_find != find->ast)
+    ast_free_unattached(r_find);
+
+  deferred_reify_free(find);
 
   return ret;
 }

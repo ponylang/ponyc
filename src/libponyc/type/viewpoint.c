@@ -376,7 +376,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
   }
 }
 
-ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with)
+ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with, bool duplicate)
 {
   // Target is thistype or a typeparamref. With is a type (when replacing
   // `this` in a reified method signature) or a single capability (when
@@ -385,15 +385,21 @@ ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with)
     (ast_id(target) == TK_THISTYPE) ||
     (ast_id(target) == TK_TYPEPARAMREF));
 
-  ast_t* r_ast = ast_dup(ast);
+  ast_t* r_ast;
+
+  if(duplicate)
+    r_ast = ast_dup(ast);
+  else
+    r_ast = ast;
+
   replace_type(&r_ast, target, with);
   return r_ast;
 }
 
-ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with)
+ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with, bool duplicate)
 {
   ast_t* thistype = ast_from(ast, TK_THISTYPE);
-  ast_t* r_ast = viewpoint_replace(ast, thistype, with);
+  ast_t* r_ast = viewpoint_replace(ast, thistype, with, duplicate);
   ast_free_unattached(thistype);
   return r_ast;
 }
@@ -402,7 +408,7 @@ static void replace_typeparam(ast_t* tuple, ast_t* type, ast_t* typeparamref,
   token_id cap, token_id eph)
 {
   ast_t* r_tp = set_cap_and_ephemeral(typeparamref, cap, eph);
-  ast_t* r_type = viewpoint_replace(type, typeparamref, r_tp);
+  ast_t* r_type = viewpoint_replace(type, typeparamref, r_tp, true);
   ast_append(tuple, r_type);
 }
 
@@ -481,15 +487,15 @@ ast_t* viewpoint_reifythis(ast_t* type)
   ast_t* tuple = ast_from(type, TK_TUPLETYPE);
 
   ast_t* this_ref = ast_from(type, TK_REF);
-  ast_append(tuple, viewpoint_replacethis(type, this_ref));
+  ast_append(tuple, viewpoint_replacethis(type, this_ref, true));
   ast_free_unattached(this_ref);
 
   ast_t* this_val = ast_from(type, TK_VAL);
-  ast_append(tuple, viewpoint_replacethis(type, this_val));
+  ast_append(tuple, viewpoint_replacethis(type, this_val, true));
   ast_free_unattached(this_val);
 
   ast_t* this_box = ast_from(type, TK_BOX);
-  ast_append(tuple, viewpoint_replacethis(type, this_box));
+  ast_append(tuple, viewpoint_replacethis(type, this_box, true));
   ast_free_unattached(this_box);
 
   return tuple;
