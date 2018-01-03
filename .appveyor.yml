@@ -30,12 +30,13 @@ skip_commits:
     - .travis.yml
     - .travis_install.bash
     - .travis_script.bash
-    - Dockerfile
+    - '**/Dockerfile'
     - LICENSE
     - Makefile
     - release.bash
     - '**/*.md'
     - '**/*.txt'
+    - .circleci/config.yml
 
 clone_folder: C:\projects\ponyc
 
