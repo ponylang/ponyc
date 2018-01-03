@@ -865,6 +865,18 @@ benchmark: all
 	@echo "Running libponyrt benchmarks..."
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
+stdlib-debug: all
+	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
+
+stdlib: all
+	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
+
+test-stdlib-debug: stdlib-debug
+	./stdlib --sequential
+
+test-stdlib: stdlib
+	./stdlib --sequential
+
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
