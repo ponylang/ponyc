@@ -43,8 +43,6 @@ MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '3.8.1',
-    '3.7.1',
     '5.0.0',
     '4.0.1'
 ]
@@ -92,7 +90,7 @@ def configure(ctx):
         base_env.append_value('DEFINES', [
             '_CRT_SECURE_NO_WARNINGS', '_MBCS',
             'PLATFORM_TOOLS_VERSION=%d0' % base_env.MSVC_VERSION,
-            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION            
+            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION
         ])
         base_env.append_value('LIBPATH', [ base_env.LLVM_DIR ])
 
@@ -273,7 +271,7 @@ def build(ctx):
         includes = [ 'lib/gbenchmark/include' ],
         defines  = [ 'HAVE_STD_REGEX' ]
     )
-    
+
     # blake2
     ctx(
         features = 'c seq',
@@ -343,7 +341,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
-        defines   = [ 
+        defines   = [
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
             '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
         ],
