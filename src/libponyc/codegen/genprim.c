@@ -581,7 +581,7 @@ static void maybe_apply(compile_t* c, void* data, token_id cap)
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
-  gencall_throw(c);
+  gencall_error(c);
 
   codegen_finishfun(c);
 }

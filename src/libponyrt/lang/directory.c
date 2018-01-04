@@ -2,7 +2,6 @@
 
 #include <platform.h>
 #include <pony.h>
-#include "lang.h"
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
