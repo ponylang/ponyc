@@ -1,0 +1,21 @@
+version: 2
+jobs:
+  llvm-501-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-5.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug
+  llvm-501-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-5.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=release
+
+workflows:
+  version: 2
+  llvms:
+    jobs:
+      - llvm-501-debug
+      - llvm-501-release
