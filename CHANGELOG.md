@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add the pony_try function to receive Pony errors in C code ([PR #2457](https://github.com/ponylang/ponyc/pull/2457))
 
 ### Changed
 
