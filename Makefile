@@ -883,7 +883,7 @@ test: all
 	@rm stdlib
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 
