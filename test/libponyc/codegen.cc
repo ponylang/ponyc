@@ -484,3 +484,54 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 
   TEST_COMPILE(src);
 }
+
+
+// Doesn't work on windows. The C++ code doesn't catch C++ exceptions if they've
+// traversed a Pony frame. This is suspected to be related to how SEH and LLVM
+// exception code generation interact.
+// See https://github.com/ponylang/ponyc/issues/2455 for more details.
+#ifndef PLATFORM_IS_WINDOWS
+TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let r = @codegen_test_tryblock_catch[I32](this~tryblock())\n"
+    "    @pony_exitcode[I32](r)\n"
+
+    "  fun @tryblock() =>\n"
+    "    try\n"
+    "      @codegen_test_tryblock_throw[None]()?\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+extern "C"
+{
+
+EXPORT_SYMBOL int codegen_test_tryblock_catch(void (*callback)())
+{
+  try
+  {
+    callback();
+    return 0;
+  } catch(std::exception const&) {
+    return 1;
+  }
+}
+
+EXPORT_SYMBOL void codegen_test_tryblock_throw()
+{
+  throw std::exception{};
+}
+
+}
+#endif

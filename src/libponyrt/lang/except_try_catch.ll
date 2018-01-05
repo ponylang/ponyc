@@ -4,9 +4,9 @@
 ; compatibility, please try to keep this file as minimal as possible in order
 ; to minimise the chances of breakage with newer LLVM versions.
 
-declare i32 @pony_personality_v0(...)
+declare i32 @ponyint_personality_v0(...)
 
-define i1 @pony_try(void (i8*)* %fun, i8* %ctx) personality i32 (...)* @pony_personality_v0 {
+define i1 @pony_try(void (i8*)* %fun, i8* %ctx) personality i32 (...)* @ponyint_personality_v0 {
 entry:
   invoke void %fun(i8* %ctx)
     to label %post unwind label %unwind

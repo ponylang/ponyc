@@ -796,9 +796,9 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoReturnAttribute);
 #endif
 
-  // i32 pony_personality_v0(...)
+  // i32 ponyint_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
-  c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
+  c->personality = LLVMAddFunction(c->module, "ponyint_personality_v0", type);
 
   // i32 memcmp(i8*, i8*, intptr)
   params[0] = c->void_ptr;
