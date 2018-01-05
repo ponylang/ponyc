@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix double free in expr_typeref ([PR #2467](https://github.com/ponylang/ponyc/pull/2467))
 - Fix some spurious process manager test failures ([PR #2452](https://github.com/ponylang/ponyc/pull/2452))
 - Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
 
