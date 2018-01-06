@@ -44,11 +44,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
     set_linux_compiler
   ;;
 
-  "linux:llvm-config-4.0")
-    download_llvm
-    download_pcre
-  ;;
-
   "osx:llvm-config-3.9")
     brew update
     brew install shellcheck
