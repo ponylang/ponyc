@@ -59,6 +59,6 @@ pony_thread_id_t ponyint_thread_self();
 
 void ponyint_thread_suspend(pony_signal_event_t signal);
 
-void ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal);
+int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal);
 
 #endif
