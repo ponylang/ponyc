@@ -1,5 +1,11 @@
 version: 2
 jobs:
+  verify-changelog:
+    docker:
+      - image: ponylang/changelog-tool:release
+    steps:
+      - checkout
+      - run: changelog-tool verify CHANGELOG.md
   llvm-501-debug:
     docker:
       - image: ponylang/ponyc-ci:llvm-5.0.1
@@ -17,5 +23,6 @@ workflows:
   version: 2
   llvms:
     jobs:
+      - verify-changelog
       - llvm-501-debug
       - llvm-501-release

@@ -14,23 +14,6 @@ ponyc-test(){
   make CC="$CC1" CXX="$CXX1" test-ci
 }
 
-verify-changelog(){
-  echo "Building changelog tool..."
-  make CC="$CC1" CXX="$CXX1" && sudo make install
-
-  pushd /tmp
-
-  git clone "https://github.com/ponylang/pony-stable"
-  cd pony-stable && git checkout tags/0.0.1 && make && sudo make install && cd -
-
-  git clone "https://github.com/ponylang/changelog-tool"
-  cd changelog-tool && git checkout tags/0.2.0 && make && sudo make install && cd -
-
-  popd
-
-  changelog-tool verify CHANGELOG.md
-}
-
 ponyc-build-packages(){
   echo "Installing ruby, rpm, and fpm..."
   rvm use 2.2.3 --default
@@ -74,7 +57,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
       ponyc-build-docs
     else
       ponyc-test
-      verify-changelog
     fi
   ;;
 
