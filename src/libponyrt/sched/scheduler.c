@@ -41,10 +41,6 @@ static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
 
-#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-static pthread_cond_t sleep_cond;
-#endif
-
 /**
  * Gets the current active scheduler count
  */
@@ -126,9 +122,16 @@ static void wake_suspended_threads()
     {
       // in case the count changed between the while check and now
       if(get_active_scheduler_count() < scheduler_count)
+      {
         // send signal to wake up next scheduler thread available
-        ponyint_thread_wake(scheduler[get_active_scheduler_count()].tid,
-          scheduler[get_active_scheduler_count()].sleep_object);
+        if(ponyint_thread_wake(scheduler[get_active_scheduler_count()].tid,
+          scheduler[get_active_scheduler_count()].sleep_object))
+          // if there was an error waking the thread
+          // unlock the bool that controls modifying the active scheduler count
+          // variable.
+          atomic_store_explicit(&scheduler_count_changing, false,
+            memory_order_release);
+      }
       else
         // if there are no scheduler threads left to unlock
         // unlock the bool that controls modifying the active scheduler count
@@ -407,6 +410,11 @@ static pony_actor_t* steal(scheduler_t* sched)
     if (!block_sent)
     {
       uint32_t current_active_scheduler_count = get_active_scheduler_count();
+
+      // make sure thread scaling order is still valid. we should never be
+      // active if the active_scheduler_count isn't larger than our index.
+      pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
+
       if (steal_attempts < current_active_scheduler_count)
       {
         steal_attempts++;
@@ -433,6 +441,10 @@ static pony_actor_t* steal(scheduler_t* sched)
           // sleeping
           uint32_t sched_count = atomic_load_explicit(&active_scheduler_count,
             memory_order_relaxed);
+
+          // make sure the scheduler count didn't change
+          pony_assert(sched_count == current_active_scheduler_count);
+
           atomic_store_explicit(&active_scheduler_count, sched_count - 1,
             memory_order_relaxed);
 
@@ -444,17 +456,28 @@ static pony_actor_t* steal(scheduler_t* sched)
           // sleep waiting for signal to wake up again
           ponyint_thread_suspend(sched->sleep_object);
 
+          bool scc = atomic_load_explicit(&scheduler_count_changing,
+            memory_order_acquire);
+
+          // make sure scheduler_count_changing is true
+          pony_assert(scc);
+
           // increment active_scheduler_count so other schedulers know we're
           // awake again
           sched_count = atomic_load_explicit(&active_scheduler_count,
             memory_order_relaxed);
+
+          // make sure the scheduler count is correct still
+          pony_assert((sched_count + 1) == current_active_scheduler_count);
+
           atomic_store_explicit(&active_scheduler_count, sched_count + 1,
             memory_order_relaxed);
 
           // unlock the bool that controls modifying the active scheduler count
           // variable. this is because the signalling thread locks the control
           // variable before signalling
-          atomic_store_explicit(&scheduler_count_changing, false,
+          scc = false;
+          atomic_store_explicit(&scheduler_count_changing, scc,
             memory_order_release);
 
           // dtrace resume notification
@@ -603,18 +626,13 @@ static void ponyint_sched_shutdown()
     // close wait event objects
     CloseHandle(scheduler[i].sleep_object);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+    // destroy pthread condition object
+    pthread_cond_destroy(scheduler[i].sleep_object);
+    POOL_FREE(pthread_cond_t, scheduler[i].sleep_object);
     // set sleep condition object to NULL
     scheduler[i].sleep_object = NULL;
 #endif
   }
-
-#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-  int ret;
-  // destroy pthread condition object
-  ret = pthread_cond_destroy(&sleep_cond);
-  // TODO: What to do if `ret` is a non-recoverable error?
-  (void) ret;
-#endif
 
   ponyint_pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
   scheduler = NULL;
@@ -654,22 +672,21 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, nopin,
     pinasio);
 
-#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // initialize pthread condition object
-  int ret = pthread_cond_init(&sleep_cond, NULL);
-#endif
-
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
 #if defined(PLATFORM_IS_WINDOWS)
     // create wait event objects
     scheduler[i].sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // if it failed, set `sleep_object` to `NULL` for error
+    // create pthread condition object
+    scheduler[i].sleep_object = POOL_ALLOC(pthread_cond_t);
+    int ret = pthread_cond_init(scheduler[i].sleep_object, NULL);
     if(ret != 0)
+    {
+      // if it failed, set `sleep_object` to `NULL` for error
+      POOL_FREE(pthread_cond_t, scheduler[i].sleep_object);
       scheduler[i].sleep_object = NULL;
-    else
-      scheduler[i].sleep_object = &sleep_cond;
+    }
 #else
     scheduler[i].sleep_object = PONY_SCHED_SLEEP_WAKE_SIGNAL;
 #endif
@@ -799,9 +816,24 @@ void ponyint_sched_maybe_wakeup()
     !atomic_exchange_explicit(&scheduler_count_changing, true,
     memory_order_acquire))
   {
-    // send signal to wake up next scheduler thread available
-    ponyint_thread_wake(scheduler[current_active_scheduler_count].tid,
-      scheduler[current_active_scheduler_count].sleep_object);
+    // in case the count changed between the while check and now
+    if(get_active_scheduler_count() < scheduler_count)
+    {
+      // send signal to wake up next scheduler thread available
+      if(ponyint_thread_wake(scheduler[get_active_scheduler_count()].tid,
+        scheduler[get_active_scheduler_count()].sleep_object))
+        // if there was an error waking the thread
+        // unlock the bool that controls modifying the active scheduler count
+        // variable.
+        atomic_store_explicit(&scheduler_count_changing, false,
+          memory_order_release);
+    }
+    else
+      // if there are no scheduler threads left to unlock
+      // unlock the bool that controls modifying the active scheduler count
+      // variable.
+      atomic_store_explicit(&scheduler_count_changing, false,
+        memory_order_release);
   }
 }
 
