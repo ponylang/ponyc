@@ -38,18 +38,6 @@ echo "Installing ponyc build dependencies..."
 
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
-  "linux:llvm-config-3.7")
-    download_llvm
-    download_pcre
-    set_linux_compiler
-  ;;
-
-  "linux:llvm-config-3.8")
-    download_llvm
-    download_pcre
-    set_linux_compiler
-  ;;
-
   "linux:llvm-config-3.9")
     download_llvm
     download_pcre
@@ -59,27 +47,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
   "linux:llvm-config-4.0")
     download_llvm
     download_pcre
-  ;;
-
-  "linux:llvm-config-5.0")
-    download_llvm
-    download_pcre
-  ;;
-
-  "osx:llvm-config-3.7")
-    brew update
-    brew install pcre2
-    brew install libressl
-
-    brew install llvm37
-  ;;
-
-  "osx:llvm-config-3.8")
-    brew update
-    brew install pcre2
-    brew install libressl
-
-    brew install llvm38
   ;;
 
   "osx:llvm-config-3.9")
