@@ -22,6 +22,7 @@ skip_tags: true
 skip_commits:
   files:
     - .bintray.sh
+    - .circleci/config.yml
     - .gitattributes
     - .gitignore
     - .gitmodules
