@@ -161,6 +161,11 @@ static bool read_msg(scheduler_t* sched)
         if(atomic_load_explicit(&detect_quiescence, memory_order_relaxed) &&
           (sched->block_count == get_active_scheduler_count()))
         {
+          // reset ack token count to 0 because dynamic scheduler scaling means
+          // that a new thread can suspend changing active_scheduler_count and
+          // we can think we've received enough acks when we really haven't
+          sched->ack_count = 0;
+
           // If we think all threads are blocked, send CNF(token) to everyone.
           send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
         }
@@ -174,6 +179,13 @@ static bool read_msg(scheduler_t* sched)
         if(atomic_load_explicit(&detect_quiescence, memory_order_relaxed) &&
           (sched->block_count == get_active_scheduler_count()))
         {
+          // reset ack token count to 0 because dynamic scheduler scaling means
+          // that a new thread can wake up changing active_scheduler_count and
+          // then block causing block_count == active_scheduler_count for a
+          // second time and if we don't reset, we can think we've received
+          // enough acks when we really haven't
+          sched->ack_count = 0;
+
           // If we think all threads are blocked, send CNF(token) to everyone.
           send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
         }
@@ -431,12 +443,6 @@ static pony_actor_t* steal(scheduler_t* sched)
           && !atomic_exchange_explicit(&scheduler_count_changing, true,
             memory_order_acquire))
         {
-          // let sched 0 know we're suspending
-          send_msg(sched->index, 0, SCHED_SUSPEND, 0);
-
-          // dtrace suspend notification
-          DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
-
           // decrement active_scheduler_count so other schedulers know we're
           // sleeping
           uint32_t sched_count = atomic_load_explicit(&active_scheduler_count,
@@ -452,6 +458,20 @@ static pony_actor_t* steal(scheduler_t* sched)
           // variable
           atomic_store_explicit(&scheduler_count_changing, false,
             memory_order_release);
+
+          // let sched 0 know we're suspending only after decrementing
+          // active_scheduler_count to avoid a race condition between
+          // when we update active_scheduler_count and scheduler 0 processes
+          // the SCHED_SUSPEND message we send it. If we don't do this,
+          // and scheduler 0 processes the SCHED_SUSPEND message before we
+          // decrement active_scheduler_count, it could think that
+          // active_scheduler_count > block_count and not start the CNF/ACK
+          // process for termination and potentiall hang the runtime instead
+          // of allowing it to reach quiescence.
+          send_msg(sched->index, 0, SCHED_SUSPEND, 0);
+
+          // dtrace suspend notification
+          DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
 
           // sleep waiting for signal to wake up again
           ponyint_thread_suspend(sched->sleep_object);
