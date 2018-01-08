@@ -51,6 +51,9 @@ actor Main
             OptionSpec.i64("initial-pings",
               "Initial # of pings to send to each Pinger actor in an interval"
               where default' = 5)
+            OptionSpec.i64("run-time",
+              "Number of seconds to run, default is 0 which is forever"
+              where default' = 0)
           ],
           [
             ArgSpec.string_seq("", "")
@@ -69,19 +72,18 @@ actor Main
       let num_pingers = cmd.option("pingers").i64()
       let report_interval = cmd.option("report-interval").i64()
       let initial_pings = cmd.option("initial-pings").i64()
+      let run_time = cmd.option("run-time").i64()
 
       env.out.print("# " +
         "pingers " + num_pingers.string() + ", " +
         "report-interval " + report_interval.string() + ", " +
-        "initial-pings " + initial_pings.string())
+        "initial-pings " + initial_pings.string() + ", " +
+        "run-time " + run_time.string())
       env.out.print("time,run-ns,rate")
 
       let sync_leader = SyncLeader(env,
-        num_pingers.i32(), initial_pings.usize())
-      let interval: U64 = (report_interval.u64() * 1_000_000_000) / 10
-      let timers = Timers
-      let timer = Timer(Tick(env, sync_leader), interval, interval)
-      timers(consume timer)
+        num_pingers.i32(), initial_pings.usize(), report_interval, run_time)
+
     else
       env.exitcode(1)
     end
@@ -113,8 +115,12 @@ actor SyncLeader
   var _total_count: U64 = 0
   var _current_t: I64 = 0
   var _last_t: I64 = 0
+  var _run_done: Bool = false
+  var _timers: Timers tag
+  var _interval_timer: Timer tag
 
-  new create(env: Env, num_pingers: I32, initial_pings: USize) =>
+  new create(env: Env, num_pingers: I32, initial_pings: USize,
+      report_interval: I64, run_time: I64) =>
     """
     Create the desired number of Pinger actors and then send them
     their initial ping() messages.
@@ -132,9 +138,29 @@ actor SyncLeader
     _env = env
     _initial_pings = initial_pings
     _ps = ps'
+
+    // Create timers
+    _timers = Timers
+
+    // Create the interval timer which will be cause the pinging
+    let interval: U64 = (report_interval.u64() * 1_000_000_000) / 10
+    let interval_timer = Timer(Tick(env, this), interval, interval)
+    _interval_timer = interval_timer
+    _timers(consume interval_timer)
+
+    // Get current time
     (let t_s: I64, let t_ns: I64) = Time.now()
+
+    if run_time > 0 then
+      // Create a timer which will invoke run_done
+      let run_timer: Timer iso =
+          Timer(RunTimerNotify(env, this), run_time.u64() * 1_000_000_000)
+      _timers(consume run_timer)
+    end
+
+    // Tell the pingers to go
     _last_t = to_ns(t_s, t_ns)
-    tell_all_to_go(ps', _initial_pings)
+    tell_all_to_go(_ps, _initial_pings)
 
   be tick_fired(count: U64) =>
     """
@@ -150,6 +176,10 @@ actor SyncLeader
     end
     _partial_count = 0
     _waiting_for = _ps.size()
+
+    if _run_done then
+      _timers.cancel(_interval_timer)
+    end
 
   be report_stopped(id: I32) =>
     """
@@ -185,12 +215,20 @@ actor SyncLeader
       let rate: I64 = (_partial_count.i64() * 1_000_000_000) / run_ns
       @printf[I32]("%lld,%lld\n".cstring(), run_ns, rate)
 
-      (let t_s: I64, let t_ns: I64) = Time.now()
-      tell_all_to_go(_ps, _initial_pings)
-      _total_count = _total_count + _partial_count
-      _last_t = to_ns(t_s, t_ns)
-      _waiting_for = _ps.size()
+      if not _run_done then
+        (let t_s: I64, let t_ns: I64) = Time.now()
+        tell_all_to_go(_ps, _initial_pings)
+        _total_count = _total_count + _partial_count
+        _last_t = to_ns(t_s, t_ns)
+        _waiting_for = _ps.size()
+      end
     end
+
+  be run_done(count: U64) =>
+    """
+    The run timer has fired.
+    """
+    _run_done = true
 
   fun to_ns(t_s: I64, t_ns: I64): I64 =>
     (t_s * 1_000_000_000) + t_ns
@@ -283,7 +321,19 @@ class Tick is TimerNotify
     _env = env
     _sync_leader = sync_leader
 
-    fun ref apply(timer: Timer, count: U64): Bool =>
-      _sync_leader.tick_fired(count)
-      true
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _sync_leader.tick_fired(count)
+    true
+
+class RunTimerNotify is TimerNotify
+  let _env: Env
+  let _sync_leader: SyncLeader
+
+  new iso create(env: Env, sync_leader: SyncLeader) =>
+    _env = env
+    _sync_leader = sync_leader
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _sync_leader.run_done(count)
+    false
 
