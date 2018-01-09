@@ -536,7 +536,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   for(size_t i = 0; i < m->param_count; i++)
   {
     cast_args[i+1] = gen_assign_cast(c, param_types[i+3], args[i+1],
-     ast_type(arg_ast));
+      ast_type(arg_ast));
     arg_ast = ast_sibling(arg_ast);
   }
 
@@ -556,20 +556,17 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   }
 
   // Trace while populating the message contents.
-  ast_t* params = ast_childidx(m->r_fun, 3);
-  ast_t* param = ast_child(params);
   arg_ast = ast_child(args_ast);
   bool need_trace = false;
 
-  while(param != NULL)
+  for(size_t i = 0; i < m->param_count; i++)
   {
-    if(gentrace_needed(c, ast_type(arg_ast), ast_type(param)))
+    if(gentrace_needed(c, ast_type(arg_ast), m->params[i].ast))
     {
       need_trace = true;
       break;
     }
 
-    param = ast_sibling(param);
     arg_ast = ast_sibling(arg_ast);
   }
 
@@ -579,14 +576,12 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   {
     LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
     LLVMSetMetadataStr(gc, "pony.msgsend", md);
-    param = ast_child(params);
     arg_ast = ast_child(args_ast);
 
     for(size_t i = 0; i < m->param_count; i++)
     {
       gentrace(c, ctx, args[i+1], cast_args[i+1], ast_type(arg_ast),
-        ast_type(param));
-      param = ast_sibling(param);
+        m->params[i].ast);
       arg_ast = ast_sibling(arg_ast);
     }
 
@@ -602,7 +597,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   msg_args[4] = LLVMConstInt(c->i1, 1, false);
   LLVMValueRef send;
 
-  if(ast_id(m->r_fun) == TK_NEW)
+  if(ast_id(m->fun->ast) == TK_NEW)
     send = gencall_runtime(c, "pony_sendv_single", msg_args, 5, "");
   else
     send = gencall_runtime(c, "pony_sendv", msg_args, 5, "");
@@ -676,7 +671,7 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
         return false;
 
       case TK_ACTOR:
-        if(ast_id(m_sub->r_fun) == TK_FUN)
+        if(ast_id(m_sub->fun->ast) == TK_FUN)
           return false;
         break;
 

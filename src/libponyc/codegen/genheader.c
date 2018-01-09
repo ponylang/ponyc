@@ -90,25 +90,21 @@ static void print_type_name(compile_t* c, printbuf_t* buf, ast_t* type)
   }
 }
 
-static void print_params(compile_t* c, printbuf_t* buf, ast_t* params,
-  bool initial_comma)
+static void print_params(compile_t* c, printbuf_t* buf, reach_param_t* params,
+  size_t param_count, bool initial_comma)
 {
-  ast_t* param = ast_child(params);
-
-  while(param != NULL)
+  for(size_t i = 0; i < param_count; ++i)
   {
-    AST_GET_CHILDREN(param, id, ptype);
-
     // Print the parameter.
     if(initial_comma)
       printbuf(buf, ", ");
     else
       initial_comma = true;
 
-    print_type_name(c, buf, ptype);
+    print_type_name(c, buf, params[i].type->ast_cap);
 
     // Smash trailing primes to underscores.
-    const char* name = ast_name(id);
+    const char* name = params[i].name;
     size_t len = strlen(name) + 1;
     size_t buf_size = len;
     char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
@@ -121,37 +117,30 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params,
 
     printbuf(buf, " %s", buffer);
 
-    param = ast_sibling(param);
     ponyint_pool_free_size(buf_size, buffer);
   }
 }
 
-static bool emit_fun(ast_t* fun)
+static bool should_emit_fun(reach_method_t* m)
 {
   // No signature for any internal function (i.e. functions without an AST), or
   // any function with a tuple argument or return value, or any function that
   // might raise an error.
-  if(fun == NULL)
+  if(m->internal)
     return false;
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error);
+  ast_t* can_error = ast_childidx(m->fun->ast, 5);
 
   if(ast_id(can_error) == TK_QUESTION)
     return false;
 
-  if(ast_id(result) == TK_TUPLETYPE)
+  if(m->result->underlying == TK_TUPLETYPE)
     return false;
 
-  ast_t* param = ast_child(params);
-
-  while(param != NULL)
+  for(size_t i = 0; i < m->param_count; ++i)
   {
-    AST_GET_CHILDREN(param, p_id, p_type);
-
-    if(ast_id(p_type) == TK_TUPLETYPE)
+    if(m->params[i].type->underlying == TK_TUPLETYPE)
       return false;
-
-    param = ast_sibling(param);
   }
 
   return true;
@@ -160,11 +149,10 @@ static bool emit_fun(ast_t* fun)
 static void print_method(compile_t* c, printbuf_t* buf, reach_type_t* t,
   reach_method_t* m)
 {
-  if(!emit_fun(m->r_fun))
+  if(!should_emit_fun(m))
     return;
 
-  AST_GET_CHILDREN(m->r_fun, cap, id, typeparams, params, rtype, can_error,
-    body, docstring);
+  ast_t* docstring = ast_childidx(m->fun->ast, 7);
 
   // Print the docstring if we have one.
   if(ast_id(docstring) == TK_STRING)
@@ -177,22 +165,22 @@ static void print_method(compile_t* c, printbuf_t* buf, reach_type_t* t,
       );
   }
 
+  ast_t* rtype = m->result->ast_cap;
+
   // Print the function signature.
-  if((ast_id(cap) != TK_AT) || !is_none(rtype))
+  if((m->cap != TK_AT) || !is_none(rtype))
     print_type_name(c, buf, rtype);
   else
     printbuf(buf, "void");
 
   printbuf(buf, " %s", m->full_name);
 
-  switch(ast_id(m->r_fun))
+  switch(ast_id(m->fun->ast))
   {
     case TK_NEW:
     case TK_BE:
     {
-      ast_t* def = (ast_t*)ast_data(t->ast);
-
-      if(ast_id(def) == TK_ACTOR)
+      if(t->underlying == TK_ACTOR)
         printbuf(buf, "__send");
 
       break;
@@ -202,13 +190,13 @@ static void print_method(compile_t* c, printbuf_t* buf, reach_type_t* t,
   }
 
   printbuf(buf, "(");
-  if(ast_id(cap) != TK_AT)
+  if(m->cap != TK_AT)
   {
     print_type_name(c, buf, t->ast);
     printbuf(buf, " self");
-    print_params(c, buf, params, true);
+    print_params(c, buf, m->params, m->param_count, true);
   } else {
-    print_params(c, buf, params, false);
+    print_params(c, buf, m->params, m->param_count, false);
   }
 
   printbuf(buf, ");\n\n");
