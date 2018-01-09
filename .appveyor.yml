@@ -11,7 +11,7 @@ environment:
   matrix:
   - llvm: 3.9.1
   - llvm: 4.0.1
-  - llvm: 5.0.0
+  - llvm: 5.0.1
 
 configuration:
   - release

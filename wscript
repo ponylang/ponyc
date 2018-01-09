@@ -50,12 +50,12 @@ MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '5.0.0',
-    '4.0.1'
+    '4.0.1',
+    '5.0.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.5.0"
-LIBRESSL_VERSION = "2.6.1"
+WINDOWS_LIBS_TAG = "v1.6.0"
+LIBRESSL_VERSION = "2.6.4"
 PCRE2_VERSION = "10.30"
 
 # Adds an option for specifying debug or release mode.
@@ -178,7 +178,7 @@ def configure(ctx):
                 'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
                 'dbghelp', 'Shlwapi'
             ]
-        
+
 # specifies build targets
 def build(ctx):
     import os
