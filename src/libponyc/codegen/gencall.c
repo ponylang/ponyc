@@ -73,8 +73,13 @@ static bool ffi_decl_cmp(ffi_decl_t* a, ffi_decl_t* b)
   return a->func == b->func;
 }
 
+static void ffi_decl_free(ffi_decl_t* d)
+{
+  POOL_FREE(ffi_decl_t, d);
+}
+
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
-  NULL);
+  ffi_decl_free);
 
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret, bool setcc)
