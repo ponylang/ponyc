@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Disable -avx512f on LLVM < 5.0.0 to avoid LLVM bug 30542 ([PR #2475](https://github.com/ponylang/ponyc/pull/2475))
 - Deprecate LLVM 3.7.1 and 3.8.1 support ([PR #2461](https://github.com/ponylang/ponyc/pull/2461))
 
 ## [0.21.2] - 2017-12-26
