@@ -277,6 +277,8 @@ There is experimental support for building with LLVM 4.0.1 or 5.0.0,
 but this may result in decreased performance or crashes in generated
 applications.
 
+NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
+
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
 ## Building on Linux
