@@ -775,6 +775,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
     m2->result->ast_cap);
   LLVMBuildRet(c->builder, ret);
   codegen_finishfun(c);
+  ponyint_pool_free_size(buf_size, args);
   return true;
 }
 

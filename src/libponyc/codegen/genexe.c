@@ -419,8 +419,17 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
-  if(lookup(c->opt, main_ast, main_ast, c->str_create) == NULL)
+  deferred_reification_t* main_create = lookup(c->opt, main_ast, main_ast,
+    c->str_create);
+
+  if(main_create == NULL)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return false;
+  }
+
+  deferred_reify_free(main_create);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Reachability\n");
@@ -429,23 +438,38 @@ bool genexe(compile_t* c, ast_t* program)
   reach_done(c->reach, c->opt);
 
   if(c->opt->limit == PASS_REACH)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return true;
+  }
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
 
   if(c->opt->limit == PASS_PAINT)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return true;
+  }
 
   if(!gentypes(c))
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return false;
+  }
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
     reach_dump(c->reach);
 
   reach_type_t* t_main = reach_type(c->reach, main_ast);
   reach_type_t* t_env = reach_type(c->reach, env_ast);
+
+  ast_free(main_ast);
+  ast_free(env_ast);
 
   if((t_main == NULL) || (t_env == NULL))
     return false;

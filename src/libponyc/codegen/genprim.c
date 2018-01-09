@@ -1656,13 +1656,9 @@ static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
   if(t == NULL)
     return;
 
-  size_t buf_idx = ponyint_pool_index(strlen(to->fun_name) + sizeof("_unsafe"));
-  char* buf = (char*)ponyint_pool_alloc(buf_idx);
-  memcpy(buf, to->fun_name, strlen(to->fun_name));
-  strcpy(buf + strlen(to->fun_name), "_unsafe");
+  const char* name = genname_unsafe(to->fun_name);
 
-  FIND_METHOD(buf, cap);
-  ponyint_pool_free(buf_idx, buf);
+  FIND_METHOD(name, cap);
   start_function(c, t, m, to->type, &from->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(c_m->func, 0);

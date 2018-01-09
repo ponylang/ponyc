@@ -426,11 +426,15 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
   while(buildflagset_next(config))
   {
     if(cond_eval(*astp, config, false, opt))
+    {
       // Condition is true for this config.
+      buildflagset_free(config);
       return true;
+    }
   }
 
   // Condition isn't true for any configs.
+  buildflagset_free(config);
   return false;
 }
 

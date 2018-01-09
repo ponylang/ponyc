@@ -42,7 +42,10 @@ static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
   ast_t* param = ast_child(params);
   ast_t* type = ast_childidx(param, 1);
 
-  return deferred_reify(fun, type, c->opt);
+  ast_t* r_type = deferred_reify(fun, type, c->opt);
+
+  deferred_reify_free(fun);
+  return r_type;
 }
 
 static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,

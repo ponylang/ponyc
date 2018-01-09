@@ -1094,12 +1094,23 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     ast_t* main_ast = type_builtin(opt, main_def, main_actor);
     ast_t* env_ast = type_builtin(opt, main_def, env_class);
 
-    if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+    deferred_reification_t* main_create = lookup(opt, main_ast, main_ast,
+      c->str_create);
+
+    if(main_create == NULL)
+    {
+      ast_free(main_ast);
+      ast_free(env_ast);
       return false;
+    }
 
     reach(c->reach, main_ast, c->str_create, NULL, opt);
     reach(c->reach, env_ast, c->str__create, NULL, opt);
     reach_done(c->reach, c->opt);
+
+    ast_free(main_ast);
+    ast_free(env_ast);
+    deferred_reify_free(main_create);
   }
 
   if(opt->limit == PASS_REACH)
@@ -1126,6 +1137,7 @@ void codegen_cleanup(compile_t* c)
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
+  LLVMDisposeTargetData(c->target_data);
   LLVMDisposeTargetMachine(c->machine);
   tbaa_metadatas_free(c->tbaa_mds);
   genned_strings_destroy(&c->strings);
