@@ -115,9 +115,10 @@ actor SyncLeader
   var _total_count: U64 = 0
   var _current_t: I64 = 0
   var _last_t: I64 = 0
-  var _run_done: Bool = false
-  var _timers: Timers tag
+
+  let _timers: Timers
   var _interval_timer: Timer tag
+  var _run_done: Bool = false
 
   new create(env: Env, num_pingers: I32, initial_pings: USize,
       report_interval: I64, run_time: I64) =>
@@ -224,7 +225,7 @@ actor SyncLeader
       end
     end
 
-  be run_done(count: U64) =>
+  be run_done() =>
     """
     The run timer has fired.
     """
@@ -334,6 +335,6 @@ class RunTimerNotify is TimerNotify
     _sync_leader = sync_leader
 
   fun ref apply(timer: Timer, count: U64): Bool =>
-    _sync_leader.run_done(count)
+    _sync_leader.run_done()
     false
 
