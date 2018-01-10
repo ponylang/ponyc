@@ -673,9 +673,9 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   if(threads == 0)
     threads = ponyint_cpu_count();
 
-  // If no minimum thread count is specified, use 1
+  // If no minimum thread count is specified, use # of threads
   if(min_threads == 0)
-    min_threads = 1;
+    min_threads = threads;
 
   // If minimum thread count is > thread count, cap it at thread count
   if(min_threads > threads)
