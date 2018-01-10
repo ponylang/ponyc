@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix pthread condition variable usage for dynamic scheduler scaling ([PR #2472](https://github.com/ponylang/ponyc/pull/2472))
 - Fix various memory leaks ([PR #2479](https://github.com/ponylang/ponyc/pull/2479))
 - Fix double free in expr_typeref ([PR #2467](https://github.com/ponylang/ponyc/pull/2467))
 - Fix some spurious process manager test failures ([PR #2452](https://github.com/ponylang/ponyc/pull/2452))
