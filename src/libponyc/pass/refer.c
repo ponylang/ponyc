@@ -926,6 +926,50 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static bool valid_is_comparand(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* type;
+  switch(ast_id(ast))
+  {
+    case TK_TYPEREF:
+      type = (ast_t*) ast_data(ast);
+      if(ast_id(type) != TK_PRIMITIVE)
+      {
+        ast_error(opt->check.errors, ast, "identity comparison with a new object will always be false");
+        return false;
+      }
+      return true;
+    case TK_SEQ:
+      type = ast_child(ast);
+      while(type != NULL)
+      {
+        if(ast_sibling(type) == NULL)
+          return valid_is_comparand(opt, type);
+        type = ast_sibling(type);
+      }
+      return true;
+    case TK_TUPLE:
+      type = ast_child(ast);
+      while(type != NULL)
+      {
+        if (!valid_is_comparand(opt, type))
+          return false;
+        type = ast_sibling(type);
+      }
+      return true;
+    default:
+      return true;
+  }
+}
+
+static bool refer_is(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  pony_assert((ast_id(ast) == TK_IS) || (ast_id(ast) == TK_ISNT));
+  AST_GET_CHILDREN(ast, left, right);
+  return valid_is_comparand(opt, right) && valid_is_comparand(opt, left);
+}
+
 static bool refer_if(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
@@ -1334,6 +1378,9 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:     r = refer_error(options, ast); break;
     case TK_COMPILE_ERROR:
                        r = refer_compile_error(options, ast); break;
+    case TK_IS:
+    case TK_ISNT:
+                       r = refer_is(options, ast); break;
 
     default: {}
   }
