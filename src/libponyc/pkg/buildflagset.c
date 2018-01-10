@@ -534,6 +534,35 @@ bool define_build_flag(const char* name)
 }
 
 
+bool remove_build_flags(const char* flags[])
+{
+  pony_assert(flags != NULL);
+
+  if(_user_flags == NULL)
+  {
+    // Initialise flags table.
+    _user_flags = POOL_ALLOC(flagtab_t);
+    flagtab_init(_user_flags, 8);
+  }
+
+  size_t removed = 0;
+  for(const char** next = flags; *next != NULL; next += 1)
+  {
+    flag_t f1 = {stringtab(*next), false};
+    size_t index = HASHMAP_UNKNOWN;
+    flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
+
+    if(f2 != NULL)
+    { // Found one, remove it
+      removed += 1;
+      flagtab_removeindex(_user_flags, index);
+    }
+  }
+
+  return removed > 0;
+}
+
+
 bool is_build_flag_defined(const char* name)
 {
   pony_assert(name != NULL);

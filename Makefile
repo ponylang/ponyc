@@ -292,8 +292,14 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
+# default OPENSSL version
+ifdef default_openssl
+  BUILD_FLAGS += -DPONY_DEFAULT_OPENSSL=\"$(default_openssl)\"
+  OPENSSL=-D$(default_openssl)
+endif
+
 ifneq (,$(OPENSSL))
-  $(warning targeting openssl 1.1.0)
+  $(warning targeting openssl $(OPENSSL))
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -998,6 +1004,13 @@ help:
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
+	@echo
+	@echo 'Compile time default options:'
+	@echo '  default_pic=true     Make --pic the default'
+	@echo '  default_openssl=Name Make Name the default openssl version'
+	@echo '                       where Name is one of:'
+	@echo '                         openssl_0.9.0'
+	@echo '                         openssl_1.1.0'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
