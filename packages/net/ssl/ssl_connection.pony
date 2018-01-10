@@ -63,11 +63,17 @@ class SSLConnection is TCPConnectionNotify
     ""
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
+    let data_array = recover Array[U8] end
     for bytes in data.values() do
-      sent(conn, bytes)
+      match bytes
+      | let b: String =>
+        data_array.append(b.array())
+      | let b: Array[U8] val =>
+        data_array.append(b)
+      end
     end
-
-  recover val Array[ByteSeq] end
+    sent(conn, consume data_array)
+    recover val Array[ByteSeq] end
 
   fun ref received(
     conn: TCPConnection ref,
