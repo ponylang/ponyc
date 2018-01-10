@@ -270,7 +270,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
     // Stop handling a batch if we reach the head we found when we were
     // scheduled.
     if(msg == head)
+    {
+      // if cycle detector, have it do actual block checking now that it has
+      // processed all block/unblock messages and accumulated all work in
+      // its deferred hashmap
+      if(ponyint_is_cycle(actor))
+      {
+        ponyint_cycle_check_blocked(ctx);
+      }
+
       break;
+    }
   }
 
   // We didn't hit our app message batch limit. We now believe our queue to be
