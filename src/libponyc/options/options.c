@@ -199,7 +199,7 @@ static void usage(void)
     "  --ponythreads    Use N scheduler threads. Defaults to the number of\n"
     "                   cores (not hyperthreads) available.\n"
     "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
-    "                   Defaults to 1.\n"
+    "                   Defaults to the number of '--ponythreads'.\n"
     "  --ponycdmin      Defer cycle detection until 2^N actors have blocked.\n"
     "                   Defaults to 2^4.\n"
     "  --ponycdmax      Always cycle detect when 2^N actors have blocked.\n"
