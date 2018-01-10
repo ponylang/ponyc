@@ -18,17 +18,6 @@
 typedef cpuset_t cpu_set_t;
 #endif
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-static pthread_mutex_t sleep_mut;
-
-static pthread_once_t sleep_mut_once = PTHREAD_ONCE_INIT;
-
-void sleep_mut_init()
-{
-    pthread_mutex_init(&sleep_mut, NULL);
-}
-#endif
-
 #if defined(PLATFORM_IS_LINUX)
 
 #include <dlfcn.h>
@@ -213,10 +202,6 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
     return false;
 #endif
 
-#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-  pthread_once(&sleep_mut_once, sleep_mut_init);
-#endif
-
   return true;
 }
 
@@ -249,22 +234,21 @@ pony_thread_id_t ponyint_thread_self()
 #endif
 }
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+void ponyint_thread_suspend(pony_signal_event_t signal, pthread_mutex_t* mut)
+#else
 void ponyint_thread_suspend(pony_signal_event_t signal)
+#endif
 {
 #ifdef PLATFORM_IS_WINDOWS
   WaitForSingleObject(signal, INFINITE);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
   int ret;
-  // lock mutex
-  ret = pthread_mutex_lock(&sleep_mut);
 
   // wait for condition variable (will sleep and release mutex)
-  ret = pthread_cond_wait(signal, &sleep_mut);
+  ret = pthread_cond_wait(signal, mut);
   // TODO: What to do if `ret` is an unrecoverable error?
   (void) ret;
-
-  // unlock mutex
-  ret = pthread_mutex_unlock(&sleep_mut);
 #else
   int sig;
   sigset_t sigmask;

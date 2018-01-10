@@ -101,7 +101,11 @@ void ponyint_sched_noisy_asio(int32_t from);
 void ponyint_sched_unnoisy_asio(int32_t from);
 
 // Try and wake up a sleeping scheduler thread to help with load
-void ponyint_sched_maybe_wakeup();
+void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
+
+// Try and wake up a sleeping scheduler thread only if all scheduler
+// threads are asleep
+void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 
 PONY_EXTERN_C_END
 

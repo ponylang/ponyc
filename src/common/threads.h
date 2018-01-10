@@ -57,7 +57,11 @@ void ponyint_thread_detach(pony_thread_id_t thread);
 
 pony_thread_id_t ponyint_thread_self();
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+void ponyint_thread_suspend(pony_signal_event_t signal, pthread_mutex_t* mut);
+#else
 void ponyint_thread_suspend(pony_signal_event_t signal);
+#endif
 
 int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal);
 
