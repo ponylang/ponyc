@@ -300,8 +300,4 @@ class Tick is TimerNotify
       _tick_count = _tick_count + count
       let done = (_report_count > 0) and (_tick_count >= _report_count)
       _sync_leader.tick_fired(done)
-      if done then
-        false
-      else
-        true
-      end
+      not (done)
