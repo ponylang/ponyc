@@ -12,6 +12,7 @@ actor Main
   // Some values we can set via command line options
   var _a_string: String = "default"
   var _a_number: USize = 0
+  var _a_unumber: USize = 0
   var _a_float: Float = F64(0.0)
 
   new create(env: Env) =>
@@ -22,6 +23,7 @@ actor Main
 
     _env.out.print("The String is " + _a_string)
     _env.out.print("The Number is " + _a_number.string())
+    _env.out.print("The UNumber is " + _a_unumber.string())
     _env.out.print("The Float is " + _a_float.string())
 
   fun ref arguments() ? =>
@@ -30,12 +32,14 @@ actor Main
     options
       .add("string", "t", StringArgument)
       .add("number", "i", I64Argument)
+      .add("unumber", "u", U64Argument)
       .add("float", "c", F64Argument)
 
     for option in options do
       match option
       | ("string", let arg: String) => _a_string = arg
       | ("number", let arg: I64) => _a_number = arg.usize()
+      | ("unumber", let arg: U64) => _a_unumber = arg.usize()
       | ("float", let arg: F64) => _a_float = arg
       | let err: ParseError => err.report(_env.out) ; usage() ; error
       end
@@ -52,6 +56,7 @@ actor Main
       "program [OPTIONS]\n" +
       "  --string      N   a string argument. Defaults to 'default'.\n" +
       "  --number      N   a number argument. Defaults to 0.\n" +
+      "  --unumber     N   a unsigned number argument. Defaults to 0.\n" +
       "  --float       N   a floating point argument. Defaults to 0.0.\n"
       )
 ```
@@ -59,6 +64,7 @@ actor Main
 
 primitive StringArgument
 primitive I64Argument
+primitive U64Argument
 primitive F64Argument
 primitive Required
 primitive Optional
@@ -72,6 +78,7 @@ type ArgumentType is
   ( None
   | StringArgument
   | I64Argument
+  | U64Argument
   | F64Argument
   )
 
@@ -82,7 +89,7 @@ type ErrorReason is
   | AmbiguousMatch
   )
 
-type ParsedOption is (String, (None | String | I64 | F64))
+type ParsedOption is (String, (None | String | I64 | U64 | F64))
 
 interface ParseError
   fun reason(): ErrorReason
@@ -224,6 +231,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
         match opt.arg
         | StringArgument => return (opt.long, argument.clone())
         | I64Argument => return (opt.long, argument.i64()?)
+        | U64Argument => return (opt.long, argument.u64()?)
         | F64Argument => return (opt.long, argument.f64())
         end
       else

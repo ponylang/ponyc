@@ -94,6 +94,12 @@ class val Option
     """
     try _value as I64 else I64(0) end
 
+  fun u64(): U64 =>
+    """
+    Returns the option value as an U64, defaulting to 0.
+    """
+    try _value as U64 else U64(0) end
+
   fun f64(): F64 =>
     """
     Returns the option value as an F64, defaulting to 0.0.
@@ -146,6 +152,12 @@ class val Arg
     Returns the arg value as an I64, defaulting to 0.
     """
     try _value as I64 else I64(0) end
+
+  fun u64(): U64 =>
+    """
+    Returns the arg value as an U64, defaulting to 0.
+    """
+    try _value as U64 else U64(0) end
 
   fun f64(): F64 =>
     """
