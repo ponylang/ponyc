@@ -299,7 +299,17 @@ ifdef default_openssl
 endif
 
 ifneq (,$(OPENSSL))
-  $(warning targeting openssl $(OPENSSL))
+  ifeq ("-Dopenssl_0.9.0","$(OPENSSL)")
+    OPENSSL_VALID:=ok
+  endif
+  ifeq ("-Dopenssl_1.1.0","$(OPENSSL)")
+    OPENSSL_VALID:=ok
+  endif
+  ifeq (ok,$(OPENSSL_VALID))
+    $(warning targeting openssl $(OPENSSL))
+  else
+    $(error OPENSSL=$(OPENSSL) is invalid, expecting one of -Dopenssl_0.9.0 or -Dopenssl_1.1.0)
+  endif
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))

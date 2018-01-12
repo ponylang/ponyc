@@ -223,21 +223,21 @@ static void usage(void)
     );
 }
 
+#define OPENSSL_LEADER "openssl_"
 static const char* valid_openssl_flags[] =
-  { "openssl_1.1.0", "openssl_0.9.0", NULL };
+  { OPENSSL_LEADER "1.1.0", OPENSSL_LEADER "0.9.0", NULL };
 
 
-static const char** get_valid_openssl_flags()
+static bool is_openssl_flag(const char* name)
 {
-  return valid_openssl_flags;
+  return 0 == strncmp(OPENSSL_LEADER, name, strlen(OPENSSL_LEADER));
 }
-
 
 static bool validate_openssl_flag(const char* name)
 {
-  for (const char** next = valid_openssl_flags; *next != NULL; next++)
+  for(const char** next = valid_openssl_flags; *next != NULL; next++)
   {
-    if (0 == strcmp(*next, name))
+    if(0 == strcmp(*next, name))
       return true;
   }
   return false;
@@ -252,7 +252,6 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
 {
   // Suppress compiler errors due to conditional compilation
   MAYBE_UNUSED(opt);
-  MAYBE_UNUSED((void*)get_valid_openssl_flags);
 
 #if defined(PONY_DEFAULT_PIC)
   #if (PONY_DEFAULT_PIC == true) || (PONY_DEFAULT_PIC == false)
@@ -269,33 +268,7 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
 #endif
 
 #if defined(PONY_DEFAULT_OPENSSL)
-  static char default_openssl[100];
-  int n = snprintf(default_openssl, sizeof(default_openssl), "%s",
-                     PONY_DEFAULT_OPENSSL);
-  if (n < 0)
-  {
-    printf("Error: %s\n", strerror(errno));
-    return EXIT_255;
-  }
-  if ((size_t)n >= sizeof(default_openssl))
-  {
-    printf("Error: PONY_DEFAULT_OPENSSL=\"%s\" and is %zu characters long"
-              ", maximum len=%zu\n", PONY_DEFAULT_OPENSSL,
-              strlen(PONY_DEFAULT_OPENSSL), sizeof(default_openssl)-1);
-    return EXIT_255;
-  }
-  if (!validate_openssl_flag(default_openssl))
-  {
-    printf("Error: PONY_DEFAULT_OPENSSL=\"%s\" and should be one of:\n",
-        default_openssl);
-    for (const char** next = get_valid_openssl_flags(); *next != NULL; next++)
-    {
-      printf("        %s\n", *next);
-    }
-    return EXIT_255;
-  }
-
-  define_build_flag(default_openssl);
+  define_build_flag(PONY_DEFAULT_OPENSSL);
 #endif
 
   return CONTINUE;
@@ -328,10 +301,19 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         return EXIT_0;
       case OPT_DEBUG: opt->release = false; break;
       case OPT_BUILDFLAG:
-        if (validate_openssl_flag(s->arg_val))
-        { // User wants to add an openssl_flag,
-          // remove any existing openssl_flags.
-          remove_build_flags(valid_openssl_flags);
+        if(is_openssl_flag(s->arg_val))
+        {
+          if(validate_openssl_flag(s->arg_val))
+          { // User wants to add an openssl_flag,
+            // remove any existing openssl_flags.
+            remove_build_flags(valid_openssl_flags);
+          } else {
+            printf("Error: %s is invalid openssl flag, expecting one of:\n",
+                s->arg_val);
+            for(const char** next=valid_openssl_flags; *next != NULL; next++)
+              printf("       %s\n", *next);
+            return EXIT_255;
+          }
         }
         define_build_flag(s->arg_val);
         break;
