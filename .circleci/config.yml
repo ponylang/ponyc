@@ -30,6 +30,18 @@ jobs:
     steps:
       - checkout
       - run: make test-ci config=release
+  llvm-391-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug
+  llvm-391-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=release
 
 workflows:
   version: 2
@@ -40,3 +52,5 @@ workflows:
       - llvm-501-release
       - llvm-401-debug
       - llvm-401-release
+      - llvm-391-debug
+      - llvm-391-release
