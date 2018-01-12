@@ -549,14 +549,8 @@ bool remove_build_flags(const char* flags[])
   for(const char** next = flags; *next != NULL; next += 1)
   {
     flag_t f1 = {stringtab(*next), false};
-    size_t index = HASHMAP_UNKNOWN;
-    flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
-
-    if(f2 != NULL)
-    { // Found one, remove it
+    if(flagtab_remove(_user_flags, &f1) != NULL)
       removed += 1;
-      flagtab_removeindex(_user_flags, index);
-    }
   }
 
   return removed > 0;
