@@ -9,12 +9,6 @@ then
   exit 0
 fi
 
-install_gitlfs(){
-  echo "Installing Git LFS..."
-  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-  sudo apt-get install git-lfs
-}
-
 download_llvm(){
   echo "Downloading and installing the LLVM specified by envvars..."
 
