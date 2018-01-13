@@ -292,28 +292,20 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
-# default OPENSSL version
+# Set default openssl version
 ifdef default_openssl
-  BUILD_FLAGS += -DPONY_DEFAULT_OPENSSL=\"$(default_openssl)\"
-  OPENSSL=-D$(default_openssl)
-endif
-
-ifneq (,$(OPENSSL))
-  ifeq ("-Dopenssl_0.9.0","$(OPENSSL)")
-    OPENSSL_VALID:=ok
+  ifeq ("openssl_0.9.0","$(default_openssl)")
+    default_openssl_valid:=ok
   endif
-  ifeq ("-Dopenssl_1.1.0","$(OPENSSL)")
-    OPENSSL_VALID:=ok
+  ifeq ("openssl_1.1.0","$(default_openssl)")
+    default_openssl_valid:=ok
   endif
-  ifeq (ok,$(OPENSSL_VALID))
-    $(warning targeting openssl $(OPENSSL))
+  ifeq (ok,$(default_openssl_valid))
+    $(warning default_openssl is $(default_openssl))
   else
-    ifdef default_openssl
-      $(error default_openssl=$(default_openssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
-    else
-      $(error OPENSSL=$(OPENSSL) is invalid, expecting one of -Dopenssl_0.9.0 or -Dopenssl_1.1.0)
-    endif
+    $(error default_openssl=$(default_openssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
   endif
+  BUILD_FLAGS += -DPONY_DEFAULT_OPENSSL=\"$(default_openssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -883,10 +875,10 @@ benchmark: all
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
 stdlib-debug: all
-	$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d --checktree --verify packages/stdlib
+	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
 
 stdlib: all
-	$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --checktree --verify packages/stdlib
+	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 
 test-stdlib-debug: stdlib-debug
 	./stdlib --sequential
@@ -897,12 +889,12 @@ test-stdlib: stdlib
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
 
@@ -910,21 +902,21 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --checktree --verify packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc $(OPENSSL) -d -s --checktree --verify examples
+	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
 	@./examples1
 	@rm examples1
-	@$(PONY_BUILD_DIR)/ponyc $(OPENSSL) --antlr > pony.g.new
+	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
 	@diff pony.g pony.g.new
 	@rm pony.g.new
 
 docs: all
-	$(SILENT)$(PONY_BUILD_DIR)/ponyc $(OPENSSL) packages/stdlib --docs --pass expr
+	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
 	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
 
 docs-online: docs
