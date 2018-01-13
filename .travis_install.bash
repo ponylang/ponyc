@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" != "yes" ]]
+if [[ "$TRAVIS_BRANCH" == "release" && "$RELEASE_CONFIG" != "yes" ]]
 then
   echo "This is a release branch and there's nothing this matrix element must do."
   exit 0
