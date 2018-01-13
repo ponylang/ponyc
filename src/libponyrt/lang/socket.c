@@ -568,8 +568,12 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   }
 
   // Create an event and subscribe it.
+  #ifndef PLATFORM_IS_MACOSX
   pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE | ASIO_ONESHOT, 0,
     true);
+  #else
+  pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE, 0, true);
+  #endif
 #endif
 
   return true;
