@@ -507,11 +507,17 @@ ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions-ll += -relocation-model=pic
 endif
 
-# default enable PIC compiling if requested
+# Set default PIC for compiling if requested
 ifdef default_pic
-  libponyrt.buildoptions += -fpic
-  libponyrt.buildoptions-ll += -relocation-model=pic
-  BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  ifeq (true,$(default_pic))
+    libponyrt.buildoptions += -fpic
+    libponyrt.buildoptions-ll += -relocation-model=pic
+    BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  else
+    ifneq (false,$(default_pic))
+      $(error default_pic must be true or false)
+    endif
+  endif
 endif
 
 # target specific disabling of build options
