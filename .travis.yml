@@ -10,39 +10,22 @@ sudo: required
 
 matrix:
    include:
-  #   - os: linux
-  #     addons:
-  #       apt:
-  #         sources:
-  #           - ubuntu-toolchain-r-test
-  #         packages:
-  #           - g++-6
-  #     env:
-  #       - FAVORITE_CONFIG=no
-  #       - LLVM_VERSION="3.9.1"
-  #       - LLVM_CONFIG="llvm-config-3.9"
-  #       - config=debug
-  #       - CC1=gcc
-  #       - CXX1=g++
-  #       - ICC1=gcc-6
-  #       - ICXX1=g++-6
-
-    # - os: linux
-    #   addons:
-    #     apt:
-    #       sources:
-    #         - ubuntu-toolchain-r-test
-    #       packages:
-    #         - g++-6
-    #   env:
-    #     - FAVORITE_CONFIG=yes
-    #     - LLVM_VERSION="3.9.1"
-    #     - LLVM_CONFIG="llvm-config-3.9"
-    #     - config=release
-    #     - CC1=gcc
-    #     - CXX1=g++
-    #     - ICC1=gcc-6
-    #     - ICXX1=g++-6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - FAVORITE_CONFIG=yes
+        - LLVM_VERSION="3.9.1"
+        - LLVM_CONFIG="llvm-config-3.9"
+        - config=release
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: osx
       env:
