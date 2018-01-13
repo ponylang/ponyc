@@ -308,7 +308,11 @@ ifneq (,$(OPENSSL))
   ifeq (ok,$(OPENSSL_VALID))
     $(warning targeting openssl $(OPENSSL))
   else
-    $(error OPENSSL=$(OPENSSL) is invalid, expecting one of -Dopenssl_0.9.0 or -Dopenssl_1.1.0)
+    ifdef default_openssl
+      $(error default_openssl=$(default_openssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+    else
+      $(error OPENSSL=$(OPENSSL) is invalid, expecting one of -Dopenssl_0.9.0 or -Dopenssl_1.1.0)
+    endif
   endif
 endif
 

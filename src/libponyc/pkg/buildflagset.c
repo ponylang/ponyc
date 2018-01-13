@@ -549,8 +549,12 @@ bool remove_build_flags(const char* flags[])
   for(const char** next = flags; *next != NULL; next += 1)
   {
     flag_t f1 = {stringtab(*next), false};
-    if(flagtab_remove(_user_flags, &f1) != NULL)
+    flag_t* found = flagtab_remove(_user_flags, &f1);
+    if(found != NULL)
+    {
+      flag_free(found);
       removed += 1;
+    }
   }
 
   return removed > 0;
