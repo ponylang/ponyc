@@ -24,7 +24,7 @@ static void exception_cleanup(_Unwind_Reason_Code reason,
   (void)exception;
 }
 
-PONY_API void pony_throw()
+PONY_API void pony_error()
 {
 #ifdef PLATFORM_IS_ARM
   memcpy(exception.exception_class, "Pony\0\0\0\0", 8);

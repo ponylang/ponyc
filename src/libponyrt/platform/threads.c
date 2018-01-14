@@ -276,19 +276,18 @@ void ponyint_thread_suspend(pony_signal_event_t signal)
 #endif
 }
 
-void ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
+int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
 {
+  int ret;
 #if defined(PLATFORM_IS_WINDOWS)
   (void) thread;
-  SetEvent(signal);
+  ret = !SetEvent(signal);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
   (void) thread;
-  int ret;
   // signal condition variable
   ret = pthread_cond_signal(signal);
-  // TODO: What to do if `ret` is an unrecoverable error?
-  (void) ret;
 #else
-  pthread_kill(thread, signal);
+  ret = pthread_kill(thread, signal);
 #endif
+  return ret;
 }

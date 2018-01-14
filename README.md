@@ -18,7 +18,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 
 # Trying it online
 
-If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/)
+If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/).
 
 # Editor support
 
@@ -180,7 +180,7 @@ sudo apt-get -V install ponyc
 ## Arch Linux
 
 Currently the ponyc package in Arch does not work because
-Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9.
+Arch is using LLVM 5 and ponyc requires LLVM 3.9.
 
 There is experimental support for building from source with LLVM 5.0.0,
 but this may cause decreased performance or crashes in generated
@@ -271,15 +271,13 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-Pony requires one of the following versions of LLVM:
-
-- 3.7.1
-- 3.8.1
-- 3.9.1
+Pony requires LLVM version 3.9.1.
 
 There is experimental support for building with LLVM 4.0.1 or 5.0.0,
 but this may result in decreased performance or crashes in generated
 applications.
+
+NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
@@ -527,7 +525,7 @@ make default_pic=true
 
 You need to have the development versions of the following installed:
 
-* 3.7.1, 3.8.1, or 3.9.1
+* 3.9.1
 * zlib
 * ncurses
 * pcre2
@@ -603,7 +601,7 @@ gmake
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.7.1, 3.8.1, or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
+You'll need llvm 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
 
 There is experimental support for LLVM 4.0.1 or 5.0.0, but this may result in
 decreased performance or crashes in generated applications.
@@ -730,3 +728,5 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
+
+

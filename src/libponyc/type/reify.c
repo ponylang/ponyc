@@ -4,6 +4,7 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -223,7 +224,6 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
 ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
   pass_opt_t* opt)
 {
-  (void)opt;
   switch(ast_id(ast))
   {
     case TK_FUN:
@@ -244,6 +244,9 @@ ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
 deferred_reification_t* deferred_reify_new(ast_t* ast, ast_t* typeparams,
   ast_t* typeargs, ast_t* thistype)
 {
+  pony_assert(((typeparams != NULL) && (typeargs != NULL)) ||
+    ((typeparams == NULL) && (typeargs == NULL)));
+
   deferred_reification_t* deferred = POOL_ALLOC(deferred_reification_t);
 
   deferred->ast = ast;
@@ -256,11 +259,31 @@ deferred_reification_t* deferred_reify_new(ast_t* ast, ast_t* typeparams,
   return deferred;
 }
 
-void deferred_reify_add_method_params(deferred_reification_t* deferred,
-  ast_t* typeparams, ast_t* typeargs)
+void deferred_reify_add_method_typeparams(deferred_reification_t* deferred,
+  ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt)
 {
-  deferred->method_typeparams = ast_dup(typeparams);
+  pony_assert((deferred->method_typeparams == NULL) &&
+    (deferred->method_typeargs == NULL));
+
+  pony_assert(((typeparams != NULL) && (typeargs != NULL)) ||
+    ((typeparams == NULL) && (typeargs == NULL)));
+
+  if(typeparams == NULL)
+    return;
+
+  ast_t* r_typeparams = ast_dup(typeparams);
   deferred->method_typeargs = ast_dup(typeargs);
+
+  // Must replace `this` before typeparam reification.
+  if(deferred->thistype != NULL)
+    r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
+      false);
+
+  if(deferred->type_typeparams != NULL)
+    r_typeparams = reify(r_typeparams, deferred->type_typeparams,
+      deferred->type_typeargs, opt, false);
+
+  deferred->method_typeparams = r_typeparams;
 }
 
 ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
@@ -277,25 +300,8 @@ ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
       opt, false);
 
   if(deferred->method_typeparams != NULL)
-  {
-    ast_t* r_typeparams = deferred->method_typeparams;
-    bool duplicate = false;
-
-    if(deferred->thistype != NULL)
-      r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
-        true);
-    else
-      duplicate = true;
-
-    if(deferred->type_typeparams != NULL)
-      r_typeparams = reify(r_typeparams, deferred->type_typeparams,
-        deferred->type_typeargs, opt, duplicate);
-
-    r_ast = reify(r_ast, r_typeparams, deferred->method_typeargs, opt, false);
-
-    if(r_typeparams != deferred->method_typeparams)
-      ast_free_unattached(r_typeparams);
-  }
+    r_ast = reify(r_ast, deferred->method_typeparams, deferred->method_typeargs,
+      opt, false);
 
   return r_ast;
 }
@@ -303,7 +309,6 @@ ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
 ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
   pass_opt_t* opt)
 {
-  (void)opt;
   switch(ast_id(ast))
   {
     case TK_FUN:
@@ -328,27 +333,27 @@ ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
       opt, false);
 
   if(deferred->method_typeparams != NULL)
-  {
-    ast_t* r_typeparams = deferred->method_typeparams;
-    bool duplicate = false;
-
-    if(deferred->thistype != NULL)
-      r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
-        true);
-    else
-      duplicate = true;
-
-    if(deferred->type_typeparams != NULL)
-      r_typeparams = reify(r_typeparams, deferred->type_typeparams,
-        deferred->type_typeargs, opt, duplicate);
-
-    r_ast = reify(r_ast, r_typeparams, deferred->method_typeargs, opt, false);
-
-    if(r_typeparams != deferred->method_typeparams)
-      ast_free_unattached(r_typeparams);
-  }
+    r_ast = reify(r_ast, deferred->method_typeparams, deferred->method_typeargs,
+      opt, false);
 
   return r_ast;
+}
+
+deferred_reification_t* deferred_reify_dup(deferred_reification_t* deferred)
+{
+  if(deferred == NULL)
+    return NULL;
+
+  deferred_reification_t* copy = POOL_ALLOC(deferred_reification_t);
+
+  copy->ast = deferred->ast;
+  copy->type_typeparams = ast_dup(deferred->type_typeparams);
+  copy->type_typeargs = ast_dup(deferred->type_typeargs);
+  copy->method_typeparams = ast_dup(deferred->method_typeparams);
+  copy->method_typeargs = ast_dup(deferred->method_typeargs);
+  copy->thistype = ast_dup(deferred->thistype);
+
+  return copy;
 }
 
 void deferred_reify_free(deferred_reification_t* deferred)
@@ -470,4 +475,93 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   pony_assert(typeparam == NULL);
   pony_assert(typearg == NULL);
   return true;
+}
+
+static void deferred_reification_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  deferred_reification_t* d = (deferred_reification_t*)object;
+
+  pony_traceknown(ctx, d->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
+
+  if(d->type_typeparams != NULL)
+    pony_traceknown(ctx, d->type_typeparams, ast_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  if(d->type_typeargs != NULL)
+    pony_traceknown(ctx, d->type_typeargs, ast_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  if(d->method_typeparams != NULL)
+    pony_traceknown(ctx, d->method_typeparams, ast_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  if(d->method_typeargs != NULL)
+    pony_traceknown(ctx, d->method_typeargs, ast_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  if(d->thistype != NULL)
+    pony_traceknown(ctx, d->thistype, ast_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void deferred_reification_serialise(pony_ctx_t* ctx, void* object,
+  void* buf, size_t offset, int mutability)
+{
+  (void)mutability;
+
+  deferred_reification_t* d = (deferred_reification_t*)object;
+  deferred_reification_t* dst =
+    (deferred_reification_t*)((uintptr_t)buf + offset);
+
+  dst->ast = (ast_t*)pony_serialise_offset(ctx, d->ast);
+  dst->type_typeparams = (ast_t*)pony_serialise_offset(ctx, d->type_typeparams);
+  dst->type_typeargs = (ast_t*)pony_serialise_offset(ctx, d->type_typeargs);
+  dst->method_typeparams = (ast_t*)pony_serialise_offset(ctx,
+    d->method_typeparams);
+  dst->method_typeargs = (ast_t*)pony_serialise_offset(ctx, d->method_typeargs);
+  dst->thistype = (ast_t*)pony_serialise_offset(ctx, d->thistype);
+}
+
+static void deferred_reification_deserialise(pony_ctx_t* ctx, void* object)
+{
+  deferred_reification_t* d = (deferred_reification_t*)object;
+
+  d->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->ast);
+  d->type_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->type_typeparams);
+  d->type_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->type_typeargs);
+  d->method_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->method_typeparams);
+  d->method_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->method_typeargs);
+  d->thistype = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)d->thistype);
+}
+
+static pony_type_t deferred_reification_pony =
+{
+  0,
+  sizeof(deferred_reification_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  deferred_reification_serialise_trace,
+  deferred_reification_serialise,
+  deferred_reification_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* deferred_reification_pony_type()
+{
+  return &deferred_reification_pony;
 }

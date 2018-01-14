@@ -1,6 +1,5 @@
 #include <platform.h>
 #include <pony.h>
-#include "lang.h"
 #include <string.h>
 
 PONY_EXTERN_C_BEGIN

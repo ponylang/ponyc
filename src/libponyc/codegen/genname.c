@@ -190,6 +190,11 @@ const char* genname_unbox(const char* name)
   return stringtab_two(name, "Unbox");
 }
 
+const char* genname_unsafe(const char* name)
+{
+  return stringtab_two(name, "unsafe");
+}
+
 const char* genname_program_fn(const char* program, const char* name)
 {
   return stringtab_two(program, name);

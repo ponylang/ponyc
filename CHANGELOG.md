@@ -2,6 +2,25 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.21.3] - 2018-01-14
+
+### Fixed
+
+- Fix pthread condition variable usage for dynamic scheduler scaling ([PR #2472](https://github.com/ponylang/ponyc/pull/2472))
+- Fix various memory leaks ([PR #2479](https://github.com/ponylang/ponyc/pull/2479))
+- Fix double free in expr_typeref ([PR #2467](https://github.com/ponylang/ponyc/pull/2467))
+- Fix some spurious process manager test failures ([PR #2452](https://github.com/ponylang/ponyc/pull/2452))
+- Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
+
+### Added
+
+- Add the pony_try function to receive Pony errors in C code ([PR #2457](https://github.com/ponylang/ponyc/pull/2457))
+
+### Changed
+
+- Disable -avx512f on LLVM < 5.0.0 to avoid LLVM bug 30542 ([PR #2475](https://github.com/ponylang/ponyc/pull/2475))
+- Deprecate LLVM 3.7.1 and 3.8.1 support ([PR #2461](https://github.com/ponylang/ponyc/pull/2461))
+
 ## [0.21.2] - 2017-12-26
 
 ### Fixed
