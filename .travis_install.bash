@@ -41,9 +41,12 @@ echo "Installing ponyc build dependencies..."
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "linux:llvm-config-3.9")
-    download_llvm
-    download_pcre
-    set_linux_compiler
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_CONFIG" == "yes" ]]
+    then
+      download_llvm
+      download_pcre
+      set_linux_compiler
+    fi
   ;;
 
   "osx:llvm-config-3.9")
