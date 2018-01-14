@@ -5,8 +5,8 @@ class val Env
   """
   let root: (AmbientAuth | None)
   let input: Stdin
-  let out: StdStream
-  let err: StdStream
+  let out: OutStream
+  let err: OutStream
   let args: Array[String] val
   let _envp: Pointer[Pointer[U8]] val
   let _vars: (Array[String] val | None)
@@ -33,8 +33,8 @@ class val Env
 
   new create(
     root': (AmbientAuth | None),
-    input': Stdin, out': StdStream,
-    err': StdStream, args': Array[String] val,
+    input': Stdin, out': OutStream,
+    err': OutStream, args': Array[String] val,
     vars': (Array[String] val | None))
   =>
     """
