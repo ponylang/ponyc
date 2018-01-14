@@ -27,6 +27,7 @@ skip_commits:
     - .gitignore
     - .gitmodules
     - .travis.yml
+    - .travis_commands.bash
     - .travis_install.bash
     - .travis_script.bash
     - '**/Dockerfile'
