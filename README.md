@@ -180,38 +180,6 @@ sudo apt-get update
 sudo apt-get -V install ponyc
 ```
 
-## Arch Linux
-
-Currently the ponyc package in Arch does not work because
-Arch is using LLVM 5 and ponyc requires LLVM 3.9.
-
-There is experimental support for building from source with LLVM 5.0.0,
-but this may cause decreased performance or crashes in generated
-applications.
-
-Using [Docker](#using-docker) is one choice, another is to
-use [ponyc-rpm](https://aur.archlinux.org/packages/ponyc-rpm/)
-
-### ponyc-rpm
-#### Prerequisites: `git` and `rpmextract`
-```
-sudo pacman -Syu git rpmextract
-```
-#### Instructions:
-Clone the repo, change directory to the repo, run `makepkg -si`
-or use your favorite AUR package manager.
-```
-git clone https://aur.archlinux.org/ponyc-rpm.git
-cd ponyc-rpm
-makepkg -si
-```
-
-#### Ponyc Usage
-You must pass the `--pic` parameter to ponyc on Arch Linux
-```
-ponyc --pic
-```
-
 ## Gentoo Linux
 
 ```bash
@@ -296,30 +264,19 @@ git clone git://github.com/ponylang/ponyc
 
 ### Arch
 
+Install pony dependencies:
+
 ```
 pacman -S llvm make ncurses openssl pcre2 zlib
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc and compile and helloworld:
 
 ```bash
-make
+cd ~/ponyc/
+make default_pic=true default_openssl='openssl_1.1.0'
 ./build/release/ponyc examples/helloworld
-```
-
-If you get errors like
-
-```bash
-/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
- 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
-```
-
-You need to rebuild `ponyc` with `default_pic=true`
-
-```bash
-make clean
-make default_pic=true
-./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Debian Jessie
