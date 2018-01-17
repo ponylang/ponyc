@@ -10,13 +10,13 @@ interface box ReadSeq[A]
   fun apply(i: USize): this->A ?
     """
     Returns the i-th element of the sequence. Raises an error if the index
-    is out of bounds. Note that this returns A^, not this->A.
+    is out of bounds. Note that this returns this->A, not A.
     """
 
   fun values(): Iterator[this->A]^
     """
     Returns an iterator over the elements of the sequence. Note that this
-    iterates over A^, not this->A.
+    iterates over this->A, not A.
     """
 
 interface box ReadElement[A]
