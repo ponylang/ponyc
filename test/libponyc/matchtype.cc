@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include <platform.h>
-#include <type/matchtype.h>
 #include <ast/astbuild.h>
+#include <type/alias.h>
+#include <type/matchtype.h>
 #include "util.h"
 #include "ponyassert.h"
 
@@ -36,9 +37,6 @@ TEST_F(MatchTypeTest, SimpleTypes)
 
   TEST_COMPILE(src);
 
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1"), &opt));
   ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c2"), &opt));
   ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("c1"), &opt));
@@ -57,8 +55,6 @@ TEST_F(MatchTypeTest, SimpleTypes)
 
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("t2"), &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("t1"), &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -94,9 +90,6 @@ TEST_F(MatchTypeTest, CompoundOperand)
     "    c1or2: (C1 | C2), c1ort2: (C1 | T2), t1and2: (T1 & T2))";
 
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
 
   // (C1 | C2)
   ASSERT_EQ(
@@ -139,8 +132,6 @@ TEST_F(MatchTypeTest, CompoundOperand)
     MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i1"), &opt));
   ASSERT_EQ(
     MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i2"), &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -176,9 +167,6 @@ TEST_F(MatchTypeTest, CompoundPattern)
     "    c1or2: (C1 | C2), c1ort2: (C1 | T2), t1and2: (T1 & T2))";
 
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
 
   // (C1 | C2)
   ASSERT_EQ(
@@ -221,8 +209,6 @@ TEST_F(MatchTypeTest, CompoundPattern)
     MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("t1and2"), &opt));
   ASSERT_EQ(
     MATCHTYPE_ACCEPT, is_matchtype(type_of("i2"), type_of("t1and2"), &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -256,9 +242,6 @@ TEST_F(MatchTypeTest, BothCompound)
     "    t1ort2: (T1 | T2), t1andt2: (T1 & T2), i1andi2: (I1 & I2))";
 
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
 
   // (C1 | C2) vs (T1 | T2)
   ASSERT_EQ(
@@ -297,8 +280,6 @@ TEST_F(MatchTypeTest, BothCompound)
   ASSERT_EQ(
     MATCHTYPE_ACCEPT,
     is_matchtype(type_of("i1andi2"), type_of("t1andt2"), &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -326,9 +307,6 @@ TEST_F(MatchTypeTest, Tuples)
     "    t1t2: (T1, T2))";
 
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
 
   ASSERT_EQ(
     MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c1c1"), &opt));
@@ -358,8 +336,6 @@ TEST_F(MatchTypeTest, Tuples)
   // (_, _)
   ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), t1t2, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c2"), t1t2, &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -395,9 +371,6 @@ TEST_F(MatchTypeTest, Capabilities)
     "    t1valandt2box: (T1 val & T2 box))";
 
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
 
   // Classes
   ASSERT_EQ(MATCHTYPE_ACCEPT,
@@ -455,8 +428,6 @@ TEST_F(MatchTypeTest, Capabilities)
     is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2box"), &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
     is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box"), &opt));
-
-  pass_opt_done(&opt);
 }
 
 
@@ -482,9 +453,6 @@ TEST_F(MatchTypeTest, TypeParams)
 
   TEST_COMPILE(src);
 
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-
   // Ref constraints
   ASSERT_EQ(
     MATCHTYPE_REJECT, is_matchtype(type_of("ac2"), type_of("c1"), &opt));
@@ -502,6 +470,84 @@ TEST_F(MatchTypeTest, TypeParams)
   // Union constraint
   ASSERT_EQ(
     MATCHTYPE_ACCEPT, is_matchtype(type_of("aunion"), type_of("c1"), &opt));
+}
 
-  pass_opt_done(&opt);
+
+TEST_F(MatchTypeTest, GenericCap)
+{
+  const char* src =
+    "interface tag I\n"
+
+    "interface Test\n"
+    "  fun z[Read: I #read, Send: I #send, Share: I #share, Alias: I #alias,\n"
+    "        AnyT: I #any]\n"
+    "    (read: Read, send: Send, share: Share, alias: Alias, any: AnyT,\n"
+    "     iso': I iso, trn': I trn, ref': I ref, val': I val, box': I box,\n"
+    "     tag': I tag)";
+
+  TEST_COMPILE(src);
+
+  // Use ephemeral types for gencaps with unique caps in order to get unaliased
+  // match operand types.
+  ast_t* send_base = type_of("send");
+  ast_t* any_base = type_of("any");
+
+  ast_t* read = type_of("read");
+  ast_t* send = consume_type(send_base, TK_NONE);
+  ast_t* share = type_of("share");
+  ast_t* alias = type_of("alias");
+  ast_t* any = consume_type(any_base, TK_NONE);
+
+  ast_t* iso = type_of("iso'");
+  ast_t* trn = type_of("trn'");
+  ast_t* ref = type_of("ref'");
+  ast_t* val = type_of("val'");
+  ast_t* box = type_of("box'");
+  ast_t* tag = type_of("tag'");
+
+  // #read {ref, val, box}
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, iso, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, trn, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, ref, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, val, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, box, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, tag, &opt));
+
+  // #send {iso, val, tag}
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, iso, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, trn, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, ref, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, val, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, box, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, tag, &opt));
+
+  // #share {val, tag}
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, iso, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, trn, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, ref, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, val, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, box, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, tag, &opt));
+
+  // #alias {ref, val, box, tag}
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, iso, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, trn, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, ref, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, val, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, box, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, tag, &opt));
+
+  // #any {iso, trn, ref, val, box, tag}
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, iso, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, trn, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, ref, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, val, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, box, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, tag, &opt));
+
+  if(send != send_base)
+    ast_free_unattached(send);
+
+  if(any != any_base)
+    ast_free_unattached(any);
 }
