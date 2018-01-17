@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add U64 type to `cli` package. ([PR #2488](https://github.com/ponylang/ponyc/pull/2488))
 
 ### Changed
 
