@@ -292,6 +292,22 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
+# Set default openssl version
+ifdef default_openssl
+  ifeq ("openssl_0.9.0","$(default_openssl)")
+    default_openssl_valid:=ok
+  endif
+  ifeq ("openssl_1.1.0","$(default_openssl)")
+    default_openssl_valid:=ok
+  endif
+  ifeq (ok,$(default_openssl_valid))
+    $(warning default_openssl is $(default_openssl))
+  else
+    $(error default_openssl=$(default_openssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+  endif
+  BUILD_FLAGS += -DPONY_DEFAULT_OPENSSL=\"$(default_openssl)\"
+endif
+
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
 packages_abs_src := $(shell dirname $(makefile_abs_path))/packages
 
@@ -491,11 +507,17 @@ ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions-ll += -relocation-model=pic
 endif
 
-# default enable PIC compiling if requested
+# Set default PIC for compiling if requested
 ifdef default_pic
-  libponyrt.buildoptions += -fpic
-  libponyrt.buildoptions-ll += -relocation-model=pic
-  BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  ifeq (true,$(default_pic))
+    libponyrt.buildoptions += -fpic
+    libponyrt.buildoptions-ll += -relocation-model=pic
+    BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  else
+    ifneq (false,$(default_pic))
+      $(error default_pic must be true or false)
+    endif
+  endif
 endif
 
 # target specific disabling of build options
@@ -994,6 +1016,13 @@ help:
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
+	@echo
+	@echo 'Compile time default options:'
+	@echo '  default_pic=true     Make --pic the default'
+	@echo '  default_openssl=Name Make Name the default openssl version'
+	@echo '                       where Name is one of:'
+	@echo '                         openssl_0.9.0'
+	@echo '                         openssl_1.1.0'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'

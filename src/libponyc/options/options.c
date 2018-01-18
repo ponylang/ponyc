@@ -16,6 +16,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#define MAYBE_UNUSED(x) (void)x
+
+#if !defined(PONY_DEFAULT_OPENSSL)
+// This default value is defined in packages/crypto and packages/net/ssl
+#define PONY_DEFAULT_OPENSSL "openssl_0.9.0"
+#endif
+
 enum
 {
   OPT_VERSION,
@@ -151,6 +158,9 @@ static void usage(void)
     "    =name          Default is the host architecture.\n"
     "  --linker         Set the linker command to use.\n"
     "    =name          Default is the compiler used to compile ponyc.\n"
+    "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_OPENSSL "\n"
+    "    =openssl_1.1.0\n"
+    "    =openssl_0.9.0\n"
     ,
     "Debugging options:\n"
     "  --verbose, -V    Verbosity level.\n"
@@ -221,6 +231,56 @@ static void usage(void)
     );
 }
 
+#define OPENSSL_LEADER "openssl_"
+static const char* valid_openssl_flags[] =
+  { OPENSSL_LEADER "1.1.0", OPENSSL_LEADER "0.9.0", NULL };
+
+
+static bool is_openssl_flag(const char* name)
+{
+  return 0 == strncmp(OPENSSL_LEADER, name, strlen(OPENSSL_LEADER));
+}
+
+static bool validate_openssl_flag(const char* name)
+{
+  for(const char** next = valid_openssl_flags; *next != NULL; next++)
+  {
+    if(0 == strcmp(*next, name))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Handle special cases of options like compile time defaults
+ *
+ * return CONTINUE if no errors else an ponyc_opt_process_t EXIT_XXX code.
+ */
+static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
+{
+  // Suppress compiler errors due to conditional compilation
+  MAYBE_UNUSED(opt);
+
+#if defined(PONY_DEFAULT_PIC)
+  #if (PONY_DEFAULT_PIC == true) || (PONY_DEFAULT_PIC == false)
+    opt->pic = PONY_DEFAULT_PIC;
+  #else
+    #error "PONY_DEFAULT_PIC must be true or false"
+  #endif
+#endif
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
+  // use by the signals package when not using signals for scheduler scaling
+  define_build_flag("scheduler_scaling_pthreads");
+#endif
+
+  define_build_flag(PONY_DEFAULT_OPENSSL);
+
+  return CONTINUE;
+}
+
+
 ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
        /*OUT*/ bool* print_program_ast,
        /*OUT*/ bool* print_package_ast)
@@ -230,19 +290,41 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
   *print_program_ast = false;
   *print_package_ast = false;
 
+  exit_code = special_opt_processing(opt);
+  if(exit_code != CONTINUE)
+    return exit_code;
+  
   while((id = ponyint_opt_next(s)) != -1)
   {
     switch(id)
     {
       case OPT_VERSION:
         printf("%s\n", PONY_VERSION_STR);
+        printf("Defaults: pic=%s openssl=%s\n", opt->pic ? "true" : "false",
+            PONY_DEFAULT_OPENSSL);
         return EXIT_0;
 
       case OPT_HELP:
         usage();
         return EXIT_0;
       case OPT_DEBUG: opt->release = false; break;
-      case OPT_BUILDFLAG: define_build_flag(s->arg_val); break;
+      case OPT_BUILDFLAG:
+        if(is_openssl_flag(s->arg_val))
+        {
+          if(validate_openssl_flag(s->arg_val))
+          { // User wants to add an openssl_flag,
+            // remove any existing openssl_flags.
+            remove_build_flags(valid_openssl_flags);
+          } else {
+            printf("Error: %s is invalid openssl flag, expecting one of:\n",
+                s->arg_val);
+            for(const char** next=valid_openssl_flags; *next != NULL; next++)
+              printf("       %s\n", *next);
+            return EXIT_255;
+          }
+        }
+        define_build_flag(s->arg_val);
+        break;
       case OPT_STRIP: opt->strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s->arg_val, opt); break;
       case OPT_OUTPUT: opt->output = s->arg_val; break;
