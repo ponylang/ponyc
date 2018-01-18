@@ -186,7 +186,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
     ast_replace(argp, def_arg);
   }
 
-  if(!expr_seq(opt, *argp))
+  if(!ast_passes_subtree(argp, opt, PASS_EXPR))
     return false;
 
   return true;

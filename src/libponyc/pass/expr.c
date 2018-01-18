@@ -500,10 +500,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:      r = expr_field(options, ast); break;
-    case TK_PARAM:
-      if(!expr_param(options, ast))
-        return AST_FATAL; // avoid duplicating error messages for default arg errors
-      break;
+    case TK_PARAM:      r = expr_param(options, ast); break;
     case TK_NEW:
     case TK_BE:
     case TK_FUN:        r = expr_fun(options, ast); break;
