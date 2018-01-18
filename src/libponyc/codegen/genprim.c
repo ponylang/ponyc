@@ -641,6 +641,8 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
 
+  bool is_ptr = LLVMGetTypeKind(t_elem->use_type) == LLVMPointerTypeKind;
+
 #if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
@@ -648,11 +650,15 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     inaccessiblemem_or_argmemonly, 0);
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
+  if(is_ptr)
+    LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 #else
-  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
+  if(is_ptr)
+    LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
 #  if PONY_LLVM >= 308
   LLVMSetCallInaccessibleMemOrArgMemOnly(call);
 #  endif
