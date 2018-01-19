@@ -175,7 +175,7 @@ actor UDPSocket
     """
     if not _closed then
       if _ip.ip4() then
-        @pony_os_broadcast[None](_fd, state)
+        OSSocket.set_so_broadcast(_fd, state)
       elseif _ip.ip6() then
         @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
       end
@@ -198,7 +198,7 @@ actor UDPSocket
     prevents this.
     """
     if not _closed then
-      @pony_os_multicast_loopback[None](_fd, loopback)
+      OSSocket.set_ip_multicast_loop(_fd, loopback)
     end
 
   be set_multicast_ttl(ttl: U8) =>
@@ -206,7 +206,7 @@ actor UDPSocket
     Set the TTL for multicast sends. Defaults to 1.
     """
     if not _closed then
-      @pony_os_multicast_ttl[None](_fd, ttl)
+      OSSocket.set_ip_multicast_ttl(_fd, ttl)
     end
 
   be multicast_join(group: String, to: String = "") =>

@@ -432,7 +432,7 @@ actor TCPConnection
     socket.
     """
     if _connected then
-      @pony_os_nodelay[None](_fd, state)
+      OSSocket.set_tcp_nodelay(_fd, state)
     end
 
   fun ref set_keepalive(secs: U32) =>
@@ -458,7 +458,7 @@ actor TCPConnection
 
         if not _connected and not _closed then
           // We don't have a connection yet.
-          if @pony_os_connected[Bool](fd) then
+          if _is_sock_connected(fd) then
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
@@ -935,6 +935,12 @@ actor TCPConnection
 
     try (_listen as TCPListener)._conn_closed() end
 
+
+  // Check this when a connection gets its first writeable event.
+  fun _is_sock_connected(fd: U32): Bool =>
+    OSSocket.get_so_error(fd) == 0
+
+
   fun ref _apply_backpressure() =>
     if not _throttled then
       _throttled = true
@@ -955,3 +961,6 @@ actor TCPConnection
       _throttled = false
       _notify.unthrottled(this)
     end
+
+  fun get_fd(): U32 =>
+    _fd
