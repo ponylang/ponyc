@@ -53,7 +53,7 @@ jobs:
       - image: ponylang/ponyc-ci:openssl-1.1.0
     steps:
       - checkout
-      - run: make default_openssl=openssl_1.1.0 test-ci
+      - run: make default_ssl=openssl_1.1.0 test-ci
 
 workflows:
   version: 2

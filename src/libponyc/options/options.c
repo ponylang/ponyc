@@ -18,9 +18,9 @@
 
 #define MAYBE_UNUSED(x) (void)x
 
-#if !defined(PONY_DEFAULT_OPENSSL)
+#if !defined(PONY_DEFAULT_SSL)
 // This default value is defined in packages/crypto and packages/net/ssl
-#define PONY_DEFAULT_OPENSSL "openssl_0.9.0"
+#define PONY_DEFAULT_SSL "openssl_0.9.0"
 #endif
 
 enum
@@ -158,7 +158,7 @@ static void usage(void)
     "    =name          Default is the host architecture.\n"
     "  --linker         Set the linker command to use.\n"
     "    =name          Default is the compiler used to compile ponyc.\n"
-    "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_OPENSSL "\n"
+    "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_SSL "\n"
     "    =openssl_1.1.0\n"
     "    =openssl_0.9.0\n"
     ,
@@ -275,7 +275,7 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
   define_build_flag("scheduler_scaling_pthreads");
 #endif
 
-  define_build_flag(PONY_DEFAULT_OPENSSL);
+  define_build_flag(PONY_DEFAULT_SSL);
 
   return CONTINUE;
 }
@@ -300,8 +300,8 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
     {
       case OPT_VERSION:
         printf("%s\n", PONY_VERSION_STR);
-        printf("Defaults: pic=%s openssl=%s\n", opt->pic ? "true" : "false",
-            PONY_DEFAULT_OPENSSL);
+        printf("Defaults: pic=%s ssl=%s\n", opt->pic ? "true" : "false",
+            PONY_DEFAULT_SSL);
         return EXIT_0;
 
       case OPT_HELP:

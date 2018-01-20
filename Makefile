@@ -292,20 +292,20 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
-# Set default openssl version
-ifdef default_openssl
-  ifeq ("openssl_0.9.0","$(default_openssl)")
-    default_openssl_valid:=ok
+# Set default ssl version
+ifdef default_ssl
+  ifeq ("openssl_0.9.0","$(default_ssl)")
+    default_ssl_valid:=ok
   endif
-  ifeq ("openssl_1.1.0","$(default_openssl)")
-    default_openssl_valid:=ok
+  ifeq ("openssl_1.1.0","$(default_ssl)")
+    default_ssl_valid:=ok
   endif
-  ifeq (ok,$(default_openssl_valid))
-    $(warning default_openssl is $(default_openssl))
+  ifeq (ok,$(default_ssl_valid))
+    $(warning default_ssl is $(default_ssl))
   else
-    $(error default_openssl=$(default_openssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+    $(error default_ssl=$(default_ssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
   endif
-  BUILD_FLAGS += -DPONY_DEFAULT_OPENSSL=\"$(default_openssl)\"
+  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(default_ssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -1019,7 +1019,7 @@ help:
 	@echo
 	@echo 'Compile time default options:'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  default_openssl=Name Make Name the default openssl version'
+	@echo '  default_ssl=Name     Make Name the default ssl version'
 	@echo '                       where Name is one of:'
 	@echo '                         openssl_0.9.0'
 	@echo '                         openssl_1.1.0'

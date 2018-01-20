@@ -274,7 +274,7 @@ To build ponyc and compile and helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_openssl='openssl_1.1.0'
+make default_pic=true default_ssl='openssl_1.1.0'
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
