@@ -4,6 +4,7 @@ branches:
   only:
     - master
     - release
+    - add-test-reporting
 
 dist: trusty
 sudo: required
@@ -54,11 +55,28 @@ matrix:
 rvm:
   - 2.2.3
 
+before_install:
+  - mkdir -p $HOME/bin
+  - if [[ "${TRAVIS_OS_NAME}" = "osx" ]]; then
+      curl -fsSL https://testspace-client.s3.amazonaws.com/testspace-darwin.tgz | tar -zxvf- -C $HOME/bin;
+    else
+      curl -fsSL https://testspace-client.s3.amazonaws.com/testspace-linux.tgz | tar -zxvf- -C $HOME/bin;
+    fi
+  - testspace config url $TS_ORG.testspace.com
+
 install:
   - bash .travis_install.bash
 
 script:
   - bash .travis_script.bash
+
+after_script:
+ -  if [[ "${TRAVIS_OS_NAME}" = "osx" ]]; then
+      testspace [${TRAVIS_OS_NAME}/LLVM_${LLVM_VERSION}/debug]build/debug/libpony*.xml{test};
+      testspace [${TRAVIS_OS_NAME}/LLVM_${LLVM_VERSION}/release]build/release/libpony*.xml{test};
+    else
+      testspace [${TRAVIS_OS_NAME}/LLVM_${LLVM_VERSION}/${config}]build/${config}/libpony*.xml{test};
+    fi
 
 notifications:
   email:
