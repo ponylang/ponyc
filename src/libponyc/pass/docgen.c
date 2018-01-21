@@ -848,7 +848,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
   if (file != NULL) {
     // Adding a 'special' header so it can be identified 
-    // as a complete Pony source file by JavaScript  to add line numbers.
+    // as a complete Pony source file by JavaScript to add line numbers.
     fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
 
     // Escape markdown to tell this is Pony code
@@ -866,6 +866,9 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
     return result;
   } else {
+    free((void*) filename);
+    free((void*) doc_path);
+    free((void*) path);
     errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
     return NULL;
   }
@@ -1484,6 +1487,10 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     for (size_t i = 0; i < docgen.included_sources_count; i++) {
       doc_sources_t* current_source = docgen.included_sources[i];
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
+
+      free((void*) current_source->filename);
+      free((void*) current_source->doc_path);
+      free((void*) current_source->file_path);
     }
   }
 
