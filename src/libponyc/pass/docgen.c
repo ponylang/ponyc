@@ -15,6 +15,7 @@ typedef struct doc_sources_t
   const char* filename; // The source filename.
   const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
   const char* file_path; // The absolute path of the generate source file.
+  doc_sources_t* next; // The next element of the linked list.
 } doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
@@ -48,8 +49,7 @@ typedef struct docgen_t
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
   errors_t* errors;
-  doc_sources_t** included_sources;
-  size_t included_sources_count;
+  doc_sources_t* included_sources; // As a linked list, being the first element or NULL
 } docgen_t;
 
 // Define options for doc generation
@@ -344,13 +344,17 @@ static const char* doc_get_cap(ast_t* cap)
   }
 }
 
-static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
+static const doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
 {
-  for (size_t i = 0; i < docgen->included_sources_count; i++) {
-    if (source == docgen->included_sources[i]-> source) {
-      return docgen->included_sources[i];
-    }
+  if (docgen->included_sources == NULL)
+    return NULL;
 
+  const doc_sources_t* current_elem = docgen->included_sources;
+
+  while (current_elem != NULL) {
+    if (source == current_elem->source)
+      return current_elem;
+    current_elem = current_elem->next;
   }
   return NULL;
 }
@@ -499,7 +503,7 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
 static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line)
 {
   source_t* source = ast_source(elem);
-  doc_sources_t* doc_source = NULL;
+  const doc_sources_t* doc_source = NULL;
 
   if (source != NULL)
     doc_source = get_doc_source(docgen, source);
@@ -863,6 +867,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     result->filename = filename;
     result->doc_path = doc_path;
     result->file_path = path;
+    result->next = NULL;
 
     return result;
   } else {
@@ -905,35 +910,24 @@ static void include_source_if_needed(
   const char* source_path = source->file;
   pony_assert(source_path != NULL);
 
-  // Check if source file is already included in the generated documentation
-  // by comparing the path of the current source file path to the ones
-  // that were used to generated a copy for the documentation.
-  bool was_included = false;
-  for (size_t i = 0; i < docgen->included_sources_count; i++) {
-    pony_assert(docgen->included_sources[i] != NULL);
-    pony_assert(docgen->included_sources[i]->source != NULL);
-    pony_assert(docgen->included_sources[i]->source->file != NULL);
+  if (docgen->included_sources == NULL) {
+    docgen->included_sources = copy_source_to_doc_src(docgen, source, package_name);
+  } else {
+    doc_sources_t* current_source = docgen->included_sources;
+    bool is_already_included = false;
+    while (current_source->next != NULL && !is_already_included) {
+      pony_assert(current_source != NULL);
+      pony_assert(current_source->source != NULL);
+      pony_assert(current_source->source->file != NULL);
 
-    if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
-      was_included = true;
-  }
-
-  if (!was_included) {
-    doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
-    if (new_elem != NULL) {
-      doc_sources_t ** resized_array = 
-        (doc_sources_t **) calloc((docgen->included_sources_count + 1), sizeof(doc_sources_t*));
-      
-      // Copy old array.
-      for (size_t i = 0; i < docgen->included_sources_count; i++) {
-        pony_assert(docgen->included_sources[i] != NULL);
-        resized_array[i] = docgen->included_sources[i];
+      if(strcmp(source_path, current_source->source->file) == 0) {
+        is_already_included = true;
+        break;
       }
-
-      // Add new element.
-      docgen->included_sources = resized_array;
-      docgen->included_sources[docgen->included_sources_count] = new_elem;
-      docgen->included_sources_count = docgen->included_sources_count + 1;
+      current_source = current_source->next;
+    }
+    if (!is_already_included) {
+      current_source->next = copy_source_to_doc_src(docgen, source, package_name);
     }
   }
 }
@@ -1456,7 +1450,6 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
-  docgen.included_sources_count = 0;
 
   copy_doc_files(&docgen);
 
@@ -1484,16 +1477,18 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if (docgen.included_sources != NULL) {
     fprintf(docgen.index_file, "- source:\n");
-    for (size_t i = 0; i < docgen.included_sources_count; i++) {
-      doc_sources_t* current_source = docgen.included_sources[i];
+    doc_sources_t* current_source = docgen.included_sources;
+    while (current_source != NULL) {
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
-
       free((void*) current_source->filename);
       free((void*) current_source->doc_path);
       free((void*) current_source->file_path);
+      doc_sources_t* current_source_ptr_copy = current_source;
+      current_source = current_source->next;
+      free((void*) current_source_ptr_copy);
     }
   }
-
+  
   // Tidy up
   if(docgen.index_file != NULL)
     fclose(docgen.index_file);
