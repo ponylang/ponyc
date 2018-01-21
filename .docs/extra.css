@@ -17,6 +17,9 @@ code {
 code.has-numbering {
     margin-left: 28px;
 }
+.source-link {
+    font-size: 8px;
+}
 .pre-numbering {
     width: 35px;
     position: absolute;

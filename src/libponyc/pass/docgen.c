@@ -500,7 +500,7 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem)
 {
   source_t* source = ast_source(elem);
   const doc_sources_t* doc_source = NULL;
@@ -509,19 +509,11 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line
     doc_source = get_doc_source(docgen, source);
 
   if (doc_source != NULL) {
-    if (on_new_line) {
-      fprintf(
-        docgen->type_file,
-        "\n<div class=\"source-link\">[[Source]](%s#%zd)</div>\n",
-        doc_source->doc_path, ast_line(elem)
-      );
-    } else {
       fprintf(
         docgen->type_file, 
         "<div class=\"source-link\">[[Source]](%s#%zd)</div>", 
         doc_source->doc_path, ast_line(elem)
       );
-    }
   }
 }
 
@@ -565,7 +557,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
-    add_source_code_link(docgen, field, false);
+    add_source_code_link(docgen, field);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -722,7 +714,7 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "### %s", name);
   doc_type_params(docgen, docgen_opt, t_params, true, false);
 
-  add_source_code_link(docgen, method, false);
+  add_source_code_link(docgen, method);
 
   fprintf(docgen->type_file, "\n\n");
 
@@ -992,7 +984,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  add_source_code_link(docgen, ast, true);
+  add_source_code_link(docgen, ast);
 
   doc_type_params(docgen, docgen_opt, tparams, true, false);
   fprintf(docgen->type_file, "\n\n");
