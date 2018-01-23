@@ -158,7 +158,7 @@ void pony_mkdir(const char* path)
 #endif
 
 
-const char* get_file_name(const char* path)
+char* get_file_name(const char* path)
 {
   char* filename = (char*) malloc(strlen(path) + 1);
   strcpy(filename, path);
@@ -180,7 +180,7 @@ const char* get_file_name(const char* path)
 //   finished with it.
 // If you pass in NULL or the new string can't be allocated,
 //   it returns NULL.
-const char* remove_ext(const char* path, char dot, char sep) 
+char* remove_ext(const char* path, char dot, char sep) 
 {
     char *retstr, *lastdot, *lastsep;
     // Error checks and allocate string.
