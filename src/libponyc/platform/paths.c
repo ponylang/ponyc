@@ -158,15 +158,15 @@ void pony_mkdir(const char* path)
 #endif
 
 
-const char* get_file_name(char* path)
+const char* get_file_name(const char* path)
 {
-#ifdef PLATFORM_IS_WINDOWS
   char* filename = (char*) malloc(strlen(path) + 1);
   strcpy(filename, path);
+#ifdef PLATFORM_IS_WINDOWS
   PathStripPath((LPSTR) filename);
   return filename;
 #else
-  return basename(path);
+  return basename(filename);
 #endif
 }
 
