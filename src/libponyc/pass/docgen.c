@@ -15,7 +15,7 @@ typedef struct doc_sources_t
   const char* filename; // The source filename.
   const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
   const char* file_path; // The absolute path of the generate source file.
-  doc_sources_t* next; // The next element of the linked list.
+  struct doc_sources_t* next; // The next element of the linked list.
 } doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
