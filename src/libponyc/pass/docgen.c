@@ -906,20 +906,22 @@ static void include_source_if_needed(
     docgen->included_sources = copy_source_to_doc_src(docgen, source, package_name);
   } else {
     doc_sources_t* current_source = docgen->included_sources;
+    doc_sources_t* last_valid_source = current_source;
     bool is_already_included = false;
-    while (current_source->next != NULL && !is_already_included) {
+    while (current_source != NULL && !is_already_included) {
       pony_assert(current_source != NULL);
       pony_assert(current_source->source != NULL);
       pony_assert(current_source->source->file != NULL);
 
       if(strcmp(source_path, current_source->source->file) == 0) {
         is_already_included = true;
-        break;
+      } else {
+        last_valid_source = current_source;
+        current_source = current_source->next;
       }
-      current_source = current_source->next;
     }
     if (!is_already_included) {
-      current_source->next = copy_source_to_doc_src(docgen, source, package_name);
+      last_valid_source->next = copy_source_to_doc_src(docgen, source, package_name);
     }
   }
 }
