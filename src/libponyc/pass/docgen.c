@@ -847,7 +847,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   if (file != NULL) {
     // Adding a 'special' header so it can be identified 
     // as a complete Pony source file by JavaScript to add line numbers.
-    fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
+    fprintf(file, "<div class=\"pony-full-source\" hidden>\n");
 
     // Escape markdown to tell this is Pony code
     // Using multiple '```````'  so hopefully the markdown parser
@@ -855,6 +855,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     fprintf(file, "```````pony\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
+    fprintf(file, "</div>\n");
     fclose(file);
 
     result->source = source;
