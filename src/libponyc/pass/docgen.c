@@ -1325,42 +1325,6 @@ static void copy_file_content(FILE* source, FILE* dest)
   }
 }
 
-static void copy_doc_file(
-  const char* compiler_dir, 
-  const char* file_install_path, 
-  const char* file_source_path,
-  FILE* file_dest,
-  docgen_t* docgen
-)
-{
-  pony_assert(compiler_dir != NULL);
-  pony_assert(file_install_path != NULL);
-  pony_assert(file_source_path != NULL);
-  pony_assert(file_dest != NULL);
-  pony_assert(docgen != NULL);
-
-  // Find file in the compiler installation directory.
-  char file_path[FILENAME_MAX];
-  path_cat(compiler_dir, file_install_path, file_path);
-  FILE* file_source = fopen(file_path, "r");
-  if (file_source != NULL) {
-      copy_file_content(file_source, file_dest);
-      fclose(file_source);
-  } 
-  else {
-    // Find file in the source directory.
-    path_cat(compiler_dir, file_source_path, file_path);
-    file_source = fopen(file_path, "r");
-    if (file_source != NULL) {
-      copy_file_content(file_source, file_dest);
-      fclose(file_source);
-    }
-    else {
-      errorf(docgen->errors, NULL, "Cannot find either %s or %s." , file_install_path, file_source_path);
-    }
-  }
-}
-
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
