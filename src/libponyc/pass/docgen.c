@@ -1312,19 +1312,6 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   doc_rm_star(docgen->sub_dir);
 }
 
-static void copy_file_content(FILE* source, FILE* dest)
-{
-  pony_assert(source != NULL && dest != NULL);
-  while(1)
-  {
-    int a = fgetc(source);
-    if(!feof(source))
-      fputc(a, dest);
-    else
-      break;
-  }
-}
-
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
