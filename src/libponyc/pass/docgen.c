@@ -511,7 +511,7 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
   if (doc_source != NULL) {
       fprintf(
         docgen->type_file, 
-        "<div class=\"source-link\">[[Source]](%s#%zd)</div>", 
+        "<div class=\"source-link\">[[Source]](%s#L%zd)</div>", 
         doc_source->doc_path, ast_line(elem)
       );
   }
@@ -845,17 +845,13 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   FILE* file = fopen(path, "w");
 
   if (file != NULL) {
-    // Adding a 'special' header so it can be identified 
-    // as a complete Pony source file by JavaScript to add line numbers.
-    fprintf(file, "<div class=\"pony-full-source\" >\n");
 
     // Escape markdown to tell this is Pony code
     // Using multiple '```````'  so hopefully the markdown parser
     // will consider the whole text as a code block.
-    fprintf(file, "```````pony\n");
+    fprintf(file, "```````pony-full-source\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
-    fprintf(file, "</div>\n");
     fclose(file);
 
     result->source = source;
@@ -1365,68 +1361,6 @@ static void copy_doc_file(
   }
 }
 
-static void copy_doc_files(docgen_t* docgen)
-{
-  char compiler_dir[FILENAME_MAX];
-  bool can_get_compiler_dir = get_compiler_exe_directory(compiler_dir);
-  if (can_get_compiler_dir) {
-
-    // The extra.js file to add line numbers around pony source code block 
-    // in the generated HTML documentation.
-    FILE* extra_js_dest = doc_open_file(docgen, true, "extra", ".js");
-
-    if (extra_js_dest != NULL) {
-  #ifdef PLATFORM_IS_WINDOWS
-      const char* install_path = "..\\docs-support\\extra.js";
-      const char* source_path = "..\\..\\.docs\\extra.js";
-  #else
-      const char* install_path = "../docs-support/extra.js";
-      const char* source_path = "../../.docs/extra.js";
-  #endif
-      copy_doc_file(compiler_dir, install_path, source_path, extra_js_dest, docgen);
-      fclose(extra_js_dest);
-    } else {
-      errorf(docgen->errors, NULL, "Cannot create extra.js in the generated documentation.");
-    }
-
-    // The extra.css file so that line numbers around pony source code block 
-    // are displayed properly.
-    FILE* extra_css_dest = doc_open_file(docgen, true, "extra", ".css");
-    if (extra_css_dest != NULL) {
-  #ifdef PLATFORM_IS_WINDOWS
-      const char* install_path = "..\\docs-support\\extra.css";
-      const char* source_path = "..\\..\\.docs\\extra.css";
-  #else
-      const char* install_path = "../docs-support/extra.css";
-      const char* source_path = "../../.docs/extra.css";
-  #endif
-      copy_doc_file(compiler_dir, install_path, source_path, extra_css_dest, docgen);
-      fclose(extra_css_dest);
-    } else {
-      errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
-    }
-
-    // Newer version of higlight js that does the highlighting of block code.
-    // Currently, the one packaged with mkdocs for Pony source code  is buggy.
-    FILE* extra_newer_highlight_js_dest = doc_open_file(docgen, true, "highlight.pack.newer", ".js");
-    if (extra_newer_highlight_js_dest != NULL) {
-  #ifdef PLATFORM_IS_WINDOWS
-      const char* install_path = "..\\docs-support\\highlight.pack.newer.js";
-      const char* source_path = "..\\..\\.docs\\highlight.pack.newer.js";
-  #else
-      const char* install_path = "../docs-support/highlight.pack.newer.js";
-      const char* source_path = "../../.docs/highlight.pack.newer.js";
-  #endif
-      copy_doc_file(compiler_dir, install_path, source_path, extra_newer_highlight_js_dest, docgen);
-      fclose(extra_newer_highlight_js_dest);
-    } else {
-      errorf(docgen->errors, NULL, "Cannot create highlight.pack.newer.js in the generated documentation.");
-    }
-  } else {
-    errorf(docgen->errors, NULL, "Cannot get the compiler executable path.");
-  }
-}
-
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
@@ -1448,8 +1382,6 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
 
-  copy_doc_files(&docgen);
-
   docgen.doc_source_dir = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
   pony_mkdir(docgen.doc_source_dir);
@@ -1463,9 +1395,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.home_file, "Packages\n\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
-    fprintf(docgen.index_file, "theme: readthedocs\n");
-    fprintf(docgen.index_file, "extra_css: [extra.css]\n");
-    fprintf(docgen.index_file, "extra_javascript: [extra.js, highlight.pack.newer.js]\n");
+    fprintf(docgen.index_file, "theme: readthedocs\n"); // TODO: switch to other theme when ready
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
