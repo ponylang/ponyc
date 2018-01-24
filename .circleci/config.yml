@@ -1,0 +1,70 @@
+version: 2
+jobs:
+  verify-changelog:
+    docker:
+      - image: ponylang/changelog-tool:release
+    steps:
+      - checkout
+      - run: changelog-tool verify CHANGELOG.md
+  validate-shell-scripts:
+    docker:
+      - image: ponylang/ponyc-ci:shellcheck
+    steps:
+      - checkout
+      - run: find . -name '*.bash' -exec shellcheck {} \;
+  llvm-501-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-5.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug
+  llvm-501-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-5.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=release
+  llvm-401-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-4.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug
+  llvm-401-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-4.0.1
+    steps:
+      - checkout
+      - run: make test-ci config=release
+  llvm-391-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug
+  llvm-391-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=release
+  openssl-110:
+    docker:
+      - image: ponylang/ponyc-ci:openssl-1.1.0
+    steps:
+      - checkout
+      - run: make default_ssl=openssl_1.1.0 test-ci
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - verify-changelog
+      - validate-shell-scripts
+      - llvm-501-debug
+      - llvm-501-release
+      - llvm-401-debug
+      - llvm-401-release
+      - llvm-391-debug
+      - llvm-391-release
+      - openssl-110

@@ -7,6 +7,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
 * [Standard library docs](http://stdlib.ponylang.org/).
+* [Build Problems, see FAQ Compiling](https://www.ponylang.org/faq/#compiling).
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
@@ -18,7 +19,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 
 # Trying it online
 
-If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/)
+If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/).
 
 # Editor support
 
@@ -39,6 +40,8 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 
 # Installation
+
+Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.org/faq/#compiling) for additional information.
 
 ## Using Docker
 
@@ -177,38 +180,6 @@ sudo apt-get update
 sudo apt-get -V install ponyc
 ```
 
-## Arch Linux
-
-Currently the ponyc package in Arch does not work because
-Arch is using LLVM 5 and ponyc requires LLVM 3.7 to 3.9.
-
-There is experimental support for building from source with LLVM 5.0.0,
-but this may cause decreased performance or crashes in generated
-applications.
-
-Using [Docker](#using-docker) is one choice, another is to
-use [ponyc-rpm](https://aur.archlinux.org/packages/ponyc-rpm/)
-
-### ponyc-rpm
-#### Prerequisites: `git` and `rpmextract`
-```
-sudo pacman -Syu git rpmextract
-```
-#### Instructions:
-Clone the repo, change directory to the repo, run `makepkg -si`
-or use your favorite AUR package manager.
-```
-git clone https://aur.archlinux.org/ponyc-rpm.git
-cd ponyc-rpm
-makepkg -si
-```
-
-#### Ponyc Usage
-You must pass the `--pic` parameter to ponyc on Arch Linux
-```
-ponyc --pic
-```
-
 ## Gentoo Linux
 
 ```bash
@@ -271,15 +242,13 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-Pony requires one of the following versions of LLVM:
-
-- 3.7.1
-- 3.8.1
-- 3.9.1
+Pony requires LLVM version 3.9.1.
 
 There is experimental support for building with LLVM 4.0.1 or 5.0.0,
 but this may result in decreased performance or crashes in generated
 applications.
+
+NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
 Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
@@ -295,30 +264,19 @@ git clone git://github.com/ponylang/ponyc
 
 ### Arch
 
+Install pony dependencies:
+
 ```
 pacman -S llvm make ncurses openssl pcre2 zlib
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc and compile and helloworld:
 
 ```bash
-make
+cd ~/ponyc/
+make default_pic=true default_ssl='openssl_1.1.0'
 ./build/release/ponyc examples/helloworld
-```
-
-If you get errors like
-
-```bash
-/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
- 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
-```
-
-You need to rebuild `ponyc` with `default_pic=true`
-
-```bash
-make clean
-make default_pic=true
-./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Debian Jessie
@@ -527,7 +485,7 @@ make default_pic=true
 
 You need to have the development versions of the following installed:
 
-* 3.7.1, 3.8.1, or 3.9.1
+* 3.9.1
 * zlib
 * ncurses
 * pcre2
@@ -603,7 +561,7 @@ gmake
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.7.1, 3.8.1, or 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
+You'll need llvm 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
 
 There is experimental support for LLVM 4.0.1 or 5.0.0, but this may result in
 decreased performance or crashes in generated applications.
@@ -730,4 +688,5 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
+
 

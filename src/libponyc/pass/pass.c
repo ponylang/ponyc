@@ -339,7 +339,8 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   if(ast_pass >= pass)  // This pass already done for this AST node
     return AST_OK;
 
-  if(ast_checkflag(*ast, AST_FLAG_PRESERVE))  // Do not process this subtree
+  // Do not process this subtree
+  if((pass > PASS_SYNTAX) && ast_checkflag(*ast, AST_FLAG_PRESERVE))
     return AST_OK;
 
   typecheck_t* t = &options->check;

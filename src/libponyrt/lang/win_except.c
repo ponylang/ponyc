@@ -9,7 +9,7 @@ PONY_EXTERN_C_BEGIN
 
 static __pony_thread_local uintptr_t landing_pad;
 
-PONY_API void pony_throw()
+PONY_API void pony_error()
 {
   //Continuable exception with no arguments. RaiseException involves a kernel
   //mode transition.
@@ -67,7 +67,7 @@ PONY_API void pony_throw()
  *  register once stack unwinding is completed. Since we are unwinding
  *  function calls, we ignore this parameter. The OriginalContext can be
  *  used to supply user defined scratch space to store information between
- *  unwind operations. The runtimes exception dispatcher 'pony_throw' does
+ *  unwind operations. The runtimes exception dispatcher 'pony_error' does
  *  not supply any arguments, so this parameter is ignored as well.
  *
  *  The HistoryTable can be used as a cache to improve performance of

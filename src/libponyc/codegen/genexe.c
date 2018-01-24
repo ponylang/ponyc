@@ -128,18 +128,16 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
   // Start the runtime.
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMConstInt(c->i32, 1, false);
-  LLVMValueRef rc = gencall_runtime(c, "pony_start", args, 2, "");
+  args[0] = LLVMConstInt(c->i1, 0, false);
+  args[1] = LLVMConstInt(c->i1, 1, false);
+  args[2] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
 
-  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
-  LLVMValueRef start_success = LLVMBuildICmp(c->builder, LLVMIntNE, rc,
-    minus_one, "");
   LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
 
   LLVMPositionBuilderAtEnd(c->builder, start_fail_block);
 
-  const char error_msg_str[] = "Error: couldn't initialise runtime!";
+  const char error_msg_str[] = "Error: couldn't start runtime!";
 
   args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
   gencall_runtime(c, "puts", args, 1, "");
@@ -155,14 +153,15 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 1, "");
-    // The exit code may have been set by one of the primitive finalisers.
-    // Reload it.
-    rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   }
 
   args[0] = ctx;
   args[1] = LLVMConstNull(c->object_ptr);
   gencall_runtime(c, "pony_become", args, 2, "");
+
+  LLVMValueRef rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
+  LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
+  rc = LLVMBuildSelect(c->builder, start_success, rc, minus_one, "");
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -420,8 +419,17 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
-  if(lookup(c->opt, main_ast, main_ast, c->str_create) == NULL)
+  deferred_reification_t* main_create = lookup(c->opt, main_ast, main_ast,
+    c->str_create);
+
+  if(main_create == NULL)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return false;
+  }
+
+  deferred_reify_free(main_create);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Reachability\n");
@@ -430,23 +438,38 @@ bool genexe(compile_t* c, ast_t* program)
   reach_done(c->reach, c->opt);
 
   if(c->opt->limit == PASS_REACH)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return true;
+  }
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
 
   if(c->opt->limit == PASS_PAINT)
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return true;
+  }
 
   if(!gentypes(c))
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
     return false;
+  }
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
     reach_dump(c->reach);
 
   reach_type_t* t_main = reach_type(c->reach, main_ast);
   reach_type_t* t_env = reach_type(c->reach, env_ast);
+
+  ast_free(main_ast);
+  ast_free(env_ast);
 
   if((t_main == NULL) || (t_env == NULL))
     return false;

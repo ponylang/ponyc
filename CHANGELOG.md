@@ -6,14 +6,50 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix LLVM IR verification with DoNotOptimise ([PR #2506](https://github.com/ponylang/ponyc/pull/2506))
+
+### Added
+
+- Compile error when comparing sugared constructors with 'is' or 'isnt' (#2024) ([PR #2494](https://github.com/ponylang/ponyc/pull/2494))
+- Support OpenSSL 1.1.0 ([PR #2415](https://github.com/ponylang/ponyc/pull/2415))
+- Add U64 type to `cli` package. ([PR #2488](https://github.com/ponylang/ponyc/pull/2488))
+
+### Changed
+
+- Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
+- Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
+
+## [0.21.3] - 2018-01-14
+
+### Fixed
+
+- Fix pthread condition variable usage for dynamic scheduler scaling ([PR #2472](https://github.com/ponylang/ponyc/pull/2472))
+- Fix various memory leaks ([PR #2479](https://github.com/ponylang/ponyc/pull/2479))
+- Fix double free in expr_typeref ([PR #2467](https://github.com/ponylang/ponyc/pull/2467))
+- Fix some spurious process manager test failures ([PR #2452](https://github.com/ponylang/ponyc/pull/2452))
+- Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
+
+### Added
+
+- Add the pony_try function to receive Pony errors in C code ([PR #2457](https://github.com/ponylang/ponyc/pull/2457))
+
+### Changed
+
+- Disable -avx512f on LLVM < 5.0.0 to avoid LLVM bug 30542 ([PR #2475](https://github.com/ponylang/ponyc/pull/2475))
+- Deprecate LLVM 3.7.1 and 3.8.1 support ([PR #2461](https://github.com/ponylang/ponyc/pull/2461))
+
+## [0.21.2] - 2017-12-26
+
+### Fixed
+
+- Don't suspend schedulers if terminating and reset steal_attempts on wake ([PR #2447](https://github.com/ponylang/ponyc/pull/2447))
+
+## [0.21.1] - 2017-12-23
 
 ### Added
 
 - Dynamic scheduler thread scaling based on workload ([PR #2386](https://github.com/ponylang/ponyc/pull/2386))
 - Support setting the binary executable name with `--bin-name`. ([PR #2430](https://github.com/ponylang/ponyc/pull/2430))
-
-### Changed
-
 
 ## [0.21.0] - 2017-12-17
 

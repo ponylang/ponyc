@@ -3,7 +3,6 @@
 #endif
 #include <platform.h>
 
-#include "lang.h"
 #include "../asio/asio.h"
 #include "../asio/event.h"
 #include "ponyassert.h"
@@ -887,7 +886,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
     if(GetLastError() != WSA_IO_PENDING)
     {
       iocp_destroy(iocp);
-      pony_throw();
+      pony_error();
     }
   }
 
@@ -903,7 +902,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int io
     if(errno == EWOULDBLOCK)
       return 0;
 
-    pony_throw();
+    pony_error();
   }
 
   return (size_t)sent;
@@ -914,7 +913,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_send(ev, buf, len))
-    pony_throw();
+    pony_error();
 
   return 0;
 #else
@@ -925,7 +924,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
     if(errno == EWOULDBLOCK)
       return 0;
 
-    pony_throw();
+    pony_error();
   }
 
   return (size_t)sent;
@@ -936,7 +935,7 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_recv(ev, buf, len))
-    pony_throw();
+    pony_error();
 
   return 0;
 #else
@@ -947,9 +946,9 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
     if(errno == EWOULDBLOCK)
       return 0;
 
-    pony_throw();
+    pony_error();
   } else if(received == 0) {
-    pony_throw();
+    pony_error();
   }
 
   return (size_t)received;
@@ -961,14 +960,14 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_sendto(fd, buf, len, ipaddr))
-    pony_throw();
+    pony_error();
 
   return 0;
 #else
   socklen_t addrlen = address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
-    pony_throw();
+    pony_error();
 
   ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
     addrlen);
@@ -978,7 +977,7 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
     if(errno == EWOULDBLOCK)
       return 0;
 
-    pony_throw();
+    pony_error();
   }
 
   return (size_t)sent;
@@ -990,7 +989,7 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_recvfrom(ev, buf, len, ipaddr))
-    pony_throw();
+    pony_error();
 
   return 0;
 #else
@@ -1004,9 +1003,9 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
     if(errno == EWOULDBLOCK)
       return 0;
 
-    pony_throw();
+    pony_error();
   } else if(recvd == 0) {
-    pony_throw();
+    pony_error();
   }
 
   return (size_t)recvd;

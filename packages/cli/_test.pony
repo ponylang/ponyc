@@ -190,7 +190,8 @@ class iso _TestDefaults is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = ["ignored"; "-B"; "-S--"; "-I42"; "-F42.0"]
+    let args: Array[String] =
+      ["ignored"; "-B"; "-S--"; "-I42"; "-U47"; "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
@@ -199,6 +200,7 @@ class iso _TestDefaults is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolo").bool())
     h.assert_eq[String]("astring", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("into").i64())
+    h.assert_eq[U64](47, cmd.option("uinto").u64())
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
     h.assert_eq[USize](0, cmd.option("stringso").string_seq().size())
 
@@ -211,7 +213,7 @@ class iso _TestShortsAdj is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS--"; "-I42"; "-F42.0"; "-zaaa"; "-zbbb"
+      "-BS--"; "-I42"; "-U47"; "-F42.0"; "-zaaa"; "-zbbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -221,6 +223,7 @@ class iso _TestShortsAdj is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
@@ -236,7 +239,7 @@ class iso _TestShortsEq is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS=astring"; "-I=42"; "-F=42.0"; "-z=aaa"; "-z=bbb"
+      "-BS=astring"; "-I=42"; "-U=47"; "-F=42.0"; "-z=aaa"; "-z=bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -246,6 +249,7 @@ class iso _TestShortsEq is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
@@ -261,7 +265,8 @@ class iso _TestShortsNext is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS"; "--"; "-I"; "42"; "-F"; "42.0"; "-z"; "aaa"; "-z"; "bbb"
+      "-BS"; "--"; "-I"; "42"; "-U"; "47"
+      "-F"; "42.0"; "-z"; "aaa"; "-z"; "bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -271,6 +276,7 @@ class iso _TestShortsNext is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
@@ -286,8 +292,8 @@ class iso _TestLongsEq is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "--boolr=true"; "--stringr=astring"; "--intr=42"; "--floatr=42.0"
-      "--stringso=aaa"; "--stringso=bbb"
+      "--boolr=true"; "--stringr=astring"; "--intr=42"; "--uintr=47"
+      "--floatr=42.0"; "--stringso=aaa"; "--stringso=bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -297,6 +303,7 @@ class iso _TestLongsEq is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
@@ -312,8 +319,8 @@ class iso _TestLongsNext is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "--boolr"; "--stringr"; "--"; "--intr"; "42"; "--floatr"; "42.0"
-      "--stringso"; "aaa"; "--stringso"; "bbb"
+      "--boolr"; "--stringr"; "--"; "--intr"; "42"; "--uintr"; "47"
+      "--floatr"; "42.0"; "--stringso"; "aaa"; "--stringso"; "bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -322,6 +329,7 @@ class iso _TestLongsNext is UnitTest
 
     h.assert_eq[String]("--", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
     let stringso = cmd.option("stringso")
     h.assert_eq[USize](2, stringso.string_seq().size())
@@ -342,6 +350,7 @@ class iso _TestEnvs is UnitTest
       "SIMPLE_BOOLR=true"
       "SIMPLE_STRINGR=astring"
       "SIMPLE_INTR=42"
+      "SIMPLE_UINTR=47"
       "SIMPLE_FLOATR=42.0"
     ]
     let cmdErr = CommandParser(cs).parse(args, envs)
@@ -352,6 +361,7 @@ class iso _TestEnvs is UnitTest
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
+    h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class iso _TestOptionStop is UnitTest
@@ -383,8 +393,8 @@ class iso _TestDuplicate is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "--boolr=true"; "--stringr=astring"; "--intr=42"; "--floatr=42.0"
-      "--stringr=newstring"
+      "--boolr=true"; "--stringr=astring"; "--intr=42"; "--uintr=47"
+      "--floatr=42.0"; "--stringr=newstring"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -491,6 +501,8 @@ primitive _Fixtures
       OptionSpec.string("stringo" where short' = 's', default' = "astring")
       OptionSpec.i64("intr" where short' = 'I')
       OptionSpec.i64("into" where short' = 'i', default' = I64(42))
+      OptionSpec.u64("uintr" where short' = 'U')
+      OptionSpec.u64("uinto" where short' = 'u', default' = U64(47))
       OptionSpec.f64("floatr" where short' = 'F')
       OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
       OptionSpec.string_seq("stringso" where short' = 'z')

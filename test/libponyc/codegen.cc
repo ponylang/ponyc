@@ -473,3 +473,14 @@ EXPORT_SYMBOL char test_custom_serialisation_compare(uint64_t* p1, uint64_t* p2)
 }
 
 }
+
+
+TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    DoNotOptimise[I64](0)";
+
+  TEST_COMPILE(src);
+}

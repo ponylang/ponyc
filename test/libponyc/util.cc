@@ -120,7 +120,9 @@ static const char* const _builtin =
   "  end\n"
   "interface Iterator[A]\n"
   "  fun ref has_next(): Bool\n"
-  "  fun ref next(): A ?\n";
+  "  fun ref next(): A ?\n"
+  "primitive DoNotOptimise\n"
+  "  fun apply[A](obj: A) => compile_intrinsic";
 
 
 // Check whether the 2 given ASTs are identical
@@ -242,6 +244,7 @@ void PassTest::SetUp()
   package_clear_magic(&opt);
   opt.verbosity = VERBOSITY_QUIET;
   opt.check_tree = true;
+  opt.verify = true;
   opt.allow_test_symbols = true;
   last_pass = PASS_PARSE;
 }

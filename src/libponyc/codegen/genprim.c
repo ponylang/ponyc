@@ -581,7 +581,7 @@ static void maybe_apply(compile_t* c, void* data, token_id cap)
   LLVMBuildRet(c->builder, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
-  gencall_throw(c);
+  gencall_error(c);
 
   codegen_finishfun(c);
 }
@@ -641,6 +641,8 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
 
+  bool is_ptr = LLVMGetTypeKind(t_elem->use_type) == LLVMPointerTypeKind;
+
 #if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
@@ -648,11 +650,15 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     inaccessiblemem_or_argmemonly, 0);
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
+  if(is_ptr)
+    LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 #else
-  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
+  if(is_ptr)
+    LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
 #  if PONY_LLVM >= 308
   LLVMSetCallInaccessibleMemOrArgMemOnly(call);
 #  endif
@@ -1656,13 +1662,9 @@ static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
   if(t == NULL)
     return;
 
-  size_t buf_idx = ponyint_pool_index(strlen(to->fun_name) + sizeof("_unsafe"));
-  char* buf = (char*)ponyint_pool_alloc(buf_idx);
-  memcpy(buf, to->fun_name, strlen(to->fun_name));
-  strcpy(buf + strlen(to->fun_name), "_unsafe");
+  const char* name = genname_unsafe(to->fun_name);
 
-  FIND_METHOD(buf, cap);
-  ponyint_pool_free(buf_idx, buf);
+  FIND_METHOD(name, cap);
   start_function(c, t, m, to->type, &from->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(c_m->func, 0);

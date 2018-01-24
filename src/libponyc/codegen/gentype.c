@@ -29,8 +29,13 @@ static bool tbaa_metadata_cmp(tbaa_metadata_t* a, tbaa_metadata_t* b)
   return a->name == b->name;
 }
 
+static void tbaa_metadata_free(tbaa_metadata_t* a)
+{
+  POOL_FREE(tbaa_metadata_t, a);
+}
+
 DEFINE_HASHMAP(tbaa_metadatas, tbaa_metadatas_t, tbaa_metadata_t,
-  tbaa_metadata_hash, tbaa_metadata_cmp, NULL);
+  tbaa_metadata_hash, tbaa_metadata_cmp, tbaa_metadata_free);
 
 tbaa_metadatas_t* tbaa_metadatas_new()
 {

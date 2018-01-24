@@ -315,6 +315,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(fun_def);
   }
 
+  astlist_free(possible_obj_caps);
 
   // If any parameters still have no type specified, it's an error.
   ast_t* param = ast_child(params);
@@ -336,10 +337,13 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
         }
       }
 
+      astlist_free(possible_fun_defs);
       return false;
     }
     param = ast_sibling(param);
   }
+
+  astlist_free(possible_fun_defs);
 
   bool bare = ast_id(ast) == TK_BARELAMBDA;
   ast_t* members = ast_from(ast, TK_MEMBERS);

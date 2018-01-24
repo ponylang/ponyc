@@ -2,7 +2,6 @@
 
 #include <platform.h>
 #include <pony.h>
-#include "lang.h"
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
@@ -14,6 +13,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#endif
+
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
 #endif
 
 PONY_EXTERN_C_BEGIN

@@ -581,7 +581,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   d->collected++;
 }
 
-static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
+static void block(detector_t* d, pony_actor_t* actor,
   size_t rc, deltamap_t* map)
 {
   view_t* view = get_view(d, actor, true);
@@ -602,27 +602,11 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
   // if we're in a perceived cycle, that cycle is invalid
   expire(d, view);
 
-  if(rc == 0)
+  // add to the deferred set
+  if(!view->deferred)
   {
-    // remove from the deferred set
-    if(view->deferred)
-    {
-      ponyint_viewmap_remove(&d->deferred, view);
-      view->deferred = false;
-    }
-
-    // detect from this actor, bypassing deferral
-    detect(ctx, d, view);
-  } else {
-    // add to the deferred set
-    if(!view->deferred)
-    {
-      ponyint_viewmap_put(&d->deferred, view);
-      view->deferred = true;
-    }
-
-    // look for cycles
-    deferred(ctx, d);
+    ponyint_viewmap_put(&d->deferred, view);
+    view->deferred = true;
   }
 }
 
@@ -838,7 +822,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
     case ACTORMSG_BLOCK:
     {
       block_msg_t* m = (block_msg_t*)msg;
-      block(ctx, d, m->actor, m->rc, m->delta);
+      block(d, m->actor, m->rc, m->delta);
       break;
     }
 
@@ -937,6 +921,14 @@ void ponyint_cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
 void ponyint_cycle_ack(pony_ctx_t* ctx, size_t token)
 {
   pony_sendi(ctx, cycle_detector, ACTORMSG_ACK, token);
+}
+
+void ponyint_cycle_check_blocked(pony_ctx_t* ctx)
+{
+  detector_t* d = (detector_t*)cycle_detector;
+
+  // process all deferred view stuff
+  deferred(ctx, d);
 }
 
 void ponyint_cycle_terminate(pony_ctx_t* ctx)

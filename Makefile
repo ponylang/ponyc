@@ -102,6 +102,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
+LL_FLAGS = -mcpu=$(arch)
 
 # Determine pointer size in bits.
 BITS := $(bits)
@@ -178,6 +179,7 @@ endif
 
 ifeq ($(config),release)
   BUILD_FLAGS += -O3 -DNDEBUG
+  LL_FLAGS += -O3
 
   ifeq ($(lto),yes)
     BUILD_FLAGS += -flto -DPONY_USE_LTO
@@ -201,72 +203,49 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-	ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
+  ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
-    LLVM_LINK = llvm-link-3.9
-		LLVM_OPT = opt-3.9
   else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm@3.9/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm@3.9/bin/opt
   else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.8
-    LLVM_LINK = llvm-link-3.8
-    LLVM_OPT = opt-3.8
   else ifneq (,$(shell which llvm-config-mp-3.8 2> /dev/null))
     LLVM_CONFIG = llvm-config-mp-3.8
-    LLVM_LINK = llvm-link-mp-3.8
-    LLVM_OPT = opt-mp-3.8
   else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.7
-    LLVM_LINK = llvm-link-3.7
-    LLVM_OPT = opt-3.7
   else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.6
-    LLVM_LINK = llvm-link-3.6
-    LLVM_OPT = opt-3.6
   else ifneq (,$(shell which llvm-config39 2> /dev/null))
     LLVM_CONFIG = llvm-config39
-    LLVM_LINK = llvm-link39
-    LLVM_OPT = opt39
   else ifneq (,$(shell which llvm-config38 2> /dev/null))
     LLVM_CONFIG = llvm-config38
-    LLVM_LINK = llvm-link38
-    LLVM_OPT = opt38
   else ifneq (,$(shell which llvm-config37 2> /dev/null))
     LLVM_CONFIG = llvm-config37
-    LLVM_LINK = llvm-link37
-    LLVM_OPT = opt37
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm/bin/opt
   else ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
-    LLVM_LINK = llvm-link
-    LLVM_OPT = opt
   else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-5.0
-    LLVM_LINK = llvm-link-5.0
-    LLVM_OPT = opt-5.0
   else ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-4.0
-    LLVM_LINK = llvm-link-4.0
-    LLVM_OPT = opt-4.0
-	else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
+  else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
-    LLVM_LINK = /usr/local/opt/llvm@4.0/bin/llvm-link
-    LLVM_OPT = /usr/local/opt/llvm@4.0/bin/opt
+  else
+    $(error No LLVM installation found!)
   endif
-endif
-
-ifndef LLVM_CONFIG
+else ifeq (,$(shell which $(LLVM_CONFIG) 2> /dev/null))
   $(error No LLVM installation found!)
 endif
+
+LLVM_BINDIR := $(shell $(LLVM_CONFIG) --bindir 2> /dev/null)
+
+LLVM_LINK := $(LLVM_BINDIR)/llvm-link
+LLVM_OPT := $(LLVM_BINDIR)/opt
+LLVM_LLC := $(LLVM_BINDIR)/llc
+LLVM_AS := $(LLVM_BINDIR)/llvm-as
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
@@ -278,9 +257,8 @@ ifeq (,$(LLVM_LINK_STATIC))
 endif
 
 ifeq ($(OSTYPE),osx)
-	llvm_bindir := $(shell $(LLVM_CONFIG) --bindir $(LLVM_LINK_STATIC))
-  ifneq (,$(shell which $(llvm_bindir)/llvm-ar 2> /dev/null))
-    AR = $(llvm_bindir)/llvm-ar
+  ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
+    AR = $(LLVM_BINDIR)/llvm-ar
     AR_FLAGS := rcs
   else ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
     AR = llvm-ar-mp-3.8
@@ -290,13 +268,11 @@ ifeq ($(OSTYPE),osx)
     AR_FLAGS := rcs
   else
     AR = /usr/bin/ar
-		AR_FLAGS := -rcs
+    AR_FLAGS := -rcs
   endif
 endif
 
-ifeq ($(llvm_version),3.7.1)
-else ifeq ($(llvm_version),3.8.1)
-else ifeq ($(llvm_version),3.9.1)
+ifeq ($(llvm_version),3.9.1)
 else ifeq ($(llvm_version),4.0.1)
   $(warning WARNING: LLVM 4 support is experimental and may result in decreased performance or crashes)
 else ifeq ($(llvm_version),5.0.0)
@@ -305,7 +281,7 @@ else ifeq ($(llvm_version),5.0.1)
   $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
-  $(warning Please use LLVM 3.7.1, 3.8.1, or 3.9.1)
+  $(warning Please use LLVM 3.9.1)
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
@@ -314,6 +290,22 @@ ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
     $(error Compiling the runtime as a bitcode file requires clang)
   endif
+endif
+
+# Set default ssl version
+ifdef default_ssl
+  ifeq ("openssl_0.9.0","$(default_ssl)")
+    default_ssl_valid:=ok
+  endif
+  ifeq ("openssl_1.1.0","$(default_ssl)")
+    default_ssl_valid:=ok
+  endif
+  ifeq (ok,$(default_ssl_valid))
+    $(warning default_ssl is $(default_ssl))
+  else
+    $(error default_ssl=$(default_ssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+  endif
+  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(default_ssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -512,12 +504,20 @@ endif
 
 ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic
+  libponyrt-pic.buildoptions-ll += -relocation-model=pic
 endif
 
-# default enable PIC compiling if requested
+# Set default PIC for compiling if requested
 ifdef default_pic
-  libponyrt.buildoptions += -fpic
-  BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  ifeq (true,$(default_pic))
+    libponyrt.buildoptions += -fpic
+    libponyrt.buildoptions-ll += -relocation-model=pic
+    BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  else
+    ifneq (false,$(default_pic))
+      $(error default_pic must be true or false)
+    endif
+  endif
 endif
 
 # target specific disabling of build options
@@ -615,7 +615,7 @@ define ENUMERATE
     sourcefiles := $$($(1).files)
   else
     sourcefiles := $$(shell find $$(sourcedir) -type f -name "*.c" -or -name\
-      "*.cc" | grep -v '.*/\.')
+      "*.cc" -or -name "*.ll" | grep -v '.*/\.')
   endif
 
   ifdef $(1).except
@@ -633,10 +633,15 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-
+  
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
+  endif
+  
+  ifeq ($(suffix $(1)),.ll)
+    compiler := $(CC)
+    flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module
   endif
 endef
 
@@ -693,8 +698,8 @@ define PREPARE
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
     $(sourcefiles))))
   $(eval bitcodefiles := $(subst .o,.bc,$(objectfiles)))
-  $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,\
-    $(objectfiles)))))
+  $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .ll,,$(subst .o,.d,\
+    $(objectfiles))))))
 endef
 
 define EXPAND_OBJCMD
@@ -703,10 +708,15 @@ $(eval $(call CONFIGURE_COMPILER,$(file)))
 
 ifeq ($(3),libponyrtyes)
   ifneq ($(suffix $(file)),.bc)
-$(subst .c,,$(subst .cc,,$(1))): $(subst .c,.bc,$(subst .cc,.bc,$(file)))
+$(subst .c,,$(subst .cc,,$(subst .ll,,$(1)))): $(subst .c,.bc,$(subst .cc,.bc,$(subst .ll,.bc,$(file))))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
 	$(SILENT)$(compiler) $(flags) -c -o $$@ $$<
+  else ifeq ($(suffix $(subst .bc,,$(file))),.ll)
+$(subst .ll,,$(1)): $(subst $(outdir)/,$(sourcedir)/,$(subst .bc,,$(file)))
+	@echo '$$(notdir $$<)'
+	@mkdir -p $$(dir $$@)
+	$(SILENT)$(LLVM_AS) -o $$@ $$<
   else
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .bc,,$(file)))
 	@echo '$$(notdir $$<)'
@@ -714,6 +724,11 @@ $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .bc,,$
 	$(SILENT)$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) \
     $(flags) $($(2).buildoptions) -emit-llvm -c -o $$@ $$<  $($(2).include)
   endif
+else ifeq ($(suffix $(file)),.ll)
+$(subst .ll,,$(1)): $(subst $(outdir)/,$(sourcedir)/,$(file))
+	@echo '$$(notdir $$<)'
+	@mkdir -p $$(dir $$@)
+	$(SILENT)$(LLVM_LLC) $(LL_FLAGS) $($(2).buildoptions-ll) -filetype=obj -o $$@ $$<
 else
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
@@ -725,8 +740,8 @@ endef
 
 define EXPAND_COMMAND
 $(eval $(call PREPARE,$(1)))
-$(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
-$(eval bcfiles := $(subst .c,,$(subst .cc,,$(bitcodefiles))))
+$(eval ofiles := $(subst .c,,$(subst .cc,,$(subst .ll,,$(objectfiles)))))
+$(eval bcfiles := $(subst .c,,$(subst .cc,,$(subst .ll,,$(bitcodefiles)))))
 $(eval depends := )
 $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 
@@ -865,6 +880,18 @@ benchmark: all
 	@echo "Running libponyrt benchmarks..."
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
+stdlib-debug: all
+	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
+
+stdlib: all
+	$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
+
+test-stdlib-debug: stdlib-debug
+	./stdlib --sequential
+
+test-stdlib: stdlib
+	./stdlib --sequential
+
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
@@ -989,6 +1016,13 @@ help:
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
+	@echo
+	@echo 'Compile time default options:'
+	@echo '  default_pic=true     Make --pic the default'
+	@echo '  default_ssl=Name     Make Name the default ssl version'
+	@echo '                       where Name is one of:'
+	@echo '                         openssl_0.9.0'
+	@echo '                         openssl_1.1.0'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'

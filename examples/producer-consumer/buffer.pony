@@ -4,9 +4,9 @@ actor Buffer
   var _future_products: USize = 0
   var _producers_waiting: Array[Producer] = Array[Producer]
   var _consumers_waiting: Array[Consumer] = Array[Consumer]
-  let _out: StdStream
+  let _out: OutStream
 
-  new create(capacity': USize, out: StdStream) =>
+  new create(capacity': USize, out: OutStream) =>
     capacity = capacity'
     _products = Array[Product](capacity)
     _out = out

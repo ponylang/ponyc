@@ -124,14 +124,37 @@ primitive _FGETFD
 primitive _FDCLOEXEC
   fun apply(): I32 => 1
 
+primitive _SIGKILL
+  fun apply(): I32 => 9
+
 primitive _SIGTERM
   fun apply(): I32 => 15
 
+// Operation not permitted
+primitive _EPERM
+  fun apply(): I32 =>
+    ifdef bsd or osx or linux then 1
+    else compile_error "no EPERM" end
+
+// No such process
+primitive _ESRCH
+  fun apply(): I32 =>
+    ifdef bsd or osx or linux then 3
+    else compile_error "no ESRCH" end
+
+// Try again
 primitive _EAGAIN
   fun apply(): I32 =>
     ifdef bsd or osx then 35
     elseif linux then 11
     else compile_error "no EAGAIN" end
+
+// Invalid argument
+primitive _EINVAL
+  fun apply(): I32 =>
+    ifdef bsd or osx or linux then 22
+    else compile_error "no EINVAL" end
+
 
 primitive _ONONBLOCK
   fun apply(): I32 =>
@@ -144,7 +167,7 @@ primitive PipeError
 primitive ForkError
 primitive WaitpidError
 primitive WriteError
-primitive KillError
+primitive KillError   // Not thrown at this time
 primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
 
@@ -443,12 +466,7 @@ actor ProcessMonitor
     Terminate child and close down everything.
     """
     Backpressure.release(_backpressure_auth)
-    try
-      _kill_child()?
-    else
-      _notifier.failed(this, KillError)
-      return
-    end
+    _kill_child()
     _close()
 
   fun ref expect(qty: USize = 0) =>
@@ -459,12 +477,23 @@ actor ProcessMonitor
     _expect = _notifier.expect(this, qty)
     _read_buf_size()
 
-  fun _kill_child() ? =>
+  fun _kill_child() =>
     """
-    Terminate the child process.
+    Terminate the child process, first trying SIGTERM and if
+    that fails try SIGKILL.
     """
     if _child_pid != -1 then
-      if @kill[I32](_child_pid, _SIGTERM()) < 0 then error end
+      // Try a graceful termination
+      if @kill[I32](_child_pid, _SIGTERM()) < 0 then
+        match @pony_os_errno()
+        | _EINVAL() => None // Invalid argument, shouldn't happen but
+                            // tryinng SIGKILL isn't likely to help.
+        | _ESRCH() => None  // No such process, child has terminated
+        else
+          // Couldn't SIGTERM, as a last resort SIGKILL
+          @kill[I32](_child_pid, _SIGKILL())
+        end
+      end
     end
 
   fun _event_flags(flags: U32): String box=>
@@ -545,14 +574,18 @@ actor ProcessMonitor
         if _stderr_event isnt AsioEvent.none() then
           @pony_asio_event_unsubscribe(_stderr_event)
         end
-        // We want to capture the exit status of the child
-        var wstatus: I32 = 0
-        let options: I32 = 0
-        if @waitpid[I32](_child_pid, addressof wstatus, options) < 0 then
-          _notifier.failed(this, WaitpidError)
+        if _child_pid > 0 then
+          // This is the parent, so capture the exit status of the child
+          var wstatus: I32 = 0
+          let options: I32 = 0
+          if @waitpid[I32](_child_pid, addressof wstatus, options) < 0 then
+            // An error waiting for pid
+            _notifier.failed(this, WaitpidError)
+          else
+            // process child exit code
+            _notifier.dispose(this, (wstatus >> 8) and 0xff)
+          end
         end
-        // process child exit code
-        _notifier.dispose(this, (wstatus >> 8) and 0xff)
       end
     end
 

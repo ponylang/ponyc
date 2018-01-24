@@ -3,6 +3,7 @@
 
 #include "../ast/ast.h"
 #include "../pass/pass.h"
+#include "../type/reify.h"
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/ds/stack.h"
 
@@ -14,7 +15,7 @@ typedef struct reach_field_t reach_field_t;
 typedef struct reach_param_t reach_param_t;
 typedef struct reach_type_t reach_type_t;
 
-DECLARE_STACK(reachable_expr_stack, reachable_expr_stack_t, ast_t);
+DECLARE_STACK(reachable_expr_stack, reachable_expr_stack_t, void);
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
 DECLARE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t);
 DECLARE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t);
@@ -37,8 +38,8 @@ struct reach_method_t
   const char* full_name;
 
   token_id cap;
+  deferred_reification_t* fun;
   ast_t* typeargs;
-  ast_t* r_fun;
   uint32_t vtable_index;
 
   // Mark as true if the compiler supplies an implementation.
@@ -83,6 +84,8 @@ struct reach_field_t
 
 struct reach_param_t
 {
+  const char* name;
+  ast_t* ast;
   reach_type_t* type;
   token_id cap;
 };

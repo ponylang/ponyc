@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" != "yes" ]]
+if [[ "$TRAVIS_BRANCH" == "release" && "$RELEASE_CONFIG" != "yes" ]]
 then
   echo "This is a release branch and there's nothing this matrix element must do."
   exit 0
@@ -12,8 +12,10 @@ fi
 download_llvm(){
   echo "Downloading and installing the LLVM specified by envvars..."
 
-  wget "http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz"
-  tar -xvf clang+llvm*
+  git lfs clone -I "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz" https://github.com/ponylang/ponyc-llvm-dependencies.git
+
+  pushd ponyc-llvm-dependencies
+  tar -xf "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz"
   pushd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r ./* /tmp/llvm/
   sudo ln -s "/tmp/llvm/bin/llvm-config" "/usr/local/bin/${LLVM_CONFIG}"
   popd
@@ -23,7 +25,7 @@ download_pcre(){
   echo "Downloading and building PCRE2..."
 
   wget "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2"
-  tar -xjvf pcre2-10.21.tar.bz2
+  tar -xjf pcre2-10.21.tar.bz2
   pushd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install
   popd
 }
@@ -38,54 +40,17 @@ echo "Installing ponyc build dependencies..."
 
 case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
-  "linux:llvm-config-3.7")
-    download_llvm
-    download_pcre
-    set_linux_compiler
-  ;;
-
-  "linux:llvm-config-3.8")
-    download_llvm
-    download_pcre
-    set_linux_compiler
-  ;;
-
   "linux:llvm-config-3.9")
-    download_llvm
-    download_pcre
-    set_linux_compiler
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_CONFIG" == "yes" ]]
+    then
+      download_llvm
+      download_pcre
+      set_linux_compiler
+    fi
   ;;
 
-  "linux:llvm-config-4.0")
-    download_llvm
-    download_pcre
-  ;;
-
-  "linux:llvm-config-5.0")
-    download_llvm
-    download_pcre
-  ;;
-
-  "osx:llvm-config-3.7")
-    brew update
-    brew install pcre2
-    brew install libressl
-
-    brew install llvm37
-  ;;
-
-  "osx:llvm-config-3.8")
-    brew update
-    brew install pcre2
-    brew install libressl
-
-    brew install llvm38
-  ;;
-  
   "osx:llvm-config-3.9")
     brew update
-    brew install shellcheck
-    shellcheck ./.*.bash ./*.bash
 
     brew install pcre2
     brew install libressl
@@ -102,8 +67,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "osx:llvm-config-4.0")
     brew update
-    brew install shellcheck
-    shellcheck ./.*.bash ./*.bash
 
     brew install pcre2
     brew install libressl
@@ -120,8 +83,6 @@ case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
 
   "osx:llvm-config-5.0")
     brew update
-    brew install shellcheck
-    shellcheck ./.*.bash ./*.bash
 
     brew install pcre2
     brew install libressl

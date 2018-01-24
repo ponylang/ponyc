@@ -3,10 +3,45 @@ use "files"
 use @SSL_CTX_ctrl[ILong](
   ctx: Pointer[_SSLContext] tag,
   op: I32,
-  arg: ILong,
+  arg: ULong,
   parg: Pointer[None])
 
+use @SSLv23_method[Pointer[None]]()
+use @TLS_method[Pointer[None]]()
+use @SSL_CTX_new[Pointer[_SSLContext]](method: Pointer[None])
+use @SSL_CTX_free[None](ctx: Pointer[_SSLContext] tag)
+use @SSL_CTX_clear_options[ULong](ctx: Pointer[_SSLContext] tag, opts: ULong)
+use @SSL_CTX_set_options[ULong](ctx: Pointer[_SSLContext] tag, opts: ULong)
+
 primitive _SSLContext
+
+primitive _SslCtrlSetOptions                fun val apply(): I32 => 32
+primitive _SslCtrlClearOptions              fun val apply(): I32 => 77
+
+// These are the SSL_OP_NO_{SSL|TLS}vx{_x} in ssl.h.
+// Since Pony doesn't allow underscore we use camel case
+// and began them with underscore to keep them private.
+// Also, in the version strings the "v" becomes "V" and
+// the underscore "_" becomes "u". So SSL_OP_NO_TLSv1_2
+// _SslOpNo_TlsV1u2.
+primitive _SslOpNoSslV2    fun val apply(): ULong =>    0x01000000 // 0 in 1.1
+primitive _SslOpNoSslV3    fun val apply(): ULong =>    0x02000000
+primitive _SslOpNoTlsV1    fun val apply(): ULong =>    0x04000000
+primitive _SslOpNoTlsV1u2  fun val apply(): ULong =>    0x08000000
+primitive _SslOpNoTlsV1u1  fun val apply(): ULong =>    0x10000000
+primitive _SslOpNoTlsV1u3  fun val apply(): ULong =>    0x20000000
+
+primitive _SslOpNoDtlsV1   fun val apply(): ULong =>    0x04000000
+primitive _SslOpNoDtlsV1u2 fun val apply(): ULong =>    0x08000000
+
+// Defined as SSL_OP_NO_SSL_MASK in ssl.h
+primitive _SslOpNoSslMask fun val apply(): ULong =>
+    (_SslOpNoSslV3.apply() + _SslOpNoTlsV1.apply() + _SslOpNoTlsV1u1.apply()
+      + _SslOpNoTlsV1u2.apply() + _SslOpNoTlsV1u3.apply())
+
+// Defined as SSL_OP_NO_DTLS_MASK in ssl.h
+primitive _SslOpNoDtlsMask fun val apply(): ULong =>
+    (_SslOpNoDtlsV1.apply() + _SslOpNoDtlsV1u2.apply())
 
 class val SSLContext
   """
@@ -20,20 +55,37 @@ class val SSLContext
     """
     Create an SSL context.
     """
-    _ctx = @SSL_CTX_new[Pointer[_SSLContext]](@SSLv23_method[Pointer[None]]())
+    ifdef "openssl_1.1.0" then
+      _ctx = @SSL_CTX_new(@TLS_method())
 
-    // Disable older protocols, allow only TLSv1.2 and above
-    // set SSL_OP_NO_SSLv2
-    @SSL_CTX_ctrl(_ctx, 32, 0x01000000, Pointer[None])
+      // Allow only newer ciphers.
+      try
+        set_min_proto_version(Tls1u2Version.apply())?
+        set_max_proto_version(SslAutoVersion.apply())?
+      end
+    else
+      _ctx = @SSL_CTX_new(@SSLv23_method())
 
-    // set SSL_OP_NO_SSLv3
-    @SSL_CTX_ctrl(_ctx, 32, 0x02000000, Pointer[None])
+      // Disable "all" SSL/TSL options
+      _set_options(_SslOpNoSslMask.apply() + _SslOpNoSslV2.apply())
 
-    // set SSL_OP_NO_TLSv1
-    @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[None])
+      // Allow only newer ciphers
+      allow_tls_v1_2(true)
+    end
 
-    // set SSL_OP_NO_TLSv1_1
-    @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
+  fun _set_options(opts: ULong) =>
+    ifdef "openssl_1.1.0" then
+      @SSL_CTX_set_options(_ctx, opts)
+    else
+      @SSL_CTX_ctrl(_ctx, _SslCtrlSetOptions.apply(), opts, Pointer[None])
+    end
+
+  fun _clear_options(opts: ULong) =>
+    ifdef "openssl_1.1.0" then
+      @SSL_CTX_clear_options(_ctx, opts)
+    else
+      @SSL_CTX_ctrl(_ctx, _SslCtrlClearOptions.apply(), opts, Pointer[None])
+    end
 
   fun client(hostname: String = ""): SSL iso^ ? =>
     """
@@ -127,45 +179,94 @@ class val SSLContext
       @SSL_CTX_set_verify_depth[None](_ctx, depth)
     end
 
+  fun ref set_min_proto_version(version: ULong) ? =>
+    """
+    Set minimum protocol version. Set to SslAutoVersion, 0,
+    to automatically manage lowest version.
+
+    Supported versions: Ssl3Version, Tls1Version, Tls1u1Version,
+                        Tls1u2Version, Tls1u3Version, Dtls1Version,
+                        Dtls1u2Version
+    """
+    let result = @SSL_CTX_ctrl(_ctx, _SslCtrlSetMinProtoVersion.apply(),
+        version, Pointer[None])
+    if result == 0 then
+      error
+    end
+
+  fun ref get_min_proto_version(): ILong =>
+    """
+    Get minimum protocol version. Returns SslAutoVersion, 0,
+    when automatically managing lowest version.
+
+    Supported versions: Ssl3Version, Tls1Version, Tls1u1Version,
+                        Tls1u2Version, Tls1u3Version, Dtls1Version,
+                        Dtls1u2Version
+    """
+    @SSL_CTX_ctrl(_ctx, _SslCtrlGetMinProtoVersion.apply(), 0, Pointer[None])
+
+  fun ref set_max_proto_version(version: ULong) ? =>
+    """
+    Set maximum protocol version. Set to SslAutoVersion, 0,
+    to automatically manage higest version.
+
+    Supported versions: Ssl3Version, Tls1Version, Tls1u1Version,
+                        Tls1u2Version, Tls1u3Version, Dtls1Version,
+                        Dtls1u2Version
+    """
+    let result = @SSL_CTX_ctrl(_ctx, _SslCtrlSetMaxProtoVersion.apply(),
+        version, Pointer[None])
+    if result == 0 then
+      error
+    end
+
+  fun ref get_max_proto_version(): ILong =>
+    """
+    Get maximum protocol version. Returns SslAutoVersion, 0,
+    when automatically managing highest version.
+
+    Supported versions: Ssl3Version, Tls1Version, Tls1u1Version,
+                        Tls1u2Version, Tls1u3Version, Dtls1Version,
+                        Dtls1u2Version
+    """
+    @SSL_CTX_ctrl(_ctx, _SslCtrlGetMaxProtoVersion.apply(), 0, Pointer[None])
+
   fun ref allow_tls_v1(state: Bool) =>
     """
     Allow TLS v1. Defaults to false.
+    Deprecated: use set_min_proto_version and set_max_proto_version
     """
     if not _ctx.is_null() then
       if state then
-        // clear SSL_OP_NO_TLSv1
-        @SSL_CTX_ctrl(_ctx, 77, 0x04000000, Pointer[None])
+        _clear_options(_SslOpNoTlsV1.apply())
       else
-        // set SSL_OP_NO_TLSv1
-        @SSL_CTX_ctrl(_ctx, 32, 0x04000000, Pointer[None])
+        _set_options(_SslOpNoTlsV1.apply())
       end
     end
 
   fun ref allow_tls_v1_1(state: Bool) =>
     """
     Allow TLS v1.1. Defaults to false.
+    Deprecated: use set_min_proto_version and set_max_proto_version
     """
     if not _ctx.is_null() then
       if state then
-        // clear SSL_OP_NO_TLSv1_1
-        @SSL_CTX_ctrl(_ctx, 77, 0x10000000, Pointer[None])
+        _clear_options(_SslOpNoTlsV1u1.apply())
       else
-        // set SSL_OP_NO_TLSv1_1
-        @SSL_CTX_ctrl(_ctx, 32, 0x10000000, Pointer[None])
+        _set_options(_SslOpNoTlsV1u1.apply())
       end
     end
 
   fun ref allow_tls_v1_2(state: Bool) =>
     """
     Allow TLS v1.2. Defaults to true.
+    Deprecated: use set_min_proto_version and set_max_proto_version
     """
     if not _ctx.is_null() then
       if state then
-        // clear SSL_OP_NO_TLSv1_2
-        @SSL_CTX_ctrl(_ctx, 77, 0x08000000, Pointer[None])
+        _clear_options(_SslOpNoTlsV1u2.apply())
       else
-        // set SSL_OP_NO_TLSv1_2
-        @SSL_CTX_ctrl(_ctx, 32, 0x08000000, Pointer[None])
+        _set_options(_SslOpNoTlsV1u2.apply())
       end
     end
 
@@ -174,7 +275,7 @@ class val SSLContext
     Free the SSL context.
     """
     if not _ctx.is_null() then
-      @SSL_CTX_free[None](_ctx)
+      @SSL_CTX_free(_ctx)
       _ctx = Pointer[_SSLContext]
     end
 
@@ -183,5 +284,5 @@ class val SSLContext
     Free the SSL context.
     """
     if not _ctx.is_null() then
-      @SSL_CTX_free[None](_ctx)
+      @SSL_CTX_free(_ctx)
     end

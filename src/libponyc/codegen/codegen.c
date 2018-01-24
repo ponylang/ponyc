@@ -759,10 +759,11 @@ static void init_runtime(compile_t* c)
 #  endif
 #endif
 
-  // i32 pony_start(i32, i32)
-  params[0] = c->i32;
-  params[1] = c->i32;
-  type = LLVMFunctionType(c->i32, params, 2, false);
+  // i1 pony_start(i1, i1, i32*)
+  params[0] = c->i1;
+  params[1] = c->i1;
+  params[2] = LLVMPointerType(c->i32, 0);
+  type = LLVMFunctionType(c->i1, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -786,9 +787,9 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMReadOnlyAttribute);
 #endif
 
-  // void pony_throw()
+  // void pony_error()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
-  value = LLVMAddFunction(c->module, "pony_throw", type);
+  value = LLVMAddFunction(c->module, "pony_error", type);
 #if PONY_LLVM >= 309
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, noreturn_attr);
 #else
@@ -977,12 +978,31 @@ bool codegen_pass_init(pass_opt_t* opt)
 {
   if(opt->features != NULL)
   {
+#if PONY_LLVM < 500
+    // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
+    size_t temp_len = strlen(opt->features) + 9;
+    char* temp_str = (char*)ponyint_pool_alloc_size(temp_len);
+    snprintf(temp_str, temp_len, "%s,-avx512f", opt->features);
+
+    opt->features = temp_str;
+#endif
+
     opt->features = LLVMCreateMessage(opt->features);
+
+
+#if PONY_LLVM < 500
+    // free memory for temp_str
+    ponyint_pool_free_size(temp_len, temp_str);
+#endif
   } else {
     if((opt->cpu == NULL) && (opt->triple == NULL))
       opt->features = LLVMGetHostCPUFeatures();
     else
+#if PONY_LLVM < 500
+      opt->features = LLVMCreateMessage("-avx512f");
+#else
       opt->features = LLVMCreateMessage("");
+#endif
   }
 
   // Default triple, cpu and features.
@@ -1074,12 +1094,23 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     ast_t* main_ast = type_builtin(opt, main_def, main_actor);
     ast_t* env_ast = type_builtin(opt, main_def, env_class);
 
-    if(lookup(opt, main_ast, main_ast, c->str_create) == NULL)
+    deferred_reification_t* main_create = lookup(opt, main_ast, main_ast,
+      c->str_create);
+
+    if(main_create == NULL)
+    {
+      ast_free(main_ast);
+      ast_free(env_ast);
       return false;
+    }
 
     reach(c->reach, main_ast, c->str_create, NULL, opt);
     reach(c->reach, env_ast, c->str__create, NULL, opt);
     reach_done(c->reach, c->opt);
+
+    ast_free(main_ast);
+    ast_free(env_ast);
+    deferred_reify_free(main_create);
   }
 
   if(opt->limit == PASS_REACH)
@@ -1106,6 +1137,7 @@ void codegen_cleanup(compile_t* c)
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
+  LLVMDisposeTargetData(c->target_data);
   LLVMDisposeTargetMachine(c->machine);
   tbaa_metadatas_free(c->tbaa_mds);
   genned_strings_destroy(&c->strings);

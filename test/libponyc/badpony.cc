@@ -954,3 +954,37 @@ TEST_F(BadPonyTest, ApplySugarInferredLambdaArgument)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, IsComparingCreateSugar)
+{
+  // From issue #2024
+  const char* src =
+    "primitive P\n"
+    "class C\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    // invalid
+    "    C is C\n"
+    "    C is P\n"
+    "    P is C\n"
+    "    P is (P, C, P)\n"
+    "    P is (P; C)\n"
+    "    P is (P, ((C), P))\n"
+    "    C isnt C\n"
+    "    C isnt P\n"
+    "    P isnt C\n"
+    "    P isnt (P, C, P)\n"
+    "    P isnt (P; C)\n"
+    "    P isnt (P, ((C), P))\n"
+    // valid
+    "    P is P\n"
+    "    P is (C; P)\n"
+    "    P isnt P\n"
+    "    P isnt (C; P)";
+  {
+    const char* err = "identity comparison with a new object will always be false";
+    const char* errs[] = {err, err, err, err, err, err, err, err, err, err, err, err, NULL};
+    DO(test_expected_errors(src, "refer", errs));
+  }
+}

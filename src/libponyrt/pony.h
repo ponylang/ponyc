@@ -68,6 +68,8 @@ typedef struct pony_msgp_t
  *
  * Each type supplies a trace function. It is invoked with the currently
  * executing context and the object being traced.
+ *
+ * A trace function must not raise errors.
  */
 typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
@@ -76,6 +78,8 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
  * Each type may supply a serialise function. It is invoked with the currently
  * executing context, the object being serialised, and an address to serialise
  * to.
+ *
+ * A serialise function must not raise errors.
  */
 typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
   size_t offset, int m);
@@ -85,6 +89,8 @@ typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
  * Each class may supply a group of custom serialisation function. This
  * function returns the amount of extra space that the object needs for
  * custom serialisation.
+ *
+ * A serialise space function must not raise errors.
  */
 typedef size_t (*pony_custom_serialise_space_fn)(void* p);
 
@@ -93,6 +99,8 @@ typedef size_t (*pony_custom_serialise_space_fn)(void* p);
  * Each class may supply a group of custom serialisation function. This
  * function takes a pointer to a byte array and does whatever user-defined
  * deserialization.
+ *
+ * A custom deserialise function must not raise errors.
  */
 typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
 
@@ -100,16 +108,26 @@ typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
  *
  * Each actor has a dispatch function that is invoked when the actor handles
  * a message.
+ *
+ * A dispatch function must not raise errors.
  */
 typedef void (*pony_dispatch_fn)(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* m);
 
-/** Finalizer.
+/** Finaliser.
  *
- * An actor or object can supply a finalizer, which is called before it is
+ * An actor or object can supply a finaliser, which is called before it is
  * collected.
+ *
+ * A finaliser must not raise errors.
  */
 typedef void (*pony_final_fn)(void* p);
+
+/** Partial function.
+ *
+ * A callback for the pony_try() function, which is allowed to raise errors.
+ */
+typedef void (*pony_partial_fn)(void* data);
 
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
@@ -401,20 +419,23 @@ PONY_API int pony_init(int argc, char** argv);
 
 /** Starts the pony runtime.
  *
- * Returns -1 if the scheduler couldn't start, otherwise returns the exit code
- * set with pony_exitcode(), defaulting to 0.
+ * Returns false if the runtime couldn't start, otherwise returns true with
+ * the value pointed by exit_code set with pony_exitcode(), defaulting to 0.
+ * exit_code can be NULL if you don't care about the exit code.
  *
  * If library is false, this call will return when the pony program has
  * terminated. If library is true, this call will return immediately, with an
  * exit code of 0, and the runtime won't terminate until pony_stop() is
  * called. This allows further processing to be done on the current thread.
+ * The value pointed by exit_code will not be modified if library is true. Use
+ * the return value of pony_stop() in that case.
  *
  * If language_features is false, the features of the runtime specific to the
  * Pony language, such as network or serialisation, won't be initialised.
  *
  * It is not safe to call this again before the runtime has terminated.
  */
-PONY_API int pony_start(bool library, bool language_features);
+PONY_API bool pony_start(bool library, bool language_features, int* exit_code);
 
 /**
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
@@ -489,6 +510,25 @@ PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
  * A thread must pony_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
+
+/**
+ * The pony_try function can be used to handle Pony errors from C code.
+ * callback is invoked with data passed as its argument.
+ * Returns false if an error was raised, true otherwise.
+ */
+PONY_API bool pony_try(pony_partial_fn callback, void* data);
+
+/**
+ * Raise a Pony error.
+ *
+ * This should only be called from pony_try() or from a Pony try block. In both
+ * cases, arbitrarily deep call stacks are allowed between the call to
+ * pony_error() and the error destination.
+ *
+ * If pony_error() is called and neither pony_try() nor a try block exist higher
+ * in the call stack, the runtime calls the C abort() function.
+ */
+PONY_API void pony_error();
 
 #if defined(__cplusplus)
 }

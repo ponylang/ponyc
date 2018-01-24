@@ -30,3 +30,6 @@ output/
 _ReSharper.*
 .vscode/
 src/common/dtrace_probes.h
+
+# Allow these paths
+!src/libponyrt/lang/except_try_catch.ll
