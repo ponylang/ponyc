@@ -38,8 +38,12 @@ use ex_ring = "ring"
 use ex_spreader = "spreader"
 use ex_timers = "timers"
 use ex_yield = "yield"
+use ex_literalopt = "literal-optimisation"
 
 
 actor Main
   new create(env: Env) =>
     env.out.write("All examples compile!\n")
+
+    // instantiate items to ensure they are pushed through all compilaton phases
+    let literopt: ex_literalopt.LiteralOptimisation = ex_literalopt.LiteralOptimisation
