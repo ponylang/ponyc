@@ -8,12 +8,14 @@
 #include <string.h>
 #include "../common/paths.h"
 
+// Type for storing the source code along the documentation.
 typedef struct doc_sources_t
 {
-  const source_t* source;
-  const char* filename;
-  const char* doc_path;
-  const char* file_path;
+  const source_t* source; // The source file content
+  const char* filename; // The source filename.
+  const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
+  const char* file_path; // The absolute path of the generate source file.
+  struct doc_sources_t* next; // The next element of the linked list.
 } doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
@@ -47,8 +49,7 @@ typedef struct docgen_t
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
   errors_t* errors;
-  doc_sources_t** included_sources;
-  size_t included_sources_count;
+  doc_sources_t* included_sources; // As a linked list, being the first element or NULL
 } docgen_t;
 
 // Define options for doc generation
@@ -343,13 +344,17 @@ static const char* doc_get_cap(ast_t* cap)
   }
 }
 
-static doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
+static const doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
 {
-  for (size_t i = 0; i < docgen->included_sources_count; i++) {
-    if (source == docgen->included_sources[i]-> source) {
-      return docgen->included_sources[i];
-    }
+  if (docgen->included_sources == NULL)
+    return NULL;
 
+  const doc_sources_t* current_elem = docgen->included_sources;
+
+  while (current_elem != NULL) {
+    if (source == current_elem->source)
+      return current_elem;
+    current_elem = current_elem->next;
   }
   return NULL;
 }
@@ -495,31 +500,20 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static void add_source_code_link(docgen_t* docgen, ast_t* elem, bool on_new_line)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem)
 {
   source_t* source = ast_source(elem);
-  doc_sources_t* doc_source = NULL;
+  const doc_sources_t* doc_source = NULL;
 
   if (source != NULL)
     doc_source = get_doc_source(docgen, source);
 
   if (doc_source != NULL) {
-    // The <sub><sub> is to make the font smaller.
-    // Idea comes from 
-    // https://meta.stackexchange.com/questions/53800/markdown-extension-for-really-small-tiny-text
-    if (on_new_line) {
       fprintf(
         docgen->type_file, 
-        "\n\n<sub><sup>[[Source]](%s#%zd)</sup></sub>\n\n", 
+        "<div class=\"source-link\">[[Source]](%s#%zd)</div>", 
         doc_source->doc_path, ast_line(elem)
       );
-    } else {
-      fprintf(
-        docgen->type_file, 
-        " <sub><sup>[[Source]](%s#%zd)</sup></sub>", 
-        doc_source->doc_path, ast_line(elem)
-      );
-    }
   }
 }
 
@@ -563,8 +557,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
     fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
-    bool on_new_line = false;
-    add_source_code_link(docgen, field, on_new_line);
+    add_source_code_link(docgen, field);
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -721,8 +714,7 @@ static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
   fprintf(docgen->type_file, "### %s", name);
   doc_type_params(docgen, docgen_opt, t_params, true, false);
 
-  bool on_new_line = false;
-  add_source_code_link(docgen, method, on_new_line);
+  add_source_code_link(docgen, method);
 
   fprintf(docgen->type_file, "\n\n");
 
@@ -809,72 +801,74 @@ static char* concat(const char *s1, const char *s2)
 
 static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source, const char* package_name)
 {
-  doc_sources_t* result = (doc_sources_t*) calloc(sizeof(doc_sources_t), 1);
+  pony_assert(docgen != NULL);
+  pony_assert(source != NULL);
+  pony_assert(package_name != NULL);
+
+  doc_sources_t* result = (doc_sources_t*) calloc(1, sizeof(doc_sources_t));
 
   char filename_copy[FILENAME_MAX];
   strcpy(filename_copy, source->file);
-  const char* filename = get_file_name(filename_copy);
+
+  const char* just_filename = get_file_name(filename_copy);
+  char* filename = (char*) calloc(strlen(just_filename) + 1, sizeof(char));
+  strcpy(filename, just_filename);
   const char* filename_without_ext = remove_ext(filename, '.', 0);
   const char* filename_md_extension = concat(filename_without_ext, ".md");
+
+  // Absolute path where a copy of the source will be put.
   char source_dir[FILENAME_MAX];
-  const char* doc_source_dir_relative = concat("src/", package_name);
-  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
   path_cat(docgen->doc_source_dir, package_name, source_dir);
 
+  //Create directory for [documentationDir]/src/[package_name]
   pony_mkdir(source_dir);
   
+  // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
   char* path = (char*) malloc(sizeof(char) * FILENAME_MAX);
   path_cat(source_dir, filename_md_extension, path);
-  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension);
 
-  bool are_name_clashing = false;
-  int current_numbering = 0;
-  int number_of_try = 0;
-  do {
-    are_name_clashing = false;
-    for (size_t i = 0; i < docgen->included_sources_count; i++) {
-      pony_assert(docgen->included_sources[i] != NULL);
-      if(strcmp(path, docgen->included_sources[i]->file_path) == 0) {
-        are_name_clashing = true;
-      }
-    }
-    number_of_try++;
-    if (are_name_clashing) {
-      current_numbering++;
-      char extension[FILENAME_MAX];
-      sprintf(extension, "--%i.md", current_numbering);
-      free((void*) filename_md_extension);
-      filename_md_extension = concat(filename_without_ext, extension);
-      path_cat(source_dir, filename_md_extension, path);
-      free((void*) doc_path);
-      doc_path = concat(doc_source_dir_relative, filename_md_extension);
-    }
-  } while (are_name_clashing && number_of_try < 10);
+  // Get relative path for [documentationDir]/src/[package_name]/
+  // so it can be written in the mkdocs.yml file.
+  const char* doc_source_dir_relative = concat("src/", package_name);
+  const char* old_ptr = doc_source_dir_relative;
+  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
+  free((void*) old_ptr);
+  
+  // Get relative path for [documentationDir]/src/[package_name]/[filename].md
+  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension);
 
   free((void*) filename_without_ext);
   free((void*) filename_md_extension);
   free((void*) doc_source_dir_relative);
 
-  if (are_name_clashing) {
-    errorf(docgen->errors, NULL, "Could not handle name clash for file %s", filename);
-    return NULL;
-  }
-
+  // Section to copy source file to [documentationDir]/src/[package_name]/[filename].md
   FILE* file = fopen(path, "w");
 
   if (file != NULL) {
-    fprintf(file, "<div class=\"pony-full-source\" hidden> </div>\n");
+    // Adding a 'special' header so it can be identified 
+    // as a complete Pony source file by JavaScript to add line numbers.
+    fprintf(file, "<div class=\"pony-full-source\" >\n");
+
+    // Escape markdown to tell this is Pony code
+    // Using multiple '```````'  so hopefully the markdown parser
+    // will consider the whole text as a code block.
     fprintf(file, "```````pony\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
+    fprintf(file, "</div>\n");
     fclose(file);
 
     result->source = source;
     result->filename = filename;
     result->doc_path = doc_path;
     result->file_path = path;
+    result->next = NULL;
+
     return result;
   } else {
+    free((void*) filename);
+    free((void*) doc_path);
+    free((void*) path);
     errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
     return NULL;
   }
@@ -911,25 +905,26 @@ static void include_source_if_needed(
   const char* source_path = source->file;
   pony_assert(source_path != NULL);
 
-  bool was_included = false;
-  for (size_t i = 0; i < docgen->included_sources_count; i++) {
-    pony_assert(docgen->included_sources[i] != NULL);
-    if( strcmp(source_path, docgen->included_sources[i]->source->file) == 0)
-      was_included = true;
-  }
+  if (docgen->included_sources == NULL) {
+    docgen->included_sources = copy_source_to_doc_src(docgen, source, package_name);
+  } else {
+    doc_sources_t* current_source = docgen->included_sources;
+    doc_sources_t* last_valid_source = current_source;
+    bool is_already_included = false;
+    while (current_source != NULL && !is_already_included) {
+      pony_assert(current_source != NULL);
+      pony_assert(current_source->source != NULL);
+      pony_assert(current_source->source->file != NULL);
 
-  if (!was_included) {
-    doc_sources_t* new_elem = copy_source_to_doc_src(docgen, source, package_name);
-    if (new_elem != NULL) {
-      doc_sources_t ** resized_array = (doc_sources_t **) calloc(sizeof(doc_sources_t*), (docgen->included_sources_count + 1));
-      for (size_t i = 0; i < docgen->included_sources_count; i = i++) {
-        pony_assert(docgen->included_sources[i] != NULL);
-        resized_array[i] = docgen->included_sources[i];
+      if(strcmp(source_path, current_source->source->file) == 0) {
+        is_already_included = true;
+      } else {
+        last_valid_source = current_source;
+        current_source = current_source->next;
       }
-
-      docgen->included_sources = resized_array;
-      docgen->included_sources[docgen->included_sources_count] = new_elem;
-      docgen->included_sources_count = docgen->included_sources_count + 1;
+    }
+    if (!is_already_included) {
+      last_valid_source->next = copy_source_to_doc_src(docgen, source, package_name);
     }
   }
 }
@@ -994,8 +989,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  bool add_new_line_before_link = true;
-  add_source_code_link(docgen, ast, add_new_line_before_link);
+  add_source_code_link(docgen, ast);
 
   doc_type_params(docgen, docgen_opt, tparams, true, false);
   fprintf(docgen->type_file, "\n\n");
@@ -1369,7 +1363,6 @@ static void copy_doc_file(
       errorf(docgen->errors, NULL, "Cannot find either %s or %s." , file_install_path, file_source_path);
     }
   }
-  fclose(file_dest);
 }
 
 static void copy_doc_files(docgen_t* docgen)
@@ -1378,6 +1371,8 @@ static void copy_doc_files(docgen_t* docgen)
   bool can_get_compiler_dir = get_compiler_exe_directory(compiler_dir);
   if (can_get_compiler_dir) {
 
+    // The extra.js file to add line numbers around pony source code block 
+    // in the generated HTML documentation.
     FILE* extra_js_dest = doc_open_file(docgen, true, "extra", ".js");
 
     if (extra_js_dest != NULL) {
@@ -1389,10 +1384,13 @@ static void copy_doc_files(docgen_t* docgen)
       const char* source_path = "../../.docs/extra.js";
   #endif
       copy_doc_file(compiler_dir, install_path, source_path, extra_js_dest, docgen);
+      fclose(extra_js_dest);
     } else {
       errorf(docgen->errors, NULL, "Cannot create extra.js in the generated documentation.");
     }
 
+    // The extra.css file so that line numbers around pony source code block 
+    // are displayed properly.
     FILE* extra_css_dest = doc_open_file(docgen, true, "extra", ".css");
     if (extra_css_dest != NULL) {
   #ifdef PLATFORM_IS_WINDOWS
@@ -1403,10 +1401,13 @@ static void copy_doc_files(docgen_t* docgen)
       const char* source_path = "../../.docs/extra.css";
   #endif
       copy_doc_file(compiler_dir, install_path, source_path, extra_css_dest, docgen);
+      fclose(extra_css_dest);
     } else {
       errorf(docgen->errors, NULL, "Cannot create extra.css in the generated documentation.");
     }
 
+    // Newer version of higlight js that does the highlighting of block code.
+    // Currently, the one packaged with mkdocs for Pony source code  is buggy.
     FILE* extra_newer_highlight_js_dest = doc_open_file(docgen, true, "highlight.pack.newer", ".js");
     if (extra_newer_highlight_js_dest != NULL) {
   #ifdef PLATFORM_IS_WINDOWS
@@ -1417,6 +1418,7 @@ static void copy_doc_files(docgen_t* docgen)
       const char* source_path = "../../.docs/highlight.pack.newer.js";
   #endif
       copy_doc_file(compiler_dir, install_path, source_path, extra_newer_highlight_js_dest, docgen);
+      fclose(extra_newer_highlight_js_dest);
     } else {
       errorf(docgen->errors, NULL, "Cannot create highlight.pack.newer.js in the generated documentation.");
     }
@@ -1445,7 +1447,6 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
-  docgen.included_sources_count = 0;
 
   copy_doc_files(&docgen);
 
@@ -1473,12 +1474,18 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if (docgen.included_sources != NULL) {
     fprintf(docgen.index_file, "- source:\n");
-    for (size_t i = 0; i < docgen.included_sources_count; i++) {
-      doc_sources_t* current_source = docgen.included_sources[i];
+    doc_sources_t* current_source = docgen.included_sources;
+    while (current_source != NULL) {
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
+      free((void*) current_source->filename);
+      free((void*) current_source->doc_path);
+      free((void*) current_source->file_path);
+      doc_sources_t* current_source_ptr_copy = current_source;
+      current_source = current_source->next;
+      free((void*) current_source_ptr_copy);
     }
   }
-
+  
   // Tidy up
   if(docgen.index_file != NULL)
     fclose(docgen.index_file);
