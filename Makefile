@@ -880,6 +880,7 @@ test: all
 	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
+	@make test-examples
 
 test-examples: all
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples

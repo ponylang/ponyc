@@ -62,9 +62,9 @@ use "time"
 
 class SlowDown is TCPConnectionNotify
   let _auth: BackpressureAuth
-  let _out: StdStream
+  let _out: OutStream
 
-  new iso create(auth: BackpressureAuth, out: StdStream) =>
+  new iso create(auth: BackpressureAuth, out: OutStream) =>
     _auth = auth
     _out = out
 

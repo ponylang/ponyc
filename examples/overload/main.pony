@@ -15,10 +15,10 @@ use "time"
 
 actor Receiver
   var _msgs: U64 = 0
-  let _out: StdStream
+  let _out: OutStream
   var _last: U64 = Time.nanos()
 
-  new create(out: StdStream) =>
+  new create(out: OutStream) =>
     _out = out
     _out.print("Single receiver started.")
 
@@ -52,7 +52,7 @@ actor Main
   be loop() => None
     loop()
 
-  fun ref start_messaging(out: StdStream) =>
+  fun ref start_messaging(out: OutStream) =>
     let r = Receiver(out)
     out.print("Starting " + _size.string() + " senders.")
     for i in Range[U32](0, _size) do
