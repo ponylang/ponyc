@@ -76,14 +76,21 @@ PONY_API void pony_error()
  *
  *  RtlUnwindEx does not ever return to its caller (i.e. this personality
  *  function). If it does, the process will (most likely) be terminated.
+ *
+ *  TODO: Currently, foreign code doesn't catch foreign exceptions if they've
+ *  traversed a Pony frame. This is suspected to be related to the way SEH and
+ *  LLVM exception code generation interact.
+ *  See https://github.com/ponylang/ponyc/issues/2455 for more details.
  */
-PONY_API EXCEPTION_DISPOSITION pony_personality_v0(EXCEPTION_RECORD *ExcRecord,
-  void* EstablisherFrame, _CONTEXT *ContextRecord, DISPATCHER_CONTEXT* DispatcherContext)
+PONY_API EXCEPTION_DISPOSITION ponyint_personality_v0(
+  EXCEPTION_RECORD *ExcRecord, void* EstablisherFrame, _CONTEXT *ContextRecord,
+  DISPATCHER_CONTEXT* DispatcherContext)
 {
-  if(ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS || IS_UNWINDING(ExcRecord->ExceptionFlags))
+  if((ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS) ||
+    IS_UNWINDING(ExcRecord->ExceptionFlags))
     return ExceptionContinueSearch;
 
-  if(!(ExcRecord->ExceptionFlags  &
+  if(!(ExcRecord->ExceptionFlags &
     (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)))
   {
     if(!ponyint_lsda_scan(DispatcherContext, &landing_pad))
