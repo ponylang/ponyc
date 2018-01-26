@@ -1359,9 +1359,9 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   return result;
 }
 
-void gencall_throw(compile_t* c)
+void gencall_error(compile_t* c)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
 
   if(c->frame->invoke_target != NULL)
     invoke_fun(c, func, NULL, 0, "", false);

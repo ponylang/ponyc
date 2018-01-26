@@ -5,6 +5,13 @@
 # Target definitions are in the build() function.
 
 import sys, subprocess
+from waflib import TaskGen
+
+TaskGen.declare_chain(
+    rule    = '${LLVM_LLC} -filetype=obj -o ${TGT} ${SRC}',
+    ext_in  = '.ll',
+    ext_out = '.o'
+)
 
 # check if the operating system's description contains a string
 def os_is(name):
@@ -43,8 +50,6 @@ MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '3.8.1',
-    '3.7.1',
     '5.0.0',
     '4.0.1'
 ]
@@ -92,7 +97,7 @@ def configure(ctx):
         base_env.append_value('DEFINES', [
             '_CRT_SECURE_NO_WARNINGS', '_MBCS',
             'PLATFORM_TOOLS_VERSION=%d0' % base_env.MSVC_VERSION,
-            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION            
+            'BUILD_COMPILER="msvc-%d-x64"' % base_env.MSVC_VERSION
         ])
         base_env.append_value('LIBPATH', [ base_env.LLVM_DIR ])
 
@@ -173,8 +178,7 @@ def configure(ctx):
                 'odbc32', 'odbccp32', 'vcruntime', 'ucrt', 'Ws2_32',
                 'dbghelp', 'Shlwapi'
             ]
-
-
+        
 # specifies build targets
 def build(ctx):
     import os
@@ -245,6 +249,7 @@ def build(ctx):
                 shutil.copy(os.path.join(libresslDir, 'lib', 'tls.lib'), buildDir)
 
             llvmConfig = os.path.join(llvmDir, 'bin', 'llvm-config.exe')
+            ctx.env.LLVM_LLC = os.path.join(llvmDir, 'bin', 'llc.exe')
             llvmLibFiles = cmd_output([llvmConfig, '--libs'])
             import re
             if ctx.options.llvm.startswith(('3.7', '3.8')):
@@ -273,7 +278,7 @@ def build(ctx):
         includes = [ 'lib/gbenchmark/include' ],
         defines  = [ 'HAVE_STD_REGEX' ]
     )
-    
+
     # blake2
     ctx(
         features = 'c seq',
@@ -305,7 +310,8 @@ def build(ctx):
     ctx(
         features = 'c cxx cxxstlib seq',
         target   = 'libponyrt',
-        source   = ctx.path.ant_glob('src/libponyrt/**/*.c'),
+        source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
+                   ctx.path.ant_glob('src/libponyrt/**/*.ll'),
         includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
         defines  = [ 'PONY_NO_ASSERT' ]
     )
@@ -343,7 +349,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
-        defines   = [ 
+        defines   = [
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
             '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
         ],

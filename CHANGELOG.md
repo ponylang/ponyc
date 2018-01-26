@@ -6,13 +6,17 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix double free in expr_typeref ([PR #2467](https://github.com/ponylang/ponyc/pull/2467))
+- Fix some spurious process manager test failures ([PR #2452](https://github.com/ponylang/ponyc/pull/2452))
 - Fix ANTLR definition for char escape sequences ([PR #2440](https://github.com/ponylang/ponyc/pull/2440))
 
 ### Added
 
+- Add the pony_try function to receive Pony errors in C code ([PR #2457](https://github.com/ponylang/ponyc/pull/2457))
 
 ### Changed
 
+- Deprecate LLVM 3.7.1 and 3.8.1 support ([PR #2461](https://github.com/ponylang/ponyc/pull/2461))
 
 ## [0.21.2] - 2017-12-26
 

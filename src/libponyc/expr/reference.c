@@ -295,7 +295,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     if(!expr_nominal(opt, &type))
     {
       ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-      ast_free_unattached(type);
       return false;
     }
   }
@@ -324,7 +323,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       if(!expr_dot(opt, astp))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
 
@@ -356,7 +354,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           if(!expr_call(opt, &call))
           {
             ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-            ast_free_unattached(type);
             return false;
           }
 
@@ -370,7 +367,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           if(!expr_dot(opt, &apply))
           {
             ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-            ast_free_unattached(type);
             return false;
           }
         }
@@ -400,14 +396,12 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       if(!expr_dot(opt, &dot))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
 
       if(!expr_call(opt, astp))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
       break;
