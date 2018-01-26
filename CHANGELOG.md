@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
 - Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
 - Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
 
