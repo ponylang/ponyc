@@ -97,66 +97,6 @@ void LLVMSetIsExact(LLVMValueRef inst)
   unwrap<BinaryOperator>(inst)->setIsExact(true);
 }
 
-#if PONY_LLVM < 309
-void LLVMSetReturnNoAlias(LLVMValueRef fun)
-{
-  unwrap<Function>(fun)->setDoesNotAlias(0);
-}
-
-void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size)
-{
-  Function* f = unwrap<Function>(fun);
-
-  AttrBuilder attr;
-  attr.addDereferenceableAttr(size);
-
-  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
-}
-
-void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
-{
-  Function* f = unwrap<Function>(fun);
-
-  AttrBuilder attr;
-  attr.addDereferenceableOrNullAttr(size);
-
-  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
-}
-
-#  if PONY_LLVM >= 308
-void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
-{
-  Instruction* i = unwrap<Instruction>(inst);
-  if(CallInst* c = dyn_cast<CallInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOnly);
-  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOnly);
-  else
-    pony_assert(0);
-}
-
-void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
-{
-  unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
-}
-
-void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
-{
-  Instruction* i = unwrap<Instruction>(inst);
-  if(CallInst* c = dyn_cast<CallInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOrArgMemOnly);
-  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOrArgMemOnly);
-  else
-    pony_assert(0);
-}
-#  endif
-#endif
-
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type)
 {
   Type* t = unwrap<Type>(type);
@@ -169,23 +109,9 @@ LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative)
 {
   Type* t = unwrap<Type>(type);
 
-#if PONY_LLVM >= 307
   Value* inf = ConstantFP::getInfinity(t, negative);
-#else
-  fltSemantics const& sem = *float_semantics(t->getScalarType());
-  APFloat flt = APFloat::getInf(sem, negative);
-  Value* inf = ConstantFP::get(t->getContext(), flt);
-#endif
-
   return wrap(inf);
 }
-
-#if PONY_LLVM < 308
-static LLVMContext* unwrap(LLVMContextRef ctx)
-{
-  return reinterpret_cast<LLVMContext*>(ctx);
-}
-#endif
 
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
 {

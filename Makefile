@@ -209,20 +209,8 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-3.9
   else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-  else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.8
-  else ifneq (,$(shell which llvm-config-mp-3.8 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-3.8
-  else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.7
-  else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.6
   else ifneq (,$(shell which llvm-config39 2> /dev/null))
     LLVM_CONFIG = llvm-config39
-  else ifneq (,$(shell which llvm-config38 2> /dev/null))
-    LLVM_CONFIG = llvm-config38
-  else ifneq (,$(shell which llvm-config37 2> /dev/null))
-    LLVM_CONFIG = llvm-config37
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
   else ifneq (,$(shell which llvm-config 2> /dev/null))
@@ -259,12 +247,6 @@ endif
 ifeq ($(OSTYPE),osx)
   ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
     AR = $(LLVM_BINDIR)/llvm-ar
-    AR_FLAGS := rcs
-  else ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
-    AR = llvm-ar-mp-3.8
-    AR_FLAGS := rcs
-  else ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
-    AR = llvm-ar-3.8
     AR_FLAGS := rcs
   else
     AR = /usr/bin/ar
