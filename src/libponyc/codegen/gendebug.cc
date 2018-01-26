@@ -50,7 +50,7 @@ LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m)
 {
   Module* pm = unwrap(m);
 
-#if defined(_MSC_VER) && PONY_LLVM >= 309
+#ifdef _MSC_VER
   pm->addModuleFlag(Module::Warning, "CodeView", 1);
 #else
   unsigned dwarf = dwarf::DWARF_VERSION;
@@ -86,12 +86,9 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
   DIFile* difile = pd->createFile(file, dir);
   return wrap(pd->createCompileUnit(lang, difile, producer,
     optimized ? true : false, flags, runtimever));
-#elif PONY_LLVM >= 309
-  return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized,
-    flags, runtimever, StringRef())); // use the defaults
 #else
   return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized,
-    flags, runtimever, StringRef(), DIBuilder::FullDebug, 0, true));
+    flags, runtimever, StringRef())); // use the defaults
 #endif
 }
 
@@ -105,26 +102,24 @@ LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file)
   return wrap(pd->createFile(filename, dir));
 }
 
-#if PONY_LLVM >= 309
 LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, unsigned line)
 {
   DIBuilder* pd = unwrap(d);
-#  if PONY_LLVM >= 400
-#    if PONY_LLVM >= 500
+#if PONY_LLVM >= 400
+#  if PONY_LLVM >= 500
   (void)file;
   (void)line;
   return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name, false));
-#    else
-  return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name,
-    unwrap<DIFile>(file), line, false));
-#    endif
 #  else
   return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name,
-    unwrap<DIFile>(file), line));
+    unwrap<DIFile>(file), line, false));
 #  endif
-}
+#else
+  return wrap(pd->createNameSpace(unwrap<DIScope>(scope), name,
+    unwrap<DIFile>(file), line));
 #endif
+}
 
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col)
@@ -150,24 +145,13 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
 
   f->setSubprogram(di_method);
   return wrap(di_method);
-#elif PONY_LLVM >= 309
+#else
   DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
     false, true, 0, 0, 0, 0, optimized);
 
   f->setSubprogram(di_method);
   return wrap(di_method);
-#elif PONY_LLVM >= 308
-  DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
-    name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
-    false, true, 0, 0, nullptr, 0, optimized);
-
-  f->setSubprogram(di_method);
-  return wrap(di_method);
-#else
-  return wrap(pd->createMethod(unwrap<DIScope>(scope), name, linkage,
-    unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
-    false, true, 0, 0, nullptr, 0, optimized, f));
 #endif
 }
 
@@ -180,13 +164,9 @@ LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef d,
 #if PONY_LLVM >= 400
   return wrap(pd->createAutoVariable(unwrap<DIScope>(scope), name,
     unwrap<DIFile>(file), line, unwrap<DIType>(type), true, DINode::FlagZero));
-#elif PONY_LLVM >= 308
+#else
   return wrap(pd->createAutoVariable(unwrap<DIScope>(scope), name,
     unwrap<DIFile>(file), line, unwrap<DIType>(type), true, 0));
-#else
-  return wrap(pd->createLocalVariable(DW_TAG_auto_variable,
-    unwrap<DIScope>(scope), name, unwrap<DIFile>(file), line,
-    unwrap<DIType>(type), true, 0));
 #endif
 }
 
@@ -200,14 +180,10 @@ LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef d,
   return wrap(pd->createParameterVariable(
     unwrap<DIScope>(scope), name, arg, unwrap<DIFile>(file), line,
     unwrap<DIType>(type), true, DINode::FlagZero));
-#elif PONY_LLVM >= 308
+#else
   return wrap(pd->createParameterVariable(
     unwrap<DIScope>(scope), name, arg, unwrap<DIFile>(file), line,
     unwrap<DIType>(type), true, 0));
-#else
-  return wrap(pd->createLocalVariable(DW_TAG_arg_variable,
-    unwrap<DIScope>(scope), name, unwrap<DIFile>(file), line,
-    unwrap<DIType>(type), true, 0, arg));
 #endif
 }
 
@@ -215,21 +191,12 @@ LLVMMetadataRef LLVMDIBuilderCreateArtificialVariable(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, unsigned arg,
   LLVMMetadataRef file, unsigned line, LLVMMetadataRef type)
 {
-#if PONY_LLVM >= 308
   DIBuilder* pd = unwrap(d);
 
   return wrap(pd->createParameterVariable(
     unwrap<DIScope>(scope), name, arg, unwrap<DIFile>(file), line,
     pd->createArtificialType(unwrap<DIType>(type)),
     true, DINode::FlagArtificial));
-#else
-  DIBuilder* pd = unwrap(d);
-
-  return wrap(pd->createLocalVariable(DW_TAG_arg_variable,
-    unwrap<DIScope>(scope), name, unwrap<DIFile>(file), line,
-    pd->createArtificialType(unwrap<DIType>(type)),
-    true, DINode::FlagArtificial, arg));
-#endif
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
@@ -258,18 +225,11 @@ LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
 LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef d,
   LLVMMetadataRef file, LLVMMetadataRef param_types)
 {
-#if PONY_LLVM >= 308
   DIBuilder* pd = unwrap(d);
 
   (void)file;
   return wrap(pd->createSubroutineType(
     DITypeRefArray(unwrap<MDTuple>(param_types))));
-#else
-  DIBuilder* pd = unwrap(d);
-
-  return wrap(pd->createSubroutineType(unwrap<DIFile>(file),
-    DITypeRefArray(unwrap<MDTuple>(param_types))));
-#endif
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef d,

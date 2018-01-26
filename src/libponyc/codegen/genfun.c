@@ -190,7 +190,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   else
     scope = c_t->di_type;
 
-#if PONY_LLVM >= 309 && defined(_MSC_VER)
+#ifdef _MSC_VER
   // CodeView on Windows doesn't like "non-class" methods
   if (c_t->primitive != NULL)
   {
@@ -700,7 +700,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   {
     LLVMTypeRef elem = LLVMGetElementType(c_t->use_type);
     size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
-#if PONY_LLVM >= 309
+
     LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
     LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
     LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
@@ -708,10 +708,6 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, align_attr);
-#else
-    LLVMSetReturnNoAlias(fun);
-    LLVMSetDereferenceable(fun, 0, size);
-#endif
   }
   codegen_startfun(c, fun, NULL, NULL, false);
 
@@ -782,12 +778,8 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
 void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
   LLVMValueRef fun)
 {
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
-#else
-  (void)c;
-#endif
 
   LLVMValueRef param = LLVMGetFirstParam(fun);
   reach_type_t* type = t;
@@ -821,35 +813,26 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
         switch(cap)
         {
           case TK_ISO:
-#if PONY_LLVM >= 309
             LLVMAddAttributeAtIndex(fun, i + offset, noalias_attr);
-#else
-            (void)offset;
-            LLVMAddAttribute(param, LLVMNoAliasAttribute);
-#endif
             break;
+
           case TK_TRN:
           case TK_REF:
             break;
+
           case TK_VAL:
           case TK_TAG:
-#if PONY_LLVM >= 309
             LLVMAddAttributeAtIndex(fun, i + offset, noalias_attr);
             LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
-#else
-            LLVMAddAttribute(param, LLVMNoAliasAttribute);
-            LLVMAddAttribute(param, LLVMReadOnlyAttribute);
-#endif
             break;
+
           case TK_BOX:
-#if PONY_LLVM >= 309
             LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
-#else
-            LLVMAddAttribute(param, LLVMReadOnlyAttribute);
-#endif
             break;
+
           default:
             pony_assert(0);
+            break;
         }
       }
     }

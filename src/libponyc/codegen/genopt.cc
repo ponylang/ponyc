@@ -870,10 +870,8 @@ public:
 #endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
-#if PONY_LLVM >= 308
     fn->addAttribute(functionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
-#endif
 
 #if PONY_LLVM < 500
     fn->setDoesNotAlias(0);
