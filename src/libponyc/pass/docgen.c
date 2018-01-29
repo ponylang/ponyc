@@ -502,6 +502,8 @@ static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* lis
 
 static void add_source_code_link(docgen_t* docgen, ast_t* elem)
 {
+  pony_assert(docgen != NULL);
+  pony_assert(docgen->type_file != NULL);
   source_t* source = ast_source(elem);
   const doc_sources_t* doc_source = NULL;
 
@@ -511,9 +513,11 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
   if (doc_source != NULL) {
       fprintf(
         docgen->type_file, 
-        "<div class=\"source-link\">[[Source]](%s#L%zd)</div>", 
+        "\n<div class=\"source-link\">[[Source]](%s#L%zd)</div>\n", 
         doc_source->doc_path, ast_line(elem)
       );
+  } else {
+    fprintf(docgen->type_file, "\n\n");
   }
 }
 
@@ -985,10 +989,10 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  add_source_code_link(docgen, ast);
 
   doc_type_params(docgen, docgen_opt, tparams, true, false);
-  fprintf(docgen->type_file, "\n\n");
+
+  add_source_code_link(docgen, ast);
 
   if(ast_id(doc) != TK_NONE)
     fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
