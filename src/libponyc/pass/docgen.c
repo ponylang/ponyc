@@ -513,7 +513,7 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
   if (doc_source != NULL) {
       fprintf(
         docgen->type_file, 
-        "\n<div class=\"source-link\">[[Source]](%s#L%zd)</div>\n", 
+        "\n<span class=\"source-link\">[[Source]](%s#L%zd)</span>\n", 
         doc_source->doc_path, ast_line(elem)
       );
   } else {
