@@ -178,15 +178,16 @@ char* get_file_name(char* filename)
 //   finished with it.
 // If you pass in NULL or the new string can't be allocated,
 //   it returns NULL.
-char* remove_ext(const char* path, char dot, char sep) 
+char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size) 
 {
     char *retstr, *lastdot, *lastsep;
     // Error checks and allocate string.
     if (path == NULL)
       return NULL;
 
-    if ((retstr = (char*) malloc(strlen(path) + 1)) == NULL)
-      return NULL;
+    *allocated_size = strlen(path) + 1;
+
+    retstr = (char*) ponyint_pool_alloc_size(*allocated_size);
 
     // Make a copy and find the relevant characters.
     strcpy(retstr, path);

@@ -13,8 +13,11 @@ typedef struct doc_sources_t
 {
   const source_t* source; // The source file content
   const char* filename; // The source filename.
+  size_t filename_alloc_size; // alloc size for the filename.
   const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
+  size_t doc_path_alloc_size; // alloc size for the doc_path.
   const char* file_path; // The absolute path of the generate source file.
+  size_t file_path_alloc_size; // alloc size for the file_path.
   struct doc_sources_t* next; // The next element of the linked list.
 } doc_sources_t;
 
@@ -793,10 +796,11 @@ static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
     doc_method(docgen, docgen_opt, p->ast);
 }
 
-static char* concat(const char *s1, const char *s2)
+static char* concat(const char *s1, const char *s2, size_t* allocated_size)
 {
   size_t str_size = strlen(s1) + strlen(s2) + 1;
-  char* result = (char*) malloc(str_size); //+1 for the null-terminator
+  char* result = (char*) ponyint_pool_alloc_size(str_size); //+1 for the null-terminator
+  *allocated_size = str_size;
   strcpy(result, s1);
   strcat(result, s2);
   result[str_size - 1] = '\0';
@@ -809,16 +813,19 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   pony_assert(source != NULL);
   pony_assert(package_name != NULL);
 
-  doc_sources_t* result = (doc_sources_t*) calloc(1, sizeof(doc_sources_t));
+  doc_sources_t* result = (doc_sources_t*) ponyint_pool_alloc_size(sizeof(doc_sources_t));
 
   char filename_copy[FILENAME_MAX];
   strcpy(filename_copy, source->file);
 
   const char* just_filename = get_file_name(filename_copy);
-  char* filename = (char*) calloc(strlen(just_filename) + 1, sizeof(char));
+  size_t filename_alloc_size = strlen(just_filename) + 1;
+  char* filename = (char*) ponyint_pool_alloc_size(filename_alloc_size);
   strcpy(filename, just_filename);
-  const char* filename_without_ext = remove_ext(filename, '.', 0);
-  const char* filename_md_extension = concat(filename_without_ext, ".md");
+  size_t filename_without_ext_alloc_size = 0;
+  const char* filename_without_ext = remove_ext(filename, '.', 0, &filename_without_ext_alloc_size);
+  size_t filename_md_extension_alloc_size = 0;
+  const char* filename_md_extension = concat(filename_without_ext, ".md", &filename_md_extension_alloc_size);
 
   // Absolute path where a copy of the source will be put.
   char source_dir[FILENAME_MAX];
@@ -828,22 +835,27 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   pony_mkdir(source_dir);
   
   // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
-  char* path = (char*) malloc(sizeof(char) * FILENAME_MAX);
+  size_t file_path_alloc_size = FILENAME_MAX;
+  char* path = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
   path_cat(source_dir, filename_md_extension, path);
 
   // Get relative path for [documentationDir]/src/[package_name]/
   // so it can be written in the mkdocs.yml file.
-  const char* doc_source_dir_relative = concat("src/", package_name);
+
+  size_t old_ptr_alloc_size = 0;
+  const char* doc_source_dir_relative = concat("src/", package_name, &old_ptr_alloc_size);
   const char* old_ptr = doc_source_dir_relative;
-  doc_source_dir_relative = concat(doc_source_dir_relative, "/");
-  free((void*) old_ptr);
+  size_t doc_source_dir_relative_alloc_size = 0;
+  doc_source_dir_relative = concat(doc_source_dir_relative, "/", &doc_source_dir_relative_alloc_size);
+  ponyint_pool_free_size(old_ptr_alloc_size, (void*) old_ptr);
   
   // Get relative path for [documentationDir]/src/[package_name]/[filename].md
-  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension);
+  size_t doc_path_alloc_size = 0;
+  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension, &doc_path_alloc_size);
 
-  free((void*) filename_without_ext);
-  free((void*) filename_md_extension);
-  free((void*) doc_source_dir_relative);
+  ponyint_pool_free_size(filename_without_ext_alloc_size, (void*) filename_without_ext);
+  ponyint_pool_free_size(filename_md_extension_alloc_size, (void*) filename_md_extension);
+  ponyint_pool_free_size(doc_source_dir_relative_alloc_size, (void*) doc_source_dir_relative);
 
   // Section to copy source file to [documentationDir]/src/[package_name]/[filename].md
   FILE* file = fopen(path, "w");
@@ -859,16 +871,21 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     fclose(file);
 
     result->source = source;
+
     result->filename = filename;
+    result->filename_alloc_size= filename_alloc_size;
     result->doc_path = doc_path;
+    result->doc_path_alloc_size = doc_path_alloc_size;
     result->file_path = path;
+    result->file_path_alloc_size = file_path_alloc_size;
+
     result->next = NULL;
 
     return result;
   } else {
-    free((void*) filename);
-    free((void*) doc_path);
-    free((void*) path);
+    ponyint_pool_free_size(filename_alloc_size, (void*) filename);
+    ponyint_pool_free_size(doc_path_alloc_size, (void*) doc_path);
+    ponyint_pool_free_size(file_path_alloc_size, (void*) path);
     errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
     return NULL;
   }
@@ -1337,7 +1354,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
 
-  docgen.doc_source_dir = (char*) malloc(sizeof(char) * FILENAME_MAX);
+  docgen.doc_source_dir = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
   path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
   pony_mkdir(docgen.doc_source_dir);
 
@@ -1362,12 +1379,12 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     doc_sources_t* current_source = docgen.included_sources;
     while (current_source != NULL) {
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
-      free((void*) current_source->filename);
-      free((void*) current_source->doc_path);
-      free((void*) current_source->file_path);
+      ponyint_pool_free_size(current_source->filename_alloc_size, (void*) current_source->filename);
+      ponyint_pool_free_size(current_source->doc_path_alloc_size, (void*) current_source->doc_path);
+      ponyint_pool_free_size(current_source->file_path_alloc_size, (void*) current_source->file_path);
       doc_sources_t* current_source_ptr_copy = current_source;
       current_source = current_source->next;
-      free((void*) current_source_ptr_copy);
+      ponyint_pool_free_size(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
     }
   }
   
