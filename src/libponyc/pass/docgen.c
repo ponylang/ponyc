@@ -1367,7 +1367,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.home_file, "Packages\n\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
-    fprintf(docgen.index_file, "theme: readthedocs\n"); // TODO: switch to other theme when ready
+    fprintf(docgen.index_file, "theme: ponylang\n");
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
