@@ -35,6 +35,61 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   return actor;
 }
 
+static LLVMValueRef make_lang_features_init(compile_t* c)
+{
+  char* triple = c->opt->triple;
+
+  LLVMTypeRef boolean;
+
+  if(target_is_ppc(triple) && target_is_ilp32(triple) &&
+    target_is_macosx(triple))
+    boolean = c->i32;
+  else
+    boolean = c->i8;
+
+  LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
+
+  uint32_t desc_table_size = reach_max_type_id(c->reach);
+
+  LLVMTypeRef f_params[4];
+  f_params[0] = boolean;
+  f_params[1] = boolean;
+  f_params[2] = desc_ptr_ptr;
+  f_params[3] = c->intptr;
+
+  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 4,
+    false);
+
+  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(codegen_fun(c));
+  LLVMValueRef inst = LLVMGetFirstInstruction(entry_block);
+
+  if(inst != NULL)
+    LLVMPositionBuilderBefore(c->builder, inst);
+  else
+    LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+  LLVMValueRef lfi_object = LLVMBuildAlloca(c->builder, lfi_type, "");
+
+  LLVMPositionBuilderAtEnd(c->builder, this_block);
+
+  LLVMValueRef field = LLVMBuildStructGEP(c->builder, lfi_object, 0, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 1, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 2, "");
+  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, c->desc_table,
+    desc_ptr_ptr, ""), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 3, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
+    field);
+
+  return LLVMBuildBitCast(c->builder, lfi_object, c->void_ptr, "");
+}
+
 LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
@@ -129,8 +184,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i1, 0, false);
-  args[1] = LLVMConstInt(c->i1, 1, false);
-  args[2] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  args[1] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  args[2] = make_lang_features_init(c);
   LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
 
   LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
@@ -280,9 +335,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
-  const char* export = target_is_linux(c->opt->triple) ?
-    "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
-    "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
   const char* dtrace_args =
 #if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
@@ -302,9 +354,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s %s %s -lm %s",
+    "%s %s %s %s -lpthread %s %s %s -lm",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    dtrace_args, ponyrt, ldl, export
+    dtrace_args, ponyrt, ldl
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

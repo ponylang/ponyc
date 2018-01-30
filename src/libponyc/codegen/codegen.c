@@ -583,10 +583,10 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  // i1 pony_start(i1, i1, i32*)
+  // i1 pony_start(i1, i32*, i8*)
   params[0] = c->i1;
-  params[1] = c->i1;
-  params[2] = LLVMPointerType(c->i32, 0);
+  params[1] = LLVMPointerType(c->i32, 0);
+  params[2] = LLVMPointerType(c->i8, 0);
   type = LLVMFunctionType(c->i1, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 

@@ -20,14 +20,6 @@
 using std::string;
 
 
-// These will be set when running a JIT'ed program.
-extern "C"
-{
-  EXPORT_SYMBOL pony_type_t** __PonyDescTablePtr;
-  EXPORT_SYMBOL size_t __PonyDescTableSize;
-}
-
-
 static const char* const _builtin =
   "primitive U8 is Real[U8]\n"
   "  new create(a: U8 = 0) => a\n"
@@ -478,10 +470,7 @@ bool PassTest::run_program(int* exit_code)
   pony_assert(compile != NULL);
 
   pony_exitcode(0);
-  jit_symbol_t symbols[] = {
-    {"__PonyDescTablePtr", &__PonyDescTablePtr, sizeof(pony_type_t**)},
-    {"__PonyDescTableSize", &__PonyDescTableSize, sizeof(size_t)}};
-  return gen_jit_and_run(compile, exit_code, symbols, 2);
+  return gen_jit_and_run(compile, exit_code, NULL, 0);
 }
 
 
