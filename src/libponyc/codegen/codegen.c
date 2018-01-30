@@ -269,6 +269,8 @@ static void init_runtime(compile_t* c)
   params[0] = c->descriptor_ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
+  unsigned int align_value = target_is_ilp32(c->opt->triple) ? 4 : 8;
+
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
@@ -277,9 +279,8 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
-    PONY_ACTOR_PAD_SIZE + (target_is_ilp32(c->opt->triple) ? 4 : 8));
-  LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, ponyint_pool_size(0));
-  LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
+    PONY_ACTOR_PAD_SIZE + align_value);
+  LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, align_value);
   LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
     HEAP_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
@@ -304,7 +305,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // void ponyint_destroy(__object*)
   params[0] = c->object_ptr;
@@ -352,7 +353,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_small(i8*, i32)
   params[0] = c->void_ptr;
@@ -366,7 +367,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->void_ptr;
@@ -380,7 +381,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_realloc(i8*, i8*, intptr)
   params[0] = c->void_ptr;
@@ -395,7 +396,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_final(i8*, intptr)
   params[0] = c->void_ptr;
@@ -409,7 +410,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_small_final(i8*, i32)
   params[0] = c->void_ptr;
@@ -423,7 +424,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_large_final(i8*, intptr)
   params[0] = c->void_ptr;
@@ -437,7 +438,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;
@@ -449,7 +450,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // void pony_trace(i8*, i8*)
   params[0] = c->void_ptr;
