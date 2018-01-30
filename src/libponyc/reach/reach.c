@@ -1709,6 +1709,23 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name)
   return m->vtable_index;
 }
 
+uint32_t reach_max_type_id(reach_t* r)
+{
+  uint32_t object_id_max = (r->object_type_count * 2) + 1;
+  uint32_t numeric_id_max = r->numeric_type_count * 4;
+  uint32_t tuple_id_max = (r->tuple_type_count * 4) + 2;
+
+  uint32_t len = object_id_max;
+
+  if(len < numeric_id_max)
+    len = numeric_id_max;
+
+  if(len < tuple_id_max)
+    len = tuple_id_max;
+
+  return len;
+}
+
 void reach_dump(reach_t* r)
 {
   printf("REACH\n");
