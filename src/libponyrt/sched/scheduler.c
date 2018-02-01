@@ -1478,11 +1478,15 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       if(!has_flag(to_unmute, FLAG_UNSCHEDULED))
       {
         ponyint_unmute_actor(to_unmute);
-        // TODO: we don't want to reschedule if our queue is empty.
-        // That's wasteful.
-        ponyint_sched_add(ctx, to_unmute);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
-        actors_rescheduled++;
+
+        // Only reschedule if the queue isn't empty. The queue hasn't been
+        // marked as empty when the actor was muted.
+        if(!ponyint_messageq_markempty(&to_unmute->q))
+        {
+          ponyint_sched_add(ctx, to_unmute);
+          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+          actors_rescheduled++;
+        }
       }
 
       ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
