@@ -197,6 +197,9 @@ actor TCPConnection
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
+  // _pending is used to avoid GC prematurely reaping memory.
+  // See GitHub bug 2526 for more.  It looks like a write-only
+  // data structure, but its use is important until the Pony runtime changes.
   embed _pending: Array[ByteSeq] = _pending.create()
   embed _pending_writev: Array[USize] = _pending_writev.create()
   var _pending_sent: USize = 0
