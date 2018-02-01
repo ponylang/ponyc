@@ -1164,7 +1164,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     size_t index = HASHMAP_UNKNOWN;
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
     ffi_decl_t k;
     k.func = func;
 

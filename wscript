@@ -293,6 +293,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
+        defines   = [ 'PONY_ALWAYS_ASSERT' ],
         use       = [ 'blake2' ]
     )
 
@@ -312,8 +313,7 @@ def build(ctx):
         target   = 'libponyrt',
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
                    ctx.path.ant_glob('src/libponyrt/**/*.ll'),
-        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
-        defines  = [ 'PONY_NO_ASSERT' ]
+        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes
     )
 
     # libponyrt.benchmarks
@@ -332,6 +332,7 @@ def build(ctx):
         target    = 'ponyc',
         source    = ctx.path.ant_glob('src/ponyc/**/*.c'),
         includes  = [ 'src/common' ],
+        defines   = [ 'PONY_ALWAYS_ASSERT' ],
         use       = [ 'libponyc', 'libponyrt' ],
         lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
     )
@@ -350,6 +351,7 @@ def build(ctx):
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
         defines   = [
+            'PONY_ALWAYS_ASSERT',
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
             '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
         ],

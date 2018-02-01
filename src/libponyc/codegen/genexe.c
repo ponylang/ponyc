@@ -354,6 +354,12 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
+// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
+#ifndef NDEBUG
+    // Allows the implementation of `pony_assert` to correctly get symbol names
+    // for backtrace reporting.
+    "-rdynamic "
+#endif
     "%s %s %s %s -lpthread %s %s %s -lm",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
     dtrace_args, ponyrt, ldl
