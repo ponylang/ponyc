@@ -22,7 +22,7 @@ class CommonLog is Logger
     list.push(" - ")
     list.push(_entry(request.url.user))
 
-    let time = Date(Time.seconds()).format("%d/%b/%Y:%H:%M:%S +0000")
+    let time = PosixDate(Time.seconds()).format("%d/%b/%Y:%H:%M:%S +0000")
     list.push(" [")
     list.push(time)
     list.push("] \"")

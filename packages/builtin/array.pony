@@ -1,6 +1,86 @@
 class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
+
+  ## Usage
+
+  Creating an Array of String.
+  ```pony
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+    // array.size() == 3
+    // array.space() >= 3
+  ```
+
+  Creating an empty Array of String, which may hold at least 10 elements before
+  requesting more space.
+  ```pony
+    let array = Array(10)
+    // array.size() == 0
+    // array.space() >= 10
+  ```
+
+  Accessing elements can be done via the `apply(i: USize): this->A ?` method.
+  The provided index might be out of bounds so `apply` is partial and has to be
+  called within a try-catch block or inside another partial method.
+  ```pony
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+    let is_second_element_wobat = try
+      // indexes start from 0, so 1 is the second element
+      array(1)? == "wombat"
+    else
+      false
+    end
+  ```
+
+  Adding and removing elements to and from the end of the Array can be done via
+  `push` and `pop` methods. You could treat the array as a FIFO queue using
+  those methods.
+  ```pony
+    while (array.size() > 0) do
+      let elem = array.pop()?
+      // do something with element
+    end
+  ```
+
+  Modifying the Array can be done via `update`, `insert` and `delete` methods
+  which alter the Array at an arbitrary index, moving elements left (when
+  deleting) or right (when inserting) as necessary.
+
+  Iterating over the elements of an Array can be done using the `values` method.
+  ```pony
+    for element in array.values() do
+        // do something with element
+    end
+  ```
+
+  ## Memory allocation
+  Array allocates contiguous memory. It always allocates at least enough memory
+  space to hold all of its elements. Space is the number of elements the Array
+  can hold without allocating more memory. The `space()` method returns the
+  number of elements an Array can hold. The `size()` method returns the number
+  of elements the Array holds.
+
+  Different data types require different amounts of memory. Array[U64] with size
+  of 6 will take more memory than an Array[U8] of the same size.
+
+  When creating an Array or adding more elements will calculate the next power
+  of 2 of the requested number of elements and allocate that much space, with a
+  lower bound of space for 8 elements.
+
+  Here's a few examples of the space allocated when initialising an Array with
+  various number of elements:
+
+  | size | space |
+  |------|-------|
+  | 0    | 0     |
+  | 1    | 8     |
+  | 8    | 8     |
+  | 9    | 16    |
+  | 16   | 16    |
+  | 17   | 32    |
+
+  Call the `compact()` method to ask the GC to reclaim unused space. There are
+  no guarantees that the GC will actually reclaim any space.
   """
   var _size: USize
   var _alloc: USize

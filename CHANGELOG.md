@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Do not catch foreign exceptions in Pony try blocks. This still doesn't work on Windows, foreign code doesn't catch foreign exceptions if they've traversed a Pony frame. ([PR #2466](https://github.com/ponylang/ponyc/pull/2466))
 - Fix LLVM IR verification with DoNotOptimise ([PR #2506](https://github.com/ponylang/ponyc/pull/2506))
 
 ### Added
@@ -16,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
 - Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
 - Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
 

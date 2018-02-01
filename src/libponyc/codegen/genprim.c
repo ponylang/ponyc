@@ -117,7 +117,6 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
@@ -125,10 +124,6 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
-#else
-  LLVMSetReturnNoAlias(c_m->func);
-  LLVMSetDereferenceableOrNull(c_m->func, 0, size);
-#endif
 
   LLVMValueRef len = LLVMGetParam(c_m->func, 1);
   LLVMValueRef args[2];
@@ -156,7 +151,6 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
@@ -164,10 +158,6 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
-#else
-  LLVMSetReturnNoAlias(c_m->func);
-  LLVMSetDereferenceableOrNull(c_m->func, 0, size);
-#endif
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
@@ -643,7 +633,6 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
 
   bool is_ptr = LLVMGetTypeKind(t_elem->use_type) == LLVMPointerTypeKind;
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
   LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
@@ -656,13 +645,6 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-#else
-  if(is_ptr)
-    LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
-#  if PONY_LLVM >= 308
-  LLVMSetCallInaccessibleMemOrArgMemOnly(call);
-#  endif
-#endif
 
   LLVMBuildRet(c->builder, t_result->instance);
   codegen_finishfun(c);
@@ -680,7 +662,6 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
     false);
   LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
     inaccessiblemem_or_argmemonly, 0);
@@ -688,11 +669,6 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-#elif PONY_LLVM >= 308
-  LLVMSetCallInaccessibleMemOnly(call);
-#else
-  (void)call;
-#endif
 
   LLVMBuildRet(c->builder, t_result->instance);
   codegen_finishfun(c);

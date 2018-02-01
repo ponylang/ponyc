@@ -12,10 +12,17 @@ use "ponytest"
 
 // Commented packages are broken at the moment. We have to fix them and
 // then keep the tests green.
+
+// The FFI examples below are commented out beccause they may
+// not link correctly due to one or more missing libraries that
+// our naive Makefile does not know about.
+
 use ex_circle = "circle"
 use ex_commandline = "commandline"
 use ex_counter = "counter"
+// No compilable Pony code inside: use ex_dtrace = "dtrace"
 use ex_echo = "echo"
+// use ex_ffi_callbacks = "ffi-callbacks"
 // use ex_ffi_struct = "ffi-struct"
 use ex_files = "files"
 use ex_gups_basic = "gups_basic"
@@ -31,12 +38,14 @@ use ex_message_ubench = "message-ubench"
 use ex_mixed = "mixed"
 use ex_n_body = "n-body"
 use ex_net = "net"
+use ex_overload = "overload"
 use ex_printargs = "printargs"
 use ex_producer_consumer = "producer-consumer"
 use ex_readline = "readline"
 use ex_ring = "ring"
 use ex_spreader = "spreader"
 use ex_timers = "timers"
+use ex_under_pressure = "under_pressure"
 use ex_yield = "yield"
 
 

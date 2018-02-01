@@ -81,25 +81,10 @@ static void custom_deserialise(pony_ctx_t* ctx)
   }
 }
 
-bool ponyint_serialise_setup()
+bool ponyint_serialise_setup(pony_type_t** table, size_t table_size)
 {
-#if defined(PLATFORM_IS_POSIX_BASED)
-  void* tbl_size_sym = dlsym(RTLD_DEFAULT, "__PonyDescTableSize");
-  void* tbl_ptr_sym = dlsym(RTLD_DEFAULT, "__PonyDescTablePtr");
-#else
-  HMODULE program = GetModuleHandle(NULL);
-
-  if(program == NULL)
-    return false;
-
-  void* tbl_size_sym = (void*)GetProcAddress(program, "__PonyDescTableSize");
-  void* tbl_ptr_sym = (void*)GetProcAddress(program, "__PonyDescTablePtr");
-#endif
-  if((tbl_size_sym == NULL) || (tbl_ptr_sym == NULL))
-    return false;
-
-  desc_table_size = *(size_t*)tbl_size_sym;
-  desc_table = *(pony_type_t***)tbl_ptr_sym;
+  desc_table = table;
+  desc_table_size = table_size;
 
   return true;
 }

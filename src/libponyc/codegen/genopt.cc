@@ -181,12 +181,14 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
+    unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
+
 #if PONY_LLVM < 500
-    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, "",
-      begin);
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, align,
+      "", begin);
 #else
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(),
-      0, int_size, "", begin);
+      0, int_size, align, "", begin);
 #endif
 
     replace->setDebugLoc(call->getDebugLoc());
@@ -870,10 +872,8 @@ public:
 #endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
-#if PONY_LLVM >= 308
     fn->addAttribute(functionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
-#endif
 
 #if PONY_LLVM < 500
     fn->setDoesNotAlias(0);
@@ -885,7 +885,7 @@ public:
       fn->addDereferenceableAttr(returnIndex, min_size);
 
     AttrBuilder attr;
-    attr.addAlignmentAttr(32);
+    attr.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
 #if PONY_LLVM < 500
     fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(),
       returnIndex, attr));
