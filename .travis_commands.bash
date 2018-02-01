@@ -19,8 +19,8 @@ ponyc-build-packages(){
 }
 
 ponyc-build-docs(){
-  echo "Installing mkdocs..."
-  sudo -H pip install mkdocs
+  echo "Installing mkdocs and offical theme..."
+  sudo -H pip install ponylang-mkdocs
 
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
