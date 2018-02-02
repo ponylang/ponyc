@@ -34,8 +34,8 @@ actor Main
       vars.push("PATH=/bin")
       // create a ProcessMonitor and spawn the child process
       let auth = env.root as AmbientAuth
-      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
-      consume args, consume vars)
+      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+      path, consume args, consume vars)
       // write to STDIN of the child process
       pm.write("one, two, three")
       pm.done_writing() // closing stdin allows cat to terminate
