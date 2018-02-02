@@ -43,7 +43,7 @@ static void unset_flag(pony_actor_t* actor, uint8_t flag)
     memory_order_relaxed);
 }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 {
   // A message chain is well formed if last is reachable from first and is the
@@ -468,7 +468,7 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
   msg->index = index;
   msg->id = id;
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
   atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 #endif
 

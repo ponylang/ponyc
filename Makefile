@@ -441,9 +441,6 @@ ifneq (,$(filter $(OSTYPE), osx bsd))
 endif
 
 # target specific build options
-libponyrt.buildoptions = -DPONY_NO_ASSERT
-libponyrt-pic.buildoptions = -DPONY_NO_ASSERT
-
 libponyrt.tests.linkoptions += -rdynamic
 
 ifneq ($(ALPINE),)
@@ -453,10 +450,12 @@ endif
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.buildoptions += -DPONY_ALWAYS_ASSERT
 
 libponyc.tests.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.tests.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.tests.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.tests.buildoptions += -DPONY_ALWAYS_ASSERT
 libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
 
 libponyc.tests.linkoptions += -rdynamic

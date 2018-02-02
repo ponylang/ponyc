@@ -859,7 +859,7 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
         // Only one bare method per bare type.
         pony_assert(bare_method == NULL);
         bare_method = member;
-#ifdef NDEBUG
+#ifdef PONY_NDEBUG
         break;
 #endif
       }

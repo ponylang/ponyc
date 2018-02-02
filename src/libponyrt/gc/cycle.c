@@ -727,7 +727,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   ponyint_perceivedmap_destroy(&d->perceived);
 }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 
 static void dump_view(view_t* view)
 {
@@ -840,7 +840,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
     default:
     {
       // Never happens, used to keep debug functions.

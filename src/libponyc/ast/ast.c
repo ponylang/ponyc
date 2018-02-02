@@ -72,7 +72,7 @@ struct ast_t
   ast_t* sibling;
   ast_t* annotation_type;
   uint32_t flags;
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   bool frozen;
 #endif
 };
@@ -1591,7 +1591,7 @@ bool ast_is_frozen(ast_t* ast)
 {
   pony_assert(ast != NULL);
 
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   return ast->frozen;
 #else
   return false;
@@ -1600,7 +1600,8 @@ bool ast_is_frozen(ast_t* ast)
 
 void ast_freeze(ast_t* ast)
 {
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  (void)ast;
+#ifndef PONY_NDEBUG
   if((ast == NULL) || ast->frozen)
     return;
 
@@ -2260,7 +2261,7 @@ static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->sibling = (ast_t*)pony_serialise_offset(ctx, ast->sibling);
   dst->annotation_type = (ast_t*)pony_serialise_offset(ctx, ast->annotation_type);
   dst->flags = ast->flags;
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   dst->frozen = ast->frozen;
 #endif
 }

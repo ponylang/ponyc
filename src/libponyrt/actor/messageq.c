@@ -10,7 +10,7 @@
 #include <valgrind/helgrind.h>
 #endif
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 
 static size_t messageq_size_debug(messageq_t* q)
 {
@@ -88,7 +88,7 @@ void ponyint_messageq_init(messageq_t* q)
     memory_order_relaxed);
   q->tail = stub;
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
   messageq_size_debug(q);
 #endif
 }

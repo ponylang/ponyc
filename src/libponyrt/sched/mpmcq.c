@@ -34,7 +34,7 @@ static void node_free(mpmcq_node_t* node)
   POOL_FREE(mpmcq_node_t, node);
 }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 
 static size_t mpmcq_size_debug(mpmcq_t* q)
 {
@@ -69,7 +69,7 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   atomic_store_explicit(&q->tail, node, memory_order_relaxed);
 #endif
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
   mpmcq_size_debug(q);
 #endif
 }
