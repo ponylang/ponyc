@@ -7,9 +7,23 @@
 #include "util.h"
 
 #ifdef _MSC_VER
-// Stop MSVC from complaining about conversions from LLVMBool to bool.
-# pragma warning(disable:4800)
+#  pragma warning(push)
+#  pragma warning(disable:4244)
+#  pragma warning(disable:4800)
+#  pragma warning(disable:4267)
+#  pragma warning(disable:4624)
+#  pragma warning(disable:4141)
+#  pragma warning(disable:4146)
+#  pragma warning(disable:4005)
 #endif
+
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Module.h>
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
@@ -535,3 +549,74 @@ EXPORT_SYMBOL void codegen_test_tryblock_throw()
 
 }
 #endif
+
+
+TEST_F(CodegenTest, DescTable)
+{
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+    "class C3\n"
+    "actor A1\n"
+    "actor A2\n"
+    "actor A3\n"
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+
+  // Reach various types.
+
+    "    (C1, A1, P1)\n"
+    "    (C2, A2, P2)\n"
+    "    (C3, A3, P3)\n"
+    "    (C1, I8)\n"
+    "    (C2, I16)\n"
+    "    (C3, I32)";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+
+  auto table_glob = module->getNamedGlobal("__DescTable");
+  ASSERT_NE(table_glob, nullptr);
+  ASSERT_TRUE(table_glob->hasInitializer());
+
+  auto desc_table = llvm::dyn_cast_or_null<llvm::ConstantArray>(
+    table_glob->getInitializer());
+  ASSERT_NE(desc_table, nullptr);
+
+  for(unsigned int i = 0; i < desc_table->getNumOperands(); i++)
+  {
+    // Check that for each element of the table, `desc_table[i]->id == i`.
+
+    auto table_element = desc_table->getOperand(i);
+    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->descriptor_ptr));
+
+    if(table_element->isNullValue())
+      continue;
+
+    auto elt_bitcast = llvm::dyn_cast_or_null<llvm::ConstantExpr>(
+      table_element);
+    ASSERT_NE(elt_bitcast, nullptr);
+    ASSERT_EQ(elt_bitcast->getOpcode(), llvm::Instruction::BitCast);
+
+    auto desc_ptr = llvm::dyn_cast_or_null<llvm::GlobalVariable>(
+      elt_bitcast->getOperand(0));
+    ASSERT_NE(desc_ptr, nullptr);
+    ASSERT_TRUE(desc_ptr->hasInitializer());
+
+    auto desc = llvm::dyn_cast_or_null<llvm::ConstantStruct>(
+      desc_ptr->getInitializer());
+    ASSERT_NE(desc, nullptr);
+
+    auto type_id = llvm::dyn_cast_or_null<llvm::ConstantInt>(
+      desc->getOperand(0));
+    ASSERT_NE(type_id, nullptr);
+
+    ASSERT_EQ(type_id->getBitWidth(), 32);
+    ASSERT_EQ(type_id->getZExtValue(), i);
+  }
+}
