@@ -83,6 +83,14 @@ static void custom_deserialise(pony_ctx_t* ctx)
 
 bool ponyint_serialise_setup(pony_type_t** table, size_t table_size)
 {
+#ifndef PONY_NDEBUG
+  for(uint32_t i = 0; i < table_size; i++)
+  {
+    if(table[i] != NULL)
+      pony_assert(table[i]->id == i);
+  }
+#endif
+
   desc_table = table;
   desc_table_size = table_size;
 
