@@ -305,6 +305,11 @@ TEST_F(MatchTypeTest, BothCompound)
 TEST_F(MatchTypeTest, Tuples)
 {
   const char* src =
+    "interface I1\n"
+
+    "interface I2\n"
+    "  fun f()\n"
+
     "trait T1\n"
     "  fun f()\n"
 
@@ -323,7 +328,7 @@ TEST_F(MatchTypeTest, Tuples)
     "interface Test\n"
     "  fun z(c1: C1, c2: C2, c3: C3, t1: T1, t2: T2,\n"
     "    c1c1: (C1, C1), c1c2: (C1, C2), c1c3: (C1, C3),\n"
-    "    t1t2: (T1, T2))";
+    "    t1t2: (T1, T2), i1: I1, i2: I2)";
 
   TEST_COMPILE(src);
 
@@ -339,6 +344,11 @@ TEST_F(MatchTypeTest, Tuples)
     MATCHTYPE_REJECT, is_matchtype(type_of("c1c2"), type_of("t1t2"), &opt));
   ASSERT_EQ(
     MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c3"), type_of("t1t2"), &opt));
+
+  ASSERT_EQ(
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1c1"), &opt));
+  ASSERT_EQ(
+    MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1c1"), &opt));
 
   // We can't make types with don't cares in as the type of a parameter. Modify
   // t1t2 instead.

@@ -162,6 +162,28 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
   return ok;
 }
 
+static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
+{
+  if(!is_top_type(operand, true))
+    return MATCHTYPE_REJECT;
+
+  ast_t* child = ast_child(pattern);
+
+  while(child != NULL)
+  {
+    matchtype_t r = is_x_match_x(operand, child, opt);
+    pony_assert(r != MATCHTYPE_REJECT);
+
+    if(r == MATCHTYPE_DENY)
+      return r;
+
+    child = ast_sibling(child);
+  }
+
+  return MATCHTYPE_ACCEPT;
+}
+
 static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern,
   pass_opt_t* opt)
 {
@@ -174,6 +196,34 @@ static matchtype_t is_typeparam_match_x(ast_t* operand, ast_t* pattern,
   // Check if the constraint can match the pattern.
   matchtype_t ok = is_x_match_x(operand_upper, pattern, opt);
   ast_free_unattached(operand_upper);
+  return ok;
+}
+
+static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
+{
+  // upperbound(this->T1) match T2
+  // ---
+  // (this->T1) match T2
+
+  // lowerbound(T1->T2) match T3
+  // ---
+  // (T1->T2) match T3
+
+  ast_t* operand_view;
+
+  AST_GET_CHILDREN(operand, left, right);
+
+  if(ast_id(left) == TK_THISTYPE)
+    operand_view = viewpoint_upper(operand);
+  else
+    operand_view = viewpoint_lower(operand);
+
+  if(operand_view == NULL)
+    return MATCHTYPE_DENY;
+
+  matchtype_t ok = is_x_match_x(operand_view, pattern, opt);
+  ast_free_unattached(operand_view);
   return ok;
 }
 
@@ -192,13 +242,13 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
       return is_tuple_match_tuple(operand, pattern, opt);
 
     case TK_NOMINAL:
-      return MATCHTYPE_REJECT;
+      return is_nominal_match_tuple(operand, pattern, opt);
 
     case TK_TYPEPARAMREF:
       return is_typeparam_match_x(operand, pattern, opt);
 
     case TK_ARROW:
-      return MATCHTYPE_REJECT;
+      return is_arrow_match_x(operand, pattern, opt);
 
     default: {}
   }
@@ -341,34 +391,6 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
 
   pony_assert(0);
   return MATCHTYPE_DENY;
-}
-
-static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
-  pass_opt_t* opt)
-{
-  // upperbound(this->T1) match T2
-  // ---
-  // (this->T1) match T2
-
-  // lowerbound(T1->T2) match T3
-  // ---
-  // (T1->T2) match T3
-
-  ast_t* operand_view;
-
-  AST_GET_CHILDREN(operand, left, right);
-
-  if(ast_id(left) == TK_THISTYPE)
-    operand_view = viewpoint_upper(operand);
-  else
-    operand_view = viewpoint_lower(operand);
-
-  if(operand_view == NULL)
-    return MATCHTYPE_DENY;
-
-  matchtype_t ok = is_x_match_x(operand_view, pattern, opt);
-  ast_free_unattached(operand_view);
-  return ok;
 }
 
 static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
