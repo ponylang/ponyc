@@ -199,7 +199,8 @@ actor TCPConnection
   var _in_sent: Bool = false
   // _pending is used to avoid GC prematurely reaping memory.
   // See GitHub bug 2526 for more.  It looks like a write-only
-  // data structure, but its use is important until the Pony runtime changes.
+  // data structure, but its use is vital to avoid GC races:
+  // _pending_writev's C pointers are invisible to ORCA.
   embed _pending: Array[ByteSeq] = _pending.create()
   embed _pending_writev: Array[USize] = _pending_writev.create()
   var _pending_sent: USize = 0
