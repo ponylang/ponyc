@@ -60,7 +60,6 @@ build_script:
       copy $builddir\ponyrt.* "${ponydir}\ponyc\bin"
       copy $builddir\*.lib "${ponydir}\ponyc\bin"
       copy -recurse packages "${ponydir}\packages"
-      copy -recurse ".docs" "${ponydir}\docs-support"
       7z a -tzip "C:\projects\ponyc\${ponydir}.zip" "${ponydir}"
 
 artifacts:
