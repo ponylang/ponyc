@@ -432,7 +432,7 @@ actor TCPConnection
     socket.
     """
     if _connected then
-      OSSocket.set_tcp_nodelay(_fd, state)
+      set_tcp_nodelay(state)
     end
 
   fun ref set_keepalive(secs: U32) =>
@@ -938,8 +938,8 @@ actor TCPConnection
 
   // Check this when a connection gets its first writeable event.
   fun _is_sock_connected(fd: U32): Bool =>
-    OSSocket.get_so_error(fd) == 0
-
+    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
+    (errno == 0) and (value == 0)
 
   fun ref _apply_backpressure() =>
     if not _throttled then
@@ -962,5 +962,35 @@ actor TCPConnection
       _notify.unthrottled(this)
     end
 
-  fun get_fd(): U32 =>
-    _fd
+  /**************************************/
+
+  fun getsockopt(level: I32, option_name: I32, option: (None | Array[U8]) = None): (U32, U32) =>
+    _OSSocket.getsockopt(_fd, level, option_name, option)
+
+  fun setsockopt(level: I32, option_name: I32, option: (I32 | Array[U8])): U32 =>
+    _OSSocket.setsockopt(_fd, level, option_name, option)
+
+
+  fun get_so_error(): (U32, U32) =>
+    _OSSocket.get_so_error(_fd)
+
+  fun get_so_rcvbuf(): (U32, U32) =>
+    _OSSocket.get_so_rcvbuf(_fd)
+
+  fun get_so_sndbuf(): (U32, U32) =>
+    _OSSocket.get_so_sndbuf(_fd)
+
+  fun get_tcp_nodelay(): (U32, U32) =>
+    _OSSocket.getsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
+
+
+  fun set_so_rcvbuf(bufsize: I32): U32 =>
+    _OSSocket.set_so_rcvbuf(_fd, bufsize)
+
+  fun set_so_sndbuf(bufsize: I32): U32 =>
+    _OSSocket.set_so_sndbuf(_fd, bufsize)
+
+  fun set_tcp_nodelay(state: Bool): U32 =>
+    var word: Array[U8] ref = [if state then 1 else 0 end;0;0;0] //LE
+    _OSSocket.set_so(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
+

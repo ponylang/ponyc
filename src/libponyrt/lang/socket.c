@@ -1355,7 +1355,7 @@ PONY_API int pony_os_getsockopt(int fd, int level, int option_name, void *option
   if (getsockopt(fd, level, option_name, option_value, option_len) == 0)
     return 0;
   else
-    return -errno;
+    return errno;
 }
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -1367,7 +1367,7 @@ PONY_API int pony_os_setsockopt(int fd, int level, int option_name, void *option
   if (setsockopt(fd, level, option_name, option_value, option_len) == 0)
     return 0;
   else
-    return -errno;
+    return errno;
 }
 
 /* Constants are from

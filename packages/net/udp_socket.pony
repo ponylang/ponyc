@@ -175,7 +175,7 @@ actor UDPSocket
     """
     if not _closed then
       if _ip.ip4() then
-        OSSocket.set_so_broadcast(_fd, state)
+        set_so_broadcast(state)
       elseif _ip.ip6() then
         @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
       end
@@ -198,7 +198,7 @@ actor UDPSocket
     prevents this.
     """
     if not _closed then
-      OSSocket.set_ip_multicast_loop(_fd, loopback)
+      set_ip_multicast_loop(loopback)
     end
 
   be set_multicast_ttl(ttl: U8) =>
@@ -206,7 +206,7 @@ actor UDPSocket
     Set the TTL for multicast sends. Defaults to 1.
     """
     if not _closed then
-      OSSocket.set_ip_multicast_ttl(_fd, ttl)
+      set_ip_multicast_ttl(ttl)
     end
 
   be multicast_join(group: String, to: String = "") =>
@@ -406,3 +406,38 @@ actor UDPSocket
       @pony_os_socket_close[None](_fd)
       _fd = -1
     end
+
+  fun getsockopt(level: I32, option_name: I32, option: (None | Array[U8]) = None): (U32, U32) =>
+    _OSSocket.getsockopt(_fd, level, option_name, option)
+
+  fun setsockopt(level: I32, option_name: I32, option: (I32 | Array[U8])): U32 =>
+    _OSSocket.setsockopt(_fd, level, option_name, option)
+
+
+  fun get_so_error(): (U32, U32) =>
+    _OSSocket.get_so_error(_fd)
+
+  fun get_so_rcvbuf(): (U32, U32) =>
+    _OSSocket.get_so_rcvbuf(_fd)
+
+  fun get_so_sndbuf(): (U32, U32) =>
+    _OSSocket.get_so_sndbuf(_fd)
+
+
+  fun set_ip_multicast_loop(loopback: Bool): U32 =>
+    var word: Array[U8] ref = [if loopback then 1 else 0 end;0;0;0] //LE
+    _OSSocket.set_so(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
+
+  fun set_ip_multicast_ttl(ttl: U8): U32 =>
+    var word: Array[U8] ref = [ttl;0;0;0] //LE
+    _OSSocket.set_so(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
+
+  fun set_so_broadcast(state: Bool): U32 =>
+    var word: Array[U8] ref = [if state then 1 else 0 end;0;0;0] //LE
+    _OSSocket.set_so(_fd, OSSockOpt.sol_socket(), OSSockOpt.so_broadcast(), word)
+
+  fun set_so_rcvbuf(bufsize: I32): U32 =>
+    _OSSocket.set_so_rcvbuf(_fd, bufsize)
+
+  fun set_so_sndbuf(bufsize: I32): U32 =>
+    _OSSocket.set_so_sndbuf(_fd, bufsize)
