@@ -1143,6 +1143,7 @@ DEF(field);
   SKIP("mandatory type declaration on field", TK_COLON);
   RULE("field type", type);
   IF(TK_ASSIGN, RULE("field value", infix));
+  OPT TOKEN("docstring", TK_STRING);
   DONE();
 
 // {field} {method}
