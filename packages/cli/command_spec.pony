@@ -80,12 +80,12 @@ class CommandSpec
     if _args.size() > 0 then error end
     _commands.update(cmd.name(), cmd)
 
-  fun ref add_help(hname: String = "help", hinfo: String = "Print help page") ? =>
+  fun ref add_help(hname: String = "help", descr': String = "") ? =>
     """
     Adds a standard help option and, optionally command, to a root command.
     """
     _help_name = hname
-    _help_info = hinfo
+    _help_info = descr'
     let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
     _options.update(_help_name, help_option)
     if _args.size() == 0 then
