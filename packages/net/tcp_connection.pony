@@ -1062,17 +1062,11 @@ actor TCPConnection
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
     """
-/****
-    var word: Array[U8] ref = [if state then @printf[I32]("Yo yo, dunno\n".cstring()); U8(1) else U8(0) end;U8(0);U8(0);U8(0)] //LE
- ****/
-    var word: Array[U8] ref = [
+    var word: Array[U8] ref = 
       ifdef littleendian then
-        if state then @printf[I32]("Yo yo, little\n".cstring()); U8(1) else U8(0) end; U8(0); U8(0); U8(0)
+        [ if state then 1 else 0 end; 0; 0; 0 ]
       else
-        U8(0); U8(0); U8(0); if state then U8(1) else U8(0) end
+        [ 0; 0; 0; if state then 1 else 0 end ]
       end
-    ]
-    @printf[I32]("NODELAY word size = %d\n".cstring(), word.size())
-    try @printf[I32]("NODELAY %d %d %d %d\n".cstring(), word(0)?, word(1)?, word(2)?, word(3)?) end
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
 
