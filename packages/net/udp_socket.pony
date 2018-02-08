@@ -489,21 +489,23 @@ actor UDPSocket
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_LOOP, ...)`
     """
-    var word: Array[U8] ref = [if loopback then 1 else 0 end;0;0;0] //LE
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
 
   fun set_ip_multicast_ttl(ttl: U8): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_TTL, ...)`
     """
-    var word: Array[U8] ref = [ttl;0;0;0] //LE
+    var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
 
   fun set_so_broadcast(state: Bool): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_BROADCAST, ...)`
     """
-    var word: Array[U8] ref = [if state then 1 else 0 end;0;0;0] //LE
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.so_broadcast(), word)
 
   fun set_so_rcvbuf(bufsize: U32): U32 =>

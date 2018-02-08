@@ -1062,11 +1062,7 @@ actor TCPConnection
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
     """
-    var word: Array[U8] ref = 
-      ifdef littleendian then
-        [ if state then 1 else 0 end; 0; 0; 0 ]
-      else
-        [ 0; 0; 0; if state then 1 else 0 end ]
-      end
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
 

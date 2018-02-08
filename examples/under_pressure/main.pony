@@ -96,6 +96,11 @@ class SlowDown is TCPConnectionNotify
     var word: Array[U8] ref = [0;0;0;0]
     @printf[I32]("getsockopt New sndbuf = 0x%x\n".cstring(), conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), word)._2)
     try
+      var qq: U8
+      @printf[I32]("gotsockopt New sndbuf word top, word.size() = %d\n".cstring(), word.size())
+      qq = word(0)?
+      @printf[I32]("gotsockopt New sndbuf word(0) is %x\n".cstring(), qq)
+      @printf[I32]("gotsockopt New sndbuf word(0) is %x\n".cstring(), word(0)?)
       @printf[I32]("getsockopt New sndbuf = %x %x %x %x\n".cstring(), word(0)?, word(1)?, word(2)?, word(3)?)
     end
 

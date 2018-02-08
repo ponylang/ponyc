@@ -73,7 +73,7 @@ primitive _OSSocket
 
     if errno == 0 then
       try
-        (errno, _to_u32(word(3)?, word(2)?, word(1)?, word(0)?)) //LE
+          (errno, bytes4_to_u32(word)?)
       else
         (1, 0)
       end
@@ -103,10 +103,7 @@ primitive _OSSocket
     This function returns `0` on success, else the value of `errno` on
     failure.
     """
-    var word: Array[U8] ref = [
-      (option and 0xFF).u8(); ((option >> 8) and 0xFF).u8()
-      ((option >> 16) and 0xFF).u8(); ((option >> 24) and 0xFF).u8()
-      ] //LE
+    var word: Array[U8] ref = u32_to_bytes4(option)
     set_so(fd, level, option_name, word)
 
   fun get_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
@@ -142,5 +139,18 @@ primitive _OSSocket
     @pony_os_setsockopt[U32](fd, level, option_name,
        option.cpointer(), addressof option_size)
 
-  fun _to_u32(a: U8, b: U8, c: U8, d: U8): U32 =>
-    (a.u32() << 24) or (b.u32() << 16) or (c.u32() << 8) or d.u32()
+  fun bytes4_to_u32(b: Array[U8]): U32 ? =>
+    ifdef littleendian then
+      (b(3)?.u32() << 24) or (b(2)?.u32() << 16) or (b(1)?.u32() << 8) or b(0)?.u32()
+    else
+      (b(0)?.u32() << 24) or (b(1)?.u32() << 16) or (b(2)?.u32() << 8) or b(3)?.u32()
+    end
+
+  fun u32_to_bytes4(option: U32): Array[U8] =>
+    ifdef littleendian then
+      [ (option and 0xFF).u8(); ((option >> 8) and 0xFF).u8()
+        ((option >> 16) and 0xFF).u8(); ((option >> 24) and 0xFF).u8() ]
+    else
+      [ ((option >> 24) and 0xFF).u8(); ((option >> 16) and 0xFF).u8()
+        ((option >> 8) and 0xFF).u8(); (option and 0xFF).u8() ]
+    end
