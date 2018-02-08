@@ -515,8 +515,8 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
 
   if (doc_source != NULL) {
       fprintf(
-        docgen->type_file, 
-        "\n<span class=\"source-link\">[[Source]](%s#L%zd)</span>\n", 
+        docgen->type_file,
+        "\n<span class=\"source-link\">[[Source]](%s#L%zd)</span>\n",
         doc_source->doc_path, ast_line(elem)
       );
   } else {
@@ -539,7 +539,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
 
   if(fields->next == NULL)  // No fields
     return;
-  
+
   fprintf(docgen->type_file, "## %s\n\n", title);
 
   for(ast_list_t* p = fields->next; p != NULL; p = p->next)
@@ -547,7 +547,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
     ast_t* field = p->ast;
     pony_assert(field != NULL);
 
-    AST_GET_CHILDREN(field, id, type, init);
+    AST_GET_CHILDREN(field, id, type, init, doc);
     const char* name = ast_name(id);
     pony_assert(name != NULL);
 
@@ -562,9 +562,14 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
       default: pony_assert(0);
     }
 
-    fprintf(docgen->type_file, "* %s %s: ", ftype, name);
+    fprintf(docgen->type_file, "##### %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
     add_source_code_link(docgen, field);
+    fprintf(docgen->type_file, "\n");
+
+    if(ast_id(doc) != TK_NONE)
+      fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
@@ -833,7 +838,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
   //Create directory for [documentationDir]/src/[package_name]
   pony_mkdir(source_dir);
-  
+
   // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
   size_t file_path_alloc_size = FILENAME_MAX;
   char* path = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
@@ -848,7 +853,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   size_t doc_source_dir_relative_alloc_size = 0;
   doc_source_dir_relative = concat(doc_source_dir_relative, "/", &doc_source_dir_relative_alloc_size);
   ponyint_pool_free_size(old_ptr_alloc_size, (void*) old_ptr);
-  
+
   // Get relative path for [documentationDir]/src/[package_name]/[filename].md
   size_t doc_path_alloc_size = 0;
   const char* doc_path = concat(doc_source_dir_relative, filename_md_extension, &doc_path_alloc_size);
@@ -912,10 +917,10 @@ static char* replace_path_separator(const char* path, size_t* name_len) {
 }
 
 static void include_source_if_needed(
-  docgen_t* docgen, 
-  source_t* source, 
+  docgen_t* docgen,
+  source_t* source,
   const char* package_name
-) 
+)
 {
   pony_assert(source != NULL);
   pony_assert(docgen != NULL);
@@ -1012,7 +1017,8 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   add_source_code_link(docgen, ast);
 
   if(ast_id(doc) != TK_NONE)
-    fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+    // additional linebreak for better source code link display with docstring
+    fprintf(docgen->type_file, "\n%s\n\n", ast_name(doc));
 
   // code block
   fprintf(docgen->type_file, "```pony\n");
@@ -1387,7 +1393,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
       ponyint_pool_free_size(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
     }
   }
-  
+
   // Tidy up
   if(docgen.index_file != NULL)
     fclose(docgen.index_file);
