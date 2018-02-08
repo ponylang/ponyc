@@ -69,40 +69,23 @@ class SlowDown is TCPConnectionNotify
     _out = out
 
   fun ref connected(conn: TCPConnection ref) =>
-    let bufsiz: I32 = 0x012233
+    let bufsiz: U32 = 5000
 
-    @printf[I32]("getsockopt so_error = %d\n".cstring(), conn.get_so_error()._2)
-    @printf[I32]("getsockopt get_tcp_nodelay = %d\n".cstring(), conn.get_tcp_nodelay()._2)
-    var res: U32
-    res = conn.set_tcp_nodelay(true)
-    @printf[I32]("getsockopt set_tcp_nodelay(fd, true) = %d\n".cstring(), res)
-    @printf[I32]("getsockopt get_tcp_nodelay = %d\n".cstring(), conn.get_tcp_nodelay()._2)
+    @printf[I32]("Querying and setting socket options:\n".cstring())
+    @printf[I32]("\tgetsockopt so_error = %d\n".cstring(),
+      conn.get_so_error()._2)
+    @printf[I32]("\tgetsockopt get_tcp_nodelay = %d\n".cstring(),
+      conn.get_tcp_nodelay()._2)
+    @printf[I32]("\tgetsockopt set_tcp_nodelay(true) return value = %d\n".cstring(),
+      conn.set_tcp_nodelay(true))
+    @printf[I32]("\tgetsockopt get_tcp_nodelay = %d\n".cstring(), conn.get_tcp_nodelay()._2)
 
-    res = conn.set_tcp_nodelay(false)
-    @printf[I32]("getsockopt get_tcp_nodelay (after set_tcp_nodelay) = %d\n".cstring(), conn.get_tcp_nodelay()._2)
-    conn.set_nodelay(true)
-    @printf[I32]("getsockopt get_tcp_nodelay (after conn.set_nodelay(true)) = %d\n".cstring(), conn.get_tcp_nodelay()._2)
-
-    @printf[I32]("getsockopt rcvbuf = 0x%x\n".cstring(), conn.get_so_rcvbuf()._2)
-    @printf[I32]("getsockopt sndbuf = 0x%x\n".cstring(), conn.get_so_sndbuf()._2)
-    res = conn.set_so_rcvbuf(0x012233)
-    @printf[I32]("setsockopt rcvbuf 0x%x return was %d\n".cstring(), bufsiz, res)
-    res = conn.setsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(),0x012233)
-    @printf[I32]("setsockopt sndbuf 0x%x return was %d\n".cstring(), bufsiz, res)
-
-    @printf[I32]("getsockopt rcvbuf = 0x%x\n".cstring(), conn.get_so_rcvbuf()._2)
-    @printf[I32]("getsockopt old sndbuf = 0x%x\n".cstring(), conn.get_so_sndbuf()._2)
-    @printf[I32]("getsockopt new sndbuf = 0x%x\n".cstring(), conn.getsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf())._2)
-    var word: Array[U8] ref = [0;0;0;0]
-    @printf[I32]("getsockopt New sndbuf = 0x%x\n".cstring(), conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), word)._2)
-    try
-      var qq: U8
-      @printf[I32]("gotsockopt New sndbuf word top, word.size() = %d\n".cstring(), word.size())
-      qq = word(0)?
-      @printf[I32]("gotsockopt New sndbuf word(0) is %x\n".cstring(), qq)
-      @printf[I32]("gotsockopt New sndbuf word(0) is %x\n".cstring(), word(0)?)
-      @printf[I32]("getsockopt New sndbuf = %x %x %x %x\n".cstring(), word(0)?, word(1)?, word(2)?, word(3)?)
-    end
+    @printf[I32]("\tgetsockopt rcvbuf = %d\n".cstring(), conn.get_so_rcvbuf()._2)
+    @printf[I32]("\tgetsockopt sndbuf = %d\n".cstring(), conn.get_so_sndbuf()._2)
+    @printf[I32]("\tsetsockopt rcvbuf %d return was %d\n".cstring(), bufsiz,
+      conn.set_so_rcvbuf(bufsiz))
+    @printf[I32]("\tsetsockopt sndbuf %d return was %d\n".cstring(), bufsiz,
+      conn.set_so_rcvbuf(bufsiz))
 
   fun ref throttled(connection: TCPConnection ref) =>
     _out.print("Experiencing backpressure!")
@@ -123,7 +106,7 @@ class Send is TimerNotify
     _sending_actor = sending_actor
 
   fun ref apply(timer: Timer, count: U64): Bool =>
-    let data = recover val Array[U8].init(72, 1024) end
+    let data = recover val Array[U8].init(72, 16384) end
     _sending_actor.write(data)
     _sending_actor.write("hi\n")
     true
