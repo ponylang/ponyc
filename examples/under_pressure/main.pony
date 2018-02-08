@@ -87,12 +87,12 @@ class SlowDown is TCPConnectionNotify
     @printf[I32]("getsockopt sndbuf = 0x%x\n".cstring(), conn.get_so_sndbuf()._2)
     res = conn.set_so_rcvbuf(0x012233)
     @printf[I32]("setsockopt rcvbuf 0x%x return was %d\n".cstring(), bufsiz, res)
-    res = conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(),0x012233)
+    res = conn.setsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(),0x012233)
     @printf[I32]("setsockopt sndbuf 0x%x return was %d\n".cstring(), bufsiz, res)
 
     @printf[I32]("getsockopt rcvbuf = 0x%x\n".cstring(), conn.get_so_rcvbuf()._2)
     @printf[I32]("getsockopt old sndbuf = 0x%x\n".cstring(), conn.get_so_sndbuf()._2)
-    @printf[I32]("getsockopt new sndbuf = 0x%x\n".cstring(), conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf())._2)
+    @printf[I32]("getsockopt new sndbuf = 0x%x\n".cstring(), conn.getsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf())._2)
     var word: Array[U8] ref = [0;0;0;0]
     @printf[I32]("getsockopt New sndbuf = 0x%x\n".cstring(), conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), word)._2)
     try

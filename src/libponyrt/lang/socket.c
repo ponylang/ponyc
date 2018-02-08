@@ -1112,7 +1112,7 @@ PONY_API void pony_os_nodelay(int fd, bool state)
 {
   int val = state;
 
-  api_deprecated("pony_os_nodelay", "OSSocket.set_tcp_nodelay");
+  api_deprecated("pony_os_nodelay", "TCPConnection.set_tcp_nodelay");
   setsockopt((SOCKET)fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&val,
     sizeof(int));
 }
@@ -1212,7 +1212,7 @@ PONY_API void pony_os_broadcast(int fd, bool state)
 {
   int broadcast = state ? 1 : 0;
 
-  api_deprecated("pony_os_broadcast", "OSSocket.set_so_broadcast");
+  api_deprecated("pony_os_broadcast", "UDPSocket.set_so_broadcast");
   setsockopt((SOCKET)fd, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast,
     sizeof(broadcast));
 }
