@@ -21,6 +21,8 @@ bool target_is_lp64(char* triple);
 bool target_is_llp64(char* triple);
 bool target_is_ilp32(char* triple);
 bool target_is_native128(char* triple);
+bool target_is_bigendian(char* triple);
+bool target_is_littleendian(char* triple);
 
 PONY_EXTERN_C_END
 

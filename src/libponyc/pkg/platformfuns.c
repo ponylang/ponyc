@@ -95,5 +95,17 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
     return true;
   }
 
+  if(!strcmp(attribute, OS_BIGENDIAN_NAME))
+  {
+    *out_is_target = target_is_bigendian(options->triple);
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_LITTLEENDIAN_NAME))
+  {
+    *out_is_target = target_is_littleendian(options->triple);
+    return true;
+  }
+
   return false;
 }

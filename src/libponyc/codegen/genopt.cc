@@ -1575,3 +1575,17 @@ bool target_is_native128(char* t)
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
 }
+
+static uint32_t endian_test = 0x44332211;
+
+bool target_is_bigendian(char* t)
+{
+  (void)t;
+  return *(uint8_t *)(&endian_test) == 0x44;
+}
+
+bool target_is_littleendian(char* t)
+{
+  (void)t;
+  return *(uint8_t *)(&endian_test) == 0x11;
+}
