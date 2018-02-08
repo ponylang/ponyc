@@ -34,7 +34,7 @@ field
   ;
 
 method
-  : ('fun' | 'be' | 'new') ('\\' ID (',' ID)* '\\')? (cap | '@')? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('if' rawseq)? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') ('\\' ID (',' ID)* '\\')? (cap | '@')? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('=>' rawseq)?
   ;
 
 annotatedrawseq
@@ -208,8 +208,8 @@ nextatom
   | LPAREN_NEW rawseq tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq? ']'
   | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
-  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
@@ -221,8 +221,8 @@ atom
   | ('(' | LPAREN_NEW) rawseq tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq? ']'
   | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
-  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
-  | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
   ;
@@ -236,6 +236,14 @@ lambdacaptures
   ;
 
 lambdacapture
+  : ID (':' type)? ('=' infix)?
+  ;
+
+lambdaparams
+  : lambdaparam (',' lambdaparam)*
+  ;
+
+lambdaparam
   : ID (':' type)? ('=' infix)?
   ;
 
@@ -340,7 +348,7 @@ literal
   ;
 
 param
-  : parampattern (':' type)? ('=' infix)?
+  : ID ':' type ('=' infix)?
   ;
 
 antlr_0

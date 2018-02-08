@@ -1,5 +1,4 @@
 #include "sugar.h"
-#include "casemethod.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/printbuf.h"
@@ -44,7 +43,6 @@ static ast_t* make_create(ast_t* ast)
       NONE          // return type
       NONE          // error
       NODE(TK_SEQ, NODE(TK_TRUE))
-      NONE
       NONE
       ));
 
@@ -156,6 +154,8 @@ static ast_result_t sugar_module(pass_opt_t* opt, ast_t* ast)
 static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
   token_id def_def_cap)
 {
+  (void)opt;
+
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
 
   if(add_create)
@@ -234,8 +234,7 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
   }
 
   ast_free_unattached(init_seq);
-
-  return sugar_case_methods(opt, ast);
+  return AST_OK;
 }
 
 
@@ -282,66 +281,6 @@ static void sugar_docstring(ast_t* ast)
 }
 
 
-// Check the parameters are proper parameters and not
-// something nasty let in by the case method value parsing.
-static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
-{
-  pony_assert(params != NULL);
-  ast_result_t result = AST_OK;
-
-  // Check each parameter.
-  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
-  {
-    if(ast_id(p) == TK_ELLIPSIS)
-      continue;
-
-    AST_GET_CHILDREN(p, id, type, def_arg);
-
-    if(ast_id(id) != TK_ID)
-    {
-      ast_error(opt->check.errors, p, "expected parameter name");
-      result = AST_ERROR;
-    }
-    else if(!is_name_internal_test(ast_name(id)) && !check_id_param(opt, id))
-    {
-      result = AST_ERROR;
-    }
-
-    if(ast_id(type) == TK_NONE)
-    {
-      ast_error(opt->check.errors, type, "expected parameter type");
-      result = AST_ERROR;
-    }
-  }
-
-  return result;
-}
-
-
-// Check for leftover stuff from case methods.
-static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
-{
-  pony_assert(method != NULL);
-
-  ast_result_t result = AST_OK;
-  ast_t* params = ast_childidx(method, 3);
-  result = check_params(opt, params);
-
-  // Also check the guard expression doesn't exist.
-  ast_t* guard = ast_childidx(method, 8);
-  pony_assert(guard != NULL);
-
-  if(ast_id(guard) != TK_NONE)
-  {
-    ast_error(opt->check.errors, guard,
-      "only case methods can have guard conditions");
-    result = AST_ERROR;
-  }
-
-  return result;
-}
-
-
 static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
@@ -368,12 +307,14 @@ static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return check_method(opt, ast);
+  return AST_OK;
 }
 
 
 static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 {
+  (void)opt;
+
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
   ast_setid(cap, TK_TAG);
 
@@ -385,7 +326,7 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return check_method(opt, ast);
+  return AST_OK;
 }
 
 
@@ -423,9 +364,10 @@ void fun_defaults(ast_t* ast)
 
 static ast_result_t sugar_fun(pass_opt_t* opt, ast_t* ast)
 {
+  (void)opt;
   fun_defaults(ast);
   sugar_docstring(ast);
-  return check_method(opt, ast);
+  return AST_OK;
 }
 
 
@@ -857,9 +799,6 @@ static ast_result_t sugar_ffi(pass_opt_t* opt, ast_t* ast)
   ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 2));
   ast_replace(&id, new_id);
 
-  if(ast_id(ast) == TK_FFIDECL)
-    return check_params(opt, args);
-
   return AST_OK;
 }
 
@@ -1052,8 +991,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
           TREE(ret_type)
           TREE(error)
           NONE  // Body
-          NONE  // Doc string
-          NONE))// Guard
+          NONE))// Doc string
       NONE    // @
       NONE)); // Doc string
 
@@ -1135,25 +1073,25 @@ ast_t* expand_location(ast_t* location)
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, STRING(file_name))
-          NONE NONE)
+          NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("method") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, STRING(method_name))
-          NONE NONE)
+          NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("line") NONE NONE
           NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, INT(ast_line(location)))
-          NONE NONE)
+          NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("pos") NONE NONE
           NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, INT(ast_pos(location)))
-          NONE NONE))));
+          NONE))));
 
   return ast;
 }

@@ -73,14 +73,12 @@ DEF(defaultarg);
   RULE("default value", infix);
   DONE();
 
-// postfix [COLON type] [ASSIGN defaultarg]
+// ID [COLON type] [ASSIGN defaultarg]
 DEF(param);
   AST_NODE(TK_PARAM);
-  RULE("name", parampattern);
-  IF(TK_COLON,
-    RULE("parameter type", type);
-    UNWRAP(0, TK_REFERENCE);
-  );
+  TOKEN("parameter name", TK_ID);
+  SKIP("mandatory type declaration on parameter", TK_COLON);
+  RULE("parameter type", type);
   IF(TK_ASSIGN, RULE("default value", defaultarg));
   DONE();
 
@@ -344,6 +342,21 @@ DEF(object);
   SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Members
   DONE();
 
+// parampattern [COLON type] [ASSIGN defaultarg]
+DEF(lambdaparam);
+  AST_NODE(TK_PARAM);
+  TOKEN("parameter name", TK_ID);
+  IF(TK_COLON, RULE("parameter type", type));
+  IF(TK_ASSIGN, RULE("default value", defaultarg));
+  DONE();
+
+// lambdaparam {COMMA lambdaparam}
+DEF(lambdaparams);
+  AST_NODE(TK_PARAMS);
+  RULE("parameter", lambdaparam);
+  WHILE(TK_COMMA, RULE("parameter", lambdaparam));
+  DONE();
+
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);
@@ -362,8 +375,9 @@ DEF(lambdacaptures);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// LBRACE [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params]
-// RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE [CAP]
+// LBRACE [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW)
+// [lambdaparams] RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq
+// RBRACE [CAP]
 DEF(lambda);
   PRINT_INLINE();
   AST_NODE(TK_LAMBDA);
@@ -373,7 +387,7 @@ DEF(lambda);
   OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", params);
+  OPT RULE("parameters", lambdaparams);
   SKIP(NULL, TK_RPAREN);
   OPT RULE("captures", lambdacaptures);
   IF(TK_COLON, RULE("return type", type));
@@ -389,8 +403,8 @@ DEF(lambda);
   DONE();
 
 // AT_LBRACE [annotations] [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW)
-// [params] RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq RBRACE
-// [CAP]
+// [lambdaparams] RPAREN [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq
+// RBRACE [CAP]
 DEF(barelambda);
   PRINT_INLINE();
   AST_NODE(TK_BARELAMBDA);
@@ -400,7 +414,7 @@ DEF(barelambda);
   OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", params);
+  OPT RULE("parameters", lambdaparams);
   SKIP(NULL, TK_RPAREN);
   OPT RULE("captures", lambdacaptures);
   IF(TK_COLON, RULE("return type", type));
@@ -1127,11 +1141,10 @@ DEF(method);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
   OPT TOKEN(NULL, TK_STRING);
-  IF(TK_IF, RULE("guard expression", rawseq));
   IF(TK_DBLARROW, RULE("method body", rawseq));
   // Order should be:
-  // cap id type_params params return_type error body docstring guard
-  REORDER(0, 1, 2, 3, 4, 5, 8, 6, 7);
+  // cap id type_params params return_type error body docstring
+  REORDER(0, 1, 2, 3, 4, 5, 7, 6);
   DONE();
 
 // (VAR | LET | EMBED) ID [COLON type] [ASSIGN infix]

@@ -79,8 +79,7 @@ RULE(method,
   CHILD(type, none) // Return type
   CHILD(question, none)
   CHILD(rawseq, none)  // Body
-  CHILD(string, none)
-  CHILD(rawseq, none), // Guard (case methods only)
+  CHILD(string, none),
   TK_FUN, TK_NEW, TK_BE);
 
 RULE(type_params, ONE_OR_MORE(type_param), TK_TYPEPARAMS);
@@ -101,8 +100,8 @@ RULE(params,
 
 RULE(param,
   HAS_TYPE(type)
-  CHILD(id, expr)
-  CHILD(type, none)
+  CHILD(id)
+  CHILD(type)
   CHILD(seq, none),
   TK_PARAM);
 
@@ -378,13 +377,22 @@ RULE(lambda,
   CHILD(cap, none) // Receiver cap
   CHILD(id, none)
   CHILD(type_params, none)
-  CHILD(params, none)
+  CHILD(lambda_params, none)
   CHILD(lambda_captures, none)
   CHILD(type, none) // Return
   CHILD(question, none)
   CHILD(rawseq)
   CHILD(cap, none), // Type reference cap
   TK_LAMBDA);
+
+RULE(lambda_params, ONE_OR_MORE(lambda_param), TK_PARAMS);
+
+RULE(lambda_param,
+  HAS_TYPE(type)
+  CHILD(id)
+  CHILD(type, none)
+  CHILD(seq, none),
+  TK_PARAM);
 
 RULE(lambda_captures, ONE_OR_MORE(lambda_capture), TK_LAMBDACAPTURES);
 

@@ -25,26 +25,23 @@ primitive Debug
   """
   This is a debug only print utility.
   """
-  fun apply(msg: Stringable, sep: String, stream: DebugStream = DebugOut) =>
-    """
-    If platform is debug configured, print a stringable. The default output
-    stream is stdout.
-    """
-    ifdef debug then
-      _print(msg.string(), stream)
-    end
-
   fun apply(
-    msg: ReadSeq[Stringable],
+    msg: (Stringable | ReadSeq[Stringable]),
     sep: String = ", ",
-    stream: DebugStream)
+    stream: DebugStream = DebugOut)
   =>
     """
-    If platform is debug configured, print a sequence of stringables. The
-    default separator is ", ", and the default output stream is stdout.
+    If platform is debug configured, print either a single stringable or a
+    sequence of stringables. The default separator is ", ", and the default
+    output stream is stdout.
     """
     ifdef debug then
-      _print(sep.join(msg.values()), stream)
+      match msg
+      | let m: Stringable =>
+        _print(m.string(), stream)
+      | let m: ReadSeq[Stringable] =>
+        _print(sep.join(m.values()), stream)
+      end
     end
 
   fun out(msg: Stringable = "") =>
