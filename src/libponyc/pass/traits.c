@@ -813,7 +813,6 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
           NODE(TK_IS,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
-        NONE
         NONE));
 
     // Need to set function data field to point to originating type, ie ast.
@@ -845,7 +844,6 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
           NODE(TK_ISNT,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
-        NONE
         NONE));
 
     // Need to set function data field to point to originating type, ie ast.

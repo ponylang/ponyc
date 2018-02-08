@@ -294,8 +294,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
         ast_t* param_type = ast_sibling(param_id);
 
         // Convert a "_" parameter to whatever the expected parameter is.
-        if((ast_id(param_id) == TK_REFERENCE) &&
-          is_name_dontcare(ast_name(ast_child(param_id))))
+        if(is_name_dontcare(ast_name(param_id)))
         {
           ast_replace(&param_id, ast_child(def_param));
           ast_replace(&param_type, ast_childidx(def_param, 1));
@@ -303,7 +302,6 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
         // Give a type-unspecified parameter the type of the expected parameter.
         else if(ast_id(param_type) == TK_NONE)
         {
-          ast_replace(&param_id, ast_child(param_id)); // unwrap reference's id
           ast_replace(&param_type, ast_childidx(def_param, 1));
         }
 
@@ -394,8 +392,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       TREE(ret_type)
       TREE(raises)
       TREE(body)
-      NONE    // Doc string
-      NONE)); // Guard
+      NONE)); // Doc string
 
   ast_list_append(members, &last_member, apply);
   ast_setflag(members, AST_FLAG_PRESERVE);
@@ -693,7 +690,6 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NONE
       NODE(TK_SEQ,
         NODE(TK_TRUE))
-      NONE
       NONE));
 
   BUILD(type_ref, ast, NODE(TK_REFERENCE, ID(c_id)));
