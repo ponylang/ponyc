@@ -1274,6 +1274,28 @@ static void platform_ilp32(compile_t* c, reach_type_t* t, token_id cap)
   codegen_finishfun(c);
 }
 
+static void platform_bigendian(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("bigendian", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+  LLVMValueRef result =
+    LLVMConstInt(c->i1, target_is_bigendian(c->opt->triple), false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void platform_littleendian(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("littleendian", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+  LLVMValueRef result =
+    LLVMConstInt(c->i1, target_is_littleendian(c->opt->triple), false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void platform_native128(compile_t* c, reach_type_t* t, token_id cap)
 {
   FIND_METHOD("native128", cap);
@@ -1307,6 +1329,8 @@ void genprim_platform_methods(compile_t* c, reach_type_t* t)
   BOX_FUNCTION(platform_lp64, t);
   BOX_FUNCTION(platform_llp64, t);
   BOX_FUNCTION(platform_ilp32, t);
+  BOX_FUNCTION(platform_bigendian, t);
+  BOX_FUNCTION(platform_littleendian, t);
   BOX_FUNCTION(platform_native128, t);
   BOX_FUNCTION(platform_debug, t);
 }
