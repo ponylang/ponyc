@@ -137,7 +137,7 @@ primitive _OSSocket
     failure.
     """
     @pony_os_setsockopt[U32](fd, level, option_name,
-       option.cpointer(), addressof option_size)
+       option.cpointer(), option_size)
 
   fun bytes4_to_u32(b: Array[U8]): U32 ? =>
     ifdef littleendian then
