@@ -169,6 +169,42 @@ creating actors or sending messages.
 
 Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
+
+
+* Adding a new pass
+
+An example dummy pass is available as a basis for a new pass. dummy.c/h is
+based on refer.c/h with modications that comments out code which interfers
+with the real refer pass and using dbg_pass macros to help visualize
+what's happening.
+
+To add a new pass copy dummy.c/h to new files, for example mypass.c/h.
+Then change all occurences of "dummy_" to "mypass_", "_dummy" to "_mypass" and
+"_DUMMY" to "_MYPASS".
+
+Next edit pass.h add to enum pass_id an id for you pass, like mypass_id
+and also add a line to PASS_HELP for instance, "    =mypass\n".
+
+The final change is to edit pass.c. Include "mypass.h" in the list of other
+includes. Add a line to return "mypass" in pass_name() and last but not least
+add something like the following to ast_passes(), so your pass is invoked:
+
+  if(!visit_pass(astp, options, last, &r, PASS_MYPASS, pre_pass_mypass,
+    pass_mypass))
+    return r;
+
+You should now be able to use make to recompile the compiler. If you exeucte
+"./build/release/ponyc --help" you should see mypass in the list of passes.
+To see the debug output from mypass.c change the define LOCAL_DBG_PASS
+from false to true and then recompile pony with config=debug:
+
+  make config=debug ponyc
+
+If you use this debug version of the compiler you'll probably want to
+capture the output to a file as the debug is voluminous, 120,000 lines
+for helloword. On linux you'd do something like:
+
+  ./build/debug/ponyc examples/helloworld/ &> output.txt
 */
 
 typedef enum verbosity_level
@@ -180,6 +216,8 @@ typedef enum verbosity_level
   VERBOSITY_ALL       = 4
 } verbosity_level;
 
+/** When updating pass_id update PASS_HELP
+ */
 typedef enum pass_id
 {
   PASS_PARSE,
@@ -191,6 +229,9 @@ typedef enum pass_id
   PASS_FLATTEN,
   PASS_TRAITS,
   PASS_DOCS,
+#if !defined(NDEBUG)
+  PASS_DUMMY,
+#endif
   PASS_REFER,
   PASS_EXPR,
   PASS_VERIFY,
@@ -203,6 +244,38 @@ typedef enum pass_id
   PASS_OBJ,
   PASS_ALL
 } pass_id;
+
+#if !defined(NDEBUG)
+#define PASS_HELP_DUMMY "    =dummy\n"
+#else
+#define PASS_HELP_DUMMY ""
+#endif
+
+/** Update PASS_HELP when pass_id changes
+ */
+#define PASS_HELP \
+    "  --pass, -r       Restrict phases.\n" \
+    "    =parse\n" \
+    "    =syntax\n" \
+    "    =sugar\n" \
+    "    =scope\n" \
+    "    =import\n" \
+    "    =name\n" \
+    "    =flatten\n" \
+    "    =traits\n" \
+    "    =docs\n" \
+    PASS_HELP_DUMMY \
+    "    =refer\n" \
+    "    =expr\n" \
+    "    =verify\n" \
+    "    =final\n" \
+    "    =reach\n" \
+    "    =paint\n" \
+    "    =ir            Output LLVM IR.\n" \
+    "    =bitcode       Output LLVM bitcode.\n" \
+    "    =asm           Output assembly.\n" \
+    "    =obj           Output an object file.\n" \
+    "    =all           The default: generate an executable.\n"
 
 typedef struct magic_package_t magic_package_t;
 
@@ -339,7 +412,6 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
 ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass);
-
 
 PONY_EXTERN_C_END
 

@@ -1,4 +1,5 @@
 #include "pass.h"
+#include "../ast/id.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "syntax.h"
@@ -8,6 +9,9 @@
 #include "names.h"
 #include "flatten.h"
 #include "traits.h"
+#if !defined(NDEBUG)
+#include "dummy.h"
+#endif
 #include "refer.h"
 #include "expr.h"
 #include "verify.h"
@@ -56,6 +60,9 @@ const char* pass_name(pass_id pass)
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
     case PASS_DOCS: return "docs";
+#if !defined(NDEBUG)
+    case PASS_DUMMY: return "dummy";
+#endif
     case PASS_REFER: return "refer";
     case PASS_EXPR: return "expr";
     case PASS_VERIFY: return "verify";
@@ -231,6 +238,12 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(options->docs && ast_id(*astp) == TK_PROGRAM)
     generate_docs(*astp, options);
+
+#if !defined(NDEBUG)
+  if(!visit_pass(astp, options, last, &r, PASS_DUMMY, pass_pre_dummy,
+    pass_dummy))
+    return r;
+#endif
 
   if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
     pass_refer))
