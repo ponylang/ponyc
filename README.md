@@ -426,6 +426,28 @@ make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
+### Ubuntu Artful
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+```
+
+Clone the ponyc repo:
+
+```bash
+cd ~/
+git clone https://github.com/ponylang/ponyc.git
+```
+
+Build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make default_pic=true
+./build/release/ponyc examples/helloworld
+./helloworld
+```
 
 ### Fedora (25)
 
