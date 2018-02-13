@@ -3,6 +3,7 @@
 #include "../type/subtype.h"
 #include "../pkg/ifdef.h"
 #include "../pass/expr.h"
+#include "../type/alias.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -54,29 +55,32 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(!coerce_literals(&arg, p_type, opt))
       return false;
 
-    ast_t* a_type = ast_type(arg);
+    ast_t* arg_type = ast_type(arg);
 
-    if (is_typecheck_error(a_type))
+    if(is_typecheck_error(arg_type))
       return false;
 
-    if(ast_id(a_type) == TK_TUPLETYPE)
+    if(ast_id(arg_type) == TK_TUPLETYPE)
     {
       ast_error(opt->check.errors, arg, "cannot pass tuples as FFI arguments");
       return false;
     }
 
+    ast_t* a_type = alias(arg_type);
     errorframe_t info = NULL;
-    if((a_type != NULL) &&
-      !void_star_param(p_type, a_type) &&
+
+    if(!void_star_param(p_type, a_type) &&
       !is_subtype(a_type, p_type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
+      ast_free_unattached(a_type);
       return false;
     }
 
+    ast_free_unattached(a_type);
     arg = ast_sibling(arg);
     param = ast_sibling(param);
   }
