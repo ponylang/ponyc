@@ -194,7 +194,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   const char error_msg_str[] = "Error: couldn't start runtime!";
 
-  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
+  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str) - 1);
   gencall_runtime(c, "puts", args, 1, "");
   LLVMBuildBr(c->builder, post_block);
 
