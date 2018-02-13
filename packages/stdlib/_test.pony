@@ -25,6 +25,7 @@ use collections = "collections"
 use collections_persistent = "collections/persistent"
 use crypto = "crypto"
 use debug = "debug"
+use dbg = "dbg"
 use files = "files"
 use format = "format"
 use glob = "glob"
@@ -61,6 +62,7 @@ actor Main is TestList
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
     crypto.Main.make().tests(test)
+    dbg.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
 
