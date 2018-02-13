@@ -1283,8 +1283,7 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
 
-  if(func == NULL)
-    return NULL;
+  pony_assert(func != NULL);
 
   return LLVMBuildCall(c->builder, func, args, count, ret);
 }
