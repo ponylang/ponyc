@@ -795,7 +795,7 @@ TEST_F(DbgTest, DbgPfnu)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 19);
   EXPECT_STREQ("TestBody:  Yo Dude\n", read_buf);
 #else
@@ -817,7 +817,7 @@ TEST_F(DbgTest, DbgPsnu)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 14);
   EXPECT_STREQ("TestBody:  hi\n", read_buf);
 #else
@@ -876,7 +876,7 @@ TEST_F(DbgTest, DbgPfn)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 19);
   EXPECT_STREQ("TestBody:  hi there", read_buf);
 #else
@@ -899,7 +899,7 @@ TEST_F(DbgTest, DbgPsn)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 19);
   EXPECT_STREQ("TestBody:  hi there", read_buf);
 #else
@@ -924,7 +924,7 @@ TEST_F(DbgTest, DbgEX)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 22);
   EXPECT_STREQ("TestBody:+\nTestBody:-\n", read_buf);
 #else
@@ -937,7 +937,7 @@ TEST_F(DbgTest, DbgEX)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 42);
   EXPECT_STREQ("TestBody:+ Entered 1\nTestBody:- Exited  2\n", read_buf);
 #else
@@ -950,7 +950,7 @@ TEST_F(DbgTest, DbgEX)
 
   // Check it
   cnt = dbg_read(dc, read_buf, sizeof(read_buf), sizeof(read_buf)-1);
-#ifndef _MSC_VER
+#ifndef PLATFORM_IS_WINDOWS
   EXPECT_EQ(cnt, 42);
   EXPECT_STREQ("TestBody:+ Entered 1\nTestBody:- Exited  2\n", read_buf);
 #else
@@ -961,7 +961,7 @@ TEST_F(DbgTest, DbgEX)
   dbg_ctx_destroy(dc);
 }
 
-#ifndef _MSC_VER
+#if !defined(PLATFORM_IS_WINDOWS) && !defined(PLATFORM_IS_MACOSX)
 TEST_F(DbgTest, DbgPsnuViaDstFileUsingFmemopen)
 {
   char buffer[0x100];
@@ -978,7 +978,7 @@ TEST_F(DbgTest, DbgPsnuViaDstFileUsingFmemopen)
 }
 #endif
 
-#ifndef _MSC_VER
+#if !defined(PLATFORM_IS_WINDOWS) && !defined(PLATFORM_IS_MACOSX)
 TEST_F(DbgTest, DbgPfnuViaDstFileUsingFmemopen)
 {
   char buffer[0x100];
