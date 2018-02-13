@@ -74,10 +74,13 @@ dbg_ctx_t* dbg_ctx_create_with_dst_buf(size_t number_of_bits,
 
 void dbg_ctx_destroy(dbg_ctx_t* dc)
 {
-  free(dc->dst_buf);
-  free(dc->tmp_buf);
-  free(dc->bits);
-  free(dc);
+  if(dc != NULL)
+  {
+    free(dc->dst_buf);
+    free(dc->tmp_buf);
+    free(dc->bits);
+    free(dc);
+  }
 }
 
 void dbg_set_bit(dbg_ctx_t* dc, size_t bit_idx, bool bit_value)
@@ -123,46 +126,54 @@ static void move(dbg_ctx_t* dc, uint8_t* dst, const uint8_t* src, size_t size)
 
 size_t dbg_printf(dbg_ctx_t* dc, const char* format, ...)
 {
-  va_list vlist;
-  va_start(vlist, format);
-  size_t total = dbg_vprintf(dc, format, vlist);
-  va_end(vlist);
+  size_t total = 0;
+  if((dc != NULL) && (format != NULL))
+  {
+    va_list vlist;
+    va_start(vlist, format);
+    total = dbg_vprintf(dc, format, vlist);
+    va_end(vlist);
+    return 0;
+  }
   return total;
 }
 
 size_t dbg_vprintf(dbg_ctx_t* dc, const char* format, va_list vlist)
 {
   size_t total = 0;
-  size_t size;
-  uint8_t* dst;
-  uint8_t* src;
-  if((dc->dst_buf != NULL) && (dc->tmp_buf != NULL))
+  if((dc != NULL) && (format != NULL))
   {
-    dst = dc->tmp_buf;
-    size = dc->max_size;
-    int rv = vsnprintf((char*)dst, size + 1, format, vlist);
-    if(rv < 0)
-      return 0;
-
-    total = (size >= (size_t)rv) ? (size_t)rv : size;
-    src = &dc->tmp_buf[0];
-    dst = &dc->dst_buf[dc->dst_buf_endi];
-    size = dc->dst_buf_size - dc->dst_buf_endi;
-    if(size >= total)
+    size_t size;
+    uint8_t* dst;
+    uint8_t* src;
+    if((dc->dst_buf != NULL) && (dc->tmp_buf != NULL))
     {
-      move(dc, dst, src, total);
-    } else {
-      // Read the first part from the end of the dst_buf
-      move(dc, dst, src, size);
+      dst = dc->tmp_buf;
+      size = dc->max_size;
+      int rv = vsnprintf((char*)dst, size + 1, format, vlist);
+      if(rv < 0)
+        return 0;
 
-      // Read the second part from the beginning of dst_buf
-      dst = &dc->dst_buf[0];
-      src = &dc->tmp_buf[size];
-      size = total - size;
-      move(dc, dst, src, size);
+      total = (size >= (size_t)rv) ? (size_t)rv : size;
+      src = &dc->tmp_buf[0];
+      dst = &dc->dst_buf[dc->dst_buf_endi];
+      size = dc->dst_buf_size - dc->dst_buf_endi;
+      if(size >= total)
+      {
+        move(dc, dst, src, total);
+      } else {
+        // Read the first part from the end of the dst_buf
+        move(dc, dst, src, size);
+
+        // Read the second part from the beginning of dst_buf
+        dst = &dc->dst_buf[0];
+        src = &dc->tmp_buf[size];
+        size = total - size;
+        move(dc, dst, src, size);
+      }
+    } else if(dc->dst_file != NULL) {
+      total = vfprintf(dc->dst_file, format, vlist);
     }
-  } else if(dc->dst_file != NULL) {
-    total = vfprintf(dc->dst_file, format, vlist);
   }
   return total;
 }
@@ -183,7 +194,7 @@ size_t dbg_read(dbg_ctx_t* dc, char* dst, size_t buf_size, size_t size)
   }
 
   total = 0;
-  if(dst != NULL)
+  if((dc != NULL) && (dst != NULL))
   {
     // total = min(size, dc->dst_buf_cnt)
     total = (size > dc->dst_buf_cnt) ? dc->dst_buf_cnt : size;

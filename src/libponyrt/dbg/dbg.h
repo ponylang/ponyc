@@ -85,13 +85,16 @@ size_t dbg_read(dbg_ctx_t* dc, char* dst, size_t dst_size, size_t size);
  */
 static inline void dbg_sb(dbg_ctx_t* dc, size_t bit_idx, bool bit_value)
 {
-  size_t bits_array_idx = _DBG_BITS_ARRAY_IDX(bit_idx);
-  size_t bit_mask = _DBG_BIT_MASK(bit_idx);
-  if(bit_value)
+  if(dc != NULL)
   {
-    dc->bits[bits_array_idx] |= bit_mask;
-  } else {
-    dc->bits[bits_array_idx] &= ~bit_mask;
+    size_t bits_array_idx = _DBG_BITS_ARRAY_IDX(bit_idx);
+    size_t bit_mask = _DBG_BIT_MASK(bit_idx);
+    if(bit_value)
+    {
+      dc->bits[bits_array_idx] |= bit_mask;
+    } else {
+      dc->bits[bits_array_idx] &= ~bit_mask;
+    }
   }
 }
 
@@ -100,8 +103,13 @@ static inline void dbg_sb(dbg_ctx_t* dc, size_t bit_idx, bool bit_value)
  */
 static inline bool dbg_gb(dbg_ctx_t* dc, size_t bit_idx)
 {
-  size_t bits_array_idx = _DBG_BITS_ARRAY_IDX(bit_idx);
-  return (dc->bits[bits_array_idx] & _DBG_BIT_MASK(bit_idx)) != 0;
+  if(dc != NULL)
+  {
+    size_t bits_array_idx = _DBG_BITS_ARRAY_IDX(bit_idx);
+    return (dc->bits[bits_array_idx] & _DBG_BIT_MASK(bit_idx)) != 0;
+  } else {
+    return false;
+  }
 }
 
 /**
