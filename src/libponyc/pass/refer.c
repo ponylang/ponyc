@@ -222,14 +222,30 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   {
     ast_t* id = case_ast;
 
-    if(ast_id(id) != TK_ID)
-      id = ast_child(id);
+    int tk = ast_id(id);
+    if(tk != TK_ID)
+    {
+      AST_GET_CHILDREN(case_ast, first, second);
 
-    pony_assert(ast_id(id) == TK_ID);
-    const char* try_name = ast_name(id);
+      if((tk = ast_id(first)) == TK_ID)
+      {
+        // First is a TK_ID give it as a suggestion
+        id = first;
+      } else if((tk = ast_id(second)) == TK_ID) {
+        // Second is a TK_ID give it as a suggestion
+        id = second;
+      } else {
+        // Giving up on different case as tk != TK_ID
+      }
+    }
 
-    if(ast_get(ast, try_name, NULL) != NULL)
-      return try_name;
+    if(tk == TK_ID)
+    {
+      const char* try_name = ast_name(id);
+
+      if(ast_get(ast, try_name, NULL) != NULL)
+        return try_name;
+    }
   }
 
   // Give up
