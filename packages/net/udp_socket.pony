@@ -407,7 +407,7 @@ actor UDPSocket
       _fd = -1
     end
 
-  fun getsockopt(level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
+  fun ref getsockopt(level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
     """
     General wrapper for UDP sockets to the `getsockopt(2)` system call.
 
@@ -425,7 +425,7 @@ actor UDPSocket
     """
     _OSSocket.getsockopt(_fd, level, option_name, option)
 
-  fun getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
     """
     Wrapper for UDP sockets to the `getsockopt(2)` system call where
     the kernel's returned option value is a C `uint32_t` type / Pony
@@ -441,7 +441,7 @@ actor UDPSocket
     """
     _OSSocket.getsockopt_u32(_fd, level, option_name)
 
-  fun setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
+  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
     """
     General wrapper for UDP sockets to the `setsockopt(2)` system call.
 
@@ -454,7 +454,7 @@ actor UDPSocket
     """
     _OSSocket.setsockopt(_fd, level, option_name, option)
 
-  fun setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
     """
     Wrapper for UDP sockets to the `setsockopt(2)` system call where
     the kernel expects an option value of a C `uint32_t` type / Pony
@@ -466,26 +466,26 @@ actor UDPSocket
     _OSSocket.setsockopt_u32(_fd, level, option_name, option)
 
 
-  fun get_so_error(): (U32, U32) =>
+  fun ref get_so_error(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
     """
     _OSSocket.get_so_error(_fd)
 
-  fun get_so_rcvbuf(): (U32, U32) =>
+  fun ref get_so_rcvbuf(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
     """
     _OSSocket.get_so_rcvbuf(_fd)
 
-  fun get_so_sndbuf(): (U32, U32) =>
+  fun ref get_so_sndbuf(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
     """
     _OSSocket.get_so_sndbuf(_fd)
 
 
-  fun set_ip_multicast_loop(loopback: Bool): U32 =>
+  fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_LOOP, ...)`
     """
@@ -493,14 +493,14 @@ actor UDPSocket
       _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
 
-  fun set_ip_multicast_ttl(ttl: U8): U32 =>
+  fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_TTL, ...)`
     """
     var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
 
-  fun set_so_broadcast(state: Bool): U32 =>
+  fun ref set_so_broadcast(state: Bool): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_BROADCAST, ...)`
     """
@@ -508,13 +508,13 @@ actor UDPSocket
       _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.so_broadcast(), word)
 
-  fun set_so_rcvbuf(bufsize: U32): U32 =>
+  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
     """
     _OSSocket.set_so_rcvbuf(_fd, bufsize)
 
-  fun set_so_sndbuf(bufsize: U32): U32 =>
+  fun ref set_so_sndbuf(bufsize: U32): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
     """

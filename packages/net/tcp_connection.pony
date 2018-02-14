@@ -964,7 +964,7 @@ actor TCPConnection
 
   /**************************************/
 
-  fun getsockopt(level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
+  fun ref getsockopt(level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
     """
     General wrapper for TCP sockets to the `getsockopt(2)` system call.
 
@@ -982,7 +982,7 @@ actor TCPConnection
     """
     _OSSocket.getsockopt(_fd, level, option_name, option)
 
-  fun getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
     """
     Wrapper for TCP sockets to the `getsockopt(2)` system call where
     the kernel's returned option value is a C `uint32_t` type / Pony
@@ -998,7 +998,7 @@ actor TCPConnection
     """
     _OSSocket.getsockopt_u32(_fd, level, option_name)
 
-  fun setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
+  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
     """
     General wrapper for TCP sockets to the `setsockopt(2)` system call.
 
@@ -1011,7 +1011,7 @@ actor TCPConnection
     """
     _OSSocket.setsockopt(_fd, level, option_name, option)
 
-  fun setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
     """
     General wrapper for TCP sockets to the `setsockopt(2)` system call.
 
@@ -1021,44 +1021,44 @@ actor TCPConnection
     _OSSocket.setsockopt_u32(_fd, level, option_name, option)
 
 
-  fun get_so_error(): (U32, U32) =>
+  fun ref get_so_error(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
     """
     _OSSocket.get_so_error(_fd)
 
-  fun get_so_rcvbuf(): (U32, U32) =>
+  fun ref get_so_rcvbuf(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
     """
     _OSSocket.get_so_rcvbuf(_fd)
 
-  fun get_so_sndbuf(): (U32, U32) =>
+  fun ref get_so_sndbuf(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
     """
     _OSSocket.get_so_sndbuf(_fd)
 
-  fun get_tcp_nodelay(): (U32, U32) =>
+  fun ref get_tcp_nodelay(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
     """
     _OSSocket.getsockopt_u32(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
 
 
-  fun set_so_rcvbuf(bufsize: U32): U32 =>
+  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
     """
     _OSSocket.set_so_rcvbuf(_fd, bufsize)
 
-  fun set_so_sndbuf(bufsize: U32): U32 =>
+  fun ref set_so_sndbuf(bufsize: U32): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
     """
     _OSSocket.set_so_sndbuf(_fd, bufsize)
 
-  fun set_tcp_nodelay(state: Bool): U32 =>
+  fun ref set_tcp_nodelay(state: Bool): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
     """
