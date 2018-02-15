@@ -16,8 +16,6 @@ enum subtype_kind_t
   SUBTYPE_KIND_ALL = SUBTYPE_KIND_BOXED | SUBTYPE_KIND_UNBOXED
 };
 
-// These functions shouldn't be called before `reach_done` has been called.
-
 int subtype_kind(reach_type_t* type);
 
 int subtype_kind_overlap(reach_type_t* left, reach_type_t* right);
