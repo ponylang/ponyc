@@ -1631,7 +1631,6 @@ void ast_fprint(FILE* fp, ast_t* ast, size_t width)
     return;
 
   print(fp, ast, 0, NOT_SPECIAL, width);
-  fprintf(fp, "\n");
 }
 
 void ast_fprintverbose(FILE* fp, ast_t* ast)
