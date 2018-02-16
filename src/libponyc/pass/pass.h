@@ -169,6 +169,29 @@ creating actors or sending messages.
 
 Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
+
+
+* Adding a new pass
+
+It's usually best to start with an existing pass, look through the contents
+of src/libponyc/pass and choose a pass closest to what you need.
+
+Next edit pass.h add to enum pass_id an id for you pass, like mypass_id
+and also add a line to PASS_HELP for instance, "    =mypass\n".
+
+The final change is to edit pass.c. Include "mypass.h" in the list of other
+includes. Add a line to return "mypass" in pass_name() and last but not least
+add something like the following to ast_passes(), so your pass is invoked:
+
+  if(!visit_pass(astp, options, last, &r, PASS_MYPASS, pre_pass_mypass,
+    pass_mypass))
+    return r;
+
+You should now be able to use make to recompile the compiler. If you execute
+"./build/release/ponyc --help" you should see mypass in the list of passes.
+
+You may also want to add to the comments above documenting what your new
+pass does.
 */
 
 typedef enum verbosity_level
@@ -180,6 +203,8 @@ typedef enum verbosity_level
   VERBOSITY_ALL       = 4
 } verbosity_level;
 
+/** When updating pass_id update PASS_HELP
+ */
 typedef enum pass_id
 {
   PASS_PARSE,
@@ -203,6 +228,31 @@ typedef enum pass_id
   PASS_OBJ,
   PASS_ALL
 } pass_id;
+
+/** Update PASS_HELP when pass_id changes
+ */
+#define PASS_HELP \
+    "  --pass, -r       Restrict phases.\n" \
+    "    =parse\n" \
+    "    =syntax\n" \
+    "    =sugar\n" \
+    "    =scope\n" \
+    "    =import\n" \
+    "    =name\n" \
+    "    =flatten\n" \
+    "    =traits\n" \
+    "    =docs\n" \
+    "    =refer\n" \
+    "    =expr\n" \
+    "    =verify\n" \
+    "    =final\n" \
+    "    =reach\n" \
+    "    =paint\n" \
+    "    =ir            Output LLVM IR.\n" \
+    "    =bitcode       Output LLVM bitcode.\n" \
+    "    =asm           Output assembly.\n" \
+    "    =obj           Output an object file.\n" \
+    "    =all           The default: generate an executable.\n"
 
 typedef struct magic_package_t magic_package_t;
 
