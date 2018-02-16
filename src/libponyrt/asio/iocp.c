@@ -329,7 +329,13 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // tell scheduler threads that asio has no noisy actors
     // if the old_count was 1
     if (old_count == 1)
+    {
       ponyint_sched_unnoisy_asio(SPECIAL_THREADID_IOCP);
+
+      // maybe wake up a scheduler thread if they've all fallen asleep
+      ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+    }
+
     ev->noisy = false;
   }
 
