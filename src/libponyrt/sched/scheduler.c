@@ -539,6 +539,17 @@ static pony_actor_t* steal(scheduler_t* sched)
 
             while(get_active_scheduler_count() <= (uint32_t)sched->index)
             {
+              // if we're scheduler 0 with noisy actors check to make
+              // sure inject queue is empty to avoid race condition
+              // between thread 0 sleeping and the ASIO thread getting a
+              // new event
+              if(sched->index == 0)
+              {
+                actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+                if(actor != NULL)
+                  break;
+              }
+
               // sleep waiting for signal to wake up again
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
               ponyint_thread_suspend(sched->sleep_object, &sched_mut);
@@ -553,6 +564,69 @@ static pony_actor_t* steal(scheduler_t* sched)
             // reset steal_attempts so we try to steal from all other schedulers
             // prior to suspending again
             steal_attempts = 0;
+
+            // if we're scheduler 0 with noisy actors
+            // and we just pulled an actor off the  inject queue
+            // break to return the actor
+            if((sched->index == 0) && (actor != NULL))
+            {
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+              // make sure active_scheduler_count == 1
+              while (
+                (current_active_scheduler_count = get_active_scheduler_count())
+                  == 0)
+              {
+                // get the bool that controls modifying the active scheduler
+                // count variable if using signals
+                if(!atomic_exchange_explicit(&scheduler_count_changing, true,
+                  memory_order_acquire))
+                {
+                  // in case the count changed between the while check and now
+                  current_active_scheduler_count = get_active_scheduler_count();
+
+                  // check active scheduler count is valid
+                  pony_assert(current_active_scheduler_count <= 1);
+
+                  if(current_active_scheduler_count == 0)
+                  {
+                    // set active_scheduler_count to 1
+                    current_active_scheduler_count = 1;
+                    atomic_store_explicit(&active_scheduler_count,
+                      current_active_scheduler_count, memory_order_relaxed);
+                  }
+
+                  // unlock the bool that controls modifying the active
+                  // scheduler count variable if using signals.
+                  atomic_store_explicit(&scheduler_count_changing, false,
+                    memory_order_release);
+                }
+              }
+#else
+              // When using pthreads, no need to acquire mutex because we
+              // already acquired it earlier
+
+              // get active_scheduler_count
+              sched_count = atomic_load_explicit(&active_scheduler_count,
+                memory_order_relaxed);
+
+              // check active scheduler count is valid
+              pony_assert(sched_count <= 1);
+
+              // make sure active_scheduler_count == 1
+              if(sched_count == 0)
+              {
+                atomic_store_explicit(&active_scheduler_count, 1,
+                  memory_order_relaxed);
+              }
+
+              // unlock mutex if using pthreads
+              pthread_mutex_unlock(&sched_mut);
+#endif
+
+              DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched,
+                (uintptr_t)victim, (uintptr_t)actor);
+              break;
+            }
           }
           else
           {
@@ -667,6 +741,17 @@ static pony_actor_t* steal(scheduler_t* sched)
 
           while(get_active_scheduler_count() <= (uint32_t)sched->index)
           {
+            // if we're scheduler 0 with noisy actors check to make
+            // sure inject queue is empty to avoid race condition
+            // between thread 0 sleeping and the ASIO thread getting a
+            // new event
+            if(sched->index == 0)
+            {
+              actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+              if(actor != NULL)
+                break;
+            }
+
             // sleep waiting for signal to wake up again
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
             ponyint_thread_suspend(sched->sleep_object, &sched_mut);
@@ -681,6 +766,69 @@ static pony_actor_t* steal(scheduler_t* sched)
           // reset steal_attempts so we try to steal from all other schedulers
           // prior to suspending again
           steal_attempts = 0;
+
+          // if we're scheduler 0 with noisy actors
+          // and we just pulled an actor off the  inject queue
+          // break to return the actor
+          if((sched->index == 0) && (actor != NULL))
+          {
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+              // make sure active_scheduler_count == 1
+              while (
+                (current_active_scheduler_count = get_active_scheduler_count())
+                  == 0)
+              {
+                // get the bool that controls modifying the active scheduler
+                // count variable if using signals
+                if(!atomic_exchange_explicit(&scheduler_count_changing, true,
+                  memory_order_acquire))
+                {
+                  // in case the count changed between the while check and now
+                  current_active_scheduler_count = get_active_scheduler_count();
+
+                  // check active scheduler count is valid
+                  pony_assert(current_active_scheduler_count <= 1);
+
+                  if(current_active_scheduler_count == 0)
+                  {
+                    // set active_scheduler_count to 1
+                    current_active_scheduler_count = 1;
+                    atomic_store_explicit(&active_scheduler_count,
+                      current_active_scheduler_count, memory_order_relaxed);
+                  }
+
+                  // unlock the bool that controls modifying the active
+                  // scheduler count variable if using signals.
+                  atomic_store_explicit(&scheduler_count_changing, false,
+                    memory_order_release);
+                }
+              }
+#else
+              // When using pthreads, no need to acquire mutex because we
+              // already acquired it earlier
+
+              // get active_scheduler_count
+              sched_count = atomic_load_explicit(&active_scheduler_count,
+                memory_order_relaxed);
+
+              // check active scheduler count is valid
+              pony_assert(sched_count <= 1);
+
+              // make sure active_scheduler_count == 1
+              if(sched_count == 0)
+              {
+                atomic_store_explicit(&active_scheduler_count, 1,
+                  memory_order_relaxed);
+              }
+
+              // unlock mutex if using pthreads
+              pthread_mutex_unlock(&sched_mut);
+#endif
+
+            DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched,
+              (uintptr_t)victim, (uintptr_t)actor);
+            break;
+          }
         }
         else
         {
@@ -1019,8 +1167,9 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
 {
   uint32_t current_active_scheduler_count = get_active_scheduler_count();
 
-  // wake up threads is the current active count is 0
-  if(current_active_scheduler_count == 0)
+  // wake up threads if the current active count is 0
+  // keep trying until successful to avoid deadlock
+  while((current_active_scheduler_count = get_active_scheduler_count()) == 0)
     ponyint_sched_maybe_wakeup(current_scheduler_id);
 }
 
