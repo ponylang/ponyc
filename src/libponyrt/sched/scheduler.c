@@ -87,7 +87,10 @@ static pony_actor_t* pop_global(scheduler_t* sched)
   if(actor != NULL)
     return actor;
 
-  return pop(sched);
+  if (sched == NULL)
+    return NULL;
+  else
+    return pop(sched);
 }
 
 /**
@@ -403,11 +406,7 @@ static pony_actor_t* steal(scheduler_t* sched)
   {
     scheduler_t* victim = choose_victim(sched);
 
-    if(victim == NULL)
-      actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
-    else
-      actor = pop_global(victim);
-
+    actor = pop_global(victim);
     if(actor != NULL)
     {
       DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
@@ -545,7 +544,7 @@ static pony_actor_t* steal(scheduler_t* sched)
               // new event
               if(sched->index == 0)
               {
-                actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+                actor = pop_global(NULL);
                 if(actor != NULL)
                   break;
               }
@@ -747,7 +746,7 @@ static pony_actor_t* steal(scheduler_t* sched)
             // new event
             if(sched->index == 0)
             {
-              actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
+              actor = pop_global(NULL);
               if(actor != NULL)
                 break;
             }
