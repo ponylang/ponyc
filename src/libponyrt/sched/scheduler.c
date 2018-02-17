@@ -396,12 +396,17 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  *
  * WARNING: steal_suspend_thread must be called in critical section
  *          protected by sched_mut/scheduler_count_changing,
- *          and we return with that mechanism locked.
+ *          and we return with that mechanism:
+ *            * Pthreads: locked, because pthread_thread_suspend() does
+ *              not permit a choice to avoid reacquiring the mutex.
+ *            * Non-Pthreads: unlocked, because after the suspend,
+ *              we only need to reacquire in special case of
+ *              sched->index==0.
  */
-static pony_actor_t* steal_suspend_thread(scheduler_t* sched)
+static pony_actor_t* steal_suspend_thread(scheduler_t* sched,
+  uint32_t current_active_scheduler_count)
 {
   pony_actor_t* actor = NULL;
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
 
   // decrement active_scheduler_count so other schedulers know we're
   // sleeping
@@ -491,6 +496,10 @@ static pony_actor_t* steal_suspend_thread(scheduler_t* sched)
           atomic_store_explicit(&active_scheduler_count,
             current_active_scheduler_count, memory_order_relaxed);
         }
+        // unlock the bool that controls modifying the active scheduler count
+        // variable if using signals
+        atomic_store_explicit(&scheduler_count_changing, false,
+          memory_order_release);
       }
     }
 #else
@@ -627,7 +636,7 @@ static pony_actor_t* steal(scheduler_t* sched)
           // there is at least one noisy actor registered
           if((sched->index > 0) || ((sched->index == 0) && sched->asio_noisy))
           {
-            actor = steal_suspend_thread(sched);
+            actor = steal_suspend_thread(sched, current_active_scheduler_count);
             // reset steal_attempts so we try to steal from all other schedulers
             // prior to suspending again
             steal_attempts = 0;
@@ -636,18 +645,17 @@ static pony_actor_t* steal(scheduler_t* sched)
           {
             pony_assert(sched->index == 0);
             pony_assert(!sched->asio_noisy);
-
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+          // steal_suspend_thread() would have unlocked for us,
+          // but we didn't call it, so unlock now.
+          atomic_store_explicit(&scheduler_count_changing, false,
+            memory_order_release);
+#endif
             // send block message if there are no noisy actors registered
             // with the ASIO thread and this is scheduler 0
             handle_sched_block(sched);
             block_sent = true;
           }
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-          // unlock the bool that controls modifying the active scheduler count
-          // variable if using signals
-          atomic_store_explicit(&scheduler_count_changing, false,
-            memory_order_release);
-#endif
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
           // unlock mutex if using pthreads
           pthread_mutex_unlock(&sched_mut);
@@ -714,7 +722,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
           block_sent = false;
 
-          actor = steal_suspend_thread(sched);
+          actor = steal_suspend_thread(sched, current_active_scheduler_count);
           // reset steal_attempts so we try to steal from all other schedulers
           // prior to suspending again
           steal_attempts = 0;
@@ -723,13 +731,13 @@ static pony_actor_t* steal(scheduler_t* sched)
         {
           pony_assert(sched->index == 0);
           pony_assert(!sched->asio_noisy);
-        }
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-        // unlock the bool that controls modifying the active scheduler count
-        // variable if using signals
-        atomic_store_explicit(&scheduler_count_changing, false,
-          memory_order_release);
+          // steal_suspend_thread() would have unlocked for us,
+          // but we didn't call it, so unlock now.
+          atomic_store_explicit(&scheduler_count_changing, false,
+            memory_order_release);
 #endif
+        }
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
         // unlock mutex if using pthreads
         pthread_mutex_unlock(&sched_mut);
