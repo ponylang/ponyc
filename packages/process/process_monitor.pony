@@ -539,6 +539,20 @@ actor ProcessMonitor
     """
     Close a file descriptor.
     """
+    match fd
+    | _stdin_write =>
+      if _stdin_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stdin_event)
+      end
+    | _stdout_read =>
+      if _stdout_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stdout_event)
+      end
+    | _stderr_read =>
+      if _stderr_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stderr_event)
+      end
+    end
     @close[I32](fd)
     match fd
     | _stdin_read => _stdin_read = -1
@@ -551,7 +565,7 @@ actor ProcessMonitor
 
   fun ref _close() =>
     """
-    Close all pipes, unsubscribe events and wait for the child process to exit.
+    Close all pipes wait for the child process to exit.
     """
     ifdef posix then
       if not _closed then
@@ -565,15 +579,6 @@ actor ProcessMonitor
         _stdin_writeable = false
         _stdout_readable = false
         _stderr_readable = false
-        if _stdin_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stdin_event)
-        end
-        if _stdout_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stdout_event)
-        end
-        if _stderr_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stderr_event)
-        end
         if _child_pid > 0 then
           // This is the parent, so capture the exit status of the child
           var wstatus: I32 = 0
