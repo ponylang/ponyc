@@ -477,7 +477,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type, true);
   LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
-  codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, NULL, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
 
@@ -778,7 +778,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   }
 
   // Generate the trace function.
-  codegen_startfun(c, c_t->trace_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->trace_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->trace_fn, LLVMExternalLinkage);
 

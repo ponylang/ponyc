@@ -100,7 +100,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
-  codegen_startfun(c, func, NULL, NULL, false);
+  codegen_startfun(c, func, NULL, NULL, NULL, false);
 
   LLVMBasicBlockRef start_fail_block = codegen_block(c, "start_fail");
   LLVMBasicBlockRef post_block = codegen_block(c, "post");

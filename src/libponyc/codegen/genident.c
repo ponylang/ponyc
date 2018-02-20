@@ -441,8 +441,6 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 LLVMValueRef gen_is(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* left_type = ast_type(left);
-  ast_t* right_type = ast_type(right);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -450,18 +448,23 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  deferred_reification_t* reify = c->frame->reify;
+  ast_t* left_type = deferred_reify(reify, ast_type(left), c->opt);
+  ast_t* right_type = deferred_reify(reify, ast_type(right), c->opt);
+
   codegen_debugloc(c, ast);
   LLVMValueRef result = gen_is_value(c, left_type, right_type,
     l_value, r_value);
   codegen_debugloc(c, NULL);
+
+  ast_free_unattached(left_type);
+  ast_free_unattached(right_type);
   return result;
 }
 
 LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* left_type = ast_type(left);
-  ast_t* right_type = ast_type(right);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -469,11 +472,18 @@ LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  deferred_reification_t* reify = c->frame->reify;
+  ast_t* left_type = deferred_reify(reify, ast_type(left), c->opt);
+  ast_t* right_type = deferred_reify(reify, ast_type(right), c->opt);
+
   codegen_debugloc(c, ast);
   LLVMValueRef result = gen_is_value(c, left_type, right_type,
     l_value, r_value);
   result = LLVMBuildNot(c->builder, result, "");
   codegen_debugloc(c, NULL);
+
+  ast_free_unattached(left_type);
+  ast_free_unattached(right_type);
   return result;
 }
 
@@ -495,7 +505,7 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
   c_m->func_type = LLVMFunctionType(c->i1, params, 3, false);
   c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
 
-  codegen_startfun(c, c_m->func, NULL, NULL, false);
+  codegen_startfun(c, c_m->func, NULL, NULL, NULL, false);
   LLVMValueRef l_value = LLVMGetParam(codegen_fun(c), 0);
   LLVMValueRef r_value = LLVMGetParam(codegen_fun(c), 1);
   LLVMValueRef r_id = LLVMGetParam(codegen_fun(c), 2);

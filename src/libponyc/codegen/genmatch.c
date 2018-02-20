@@ -35,7 +35,8 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
 
 static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 {
-  ast_t* pattern_type = ast_type(pattern);
+  ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
+    c->opt);
   deferred_reification_t* fun = lookup(NULL, pattern, pattern_type, c->str_eq);
 
   AST_GET_CHILDREN(fun->ast, cap, id, typeparams, params, result, partial);
@@ -44,6 +45,7 @@ static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 
   ast_t* r_type = deferred_reify(fun, type, c->opt);
 
+  ast_free_unattached(pattern_type);
   deferred_reify_free(fun);
   return r_type;
 }
@@ -403,7 +405,8 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
 {
   // Here, ptr is a pointer to a tuple field. It could be a primitive, an
   // object, or a nested tuple.
-  ast_t* pattern_type = ast_type(pattern);
+  ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
+    c->opt);
 
   ast_t* the_case = ast_parent(pattern);
   match_weight_t weight;
@@ -417,7 +420,10 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
   if(!check_type(c, ptr, desc, pattern_type, next_block, weight))
+  {
+    ast_free_unattached(pattern_type);
     return false;
+  }
 
   // We now know that ptr points to something of type pattern_type, and that
   // it isn't a boxed primitive or tuple, as that would go through the other
@@ -429,7 +435,10 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
 
-  return gen_assign_value(c, pattern, value, pattern_type) != NULL;
+  LLVMValueRef r = gen_assign_value(c, pattern, value, pattern_type);
+
+  ast_free_unattached(pattern_type);
+  return r != NULL;
 }
 
 static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr,
@@ -494,7 +503,8 @@ static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
 static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  ast_t* pattern_type = ast_type(pattern);
+  ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
+    c->opt);
 
   // Build a base pointer that skips the object header.
   LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
@@ -511,12 +521,18 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
   if(!check_type(c, ptr, desc, pattern_type, next_block, weight))
+  {
+    ast_free_unattached(pattern_type);
     return false;
+  }
 
   // As long as the type is correct, we can assign it, with gen_assign_value()
   // handling boxing and unboxing. We pass the type of the pattern as the type
   // of the object.
-  return gen_assign_value(c, pattern, object, pattern_type) != NULL;
+  LLVMValueRef r = gen_assign_value(c, pattern, object, pattern_type);
+
+  ast_free_unattached(pattern_type);
+  return r != NULL;
 }
 
 static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
@@ -641,7 +657,6 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // The pattern is a capture. Make sure we are the right type, then assign.
-  ast_t* pattern_type = ast_type(pattern);
 
   if(ast_id(pattern) == TK_MATCH_CAPTURE)
   {
@@ -650,7 +665,14 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
       return false;
   }
 
-  if(!is_subtype(type, pattern_type, NULL, c->opt))
+  ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
+    c->opt);
+
+  bool is_sub = is_subtype(type, pattern_type, NULL, c->opt);
+
+  ast_free_unattached(pattern_type);
+
+  if(!is_sub)
   {
     // Switch to dynamic capture.
     pony_assert(LLVMTypeOf(value) == c->object_ptr);
@@ -738,8 +760,9 @@ static bool case_body(compile_t* c, ast_t* body,
 
   if(is_result_needed(body))
   {
-    ast_t* body_type = ast_type(body);
+    ast_t* body_type = deferred_reify(c->frame->reify, ast_type(body), c->opt);
     body_value = gen_assign_cast(c, phi_type, body_value, body_type);
+    ast_free_unattached(body_type);
 
     if(body_value == NULL)
       return false;
@@ -756,19 +779,27 @@ static bool case_body(compile_t* c, ast_t* body,
 LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 {
   bool needed = is_result_needed(ast);
-  ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
   // We will have no type if all cases jump away.
   LLVMTypeRef phi_type = NULL;
 
+  deferred_reification_t* reify = c->frame->reify;
+
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
+    ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
     reach_type_t* t_phi = reach_type(c->reach, type);
     phi_type = ((compile_type_t*)t_phi->c_type)->use_type;
+    ast_free_unattached(type);
   }
 
-  ast_t* match_type = alias(ast_type(match_expr));
+  ast_t* expr_type = deferred_reify(reify, ast_type(match_expr), c->opt);
+  ast_t* match_type = alias(expr_type);
+
+  if(match_type != expr_type)
+    ast_free_unattached(expr_type);
+
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
   LLVMBasicBlockRef pattern_block = codegen_block(c, "case_pattern");
@@ -814,10 +845,14 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
     codegen_pushscope(c, the_case);
 
-    ast_t* pattern_type = ast_type(the_case);
+    ast_t* pattern_type = deferred_reify(reify, ast_type(the_case), c->opt);
     bool ok = true;
 
-    if(is_matchtype(match_type, pattern_type, c->opt) != MATCHTYPE_ACCEPT)
+    matchtype_t match = is_matchtype(match_type, pattern_type, c->opt);
+
+    ast_free_unattached(pattern_type);
+
+    if(match != MATCHTYPE_ACCEPT)
     {
       // If there's no possible match, jump directly to the next block.
       LLVMBuildBr(c->builder, next_block);
