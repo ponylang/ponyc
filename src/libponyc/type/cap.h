@@ -30,13 +30,6 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   token_id supalias);
 
 /**
- * Some possible instantiation of the operand is a subtype of some possible
- * instantiation of the pattern.
- */
-bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
-  token_id pattern_cap, token_id pattern_eph);
-
-/**
  * Every possible instantiation of the left side is locally compatible with
  * every possible instantiation of the right side. This relationship is
  * symmetric.
