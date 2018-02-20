@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Forbid impossible pattern matching on generic capabilities ([PR #2499](https://github.com/ponylang/ponyc/pull/2499))
 - Remove case functions ([PR #2542](https://github.com/ponylang/ponyc/pull/2542))
 - Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
 - Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
