@@ -1,8 +1,10 @@
 #include "genbox.h"
 #include "gencall.h"
+#include "gendesc.h"
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "genopt.h"
 #include "gentype.h"
 #include "ponyassert.h"
 
@@ -39,6 +41,30 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 #endif
 
   return this_ptr;
+}
+
+LLVMValueRef gen_box_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef size,
+  LLVMValueRef desc)
+{
+  LLVMValueRef args[2];
+  args[0] = codegen_ctx(c);
+  args[1] = LLVMBuildZExt(c->builder, gendesc_size(c, desc), c->intptr, "");
+
+  LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
+
+  LLVMValueRef box = gencall_runtime(c, "pony_alloc", args, 2, "");
+  LLVMValueRef desc_field = LLVMBuildBitCast(c->builder, box, desc_ptr_ptr, "");
+  LLVMBuildStore(c->builder, desc, desc_field);
+
+  LLVMValueRef offset = LLVMConstInt(c->intptr,
+    target_is_ilp32(c->opt->triple) ? 4 : 8, false);
+  LLVMValueRef value_field = LLVMBuildInBoundsGEP(c->builder, box, &offset, 1,
+    "");
+  ptr = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  size = LLVMBuildZExt(c->builder, size, c->intptr, "");
+  gencall_memcpy(c, value_field, ptr, size);
+
+  return LLVMBuildBitCast(c->builder, box, c->object_ptr, "");
 }
 
 LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)

@@ -18,6 +18,8 @@ LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object);
 
 LLVMValueRef gendesc_typeid(compile_t* c, LLVMValueRef desc);
 
+LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc);
+
 LLVMValueRef gendesc_instance(compile_t* c, LLVMValueRef desc);
 
 LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef desc);
@@ -38,6 +40,8 @@ LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
 
 LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef field_info);
+
+LLVMValueRef gendesc_fieldsize(compile_t* c, LLVMValueRef field_info);
 
 LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info);
 

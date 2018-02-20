@@ -251,21 +251,24 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 
   for(uint32_t i = 0; i < count; i++)
   {
-    LLVMValueRef fdesc[2];
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+
+    LLVMValueRef fdesc[3];
     fdesc[0] = LLVMConstInt(c->i32, LLVMOffsetOfElement(c->target_data,
       c_t->primitive, i), false);
-    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+    fdesc[1] = LLVMConstInt(c->i32, LLVMABISizeOfType(c->target_data,
+      f_c_t->mem_type), false);
 
     if(f_c_t->desc != NULL)
     {
       // We are a concrete type.
-      fdesc[1] = LLVMConstBitCast(f_c_t->desc, c->descriptor_ptr);
+      fdesc[2] = LLVMConstBitCast(f_c_t->desc, c->descriptor_ptr);
     } else {
       // We aren't a concrete type.
-      fdesc[1] = LLVMConstNull(c->descriptor_ptr);
+      fdesc[2] = LLVMConstNull(c->descriptor_ptr);
     }
 
-    list[i] = LLVMConstStructInContext(c->context, fdesc, 2, false);
+    list[i] = LLVMConstStructInContext(c->context, fdesc, 3, false);
   }
 
   LLVMValueRef field_array = LLVMConstArray(c->field_descriptor, list, count);
@@ -517,6 +520,11 @@ LLVMValueRef gendesc_typeid(compile_t* c, LLVMValueRef desc)
   return desc_field(c, desc, DESC_ID);
 }
 
+LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc)
+{
+  return desc_field(c, desc, DESC_SIZE);
+}
+
 LLVMValueRef gendesc_instance(compile_t* c, LLVMValueRef desc)
 {
   return desc_field(c, desc, DESC_INSTANCE);
@@ -607,9 +615,14 @@ LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   return LLVMBuildLoad(c->builder, object_ptr, "");
 }
 
-LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
+LLVMValueRef gendesc_fieldsize(compile_t* c, LLVMValueRef field_info)
 {
   return LLVMBuildExtractValue(c->builder, field_info, 1, "");
+}
+
+LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
+{
+  return LLVMBuildExtractValue(c->builder, field_info, 2, "");
 }
 
 LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)

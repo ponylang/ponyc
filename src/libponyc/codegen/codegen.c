@@ -259,8 +259,9 @@ static void init_runtime(compile_t* c)
   // field descriptor
   // Also needed to build a descriptor structure.
   params[0] = c->i32;
-  params[1] = c->descriptor_ptr;
-  c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
+  params[1] = c->i32;
+  params[2] = c->descriptor_ptr;
+  c->field_descriptor = LLVMStructTypeInContext(c->context, params, 3, false);
 
   // descriptor, filled in
   gendesc_basetype(c, c->descriptor_type);
