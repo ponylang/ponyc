@@ -79,6 +79,7 @@ typedef struct compile_frame_t
   bool is_function;
   bool early_termination;
   bool bare_function;
+  deferred_reification_t* reify;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -240,7 +241,7 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
   bool pony_abi);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
-  LLVMMetadataRef scope, bool bare);
+  LLVMMetadataRef scope, deferred_reification_t* reify, bool bare);
 
 void codegen_finishfun(compile_t* c);
 
