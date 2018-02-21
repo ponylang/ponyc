@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly typecheck FFI arguments with regard to aliasing ([PR #2550](https://github.com/ponylang/ponyc/pull/2550))
 - Allow tuples to match empty interfaces ([PR #2532](https://github.com/ponylang/ponyc/pull/2532))
 - Properly report default argument inference errors ([PR #2504](https://github.com/ponylang/ponyc/pull/2504))
 - Do not catch foreign exceptions in Pony try blocks. This still doesn't work on Windows, foreign code doesn't catch foreign exceptions if they've traversed a Pony frame. ([PR #2466](https://github.com/ponylang/ponyc/pull/2466))
