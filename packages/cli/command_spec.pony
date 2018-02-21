@@ -18,6 +18,7 @@ class CommandSpec
   let _descr: String
   let _options: Map[String, OptionSpec] = _options.create()
   var _help_name: String = ""
+  var _help_info: String = ""
 
   // A parent commands can have sub-commands; leaf commands can have args.
   let _commands: Map[String, CommandSpec box] = _commands.create()
@@ -79,12 +80,13 @@ class CommandSpec
     if _args.size() > 0 then error end
     _commands.update(cmd.name(), cmd)
 
-  fun ref add_help(hname: String = "help") ? =>
+  fun ref add_help(hname: String = "help", descr': String = "") ? =>
     """
     Adds a standard help option and, optionally command, to a root command.
     """
     _help_name = hname
-    let help_option = OptionSpec.bool(_help_name, "", 'h', false)
+    _help_info = descr'
+    let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
     _options.update(_help_name, help_option)
     if _args.size() == 0 then
       let help_cmd = CommandSpec.leaf(_help_name, "", Array[OptionSpec](), [
