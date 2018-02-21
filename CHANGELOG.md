@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow user defined help string at CommandSpec.add_help() ([PR #2535](https://github.com/ponylang/ponyc/pull/2535))
 - Embed source code into generated documentation. ([PR #2439](https://github.com/ponylang/ponyc/pull/2439))
 - Compile error when comparing sugared constructors with 'is' or 'isnt' (#2024) ([PR #2494](https://github.com/ponylang/ponyc/pull/2494))
 - Support OpenSSL 1.1.0 ([PR #2415](https://github.com/ponylang/ponyc/pull/2415))
