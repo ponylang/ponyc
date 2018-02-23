@@ -983,6 +983,7 @@ PONY_API void pony_register_thread()
   this_scheduler = POOL_ALLOC(scheduler_t);
   memset(this_scheduler, 0, sizeof(scheduler_t));
   this_scheduler->tid = ponyint_thread_self();
+  this_scheduler->index = -1;
 }
 
 PONY_API void pony_unregister_thread()
@@ -1193,3 +1194,8 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
   return actors_rescheduled > 0;
 }
 
+// Return the scheduler's index
+PONY_API int32_t pony_sched_index(pony_ctx_t* ctx)
+{
+  return ctx->scheduler->index;
+}

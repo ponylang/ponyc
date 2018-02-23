@@ -218,7 +218,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
   while((msg = ponyint_actor_messageq_pop(&actor->q
-#ifdef USE_DYNAMIC_TRACE    
+#ifdef USE_DYNAMIC_TRACE
     , ctx->scheduler, ctx->current
 #endif
     )) != NULL)
@@ -507,7 +507,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
     ponyint_maybe_mute(ctx, to);
 
   if(ponyint_actor_messageq_push(&to->q, first, last
-#ifdef USE_DYNAMIC_TRACE 
+#ifdef USE_DYNAMIC_TRACE
     , ctx->scheduler, ctx->current, to
 #endif
     ))
