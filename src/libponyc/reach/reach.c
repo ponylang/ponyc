@@ -31,7 +31,7 @@ static void reachable_expr(reach_t* r, deferred_reification_t* reify,
 
 static size_t reach_method_hash(reach_method_t* m)
 {
-  return ponyint_hash_ptr(m->name);
+  return ponyint_hash_str(m->name);
 }
 
 static bool reach_method_cmp(reach_method_t* a, reach_method_t* b)
@@ -44,7 +44,7 @@ DEFINE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t,
 
 static size_t reach_mangled_hash(reach_method_t* m)
 {
-  return ponyint_hash_ptr(m->mangled_name);
+  return ponyint_hash_str(m->mangled_name);
 }
 
 static bool reach_mangled_cmp(reach_method_t* a, reach_method_t* b)
@@ -81,7 +81,7 @@ DEFINE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t,
 
 static size_t reach_method_name_hash(reach_method_name_t* n)
 {
-  return ponyint_hash_ptr(n->name);
+  return ponyint_hash_str(n->name);
 }
 
 static bool reach_method_name_cmp(reach_method_name_t* a,
@@ -103,7 +103,7 @@ DEFINE_HASHMAP_SERIALISE(reach_method_names, reach_method_names_t,
 
 static size_t reach_type_hash(reach_type_t* t)
 {
-  return ponyint_hash_ptr(t->name);
+  return ponyint_hash_str(t->name);
 }
 
 static bool reach_type_cmp(reach_type_t* a, reach_type_t* b)
@@ -377,12 +377,12 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
     deferred_reification_t* fun = lookup(NULL, NULL, r_ast, n->name);
     pony_assert(fun != NULL);
 
+    // The typeargs and thistype are in the scope of r_ast but we're going to
+    // free it. Change the scope to a durable AST.
     if(fun->type_typeargs != NULL)
-    {
-      // The typeargs are in the scope of r_ast but we're going to free it.
-      // Change the scope to a durable AST.
       ast_set_scope(fun->type_typeargs, t->ast);
-    }
+
+    ast_set_scope(fun->thistype, t->ast);
 
     ast_free_unattached(r_ast);
 
@@ -768,7 +768,7 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   printbuf_t* mangle = printbuf_new();
   printbuf(mangle, "%d", t->field_count);
 
-  ast_t* child = ast_child(type);
+  ast_t* child = ast_child(t->ast_cap);
   size_t index = 0;
 
   while(child != NULL)
