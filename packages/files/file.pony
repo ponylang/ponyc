@@ -151,9 +151,9 @@ class File
       _errno = FileError
     else
       _fd = ifdef windows then
-        @_open[I32](path.path.cstring(), @ponyint_o_rdwr())
+        @_open[I32](path.path.cstring(), @ponyint_o_rdonly())
       else
-        @open[I32](path.path.cstring(), @ponyint_o_rdwr())
+        @open[I32](path.path.cstring(), @ponyint_o_rdonly())
       end
 
       if _fd == -1 then
