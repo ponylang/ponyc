@@ -220,6 +220,7 @@ typedef enum pass_id
   PASS_EXPR,
   PASS_VERIFY,
   PASS_FINALISER,
+  PASS_SERIALISER,
   PASS_REACH,
   PASS_PAINT,
   PASS_LLVM_IR,
@@ -246,6 +247,7 @@ typedef enum pass_id
     "    =expr\n" \
     "    =verify\n" \
     "    =final\n" \
+    "    =serialise\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \
@@ -255,6 +257,7 @@ typedef enum pass_id
     "    =all           The default: generate an executable.\n"
 
 typedef struct magic_package_t magic_package_t;
+typedef struct plugins_t plugins_t;
 
 /** Pass options.
  */
@@ -297,6 +300,8 @@ typedef struct pass_opt_t
   char* features;
 
   typecheck_t check;
+
+  plugins_t* plugins;
 
   void* data; // User-defined data for unit test callbacks.
 } pass_opt_t;

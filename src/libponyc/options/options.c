@@ -1,17 +1,17 @@
 #include "options.h"
 
-#include "../libponyc/ponyc.h"
-#include "../libponyc/ast/parserapi.h"
-#include "../libponyc/ast/bnfprint.h"
-#include "../libponyc/pkg/package.h"
-#include "../libponyc/pkg/buildflagset.h"
-#include "../libponyc/ast/stringtab.h"
-#include "../libponyc/ast/treecheck.h"
-#include "../libponyc/options/options.h"
-#include "../libponyc/pass/pass.h"
-#include <platform.h>
+#include "../ponyc.h"
+#include "../ast/parserapi.h"
+#include "../ast/bnfprint.h"
+#include "../pkg/package.h"
+#include "../pkg/buildflagset.h"
+#include "../ast/stringtab.h"
+#include "../ast/treecheck.h"
+#include "../pass/pass.h"
+#include "../plugin/plugin.h"
 #include "../libponyrt/options/options.h"
 #include "../libponyrt/mem/pool.h"
+#include <platform.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -48,6 +48,7 @@ enum
   OPT_STATS,
   OPT_LINK_ARCH,
   OPT_LINKER,
+  OPT_PLUGIN,
 
   OPT_VERBOSE,
   OPT_PASSES,
@@ -92,6 +93,7 @@ static opt_arg_t std_args[] =
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
   {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
+  {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
@@ -159,6 +161,8 @@ static void usage(void)
     "    =name          Default is the host architecture.\n"
     "  --linker         Set the linker command to use.\n"
     "    =name          Default is the compiler used to compile ponyc.\n"
+    "  --plugin         Use the specified plugin(s).\n"
+    "    =name\n"
     "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_SSL "\n"
     "    =openssl_1.1.0\n"
     "    =openssl_0.9.0\n"
@@ -210,6 +214,34 @@ static void usage(void)
     "                   threads are pinned to CPUs.\n"
     "  --ponyversion    Print the version of the compiler and exit.\n"
     );
+}
+
+static void print_passes()
+{
+  printf("  ");
+  size_t cur_len = 2;
+
+  for(pass_id p = PASS_PARSE; p < PASS_ALL; p = pass_next(p))
+  {
+    const char* name = pass_name(p);
+    size_t len = strlen(name) + 1; // Add 1 for the comma.
+
+    if((cur_len + len) < 80)
+    {
+      printf("%s,", name);
+      cur_len += len;
+    } else {
+      printf("\n  %s,", name);
+      cur_len = len + 2;
+    }
+  }
+
+  const char* name = pass_name(PASS_ALL);
+
+  if((cur_len + strlen(name)) < 80)
+    printf("%s\n", name);
+  else
+    printf("\n%s\n", name);
 }
 
 #define OPENSSL_LEADER "openssl_"
@@ -274,7 +306,9 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
   exit_code = special_opt_processing(opt);
   if(exit_code != CONTINUE)
     return exit_code;
-  
+
+  bool wants_help = false;
+
   while((id = ponyint_opt_next(s)) != -1)
   {
     switch(id)
@@ -286,8 +320,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         return EXIT_0;
 
       case OPT_HELP:
-        usage();
-        return EXIT_0;
+        wants_help = true; break;
       case OPT_DEBUG: opt->release = false; break;
       case OPT_BUILDFLAG:
         if(is_openssl_flag(s->arg_val))
@@ -340,6 +373,13 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_STATS: opt->print_stats = true; break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
       case OPT_LINKER: opt->linker = s->arg_val; break;
+      case OPT_PLUGIN:
+        if(!plugin_load(opt, s->arg_val))
+        {
+          printf("Error loading plugins: %s\n", s->arg_val);
+          exit_code = EXIT_255;
+        }
+        break;
 
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
@@ -373,9 +413,8 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_PASSES:
         if(!limit_passes(opt, s->arg_val))
         {
-          printf("Invalid pass=%s it should be one of:\n%s", s->arg_val,
-             "  parse,syntax,sugar,scope,import,name,flatten,traits,docs,\n"
-             "  refer,expr,verify,final,reach,paint,ir,bitcode,asm,obj,all\n");
+          printf("Invalid pass=%s it should be one of:\n", s->arg_val);
+          print_passes();
           exit_code = EXIT_255;
         }
         break;
@@ -384,6 +423,20 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         printf("BUG: unprocessed option id %d\n", id);
         return EXIT_255;
     }
+  }
+
+  if(!plugin_parse_options(opt, s->argc, s->argv))
+    exit_code = EXIT_255;
+
+  if(wants_help)
+  {
+    usage();
+    plugin_print_help(opt);
+
+    if(exit_code != EXIT_255)
+      exit_code = EXIT_0;
+
+    return exit_code;
   }
 
   for(int i = 1; i < (*s->argc); i++)

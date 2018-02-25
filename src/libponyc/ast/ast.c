@@ -55,11 +55,15 @@
 // The private bits of the flags values
 enum
 {
-  AST_ORPHAN = 0x10,
+  AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0x3FFFFF
+  AST_ALL_FLAGS = 0x7FFFFF
 };
+
+
+pony_static_assert((int)PASS_ALL <= (int)AST_FLAG_PASS_MASK, "Wrong pass mask");
+pony_static_assert(AST_ORPHAN == (AST_FLAG_PASS_MASK + 1), "Wrong AST_ORPHAN");
 
 
 struct ast_t

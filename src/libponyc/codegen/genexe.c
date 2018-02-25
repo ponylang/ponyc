@@ -8,6 +8,7 @@
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
+#include "../plugin/plugin.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
@@ -506,6 +507,8 @@ bool genexe(compile_t* c, ast_t* program)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
 
+  plugin_visit_reach(c->reach, c->opt, true);
+
   if(c->opt->limit == PASS_PAINT)
   {
     ast_free(main_ast);
@@ -533,6 +536,8 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   gen_main(c, t_main, t_env);
+
+  plugin_visit_compile(c, c->opt);
 
   if(!genopt(c, true))
     return false;
