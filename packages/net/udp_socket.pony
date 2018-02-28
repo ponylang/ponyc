@@ -438,7 +438,7 @@ actor UDPSocket
         | (0, let length: U32) =>
           try
             let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end
-            for i in Range[USize](0, length1.usize()) do
+            for i in Range[USize](0, length.usize()) do
               gbytes'.push(gbytes(i)?)
             end
             let br = Reader.create().>append(consume gbytes')

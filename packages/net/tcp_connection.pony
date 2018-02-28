@@ -992,10 +992,10 @@ actor TCPConnection
       var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
 
       match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcfbuf(), gbytes)
-        | (0, let length1: U32) =>
+        | (0, let length: U32) =>
           try
-            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length1.usize()) end
-            for i in Range[USize](0, length1.usize()) do
+            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end
+            for i in Range[USize](0, length.usize()) do
               gbytes'.push(gbytes(i)?)
             end
             let br = Reader.create().>append(consume gbytes')
