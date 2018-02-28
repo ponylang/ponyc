@@ -30,7 +30,7 @@ members
   ;
 
 field
-  : ('var' | 'let' | 'embed') ID ':' type ('=' infix)?
+  : ('var' | 'let' | 'embed') ID ':' type ('=' infix)? STRING?
   ;
 
 method

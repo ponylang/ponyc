@@ -131,7 +131,8 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     NODE(TK_FVAR,
       TREE(id_node)
       TREE(type)
-      TREE(value)));
+      TREE(value)
+      NONE));
 
   *out_field = field;
   return true;
@@ -512,7 +513,8 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
     NODE(TK_FVAR,
       ID(name)
       TREE(type)
-      NODE(TK_REFERENCE, ID(name))));
+      NODE(TK_REFERENCE, ID(name))
+      NONE));
 
   ast_list_append(captures, last_capture, field);
   return true;

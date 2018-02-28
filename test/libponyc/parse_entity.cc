@@ -113,6 +113,7 @@ TEST_F(ParseEntityTest, ClassMaximal)
     "class box Foo[A] is T"
     "  \"Doc\""
     "  let f1:T1"
+    "  \"member Doc\""
     "  let f2:T2 = 5"
     "  var f3:P3.T3"
     "  var f4:T4 = 9"
@@ -656,65 +657,28 @@ TEST_F(ParseEntityTest, FieldMustHaveType)
   TEST_ERROR(src);
 }
 
+TEST_F(ParseEntityTest, FieldCanHaveADocString)
+{
+  const char* src =
+    "class Foo"
+    "  var baz: U8 "
+    "  \"field docstring\""
+    "  "
+    "  let bool: Bool = true"
+    "  \"\"\""
+    "  multiline"
+    "  field"
+    "  docstring"
+    "  \"\"\""
+    "  embed data: Array[U8] = data.create(0)"
+    "  \"\"\"embed field docstring\"\"\"";
+  TEST_COMPILE(src);
+}
+
 
 TEST_F(ParseEntityTest, LetFieldMustHaveType)
 {
   const char* src = "class Foo let bar";
-
-  TEST_ERROR(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegateCannotBeUnion)
-{
-  const char* src =
-    "trait T\n"
-    "trait T1\n"
-    "trait T2\n"
-
-    "class Foo\n"
-    "  var bar: T delegate (T1 | T2)";
-
-  TEST_ERROR(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegateCannotBeTuple)
-{
-  const char* src =
-    "trait T\n"
-    "trait T1\n"
-    "trait T2\n"
-
-    "class Foo\n"
-    "  var bar: T delegate (T1, T2)";
-
-  TEST_ERROR(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegateCannotBeArrow)
-{
-  const char* src =
-    "trait T\n"
-    "trait T1\n"
-    "trait T2\n"
-
-    "class Foo\n"
-    "  var bar: T delegate T1->T2";
-
-  TEST_ERROR(src);
-}
-
-
-TEST_F(ParseEntityTest, FieldDelegateCannotHaveCapability)
-{
-  const char* src =
-    "trait T\n"
-    "trait T1\n"
-
-    "class Foo\n"
-    "  var bar: T delegate T1 ref";
 
   TEST_ERROR(src);
 }
