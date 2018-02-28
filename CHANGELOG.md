@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add basic compiler plugins ([PR #2566](https://github.com/ponylang/ponyc/pull/2566))
 - [RFC 50] add member docstrings ([PR #2543](https://github.com/ponylang/ponyc/pull/2543))
 - Allow user defined help string at CommandSpec.add_help() ([PR #2535](https://github.com/ponylang/ponyc/pull/2535))
 - Embed source code into generated documentation. ([PR #2439](https://github.com/ponylang/ponyc/pull/2439))
