@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make the File.open constructor use read-only mode (Issue #2567) ([PR #2568](https://github.com/ponylang/ponyc/pull/2568))
 - Correctly typecheck FFI arguments with regard to aliasing ([PR #2550](https://github.com/ponylang/ponyc/pull/2550))
 - Allow tuples to match empty interfaces ([PR #2532](https://github.com/ponylang/ponyc/pull/2532))
 - Properly report default argument inference errors ([PR #2504](https://github.com/ponylang/ponyc/pull/2504))
