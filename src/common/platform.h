@@ -319,6 +319,7 @@ inline uint64_t __pony_clzl(uint64_t x)
 #    error "Clang doesn't support `static_assert` or `_Static_assert`."
 #  endif
 #else
+#  include <assert.h>
 #  define pony_static_assert(c, m) static_assert(c, m)
 #endif
 

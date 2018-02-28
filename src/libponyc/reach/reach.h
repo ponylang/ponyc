@@ -112,7 +112,7 @@ struct reach_type_t
   compile_opaque_t* c_type;
 };
 
-typedef struct
+typedef struct reach_t
 {
   reach_types_t types;
   reachable_expr_stack_t* expr_stack;

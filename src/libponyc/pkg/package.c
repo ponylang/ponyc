@@ -104,9 +104,6 @@ struct magic_package_t
   struct magic_package_t* next;
 };
 
-// Function that will handle a path in some way.
-typedef bool (*path_fn)(const char* path, pass_opt_t* opt);
-
 DECLARE_STACK(package_stack, package_stack_t, package_t)
 DEFINE_STACK(package_stack, package_stack_t, package_t)
 
@@ -762,7 +759,7 @@ bool package_init(pass_opt_t* opt)
 }
 
 
-static bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
+bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
 {
   if(paths == NULL)
     return true;

@@ -89,11 +89,14 @@ int main(int argc, char* argv[])
 
   exit_code = ponyc_opt_process(&s, &opt, &print_program_ast,
                   &print_package_ast);
+
   if(exit_code == EXIT_255)
   {
     errors_print(opt.check.errors);
+    pass_opt_done(&opt);
     return -1;
   } else if(exit_code == EXIT_0) {
+    pass_opt_done(&opt);
     return 0;
   }
 
