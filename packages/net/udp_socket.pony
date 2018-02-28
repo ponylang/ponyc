@@ -422,6 +422,28 @@ actor UDPSocket
     In case of system call failure, this function returns the 2-tuple:
     1. The value of `errno`.
     2. An undefined value that must be ignored.
+
+    Usage example:
+
+    ```pony
+    // listening() is a callback function for class UDPNotify
+    fun ref listening(sock: UDPSocket ref) =>
+      var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
+
+      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcfbuf(), gbytes)
+        | (0, let length1: U32) =>
+          try
+            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length1.usize()) end
+            for v in gbytes.values() do
+              gbytes'.push(v)
+            end
+            let br = Reader.create().>append(consume gbytes')
+            let buffer_size: U32 = br.u32_le()?
+          end
+        | (let errno: U32, _) =>
+          // System call failed
+      end
+    ```
     """
     _OSSocket.getsockopt(_fd, level, option_name, option)
 
@@ -451,6 +473,26 @@ actor UDPSocket
 
     This function returns `0` on success, else the value of `errno` on
     failure.
+
+    Usage example:
+
+    ```pony
+    // listening() is a callback function for class UDPNotify
+    fun ref listening(sock: UDPSocket ref) =>
+      let sb = Writer
+
+      sb.u32_le(7744)             // Our desired socket buffer size
+      let sbytes = Array[U8]
+      for bs in sb.done().values() do
+        sbytes.append(bs)
+      end
+      match sock.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+        | 0 =>
+          // System call was successful
+        | let errno: U32 =>
+          // System call failed
+      end
+    ```
     """
     _OSSocket.setsockopt(_fd, level, option_name, option)
 
