@@ -411,6 +411,10 @@ actor UDPSocket
     """
     General wrapper for UDP sockets to the `getsockopt(2)` system call.
 
+    The caller must provide an array that is pre-allocated to be
+    at least as large as the largest data structure that the kernel
+    may return for the requested option.
+
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
     2. The value of the `*(uint32_t)option_length` argument set by
@@ -431,11 +435,11 @@ actor UDPSocket
       var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
 
       match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcfbuf(), gbytes)
-        | (0, let length1: U32) =>
+        | (0, let length: U32) =>
           try
-            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length1.usize()) end
-            for v in gbytes.values() do
-              gbytes'.push(v)
+            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end
+            for i in Range[USize](0, length1.usize()) do
+              gbytes'.push(gbytes(i)?)
             end
             let br = Reader.create().>append(consume gbytes')
             let buffer_size: U32 = br.u32_le()?
