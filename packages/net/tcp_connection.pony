@@ -991,7 +991,7 @@ actor TCPConnection
     fun ref connected(conn: TCPConnection ref) =>
       var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
 
-      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcfbuf(), gbytes)
+      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), gbytes)
         | (0, let length: U32) =>
           try
             let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end

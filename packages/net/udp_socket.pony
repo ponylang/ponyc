@@ -434,7 +434,7 @@ actor UDPSocket
     fun ref listening(sock: UDPSocket ref) =>
       var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
 
-      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcfbuf(), gbytes)
+      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), gbytes)
         | (0, let length: U32) =>
           try
             let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end
