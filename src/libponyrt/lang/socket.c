@@ -89,22 +89,6 @@ typedef struct
   struct sockaddr_storage addr;
 } ipaddress_t;
 
-static void api_deprecated(char *oldfunc, char *newfunc)
-{
-#ifdef TBD_PENDING_FEATURE
-  static int count = 0;
-
-  if (count++ == 0)
-  {
-    printf(stderr, "Use of %s is deprecated, please use %s instead\n",
-      oldfunc, newfunc);
-    sleep(1);
-  }
-#endif
-  (void)oldfunc; // Hush compiler warnings
-  (void)newfunc; // Hush compiler warnings
-}
-
 static socklen_t address_length(ipaddress_t* ipaddr)
 {
   switch(ipaddr->addr.ss_family)
@@ -784,13 +768,12 @@ PONY_API int pony_os_accept(asio_event_t* ev)
 }
 
 // Check this when a connection gets its first writeable event.
+// API deprecated: use TCPConnection._is_sock_connected or UDPSocket.get_so_error
 PONY_API bool pony_os_connected(int fd)
 {
   int val = 0;
   socklen_t len = sizeof(int);
 
-  api_deprecated("@pony_os_connected",
-    "TCPConnection._is_sock_connected or OSSocket.get_so_error");
   if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, (char*)&val, &len) == -1)
     return false;
 
@@ -1108,11 +1091,11 @@ PONY_API void pony_os_keepalive(int fd, int secs)
 #endif
 }
 
+// API deprecated: use TCPConnection.set_tcp_nodelay
 PONY_API void pony_os_nodelay(int fd, bool state)
 {
   int val = state;
 
-  api_deprecated("pony_os_nodelay", "TCPConnection.set_tcp_nodelay");
   setsockopt((SOCKET)fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&val,
     sizeof(int));
 }
@@ -1208,11 +1191,11 @@ void ponyint_os_sockets_final()
 #endif
 }
 
+// API deprecated: use UDPSocket.set_so_broadcast
 PONY_API void pony_os_broadcast(int fd, bool state)
 {
   int broadcast = state ? 1 : 0;
 
-  api_deprecated("pony_os_broadcast", "UDPSocket.set_so_broadcast");
   setsockopt((SOCKET)fd, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast,
     sizeof(broadcast));
 }
@@ -1230,18 +1213,18 @@ PONY_API void pony_os_multicast_interface(int fd, const char* from)
   }
 }
 
+// API deprecated: use UDPSocket.set_ip_multicast_loop
 PONY_API void pony_os_multicast_loopback(int fd, bool loopback)
 {
   uint8_t loop = loopback ? 1 : 0;
 
-  api_deprecated("pony_os_multicast_loopback", "OSSocket.set_ip_multicast_loop");
   setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&loop,
     sizeof(loop));
 }
 
+// API deprecated: use UDPSocket.set_ip_multicast_ttl
 PONY_API void pony_os_multicast_ttl(int fd, uint8_t ttl)
 {
-  api_deprecated("pony_os_multicast_loopttl", "OSSocket.set_ip_multicast_ttl");
   setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_TTL, (const char*)&ttl,
     sizeof(ttl));
 }
