@@ -36,26 +36,29 @@ primitive _OSSocket
     setsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
 
 
-  fun getsockopt(fd: U32, level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
+  fun getsockopt(fd: U32, level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
     """
     General wrapper for sockets to the `getsockopt(2)` system call.
 
+    The `option_max_size` argument is the maximum number of bytes that
+    the caller expects the kernel to return via the system call's
+    `void *` 4th argument.  This function will allocate a Pony
+    `Array[U8]` array of size `option_max_size` prior to calling
+    `getsockopt(2)`.
+
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
-    2. The value of the `*(uint32_t)option_length` argument set by
-       `getsockopt(2)`.  The caller must use this length to properly
-        interpret the bytes written by the kernel into the `option`
-        byte array: this length may be smaller than `option`'s
-        original size.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
 
     In case of system call failure, this function returns the 2-tuple:
     1. The value of `errno`.
     2. An undefined value that must be ignored.
     """
-    get_so(fd, level, option_name, option)
+    get_so(fd, level, option_name, option_max_size)
 
   fun getsockopt_u32(fd: U32, level: I32, option_name: I32): (U32, U32) =>
-    var word: Array[U8] ref = [0;0;0;0]
     """
     Wrapper for sockets to the `getsockopt(2)` system call where
     the kernel's returned option value is a C `uint32_t` type / Pony
@@ -69,11 +72,12 @@ primitive _OSSocket
     1. The value of `errno`.
     2. An undefined value that must be ignored.
     """
-    (let errno: U32, _) = get_so(fd, level, option_name, word)
+    (let errno: U32, let buffer: Array[U8] iso) =
+      get_so(fd, level, option_name, 4)
 
     if errno == 0 then
       try
-          (errno, bytes4_to_u32(word)?)
+          (errno, bytes4_to_u32(consume buffer)?)
       else
         (1, 0)
       end
@@ -106,27 +110,28 @@ primitive _OSSocket
     var word: Array[U8] ref = u32_to_bytes4(option)
     set_so(fd, level, option_name, word)
 
-  fun get_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
+  fun get_so(fd: U32, level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
     """
     Low-level interface to `getsockopt(2)` via `@pony_os_getsockopt[U32]()`.
 
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
-    2. The value of the `*(uint32_t)option_length` argument set by
-       `getsockopt(2)`.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
 
     In case of system call failure, `errno` is returned in the first
     element of the 2-tuple, and the second element's value is junk.
     """
-    var option_size: U32 = option.size().u32()
+    var option: Array[U8] iso = recover option.create().>undefined(option_max_size) end
+    var option_size: USize = option_max_size
     let result: U32 = @pony_os_getsockopt[U32](fd, level, option_name,
        option.cpointer(), addressof option_size)
 
     if result == 0 then
-      (result, option_size)
-    else
-      (result, U32(0))
+      option.truncate(option_size)
     end
+    (result, consume option)
 
   fun set_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): U32 =>
     var option_size: U32 = option.size().u32()

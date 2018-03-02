@@ -964,7 +964,8 @@ actor TCPConnection
 
   /**************************************/
 
-  fun ref getsockopt(level: I32, option_name: I32, option: Array[U8]): (U32, U32) =>
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize):
+    (U32, Array[U8] iso^) =>
     """
     General wrapper for TCP sockets to the `getsockopt(2)` system call.
 
@@ -974,11 +975,9 @@ actor TCPConnection
 
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
-    2. The value of the `*(uint32_t)option_length` argument set by
-       `getsockopt(2)`.  The caller must use this length to properly
-        interpret the bytes written by the kernel into the `option`
-        byte array: this length may be smaller than `option`'s
-        original size.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
 
     In case of system call failure, this function returns the 2-tuple:
     1. The value of `errno`.
@@ -989,24 +988,22 @@ actor TCPConnection
     ```pony
     // connected() is a callback function for class TCPConnectionNotify
     fun ref connected(conn: TCPConnection ref) =>
-      var gbytes: Array[U8] ref = Array[U8].create().>undefined(4)
-
-      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), gbytes)
-        | (0, let length: U32) =>
+      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+        | (0, let gbytes: Array[U8] iso) =>
           try
-            let gbytes': Array[U8] iso = recover Array[U8].create().>reserve(length.usize()) end
-            for i in Range[USize](0, length.usize()) do
-              gbytes'.push(gbytes(i)?)
+            let br = Reader.create().>append(consume gbytes)
+            ifdef littleendian then
+              let buffer_size = br.u32_le()?
+            else
+              let buffer_size = br.u32_be()?
             end
-            let br = Reader.create().>append(consume gbytes')
-            let buffer_size: U32 = br.u32_le()?
           end
         | (let errno: U32, _) =>
           // System call failed
       end
     ```
     """
-    _OSSocket.getsockopt(_fd, level, option_name, option)
+    _OSSocket.getsockopt(_fd, level, option_name, option_max_size)
 
   fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
     """
