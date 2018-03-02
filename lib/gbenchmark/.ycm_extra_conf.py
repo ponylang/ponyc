@@ -7,7 +7,7 @@ import ycm_core
 flags = [
 '-Wall',
 '-Werror',
-'-pedantic-errors',
+'-pendantic-errors',
 '-std=c++0x',
 '-fno-strict-aliasing',
 '-O3',

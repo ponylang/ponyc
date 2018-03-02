@@ -20,14 +20,6 @@
 #include <iostream>
 #include <limits>
 
-#ifdef max
-#undef max
-#endif
-
-#ifdef min
-#undef min
-#endif
-
 namespace benchmark {
 // Parses 'str' for a 32-bit signed integer.  If successful, writes
 // the result to *value and returns true; otherwise leaves *value
@@ -217,9 +209,9 @@ bool IsFlag(const char* str, const char* flag) {
   return (ParseFlagValue(str, flag, true) != nullptr);
 }
 
-bool IsTruthyFlagValue(const std::string& str) {
-  if (str.empty()) return true;
-  char ch = str[0];
+bool IsTruthyFlagValue(const std::string& value) {
+  if (value.empty()) return true;
+  char ch = value[0];
   return isalnum(ch) &&
          !(ch == '0' || ch == 'f' || ch == 'F' || ch == 'n' || ch == 'N');
 }
