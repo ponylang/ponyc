@@ -537,7 +537,15 @@ actor ProcessMonitor
 
   fun ref _close_fd(fd: U32) =>
     """
-    Close a file descriptor.
+    Close a file descriptor.  This function also handles unsubscribing
+    the asio event (if the file descriptor has one), the file
+    descriptor should always be closed _after_ unsubscribing the
+    event, otherwise there is the possibility of reusing the file
+    descriptor in another thread and then unsubscribing the reused
+    file descriptor here!  Unsubscribing and closing the file
+    descriptor should be treated as one operation, and as this
+    function is called from many places in this module put the
+    unsubscribing logic here too.
     """
     match fd
     | _stdin_write =>
