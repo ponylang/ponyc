@@ -276,7 +276,7 @@ def build(ctx):
         target   = 'gbenchmark',
         source   = ctx.path.ant_glob('lib/gbenchmark/*.cc'),
         includes = [ 'lib/gbenchmark/include' ],
-        defines  = [ 'HAVE_STD_REGEX' ]
+        defines  = [ 'HAVE_STD_REGEX', 'NOMINMAX' ]
     )
 
     # blake2
