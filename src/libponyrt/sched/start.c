@@ -134,6 +134,7 @@ PONY_API int pony_init(int argc, char** argv)
   memset(&opt, 0, sizeof(options_t));
 
   // Defaults.
+  opt.min_threads = 1;
   opt.cd_min_deferred = 4;
   opt.cd_max_deferred = 8;
   opt.cd_conf_group = 6;
