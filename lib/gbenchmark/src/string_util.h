@@ -10,7 +10,7 @@ namespace benchmark {
 
 void AppendHumanReadable(int n, std::string* str);
 
-std::string HumanReadableNumber(double n);
+std::string HumanReadableNumber(double n, double one_k = 1024.0);
 
 std::string StringPrintF(const char* format, ...);
 
@@ -26,7 +26,7 @@ inline std::ostream& StringCatImp(std::ostream& out, First&& f,
 }
 
 template <class... Args>
-inline std::string StrCat(Args&&... args) {
+inline std::string StringCat(Args&&... args) {
   std::ostringstream ss;
   StringCatImp(ss, std::forward<Args>(args)...);
   return ss.str();
