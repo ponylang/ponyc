@@ -543,8 +543,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
 static pony_actor_t* perhaps_suspend_scheduler(
   scheduler_t* sched, uint32_t current_active_scheduler_count,
-  bool* block_sent, uint32_t* steal_attempts, bool sched_is_blocked,
-  scheduler_t* victim)
+  bool* block_sent, uint32_t* steal_attempts, bool sched_is_blocked)
 {
   // if we're the highest active scheduler thread
   // and there are more active schedulers than the minimum requested
@@ -607,12 +606,7 @@ static pony_actor_t* perhaps_suspend_scheduler(
     pthread_mutex_unlock(&sched_mut);
 #endif
     if(actor != NULL)
-    {
-      DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched,
-        (uintptr_t)victim, (uintptr_t)actor);
-      (void)victim;
       return actor;
-    }
   }
   return NULL;
 }
@@ -627,17 +621,15 @@ static pony_actor_t* steal(scheduler_t* sched)
   uint32_t steal_attempts = 0;
   uint64_t tsc = ponyint_cpu_tick();
   pony_actor_t* actor;
+  scheduler_t* victim = NULL;
 
   while(true)
   {
-    scheduler_t* victim = choose_victim(sched);
+    victim = choose_victim(sched);
 
     actor = pop_global(victim);
     if(actor != NULL)
-    {
-      DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
       break;
-    }
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
@@ -709,7 +701,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         current_active_scheduler_count = get_active_scheduler_count();
 
         actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-          &block_sent, &steal_attempts, true, victim);
+          &block_sent, &steal_attempts, true);
         if (actor != NULL)
           break;
         else if(!sched->asio_noisy)
@@ -739,7 +731,7 @@ static pony_actor_t* steal(scheduler_t* sched)
       pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
 
       actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-        &block_sent, &steal_attempts, false, victim);
+        &block_sent, &steal_attempts, false);
       if (actor != NULL)
         break;
     }
@@ -753,6 +745,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     else
       send_msg(sched->index, 0, SCHED_UNBLOCK, 0);
   }
+  DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
   return actor;
 }
 
