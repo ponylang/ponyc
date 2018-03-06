@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix two race conditions where an ASIO wakeup notifications can be lost ([PR #2561](https://github.com/ponylang/ponyc/pull/2561))
 - Fix compiler crash in alternate name suggestion logic (issue #2508). ([PR #2552](https://github.com/ponylang/ponyc/pull/2552))
 - Make the File.open constructor use read-only mode (Issue #2567) ([PR #2568](https://github.com/ponylang/ponyc/pull/2568))
 - Correctly typecheck FFI arguments with regard to aliasing ([PR #2550](https://github.com/ponylang/ponyc/pull/2550))
