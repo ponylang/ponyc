@@ -27,7 +27,6 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdio.h>
 typedef int SOCKET;
 #endif
 
@@ -1327,30 +1326,6 @@ PONY_API void pony_os_multicast_join(int fd, const char* group, const char* to)
 PONY_API void pony_os_multicast_leave(int fd, const char* group, const char* to)
 {
   multicast_change(fd, group, to, false);
-}
-
-#ifdef PLATFORM_IS_WINDOWS
-PONY_API int pony_os_getsockopt(int fd, int level, int option_name, char *option_value, int *option_len)
-#else
-PONY_API int pony_os_getsockopt(int fd, int level, int option_name, void *option_value, socklen_t *option_len)
-#endif
-{
-  if (getsockopt(fd, level, option_name, option_value, option_len) == 0)
-    return 0;
-  else
-    return errno;
-}
-
-#ifdef PLATFORM_IS_WINDOWS
-PONY_API int pony_os_setsockopt(int fd, int level, int option_name, const char *option_value, socklen_t option_len)
-#else
-PONY_API int pony_os_setsockopt(int fd, int level, int option_name, void *option_value, socklen_t option_len)
-#endif
-{
-  if (setsockopt(fd, level, option_name, option_value, option_len) == 0)
-    return 0;
-  else
-    return errno;
 }
 
 /* Constants are from

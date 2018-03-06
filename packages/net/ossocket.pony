@@ -1,3 +1,4 @@
+use @pony_os_errno[I32]()
 
 primitive _OSSocket
   """
@@ -36,7 +37,7 @@ primitive _OSSocket
     setsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
 
 
-  fun getsockopt(fd: U32, level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
+  fun getsockopt(fd: U32, level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
     """
     General wrapper for sockets to the `getsockopt(2)` system call.
 
@@ -112,7 +113,7 @@ primitive _OSSocket
 
   fun get_so(fd: U32, level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
     """
-    Low-level interface to `getsockopt(2)` via `@pony_os_getsockopt[U32]()`.
+    Low-level interface to `getsockopt(2)`.
 
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
@@ -125,24 +126,33 @@ primitive _OSSocket
     """
     var option: Array[U8] iso = recover option.create().>undefined(option_max_size) end
     var option_size: USize = option_max_size
-    let result: U32 = @pony_os_getsockopt[U32](fd, level, option_name,
+    let result: I32 = @getsockopt[I32](fd, level, option_name,
        option.cpointer(), addressof option_size)
 
     if result == 0 then
       option.truncate(option_size)
+      (0, consume option)
+    else
+      option.truncate(0)
+      (@pony_os_errno().u32(), consume option)
     end
-    (result, consume option)
 
   fun set_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): U32 =>
     var option_size: U32 = option.size().u32()
     """
-    Low-level interface to `setsockopt(2)` via `@pony_os_setsockopt[U32]()`.
+    Low-level interface to `setsockopt(2)`.
 
     This function returns `0` on success, else the value of `errno` on
     failure.
     """
-    @pony_os_setsockopt[U32](fd, level, option_name,
+    let result: I32 = @setsockopt[I32](fd, level, option_name,
        option.cpointer(), option_size)
+
+    if result == 0 then
+      0
+    else
+      @pony_os_errno().u32()
+    end
 
   fun bytes4_to_u32(b: Array[U8]): U32 ? =>
     ifdef littleendian then

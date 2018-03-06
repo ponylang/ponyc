@@ -964,7 +964,7 @@ actor TCPConnection
 
   /**************************************/
 
-  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize):
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4):
     (U32, Array[U8] iso^) =>
     """
     General wrapper for TCP sockets to the `getsockopt(2)` system call.

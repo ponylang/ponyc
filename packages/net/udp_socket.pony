@@ -407,7 +407,7 @@ actor UDPSocket
       _fd = -1
     end
 
-  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
     """
     General wrapper for UDP sockets to the `getsockopt(2)` system call.
 
