@@ -1575,3 +1575,17 @@ bool target_is_native128(char* t)
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
 }
+
+bool target_is_bigendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return !triple.isLittleEndian();
+}
+
+bool target_is_littleendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isLittleEndian();
+}

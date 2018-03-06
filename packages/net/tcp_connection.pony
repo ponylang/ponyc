@@ -436,7 +436,7 @@ actor TCPConnection
     socket.
     """
     if _connected then
-      @pony_os_nodelay[None](_fd, state)
+      set_tcp_nodelay(state)
     end
 
   fun ref set_keepalive(secs: U32) =>
@@ -462,7 +462,7 @@ actor TCPConnection
 
         if not _connected and not _closed then
           // We don't have a connection yet.
-          if @pony_os_connected[Bool](fd) then
+          if _is_sock_connected(fd) then
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
@@ -939,6 +939,12 @@ actor TCPConnection
 
     try (_listen as TCPListener)._conn_closed() end
 
+
+  // Check this when a connection gets its first writeable event.
+  fun _is_sock_connected(fd: U32): Bool =>
+    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
+    (errno == 0) and (value == 0)
+
   fun ref _apply_backpressure() =>
     if not _throttled then
       _throttled = true
@@ -959,3 +965,153 @@ actor TCPConnection
       _throttled = false
       _notify.unthrottled(this)
     end
+
+  /**************************************/
+
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4):
+    (U32, Array[U8] iso^) =>
+    """
+    General wrapper for TCP sockets to the `getsockopt(2)` system call.
+
+    The caller must provide an array that is pre-allocated to be
+    at least as large as the largest data structure that the kernel
+    may return for the requested option.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+
+    Usage example:
+
+    ```pony
+    // connected() is a callback function for class TCPConnectionNotify
+    fun ref connected(conn: TCPConnection ref) =>
+      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+        | (0, let gbytes: Array[U8] iso) =>
+          try
+            let br = Reader.create().>append(consume gbytes)
+            ifdef littleendian then
+              let buffer_size = br.u32_le()?
+            else
+              let buffer_size = br.u32_be()?
+            end
+          end
+        | (let errno: U32, _) =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.getsockopt(_fd, level, option_name, option_max_size)
+
+  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+    """
+    Wrapper for TCP sockets to the `getsockopt(2)` system call where
+    the kernel's returned option value is a C `uint32_t` type / Pony
+    type `U32`.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. The `*option_value` returned by the kernel converted to a Pony `U32`.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+    """
+    _OSSocket.getsockopt_u32(_fd, level, option_name)
+
+  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
+    """
+    General wrapper for TCP sockets to the `setsockopt(2)` system call.
+
+    The caller is responsible for the correct size and byte contents of
+    the `option` array for the requested `level` and `option_name`,
+    including using the appropriate machine endian byte order.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+
+    Usage example:
+
+    ```pony
+    // connected() is a callback function for class TCPConnectionNotify
+    fun ref connected(conn: TCPConnection ref) =>
+      let sb = Writer
+
+      sb.u32_le(7744)             // Our desired socket buffer size
+      let sbytes = Array[U8]
+      for bs in sb.done().values() do
+        sbytes.append(bs)
+      end
+      match conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+        | 0 =>
+          // System call was successful
+        | let errno: U32 =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.setsockopt(_fd, level, option_name, option)
+
+  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+    """
+    General wrapper for TCP sockets to the `setsockopt(2)` system call where
+    the kernel expects an option value of a C `uint32_t` type / Pony
+    type `U32`.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+    """
+    _OSSocket.setsockopt_u32(_fd, level, option_name, option)
+
+
+  fun ref get_so_error(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
+    """
+    _OSSocket.get_so_error(_fd)
+
+  fun ref get_so_rcvbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.get_so_rcvbuf(_fd)
+
+  fun ref get_so_sndbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.get_so_sndbuf(_fd)
+
+  fun ref get_tcp_nodelay(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
+    """
+    _OSSocket.getsockopt_u32(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
+
+
+  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.set_so_rcvbuf(_fd, bufsize)
+
+  fun ref set_so_sndbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.set_so_sndbuf(_fd, bufsize)
+
+  fun ref set_tcp_nodelay(state: Bool): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
+    """
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
+    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
+

@@ -14,5 +14,8 @@ primitive Platform
   fun llp64(): Bool => compile_intrinsic
   fun ilp32(): Bool => compile_intrinsic
 
+  fun bigendian(): Bool => compile_intrinsic
+  fun littleendian(): Bool => compile_intrinsic
+
   fun native128(): Bool => compile_intrinsic
   fun debug(): Bool => compile_intrinsic
