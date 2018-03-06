@@ -76,7 +76,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
                       ast_print_type(a_type));
-      ast_error_frame(&frame, arg, "parameter type is %s",
+      ast_error_frame(&frame, param, "parameter type is %s",
                       ast_print_type(p_type));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
