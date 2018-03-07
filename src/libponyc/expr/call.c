@@ -240,6 +240,10 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, arg, "argument type is %s",
+                      ast_print_type(a_type));
+      ast_error_frame(&frame, param, "parameter type is %s",
+                      ast_print_type(p_type));
       errorframe_append(&frame, &info);
 
       if (ast_childcount(arg) > 1)
