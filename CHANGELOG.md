@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- New Ponybench API (RFC 52) ([PR #2578](https://github.com/ponylang/ponyc/pull/2578))
 - Forbid impossible pattern matching on generic capabilities ([PR #2499](https://github.com/ponylang/ponyc/pull/2499))
 - Remove case functions ([PR #2542](https://github.com/ponylang/ponyc/pull/2542))
 - Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
