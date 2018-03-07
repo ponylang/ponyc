@@ -548,6 +548,7 @@ actor ProcessMonitor
     unsubscribing logic here too.
     """
     match fd
+    | -1 => return
     | _stdin_write =>
       if _stdin_event isnt AsioEvent.none() then
         @pony_asio_event_unsubscribe(_stdin_event)
