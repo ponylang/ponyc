@@ -33,5 +33,7 @@ src/common/dtrace_probes.h
 
 /stdlib-docs/
 
+lib/gbenchmarkX
+
 # Allow these paths
 !src/libponyrt/lang/except_try_catch.ll
