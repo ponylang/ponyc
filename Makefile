@@ -563,20 +563,12 @@ libponyc.benchmarks.linker = $(CXX)
 libponyrt.benchmarks.linker = $(CXX)
 libponyrt.benchmarksX.linker = $(CXX)
 
-# External dependencies
-external.deps := $(libgbenchmarkX.dir)
-
 # make targets
 targets := $(libraries) libponyrt $(binaries) $(tests) $(benchmarks)
 
-.PHONY: all $(targets) install uninstall clean stats deploy prerelease fetch.external.deps
-all: fetch.external.deps $(targets)
+.PHONY: all $(targets) install uninstall clean stats deploy prerelease
+all: $(targets)
 	@:
-
-fetch.external.deps: $(external.deps)
-
-$(libgbenchmarkX.dir):
-	git clone https://github.com/google/benchmark.git $@
 
 # Dependencies
 libponyc.depends := libponyrt libblake2
@@ -710,9 +702,7 @@ endef
 
 define PREPARE
   $(eval $(call DIRECTORY,$(1)))
-  $(warning 1 sourcedir=$(sourcedir) outdir=$(outdir))
   $(eval $(call ENUMERATE,$(1)))
-  $(warning 1 sourcefiles=$(sourcefiles))
   $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
     $(sourcefiles))))
