@@ -454,7 +454,7 @@ TEST_F(RecoverTest, CantDoPartialApplication_RefWithLowerToTag)
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
 
-TEST_F(RecoverTest, CanRecover_TupleMutableAlias)
+TEST_F(RecoverTest, CantRecover_TupleMutableAlias)
 {
   const char* src =
     "class Foo\n"
@@ -464,10 +464,23 @@ TEST_F(RecoverTest, CanRecover_TupleMutableAlias)
     "      (y, y)\n"
     "    end";
 
+  TEST_ERRORS_1(src, "can't recover to this capability");
+}
+
+TEST_F(RecoverTest, CanRecover_TupleMutableSingleLift)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso, Foo iso) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      (y, Foo)\n"
+    "    end";
+
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantRecover_TupleMutableLift)
+TEST_F(RecoverTest, CantRecover_TupleMutableMultipleLifts)
 {
   const char* src =
     "class Foo\n"
@@ -477,7 +490,7 @@ TEST_F(RecoverTest, CantRecover_TupleMutableLift)
     "      (y, y)\n"
     "    end";
 
-  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+  TEST_ERRORS_1(src, "can't recover to this capability");
 }
 
 TEST_F(RecoverTest, CanRecover_TupleMutableToImmutable)
@@ -493,7 +506,21 @@ TEST_F(RecoverTest, CanRecover_TupleMutableToImmutable)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CanRecover_TupleInUnionNoInnerLift)
+TEST_F(RecoverTest, CantRecover_TupleMutableToMutableAndImmutable)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso, Foo val) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      let z: Foo box = Foo\n"
+    "      (y, z)\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "can't recover to this capability");
+}
+
+TEST_F(RecoverTest, CantRecover_TupleInUnionAlias)
 {
   const char* src =
     "class Foo\n"
@@ -504,10 +531,24 @@ TEST_F(RecoverTest, CanRecover_TupleInUnionNoInnerLift)
     "      z\n"
     "    end";
 
+  TEST_ERRORS_1(src, "can't recover to this capability");
+}
+
+TEST_F(RecoverTest, CanRecover_TupleInUnionSingleLift)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    let x: (Foo iso | (Foo iso, Foo iso)) = recover\n"
+    "      let y: Foo = Foo\n"
+    "      let z: (Foo | (Foo, Foo iso)) = (y, Foo)\n"
+    "      consume z\n"
+    "    end";
+
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantRecover_TupleInUnionInnerLift)
+TEST_F(RecoverTest, CantRecover_TupleInUnionMultipleLifts)
 {
   const char* src =
     "class Foo\n"
@@ -518,7 +559,7 @@ TEST_F(RecoverTest, CantRecover_TupleInUnionInnerLift)
     "      z\n"
     "    end";
 
-  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+  TEST_ERRORS_1(src, "can't recover to this capability");
 }
 
 TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
