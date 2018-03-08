@@ -8,17 +8,40 @@ class FileMode
   The default mode is read/write for the owner, read-only for everyone else.
   """
   var setuid: Bool = false
+    """`true` if the SETUID bit is set."""
+
   var setgid: Bool = false
+    """`true` if the SETGID bit is set."""
+
   var sticky: Bool = false
+    """`true` if the sticky bit is set."""
+
   var owner_read: Bool = true
+    """`true` if the owning user can read the file."""
+
   var owner_write: Bool = true
+    """`true` if the owning user can write to the file."""
+
   var owner_exec: Bool = false
+    """`true` if the owning user can execute the file."""
+
   var group_read: Bool = true
+    """`true` if members of the owning group can read the file."""
+
   var group_write: Bool = false
+    """`true` if members of the owning group can write to the file."""
+
   var group_exec: Bool = false
+    """`true` if members of the owning group can execute the file."""
+
   var any_read: Bool = true
+    """`true` if every user can read the file."""
+
   var any_write: Bool = false
+    """`true` if every user can write to the file."""
+
   var any_exec: Bool = false
+    """`true if every user can execute the file."""
 
   fun ref exec() =>
     """

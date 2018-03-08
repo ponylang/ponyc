@@ -13,7 +13,13 @@ class val FilePath
   that path.
   """
   let path: String
+    """
+    Absolute filesystem path.
+    """
   let caps: FileCaps = FileCaps
+    """
+    Set of capabilities for operations on `path`.
+    """
 
   new val create(
     base: (FilePath | AmbientAuth),

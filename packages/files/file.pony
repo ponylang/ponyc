@@ -80,7 +80,15 @@ class File
   Operations on a file.
   """
   let path: FilePath
+    """
+    The filesystem path to this file.
+    """
+
   let writeable: Bool
+    """
+    `true` if this file is writable.
+    """
+
   let _newline: String = "\n"
   var _unsynced_data: Bool = false
   var _unsynced_metadata: Bool = false

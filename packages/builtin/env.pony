@@ -4,10 +4,46 @@ class val Env
   program by default by the runtime.
   """
   let root: (AmbientAuth | None)
+    """
+    The root capability.
+
+    Can be `None` for artificially constructed `Env`instances.
+    """
+
   let input: Stdin
+    """
+    stdin represented as an actor.
+
+
+    Reading from stdin is done by registering a `StdinNotify`:
+
+    ```
+    actor Main
+      new create(env: Env) =>
+        // do not forget to call `env.input.dispose` at some point
+        env.input(
+          object iso is StdinNotify
+            fun ref apply(data: Array[U8] iso) =>
+              env.out.write(String.from_iso_array(consume data))
+
+            fun ref dispose() =>
+              env.out.print("Done.")
+          end,
+          512)
+    ```
+
+    **Note:** For reading user input from a terminal, use the `readline` package.
+    """
+
   let out: OutStream
+    """stdout"""
+
   let err: OutStream
+    """stderr"""
+
   let args: Array[String] val
+    """The command line used to start the program."""
+
   let _envp: Pointer[Pointer[U8]] val
   let _vars: (Array[String] val | None)
 

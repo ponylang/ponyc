@@ -20,6 +20,13 @@ class val TestHelper
 
   let _runner: _TestRunner
   let env: Env
+    """
+    The process environment.
+
+    This is useful for getting the [root authority](builtin-AmbienAuth) in order to access
+    the filesystem (See [files](files--index)) or the network (See [net](net--index))
+    in your tests.
+    """.
 
   new val _create(runner: _TestRunner, env': Env) =>
     """

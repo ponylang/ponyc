@@ -4,13 +4,92 @@ class val URL
   values.
   """
   var scheme: String = ""
+    """
+    URL scheme.
+
+    If the given URL does not provide a scheme, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.1).
+    """
+
   var user: String = ""
+    """
+    URL user as part of the URLs authority component:
+
+    ```
+    authority = [ user [ ":" password ] "@" ] host [ ":" port ]
+    ```
+
+    If the URL does not provide user information, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.2.1).
+    """
+
   var password: String = ""
+    """
+    URL password as part of the URLs authority component:
+
+    ```
+    authority = [ user [ ":" password ] "@" ] host [ ":" port ]
+    ```
+
+    If the URL does not provide a password, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.2.1).
+    """
+
   var host: String = ""
+    """
+    URL host as part of the URLs authority component:
+
+    ```
+    authority = [ user [ ":" password ] "@" ] host [ ":" port ]
+    ```
+
+    If the URL does not provide a host, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.2.2).
+    """
+
   var port: U16 = 0
+    """
+    URL port as part of the URLs authority component:
+
+    ```
+    authority = [ user [ ":" password ] "@" ] host [ ":" port ]
+    ```
+
+    If the URL does not provide a port, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.2.3).
+    """
+
   var path: String = ""
+    """
+    URL path component.
+
+    If the URL does not provide a path component, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.3).
+    """
+
   var query: String = ""
+    """
+    URL query component.
+
+    If the URL does not provide a query component, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.4).
+    """
+
   var fragment: String = ""
+    """
+    Url fragment identifier component.
+
+    If the URL does not provide a fragment identifier component, this will be the empty string.
+
+    See also [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.5).
+    """
 
   new val create() =>
     """
