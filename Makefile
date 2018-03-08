@@ -710,7 +710,9 @@ endef
 
 define PREPARE
   $(eval $(call DIRECTORY,$(1)))
+  $(warning 1 sourcedir=$(sourcedir) outdir=$(outdir))
   $(eval $(call ENUMERATE,$(1)))
+  $(warning 1 sourcefiles=$(sourcefiles))
   $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
     $(sourcefiles))))
