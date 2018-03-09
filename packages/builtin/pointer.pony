@@ -28,6 +28,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun _convert[B](): this->Pointer[B] =>
+    """
+    Convert from Pointer[A] to Pointer[B].
+    """
+    compile_intrinsic
+
   fun _apply(i: USize): this->A =>
     """
     Retrieve index i.
@@ -71,12 +77,6 @@ struct Pointer[A]
   fun _copy_to(that: Pointer[this->A!], n: USize): this->Pointer[A] =>
     """
     Copy n elements from this to that.
-    """
-    compile_intrinsic
-
-  fun ref _consume_from(that: Pointer[A]^, n: USize): Pointer[A]^ =>
-    """
-    Copy n elements from that to this.
     """
     compile_intrinsic
 

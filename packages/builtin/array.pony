@@ -184,12 +184,12 @@ class Array[A] is Seq[A]
       if _size.next_pow2() != _alloc.next_pow2() then
         _alloc = _size.next_pow2()
         let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
-        _ptr._consume_from(consume old_ptr, _size)
+        old_ptr._copy_to(_ptr._convert[A!](), _size)
       end
     elseif _size < _alloc then
       _alloc = _size
       let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
-      _ptr._consume_from(consume old_ptr, _size)
+      old_ptr._copy_to(_ptr._convert[A!](), _size)
     end
 
   fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize) =>
