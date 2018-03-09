@@ -56,21 +56,17 @@ static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 static void generic_function(compile_t* c, reach_type_t* t, const char* name,
   generate_gen_fn gen)
 {
+  reach_method_name_t* n = reach_method_name(t, name);
+
+  if(n == NULL)
+    return;
+
   size_t i = HASHMAP_BEGIN;
-  reach_method_name_t* n;
-  while((n = reach_method_names_next(&t->methods, &i)) != NULL)
+  reach_method_t* m;
+  while((m = reach_methods_next(&n->r_methods, &i)) != NULL)
   {
-    if(n->name == name)
-    {
-      size_t j = HASHMAP_BEGIN;
-      reach_method_t* m;
-      while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
-      {
-        m->intrinsic = true;
-        gen(c, t, m);
-      }
-      break;
-    }
+    m->intrinsic = true;
+    gen(c, t, m);
   }
 }
 
@@ -179,6 +175,23 @@ static void pointer_unsafe(compile_t* c, reach_type_t* t)
   start_function(c, t, m, c_t->use_type, &c_t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMGetParam(c_m->func, 0));
+  codegen_finishfun(c);
+}
+
+static void pointer_convert(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  m->intrinsic = true;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  compile_type_t* t_result = (compile_type_t*)m->result->c_type;
+
+  start_function(c, t, m, t_result->use_type, &c_t->use_type, 1);
+
+  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
+  ptr = LLVMBuildBitCast(c->builder, ptr, t_result->use_type, "");
+
+  LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
 }
 
@@ -408,33 +421,6 @@ static void pointer_copy_to(compile_t* c, void* data, token_id cap)
   codegen_finishfun(c);
 }
 
-static void pointer_consume_from(compile_t* c, reach_type_t* t,
-  compile_type_t* t_elem)
-{
-  FIND_METHOD("_consume_from", TK_NONE);
-
-  LLVMTypeRef params[3];
-  params[0] = c_t->use_type;
-  params[1] = c_t->use_type;
-  params[2] = c->intptr;
-  start_function(c, t, m, c_t->use_type, params, 3);
-
-  // Set up a constant integer for the allocation size.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
-
-  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
-  LLVMValueRef ptr2 = LLVMGetParam(c_m->func, 1);
-  LLVMValueRef n = LLVMGetParam(c_m->func, 2);
-  LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
-
-  // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
-  gencall_memcpy(c, ptr, ptr2, elen);
-
-  LLVMBuildRet(c->builder, ptr);
-  codegen_finishfun(c);
-}
-
 static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize", TK_NONE);
@@ -511,6 +497,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 
   pointer_realloc(c, t, c_t_elem);
   pointer_unsafe(c, t);
+  GENERIC_FUNCTION("_convert", pointer_convert);
   BOX_FUNCTION(pointer_apply, box_args);
   pointer_update(c, t, t_elem);
   BOX_FUNCTION(pointer_offset, c_box_args);
@@ -518,7 +505,6 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_insert(c, t, c_t_elem);
   pointer_delete(c, t, t_elem);
   BOX_FUNCTION(pointer_copy_to, c_box_args);
-  pointer_consume_from(c, t, c_t_elem);
   pointer_usize(c, t);
   pointer_is_null(c, t);
   pointer_eq(c, t);

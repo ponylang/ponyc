@@ -302,13 +302,13 @@ actor Main
       if (_size + 1).next_pow2() != _alloc.next_pow2() then
         _alloc = (_size + 1).next_pow2()
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-        _ptr._consume_from(consume old_ptr, _size)
+        old_ptr._copy_to(_ptr, _size)
         _set(_size, 0)
       end
     elseif (_size + 1) < _alloc then
       _alloc = (_size + 1)
       let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._consume_from(consume old_ptr, _size)
+      old_ptr._copy_to(_ptr, _size)
       _set(_size, 0)
     end
 
