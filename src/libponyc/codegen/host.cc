@@ -18,6 +18,8 @@
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Target/TargetOptions.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -28,6 +30,30 @@
 #include "ponyassert.h"
 
 using namespace llvm;
+
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
+  bool jit)
+{
+  Optional<Reloc::Model> reloc;
+
+  if(opt->pic || opt->library)
+    reloc = Reloc::PIC_;
+
+  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
+
+  CodeGenOpt::Level opt_level =
+    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
+
+  TargetOptions options;
+  options.TrapUnreachable = true;
+
+  Target* t = reinterpret_cast<Target*>(target);
+
+  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+    opt->features, options, reloc, model, opt_level);
+
+  return reinterpret_cast<LLVMTargetMachineRef>(m);
+}
 
 char* LLVMGetHostCPUName()
 {

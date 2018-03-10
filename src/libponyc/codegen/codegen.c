@@ -85,16 +85,7 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt, bool jit)
     return NULL;
   }
 
-  LLVMCodeGenOptLevel opt_level =
-    opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
-
-  LLVMRelocMode reloc =
-    (opt->pic || opt->library) ? LLVMRelocPIC : LLVMRelocDefault;
-
-  LLVMCodeModel model = jit ? LLVMCodeModelJITDefault : LLVMCodeModelDefault;
-
-  LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, opt->triple,
-    opt->cpu, opt->features, opt_level, reloc, model);
+  LLVMTargetMachineRef machine = codegen_machine(target, opt, jit);
 
   if(machine == NULL)
   {
