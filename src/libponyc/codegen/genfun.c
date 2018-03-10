@@ -368,7 +368,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 
   for(size_t i = 0; i < count - 1; i++)
   {
-    if(gentrace_needed(c, params[i].type->ast_cap, params[i].type->ast_cap))
+    if(gentrace_needed(c, params[i].ast, params[i].ast))
     {
       need_trace = true;
       break;
@@ -380,10 +380,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
     gencall_runtime(c, "pony_gc_recv", &ctx, 1, "");
 
     for(size_t i = 1; i < count; i++)
-    {
-      gentrace(c, ctx, args[i], args[i], params[i - 1].type->ast_cap,
-        params[i - 1].type->ast_cap);
-    }
+      gentrace(c, ctx, args[i], args[i], params[i - 1].ast, params[i - 1].ast);
 
     gencall_runtime(c, "pony_recv_done", &ctx, 1, "");
   }
