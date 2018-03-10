@@ -238,6 +238,17 @@ void PassTest::SetUp()
   opt.check_tree = true;
   opt.verify = true;
   opt.allow_test_symbols = true;
+#if defined(PONY_DEFAULT_PIC)
+#  if (PONY_DEFAULT_PIC == true) || (PONY_DEFAULT_PIC == false)
+    opt.pic = PONY_DEFAULT_PIC;
+#  else
+#    error "PONY_DEFAULT_PIC must be true or false"
+#  endif
+#elif defined(__pic__) || defined(__PIC__) || defined(__pie__) || defined(__PIE__)
+  // The PIC-ness of the JIT-compiled code must match the PIC-ness of the
+  // executable's code.
+  opt.pic = true;
+#endif
   last_pass = PASS_PARSE;
 }
 

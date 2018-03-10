@@ -504,7 +504,10 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 // traversed a Pony frame. This is suspected to be related to how SEH and LLVM
 // exception code generation interact.
 // See https://github.com/ponylang/ponyc/issues/2455 for more details.
-#ifndef PLATFORM_IS_WINDOWS
+//
+// This test is disabled on LLVM 3.9 and 4.0 because exceptions crossing JIT
+// boundaries are broken with the ORC JIT on these versions.
+#if !defined(PLATFORM_IS_WINDOWS) && (PONY_LLVM >= 500)
 TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
 {
   const char* src =

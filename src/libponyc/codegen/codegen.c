@@ -17,8 +17,8 @@
 
 #include <platform.h>
 #include <llvm-c/Initialization.h>
-#include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Linker.h>
+#include <llvm-c/Support.h>
 #include <string.h>
 
 struct compile_local_t
@@ -73,7 +73,7 @@ static void pop_frame(compile_t* c)
   POOL_FREE(compile_frame_t, frame);
 }
 
-static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
+static LLVMTargetMachineRef make_machine(pass_opt_t* opt, bool jit)
 {
   LLVMTargetRef target;
   char* err;
@@ -91,8 +91,10 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   LLVMRelocMode reloc =
     (opt->pic || opt->library) ? LLVMRelocPIC : LLVMRelocDefault;
 
+  LLVMCodeModel model = jit ? LLVMCodeModelJITDefault : LLVMCodeModelDefault;
+
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, opt->triple,
-    opt->cpu, opt->features, opt_level, reloc, LLVMCodeModelDefault);
+    opt->cpu, opt->features, opt_level, reloc, model);
 
   if(machine == NULL)
   {
@@ -630,7 +632,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "puts", type);
 }
 
-static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
+static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
 {
   c->opt = opt;
 
@@ -656,7 +658,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   else
     c->linkage = LLVMPrivateLinkage;
 
-  c->machine = make_machine(opt);
+  c->machine = make_machine(opt, jit);
 
   if(c->machine == NULL)
     return false;
@@ -731,7 +733,7 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
 
 bool codegen_llvm_init()
 {
-  LLVMLinkInMCJIT();
+  LLVMLoadLibraryPermanently(NULL);
   LLVMInitializeNativeTarget();
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
@@ -839,7 +841,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   genned_strings_init(&c.strings, 64);
   ffi_decls_init(&c.ffi_decls, 64);
 
-  if(!init_module(&c, program, opt))
+  if(!init_module(&c, program, opt, false))
     return false;
 
   init_runtime(&c);
@@ -866,7 +868,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     genned_strings_init(&c->strings, 64);
     ffi_decls_init(&c->ffi_decls, 64);
 
-    if(!init_module(c, program, opt))
+    if(!init_module(c, program, opt, true))
       return false;
 
     init_runtime(c);
