@@ -270,13 +270,13 @@ def build(ctx):
         defines  = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ]
     )
 
-    # gbenchmark
+    # libgbenchmark
     ctx(
         features = 'cxx cxxstlib seq',
-        target   = 'gbenchmark',
-        source   = ctx.path.ant_glob('lib/gbenchmark/*.cc'),
+        target   = 'libgbenchmark',
+        source   = ctx.path.ant_glob('lib/gbenchmark/src/*.cc'),
         includes = [ 'lib/gbenchmark/include' ],
-        defines  = [ 'HAVE_STD_REGEX', 'NOMINMAX' ]
+        defines  = [ 'HAVE_STD_REGEX', 'HAVE_STEADY_CLOCK' ]
     )
 
     # blake2
@@ -302,8 +302,8 @@ def build(ctx):
         features = 'cxx cxxprogram seq',
         target   = 'libponyc.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
-        includes = [ 'lib/gbenchmark/include' ],
-        use      = [ 'libponyc', 'gbenchmark' ],
+        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        use      = [ 'libponyc', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
@@ -322,7 +322,7 @@ def build(ctx):
         target   = 'libponyrt.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
         includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
-        use      = [ 'libponyrt', 'gbenchmark' ],
+        use      = [ 'libponyrt', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
