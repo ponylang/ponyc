@@ -229,7 +229,7 @@ Windows users will need to install:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -615,7 +615,7 @@ Building on Windows requires the following:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
@@ -624,7 +624,7 @@ In a command prompt in the `ponyc` source directory, run the following:
 make.bat configure
 ```
 
-(You only need to run this the first time you build the project.)
+(You only need to run `make.bat configure` the first time you build the project.)
 
 ```
 make.bat build test
@@ -636,7 +636,7 @@ This will automatically perform the following steps:
   - [LLVM](http://llvm.org)
   - [LibreSSL](https://www.libressl.org/)
   - [PCRE](http://www.pcre.org)
-- Build the pony compiler in the `build-<config>-<llvm-version>` directory.
+- Build the pony compiler in the `build/<config>-<llvm-version>` directory.
 - Build the unit tests for the compiler and the standard library.
 - Run the unit tests.
 
@@ -710,5 +710,3 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
-
-
