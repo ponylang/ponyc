@@ -91,11 +91,13 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
 }
 
-// remove for 6.0.1: https://reviews.llvm.org/D44140
-#if defined(PLATFORM_IS_WINDOWS) && PONY_LLVM == 600
+// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
+#if PONY_LLVM == 600
+PONY_EXTERN_C_BEGIN
 void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R) {
   initializeInstructionCombiningPassPass(*unwrap(R));
 }
+PONY_EXTERN_C_END
 #endif
 
 class HeapToStack : public FunctionPass

@@ -688,7 +688,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
     strlen(filename), dirname, strlen(dirname));
   c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
     LLVMDWARFSourceLanguageC_plus_plus, fileRef, version, strlen(version),
-    opt->release, "", 0, 0, "", 0, LLVMDWARFEmissionKind::LLVMDWARFEmissionFull,
+    opt->release, "", 0, 0, "", 0, LLVMDWARFEmissionFull,
     0, false, false);
 #endif
 
@@ -737,8 +737,8 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   return true;
 }
 
-#if defined(PLATFORM_IS_WINDOWS) && PONY_LLVM == 600
-// remove for 6.0.1: https://reviews.llvm.org/D44140
+#if PONY_LLVM == 600
+// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
 extern void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R);
 #define LLVMInitializeInstCombine LLVMInitializeInstCombine_Pony
 #endif
