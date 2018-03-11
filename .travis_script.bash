@@ -84,6 +84,24 @@ case "${TRAVIS_OS_NAME}" in
 
       make clean
       brew uninstall llvm@5
+
+      # 6.0.x
+      brew install llvm@6
+      brew link --overwrite --force llvm@6
+      ln -fs "$(which llvm-config)" llvmsym/llvm-config-6.0
+      ln -fs "$(which clang++)" llvmsym/clang++-6.0
+
+      export CC1=clang-6.0
+      export CXX1=clang++-6.0
+      #echo "Running LLVM 5.0 config=debug build..."
+      #export config=debug
+      #ponyc-test
+      echo "Running LLVM 6.0 config=release build..."
+      export config=release
+      ponyc-test
+
+      make clean
+      brew uninstall llvm@6
     fi
   ;;
 
