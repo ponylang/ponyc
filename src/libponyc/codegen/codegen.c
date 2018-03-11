@@ -16,6 +16,9 @@
 #include "ponyassert.h"
 
 #include <platform.h>
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
 #include <llvm-c/Initialization.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/Support.h>
@@ -672,10 +675,22 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
   c->builder = LLVMCreateBuilderInContext(c->context);
   c->di = LLVMNewDIBuilder(c->module);
 
+#if PONY_LLVM < 600
   // TODO: what LANG id should be used?
   c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di, 0x0004,
     package_filename(package), package_path(package), "ponyc-" PONY_VERSION,
     c->opt->release);
+#else
+  const char* filename = package_filename(package);
+  const char* dirname = package_path(package);
+  const char* version = "ponyc-" PONY_VERSION;
+  LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(c->di, filename,
+    strlen(filename), dirname, strlen(dirname));
+  c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
+    LLVMDWARFSourceLanguageC_plus_plus, fileRef, version, strlen(version),
+    opt->release, "", 0, 0, "", 0, LLVMDWARFEmissionKind::LLVMDWARFEmissionFull,
+    0, false, false);
+#endif
 
   // Empty frame stack.
   c->frame = NULL;
@@ -721,6 +736,12 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
 
   return true;
 }
+
+#if defined(PLATFORM_IS_WINDOWS) && PONY_LLVM == 600
+// remove for 6.0.1: https://reviews.llvm.org/D44140
+extern void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R);
+#define LLVMInitializeInstCombine LLVMInitializeInstCombine_Pony
+#endif
 
 bool codegen_llvm_init()
 {

@@ -105,7 +105,11 @@ char* LLVMGetHostCPUFeatures()
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
+#if PONY_LLVM < 600
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
+#else // See https://reviews.llvm.org/D39304 for this change
+  unwrap<Instruction>(inst)->setHasAllowReassoc(true);
+#endif
 }
 
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst)

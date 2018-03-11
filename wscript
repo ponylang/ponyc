@@ -51,12 +51,13 @@ MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
 LLVM_VERSIONS = [
     '3.9.1',
     '4.0.1',
-    '5.0.1'
+    '5.0.1',
+    '6.0.0'    
 ]
 
-WINDOWS_LIBS_TAG = "v1.6.0"
+WINDOWS_LIBS_TAG = "v1.7.0"
 LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.30"
+PCRE2_VERSION = "10.31"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):

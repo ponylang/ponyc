@@ -32,6 +32,10 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
+
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
 
@@ -86,6 +90,13 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
   }
 }
+
+// remove for 6.0.1: https://reviews.llvm.org/D44140
+#if defined(PLATFORM_IS_WINDOWS) && PONY_LLVM == 600
+void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R) {
+  initializeInstructionCombiningPassPass(*unwrap(R));
+}
+#endif
 
 class HeapToStack : public FunctionPass
 {
@@ -302,9 +313,9 @@ public:
         }
 
         case Instruction::Load:
-          // This is a workaround for a problem with LLVM 4 & 5 on *nix when 
+          // This is a workaround for a problem with LLVM 4 & 5 on *nix when
           // hoisting loads (see #2303, #2061, #1592).
-          // TODO: figure out the real reason LLVM 4 and 5 produce bad code 
+          // TODO: figure out the real reason LLVM 4 and 5 produce bad code
           // when hoisting stack allocated loads.
 #if PONY_LLVM >= 400 && !defined(_MSC_VER)
           // fall through
