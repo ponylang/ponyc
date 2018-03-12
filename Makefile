@@ -359,16 +359,22 @@ libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
 libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+
+libgbenchmarkX := $(lib)
+libgbenchmarkX.dir := lib/gbenchmarkX
+libgbenchmarkX.srcdir := $(libgbenchmarkX.dir)/src
+
 libblake2 := $(lib)
 libblake2.dir := lib/blake2
 libblake2.files := $(libblake2.dir)/blake2b-ref.c
 
+
 # We don't add libponyrt here. It's a special case because it can be compiled
 # to LLVM bitcode.
 ifeq ($(OSTYPE), linux)
-  libraries := libponyc libponyrt-pic libgtest libgbenchmark libblake2
+  libraries := libponyc libponyrt-pic libgtest libgbenchmark libgbenchmarkX libblake2
 else
-  libraries := libponyc libgtest libgbenchmark libblake2
+  libraries := libponyc libgtest libgbenchmark libgbenchmarkX libblake2
 endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
@@ -412,7 +418,12 @@ tests := libponyc.tests libponyrt.tests
 libponyc.benchmarks  := $(benchmarks)
 libponyrt.benchmarks := $(benchmarks)
 
-benchmarks := libponyc.benchmarks libponyrt.benchmarks
+libponyrt.benchmarksX := $(benchmarks)
+libponyrt.benchmarksX.dir := benchmarkX/libponyrt
+libponyrt.benchmarksX.srcdir := $(libponyrt.benchmarksX.dir)
+
+
+benchmarks := libponyc.benchmarks libponyrt.benchmarks libponyrt.benchmarksX
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
@@ -430,10 +441,14 @@ libponyc.benchmarks.include := -I src/common/ -I src/libponyc/ \
   $(llvm.include) -isystem lib/gbenchmark/include/
 libponyrt.benchmarks.include := -I src/common/ -I src/libponyrt/ -isystem \
   lib/gbenchmark/include/
+libponyrt.benchmarksX.include := -I src/common/ -I src/libponyrt/ -isystem \
+  lib/gbenchmarkX/include/
+
 
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)
 libgtest.include := -isystem lib/gtest/
 libgbenchmark.include := -isystem lib/gbenchmark/include/
+libgbenchmarkX.include := -isystem lib/gbenchmarkX/include/
 libblake2.include := -isystem lib/blake2/
 
 ifneq (,$(filter $(OSTYPE), osx bsd))
@@ -469,10 +484,15 @@ libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
 libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
+libgbenchmarkX.buildoptions := \
+  -Wshadow -pedantic -pedantic-errors \
+  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
   libponyc.benchmarks.linkoptions += -lexecinfo
   libponyrt.benchmarks.linkoptions += -lexecinfo
+  libponyrt.benchmarksX.linkoptions += -lexecinfo
 endif
 
 ponyc.buildoptions = $(libponyc.buildoptions)
@@ -504,6 +524,7 @@ endif
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
 libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+libgbenchmarkX.disable = -Wconversion -Wno-sign-conversion
 libblake2.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
@@ -513,6 +534,7 @@ libponyc.tests.links.whole = libponyrt
 libponyrt.tests.links = libgtest libponyrt
 libponyc.benchmarks.links = libblake2 libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
+libponyrt.benchmarksX.links = libgbenchmarkX libponyrt
 
 ifeq ($(OSTYPE),linux)
   ponyc.links += libpthread libdl libatomic
@@ -520,6 +542,7 @@ ifeq ($(OSTYPE),linux)
   libponyrt.tests.links += libpthread libdl libatomic
   libponyc.benchmarks.links += libpthread libdl libatomic
   libponyrt.benchmarks.links += libpthread libdl libatomic
+  libponyrt.benchmarksX.links += libpthread libdl libatomic
 endif
 
 ifeq ($(OSTYPE),bsd)
@@ -527,6 +550,7 @@ ifeq ($(OSTYPE),bsd)
   libponyrt.tests.links += libpthread
   libponyc.benchmarks.links += libpthread
   libponyrt.benchmarks.links += libpthread
+  libponyrt.benchmarksX.links += libpthread
 endif
 
 ifneq (, $(DTRACE))
@@ -537,6 +561,7 @@ endif
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 libponyc.benchmarks.linker = $(CXX)
 libponyrt.benchmarks.linker = $(CXX)
+libponyrt.benchmarksX.linker = $(CXX)
 
 # make targets
 targets := $(libraries) libponyrt $(binaries) $(tests) $(benchmarks)
@@ -551,6 +576,7 @@ libponyc.tests.depends := libponyc libgtest
 libponyrt.tests.depends := libponyrt libgtest
 libponyc.benchmarks.depends := libponyc libgbenchmark
 libponyrt.benchmarks.depends := libponyrt libgbenchmark
+libponyrt.benchmarksX.depends := libponyrt libgbenchmarkX
 ponyc.depends := libponyc libponyrt
 
 # Generic make section, edit with care.
@@ -576,7 +602,9 @@ define DIRECTORY
   $(eval sourcedir := )
   $(eval outdir := $(obj)/$(1))
 
-  ifdef $(1).dir
+  ifdef $(1).srcdir
+    sourcedir := $($(1).srcdir)
+  else ifdef $(1).dir
     sourcedir := $($(1).dir)
   else ifneq ($$(filter $(1),$(tests)),)
     sourcedir := $(PONY_TEST_DIR)/$(subst .tests,,$(1))
@@ -858,6 +886,8 @@ benchmark: all
 	@$(PONY_BUILD_DIR)/libponyc.benchmarks
 	@echo "Running libponyrt benchmarks..."
 	@$(PONY_BUILD_DIR)/libponyrt.benchmarks
+	@echo "Running libponyrt benchmarksX..."
+	@$(PONY_BUILD_DIR)/libponyrt.benchmarksX
 
 stdlib-debug: all
 	$(PONY_BUILD_DIR)/ponyc -d --checktree --verify packages/stdlib
@@ -1018,6 +1048,7 @@ help:
 	@echo '  libponyrt.tests        Test suite for libponyrt'
 	@echo '  libponyc.benchmarks    Benchmark suite for libponyc'
 	@echo '  libponyrt.benchmarks   Benchmark suite for libponyrt'
+	@echo '  libponyrt.benchmarksX  BenchmarkX suite for libponyrt'
 	@echo '  ponyc                  Pony compiler executable'
 	@echo
 	@echo '  all                    Build all of the above (default)'
