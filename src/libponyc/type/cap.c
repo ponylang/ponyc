@@ -362,6 +362,117 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   return false;
 }
 
+bool is_cap_match_cap(token_id operand_cap, token_id operand_eph,
+  token_id pattern_cap, token_id pattern_eph)
+{
+  // Transform the cap based on the aliasing info.
+  cap_aliasing(&operand_cap, &operand_eph);
+  cap_aliasing(&pattern_cap, &pattern_eph);
+
+  if(pattern_eph == TK_EPHEMERAL)
+  {
+    // Operand must be ephemeral.
+    if(operand_eph != TK_EPHEMERAL)
+      return false;
+  }
+
+  if((operand_cap == pattern_cap) || (pattern_cap == TK_TAG))
+    return true;
+
+  // Every possible instantiation of the operand refcap must be a subtype of
+  // some possible instantiation of the pattern refcap.
+  switch(operand_cap)
+  {
+    case TK_ISO:
+      switch(pattern_cap)
+      {
+        case TK_TRN:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_SHARE:
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(pattern_cap)
+      {
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_SHARE:
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(pattern_cap)
+      {
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_SHARE:
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+    case TK_BOX:
+    case TK_CAP_READ:
+      switch(pattern_cap)
+      {
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_SHARE:
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG:
+    case TK_CAP_SHARE:
+    case TK_CAP_SEND:
+    case TK_CAP_ALIAS:
+    case TK_CAP_ANY:
+      switch(pattern_cap)
+      {
+        case TK_CAP_SHARE:
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
   token_id right_cap, token_id right_eph)
 {
