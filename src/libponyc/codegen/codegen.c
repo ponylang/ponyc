@@ -739,7 +739,9 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
 
 #if PONY_LLVM == 600
 // TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
+PONY_EXTERN_C_BEGIN
 extern void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R);
+PONY_EXTERN_C_END
 #define LLVMInitializeInstCombine LLVMInitializeInstCombine_Pony
 #endif
 
