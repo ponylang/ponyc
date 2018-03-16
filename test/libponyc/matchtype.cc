@@ -499,6 +499,8 @@ TEST_F(MatchTypeTest, GenericCap)
 
   // Use ephemeral types for gencaps with unique caps in order to get unaliased
   // match operand types.
+  // Use `cap` as the first argument of `is_matchtype`, and `cap_base` as the
+  // second argument.
   ast_t* send_base = type_of("send");
   ast_t* any_base = type_of("any");
 
@@ -523,6 +525,19 @@ TEST_F(MatchTypeTest, GenericCap)
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, box, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, tag, &opt));
 
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(iso, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(trn, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(ref, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(val, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(box, read, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(tag, read, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, any_base, &opt));
+
   // #send {iso, val, tag}
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, iso, &opt));
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, trn, &opt));
@@ -530,6 +545,19 @@ TEST_F(MatchTypeTest, GenericCap)
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, val, &opt));
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, box, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, tag, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(iso, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(trn, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(ref, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(val, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(box, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(tag, send_base, &opt));
+
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, any_base, &opt));
 
   // #share {val, tag}
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, iso, &opt));
@@ -539,6 +567,19 @@ TEST_F(MatchTypeTest, GenericCap)
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, box, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, tag, &opt));
 
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(iso, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(trn, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(ref, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(val, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(box, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(tag, share, &opt));
+
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, any_base, &opt));
+
   // #alias {ref, val, box, tag}
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, iso, &opt));
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, trn, &opt));
@@ -547,6 +588,19 @@ TEST_F(MatchTypeTest, GenericCap)
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, box, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, tag, &opt));
 
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(iso, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(trn, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(ref, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(val, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(box, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(tag, alias, &opt));
+
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, any_base, &opt));
+
   // #any {iso, trn, ref, val, box, tag}
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, iso, &opt));
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, trn, &opt));
@@ -554,6 +608,19 @@ TEST_F(MatchTypeTest, GenericCap)
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, val, &opt));
   ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, box, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, tag, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(iso, any_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(trn, any_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(ref, any_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(val, any_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(box, any_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(tag, any_base, &opt));
+
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, read, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, send_base, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, share, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, alias, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, any_base, &opt));
 
   if(send != send_base)
     ast_free_unattached(send);
