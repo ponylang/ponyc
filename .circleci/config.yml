@@ -73,6 +73,8 @@ workflows:
     jobs:
       - verify-changelog
       - validate-shell-scripts
+      - llvm-600-debug
+      - llvm-600-release
       - llvm-501-debug
       - llvm-501-release
       - llvm-401-debug
