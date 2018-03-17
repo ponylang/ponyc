@@ -1,18 +1,30 @@
-FROM ubuntu:16.04
+FROM ubuntu:14.04
 
 ENV LLVM_VERSION 6.0.0
 
 RUN apt-get update \
+ && apt-get install -y software-properties-common \
+ && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+ && apt-get update \
  && apt-get install -y \
   apt-transport-https \
-  g++ \
+  build-essential \
+  g++-6 \
   git \
   libncurses5-dev \
-  libpcre2-dev \
   libssl-dev \
   make \
   wget \
   xz-utils \
   zlib1g-dev \
- && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+ && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz \
+ | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04
+
+# install pcre2
+RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \
+ && tar xvf pcre2-10.21.tar.bz2 \
+ && cd pcre2-10.21 \
+ && ./configure --prefix=/usr \
+ && make install \
+ && cd .. \
+ && rm -rf pcre2-10.21*
