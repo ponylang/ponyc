@@ -11,6 +11,7 @@
 #include "../expr/lambda.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "../type/subtype.h"
 #include "ponyassert.h"
 
 static bool is_numeric_primitive(const char* name)
@@ -466,6 +467,48 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
   return NULL;
 }
 
+static void fold_union(pass_opt_t* opt, ast_t** astp)
+{
+  ast_t* ast = *astp;
+
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    ast_t* next = ast_sibling(child);
+    bool remove = false;
+
+    while(next != NULL)
+    {
+      if(is_subtype(next, child, NULL, opt))
+      {
+        ast_t* tmp = next;
+        next = ast_sibling(next);
+        ast_remove(tmp);
+      } else if(is_subtype(child, next, NULL, opt)) {
+        remove = true;
+        break;
+      } else {
+        next = ast_sibling(next);
+      }
+    }
+
+    if(remove)
+    {
+      ast_t* tmp = child;
+      child = ast_sibling(child);
+      ast_remove(tmp);
+    } else {
+      child = ast_sibling(child);
+    }
+  }
+
+  child = ast_child(ast);
+
+  if(ast_sibling(child) == NULL)
+    ast_replace(astp, child);
+}
+
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -564,6 +607,10 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_BARELAMBDA:
       if(!expr_lambda(options, astp))
         return AST_FATAL;
+      break;
+
+    case TK_UNIONTYPE:
+      fold_union(options, astp);
       break;
 
     case TK_INT:
