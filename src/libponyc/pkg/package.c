@@ -116,7 +116,7 @@ static size_t package_hash(package_t* pkg)
   // Hash the full string instead of the stringtab pointer. We want a
   // deterministic hash in order to enable deterministic hashmap iteration,
   // which in turn enables deterministic package signatures.
-  return (size_t)ponyint_hash_str(pkg->qualified_name);
+  return ponyint_hash_str(pkg->qualified_name);
 }
 
 
