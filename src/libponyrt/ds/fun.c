@@ -19,7 +19,7 @@ static const unsigned char the_key[16] = {
   } while(0)
 
 
-static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
+static size_t siphash24(const unsigned char* key, const char* in, size_t len)
 {
   uint64_t k0 = *(uint64_t*)(key);
   uint64_t k1 = *(uint64_t*)(key + 8);
@@ -65,12 +65,12 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
   return v0 ^ v1 ^ v2 ^ v3;
 }
 
-PONY_API uint64_t ponyint_hash_block(const void* p, size_t len)
+PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 {
   return siphash24(the_key, (const char*)p, len);
 }
 
-uint64_t ponyint_hash_str(const char* str)
+size_t ponyint_hash_str(const char* str)
 {
   return siphash24(the_key, str, strlen(str));
 }
