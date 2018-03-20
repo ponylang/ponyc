@@ -30,8 +30,6 @@ uint64_t ponyint_hash_int64(uint64_t key);
 
 uint32_t ponyint_hash_int32(uint32_t key);
 
-uint32_t pony_hash32(char* str);
-
 size_t ponyint_hash_size(size_t key);
 
 size_t ponyint_next_pow2(size_t i);

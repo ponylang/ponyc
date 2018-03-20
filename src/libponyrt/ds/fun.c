@@ -65,6 +65,7 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
   return v0 ^ v1 ^ v2 ^ v3;
 }
 
+#ifdef PLATFORM_IS_ILP32
 static uint32_t pony_hash32(char* str)
 {
   uint32_t h;
@@ -79,6 +80,7 @@ static uint32_t pony_hash32(char* str)
 
   return h;
 }
+#endif
 
 PONY_API uint64_t ponyint_hash_block(const void* p, size_t len)
 {
