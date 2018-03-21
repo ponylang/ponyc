@@ -7,39 +7,19 @@ class val Env
     """
     The root capability.
 
-    Can be `None` for artificially constructed `Env`instances.
+    Can be `None` for artificially constructed `Env` instances.
     """
 
   let input: Stdin
     """
-    stdin represented as an actor.
-
-
-    Reading from stdin is done by registering a `StdinNotify`:
-
-    ```
-    actor Main
-      new create(env: Env) =>
-        // do not forget to call `env.input.dispose` at some point
-        env.input(
-          object iso is StdinNotify
-            fun ref apply(data: Array[U8] iso) =>
-              env.out.write(String.from_iso_array(consume data))
-
-            fun ref dispose() =>
-              env.out.print("Done.")
-          end,
-          512)
-    ```
-
-    **Note:** For reading user input from a terminal, use the `readline` package.
+    Stdin represented as an actor.
     """
 
   let out: OutStream
-    """stdout"""
+    """Stdout"""
 
   let err: OutStream
-    """stderr"""
+    """Stderr"""
 
   let args: Array[String] val
     """The command line used to start the program."""

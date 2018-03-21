@@ -9,10 +9,10 @@ class val FileInfo
   let filepath: FilePath
 
   let mode: FileMode val = recover FileMode end
-    """UNIX-style file mode"""
+    """UNIX-style file mode."""
 
   let hard_links: U32 = 0
-    """number of hardlinks to this `filepath`"""
+    """Number of hardlinks to this `filepath`."""
 
   let device: U64 = 0
     """

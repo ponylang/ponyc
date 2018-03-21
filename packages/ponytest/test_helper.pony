@@ -26,7 +26,7 @@ class val TestHelper
     This is useful for getting the [root authority](builtin-AmbienAuth) in order to access
     the filesystem (See [files](files--index)) or the network (See [net](net--index))
     in your tests.
-    """.
+    """
 
   new val _create(runner: _TestRunner, env': Env) =>
     """

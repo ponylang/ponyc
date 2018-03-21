@@ -81,12 +81,13 @@ class File
   """
   let path: FilePath
     """
-    The filesystem path to this file.
+    This is the filesystem path locating this file on the file system
+    and an object capability granting access to operate on this file.
     """
 
   let writeable: Bool
     """
-    `true` if this file is writable.
+    `true` if the underlying file descriptor has been opened as writeable.
     """
 
   let _newline: String = "\n"

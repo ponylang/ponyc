@@ -32,28 +32,28 @@ class val NetAddress is Equatable[NetAddress]
 
   let addr1: U32 = 0
     """
-    bits 0-32 of the IPv6 address in network byte order.
+    Bits 0-32 of the IPv6 address in network byte order.
 
-    `0` if this is a IPv4 address. Check with `ipv4()` and `ipv6()`.
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
 
   let addr2: U32 = 0
     """
-    bits 33-64 of the IPv6 address in network byte order.
+    Bits 33-64 of the IPv6 address in network byte order.
 
-    `0` if this is a IPv4 address. Check with `ipv4()` and `ipv6()`.
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
   let addr3: U32 = 0
     """
-    bits 65-96 of the IPv6 address in network byte order.
+    Bits 65-96 of the IPv6 address in network byte order.
 
-    `0` if this is a IPv4 address. Check with `ipv4()` and `ipv6()`.
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
   let addr4: U32 = 0
     """
-    bits 97-128 of the IPv6 address in network byte order.
+    Bits 97-128 of the IPv6 address in network byte order.
 
-    `0` if this is a IPv4 address. Check with `ipv4()` and `ipv6()`.
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
 
   let scope: U32 = 0

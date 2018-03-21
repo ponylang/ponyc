@@ -23,7 +23,8 @@ class Directory
   """
   let path: FilePath
     """
-    The filesystem path pointing to this directory.
+    This is the filesystem path locating this directory on the file system
+    and an object capability granting access to operate on this directory.
     """
 
   var _fd: I32 = -1

@@ -34,6 +34,25 @@ actor Stdin
   """
   Asynchronous access to stdin. The constructor is private to ensure that
   access is provided only via an environment.
+
+  Reading from stdin is done by registering a `StdinNotify`:
+
+  ```
+  actor Main
+    new create(env: Env) =>
+      // do not forget to call `env.input.dispose` at some point
+      env.input(
+        object iso is StdinNotify
+          fun ref apply(data: Array[U8] iso) =>
+            env.out.write(String.from_iso_array(consume data))
+
+          fun ref dispose() =>
+            env.out.print("Done.")
+        end,
+        512)
+  ```
+
+  **Note:** For reading user input from a terminal, use the [readline](readline--index) package.
   """
   var _notify: (StdinNotify | None) = None
   var _chunk_size: USize = 32

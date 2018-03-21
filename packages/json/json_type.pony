@@ -7,7 +7,9 @@ type JsonType is (F64 | I64 | Bool | None | String | JsonArray | JsonObject)
 
 class JsonArray
   var data: Array[JsonType]
-    """the actual array containing JSON structures"""
+    """
+    The actual array containing JSON structures.
+    """
 
   new iso create(len: USize = 0) =>
     """
@@ -75,7 +77,7 @@ class JsonArray
 class JsonObject
   var data: Map[String, JsonType]
     """
-    the actual JSON object structure,
+    The actual JSON object structure,
     mapping `String` keys to other JSON structures.
     """
 
