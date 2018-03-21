@@ -988,3 +988,19 @@ TEST_F(BadPonyTest, IsComparingCreateSugar)
     DO(test_expected_errors(src, "refer", errs));
   }
 }
+
+TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
+{
+  // From issue 2602
+  const char* src =
+    "class C\n"
+    "trait X\n"
+    "class ExpectX[T: X]\n"
+    "  fun trigger(arg: Iterator[T]) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    ExpectX[C].trigger([C; C].values())";
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
