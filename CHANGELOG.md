@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Partially mitigate LLVM's infinite loops bug ([PR #2592](https://github.com/ponylang/ponyc/pull/2592))
 - Fix extracting docstring from constructors ([PR #2586](https://github.com/ponylang/ponyc/pull/2586))
 - Always unsubscribe process_monitor fds before closing them (#2529) ([PR #2574](https://github.com/ponylang/ponyc/pull/2574))
 - Fix two race conditions where an ASIO wakeup notifications can be lost ([PR #2561](https://github.com/ponylang/ponyc/pull/2561))
