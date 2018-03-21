@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow recovering at most one element of a tuple to mutable capability. ([PR #2585](https://github.com/ponylang/ponyc/pull/2585))
 - Add full'ish support for network socket get & set options ([PR #2513](https://github.com/ponylang/ponyc/pull/2513))
 - Add basic compiler plugins ([PR #2566](https://github.com/ponylang/ponyc/pull/2566))
 - [RFC 50] add member docstrings ([PR #2543](https://github.com/ponylang/ponyc/pull/2543))
