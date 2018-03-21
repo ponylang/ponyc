@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Update the Windows build to support the latest Visual C++ Build Tools ([PR #2594](https://github.com/ponylang/ponyc/pull/2594))
 - Fix tracing of boxed tuples through interfaces ([PR #2593](https://github.com/ponylang/ponyc/pull/2593))
 - Partially mitigate LLVM's infinite loops bug ([PR #2592](https://github.com/ponylang/ponyc/pull/2592))
 - Fix extracting docstring from constructors ([PR #2586](https://github.com/ponylang/ponyc/pull/2586))
