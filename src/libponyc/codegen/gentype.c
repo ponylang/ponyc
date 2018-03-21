@@ -492,7 +492,29 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
+
+  // Workaround for LLVM's "infinite loops are undefined behaviour".
+  // If a Pony behaviour contains an infinite loop, the LLVM optimiser in its
+  // current state can assume that the associated message is never received.
+  // From there, if the dispatch switch is optimised to a succession of
+  // conditional branches on the message ID, it is very likely that receiving
+  // the optimised-out message will call another behaviour on the actor, which
+  // is very very bad.
+  // This inline assembly cannot be analysed by the optimiser (and thus must be
+  // assumed to have side-effects), which prevents the removal of the default
+  // case, which in turn prevents the replacement of the switch. In addition,
+  // the setup in codegen_machine results in unreachable instructions being
+  // lowered to trapping machine instructions (e.g. ud2 on x86), which are
+  // guaranteed to crash the program.
+  // As a result, if an actor receives a message affected by this bug, the
+  // program will crash immediately instead of doing some crazy stuff.
+  // TODO: Remove this when LLVM properly supports infinite loops.
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
   LLVMBuildUnreachable(c->builder);
+
   codegen_finishfun(c);
 }
 
