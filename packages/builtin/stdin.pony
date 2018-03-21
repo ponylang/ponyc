@@ -37,7 +37,7 @@ actor Stdin
 
   Reading from stdin is done by registering a `StdinNotify`:
 
-  ```
+  ```pony
   actor Main
     new create(env: Env) =>
       // do not forget to call `env.input.dispose` at some point
