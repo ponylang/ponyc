@@ -922,6 +922,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
     case TK_CLASS:
     case TK_STRUCT:
     case TK_ACTOR:
+    case TK_TUPLETYPE:
       break;
 
     default:

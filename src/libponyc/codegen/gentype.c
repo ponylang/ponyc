@@ -1,4 +1,5 @@
 #include "gentype.h"
+#include "genbox.h"
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genfun.h"
@@ -810,27 +811,50 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     "object");
 
   int extra = 0;
+  bool is_tuple = false;
 
-  // Non-structs have a type descriptor.
-  if(t->underlying != TK_STRUCT)
-    extra++;
+  switch(t->underlying)
+  {
+    case TK_CLASS:
+      extra = 1; // Type descriptor.
+      break;
 
-  // Actors have a pad.
-  if(t->underlying == TK_ACTOR)
-    extra++;
+    case TK_ACTOR:
+      extra = 2; // Type descriptor and pad.
+      break;
+
+    case TK_TUPLETYPE:
+      is_tuple = true;
+      break;
+
+    default: {}
+  }
+
+  LLVMValueRef(*get_field_fn)(LLVMBuilderRef, LLVMValueRef, unsigned int,
+    const char*);
+
+  if(is_tuple)
+  {
+    get_field_fn = LLVMBuildExtractValue;
+    object = gen_unbox(c, t->ast_cap, object);
+  } else {
+    get_field_fn = LLVMBuildStructGEP;
+  }
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
     compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
+    LLVMValueRef field = get_field_fn(c->builder, object, i + extra, "");
 
     if(!t->fields[i].embed)
     {
       // Call the trace function indirectly depending on rcaps.
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+      if(!is_tuple)
+        field = LLVMBuildLoad(c->builder, field, "");
+
       ast_t* field_type = t->fields[i].ast;
-      value = gen_assign_cast(c, f_c_t->use_type, value, field_type);
-      gentrace(c, ctx, value, value, field_type, field_type);
+      field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
+      gentrace(c, ctx, field, field, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = f_c_t->trace_fn;
