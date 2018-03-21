@@ -8,27 +8,9 @@
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
-static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
+static void flatten_typeexpr_element(ast_t* type, ast_t* elem, token_id id)
 {
-  ast_t* ast = *astp;
-
-  // If there are more than 2 children, this has already been flattened.
-  if(ast_childcount(ast) > 2)
-    return AST_OK;
-
-  AST_EXTRACT_CHILDREN(ast, left, right);
-
-  ast_t* r_ast = type_union(opt, left, right);
-  ast_replace(astp, r_ast);
-  ast_free_unattached(left);
-  ast_free_unattached(right);
-
-  return AST_OK;
-}
-
-static void flatten_isect_element(ast_t* type, ast_t* elem)
-{
-  if(ast_id(elem) != TK_ISECTTYPE)
+  if(ast_id(elem) != id)
   {
     ast_append(type, elem);
     return;
@@ -43,6 +25,23 @@ static void flatten_isect_element(ast_t* type, ast_t* elem)
   }
 
   ast_free_unattached(elem);
+}
+
+static ast_result_t flatten_union(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  // Flatten unions without testing subtyping. This will be tested after the
+  // traits pass, when we have full subtyping information.
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
+  AST_EXTRACT_CHILDREN(ast, left, right);
+
+  flatten_typeexpr_element(ast, left, TK_UNIONTYPE);
+  flatten_typeexpr_element(ast, right, TK_UNIONTYPE);
+
+  return AST_OK;
 }
 
 static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
@@ -69,8 +68,8 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
     return AST_ERROR;
   }
 
-  flatten_isect_element(ast, left);
-  flatten_isect_element(ast, right);
+  flatten_typeexpr_element(ast, left, TK_ISECTTYPE);
+  flatten_typeexpr_element(ast, right, TK_ISECTTYPE);
 
   return AST_OK;
 }
@@ -274,7 +273,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return flatten_union(options, astp);
+      return flatten_union(options, ast);
 
     case TK_ISECTTYPE:
       return flatten_isect(options, ast);
