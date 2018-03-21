@@ -121,18 +121,179 @@ TEST_F(SugarTest, ClassWithoutDefCap)
 }
 
 
-TEST_F(SugarTest, ActorWithInitialisedField)
+TEST_F(SugarTest, ClassWithInitializedField)
 {
-  // Create constructor should be added
   const char* short_form =
-    "actor Foo";
+    "class Foo\n"
+    "  let x: U8 = 1\n";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  let x: U8\n"
+    "  new iso create(): Foo iso^ =>\n"
+    "    x = 1\n"
+    "    true\n";
+  TEST_EQUIV(short_form, full_form);
+}
+
+TEST_F(SugarTest, ClassWithInitializedFieldAndManyConstructors)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  let x: U8 = 1\n"
+    "  \n"
+    "  new create1() => 1\n"
+    "  new create2() => 2\n";
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  let x: U8\n"
+    "  \n"
+    "  new ref create1(): Foo ref^ =>\n"
+    "    x = 1\n"
+    "    1\n"
+    "  \n"
+    "  new ref create2(): Foo ref^ =>\n"
+    "    x = 1\n"
+    "    2\n";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+TEST_F(SugarTest, ClassWithInitializedFieldsAndDocString)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  let x: U8 = 1\n"
+    "  \n"
+    "  new create() =>\n"
+    "    \"\"\"\n"
+    "    constructor docstring\n"
+    "    \"\"\"\n"
+    "    None\n";
+
+  TEST_COMPILE(short_form);
+  ast_t* foo = ast_childlast(module);
+  ASSERT_NE(ast_id(foo), TK_NONE);
+
+  AST_GET_CHILDREN(foo, id, typeparams, defcap, traits, members);
+
+  ast_t* member = ast_child(members);
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      {
+        AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
+          error, body, docstring);
+
+        ASSERT_EQ(ast_id(docstring), TK_STRING) <<
+          "docstring has not been extracted from the constructor body";
+        ASSERT_STREQ(ast_name(docstring), "constructor docstring\n") <<
+          "docstring has not been extracted correctly";
+
+        ASSERT_EQ(ast_childcount(body), 2) <<
+          "docstring has not been purged from the iconstructor body";
+        return;
+      }
+      default:
+      {}
+    }
+    member = ast_sibling(member);
+  }
+  FAIL() << "no constructor found";
+}
+
+
+TEST_F(SugarTest, ActorWithInitializedField)
+{
+  // initializer should be added to every constructor
+  const char* short_form =
+    "actor Foo\n"
+    "  let x: U8 = 1\n";
 
   const char* full_form =
     "use \"builtin\"\n"
     "actor tag Foo\n"
-    "  new tag create(): Foo tag^ => true";
+    "  let x: U8\n"
+    "  new tag create(): Foo tag^ =>\n"
+    "    x = 1\n"
+    "    true\n";
 
   TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ActorWithInitializedFieldAndManyConstructors)
+{
+  const char* short_form =
+    "actor Foo\n"
+    "  let x: U8 = 1\n"
+    "  \n"
+    "  new create1() => 1\n"
+    "  new create2() => 2\n";
+  const char* full_form =
+    "use \"builtin\"\n"
+    "actor tag Foo\n"
+    "  let x: U8\n"
+    "  \n"
+    "  new tag create1(): Foo tag^ =>\n"
+    "    x = 1\n"
+    "    1\n"
+    "  \n"
+    "  new tag create2(): Foo tag^ =>\n"
+    "    x = 1\n"
+    "    2\n";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ActorWithInitializedFieldsAndDocString)
+{
+  const char* short_form =
+    "actor Foo\n"
+    "  let x: U8 = 1\n"
+    "  \n"
+    "  new create() =>\n"
+    "    \"\"\"\n"
+    "    constructor docstring\n"
+    "    \"\"\"\n"
+    "    None\n";
+
+  TEST_COMPILE(short_form);
+  ast_t* foo = ast_childlast(module);
+  ASSERT_NE(ast_id(foo), TK_NONE);
+
+  AST_GET_CHILDREN(foo, id, typeparams, defcap, traits, members);
+
+  ast_t* member = ast_child(members);
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      {
+        AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
+          error, body, docstring);
+
+        ASSERT_EQ(ast_id(docstring), TK_STRING) <<
+          "docstring has not been extracted from the constructor body";
+        ASSERT_STREQ(ast_name(docstring), "constructor docstring\n") <<
+          "docstring has not been extracted correctly";
+
+        ASSERT_EQ(ast_childcount(body), 2) <<
+          "docstring has not been purged from the iconstructor body";
+        return;
+      }
+      default:
+      {}
+    }
+    member = ast_sibling(member);
+  }
+  FAIL() << "no constructor found";
 }
 
 
