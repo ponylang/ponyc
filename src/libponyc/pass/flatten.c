@@ -77,18 +77,37 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
 
 ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 {
-  ast_t* cap = ast_childidx(ast, 1);
+  ast_t* cap_ast = cap_fetch(ast);
+  token_id cap = ast_id(cap_ast);
 
   typeparam_set_cap(ast);
 
-  ast_t* set_cap = ast_childidx(ast, 1);
+  token_id set_cap = ast_id(cap_ast);
 
-  if((ast_id(cap) != TK_NONE) && (ast_id(cap) != ast_id(set_cap)))
+  if((cap != TK_NONE) && (cap != set_cap))
   {
-    ast_error(opt->check.errors, cap, "can't specify a capability on a type "
-      "parameter that differs from the constraint");
-    ast_error_continue(opt->check.errors, set_cap,
-      "constraint capability is here");
+    ast_t* def = (ast_t*)ast_data(ast);
+    ast_t* constraint = typeparam_constraint(ast);
+
+    if(constraint != NULL)
+    {
+      ast_error(opt->check.errors, cap_ast, "can't specify a capability on a "
+        "type parameter that differs from the constraint");
+      ast_error_continue(opt->check.errors, constraint,
+        "constraint definition is here");
+
+      if(ast_parent(constraint) != def)
+      {
+        ast_error_continue(opt->check.errors, def,
+          "type parameter definition is here");
+      }
+    } else {
+      ast_error(opt->check.errors, cap_ast, "a type parameter with no "
+        "constraint can only have #any as its capability");
+      ast_error_continue(opt->check.errors, def,
+        "type parameter definition is here");
+    }
+
     return AST_ERROR;
   }
 
