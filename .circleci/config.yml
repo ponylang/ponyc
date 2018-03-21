@@ -14,13 +14,13 @@ jobs:
       - run: find . -name '*.bash' -exec shellcheck {} \;
   llvm-600-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-600
+      - image: ponylang/ponyc-ci:llvm-6.0.0
     steps:
       - checkout
       - run: make test-ci config=debug default_pic=true
   llvm-600-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-600
+      - image: ponylang/ponyc-ci:llvm-6.0.0
     steps:
       - checkout
       - run: make test-ci config=release default_pic=true
