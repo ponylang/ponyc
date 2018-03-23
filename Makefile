@@ -391,7 +391,7 @@ endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
-  llvm.libs += -lpthread -lexecinfo
+  llvm.libs += -lpthread
 endif
 
 prebuilt := llvm
@@ -443,10 +443,6 @@ endif
 # target specific build options
 libponyrt.tests.linkoptions += -rdynamic
 
-ifneq ($(ALPINE),)
-  libponyrt.tests.linkoptions += -lexecinfo
-endif
-
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
@@ -460,28 +456,15 @@ libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
 
 libponyc.tests.linkoptions += -rdynamic
 
-ifneq ($(ALPINE),)
-  libponyc.tests.linkoptions += -lexecinfo
-endif
-
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
 libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
 
-ifneq ($(ALPINE),)
-  libponyc.benchmarks.linkoptions += -lexecinfo
-  libponyrt.benchmarks.linkoptions += -lexecinfo
-endif
-
 ponyc.buildoptions = $(libponyc.buildoptions)
 
 ponyc.linkoptions += -rdynamic
-
-ifneq ($(ALPINE),)
-  ponyc.linkoptions += -lexecinfo
-endif
 
 ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic
@@ -515,18 +498,19 @@ libponyc.benchmarks.links = libblake2 libgbenchmark libponyc libponyrt llvm
 libponyrt.benchmarks.links = libgbenchmark libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ponyc.links += libpthread libdl libatomic
-  libponyc.tests.links += libpthread libdl libatomic
-  libponyrt.tests.links += libpthread libdl libatomic
-  libponyc.benchmarks.links += libpthread libdl libatomic
-  libponyrt.benchmarks.links += libpthread libdl libatomic
+  ponyc.links += libpthread libdl libatomic libunwind
+  libponyc.tests.links += libpthread libdl libatomic libunwind
+  libponyrt.tests.links += libpthread libdl libatomic libunwind
+  libponyc.benchmarks.links += libpthread libdl libatomic libunwind
+  libponyrt.benchmarks.links += libpthread libdl libatomic libunwind
 endif
 
 ifeq ($(OSTYPE),bsd)
-  libponyc.tests.links += libpthread
-  libponyrt.tests.links += libpthread
-  libponyc.benchmarks.links += libpthread
-  libponyrt.benchmarks.links += libpthread
+  ponyc.links += libpthread libunwind
+  libponyc.tests.links += libpthread libunwind
+  libponyrt.tests.links += libpthread libunwind
+  libponyc.benchmarks.links += libpthread libunwind
+  libponyrt.benchmarks.links += libpthread libunwind
 endif
 
 ifneq (, $(DTRACE))
