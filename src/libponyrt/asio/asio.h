@@ -83,6 +83,13 @@ uint32_t ponyint_asio_get_cpu();
  */
 bool ponyint_asio_stop();
 
+/** Checks if it is safe to stop the asynchronous event mechanism.
+ *
+ * Stopping an event mechanism is only possible if there are no pending "noisy"
+ * subscriptions.
+ */
+bool ponyint_asio_stoppable();
+
 /** Add a noisy event subscription.
  */
 uint64_t ponyint_asio_noisy_add();

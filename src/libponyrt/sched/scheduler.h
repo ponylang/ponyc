@@ -56,7 +56,7 @@ struct scheduler_t
   uint32_t cpu;
   uint32_t node;
   bool terminate;
-  bool asio_stopped;
+  bool asio_stoppable;
   bool asio_noisy;
   pony_signal_event_t sleep_object;
 
