@@ -1,116 +1,69 @@
 #include "fun.h"
-#include <stdio.h>
 #include <string.h>
 
 #include <platform.h>
 
-
-#ifdef PLATFORM_IS_ILP32
-/*
-   SipHash reference C implementation
-
-   Copyright (c) 2016 Jean-Philippe Aumasson <jeanphilippe.aumasson@gmail.com>
-
-   To the extent possible under law, the author(s) have dedicated all copyright
-   and related and neighboring rights to this software to the public domain
-   worldwide. This software is distributed without any warranty.
-
-   You should have received a copy of the CC0 Public Domain Dedication along
-   with
-   this software. If not, see
-   <http://creativecommons.org/publicdomain/zero/1.0/>.
- */
-
-/* default: SipHash-2-4 */
-#define cROUNDS 2
-#define dROUNDS 4
-
 static const unsigned char the_key[16] = {
   0xFE, 0x09, 0xD3, 0x22, 0x6B, 0x9C, 0x10, 0x8A,
   0xE1, 0x35, 0x72, 0xB5, 0xCC, 0x3F, 0x92, 0x9F
 };
 
+
+#ifdef PLATFORM_IS_ILP32
+
 #define ROTL(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
 
-#define SIPROUND                                                               \
-    do {                                                                       \
-        v0 += v1;                                                              \
-        v1 = ROTL(v1, 5);                                                      \
-        v1 ^= v0;                                                              \
-        v0 = ROTL(v0, 16);                                                     \
-        v2 += v3;                                                              \
-        v3 = ROTL(v3, 8);                                                      \
-        v3 ^= v2;                                                              \
-        v0 += v3;                                                              \
-        v3 = ROTL(v3, 7);                                                      \
-        v3 ^= v0;                                                              \
-        v2 += v1;                                                              \
-        v1 = ROTL(v1, 13);                                                     \
-        v1 ^= v2;                                                              \
-        v2 = ROTL(v2, 16);                                                     \
+#define SIPROUND \
+    do { \
+        v0 += v1; v1=ROTL(v1,5); v1 ^= v0; v0 = ROTL(v0,16); \
+        v2 += v3; v3=ROTL(v3,8); v3 ^= v2; \
+	v0 += v3; v3=ROTL(v3,7); v3 ^= v0; \
+        v2 += v1; v1=ROTL(v1,13); v1 ^= v2; v2 = ROTL(v2,16); \
     } while (0)
 
 
-size_t halfsiphash(const uint8_t *k, const char *in, const size_t inlen)
+static uint32_t halfsiphash24(const unsigned char* key, const char *in, size_t len)
   {
-    uint32_t v0 = 0;
-    uint32_t v1 = 0;
-    uint32_t v2 = 0x6c796765;
-    uint32_t v3 = 0x74656462;
-    uint32_t k0 = *(uint32_t*)(k);
-    uint32_t k1 = *(uint32_t*)(k + 4);
-    uint32_t m;
-    int i;
-    const char* end = in + inlen - (inlen % sizeof(uint32_t));
-    const int left = inlen & 3;
-    uint32_t b = ((uint32_t)inlen) << 24;
-    v3 ^= k1;
-    v2 ^= k0;
-    v1 ^= k1;
-    v0 ^= k0;
+    uint32_t k0 = *(uint32_t*)(key);
+    uint32_t k1 = *(uint32_t*)(key + 4);
+    uint32_t b = (uint32_t)len << 24;
+
+    uint32_t v0 = k0 ^ 0x736f6d65;
+    uint32_t v1 = k1 ^ 0x646f7261;
+    uint32_t v2 = k0 ^ 0x6c796765;
+    uint32_t v3 = k1 ^ 0x74656462;
+
+    const char* end = (in + len) - (len % 4);
 
     for (; in != end; in += 4)
-      {
-	m = *(uint32_t*)(in);
-        v3 ^= m;
+    {
+      uint32_t m = *(uint32_t*)in;
+      v3 ^= m;
+      SIPROUND;
+      SIPROUND;
+      v0 ^= m;
+    }
 
-        for (i = 0; i < cROUNDS; ++i)
-            SIPROUND;
-
-        v0 ^= m;
-      }
-
-    switch (left) {
-    case 3:
-        b |= ((uint32_t)in[2]) << 16;
-    case 2:
-        b |= ((uint32_t)in[1]) << 8;
-    case 1:
-        b |= ((uint32_t)in[0]);
-        break;
-    case 0:
-        break;
+    switch (len & 3)
+    {
+      case 3: b |= ((uint32_t)in[2]) << 16; // fallthrough
+      case 2: b |= ((uint32_t)in[1]) << 8;  // fallthrough
+      case 1: b |= ((uint32_t)in[0]);
     }
 
     v3 ^= b;
-
-    for (i = 0; i < cROUNDS; ++i)
-        SIPROUND;
-
+    SIPROUND;
+    SIPROUND;
     v0 ^= b;
-
     v2 ^= 0xff;
-
-    for (i = 0; i < dROUNDS; ++i)
-        SIPROUND;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
 
     return v0 ^ v1 ^ v2 ^ v3;
 }
 #else
-static const unsigned char the_key[16] = {
-  0xFE, 0x09, 0xD3, 0x22, 0x6B, 0x9C, 0x10, 0x8A,
-  0xE1, 0x35, 0x72, 0xB5, 0xCC, 0x3F, 0x92, 0x9F
-};
 
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
@@ -173,7 +126,7 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
 PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 {
 #ifdef PLATFORM_IS_ILP32
-  return halfsiphash(the_key, (const char*) p, len);
+  return halfsiphash24(the_key, (const char*) p, len);
 #else
   return siphash24(the_key, (const char*) p, len);
 #endif
@@ -183,7 +136,7 @@ PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 size_t ponyint_hash_str(const char* str)
 {
 #ifdef PLATFORM_IS_ILP32
-  return halfsiphash(the_key, str, strlen(str));
+  return halfsiphash24(the_key, str, strlen(str));
 #else
   return siphash24(the_key, str, strlen(str));
 #endif
