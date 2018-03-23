@@ -943,7 +943,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int io
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK)
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
     pony_error();
@@ -965,7 +965,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK)
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
     pony_error();
@@ -987,7 +987,7 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
 
   if(received < 0)
   {
-    if(errno == EWOULDBLOCK)
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
     pony_error();
@@ -1018,7 +1018,7 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK)
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
     pony_error();
@@ -1044,7 +1044,7 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 
   if(recvd < 0)
   {
-    if(errno == EWOULDBLOCK)
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
     pony_error();
