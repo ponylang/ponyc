@@ -1066,17 +1066,19 @@ PONY_API void pony_os_keepalive(int fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 
   int idle = secs / 2;
+#if defined(PLATFORM_IS_MACOSX)
+  setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(int));
+#else
   setsockopt(s, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(int));
+#endif
 
   int intvl = 1;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(int));
-#elif defined(PLATFORM_IS_MACOSX)
-  setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, &secs, sizeof(int));
 #elif defined(PLATFORM_IS_WINDOWS)
   DWORD ret = 0;
 
