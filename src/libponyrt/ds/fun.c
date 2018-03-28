@@ -8,6 +8,63 @@ static const unsigned char the_key[16] = {
   0xE1, 0x35, 0x72, 0xB5, 0xCC, 0x3F, 0x92, 0x9F
 };
 
+
+#ifdef PLATFORM_IS_ILP32
+
+#define ROTL(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
+
+#define SIPROUND \
+    do { \
+        v0 += v1; v1=ROTL(v1,5); v1 ^= v0; v0 = ROTL(v0,16); \
+        v2 += v3; v3=ROTL(v3,8); v3 ^= v2; \
+	v0 += v3; v3=ROTL(v3,7); v3 ^= v0; \
+        v2 += v1; v1=ROTL(v1,13); v1 ^= v2; v2 = ROTL(v2,16); \
+    } while (0)
+
+
+static uint32_t halfsiphash24(const unsigned char* key, const char *in, size_t len)
+  {
+    uint32_t k0 = *(uint32_t*)(key);
+    uint32_t k1 = *(uint32_t*)(key + 4);
+    uint32_t b = (uint32_t)len << 24;
+
+    uint32_t v0 = k0 ^ 0x736f6d65;
+    uint32_t v1 = k1 ^ 0x646f7261;
+    uint32_t v2 = k0 ^ 0x6c796765;
+    uint32_t v3 = k1 ^ 0x74656462;
+
+    const char* end = (in + len) - (len % 4);
+
+    for (; in != end; in += 4)
+    {
+      uint32_t m = *(uint32_t*)in;
+      v3 ^= m;
+      SIPROUND;
+      SIPROUND;
+      v0 ^= m;
+    }
+
+    switch (len & 3)
+    {
+      case 3: b |= ((uint32_t)in[2]) << 16; // fallthrough
+      case 2: b |= ((uint32_t)in[1]) << 8;  // fallthrough
+      case 1: b |= ((uint32_t)in[0]);
+    }
+
+    v3 ^= b;
+    SIPROUND;
+    SIPROUND;
+    v0 ^= b;
+    v2 ^= 0xff;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
+
+    return v0 ^ v1 ^ v2 ^ v3;
+}
+#else
+
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
 #define SIPROUND \
@@ -64,15 +121,25 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
 
   return v0 ^ v1 ^ v2 ^ v3;
 }
+#endif
 
-PONY_API uint64_t ponyint_hash_block(const void* p, size_t len)
+PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 {
-  return siphash24(the_key, (const char*)p, len);
+#ifdef PLATFORM_IS_ILP32
+  return halfsiphash24(the_key, (const char*) p, len);
+#else
+  return siphash24(the_key, (const char*) p, len);
+#endif
 }
 
-uint64_t ponyint_hash_str(const char* str)
+
+size_t ponyint_hash_str(const char* str)
 {
+#ifdef PLATFORM_IS_ILP32
+  return halfsiphash24(the_key, str, strlen(str));
+#else
   return siphash24(the_key, str, strlen(str));
+#endif
 }
 
 size_t ponyint_hash_ptr(const void* p)
