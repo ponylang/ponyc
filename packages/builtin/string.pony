@@ -1480,8 +1480,11 @@ actor Main
       F64(0)
     end
 
-  fun hash(): U64 =>
-    @ponyint_hash_block[U64](_ptr, _size)
+  fun hash(): USize =>
+    @ponyint_hash_block[USize](_ptr, _size)
+
+  fun hash64(): U64 =>
+    @ponyint_hash_block64[U64](_ptr, _size)
 
   fun string(): String iso^ =>
     clone()

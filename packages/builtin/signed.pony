@@ -152,6 +152,7 @@ primitive I64 is _SignedInteger[I64, U64]
 
   fun min(y: I64): I64 => if this < y then this else y end
   fun max(y: I64): I64 => if this > y then this else y end
+  fun hash(): USize => u64().hash()
 
   fun addc(y: I64): (I64, Bool) =>
     @"llvm.sadd.with.overflow.i64"[(I64, Bool)](this, y)
@@ -227,6 +228,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
   fun min(y: ILong): ILong => if this < y then this else y end
   fun max(y: ILong): ILong => if this > y then this else y end
+  fun hash(): USize => ulong().hash()
 
   fun addc(y: ILong): (ILong, Bool) =>
     ifdef ilp32 or llp64 then
@@ -366,7 +368,8 @@ primitive I128 is _SignedInteger[I128, U128]
   fun bitwidth(): U128 => 128
   fun min(y: I128): I128 => if this < y then this else y end
   fun max(y: I128): I128 => if this > y then this else y end
-  fun hash(): U64 => ((this.u128() >> 64).u64() xor this.u64()).hash()
+  fun hash(): USize => u128().hash()
+  fun hash64(): U64 => u128().hash64()
 
   fun string(): String iso^ =>
     _ToString._u128(abs().u128(), this < 0)

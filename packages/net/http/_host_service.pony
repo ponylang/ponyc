@@ -10,7 +10,7 @@ class val _HostService is (Hashable & Equatable[_HostService])
     host = host'
     service = service'
 
-  fun hash(): U64 =>
+  fun hash(): USize =>
     scheme.hash() xor host.hash() xor service.hash()
 
   fun eq(that: _HostService box): Bool =>

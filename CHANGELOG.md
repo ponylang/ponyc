@@ -43,6 +43,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Support OpenSSL 1.1.0 ([PR #2415](https://github.com/ponylang/ponyc/pull/2415))
 - Add U64 type to `cli` package. ([PR #2488](https://github.com/ponylang/ponyc/pull/2488))
 - Allow customisation of `Env.input` and `Env.exitcode` in artificial environments
+- `hash64()` function and related helper types in `collections` for 64-bit hashes ([PR #2615](https://github.com/ponylang/ponyc/pull/2615))
 
 ### Changed
 
@@ -53,6 +54,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
 - Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
 - Rename StdinNotify to InputNotify
+- `digestof` and `hash()` now return USize instead of U64 ([PR #2615](https://github.com/ponylang/ponyc/pull/2615))
 
 ## [0.21.3] - 2018-01-14
 

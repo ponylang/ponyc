@@ -704,8 +704,8 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Set the type to U64.
-  ast_t* type = type_builtin(opt, expr, "U64");
+  // Set the type to USize.
+  ast_t* type = type_builtin(opt, expr, "USize");
   ast_settype(ast, type);
   return true;
 }
