@@ -231,7 +231,7 @@ actor Main
 
     let ptr = Pointer[U8]._alloc(_size + 1)
     _ptr._copy_to(ptr._unsafe(), _size)
-    ptr._update(_size + 1, 0)
+    ptr._update(_size, 0)
     ptr
 
   fun val array(): Array[U8] val =>
