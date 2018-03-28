@@ -263,7 +263,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
@@ -300,7 +303,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   if((ev->flags & ASIO_TIMER) != 0)
   {
