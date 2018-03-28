@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Handle EAGAIN errors on socket operations ([PR #2611](https://github.com/ponylang/ponyc/pull/2611))
 - Properly report type parameter capability errors ([PR #2598](https://github.com/ponylang/ponyc/pull/2598))
 - Update the Windows build to support the latest Visual C++ Build Tools ([PR #2594](https://github.com/ponylang/ponyc/pull/2594))
 - Fix tracing of boxed tuples through interfaces ([PR #2593](https://github.com/ponylang/ponyc/pull/2593))
