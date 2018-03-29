@@ -36,7 +36,7 @@ class Reader
   use "buffered"
   use "collections"
 
-  class Notify is StdinNotify
+  class Notify is InputNotify
     let _env: Env
     new create(env: Env) =>
       _env = env

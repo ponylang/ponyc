@@ -97,7 +97,7 @@ class val Config
         where short' = 'o', default' = "")
     ])?.>add_help()?
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars())
+      match CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)

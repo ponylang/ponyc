@@ -24,7 +24,7 @@ class val Config
       ArgSpec.string("url", "Url to query." where default' = None)
     ])?.>add_help()?
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars())
+      match CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
