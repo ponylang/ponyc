@@ -468,13 +468,9 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
 
   chunk_t* chunk = ponyint_pagemap_get(p);
 
-  if(chunk == NULL)
-  {
-    // Get new memory and copy from the old memory.
-    void* q = ponyint_heap_alloc(actor, heap, size);
-    memcpy(q, p, size);
-    return q;
-  }
+  // We can't realloc memory that wasn't pony_alloc'ed since we can't know how
+  // much to copy from the previous location.
+  pony_assert(chunk != NULL);
 
   size_t oldsize;
 
