@@ -1,4 +1,3 @@
-
 trait val Status
   fun apply(): U16
   fun string(): String

@@ -52,13 +52,19 @@ interface tag BenchmarkList
 class val BenchConfig
   """
   Configuration of a benchmark.
-  - `samples`: total samples measured
-  - `max_iterations`: maximum iterations per sample
-  - `max_sample_time`: maximum time per sample
   """
   let samples: USize
+    """
+    Total number of samples to be measured. (Default: 20)
+    """
   let max_iterations: U64
+    """
+    Maximum number of iterations to execute per sample. (Default: 1_000_000_000)
+    """
   let max_sample_time: U64
+    """
+    Maximum time to execute a sample in Nanoseconds. (Default: 100_000_000)
+    """
 
   new val create(
     samples': USize = 20,

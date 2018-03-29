@@ -4,10 +4,26 @@ class val Env
   program by default by the runtime.
   """
   let root: (AmbientAuth | None)
+    """
+    The root capability.
+
+    Can be `None` for artificially constructed `Env` instances.
+    """
+
   let input: Stdin
+    """
+    Stdin represented as an actor.
+    """
+
   let out: OutStream
+    """Stdout"""
+
   let err: OutStream
+    """Stderr"""
+
   let args: Array[String] val
+    """The command line used to start the program."""
+
   let _envp: Pointer[Pointer[U8]] val
   let _vars: (Array[String] val | None)
 

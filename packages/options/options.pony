@@ -288,9 +288,27 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
 //TODO: Refactor
 class _Option
   let long: String
+    """
+    Long option name.
+
+    E.g. "help" for a "--help" option.
+    """
   let short: (String | None)
+    """
+    Short option name (if any).
+
+    E.g. "h" for a "-h" option.
+    """
   let arg: ArgumentType
+    """
+    The type of the expected argument.
+
+    None, if this option is a flag.
+
+    E.g. "--help"
+    """
   let mode: (Required | Optional)
+    """determining if this Option is required or optional"""
 
   new create(
     long': String,

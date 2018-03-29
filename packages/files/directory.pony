@@ -22,6 +22,11 @@ class Directory
   Capsicum.
   """
   let path: FilePath
+    """
+    This is the filesystem path locating this directory on the file system
+    and an object capability granting access to operate on this directory.
+    """
+
   var _fd: I32 = -1
   // We don't need a file descriptor in Windows. However we do still need to
   // know whether we've disposed of this object, so we use the _fd to indicate

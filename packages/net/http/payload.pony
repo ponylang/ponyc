@@ -73,18 +73,65 @@ class trn Payload
   [HTTPClient](net-http-HTTPClient)`.apply` method in clients.
   """
   var proto: String = "HTTP/1.1"
+    """The HTTP protocol string"""
+
   var status: U16
+    """
+    Internal representation of the response [Status](net-http-Status).
+
+    Will be `0` for HTTP requests.
+    """
+
   var method: String
+    """
+    The HTTP Method.
+
+    `GET`, `POST`, `DELETE`, `OPTIONS`, ...
+
+    For HTTP responses this will be the status string,
+    for a `200` status this will be `200 OK`, for `404`, `404 Not Found` etc..
+    """
+
   var url: URL
+    """
+    The HTTP request [URL](net-http-URL).
+    It will be used for the HTTP path and the `Host` header.
+    The `user` and `password` fields are ignored.
+
+    For HTTP responses this will be an empty [URL](net-http-URL).
+    """
   var _body_length: USize = 0
   var transfer_mode: TransferMode = OneshotTransfer
+    """
+    Determines the transfer mode of this message.
+
+    In case of outgoing requests or responses,
+    use `set_length` to control the transfer mode.
+
+    In case of incoming requests, this field determines
+    how the request is transferred.
+    """
   var session: (HTTPSession | None) = None
-  
+
   embed _headers: Map[String, String] = _headers.create()
   embed _body: Array[ByteSeq val] = _body.create()
   let _response: Bool
   var username: String = ""
+    """
+    The username extracted from an `Authentication` header of an HTTP request
+    received via [HTTPServer](net-http-HTTPServer).
+
+    This is not used and not sent using [HTTPClient](net-http-HTTPClient),
+    use `update` to set an `Authentication` header instead.
+    """
   var password: String = ""
+    """
+    The password extracted from an `Authentication` header of an HTTP request
+    received via [HTTPServer](net-http-HTTPServer).
+
+    This is not used and not sent using [HTTPClient](net-http-HTTPClient),
+    use `update` to set an `Authentication` header instead.
+    """
 
   new iso request(method': String = "GET", url': URL = URL) =>
     """
@@ -242,7 +289,7 @@ class trn Payload
         s.finish()
       end
     end
-       
+
   fun val respond(response': Payload) =>
     """
     Start sending a response from the server to the client.
@@ -297,7 +344,7 @@ class trn Payload
     end
 
     conn.write("Host: " + url.host + ":" + url.port.string() + "\r\n")
-  
+
   fun val _write_common(conn: TCPConnection tag) =>
     """
     Writes the parts of an HTTP message common to both requests and
@@ -311,7 +358,7 @@ class trn Payload
         conn.write(piece)
       end
     end
-          
+
   fun val _write_response(keepalive: Bool, conn: TCPConnection tag) =>
     """
     Write the response-specific parts of an HTTP message. This is the
@@ -372,7 +419,7 @@ class trn Payload
         false
       else
         true
-      end    
+      end
     else
       match transfer_mode
       | ChunkedTransfer => true

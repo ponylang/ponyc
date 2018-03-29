@@ -50,7 +50,7 @@ actor _ClientConnection is HTTPSession
   var _safewait: Bool = false
   var _conn: (TCPConnection | None | _ConnConnecting) = None
   var _nobackpressure: Bool = true   // TCP backpressure indicator
-  
+
   new create(
     auth: TCPConnectionAuth,
     host: String,
@@ -180,7 +180,7 @@ actor _ClientConnection is HTTPSession
     `_chunk`. This is passed on to the front end.
 
     _send_pending is called to detect that _unsent and _sent are emptye
-    and that _conn can be disposed. 
+    and that _conn can be disposed.
     """
     _app_handler.finished()
     _send_pending()

@@ -80,7 +80,16 @@ class File
   Operations on a file.
   """
   let path: FilePath
+    """
+    This is the filesystem path locating this file on the file system
+    and an object capability granting access to operate on this file.
+    """
+
   let writeable: Bool
+    """
+    `true` if the underlying file descriptor has been opened as writeable.
+    """
+
   let _newline: String = "\n"
   var _unsynced_data: Bool = false
   var _unsynced_metadata: Bool = false
