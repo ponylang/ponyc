@@ -33,6 +33,31 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
 static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block);
 
+static void make_branchweights(compile_t* c, LLVMValueRef br,
+  match_weight_t weight)
+{
+  switch(weight)
+  {
+    case WEIGHT_LIKELY:
+    {
+      unsigned int weights[] =
+        {PONY_BRANCHWEIGHT_LIKELY, PONY_BRANCHWEIGHT_UNLIKELY};
+      attach_branchweights_metadata(c->context, br, weights, 2);
+      break;
+    }
+
+    case WEIGHT_UNLIKELY:
+    {
+      unsigned int weights[] =
+        {PONY_BRANCHWEIGHT_UNLIKELY, PONY_BRANCHWEIGHT_LIKELY};
+      attach_branchweights_metadata(c->context, br, weights, 2);
+      break;
+    }
+
+    default: {}
+  }
+}
+
 static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 {
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
@@ -65,26 +90,7 @@ static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
   LLVMValueRef br = LLVMBuildCondBr(c->builder, test, continue_block,
     next_block);
 
-  switch(weight)
-  {
-    case WEIGHT_LIKELY:
-    {
-      unsigned int weights[] =
-        {PONY_BRANCHWEIGHT_LIKELY, PONY_BRANCHWEIGHT_UNLIKELY};
-      attach_branchweights_metadata(c->context, br, weights, 2);
-      break;
-    }
-
-    case WEIGHT_UNLIKELY:
-    {
-      unsigned int weights[] =
-        {PONY_BRANCHWEIGHT_UNLIKELY, PONY_BRANCHWEIGHT_LIKELY};
-      attach_branchweights_metadata(c->context, br, weights, 2);
-      break;
-    }
-
-    default: {}
-  }
+  make_branchweights(c, br, weight);
 
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
@@ -164,60 +170,24 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   return true;
 }
 
-static bool check_union(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
+static bool check_union_or_isect(compile_t* c, LLVMValueRef desc,
   ast_t* pattern_type, LLVMBasicBlockRef next_block, match_weight_t weight)
 {
-  // We have to match some component type.
+  LLVMValueRef test = gendesc_istrait(c, desc, pattern_type);
+
+  if(test == GEN_NOVALUE)
+    return false;
+
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
-  ast_t* child = ast_child(pattern_type);
+  if(next_block == NULL)
+    next_block = continue_block;
 
-  while(child != NULL)
-  {
-    // If we don't match, try the next type if there is one. If there is
-    // no next type, jump to the next case.
-    ast_t* next_type = ast_sibling(child);
-    LLVMBasicBlockRef nomatch_block;
+  LLVMValueRef br = LLVMBuildCondBr(c->builder, test, continue_block,
+    next_block);
 
-    if(next_type != NULL)
-      nomatch_block = codegen_block(c, "pattern_next");
-    else
-      nomatch_block = next_block;
+  make_branchweights(c, br, weight);
 
-    if(nomatch_block == NULL)
-      nomatch_block = continue_block;
-
-    if(!check_type(c, ptr, desc, child, nomatch_block, weight))
-      return false;
-
-    // If we do match, jump to the continue block.
-    LLVMBuildBr(c->builder, continue_block);
-
-    // Put the next union check, if there is one, in the nomatch block.
-    LLVMMoveBasicBlockAfter(nomatch_block, LLVMGetInsertBlock(c->builder));
-    LLVMPositionBuilderAtEnd(c->builder, nomatch_block);
-    child = next_type;
-  }
-
-  // Continue codegen in the continue block, not in the next block.
-  LLVMMoveBasicBlockAfter(continue_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
-  return true;
-}
-
-static bool check_isect(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block, match_weight_t weight)
-{
-  // We have to match all component types.
-  ast_t* child = ast_child(pattern_type);
-
-  while(child != NULL)
-  {
-    if(!check_type(c, ptr, desc, child, next_block, weight))
-      return false;
-
-    child = ast_sibling(child);
-  }
-
   return true;
 }
 
@@ -235,12 +205,9 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
       return check_tuple(c, ptr, desc, pattern_type, next_block, weight);
 
     case TK_UNIONTYPE:
-      // We are trying to capture the match expression as a union.
-      return check_union(c, ptr, desc, pattern_type, next_block, weight);
-
     case TK_ISECTTYPE:
-      // We are trying to capture the match expression as an intersection.
-      return check_isect(c, ptr, desc, pattern_type, next_block, weight);
+      // We are trying to capture the match expression as a union or intersection.
+      return check_union_or_isect(c, desc, pattern_type, next_block, weight);
 
     case TK_ARROW:
       // We are trying to capture the match expression as a viewpoint type, so
