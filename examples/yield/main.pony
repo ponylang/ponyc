@@ -211,7 +211,7 @@ actor Main
     end
 
     let cmd =
-      match CommandParser(cs).parse(_env.args, _env.vars())
+      match CommandParser(cs).parse(_env.args, _env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(_env.out)

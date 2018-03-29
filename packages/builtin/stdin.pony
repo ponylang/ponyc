@@ -8,19 +8,19 @@ use @pony_asio_event_create[AsioEventID](
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
-interface StdinNotify
+interface InputNotify
   """
-  Notification for data arriving via stdin.
+  Notification for data arriving via an input stream.
   """
   fun ref apply(data: Array[U8] iso) =>
     """
-    Called when data is available on stdin.
+    Called when data is available on the stream.
     """
     None
 
   fun ref dispose() =>
     """
-    Called when no more data will arrive on stdin.
+    Called when no more data will arrive on the stream.
     """
     None
 
@@ -30,19 +30,35 @@ interface tag DisposableActor
   """
   be dispose()
 
+interface tag InputStream
+  """
+  Asynchronous access to some input stream.
+  """
+  be apply(notify: (InputNotify iso | None), chunk_size: USize = 32)
+    """
+    Set the notifier. Optionally, also sets the chunk size, dictating the
+    maximum number of bytes of each chunk that will be passed to the notifier.
+    """
+
+  be dispose() =>
+    """
+    Clear the notifier in order to shut down input.
+    """
+    None
+
 actor Stdin
   """
   Asynchronous access to stdin. The constructor is private to ensure that
   access is provided only via an environment.
 
-  Reading from stdin is done by registering a `StdinNotify`:
+  Reading from stdin is done by registering an `InputNotify`:
 
   ```pony
   actor Main
     new create(env: Env) =>
       // do not forget to call `env.input.dispose` at some point
       env.input(
-        object iso is StdinNotify
+        object iso is InputNotify
           fun ref apply(data: Array[U8] iso) =>
             env.out.write(String.from_iso_array(consume data))
 
@@ -54,7 +70,7 @@ actor Stdin
 
   **Note:** For reading user input from a terminal, use the [readline](readline--index) package.
   """
-  var _notify: (StdinNotify | None) = None
+  var _notify: (InputNotify | None) = None
   var _chunk_size: USize = 32
   var _event: AsioEventID = AsioEvent.none()
   let _use_event: Bool
@@ -65,7 +81,7 @@ actor Stdin
     """
     _use_event = use_event
 
-  be apply(notify: (StdinNotify iso | None), chunk_size: USize = 32) =>
+  be apply(notify: (InputNotify iso | None), chunk_size: USize = 32) =>
     """
     Set the notifier. Optionally, also sets the chunk size, dictating the
     maximum number of bytes of each chunk that will be passed to the notifier.
@@ -79,7 +95,7 @@ actor Stdin
     """
     _set_notify(None)
 
-  fun ref _set_notify(notify: (StdinNotify iso | None)) =>
+  fun ref _set_notify(notify: (InputNotify iso | None)) =>
     """
     Set the notifier.
     """
@@ -99,7 +115,7 @@ actor Stdin
       end
     end
 
-    try (_notify as StdinNotify).dispose() end
+    try (_notify as InputNotify).dispose() end
     _notify = consume notify
 
   be _loop_read() =>
@@ -132,7 +148,7 @@ actor Stdin
     ourself a resume message and stop reading to avoid starving other actors.
     """
     try
-      let notify = _notify as StdinNotify
+      let notify = _notify as InputNotify
       var sum: USize = 0
 
       while true do

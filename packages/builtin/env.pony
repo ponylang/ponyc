@@ -10,7 +10,7 @@ class val Env
     Can be `None` for artificially constructed `Env` instances.
     """
 
-  let input: Stdin
+  let input: InputStream
     """
     Stdin represented as an actor.
     """
@@ -24,8 +24,14 @@ class val Env
   let args: Array[String] val
     """The command line used to start the program."""
 
-  let _envp: Pointer[Pointer[U8]] val
-  let _vars: (Array[String] val | None)
+  let vars: Array[String] val
+    """The program's environment variables."""
+
+  let exitcode: {(I32)} val
+    """
+    Sets the environment's exit code. The exit code of the root environment will
+    be the exit code of the application, which defaults to 0.
+    """
 
   new _create(
     argc: U32,
@@ -44,14 +50,16 @@ class val Env
     err = StdStream._err()
 
     args = _strings_from_pointers(argv, argc.usize())
-    _envp = envp
-    _vars = None
+    vars = _strings_from_pointers(envp, _count_strings(envp))
 
-  new create(
+    exitcode = {(code: I32) => @pony_exitcode[None](code) }
+
+  new val create(
     root': (AmbientAuth | None),
-    input': Stdin, out': OutStream,
+    input': InputStream, out': OutStream,
     err': OutStream, args': Array[String] val,
-    vars': (Array[String] val | None))
+    vars': Array[String] val,
+    exitcode': {(I32)} val)
   =>
     """
     Build an artificial environment. A root capability may be supplied.
@@ -61,32 +69,14 @@ class val Env
     out = out'
     err = err'
     args = args'
-    _envp = recover Pointer[Pointer[U8]] end
-    _vars = vars'
-
-  fun vars(): Array[String] val =>
-    """
-    Return the environment variables as an array of strings of the form
-    "key=value".
-    """
-    match _vars
-    | let v: Array[String] val => v
-    else
-      if not _envp.is_null() then
-        _strings_from_pointers(_envp, _count_strings(_envp))
-      else
-        recover Array[String] end
-      end
-    end
-
-  fun tag exitcode(code: I32) =>
-    """
-    Sets the application exit code. If this is called more than once, the last
-    value set will be the exit code. The exit code defaults to 0.
-    """
-    @pony_exitcode[None](code)
+    vars = vars'
+    exitcode = exitcode'
 
   fun tag _count_strings(data: Pointer[Pointer[U8]] val): USize =>
+    if data.is_null() then
+      return 0
+    end
+
     var i: USize = 0
 
     while
@@ -105,10 +95,8 @@ class val Env
     let array = recover Array[String](len) end
     var i: USize = 0
 
-    while
+    while i < len do
       let entry = data._apply(i = i + 1)
-      not entry.is_null()
-    do
       array.push(recover String.copy_cstring(entry) end)
     end
 

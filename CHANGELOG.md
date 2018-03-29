@@ -35,6 +35,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compile error when comparing sugared constructors with 'is' or 'isnt' (#2024) ([PR #2494](https://github.com/ponylang/ponyc/pull/2494))
 - Support OpenSSL 1.1.0 ([PR #2415](https://github.com/ponylang/ponyc/pull/2415))
 - Add U64 type to `cli` package. ([PR #2488](https://github.com/ponylang/ponyc/pull/2488))
+- Allow customisation of `Env.input` and `Env.exitcode` in artificial environments
 
 ### Changed
 
@@ -44,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
 - Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
 - Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
+- Rename StdinNotify to InputNotify
 
 ## [0.21.3] - 2018-01-14
 
