@@ -466,6 +466,64 @@ make
 ./helloworld
 ```
 
+### CentOS/RHEL (7)
+
+Instal dependencies:
+
+```bash
+sudo yum install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+  ncurses-devel libatomic
+```
+
+Using LLVM 3.9.1 from copr:
+
+```bash
+sudo yum install yum-plugin-copr
+sudo yum copr enable alonid/llvm-3.9.1
+sudo yum install llvm-3.9.1 llvm-3.9.1-devel llvm-3.9.1-static
+```
+
+Using LLVM 5.0.1 from copr:
+
+```bash
+sudo yum install yum-plugin-copr
+sudo yum copr enable alonid/llvm-5.0.1
+sudo yum install llvm-5.0.1 llvm-5.0.1-devel llvm-5.0.1-static
+```
+
+Using LLVM 4.0.1 from llvm-toolset-7 from SCL:
+
+CentOS:
+```bash
+# 1. Install a package with repository for your system:
+# On CentOS, install package centos-release-scl available in CentOS repository:
+sudo yum install centos-release-scl
+```
+
+RHEL:
+```bash
+# On RHEL, enable RHSCL repository for you system:
+sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+
+```bash
+# 2. Install the collection:
+sudo yum install llvm-toolset-7 llvm-toolset-7-llvm-devel llvm-toolset-7-llvm-static
+```
+
+Enable the llvm collection before building:
+```bash
+scl enable llvm-toolset-7 bash
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make use="llvm_link_static"
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
 ### OpenSUSE (Leap 42.3)
 
 ```bash

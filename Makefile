@@ -223,6 +223,14 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-4.0
   else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-3.9.1/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-3.9.1/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-5.0.1/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-5.0.1/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-5.0.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-5.0.0/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-4.0.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-4.0.0/bin/llvm-config
   else
     $(error No LLVM installation found!)
   endif
