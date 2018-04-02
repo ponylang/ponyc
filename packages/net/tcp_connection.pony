@@ -948,16 +948,15 @@ actor TCPConnection
   fun ref _apply_backpressure() =>
     if not _throttled then
       _throttled = true
-      ifdef not windows then
-        _writeable = false
-
-        // this is safe because asio thread isn't currently subscribed
-        // for a write event so will not be writing to the readable flag
-        @pony_asio_event_set_writeable(_event, false)
-        @pony_asio_event_resubscribe_write(_event)
-      end
-
       _notify.throttled(this)
+    end
+    ifdef not windows then
+      _writeable = false
+
+      // this is safe because asio thread isn't currently subscribed
+      // for a write event so will not be writing to the readable flag
+      @pony_asio_event_set_writeable(_event, false)
+      @pony_asio_event_resubscribe_write(_event)
     end
 
   fun ref _release_backpressure() =>
