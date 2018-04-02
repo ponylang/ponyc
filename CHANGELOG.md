@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix backpressure-related TCPConnection busy-loop bug (issue #2620). ([PR #2627](https://github.com/ponylang/ponyc/pull/2627))
 - Fix off-by-one error in String.cstring ([PR #2616](https://github.com/ponylang/ponyc/pull/2616))
 - Fix compiler crash related to array inference. ([PR #2603](https://github.com/ponylang/ponyc/pull/2603))
 - Ensure ASIO thread cannot be stopped prematurely ([PR #2612](https://github.com/ponylang/ponyc/pull/2612))
