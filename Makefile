@@ -481,6 +481,7 @@ ponyc.linkoptions += -rdynamic
 
 ifneq ($(ALPINE),)
   ponyc.linkoptions += -lexecinfo
+  BUILD_FLAGS += -DALPINE_LINUX
 endif
 
 ifeq ($(OSTYPE), linux)
