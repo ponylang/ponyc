@@ -50,12 +50,14 @@ typedef int SOCKET;
 #include <linux/atm.h>
 #include <linux/dn.h>
 #include <linux/rds.h>
+#ifndef ALPINE_LINUX
 #include <netatalk/at.h>
 #include <netax25/ax25.h>
 #include <netax25/ax25.h>
 #include <netipx/ipx.h>
 #include <netrom/netrom.h>
 #include <netrose/rose.h>
+#endif
 #include <linux/dccp.h>
 #include <linux/netlink.h>
 #include <linux/icmp.h>
