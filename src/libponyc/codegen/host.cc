@@ -39,8 +39,6 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   if(opt->pic || opt->library)
     reloc = Reloc::PIC_;
 
-  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
-
   CodeGenOpt::Level opt_level =
     opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
 
@@ -49,8 +47,15 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
 
   Target* t = reinterpret_cast<Target*>(target);
 
+#if PONY_LLVM < 600
+  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
   TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
     opt->features, options, reloc, model, opt_level);
+#else
+  CodeModel::Model model = jit ? CodeModel::Large : CodeModel::Small;
+  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+    opt->features, options, reloc, model, opt_level, jit);
+#endif
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
