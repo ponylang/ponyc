@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix FilePath.walk performance issues (issue #2158). ([PR #2634](https://github.com/ponylang/ponyc/pull/2634))
 - Fix backpressure-related TCPConnection busy-loop bug (issue #2620). ([PR #2627](https://github.com/ponylang/ponyc/pull/2627))
 - Fix off-by-one error in String.cstring ([PR #2616](https://github.com/ponylang/ponyc/pull/2616))
 - Fix compiler crash related to array inference. ([PR #2603](https://github.com/ponylang/ponyc/pull/2603))
