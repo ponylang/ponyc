@@ -118,14 +118,16 @@ class val FilePath
     expanded by removing them from the `dir_entries` list.
     """
     try
-      var entries: Array[String] ref = Directory(this)?.entries()?
-      handler(this, entries)
-      for e in entries.values() do
-        let p = this.join(e)?
-        if not follow_links and FileInfo(p)?.symlink then
-          continue
+      with dir = Directory(this)? do
+        var entries: Array[String] ref = dir.entries()?
+        handler(this, entries)
+        for e in entries.values() do
+          let p = this.join(e)?
+          let info = FileInfo(p)?
+          if info.directory and (follow_links or not info.symlink) then
+            p.walk(handler, follow_links)
+          end
         end
-        p.walk(handler, follow_links)
       end
     else
       return
