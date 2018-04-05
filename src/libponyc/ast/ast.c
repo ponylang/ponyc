@@ -1645,10 +1645,10 @@ void ast_fprintverbose(FILE* fp, ast_t* ast)
   print_verbose(fp, ast, 0, NOT_SPECIAL);
 }
 
-static void print_type(printbuf_t* buffer, ast_t* type);
+static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap);
 
 static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
-  bool square)
+  bool square, bool print_cap)
 {
   if(square)
     printbuf(buffer, "[");
@@ -1660,7 +1660,7 @@ static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
   while(child != NULL)
   {
     ast_t* next = ast_sibling(child);
-    print_type(buffer, child);
+    print_type(buffer, child, print_cap);
 
     if(next != NULL)
       printbuf(buffer, "%s", sep);
@@ -1674,7 +1674,7 @@ static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
     printbuf(buffer, ")");
 }
 
-static void print_type(printbuf_t* buffer, ast_t* type)
+static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
 {
   switch(ast_id(type))
   {
@@ -1693,27 +1693,30 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "%s", ast_nice_name(id));
 
       if(ast_id(typeargs) != TK_NONE)
-        print_typeexpr(buffer, typeargs, ", ", true);
+        print_typeexpr(buffer, typeargs, ", ", true, true);
 
-      if(ast_id(cap) != TK_NONE)
-        printbuf(buffer, " %s", token_print(cap->t));
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
 
-      if(ast_id(ephemeral) != TK_NONE)
-        printbuf(buffer, "%s", token_print(ephemeral->t));
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, "%s", token_print(ephemeral->t));
+      }
 
       break;
     }
 
     case TK_UNIONTYPE:
-      print_typeexpr(buffer, type, " | ", false);
+      print_typeexpr(buffer, type, " | ", false, print_cap);
       break;
 
     case TK_ISECTTYPE:
-      print_typeexpr(buffer, type, " & ", false);
+      print_typeexpr(buffer, type, " & ", false, print_cap);
       break;
 
     case TK_TUPLETYPE:
-      print_typeexpr(buffer, type, ", ", false);
+      print_typeexpr(buffer, type, ", ", false, print_cap);
       break;
 
     case TK_TYPEPARAMREF:
@@ -1721,11 +1724,14 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       AST_GET_CHILDREN(type, id, cap, ephemeral);
       printbuf(buffer, "%s", ast_nice_name(id));
 
-      if(ast_id(cap) != TK_NONE)
-        printbuf(buffer, " %s", token_print(cap->t));
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
 
-      if(ast_id(ephemeral) != TK_NONE)
-        printbuf(buffer, " %s", token_print(ephemeral->t));
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, " %s", token_print(ephemeral->t));
+      }
 
       break;
     }
@@ -1733,9 +1739,9 @@ static void print_type(printbuf_t* buffer, ast_t* type)
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      print_type(buffer, left);
+      print_type(buffer, left, print_cap);
       printbuf(buffer, "->");
-      print_type(buffer, right);
+      print_type(buffer, right, print_cap);
       break;
     }
 
@@ -1770,7 +1776,18 @@ static void print_type(printbuf_t* buffer, ast_t* type)
 const char* ast_print_type(ast_t* type)
 {
   printbuf_t* buffer = printbuf_new();
-  print_type(buffer, type);
+  print_type(buffer, type, true);
+
+  const char* s = stringtab(buffer->m);
+  printbuf_free(buffer);
+
+  return s;
+}
+
+const char* ast_print_type_no_cap(ast_t* type)
+{
+  printbuf_t* buffer = printbuf_new();
+  print_type(buffer, type, false);
 
   const char* s = stringtab(buffer->m);
   printbuf_free(buffer);
