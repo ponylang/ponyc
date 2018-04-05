@@ -52,9 +52,8 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
     opt->features, options, reloc, model, opt_level);
 #else
-  CodeModel::Model model = jit ? CodeModel::Large : CodeModel::Small;
-  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
-    opt->features, options, reloc, model, opt_level, jit);
+TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+  opt->features, options, reloc, llvm::None, opt_level, jit);
 #endif
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
