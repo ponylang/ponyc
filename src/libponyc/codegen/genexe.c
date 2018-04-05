@@ -343,10 +343,16 @@ static bool link_exe(compile_t* c, ast_t* program,
 #else
     "";
 #endif
+  const char* lexecinfo =
+#if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__))
+   "-lexecinfo";
+#else
+    "";
+#endif
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl) + strlen(dtrace_args);
+                  + strlen(ldl) + strlen(dtrace_args) + strlen(lexecinfo);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -361,9 +367,9 @@ static bool link_exe(compile_t* c, ast_t* program,
     // for backtrace reporting.
     "-rdynamic "
 #endif
-    "%s %s %s %s -lpthread %s %s %s -lm",
+    "%s %s %s %s -lpthread %s %s %s -lm %s",
     linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    dtrace_args, ponyrt, ldl
+    dtrace_args, ponyrt, ldl, lexecinfo
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
