@@ -37,24 +37,24 @@ TEST_F(MatchTypeTest, SimpleTypes)
 
   TEST_COMPILE(src);
 
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1"), &opt));
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c2"), &opt));
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("c1"), &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c2"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("c1"), NULL, &opt));
 
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("t1"), &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1"), &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("t1"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1"), NULL, &opt));
 
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("t2"), &opt));
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("t2"), type_of("c1"), &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("t2"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("t2"), type_of("c1"), NULL, &opt));
 
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("i1"), &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1"), &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("i1"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1"), NULL, &opt));
 
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("i2"), &opt));
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1"), &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("i2"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1"), NULL, &opt));
 
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("t2"), &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("t1"), &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("t2"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("t1"), NULL, &opt));
 }
 
 
@@ -93,45 +93,45 @@ TEST_F(MatchTypeTest, CompoundOperand)
 
   // (C1 | C2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("c1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("c2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("c2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("t1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("t1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1or2"), type_of("t2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1or2"), type_of("t2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("i1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1or2"), type_of("i1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1or2"), type_of("i2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1or2"), type_of("i2"), NULL, &opt));
 
   // (C1 | T2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("c1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1ort2"), type_of("c2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1ort2"), type_of("c2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("t1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("t1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("t2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1ort2"), type_of("t2"), NULL, &opt));
 
   // (T1 & T2)
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("t1and2"), type_of("c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("t1and2"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("t1and2"), type_of("c2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("t1and2"), type_of("c2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("c3"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("c3"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t3"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("t3"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1and2"), type_of("i2"), NULL, &opt));
 }
 
 
@@ -170,45 +170,45 @@ TEST_F(MatchTypeTest, CompoundPattern)
 
   // (C1 | C2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1or2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1or2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c2"), type_of("c1or2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c2"), type_of("c1or2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1or2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1or2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("t2"), type_of("c1or2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("t2"), type_of("c1or2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1or2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1or2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1or2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1or2"), NULL, &opt));
 
   // (C1 | T2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1ort2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1"), type_of("c1ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("c1ort2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("c1ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1ort2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("c1ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("c1ort2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("c1ort2"), NULL, &opt));
 
   // (T1 & T2)
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("t1and2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("t1and2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c2"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c3"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c3"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t2"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t3"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t3"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("t1and2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("i2"), type_of("t1and2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("i2"), type_of("t1and2"), NULL, &opt));
 }
 
 
@@ -245,41 +245,41 @@ TEST_F(MatchTypeTest, BothCompound)
 
   // (C1 | C2) vs (T1 | T2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1orc2"), type_of("t1ort2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1orc2"), type_of("t1ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1ort2"), type_of("c1orc2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1ort2"), type_of("c1orc2"), NULL, &opt));
 
   // (C1 | C2) vs (C3 | T2)
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1orc2"), type_of("c3ort2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1orc2"), type_of("c3ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c3ort2"), type_of("c1orc2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c3ort2"), type_of("c1orc2"), NULL, &opt));
 
   // (C1 | C2) vs (T1 & T2)
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1orc2"), type_of("t1andt2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1orc2"), type_of("t1andt2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("t1andt2"), type_of("c1orc2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("t1andt2"), type_of("c1orc2"), NULL, &opt));
 
   // (C1 | C3) vs (T1 & T2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1orc3"), type_of("t1andt2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1orc3"), type_of("t1andt2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1andt2"), type_of("c1orc3"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1andt2"), type_of("c1orc3"), NULL, &opt));
 
   // (T1 & T2) vs (T1 | T2)
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1andt2"), type_of("t1ort2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1andt2"), type_of("t1ort2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1ort2"), type_of("t1andt2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("t1ort2"), type_of("t1andt2"), NULL, &opt));
 
   // (T1 & T2) vs (I1 & I2)
   ASSERT_EQ(
     MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("t1andt2"), type_of("i1andi2"), &opt));
+    is_matchtype(type_of("t1andt2"), type_of("i1andi2"), NULL, &opt));
   ASSERT_EQ(
     MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("i1andi2"), type_of("t1andt2"), &opt));
+    is_matchtype(type_of("i1andi2"), type_of("t1andt2"), NULL, &opt));
 }
 
 
@@ -314,19 +314,19 @@ TEST_F(MatchTypeTest, Tuples)
   TEST_COMPILE(src);
 
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c1c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1"), type_of("c1c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1c1"), type_of("c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1c1"), type_of("c1"), NULL, &opt));
 
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("c1c2"), type_of("t1t2"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("c1c2"), type_of("t1t2"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c3"), type_of("t1t2"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c3"), type_of("t1t2"), NULL, &opt));
 
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1c1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1c1"), NULL, &opt));
 
   // We can't make types with don't cares in as the type of a parameter. Modify
   // t1t2 instead.
@@ -338,14 +338,14 @@ TEST_F(MatchTypeTest, Tuples)
   REPLACE(&elem2, NODE(TK_DONTCARETYPE));
 
   // (T1, _)
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), t1t2, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c2"), t1t2, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), t1t2, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c2"), t1t2, NULL, &opt));
 
   REPLACE(&elem1, NODE(TK_DONTCARETYPE));
 
   // (_, _)
-  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), t1t2, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c2"), t1t2, &opt));
+  ASSERT_EQ(MATCHTYPE_REJECT, is_matchtype(type_of("c1"), t1t2, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(type_of("c1c2"), t1t2, NULL, &opt));
 }
 
 
@@ -384,60 +384,60 @@ TEST_F(MatchTypeTest, Capabilities)
 
   // Classes
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1ref"), type_of("c1ref"), &opt));
+    is_matchtype(type_of("c1ref"), type_of("c1ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1ref"), type_of("c1val"), &opt));
+    is_matchtype(type_of("c1ref"), type_of("c1val"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1ref"), type_of("c1box"), &opt));
+    is_matchtype(type_of("c1ref"), type_of("c1box"), NULL, &opt));
 
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1val"), type_of("c1ref"), &opt));
+    is_matchtype(type_of("c1val"), type_of("c1ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1val"), type_of("c1val"), &opt));
+    is_matchtype(type_of("c1val"), type_of("c1val"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1val"), type_of("c1box"), &opt));
+    is_matchtype(type_of("c1val"), type_of("c1box"), NULL, &opt));
 
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1box"), type_of("c1ref"), &opt));
+    is_matchtype(type_of("c1box"), type_of("c1ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1box"), type_of("c1val"), &opt));
+    is_matchtype(type_of("c1box"), type_of("c1val"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1box"), type_of("c1box"), &opt));
+    is_matchtype(type_of("c1box"), type_of("c1box"), NULL, &opt));
 
   ASSERT_EQ(MATCHTYPE_REJECT,
-    is_matchtype(type_of("c1box"), type_of("c2ref"), &opt));
+    is_matchtype(type_of("c1box"), type_of("c2ref"), NULL, &opt));
 
   // Tuples
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1refc2ref"), type_of("c1refc2ref"), &opt));
+    is_matchtype(type_of("c1refc2ref"), type_of("c1refc2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1refc2ref"), type_of("c1valc2ref"), &opt));
+    is_matchtype(type_of("c1refc2ref"), type_of("c1valc2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1refc2ref"), type_of("c1refc2val"), &opt));
+    is_matchtype(type_of("c1refc2ref"), type_of("c1refc2val"), NULL, &opt));
 
   // Unions
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("c1reforc2ref"), type_of("c1reforc2ref"), &opt));
+    is_matchtype(type_of("c1reforc2ref"), type_of("c1reforc2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1reforc2ref"), type_of("c1valorc2ref"), &opt));
+    is_matchtype(type_of("c1reforc2ref"), type_of("c1valorc2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("c1reforc2ref"), type_of("c1reforc2val"), &opt));
+    is_matchtype(type_of("c1reforc2ref"), type_of("c1reforc2val"), NULL, &opt));
 
   // Intersect vs union
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1refort2ref"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1refort2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1valort2ref"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1valort2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1refort2val"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1refort2val"), NULL, &opt));
 
   // Intersects
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2ref"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2ref"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2box"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2box"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
-    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box"), &opt));
+    is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box"), NULL, &opt));
 }
 
 
@@ -465,21 +465,21 @@ TEST_F(MatchTypeTest, TypeParams)
 
   // Ref constraints
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("ac2"), type_of("c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("ac2"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_REJECT, is_matchtype(type_of("at2"), type_of("c1"), &opt));
+    MATCHTYPE_REJECT, is_matchtype(type_of("at2"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("at1"), type_of("c1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("at1"), type_of("c1"), NULL, &opt));
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("at2"), type_of("t1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("at2"), type_of("t1"), NULL, &opt));
 
   // Box constraint
   ASSERT_EQ(
-    MATCHTYPE_DENY, is_matchtype(type_of("at2box"), type_of("t1"), &opt));
+    MATCHTYPE_DENY, is_matchtype(type_of("at2box"), type_of("t1"), NULL, &opt));
 
   // Union constraint
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("aunion"), type_of("c1"), &opt));
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("aunion"), type_of("c1"), NULL, &opt));
 }
 
 
@@ -516,44 +516,44 @@ TEST_F(MatchTypeTest, GenericCap)
   ast_t* tag = type_of("tag'");
 
   // #read {ref, val, box}
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, iso, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, trn, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, ref, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, val, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, box, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, tag, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, iso, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, trn, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, ref, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(read, val, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, box, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(read, tag, NULL, &opt));
 
   // #send {iso, val, tag}
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, iso, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, trn, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, ref, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, val, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, box, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, tag, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, iso, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, trn, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, ref, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, val, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(send, box, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(send, tag, NULL, &opt));
 
   // #share {val, tag}
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, iso, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, trn, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, ref, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, val, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, box, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, tag, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, iso, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, trn, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, ref, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, val, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(share, box, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(share, tag, NULL, &opt));
 
   // #alias {ref, val, box, tag}
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, iso, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, trn, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, ref, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, val, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, box, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, tag, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, iso, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, trn, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, ref, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, val, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(alias, box, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(alias, tag, NULL, &opt));
 
   // #any {iso, trn, ref, val, box, tag}
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, iso, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, trn, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, ref, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, val, &opt));
-  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, box, &opt));
-  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, tag, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, iso, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, trn, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, ref, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, val, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY, is_matchtype(any, box, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT, is_matchtype(any, tag, NULL, &opt));
 
   if(send != send_base)
     ast_free_unattached(send);
