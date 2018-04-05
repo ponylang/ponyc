@@ -77,50 +77,6 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
 }
 
 
-TEST_F(CodegenTest, ClassCannotBePacked)
-{
-  const char* src =
-    "class \\packed\\ Foo\n"
-    "  var a: U8 = 0\n"
-    "  var b: U32 = 0\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    Foo";
-
-  TEST_COMPILE(src);
-
-  reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
-  ASSERT_TRUE(foo != NULL);
-
-  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
-  ASSERT_TRUE(!LLVMIsPackedStruct(type));
-}
-
-
-TEST_F(CodegenTest, ActorCannotBePacked)
-{
-  const char* src =
-    "actor \\packed\\ Foo\n"
-    "  var a: U8 = 0\n"
-    "  var b: U32 = 0\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    Foo";
-
-  TEST_COMPILE(src);
-
-  reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
-  ASSERT_TRUE(foo != NULL);
-
-  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
-  ASSERT_TRUE(!LLVMIsPackedStruct(type));
-}
-
-
 TEST_F(CodegenTest, JitRun)
 {
   const char* src =

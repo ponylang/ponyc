@@ -855,8 +855,10 @@ void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
 
   if(annotation != NULL)
   {
-    pony_assert(!hasparent(annotation) &&
-      (annotation->annotation_type == NULL));
+    pony_assert(annotation->annotation_type == NULL);
+
+    if(hasparent(annotation))
+      annotation = duplicate(ast, annotation);
 
     if(prev_annotation != NULL)
     {
@@ -867,6 +869,8 @@ void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
     }
 
     ast->annotation_type = annotation;
+
+    set_scope_and_parent(annotation, ast);
   } else {
     pony_assert(prev_annotation != NULL);
 
