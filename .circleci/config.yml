@@ -54,6 +54,18 @@ jobs:
     steps:
       - checkout
       - run: make test-ci default_ssl=openssl_1.1.0 default_pic=true
+  alpine-llvm-391-debug:
+    docker:
+      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=debug default_pic=true
+  alpine-llvm-391-release:
+    docker:
+      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+    steps:
+      - checkout
+      - run: make test-ci config=release default_pic=true
 
 workflows:
   version: 2
@@ -68,3 +80,5 @@ workflows:
       - llvm-391-debug
       - llvm-391-release
       - openssl-110
+      - alpine-llvm-391-debug
+      - alpine-llvm-391-release
