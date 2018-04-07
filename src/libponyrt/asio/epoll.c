@@ -68,7 +68,7 @@ static void signal_handler(int sig)
   if(ev == NULL)
     return;
 
-  eventfd_write(ev->fd, 1);
+  eventfd_write(ev->signal_data.event_fd, 1);
 }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -169,7 +169,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   else
     return;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->io_data.fd, &ep);
 }
 
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
@@ -197,7 +197,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   else
     return;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->io_data.fd, &ep);
 }
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
@@ -254,7 +254,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
           uint64_t missed;
-          ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
+          ssize_t rc = read(ev->timer_data.timer_fd, &missed, sizeof(uint64_t));
           (void)rc;
           flags |= ASIO_TIMER;
         }
@@ -265,7 +265,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
           uint64_t missed;
-          ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
+          ssize_t rc = read(ev->signal_data.event_fd, &missed, sizeof(uint64_t));
           (void)rc;
           flags |= ASIO_SIGNAL;
           count = (uint32_t)missed;
@@ -305,7 +305,7 @@ static void timer_set_nsec(int fd, uint64_t nsec)
   timerfd_settime(fd, 0, &ts, NULL);
 }
 
-PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
+void ponyint_pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -339,14 +339,14 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
-    ev->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    timer_set_nsec(ev->fd, ev->nsec);
+    ev->timer_data.timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    timer_set_nsec(ev->timer_data.timer_fd, ev->timer_data.nsec);
     ep.events |= EPOLLIN;
   }
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    int sig = (int)ev->nsec;
+    int sig = ev->signal_data.signal;
     asio_event_t* prev = NULL;
 
 #ifdef USE_VALGRIND
@@ -365,7 +365,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
       sigaction(sig, &new_action, NULL);
 
-      ev->fd = eventfd(0, EFD_NONBLOCK);
+      ev->signal_data.event_fd = eventfd(0, EFD_NONBLOCK);
       ep.events |= EPOLLIN;
     } else {
       return;
@@ -377,10 +377,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ev->auto_resub = true;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->shared_fd, &ep);
 }
 
-PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_update_nsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -392,8 +392,8 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 
   if(ev->flags & ASIO_TIMER)
   {
-    ev->nsec = nsec;
-    timer_set_nsec(ev->fd, nsec);
+    ev->timer_data.nsec = nsec;
+    timer_set_nsec(ev->timer_data.timer_fd, nsec);
   }
 }
 
@@ -426,20 +426,20 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     ev->noisy = false;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->shared_fd, NULL);
 
   if(ev->flags & ASIO_TIMER)
   {
-    if(ev->fd != -1)
+    if(ev->timer_data.timer_fd != -1)
     {
-      close(ev->fd);
-      ev->fd = -1;
+      close(ev->timer_data.timer_fd);
+      ev->timer_data.timer_fd = -1;
     }
   }
 
   if(ev->flags & ASIO_SIGNAL)
   {
-    int sig = (int)ev->nsec;
+    int sig = ev->signal_data.signal;
     asio_event_t* prev = ev;
 
 #ifdef USE_VALGRIND
@@ -467,8 +467,8 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
       sigaction(sig, &new_action, NULL);
 
-      close(ev->fd);
-      ev->fd = -1;
+      close(ev->signal_data.event_fd);
+      ev->signal_data.event_fd = -1;
     }
   }
 

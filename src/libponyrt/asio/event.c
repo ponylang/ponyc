@@ -6,16 +6,16 @@
 #include "ponyassert.h"
 #include <string.h>
 
-PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
-  uint32_t flags, uint64_t nsec, bool noisy)
+PONY_API asio_event_t* pony_asio_event_alloc(pony_actor_t* owner,
+  uint32_t flags, bool noisy)
 {
-  if((flags == ASIO_DISPOSABLE) || (flags == ASIO_DESTROYED))
-    return NULL;
-
   pony_type_t* type = *(pony_type_t**)owner;
   uint32_t msg_id = type->event_notify;
 
   if(msg_id == (uint32_t)-1)
+    return NULL;
+
+  if((flags == ASIO_DISPOSABLE) || (flags == ASIO_DESTROYED))
     return NULL;
 
   asio_event_t* ev = POOL_ALLOC(asio_event_t);
@@ -23,21 +23,42 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->magic = ev;
   ev->owner = owner;
   ev->msg_id = msg_id;
-  ev->fd = fd;
   ev->flags = flags;
-  ev->noisy = noisy;
-  ev->nsec = nsec;
   ev->writeable = false;
   ev->readable = false;
+  ev->noisy = noisy;
+
+  return ev;
+}
+
+// TODO: Validate these settings
+PONY_API void pony_asio_event_set_nsec(asio_event_t* ev, uint64_t nsec)
+{
+  ev->timer_data.nsec = nsec;
+}
+
+PONY_API void pony_asio_event_set_fd(asio_event_t* ev, int fd)
+{
+  ev->io_data.fd = fd;
+}
+
+PONY_API void pony_asio_event_set_signal(asio_event_t* ev, int signal)
+{
+  ev->signal_data.signal = signal;
+}
+
+PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
+{
+  pony_actor_t* owner = ev->owner;
+  pony_type_t* type = *(pony_type_t**)owner;
 
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_send(ctx);
-  pony_traceknown(ctx, owner, type, PONY_TRACE_OPAQUE);
+  pony_traceknown(ctx, ev->owner, type, PONY_TRACE_OPAQUE);
   pony_send_done(ctx);
 
-  pony_asio_event_subscribe(ev);
-  return ev;
+  ponyint_pony_asio_event_subscribe(ev);
 }
 
 PONY_API void pony_asio_event_destroy(asio_event_t* ev)
@@ -65,7 +86,7 @@ PONY_API int pony_asio_event_fd(asio_event_t* ev)
   if(ev == NULL)
     return -1;
 
-  return ev->fd;
+  return ev->io_data.fd;
 }
 
 PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev)
@@ -101,7 +122,7 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
   if(ev == NULL)
     return 0;
 
-  return ev->nsec;
+  return ev->timer_data.nsec;
 }
 
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,

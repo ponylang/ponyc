@@ -92,8 +92,6 @@ use "collections"
 use "files"
 
 use @pony_os_errno[I32]()
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-      flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
@@ -322,11 +320,11 @@ actor ProcessMonitor
     """
     ifdef posix then
       _stdin_event  =
-        @pony_asio_event_create(this, _stdin_write, AsioEvent.write(), 0, true)
+        AsioEvent.make(this, AsioEvent.write() where fd =_stdin_write)
       _stdout_event =
-        @pony_asio_event_create(this, _stdout_read, AsioEvent.read(), 0, true)
+        AsioEvent.make(this, AsioEvent.read() where fd = _stdout_read)
       _stderr_event =
-        @pony_asio_event_create(this, _stderr_read, AsioEvent.read(), 0, true)
+        AsioEvent.make(this, AsioEvent.read() where fd = _stderr_read)
       _close_fd(_stdin_read)
       _close_fd(_stdout_write)
       _close_fd(_stderr_write)

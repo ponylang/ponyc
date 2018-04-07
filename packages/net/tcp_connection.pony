@@ -1,7 +1,5 @@
 use "collections"
 
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-  flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_fd[U32](event: AsioEventID)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_resubscribe_read[None](event: AsioEventID)
@@ -294,11 +292,9 @@ actor TCPConnection
     _connect_count = 0
     _fd = fd
     ifdef not windows then
-      _event = @pony_asio_event_create(this, fd,
-        AsioEvent.read_write_oneshot(), 0, true)
+      _event = AsioEvent.make(this, AsioEvent.read_write_oneshot() where fd = fd)
     else
-      _event = @pony_asio_event_create(this, fd,
-        AsioEvent.read_write(), 0, true)
+      _event = AsioEvent.make(this, AsioEvent.read_write() where fd = fd)
     end
     _connected = true
     ifdef not windows then

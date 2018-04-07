@@ -167,7 +167,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             case ASIO_SET_TIMER:
             {
               // Windows timer resolution is 100ns, adjust given time
-              int64_t dueTime = -(int64_t)ev->nsec / 100;
+              int64_t dueTime = -(int64_t)ev->timer_data.nsec / 100;
               LARGE_INTEGER liDueTime;
               liDueTime.LowPart = (DWORD)(dueTime & 0xFFFFFFFF);
               liDueTime.HighPart = (LONG)(dueTime >> 32);
@@ -192,7 +192,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
             case ASIO_SET_SIGNAL:
             {
-              int sig = (int)ev->nsec;
+              int sig = ev->signal_data.signal;
 
               if(b->sighandlers[sig] == NULL)
               {
@@ -205,7 +205,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             case ASIO_CANCEL_SIGNAL:
             {
               asio_event_t* ev = msg->event;
-              int sig = (int)ev->nsec;
+              int sig = ev->signal_data.signal;
 
               if(b->sighandlers[sig] == ev)
               {
@@ -258,7 +258,7 @@ void ponyint_iocp_resume_stdin()
 }
 
 
-PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
+void ponyint_pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -288,17 +288,18 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // ev->data is initially the time (in nsec) and ends up as the handle.
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
-  } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    if(ev->nsec < MAX_SIGNAL)
+  }
+  else if((ev->flags & ASIO_SIGNAL) != 0) {
+    if(ev->signal_data.signal < MAX_SIGNAL)
       send_request(ev, ASIO_SET_SIGNAL);
-  } else if(ev->fd == 0) {
+  } else if(ev->io_data.fd == 0) {
     // Need to subscribe to stdin
     send_request(ev, ASIO_STDIN_NOTIFY);
   }
 }
 
 
-PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_update_nsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -313,7 +314,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     // Need to restart a timer.
     // That must be done in the background thread because that's where we want
     // the fire APC to happen.
-    ev->nsec = nsec;
+    ev->timer_data.nsec = nsec;
     send_request(ev, ASIO_SET_TIMER);
   }
 }
@@ -353,7 +354,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // as well.
     send_request(ev, ASIO_CANCEL_TIMER);
   } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    if(ev->nsec < MAX_SIGNAL)
+    if(ev->signal_data.signal < MAX_SIGNAL)
     {
       send_request(ev, ASIO_CANCEL_SIGNAL);
     } else {
@@ -362,7 +363,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     }
   } else if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0) {
     // Need to unsubscribe from stdin
-    if(ev->fd == 0)
+    if(ev->io_data.fd == 0)
       send_request(NULL, ASIO_STDIN_NOTIFY);
 
     ev->flags = ASIO_DISPOSABLE;

@@ -118,7 +118,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_READ) && !ev->readable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
     i++;
   } else {
     return;
@@ -126,7 +126,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 
   kevent(b->kq, event, i, NULL, 0, NULL);
 
-  if(ev->fd == STDIN_FILENO)
+  if(ev->io_data.fd == STDIN_FILENO)
     retry_loop(b);
 }
 
@@ -149,7 +149,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
     i++;
   } else {
     return;
@@ -157,7 +157,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 
   kevent(b->kq, event, i, NULL, 0, NULL);
 
-  if(ev->fd == STDIN_FILENO)
+  if(ev->io_data.fd == STDIN_FILENO)
     retry_loop(b);
 }
 
@@ -261,7 +261,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   return NULL;
 }
 
-PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
+void ponyint_pony_asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
@@ -289,13 +289,13 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   kevent_flag_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
     i++;
   }
 
@@ -303,10 +303,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   {
 #ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+      0, ev->timer_data.nsec / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->nsec, ev);
+      NOTE_NSECONDS, ev->timer_data.nsec, ev);
 #endif
     i++;
   }
@@ -316,30 +316,28 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
-      new_action.sa_handler = empty_signal_handler;
-    else
-#endif
-      new_action.sa_handler = SIG_IGN;
-    sigemptyset (&new_action.sa_mask);
+    new_action.sa_handler = SIG_IGN;
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+    if(ev->timer_data.nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+      new_action.sa_handler = empty_signal_handler;
+#endif
+    sigemptyset (&new_action.sa_mask);
     // ask to restart interrupted syscalls to match `signal` behavior
     new_action.sa_flags = SA_RESTART;
+    sigaction(ev->signal_data.signal, &new_action, NULL);
 
-    sigaction((int)ev->nsec, &new_action, NULL);
-
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, ev);
+    EV_SET(event, ev->signal_data.signal, EVFILT_SIGNAL, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
 
   kevent(b->kq, event, i, NULL, 0, NULL);
 
-  if(ev->fd == STDIN_FILENO)
+  if(ev->io_data.fd == STDIN_FILENO)
     retry_loop(b);
 }
 
-PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
+PONY_API void pony_asio_event_update_nsec(asio_event_t* ev, uint64_t nsec)
 {
   if((ev == NULL) ||
     (ev->magic != ev) ||
@@ -358,14 +356,14 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
 
   if(ev->flags & ASIO_TIMER)
   {
-    ev->nsec = nsec;
+    ev->timer_data.nsec = nsec;
 
 #ifdef PLATFORM_IS_BSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+      0, ev->timer_data.nsec / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->nsec, ev);
+      NOTE_NSECONDS, ev->timer_data.nsec, ev);
 #endif
     i++;
   }
@@ -408,13 +406,13 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->io_data.fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
     i++;
   }
 
@@ -429,20 +427,20 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
+    new_action.sa_handler = SIG_DFL;
+
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+    if(ev->timer_data.nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
-    else
 #endif
-      new_action.sa_handler = SIG_DFL;
     sigemptyset (&new_action.sa_mask);
 
     // ask to restart interrupted syscalls to match `signal` behavior
     new_action.sa_flags = SA_RESTART;
 
-    sigaction((int)ev->nsec, &new_action, NULL);
+    sigaction(ev->signal_data.signal, &new_action, NULL);
 
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL, EV_DELETE, 0, 0, ev);
+    EV_SET(event, ev->signal_data.signal, EVFILT_SIGNAL, EV_DELETE, 0, 0, ev);
     i++;
   }
 

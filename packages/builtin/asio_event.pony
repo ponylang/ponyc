@@ -1,3 +1,12 @@
+use @pony_asio_event_alloc[AsioEventID](
+  owner: AsioEventNotify,
+  flags: U32,
+  noisy: Bool)
+use @pony_asio_event_set_nsec[None](event: AsioEventID, nsec: U64)
+use @pony_asio_event_set_fd[None](event: AsioEventID, fd: U32)
+use @pony_asio_event_set_signal[None](event: AsioEventID, sig: U32)
+use @pony_asio_event_subscribe[None](event: AsioEventID)
+
 type AsioEventID is Pointer[AsioEvent] tag
 
 interface tag AsioEventNotify
@@ -12,6 +21,24 @@ primitive AsioEvent
     An empty event.
     """
     AsioEventID
+
+  fun make(owner: AsioEventNotify, flags: U32, fd: U32 = 0,
+    nsec: U64 = 0, noisy: Bool = true, sig: U32 = 0): AsioEventID =>
+    """
+      Creates an ASIO event based on the provided parameters
+    """
+    let event = @pony_asio_event_alloc(owner, flags, noisy)
+    if (nsec != 0) then
+      @pony_asio_event_set_nsec(event, nsec)
+    end
+    if (fd != 0) then
+      @pony_asio_event_set_fd(event, fd)
+    end
+    if (sig != 0) then
+      @pony_asio_event_set_signal(event, sig)
+    end
+    @pony_asio_event_subscribe(event)
+    event
 
   fun readable(flags: U32): Bool =>
     """

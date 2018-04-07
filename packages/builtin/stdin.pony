@@ -1,10 +1,3 @@
-use @pony_asio_event_create[AsioEventID](
-  owner: AsioEventNotify,
-  fd: U32,
-  flags: U32,
-  nsec: U64,
-  noisy: Bool)
-
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
@@ -108,7 +101,7 @@ actor Stdin
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = @pony_asio_event_create(this, 0, AsioEvent.read(), 0, true)
+        _event = AsioEvent.make(this, AsioEvent.read())
       else
         // Start the read loop.
         _loop_read()

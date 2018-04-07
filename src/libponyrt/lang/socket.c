@@ -244,7 +244,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       if(err == ERROR_SUCCESS)
       {
         // Update the connect context.
-        setsockopt((SOCKET)iocp->ev->fd, SOL_SOCKET,
+        setsockopt((SOCKET)iocp->ev->io_data.fd, SOL_SOCKET,
           SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
       }
 
@@ -261,7 +261,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       if(err == ERROR_SUCCESS)
       {
         // Update the accept context.
-        SOCKET s = (SOCKET)iocp->ev->fd;
+        SOCKET s = (SOCKET)iocp->ev->io_data.fd;
 
         setsockopt(acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
           (char*)&s, sizeof(SOCKET));
@@ -316,7 +316,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 
 static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
 
   if(!g_ConnectEx(s, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL, &iocp->ov))
@@ -333,7 +333,7 @@ static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
 
 static bool iocp_accept(asio_event_t* ev)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   WSAPROTOCOL_INFO proto;
 
   if(WSADuplicateSocket(s, GetCurrentProcessId(), &proto) != 0)
@@ -366,7 +366,7 @@ static bool iocp_accept(asio_event_t* ev)
 
 static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
   DWORD sent;
 
@@ -388,7 +388,7 @@ static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 
 static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD received;
   DWORD flags = 0;
@@ -439,7 +439,7 @@ static bool iocp_sendto(int fd, const char* data, size_t len,
 static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   ipaddress_t* ipaddr)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD flags = 0;
 
@@ -525,7 +525,9 @@ static asio_event_t* os_listen(pony_actor_t* owner, int fd,
   }
 
   // Create an event and subscribe it.
-  asio_event_t* ev = pony_asio_event_create(owner, fd, ASIO_READ, 0, true);
+  asio_event_t* ev = pony_asio_event_alloc(owner, ASIO_READ, true);
+  pony_asio_event_set_fd(ev, fd);
+  pony_asio_event_subscribe(ev);
 
 #ifdef PLATFORM_IS_WINDOWS
   // Start accept for TCP connections, but not for UDP.
@@ -594,8 +596,9 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   }
 
   // Create an event and subscribe it.
-  asio_event_t* ev = pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
-    0, true);
+  asio_event_t* ev = pony_asio_event_alloc(owner, ASIO_READ | ASIO_WRITE, true);
+  pony_asio_event_set_fd(ev, fd);
+  pony_asio_event_subscribe(ev);
 
   if(!iocp_connect(ev, p))
   {
@@ -613,8 +616,10 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   }
 
   // Create an event and subscribe it.
-  pony_asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE | ASIO_ONESHOT, 0,
-    true);
+  asio_event_t* ev = pony_asio_event_alloc(owner,
+    ASIO_READ | ASIO_WRITE | ASIO_ONESHOT, true);
+  pony_asio_event_set_fd(ev, fd);
+  pony_asio_event_subscribe(ev);
 #endif
 
   return true;
@@ -752,12 +757,12 @@ PONY_API int pony_os_accept(asio_event_t* ev)
   SOCKET ns = INVALID_SOCKET;
   iocp_accept(ev);
 #elif defined(PLATFORM_IS_LINUX)
-  int ns = accept4(ev->fd, NULL, NULL, SOCK_NONBLOCK);
+  int ns = accept4(ev->io_data.fd, NULL, NULL, SOCK_NONBLOCK);
 
   if(ns == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
     ns = 0;
 #else
-  int ns = accept(ev->fd, NULL, NULL);
+  int ns = accept(ev->io_data.fd, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
@@ -923,7 +928,7 @@ PONY_API bool pony_os_host_ip6(const char* host)
 #ifdef PLATFORM_IS_WINDOWS
 PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
 {
-  SOCKET s = (SOCKET)ev->fd;
+  SOCKET s = (SOCKET)ev->io_data.fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
   DWORD sent;
 
@@ -941,7 +946,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
 #else
 PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
 {
-  ssize_t sent = writev(ev->fd, iov, iovcnt);
+  ssize_t sent = writev(ev->io_data.fd, iov, iovcnt);
 
   if(sent < 0)
   {
@@ -963,7 +968,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 
   return 0;
 #else
-  ssize_t sent = send(ev->fd, buf, len, 0);
+  ssize_t sent = send(ev->io_data.fd, buf, len, 0);
 
   if(sent < 0)
   {
@@ -985,7 +990,7 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
 
   return 0;
 #else
-  ssize_t received = recv(ev->fd, buf, len, 0);
+  ssize_t received = recv(ev->io_data.fd, buf, len, 0);
 
   if(received < 0)
   {
@@ -1041,7 +1046,7 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t recvd = recvfrom(ev->fd, (char*)buf, len, 0,
+  ssize_t recvd = recvfrom(ev->io_data.fd, (char*)buf, len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
