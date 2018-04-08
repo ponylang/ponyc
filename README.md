@@ -466,7 +466,7 @@ make
 ./helloworld
 ```
 
-### OpenSUSE (Leap 24.3)
+### OpenSUSE (Leap 42.3)
 
 ```bash
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
