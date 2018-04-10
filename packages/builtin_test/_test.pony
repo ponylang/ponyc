@@ -66,6 +66,8 @@ actor Main is TestList
     test(_TestMath128)
     test(_TestDivMod)
     test(_TestAddc)
+    test(_TestSubc)
+    test(_TestMulc)
     test(_TestNextPow2)
     test(_TestNumberConversionSaturation)
     test(_TestMaybePointer)
@@ -1501,7 +1503,18 @@ class iso _TestDivMod is UnitTest
     h.assert_eq[I64](5, 13 % -8)
     h.assert_eq[I64](-5, -13 % -8)
 
-class iso _TestAddc is UnitTest
+
+trait iso SafeArithmeticTest is UnitTest
+  fun test[A: (Equatable[A] #read & Stringable #read)](
+    h: TestHelper,
+    expected: (A, Bool),
+    actual: (A, Bool),
+    loc: SourceLoc = __loc)
+  =>
+    h.assert_eq[A](expected._1, actual._1 where loc=loc)
+    h.assert_eq[Bool](expected._2, actual._2 where loc=loc)
+
+class iso _TestAddc is SafeArithmeticTest
   """
   Test addc on various bit widths.
   """
@@ -1527,6 +1540,13 @@ class iso _TestAddc is UnitTest
     test[U64](h, (0xffff_ffff_ffff_fffe, true),
       U64(0xffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff))
 
+    test[U128](h, (0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, false),
+      U128(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe).addc(1))
+    test[U128](h, (0, true),
+      U128(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).addc(1))
+    test[U128](h, (0xffff_ffff_ffff_ffff_ffff_ffff_ffff_fffe, true),
+      U128(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).addc(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff))
+
     test[I8](h, (0x7f, false), I8( 0x7e).addc( 1))
     test[I8](h, (-0x80, false), I8(-0x7f).addc(-1))
     test[I8](h, (-0x80, true), I8( 0x7f).addc( 1))
@@ -1551,13 +1571,159 @@ class iso _TestAddc is UnitTest
     test[I64](h, (0x7fff_ffff_ffff_ffff, true),
       I64(-0x8000_0000_0000_0000).addc(-1))
 
-  fun test[A: (Equatable[A] #read & Stringable #read)](
-    h: TestHelper,
-    expected: (A, Bool),
-    actual: (A, Bool))
-  =>
-    h.assert_eq[A](expected._1, actual._1)
-    h.assert_eq[Bool](expected._2, actual._2)
+    test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, false),
+      I128( 0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe).addc( 1))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, false),
+      I128(-0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).addc(-1))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, true),
+      I128( 0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).addc( 1))
+    test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, true),
+      I128(-0x8000_0000_0000_0000_0000_0000_0000_0000).addc(-1))
+
+class iso _TestSubc is SafeArithmeticTest
+  """
+  Test addc on various bit widths.
+  """
+  fun name(): String => "builtin/Subc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0, false), U8(1).subc(1))
+    test[U8](h, (0xff, true), U8(0).subc(1))
+    test[U8](h, (1, true), U8(0).subc(0xff))
+
+    test[U16](h, (0, false), U16(1).subc(1))
+    test[U16](h, (0xffff, true), U16(0).subc(1))
+    test[U16](h, (1, true), U16(0).subc(0xffff))
+
+    test[U32](h, (0, false), U32(1).subc(1))
+    test[U32](h, (0xffff_ffff, true), U32(0).subc(1))
+    test[U32](h, (1, true), U32(0).subc(0xffff_ffff))
+
+    test[U64](h, (0, false), U64(1).subc(1))
+    test[U64](h, (0xffff_ffff_ffff_ffff, true), U64(0).subc(1))
+    test[U64](h, (1, true), U64(0).subc(0xffff_ffff_ffff_ffff))
+
+    test[U128](h, (0, false), U128(1).subc(1))
+    test[U128](h, (0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, true),
+      U128(0).subc(1))
+    test[U128](h, (1, true),
+      U128(0).subc(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff))
+
+    test[I8](h, (0x7f, false), I8( 0x7e).subc(-1))
+    test[I8](h, (-0x80, false), I8(-0x7f).subc( 1))
+    test[I8](h, (-0x80, true), I8( 0x7f).subc(-1))
+    test[I8](h, (0x7f, true), I8(-0x80).subc( 1))
+
+    test[I16](h, (0x7fff, false), I16( 0x7ffe).subc(-1))
+    test[I16](h, (-0x8000, false), I16(-0x7fff).subc( 1))
+    test[I16](h, (-0x8000, true), I16( 0x7fff).subc(-1))
+    test[I16](h, (0x7fff, true), I16(-0x8000).subc( 1))
+
+    test[I32](h, (0x7fff_ffff, false), I32( 0x7fff_fffe).subc(-1))
+    test[I32](h, (-0x8000_0000, false), I32(-0x7fff_ffff).subc( 1))
+    test[I32](h, (-0x8000_0000, true), I32( 0x7fff_ffff).subc(-1))
+    test[I32](h, (0x7fff_ffff, true), I32(-0x8000_0000).subc( 1))
+
+    test[I64](h, (0x7fff_ffff_ffff_ffff, false),
+      I64( 0x7fff_ffff_ffff_fffe).subc(-1))
+    test[I64](h, (-0x8000_0000_0000_0000, false),
+      I64(-0x7fff_ffff_ffff_ffff).subc( 1))
+    test[I64](h, (-0x8000_0000_0000_0000, true),
+      I64( 0x7fff_ffff_ffff_ffff).subc(-1))
+    test[I64](h, (0x7fff_ffff_ffff_ffff, true),
+      I64(-0x8000_0000_0000_0000).subc( 1))
+
+    test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, false),
+      I128( 0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe).subc(-1))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, false),
+      I128(-0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).subc( 1))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, true),
+      I128( 0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).subc(-1))
+    test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, true),
+      I128(-0x8000_0000_0000_0000_0000_0000_0000_0000).subc( 1))
+
+class iso _TestMulc is SafeArithmeticTest
+  fun name(): String => "builtin/Mulc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x80, false), U8(0x40).mulc(2))
+    test[U8](h, (0, false), U8(0x40).mulc(0))
+    test[U8](h, (0, true), U8(0x80).mulc(2))
+    test[U8](h, (1, true), U8(0xff).mulc(0xff))
+
+    test[U16](h, (0x8000, false), U16(0x4000).mulc(2))
+    test[U16](h, (0, false), U16(0x4000).mulc(0))
+    test[U16](h, (0, true), U16(0x8000).mulc(2))
+    test[U16](h, (1, true), U16(0xffff).mulc(0xffff))
+
+    test[U32](h, (0x8000_0000, false), U32(0x4000_0000).mulc(2))
+    test[U32](h, (0, false), U32(0x4000_0000).mulc(0))
+    test[U32](h, (0, true), U32(0x8000_0000).mulc(2))
+    test[U32](h, (1, true), U32(0xffff_ffff).mulc(0xffff_ffff))
+
+    test[U64](h, (0x8000_0000_0000_0000, false),
+      U64(0x4000_0000_0000_0000).mulc(2))
+    test[U64](h, (0, false), U64(0x4000_0000_0000_0000).mulc(0))
+    test[U64](h, (0, true), U64(0x8000_0000_0000_0000).mulc(2))
+    test[U64](h, (1, true),
+      U64(0xffff_ffff_ffff_ffff).mulc(0xffff_ffff_ffff_ffff))
+
+    test[U128](h, (0x8000_0000_0000_0000_0000_0000_0000_0000, false),
+      U128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(2))
+    test[U128](h, (0, false),
+      U128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(0))
+    test[U128](h, (0, true),
+      U128(0x8000_0000_0000_0000_0000_0000_0000_0000).mulc(2))
+    test[U128](h, (1, true),
+      U128(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff)
+        .mulc(0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff))
+
+    test[I8](h, (0x40,  false), I8(0x20).mulc( 2))
+    test[I8](h, (-0x40, false), I8(0x20).mulc(-2))
+    test[I8](h, (-0x7f, false), I8(0x7f).mulc(-1))
+    test[I8](h, (-0x80, true),  I8(0x40).mulc( 2))
+    test[I8](h, (-0x80, false), I8(0x40).mulc(-2))
+    test[I8](h, (0x7e,  true),  I8(0x41).mulc(-2))
+
+    test[I16](h, (0x4000,  false), I16(0x2000).mulc( 2))
+    test[I16](h, (-0x4000, false), I16(0x2000).mulc(-2))
+    test[I16](h, (-0x7fff, false), I16(0x7fff).mulc(-1))
+    test[I16](h, (-0x8000, true),  I16(0x4000).mulc( 2))
+    test[I16](h, (-0x8000, false), I16(0x4000).mulc(-2))
+    test[I16](h, (0x7ffe,  true),  I16(0x4001).mulc(-2))
+
+    test[I32](h, (0x4000_0000,  false), I32(0x2000_0000).mulc( 2))
+    test[I32](h, (-0x4000_0000, false), I32(0x2000_0000).mulc(-2))
+    test[I32](h, (-0x7fff_ffff, false), I32(0x7fff_ffff).mulc(-1))
+    test[I32](h, (-0x8000_0000, true),  I32(0x4000_0000).mulc( 2))
+    test[I32](h, (-0x8000_0000, false), I32(0x4000_0000).mulc(-2))
+    test[I32](h, (0x7fff_fffe,  true),  I32(0x4000_0001).mulc(-2))
+
+    test[I64](h, (0x4000_0000_0000_0000,  false),
+      I64(0x2000_0000_0000_0000).mulc( 2))
+    test[I64](h, (-0x4000_0000_0000_0000, false),
+      I64(0x2000_0000_0000_0000).mulc(-2))
+    test[I64](h, (-0x7fff_ffff_ffff_ffff, false),
+      I64(0x7fff_ffff_ffff_ffff).mulc(-1))
+    test[I64](h, (-0x8000_0000_0000_0000, true),
+      I64(0x4000_0000_0000_0000).mulc( 2))
+    test[I64](h, (-0x8000_0000_0000_0000, false),
+      I64(0x4000_0000_0000_0000).mulc(-2))
+    test[I64](h, (0x7fff_ffff_ffff_fffe,  true),
+      I64(0x4000_0000_0000_0001).mulc(-2))
+
+    test[I128](h, ( 0x4000_0000_0000_0000_0000_0000_0000_0000,  false),
+      I128( 0x2000_0000_0000_0000_0000_0000_0000_0000).mulc( 2))
+    test[I128](h, (-0x4000_0000_0000_0000_0000_0000_0000_0000, false),
+      I128(0x2000_0000_0000_0000_0000_0000_0000_0000).mulc(-2))
+    test[I128](h, (-0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, false),
+      I128(0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff).mulc(-1))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, true),
+      I128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc( 2))
+    test[I128](h, (-0x8000_0000_0000_0000_0000_0000_0000_0000, false),
+      I128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(-2))
+    test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe,  true),
+      I128(0x4000_0000_0000_0000_0000_0000_0000_0001).mulc(-2))
 
 class iso _TestNextPow2 is UnitTest
   """
