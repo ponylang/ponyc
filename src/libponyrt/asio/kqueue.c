@@ -316,12 +316,12 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
+
+    new_action.sa_handler = SIG_IGN;
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
-    else
 #endif
-      new_action.sa_handler = SIG_IGN;
     sigemptyset (&new_action.sa_mask);
 
     // ask to restart interrupted syscalls to match `signal` behavior
@@ -429,12 +429,12 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
+
+    new_action.sa_handler = SIG_DFL
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
-    else
 #endif
-      new_action.sa_handler = SIG_DFL;
     sigemptyset (&new_action.sa_mask);
 
     // ask to restart interrupted syscalls to match `signal` behavior
