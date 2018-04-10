@@ -430,7 +430,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // as the default for those signals is termination
     struct sigaction new_action;
 
-    new_action.sa_handler = SIG_DFL
+    new_action.sa_handler = SIG_DFL;
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
