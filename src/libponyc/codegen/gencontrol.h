@@ -16,6 +16,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_recover(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_break(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast);

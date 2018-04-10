@@ -368,7 +368,7 @@ TEST_F(CodegenTest, ViewpointAdaptedFieldReach)
 
 TEST_F(CodegenTest, StringSerialization)
 {
-  // From issue 2245
+  // From issue #2245
   const char* src =
     "use \"serialise\"\n"
 
@@ -622,4 +622,24 @@ TEST_F(CodegenTest, DescTable)
     ASSERT_EQ(type_id->getBitWidth(), 32);
     ASSERT_EQ(type_id->getZExtValue(), i);
   }
+}
+
+
+TEST_F(CodegenTest, RecoverCast)
+{
+  // From issue #2639
+  const char* src =
+    "class A\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: ((None, None) | (A iso, None)) =\n"
+    "      if false then\n"
+    "        (None, None)\n"
+    "      else\n"
+    "        recover (A, None) end\n"
+    "      end";
+
+  TEST_COMPILE(src);
 }
