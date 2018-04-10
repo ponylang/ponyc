@@ -22,20 +22,20 @@ primitive AsioEvent
     """
     AsioEventID
 
-  fun make(owner: AsioEventNotify, flags: U32, fd: U32 = 0,
-    nsec: U64 = 0, noisy: Bool = true, sig: U32 = 0): AsioEventID =>
+  fun make(owner: AsioEventNotify, flags: U32, fd: (None | U32) = None,
+    nsec: (None | U64) = None, noisy: Bool = true, sig: (None | U32) = None): AsioEventID =>
     """
       Creates an ASIO event based on the provided parameters
     """
     let event = @pony_asio_event_alloc(owner, flags, noisy)
-    if (nsec != 0) then
-      @pony_asio_event_set_nsec(event, nsec)
+    match nsec
+    | let nsec2: U64 => @pony_asio_event_set_nsec(event, nsec2)
     end
-    if (fd != 0) then
-      @pony_asio_event_set_fd(event, fd)
+    match fd
+    | let fd2: U32 => @pony_asio_event_set_fd(event, fd2)
     end
-    if (sig != 0) then
-      @pony_asio_event_set_signal(event, sig)
+    match sig
+    | let sig2: U32 => @pony_asio_event_set_signal(event, sig2)
     end
     @pony_asio_event_subscribe(event)
     event
