@@ -567,11 +567,12 @@ void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // only mute a sender IF:
     // 1. the receiver is overloaded/under pressure/muted
     // AND
-    // 2. the sender isn't overloaded
+    // 2. the sender isn't overloaded or under pressure
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
     if(ponyint_triggers_muting(to) &&
        !has_flag(ctx->current, FLAG_OVERLOADED) &&
+       !has_flag(ctx->current, FLAG_UNDER_PRESSURE) &&
        ctx->current != to)
     {
       ponyint_sched_mute(ctx, ctx->current, to);
