@@ -723,7 +723,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
 }
 
 static bool genfun_forward(compile_t* c, reach_type_t* t,
-  reach_method_name_t* n,  reach_method_t* m)
+  reach_method_name_t* n, reach_method_t* m)
 {
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   pony_assert(c_m->func != NULL);
@@ -758,6 +758,52 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   LLVMBuildRet(c->builder, ret);
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
+  return true;
+}
+
+static bool genfun_method(compile_t* c, reach_type_t* t,
+  reach_method_name_t* n, reach_method_t* m)
+{
+  if(m->intrinsic)
+  {
+    if(m->internal && (n->name == c->str__final))
+    {
+      if(!genfun_implicit_final(c, t, m))
+        return false;
+    }
+  } else if(m->forwarding) {
+    if(!genfun_forward(c, t, n, m))
+      return false;
+  } else {
+    switch(ast_id(m->fun->ast))
+    {
+      case TK_NEW:
+        if(t->underlying == TK_ACTOR)
+        {
+          if(!genfun_newbe(c, t, m))
+            return false;
+        } else {
+          if(!genfun_new(c, t, m))
+            return false;
+        }
+        break;
+
+      case TK_BE:
+        if(!genfun_be(c, t, m))
+          return false;
+        break;
+
+      case TK_FUN:
+        if(!genfun_fun(c, t, m))
+          return false;
+        break;
+
+      default:
+        pony_assert(0);
+        return false;
+    }
+  }
+
   return true;
 }
 
@@ -900,44 +946,17 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
 
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      if(m->intrinsic)
+      if(!genfun_method(c, t, n, m))
       {
-        if(m->internal && (n->name == c->str__final))
+        if(errors_get_count(c->opt->check.errors) == 0)
         {
-          if(!genfun_implicit_final(c, t, m))
-            return false;
+          pony_assert(m->fun != NULL);
+          ast_error(c->opt->check.errors, m->fun->ast,
+            "internal failure: code generation failed for method %s",
+            m->full_name);
         }
-      } else if(m->forwarding) {
-        if(!genfun_forward(c, t, n, m))
-          return false;
-      } else {
-        switch(ast_id(m->fun->ast))
-        {
-          case TK_NEW:
-            if(t->underlying == TK_ACTOR)
-            {
-              if(!genfun_newbe(c, t, m))
-                return false;
-            } else {
-              if(!genfun_new(c, t, m))
-                return false;
-            }
-            break;
 
-          case TK_BE:
-            if(!genfun_be(c, t, m))
-              return false;
-            break;
-
-          case TK_FUN:
-            if(!genfun_fun(c, t, m))
-              return false;
-            break;
-
-          default:
-            pony_assert(0);
-            return false;
-        }
+        return false;
       }
     }
   }

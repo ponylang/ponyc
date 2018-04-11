@@ -459,6 +459,27 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   return GEN_NOTNEEDED;
 }
 
+LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
+{
+  ast_t* body = ast_childidx(ast, 1);
+  LLVMValueRef ret = gen_expr(c, body);
+
+  if(is_result_needed(ast))
+  {
+    deferred_reification_t* reify = c->frame->reify;
+
+    ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    ast_free_unattached(type);
+
+    type = deferred_reify(reify, ast_type(body), c->opt);
+    ret = gen_assign_cast(c, c_t->use_type, ret, type);
+    ast_free_unattached(type);
+  }
+
+  return ret;
+}
+
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* body = ast_child(ast);

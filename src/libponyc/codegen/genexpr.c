@@ -116,7 +116,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_RECOVER:
-      ret = gen_expr(c, ast_childidx(ast, 1));
+      ret = gen_recover(c, ast);
       break;
 
     case TK_BREAK:
