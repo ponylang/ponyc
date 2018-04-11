@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Do not mute sender if sender is under pressure ([PR #2644](https://github.com/ponylang/ponyc/pull/2644))
 - Fix FilePath.walk performance issues (issue #2158). ([PR #2634](https://github.com/ponylang/ponyc/pull/2634))
 - Fix backpressure-related TCPConnection busy-loop bug (issue #2620). ([PR #2627](https://github.com/ponylang/ponyc/pull/2627))
 - Fix off-by-one error in String.cstring ([PR #2616](https://github.com/ponylang/ponyc/pull/2616))
