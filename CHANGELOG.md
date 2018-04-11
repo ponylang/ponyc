@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Update with experimental support for LLVM 6.0.0 ([PR #2595](https://github.com/ponylang/ponyc/pull/2595))
 - Improve pattern matching error reporting ([PR #2628](https://github.com/ponylang/ponyc/pull/2628))
 - Allow recovering at most one element of a tuple to mutable capability. ([PR #2585](https://github.com/ponylang/ponyc/pull/2585))
 - Add full'ish support for network socket get & set options ([PR #2513](https://github.com/ponylang/ponyc/pull/2513))
