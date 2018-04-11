@@ -50,13 +50,13 @@ MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '4.0.1',
-    '5.0.1'
+    '5.0.1',
+    '6.0.0'
 ]
 
-WINDOWS_LIBS_TAG = "v1.6.0"
+WINDOWS_LIBS_TAG = "v1.7.0"
 LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.30"
+PCRE2_VERSION = "10.31"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
@@ -259,8 +259,8 @@ def build(ctx):
 
     # build targets:
 
-    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5'):
-        print('WARNING: LLVM 4 and 5 support is experimental and may result in decreased performance or crashes')
+    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5') or ctx.options.llvm.startswith('6'):
+        print('WARNING: LLVM 4, 5 and 6 support is experimental and may result in decreased performance or crashes')
 
     # gtest
     ctx(

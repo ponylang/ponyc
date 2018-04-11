@@ -3,6 +3,9 @@
 
 #include <platform.h>
 #include <llvm-c/Core.h>
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
 
 PONY_EXTERN_C_BEGIN
 
@@ -46,6 +49,7 @@ LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m);
 
 void LLVMDIBuilderDestroy(LLVMDIBuilderRef d);
 
+#if PONY_LLVM < 600
 void LLVMDIBuilderFinalize(LLVMDIBuilderRef d);
 
 LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
@@ -53,9 +57,10 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
   int optimized);
 
 LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file);
+#endif
 
-LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d, 
-  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, 
+LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d,
+  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file,
   unsigned line);
 
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,

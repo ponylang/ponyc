@@ -69,6 +69,7 @@ void LLVMDIBuilderDestroy(LLVMDIBuilderRef d)
   delete pd;
 }
 
+#if PONY_LLVM < 600
 void LLVMDIBuilderFinalize(LLVMDIBuilderRef d)
 {
   unwrap(d)->finalize();
@@ -101,6 +102,7 @@ LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file)
 
   return wrap(pd->createFile(filename, dir));
 }
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, LLVMMetadataRef file, unsigned line)

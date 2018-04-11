@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
+
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
   return ponyint_hash_ptr(a->name);
@@ -391,7 +395,11 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
     file = "";
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
+#if PONY_LLVM < 600
   c_t->di_file = LLVMDIBuilderCreateFile(c->di, file);
+#else
+  c_t->di_file = LLVMDIBuilderCreateFile(c->di, file, strlen(file), "", 0);
+#endif
 
   switch(t->underlying)
   {

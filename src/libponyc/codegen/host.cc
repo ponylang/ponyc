@@ -39,8 +39,6 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   if(opt->pic || opt->library)
     reloc = Reloc::PIC_;
 
-  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
-
   CodeGenOpt::Level opt_level =
     opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
 
@@ -49,8 +47,14 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
 
   Target* t = reinterpret_cast<Target*>(target);
 
+#if PONY_LLVM < 600
+  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
   TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
     opt->features, options, reloc, model, opt_level);
+#else
+TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+  opt->features, options, reloc, llvm::None, opt_level, jit);
+#endif
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
@@ -105,7 +109,11 @@ char* LLVMGetHostCPUFeatures()
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
+#if PONY_LLVM < 600
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
+#else // See https://reviews.llvm.org/D39304 for this change
+  unwrap<Instruction>(inst)->setHasAllowReassoc(true);
+#endif
 }
 
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst)

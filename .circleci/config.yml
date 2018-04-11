@@ -12,6 +12,18 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
+  llvm-600-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-6.0.0
+    steps:
+      - checkout
+      - run: make test-ci config=debug default_pic=true
+  llvm-600-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-6.0.0
+    steps:
+      - checkout
+      - run: make test-ci config=release default_pic=true
   llvm-501-debug:
     docker:
       - image: ponylang/ponyc-ci:llvm-5.0.1
@@ -73,6 +85,8 @@ workflows:
     jobs:
       - verify-changelog
       - validate-shell-scripts
+      - llvm-600-debug
+      - llvm-600-release
       - llvm-501-debug
       - llvm-501-release
       - llvm-401-debug
