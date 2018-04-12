@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix scheduler suspend edge case assertion ([PR #2641](https://github.com/ponylang/ponyc/pull/2641))
 - Fix code generation failure with tuples in recover blocks ([PR #2642](https://github.com/ponylang/ponyc/pull/2642))
 - Do not mute sender if sender is under pressure ([PR #2644](https://github.com/ponylang/ponyc/pull/2644))
 - Fix FilePath.walk performance issues (issue #2158). ([PR #2634](https://github.com/ponylang/ponyc/pull/2634))
