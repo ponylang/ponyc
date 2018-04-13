@@ -156,8 +156,25 @@ trait val Real[A: Real[A] val] is
   fun min(y: A): A
   fun max(y: A): A
 
-  fun hash(): U64 =>
+  fun hash(): USize =>
+    var x = usize()
+
+    ifdef ilp32 then
+      x = (not x) + (x << 15)
+      x = x xor (x >> 12)
+      x = x + (x << 2)
+      x = x xor (x >> 4)
+      x = (x + (x << 3)) + (x << 11)
+      x = x xor (x >> 16)
+
+      x
+    else
+      hash64().usize()
+    end
+
+  fun hash64(): U64 =>
     var x = u64()
+
     x = (not x) + (x << 21)
     x = x xor (x >> 24)
     x = (x + (x << 3)) + (x << 8)
@@ -165,6 +182,7 @@ trait val Real[A: Real[A] val] is
     x = (x + (x << 2)) + (x << 4)
     x = x xor (x >> 28)
     x = x + (x << 31)
+
     x
 
   fun _value(): A => compile_intrinsic

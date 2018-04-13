@@ -109,8 +109,14 @@ struct Pointer[A]
   fun tag ge(that: Pointer[A] tag): Bool => not lt(that)
   fun tag gt(that: Pointer[A] tag): Bool => not le(that)
 
-  fun tag hash(): U64 =>
+  fun tag hash(): USize =>
     """
     Returns a hash of the address.
     """
     usize().hash()
+
+  fun tag hash64(): U64 =>
+    """
+    Returns a 64-bit hash of the address.
+    """
+    usize().hash64()

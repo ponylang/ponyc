@@ -247,7 +247,7 @@ TEST_F(CodegenIdentityTest, DigestofObject)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let dg = digestof env\n"
-    "    if dg == @ptr_to_int[USize](env).u64() then\n"
+    "    if dg == @ptr_to_int[USize](env) then\n"
     "      @pony_exitcode[None](I32(1))\n"
     "    end";
 

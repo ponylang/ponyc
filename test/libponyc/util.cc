@@ -66,6 +66,7 @@ static const char* const _builtin =
   "primitive USize is Real[USize]"
   "  new create(a: USize = 0) => a\n"
   "  fun u64(): U64 => compile_intrinsic\n"
+  "  fun op_xor(a: USize): USize => this xor a\n"
   "primitive ISize is Real[ISize]"
   "  new create(a: ISize = 0) => a\n"
   "  fun neg(): ISize => -this\n"

@@ -165,6 +165,13 @@ primitive U64 is _UnsignedInteger[U64]
   fun min(y: U64): U64 => if this < y then this else y end
   fun max(y: U64): U64 => if this > y then this else y end
 
+  fun hash(): USize =>
+    ifdef ilp32 then
+      ((this >> 32).u32() xor this.u32()).hash()
+    else
+      usize().hash()
+    end
+
   fun addc(y: U64): (U64, Bool) =>
     @"llvm.uadd.with.overflow.i64"[(U64, Bool)](this, y)
 
@@ -246,6 +253,13 @@ primitive ULong is _UnsignedInteger[ULong]
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
   fun min(y: ULong): ULong => if this < y then this else y end
   fun max(y: ULong): ULong => if this > y then this else y end
+
+  fun hash(): USize =>
+    ifdef ilp32 or llp64 then
+      u32().hash()
+    else
+      u64().hash()
+    end
 
   fun addc(y: ULong): (ULong, Bool) =>
     ifdef ilp32 or llp64 then
@@ -396,7 +410,19 @@ primitive U128 is _UnsignedInteger[U128]
   fun bitwidth(): U128 => 128
   fun min(y: U128): U128 => if this < y then this else y end
   fun max(y: U128): U128 => if this > y then this else y end
-  fun hash(): U64 => ((this >> 64).u64() xor this.u64()).hash()
+
+  fun hash(): USize =>
+    ifdef ilp32 then
+      ((this >> 96).u32() xor
+      (this >> 64).u32() xor
+      (this >> 32).u32() xor
+      this.u32()).hash()
+    else
+      ((this >> 64).u64() xor this.u64()).hash()
+    end
+
+  fun hash64(): U64 =>
+    ((this >> 64).u64() xor this.u64()).hash64()
 
   fun string(): String iso^ =>
     _ToString._u128(this, false)
