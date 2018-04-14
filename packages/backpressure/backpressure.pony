@@ -32,6 +32,7 @@ it is under pressure.
 
 ## Example program
 
+```pony
 // Here we have a TCPConnectionNotify that upon construction
 // is given a BackpressureAuth token. This allows the notifier
 // to inform the Pony runtime when to apply and release backpressure
@@ -73,6 +74,7 @@ actor Main
       let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
         "", "7669")
     end
+```
 
 ## Caveat
 
