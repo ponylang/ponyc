@@ -1004,3 +1004,22 @@ TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
     "    ExpectX[C].trigger([C; C].values())";
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
+
+TEST_F(BadPonyTest,DisallowPointerAndMaybePointerInEmbeededType)
+{
+  // From issue #2596
+  const char* src =
+    "struct Ok"
+
+    "class Whoops"
+    "  embed ok: Ok = Ok"
+    "  embed not_ok: Pointer[None] = Pointer[None]"
+    "  embed also_not_ok: MaybePointer[Ok] = MaybePointer[Ok](Ok)"
+    
+    "actor Main"
+    "  new create(env: Env) => Whoops";
+    
+  TEST_ERRORS_1(src,"syntax error: unexpected token Whoops after type, interface, trait, primitive, class or actor definition");
+}
+
+
