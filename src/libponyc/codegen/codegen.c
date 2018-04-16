@@ -912,7 +912,6 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
 
     reach(c->reach, main_ast, c->str_create, NULL, opt);
     reach(c->reach, env_ast, c->str__create, NULL, opt);
-    reach_done(c->reach, c->opt);
 
     ast_free(main_ast);
     ast_free(env_ast);
