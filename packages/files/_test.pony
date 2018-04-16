@@ -362,6 +362,7 @@ class iso _TestFileCreateDirNotWriteable is UnitTest
         h.assert_is[FileErrNo](file.errno(), FilePermissionDenied)
       then
         mode.owner_write = true
+        mode.owner_exec = true
         h.assert_true(dir_path.chmod(mode))
         dir_path.remove()
       end
