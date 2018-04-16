@@ -432,6 +432,7 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
         value = gen_digestof_int64(c, value);
         return LLVMBuildXor(c->builder, value, high, "");
       }
+      break;
     }
 
     case LLVMStructTypeKind:
