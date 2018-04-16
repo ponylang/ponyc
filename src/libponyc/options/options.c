@@ -143,7 +143,7 @@ static void usage(void)
     "    =name          Defaults to name of the directory.\n"
     "  --library, -l    Generate a C-API compatible static library.\n"
     "  --runtimebc      Compile with the LLVM bitcode file for the runtime.\n"
-    "  --static         Compile a static binary (experimental).\n"
+    "  --static         Compile a static binary (experimental, Linux-only).\n"
     "  --pic            Compile using position independent code.\n"
     "  --nopic          Don't compile using position independent code.\n"
     "  --docs, -g       Generate code documentation.\n"
