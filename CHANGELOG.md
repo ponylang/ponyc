@@ -32,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- `SourceLoc.type_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
 - Update with experimental support for LLVM 6.0.0 ([PR #2595](https://github.com/ponylang/ponyc/pull/2595))
 - Improve pattern matching error reporting ([PR #2628](https://github.com/ponylang/ponyc/pull/2628))
 - Allow recovering at most one element of a tuple to mutable capability. ([PR #2585](https://github.com/ponylang/ponyc/pull/2585))
@@ -48,6 +49,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- `SourceLoc.method` renamed as `SourceLoc.method_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
 - New Ponybench API (RFC 52) ([PR #2578](https://github.com/ponylang/ponyc/pull/2578))
 - Forbid impossible pattern matching on generic capabilities ([PR #2499](https://github.com/ponylang/ponyc/pull/2499))
 - Remove case functions ([PR #2542](https://github.com/ponylang/ponyc/pull/2542))
