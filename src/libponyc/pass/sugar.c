@@ -1093,13 +1093,13 @@ ast_t* expand_location(ast_t* location)
           NODE(TK_SEQ, STRING(file_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
-          NODE(TK_TAG) ID("typ") NONE NONE
+          NODE(TK_TAG) ID("type_name") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, STRING(type_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
-          NODE(TK_TAG) ID("method") NONE NONE
+          NODE(TK_TAG) ID("method_name") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, STRING(method_name))

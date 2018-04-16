@@ -564,8 +564,8 @@ TEST_F(SugarExprTest, Location)
     "  fun box bar(): None =>\n"
     "    object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag typ(): String => \"Foo\"\n"
-    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
     "      fun tag line(): USize => 4\n"
     "      fun tag pos(): USize => 5\n"
     "    end";
@@ -579,8 +579,8 @@ TEST_F(SugarExprTest, LocationDefaultArg)
   const char* short_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun typ(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
@@ -595,8 +595,8 @@ TEST_F(SugarExprTest, LocationDefaultArg)
   const char* full_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun typ(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
@@ -605,8 +605,8 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "  fun bar() =>\n"
     "    Log.apply(object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag typ(): String => \"Foo\"\n"
-    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
     "      fun tag line(): USize => 10\n"
     "      fun tag pos(): USize => 14\n"
     "    end)"
