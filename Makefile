@@ -265,6 +265,8 @@ else ifeq ($(llvm_version),5.0.1)
   $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else ifeq ($(llvm_version),6.0.0)
   $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),6.0.1)
+  $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.9.1)
