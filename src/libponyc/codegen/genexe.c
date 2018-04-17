@@ -337,6 +337,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
+  const char* staticbin = c->opt->staticbin ? "-static" : "";
   const char* dtrace_args =
 #if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
    "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
@@ -352,7 +353,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl) + strlen(dtrace_args) + strlen(lexecinfo);
+                  + strlen(ldl) + strlen(atomic) + strlen(staticbin)
+                  + strlen(dtrace_args) + strlen(lexecinfo);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -367,9 +369,9 @@ static bool link_exe(compile_t* c, ast_t* program,
     // for backtrace reporting.
     "-rdynamic "
 #endif
-    "%s %s %s %s -lpthread %s %s %s -lm %s",
-    linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    dtrace_args, ponyrt, ldl, lexecinfo
+    "%s %s %s %s %s -lpthread %s %s %s -lm %s",
+    linker, file_exe, arch, mcx16_arg, atomic, staticbin, fuseld, file_o,
+    lib_args, dtrace_args, ponyrt, ldl, lexecinfo
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
