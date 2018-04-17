@@ -102,6 +102,14 @@ void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap);
 void errorf(errors_t* errors, const char* file, const char* fmt,
   ...) __attribute__((format(printf, 3, 4)));
 
+/// Add to the latest error with a new filename and printf-style var args.
+void errorfv_continue(errors_t* errors, const char* file, const char* fmt,
+  va_list ap);
+
+/// Add to the latest error with a new filename and printf-style var args.
+void errorf_continue(errors_t* errors, const char* file, const char* fmt,
+  ...) __attribute__((format(printf, 3, 4)));
+
 /// Append the errors in the second frame (if any) to the first frame.
 /// The second frame is left empty.
 void errorframe_append(errorframe_t* first, errorframe_t* second);
