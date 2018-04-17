@@ -325,8 +325,9 @@ class iso _TestFileCreateExistsNotWriteable is UnitTest
       // preparing the non-writable, but readable file
       with file = CreateFile(filepath) as File do
         file.print(content)
-        h.assert_true(file.chmod(mode))
       end
+
+      h.assert_true(filepath.chmod(mode))
 
       with file2 = File(filepath) do
         h.assert_false(file2.valid())
@@ -352,6 +353,7 @@ class iso _TestFileCreateDirNotWriteable is UnitTest
       let mode: FileMode ref = FileMode.>private()
       mode.owner_read = true
       mode.owner_write = false
+      mode.owner_exec = false
       h.assert_true(dir_path.chmod(mode))
 
       try
