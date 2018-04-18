@@ -309,6 +309,7 @@ TEST_F(MatchTypeTest, Tuples)
     "interface Test\n"
     "  fun z(c1: C1, c2: C2, c3: C3, t1: T1, t2: T2,\n"
     "    c1c1: (C1, C1), c1c2: (C1, C2), c1c3: (C1, C3),\n"
+    "    c2i1: (C2, I1), c3i1tag: (C3, I1 tag),\n"
     "    t1t2: (T1, T2), i1: I1, i2: I2)";
 
   TEST_COMPILE(src);
@@ -327,6 +328,11 @@ TEST_F(MatchTypeTest, Tuples)
     MATCHTYPE_ACCEPT, is_matchtype(type_of("i1"), type_of("c1c1"), NULL, &opt));
   ASSERT_EQ(
     MATCHTYPE_REJECT, is_matchtype(type_of("i2"), type_of("c1c1"), NULL, &opt));
+
+  ASSERT_EQ(
+    MATCHTYPE_REJECT, is_matchtype(type_of("c2i1"), type_of("c3i1tag"), NULL, &opt));
+  ASSERT_EQ(
+    MATCHTYPE_REJECT, is_matchtype(type_of("c3i1tag"), type_of("c2i1"), NULL, &opt));
 
   // We can't make types with don't cares in as the type of a parameter. Modify
   // t1t2 instead.
