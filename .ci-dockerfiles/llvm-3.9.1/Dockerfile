@@ -28,3 +28,8 @@ RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.b
  && make install \
  && cd .. \
  && rm -rf pcre2-10.21*
+
+# add user pony in order to not run tests as root
+RUN useradd -ms /bin/bash -d /home/pony -g root pony
+USER pony
+WORKDIR /home/pony

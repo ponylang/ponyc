@@ -24,3 +24,8 @@ RUN apt-get update \
    && make install \
    && cd .. \
    && rm -rf openssl-1.1.0*
+
+# add user pony in order to not run tests as root
+RUN useradd -ms /bin/bash -d /home/pony -g root pony
+USER pony
+WORKDIR /home/pony

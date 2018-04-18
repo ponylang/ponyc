@@ -12,3 +12,8 @@ RUN apk add --update \
   libexecinfo-dev \
   coreutils \
   linux-headers
+
+# add user pony in order to not run tests as root
+RUN useradd -ms /bin/sh -d /home/pony -g root pony
+USER pony
+WORKDIR /home/pony
