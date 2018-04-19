@@ -273,7 +273,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
         break;
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok != MATCHTYPE_ACCEPT)
       break;
 
     operand_child = ast_sibling(operand_child);
