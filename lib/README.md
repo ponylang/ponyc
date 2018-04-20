@@ -1,5 +1,11 @@
 # Instructions for modifying lib/
 
+FIXME: `git subtree --fetch` shoud not default to getting tags
+because when you fetch tags they'll replace any existing tags
+of the same name. I assume this is because that is the default
+behavior of `git fetch`. Why can't tags have a name space like
+branches do?
+
 This directory contains third-party libraries and
 in order to make updating as easy as possible changes
 to the contents of any of the subdirectories should
@@ -12,7 +18,7 @@ merging changes excetera; will not require any
 alteration to the workflow.
 
 On the other hand, changes to the contents of this
-directory will require some changes.
+directory will require changes in workflow.
 
 There are currently two methods for maintaining the
 libraries. The preferred method is using `git subtree`
@@ -39,25 +45,25 @@ We'll assume a new library you'd like to use is at
 `github.com/google/benchmark.git` and the directory
 we'll store it under is `gbenchmark`.
 
-1. Choose a name, such as `trk-google-benchmark`, for tracking
+1. Choose a name, such as `google-benchmark`, for tracking
 the remote repo `benchmark.git` and fetch it `(-f)` without tags (--no-tags):
 ```
-$ git remote add --no-tags -f trk-google-benchmark git@github.com:google/benchmark
-Updating trk-google-benchmark
+$ git remote add -f --no-tags google-benchmark git@github.com:google/benchmark
+Updating google-benchmark
 From github.com:google/benchmark
- * [new branch]        clangtidy       -> trk-google-benchmark/clangtidy
- * [new branch]        master          -> trk-google-benchmark/master
- * [new branch]        releasing       -> trk-google-benchmark/releasing
- * [new branch]        reportercleanup -> trk-google-benchmark/reportercleanup
- * [new branch]        rmheaders       -> trk-google-benchmark/rmheaders
- * [new branch]        v2              -> trk-google-benchmark/v2
+ * [new branch]        clangtidy       -> google-benchmark/clangtidy
+ * [new branch]        master          -> google-benchmark/master
+ * [new branch]        releasing       -> google-benchmark/releasing
+ * [new branch]        reportercleanup -> google-benchmark/reportercleanup
+ * [new branch]        rmheaders       -> google-benchmark/rmheaders
+ * [new branch]        v2              -> google-benchmark/v2
 ```
 2. Decide what tags or sha1's you like to have access to. You can use
 [Display tags](display-tags) and [Copy tags](copy-tags) if
 you'd like. For instance to display and copy the tags for
-trk-google-benchmark:
+google-benchmark:
 ```
-$ tools/dsptags.sh url=trk-google-benchmark
+$ tools/dsptags.sh url=google-benchmark
 v0.0.9 (at a5c8da0c9a598cdfb3fc58aa15e88bd966b671eb)
 v0.1.0 (at 73b734eb1fe857296e49528cd2413640aab7c40e)
 v1.0.0 (at 10b5a3ed476ead9d41f4ae698c3cf3dec42cb0b7)
@@ -66,7 +72,7 @@ v1.2.0 (at 163ce4af68fd7d100e7e54ab65abd50971183009)
 v1.3.0 (at 36c7e98550ed12e2a11a11e22a6151aa58b4954a)
 v1.4.0 (at 54d92f930f91d640c1300d3dadee35fb73c1933b)
 
-$ tools/cpytags.sh url=trk-google-benchmark regex=v1.* prefix=gb-
+$ tools/cpytags.sh url=google-benchmark regex=v1.* prefix=gb-
 Make tag 'gb-v1.0.0' (at 10b5a3ed476ead9d41f4ae698c3cf3dec42cb0b7)
 Make tag 'gb-v1.1.0' (at 7ba0cafef7db090a21fefcdfafe3448dcfe8a241)
 Make tag 'gb-v1.2.0' (at 163ce4af68fd7d100e7e54ab65abd50971183009)
@@ -77,7 +83,7 @@ Make tag 'gb-v1.4.0' (at 54d92f930f91d640c1300d3dadee35fb73c1933b)
 3. Choose a commit you want to add as a `subtree`, gb-v1.4.0, and merge
 into pony at `lib/gbenchmark`:
 ```
-git subtree add --prefix lib/gbenchmark --squash trk-google-benchmark gb-v1.4.0
+git subtree add --prefix lib/gbenchmark --squash google-benchmark gb-v1.4.0
 ```
 `lib/gbenchmark` is now created and v1.4.0 merged into pony's repo.
 
@@ -118,15 +124,15 @@ Error redoing merge 26eca0c8ec80011cb400416207cf15df46e13f54
 ```
 This is a bug in git and you need to re-execute the the `subtree add`:
 ```
-$ git subtree add --prefix lib/gbenchmark --squash trk-google-benchmark master
-git fetch trk-google-benchmark master
+$ git subtree add --prefix lib/gbenchmark --squash google-benchmark master
+git fetch google-benchmark master
 remote: Counting objects: 48, done.
 remote: Compressing objects: 100% (2/2), done.
 remote: Total 48 (delta 30), reused 32 (delta 30), pack-reused 16
 Unpacking objects: 100% (48/48), done.
 From github.com:google/benchmark
  * branch              master     -> FETCH_HEAD
-   a9beffda..e7eb54b5  master     -> trk-google-benchmark/master
+   a9beffda..e7eb54b5  master     -> google-benchmark/master
 Added dir 'lib/gbenchmark'
 ```
 And then contine the rebase:
@@ -194,8 +200,8 @@ $ git commit --amend
 ```
 Now redo the subtree add, as it was originally done:
 ```
-$ git subtree add --prefix lib/gbenchmark --squash trk-google-benchmark master
-git fetch trk-google-benchmark master
+$ git subtree add --prefix lib/gbenchmark --squash google-benchmark master
+git fetch google-benchmark master
 From github.com:google/benchmark
  * branch              master     -> FETCH_HEAD
 Added dir 'lib/gbenchmark'
@@ -255,11 +261,11 @@ If there a remote has been setup then the url can be the remote:
 $ git remote -v
 origin	git@github.com:winksaville/ponyc (fetch)
 origin	git@github.com:winksaville/ponyc (push)
-trk-google-benchmark	git@github.com:google/.git (fetch)
-trk-google-benchmark	git@github.com:google/benchmark.git (push)
+google-benchmark	git@github.com:google/.git (fetch)
+google-benchmark	git@github.com:google/benchmark.git (push)
 upstream	git@github.com:ponylang/ponyc.git (fetch)
 upstream	git@github.com:ponylang/ponyc.git (push
-$ ./tools/dsptags.sh url=trk-google-benchmark regex=v1.*
+$ ./tools/dsptags.sh url=google-benchmark regex=v1.*
 v1.0.0 (at 10b5a3ed476ead9d41f4ae698c3cf3dec42cb0b7)
 v1.1.0 (at 7ba0cafef7db090a21fefcdfafe3448dcfe8a241)
 v1.2.0 (at 163ce4af68fd7d100e7e54ab65abd50971183009)
