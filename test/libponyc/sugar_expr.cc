@@ -564,7 +564,8 @@ TEST_F(SugarExprTest, Location)
     "  fun box bar(): None =>\n"
     "    object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
     "      fun tag line(): USize => 4\n"
     "      fun tag pos(): USize => 5\n"
     "    end";
@@ -578,35 +579,40 @@ TEST_F(SugarExprTest, LocationDefaultArg)
   const char* short_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
-    "    wombat()\n"
-    "  fun wombat(x: SourceLoc = __loc) =>\n"
-    "    None";
+    "    Log.apply()"
+
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n";
 
   const char* full_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
-    "    wombat(object\n"
+    "    Log.apply(object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag method(): String => \"bar\"\n"
-    "      fun tag line(): USize => 9\n"
-    "      fun tag pos(): USize => 11\n"
-    "    end)\n"
-    "  fun wombat(x: SourceLoc = __loc) =>\n"
-    "    None";
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
+    "      fun tag line(): USize => 10\n"
+    "      fun tag pos(): USize => 14\n"
+    "    end)"
+
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n";
 
   TEST_EQUIV(short_form, full_form);
 }

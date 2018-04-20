@@ -1065,6 +1065,21 @@ ast_t* expand_location(ast_t* location)
     }
   }
 
+  // Find name of containing type.
+  const char* type_name = "";
+  for(ast_t* typ = location; typ != NULL; typ = ast_parent(typ))
+  {
+    token_id variety = ast_id(typ);
+
+    if(variety == TK_INTERFACE || variety == TK_TRAIT ||
+      variety == TK_PRIMITIVE || variety == TK_STRUCT ||
+      variety == TK_CLASS || variety == TK_ACTOR)
+    {
+      type_name = ast_name(ast_child(typ));
+      break;
+    }
+  }
+
   // Create an object literal.
   BUILD(ast, location,
     NODE(TK_OBJECT, DATA("__loc")
@@ -1078,7 +1093,13 @@ ast_t* expand_location(ast_t* location)
           NODE(TK_SEQ, STRING(file_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
-          NODE(TK_TAG) ID("method") NONE NONE
+          NODE(TK_TAG) ID("type_name") NONE NONE
+          NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
+          NONE
+          NODE(TK_SEQ, STRING(type_name))
+          NONE)
+        NODE(TK_FUN, AST_SCOPE
+          NODE(TK_TAG) ID("method_name") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
           NONE
           NODE(TK_SEQ, STRING(method_name))
