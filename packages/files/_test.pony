@@ -23,10 +23,12 @@ actor Main is TestList
     test(_TestFileOpenError)
     test(_TestFileCreate)
     test(_TestFileCreateExistsNotWriteable)
+  ifdef not windows then
     test(_TestFileCreateDirNotWriteable)
+    test(_TestFileOpenPermissionDenied)
+  end
     test(_TestFileCreateMissingCaps)
     test(_TestFileOpen)
-    test(_TestFileOpenPermissionDenied)
     test(_TestFileOpenWrite)
     test(_TestFileLongLine)
     test(_TestFileWrite)
@@ -372,33 +374,35 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
 class iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"
   fun apply_as_non_root(h: TestHelper) =>
-    try
-      let dir_path =
-        FilePath.mkdtemp(
-          h.env.root as AmbientAuth,
-          "tmp.create-dir-not-writeable")?
-      let mode: FileMode ref = FileMode.>private()
-      mode.owner_read = true
-      mode.owner_write = false
-      mode.owner_exec = false
-      h.assert_true(dir_path.chmod(mode))
-
+    ifdef not windows then
       try
-        let file_path = dir_path.join("trycreateme")?
-        let file = File(file_path)
-        h.assert_false(file.valid())
-        h.assert_true(file.writeable)
-        h.assert_is[FileErrNo](file.errno(), FilePermissionDenied)
-      then
-        mode.owner_write = true
-        mode.owner_exec = true
+        let dir_path =
+          FilePath.mkdtemp(
+            h.env.root as AmbientAuth,
+            "tmp.create-dir-not-writeable")?
+        let mode: FileMode ref = FileMode.>private()
+        mode.owner_read = true
+        mode.owner_write = false
+        mode.owner_exec = false
         h.assert_true(dir_path.chmod(mode))
-        dir_path.remove()
-      end
-    else
-      h.fail("Unhandled error!")
-    end
 
+        try
+          let file_path = dir_path.join("trycreateme")?
+          let file = File(file_path)
+
+          h.assert_false(file.valid())
+          h.assert_true(file.writeable)
+          h.assert_is[FileErrNo](file.errno(), FilePermissionDenied)
+        then
+          mode.owner_write = true
+          mode.owner_exec = true
+          h.assert_true(dir_path.chmod(mode))
+          dir_path.remove()
+        end
+      else
+        h.fail("Unhandled error!")
+      end
+    end
 
 class iso _TestFileCreateMissingCaps is UnitTest
   fun name(): String => "files/File.create-missing-caps"
@@ -498,27 +502,31 @@ class _TestFileOpenWrite is UnitTest
 class iso _TestFileOpenPermissionDenied is _NonRootTest
   fun name(): String => "files/File.open-permission-denied"
   fun apply_as_non_root(h: TestHelper) =>
-    try
-      let filepath = FilePath(h.env.root as AmbientAuth, "tmp.open-not-readable")?
-      with file = CreateFile(filepath) as File do
-        file.print("unreadable")
-      end
-      let mode: FileMode ref = FileMode.>private()
-      mode.owner_read = false
-      mode.owner_write = false
-      h.assert_true(filepath.chmod(mode))
-      let opened = File.open(filepath)
-      h.assert_true(opened.errno() is FilePermissionDenied)
-      h.assert_false(opened.valid())
-      let read = opened.read(10)
-      h.assert_eq[USize](read.size(), 0)
+    ifdef not windows then
+        // on windows all files are always writeable
+        // with chmod there is no way to make a file not readable
+      try
+        let filepath = FilePath(h.env.root as AmbientAuth, "tmp.open-not-readable")?
+        with file = CreateFile(filepath) as File do
+          file.print("unreadable")
+        end
+        let mode: FileMode ref = FileMode.>private()
+        mode.owner_read = false
+        mode.owner_write = false
+        h.assert_true(filepath.chmod(mode))
+        let opened = File.open(filepath)
+        h.assert_true(opened.errno() is FilePermissionDenied)
+        h.assert_false(opened.valid())
+        let read = opened.read(10)
+        h.assert_eq[USize](read.size(), 0)
 
-      mode.owner_read = true
-      mode.owner_write = true
-      filepath.chmod(mode)
-      filepath.remove()
-    else
-      h.fail("Unhandled error!")
+        mode.owner_read = true
+        mode.owner_write = true
+        filepath.chmod(mode)
+        filepath.remove()
+      else
+        h.fail("Unhandled error!")
+      end
     end
 
 
