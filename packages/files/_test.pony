@@ -1,6 +1,7 @@
 use "ponytest"
 use "collections"
 use "buffered"
+use "term"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -55,6 +56,32 @@ primitive _FileHelper
       end
     end
     top.path
+
+trait iso _NonRootTest is UnitTest
+
+  fun apply_as_non_root(h: TestHelper) ?
+
+  fun apply(h: TestHelper) ? =>
+    if runs_as_root(h) then
+      h.env.err.print(
+        ANSI.red() + ANSI.bold() +
+        "[" + name() + "] " +
+        "This test is disabled as it cannot be run as root." +
+        ANSI.reset())
+    else
+      apply_as_non_root(h)?
+    end
+
+  fun runs_as_root(h: TestHelper): Bool =>
+    if h.env.vars.contains("USER=root") then
+      true
+    else
+      ifdef not windows then
+        @getuid[U32]() == 0
+      else
+        false
+      end
+    end
 
 
 class iso _TestMkdtemp is UnitTest
@@ -311,9 +338,9 @@ class iso _TestFileCreate is UnitTest
     end
 
 
-class iso _TestFileCreateExistsNotWriteable is UnitTest
+class iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-exists-not-writeable"
-  fun apply(h: TestHelper) =>
+  fun apply_as_non_root(h: TestHelper) =>
     try
       let content = "unwriteable"
       let path = "tmp.create-not-writeable"
@@ -342,9 +369,9 @@ class iso _TestFileCreateExistsNotWriteable is UnitTest
     end
 
 
-class iso _TestFileCreateDirNotWriteable is UnitTest
+class iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"
-  fun apply(h: TestHelper) =>
+  fun apply_as_non_root(h: TestHelper) =>
     try
       let dir_path =
         FilePath.mkdtemp(
@@ -468,9 +495,9 @@ class _TestFileOpenWrite is UnitTest
     end
 
 
-class iso _TestFileOpenPermissionDenied is UnitTest
+class iso _TestFileOpenPermissionDenied is _NonRootTest
   fun name(): String => "files/File.open-permission-denied"
-  fun apply(h: TestHelper) =>
+  fun apply_as_non_root(h: TestHelper) =>
     try
       let filepath = FilePath(h.env.root as AmbientAuth, "tmp.open-not-readable")?
       with file = CreateFile(filepath) as File do
