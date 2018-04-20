@@ -29,7 +29,7 @@ actor _RunSync is _Runner
     if n == _aggregator.iterations then
       _complete(a)
     else
-      try \likely\
+      try
         Time.perf_begin()
         let s = Time.nanos()
         _bench()?
@@ -95,7 +95,7 @@ actor _RunAsync is _Runner
     if _n == _aggregator.iterations then
       _complete()
     else
-      try \likely\
+      try
         _n = _n + 1
         Time.perf_begin()
         _start_time = Time.nanos()
