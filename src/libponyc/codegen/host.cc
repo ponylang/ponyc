@@ -76,7 +76,7 @@ char* LLVMGetHostCPUFeatures()
   for(auto it = features.begin(); it != features.end(); it++)
     buf_size += (*it).getKey().str().length() + 2; // plus +/- char and ,/null
 
-#if PONY_LLVM < 500
+#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
   // Add extra buffer space for llvm bug workaround
   buf_size += 9;
 #endif
@@ -99,7 +99,7 @@ char* LLVMGetHostCPUFeatures()
       strcat(buf, ",");
   }
 
-#if PONY_LLVM < 500
+#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
   // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
   strcat(buf, ",-avx512f");
 #endif
