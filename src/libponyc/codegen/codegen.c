@@ -797,7 +797,9 @@ bool codegen_pass_init(pass_opt_t* opt)
 #endif
   }
 
+#if PONY_LLVM < 500
   bool target_x86 = strncmp(triple, "x86", 3) == 0;
+#endif
 
   if(opt->features != NULL)
   {
