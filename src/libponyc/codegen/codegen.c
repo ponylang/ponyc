@@ -782,48 +782,53 @@ void codegen_llvm_shutdown()
 
 bool codegen_pass_init(pass_opt_t* opt)
 {
+  char *triple;
+
+  // Default triple, cpu and features.
+  if(opt->triple != NULL)
+  {
+    triple = LLVMCreateMessage(opt->triple);
+  } else {
+#ifdef PLATFORM_IS_MACOSX
+    // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
+    triple = LLVMCreateMessage("x86_64-apple-macosx");
+#else
+    triple = LLVMGetDefaultTargetTriple();
+#endif
+  }
+
   if(opt->features != NULL)
   {
 #if PONY_LLVM < 500
-    // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
-    size_t temp_len = strlen(opt->features) + 9;
-    char* temp_str = (char*)ponyint_pool_alloc_size(temp_len);
-    snprintf(temp_str, temp_len, "%s,-avx512f", opt->features);
+    if(target_is_x86(triple))
+    {
+      // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
+      size_t temp_len = strlen(opt->features) + 10;
+      char* temp_str = (char*)ponyint_pool_alloc_size(temp_len);
+      snprintf(temp_str, temp_len, "%s,-avx512f", opt->features);
 
-    opt->features = temp_str;
-#endif
+      opt->features = LLVMCreateMessage(temp_str);
 
+      ponyint_pool_free_size(temp_len, temp_str);
+    } else {
+      opt->features = LLVMCreateMessage(opt->features);
+    }
+#else
     opt->features = LLVMCreateMessage(opt->features);
-
-
-#if PONY_LLVM < 500
-    // free memory for temp_str
-    ponyint_pool_free_size(temp_len, temp_str);
 #endif
   } else {
     if((opt->cpu == NULL) && (opt->triple == NULL))
       opt->features = LLVMGetHostCPUFeatures();
     else
 #if PONY_LLVM < 500
-      opt->features = LLVMCreateMessage("-avx512f");
+      opt->features = LLVMCreateMessage(target_is_x86(triple) ? "-avx512f" : "");
 #else
       opt->features = LLVMCreateMessage("");
 #endif
   }
 
-  // Default triple, cpu and features.
-  if(opt->triple != NULL)
-  {
-    opt->triple = LLVMCreateMessage(opt->triple);
-  } else {
-#ifdef PLATFORM_IS_MACOSX
-    // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
-    opt->triple = LLVMCreateMessage("x86_64-apple-macosx");
-#else
-    opt->triple = LLVMGetDefaultTargetTriple();
-#endif
-  }
-
+  opt->triple = triple;
+  
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);
   else

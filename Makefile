@@ -41,6 +41,7 @@ endif
 config ?= release
 arch ?= native
 tune ?= generic
+cpu ?= $(arch)
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -102,7 +103,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
-LL_FLAGS = -mcpu=$(arch)
+LL_FLAGS = -mcpu=$(cpu)
 
 # Determine pointer size in bits.
 BITS := $(bits)
