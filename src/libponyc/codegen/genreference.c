@@ -213,7 +213,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     if(value == GEN_NOVALUE)
     {
       ponyint_pool_free_size(buf_size, elements);
-      return GEN_NOTNEEDED;
+      return GEN_NOVALUE;
     }
 
     ast_t* child_type = deferred_reify(reify, ast_type(child), c->opt);
