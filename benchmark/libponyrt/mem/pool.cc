@@ -52,13 +52,13 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC$)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC$);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_multiple$_)(benchmark::State& st) {
-  int num_allocs = st.range(0);
+  int64_t num_allocs = st.range(0);
   void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
-    for(int i = 0; i < num_allocs; i++)
+    for(int64_t i = 0; i < num_allocs; i++)
       p[i] = POOL_ALLOC(block_t);
     st.PauseTiming();
-    for(int i = num_allocs - 1; i >= 0; i--)
+    for(int64_t i = num_allocs - 1; i >= 0; i--)
       POOL_FREE(block_t, p[i]);
     st.ResumeTiming();
   }
@@ -90,14 +90,14 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_FREE)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC_FREE);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_FREE_multiple$_)(benchmark::State& st) {
-  int num_allocs = st.range(0);
+  int64_t num_allocs = st.range(0);
   void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     st.PauseTiming();
-    for(int i = 0; i < num_allocs; i++)
+    for(int64_t i = 0; i < num_allocs; i++)
       p[i] = POOL_ALLOC(block_t);
     st.ResumeTiming();
-    for(int i = num_allocs - 1; i >= 0; i--)
+    for(int64_t i = num_allocs - 1; i >= 0; i--)
       POOL_FREE(block_t, p[i]);
   }
   st.SetItemsProcessed(st.iterations()*num_allocs);
@@ -106,12 +106,12 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_FREE_multiple$_)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(PoolBench, POOL_FREE_multiple$_)->Arg(1<<10);
 
 BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_FREE_multiple)(benchmark::State& st) {
-  int num_allocs = st.range(0);
+  int64_t num_allocs = st.range(0);
   void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
-    for(int i = 0; i < num_allocs; i++)
+    for(int64_t i = 0; i < num_allocs; i++)
       p[i] = POOL_ALLOC(block_t);
-    for(int i = num_allocs - 1; i >= 0; i--)
+    for(int64_t i = num_allocs - 1; i >= 0; i--)
       POOL_FREE(block_t, p[i]);
   }
   st.SetItemsProcessed(st.iterations()*num_allocs);
@@ -170,14 +170,14 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size);
 
 BENCHMARK_DEFINE_F(PoolBench, pool_free_size_multiple$_)(benchmark::State& st) {
-  int num_allocs = st.range(0);
+  int64_t num_allocs = st.range(0);
   void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
     st.PauseTiming();
-    for(int i = 0; i < num_allocs; i++)
+    for(int64_t i = 0; i < num_allocs; i++)
       p[i] = ponyint_pool_alloc_size(LARGE_ALLOC);
     st.ResumeTiming();
-    for(int i = num_allocs - 1; i >= 0; i--)
+    for(int64_t i = num_allocs - 1; i >= 0; i--)
       ponyint_pool_free_size(LARGE_ALLOC, p[i]);
   }
   st.SetItemsProcessed(st.iterations()*num_allocs);
@@ -186,12 +186,12 @@ BENCHMARK_DEFINE_F(PoolBench, pool_free_size_multiple$_)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(PoolBench, pool_free_size_multiple$_)->Arg((int)(POOL_MMAP/LARGE_ALLOC));
 
 BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size_multiple)(benchmark::State& st) {
-  int num_allocs = st.range(0);
+  int64_t num_allocs = st.range(0);
   void** p = (void**)alloca(sizeof(void *) * num_allocs);
   while (st.KeepRunning()) {
-    for(int i = 0; i < num_allocs; i++)
+    for(int64_t i = 0; i < num_allocs; i++)
       p[i] = ponyint_pool_alloc_size(LARGE_ALLOC);
-    for(int i = num_allocs - 1; i >= 0; i--)
+    for(int64_t i = num_allocs - 1; i >= 0; i--)
       ponyint_pool_free_size(LARGE_ALLOC, p[i]);
   }
   st.SetItemsProcessed(st.iterations()*num_allocs);
