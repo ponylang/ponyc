@@ -32,6 +32,7 @@ _ReSharper.*
 src/common/dtrace_probes.h
 
 /stdlib-docs/
+/lib/llvm/dist
 
 # Allow these paths
 !src/libponyrt/lang/except_try_catch.ll
