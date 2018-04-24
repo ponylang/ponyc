@@ -562,7 +562,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
       default: pony_assert(0);
     }
 
-    fprintf(docgen->type_file, "##### %s %s: ", ftype, name);
+    fprintf(docgen->type_file, "### %s %s: ", ftype, name);
     doc_type(docgen, docgen_opt, type, true, true);
     add_source_code_link(docgen, field);
     fprintf(docgen->type_file, "\n");
@@ -1374,6 +1374,9 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
     fprintf(docgen.index_file, "theme: ponylang\n");
+    fprintf(docgen.index_file, "markdown_extensions:\n");
+    fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
+    fprintf(docgen.index_file, "    permalink: true\n");
     fprintf(docgen.index_file, "pages:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
