@@ -302,6 +302,9 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
 
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
+      if(m->is_subordinate)
+        continue;
+
       uint32_t index = m->vtable_index;
       pony_assert(index != (uint32_t)-1);
       pony_assert(vtable[index] == NULL);

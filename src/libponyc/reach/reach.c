@@ -1348,6 +1348,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
       if(subordinate)
       {
         m2->intrinsic = true;
+        m2->is_subordinate = true;
         m->subordinate = m2;
         m = m2;
       }
@@ -1358,6 +1359,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
     if(subordinate)
     {
       m2->intrinsic = true;
+      m2->is_subordinate = true;
       m->subordinate = m2;
       m = m2;
     }
@@ -1366,6 +1368,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
     {
       m2 = add_rmethod(r, t, n, TK_BOX, typeargs, opt, false);
       m2->intrinsic = true;
+      m2->is_subordinate = true;
       m->subordinate = m2;
       m = m2;
     }
@@ -1647,6 +1650,7 @@ static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
 
   dst->subordinate = (reach_method_t*)pony_serialise_offset(ctx,
     m->subordinate);
+  dst->is_subordinate = m->is_subordinate;
 
   dst->param_count = m->param_count;
   dst->params = (reach_param_t*)pony_serialise_offset(ctx, m->params);
