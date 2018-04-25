@@ -93,24 +93,30 @@ typedef struct pool_block_header_t
   size_t largest_size;
 } pool_block_header_t;
 
+#ifdef PLATFORM_IS_X86
+#  define POOL_CENTRAL_INIT {{NULL, 0}}
+#else
+#  define POOL_CENTRAL_INIT NULL
+#endif
+
 static pool_global_t pool_global[POOL_COUNT] =
 {
-  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), {{NULL, 0}}},
-  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), {{NULL, 0}}},
-  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), {{NULL, 0}}},
-  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), {{NULL, 0}}},
-  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), {{NULL, 0}}},
-  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), {{NULL, 0}}},
-  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), {{NULL, 0}}},
-  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), {{NULL, 0}}},
-  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), {{NULL, 0}}},
-  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), {{NULL, 0}}},
-  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), {{NULL, 0}}},
-  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), {{NULL, 0}}},
-  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), {{NULL, 0}}},
-  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), {{NULL, 0}}},
-  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), {{NULL, 0}}},
-  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), {{NULL, 0}}},
+  {POOL_MIN << 0, POOL_MAX / (POOL_MIN << 0), POOL_CENTRAL_INIT},
+  {POOL_MIN << 1, POOL_MAX / (POOL_MIN << 1), POOL_CENTRAL_INIT},
+  {POOL_MIN << 2, POOL_MAX / (POOL_MIN << 2), POOL_CENTRAL_INIT},
+  {POOL_MIN << 3, POOL_MAX / (POOL_MIN << 3), POOL_CENTRAL_INIT},
+  {POOL_MIN << 4, POOL_MAX / (POOL_MIN << 4), POOL_CENTRAL_INIT},
+  {POOL_MIN << 5, POOL_MAX / (POOL_MIN << 5), POOL_CENTRAL_INIT},
+  {POOL_MIN << 6, POOL_MAX / (POOL_MIN << 6), POOL_CENTRAL_INIT},
+  {POOL_MIN << 7, POOL_MAX / (POOL_MIN << 7), POOL_CENTRAL_INIT},
+  {POOL_MIN << 8, POOL_MAX / (POOL_MIN << 8), POOL_CENTRAL_INIT},
+  {POOL_MIN << 9, POOL_MAX / (POOL_MIN << 9), POOL_CENTRAL_INIT},
+  {POOL_MIN << 10, POOL_MAX / (POOL_MIN << 10), POOL_CENTRAL_INIT},
+  {POOL_MIN << 11, POOL_MAX / (POOL_MIN << 11), POOL_CENTRAL_INIT},
+  {POOL_MIN << 12, POOL_MAX / (POOL_MIN << 12), POOL_CENTRAL_INIT},
+  {POOL_MIN << 13, POOL_MAX / (POOL_MIN << 13), POOL_CENTRAL_INIT},
+  {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), POOL_CENTRAL_INIT},
+  {POOL_MIN << 15, POOL_MAX / (POOL_MIN << 15), POOL_CENTRAL_INIT},
 };
 
 static pool_block_t pool_block_global;
