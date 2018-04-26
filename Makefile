@@ -365,7 +365,8 @@ libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
-libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+libgbenchmark.srcdir := $(libgbenchmark.dir)/src
+
 libblake2 := $(lib)
 libblake2.dir := lib/blake2
 libblake2.files := $(libblake2.dir)/blake2b-ref.c
@@ -417,7 +418,11 @@ tests := libponyc.tests libponyrt.tests
 
 # Benchmark suites are directly attached to the libraries they test.
 libponyc.benchmarks  := $(benchmarks)
+libponyc.benchmarks.dir := benchmark/libponyc
+libponyc.benchmarks.srcdir := $(libponyc.benchmarks.dir)
 libponyrt.benchmarks := $(benchmarks)
+libponyrt.benchmarks.dir := benchmark/libponyrt
+libponyrt.benchmarks.srcdir := $(libponyrt.benchmarks.dir)
 
 benchmarks := libponyc.benchmarks libponyrt.benchmarks
 
@@ -475,7 +480,10 @@ libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
-libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
+libgbenchmark.buildoptions := \
+  -Wshadow -pedantic -pedantic-errors \
+  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
   libponyc.benchmarks.linkoptions += -lexecinfo
@@ -511,7 +519,7 @@ endif
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
-libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+libgbenchmark.disable = -Wconversion -Wno-sign-conversion
 libblake2.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
@@ -584,7 +592,9 @@ define DIRECTORY
   $(eval sourcedir := )
   $(eval outdir := $(obj)/$(1))
 
-  ifdef $(1).dir
+  ifdef $(1).srcdir
+    sourcedir := $($(1).srcdir)
+  else ifdef $(1).dir
     sourcedir := $($(1).dir)
   else ifneq ($$(filter $(1),$(tests)),)
     sourcedir := $(PONY_TEST_DIR)/$(subst .tests,,$(1))
@@ -622,12 +632,12 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-
+  
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-
+  
   ifeq ($(suffix $(1)),.ll)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module

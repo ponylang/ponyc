@@ -1,6 +1,7 @@
-Run benchmarks using the Google Benchmark Library via the `make bench` target
+Benchmarks for pony runtime
 
-NOTE: This requires `cmake` to be installed.
+Under this directory are benchmarks for the pony runtime that
+use the Google Benchmark Library. Run via `make benchmark` target.
 
 For details Google Benchmark Library readme at: ../lib/gbenchmark/README.md
-Exmaples can be found at: ../lib/gbenchmark/test/
+Google Benchmark examples can be found at: ../lib/gbenchmark/test/
