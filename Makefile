@@ -67,9 +67,21 @@ package_version = $(package_base_version)-$(package_iteration)
 archive = $(package_name)-$(package_version).tar
 package = build/$(package_name)-$(package_version)
 
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+includedir ?= $(prefix)/include
+libdir ?= $(prefix)/lib
+
+# destdir is for backward compatibility only, use ponydir instead.
+ifdef destdir
+  $(warning Please use ponydir instead of destdir.)
+  ponydir ?= $(destdir)
+endif
+ponydir ?= $(libdir)/pony/$(tag)
+
 symlink := yes
 
-ifdef destdir
+ifdef ponydir
   ifndef prefix
     symlink := no
   endif
@@ -86,12 +98,6 @@ ifneq (,$(filter $(OSTYPE), osx bsd))
 else
   SED_INPLACE = sed -i
 endif
-
-prefix ?= /usr/local
-bindir ?= $(prefix)/bin
-includedir ?= $(prefix)/include
-libdir ?= $(prefix)/lib
-destdir ?= $(libdir)/pony/$(tag)
 
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
@@ -804,42 +810,42 @@ install: libponyc libponyrt libponyrt-pic ponyc
 else
 install: libponyc libponyrt ponyc
 endif
-	@mkdir -p $(DESTDIR)$(destdir)/bin
-	@mkdir -p $(DESTDIR)$(destdir)/lib
-	@mkdir -p $(DESTDIR)$(destdir)/include/pony/detail
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(DESTDIR)$(destdir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/bin
+	@mkdir -p $(DESTDIR)$(ponydir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(DESTDIR)$(ponydir)/lib
 ifeq ($(OSTYPE),linux)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(DESTDIR)$(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(DESTDIR)$(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(DESTDIR)$(ponydir)/lib
 endif
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(DESTDIR)$(destdir)/lib
-	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(DESTDIR)$(destdir)/bin
-	$(SILENT)cp src/libponyrt/pony.h $(DESTDIR)$(destdir)/include
-	$(SILENT)cp src/common/pony/detail/atomics.h $(DESTDIR)$(destdir)/include/pony/detail
-	$(SILENT)cp -r packages $(DESTDIR)$(destdir)/
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(DESTDIR)$(ponydir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(DESTDIR)$(ponydir)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(DESTDIR)$(ponydir)/include
+	$(SILENT)cp src/common/pony/detail/atomics.h $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp -r packages $(DESTDIR)$(ponydir)/
 ifeq ($$(symlink),yes)
 	@mkdir -p $(DESTDIR)$(bindir)
 	@mkdir -p $(DESTDIR)$(libdir)
 	@mkdir -p $(DESTDIR)$(includedir)/pony/detail
-	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(DESTDIR)$(bindir)/ponyc
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(DESTDIR)$(libdir)/libponyrt.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/bin/ponyc $(DESTDIR)$(bindir)/ponyc
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.a $(DESTDIR)$(libdir)/libponyrt.a
 ifeq ($(OSTYPE),linux)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt-pic.a $(DESTDIR)$(libdir)/libponyrt-pic.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt-pic.a $(DESTDIR)$(libdir)/libponyrt-pic.a
 endif
-ifneq ($(wildcard $(DESTDIR)$(destdir)/lib/libponyrt.bc),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(DESTDIR)$(libdir)/libponyrt.bc
+ifneq ($(wildcard $(DESTDIR)$(ponydir)/lib/libponyrt.bc),)
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.bc $(DESTDIR)$(libdir)/libponyrt.bc
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(DESTDIR)$(libdir)/libdtrace_probes.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libdtrace_probes.a $(DESTDIR)$(libdir)/libdtrace_probes.a
 endif
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(DESTDIR)$(libdir)/libponyc.a
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(DESTDIR)$(includedir)/pony.h
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony/detail/atomics.h $(DESTDIR)$(includedir)/pony/detail/atomics.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyc.a $(DESTDIR)$(libdir)/libponyc.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony.h $(DESTDIR)$(includedir)/pony.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony/detail/atomics.h $(DESTDIR)$(includedir)/pony/detail/atomics.h
 endif
 endef
 
@@ -847,7 +853,7 @@ $(eval $(call EXPAND_INSTALL))
 
 define EXPAND_UNINSTALL
 uninstall:
-	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
+	-$(SILENT)rm -rf $(ponydir) 2>/dev/null ||:
 	-$(SILENT)rm $(bindir)/ponyc 2>/dev/null ||:
 	-$(SILENT)rm $(libdir)/libponyrt.a 2>/dev/null ||:
 ifeq ($(OSTYPE),linux)
