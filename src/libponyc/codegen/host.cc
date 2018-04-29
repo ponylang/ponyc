@@ -109,6 +109,7 @@ char* LLVMGetHostCPUFeatures()
 #endif
 
 #ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  // Workaround for https://bugs.llvm.org/show_bug.cgi?id=30842
   strcat(buf, ",-neon");
 #endif
 
