@@ -42,6 +42,7 @@ config ?= release
 arch ?= native
 tune ?= generic
 cpu ?= $(arch)
+fpu ?= 
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -123,6 +124,11 @@ ifeq ($(BITS),64)
     BUILD_FLAGS += -mcx16
     LINKER_FLAGS += -mcx16
   endif
+endif
+
+ifneq ($(fpu),)
+  BUILD_FLAGS += -mfpu=$(fpu)
+  LINKER_FLAGS += -mfpu=$(fpu)
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
