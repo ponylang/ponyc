@@ -18,11 +18,9 @@ actor Main is TestList
     test(_TestPathBase)
     test(_TestPathExt)
     test(_TestPathVolume)
-    test(_TestFileEOF)
     test(_TestFileOpenError)
     test(_TestFileCreate)
     test(_TestFileOpen)
-    test(_TestFileLongLine)
     test(_TestFileWrite)
     test(_TestFileWritev)
     test(_TestFileQueue)
@@ -262,31 +260,6 @@ class iso _TestPathVolume is UnitTest
     end
 
 
-class iso _TestFileEOF is UnitTest
-  fun name(): String => "files/File.eof-error"
-  fun apply(h: TestHelper) =>
-    try
-      let path = "tmp.eof"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      with file = File(filepath) do
-        file.print("foobar")
-        file.sync()
-        file.seek_start(0)
-        let line1 = file.line()?
-        h.assert_eq[String]("foobar", consume line1)
-        try
-          let line2 = file.line()?
-          h.fail("Read beyond EOF without error!")
-        else
-          h.assert_true(file.errno() is FileEOF)
-        end
-      end
-      filepath.remove()
-    else
-      h.fail("Unhandled error!")
-    end
-
-
 class iso _TestFileOpenError is UnitTest
   fun name(): String => "files/File.open-error"
   fun apply(h: TestHelper) =>
@@ -310,7 +283,7 @@ class iso _TestFileCreate is UnitTest
         file.print("foobar")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
+        let line1 = file2.read_string(6)
         h.assert_eq[String]("foobar", consume line1)
       end
       filepath.remove()
@@ -329,7 +302,7 @@ class iso _TestFileOpen is UnitTest
         file.print("foobar")
       end
       with file2 = OpenFile(filepath) as File do
-        let line1 = file2.line()?
+        let line1 = file2.read_string(6)
         h.assert_eq[String]("foobar", consume line1)
       end
       filepath.remove()
@@ -337,28 +310,6 @@ class iso _TestFileOpen is UnitTest
       h.fail("Unhandled error!")
     end
 
-
-class iso _TestFileLongLine is UnitTest
-  fun name(): String => "files/File.longline"
-  fun apply(h: TestHelper) =>
-    try
-      let path = "tmp.longline"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)?
-      with file = File(filepath) do
-        var longline = "foobar"
-        for d in Range(0, 10) do
-          longline = longline + longline
-        end
-        file.print(longline)
-        file.sync()
-        file.seek_start(0)
-        let line1 = file.line()?
-        h.assert_eq[String](longline, consume line1)
-      end
-      filepath.remove()
-    else
-      h.fail("Unhandled error!")
-    end
 
 class iso _TestFileWrite is UnitTest
   fun name(): String => "files/File.write"
@@ -370,7 +321,7 @@ class iso _TestFileWrite is UnitTest
         file.write("foobar\n")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
+        let line1 = file2.read_string(6)
         h.assert_eq[String]("foobar", consume line1)
       end
       filepath.remove()
@@ -393,8 +344,9 @@ class iso _TestFileWritev is UnitTest
         file.writev(wb.done())
       end
       with file2 = CreateFile(filepath) as File do
-        let fileline1 = file2.line()?
-        let fileline2 = file2.line()?
+        let fileline1 = file2.read_string(6)
+        file2.read(1)
+        let fileline2 = file2.read_string(6)
         h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
         h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
       end
@@ -413,7 +365,7 @@ class iso _TestFileQueue is UnitTest
         file.queue("foobar\n")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
+        let line1 = file2.read_string(6)
         h.assert_eq[String]("foobar", consume line1)
       end
       filepath.remove()
@@ -436,8 +388,9 @@ class iso _TestFileQueuev is UnitTest
         file.queuev(wb.done())
       end
       with file2 = CreateFile(filepath) as File do
-        let fileline1 = file2.line()?
-        let fileline2 = file2.line()?
+        let fileline1 = file2.read_string(6)
+        file2.read(1)
+        let fileline2 = file2.read_string(6)
         h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
         h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
       end
@@ -476,16 +429,24 @@ class iso _TestFileMixedWriteQueue is UnitTest
         file.queuev(consume queuev_data)
         file.writev(consume writev_data)
       end
+
+      let offset: USize =
+        ifdef windows then
+          2
+        else
+          1
+        end
+
       with file2 = CreateFile(filepath) as File do
-        h.assert_eq[String](line3, file2.line()?)
-        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line3, file2.line()?)
-        h.assert_eq[String](line4, file2.line()?)
-        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line6.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line2.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](line3, file2.read_string(line3.size() + offset).split("\n")(0)?)
+        h.assert_eq[String](line5, file2.read_string(line5.size()))
+        h.assert_eq[String](line1, file2.read_string(line1.size()))
+        h.assert_eq[String](line3, file2.read_string(line3.size() + offset).split("\n")(0)?)
+        h.assert_eq[String](line4, file2.read_string(line4.size() + offset).split("\n")(0)?)
+        h.assert_eq[String](line5, file2.read_string(line5.size()))
+        h.assert_eq[String](line6, file2.read_string(line6.size()))
+        h.assert_eq[String](line1, file2.read_string(line1.size()))
+        h.assert_eq[String](line2, file2.read_string(line2.size()))
       end
       filepath.remove()
     else
@@ -508,10 +469,19 @@ class iso _TestFileWritevLarge is UnitTest
       with file = CreateFile(filepath) as File do
         file.writev(wb.done())
       end
+
+      let offset: USize =
+        ifdef windows then
+          2
+        else
+          1
+        end
+
       with file2 = CreateFile(filepath) as File do
         count = 0
         while count < writev_batch_size do
-          let fileline1 = file2.line()?
+          let fileline1 = file2.read_string(count.string().size() + offset)
+          fileline1.trim_in_place(0, count.string().size())
           h.assert_eq[String](count.string(), consume fileline1)
           count = count + 1
         end

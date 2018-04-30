@@ -223,7 +223,7 @@ class File
     """
     not _fd == -1
 
-  fun ref line(): String iso^ ? =>
+  fun ref lineNOPE(): String iso^ ? =>
     """
     Returns a line as a String. The newline is not included in the string. If
     there is no more data, this raises an error. If there is a file error,
@@ -765,10 +765,10 @@ class FileLines is Iterator[String]
   new create(file: File) =>
     _file = file
 
-    try
-      _line = file.line()?
+    //try
+      _line = "" //file.lineNOPE()?
       _next = true
-    end
+    //end
 
   fun ref has_next(): Bool =>
     _next
@@ -776,10 +776,10 @@ class FileLines is Iterator[String]
   fun ref next(): String =>
     let r = _line
 
-    try
-      _line = _file.line()?
-    else
-      _next = false
-    end
+    //try
+      _line = "" //_file.lineNOPE()?
+    //else
+    //  _next = false
+    //end
 
     r
