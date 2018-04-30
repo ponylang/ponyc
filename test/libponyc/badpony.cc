@@ -1004,3 +1004,13 @@ TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
     "    ExpectX[C].trigger([C; C].values())";
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
+
+TEST_F(BadPonyTest, NosupertypeAnnotationProvides)
+{
+  const char* src =
+    "trait T\n"
+
+    "primitive \\nosupertype\\ P is T";
+
+  TEST_ERRORS_1(src, "a 'nosupertype' type cannot specify a provides list");
+}
