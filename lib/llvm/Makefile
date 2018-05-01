@@ -22,6 +22,8 @@ endif
 
 build: build-llvm
 
+all: build-clang
+
 update: update-llvm
 
 clean: clean-llvm
@@ -36,20 +38,30 @@ $(LLVM_WORKDIR)/.svn:
 	rm -rf $(LLVM_WORKDIR)
 	mkdir -p $(LLVM_WORKDIR)
 	svn co http://llvm.org/svn/llvm-project/llvm/$(LLVM_PROJ) $(LLVM_WORKDIR)
+
+$(LLVM_WORKDIR)/tools/clang/.svn: $(LLVM_WORKDIR)/.svn
 	svn co http://llvm.org/svn/llvm-project/cfe/$(LLVM_PROJ) $(LLVM_WORKDIR)/tools/clang
 	svn co http://llvm.org/svn/llvm-project/compiler-rt/$(LLVM_PROJ) $(LLVM_WORKDIR)/projects/compiler-rt
 
 update-llvm:
 	mkdir -p $(LLVM_WORKDIR)
 	svn update $(LLVM_WORKDIR)
+
+update-clang: update-llvm
 	svn update $(LLVM_WORKDIR)/tools/clang
 	svn update $(LLVM_WORKDIR)/projects/compiler-rt
 
 $(LLVM_BUILDDIR)/$(MAKEFILE): $(LLVM_WORKDIR)/.svn
 	mkdir -p $(LLVM_BUILDDIR)
+
+
+generate-build:
 	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) -DLLVM_USE_LINKER=$(LINKER) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_WORKDIR)
 
-build-llvm: $(LLVM_BUILDDIR)/$(MAKEFILE)
+build-llvm: $(LLVM_BUILDDIR)/$(MAKEFILE) generate-build
+	$(MAKE) -C $(LLVM_BUILDDIR) -j $(CPUS)
+
+build-clang: $(LLVM_BUILDDIR)/$(MAKEFILE) $(LLVM_WORKDIR)/tools/clang/.svn generate-build
 	$(MAKE) -C $(LLVM_BUILDDIR) -j $(CPUS)
 
 clean-llvm:
