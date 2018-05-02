@@ -6,7 +6,7 @@ type Map[K: (mut.Hashable val & Equatable[K]), V: Any #share] is
   A map that uses structural equality on the key.
   """
 
-type MapIs[K: Any #share, V: Any #share] is mut.HashMap[K, V, mut.HashIs[K]]
+type MapIs[K: Any #share, V: Any #share] is HashMap[K, V, mut.HashIs[K]]
   """
   A map that uses identity comparison on the key.
   """
