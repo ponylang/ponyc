@@ -16,3 +16,8 @@ RUN apt-get update \
   zlib1g-dev \
  && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
  | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+
+# add user pony in order to not run tests as root
+RUN useradd -ms /bin/bash -d /home/pony -g root pony
+USER pony
+WORKDIR /home/pony
