@@ -33,6 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add mechanism to register (noisy) signal handler ([PR #2631](https://github.com/ponylang/ponyc/pull/2631))
 - Added `nosupertype` annotation for subtyping exclusion (RFC 54). ([PR #2678](https://github.com/ponylang/ponyc/pull/2678))
 - `SourceLoc.type_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
 - Update with experimental support for LLVM 6.0.0 ([PR #2595](https://github.com/ponylang/ponyc/pull/2595))
