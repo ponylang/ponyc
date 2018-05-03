@@ -7,7 +7,7 @@
 #include <unwind.h>
 #include <stdlib.h>
 
-#ifdef PLATFORM_IS_ARM
+#ifdef PLATFORM_IS_ARM32
 #include <string.h>
 #define PONY_EXCEPTION_CLASS "Pony\0\0\0\0"
 #else
@@ -28,7 +28,7 @@ static void exception_cleanup(_Unwind_Reason_Code reason,
 
 PONY_API void pony_error()
 {
-#ifdef PLATFORM_IS_ARM
+#ifdef PLATFORM_IS_ARM32
   memcpy(exception.exception_class, PONY_EXCEPTION_CLASS, 8);
 #else
   exception.exception_class = PONY_EXCEPTION_CLASS;
@@ -48,7 +48,7 @@ static void set_registers(struct _Unwind_Exception* exception,
   _Unwind_SetIP(context, landing_pad);
 }
 
-#ifdef PLATFORM_IS_ARM
+#ifdef PLATFORM_IS_ARM32
 
 _Unwind_Reason_Code __gnu_unwind_frame(_Unwind_Exception*, _Unwind_Context*);
 
