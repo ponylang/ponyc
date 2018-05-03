@@ -558,6 +558,25 @@ TEST_F(SubTypeTest, IsSubTypeCap)
 }
 
 
+TEST_F(SubTypeTest, IsSubTypeNosupertypeInterface)
+{
+  const char* src =
+    "primitive \\nosupertype\\ P\n"
+
+    "interface Test\n"
+    "  fun z(p: P, a: Any val)";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_FALSE(is_subtype(type_of("p"), type_of("a"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
 TEST_F(SubTypeTest, IsEqType)
 {
   const char* src =

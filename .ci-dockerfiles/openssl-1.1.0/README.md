@@ -6,10 +6,11 @@ docker build -t ponylang/ponyc-ci:openssl-1.1.0 .
 
 # Run image to test
 
-Will get you a bash shell in the image to try cloning Pony into where you can test a build to make sure everything will work before pushing
+Use the [CircleCI CLI](https://circleci.com/docs/2.0/local-cli/) to run the CI job using this image
+from the ponyc project root:
 
 ```bash
-docker run --name ponyc-ci-openssl-110 --rm -i -t ponylang/ponyc-ci:openssl-1.1.0 bash
+circleci build --job openssl-110
 ```
 
 # Push to dockerhub

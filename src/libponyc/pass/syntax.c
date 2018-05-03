@@ -398,9 +398,17 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
-    if(ast_id(provides) != TK_NONE &&
-      !check_provides_type(opt, provides, "provides"))
-      r = AST_ERROR;
+    if(ast_id(provides) != TK_NONE)
+    {
+      if(ast_has_annotation(ast, "nosupertype"))
+      {
+        ast_error(opt->check.errors, provides,
+          "a 'nosupertype' type cannot specify a provides list");
+        r = AST_ERROR;
+      } else if(!check_provides_type(opt, provides, "provides")) {
+        r = AST_ERROR;
+      }
+    }
   }
   else
   {
@@ -1227,27 +1235,86 @@ static ast_result_t syntax_cap_set(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
+  ast_t* loc, const char* str)
+{
+  if((strcmp(str, "likely") == 0) || (strcmp(str, "unlikely") == 0))
+  {
+    ast_t* parent = ast_parent(ast);
+
+    switch(ast_id(parent))
+    {
+      case TK_IF:
+      case TK_WHILE:
+      case TK_CASE:
+        break;
+
+      default:
+      {
+        ast_t* grandparent = ast_parent(parent);
+        if((ast_id(grandparent) == TK_REPEAT) &&
+          (ast_childidx(grandparent, 1) == parent))
+          break;
+
+        ast_error(opt->check.errors, loc,
+          "a '%s' annotation can only appear on the condition of an if, "
+          "while, or until, or on the case of a match", str);
+        return false;
+      }
+    }
+  } else if(strcmp(str, "packed") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_STRUCT)
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'packed' annotation can only appear on a struct declaration");
+      return false;
+    }
+  } else if(strcmp(str, "nosupertype") == 0) {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_CLASS:
+      case TK_ACTOR:
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+        break;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "a 'nosupertype' annotation can only appear on a concrete type "
+          "declaration");
+        return false;
+    }
+  }
+
+  return true;
+}
+
+
 static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ANNOTATION);
 
   const char ponyint[] = "ponyint";
+  ast_result_t ok = AST_OK;
 
   for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
   {
     const char* str = ast_name(child);
-    if(strlen(str) < (sizeof ponyint - 1))
-      continue;
 
-    if(strncmp(str, ponyint, sizeof ponyint - 1) == 0)
+    if((strlen(str) >= (sizeof ponyint - 1)) &&
+      (strncmp(str, ponyint, sizeof ponyint - 1) == 0))
     {
       ast_error(opt->check.errors, child,
         "annotations starting with 'ponyint' are reserved for internal use");
-      return AST_ERROR;
+      ok = AST_ERROR;
+      continue;
     }
+
+    if(!check_annotation_location(opt, ast, child, str))
+      ok = AST_ERROR;
   }
 
-  return AST_OK;
+  return ok;
 }
 
 
@@ -1373,8 +1440,15 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   }
 
   ast_t* annotation = ast_annotation(ast);
+
   if(annotation != NULL)
-    r = ast_visit(&annotation, pass_syntax, NULL, options, PASS_SYNTAX);
+  {
+    ast_result_t r2 = ast_visit(&annotation, pass_syntax, NULL, options,
+      PASS_SYNTAX);
+
+    if(r2 > r)
+      r = r2;
+  }
 
   return r;
 }

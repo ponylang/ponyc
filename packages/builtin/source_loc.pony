@@ -7,7 +7,12 @@ interface val SourceLoc
     Name and path of source file.
     """
 
-  fun method(): String
+  fun type_name(): String
+    """
+    Name of nearest class, actor, primitive, struct, interface, or trait.
+    """
+
+  fun method_name(): String
     """
     Name of containing method.
     """
@@ -23,4 +28,3 @@ interface val SourceLoc
     Character position on line.
     Character positions start at 1.
     """
-    

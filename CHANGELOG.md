@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix File.valid() and clarify File behavior in error cases ([PR #2656](https://github.com/ponylang/ponyc/pull/2656))
+- Fix tuple pattern matching issue where only some elements would violate caps. ([PR #2658](https://github.com/ponylang/ponyc/pull/2658))
 - Fix scheduler suspend edge case assertion ([PR #2641](https://github.com/ponylang/ponyc/pull/2641))
 - Fix code generation failure with tuples in recover blocks ([PR #2642](https://github.com/ponylang/ponyc/pull/2642))
 - Do not mute sender if sender is under pressure ([PR #2644](https://github.com/ponylang/ponyc/pull/2644))
@@ -32,6 +34,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add mechanism to register (noisy) signal handler ([PR #2631](https://github.com/ponylang/ponyc/pull/2631))
+- Added `nosupertype` annotation for subtyping exclusion (RFC 54). ([PR #2678](https://github.com/ponylang/ponyc/pull/2678))
+- `SourceLoc.type_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
 - Update with experimental support for LLVM 6.0.0 ([PR #2595](https://github.com/ponylang/ponyc/pull/2595))
 - Improve pattern matching error reporting ([PR #2628](https://github.com/ponylang/ponyc/pull/2628))
 - Allow recovering at most one element of a tuple to mutable capability. ([PR #2585](https://github.com/ponylang/ponyc/pull/2585))
@@ -48,6 +53,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- `SourceLoc.method` renamed as `SourceLoc.method_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
 - New Ponybench API (RFC 52) ([PR #2578](https://github.com/ponylang/ponyc/pull/2578))
 - Forbid impossible pattern matching on generic capabilities ([PR #2499](https://github.com/ponylang/ponyc/pull/2499))
 - Remove case functions ([PR #2542](https://github.com/ponylang/ponyc/pull/2542))

@@ -1005,6 +1005,7 @@ TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
 
+
 TEST_F(BadPonyTest,DisallowPointerAndMaybePointerInEmbeededType)
 {
   // From issue #2596
@@ -1022,4 +1023,13 @@ TEST_F(BadPonyTest,DisallowPointerAndMaybePointerInEmbeededType)
   TEST_ERRORS_1(src,"syntax error: unexpected token Whoops after type, interface, trait, primitive, class or actor definition");
 }
 
+TEST_F(BadPonyTest, NosupertypeAnnotationProvides)
+{
+  const char* src =
+    "trait T\n"
+
+    "primitive \\nosupertype\\ P is T";
+
+  TEST_ERRORS_1(src, "a 'nosupertype' type cannot specify a provides list");
+}
 

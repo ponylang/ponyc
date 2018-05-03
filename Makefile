@@ -41,6 +41,7 @@ endif
 config ?= release
 arch ?= native
 tune ?= generic
+cpu ?= $(arch)
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -66,9 +67,21 @@ package_version = $(package_base_version)-$(package_iteration)
 archive = $(package_name)-$(package_version).tar
 package = build/$(package_name)-$(package_version)
 
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+includedir ?= $(prefix)/include
+libdir ?= $(prefix)/lib
+
+# destdir is for backward compatibility only, use ponydir instead.
+ifdef destdir
+  $(warning Please use ponydir instead of destdir.)
+  ponydir ?= $(destdir)
+endif
+ponydir ?= $(libdir)/pony/$(tag)
+
 symlink := yes
 
-ifdef destdir
+ifdef ponydir
   ifndef prefix
     symlink := no
   endif
@@ -86,9 +99,6 @@ else
   SED_INPLACE = sed -i
 endif
 
-prefix ?= /usr/local
-destdir ?= $(prefix)/lib/pony/$(tag)
-
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
@@ -102,7 +112,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
-LL_FLAGS = -mcpu=$(arch)
+LL_FLAGS = -mcpu=$(cpu)
 
 # Determine pointer size in bits.
 BITS := $(bits)
@@ -265,6 +275,8 @@ else ifeq ($(llvm_version),5.0.1)
   $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else ifeq ($(llvm_version),6.0.0)
   $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),6.0.1)
+  $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.9.1)
@@ -362,7 +374,8 @@ libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
-libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+libgbenchmark.srcdir := $(libgbenchmark.dir)/src
+
 libblake2 := $(lib)
 libblake2.dir := lib/blake2
 libblake2.files := $(libblake2.dir)/blake2b-ref.c
@@ -414,7 +427,11 @@ tests := libponyc.tests libponyrt.tests
 
 # Benchmark suites are directly attached to the libraries they test.
 libponyc.benchmarks  := $(benchmarks)
+libponyc.benchmarks.dir := benchmark/libponyc
+libponyc.benchmarks.srcdir := $(libponyc.benchmarks.dir)
 libponyrt.benchmarks := $(benchmarks)
+libponyrt.benchmarks.dir := benchmark/libponyrt
+libponyrt.benchmarks.srcdir := $(libponyrt.benchmarks.dir)
 
 benchmarks := libponyc.benchmarks libponyrt.benchmarks
 
@@ -472,7 +489,10 @@ libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
-libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
+libgbenchmark.buildoptions := \
+  -Wshadow -pedantic -pedantic-errors \
+  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
   libponyc.benchmarks.linkoptions += -lexecinfo
@@ -508,7 +528,7 @@ endif
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
-libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+libgbenchmark.disable = -Wconversion -Wno-sign-conversion
 libblake2.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
@@ -581,7 +601,9 @@ define DIRECTORY
   $(eval sourcedir := )
   $(eval outdir := $(obj)/$(1))
 
-  ifdef $(1).dir
+  ifdef $(1).srcdir
+    sourcedir := $($(1).srcdir)
+  else ifdef $(1).dir
     sourcedir := $($(1).dir)
   else ifneq ($$(filter $(1),$(tests)),)
     sourcedir := $(PONY_TEST_DIR)/$(subst .tests,,$(1))
@@ -619,12 +641,12 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-
+  
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-
+  
   ifeq ($(suffix $(1)),.ll)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module
@@ -788,42 +810,42 @@ install: libponyc libponyrt libponyrt-pic ponyc
 else
 install: libponyc libponyrt ponyc
 endif
-	@mkdir -p $(destdir)/bin
-	@mkdir -p $(destdir)/lib
-	@mkdir -p $(destdir)/include/pony/detail
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/bin
+	@mkdir -p $(DESTDIR)$(ponydir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(DESTDIR)$(ponydir)/lib
 ifeq ($(OSTYPE),linux)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(DESTDIR)$(ponydir)/lib
 endif
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
-	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
-	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
-	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
-	$(SILENT)cp -r packages $(destdir)/
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(DESTDIR)$(ponydir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(DESTDIR)$(ponydir)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(DESTDIR)$(ponydir)/include
+	$(SILENT)cp src/common/pony/detail/atomics.h $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp -r packages $(DESTDIR)$(ponydir)/
 ifeq ($$(symlink),yes)
-	@mkdir -p $(prefix)/bin
-	@mkdir -p $(prefix)/lib
-	@mkdir -p $(prefix)/include/pony/detail
-	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	@mkdir -p $(DESTDIR)$(bindir)
+	@mkdir -p $(DESTDIR)$(libdir)
+	@mkdir -p $(DESTDIR)$(includedir)/pony/detail
+	$(SILENT)ln $(symlink.flags) $(ponydir)/bin/ponyc $(DESTDIR)$(bindir)/ponyc
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.a $(DESTDIR)$(libdir)/libponyrt.a
 ifeq ($(OSTYPE),linux)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt-pic.a $(DESTDIR)$(libdir)/libponyrt-pic.a
 endif
-ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
+ifneq ($(wildcard $(DESTDIR)$(ponydir)/lib/libponyrt.bc),)
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.bc $(DESTDIR)$(libdir)/libponyrt.bc
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libdtrace_probes.a $(DESTDIR)$(libdir)/libdtrace_probes.a
 endif
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyc.a $(DESTDIR)$(libdir)/libponyc.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony.h $(DESTDIR)$(includedir)/pony.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony/detail/atomics.h $(DESTDIR)$(includedir)/pony/detail/atomics.h
 endif
 endef
 
@@ -831,21 +853,21 @@ $(eval $(call EXPAND_INSTALL))
 
 define EXPAND_UNINSTALL
 uninstall:
-	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+	-$(SILENT)rm -rf $(ponydir) 2>/dev/null ||:
+	-$(SILENT)rm $(bindir)/ponyc 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyrt.a 2>/dev/null ||:
 ifeq ($(OSTYPE),linux)
-	-$(SILENT)rm $(prefix)/lib/libponyrt-pic.a 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyrt-pic.a 2>/dev/null ||:
 endif
-ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
-	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
+ifneq ($(wildcard $(libdir)/libponyrt.bc),)
+	-$(SILENT)rm $(libdir)/libponyrt.bc 2>/dev/null ||:
 endif
-ifneq ($(wildcard $(prefix)/lib/libdtrace_probes.a),)
-	-$(SILENT)rm $(prefix)/lib/libdtrace_probes.a 2>/dev/null ||:
+ifneq ($(wildcard $(libdir)/libdtrace_probes.a),)
+	-$(SILENT)rm $(libdir)/libdtrace_probes.a 2>/dev/null ||:
 endif
-	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
-	-$(SILENT)rm -r $(prefix)/include/pony/ 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyc.a 2>/dev/null ||:
+	-$(SILENT)rm $(includedir)/pony.h 2>/dev/null ||:
+	-$(SILENT)rm -r $(includedir)/pony/ 2>/dev/null ||:
 endef
 
 $(eval $(call EXPAND_UNINSTALL))

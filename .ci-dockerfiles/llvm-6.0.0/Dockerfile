@@ -25,3 +25,8 @@ RUN apt-get update \
  && rm -rf /tmp/pcre* \
  && wget -O - http://releases.llvm.org/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz \
  | tar xJf - --no-same-owner --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04
+
+# add user pony in order to not run tests as root
+RUN useradd -ms /bin/bash -d /home/pony -g root pony
+USER pony
+WORKDIR /home/pony

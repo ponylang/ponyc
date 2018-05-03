@@ -819,7 +819,6 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     "object");
 
   int extra = 0;
-  bool is_tuple = false;
 
   switch(t->underlying)
   {
@@ -832,35 +831,24 @@ static bool make_trace(compile_t* c, reach_type_t* t)
       break;
 
     case TK_TUPLETYPE:
-      is_tuple = true;
+      // Skip over the box's descriptor now. It avoids multi-level GEPs later.
+      object = LLVMBuildStructGEP(c->builder, object, 1, "");
       break;
 
     default: {}
   }
 
-  LLVMValueRef(*get_field_fn)(LLVMBuilderRef, LLVMValueRef, unsigned int,
-    const char*);
-
-  if(is_tuple)
-  {
-    get_field_fn = LLVMBuildExtractValue;
-    object = gen_unbox(c, t->ast_cap, object);
-  } else {
-    get_field_fn = LLVMBuildStructGEP;
-  }
-
   for(uint32_t i = 0; i < t->field_count; i++)
   {
-    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
-    LLVMValueRef field = get_field_fn(c->builder, object, i + extra, "");
+    reach_field_t* f = &t->fields[i];
+    compile_type_t* f_c_t = (compile_type_t*)f->type->c_type;
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
-    if(!t->fields[i].embed)
+    if(!f->embed)
     {
       // Call the trace function indirectly depending on rcaps.
-      if(!is_tuple)
-        field = LLVMBuildLoad(c->builder, field, "");
-
-      ast_t* field_type = t->fields[i].ast;
+      field = LLVMBuildLoad(c->builder, field, "");
+      ast_t* field_type = f->ast;
       field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
       gentrace(c, ctx, field, field, field_type, field_type);
     } else {

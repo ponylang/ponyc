@@ -268,6 +268,7 @@ typedef struct pass_opt_t
   bool release;
   bool library;
   bool runtimebc;
+  bool staticbin;
   bool pic;
   bool print_stats;
   bool verify;
