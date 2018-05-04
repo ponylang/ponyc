@@ -48,6 +48,8 @@ static void set_registers(struct _Unwind_Exception* exception,
   _Unwind_SetIP(context, landing_pad);
 }
 
+// Switch to ARM EHABI for ARM32 devices.
+// Note that this does not apply to ARM64 devices which use DWARF Exception Handling.
 #ifdef PLATFORM_IS_ARM32
 
 _Unwind_Reason_Code __gnu_unwind_frame(_Unwind_Exception*, _Unwind_Context*);
