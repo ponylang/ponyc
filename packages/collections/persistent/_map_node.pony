@@ -33,8 +33,8 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     _datamap = dm
     _level = l
 
-  fun val apply(hash: U32, key: K): V ? =>
-    let idx = _Bits.mask(hash, _level)
+  fun val apply(hash: USize, key: K): V ? =>
+    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
     let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then error end
     match _entries(i.usize_unsafe())?
@@ -48,11 +48,11 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     end
 
   fun val update(
-    hash: U32,
+    hash: USize,
     leaf: _MapLeaf[K, V, H])
     : (_MapNode[K, V, H], Bool) ?
   =>
-    let idx = _Bits.mask(hash, _level)
+    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
     let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then
       let es = recover _entries.clone() end
@@ -107,7 +107,7 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       else
         // create new sub-node
         var sn = empty(_level + 1)
-        (sn, _) = sn.update(H.hash(old._1).u32(), old)?
+        (sn, _) = sn.update(H.hash(old._1), old)?
         (sn, _) = sn.update(hash, leaf)?
         let es = recover _entries.clone() end
         let nm = _Bits.set_bit(_nodemap, idx)
@@ -119,8 +119,8 @@ class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       end
     end
 
-  fun val remove(hash: U32, key: K): _MapNode[K, V, H] ? =>
-    let idx = _Bits.mask(hash, _level)
+  fun val remove(hash: USize, key: K): _MapNode[K, V, H] ? =>
+    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
     let i = _compressed_index(_nodemap, _datamap, idx)
     if i == -1 then error end
     if _Bits.has_bit(_datamap, idx) then
