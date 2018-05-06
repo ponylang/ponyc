@@ -48,9 +48,9 @@ void HashMapBench::SetUp(const ::benchmark::State& st)
 {
   if (st.thread_index == 0) {
     // range(0) == initial size of hashmap
-    testmap_init(&_map, st.range(0));
+    testmap_init(&_map, static_cast<size_t>(st.range(0)));
     // range(1) == # of items to insert
-    put_elements(st.range(1));
+    put_elements(static_cast<size_t>(st.range(1)));
     srand(635356);
   }
 }
@@ -115,9 +115,10 @@ void HashMapBench::free_elem(hash_elem_t* p)
 
 BENCHMARK_DEFINE_F(HashMapBench, HashDestroy$)(benchmark::State& st) {
   testmap_destroy(&_map);
+  size_t sz = static_cast<size_t>(st.range(0));
   while (st.KeepRunning()) {
     st.PauseTiming();
-    testmap_init(&_map, st.range(0));
+    testmap_init(&_map, sz);
     // exclude time to fill map to exactly 50%
     size_t old_size = _map.contents.size;
     put_elements(old_size/2);
@@ -130,7 +131,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashDestroy$)(benchmark::State& st) {
     // destroy map
     testmap_destroy(&_map);
   }
-  testmap_init(&_map, st.range(0));
+  testmap_init(&_map, sz);
   st.SetItemsProcessed(st.iterations());
 }
 
@@ -138,6 +139,7 @@ BENCHMARK_REGISTER_F(HashMapBench, HashDestroy$)->RangeMultiplier(2)->Ranges({{1
 
 BENCHMARK_DEFINE_F(HashMapBench, HashResize$)(benchmark::State& st) {
   size_t old_size = 0;
+  size_t count = static_cast<size_t>(st.range(0));
   while (st.KeepRunning()) {
     st.PauseTiming();
     if(_map.contents.size == old_size)
@@ -148,7 +150,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashResize$)(benchmark::State& st) {
       break; // Needed to skip the rest of the iteration.
     }
     testmap_destroy(&_map);
-    testmap_init(&_map, st.range(0));
+    testmap_init(&_map, count);
     // exclude time to fill map to exactly 50%
     old_size = _map.contents.size;
     put_elements(old_size/2);
@@ -194,8 +196,9 @@ BENCHMARK_REGISTER_F(HashMapBench, HashNext)->RangeMultiplier(2)->Ranges({{1, 1}
 BENCHMARK_DEFINE_F(HashMapBench, HashPut)(benchmark::State& st) {
   hash_elem_t* curr = get_element();
   size_t i = 0;
+  size_t mod = static_cast<size_t>(st.range(0));
   while (st.KeepRunning()) {
-    curr->key = i & st.range(0);
+    curr->key = i & mod;
 
     // put item
     testmap_put(&_map, curr);
@@ -230,10 +233,11 @@ BENCHMARK_REGISTER_F(HashMapBench, HashPutResize)->RangeMultiplier(2)->Ranges({{
 BENCHMARK_DEFINE_F(HashMapBench, HashPutNew)(benchmark::State& st) {
   hash_elem_t* curr = NULL;
   size_t i = 0;
+  size_t mod = static_cast<size_t>(st.range(0));
   while (st.KeepRunning()) {
     if(curr == NULL)
       curr = get_element();
-    curr->key = i & st.range(0);
+    curr->key = i & mod;
 
     // put item
     curr = testmap_put(&_map, curr);
@@ -263,31 +267,32 @@ BENCHMARK_DEFINE_F(HashMapBench, HashPutNewResize)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(HashMapBench, HashPutNewResize)->RangeMultiplier(2)->Ranges({{1, 1}, {0, 0}});
 
 BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
+  size_t sz = static_cast<size_t>(st.range(2));
   hash_elem_t* curr = get_element();
   hash_elem_t** a =
-    (hash_elem_t**)ponyint_pool_alloc_size(st.range(2) * sizeof(hash_elem_t*));
-  for(int i = 0; i < st.range(2); i++)
+    (hash_elem_t**)ponyint_pool_alloc_size(sz * sizeof(hash_elem_t*));
+  for(size_t i = 0; i < sz; i++)
   {
     a[i] = get_element();
     a[i]->key = i;
   }
   while (st.KeepRunning()) {
     st.PauseTiming();
-    for(int i = 0; i < st.range(2); i++)
+    for(size_t i = 0; i < sz; i++)
       testmap_put(&_map, a[i]);
     st.ResumeTiming();
-    for(int i = 0; i < st.range(2); i++)
+    for(size_t i = 0; i < sz; i++)
     {
       curr->key = i;
       // remove item
       testmap_remove(&_map, curr);
     }
   }
-  st.SetItemsProcessed(st.iterations() * st.range(2));
-  for(int i = 0; i < st.range(2); i++)
+  st.SetItemsProcessed(st.iterations() * sz);
+  for(size_t i = 0; i < sz; i++)
     free_elem(a[i]);
   free_elem(curr);
-  ponyint_pool_free_size(st.range(2), a);
+  ponyint_pool_free_size(sz, a);
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashRemove$_)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}, {1<<10, 64<<10}});
@@ -298,6 +303,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
   size_t map_count_mask = map_count - 1;
   size_t* a = (size_t*)ponyint_pool_alloc_size(map_count * sizeof(size_t));
   size_t index = HASHMAP_UNKNOWN;
+  size_t incr = static_cast<size_t>(st.range(1));
   if(st.range(2) == 0) {
     for(size_t i = 0; i < map_count; i++) {
       hash_elem_t* n = testmap_next(&_map, &index);
@@ -315,7 +321,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
     }
   } else {
     for(size_t i = 0; i < map_count; i++) {
-      a[i] = rand() + st.range(1);
+      a[i] = rand() + incr;
     }
   }
 
@@ -335,8 +341,9 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
 BENCHMARK_REGISTER_F(HashMapBench, HashSearch)->RangeMultiplier(2)->Ranges({{1, 1}, {1<<10, 32<<10}, {0, 1}});
 
 BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
+  size_t count = static_cast<size_t>(st.range(1));
   // range(2) == % of items to delete at random
-  delete_elements(st.range(2), st.range(1));
+  delete_elements(static_cast<size_t>(st.range(2)), count);
   hash_elem_t* e1 = get_element();
   size_t* a = NULL;
   size_t map_count = testmap_size(&_map);
@@ -354,7 +361,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     }
     // put item so it's not empty
     hash_elem_t* e2 = get_element();
-    e2->key = st.range(1) - 1;
+    e2->key = count - 1;
     testmap_put(&_map, e2);
   }
   map_count = testmap_size(&_map);
@@ -384,7 +391,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     }
   } else {
     for(size_t i = 0; i < array_size; i++) {
-      a[i] = rand() + st.range(1);
+      a[i] = rand() + count;
     }
   }
 
