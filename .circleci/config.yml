@@ -89,6 +89,20 @@ jobs:
     steps:
       - checkout
       - run: make test-ci config=release default_pic=true
+  centos7-llvm-391-debug:
+    docker:
+      - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
+        user: pony
+    steps:
+      - checkout
+      - run: make test-ci config=debug default_pic=true use="llvm_link_static"
+  centos7-llvm-391-release:
+    docker:
+      - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
+        user: pony
+    steps:
+      - checkout
+      - run: make test-ci config=release default_pic=true use="llvm_link_static"
 
 workflows:
   version: 2
@@ -107,3 +121,5 @@ workflows:
       - openssl-110
       - alpine-llvm-391-debug
       - alpine-llvm-391-release
+      - centos7-llvm-391-debug
+      - centos7-llvm-391-release
