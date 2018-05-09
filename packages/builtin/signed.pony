@@ -491,4 +491,59 @@ primitive I128 is _SignedInteger[I128, U128]
     """
     f64()
 
+  fun addc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.sadd.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this > (max_value() - y))
+        else
+          (this < (min_value() - y))
+        end
+
+      (this + y, overflow)
+    end
+
+  fun subc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.ssub.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this < (min_value() + y))
+        else
+          (this > (max_value() + y))
+        end
+
+      (this - y, overflow)
+    end
+
+  fun mulc(y: I128): (I128, Bool) =>
+    // using llvm.smul.with.overflow.i128 would require to link
+    // llvm compiler-rt where the function implementing it lives: https://github.com/llvm-mirror/compiler-rt/blob/master/lib/builtins/muloti4.c
+    // See this bug for reference:
+    // the following implementation is more or less exactly was __muloti4 is
+    // doing
+    let result = this * y
+    if this == I128.min_value() then
+      return (result, (y != 0) and (y != 1))
+    end
+    if y == I128.min_value() then
+      return (result, (this != 0) and (this != 1))
+    end
+    let this_neg = this >> (this.bitwidth() - 1)
+    let this_abs = (this xor this_neg) - this_neg
+    let y_neg = y >> (this.bitwidth() - 1)
+    let y_abs = (y xor y_neg) - y_neg
+
+    if ((this_abs < 2) or (y_abs < 2)) then
+      return (result, false)
+    end
+    if (this_neg == y_neg) then
+      (result, (this_abs > (I128.max_value() / y_abs)))
+    else
+      (result, (this_abs > (I128.min_value() / -y_abs)))
+    end
+
 type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
