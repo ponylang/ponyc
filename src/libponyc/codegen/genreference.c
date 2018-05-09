@@ -374,7 +374,7 @@ static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
     LLVMBuildBr(c->builder, post_block);
 
     LLVMPositionBuilderAtEnd(c->builder, post_block);
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i64, "");
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
     LLVMAddIncoming(phi, &box_digest, &box_block, 1);
     LLVMAddIncoming(phi, &nonbox_digest, &nonbox_block, 1);
     return phi;
