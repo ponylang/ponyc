@@ -279,9 +279,12 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t arch_len = arch - c->opt->triple;
   size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args);
+  const char* linker = "ld";
+  if (c->opt->linker) {
+    linker = c->opt->linker;
+    ld_len += strlen(c->opt->linker);
+  }
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-  const char* linker = c->opt->linker != NULL ? c->opt->linker
-                                              : "ld";
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
