@@ -35,8 +35,11 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       return type;
     }
 
-    case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+      upper = VIEW_UPPER_NO;
+      break;
+
+    case TK_NOMINAL:
     {
       ast_t* cap = cap_fetch(r_type);
 

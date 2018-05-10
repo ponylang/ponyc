@@ -612,6 +612,17 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
       break;
     }
 
+    // These can appear on the left side of a TK_ARROW,
+    // but we have no need to do anything with them here.
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_THISTYPE:
+      break;
+
     default:
       pony_assert(0);
   }
