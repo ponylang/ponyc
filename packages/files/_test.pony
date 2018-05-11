@@ -25,6 +25,7 @@ actor Main is TestList
     test(_TestFileCreateExistsNotWriteable)
   ifdef not windows then
     test(_TestFileCreateDirNotWriteable)
+    test(_TestFileOpenInDirNotWriteable)
     test(_TestFileOpenPermissionDenied)
   end
     test(_TestFileCreateMissingCaps)
@@ -397,6 +398,35 @@ class iso _TestFileCreateDirNotWriteable is _NonRootTest
           mode.owner_write = true
           mode.owner_exec = true
           h.assert_true(dir_path.chmod(mode))
+          dir_path.remove()
+        end
+      else
+        h.fail("Unhandled error!")
+      end
+    end
+
+class iso _TestFileOpenInDirNotWriteable is UnitTest
+  fun name(): String => "files/File.open-dir-not-writeable"
+  fun apply(h: TestHelper) =>
+    ifdef not windows then
+      try
+        // make a temporary directory
+        let dir_path = FilePath.mkdtemp(
+          h.env.root as AmbientAuth,
+          "tmp.open-dir-not-writeable")?
+        try
+          let dir = Directory(dir_path)?
+
+          // create a file (rw)
+          let created:File = dir.create_file("created")?
+          h.assert_true(created.writeable)
+          created.dispose()
+
+          // open a file (ro)
+          let readonly:File = dir.open_file("created")?
+          h.assert_false(readonly.writeable)
+          readonly.dispose()
+        then
           dir_path.remove()
         end
       else
