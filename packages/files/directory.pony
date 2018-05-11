@@ -255,7 +255,7 @@ class Directory
           I32(0x1B6))
       recover File._descriptor(fd', path')? end
     else
-      recover File(path') end
+      recover File.open(path') end
     end
 
   fun info(): FileInfo ? =>
