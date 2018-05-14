@@ -418,13 +418,13 @@ class iso _TestFileOpenInDirNotWriteable is UnitTest
           let dir = Directory(dir_path)?
 
           // create a file (rw)
-          let created:File = dir.create_file("created")?
+          let created: File = dir.create_file("created")?
           h.assert_true(created.valid())
           h.assert_true(created.writeable)
           created.dispose()
 
           // open a file (ro)
-          let readonly:File = dir.open_file("created")?
+          let readonly: File = dir.open_file("created")?
           h.assert_true(readonly.valid())
           h.assert_false(readonly.writeable)
           readonly.dispose()
