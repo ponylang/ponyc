@@ -419,13 +419,17 @@ class iso _TestFileOpenInDirNotWriteable is UnitTest
 
           // create a file (rw)
           let created:File = dir.create_file("created")?
+          h.assert_true(created.valid())
           h.assert_true(created.writeable)
           created.dispose()
 
           // open a file (ro)
           let readonly:File = dir.open_file("created")?
+          h.assert_true(readonly.valid())
           h.assert_false(readonly.writeable)
           readonly.dispose()
+        else
+          h.fail("Unhandled inner error!")
         then
           dir_path.remove()
         end
