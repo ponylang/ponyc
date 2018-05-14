@@ -11,6 +11,7 @@ actor Main is TestList
     test(_TestMkdtemp)
     test(_TestWalk)
     test(_TestDirectoryOpen)
+    test(_TestDirectoryFileOpen)
     test(_TestPathClean)
     test(_TestPathJoin)
     test(_TestPathRel)
@@ -138,6 +139,34 @@ class iso _TestDirectoryOpen is UnitTest
       h.assert_true(tmp.remove())
     end
 
+class iso _TestDirectoryFileOpen is UnitTest
+  fun name(): String => "files/Directory.open-file"
+  fun apply(h: TestHelper) =>
+  try
+    // make a temporary directory
+    let dir_path = FilePath.mkdtemp(
+      h.env.root as AmbientAuth,
+      "tmp.directory.open-file")?
+    try
+      let dir = Directory(dir_path)?
+
+      // create a file (rw)
+      let created:File = dir.create_file("created")?
+      h.assert_true(created.valid())
+      created.dispose()
+
+      // open a file (ro)
+      let readonly:File = dir.open_file("created")?
+      h.assert_true(readonly.valid())
+      readonly.dispose()
+    else
+      h.fail("Unhandled inner error!")
+    then
+      dir_path.remove()
+    end
+  else
+    h.fail("Unhandled error!")
+  end
 
 class iso _TestPathClean is UnitTest
   fun name(): String => "files/Path.clean"
