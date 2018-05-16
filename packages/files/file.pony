@@ -185,7 +185,7 @@ class File
     end
 
     path = from
-    writeable = from.caps(FileRead)
+    writeable = from.caps(FileWrite)
     _fd = fd
 
     _FileDes.set_rights(_fd, path, writeable)?
