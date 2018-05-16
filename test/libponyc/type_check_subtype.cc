@@ -1152,3 +1152,29 @@ TEST_F(SubTypeTest, TupleValRefNotSubAnyShare)
 
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
+
+
+TEST_F(SubTypeTest, BoxArrowTypeParamReifiedWithTypeParam)
+{
+  const char* src =
+    "interface _V[A: _V[A] ref]\n"
+    "  fun ref reset(delta: A): A\n"
+    "  fun ref converge(other: box->A)\n"
+
+    "class ref Container[V: _V[V] ref] is _V[Container[V]]\n"
+    "  let _value: V\n"
+    "  new ref create(value': V) => _value = value'\n"
+
+    "  fun ref reset(delta: Container[V]): Container[V] =>\n"
+    "    _value.reset(delta._value)\n"
+    "    delta\n"
+
+    "  fun ref converge(other: Container[V] box) =>\n"
+    "    _value.converge(other._value)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
