@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Change directory.open_file() to use readonly open ([PR #2697](https://github.com/ponylang/ponyc/pull/2697))
 - Avoid flattening arrow to type param, fixing typechecking when reified with another type param. ([PR #2692](https://github.com/ponylang/ponyc/pull/2692))
 - Fix File.valid() and clarify File behavior in error cases ([PR #2656](https://github.com/ponylang/ponyc/pull/2656))
 - Fix tuple pattern matching issue where only some elements would violate caps. ([PR #2658](https://github.com/ponylang/ponyc/pull/2658))
