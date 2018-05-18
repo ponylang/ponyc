@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Enable virtual terminal color output on Windows. ([PR #2702](https://github.com/ponylang/ponyc/pull/2702))
 - Compute File.writeable based on FileWrite instead of FileRead. ([PR #2698](https://github.com/ponylang/ponyc/pull/2698))
 - Do not use llvm.smul.with.overflow.i64 anymore ([PR #2693](https://github.com/ponylang/ponyc/pull/2693))
 - Change directory.open_file() to use readonly open ([PR #2697](https://github.com/ponylang/ponyc/pull/2697))
