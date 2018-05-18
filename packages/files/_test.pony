@@ -395,6 +395,9 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
         let line = file2.line()?
         h.fail("read on invalid file succeeded")
       end
+      mode.owner_read = true
+      mode.owner_write = true // required on Windows to delete the file
+      filepath.chmod(mode)
       filepath.remove()
     else
       h.fail("Unhandled error!")
