@@ -39,6 +39,7 @@ actor Main is TestList
     test(_TestFileQueuev)
     test(_TestFileMixedWriteQueue)
     test(_TestFileWritevLarge)
+    test(_TestFileFlush)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
@@ -772,6 +773,34 @@ class iso _TestFileWritevLarge is UnitTest
         end
       end
       filepath.remove()
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFileFlush is UnitTest
+  fun name(): String => "files/File.flush"
+  fun apply(h: TestHelper) =>
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "tmp.flush")?
+      with file = CreateFile(path) as File do
+        // Flush with no writes succeeds trivially, but does nothing.
+        h.assert_true(file.flush())
+
+        file.queue("foobar\n")
+
+        // Without flushing, the file size is still zero.
+        with read_file = CreateFile(path) as File do
+          h.assert_eq[USize](0, read_file.size())
+        end
+
+        h.assert_true(file.flush())
+
+        // Now expect to be able to see the data.
+        with read_file = CreateFile(path) as File do
+          h.assert_eq[String]("foobar", read_file.line()?)
+        end
+      end
+      path.remove()
     else
       h.fail("Unhandled error!")
     end
