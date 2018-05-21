@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix File.flush return value for case of zero bytes to flush. ([PR #2704](https://github.com/ponylang/ponyc/pull/2704))
 - Enable virtual terminal color output on Windows. ([PR #2702](https://github.com/ponylang/ponyc/pull/2702))
 - Compute File.writeable based on FileWrite instead of FileRead. ([PR #2698](https://github.com/ponylang/ponyc/pull/2698))
 - Do not use llvm.smul.with.overflow.i64 anymore ([PR #2693](https://github.com/ponylang/ponyc/pull/2693))
