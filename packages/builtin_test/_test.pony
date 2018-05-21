@@ -26,6 +26,7 @@ actor Main is TestList
     test(_TestStringLstrip)
     test(_TestStringRstrip)
     test(_TestStringStrip)
+    test(_TestStringStripNonAscii)
     test(_TestStringRemove)
     test(_TestStringSubstring)
     test(_TestStringCut)
@@ -387,6 +388,28 @@ class iso _TestStringStrip is UnitTest
     h.assert_eq[String](recover "foobarfoo".clone() .> strip("foo") end, "bar")
     h.assert_eq[String](recover "foobarfoo".clone() .> strip("bar") end,
       "foobarfoo")
+
+class iso _TestStringStripNonAscii is UnitTest
+  """
+  Test stripping leading and trailing characters from a string that
+  contains non-ascii text data.
+  """
+  fun name(): String => "builtin/String.strip_non_ascii"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String](recover " 🐎\n".clone() .> strip() end, "🐎")
+    h.assert_eq[String](recover "\n🐎\n".clone() .> strip("\n") end, "🐎")
+    h.assert_eq[String](recover " 🐎".clone() .> strip("🐎") end, " ")
+
+    h.assert_eq[String](recover " ポニー ".clone() .> strip() end, "ポニー")
+    h.assert_eq[String](recover "ポニー ".clone() .> strip(" ") end, "ポニー")
+
+    h.assert_eq[String](recover " źrebię\t".clone() .> strip() end, "źrebię")
+    h.assert_eq[String](recover "\tźrebię\t".clone() .> strip("\t") end, "źrebię")
+
+    h.assert_eq[String](recover " პონი\n".clone() .> strip() end, "პონი")
+    h.assert_eq[String](recover "\nპონი\n".clone() .> strip("\n") end, "პონი")
+
 
 class iso _TestStringRemove is UnitTest
   """
