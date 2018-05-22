@@ -384,7 +384,7 @@ class Readline is ANSINotify
     try
       with file = File.open(_path as FilePath) do
         for line in file.lines() do
-          _add_history(line)
+          _add_history(consume line)
         end
       end
     end
