@@ -169,7 +169,7 @@ class Reader
     u8()?
     b
 
-  fun ref line(): String ? =>
+  fun ref line(): String iso^ ? =>
     """
     Return a \n or \r\n terminated line as a string. The newline is not
     included in the returned string, but it is removed from the network buffer.
@@ -202,7 +202,7 @@ class Reader
     out.truncate(len -
       if (len >= 2) and (out.at_offset(-2)? == '\r') then 2 else 1 end)
 
-    out
+    consume out
 
   fun ref u8(): U8 ? =>
     """

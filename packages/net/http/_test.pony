@@ -521,10 +521,11 @@ primitive _FixedResponseHTTPServerNotify
               reader.append(consume data)
               while true do
                 var blank = false
-                try 
+                try
                   let l = reader.line()?
-                  h.log("received line: " + l)
-                  if l.size() == 0 then
+                  let l_size = l.size()
+                  h.log("received line: " + consume l)
+                  if l_size == 0 then
                     // Write the response.
                     nr = nr + 1
                     for r in response.values() do
