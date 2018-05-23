@@ -20,6 +20,7 @@ endif
 
 pony_targets = libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
+pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples test-ci docs-online
 
 
 .PHONY: $(pony_targets)
