@@ -1,16 +1,17 @@
+# Build llvm library and optionally clang and compiler-rt
+# Based on [yurydelendik wasmllvm](https://gist.github.com/yurydelendik/4eeff8248aeb14ce763e)
+
 ROOT_DIR=$(shell pwd)
-LLVM_WORKDIR=$(ROOT_DIR)/src/llvm
-LLVM_BUILDDIR=$(ROOT_DIR)/build/llvm
-#LLVM_PROJ=trunk
-LLVM_PROJ=tags/RELEASE_600/final
+LLVM_SRCDIR=$(ROOT_DIR)/src
+LLVM_BUILDDIR=$(ROOT_DIR)/build
+#LLVM_PROJ=tags/RELEASE_600/final
+LLVM_PROJ=tags/RELEASE_391/final
+LLVM_PROJ_LABEL=$(subst /,-,$(LLVM_PROJ))
 
-#BUILD_ENGINE="Unix Makefiles"
-BUILD_ENGINE=Ninja
+BUILD_ENGINE="Unix Makefiles"
 BUILD_TYPE=Release
-CPUS=1
-INSTALL_DIR=$(ROOT_DIR)/dist
-LINKER=gold
-
+LLVM_INSTALLDIR=$(ROOT_DIR)/dist
+LINKER=bfd
 
 ifeq ($(BUILD_ENGINE),Ninja)
 MAKE=ninja
@@ -20,66 +21,87 @@ MAKE=make
 MAKEFILE=Makefile
 endif
 
-build: build-llvm
+# This error, https://github.com/google/sanitizers/issues/822,
+# occurred when attempting to compile llvm and clang 3.9.1:
+#   src/llvm/projects/compiler-rt/lib/sanitizer_common/sanitizer_stoptheworld_linux_libcdep.cc: In function ‘int __sanitizer::TracerThread(void*)’:
+#   src/llvm/projects/compiler-rt/lib/sanitizer_common/sanitizer_stoptheworld_linux_libcdep.cc:276:22: error: aggregate ‘sigaltstack handler_stack’ has incomplete type and cannot be defined
+#      struct sigaltstack handler_stack;
+# So disallowing compiling of clang for llvm 3.9.1
+ifeq ($(MAKECMDGOALS),all)
+  ifneq (,$(findstring 391,$(LLVM_PROJ)))
+    $(error Cannot compile clang with llvm 3.9.1)
+  endif
+endif
 
-all: build-clang
+#.PHONY: xyz
+#xyz:
+#	@echo xyz
 
-update: update-llvm
+.PHONY: llvm
+llvm: built-llvm-$(LLVM_PROJ_LABEL)
 
-clean: clean-llvm
-	rm -rf $(INSTALL_DIR)
+.PHONY: all
+all: built-clang-$(LLVM_PROJ_LABEL)
 
-dist-clean: dist-clean-llvm
-	rm -rf build/ dist/ src/
+.PHONY: clean
+clean:
+	rm -rf $(LLVM_BUILDDIR) $(LLVM_INSTALLDIR)
+	rm -f built-* installed-*
 
-install: install-llvm
+.PHONY: distclean
+distclean: clean
+	rm -rf $(LLVM_SRCDIR)
 
-$(LLVM_WORKDIR)/.svn:
-	rm -rf $(LLVM_WORKDIR)
-	mkdir -p $(LLVM_WORKDIR)
-	svn co http://llvm.org/svn/llvm-project/llvm/$(LLVM_PROJ) $(LLVM_WORKDIR)
+.PHONY: install
+install: installed-$(LLVM_PROJ_LABEL)
 
-$(LLVM_WORKDIR)/tools/clang/.svn: $(LLVM_WORKDIR)/.svn
-	svn co http://llvm.org/svn/llvm-project/cfe/$(LLVM_PROJ) $(LLVM_WORKDIR)/tools/clang
-	svn co http://llvm.org/svn/llvm-project/compiler-rt/$(LLVM_PROJ) $(LLVM_WORKDIR)/projects/compiler-rt
-
-update-llvm:
-	mkdir -p $(LLVM_WORKDIR)
-	svn update $(LLVM_WORKDIR)
-
-update-clang: update-llvm
-	svn update $(LLVM_WORKDIR)/tools/clang
-	svn update $(LLVM_WORKDIR)/projects/compiler-rt
-
-$(LLVM_BUILDDIR)/$(MAKEFILE): $(LLVM_WORKDIR)/.svn
-	mkdir -p $(LLVM_BUILDDIR)
-
-
-generate-build:
-	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) -DLLVM_USE_LINKER=$(LINKER) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_WORKDIR)
-
-build-llvm: $(LLVM_BUILDDIR)/$(MAKEFILE) generate-build
-	$(MAKE) -C $(LLVM_BUILDDIR) -j $(CPUS)
-
-build-clang: $(LLVM_BUILDDIR)/$(MAKEFILE) $(LLVM_WORKDIR)/tools/clang/.svn generate-build
-	$(MAKE) -C $(LLVM_BUILDDIR) -j $(CPUS)
-
-clean-llvm:
-	rm -rf $(LLVM_BUILDDIR)
-
-dist-clean-llvm: clean-llvm
-	rm -rf $(LLVM_WORKDIR)
-
-install-llvm:
-	mkdir -p $(INSTALL_DIR)
+installed-$(LLVM_PROJ_LABEL):
+	@echo install
+	@mkdir -p $(LLVM_INSTALLDIR)
 	$(MAKE) -C $(LLVM_BUILDDIR) install
+	@touch installed-$(LLVM_PROJ_LABEL)
 
-#install-llvm-headers:
-#	$(MAKE) -C $(LLVM_BUILDDIR) install-llvm-headers
-#
-#install-clang-headers:
-#	$(MAKE) -C $(LLVM_BUILDDIR) install-clang-headers
+built-llvm-$(LLVM_PROJ_LABEL): $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ_LABEL)
+	@echo building llvm
+	$(MAKE) -C $(LLVM_BUILDDIR)
+	@touch built-llvm-$(LLVM_PROJ_LABEL)
 
+built-clang-$(LLVM_PROJ_LABEL): $(LLVM_BUILDDIR)/generated-clang-makefile-$(LLVM_PROJ_LABEL)
+	@echo building clang
+	$(MAKE) -C $(LLVM_BUILDDIR)
+	@touch built-clang-$(LLVM_PROJ_LABEL)
 
-.PHONY: build clean dist-clean install
-.PHONY: build-llvm dist-clean-llvm clean-llvm install-llvm
+$(LLVM_BUILDDIR)/made-builddir-$(LLVM_PROJ_LABEL):
+	@echo making $(LLVM_BUILDDIR)
+	rm -rf $(LLVM_BUILDDIR)
+	rm -f built-* installed-*
+	mkdir -p $(LLVM_BUILDDIR)
+	@touch $(LLVM_BUILDDIR)/made-builddir-$(LLVM_PROJ_LABEL)
+
+$(LLVM_SRCDIR)/made-srcdir-$(LLVM_PROJ_LABEL):
+	@echo making $(LLVM_SRCDIR)
+	rm -rf $(LLVM_SRCDIR)
+	rm -f built-* installed-*
+	mkdir -p $(LLVM_SRCDIR)
+	@touch $(LLVM_SRCDIR)/made-srcdir-$(LLVM_PROJ_LABEL)
+
+$(LLVM_SRCDIR)/got-llvm-$(LLVM_PROJ_LABEL): $(LLVM_SRCDIR)/made-srcdir-$(LLVM_PROJ_LABEL) $(LLVM_BUILDDIR)/made-builddir-$(LLVM_PROJ_LABEL)
+	@echo get llvm
+	svn co http://llvm.org/svn/llvm-project/llvm/$(LLVM_PROJ) $(LLVM_SRCDIR)
+	@touch $(LLVM_SRCDIR)/got-llvm-$(LLVM_PROJ_LABEL)
+
+$(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ_LABEL): $(LLVM_SRCDIR)/got-llvm-$(LLVM_PROJ_LABEL)
+	@echo generate llvm makefile
+	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) -DLLVM_USE_LINKER=$(LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
+	@touch $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ_LABEL)
+
+$(LLVM_SRCDIR)/tools/clang/got-clang-$(LLVM_PROJ_LABEL): $(LLVM_SRCDIR)/got-llvm-$(LLVM_PROJ_LABEL)
+	@echo get clang
+	svn co http://llvm.org/svn/llvm-project/cfe/$(LLVM_PROJ) $(LLVM_SRCDIR)/tools/clang
+	svn co http://llvm.org/svn/llvm-project/compiler-rt/$(LLVM_PROJ) $(LLVM_SRCDIR)/projects/compiler-rt
+	@touch $(LLVM_SRCDIR)/tools/clang/got-clang-$(LLVM_PROJ_LABEL)
+
+$(LLVM_BUILDDIR)/generated-clang-makefile-$(LLVM_PROJ_LABEL): $(LLVM_SRCDIR)/tools/clang/got-clang-$(LLVM_PROJ_LABEL)
+	@echo generate clang makefile
+	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) -DLLVM_USE_LINKER=$(LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
+	@touch $(LLVM_BUILDDIR)/generated-clang-makefile-$(LLVM_PROJ_LABEL)
