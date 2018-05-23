@@ -10,7 +10,7 @@ actor Main
       do
         env.out.print(file.path.path)
         for line in file.lines() do
-          env.out.print(line)
+          env.out.print(consume line)
         end
       end
     else
