@@ -95,6 +95,10 @@ class SlowDown is TCPConnectionNotify
     _out.print("Releasing backpressure!")
     Backpressure.release(_auth)
 
+  fun ref closed(connection: TCPConnection ref) =>
+    _out.print("Releasing backpressure if applied!")
+    Backpressure.release(_auth)
+
   fun ref connect_failed(conn: TCPConnection ref) =>
     @printf[I32]("connect_failed\n".cstring())
     None
