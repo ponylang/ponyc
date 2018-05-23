@@ -63,7 +63,7 @@ actor Timers
 
   be dispose() =>
     """
-    Dipose of this set of timing wheels.
+    Dispose of this set of timing wheels.
     """
     for wheel in _wheel.values() do
       wheel.clear()
