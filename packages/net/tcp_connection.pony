@@ -107,6 +107,12 @@ actor TCPConnection
       _out.print("Releasing backpressure!")
       Backpressure.release(_auth)
 
+    fun ref closed(connection: TCPConnection ref) =>
+      // if backpressure has been applied, make sure we release
+      // when shutting down
+      _out.print("Releasing backpressure if applied!")
+      Backpressure.release(_auth)
+
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
 
