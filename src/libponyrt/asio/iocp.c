@@ -6,6 +6,7 @@
 #ifdef ASIO_USE_IOCP
 
 #include "../actor/messageq.h"
+#include "../gc/cycle.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
@@ -119,6 +120,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   HANDLE handles[2];
   handles[0] = b->wakeup;
   handles[1] = GetStdHandle(STD_INPUT_HANDLE);
+
+  asio_event_t* cd_timer_event = ponyint_cycle_create_timer();
 
   // handleCount indicates:
   // 1 => only listen on queue wake event
@@ -241,6 +244,20 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       default:
         break;
     }
+  }
+
+  // destory cycle detector timer event
+  if(cd_timer_event)
+  {
+    CancelWaitableTimer(cd_timer_event->timer);
+    CloseHandle(cd_timer_event->timer);
+
+    // can't use pony_asio_event_destroy because it tries to
+    // trace the event for GC purposes and that is not a
+    // good idea when the actor is the cycle detector
+    POOL_FREE(asio_event_t, cd_timer_event);
+
+    cd_timer_event = NULL;
   }
 
   CloseHandle(b->wakeup);

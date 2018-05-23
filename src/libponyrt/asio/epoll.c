@@ -5,6 +5,7 @@
 #ifdef ASIO_USE_EPOLL
 
 #include "../actor/messageq.h"
+#include "../gc/cycle.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
@@ -216,6 +217,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pthread_sigmask(SIG_BLOCK, &set, NULL);
 #endif
 
+  asio_event_t* cd_timer_event = ponyint_cycle_create_timer();
+
   while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
   {
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
@@ -286,6 +289,23 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     }
 
     handle_queue(b);
+  }
+
+  // destory cycle detector timer event
+  if(cd_timer_event)
+  {
+    if(cd_timer_event->fd != -1)
+    {
+      close(cd_timer_event->fd);
+      cd_timer_event->fd = -1;
+    }
+
+    // can't use pony_asio_event_destroy because it tries to
+    // trace the event for GC purposes and that is not a
+    // good idea when the actor is the cycle detector
+    POOL_FREE(asio_event_t, cd_timer_event);
+
+    cd_timer_event = NULL;
   }
 
   close(b->epfd);
