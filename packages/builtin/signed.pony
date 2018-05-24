@@ -6,6 +6,7 @@ primitive I8 is _SignedInteger[I8, U8]
   new max_value() => 0x7F
 
   fun abs(): U8 => if this < 0 then (-this).u8() else this.u8() end
+  fun bit_reverse(): I8 => @"llvm.bitreverse.i8"[I8](this)
   fun bswap(): I8 => this
   fun popcount(): U8 => @"llvm.ctpop.i8"[U8](this)
   fun clz(): U8 => @"llvm.ctlz.i8"[U8](this, false)
@@ -47,6 +48,7 @@ primitive I16 is _SignedInteger[I16, U16]
   new max_value() => 0x7FFF
 
   fun abs(): U16 => if this < 0 then (-this).u16() else this.u16() end
+  fun bit_reverse(): I16 => @"llvm.bitreverse.i16"[I16](this)
   fun bswap(): I16 => @"llvm.bswap.i16"[I16](this)
   fun popcount(): U16 => @"llvm.ctpop.i16"[U16](this)
   fun clz(): U16 => @"llvm.ctlz.i16"[U16](this, false)
@@ -88,6 +90,7 @@ primitive I32 is _SignedInteger[I32, U32]
   new max_value() => 0x7FFF_FFFF
 
   fun abs(): U32 => if this < 0 then (-this).u32() else this.u32() end
+  fun bit_reverse(): I32 => @"llvm.bitreverse.i32"[I32](this)
   fun bswap(): I32 => @"llvm.bswap.i32"[I32](this)
   fun popcount(): U32 => @"llvm.ctpop.i32"[U32](this)
   fun clz(): U32 => @"llvm.ctlz.i32"[U32](this, false)
@@ -129,6 +132,7 @@ primitive I64 is _SignedInteger[I64, U64]
   new max_value() => 0x7FFF_FFFF_FFFF_FFFF
 
   fun abs(): U64 => if this < 0 then (-this).u64() else this.u64() end
+  fun bit_reverse(): I64 => @"llvm.bitreverse.i64"[I64](this)
   fun bswap(): I64 => @"llvm.bswap.i64"[I64](this)
   fun popcount(): U64 => @"llvm.ctpop.i64"[U64](this)
   fun clz(): U64 => @"llvm.ctlz.i64"[U64](this, false)
@@ -183,6 +187,13 @@ primitive ILong is _SignedInteger[ILong, ULong]
     end
 
   fun abs(): ULong => if this < 0 then (-this).ulong() else this.ulong() end
+
+  fun bit_reverse(): ILong =>
+    ifdef ilp32 or llp64 then
+      @"llvm.bitreverse.i32"[ILong](this)
+    else
+      @"llvm.bitreverse.i64"[ILong](this)
+    end
 
   fun bswap(): ILong =>
     ifdef ilp32 or llp64 then
@@ -272,6 +283,13 @@ primitive ISize is _SignedInteger[ISize, USize]
 
   fun abs(): USize => if this < 0 then (-this).usize() else this.usize() end
 
+  fun bit_reverse(): ISize =>
+    ifdef ilp32 then
+      @"llvm.bitreverse.i32"[ISize](this)
+    else
+      @"llvm.bitreverse.i64"[ISize](this)
+    end
+
   fun bswap(): ISize =>
     ifdef ilp32 then
       @"llvm.bswap.i32"[ISize](this)
@@ -347,6 +365,7 @@ primitive I128 is _SignedInteger[I128, U128]
   new max_value() => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun abs(): U128 => if this < 0 then (-this).u128() else this.u128() end
+  fun bit_reverse(): I128 => @"llvm.bitreverse.i128"[I128](this)
   fun bswap(): I128 => @"llvm.bswap.i128"[I128](this)
   fun popcount(): U128 => @"llvm.ctpop.i128"[U128](this)
   fun clz(): U128 => @"llvm.ctlz.i128"[U128](this, false)
